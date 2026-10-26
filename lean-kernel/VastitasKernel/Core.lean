@@ -9,16 +9,22 @@ structure Span where
   column : Nat := 1
   deriving Repr, Inhabited
 
+structure DiagnosticNote where
+  message : String
+  span : Span := {}
+  deriving Repr, Inhabited
+
 structure Diagnostic where
   code : String
   message : String
   span : Span := {}
+  notes : List DiagnosticNote := []
   deriving Repr, Inhabited
 
 inductive BaseKind where
   | qq
   | cinfReal
-  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
+  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable, Inhabited
 
 def BaseKind.ringName : BaseKind → String
   | .qq => "QQ"
@@ -31,7 +37,7 @@ def BaseKind.settingName : BaseKind → String
 inductive ObjectRef where
   | base (base : BaseKind)
   | local (base : BaseKind) (id : Nat)
-  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
+  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable, Inhabited
 
 def ObjectRef.baseKind : ObjectRef → BaseKind
   | .base b | .local b _ => b

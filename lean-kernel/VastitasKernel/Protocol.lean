@@ -95,7 +95,9 @@ def spanJson (s : Span) : Json := Json.mkObj [
   ("line", toJson s.line), ("column", toJson s.column)]
 
 def diagnosticJson (d : Diagnostic) : Json := Json.mkObj [
-  ("code", toJson d.code), ("message", toJson d.message), ("span", spanJson d.span)]
+  ("code", toJson d.code), ("message", toJson d.message), ("span", spanJson d.span),
+  ("notes", toJson (d.notes.map fun note => Json.mkObj [
+    ("message", toJson note.message), ("span", spanJson note.span)]))]
 
 def failureJson (d : Diagnostic) : Json := Json.mkObj [
   ("version", toJson (1 : Nat)), ("ok", toJson false),

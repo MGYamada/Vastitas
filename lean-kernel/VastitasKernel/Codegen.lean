@@ -41,6 +41,7 @@ private def renderBuiltin (name : String) (base : Option BaseKind)
   | "apply", _, [f, p] =>
       .ok (application "VastitasKernel.Runtime.applyMap" [f, p])
   | "dimension", _, [x] => .ok s!"({x}).dimension"
+  | "int", _, [n] => .ok (application "Int.ofNat" [n])
   | _, _, _ => .error "invalid builtin in checked term"
 
 private def renderUnary (op operand : String) : Except String String :=

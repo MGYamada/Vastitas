@@ -18,9 +18,11 @@ const BUILTINS: &[&str] = &[
     "compose",
     "apply",
     "dimension",
+    "int",
 ];
 const KEYWORDS: &[&str] = &[
-    "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false",
+    "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
+    "loop", "mut",
 ];
 const TYPES: &[&str] = &[
     "Nat",
@@ -53,6 +55,15 @@ fn reserved(name: &str) -> bool {
         || KEYWORDS.contains(&name)
         || TYPES.contains(&name)
         || matches!(name, "QQ" | "CInfReal")
+}
+
+fn unsupported_keyword(name: &str) -> Option<&'static str> {
+    match name {
+        "return" => Some("Stage 0 has no `return`; the final expression of a block is its result"),
+        "while" | "for" | "loop" => Some("loops are not supported in Stage 0"),
+        "mut" => Some("mutable bindings are not supported in Stage 0"),
+        _ => None,
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -127,6 +138,41 @@ impl<'a> Lexer<'a> {
         Some(ch)
     }
 
+    fn float_tail(&mut self) {
+        if self.peek() == Some('.') {
+            self.advance();
+            while self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                self.advance();
+            }
+        }
+        if matches!(self.peek(), Some('e' | 'E')) {
+            self.advance();
+            if matches!(self.peek(), Some('+' | '-')) {
+                self.advance();
+            }
+            while self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                self.advance();
+            }
+        }
+        if self.source[self.offset..].starts_with("f32")
+            || self.source[self.offset..].starts_with("f64")
+        {
+            for _ in 0..3 {
+                self.advance();
+            }
+        }
+    }
+
+    fn reject_float(&mut self, mut span: Span) -> Diagnostic {
+        self.float_tail();
+        span.end = self.offset;
+        diagnostic(
+            "E_UNSUPPORTED",
+            "floating-point literals are not supported in Stage 0; use an exact Nat or Int literal",
+            span,
+        )
+    }
+
     fn tokenize(mut self) -> Result<Vec<Token>, Diagnostic> {
         let mut tokens = Vec::new();
         while let Some(ch) = self.peek() {
@@ -148,15 +194,42 @@ impl<'a> Lexer<'a> {
                 {
                     self.advance();
                 }
-                TokenKind::Name(self.source[span.start..self.offset].into())
+                let name = &self.source[span.start..self.offset];
+                if let Some(message) = unsupported_keyword(name) {
+                    span.end = self.offset;
+                    return Err(diagnostic("E_UNSUPPORTED", message, span));
+                }
+                TokenKind::Name(name.into())
             } else if ch.is_ascii_digit() {
                 while self.peek().is_some_and(|c| c.is_ascii_digit()) {
                     self.advance();
                 }
+                let tail = &self.source[self.offset..];
+                if (tail.starts_with('.') && !tail.starts_with(".."))
+                    || matches!(self.peek(), Some('e' | 'E'))
+                    || tail.starts_with("f32")
+                    || tail.starts_with("f64")
+                {
+                    return Err(self.reject_float(span));
+                }
                 TokenKind::Number(self.source[span.start..self.offset].into())
             } else {
                 let tail = &self.source[self.offset..];
-                if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||"]
+                if ch == '.' && tail.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
+                    return Err(self.reject_float(span));
+                } else if ch == '/' || ch == '%' {
+                    self.advance();
+                    span.end = self.offset;
+                    return Err(diagnostic(
+                        "E_UNSUPPORTED",
+                        if ch == '/' {
+                            "division is not supported in Stage 0"
+                        } else {
+                            "remainder is not supported in Stage 0"
+                        },
+                        span,
+                    ));
+                } else if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||"]
                     .into_iter()
                     .find(|op| tail.starts_with(op))
                 {
@@ -564,7 +637,19 @@ impl Parser {
                 let condition = Box::new(self.expression(0)?);
                 let then_branch = self.block()?;
                 self.expect("else")?;
-                let else_branch = self.block()?;
+                let else_branch = if self.peek().is("if") {
+                    // Parse just the conditional prefix with the usual depth
+                    // guard. Operators after its final block still belong to
+                    // the surrounding expression, not the synthetic block.
+                    let result = self.expression(u8::MAX)?;
+                    Block {
+                        span: result.span,
+                        statements: Vec::new(),
+                        result: Box::new(result),
+                    }
+                } else {
+                    self.block()?
+                };
                 ExprKind::If {
                     condition,
                     then_branch,
@@ -1404,6 +1489,101 @@ fn leaf() -> Int { 0 }";
             parse("fn main() -> Int { let f = fn(x) { x }; 0 }", "bad.vast").unwrap_err()[0].code,
             "E_UNSUPPORTED"
         );
+    }
+
+    #[test]
+    fn recognizes_explicit_integer_conversion_as_a_reserved_builtin() {
+        parse("fn convert(n: Nat) -> Int { int(n) }", "conversion.vast").unwrap();
+        let errors = parse("fn int() -> Int { 0 }", "reserved.vast").unwrap_err();
+        assert_eq!(errors[0].code, "E_RESERVED");
+    }
+
+    #[test]
+    fn else_if_uses_nested_blocks_and_preserves_operator_binding_and_spans() {
+        let source = "fn f() -> Int { if false { 1 } else if true { 2 } else { 3 } + 4 }";
+        let module = parse(source, "else-if.vast").unwrap();
+        let ExprKind::Binary { op, left, .. } = &module.functions[0].body.result.kind else {
+            panic!("addition must surround the entire conditional");
+        };
+        assert_eq!(op, "+");
+        let ExprKind::If { else_branch, .. } = &left.kind else {
+            panic!("expected outer conditional");
+        };
+        assert!(else_branch.statements.is_empty());
+        assert!(matches!(else_branch.result.kind, ExprKind::If { .. }));
+        assert_eq!(
+            &source[else_branch.span.start..else_branch.span.end],
+            "if true { 2 } else { 3 }"
+        );
+        assert_eq!(else_branch.span, else_branch.result.span);
+        serde_json::to_vec(&module).unwrap();
+    }
+
+    #[test]
+    fn else_if_keeps_scope_and_nesting_limits() {
+        let source = "fn f() -> Int { if false { let x = 1; x } else if true { x } else { 0 } }";
+        let errors = parse(source, "scope.vast").unwrap_err();
+        assert_eq!(errors[0].code, "E_NAME");
+        assert!(errors[0].message.contains("unknown value `x`"));
+        let source = format!(
+            "fn f() -> Int {{ {}{{ 1 }} }}",
+            "if false { 0 } else ".repeat(512)
+        );
+        let errors = parse(&source, "depth.vast").unwrap_err();
+        assert_eq!(errors[0].code, "E_LIMIT");
+    }
+
+    #[test]
+    fn unsupported_arithmetic_and_float_literals_have_precise_spans() {
+        for (expression, fragment, message) in [
+            ("7 / 2", "/", "division"),
+            ("7 % 2", "%", "remainder"),
+            ("1.25", "1.25", "floating-point"),
+            ("1.", "1.", "floating-point"),
+            (".25", ".25", "floating-point"),
+            ("1e10", "1e10", "floating-point"),
+            ("2E-3", "2E-3", "floating-point"),
+            ("1.25e+2f64", "1.25e+2f64", "floating-point"),
+            ("2f32", "2f32", "floating-point"),
+            ("-0.5", "0.5", "floating-point"),
+        ] {
+            let prefix = "// 数学\nfn f() -> Int {　";
+            let source = format!("{prefix}{expression} }}");
+            let errors = parse(&source, "unsupported.vast").unwrap_err();
+            let error = &errors[0];
+            assert_eq!(error.code, "E_UNSUPPORTED", "{expression}");
+            assert!(error.message.contains(message));
+            assert_eq!(&source[error.span.start..error.span.end], fragment);
+            assert_eq!(error.span.line, 2);
+            assert_eq!(
+                error.span.column,
+                "fn f() -> Int {　".chars().count() + expression.find(fragment).unwrap() + 1
+            );
+        }
+        parse(
+            "// return while for loop mut / % 1.25\nfn f() -> Int { 125 // .5 / 2\n }",
+            "comments.vast",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn unsupported_control_keywords_are_reserved_and_explained() {
+        for (word, explanation) in [
+            ("return", "final expression of a block"),
+            ("while", "loops"),
+            ("for", "loops"),
+            ("loop", "loops"),
+            ("mut", "mutable bindings"),
+        ] {
+            for body in [format!("{word} 1;"), format!("let {word} = 1; 0")] {
+                let source = format!("fn f() -> Int {{ {body} }}");
+                let errors = parse(&source, "unsupported.vast").unwrap_err();
+                assert_eq!(errors[0].code, "E_UNSUPPORTED");
+                assert!(errors[0].message.contains(explanation));
+                assert_eq!(&source[errors[0].span.start..errors[0].span.end], word);
+            }
+        }
     }
 
     #[test]

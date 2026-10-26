@@ -20,8 +20,9 @@ kernel depends only on the Lean distribution.
   is not used to establish nominal identity.
 - The accepted-module boundary carries a checked proposition that all type
   annotations have compatible bases and every function body's annotated result
-  equals its declared return type. The theorem about successful module checking
-  exposes exactly this postcondition.
+  equals its declared return type. `certifiedModule_annotation_property` exposes
+  the property carried by this subtype; it is not a soundness theorem about
+  `checkModule` or a relation between raw input and elaborated output.
 
 These results use actual implementation definitions, rather than a copied
 toy checker. They contain no `sorry`, `admit`, or project-specific unproved

@@ -20,9 +20,9 @@ theorem certifyModule_sound (module : CheckedModule) (certified : CertifiedModul
     exact ⟨rfl, invariant⟩
   · contradiction
 
-theorem checkModule_returns_type_certificate (raw : RawModule) (requireMain : Bool)
-    (certified : CertifiedModule)
-    (_accepted : checkModule raw requireMain = .ok certified) :
+/-- The certified subtype carries its annotation postcondition. This does not
+prove that elaboration preserves source typing or relates the result to raw IR. -/
+theorem certifiedModule_annotation_property (certified : CertifiedModule) :
     certified.val.TypesWellFormed := certified.property
 
 theorem accepted_function_result (certified : CertifiedModule) (function : CheckedFunction)

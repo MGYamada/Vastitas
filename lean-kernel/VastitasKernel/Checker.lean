@@ -16,6 +16,8 @@ private structure Signature where
   result : Ty
   deriving Inhabited
 
+private abbrev Signatures := Std.HashMap String Signature
+
 private structure Result where
   term : Term
   objectRef : Option ObjectRef := none
@@ -110,10 +112,14 @@ private def liftRule (rule : Except String Ty) (span : Span) (details : String) 
   | .error e => fail span "E_ENDPOINT" s!"{e}: {details}"
 
 private def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit := do
-  match checkScope (ctx.filterMap (·.objectRef)) r.term.ty with
+  let allowed := ctx.flatMap fun binding => binding.objectRef.toList ++ binding.ty.refs
+  match checkScope allowed r.term.ty with
   | .ok () => pure ()
   | .error ref =>
-    fail span "E_ESCAPE" s!"{r.term.ty.label} refers to local object {ref.label}; return its object and point together with pack"
+    let hint := match r.term.ty with
+      | .point .. => "return its object and point together with pack"
+      | _ => "keep the morphism's endpoint objects in the enclosing scope"
+    fail span "E_ESCAPE" s!"{r.term.ty.label} refers to local object {ref.label}; {hint}"
 
 private def arity (name : String) (args : List RawExpr) (n : Nat) (span : Span) : CheckM Unit := do
   unless args.length == n do fail span "E_ARITY" s!"{name} expects {n} arguments, found {args.length}"
@@ -130,8 +136,11 @@ private def literalLike : RawExpr → Bool
   | .unary "-" (.integer ..) _ => true
   | _ => false
 
+private def blockLiteralLike : RawBlock → Bool
+  | .mk _ result _ => literalLike result
+
 mutual
-  private def checkExpr : Nat → List Signature → Context → RawExpr → Option Ty → CheckM Result
+  private def checkExpr : Nat → Signatures → Context → RawExpr → Option Ty → CheckM Result
     | 0, _, _, e, _ => fail e.span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, e, expected => do
       let span := e.span
@@ -182,8 +191,14 @@ mutual
           pure { term := .binary op a.term b.term ty }
       | .ite condition yes no _ => do
         let condition ← checkExpr fuel signatures ctx condition (some .bool)
-        let yes ← checkBlock fuel signatures ctx yes expected
-        let no ← checkBlock fuel signatures ctx no (some yes.term.ty)
+        let (yes, no) ← if expected.isNone && blockLiteralLike yes && !blockLiteralLike no then do
+          let no ← checkBlock fuel signatures ctx no none
+          let yes ← checkBlock fuel signatures ctx yes (some no.term.ty)
+          pure (yes, no)
+        else do
+          let yes ← checkBlock fuel signatures ctx yes expected
+          let no ← checkBlock fuel signatures ctx no (some yes.term.ty)
+          pure (yes, no)
         let objectRef ← match yes.term.ty with
           | .object base =>
             if yes.objectRef == no.objectRef then pure yes.objectRef
@@ -200,7 +215,7 @@ mutual
       | .call name args _ => checkCall fuel signatures ctx name args span
       expectedResult expected result span
 
-  private def checkCall : Nat → List Signature → Context → String → List RawExpr → Span → CheckM Result
+  private def checkCall : Nat → Signatures → Context → String → List RawExpr → Span → CheckM Result
     | 0, _, _, _, _, span => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, name, args, span => do
       match name with
@@ -229,44 +244,44 @@ mutual
           span s!"{a.term.ty.label} and {b.term.ty.label}"
         pure { term := .builtin name none [a.term, b.term] ty }
       | _ =>
-        let some signature := signatures.find? (fun s => s.raw.name == name)
+        let some signature := signatures[name]?
           | fail span "E_UNBOUND" s!"unknown function '{name}'"
         arity name args signature.params.length span
-        let (terms, substitutions) ← checkArguments fuel signatures ctx signature.params args []
+        let (terms, substitutions) ← checkArguments fuel signatures ctx signature.params args [] span
         let ty := signature.result.rename substitutions
         let objectRef ← match ty with
           | .object base => pure (some (.local base (← fresh)))
           | _ => pure none
         pure { term := .call signature.id terms ty, objectRef }
 
-  private def checkArguments : Nat → List Signature → Context → List Binding → List RawExpr →
-      List (ObjectRef × ObjectRef) → CheckM (List Term × List (ObjectRef × ObjectRef))
-    | 0, _, _, _, _, _ => fail {} "E_LIMIT" "too many function arguments"
-    | _ + 1, _, _, [], [], substitutions => pure ([], substitutions)
-    | fuel + 1, signatures, ctx, param :: params, arg :: args, substitutions => do
+  private def checkArguments : Nat → Signatures → Context → List Binding → List RawExpr →
+      List (ObjectRef × ObjectRef) → Span → CheckM (List Term × List (ObjectRef × ObjectRef))
+    | 0, _, _, _, _, _, span => fail span "E_LIMIT" "too many function arguments"
+    | _ + 1, _, _, [], [], substitutions, _ => pure ([], substitutions)
+    | fuel + 1, signatures, ctx, param :: params, arg :: args, substitutions, span => do
       let value ← checkExpr fuel signatures ctx arg (some (param.ty.rename substitutions))
       let substitutions ← match param.objectRef with
         | some original => do
           let target ← objectOf value arg.span
           pure ((original, target) :: substitutions)
         | none => pure substitutions
-      let (rest, substitutions) ← checkArguments fuel signatures ctx params args substitutions
+      let (rest, substitutions) ← checkArguments fuel signatures ctx params args substitutions span
       pure (value.term :: rest, substitutions)
-    | _, _, _, _, _, _ => fail {} "E_ARITY" "argument count differs from function signature"
+    | _, _, _, _, _, _, span => fail span "E_ARITY" "argument count differs from function signature"
 
-  private def checkBlock : Nat → List Signature → Context → RawBlock → Option Ty → CheckM Result
+  private def checkBlock : Nat → Signatures → Context → RawBlock → Option Ty → CheckM Result
     | 0, _, _, .mk _ _ span, _ => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, .mk statements result span, expected => do
       let checked ← checkStatements fuel signatures ctx statements result expected
       checkEscape ctx checked span
       pure checked
 
-  private def checkStatements : Nat → List Signature → Context → List RawStmt → RawExpr → Option Ty → CheckM Result
+  private def checkStatements : Nat → Signatures → Context → List RawStmt → RawExpr → Option Ty → CheckM Result
     | 0, _, _, _, result, _ => fail result.span "E_LIMIT" "too many statements in a block"
     | fuel + 1, signatures, ctx, [], result, expected => checkExpr fuel signatures ctx result expected
     | fuel + 1, signatures, ctx, .letE name annotation value span :: rest, result, expected => do
       checkNewBinding ctx name span
-      if signatures.any (fun f => f.raw.name == name) then
+      if signatures.contains name then
         fail span "E_DUPLICATE" s!"binding '{name}' conflicts with a function name"
       let annotation ← annotation.mapM (fun ty => resolveType ctx ty span)
       let value ← checkExpr fuel signatures ctx value annotation
@@ -277,7 +292,7 @@ mutual
     | fuel + 1, signatures, ctx, .unpack value scheme point span :: rest, result, expected => do
       checkNewBinding ctx scheme span
       checkNewBinding ctx point span
-      if signatures.any (fun f => f.raw.name == scheme || f.raw.name == point) then
+      if signatures.contains scheme || signatures.contains point then
         fail span "E_DUPLICATE" "unpack binding conflicts with a function name"
       if scheme == point then fail span "E_DUPLICATE" "unpack needs two distinct binding names"
       let value ← checkExpr fuel signatures ctx value none
@@ -307,8 +322,10 @@ private def prepareSignature (raw : RawFunction) : CheckM Signature := do
     fail raw.span "E_MAIN" "entry point must have signature fn main() -> Int"
   pure { id, raw, params, result }
 
-private def checkFunction (signatures : List Signature) (signature : Signature) : CheckM CheckedFunction := do
+private def checkFunction (signatures : Signatures) (signature : Signature) : CheckM CheckedFunction := do
   let body ← checkBlock 4096 signatures signature.params signature.raw.body (some signature.result)
+  if body.term.generatedLetCount > generatedLetLimit then
+    fail signature.raw.span "E_LIMIT" s!"function exceeds the generated-let budget of {generatedLetLimit}; let costs 1 and unpack costs 3"
   pure {
     id := signature.id
     name := signature.raw.name
@@ -327,31 +344,79 @@ private def calls : Term → List Nat
   | .letE _ value body | .unpack _ _ value body => calls value ++ calls body
   | _ => []
 
-private def sortFunctions : Nat → List CheckedFunction → List CheckedFunction → CheckM (List CheckedFunction)
-  | 0, [], done => pure done
-  | 0, remaining, _ => fail (remaining.headD default).span "E_RECURSION" s!"recursive dependency involving {(remaining.map (·.name))}; Stage 0 requires an acyclic call graph"
-  | fuel + 1, remaining, done => do
-    if remaining.isEmpty then return done
-    let ids := done.map (·.id)
-    let ready := remaining.filter (fun f => (calls f.body).all (fun id => ids.contains id))
-    if ready.isEmpty then
-      fail (remaining.headD default).span "E_RECURSION" s!"recursive dependency involving {(remaining.map (·.name))}; Stage 0 requires an acyclic call graph"
-    let readyIds := ready.map (·.id)
-    sortFunctions fuel (remaining.filter (fun f => !readyIds.contains f.id)) (done ++ ready)
+/-- A residual Kahn graph has an outgoing dependency at every remaining vertex.
+Following those edges eventually repeats a vertex; only the repeated suffix is
+the cycle, excluding callers that merely depend on it. -/
+private def dependencyCycle (dependencies : Array (Array Nat)) (waiting : Array Nat)
+    (start : Nat) : CheckM (List Nat) := do
+  let mut positions : Std.HashMap Nat Nat := {}
+  let mut path : Array Nat := #[]
+  let mut current := start
+  for _ in [:dependencies.size + 1] do
+    if let some offset := positions[current]? then
+      return path.toList.drop offset ++ [current]
+    positions := positions.insert current path.size
+    path := path.push current
+    let some next := dependencies[current]!.find? (fun i => waiting[i]! > 0)
+      | fail {} "E_INTERNAL_GRAPH" "remaining function has no unresolved dependency"
+    current := next
+  fail {} "E_INTERNAL_GRAPH" "failed to find a cycle in the remaining call graph"
+
+private def sortFunctions (functions : List CheckedFunction) : CheckM (List CheckedFunction) := do
+  let functions := functions.toArray
+  let mut positions : Std.HashMap Nat Nat := {}
+  for i in [:functions.size] do
+    positions := positions.insert functions[i]!.id i
+  let mut dependencies : Array (Array Nat) := Array.replicate functions.size #[]
+  let mut dependents : Array (Array Nat) := Array.replicate functions.size #[]
+  let mut waiting := Array.replicate functions.size 0
+  for i in [:functions.size] do
+    let mut seen : Std.HashSet Nat := {}
+    for id in calls functions[i]!.body do
+      let some dependency := positions[id]?
+        | fail functions[i]!.span "E_INTERNAL_GRAPH" s!"unknown checked function ID {id}"
+      unless seen.contains dependency do
+        seen := seen.insert dependency
+        dependencies := dependencies.modify i (·.push dependency)
+        dependents := dependents.modify dependency (·.push i)
+    waiting := waiting.set! i dependencies[i]!.size
+  -- All queue insertions follow source/edge order, never hash-map iteration.
+  let mut ready : Array Nat := #[]
+  for i in [:functions.size] do
+    if waiting[i]! == 0 then ready := ready.push i
+  let mut cursor := 0
+  let mut sorted : Array CheckedFunction := #[]
+  while cursor < ready.size do
+    let i := ready[cursor]!
+    cursor := cursor + 1
+    sorted := sorted.push functions[i]!
+    for dependent in dependents[i]! do
+      waiting := waiting.modify dependent (· - 1)
+      if waiting[dependent]! == 0 then ready := ready.push dependent
+  if sorted.size != functions.size then
+    let some start := (List.range functions.size).find? (fun i => waiting[i]! > 0)
+      | fail {} "E_INTERNAL_GRAPH" "missing unresolved function"
+    let cycle ← dependencyCycle dependencies waiting start
+    let representative := functions[cycle.headD start]!
+    let names := cycle.map (fun i => functions[i]!.name)
+    fail representative.span "E_RECURSION"
+      s!"recursive call cycle {String.intercalate " → " names} is not supported in Stage 0"
+  pure sorted.toList
 
 private def checkModuleImpl (raw : RawModule) (requireMain : Bool) : CheckM CheckedModule := do
   unless raw.version == 1 do fail {} "E_PROTOCOL" "unsupported IR protocol version; expected 1"
-  let mut names : List String := []
+  let mut names : Std.HashSet String := {}
   for f in raw.functions do
     if names.contains f.name then fail f.span "E_DUPLICATE" s!"duplicate function '{f.name}'"
-    names := f.name :: names
+    names := names.insert f.name
   for f in raw.functions do
     for p in f.params do
       if names.contains p.name then
         fail p.span "E_DUPLICATE" s!"parameter '{p.name}' conflicts with a function name"
-  let signatures ← raw.functions.mapM prepareSignature
-  let checked ← signatures.mapM (checkFunction signatures)
-  let sorted ← sortFunctions (checked.length + 1) checked []
+  let signatureList ← raw.functions.mapM prepareSignature
+  let signatures : Signatures := signatureList.foldl (fun table s => table.insert s.raw.name s) {}
+  let checked ← signatureList.mapM (checkFunction signatures)
+  let sorted ← sortFunctions checked
   let mainId := (sorted.find? (fun f => f.name == "main")).map (·.id)
   if requireMain && mainId.isNone then fail {} "E_MAIN" "build requires fn main() -> Int"
   pure { functions := sorted, mainId }

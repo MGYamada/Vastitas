@@ -1,6 +1,7 @@
 import VastitasKernel.Protocol
 import VastitasKernel.Checker
 import VastitasKernel.Codegen
+import VastitasKernel.Runtime
 
 open VastitasKernel
 

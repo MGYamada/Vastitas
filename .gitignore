@@ -1,6 +1,5 @@
 /target/
 **/.lake/
-/.vastitas-build/
 .DS_Store
 *.olean
 *.ilean

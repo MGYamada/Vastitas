@@ -52,7 +52,9 @@ Trailing commas are accepted in argument lists and package fields.
 | `Unit` | `()`, empty blocks, equality |
 
 Comparisons are `==`, `!=`, `<`, `<=`, `>`, `>=`. Ordering is integer-only.
-Precedence, from low to high, is `||`, `&&`, equality, ordering, `+`/`-`, `*`,
+Comparisons cannot be chained without parentheses: write `a < b && b < c`,
+or explicitly parenthesize a comparison whose Boolean result is compared again.
+Precedence, from low to high, is `||`, `&&`, comparisons, `+`/`-`, `*`,
 then unary operators. Parentheses override precedence. `Nat` subtraction
 saturates at zero. There are no implicit conversions between `Nat` and `Int`.
 An integer literal defaults to `Int` unless an expected `Nat` type determines
@@ -111,13 +113,27 @@ temporary Lake project, and builds a host executable. User identifiers never
 become raw Lean code. The output is installed atomically only after successful
 native compilation; a failed compile preserves an existing output file.
 
-The backend must already be built. A missing backend, protocol mismatch,
+The backend and its native runtime artifacts must already be built with
+`lake -d lean-kernel build vastitas-kernel`. A missing backend, protocol mismatch,
 semantic error, or failed native build is an error; there is no frontend-only
 fallback. The frontend bounds recursive parsing at 64 levels and syntax trees
 at 128 nodes of depth, including left-associated operator chains. The protocol
-decoder allows up to 512 recursive decoding steps and the semantic checker up
-to 4096 recursive checking steps. Excess depth produces a diagnostic. These
-are defensive implementation bounds, not mathematical limits on Vastitas.
+decoder allows up to 512 recursive decoding steps. The semantic checker starts
+each function with 4096 units of fuel, consumed along recursive checking paths
+by expression nesting, statements, and call arguments; this is not solely a
+syntax nesting limit or an exact statement count.
+
+Both `check` and `build` also enforce at most 4096 generated Lean `let` bindings
+per function, including all branches and nested expressions. A source `let`
+contributes one and `unpack` contributes three. Exceeding either checker budget
+reports `E_LIMIT`. Generated Lean uses `maxRecDepth 32768` and
+`maxHeartbeats 2000000`. These are tested defensive implementation limits, not
+mathematical restrictions or a guarantee against environmental build failures.
+
+When `VASTITAS_KERNEL` explicitly selects an executable, `check` needs no
+kernel package directory. Native builds still require `VASTITAS_KERNEL_ROOT`
+(or this checkout's default package), and copy that package's `lean-toolchain`
+into the temporary Lake project.
 
 Unimplemented syntax or operations are rejected. Modules/imports, generics
 beyond the listed indexed types, dispatch, ownership of editable functions,

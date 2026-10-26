@@ -1,10 +1,11 @@
 //! End-to-end tests require `lake -d lean-kernel build vastitas-kernel` first.
 use serde_json::{Value, json};
 use std::fs;
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 static SERIAL: AtomicU64 = AtomicU64::new(0);
 
@@ -53,21 +54,22 @@ fn check(source: &str) -> Output {
         .output()
         .unwrap()
 }
-fn reject(source: &str, expected: &str) {
+fn reject(source: &str, expected: &str) -> String {
     let result = check(source);
     assert!(
         !result.status.success(),
         "accepted invalid source: {source}"
     );
-    let message = String::from_utf8_lossy(&result.stderr);
+    let message = String::from_utf8_lossy(&result.stderr).into_owned();
     assert!(
-        message.contains(expected),
+        message.contains(&format!(": {expected}: ")),
         "expected {expected:?}: {message}"
     );
     assert!(
         message.contains("input file.vast:"),
         "missing source location: {message}"
     );
+    message
 }
 fn native(source: &str, expected: &str) {
     let scratch = Scratch::new();
@@ -101,28 +103,58 @@ fn kernel(request: Value, mode: &str) -> Value {
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(serde_json::to_string(&request).unwrap().as_bytes())
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
+    let input = serde_json::to_vec(&request).unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    let writer = std::thread::spawn(move || stdin.write_all(&input));
+    let mut stdout = child.stdout.take().unwrap();
+    let reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout.read_to_end(&mut bytes).unwrap();
+        bytes
+    });
+    let mut stderr = child.stderr.take().unwrap();
+    let errors = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stderr.read_to_end(&mut bytes).unwrap();
+        bytes
+    });
+    let deadline = Instant::now() + Duration::from_secs(60);
+    let timed_out = loop {
+        if child.try_wait().unwrap().is_some() {
+            break false;
+        }
+        if Instant::now() >= deadline {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            break true;
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    let write_result = writer.join().unwrap();
+    let stdout = reader.join().unwrap();
+    let stderr = errors.join().unwrap();
+    assert!(
+        !timed_out,
+        "kernel exceeded 60-second regression deadline: {}",
+        String::from_utf8_lossy(&stderr)
+    );
+    write_result.unwrap();
+    serde_json::from_slice(&stdout).unwrap_or_else(|error| {
         panic!(
             "invalid response: {error}; {}",
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&stderr)
         )
     })
 }
 fn request(source: &str) -> Value {
     serde_json::to_value(vastitas::frontend::parse(source, "forged.vast").unwrap()).unwrap()
 }
-fn assert_rejected(value: Value) {
+fn assert_rejected(value: Value, expected_code: &str) -> Value {
     let result = kernel(value, "emit");
     assert_eq!(result["ok"], false, "backend accepted forged IR: {result}");
     assert!(result.get("lean_source").is_none());
-    assert!(!result["diagnostics"].as_array().unwrap().is_empty());
+    assert_eq!(result["diagnostics"][0]["code"], expected_code, "{result}");
+    result
 }
 
 #[test]
@@ -162,7 +194,7 @@ fn aliases_preserve_object_identity() {
 fn equal_dimensions_do_not_identify_objects() {
     reject(
         "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p: Point<Y, Base(QQ)> = origin(X); 0 }",
-        "E_",
+        "E_TYPE",
     );
 }
 
@@ -170,15 +202,15 @@ fn equal_dimensions_do_not_identify_objects() {
 fn mixed_settings_and_wrong_test_objects_are_rejected() {
     reject(
         "fn main() -> Int { let X: Scheme = Affine(CInfReal, 2); 0 }",
-        "E_",
+        "E_TYPE",
     );
     reject(
         "fn main() -> Int { let X = Affine(QQ, 2); let S = Affine(QQ, 0); let p: Point<X, S> = origin(X); 0 }",
-        "E_",
+        "E_TYPE",
     );
     reject(
         "fn main() -> Int { let X = Affine(QQ, 2); let p: Point<X, Base(CInfReal)> = origin(X); 0 }",
-        "E_",
+        "E_BASE",
     );
 }
 
@@ -186,7 +218,7 @@ fn mixed_settings_and_wrong_test_objects_are_rejected() {
 fn dependent_arguments_are_substituted() {
     reject(
         "fn keep(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> { p } fn main() -> Int { let A = Affine(QQ, 2); let B = Affine(QQ, 2); let p = keep(A, origin(B)); 0 }",
-        "E_",
+        "E_TYPE",
     );
     assert_success(&check(
         "fn keep(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> { p } fn main() -> Int { let A = Affine(QQ, 2); let p: Point<A, Base(QQ)> = keep(A, origin(A)); 0 }",
@@ -197,11 +229,11 @@ fn dependent_arguments_are_substituted() {
 fn mismatched_morphism_endpoints_are_rejected() {
     reject(
         "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let f = compose(id(X), id(Y)); 0 }",
-        "E_",
+        "E_ENDPOINT",
     );
     reject(
         "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(Y)); 0 }",
-        "E_",
+        "E_ENDPOINT",
     );
 }
 
@@ -209,11 +241,11 @@ fn mismatched_morphism_endpoints_are_rejected() {
 fn package_cannot_lie_about_its_point_or_base() {
     reject(
         "fn make() -> Pointed<Scheme, QQ> { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); pack { scheme: X, point: origin(Y) } }",
-        "E_",
+        "E_ENDPOINT",
     );
     reject(
         "fn make() -> Pointed<Scheme, CInfReal> { let X = Affine(QQ, 2); pack { scheme: X, point: origin(X) } }",
-        "E_",
+        "E_BASE",
     );
 }
 
@@ -221,7 +253,7 @@ fn package_cannot_lie_about_its_point_or_base() {
 fn unsealed_local_point_cannot_escape_a_block() {
     reject(
         "fn main() -> Int { let p = { let X = Affine(QQ, 2); origin(X) }; 0 }",
-        "E_",
+        "E_ESCAPE",
     );
 }
 
@@ -229,16 +261,16 @@ fn unsealed_local_point_cannot_escape_a_block() {
 fn independent_openings_do_not_share_a_nominal_identity() {
     reject(
         "fn main() -> Int { let X = Affine(QQ, 2); let q = pack { scheme: X, point: origin(X) }; unpack q as { scheme: A, point: a }; unpack q as { scheme: B, point: b }; let p: Point<A, Base(QQ)> = b; 0 }",
-        "E_",
+        "E_TYPE",
     );
 }
 
 #[test]
 fn scalar_coercions_and_geometry_equality_are_rejected() {
-    reject("fn main() -> Int { let n: Nat = 1; n }", "E_");
+    reject("fn main() -> Int { let n: Nat = 1; n }", "E_TYPE");
     reject(
         "fn main() -> Int { let X = Affine(QQ, 1); if X == X { 1 } else { 0 } }",
-        "E_",
+        "E_OPERATOR",
     );
 }
 
@@ -246,7 +278,7 @@ fn scalar_coercions_and_geometry_equality_are_rejected() {
 fn library_check_does_not_require_an_entrypoint_but_build_does() {
     let source = "fn f(x: Int) -> Int { x + 1 }";
     assert_success(&check(source));
-    assert_rejected(request(source));
+    assert_rejected(request(source), "E_MAIN");
 }
 
 #[test]
@@ -254,20 +286,24 @@ fn malformed_ir_version_type_binding_and_literal_are_rejected() {
     let original = request("fn main() -> Int { 1 }");
     let mut value = original.clone();
     value["version"] = json!(2);
-    assert_rejected(value);
+    assert_rejected(value, "E_PROTOCOL");
     let mut value = original.clone();
     value["functions"][0]["return_type"] = json!({"kind":"named", "name":"Bool"});
-    assert_rejected(value);
+    assert_rejected(value, "E_MAIN");
+    let mut value = original.clone();
+    value["functions"][0]["body"]["result"]["kind"] = json!("boolean");
+    value["functions"][0]["body"]["result"]["value"] = json!(true);
+    assert_rejected(value, "E_TYPE");
     let mut value = original.clone();
     value["functions"][0]["body"]["result"]["kind"] = json!("variable");
     value["functions"][0]["body"]["result"]["name"] = json!("forged");
-    assert_rejected(value);
+    assert_rejected(value, "E_UNBOUND");
     let mut value = original.clone();
     value["functions"][0]["body"]["result"]["value"] = json!("1); IO.println 99");
-    assert_rejected(value);
+    assert_rejected(value, "E_LITERAL");
     let mut value = original;
     value["functions"][0]["body"]["result"]["kind"] = json!("unsupported_operation");
-    assert_rejected(value);
+    assert_rejected(value, "E_PROTOCOL");
 }
 
 #[test]
@@ -276,10 +312,222 @@ fn backend_checks_forged_endpoint_annotations_and_recursion() {
         "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p: Point<X, Base(QQ)> = origin(X); 0 }",
     );
     value["functions"][0]["body"]["statements"][2]["annotation"]["target"]["name"] = json!("Y");
-    assert_rejected(value);
+    assert_rejected(value, "E_TYPE");
     let mut value = request("fn main() -> Int { 1 }");
     value["functions"][0]["body"]["result"] = json!({"kind":"call", "callee":"main", "args":[], "span":{"start":0,"end":1,"line":1,"column":1}});
-    assert_rejected(value);
+    assert_rejected(value, "E_RECURSION");
+}
+
+#[test]
+fn object_branch_merges_preserve_only_a_shared_identity() {
+    assert_success(&check(
+        "fn main() -> Int { let X = Affine(QQ, 2); let Z = if true { X } else { X }; let p: Point<X, Base(QQ)> = origin(Z); 0 }",
+    ));
+    reject(
+        "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let Z = if true { X } else { Y }; let p: Point<X, Base(QQ)> = origin(Z); 0 }",
+        "E_TYPE",
+    );
+}
+
+#[test]
+fn local_morphisms_cannot_escape_and_unpack_requires_a_package() {
+    let message = reject(
+        "fn main() -> Int { let f = { let X = Affine(QQ, 1); id(X) }; 0 }",
+        "E_ESCAPE",
+    );
+    assert!(!message.contains("return its object and point together with pack"));
+    reject(
+        "fn main() -> Int { unpack 1 as { scheme: X, point: p }; 0 }",
+        "E_TYPE",
+    );
+}
+
+#[test]
+fn anonymous_outer_endpoints_remain_in_scope_for_nested_returns() {
+    assert_success(&check(
+        "fn main() -> Int { let p = origin(Affine(QQ, 2)); let q = { p }; let r = { q }; let f = id(Affine(CInfReal, 2)); let g = { f }; let h = { g }; 0 }",
+    ));
+    reject(
+        "fn main() -> Int { let p = { origin(Affine(QQ, 2)) }; 0 }",
+        "E_ESCAPE",
+    );
+    reject(
+        "fn main() -> Int { let f = { id(Affine(CInfReal, 2)) }; 0 }",
+        "E_ESCAPE",
+    );
+}
+
+#[test]
+fn native_base_objects_pack_and_unpack_in_both_settings() {
+    native(
+        "fn main() -> Int { let X = Base(QQ); let Y = Base(CInfReal); let ordinary = pack { scheme: X, point: origin(X) }; let smooth = pack { scheme: Y, point: origin(Y) }; unpack ordinary as { scheme: A, point: a }; unpack smooth as { scheme: B, point: b }; let p: Point<A, Base(QQ)> = apply(id(A), a); let q: Point<B, Base(CInfReal)> = apply(id(B), b); if dimension(A) == 0 && dimension(B) == 0 { 42 } else { -1 } }",
+        "42",
+    );
+}
+
+#[test]
+fn conditional_literal_typing_is_symmetric_and_branch_order_is_preserved() {
+    native(
+        "fn first(n: Nat, choice: Bool) -> Nat { let x = if choice { n } else { 1 }; x } fn second(n: Nat, choice: Bool) -> Nat { let x = if choice { 1 } else { n }; x } fn main() -> Int { if first(7, true) == 7 && first(7, false) == 1 && second(7, true) == 1 && second(7, false) == 7 { 42 } else { -1 } }",
+        "42",
+    );
+    for branches in ["if true { -1 } else { n }", "if true { n } else { -1 }"] {
+        reject(
+            &format!("fn f(n: Nat) -> Nat {{ let result = {branches}; result }}"),
+            "E_TYPE",
+        );
+    }
+    assert_success(&check(
+        "fn f(n: Nat) -> Nat { let result: Nat = if true { 1 } else { n }; result }",
+    ));
+}
+
+#[test]
+fn recursion_diagnostics_identify_the_cycle_not_its_caller() {
+    let message = reject(
+        "fn main() -> Int { a() }\nfn a() -> Int { b() }\nfn b() -> Int { a() }",
+        "E_RECURSION",
+    );
+    assert!(message.contains("input file.vast:2:1:"), "{message}");
+    assert!(message.replace('`', "").contains("a → b → a"), "{message}");
+    assert!(!message.contains("`main`"), "{message}");
+
+    let mut forged =
+        request("fn main() -> Int { a() }\nfn a() -> Int { b() }\nfn b() -> Int { 0 }");
+    let result = &mut forged["functions"][2]["body"]["result"];
+    result["kind"] = json!("call");
+    result["callee"] = json!("a");
+    result["args"] = json!([]);
+    let response = assert_rejected(forged, "E_RECURSION");
+    let diagnostic = &response["diagnostics"][0];
+    assert_eq!(diagnostic["span"]["line"], 2);
+    assert_eq!(diagnostic["span"]["column"], 1);
+    let message = diagnostic["message"].as_str().unwrap();
+    assert!(message.contains("a → b → a"), "{message}");
+    assert!(!message.contains("main"), "{message}");
+}
+
+#[test]
+fn shared_and_repeated_dependencies_have_a_valid_native_order() {
+    native(
+        "fn main() -> Int { left() + right() + left() } fn left() -> Int { leaf() } fn right() -> Int { leaf() } fn leaf() -> Int { 14 }",
+        "42",
+    );
+    let mut forged = request(
+        "fn main() -> Int { 0 }\nfn unused_a() -> Int { unused_b() }\nfn unused_b() -> Int { 1 }",
+    );
+    let result = &mut forged["functions"][2]["body"]["result"];
+    result["kind"] = json!("call");
+    result["callee"] = json!("unused_a");
+    result["args"] = json!([]);
+    assert_rejected(forged, "E_RECURSION");
+}
+
+#[test]
+fn kernel_checks_twenty_thousand_functions_within_the_watchdog() {
+    use std::fmt::Write;
+
+    const COUNT: usize = 20_000;
+    let mut source = String::new();
+    for i in 0..COUNT - 1 {
+        writeln!(source, "fn f{i}() -> Int {{ f{}() }}", i + 1).unwrap();
+    }
+    writeln!(source, "fn f{}() -> Int {{ 0 }}", COUNT - 1).unwrap();
+    let response = kernel(request(&source), "check");
+    assert_eq!(response["ok"], true, "{response}");
+}
+
+#[test]
+fn native_long_straight_line_blocks_match_checker_limits() {
+    use std::fmt::Write;
+
+    let mut source = String::from("fn main() -> Int {\nlet x0 = 1;\n");
+    for i in 1..4090 {
+        writeln!(source, "let x{i} = x{} + 1;", i - 1).unwrap();
+    }
+    source.push_str("x4089\n}");
+    assert_success(&check(&source));
+    native(&source, "4090");
+}
+
+fn unpack_budget_source(extra_let: bool) -> String {
+    use std::fmt::Write;
+
+    let mut source = String::from(
+        "fn main() -> Int {\nlet X = Affine(QQ, 2);\nlet package = pack { scheme: X, point: origin(X) };\n",
+    );
+    // 2 setup lets + 1,364 unpack expansions * 3 + 2 padding lets = 4,096.
+    for i in 0..1364 {
+        writeln!(source, "unpack package as {{ scheme: X{i}, point: p{i} }};").unwrap();
+    }
+    source.push_str("let first = 1;\nlet second = 2;\n");
+    if extra_let {
+        source.push_str("let excess = 0;\n");
+    }
+    source.push_str("if dimension(X1363) == 2 { second } else { first }\n}");
+    source
+}
+
+#[test]
+fn native_unpack_expansion_at_the_generated_let_budget() {
+    let source = unpack_budget_source(false);
+    assert_success(&check(&source));
+    native(&source, "2");
+}
+
+#[test]
+fn generated_let_budget_is_shared_by_check_and_build() {
+    let source = unpack_budget_source(true);
+    let message = reject(&source, "E_LIMIT");
+    assert!(message.contains("4096"), "{message}");
+    let scratch = Scratch::new();
+    let output = scratch.0.join("previous output");
+    fs::write(&output, "previous artifact").unwrap();
+    let result = cli()
+        .arg("build")
+        .arg(scratch.source(&source))
+        .arg("-o")
+        .arg(&output)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&result.stderr);
+    assert!(message.contains(": E_LIMIT: "), "{message}");
+    assert!(message.contains("4096"), "{message}");
+    assert_eq!(fs::read_to_string(output).unwrap(), "previous artifact");
+}
+
+#[test]
+fn argument_fuel_errors_report_the_library_call_site() {
+    use std::fmt::Write;
+
+    let scratch = Scratch::new();
+    let source = scratch.source("fn main() -> Int { 0 }");
+    let library = scratch.0.join("many arguments.vast");
+    let mut body = String::from("fn target() -> Int { 0 }\nfn helper() -> Int {\n");
+    // Statements and arguments share the fuel budget. Exhaust it immediately
+    // before checking an empty argument list; many nonempty arguments instead
+    // fail inside the last argument's expression, which already has its span.
+    for i in 0..4092 {
+        writeln!(body, "    let x{i} = 0;").unwrap();
+    }
+    body.push_str("    target()\n}");
+    fs::write(&library, body).unwrap();
+    let result = cli()
+        .arg("check")
+        .arg(&source)
+        .arg("--lib")
+        .arg(&library)
+        .output()
+        .unwrap();
+    assert_eq!(result.status.code(), Some(1));
+    let message = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        message.contains(&format!("{}:4095:5: E_LIMIT:", library.display())),
+        "{message}"
+    );
+    assert!(message.contains("too many function arguments"), "{message}");
+    assert!(!message.contains(&format!("{}:1:1:", source.display())));
 }
 
 #[test]

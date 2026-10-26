@@ -232,6 +232,33 @@ impl Parser {
         }
     }
 
+    fn type_close(&mut self) -> Result<Token, Diagnostic> {
+        // Longest-match lexing is still correct for expressions. Only a type
+        // argument list can split `>=` into its closing `>` and an assignment.
+        if self.peek().is(">=") {
+            let span = self.peek().span;
+            self.tokens[self.position] = Token {
+                kind: TokenKind::Symbol(">".into()),
+                span: Span {
+                    end: span.start + 1,
+                    ..span
+                },
+            };
+            self.tokens.insert(
+                self.position + 1,
+                Token {
+                    kind: TokenKind::Symbol("=".into()),
+                    span: Span {
+                        start: span.start + 1,
+                        column: span.column + 1,
+                        ..span
+                    },
+                },
+            );
+        }
+        self.expect(">")
+    }
+
     fn name(&mut self) -> Result<(String, Span), Diagnostic> {
         let token = self.advance();
         match token.kind {
@@ -318,7 +345,7 @@ impl Parser {
                 let target = self.index()?;
                 self.expect(",")?;
                 let source = self.index()?;
-                self.expect(">")?;
+                self.type_close()?;
                 Ok(Type::Point { target, source })
             }
             "Morphism" => {
@@ -326,7 +353,7 @@ impl Parser {
                 let source = self.index()?;
                 self.expect(",")?;
                 let target = self.index()?;
-                self.expect(">")?;
+                self.type_close()?;
                 Ok(Type::Morphism { source, target })
             }
             "Pointed" => {
@@ -334,7 +361,7 @@ impl Parser {
                 let (setting, _) = self.name()?;
                 self.expect(",")?;
                 let (base, _) = self.name()?;
-                self.expect(">")?;
+                self.type_close()?;
                 if !matches!(setting.as_str(), "Scheme" | "CInfScheme")
                     || !matches!(base.as_str(), "QQ" | "CInfReal")
                 {
@@ -473,20 +500,30 @@ impl Parser {
 
     fn expression_inner(&mut self, min_binding_power: u8) -> Result<Expr, Diagnostic> {
         let mut left = self.prefix()?;
+        // A prefix may contain a parenthesized comparison, which is a valid
+        // operand. Only comparisons consumed by this Pratt invocation chain.
+        let mut comparison = false;
         check_expression_depth(&left)?;
         while let TokenKind::Symbol(op) = &self.peek().kind {
             let op = op.as_str();
             let power = match op {
                 "||" => 1,
                 "&&" => 3,
-                "==" | "!=" => 5,
-                "<" | "<=" | ">" | ">=" => 7,
+                "==" | "!=" | "<" | "<=" | ">" | ">=" => 5,
                 "+" | "-" => 9,
                 "*" => 11,
                 _ => break,
             };
             if power < min_binding_power {
                 break;
+            }
+            let next_comparison = power == 5;
+            if next_comparison && comparison {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "comparisons cannot be chained; use parentheses or combine comparisons with `&&`",
+                    self.peek().span,
+                ));
             }
             let op = op.to_string();
             self.advance();
@@ -500,6 +537,7 @@ impl Parser {
                 },
                 span,
             };
+            comparison = next_comparison;
             check_expression_depth(&left)?;
         }
         Ok(left)
@@ -712,14 +750,16 @@ impl<'a> Resolver<'a> {
         }
         let mut marks = vec![0; module.functions.len()];
         for i in 0..module.functions.len() {
-            if this.cycle(i, &mut marks) {
+            if let Some(cycle) = this.cycle(i, &mut marks) {
+                let path = cycle
+                    .iter()
+                    .map(|&id| format!("`{}`", module.functions[id].name))
+                    .collect::<Vec<_>>()
+                    .join(" → ");
                 this.errors.push(diagnostic(
                     "E_RECURSION",
-                    format!(
-                        "recursive call cycle involving `{}` is not supported in Stage 0",
-                        module.functions[i].name
-                    ),
-                    module.functions[i].span,
+                    format!("recursive call cycle {path} is not supported in Stage 0"),
+                    module.functions[cycle[0]].span,
                 ));
                 break;
             }
@@ -727,12 +767,9 @@ impl<'a> Resolver<'a> {
         this.errors
     }
 
-    fn cycle(&self, current: usize, marks: &mut [u8]) -> bool {
-        if marks[current] == 1 {
-            return true;
-        }
-        if marks[current] == 2 {
-            return false;
+    fn cycle(&self, current: usize, marks: &mut [u8]) -> Option<Vec<usize>> {
+        if marks[current] != 0 {
+            return None;
         }
         marks[current] = 1;
         // Call chains are independent of expression depth, so keep DFS frames
@@ -743,7 +780,13 @@ impl<'a> Resolver<'a> {
             if let Some(&next) = self.calls[*current].get(*edge) {
                 *edge += 1;
                 match marks[next] {
-                    1 => return true,
+                    1 => {
+                        let start = pending.iter().position(|&(id, _)| id == next).unwrap();
+                        let mut cycle: Vec<_> =
+                            pending[start..].iter().map(|&(id, _)| id).collect();
+                        cycle.push(next);
+                        return Some(cycle);
+                    }
                     0 => {
                         marks[next] = 1;
                         pending.push((next, 0));
@@ -755,7 +798,7 @@ impl<'a> Resolver<'a> {
                 pending.pop();
             }
         }
-        false
+        None
     }
 
     fn bind(&mut self, name: &'a str, scope: &mut HashSet<&'a str>, span: Span) {
@@ -1199,6 +1242,20 @@ fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
     }
 
     #[test]
+    fn recursion_diagnostic_names_the_cycle_not_its_caller() {
+        let source = "fn main() -> Int { a() }\nfn a() -> Int { b() }\nfn b() -> Int { a() }";
+        let errors = parse(source, "cycle.vast").unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E_RECURSION");
+        assert_eq!(
+            errors[0].message,
+            "recursive call cycle `a` → `b` → `a` is not supported in Stage 0"
+        );
+        assert_eq!(errors[0].span.line, 2);
+        assert_eq!(errors[0].span.start, source.find("fn a").unwrap());
+    }
+
+    #[test]
     fn handles_long_call_chains_and_late_cycles_without_stack_recursion() {
         use std::fmt::Write;
 
@@ -1216,8 +1273,10 @@ fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
         let errors = parse(&source, "cycle.vast").unwrap_err();
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "E_RECURSION");
-        assert!(errors[0].message.contains("`f0`"));
-        assert_eq!(errors[0].span.line, 1);
+        assert!(errors[0].message.contains("`f25000` → `f25001`"));
+        assert!(errors[0].message.contains("`f49999` → `f25000`"));
+        assert!(!errors[0].message.contains("`f0`"));
+        assert_eq!(errors[0].span.line, COUNT / 2 + 1);
     }
 
     #[test]
@@ -1256,6 +1315,79 @@ fn leaf() -> Int { 0 }";
                 .iter()
                 .any(|e| e.message.contains("unknown endpoint object `X`"))
         );
+    }
+
+    #[test]
+    fn type_closer_can_touch_assignment_without_changing_comparisons() {
+        let source = "fn f(X: Scheme) -> Int {
+    let p: Point<X, Base(QQ)>= origin(X);
+    let m: Morphism<X, X>= id(X);
+    let package: Pointed<Scheme, QQ>= pack { scheme: X, point: p };
+    if 3 >= 2 { 1 } else { 0 }
+}";
+        let module = parse(source, "type-close.vast").unwrap();
+        assert_eq!(module.functions[0].body.statements.len(), 3);
+        let ExprKind::If { condition, .. } = &module.functions[0].body.result.kind else {
+            panic!("expected conditional");
+        };
+        assert!(matches!(&condition.kind, ExprKind::Binary { op, .. } if op == ">="));
+
+        let tokens = Lexer::new(">=").tokenize().unwrap();
+        let mut parser = Parser {
+            tokens,
+            position: 0,
+            nesting: 0,
+        };
+        let close = parser.type_close().unwrap();
+        let assignment = parser.expect("=").unwrap();
+        assert_eq!(
+            (close.span.start, close.span.end, close.span.column),
+            (0, 1, 1)
+        );
+        assert_eq!(
+            (
+                assignment.span.start,
+                assignment.span.end,
+                assignment.span.column
+            ),
+            (1, 2, 2)
+        );
+    }
+
+    #[test]
+    fn comparison_chains_require_explicit_grouping() {
+        for expression in [
+            "1 == 1 == true",
+            "1 < 2 < 3",
+            "1 < 2 == true",
+            "true == 1 < 2",
+            "1 != 2 >= 3",
+            "(1) < 2 < 3",
+            "true == (1) < 2",
+        ] {
+            let source = format!("fn f() -> Bool {{ {expression} }}");
+            let errors = parse(&source, "comparison.vast").unwrap_err();
+            assert_eq!(errors[0].code, "E_PARSE", "{expression}");
+            assert!(errors[0].message.contains("comparisons cannot be chained"));
+            assert!(matches!(
+                &source[errors[0].span.start..errors[0].span.end],
+                "==" | "<" | ">="
+            ));
+        }
+        for expression in [
+            "(1 == 1) == true",
+            "true == (1 < 2)",
+            "((1 < 2)) == true",
+            "1 < 2 && 2 < 3",
+            "1 == 2 || 3 != 4 && 5 >= 6",
+            "1 + 2 * 3 < 8 - 1",
+        ] {
+            parse(
+                &format!("fn f() -> Bool {{ {expression} }}"),
+                "comparison.vast",
+            )
+            .unwrap();
+        }
     }
 
     #[test]

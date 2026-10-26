@@ -221,6 +221,21 @@ def Term.ty : Term → Ty
   | .pack b _ _ => .pointed b
   | .letE _ _ body | .unpack _ _ _ body => body.ty
 
+/-- A finite per-function lowering budget shared by check and build. An unpack
+expands to a package binding and its two projections in the emitted Lean. -/
+def generatedLetLimit : Nat := 4096
+
+def Term.generatedLetCount : Term → Nat
+  | .call _ args _ | .builtin _ _ args _ => (args.map Term.generatedLetCount).sum
+  | .unary _ arg _ => arg.generatedLetCount
+  | .binary _ left right _ => left.generatedLetCount + right.generatedLetCount
+  | .branch condition yes no _ =>
+      condition.generatedLetCount + yes.generatedLetCount + no.generatedLetCount
+  | .pack _ scheme point => scheme.generatedLetCount + point.generatedLetCount
+  | .letE _ value body => 1 + value.generatedLetCount + body.generatedLetCount
+  | .unpack _ _ value body => 3 + value.generatedLetCount + body.generatedLetCount
+  | _ => 0
+
 structure CheckedFunction where
   id : Nat
   name : String

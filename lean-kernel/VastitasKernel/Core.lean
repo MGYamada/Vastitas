@@ -52,7 +52,7 @@ inductive Ty where
   | point (target source : ObjectRef)
   | morphism (source target : ObjectRef)
   | pointed (base : BaseKind)
-  deriving Repr, DecidableEq, BEq, Inhabited
+  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
 
 def Ty.label : Ty → String
   | .nat => "Nat"
@@ -203,36 +203,79 @@ structure RawModule where
   functions : List RawFunction
   deriving Repr, Inhabited
 
-/-- Hygienic, typed core. Source spellings are never emitted as Lean identifiers. -/
+inductive UnaryOp where
+  | neg | not
+  deriving Repr, DecidableEq, BEq, Inhabited
+
+inductive BinaryOp where
+  | add | sub | mul | eq | ne | lt | le | gt | ge | and | or
+  deriving Repr, DecidableEq, BEq, Inhabited
+
+def BinaryOp.ofString? : String → Option BinaryOp
+  | "+" => some .add | "-" => some .sub | "*" => some .mul
+  | "==" => some .eq | "!=" => some .ne
+  | "<" => some .lt | "<=" => some .le | ">" => some .gt | ">=" => some .ge
+  | "&&" => some .and | "||" => some .or
+  | _ => none
+
+def BinaryOp.symbol : BinaryOp → String
+  | .add => "+" | .sub => "-" | .mul => "*" | .eq => "==" | .ne => "!="
+  | .lt => "<" | .le => "<=" | .gt => ">" | .ge => ">=" | .and => "&&" | .or => "||"
+
+inductive BuiltinOp where
+  | affine (base : BaseKind)
+  | base (base : BaseKind)
+  | origin | identity | compose | apply | dimension | int
+  deriving Repr, DecidableEq, BEq, Inhabited
+
+/-- The checked result retains a geometric object's identity until codegen.
+Scalar, point, morphism, and package values have no object identity of their own. -/
+structure ResultType where
+  ty : Ty
+  objectRef : Option ObjectRef := none
+  deriving Repr, DecidableEq, BEq, Inhabited
+
+structure CheckedParam where
+  symbol : Nat
+  resultType : ResultType
+  deriving Repr, DecidableEq, BEq, Inhabited
+
+def CheckedParam.ty (param : CheckedParam) : Ty := param.resultType.ty
+
+/-- Hygienic, typed core. Operator names are finite and literals normalized;
+source spellings are never emitted as Lean identifiers or executable text. -/
 inductive Term where
-  | literal (ty : Ty) (value : String)
+  | literal (ty : Ty) (value : Nat)
   | boolean (value : Bool)
   | unit
-  | var (symbol : Nat) (ty : Ty)
-  | call (functionId : Nat) (args : List Term) (ty : Ty)
-  | builtin (name : String) (base : Option BaseKind) (args : List Term) (ty : Ty)
-  | unary (op : String) (arg : Term) (ty : Ty)
-  | binary (op : String) (left right : Term) (ty : Ty)
-  | branch (condition yes no : Term) (ty : Ty)
+  | var (symbol : Nat) (resultType : ResultType)
+  | call (functionId : Nat) (args : List Term) (substitutions : List (ObjectRef × ObjectRef))
+      (resultType : ResultType)
+  | builtin (op : BuiltinOp) (args : List Term) (resultType : ResultType)
+  | unary (op : UnaryOp) (arg : Term) (ty : Ty)
+  | binary (op : BinaryOp) (left right : Term) (ty : Ty)
+  | branch (condition yes no : Term) (resultType : ResultType)
   | pack (base : BaseKind) (scheme point : Term)
   | letE (symbol : Nat) (value body : Term)
   | unpack (objectSymbol pointSymbol : Nat) (value body : Term)
   deriving Repr, Inhabited
 
-def Term.ty : Term → Ty
-  | .literal t _ | .var _ t | .call _ _ t | .builtin _ _ _ t
-  | .unary _ _ t | .binary _ _ _ t | .branch _ _ _ t => t
-  | .boolean _ => .bool
-  | .unit => .unit
-  | .pack b _ _ => .pointed b
-  | .letE _ _ body | .unpack _ _ _ body => body.ty
+def Term.resultType : Term → ResultType
+  | .literal t _ | .unary _ _ t | .binary _ _ _ t => ⟨t, none⟩
+  | .var _ result | .call _ _ _ result | .builtin _ _ result | .branch _ _ _ result => result
+  | .boolean _ => ⟨.bool, none⟩
+  | .unit => ⟨.unit, none⟩
+  | .pack b _ _ => ⟨.pointed b, none⟩
+  | .letE _ _ body | .unpack _ _ _ body => body.resultType
+
+def Term.ty (term : Term) : Ty := term.resultType.ty
 
 /-- A finite per-function lowering budget shared by check and build. An unpack
 expands to a package binding and its two projections in the emitted Lean. -/
 def generatedLetLimit : Nat := 4096
 
 def Term.generatedLetCount : Term → Nat
-  | .call _ args _ | .builtin _ _ args _ => (args.map Term.generatedLetCount).sum
+  | .call _ args _ _ | .builtin _ args _ => (args.map Term.generatedLetCount).sum
   | .unary _ arg _ => arg.generatedLetCount
   | .binary _ left right _ => left.generatedLetCount + right.generatedLetCount
   | .branch condition yes no _ =>
@@ -242,10 +285,21 @@ def Term.generatedLetCount : Term → Nat
   | .unpack _ _ value body => 3 + value.generatedLetCount + body.generatedLetCount
   | _ => 0
 
+/-- Direct dependencies of the actual checked term, in traversal order. -/
+def Term.callIds : Term → List Nat
+  | .call id args _ _ => id :: args.flatMap Term.callIds
+  | .builtin _ args _ => args.flatMap Term.callIds
+  | .unary _ arg _ => arg.callIds
+  | .binary _ left right _ => left.callIds ++ right.callIds
+  | .branch condition yes no _ => condition.callIds ++ yes.callIds ++ no.callIds
+  | .pack _ scheme point => scheme.callIds ++ point.callIds
+  | .letE _ value body | .unpack _ _ value body => value.callIds ++ body.callIds
+  | _ => []
+
 structure CheckedFunction where
   id : Nat
   name : String
-  params : List (Nat × Ty)
+  params : List CheckedParam
   returnType : Ty
   body : Term
   span : Span := {}
@@ -260,7 +314,7 @@ structure CheckedModule where
 /-- Every type annotation retained in a core term, including intermediate nodes. -/
 def Term.annotatedTypes : Term → List Ty
   | t@(.literal ..) | t@(.boolean ..) | t@(.unit) | t@(.var ..) => [t.ty]
-  | t@(.call _ args _) | t@(.builtin _ _ args _) => t.ty :: args.flatMap Term.annotatedTypes
+  | t@(.call _ args _ _) | t@(.builtin _ args _) => t.ty :: args.flatMap Term.annotatedTypes
   | t@(.unary _ arg _) => t.ty :: arg.annotatedTypes
   | t@(.binary _ left right _) => t.ty :: (left.annotatedTypes ++ right.annotatedTypes)
   | t@(.branch condition yes no _) => t.ty :: (condition.annotatedTypes ++ yes.annotatedTypes ++ no.annotatedTypes)
@@ -270,13 +324,15 @@ def Term.annotatedTypes : Term → List Ty
 /-- A final, independently decidable endpoint/type annotation invariant. -/
 def CheckedModule.TypesWellFormed (m : CheckedModule) : Prop :=
   ∀ f ∈ m.functions, f.body.ty = f.returnType ∧
-    ∀ t ∈ f.returnType :: (f.params.map Prod.snd ++ f.body.annotatedTypes), t.WellFormed
+    ∀ t ∈ f.returnType :: (f.params.map CheckedParam.ty ++ f.body.annotatedTypes), t.WellFormed
 
 instance (m : CheckedModule) : Decidable m.TypesWellFormed := by
   unfold CheckedModule.TypesWellFormed
   infer_instance
 
-/-- The code generation boundary receives a module with this checked invariant. -/
+/-- Legacy annotation certificate. Full structural typing and dependency audits
+also run at the public checker and code-generation boundaries. This subtype's
+property alone is not the Stage 0 checker-soundness theorem. -/
 abbrev CertifiedModule := { m : CheckedModule // m.TypesWellFormed }
 
 /-- A failed final audit is a compiler error, never silently trusted metadata. -/

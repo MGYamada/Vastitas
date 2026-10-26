@@ -1,6 +1,7 @@
 import VastitasOracle.Core
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
+import VastitasOracle.Soundness
 
 /-!
 Vastitas Stage 0 proof-only oracle. No compiler/runtime target imports this

@@ -1,69 +1,77 @@
 import VastitasKernel.Core
+import VastitasKernel.Dependency
+import VastitasKernel.TypeAudit
 
 namespace VastitasKernel
+namespace Checker.Internal
 
-private structure Binding where
+structure Binding where
   name : String
   symbol : Nat
   ty : Ty
   objectRef : Option ObjectRef := none
   deriving Inhabited
 
-private structure Signature where
+structure Signature where
   id : Nat
   raw : RawFunction
   params : List Binding
   result : Ty
   deriving Inhabited
 
-private abbrev Signatures := Std.HashMap String Signature
+abbrev Signatures := Std.HashMap String Signature
 
-private structure Result where
+structure Result where
   term : Term
-  objectRef : Option ObjectRef := none
   deriving Inhabited
+
+def Result.objectRef (result : Result) : Option ObjectRef := result.term.resultType.objectRef
+
+def Binding.resultType (binding : Binding) : ResultType := ⟨binding.ty, binding.objectRef⟩
+
+def Binding.checked (binding : Binding) : CheckedParam := ⟨binding.symbol, binding.resultType⟩
 
 -- Provenance is diagnostic metadata. It never authorizes endpoint equality or
 -- changes the nominal identity carried by the independently checked types.
-private structure ObjectOrigin where
+structure ObjectOrigin where
   bindingName : Option String := none
   span : Span
   reason : String
   deriving Inhabited
 
-private structure CheckerState where
+structure CheckerState where
   nextSymbol : Nat := 1
   origins : Std.HashMap ObjectRef ObjectOrigin := {}
   deriving Inhabited
 
-private abbrev Context := List Binding
-private abbrev CheckM := StateT CheckerState (Except Diagnostic)
+abbrev Context := List Binding
+abbrev CheckM := StateT CheckerState (Except Diagnostic)
 
-private def fail (span : Span) (code message : String)
+def fail (span : Span) (code message : String)
     (notes : List DiagnosticNote := []) : CheckM α :=
   throw { code, message, span, notes }
 
-private def fresh : CheckM Nat := do
+def fresh : CheckM Nat := do
   let state ← get
   set { state with nextSymbol := state.nextSymbol + 1 }
   pure state.nextSymbol
 
-private def rememberObject (ref : ObjectRef) (span : Span) (reason : String)
+def rememberObject (ref : ObjectRef) (span : Span) (reason : String)
     (bindingName : Option String := none) : CheckM Unit :=
   modify fun state => { state with origins := state.origins.insert ref { bindingName, span, reason } }
 
-private def freshObject (base : BaseKind) (span : Span) (reason : String) : CheckM ObjectRef := do
+def freshObject (base : BaseKind) (span : Span) (reason : String) : CheckM ObjectRef := do
   let ref := ObjectRef.local base (← fresh)
   rememberObject ref span reason
   pure ref
 
-private def nameObject (ref : ObjectRef) (name : String) : CheckM Unit := do
+def nameObject (ref : ObjectRef) (name : String) : CheckM Unit := do
   let state ← get
   if let some origin := state.origins[ref]? then
     if origin.bindingName.isNone then
       set { state with origins := state.origins.insert ref { origin with bindingName := some name } }
 
-private def objectLabel (ctx : Context) (ref : ObjectRef) : CheckM String := do
+def objectLabel (ctx : Context) (ref : ObjectRef) : CheckM String := do
   if let .base _ := ref then return ref.label
   let origin := (← get).origins[ref]?
   if let some name := origin.bind (·.bindingName) then
@@ -76,14 +84,14 @@ private def objectLabel (ctx : Context) (ref : ObjectRef) : CheckM String := do
     return s!"{ref.baseKind.settingName} from {origin.reason} at {origin.span.line}:{origin.span.column}"
   pure ref.label
 
-private def typeLabel (ctx : Context) : Ty → CheckM String
+def typeLabel (ctx : Context) : Ty → CheckM String
   | .point target source => do
       pure s!"Point<{← objectLabel ctx target}, {← objectLabel ctx source}>"
   | .morphism source target => do
       pure s!"Morphism<{← objectLabel ctx source}, {← objectLabel ctx target}>"
   | ty => pure ty.label
 
-private def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List DiagnosticNote) := do
+def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List DiagnosticNote) := do
   let mut seen : Std.HashSet ObjectRef := {}
   let mut notes : Array DiagnosticNote := #[]
   for ref in refs do
@@ -98,40 +106,40 @@ private def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List D
             span := origin.span }
   pure notes.toList
 
-private def reserved : List String :=
+def reserved : List String :=
   ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int",
    "QQ", "CInfReal", "Nat", "Int", "Bool", "Unit", "Scheme", "CInfScheme",
    "Point", "Morphism", "Pointed", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false",
    "return", "while", "for", "loop", "mut"]
 
-private def validName (name : String) : Bool :=
+def validName (name : String) : Bool :=
   let chars := name.toList
   match chars with
   | [] => false
   | first :: rest => (first.isAlpha && first.toNat < 128 || first == '_') &&
       rest.all (fun c => (c.isAlphanum && c.toNat < 128) || c == '_')
 
-private def checkName (name : String) (span : Span) : CheckM Unit := do
+def checkName (name : String) (span : Span) : CheckM Unit := do
   unless validName name do fail span "E_NAME" s!"invalid identifier '{name}'"
   if reserved.contains name then fail span "E_NAME" s!"'{name}' is reserved"
 
-private def checkNewBinding (ctx : Context) (name : String) (span : Span) : CheckM Unit := do
+def checkNewBinding (ctx : Context) (name : String) (span : Span) : CheckM Unit := do
   checkName name span
   if ctx.any (fun b => b.name == name) then
     fail span "E_DUPLICATE" s!"binding '{name}' is already in scope; Stage 0 does not allow shadowing"
 
-private def getBinding (ctx : Context) (name : String) (span : Span) : CheckM Binding :=
+def getBinding (ctx : Context) (name : String) (span : Span) : CheckM Binding :=
   match ctx.find? (fun b => b.name == name) with
   | some b => pure b
   | none => fail span "E_UNBOUND" s!"unbound name '{name}'"
 
-private def parseBase (name : String) (span : Span) : CheckM BaseKind :=
+def parseBase (name : String) (span : Span) : CheckM BaseKind :=
   match name with
   | "QQ" => pure .qq
   | "CInfReal" => pure .cinfReal
   | _ => fail span "E_BASE" s!"unsupported coefficient base '{name}'; expected QQ or CInfReal"
 
-private def resolveIndex (ctx : Context) (index : RawIndex) (span : Span) : CheckM ObjectRef := do
+def resolveIndex (ctx : Context) (index : RawIndex) (span : Span) : CheckM ObjectRef := do
   match index with
   | .base ring => pure (.base (← parseBase ring span))
   | .name name =>
@@ -140,7 +148,7 @@ private def resolveIndex (ctx : Context) (index : RawIndex) (span : Span) : Chec
     | some r => pure r
     | none => fail span "E_INDEX" s!"'{name}' is not a geometric object usable as a type index"
 
-private def resolveType (ctx : Context) (raw : RawType) (span : Span) : CheckM Ty := do
+def resolveType (ctx : Context) (raw : RawType) (span : Span) : CheckM Ty := do
   let ty ← match raw with
     | .named "Nat" => pure .nat
     | .named "Int" => pure .int
@@ -161,27 +169,27 @@ private def resolveType (ctx : Context) (raw : RawType) (span : Span) : CheckM T
       (← objectNotes ctx ty.refs)
   pure ty
 
-private def expectedResult (ctx : Context) (expected : Option Ty) (r : Result) (span : Span) : CheckM Result := do
+def expectedResult (ctx : Context) (expected : Option Ty) (r : Result) (span : Span) : CheckM Result := do
   if let some ty := expected then
     unless r.term.ty == ty do
       fail span "E_TYPE" s!"expected {← typeLabel ctx ty}, found {← typeLabel ctx r.term.ty}"
         (← objectNotes ctx (ty.refs ++ r.term.ty.refs))
   pure r
 
-private def objectOf (ctx : Context) (r : Result) (span : Span) : CheckM ObjectRef :=
+def objectOf (ctx : Context) (r : Result) (span : Span) : CheckM ObjectRef :=
   match r.objectRef with
   | some obj => pure obj
   | none => do
       fail span "E_TYPE" s!"expected a geometric object, found {← typeLabel ctx r.term.ty}"
         (← objectNotes ctx r.term.ty.refs)
 
-private def liftRule (ctx : Context) (rule : Except String Ty) (span : Span)
+def liftRule (ctx : Context) (rule : Except String Ty) (span : Span)
     (details : String) (refs : List ObjectRef) : CheckM Ty :=
   match rule with
   | .ok ty => pure ty
   | .error e => do fail span "E_ENDPOINT" s!"{e}: {details}" (← objectNotes ctx refs)
 
-private def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit := do
+def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit := do
   let allowed := ctx.flatMap fun binding => binding.objectRef.toList ++ binding.ty.refs
   match checkScope allowed r.term.ty with
   | .ok () => pure ()
@@ -192,28 +200,28 @@ private def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit
     fail span "E_ESCAPE" s!"{← typeLabel ctx r.term.ty} refers to local object {← objectLabel ctx ref}; {hint}"
       (← objectNotes ctx [ref])
 
-private def arity (name : String) (args : List RawExpr) (n : Nat) (span : Span) : CheckM Unit := do
+def arity (name : String) (args : List RawExpr) (n : Nat) (span : Span) : CheckM Unit := do
   unless args.length == n do
     let noun := if n == 1 then "argument" else "arguments"
     fail span "E_ARITY" s!"{name} expects {n} {noun}, found {args.length}"
 
-private def rawRing (e : RawExpr) : CheckM BaseKind :=
+def rawRing (e : RawExpr) : CheckM BaseKind :=
   match e with
   | .variable name s => parseBase name s
   | _ => fail e.span "E_BASE" "coefficient base must be the static name QQ or CInfReal"
 
-private def isInteger (t : Ty) : Bool := t == .nat || t == .int
+def isInteger (t : Ty) : Bool := t == .nat || t == .int
 
-private def literalLike : RawExpr → Bool
+def literalLike : RawExpr → Bool
   | .integer .. => true
   | .unary "-" (.integer ..) _ => true
   | _ => false
 
-private def blockLiteralLike : RawBlock → Bool
+def blockLiteralLike : RawBlock → Bool
   | .mk _ result _ => literalLike result
 
 mutual
-  private def checkExpr : Nat → Signatures → Context → RawExpr → Option Ty → CheckM Result
+  def checkExpr : Nat → Signatures → Context → RawExpr → Option Ty → CheckM Result
     | 0, _, _, e, _ => fail e.span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, e, expected => do
       let span := e.span
@@ -223,28 +231,28 @@ mutual
           fail span "E_LITERAL" "integer IR literal must contain only decimal digits"
         let ty := match expected with | some .nat => Ty.nat | _ => Ty.int
         let some n := value.toNat? | fail span "E_LITERAL" "invalid decimal integer"
-        pure { term := .literal ty (toString n) }
+        pure { term := .literal ty n }
       | .boolean value _ => pure { term := .boolean value }
       | .unit _ => pure { term := .unit }
       | .variable name _ => do
         let b ← getBinding ctx name span
-        pure { term := .var b.symbol b.ty, objectRef := b.objectRef }
+        pure { term := .var b.symbol b.resultType }
       | .unary op operand _ => do
-        let ty ← match op with
-          | "-" => pure Ty.int
-          | "!" => pure Ty.bool
+        let (operation, ty) ← match op with
+          | "-" => pure (UnaryOp.neg, Ty.int)
+          | "!" => pure (UnaryOp.not, Ty.bool)
           | _ => fail span "E_OPERATOR" s!"unsupported unary operator '{op}'"
         let arg ← checkExpr fuel signatures ctx operand (some ty)
-        pure { term := .unary op arg.term ty }
-      | .binary op left right _ => do
-        if op == "&&" || op == "||" then
+        pure { term := .unary operation arg.term ty }
+      | .binary rawOp left right _ => do
+        let some op := BinaryOp.ofString? rawOp
+          | fail span "E_OPERATOR" s!"unsupported binary operator '{rawOp}'"
+        if op == .and || op == .or then
           let a ← checkExpr fuel signatures ctx left (some .bool)
           let b ← checkExpr fuel signatures ctx right (some .bool)
           pure { term := .binary op a.term b.term .bool }
         else
-          unless ["+", "-", "*", "==", "!=", "<", "<=", ">", ">="].contains op do
-            fail span "E_OPERATOR" s!"unsupported binary operator '{op}'"
-          let arithmetic := ["+", "-", "*"].contains op
+          let arithmetic := [BinaryOp.add, .sub, .mul].contains op
           let hint := if arithmetic then expected.filter isInteger else none
           let (a, b) ← if literalLike left && !literalLike right && hint.isNone then do
             let b ← checkExpr fuel signatures ctx right none
@@ -254,12 +262,12 @@ mutual
             let a ← checkExpr fuel signatures ctx left hint
             let b ← checkExpr fuel signatures ctx right (some a.term.ty)
             pure (a, b)
-          if op == "==" || op == "!=" then
+          if op == .eq || op == .ne then
             unless isInteger a.term.ty || a.term.ty == .bool || a.term.ty == .unit do
               fail span "E_OPERATOR" "equality is available only for scalar values; geometric identities are abstract"
           else
             unless isInteger a.term.ty do
-              fail span "E_OPERATOR" s!"operator '{op}' requires Nat or Int, found {a.term.ty.label}"
+              fail span "E_OPERATOR" s!"operator '{rawOp}' requires Nat or Int, found {a.term.ty.label}"
           let ty := if arithmetic then a.term.ty else .bool
           pure { term := .binary op a.term b.term ty }
       | .ite condition yes no _ => do
@@ -277,7 +285,7 @@ mutual
             if yes.objectRef == no.objectRef then pure yes.objectRef
             else pure (some (← freshObject base span "if merge of distinct objects"))
           | _ => pure none
-        pure { term := .branch condition.term yes.term no.term yes.term.ty, objectRef }
+        pure { term := .branch condition.term yes.term no.term ⟨yes.term.ty, objectRef⟩ }
       | .block body _ => checkBlock fuel signatures ctx body expected
       | .pack scheme point _ => do
         let scheme ← checkExpr fuel signatures ctx scheme none
@@ -289,40 +297,43 @@ mutual
       | .call name args _ => checkCall fuel signatures ctx name args span
       expectedResult ctx expected result span
 
-  private def checkCall : Nat → Signatures → Context → String → List RawExpr → Span → CheckM Result
+  def checkCall : Nat → Signatures → Context → String → List RawExpr → Span → CheckM Result
     | 0, _, _, _, _, span => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, name, args, span => do
       match name with
       | "int" =>
         arity name args 1 span
         let value ← checkExpr fuel signatures ctx args[0]! (some .nat)
-        pure { term := .builtin "int" none [value.term] .int }
+        pure { term := .builtin .int [value.term] ⟨.int, none⟩ }
       | "Affine" =>
         arity name args 2 span
         let base ← rawRing args[0]!
         let dimension ← checkExpr fuel signatures ctx args[1]! (some .nat)
         let ref ← freshObject base span "Affine"
-        pure { term := .builtin "Affine" (some base) [dimension.term] (.object base), objectRef := some ref }
+        pure { term := .builtin (.affine base) [dimension.term] ⟨.object base, some ref⟩ }
       | "Base" =>
         arity name args 1 span
         let base ← rawRing args[0]!
         let ref := ObjectRef.base base
         rememberObject ref span "Base"
-        pure { term := .builtin "Base" (some base) [] (.object base), objectRef := some ref }
+        pure { term := .builtin (.base base) [] ⟨.object base, some ref⟩ }
       | "origin" | "id" | "dimension" =>
         arity name args 1 span
         let object ← checkExpr fuel signatures ctx args[0]! none
         let ref ← objectOf ctx object span
         let ty := if name == "origin" then Ty.point ref (.base ref.baseKind)
           else if name == "id" then .morphism ref ref else .nat
-        pure { term := .builtin name none [object.term] ty }
+        let op := if name == "origin" then BuiltinOp.origin
+          else if name == "id" then .identity else .dimension
+        pure { term := .builtin op [object.term] ⟨ty, none⟩ }
       | "compose" | "apply" =>
         arity name args 2 span
         let a ← checkExpr fuel signatures ctx args[0]! none
         let b ← checkExpr fuel signatures ctx args[1]! none
         let ty ← liftRule ctx (if name == "compose" then checkCompose a.term.ty b.term.ty else checkApply a.term.ty b.term.ty)
           span s!"{← typeLabel ctx a.term.ty} and {← typeLabel ctx b.term.ty}" (a.term.ty.refs ++ b.term.ty.refs)
-        pure { term := .builtin name none [a.term, b.term] ty }
+        let op := if name == "compose" then BuiltinOp.compose else .apply
+        pure { term := .builtin op [a.term, b.term] ⟨ty, none⟩ }
       | _ =>
         let some signature := signatures[name]?
           | fail span "E_UNBOUND" s!"unknown function '{name}'"
@@ -332,9 +343,9 @@ mutual
         let objectRef ← match ty with
           | .object base => pure (some (← freshObject base span s!"function call '{name}'"))
           | _ => pure none
-        pure { term := .call signature.id terms ty, objectRef }
+        pure { term := .call signature.id terms substitutions ⟨ty, objectRef⟩ }
 
-  private def checkArguments : Nat → Signatures → Context → List Binding → List RawExpr →
+  def checkArguments : Nat → Signatures → Context → List Binding → List RawExpr →
       List (ObjectRef × ObjectRef) → Span → CheckM (List Term × List (ObjectRef × ObjectRef))
     | 0, _, _, _, _, _, span => fail span "E_LIMIT" "too many function arguments"
     | _ + 1, _, _, [], [], substitutions, _ => pure ([], substitutions)
@@ -349,14 +360,14 @@ mutual
       pure (value.term :: rest, substitutions)
     | _, _, _, _, _, _, span => fail span "E_ARITY" "argument count differs from function signature"
 
-  private def checkBlock : Nat → Signatures → Context → RawBlock → Option Ty → CheckM Result
+  def checkBlock : Nat → Signatures → Context → RawBlock → Option Ty → CheckM Result
     | 0, _, _, .mk _ _ span, _ => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, .mk statements result span, expected => do
       let checked ← checkStatements fuel signatures ctx statements result expected
       checkEscape ctx checked span
       pure checked
 
-  private def checkStatements : Nat → Signatures → Context → List RawStmt → RawExpr → Option Ty → CheckM Result
+  def checkStatements : Nat → Signatures → Context → List RawStmt → RawExpr → Option Ty → CheckM Result
     | 0, _, _, _, result, _ => fail result.span "E_LIMIT" "too many statements in a block"
     | fuel + 1, signatures, ctx, [], result, expected => checkExpr fuel signatures ctx result expected
     | fuel + 1, signatures, ctx, .letE name annotation value span :: rest, result, expected => do
@@ -369,7 +380,7 @@ mutual
       if let some ref := value.objectRef then nameObject ref name
       let binding : Binding := { name, symbol, ty := value.term.ty, objectRef := value.objectRef }
       let body ← checkStatements fuel signatures (binding :: ctx) rest result expected
-      pure { term := .letE symbol value.term body.term, objectRef := body.objectRef }
+      pure { term := .letE symbol value.term body.term }
     | fuel + 1, signatures, ctx, .unpack value scheme point span :: rest, result, expected => do
       checkNewBinding ctx scheme span
       checkNewBinding ctx point span
@@ -387,51 +398,48 @@ mutual
       let objectBinding : Binding := { name := scheme, symbol := objectSymbol, ty := .object base, objectRef := some obj }
       let pointBinding : Binding := { name := point, symbol := pointSymbol, ty := unpackedPointType base objectSymbol }
       let body ← checkStatements fuel signatures (pointBinding :: objectBinding :: ctx) rest result expected
-      pure { term := .unpack objectSymbol pointSymbol value.term body.term, objectRef := body.objectRef }
+      pure { term := .unpack objectSymbol pointSymbol value.term body.term }
 end
 
-private def prepareSignature (raw : RawFunction) : CheckM Signature := do
-  checkName raw.name raw.span
-  let id ← fresh
-  let mut params : List Binding := []
-  for param in raw.params do
+/-- Resolve parameter annotations in declaration order, retaining the complete
+preceding context for dependent indices. Kept separate for correspondence proofs. -/
+def prepareParameters (params : List Binding) : List RawParam → CheckM (List Binding)
+  | [] => pure params
+  | param :: rest => do
     checkNewBinding params param.name param.span
     let ty ← resolveType params param.ty param.span
     let symbol ← fresh
     let objectRef := match ty with | .object base => some (.local base symbol) | _ => none
     if let some ref := objectRef then rememberObject ref param.span "parameter" (some param.name)
-    params := params ++ [{ name := param.name, symbol, ty, objectRef }]
+    prepareParameters (params ++ [{ name := param.name, symbol, ty, objectRef }]) rest
+
+def prepareSignature (raw : RawFunction) : CheckM Signature := do
+  checkName raw.name raw.span
+  let id ← fresh
+  let params ← prepareParameters [] raw.params
   let result ← resolveType params raw.returnType raw.span
   if raw.name == "main" && (!params.isEmpty || result != .int) then
     fail raw.span "E_MAIN" "entry point must have signature fn main() -> Int"
   pure { id, raw, params, result }
 
-private def checkFunction (signatures : Signatures) (signature : Signature) : CheckM CheckedFunction := do
+def checkFunction (signatures : Signatures) (signature : Signature) : CheckM CheckedFunction := do
   let body ← checkBlock 4096 signatures signature.params signature.raw.body (some signature.result)
   if body.term.generatedLetCount > generatedLetLimit then
     fail signature.raw.span "E_LIMIT" s!"function exceeds the generated-let budget of {generatedLetLimit}; let costs 1 and unpack costs 3"
   pure {
     id := signature.id
     name := signature.raw.name
-    params := signature.params.map (fun p => (p.symbol, p.ty))
+    params := signature.params.map Binding.checked
     returnType := signature.result
     body := body.term
     span := signature.raw.span }
 
-private def calls : Term → List Nat
-  | .call id args _ => id :: args.flatMap calls
-  | .builtin _ _ args _ => args.flatMap calls
-  | .unary _ arg _ => calls arg
-  | .binary _ left right _ => calls left ++ calls right
-  | .branch condition yes no _ => calls condition ++ calls yes ++ calls no
-  | .pack _ scheme point => calls scheme ++ calls point
-  | .letE _ value body | .unpack _ _ value body => calls value ++ calls body
-  | _ => []
+def calls : Term → List Nat := Term.callIds
 
 /-- A residual Kahn graph has an outgoing dependency at every remaining vertex.
 Following those edges eventually repeats a vertex; only the repeated suffix is
 the cycle, excluding callers that merely depend on it. -/
-private def dependencyCycle (dependencies : Array (Array Nat)) (waiting : Array Nat)
+def dependencyCycle (dependencies : Array (Array Nat)) (waiting : Array Nat)
     (start : Nat) : CheckM (List Nat) := do
   let mut positions : Std.HashMap Nat Nat := {}
   let mut path : Array Nat := #[]
@@ -446,7 +454,7 @@ private def dependencyCycle (dependencies : Array (Array Nat)) (waiting : Array 
     current := next
   fail {} "E_INTERNAL_GRAPH" "failed to find a cycle in the remaining call graph"
 
-private def sortFunctions (functions : List CheckedFunction) : CheckM (List CheckedFunction) := do
+def sortFunctionIndices (functions : List CheckedFunction) : CheckM (List Nat) := do
   let functions := functions.toArray
   let mut positions : Std.HashMap Nat Nat := {}
   for i in [:functions.size] do
@@ -469,11 +477,11 @@ private def sortFunctions (functions : List CheckedFunction) : CheckM (List Chec
   for i in [:functions.size] do
     if waiting[i]! == 0 then ready := ready.push i
   let mut cursor := 0
-  let mut sorted : Array CheckedFunction := #[]
+  let mut sorted : Array Nat := #[]
   while cursor < ready.size do
     let i := ready[cursor]!
     cursor := cursor + 1
-    sorted := sorted.push functions[i]!
+    sorted := sorted.push i
     for dependent in dependents[i]! do
       waiting := waiting.modify dependent (· - 1)
       if waiting[dependent]! == 0 then ready := ready.push dependent
@@ -487,7 +495,24 @@ private def sortFunctions (functions : List CheckedFunction) : CheckM (List Chec
       s!"recursive call cycle {String.intercalate " → " names} is not supported in Stage 0"
   pure sorted.toList
 
-private def checkModuleImpl (raw : RawModule) (requireMain : Bool) : CheckM CheckedModule := do
+/-- Reordering can only select declarations from the original checked list.
+The independently proved source correspondence does not need to trust the
+imperative queue implementation for this provenance invariant. -/
+def selectFunctions (functions : Array CheckedFunction) : List Nat → CheckM (List CheckedFunction)
+  | [] => pure []
+  | index :: rest => do
+    let some function := functions[index]?
+      | fail {} "E_INTERNAL_GRAPH" "dependency order contains an invalid function index"
+    pure (function :: (← selectFunctions functions rest))
+
+def sortFunctions (functions : List CheckedFunction) : CheckM (List CheckedFunction) := do
+  let order ← sortFunctionIndices functions
+  let sorted ← selectFunctions functions.toArray order
+  unless sorted.length == functions.length do
+    fail {} "E_INTERNAL_GRAPH" "dependency order changed the function count"
+  pure sorted
+
+def checkModuleImpl (raw : RawModule) (requireMain : Bool) : CheckM CheckedModule := do
   unless raw.version == 1 do fail {} "E_PROTOCOL" "unsupported IR protocol version; expected 1"
   let mut names : Std.HashSet String := {}
   for f in raw.functions do
@@ -505,8 +530,14 @@ private def checkModuleImpl (raw : RawModule) (requireMain : Bool) : CheckM Chec
   if requireMain && mainId.isNone then fail {} "E_MAIN" "build requires fn main() -> Int"
   pure { functions := sorted, mainId }
 
+end Checker.Internal
+
 def checkModule (raw : RawModule) (requireMain : Bool := false) : Except Diagnostic CertifiedModule := do
-  let checked := (← (checkModuleImpl raw requireMain).run {}).1
+  let checked := (← (Checker.Internal.checkModuleImpl raw requireMain).run {}).1
+  unless Dependency.auditModule checked do
+    throw { code := "E_INTERNAL_GRAPH", message := "checked IR failed dependency-order audit" }
+  unless Typing.auditModule checked do
+    throw { code := "E_INTERNAL_TYPE", message := "checked IR failed declarative typing audit" }
   certifyModule checked
 
 end VastitasKernel

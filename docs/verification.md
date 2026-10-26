@@ -3,58 +3,140 @@
 The proof oracle in `lean/` imports the implementation's definitions from
 `lean-kernel/`. It has no executable target and is not consulted when compiling
 or executing `.vast` programs. mathlib is pinned to v4.35.0; the executable
-kernel depends only on the Lean distribution.
+kernel and generated runtime depend only on the Lean distribution.
 
-## What the proofs establish
+The combined theorem, `VastitasOracle.checkModule_sound`, starts with success
+of the actual public checker. It establishes source correspondence, independent
+typing, a strict function dependency order, and finite evaluation with the
+declared result type for every well-typed argument environment. The constituent
+results and their limits are described below.
 
-- The actual `checkApply`, `checkCompose`, and `checkPack` rules satisfy explicit
-  contracts on nominal endpoints and geometric bases when they accept.
-- Base-preserving substitution retains type well-formedness and the association
-  between a point and its target. Distinct fresh unpacked names cannot be mixed;
-  a correctly unpacked point can be repackaged.
-- The actual scope-checking rule accepts only endpoint references present in
-  the outer scope (or canonical base objects). A fresh unpacked endpoint absent
-  from that scope is rejected; a repackaged point does not expose that endpoint.
-- The actual runtime definitions satisfy origin, identity, composition,
-  application, and package-projection laws. Runtime descriptor equality alone
-  is not used to establish nominal identity.
-- The accepted-module boundary carries a checked proposition that all type
-  annotations have compatible bases and every function body's annotated result
-  equals its declared return type. `certifiedModule_annotation_property` exposes
-  the property carried by this subtype; it is not a soundness theorem about
-  `checkModule` or a relation between raw input and elaborated output.
+## Checked language and independent audits
 
-These results use actual implementation definitions, rather than a copied
-toy checker. They contain no `sorry`, `admit`, or project-specific unproved
-axioms. CI audits the oracle namespace against Lean's standard logical axioms
+The checked `Term` language retains normalized integer literals, finite
+operator and builtin constructors, resolved variable and function symbols,
+types, object references, and dependent call substitutions. Object identity
+metadata remains available through checking and is erased during code
+generation. The formal evaluation relation operates on this actual `Term`
+language and uses the actual runtime objects, points, morphisms, and packages.
+
+Successful `checkModule` runs two independent audits after elaboration:
+
+- `Typing.auditModule` checks the structural typing rules for every term,
+  including variable lookup, operand types, dependent arguments and their
+  final substitutions, branch identities, packages, parameter and return
+  scopes, and uniqueness of function IDs and fresh nominal references.
+- `Dependency.auditModule` checks that every call refers to an earlier
+  function in the finalized order. This establishes acyclicity independently
+  of the topological sorter's implementation.
+
+The typing rules are defined separately from the elaborator's control flow;
+they are not defined as the statement that elaboration succeeded.
+`VastitasOracle.checkModule_typed_and_ordered` unfolds the actual public checker and proves
+that acceptance yields its actual elaborated module satisfying both
+`Typing.ModuleWellTyped` and `Dependency.ModuleOrdered`.
+
+`CertifiedModule` still carries the smaller annotation postcondition:
+compatible endpoint bases and agreement between each body's annotated result
+and its declared return type. `certifiedModule_annotation_property` is the
+projection of that subtype property. It does not establish the stronger
+typing, dependency, or source-correspondence results. The public
+`Codegen.generate` boundary repeats the independent audits, so constructing
+this weaker certificate directly cannot bypass them.
+
+## Source correspondence and type safety
+
+`VastitasOracle.Elaboration.checkModule_source_correspondence` proves the independent
+`ModuleCorresponds` relation between an accepted decoded `RawModule` and the
+actual checked module. Parameter and return annotations retain their source
+type and index resolution. Expression and block correspondence covers name
+resolution, normalized literals, finite operators, calls, local annotations,
+lexical scope, and `let`/`pack`/`unpack` lowering. Every source declaration has a
+corresponding checked function, every checked function has a source
+declaration, and reordering cannot drop or synthesize functions. The selected
+entrypoint corresponds to the finalized function named `main`.
+
+`VastitasOracle.Safety.evaluation_total_and_typed` proves finite big-step evaluation and type
+preservation for every checked term constructor, assuming typed contracts for
+its callees. The verified dependency order discharges those contracts for the
+entire module. The public result,
+`VastitasOracle.ActivationSafety.checkModule_total_for_arguments`, states that if the actual
+`checkModule` accepts, every function in its result evaluates to a value of its
+declared return type for every well-typed argument environment. The caller
+does not need to supply an additional freshness or injectivity hypothesis.
+
+Nominal references are interpreted in a world local to each function
+activation. These interpretations are deliberately **not injective**:
+different static identities may denote equal runtime descriptors. For example,
+an object-returning helper can give its result a new static identity while
+returning the same descriptor it received. Fresh activation and local
+allocation preserve existing meanings without equating distinct identities.
+
+For `Point<X, S>`, value typing states that the runtime point's target and
+source equal the interpretations of `X` and `S`. Morphisms preserve the same
+endpoint correspondence. Packages hide their object's identity while retaining
+the association with their point; opening a package introduces a fresh local
+reference. The proofs also connect the actual `checkApply`, `checkCompose`,
+`checkPack`, scope-checking rules, and dependent substitutions to these runtime
+properties. Scope permits canonical bases and references already represented
+by enclosing object bindings or the types of enclosing values.
+
+The proofs contain no `sorry`, `admit`, or project-specific unproved axioms.
+CI audits the oracle namespace against Lean's standard logical axioms
 (`propext`, `Classical.choice`, and `Quot.sound`).
 
-## What remains a trust boundary
+## What is outside these claims
 
-The finite annotation postcondition is not a proof of a full source-language
-typing derivation or of the entire elaborator. Scope management, fresh-name
-allocation, function dependency analysis, the Rust frontend, JSON transport,
-and code generation are implemented and regression-tested. Their complete
-semantic preservation proofs remain future work.
+The source-correspondence theorem starts at decoded `RawModule`. It does not
+verify Rust lexing, parsing, source-library composition, JSON serialization or
+decoding, diagnostic spans, or the accuracy of diagnostic prose. The
+correspondence relation records elaboration into checked syntax; it is not a
+separate operational-equivalence theorem for source text.
 
-Lean's compiler, generated C, the C toolchain, linker, OS, and hardware are also
-outside the proved claims. Native tests establish observed behavior for the
-tested cases, not a proof of all native executions.
+The big-step semantics evaluates both operands of Boolean `&&` and `||`;
+generated Lean uses short-circuit evaluation. The proved contract concerns
+values and types in the pure, terminating Stage 0 core. It does not assert
+identical evaluation order, execution traces, or resource costs. Nor is there
+a proof that generated Lean source, Lean's compiler, generated C, the C
+toolchain, linker, OS, and hardware preserve the denotation. Native regression
+tests establish observed results for tested programs across that boundary.
+Mathematical termination is not a bound on compilation or execution time,
+memory use, or stack consumption.
 
-The ordinary/smooth affine descriptors are a restricted semantic skeleton.
-The oracle does not formalize all schemes or C-infinity schemes, prove general
-geometric constructions, establish numerical accuracy, or certify physical
-adequacy. Any mathematical coordinate interpretation in the oracle is limited
-to the stated zero/identity fragment.
+The ordinary/smooth affine descriptors remain a restricted geometric core.
+These results do not formalize all schemes or C-infinity schemes, prove
+general geometric constructions, establish numerical accuracy, or certify
+physical adequacy. The auxiliary coordinate interpretation is limited to the
+stated zero/identity fragment. Stage 1a dispatch, independent lambdas,
+ownership, iteration, and recursion are not implemented or covered by these
+theorems.
 
-## Executable checks
+## Validation
 
-The Rust tests cover parsing and lexical scope, positive native examples,
-nominal endpoint mismatches, base/setting mismatches, dependent arguments,
-package escape, invalid scalar coercions, recursion, malformed/forged IR,
-missing backends, and preservation of existing artifacts on failure.
+Run from the repository root:
 
-The compiler CI job checks out the compiler without `lean/`, builds and tests
-on macOS and Linux, and runs `scripts/check_boundaries.py` to ensure the kernel
-has no external package dependency. The independent oracle job builds proofs
-and audits their axioms.
+```sh
+cargo fmt --all -- --check
+cargo clippy --locked --all-targets -- -D warnings
+lake -d lean-kernel build vastitas-kernel
+lake -d lean-kernel build VastitasKernel.TypeAuditRegression
+cargo test --locked --all-targets
+lake -d lean build VastitasOracle
+python3 -m unittest discover -s scripts -p 'test_*.py'
+python3 scripts/check_boundaries.py
+```
+
+`TypeAuditRegression` is an explicit build target: its executable checks forge
+checked terms directly, bypassing elaboration. They exercise invalid operand
+and result annotations, variables, nominal identities, substitutions,
+packages, symbol reuse, and dependency cycles. They also verify that the code
+generator rejects forged modules carrying only the legacy annotation
+certificate. These tests complement the logical soundness theorems.
+
+Rust integration tests exercise parsing and diagnostics, malformed raw IR,
+semantic rejection codes, native execution, source libraries, implementation
+limits, and preservation of existing output artifacts on failure. The compiler
+CI jobs build and test on macOS and Linux from a checkout without `lean/` or
+mathlib, including the checked-IR audit regressions. A separate job builds the
+proof oracle and audits its axioms. Dependency-boundary checks prevent the
+normal compiler path from acquiring a mathlib dependency.

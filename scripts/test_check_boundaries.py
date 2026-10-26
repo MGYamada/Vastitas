@@ -90,6 +90,10 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertTrue(any("no external Lake" in error for error in errors))
         self.assertEqual(sum("runtime must not import" in error for error in errors), 2)
 
+    def test_missing_runtime_cannot_silently_pass(self):
+        (self.root / "lean-kernel/VastitasKernel/Runtime.lean").unlink()
+        self.assertIn("kernel runtime source is missing", check_boundaries(self.root))
+
     def test_root_and_oracle_toolchains_must_match_kernel(self):
         self.write("lean-toolchain", "leanprover/lean4:v4.34.0\n")
         self.write("lean/lean-toolchain", "leanprover/lean4:v4.34.0\n")

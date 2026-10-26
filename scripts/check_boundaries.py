@@ -129,6 +129,9 @@ def check_boundaries(root):
     manifest = json.loads((kernel / "lake-manifest.json").read_text())
     if manifest.get("packages"):
         errors.append("lean-kernel must have no external Lake package dependencies")
+    runtime = kernel / "VastitasKernel" / "Runtime.lean"
+    if not runtime.is_file():
+        errors.append("kernel runtime source is missing")
     for source in kernel.rglob("*.lean"):
         if ".lake" in source.parts:
             continue
@@ -140,7 +143,7 @@ def check_boundaries(root):
         for name in imports:
             if not module_allowed(name, {"Init", "Std", "Lean", "VastitasKernel"}):
                 errors.append(f"{source.relative_to(root)}: forbidden import {name}")
-            if source == kernel / "VastitasKernel" / "Runtime.lean":
+            if source == runtime:
                 if not module_allowed(name, {"Init", "Std"}):
                     errors.append(f"runtime must not import compiler module {name}")
     kernel_toolchain = (kernel / "lean-toolchain").read_text().strip()

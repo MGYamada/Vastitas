@@ -1,14 +1,22 @@
 # Vastitas
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 0 compiler**: `.vast` source → Rust frontend → independently checked
+its **Stage 1a compiler**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
-The current language supports exact integer computation and a small geometric
-core. Ordinary and smooth affine descriptors, points, identity morphisms,
+The current language supports exact integer computation, a small geometric
+core, and finite multiple dispatch over scalar types. Ordinary and smooth
+affine descriptors, points, identity morphisms,
 dependent arguments, and existential packages preserve nominal endpoints.
 The [language design](docs/design.md) describes the larger research direction;
 it is not a list of implemented features.
+
+Stage 1a adds `generic`/`method` declarations with explicit callable domains,
+nominal selectors and static capabilities. Lean checks all concrete keys for
+ambiguity, every declared domain for coverage, and every applicable method
+body before lowering calls to the proved Stage 0 core. This is not completion
+of the full Stage 1 design: lambdas, edit/borrow ownership, storage ownership,
+and linear algebra remain later work.
 
 ## Build and use
 
@@ -29,7 +37,7 @@ cargo run --locked -- build examples/pointed.vast -o target/pointed
 successfully. Compilation never runs the generated program.
 
 The compiler uses this checkout's built backend and runtime. A relocatable
-installation and cross-compilation are outside Stage 0. The optional
+installation and cross-compilation are not provided. The optional
 `VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` environment variables select a
 trusted backend executable and kernel package directory for development.
 The backend build includes the native runtime. `check` needs only the executable
@@ -54,6 +62,23 @@ cargo run --locked -- build examples/stdlib-arithmetic.vast \
 file are checked together by Lean. Each file keeps its own diagnostic locations;
 no implicit prelude or source-language import syntax is introduced.
 
+The generic `add` and `maximum` wrappers use the same prefixed functions:
+
+```sh
+cargo run --locked -- build examples/dispatch-arithmetic.vast \
+  --lib stdlib/src/arithmetic/int.vast \
+  --lib stdlib/src/arithmetic/nat.vast \
+  --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
+./target/dispatch-arithmetic
+# 42
+```
+
+Their domains are `(Int, Int)` and `(Nat, Nat)`. Generic arguments determine
+selection, so bare literals choose Int; pass Nat-typed values to choose Nat.
+There is no implicit conversion or selection using the expected result type.
+See [the Stage 1a specification](docs/stage1a.md) for selectors, capabilities,
+the 4096-key bound, and examples of ambiguity.
+
 ## Architecture
 
 | Directory | Responsibility | Dependencies |
@@ -64,14 +89,20 @@ no implicit prelude or source-language import syntax is introduced.
 | `stdlib/src/` | Standard library written in `.vast` | Explicitly included `.vast` sources |
 
 Ordinary compilation and generated programs do not call the proof oracle.
-The oracle proves specific checker postconditions, geometric rules, and
-preservation properties. It does **not** prove the entire parser, elaborator,
-code generator, C compiler, or a full mathematical model of schemes correct.
+The oracle proves actual Stage 0 checker soundness, source-to-core
+correspondence, terminating typed evaluation, and runtime endpoint preservation.
+It also proves the finite dispatch checker's unique selection, coverage, and
+declaration-order invariance, and connects the public Stage 1a checker's exact
+lowered result to that proved core. Rust parsing, JSON decoding, full Stage 1a
+source rewriting correspondence, native code-generation equivalence, and a
+full mathematical model of schemes remain outside those claims. The precise
+[proof boundary](docs/verification.md) is part of the implementation contract.
 
 ## Validation
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
+lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
@@ -100,7 +131,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 
 ## Documentation
 
-- [Stage 0 grammar, semantics, and limits](docs/stage0.md)
+- [Stage 0 core grammar, semantics, and limits](docs/stage0.md)
+- [Stage 1a finite multiple dispatch](docs/stage1a.md)
 - [Stage 0 safety gate and Stage 1a delivery plan](docs/stage1-roadmap.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)

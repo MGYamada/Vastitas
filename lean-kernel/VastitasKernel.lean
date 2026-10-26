@@ -1,3 +1,4 @@
 import VastitasKernel.Core
 import VastitasKernel.Checker
+import VastitasKernel.DispatchChecker
 import VastitasKernel.Runtime

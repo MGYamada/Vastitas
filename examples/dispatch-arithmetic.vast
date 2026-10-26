@@ -1,0 +1,6 @@
+fn main() -> Int {
+    let left: Nat = 20;
+    let right: Nat = 22;
+    let total: Nat = add(left, right);
+    maximum(nat_to_int(total), 41)
+}

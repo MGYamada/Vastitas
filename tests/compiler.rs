@@ -285,7 +285,7 @@ fn library_check_does_not_require_an_entrypoint_but_build_does() {
 fn malformed_ir_version_type_binding_and_literal_are_rejected() {
     let original = request("fn main() -> Int { 1 }");
     let mut value = original.clone();
-    value["version"] = json!(2);
+    value["version"] = json!(1);
     assert_rejected(value, "E_PROTOCOL");
     let mut value = original.clone();
     value["functions"][0]["return_type"] = json!({"kind":"named", "name":"Bool"});

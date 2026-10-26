@@ -1,7 +1,20 @@
 # Stage 0 hardening and Stage 1a delivery
 
-This is an implementation plan, not a completion or verification claim.
+The four implementation increments below have been implemented and validated
+through Stage 1a. This is not completion of the historical Stage 1 roadmap.
 The historical v0.3 proposal remains unchanged under `docs/design/`.
+
+| Delivery | Pull request | Acceptance |
+| --- | --- | --- |
+| Stage 0 reliability | [#30](https://github.com/MGYamada/Vastitas/pull/30) | Regression and hosted CI checks passed |
+| Stage 0 usability | [#31](https://github.com/MGYamada/Vastitas/pull/31) | Regression and hosted CI checks passed |
+| Stage 0 safety | [#32](https://github.com/MGYamada/Vastitas/pull/32) | Full core soundness/type-safety proof and hosted axiom audit passed before Stage 1a began |
+| Stage 1a dispatch | [#33](https://github.com/MGYamada/Vastitas/pull/33) | Finite engine proofs, native regressions, and macOS/Linux no-mathlib CI passed |
+
+The PRs are stacked in that order. Their linked implementation issues close
+upon merge; the deferred design issues below remain open. See
+[Stage 1a](stage1a.md) and the [proof boundary](verification.md) for the current
+contract and exact theorem scope.
 
 ## Delivery gates
 
@@ -12,8 +25,8 @@ The historical v0.3 proposal remains unchanged under `docs/design/`.
 | Stage 0 safety | #29 | Actual-checker soundness, terminating typed evaluation, and runtime endpoint correspondence |
 | Stage 1a dispatch | #27 | Closed-world finite nominal/static-capability checking and statically selected native calls |
 
-Stage 1a implementation starts only after the Stage 0 safety gate is proved and
-passes the proof build and axiom audit. Merely extracting the property of a
+The Stage 0 safety gate was proved and passed its proof build and hosted axiom
+audit before Stage 1a implementation began. Merely extracting the property of a
 certified subtype does not establish checker soundness. The safety gate covers
 the actual checked language and its elaboration from decoded raw IR, not the
 Rust parser, JSON decoder, Lean/C code generator, linker, or operating system.
@@ -31,8 +44,7 @@ on every admitted key, coverage on the declared domain, and selection follows
 the nominal/capability product order. There is no runtime generic-dispatch
 fallback or selection using erased geometry identities. The key-space limit
 is 4096. Every applicable ground method body is checked before lowering to the
-ordinary checked core. The frontend/backend protocol will move together to
-version 2 when this feature is implemented.
+ordinary checked core. The frontend/backend wire protocol is version 2.
 
 ## Deferred decisions
 

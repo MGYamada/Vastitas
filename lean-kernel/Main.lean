@@ -1,5 +1,5 @@
 import VastitasKernel.Protocol
-import VastitasKernel.Checker
+import VastitasKernel.DispatchChecker
 import VastitasKernel.Codegen
 import VastitasKernel.Runtime
 
@@ -10,7 +10,7 @@ private def process (mode input : String) : Lean.Json := Id.run do
   match parsed with
   | .error message => return failureJson { code := "E_PROTOCOL", message }
   | .ok raw =>
-    match checkModule raw (mode == "emit") with
+    match checkProgram raw (mode == "emit") with
     | .error diagnostic => return failureJson diagnostic
     | .ok checked =>
       if mode == "check" then return successJson

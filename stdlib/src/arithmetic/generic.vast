@@ -1,0 +1,26 @@
+// Finite scalar dispatch over the existing arithmetic functions.
+// Include int.vast and nat.vast explicitly with --lib as well.
+
+generic add(left, right) {
+    domain (Int, Int), (Nat, Nat);
+}
+
+method add(left: Int, right: Int) -> Int {
+    int_add(left, right)
+}
+
+method add(left: Nat, right: Nat) -> Nat {
+    nat_add(left, right)
+}
+
+generic maximum(left, right) {
+    domain (Int, Int), (Nat, Nat);
+}
+
+method maximum(left: Int, right: Int) -> Int requires (HasOrder) {
+    int_max(left, right)
+}
+
+method maximum(left: Nat, right: Nat) -> Nat requires (HasOrder) {
+    nat_max(left, right)
+}

@@ -735,12 +735,26 @@ impl<'a> Resolver<'a> {
             return false;
         }
         marks[current] = 1;
-        for &next in &self.calls[current] {
-            if self.cycle(next, marks) {
-                return true;
+        // Call chains are independent of expression depth, so keep DFS frames
+        // on the heap. Only the current path is active (mark 1); shared callees
+        // that have finished (mark 2) do not indicate recursion.
+        let mut pending = vec![(current, 0)];
+        while let Some((current, edge)) = pending.last_mut() {
+            if let Some(&next) = self.calls[*current].get(*edge) {
+                *edge += 1;
+                match marks[next] {
+                    1 => return true,
+                    0 => {
+                        marks[next] = 1;
+                        pending.push((next, 0));
+                    }
+                    _ => {}
+                }
+            } else {
+                marks[*current] = 2;
+                pending.pop();
             }
         }
-        marks[current] = 2;
         false
     }
 
@@ -1182,6 +1196,46 @@ fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
         let errors =
             parse("fn a() -> Int { b() } fn b() -> Int { a() }", "cycle.vast").unwrap_err();
         assert!(errors.iter().any(|e| e.code == "E_RECURSION"));
+    }
+
+    #[test]
+    fn handles_long_call_chains_and_late_cycles_without_stack_recursion() {
+        use std::fmt::Write;
+
+        const COUNT: usize = 50_000;
+        let mut source = String::new();
+        for i in 0..COUNT - 1 {
+            writeln!(source, "fn f{i}() -> Int {{ f{}() }}", i + 1).unwrap();
+        }
+        let tail = source.len();
+        writeln!(source, "fn f{}() -> Int {{ 0 }}", COUNT - 1).unwrap();
+        assert_eq!(parse(&source, "chain.vast").unwrap().functions.len(), COUNT);
+
+        source.truncate(tail);
+        writeln!(source, "fn f{}() -> Int {{ f{}() }}", COUNT - 1, COUNT / 2).unwrap();
+        let errors = parse(&source, "cycle.vast").unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E_RECURSION");
+        assert!(errors[0].message.contains("`f0`"));
+        assert_eq!(errors[0].span.line, 1);
+    }
+
+    #[test]
+    fn shared_callees_are_not_cycles_and_disconnected_cycles_are_checked() {
+        let source = "fn root() -> Int { left() + right() + left() }
+fn left() -> Int { leaf() }
+fn right() -> Int { leaf() }
+fn leaf() -> Int { 0 }";
+        parse(source, "diamond.vast").unwrap();
+        let errors = parse(
+            &format!("{source}\nfn looped() -> Int {{ looped() }}"),
+            "disconnected.vast",
+        )
+        .unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E_RECURSION");
+        assert!(errors[0].message.contains("`looped`"));
+        assert_eq!(errors[0].span.line, 5);
     }
 
     #[test]

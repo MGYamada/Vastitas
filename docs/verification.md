@@ -134,9 +134,10 @@ composition results:
   argument environments. This includes the core's runtime endpoint and
   package correspondence guarantees.
 
-The finite Stage 1a implementation and these proofs are present; full
-repository and CI validation remains the delivery gate. This is not completion
-of all Stage 1 features in the historical design.
+The finite Stage 1a implementation passed repository validation and hosted CI,
+including the proof/axiom audit and macOS/Linux compiler builds without mathlib
+([acceptance run](https://github.com/MGYamada/Vastitas/actions/runs/40336834442)).
+This is not completion of all Stage 1 features in the historical design.
 
 The proofs contain no `sorry`, `admit`, or project-specific unproved axioms.
 CI audits the oracle namespace against Lean's standard logical axioms

@@ -1,0 +1,1309 @@
+//! The Stage 0 lexer, parser, and lexical name resolver.
+//!
+//! Identifiers are ASCII; offsets are UTF-8 byte offsets and diagnostic columns
+//! count Unicode scalar values. No source fragment is ever emitted as Lean code.
+
+use std::collections::{HashMap, HashSet};
+
+pub use crate::ir::Diagnostic;
+use crate::ir::{
+    Block, Expr, ExprKind, Function, Index, Module, Param, Span, Statement, StatementKind, Type,
+};
+
+const BUILTINS: &[&str] = &[
+    "Affine",
+    "Base",
+    "origin",
+    "id",
+    "compose",
+    "apply",
+    "dimension",
+];
+const KEYWORDS: &[&str] = &[
+    "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false",
+];
+const TYPES: &[&str] = &[
+    "Nat",
+    "Int",
+    "Bool",
+    "Unit",
+    "Scheme",
+    "CInfScheme",
+    "Point",
+    "Morphism",
+    "Pointed",
+];
+
+// Bound recursive descent before it consumes the process stack. The separate
+// tree limit also catches left-associated Pratt chains, which are parsed in a
+// loop but would otherwise recurse without a bound in resolution and serde.
+const MAX_PARSE_NESTING: usize = 64;
+const MAX_AST_DEPTH: usize = 128;
+
+fn diagnostic(code: &str, message: impl Into<String>, span: Span) -> Diagnostic {
+    Diagnostic {
+        code: code.into(),
+        message: message.into(),
+        span,
+    }
+}
+
+fn reserved(name: &str) -> bool {
+    BUILTINS.contains(&name)
+        || KEYWORDS.contains(&name)
+        || TYPES.contains(&name)
+        || matches!(name, "QQ" | "CInfReal")
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum TokenKind {
+    Name(String),
+    Number(String),
+    Symbol(String),
+    Eof,
+}
+
+#[derive(Debug, Clone)]
+struct Token {
+    kind: TokenKind,
+    span: Span,
+}
+
+impl Token {
+    fn is(&self, value: &str) -> bool {
+        match &self.kind {
+            TokenKind::Name(name) | TokenKind::Symbol(name) => name == value,
+            _ => false,
+        }
+    }
+
+    fn description(&self) -> String {
+        match &self.kind {
+            TokenKind::Name(s) | TokenKind::Number(s) | TokenKind::Symbol(s) => format!("`{s}`"),
+            TokenKind::Eof => "end of file".into(),
+        }
+    }
+}
+
+struct Lexer<'a> {
+    source: &'a str,
+    offset: usize,
+    line: usize,
+    column: usize,
+}
+
+impl<'a> Lexer<'a> {
+    fn new(source: &'a str) -> Self {
+        Self {
+            source,
+            offset: 0,
+            line: 1,
+            column: 1,
+        }
+    }
+
+    fn span(&self) -> Span {
+        Span {
+            start: self.offset,
+            end: self.offset,
+            line: self.line,
+            column: self.column,
+        }
+    }
+
+    fn peek(&self) -> Option<char> {
+        self.source[self.offset..].chars().next()
+    }
+
+    fn advance(&mut self) -> Option<char> {
+        let ch = self.peek()?;
+        self.offset += ch.len_utf8();
+        if ch == '\n' {
+            self.line += 1;
+            self.column = 1;
+        } else {
+            self.column += 1;
+        }
+        Some(ch)
+    }
+
+    fn tokenize(mut self) -> Result<Vec<Token>, Diagnostic> {
+        let mut tokens = Vec::new();
+        while let Some(ch) = self.peek() {
+            if ch.is_whitespace() {
+                self.advance();
+                continue;
+            }
+            if self.source[self.offset..].starts_with("//") {
+                while self.peek().is_some_and(|ch| ch != '\n') {
+                    self.advance();
+                }
+                continue;
+            }
+            let mut span = self.span();
+            let kind = if ch.is_ascii_alphabetic() || ch == '_' {
+                while self
+                    .peek()
+                    .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+                {
+                    self.advance();
+                }
+                TokenKind::Name(self.source[span.start..self.offset].into())
+            } else if ch.is_ascii_digit() {
+                while self.peek().is_some_and(|c| c.is_ascii_digit()) {
+                    self.advance();
+                }
+                TokenKind::Number(self.source[span.start..self.offset].into())
+            } else {
+                let tail = &self.source[self.offset..];
+                if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||"]
+                    .into_iter()
+                    .find(|op| tail.starts_with(op))
+                {
+                    self.advance();
+                    self.advance();
+                    TokenKind::Symbol(op.into())
+                } else if "(){}<>,:;=+-*!".contains(ch) {
+                    self.advance();
+                    TokenKind::Symbol(ch.to_string())
+                } else {
+                    self.advance();
+                    span.end = self.offset;
+                    return Err(diagnostic(
+                        "E_LEX",
+                        format!(
+                            "unsupported character `{ch}`; Stage 0 uses ASCII identifiers and integer literals"
+                        ),
+                        span,
+                    ));
+                }
+            };
+            span.end = self.offset;
+            tokens.push(Token { kind, span });
+        }
+        tokens.push(Token {
+            kind: TokenKind::Eof,
+            span: self.span(),
+        });
+        Ok(tokens)
+    }
+}
+
+struct Parser {
+    tokens: Vec<Token>,
+    position: usize,
+    nesting: usize,
+}
+
+impl Parser {
+    fn peek(&self) -> &Token {
+        &self.tokens[self.position]
+    }
+    fn previous(&self) -> &Token {
+        &self.tokens[self.position - 1]
+    }
+
+    fn advance(&mut self) -> Token {
+        let token = self.peek().clone();
+        if token.kind != TokenKind::Eof {
+            self.position += 1;
+        }
+        token
+    }
+
+    fn consume(&mut self, value: &str) -> bool {
+        if self.peek().is(value) {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn expect(&mut self, value: &str) -> Result<Token, Diagnostic> {
+        if self.peek().is(value) {
+            Ok(self.advance())
+        } else {
+            Err(diagnostic(
+                "E_PARSE",
+                format!("expected `{value}`, found {}", self.peek().description()),
+                self.peek().span,
+            ))
+        }
+    }
+
+    fn name(&mut self) -> Result<(String, Span), Diagnostic> {
+        let token = self.advance();
+        match token.kind {
+            TokenKind::Name(name) if !KEYWORDS.contains(&name.as_str()) => Ok((name, token.span)),
+            _ => Err(diagnostic("E_PARSE", "expected an identifier", token.span)),
+        }
+    }
+
+    fn binding_name(&mut self) -> Result<(String, Span), Diagnostic> {
+        let (name, span) = self.name()?;
+        if reserved(&name) {
+            Err(diagnostic(
+                "E_RESERVED",
+                format!("`{name}` is reserved and cannot be used as a binding name"),
+                span,
+            ))
+        } else {
+            Ok((name, span))
+        }
+    }
+
+    fn module(&mut self, file: &str) -> Result<Module, Diagnostic> {
+        let mut functions = Vec::new();
+        while self.peek().kind != TokenKind::Eof {
+            if !self.peek().is("fn") {
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    "Stage 0 modules contain only named `fn` declarations",
+                    self.peek().span,
+                ));
+            }
+            functions.push(self.function()?);
+        }
+        Ok(Module {
+            version: 1,
+            file: file.into(),
+            functions,
+        })
+    }
+
+    fn function(&mut self) -> Result<Function, Diagnostic> {
+        let start = self.expect("fn")?.span;
+        let (name, _) = self.binding_name()?;
+        self.expect("(")?;
+        let mut params = Vec::new();
+        if !self.consume(")") {
+            loop {
+                let (name, start) = self.binding_name()?;
+                self.expect(":")?;
+                let ty = self.ty()?;
+                params.push(Param {
+                    name,
+                    ty,
+                    span: start.through(self.previous().span),
+                });
+                if self.consume(")") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(")") {
+                    break;
+                }
+            }
+        }
+        self.expect("->")?;
+        let return_type = self.ty()?;
+        let body = self.block()?;
+        let span = start.through(body.span);
+        Ok(Function {
+            name,
+            params,
+            return_type,
+            body,
+            span,
+        })
+    }
+
+    fn ty(&mut self) -> Result<Type, Diagnostic> {
+        let (name, span) = self.name()?;
+        match name.as_str() {
+            "Nat" | "Int" | "Bool" | "Unit" | "Scheme" | "CInfScheme" => Ok(Type::Named { name }),
+            "Point" => {
+                self.expect("<")?;
+                let target = self.index()?;
+                self.expect(",")?;
+                let source = self.index()?;
+                self.expect(">")?;
+                Ok(Type::Point { target, source })
+            }
+            "Morphism" => {
+                self.expect("<")?;
+                let source = self.index()?;
+                self.expect(",")?;
+                let target = self.index()?;
+                self.expect(">")?;
+                Ok(Type::Morphism { source, target })
+            }
+            "Pointed" => {
+                self.expect("<")?;
+                let (setting, _) = self.name()?;
+                self.expect(",")?;
+                let (base, _) = self.name()?;
+                self.expect(">")?;
+                if !matches!(setting.as_str(), "Scheme" | "CInfScheme")
+                    || !matches!(base.as_str(), "QQ" | "CInfReal")
+                {
+                    return Err(diagnostic(
+                        "E_TYPE",
+                        "Pointed expects a geometric setting and base, such as Pointed<Scheme, QQ>",
+                        span,
+                    ));
+                }
+                Ok(Type::Pointed { setting, base })
+            }
+            _ => Err(diagnostic(
+                "E_UNSUPPORTED",
+                format!("type `{name}` is not supported in Stage 0"),
+                span,
+            )),
+        }
+    }
+
+    fn index(&mut self) -> Result<Index, Diagnostic> {
+        let (name, span) = self.name()?;
+        if name == "Base" {
+            self.expect("(")?;
+            let (ring, ring_span) = self.name()?;
+            if !matches!(ring.as_str(), "QQ" | "CInfReal") {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "Base expects QQ or CInfReal",
+                    ring_span,
+                ));
+            }
+            self.expect(")")?;
+            Ok(Index::Base { ring })
+        } else if reserved(&name) {
+            Err(diagnostic(
+                "E_TYPE",
+                "an endpoint index must name an object or use Base(QQ)/Base(CInfReal)",
+                span,
+            ))
+        } else {
+            Ok(Index::Name { name })
+        }
+    }
+
+    fn block(&mut self) -> Result<Block, Diagnostic> {
+        let start = self.expect("{")?.span;
+        let mut statements = Vec::new();
+        while self.peek().is("let") || self.peek().is("unpack") {
+            statements.push(self.statement()?);
+        }
+        if self.peek().is("}") {
+            let end = self.advance().span;
+            return Ok(Block {
+                statements,
+                result: Box::new(Expr {
+                    kind: ExprKind::Unit,
+                    span: end,
+                }),
+                span: start.through(end),
+            });
+        }
+        let result = self.expression(0)?;
+        if self.peek().is(";") {
+            return Err(diagnostic(
+                "E_UNSUPPORTED",
+                "expression statements are not supported; use a `let` binding or leave the final expression without `;`",
+                self.peek().span,
+            ));
+        }
+        let end = self.expect("}")?.span;
+        Ok(Block {
+            statements,
+            result: Box::new(result),
+            span: start.through(end),
+        })
+    }
+
+    fn statement(&mut self) -> Result<Statement, Diagnostic> {
+        let token = self.advance();
+        if token.is("let") {
+            let (name, _) = self.binding_name()?;
+            let annotation = if self.consume(":") {
+                Some(self.ty()?)
+            } else {
+                None
+            };
+            self.expect("=")?;
+            let value = self.expression(0)?;
+            let end = self.expect(";")?.span;
+            Ok(Statement {
+                kind: StatementKind::Let {
+                    name,
+                    annotation,
+                    value,
+                },
+                span: token.span.through(end),
+            })
+        } else {
+            let value = self.expression(0)?;
+            self.expect("as")?;
+            self.expect("{")?;
+            self.expect("scheme")?;
+            self.expect(":")?;
+            let (scheme, _) = self.binding_name()?;
+            self.expect(",")?;
+            self.expect("point")?;
+            self.expect(":")?;
+            let (point, _) = self.binding_name()?;
+            self.consume(",");
+            self.expect("}")?;
+            let end = self.expect(";")?.span;
+            Ok(Statement {
+                kind: StatementKind::Unpack {
+                    value,
+                    scheme,
+                    point,
+                },
+                span: token.span.through(end),
+            })
+        }
+    }
+
+    fn expression(&mut self, min_binding_power: u8) -> Result<Expr, Diagnostic> {
+        if self.nesting >= MAX_PARSE_NESTING {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!("expression nesting exceeds the Stage 0 limit of {MAX_PARSE_NESTING}"),
+                self.peek().span,
+            ));
+        }
+        self.nesting += 1;
+        let result = self.expression_inner(min_binding_power);
+        self.nesting -= 1;
+        result
+    }
+
+    fn expression_inner(&mut self, min_binding_power: u8) -> Result<Expr, Diagnostic> {
+        let mut left = self.prefix()?;
+        check_expression_depth(&left)?;
+        while let TokenKind::Symbol(op) = &self.peek().kind {
+            let op = op.as_str();
+            let power = match op {
+                "||" => 1,
+                "&&" => 3,
+                "==" | "!=" => 5,
+                "<" | "<=" | ">" | ">=" => 7,
+                "+" | "-" => 9,
+                "*" => 11,
+                _ => break,
+            };
+            if power < min_binding_power {
+                break;
+            }
+            let op = op.to_string();
+            self.advance();
+            let right = self.expression(power + 1)?;
+            let span = left.span.through(right.span);
+            left = Expr {
+                kind: ExprKind::Binary {
+                    op,
+                    left: Box::new(left),
+                    right: Box::new(right),
+                },
+                span,
+            };
+            check_expression_depth(&left)?;
+        }
+        Ok(left)
+    }
+
+    fn prefix(&mut self) -> Result<Expr, Diagnostic> {
+        let token = self.advance();
+        let start = token.span;
+        let kind = match token.kind {
+            TokenKind::Number(value) => {
+                let stripped = value.trim_start_matches('0');
+                ExprKind::Integer {
+                    value: if stripped.is_empty() {
+                        "0".into()
+                    } else {
+                        stripped.into()
+                    },
+                }
+            }
+            TokenKind::Name(ref name) if name == "true" || name == "false" => ExprKind::Boolean {
+                value: name == "true",
+            },
+            TokenKind::Name(ref name) if name == "if" => {
+                let condition = Box::new(self.expression(0)?);
+                let then_branch = self.block()?;
+                self.expect("else")?;
+                let else_branch = self.block()?;
+                ExprKind::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                }
+            }
+            TokenKind::Name(ref name) if name == "pack" => {
+                self.expect("{")?;
+                self.expect("scheme")?;
+                self.expect(":")?;
+                let scheme = Box::new(self.expression(0)?);
+                self.expect(",")?;
+                self.expect("point")?;
+                self.expect(":")?;
+                let point = Box::new(self.expression(0)?);
+                self.consume(",");
+                self.expect("}")?;
+                ExprKind::Pack { scheme, point }
+            }
+            TokenKind::Name(ref name) if name == "fn" => {
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    "anonymous functions and captures are not supported in Stage 0; use a named function with explicit parameters",
+                    start,
+                ));
+            }
+            TokenKind::Name(name) if !KEYWORDS.contains(&name.as_str()) => {
+                if self.consume("(") {
+                    let mut args = Vec::new();
+                    if !self.consume(")") {
+                        loop {
+                            args.push(self.expression(0)?);
+                            if self.consume(")") {
+                                break;
+                            }
+                            self.expect(",")?;
+                            if self.consume(")") {
+                                break;
+                            }
+                        }
+                    }
+                    ExprKind::Call { callee: name, args }
+                } else {
+                    ExprKind::Variable { name }
+                }
+            }
+            TokenKind::Symbol(ref op) if op == "-" || op == "!" => ExprKind::Unary {
+                op: op.clone(),
+                operand: Box::new(self.expression(13)?),
+            },
+            TokenKind::Symbol(ref symbol) if symbol == "(" => {
+                if self.consume(")") {
+                    ExprKind::Unit
+                } else {
+                    let inner = self.expression(0)?;
+                    self.expect(")")?;
+                    return Ok(Expr {
+                        span: start.through(self.previous().span),
+                        ..inner
+                    });
+                }
+            }
+            TokenKind::Symbol(ref symbol) if symbol == "{" => {
+                self.position -= 1;
+                ExprKind::Block {
+                    body: self.block()?,
+                }
+            }
+            _ => {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    format!("expected an expression, found {}", token.description()),
+                    start,
+                ));
+            }
+        };
+        Ok(Expr {
+            kind,
+            span: start.through(self.previous().span),
+        })
+    }
+}
+
+/// Inspect the AST without recursion, before handing it to recursive consumers.
+/// Each child tree has already passed this check. A rejected parent adds only
+/// its bounded syntax layers, so unwinding and dropping it are bounded as well.
+fn check_expression_depth(root: &Expr) -> Result<(), Diagnostic> {
+    enum Node<'a> {
+        Expr(&'a Expr),
+        Block(&'a Block),
+        Statement(&'a Statement),
+    }
+    let mut pending = vec![(Node::Expr(root), 1)];
+    while let Some((node, depth)) = pending.pop() {
+        if depth > MAX_AST_DEPTH {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!("expression tree exceeds the Stage 0 depth limit of {MAX_AST_DEPTH}"),
+                root.span,
+            ));
+        }
+        let next = depth + 1;
+        match node {
+            Node::Expr(expr) => match &expr.kind {
+                ExprKind::Call { args, .. } => {
+                    pending.extend(args.iter().map(|arg| (Node::Expr(arg), next)));
+                }
+                ExprKind::Unary { operand, .. } => {
+                    pending.push((Node::Expr(operand), next));
+                }
+                ExprKind::Binary { left, right, .. } => {
+                    pending.push((Node::Expr(left), next));
+                    pending.push((Node::Expr(right), next));
+                }
+                ExprKind::If {
+                    condition,
+                    then_branch,
+                    else_branch,
+                } => {
+                    pending.push((Node::Expr(condition), next));
+                    pending.push((Node::Block(then_branch), next));
+                    pending.push((Node::Block(else_branch), next));
+                }
+                ExprKind::Block { body } => pending.push((Node::Block(body), next)),
+                ExprKind::Pack { scheme, point } => {
+                    pending.push((Node::Expr(scheme), next));
+                    pending.push((Node::Expr(point), next));
+                }
+                ExprKind::Integer { .. }
+                | ExprKind::Boolean { .. }
+                | ExprKind::Unit
+                | ExprKind::Variable { .. } => {}
+            },
+            Node::Block(block) => {
+                pending.push((Node::Expr(&block.result), next));
+                pending.extend(
+                    block
+                        .statements
+                        .iter()
+                        .map(|statement| (Node::Statement(statement), next)),
+                );
+            }
+            Node::Statement(statement) => match &statement.kind {
+                StatementKind::Let { value, .. } | StatementKind::Unpack { value, .. } => {
+                    pending.push((Node::Expr(value), next));
+                }
+            },
+        }
+    }
+    Ok(())
+}
+
+struct Resolver<'a> {
+    functions: HashMap<&'a str, usize>,
+    errors: Vec<Diagnostic>,
+    calls: Vec<Vec<usize>>,
+}
+
+impl<'a> Resolver<'a> {
+    fn module(module: &'a Module) -> Vec<Diagnostic> {
+        let mut this = Self {
+            functions: HashMap::new(),
+            errors: Vec::new(),
+            calls: vec![Vec::new(); module.functions.len()],
+        };
+        for (i, function) in module.functions.iter().enumerate() {
+            if this.functions.insert(&function.name, i).is_some() {
+                this.errors.push(diagnostic(
+                    "E_DUPLICATE",
+                    format!("function `{}` is defined more than once", function.name),
+                    function.span,
+                ));
+            }
+        }
+        for (i, function) in module.functions.iter().enumerate() {
+            let mut scope = HashSet::new();
+            for param in &function.params {
+                this.ty(&param.ty, &scope, param.span);
+                this.bind(&param.name, &mut scope, param.span);
+            }
+            this.ty(&function.return_type, &scope, function.span);
+            this.block(&function.body, &scope, i);
+        }
+        let mut marks = vec![0; module.functions.len()];
+        for i in 0..module.functions.len() {
+            if this.cycle(i, &mut marks) {
+                this.errors.push(diagnostic(
+                    "E_RECURSION",
+                    format!(
+                        "recursive call cycle involving `{}` is not supported in Stage 0",
+                        module.functions[i].name
+                    ),
+                    module.functions[i].span,
+                ));
+                break;
+            }
+        }
+        this.errors
+    }
+
+    fn cycle(&self, current: usize, marks: &mut [u8]) -> bool {
+        if marks[current] == 1 {
+            return true;
+        }
+        if marks[current] == 2 {
+            return false;
+        }
+        marks[current] = 1;
+        // Call chains are independent of expression depth, so keep DFS frames
+        // on the heap. Only the current path is active (mark 1); shared callees
+        // that have finished (mark 2) do not indicate recursion.
+        let mut pending = vec![(current, 0)];
+        while let Some((current, edge)) = pending.last_mut() {
+            if let Some(&next) = self.calls[*current].get(*edge) {
+                *edge += 1;
+                match marks[next] {
+                    1 => return true,
+                    0 => {
+                        marks[next] = 1;
+                        pending.push((next, 0));
+                    }
+                    _ => {}
+                }
+            } else {
+                marks[*current] = 2;
+                pending.pop();
+            }
+        }
+        false
+    }
+
+    fn bind(&mut self, name: &'a str, scope: &mut HashSet<&'a str>, span: Span) {
+        if self.functions.contains_key(name) {
+            self.errors.push(diagnostic(
+                "E_SHADOW",
+                format!("binding `{name}` shadows a function; use a distinct name"),
+                span,
+            ));
+        }
+        if !scope.insert(name) {
+            self.errors.push(diagnostic(
+                "E_DUPLICATE",
+                format!(
+                    "binding `{name}` already exists in this scope; shadowing is not supported"
+                ),
+                span,
+            ));
+        }
+    }
+
+    fn index(&mut self, index: &Index, scope: &HashSet<&str>, span: Span) {
+        if let Index::Name { name } = index
+            && !scope.contains(name.as_str())
+        {
+            self.errors.push(diagnostic("E_NAME", format!("unknown endpoint object `{name}`; dependent types can refer only to earlier bindings"), span));
+        }
+    }
+
+    fn ty(&mut self, ty: &Type, scope: &HashSet<&str>, span: Span) {
+        match ty {
+            Type::Point { target, source } | Type::Morphism { target, source } => {
+                self.index(target, scope, span);
+                self.index(source, scope, span);
+            }
+            _ => {}
+        }
+    }
+
+    fn block(&mut self, block: &'a Block, outer: &HashSet<&'a str>, function: usize) {
+        let mut scope = outer.clone();
+        for statement in &block.statements {
+            match &statement.kind {
+                StatementKind::Let {
+                    name,
+                    annotation,
+                    value,
+                } => {
+                    if let Some(ty) = annotation {
+                        self.ty(ty, &scope, statement.span);
+                    }
+                    self.expr(value, &scope, function, false);
+                    self.bind(name, &mut scope, statement.span);
+                }
+                StatementKind::Unpack {
+                    value,
+                    scheme,
+                    point,
+                } => {
+                    self.expr(value, &scope, function, false);
+                    self.bind(scheme, &mut scope, statement.span);
+                    self.bind(point, &mut scope, statement.span);
+                }
+            }
+        }
+        self.expr(&block.result, &scope, function, false);
+    }
+
+    fn expr(
+        &mut self,
+        expr: &'a Expr,
+        scope: &HashSet<&'a str>,
+        function: usize,
+        ring_position: bool,
+    ) {
+        match &expr.kind {
+            ExprKind::Variable { name } => {
+                if matches!(name.as_str(), "QQ" | "CInfReal") {
+                    if !ring_position {
+                        self.errors.push(diagnostic("E_RING", format!("`{name}` is a coefficient-ring marker, usable only in Affine or Base"), expr.span));
+                    }
+                } else if !scope.contains(name.as_str()) {
+                    self.errors.push(diagnostic(
+                        "E_NAME",
+                        format!("unknown value `{name}`"),
+                        expr.span,
+                    ));
+                }
+            }
+            ExprKind::Call { callee, args } => {
+                if let Some(&target) = self.functions.get(callee.as_str()) {
+                    self.calls[function].push(target);
+                } else if !BUILTINS.contains(&callee.as_str()) {
+                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; Stage 0 calls named functions or supported builtins"), expr.span));
+                }
+                for (i, arg) in args.iter().enumerate() {
+                    self.expr(
+                        arg,
+                        scope,
+                        function,
+                        i == 0 && matches!(callee.as_str(), "Affine" | "Base"),
+                    );
+                }
+            }
+            ExprKind::Unary { operand, .. } => self.expr(operand, scope, function, false),
+            ExprKind::Binary { left, right, .. } => {
+                self.expr(left, scope, function, false);
+                self.expr(right, scope, function, false);
+            }
+            ExprKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                self.expr(condition, scope, function, false);
+                self.block(then_branch, scope, function);
+                self.block(else_branch, scope, function);
+            }
+            ExprKind::Block { body } => self.block(body, scope, function),
+            ExprKind::Pack { scheme, point } => {
+                self.expr(scheme, scope, function, false);
+                self.expr(point, scope, function, false);
+            }
+            ExprKind::Integer { .. } | ExprKind::Boolean { .. } | ExprKind::Unit => {}
+        }
+    }
+}
+
+/// One independently parsed source in a compilation unit.
+///
+/// `offset` allocates the file a nonoverlapping range of byte positions in the
+/// driver's source map. Line and column numbers remain local to this file.
+pub struct SourceInput<'a> {
+    pub source: &'a str,
+    pub file: &'a str,
+    pub offset: usize,
+}
+
+/// Parse files separately, then resolve all declarations in one compilation
+/// unit. This permits cross-file calls without allowing syntax to cross a file
+/// boundary. Semantic acceptance still belongs to Lean.
+pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnostic>> {
+    let Some(first) = sources.first() else {
+        return Err(vec![diagnostic(
+            "E_INPUT",
+            "a compilation unit needs at least one source file",
+            Span {
+                start: 0,
+                end: 0,
+                line: 1,
+                column: 1,
+            },
+        )]);
+    };
+    let mut module = Module {
+        version: 1,
+        file: first.file.into(),
+        functions: Vec::new(),
+    };
+    for input in sources {
+        if input.offset.checked_add(input.source.len()).is_none() {
+            return Err(vec![diagnostic(
+                "E_LIMIT",
+                "source byte positions exceed the supported range",
+                Span {
+                    start: input.offset,
+                    end: input.offset,
+                    line: 1,
+                    column: 1,
+                },
+            )]);
+        }
+        let shift = |span: &mut Span| {
+            span.start += input.offset;
+            span.end += input.offset;
+        };
+        let mut tokens = Lexer::new(input.source).tokenize().map_err(|mut error| {
+            shift(&mut error.span);
+            vec![error]
+        })?;
+        for token in &mut tokens {
+            shift(&mut token.span);
+        }
+        let parsed = Parser {
+            tokens,
+            position: 0,
+            nesting: 0,
+        }
+        .module(input.file)
+        .map_err(|error| vec![error])?;
+        module.functions.extend(parsed.functions);
+    }
+    let errors = Resolver::module(&module);
+    if errors.is_empty() {
+        Ok(module)
+    } else {
+        Err(errors)
+    }
+}
+
+/// Parse and resolve a single `.vast` source. Semantic acceptance belongs to Lean.
+pub fn parse(source: &str, file: &str) -> Result<Module, Vec<Diagnostic>> {
+    parse_sources(&[SourceInput {
+        source,
+        file,
+        offset: 0,
+    }])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn resolves_forward_calls_across_separately_parsed_files() {
+        let sources = [
+            SourceInput {
+                source: "fn main() -> Int { helper(21) }",
+                file: "main.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: "fn helper(x: Int) -> Int { x + x }",
+                file: "library.vast",
+                offset: 100,
+            },
+        ];
+        let module = parse_sources(&sources).unwrap();
+        assert_eq!(module.file, "main.vast");
+        assert_eq!(module.functions.len(), 2);
+        assert_eq!(module.functions[1].span.start, 100);
+        assert_eq!(module.functions[1].span.line, 1);
+        serde_json::to_vec(&module).unwrap();
+    }
+
+    #[test]
+    fn syntax_cannot_continue_into_another_file() {
+        let unfinished = "fn main() -> Int {";
+        let errors = parse_sources(&[
+            SourceInput {
+                source: unfinished,
+                file: "main.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: "1 }",
+                file: "library.vast",
+                offset: 100,
+            },
+        ])
+        .unwrap_err();
+        assert_eq!(errors[0].span.start, unfinished.len());
+        assert!(errors[0].message.contains("end of file"));
+    }
+
+    #[test]
+    fn multifile_diagnostics_keep_local_lines_and_global_byte_offsets() {
+        let bad = "// 数学\nfn bad() -> Int { missing }";
+        let errors = parse_sources(&[
+            SourceInput {
+                source: "fn main() -> Int { 0 }",
+                file: "main.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: bad,
+                file: "library.vast",
+                offset: 100,
+            },
+        ])
+        .unwrap_err();
+        assert_eq!(errors[0].code, "E_NAME");
+        assert_eq!(errors[0].span.start, 100 + bad.find("missing").unwrap());
+        assert_eq!(errors[0].span.line, 2);
+        assert_eq!(errors[0].span.column, 19);
+
+        let errors = parse_sources(&[SourceInput {
+            source: "// 数学\n@",
+            file: "library.vast",
+            offset: 100,
+        }])
+        .unwrap_err();
+        assert_eq!(errors[0].span.start, 100 + "// 数学\n".len());
+        assert_eq!(errors[0].span.line, 2);
+        assert_eq!(errors[0].span.column, 1);
+    }
+
+    #[test]
+    fn rejects_duplicate_and_recursive_definitions_across_files() {
+        let errors = parse_sources(&[
+            SourceInput {
+                source: "fn value() -> Int { 1 }",
+                file: "first.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: "fn value() -> Int { 2 }",
+                file: "second.vast",
+                offset: 100,
+            },
+        ])
+        .unwrap_err();
+        assert_eq!(errors[0].code, "E_DUPLICATE");
+        assert_eq!(errors[0].span.start, 100);
+
+        let errors = parse_sources(&[
+            SourceInput {
+                source: "fn first() -> Int { second() }",
+                file: "first.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: "fn second() -> Int { first() }",
+                file: "second.vast",
+                offset: 100,
+            },
+        ])
+        .unwrap_err();
+        assert_eq!(errors[0].code, "E_RECURSION");
+    }
+
+    #[test]
+    fn rejects_empty_source_lists_and_overflowing_offsets() {
+        assert_eq!(parse_sources(&[]).unwrap_err()[0].code, "E_INPUT");
+        let errors = parse_sources(&[SourceInput {
+            source: "fn main() -> Int { 1 }",
+            file: "main.vast",
+            offset: usize::MAX,
+        }])
+        .unwrap_err();
+        assert_eq!(errors[0].code, "E_LIMIT");
+    }
+
+    fn assert_limit(expression: &str) {
+        let source =
+            format!("fn passthrough(x: Int) -> Int {{ x }} fn main() -> Int {{ {expression} }}");
+        let errors = parse(&source, "depth.vast").unwrap_err();
+        assert_eq!(errors[0].code, "E_LIMIT", "unexpected error: {errors:?}");
+    }
+
+    #[test]
+    fn rejects_deep_parentheses_unary_calls_blocks_and_conditionals() {
+        assert_limit(&format!("{}1{}", "(".repeat(512), ")".repeat(512)));
+        assert_limit(&format!("{}1", "-".repeat(512)));
+        assert_limit(&format!(
+            "{}1{}",
+            "passthrough(".repeat(512),
+            ")".repeat(512)
+        ));
+        assert_limit(&format!("{}1{}", "{".repeat(512), "}".repeat(512)));
+        assert_limit(&format!(
+            "{}1{}",
+            "if true { 0 } else { ".repeat(512),
+            "}".repeat(512)
+        ));
+    }
+
+    #[test]
+    fn caps_left_associated_trees_before_recursive_consumers() {
+        assert_limit(&vec!["1"; MAX_AST_DEPTH + 1].join(" + "));
+        // Each inner chain is individually shallow. Their combined AST depth
+        // must still be bounded, rather than applying only a per-loop limit.
+        let inner = vec!["1"; 100].join(" + ");
+        let mut outer = vec!["1"; 100];
+        let wrapped = format!("({inner})");
+        outer.insert(0, &wrapped);
+        assert_limit(&outer.join(" + "));
+    }
+
+    #[test]
+    fn ordinary_nesting_and_bounded_chains_still_parse_and_serialize() {
+        let nested = format!("{}1{}", "(".repeat(16), ")".repeat(16));
+        let chain = vec!["1"; 64].join(" + ");
+        for expr in [nested, chain] {
+            let source = format!("fn main() -> Int {{ {expr} }}");
+            let module = parse(&source, "bounded.vast").unwrap();
+            serde_json::to_vec(&module).unwrap();
+        }
+    }
+
+    #[test]
+    fn precedence_and_arbitrary_precision_survive_serialization() {
+        let module = parse(
+            "fn main() -> Int { 123456789012345678901234567890 + 2 * 3 }",
+            "arithmetic.vast",
+        )
+        .unwrap();
+        let ExprKind::Binary { op, left, right } = &module.functions[0].body.result.kind else {
+            panic!("binary expression expected")
+        };
+        assert_eq!(op, "+");
+        assert!(
+            matches!(&left.kind, ExprKind::Integer { value } if value == "123456789012345678901234567890")
+        );
+        assert!(matches!(&right.kind, ExprKind::Binary { op, .. } if op == "*"));
+        let json = serde_json::to_value(&module).unwrap();
+        assert_eq!(json["functions"][0]["body"]["result"]["kind"], "binary");
+        let decoded: Module = serde_json::from_value(json).unwrap();
+        assert_eq!(module, decoded);
+    }
+
+    #[test]
+    fn parses_dependent_point_package_and_forward_calls() {
+        let source = r#"
+fn main() -> Int {
+    let problem = make_origin(2);
+    unpack problem as { scheme: X, point: p };
+    let q: Point<X, Base(QQ)> = keep(X, p);
+    0
+}
+fn keep(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> {
+    apply(id(X), p)
+}
+fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
+    let X = Affine(QQ, n);
+    pack { scheme: X, point: origin(X) }
+}
+"#;
+        let module = parse(source, "geometry.vast").unwrap();
+        assert_eq!(module.functions.len(), 3);
+        assert!(matches!(
+            module.functions[1].return_type,
+            Type::Point { .. }
+        ));
+    }
+
+    #[test]
+    fn unicode_comments_keep_byte_offsets_and_character_columns() {
+        let source = "// 幾何\nfn main() -> Int {　missing }";
+        let errors = parse(source, "unicode.vast").unwrap_err();
+        assert_eq!(errors[0].span.line, 2);
+        assert_eq!(errors[0].span.column, 20);
+        assert_eq!(&source[errors[0].span.start..errors[0].span.end], "missing");
+    }
+
+    #[test]
+    fn catches_mutual_recursion() {
+        let errors =
+            parse("fn a() -> Int { b() } fn b() -> Int { a() }", "cycle.vast").unwrap_err();
+        assert!(errors.iter().any(|e| e.code == "E_RECURSION"));
+    }
+
+    #[test]
+    fn handles_long_call_chains_and_late_cycles_without_stack_recursion() {
+        use std::fmt::Write;
+
+        const COUNT: usize = 50_000;
+        let mut source = String::new();
+        for i in 0..COUNT - 1 {
+            writeln!(source, "fn f{i}() -> Int {{ f{}() }}", i + 1).unwrap();
+        }
+        let tail = source.len();
+        writeln!(source, "fn f{}() -> Int {{ 0 }}", COUNT - 1).unwrap();
+        assert_eq!(parse(&source, "chain.vast").unwrap().functions.len(), COUNT);
+
+        source.truncate(tail);
+        writeln!(source, "fn f{}() -> Int {{ f{}() }}", COUNT - 1, COUNT / 2).unwrap();
+        let errors = parse(&source, "cycle.vast").unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E_RECURSION");
+        assert!(errors[0].message.contains("`f0`"));
+        assert_eq!(errors[0].span.line, 1);
+    }
+
+    #[test]
+    fn shared_callees_are_not_cycles_and_disconnected_cycles_are_checked() {
+        let source = "fn root() -> Int { left() + right() + left() }
+fn left() -> Int { leaf() }
+fn right() -> Int { leaf() }
+fn leaf() -> Int { 0 }";
+        parse(source, "diamond.vast").unwrap();
+        let errors = parse(
+            &format!("{source}\nfn looped() -> Int {{ looped() }}"),
+            "disconnected.vast",
+        )
+        .unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E_RECURSION");
+        assert!(errors[0].message.contains("`looped`"));
+        assert_eq!(errors[0].span.line, 5);
+    }
+
+    #[test]
+    fn rejects_unknown_endpoint_and_scope_escape() {
+        let errors = parse(
+            "fn main() -> Int { let q = { let n = 2; n }; n }",
+            "scope.vast",
+        )
+        .unwrap_err();
+        assert!(errors.iter().any(|e| e.message == "unknown value `n`"));
+        let errors = parse(
+            "fn f(p: Point<X, Base(QQ)>, X: Scheme) -> Int { 0 }",
+            "forward.vast",
+        )
+        .unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.message.contains("unknown endpoint object `X`"))
+        );
+    }
+
+    #[test]
+    fn rejects_reserved_names_ring_values_and_captures() {
+        assert_eq!(
+            parse("fn Affine() -> Int { 0 }", "bad.vast").unwrap_err()[0].code,
+            "E_RESERVED"
+        );
+        assert_eq!(
+            parse("fn main() -> Int { QQ }", "bad.vast").unwrap_err()[0].code,
+            "E_RING"
+        );
+        assert_eq!(
+            parse("fn main() -> Int { let f = fn(x) { x }; 0 }", "bad.vast").unwrap_err()[0].code,
+            "E_UNSUPPORTED"
+        );
+    }
+
+    #[test]
+    fn branches_have_separate_lexical_scopes() {
+        parse(
+            "fn f(n: Int) -> Int { if n < 0 { let x = -n; x } else { let x = n * n; x } }",
+            "if.vast",
+        )
+        .unwrap();
+        assert!(
+            parse(
+                "fn f(n: Int) -> Int { if n < 0 { let x = 1; x } else { x } }",
+                "bad.vast"
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn malformed_input_reports_location_without_panicking() {
+        for source in [
+            "",
+            "fn",
+            "fn f(",
+            "fn f() -> Int {",
+            "fn f() -> Int { 1; }",
+            "fn f() -> Int { 1 / 2 }",
+        ] {
+            let result = parse(source, "broken.vast");
+            if !source.is_empty() {
+                assert!(result.is_err(), "accepted malformed source {source:?}");
+            }
+        }
+    }
+}

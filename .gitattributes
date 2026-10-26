@@ -1,0 +1,2 @@
+# Preserve Markdown hard breaks in the archived, byte-verified design draft.
+docs/design/*.md whitespace=-blank-at-eol

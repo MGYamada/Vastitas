@@ -1,0 +1,30 @@
+// Exact, arbitrary-precision integer arithmetic.
+// Primitive operators are checked and lowered by the Lean backend.
+
+fn int_add(left: Int, right: Int) -> Int {
+    left + right
+}
+
+fn int_sub(left: Int, right: Int) -> Int {
+    left - right
+}
+
+fn int_mul(left: Int, right: Int) -> Int {
+    left * right
+}
+
+fn int_neg(value: Int) -> Int {
+    -value
+}
+
+fn int_abs(value: Int) -> Int {
+    if value < 0 { -value } else { value }
+}
+
+fn int_min(left: Int, right: Int) -> Int {
+    if left <= right { left } else { right }
+}
+
+fn int_max(left: Int, right: Int) -> Int {
+    if left >= right { left } else { right }
+}

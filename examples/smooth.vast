@@ -1,0 +1,11 @@
+fn make_smooth(n: Nat) -> Pointed<CInfScheme, CInfReal> {
+    let X: CInfScheme = Affine(CInfReal, n);
+    pack { scheme: X, point: origin(X) }
+}
+
+fn main() -> Int {
+    let problem = make_smooth(2);
+    unpack problem as { scheme: X, point: p };
+    let result: Point<X, Base(CInfReal)> = apply(id(X), p);
+    if dimension(X) == 2 { 2 } else { -1 }
+}

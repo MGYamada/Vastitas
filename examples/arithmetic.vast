@@ -1,0 +1,11 @@
+fn main() -> Int {
+    let value: Int = 123456789012345678901234567890;
+    if twice(21) == 42 && !(3 > 4) {
+        value * 10
+    } else {
+        -1
+    }
+}
+
+// Forward calls are allowed; recursion is not.
+fn twice(x: Int) -> Int { x + x }

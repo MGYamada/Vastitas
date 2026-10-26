@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  rust-quality:
+    name: Rust formatting and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+      - name: Rust formatting
+        run: cargo fmt --all -- --check
+      - name: Rust lint
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Dependency-boundary checker tests
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Dependency boundaries
+        run: python3 scripts/check_boundaries.py
+
+  compiler-without-mathlib:
+    name: Native compiler (${{ matrix.os }}, no mathlib)
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /src/
+            /tests/
+            /examples/
+            /stdlib/
+            /scripts/
+            /lean-kernel/
+            /Cargo.toml
+            /Cargo.lock
+            /rust-toolchain.toml
+            /lean-toolchain
+            /.gitignore
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
+      - name: Build the standalone Lean kernel
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-kernel
+          auto-config: false
+          build: true
+          build-args: vastitas-kernel
+          use-mathlib-cache: false
+      - name: Check dependency boundary
+        run: |
+          test ! -d lean
+          python3 scripts/check_boundaries.py
+      - name: Rust, native compiler, and standard-library tests
+        run: cargo test --locked --all-targets
+
+  oracle:
+    name: Lean proofs and axiom audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build and audit the proof-only oracle
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean
+          auto-config: false
+          build: true
+          build-args: VastitasOracle
+          use-mathlib-cache: true
+          axiom-audit: true
+          axiom-audit-root: VastitasOracle
+          axiom-audit-allow: propext,Classical.choice,Quot.sound
+      - name: Dependency boundaries
+        run: python3 scripts/check_boundaries.py

@@ -33,7 +33,8 @@ part of this milestone.
 Blocks contain `let` and `unpack` statements followed by a result expression
 without a semicolon. An empty block returns `Unit`. A `let` annotation is
 optional. A block, conditional, function call, or `pack` is an expression.
-Both branches of `if` must have the same type; `else` is required.
+Both branches of `if` must have the same type; `else` is required. `else if`
+is shorthand for an `else` block containing another conditional.
 Only named functions and builtins may be called. Bindings cannot shadow an
 existing binding or a function name.
 
@@ -57,6 +58,9 @@ or explicitly parenthesize a comparison whose Boolean result is compared again.
 Precedence, from low to high, is `||`, `&&`, comparisons, `+`/`-`, `*`,
 then unary operators. Parentheses override precedence. `Nat` subtraction
 saturates at zero. There are no implicit conversions between `Nat` and `Int`.
+`int(n)` explicitly embeds a `Nat` into `Int` without losing precision; the
+standard library also exposes `nat_to_int(n)`. For true subtraction of natural
+values, use `int(a) - int(b)`. No reverse conversion is provided.
 An integer literal defaults to `Int` unless an expected `Nat` type determines
 it, as in an annotation, argument, or the dimension of `Affine`.
 Division, remainder, floating-point values, strings, I/O, loops, and mutable
@@ -91,6 +95,9 @@ object preserves its identity. Equal settings, bases, dimensions, or runtime
 descriptors never authorize identifying distinct endpoints. Geometry equality
 is not exposed as a scalar operation. Plain object-returning function calls
 have fresh result identities; no interprocedural alias inference is promised.
+Identity diagnostics show source binding names and notes for the construction,
+parameter, call, unpack, or branch merge that introduced an identity. Aliases
+may share an introduction site; these names never determine type equality.
 
 `Pointed<Scheme, QQ>` and `Pointed<CInfScheme, CInfReal>` hide an object with its
 base-valued point. `pack` checks the point's exact target and geometric base.
@@ -161,7 +168,7 @@ working directory and must name `.vast` files; directories are not expanded.
 
 `stdlib/src/arithmetic/int.vast` exposes `int_add`, `int_sub`, `int_mul`,
 `int_neg`, `int_abs`, `int_min`, and `int_max`. The corresponding natural-number
-file exposes `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, and `nat_max`.
+file exposes `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, `nat_max`, and `nat_to_int`.
 The prefixes distinguish types while overloading remains outside Stage 0.
 The ordinary operator syntax and its scalar typing rules are unchanged; these
 `.vast` functions build on the existing exact arithmetic primitives. Libraries

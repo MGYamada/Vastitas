@@ -23,21 +23,86 @@ private structure Result where
   objectRef : Option ObjectRef := none
   deriving Inhabited
 
-private abbrev Context := List Binding
-private abbrev CheckM := StateT Nat (Except Diagnostic)
+-- Provenance is diagnostic metadata. It never authorizes endpoint equality or
+-- changes the nominal identity carried by the independently checked types.
+private structure ObjectOrigin where
+  bindingName : Option String := none
+  span : Span
+  reason : String
+  deriving Inhabited
 
-private def fail (span : Span) (code message : String) : CheckM α :=
-  throw { code, message, span }
+private structure CheckerState where
+  nextSymbol : Nat := 1
+  origins : Std.HashMap ObjectRef ObjectOrigin := {}
+  deriving Inhabited
+
+private abbrev Context := List Binding
+private abbrev CheckM := StateT CheckerState (Except Diagnostic)
+
+private def fail (span : Span) (code message : String)
+    (notes : List DiagnosticNote := []) : CheckM α :=
+  throw { code, message, span, notes }
 
 private def fresh : CheckM Nat := do
-  let n ← get
-  set (n + 1)
-  pure n
+  let state ← get
+  set { state with nextSymbol := state.nextSymbol + 1 }
+  pure state.nextSymbol
+
+private def rememberObject (ref : ObjectRef) (span : Span) (reason : String)
+    (bindingName : Option String := none) : CheckM Unit :=
+  modify fun state => { state with origins := state.origins.insert ref { bindingName, span, reason } }
+
+private def freshObject (base : BaseKind) (span : Span) (reason : String) : CheckM ObjectRef := do
+  let ref := ObjectRef.local base (← fresh)
+  rememberObject ref span reason
+  pure ref
+
+private def nameObject (ref : ObjectRef) (name : String) : CheckM Unit := do
+  let state ← get
+  if let some origin := state.origins[ref]? then
+    if origin.bindingName.isNone then
+      set { state with origins := state.origins.insert ref { origin with bindingName := some name } }
+
+private def objectLabel (ctx : Context) (ref : ObjectRef) : CheckM String := do
+  if let .base _ := ref then return ref.label
+  let origin := (← get).origins[ref]?
+  if let some name := origin.bind (·.bindingName) then
+    if ctx.any (fun binding => binding.name == name && binding.objectRef == some ref) then
+      return name
+  if let some binding := ctx.find? (fun binding => binding.objectRef == some ref) then
+    return binding.name
+  if let some origin := origin then
+    if let some name := origin.bindingName then return name
+    return s!"{ref.baseKind.settingName} from {origin.reason} at {origin.span.line}:{origin.span.column}"
+  pure ref.label
+
+private def typeLabel (ctx : Context) : Ty → CheckM String
+  | .point target source => do
+      pure s!"Point<{← objectLabel ctx target}, {← objectLabel ctx source}>"
+  | .morphism source target => do
+      pure s!"Morphism<{← objectLabel ctx source}, {← objectLabel ctx target}>"
+  | ty => pure ty.label
+
+private def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List DiagnosticNote) := do
+  let mut seen : Std.HashSet ObjectRef := {}
+  let mut notes : Array DiagnosticNote := #[]
+  for ref in refs do
+    unless seen.contains ref do
+      seen := seen.insert ref
+      -- Canonical bases have no generative identity to disambiguate. Their
+      -- canonical label is enough; do not attach an unrelated Base occurrence.
+      if let .local .. := ref then
+        if let some origin := (← get).origins[ref]? then
+          notes := notes.push {
+            message := s!"object {← objectLabel ctx ref} was introduced here by {origin.reason}"
+            span := origin.span }
+  pure notes.toList
 
 private def reserved : List String :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension",
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int",
    "QQ", "CInfReal", "Nat", "Int", "Bool", "Unit", "Scheme", "CInfScheme",
-   "Point", "Morphism", "Pointed", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false"]
+   "Point", "Morphism", "Pointed", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false",
+   "return", "while", "for", "loop", "mut"]
 
 private def validName (name : String) : Bool :=
   let chars := name.toList
@@ -92,24 +157,29 @@ private def resolveType (ctx : Context) (raw : RawType) (span : Span) : CheckM T
         fail span "E_BASE" s!"{setting} is incompatible with base {ring}; expected {base.settingName}"
       pure (.pointed base)
   unless decide ty.WellFormed do
-    fail span "E_BASE" s!"incompatible geometric settings or bases in {ty.label}"
+    fail span "E_BASE" s!"incompatible geometric settings or bases in {← typeLabel ctx ty}"
+      (← objectNotes ctx ty.refs)
   pure ty
 
-private def expectedResult (expected : Option Ty) (r : Result) (span : Span) : CheckM Result := do
+private def expectedResult (ctx : Context) (expected : Option Ty) (r : Result) (span : Span) : CheckM Result := do
   if let some ty := expected then
     unless r.term.ty == ty do
-      fail span "E_TYPE" s!"expected {ty.label}, found {r.term.ty.label}"
+      fail span "E_TYPE" s!"expected {← typeLabel ctx ty}, found {← typeLabel ctx r.term.ty}"
+        (← objectNotes ctx (ty.refs ++ r.term.ty.refs))
   pure r
 
-private def objectOf (r : Result) (span : Span) : CheckM ObjectRef :=
+private def objectOf (ctx : Context) (r : Result) (span : Span) : CheckM ObjectRef :=
   match r.objectRef with
   | some obj => pure obj
-  | none => fail span "E_TYPE" s!"expected a geometric object, found {r.term.ty.label}"
+  | none => do
+      fail span "E_TYPE" s!"expected a geometric object, found {← typeLabel ctx r.term.ty}"
+        (← objectNotes ctx r.term.ty.refs)
 
-private def liftRule (rule : Except String Ty) (span : Span) (details : String) : CheckM Ty :=
+private def liftRule (ctx : Context) (rule : Except String Ty) (span : Span)
+    (details : String) (refs : List ObjectRef) : CheckM Ty :=
   match rule with
   | .ok ty => pure ty
-  | .error e => fail span "E_ENDPOINT" s!"{e}: {details}"
+  | .error e => do fail span "E_ENDPOINT" s!"{e}: {details}" (← objectNotes ctx refs)
 
 private def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit := do
   let allowed := ctx.flatMap fun binding => binding.objectRef.toList ++ binding.ty.refs
@@ -119,10 +189,13 @@ private def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit
     let hint := match r.term.ty with
       | .point .. => "return its object and point together with pack"
       | _ => "keep the morphism's endpoint objects in the enclosing scope"
-    fail span "E_ESCAPE" s!"{r.term.ty.label} refers to local object {ref.label}; {hint}"
+    fail span "E_ESCAPE" s!"{← typeLabel ctx r.term.ty} refers to local object {← objectLabel ctx ref}; {hint}"
+      (← objectNotes ctx [ref])
 
 private def arity (name : String) (args : List RawExpr) (n : Nat) (span : Span) : CheckM Unit := do
-  unless args.length == n do fail span "E_ARITY" s!"{name} expects {n} arguments, found {args.length}"
+  unless args.length == n do
+    let noun := if n == 1 then "argument" else "arguments"
+    fail span "E_ARITY" s!"{name} expects {n} {noun}, found {args.length}"
 
 private def rawRing (e : RawExpr) : CheckM BaseKind :=
   match e with
@@ -202,37 +275,44 @@ mutual
         let objectRef ← match yes.term.ty with
           | .object base =>
             if yes.objectRef == no.objectRef then pure yes.objectRef
-            else pure (some (.local base (← fresh)))
+            else pure (some (← freshObject base span "if merge of distinct objects"))
           | _ => pure none
         pure { term := .branch condition.term yes.term no.term yes.term.ty, objectRef }
       | .block body _ => checkBlock fuel signatures ctx body expected
       | .pack scheme point _ => do
         let scheme ← checkExpr fuel signatures ctx scheme none
-        let obj ← objectOf scheme span
+        let obj ← objectOf ctx scheme span
         let point ← checkExpr fuel signatures ctx point none
-        let _ ← liftRule (checkPack obj point.term.ty) span s!"object {obj.label}, point {point.term.ty.label}"
+        let _ ← liftRule ctx (checkPack obj point.term.ty) span
+          s!"object {← objectLabel ctx obj}, point {← typeLabel ctx point.term.ty}" (obj :: point.term.ty.refs)
         pure { term := .pack obj.baseKind scheme.term point.term }
       | .call name args _ => checkCall fuel signatures ctx name args span
-      expectedResult expected result span
+      expectedResult ctx expected result span
 
   private def checkCall : Nat → Signatures → Context → String → List RawExpr → Span → CheckM Result
     | 0, _, _, _, _, span => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
     | fuel + 1, signatures, ctx, name, args, span => do
       match name with
+      | "int" =>
+        arity name args 1 span
+        let value ← checkExpr fuel signatures ctx args[0]! (some .nat)
+        pure { term := .builtin "int" none [value.term] .int }
       | "Affine" =>
         arity name args 2 span
         let base ← rawRing args[0]!
         let dimension ← checkExpr fuel signatures ctx args[1]! (some .nat)
-        let ref := ObjectRef.local base (← fresh)
+        let ref ← freshObject base span "Affine"
         pure { term := .builtin "Affine" (some base) [dimension.term] (.object base), objectRef := some ref }
       | "Base" =>
         arity name args 1 span
         let base ← rawRing args[0]!
-        pure { term := .builtin "Base" (some base) [] (.object base), objectRef := some (.base base) }
+        let ref := ObjectRef.base base
+        rememberObject ref span "Base"
+        pure { term := .builtin "Base" (some base) [] (.object base), objectRef := some ref }
       | "origin" | "id" | "dimension" =>
         arity name args 1 span
         let object ← checkExpr fuel signatures ctx args[0]! none
-        let ref ← objectOf object span
+        let ref ← objectOf ctx object span
         let ty := if name == "origin" then Ty.point ref (.base ref.baseKind)
           else if name == "id" then .morphism ref ref else .nat
         pure { term := .builtin name none [object.term] ty }
@@ -240,8 +320,8 @@ mutual
         arity name args 2 span
         let a ← checkExpr fuel signatures ctx args[0]! none
         let b ← checkExpr fuel signatures ctx args[1]! none
-        let ty ← liftRule (if name == "compose" then checkCompose a.term.ty b.term.ty else checkApply a.term.ty b.term.ty)
-          span s!"{a.term.ty.label} and {b.term.ty.label}"
+        let ty ← liftRule ctx (if name == "compose" then checkCompose a.term.ty b.term.ty else checkApply a.term.ty b.term.ty)
+          span s!"{← typeLabel ctx a.term.ty} and {← typeLabel ctx b.term.ty}" (a.term.ty.refs ++ b.term.ty.refs)
         pure { term := .builtin name none [a.term, b.term] ty }
       | _ =>
         let some signature := signatures[name]?
@@ -250,7 +330,7 @@ mutual
         let (terms, substitutions) ← checkArguments fuel signatures ctx signature.params args [] span
         let ty := signature.result.rename substitutions
         let objectRef ← match ty with
-          | .object base => pure (some (.local base (← fresh)))
+          | .object base => pure (some (← freshObject base span s!"function call '{name}'"))
           | _ => pure none
         pure { term := .call signature.id terms ty, objectRef }
 
@@ -262,7 +342,7 @@ mutual
       let value ← checkExpr fuel signatures ctx arg (some (param.ty.rename substitutions))
       let substitutions ← match param.objectRef with
         | some original => do
-          let target ← objectOf value arg.span
+          let target ← objectOf ctx value arg.span
           pure ((original, target) :: substitutions)
         | none => pure substitutions
       let (rest, substitutions) ← checkArguments fuel signatures ctx params args substitutions span
@@ -286,6 +366,7 @@ mutual
       let annotation ← annotation.mapM (fun ty => resolveType ctx ty span)
       let value ← checkExpr fuel signatures ctx value annotation
       let symbol ← fresh
+      if let some ref := value.objectRef then nameObject ref name
       let binding : Binding := { name, symbol, ty := value.term.ty, objectRef := value.objectRef }
       let body ← checkStatements fuel signatures (binding :: ctx) rest result expected
       pure { term := .letE symbol value.term body.term, objectRef := body.objectRef }
@@ -297,10 +378,12 @@ mutual
       if scheme == point then fail span "E_DUPLICATE" "unpack needs two distinct binding names"
       let value ← checkExpr fuel signatures ctx value none
       let .pointed base := value.term.ty
-        | fail span "E_TYPE" s!"unpack requires Pointed, found {value.term.ty.label}"
+        | fail span "E_TYPE" s!"unpack requires Pointed, found {← typeLabel ctx value.term.ty}"
+            (← objectNotes ctx value.term.ty.refs)
       let objectSymbol ← fresh
       let pointSymbol ← fresh
       let obj := ObjectRef.local base objectSymbol
+      rememberObject obj span "unpack" (some scheme)
       let objectBinding : Binding := { name := scheme, symbol := objectSymbol, ty := .object base, objectRef := some obj }
       let pointBinding : Binding := { name := point, symbol := pointSymbol, ty := unpackedPointType base objectSymbol }
       let body ← checkStatements fuel signatures (pointBinding :: objectBinding :: ctx) rest result expected
@@ -316,6 +399,7 @@ private def prepareSignature (raw : RawFunction) : CheckM Signature := do
     let ty ← resolveType params param.ty param.span
     let symbol ← fresh
     let objectRef := match ty with | .object base => some (.local base symbol) | _ => none
+    if let some ref := objectRef then rememberObject ref param.span "parameter" (some param.name)
     params := params ++ [{ name := param.name, symbol, ty, objectRef }]
   let result ← resolveType params raw.returnType raw.span
   if raw.name == "main" && (!params.isEmpty || result != .int) then
@@ -422,7 +506,7 @@ private def checkModuleImpl (raw : RawModule) (requireMain : Bool) : CheckM Chec
   pure { functions := sorted, mainId }
 
 def checkModule (raw : RawModule) (requireMain : Bool := false) : Except Diagnostic CertifiedModule := do
-  let checked := (← (checkModuleImpl raw requireMain).run 1).1
+  let checked := (← (checkModuleImpl raw requireMain).run {}).1
   certifyModule checked
 
 end VastitasKernel

@@ -177,30 +177,20 @@ fn invoke_kernel(
                     .get("message")
                     .and_then(Value::as_str)
                     .unwrap_or("backend rejected input");
-                let span = item.get("span");
-                let line = span
-                    .and_then(|s| s.get("line"))
-                    .and_then(Value::as_u64)
-                    .unwrap_or(1);
-                let column = span
-                    .and_then(|s| s.get("column"))
-                    .and_then(Value::as_u64)
-                    .unwrap_or(1);
-                let start = span
-                    .and_then(|s| s.get("start"))
-                    .and_then(Value::as_u64)
-                    .and_then(|offset| usize::try_from(offset).ok())
-                    .unwrap_or(0);
-                sources.diagnostic(
-                    code,
-                    message,
-                    Span {
-                        start,
-                        end: start,
-                        line: usize::try_from(line).unwrap_or(1),
-                        column: usize::try_from(column).unwrap_or(1),
-                    },
-                )
+                let mut rendered = sources.diagnostic(code, message, response_span(item));
+                if let Some(notes) = item.get("notes").and_then(Value::as_array) {
+                    for note in notes {
+                        if let Some(message) = note.get("message").and_then(Value::as_str) {
+                            rendered.push('\n');
+                            rendered.push_str(&sources.diagnostic(
+                                "note",
+                                message,
+                                response_span(note),
+                            ));
+                        }
+                    }
+                }
+                rendered
             })
             .collect::<Vec<_>>()
             .join("\n"));
@@ -214,6 +204,22 @@ fn invoke_kernel(
     }
     write_result.map_err(|error| format!("E_BACKEND: cannot send IR: {error}"))?;
     Ok(response)
+}
+
+fn response_span(item: &Value) -> Span {
+    let span = item.get("span");
+    let field = |name, default| {
+        span.and_then(|value| value.get(name))
+            .and_then(Value::as_u64)
+            .and_then(|value| usize::try_from(value).ok())
+            .unwrap_or(default)
+    };
+    Span {
+        start: field("start", 0),
+        end: field("end", 0),
+        line: field("line", 1),
+        column: field("column", 1),
+    }
 }
 
 struct BuildDirectory(PathBuf);

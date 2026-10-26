@@ -51,14 +51,18 @@ Statements use a `kind` tag and always include `span`:
 - `unpack`: `value: Expr`, `scheme` binding name, `point` binding name.
 
 Builtins are `Affine(K, n)`, `Base(K)`, `origin(X)`, `id(X)`,
-`compose(g, f)`, `apply(f, p)`, and `dimension(X)`.
+`compose(g, f)`, `apply(f, p)`, `dimension(X)`, and `int(n)` (Nat to Int).
 Only the ring argument of `Affine`/`Base` accepts the reserved variable
 `QQ` or `CInfReal`. Their use as ordinary values is invalid.
 
 Success: `{ "version": 1, "ok": true, "lean_source": "..." }` (the source
 is present for emit and may be absent for check).
 Failure: `{ "version": 1, "ok": false, "diagnostics": [
-{ "code": "E_TYPE", "message": "...", "span": Span }] }`.
+{ "code": "E_TYPE", "message": "...", "span": Span,
+  "notes": [{ "message": "...", "span": Span }] }] }`.
+Notes carry related source locations, including object introduction sites. They
+are diagnostic metadata, not trusted identity evidence. Current backends emit
+an empty array when there are no notes; drivers also accept omitted notes.
 
 The checker rejects recursion (including mutual recursion), duplicate function
 names, reserved names, unbound references, incompatible annotations, escaping

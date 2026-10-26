@@ -20,3 +20,6 @@ fn nat_min(left: Nat, right: Nat) -> Nat {
 fn nat_max(left: Nat, right: Nat) -> Nat {
     if left >= right { left } else { right }
 }
+
+// Total explicit embedding; negative Int-to-Nat conversion is not provided.
+fn nat_to_int(value: Nat) -> Int { int(value) }

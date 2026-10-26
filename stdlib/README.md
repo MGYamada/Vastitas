@@ -9,13 +9,15 @@ code. They do not require the mathlib proof oracle during compilation.
 | Source | Functions | Semantics |
 | --- | --- | --- |
 | [`src/arithmetic/int.vast`](src/arithmetic/int.vast) | `int_add`, `int_sub`, `int_mul`, `int_neg`, `int_abs`, `int_min`, `int_max` | Exact, arbitrary-precision `Int` |
-| [`src/arithmetic/nat.vast`](src/arithmetic/nat.vast) | `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, `nat_max` | Exact, arbitrary-precision `Nat`; subtraction saturates at zero |
+| [`src/arithmetic/nat.vast`](src/arithmetic/nat.vast) | `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, `nat_max`, `nat_to_int` | Exact, arbitrary-precision `Nat`; subtraction saturates at zero; explicit embedding into `Int` |
 
 Type prefixes are explicit because Stage 0 does not have overloading or generic
 dispatch. The library does not introduce implicit conversions between `Nat`
 and `Int`. In particular, `nat_sub(2, 5)` returns `0`, whereas
 `int_sub(2, 5)` returns `-3`. Integer negation and absolute value have no fixed
 machine-width overflow boundary. `min` and `max` handle equal inputs normally.
+`nat_to_int(n)` wraps the checked `int(n)` primitive. Thus
+`nat_to_int(a) - nat_to_int(b)` performs ordinary signed subtraction.
 
 The primitive `+`, `-`, `*`, comparison, and negation operations remain part of
 the checked compiler core. These files provide reusable source-level functions

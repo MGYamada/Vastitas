@@ -1,0 +1,8 @@
+// Compile with --lib stdlib/src/arithmetic/int.vast
+//              --lib stdlib/src/arithmetic/nat.vast
+fn main() -> Int {
+    let answer = int_sub(int_mul(int_add(10, 5), 3), 3);
+    let magnitude = int_abs(int_neg(answer));
+    let remaining: Nat = nat_sub(nat_add(2, 3), 8);
+    if remaining == 0 { magnitude } else { -1 }
+}

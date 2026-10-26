@@ -1,0 +1,22 @@
+// Exact, arbitrary-precision natural-number arithmetic.
+// Nat subtraction saturates at zero: nat_sub(2, 5) is 0.
+
+fn nat_add(left: Nat, right: Nat) -> Nat {
+    left + right
+}
+
+fn nat_sub(left: Nat, right: Nat) -> Nat {
+    left - right
+}
+
+fn nat_mul(left: Nat, right: Nat) -> Nat {
+    left * right
+}
+
+fn nat_min(left: Nat, right: Nat) -> Nat {
+    if left <= right { left } else { right }
+}
+
+fn nat_max(left: Nat, right: Nat) -> Nat {
+    if left >= right { left } else { right }
+}

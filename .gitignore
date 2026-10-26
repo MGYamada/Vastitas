@@ -1,0 +1,9 @@
+/target/
+**/.lake/
+/.vastitas-build/
+.DS_Store
+*.olean
+*.ilean
+*.trace
+__pycache__/
+*.py[cod]

@@ -1,0 +1,19 @@
+// Construct an object and return its associated point without losing identity.
+fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
+    let X = Affine(QQ, n);
+    pack { scheme: X, point: origin(X) }
+}
+
+fn preserve(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> {
+    apply(compose(id(X), id(X)), p)
+}
+
+fn main() -> Int {
+    let problem = make_origin(3);
+    unpack problem as { scheme: X, point: x };
+    let y: Point<X, Base(QQ)> = preserve(X, x);
+    let repacked = pack { scheme: X, point: y };
+    unpack repacked as { scheme: Y, point: z };
+    let checked_again = apply(id(Y), z);
+    if dimension(Y) == 3 { 42 } else { 0 }
+}

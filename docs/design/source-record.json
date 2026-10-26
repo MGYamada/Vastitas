@@ -1,0 +1,144 @@
+{
+  "source_name": "Vastitas-language-design-draft-v0.3-2026-10-26.md",
+  "source_revision": "Draft v0.3, 2026-10-26 (JST)",
+  "source_sha256": "4bc09c0c4a168dcbacc3e982750fb922a1b1ca0302746445088b1ae2ef4da456",
+  "source_bytes": 145829,
+  "migration": "Complete sections retained; only original table-of-contents destinations updated for split files. Added document navigation is outside preserved source blocks.",
+  "sections": [
+    {
+      "section": "preface",
+      "file": "vision-status.md",
+      "original_sha256": "fab0f44208118440d40f63dac430c905026dff28fed9c628543803a462e5b254",
+      "original_bytes": 3659
+    },
+    {
+      "section": "1",
+      "file": "vision-status.md",
+      "original_sha256": "4684da987bc41df1b0ca60774474b3adbb0437afe9071477106e41e4ea852183",
+      "original_bytes": 7773
+    },
+    {
+      "section": "2",
+      "file": "geometry.md",
+      "original_sha256": "07900e96adee8ea6b0c807a2d14eaecd671c1c1de67ea6d2c029def677339bc0",
+      "original_bytes": 6159
+    },
+    {
+      "section": "3",
+      "file": "geometry.md",
+      "original_sha256": "e769ad5c7b3275aa9173965c9fc8fa37d5ab793b4acdfd03d3d2667fb6b53b62",
+      "original_bytes": 4041
+    },
+    {
+      "section": "4",
+      "file": "geometry.md",
+      "original_sha256": "a5f2b3634c19383c58774a771bb4a9ab07b673259fed62a8c7ef8351d8222abf",
+      "original_bytes": 4136
+    },
+    {
+      "section": "5",
+      "file": "geometry.md",
+      "original_sha256": "6804a122da35d04dd84040a54dfeb2975a6f3cb43978f85dca774743dea479cd",
+      "original_bytes": 4294
+    },
+    {
+      "section": "6",
+      "file": "tensor-resources-units.md",
+      "original_sha256": "3969f7b265ea0e6f2c354b2389687e2617cf64856884f7c7d9379b540e803c07",
+      "original_bytes": 8809
+    },
+    {
+      "section": "7",
+      "file": "tensor-resources-units.md",
+      "original_sha256": "aebebc79d3632b9e2258ce2eff70e6b687b8e7d9dc4c04f1d100f523e38367ac",
+      "original_bytes": 2861
+    },
+    {
+      "section": "8",
+      "file": "functions-dispatch.md",
+      "original_sha256": "183215f5e4dd186c1eacf402ca517ebda125d1cc10f4e1b702780c6e9175a4b7",
+      "original_bytes": 29899
+    },
+    {
+      "section": "9",
+      "file": "differentiation-spectral.md",
+      "original_sha256": "f67cfcdaa0bc01421831bb45ea88494a40ac2dcfc4b678e75d486945da4b5564",
+      "original_bytes": 7537
+    },
+    {
+      "section": "10",
+      "file": "differentiation-spectral.md",
+      "original_sha256": "505e0a6f4676e0da4939fa204494dd04e4f89e101d8b55b430b290c0135abb6d",
+      "original_bytes": 12862
+    },
+    {
+      "section": "11",
+      "file": "differentiation-spectral.md",
+      "original_sha256": "193a9fde04806e2b4a20fc153b37f1e67918bb64a5b8b689b52f8a33f3271349",
+      "original_bytes": 2691
+    },
+    {
+      "section": "12",
+      "file": "physics-compiler-verification.md",
+      "original_sha256": "a6dcb8de6bf91c2f9c9f059075c0752503a0253e4502629221f0a8d6d4f53ae9",
+      "original_bytes": 11269
+    },
+    {
+      "section": "13",
+      "file": "physics-compiler-verification.md",
+      "original_sha256": "baaa361a1ab9eb35a7454c8f9f2926ea8df68ed1f201f8e553e4b4e5fcaccc3f",
+      "original_bytes": 10361
+    },
+    {
+      "section": "14",
+      "file": "roadmap-acceptance.md",
+      "original_sha256": "9a6ee9caf1319746429ec05f9228d6d11351159d7f8a5fa2614a2e6681a84686",
+      "original_bytes": 3326
+    },
+    {
+      "section": "15",
+      "file": "roadmap-acceptance.md",
+      "original_sha256": "2b2ad419b250415e4e854a2e1e4f7f9d2280d1eaba57114ac7731cf287f84d0f",
+      "original_bytes": 10537
+    },
+    {
+      "section": "16",
+      "file": "roadmap-acceptance.md",
+      "original_sha256": "c1ab7fc62dbf1855cd8401abd1d51b5c706c37176e56cf87a1cd55cb446c8246",
+      "original_bytes": 4381
+    },
+    {
+      "section": "17",
+      "file": "history-references.md",
+      "original_sha256": "577a14342c9bcfc5e82ba633c1104565b1b7f5bf8f932d4eac0ec0e0ea614095",
+      "original_bytes": 7495
+    },
+    {
+      "section": "18",
+      "file": "history-references.md",
+      "original_sha256": "a3bdfeb09923317d26fe05fb71e18041b0bf4565af28881a4f5593310b2e34d6",
+      "original_bytes": 3739
+    }
+  ],
+  "reconstruction_verified": true,
+  "toc_destination_rewrites": {
+    "](#1-math-20-physics-20-and-design-status)": "](vision-status.md#1-math-20-physics-20-and-design-status)",
+    "](#2-two-geometric-settings)": "](geometry.md#2-two-geometric-settings)",
+    "](#3-first-class-objects-points-and-staging)": "](geometry.md#3-first-class-objects-points-and-staging)",
+    "](#4-constructions-families-and-base-change)": "](geometry.md#4-constructions-families-and-base-change)",
+    "](#5-module-sheaves-and-grassmannian-points)": "](geometry.md#5-module-sheaves-and-grassmannian-points)",
+    "](#6-the-common-tensor-product)": "](tensor-resources-units.md#6-the-common-tensor-product)",
+    "](#7-ownership-and-tensor-network-ports)": "](tensor-resources-units.md#7-ownership-and-tensor-network-ports)",
+    "](#8-pure-functions-independent-lambdas-and-dispatch)": "](functions-dispatch.md#8-pure-functions-independent-lambdas-and-dispatch)",
+    "](#9-differentials-and-reverse-differentiation)": "](differentiation-spectral.md#9-differentials-and-reverse-differentiation)",
+    "](#10-eigen-as-spectral-geometry)": "](differentiation-spectral.md#10-eigen-as-spectral-geometry)",
+    "](#11-svd-as-geometry-with-a-retained-map)": "](differentiation-spectral.md#11-svd-as-geometry-with-a-retained-map)",
+    "](#12-representations-numerical-execution-and-physical-models)": "](physics-compiler-verification.md#12-representations-numerical-execution-and-physical-models)",
+    "](#13-compiler-architecture-verification-and-ai)": "](physics-compiler-verification.md#13-compiler-architecture-verification-and-ai)",
+    "](#14-initial-implementation-sequence)": "](roadmap-acceptance.md#14-initial-implementation-sequence)",
+    "](#15-acceptance-examples-and-diagnostics)": "](roadmap-acceptance.md#15-acceptance-examples-and-diagnostics)",
+    "](#16-open-design-questions)": "](roadmap-acceptance.md#16-open-design-questions)",
+    "](#17-version-decisions-and-source-record)": "](history-references.md#17-version-decisions-and-source-record)",
+    "](#18-mathematical-and-language-references)": "](history-references.md#18-mathematical-and-language-references)"
+  }
+}

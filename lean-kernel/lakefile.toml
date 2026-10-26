@@ -1,0 +1,10 @@
+name = "vastitas_kernel"
+version = "0.1.0"
+defaultTargets = ["vastitas-kernel"]
+
+[[lean_lib]]
+name = "VastitasKernel"
+
+[[lean_exe]]
+name = "vastitas-kernel"
+root = "Main"

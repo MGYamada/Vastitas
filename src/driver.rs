@@ -1,5 +1,5 @@
 //! Host driver. Semantic acceptance always comes from the Lean backend.
-use crate::ir::Span;
+use crate::ir::{PROTOCOL_VERSION, Span};
 use crate::sources::Sources;
 use serde_json::{Value, json};
 use std::ffi::OsString;
@@ -10,7 +10,7 @@ use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-const USAGE: &str = "Vastitas Stage 0\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
+const USAGE: &str = "Vastitas Stage 1a\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
 
 struct Options {
     mode: &'static str,
@@ -71,7 +71,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if args == ["--version"] {
         println!(
-            "vastitas {} (Stage 0, protocol 1)",
+            "vastitas {} (Stage 1a, protocol {PROTOCOL_VERSION})",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -157,7 +157,7 @@ fn invoke_kernel(
             String::from_utf8_lossy(&output.stderr)
         )
     })?;
-    if response.get("version") != Some(&json!(1)) {
+    if response.get("version") != Some(&json!(PROTOCOL_VERSION)) {
         return Err("E_PROTOCOL: incompatible backend protocol version".into());
     }
     if response.get("ok") == Some(&Value::Bool(false)) {

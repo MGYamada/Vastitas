@@ -79,8 +79,8 @@ jobs:
         run: |
           test ! -d lean
           python3 scripts/check_boundaries.py
-      - name: Adversarial checked-IR audit regressions
-        run: lake -d lean-kernel build VastitasKernel.TypeAuditRegression
+      - name: Checked-IR and dispatch regressions
+        run: lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression
       - name: Rust, native compiler, and standard-library tests
         run: cargo test --locked --all-targets
 

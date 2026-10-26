@@ -1,15 +1,17 @@
-# Stage 0 verification boundary
+# Verification boundaries
 
 The proof oracle in `lean/` imports the implementation's definitions from
 `lean-kernel/`. It has no executable target and is not consulted when compiling
 or executing `.vast` programs. mathlib is pinned to v4.35.0; the executable
 kernel and generated runtime depend only on the Lean distribution.
 
-The combined theorem, `VastitasOracle.checkModule_sound`, starts with success
-of the actual public checker. It establishes source correspondence, independent
-typing, a strict function dependency order, and finite evaluation with the
-declared result type for every well-typed argument environment. The constituent
-results and their limits are described below.
+Protocol version 2 enters through `DispatchChecker.checkProgram`. This checks
+finite dispatch families, lowers their specializations, and passes the exact
+lowered module to `checkModule`, the internal Stage 0 core checker. The
+combined core theorem, `VastitasOracle.checkModule_sound`, establishes decoded
+core source correspondence, independent typing, a strict function dependency
+order, and finite typed evaluation. Stage 1a has additional finite-selection
+and checker-composition theorems described below.
 
 ## Checked language and independent audits
 
@@ -20,7 +22,7 @@ metadata remains available through checking and is erased during code
 generation. The formal evaluation relation operates on this actual `Term`
 language and uses the actual runtime objects, points, morphisms, and packages.
 
-Successful `checkModule` runs two independent audits after elaboration:
+Successful core `checkModule` runs two independent audits after elaboration:
 
 - `Typing.auditModule` checks the structural typing rules for every term,
   including variable lookup, operand types, dependent arguments and their
@@ -32,9 +34,9 @@ Successful `checkModule` runs two independent audits after elaboration:
 
 The typing rules are defined separately from the elaborator's control flow;
 they are not defined as the statement that elaboration succeeded.
-`VastitasOracle.checkModule_typed_and_ordered` unfolds the actual public checker and proves
-that acceptance yields its actual elaborated module satisfying both
-`Typing.ModuleWellTyped` and `Dependency.ModuleOrdered`.
+`VastitasOracle.checkModule_typed_and_ordered` unfolds the actual core checker
+and proves that acceptance yields its actual elaborated module satisfying
+both `Typing.ModuleWellTyped` and `Dependency.ModuleOrdered`.
 
 `CertifiedModule` still carries the smaller annotation postcondition:
 compatible endpoint bases and agreement between each body's annotated result
@@ -44,26 +46,28 @@ typing, dependency, or source-correspondence results. The public
 `Codegen.generate` boundary repeats the independent audits, so constructing
 this weaker certificate directly cannot bypass them.
 
-## Source correspondence and type safety
+## Stage 0 source correspondence and type safety
 
-`VastitasOracle.Elaboration.checkModule_source_correspondence` proves the independent
-`ModuleCorresponds` relation between an accepted decoded `RawModule` and the
-actual checked module. Parameter and return annotations retain their source
-type and index resolution. Expression and block correspondence covers name
-resolution, normalized literals, finite operators, calls, local annotations,
-lexical scope, and `let`/`pack`/`unpack` lowering. Every source declaration has a
-corresponding checked function, every checked function has a source
-declaration, and reordering cannot drop or synthesize functions. The selected
-entrypoint corresponds to the finalized function named `main`.
+`VastitasOracle.Elaboration.checkModule_source_correspondence` proves the
+independent `ModuleCorresponds` relation between an accepted decoded core
+`RawModule` and the actual checked module. Parameter and return annotations
+retain their source type and index resolution. Expression and block
+correspondence covers name resolution, normalized literals, finite operators,
+calls, local annotations, lexical scope, and `let`/`pack`/`unpack` lowering.
+Every core source declaration has a corresponding checked function, every
+checked function has a core source declaration, and reordering cannot drop or
+synthesize functions. The selected entrypoint corresponds to the finalized
+function named `main`.
 
-`VastitasOracle.Safety.evaluation_total_and_typed` proves finite big-step evaluation and type
-preservation for every checked term constructor, assuming typed contracts for
-its callees. The verified dependency order discharges those contracts for the
-entire module. The public result,
-`VastitasOracle.ActivationSafety.checkModule_total_for_arguments`, states that if the actual
-`checkModule` accepts, every function in its result evaluates to a value of its
-declared return type for every well-typed argument environment. The caller
-does not need to supply an additional freshness or injectivity hypothesis.
+`VastitasOracle.Safety.evaluation_total_and_typed` proves finite big-step
+evaluation and type preservation for every checked term constructor, assuming
+typed contracts for its callees. The verified dependency order discharges
+those contracts for the entire module.
+`VastitasOracle.ActivationSafety.checkModule_total_for_arguments` states that
+if the actual core `checkModule` accepts, every function in its result
+evaluates to a value of its declared return type for every well-typed argument
+environment. The caller does not need to supply an additional freshness or
+injectivity hypothesis.
 
 Nominal references are interpreted in a world local to each function
 activation. These interpretations are deliberately **not injective**:
@@ -81,17 +85,76 @@ reference. The proofs also connect the actual `checkApply`, `checkCompose`,
 properties. Scope permits canonical bases and references already represented
 by enclosing object bindings or the types of enclosing values.
 
+## Stage 1a finite dispatch and checker composition
+
+The actual reusable finite engine is `VastitasKernel.Dispatch.check`; the
+theorems below are in `VastitasOracle.Dispatch`. Public ground types are Nat,
+Int, Bool, and Unit. Specificity uses the product of nominal subtyping and
+implication of normalized requirements, including `HasOrder ⇒ HasEq`. It does
+not compare the sets of keys on which methods happen to apply. Static tuple
+facts are the intersection of argument facts; the empty tuple has no facts.
+
+- `check_sound` connects successful execution to the independent `Optimal`
+  and `Selection` conditions. It also establishes actual normalization,
+  unique method identities and normalized signatures, realizable method
+  conditions, and the correctness of every selected row. Ambiguity checking
+  covers the entire enumerated universe, including keys outside the declared
+  callable domain.
+- `check_key_universe` proves that the enumeration contains every concrete
+  tuple of the declared arity, has exactly `4^arity` elements, and has at most
+  4096 elements. `domain_coverage` proves that every declared callable key has
+  a selected method.
+- `winner_sound` proves that the selected ID belongs to the unique optimal
+  method. `winner_identity_unique` additionally proves that no other record
+  in the accepted family has that ID, including inapplicable records.
+- `applicablePairs_complete` characterizes the exact list of applicable
+  method/key pairs exposed for ground body checking. It includes losing
+  methods and keys outside the callable domain.
+- `check_permutation_success` proves that permuting method records preserves
+  acceptance and the exact winner rows. `check_order_independent` states the
+  corresponding equality of selections. Stable IDs remain attached to their
+  records; these theorems do not equate unrelated IDs reassigned by a frontend.
+
+The generic `checkWith` engine and its soundness/permutation theorems use the
+same algorithm for other validated finite hierarchies. Synthetic multiple
+inheritance and triple-intersection tests exercise that engine. They do not
+add user-defined types or capabilities to the public language.
+
+`VastitasOracle.DispatchLowering.selected_target_sound` connects the backend's
+actual family-check and target-selection evidence to domain membership and
+the unique optimal method. The same namespace provides the public checker
+composition results:
+
+- `checkProgram_core` proves that successful `checkProgram` execution produced
+  an exact lowered core module accepted by the actual `checkModule`.
+- `checkProgram_typed_and_ordered` establishes independent whole-module typing
+  and an acyclic dependency order for the resulting checked core.
+- `checkProgram_total_for_arguments` proves that every function in that exact
+  result evaluates to a value of its declared return type for all well-typed
+  argument environments. This includes the core's runtime endpoint and
+  package correspondence guarantees.
+
+The finite Stage 1a implementation and these proofs are present; full
+repository and CI validation remains the delivery gate. This is not completion
+of all Stage 1 features in the historical design.
+
 The proofs contain no `sorry`, `admit`, or project-specific unproved axioms.
 CI audits the oracle namespace against Lean's standard logical axioms
 (`propext`, `Classical.choice`, and `Quot.sound`).
 
 ## What is outside these claims
 
-The source-correspondence theorem starts at decoded `RawModule`. It does not
-verify Rust lexing, parsing, source-library composition, JSON serialization or
-decoding, diagnostic spans, or the accuracy of diagnostic prose. The
-correspondence relation records elaboration into checked syntax; it is not a
-separate operational-equivalence theorem for source text.
+The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
+The full Stage 1 rewriting pass from decoded `RawProgram` to that core does
+**not** yet have a source-correspondence theorem. Finite selection tables and
+actual target evidence are proved correct, and the entire resulting core is
+proved well typed and terminating; this does not establish correspondence of
+every rewritten source call or method body to its original generic syntax.
+
+Neither stage verifies Rust lexing, parsing, source-library composition, JSON
+serialization or decoding, diagnostic spans, or the accuracy of diagnostic
+prose. The core correspondence relation records elaboration into checked
+syntax; it is not a separate operational-equivalence theorem for source text.
 
 The big-step semantics evaluates both operands of Boolean `&&` and `||`;
 generated Lean uses short-circuit evaluation. The proved contract concerns
@@ -107,9 +170,10 @@ The ordinary/smooth affine descriptors remain a restricted geometric core.
 These results do not formalize all schemes or C-infinity schemes, prove
 general geometric constructions, establish numerical accuracy, or certify
 physical adequacy. The auxiliary coordinate interpretation is limited to the
-stated zero/identity fragment. Stage 1a dispatch, independent lambdas,
-ownership, iteration, and recursion are not implemented or covered by these
-theorems.
+stated zero/identity fragment. Independent lambdas, user-defined types and
+capabilities, function edit ownership, borrowing, storage ownership, linear
+algebra, iteration, and recursion remain unimplemented and outside these
+theorems. Finite static dispatch does not establish those later Stage 1 goals.
 
 ## Validation
 
@@ -120,6 +184,7 @@ cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 lake -d lean-kernel build vastitas-kernel
 lake -d lean-kernel build VastitasKernel.TypeAuditRegression
+lake -d lean-kernel build VastitasKernel.DispatchRegression
 cargo test --locked --all-targets
 lake -d lean build VastitasOracle
 python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -133,10 +198,19 @@ packages, symbol reuse, and dependency cycles. They also verify that the code
 generator rejects forged modules carrying only the legacy annotation
 certificate. These tests complement the logical soundness theorems.
 
+`DispatchRegression` directly exercises the same finite checker used by the
+backend, including product-order ambiguity, capability normalization,
+ambiguity outside the callable domain, missing coverage, zero-argument facts,
+invalid hierarchies, multiple inheritance, unresolved triple intersections
+after pair repairs, complete triple repairs, permutations, and the 4096-key
+boundary. It also checks that applicable losing methods and keys outside the
+domain appear in the ground-body work list.
+
 Rust integration tests exercise parsing and diagnostics, malformed raw IR,
 semantic rejection codes, native execution, source libraries, implementation
-limits, and preservation of existing output artifacts on failure. The compiler
-CI jobs build and test on macOS and Linux from a checkout without `lean/` or
-mathlib, including the checked-IR audit regressions. A separate job builds the
-proof oracle and audits its axioms. Dependency-boundary checks prevent the
-normal compiler path from acquiring a mathlib dependency.
+limits, dispatch specialization and rejection, and preservation of existing
+output artifacts on failure. The compiler CI jobs build and test on macOS and
+Linux from a checkout without `lean/` or mathlib, including both direct kernel
+regression targets. A separate job builds the proof oracle and audits its
+axioms. Dependency-boundary checks prevent the normal compiler path from
+acquiring a mathlib dependency.

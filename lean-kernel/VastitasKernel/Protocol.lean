@@ -1,5 +1,5 @@
 import Lean.Data.Json
-import VastitasKernel.Core
+import VastitasKernel.Program
 
 namespace VastitasKernel
 open Lean
@@ -85,10 +85,31 @@ private def decodeFunction (j : Json) : Except String RawFunction := do
   let span ← decodeSpan j
   pure { name, params, returnType, body, span }
 
-def decodeModule (j : Json) : Except String RawModule := do
+private def decodeGeneric (j : Json) : Except String RawGeneric := do
+  let params ← (← array j "params").mapM fun param => do
+    pure { name := ← str param "name", span := ← decodeSpan param : RawGenericParam }
+  let domain ← (← array j "domain").mapM fun key => do
+    (← key.getArr?).toList.mapM decodeType
+  pure { name := ← str j "name", params, domain, span := ← decodeSpan j }
+
+private def decodeMethod (j : Json) : Except String RawMethod := do
+  pure {
+    name := ← str j "name"
+    params := ← (← array j "params").mapM decodeParam
+    returnType := ← decodeType (← field j "return_type")
+    requirements := ← (← array j "requires").mapM Json.getStr?
+    body := ← decodeBlock 512 (← field j "body")
+    span := ← decodeSpan j }
+
+def decodeModule (j : Json) : Except String RawProgram := do
   let version ← j.getObjValAs? Nat "version"
-  if version != 1 then throw s!"unsupported IR protocol version {version}; expected 1"
-  pure { version, file := ← str j "file", functions := ← (← array j "functions").mapM decodeFunction }
+  if version != 2 then throw s!"unsupported IR protocol version {version}; expected 2"
+  pure {
+    version
+    file := ← str j "file"
+    functions := ← (← array j "functions").mapM decodeFunction
+    generics := ← (← array j "generics").mapM decodeGeneric
+    methods := ← (← array j "methods").mapM decodeMethod }
 
 def spanJson (s : Span) : Json := Json.mkObj [
   ("start", toJson s.start), ("end", toJson s.end),
@@ -100,11 +121,11 @@ def diagnosticJson (d : Diagnostic) : Json := Json.mkObj [
     ("message", toJson note.message), ("span", spanJson note.span)]))]
 
 def failureJson (d : Diagnostic) : Json := Json.mkObj [
-  ("version", toJson (1 : Nat)), ("ok", toJson false),
+  ("version", toJson (2 : Nat)), ("ok", toJson false),
   ("diagnostics", toJson [diagnosticJson d])]
 
 def successJson (source : Option String := none) : Json := Json.mkObj <|
-  [("version", toJson (1 : Nat)), ("ok", toJson true)] ++
+  [("version", toJson (2 : Nat)), ("ok", toJson true)] ++
   (source.toList.map fun s => ("lean_source", toJson s))
 
 end VastitasKernel

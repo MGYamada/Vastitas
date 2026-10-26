@@ -1,4 +1,4 @@
-//! The Stage 0 lexer, parser, and lexical name resolver.
+//! The Stage 1a lexer, parser, and lexical name resolver.
 //!
 //! Identifiers are ASCII; offsets are UTF-8 byte offsets and diagnostic columns
 //! count Unicode scalar values. No source fragment is ever emitted as Lean code.
@@ -7,7 +7,8 @@ use std::collections::{HashMap, HashSet};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
-    Block, Expr, ExprKind, Function, Index, Module, Param, Span, Statement, StatementKind, Type,
+    Block, Expr, ExprKind, Function, Generic, GenericParam, Index, Method, Module,
+    PROTOCOL_VERSION, Param, Span, Statement, StatementKind, Type,
 };
 
 const BUILTINS: &[&str] = &[
@@ -22,7 +23,7 @@ const BUILTINS: &[&str] = &[
 ];
 const KEYWORDS: &[&str] = &[
     "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
-    "loop", "mut",
+    "loop", "mut", "generic", "method", "domain", "requires",
 ];
 const TYPES: &[&str] = &[
     "Nat",
@@ -34,6 +35,8 @@ const TYPES: &[&str] = &[
     "Point",
     "Morphism",
     "Pointed",
+    "Any",
+    "Number",
 ];
 
 // Bound recursive descent before it consumes the process stack. The separate
@@ -51,7 +54,8 @@ fn diagnostic(code: &str, message: impl Into<String>, span: Span) -> Diagnostic 
 }
 
 fn reserved(name: &str) -> bool {
-    BUILTINS.contains(&name)
+    name.starts_with("__vastitas_")
+        || BUILTINS.contains(&name)
         || KEYWORDS.contains(&name)
         || TYPES.contains(&name)
         || matches!(name, "QQ" | "CInfReal")
@@ -59,9 +63,9 @@ fn reserved(name: &str) -> bool {
 
 fn unsupported_keyword(name: &str) -> Option<&'static str> {
     match name {
-        "return" => Some("Stage 0 has no `return`; the final expression of a block is its result"),
-        "while" | "for" | "loop" => Some("loops are not supported in Stage 0"),
-        "mut" => Some("mutable bindings are not supported in Stage 0"),
+        "return" => Some("Stage 1a has no `return`; the final expression of a block is its result"),
+        "while" | "for" | "loop" => Some("loops are not supported in Stage 1a"),
+        "mut" => Some("mutable bindings are not supported in Stage 1a"),
         _ => None,
     }
 }
@@ -168,7 +172,7 @@ impl<'a> Lexer<'a> {
         span.end = self.offset;
         diagnostic(
             "E_UNSUPPORTED",
-            "floating-point literals are not supported in Stage 0; use an exact Nat or Int literal",
+            "floating-point literals are not supported in Stage 1a; use an exact Nat or Int literal",
             span,
         )
     }
@@ -223,9 +227,9 @@ impl<'a> Lexer<'a> {
                     return Err(diagnostic(
                         "E_UNSUPPORTED",
                         if ch == '/' {
-                            "division is not supported in Stage 0"
+                            "division is not supported in Stage 1a"
                         } else {
-                            "remainder is not supported in Stage 0"
+                            "remainder is not supported in Stage 1a"
                         },
                         span,
                     ));
@@ -245,7 +249,7 @@ impl<'a> Lexer<'a> {
                     return Err(diagnostic(
                         "E_LEX",
                         format!(
-                            "unsupported character `{ch}`; Stage 0 uses ASCII identifiers and integer literals"
+                            "unsupported character `{ch}`; Stage 1a uses ASCII identifiers and integer literals"
                         ),
                         span,
                     ));
@@ -355,33 +359,44 @@ impl Parser {
 
     fn module(&mut self, file: &str) -> Result<Module, Diagnostic> {
         let mut functions = Vec::new();
+        let mut generics = Vec::new();
+        let mut methods = Vec::new();
         while self.peek().kind != TokenKind::Eof {
-            if !self.peek().is("fn") {
+            if self.peek().is("fn") {
+                functions.push(self.function()?);
+            } else if self.peek().is("generic") {
+                generics.push(self.generic()?);
+            } else if self.peek().is("method") {
+                methods.push(self.method()?);
+            } else {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",
-                    "Stage 0 modules contain only named `fn` declarations",
+                    "Stage 1a modules contain named `fn`, `generic`, and `method` declarations",
                     self.peek().span,
                 ));
             }
-            functions.push(self.function()?);
         }
         Ok(Module {
-            version: 1,
+            version: PROTOCOL_VERSION,
             file: file.into(),
             functions,
+            generics,
+            methods,
         })
     }
 
-    fn function(&mut self) -> Result<Function, Diagnostic> {
-        let start = self.expect("fn")?.span;
-        let (name, _) = self.binding_name()?;
+    fn parameters(&mut self, selectors: bool) -> Result<Vec<Param>, Diagnostic> {
         self.expect("(")?;
         let mut params = Vec::new();
         if !self.consume(")") {
             loop {
                 let (name, start) = self.binding_name()?;
                 self.expect(":")?;
-                let ty = self.ty()?;
+                let ty = if selectors {
+                    self.dispatch_type(true)?
+                } else {
+                    self.ty()?
+                };
                 params.push(Param {
                     name,
                     ty,
@@ -396,6 +411,13 @@ impl Parser {
                 }
             }
         }
+        Ok(params)
+    }
+
+    fn function(&mut self) -> Result<Function, Diagnostic> {
+        let start = self.expect("fn")?.span;
+        let (name, _) = self.binding_name()?;
+        let params = self.parameters(false)?;
         self.expect("->")?;
         let return_type = self.ty()?;
         let body = self.block()?;
@@ -406,6 +428,133 @@ impl Parser {
             return_type,
             body,
             span,
+        })
+    }
+
+    fn dispatch_type(&mut self, selector: bool) -> Result<Type, Diagnostic> {
+        let (name, span) = self.name()?;
+        if matches!(name.as_str(), "Nat" | "Int" | "Bool" | "Unit")
+            || (selector && matches!(name.as_str(), "Any" | "Number"))
+        {
+            Ok(Type::Named { name })
+        } else {
+            Err(diagnostic(
+                "E_TYPE",
+                if selector {
+                    "a method selector must be Nat, Int, Bool, Unit, Number, or Any"
+                } else {
+                    "dispatch domains and method results require a concrete scalar type: Nat, Int, Bool, or Unit"
+                },
+                span,
+            ))
+        }
+    }
+
+    fn generic(&mut self) -> Result<Generic, Diagnostic> {
+        let start = self.expect("generic")?.span;
+        let (name, _) = self.binding_name()?;
+        self.expect("(")?;
+        let mut params = Vec::new();
+        if !self.consume(")") {
+            loop {
+                let (name, span) = self.binding_name()?;
+                params.push(GenericParam { name, span });
+                if self.consume(")") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(")") {
+                    break;
+                }
+            }
+        }
+        self.expect("{")?;
+        self.expect("domain")?;
+        let mut domain = Vec::new();
+        if !self.consume(";") {
+            loop {
+                self.expect("(")?;
+                let mut key = Vec::new();
+                if !self.consume(")") {
+                    loop {
+                        key.push(self.dispatch_type(false)?);
+                        if self.consume(")") {
+                            break;
+                        }
+                        self.expect(",")?;
+                        if self.consume(")") {
+                            break;
+                        }
+                    }
+                }
+                domain.push(key);
+                if self.consume(";") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(";") {
+                    break;
+                }
+            }
+        }
+        let end = self.expect("}")?.span;
+        Ok(Generic {
+            name,
+            params,
+            domain,
+            span: start.through(end),
+        })
+    }
+
+    fn requirements(&mut self) -> Result<Vec<String>, Diagnostic> {
+        self.expect("(")?;
+        let mut requires = Vec::new();
+        if !self.consume(")") {
+            loop {
+                requires.push(self.name()?.0);
+                if self.consume(")") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(")") {
+                    break;
+                }
+            }
+        }
+        Ok(requires)
+    }
+
+    fn method(&mut self) -> Result<Method, Diagnostic> {
+        let start = self.expect("method")?.span;
+        let (name, _) = self.binding_name()?;
+        let params = self.parameters(true)?;
+        let before_arrow = self.consume("requires");
+        let mut requires = if before_arrow {
+            self.requirements()?
+        } else {
+            Vec::new()
+        };
+        self.expect("->")?;
+        let return_type = self.dispatch_type(false)?;
+        if self.peek().is("requires") {
+            if before_arrow {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "a method has only one `requires` clause",
+                    self.peek().span,
+                ));
+            }
+            self.advance();
+            requires = self.requirements()?;
+        }
+        let body = self.block()?;
+        Ok(Method {
+            name,
+            params,
+            return_type,
+            requires,
+            span: start.through(body.span),
+            body,
         })
     }
 
@@ -448,7 +597,7 @@ impl Parser {
             }
             _ => Err(diagnostic(
                 "E_UNSUPPORTED",
-                format!("type `{name}` is not supported in Stage 0"),
+                format!("type `{name}` is not supported in Stage 1a"),
                 span,
             )),
         }
@@ -468,6 +617,12 @@ impl Parser {
             }
             self.expect(")")?;
             Ok(Index::Base { ring })
+        } else if name.starts_with("__vastitas_") {
+            Err(diagnostic(
+                "E_RESERVED",
+                "the `__vastitas_` prefix is reserved for compiler-generated names",
+                span,
+            ))
         } else if reserved(&name) {
             Err(diagnostic(
                 "E_TYPE",
@@ -561,7 +716,7 @@ impl Parser {
         if self.nesting >= MAX_PARSE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
-                format!("expression nesting exceeds the Stage 0 limit of {MAX_PARSE_NESTING}"),
+                format!("expression nesting exceeds the Stage 1a limit of {MAX_PARSE_NESTING}"),
                 self.peek().span,
             ));
         }
@@ -672,7 +827,7 @@ impl Parser {
             TokenKind::Name(ref name) if name == "fn" => {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",
-                    "anonymous functions and captures are not supported in Stage 0; use a named function with explicit parameters",
+                    "anonymous functions and captures are not supported in Stage 1a; use a named function with explicit parameters",
                     start,
                 ));
             }
@@ -747,7 +902,7 @@ fn check_expression_depth(root: &Expr) -> Result<(), Diagnostic> {
         if depth > MAX_AST_DEPTH {
             return Err(diagnostic(
                 "E_LIMIT",
-                format!("expression tree exceeds the Stage 0 depth limit of {MAX_AST_DEPTH}"),
+                format!("expression tree exceeds the Stage 1a depth limit of {MAX_AST_DEPTH}"),
                 root.span,
             ));
         }
@@ -804,6 +959,7 @@ fn check_expression_depth(root: &Expr) -> Result<(), Diagnostic> {
 
 struct Resolver<'a> {
     functions: HashMap<&'a str, usize>,
+    generics: HashSet<&'a str>,
     errors: Vec<Diagnostic>,
     calls: Vec<Vec<usize>>,
 }
@@ -812,6 +968,7 @@ impl<'a> Resolver<'a> {
     fn module(module: &'a Module) -> Vec<Diagnostic> {
         let mut this = Self {
             functions: HashMap::new(),
+            generics: HashSet::new(),
             errors: Vec::new(),
             calls: vec![Vec::new(); module.functions.len()],
         };
@@ -824,6 +981,30 @@ impl<'a> Resolver<'a> {
                 ));
             }
         }
+        for generic in &module.generics {
+            if !this.generics.insert(&generic.name)
+                || this.functions.contains_key(generic.name.as_str())
+            {
+                this.errors.push(diagnostic(
+                    "E_DUPLICATE",
+                    format!("callable `{}` is defined more than once", generic.name),
+                    generic.span,
+                ));
+            }
+            if generic.name == "main" {
+                this.errors.push(diagnostic(
+                    "E_MAIN",
+                    "the entrypoint must be an ordinary `fn main() -> Int`, not a generic",
+                    generic.span,
+                ));
+            }
+        }
+        for generic in &module.generics {
+            let mut scope = HashSet::new();
+            for param in &generic.params {
+                this.bind(&param.name, &mut scope, param.span);
+            }
+        }
         for (i, function) in module.functions.iter().enumerate() {
             let mut scope = HashSet::new();
             for param in &function.params {
@@ -831,7 +1012,27 @@ impl<'a> Resolver<'a> {
                 this.bind(&param.name, &mut scope, param.span);
             }
             this.ty(&function.return_type, &scope, function.span);
-            this.block(&function.body, &scope, i);
+            this.block(&function.body, &scope, Some(i));
+        }
+        for method in &module.methods {
+            if !this.generics.contains(method.name.as_str()) {
+                this.errors.push(diagnostic(
+                    "E_NAME",
+                    format!(
+                        "method `{}` requires a declared generic of the same name",
+                        method.name
+                    ),
+                    method.span,
+                ));
+            }
+            let mut scope = HashSet::new();
+            for param in &method.params {
+                this.bind(&param.name, &mut scope, param.span);
+            }
+            // The backend resolves generic calls after specialization. Adding
+            // family-name edges here could invent cycles between disjoint
+            // concrete method instances.
+            this.block(&method.body, &scope, None);
         }
         let mut marks = vec![0; module.functions.len()];
         for i in 0..module.functions.len() {
@@ -843,7 +1044,7 @@ impl<'a> Resolver<'a> {
                     .join(" → ");
                 this.errors.push(diagnostic(
                     "E_RECURSION",
-                    format!("recursive call cycle {path} is not supported in Stage 0"),
+                    format!("recursive call cycle {path} is not supported in Stage 1a"),
                     module.functions[cycle[0]].span,
                 ));
                 break;
@@ -887,10 +1088,10 @@ impl<'a> Resolver<'a> {
     }
 
     fn bind(&mut self, name: &'a str, scope: &mut HashSet<&'a str>, span: Span) {
-        if self.functions.contains_key(name) {
+        if self.functions.contains_key(name) || self.generics.contains(name) {
             self.errors.push(diagnostic(
                 "E_SHADOW",
-                format!("binding `{name}` shadows a function; use a distinct name"),
+                format!("binding `{name}` shadows a callable; use a distinct name"),
                 span,
             ));
         }
@@ -906,6 +1107,16 @@ impl<'a> Resolver<'a> {
     }
 
     fn index(&mut self, index: &Index, scope: &HashSet<&str>, span: Span) {
+        if let Index::Name { name } = index
+            && name.starts_with("__vastitas_")
+        {
+            self.errors.push(diagnostic(
+                "E_RESERVED",
+                "the `__vastitas_` prefix is reserved for compiler-generated names",
+                span,
+            ));
+            return;
+        }
         if let Index::Name { name } = index
             && !scope.contains(name.as_str())
         {
@@ -923,7 +1134,7 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn block(&mut self, block: &'a Block, outer: &HashSet<&'a str>, function: usize) {
+    fn block(&mut self, block: &'a Block, outer: &HashSet<&'a str>, function: Option<usize>) {
         let mut scope = outer.clone();
         for statement in &block.statements {
             match &statement.kind {
@@ -956,12 +1167,18 @@ impl<'a> Resolver<'a> {
         &mut self,
         expr: &'a Expr,
         scope: &HashSet<&'a str>,
-        function: usize,
+        function: Option<usize>,
         ring_position: bool,
     ) {
         match &expr.kind {
             ExprKind::Variable { name } => {
-                if matches!(name.as_str(), "QQ" | "CInfReal") {
+                if name.starts_with("__vastitas_") {
+                    self.errors.push(diagnostic(
+                        "E_RESERVED",
+                        "the `__vastitas_` prefix is reserved for compiler-generated names",
+                        expr.span,
+                    ));
+                } else if matches!(name.as_str(), "QQ" | "CInfReal") {
                     if !ring_position {
                         self.errors.push(diagnostic("E_RING", format!("`{name}` is a coefficient-ring marker, usable only in Affine or Base"), expr.span));
                     }
@@ -974,10 +1191,20 @@ impl<'a> Resolver<'a> {
                 }
             }
             ExprKind::Call { callee, args } => {
-                if let Some(&target) = self.functions.get(callee.as_str()) {
-                    self.calls[function].push(target);
-                } else if !BUILTINS.contains(&callee.as_str()) {
-                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; Stage 0 calls named functions or supported builtins"), expr.span));
+                if callee.starts_with("__vastitas_") {
+                    self.errors.push(diagnostic(
+                        "E_RESERVED",
+                        "the `__vastitas_` prefix is reserved for compiler-generated names",
+                        expr.span,
+                    ));
+                } else if let Some(&target) = self.functions.get(callee.as_str()) {
+                    if let Some(function) = function {
+                        self.calls[function].push(target);
+                    }
+                } else if !self.generics.contains(callee.as_str())
+                    && !BUILTINS.contains(&callee.as_str())
+                {
+                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; calls require a declared function, generic, or supported builtin"), expr.span));
                 }
                 for (i, arg) in args.iter().enumerate() {
                     self.expr(
@@ -1039,9 +1266,11 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         )]);
     };
     let mut module = Module {
-        version: 1,
+        version: PROTOCOL_VERSION,
         file: first.file.into(),
         functions: Vec::new(),
+        generics: Vec::new(),
+        methods: Vec::new(),
     };
     for input in sources {
         if input.offset.checked_add(input.source.len()).is_none() {
@@ -1075,6 +1304,8 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         .module(input.file)
         .map_err(|error| vec![error])?;
         module.functions.extend(parsed.functions);
+        module.generics.extend(parsed.generics);
+        module.methods.extend(parsed.methods);
     }
     let errors = Resolver::module(&module);
     if errors.is_empty() {
@@ -1096,6 +1327,233 @@ pub fn parse(source: &str, file: &str) -> Result<Module, Vec<Diagnostic>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parses_and_serializes_generic_families_without_selecting_methods() {
+        let source = "method choose(x: Number) -> Int requires (HasOrder, HasEq) { 1 }
+generic choose(x) { domain (Int), (Nat); }
+method choose(x: Any) requires (HasEq) -> Int { 2 }
+fn main() -> Int { choose(10) }";
+        let module = parse(source, "dispatch.vast").unwrap();
+        assert_eq!(module.version, 2);
+        assert_eq!(module.functions.len(), 1);
+        assert_eq!(module.generics.len(), 1);
+        assert_eq!(module.methods.len(), 2);
+        assert_eq!(module.generics[0].params[0].name, "x");
+        assert_eq!(module.methods[0].requires, ["HasOrder", "HasEq"]);
+        assert_eq!(module.methods[1].requires, ["HasEq"]);
+        assert!(matches!(
+            &module.functions[0].body.result.kind,
+            ExprKind::Call { callee, .. } if callee == "choose"
+        ));
+        let encoded = serde_json::to_value(&module).unwrap();
+        assert_eq!(encoded["version"], 2);
+        assert_eq!(encoded["generics"][0]["domain"][0][0]["name"], "Int");
+        assert_eq!(encoded["methods"][0]["params"][0]["ty"]["name"], "Number");
+        assert_eq!(encoded["methods"][1]["return_type"]["name"], "Int");
+        let decoded: Module = serde_json::from_value(encoded).unwrap();
+        assert_eq!(decoded, module);
+    }
+
+    #[test]
+    fn separate_sources_preserve_all_dispatch_declarations_and_spans() {
+        let application = "fn main() -> Int { choose(1) }";
+        let family = "// family\ngeneric choose(value) { domain (Int); }";
+        let implementation = "// implementation\nmethod choose(x: Int) -> Int { helper(x) }";
+        let helper = "fn helper(n: Int) -> Int { n + 1 }";
+        let module = parse_sources(&[
+            SourceInput {
+                source: application,
+                file: "main.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: family,
+                file: "interface.vast",
+                offset: 100,
+            },
+            SourceInput {
+                source: implementation,
+                file: "implementation.vast",
+                offset: 200,
+            },
+            SourceInput {
+                source: helper,
+                file: "helper.vast",
+                offset: 300,
+            },
+        ])
+        .unwrap();
+        assert_eq!(module.functions.len(), 2);
+        assert_eq!(module.generics.len(), 1);
+        assert_eq!(module.methods.len(), 1);
+        assert_eq!(
+            module.generics[0].span.start,
+            100 + family.find("generic").unwrap()
+        );
+        assert_eq!(module.generics[0].span.line, 2);
+        assert_eq!(
+            module.generics[0].params[0].span.start,
+            100 + family.find("value").unwrap()
+        );
+        assert_eq!(
+            module.methods[0].span.start,
+            200 + implementation.find("method").unwrap()
+        );
+        assert_eq!(module.methods[0].span.line, 2);
+        assert_eq!(
+            module.methods[0].body.result.span.start,
+            200 + implementation.find("helper").unwrap()
+        );
+    }
+
+    #[test]
+    fn dispatch_domains_support_empty_and_zero_argument_families() {
+        let module = parse(
+            "generic empty(x,) { domain; }
+generic constant() { domain (),; }
+method constant() -> Int requires () { 42 }",
+            "empty.vast",
+        )
+        .unwrap();
+        assert!(module.generics[0].domain.is_empty());
+        assert_eq!(module.generics[1].domain, vec![vec![]]);
+        assert!(module.methods[0].params.is_empty());
+        assert!(module.methods[0].requires.is_empty());
+    }
+
+    #[test]
+    fn dispatch_selectors_are_not_ordinary_value_types() {
+        for source in [
+            "generic f(x) { domain (Number); }",
+            "generic f(x) { domain (Scheme); }",
+            "generic f(x) { domain (Int); } method f(x: Scheme) -> Int { 0 }",
+            "generic f(x) { domain (Int); } method f(x: Int) -> Any { x }",
+            "generic f(x) { domain (Int); } method f(x: Int) -> Pointed<Scheme, QQ> { x }",
+        ] {
+            assert_eq!(parse(source, "types.vast").unwrap_err()[0].code, "E_TYPE");
+        }
+        for source in [
+            "fn f(x: Any) -> Int { 0 }",
+            "generic f(x) { domain (Int); } method f(x: Number) -> Int { let y: Number = x; 0 }",
+        ] {
+            assert_eq!(
+                parse(source, "types.vast").unwrap_err()[0].code,
+                "E_UNSUPPORTED"
+            );
+        }
+    }
+
+    #[test]
+    fn generic_namespace_and_method_lexical_scope_are_checked() {
+        for (source, code) in [
+            (
+                "generic f(x) { domain; } generic f(x) { domain; }",
+                "E_DUPLICATE",
+            ),
+            (
+                "fn f() -> Int { 0 } generic f(x) { domain; }",
+                "E_DUPLICATE",
+            ),
+            ("method missing(x: Int) -> Int { x }", "E_NAME"),
+            ("generic main() { domain (); }", "E_MAIN"),
+            ("generic f(x, x) { domain; }", "E_DUPLICATE"),
+            (
+                "generic f(x) { domain; } fn g() -> Int { let f = 1; f }",
+                "E_SHADOW",
+            ),
+            (
+                "generic f(x) { domain (Int); } method f(f: Int) -> Int { f }",
+                "E_SHADOW",
+            ),
+            (
+                "generic f(x) { domain (Int); } method f(x: Int) -> Int { hidden }",
+                "E_NAME",
+            ),
+            (
+                "generic f(x) { domain (Int); } method f(x: Int) -> Int { let x = 1; x }",
+                "E_DUPLICATE",
+            ),
+            (
+                "generic f(x) { domain (Int); } method f(x: Int) -> Int { x } method f(y: Nat) -> Int { x }",
+                "E_NAME",
+            ),
+        ] {
+            let errors = parse(source, "names.vast").unwrap_err();
+            assert_eq!(errors[0].code, code, "{source}");
+        }
+        let invalid_method = "\nmethod f(x: Int) -> Int { unknown }";
+        let errors = parse_sources(&[
+            SourceInput {
+                source: "generic f(x) { domain (Int); }",
+                file: "family.vast",
+                offset: 0,
+            },
+            SourceInput {
+                source: invalid_method,
+                file: "method.vast",
+                offset: 100,
+            },
+        ])
+        .unwrap_err();
+        assert_eq!(errors[0].code, "E_NAME");
+        assert_eq!(errors[0].span.line, 2);
+        assert_eq!(
+            errors[0].span.start,
+            100 + invalid_method.find("unknown").unwrap()
+        );
+    }
+
+    #[test]
+    fn generic_recursion_and_capability_semantics_are_deferred_to_lean() {
+        // The Int instance can call the Bool instance without recursion. Only
+        // the backend knows which concrete method an application selects.
+        let module = parse(
+            "generic choose(x) { domain (Int), (Bool); }
+method choose(x: Int) -> Int { choose(true) }
+method choose(x: Bool) -> Int { 1 }
+fn main() -> Int { choose(0) }",
+            "instances.vast",
+        )
+        .unwrap();
+        assert_eq!(module.methods.len(), 2);
+        // The frontend also keeps genuinely cyclic generic calls intact; Lean
+        // must reject the eventual cycle after independently selecting targets.
+        parse(
+            "generic f(x) { domain (Int); } method f(x: Int) -> Int { f(x) }",
+            "cycle.vast",
+        )
+        .unwrap();
+        let module = parse(
+            "generic f(x) { domain (Int); } method f(x: Int) -> Int requires (HasMetric) { 0 }",
+            "capability.vast",
+        )
+        .unwrap();
+        assert_eq!(module.methods[0].requires, ["HasMetric"]);
+    }
+
+    #[test]
+    fn rejects_duplicate_requires_and_compiler_private_names() {
+        let errors = parse(
+            "generic f(x) { domain (Int); } method f(x: Int) requires () -> Int requires () { 0 }",
+            "requires.vast",
+        )
+        .unwrap_err();
+        assert_eq!(errors[0].code, "E_PARSE");
+        assert!(errors[0].message.contains("only one `requires`"));
+        for source in [
+            "fn __vastitas_internal() -> Int { 0 }",
+            "generic __vastitas_internal(x) { domain; }",
+            "fn main() -> Int { __vastitas_method_1(0) }",
+            "fn main() -> Int { __vastitas_value }",
+            "fn f(X: Scheme, p: Point<__vastitas_object, Base(QQ)>) -> Int { 0 }",
+        ] {
+            assert_eq!(
+                parse(source, "private.vast").unwrap_err()[0].code,
+                "E_RESERVED"
+            );
+        }
+    }
 
     #[test]
     fn resolves_forward_calls_across_separately_parsed_files() {
@@ -1334,7 +1792,7 @@ fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
         assert_eq!(errors[0].code, "E_RECURSION");
         assert_eq!(
             errors[0].message,
-            "recursive call cycle `a` → `b` → `a` is not supported in Stage 0"
+            "recursive call cycle `a` → `b` → `a` is not supported in Stage 1a"
         );
         assert_eq!(errors[0].span.line, 2);
         assert_eq!(errors[0].span.start, source.find("fn a").unwrap());

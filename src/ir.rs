@@ -2,6 +2,8 @@
 
 use serde::{Deserialize, Serialize};
 
+pub const PROTOCOL_VERSION: u32 = 2;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
     pub start: usize,
@@ -31,6 +33,32 @@ pub struct Module {
     pub version: u32,
     pub file: String,
     pub functions: Vec<Function>,
+    pub generics: Vec<Generic>,
+    pub methods: Vec<Method>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Generic {
+    pub name: String,
+    pub params: Vec<GenericParam>,
+    pub domain: Vec<Vec<Type>>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GenericParam {
+    pub name: String,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Method {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Type,
+    pub requires: Vec<String>,
+    pub body: Block,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

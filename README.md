@@ -32,6 +32,9 @@ The compiler uses this checkout's built backend and runtime. A relocatable
 installation and cross-compilation are outside Stage 0. The optional
 `VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` environment variables select a
 trusted backend executable and kernel package directory for development.
+The backend build includes the native runtime. `check` needs only the executable
+when explicitly selected; `build` also needs the package and uses its pinned
+`lean-toolchain` for the generated project.
 
 ## Arithmetic standard library
 
@@ -98,6 +101,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 ## Documentation
 
 - [Stage 0 grammar, semantics, and limits](docs/stage0.md)
+- [Stage 0 safety gate and Stage 1a delivery plan](docs/stage1-roadmap.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

@@ -97,7 +97,7 @@ def generate (certified : CertifiedModule) : Except String String := do
   let some mainId := module.mainId
     | throw "native compilation requires fn main() -> Int"
   let functions ← module.functions.mapM renderFunction
-  return "import VastitasKernel.Runtime\n\nset_option linter.unusedVariables false\n\nnamespace VastitasGenerated\n\n" ++
+  return "import VastitasKernel.Runtime\n\nset_option maxRecDepth 32768\nset_option maxHeartbeats 2000000\nset_option linter.unusedVariables false\n\nnamespace VastitasGenerated\n\n" ++
     String.intercalate "\n" functions ++
     "\nend VastitasGenerated\n\ndef main : IO Unit :=\n  IO.println (" ++
     "VastitasGenerated." ++ functionName mainId ++ ")\n"

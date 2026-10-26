@@ -9,7 +9,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-const LEAN_TOOLCHAIN: &str = "leanprover/lean4:v4.35.0\n";
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 const USAGE: &str = "Vastitas Stage 0\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
 
@@ -87,17 +86,28 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     let module = sources.parse()?;
     let request = serde_json::to_vec(&module)
         .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
-    let root = kernel_root()?;
-    let executable = std::env::var_os("VASTITAS_KERNEL")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| root.join(".lake/build/bin/vastitas-kernel"));
+    let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
+    let root = if output.is_some() || configured_executable.is_none() {
+        Some(kernel_root()?)
+    } else {
+        None
+    };
+    let executable = configured_executable.unwrap_or_else(|| {
+        root.as_ref()
+            .expect("default executable requires kernel root")
+            .join(".lake/build/bin/vastitas-kernel")
+    });
     let response = invoke_kernel(&executable, mode, &request, &sources)?;
     if let Some(output) = output {
         let lean_source = response
             .get("lean_source")
             .and_then(Value::as_str)
             .ok_or_else(|| "E_PROTOCOL: backend omitted generated Lean source".to_string())?;
-        build_native(&root, lean_source, &output)?;
+        build_native(
+            root.as_ref().expect("native build requires kernel root"),
+            lean_source,
+            &output,
+        )?;
         println!("built {}", output.display());
     } else {
         println!("checked {}", input.display());
@@ -235,6 +245,15 @@ impl Drop for BuildDirectory {
 }
 
 fn build_native(kernel_root: &Path, source: &str, output: &Path) -> Result<(), String> {
+    let toolchain_path = kernel_root.join("lean-toolchain");
+    let toolchain = fs::read_to_string(&toolchain_path)
+        .map_err(|error| format!("E_BUILD: cannot read {}: {error}", toolchain_path.display()))?;
+    if toolchain.trim().is_empty() {
+        return Err(format!(
+            "E_BUILD: empty toolchain in {}",
+            toolchain_path.display()
+        ));
+    }
     let directory = BuildDirectory::create()?;
     let path = &directory.0;
     let dependency_path = serde_json::to_string(&kernel_root.to_string_lossy())
@@ -244,7 +263,7 @@ fn build_native(kernel_root: &Path, source: &str, output: &Path) -> Result<(), S
     );
     for (name, contents) in [
         ("lakefile.toml", manifest.as_str()),
-        ("lean-toolchain", LEAN_TOOLCHAIN),
+        ("lean-toolchain", toolchain.as_str()),
         ("Main.lean", source),
     ] {
         fs::write(path.join(name), contents)

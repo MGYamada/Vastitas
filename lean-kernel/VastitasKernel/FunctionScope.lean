@@ -149,6 +149,51 @@ def captureDiagnostic (p : Program) : Diagnostic := Id.run do
         message := s!"independent lambda cannot capture '{name}'; pass it as an explicit parameter" }
   return { code := "E_CAPTURE", message := "independent lambda has a non-global free name" }
 
+-- Capture freedom does not grant permission to reuse an enclosing name.
+-- Inspect lexical scopes before lambda lifting erases their nesting.
+private def shadowed (outer : List String) (name : String) (span : Span) : Option Diagnostic :=
+  if outer.contains name then
+    some { code := "E_SHADOW", span, message := s!"binding '{name}' shadows an enclosing binding; use a distinct name" }
+  else none
+
+mutual
+  def shadowExpr (outer bound : List String) : Expr → Option Diagnostic
+    | .lambda params _ body _ =>
+      let outer := bound ++ outer
+      (params.findSome? (fun p => shadowed outer p.name p.span)).orElse fun _ =>
+        shadowBlock outer (params.map (·.name)) body
+    | .call _ args _ => (args.map (shadowExpr outer bound)).findSome? id
+    | .invoke callee args _ => (shadowExpr outer bound callee).orElse fun _ => (args.map (shadowExpr outer bound)).findSome? id
+    | .unary _ value _ => shadowExpr outer bound value
+    | .binary _ left right _ | .pack left right _ =>
+      (shadowExpr outer bound left).orElse fun _ => shadowExpr outer bound right
+    | .ite condition yes no _ => (shadowExpr outer bound condition).orElse fun _ =>
+      (shadowBlock outer bound yes).orElse fun _ => shadowBlock outer bound no
+    | .block body _ => shadowBlock outer bound body
+    | _ => none
+  termination_by expr => (sizeOf expr, 0)
+  def shadowBlock (outer bound : List String) : Block → Option Diagnostic
+    | .mk statements result _ => shadowStatements outer bound statements result
+  termination_by block => (sizeOf block, 0)
+  def shadowStatements (outer bound : List String) : List Stmt → Expr → Option Diagnostic
+    | [], result => shadowExpr outer bound result
+    | .letE name _ value span :: rest, result =>
+      (shadowed outer name span).orElse fun _ =>
+      (shadowExpr outer bound value).orElse fun _ => shadowStatements outer (name :: bound) rest result
+    | .unpack value scheme point span :: rest, result =>
+      (shadowed outer scheme span).orElse fun _ =>
+      (shadowed outer point span).orElse fun _ =>
+      (shadowExpr outer bound value).orElse fun _ => shadowStatements outer (point :: scheme :: bound) rest result
+  termination_by statements result => (sizeOf statements + sizeOf result, 1)
+end
+
+def Program.lambdaShadowDiagnostic (p : Program) : Option Diagnostic :=
+  (p.functions ++ p.methods.map (·.toFunction)).findSome? fun f =>
+    shadowBlock [] (f.params.map (·.name)) f.body
+
+def LambdaShadowFree (p : Program) : Prop := p.lambdaShadowDiagnostic.isNone = true
+instance (p : Program) : Decidable (LambdaShadowFree p) := inferInstanceAs (Decidable (_ = _))
+
 -- The legacy path is exact only when no global function is used as a value.
 mutual
   def valueNames : Expr → List String

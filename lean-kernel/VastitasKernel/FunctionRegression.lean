@@ -36,6 +36,15 @@ private def captured : Program := program [{ main (.integer "0" {}) with
 #eval check "actual capture rejection" (rejects "E_CAPTURE" captured)
 #eval check "independent capture predicate" (!decide (CaptureFree captured))
 
+private def shadowing : Program := program [{ main (.integer "0" {}) with
+  body := .mk [
+    .letE "outside" none (.integer "1" {}) {},
+    .letE "callback" none (.lambda [{ name := "outside", ty := int, span := {} }]
+      int (block (.variable "outside" {})) {}) {}]
+    (.integer "0" {}) {} }]
+#eval check "actual enclosing shadow rejection" (rejects "E_SHADOW" shadowing)
+#eval check "capture-free does not imply shadow-free" (decide (CaptureFree shadowing) && !decide (LambdaShadowFree shadowing))
+
 #eval check "unused invalid lambda" (rejects "E_TYPE" (program [main (.block (.mk [
   .letE "unused" none (.lambda [] int (block (.boolean true {})) {}) {}]
   (.integer "0" {}) {}) {})]))

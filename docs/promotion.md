@@ -104,6 +104,9 @@ of a changed numerical policy. Run the full validation documented in
 No `sorry`, `admit`, native-decision axiom or custom unproved axiom is used by
 these numerical proofs.
 
-After #72–#76, consolidate the generated stdlib package sources into build
-artifacts, retaining one tracked set of definitions and explicit generation.
-This follow-up is separate from the [post-Stage-1 docs cleanup](docs-cleanup-plan.md).
+The stdlib now has one tracked set of definitions. Run
+`python3 scripts/build_stdlib_package.py` to create the ignored manifest-mode
+sources under `stdlib/target/package/`; `--check` verifies freshness. The
+manifest location and logical module owners are unchanged. This source consolidation
+followed #72–#76 and is separate from the
+[post-Stage-1 docs cleanup](docs-cleanup-plan.md).

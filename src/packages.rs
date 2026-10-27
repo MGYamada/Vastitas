@@ -164,6 +164,17 @@ impl Loader {
                     manifest.display()
                 ));
             }
+            if frontend::reserved(&alias)
+                || matches!(
+                    alias.as_str(),
+                    "mod" | "use" | "pub" | "self" | "super" | "package"
+                )
+            {
+                return Err(format!(
+                    "{}: E_MANIFEST: dependency alias '{alias}' is reserved",
+                    manifest.display()
+                ));
+            }
             let target = self.package(&directory.join(dep.path).join("Vastitas.toml"))?;
             dependencies.push(Dependency { alias, target });
         }

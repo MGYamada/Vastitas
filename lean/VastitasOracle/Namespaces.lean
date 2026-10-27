@@ -8,6 +8,21 @@ outside this theorem boundary. No edit-borrow or abstract-method claims are made
 namespace VastitasOracle.Namespaces
 open VastitasKernel VastitasKernel.Namespace VastitasKernel.Semantics
 
+@[simp] private theorem rendered_success (result : Except Diagnostic α)
+    (render : Diagnostic → Diagnostic) (value : α) :
+    result.mapError render = .ok value ↔ result = .ok value := by
+  cases result <;> simp [Except.mapError]
+
+/-- Main supplies a renderer that reuses the successful namespace lowering.
+It changes diagnostics only, and has exactly the public checker's acceptance. -/
+theorem diagnostic_rendering_preserves_acceptance (program : Namespace.Program)
+    (requireMain : Bool) (render : Namespace.Lowered → Diagnostic → Diagnostic)
+    (certified : CertifiedModule) :
+    checkNamespaceProgram program requireMain render = .ok certified ↔
+      checkNamespaceProgram program requireMain = .ok certified := by
+  cases lowered : lower program <;>
+    simp [checkNamespaceProgram, lowered, bind, Except.bind]
+
 theorem checkNamespaceProgram_audited (program : Namespace.Program) (requireMain : Bool)
     (certified : CertifiedModule)
     (accepted : checkNamespaceProgram program requireMain = .ok certified) :

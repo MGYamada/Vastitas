@@ -58,7 +58,7 @@ fn diagnostic(code: &str, message: impl Into<String>, span: Span) -> Diagnostic 
     }
 }
 
-fn reserved(name: &str) -> bool {
+pub(crate) fn reserved(name: &str) -> bool {
     name.starts_with("__vastitas_")
         || BUILTINS.contains(&name)
         || KEYWORDS.contains(&name)

@@ -3,7 +3,7 @@ use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static SERIAL: AtomicU64 = AtomicU64::new(0);
@@ -125,6 +125,7 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
             .env("READY", &ready)
             .env("WORKER", &worker)
             .env("PATH", std::env::join_paths(paths).unwrap())
+            .stderr(Stdio::piped())
             .spawn()
             .unwrap();
         let deadline = Instant::now() + Duration::from_secs(15);
@@ -149,6 +150,14 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
             std::thread::sleep(Duration::from_millis(20));
         };
         assert_eq!(status.code(), Some(code));
+        let result = child.wait_with_output().unwrap();
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(
+            error.contains("E_INTERRUPTED: compilation interrupted"),
+            "{error}"
+        );
+        assert!(!error.contains("cannot start"), "{error}");
+        assert!(!error.contains("Build it with"), "{error}");
         assert_eq!(fs::read_dir(&temp).unwrap().count(), 0);
         assert_eq!(
             fs::read(scratch.0.join("program")).unwrap(),
@@ -172,6 +181,118 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
             state.trim().is_empty() || state.trim().starts_with('Z'),
             "worker still running: {state}"
         );
+    }
+}
+
+#[test]
+fn invalid_output_paths_fail_before_starting_the_backend() {
+    let scratch = Scratch::new();
+    fs::create_dir(scratch.0.join("directory")).unwrap();
+    symlink("directory", scratch.0.join("directory-link")).unwrap();
+    for path in [
+        "",
+        ".",
+        "..",
+        "directory",
+        "directory-link",
+        "new/",
+        "directory/.",
+        "directory/..",
+        "absent/program",
+        "main.vast/program",
+    ] {
+        let result = scratch
+            .cli()
+            .args(["build", "main.vast", "-o", path])
+            .env("VASTITAS_KERNEL", scratch.0.join("absent-backend"))
+            .output()
+            .unwrap();
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(!result.status.success(), "accepted {path:?}");
+        assert!(error.starts_with("E_OUTPUT:"), "{path:?}: {error}");
+        assert!(!error.contains("E_BACKEND"), "{error}");
+    }
+}
+
+#[test]
+fn output_protection_still_precedes_source_parsing() {
+    let scratch = Scratch::new();
+    fs::write(scratch.0.join("main.vast"), "invalid source").unwrap();
+    let result = scratch
+        .cli()
+        .args(["build", "main.vast", "-o", "main.vast"])
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        error.starts_with("E_OUTPUT: output would overwrite input"),
+        "{error}"
+    );
+}
+
+#[test]
+fn subcommand_help_succeeds_without_inputs_or_backend() {
+    let scratch = Scratch::new();
+    for mode in ["check", "build"] {
+        for help in ["--help", "-h"] {
+            let result = scratch
+                .cli()
+                .args([mode, help])
+                .env("VASTITAS_KERNEL", scratch.0.join("absent-backend"))
+                .output()
+                .unwrap();
+            assert!(result.status.success());
+            assert!(String::from_utf8_lossy(&result.stdout).contains("Usage:"));
+            assert!(result.stderr.is_empty());
+        }
+    }
+}
+
+#[test]
+fn interrupted_backend_has_no_spawn_failure_or_rebuild_hint() {
+    use nix::sys::signal::{Signal, kill};
+    use nix::unistd::Pid;
+    use std::time::{Duration, Instant};
+    for (signal, code) in [(Signal::SIGINT, 130), (Signal::SIGTERM, 143)] {
+        let scratch = Scratch::new();
+        let ready = scratch.0.join("ready");
+        let backend = scratch.0.join("slow-kernel");
+        executable(
+            &backend,
+            "#!/bin/sh\ncat >/dev/null\necho ready > \"$READY\"\nexec sleep 60\n",
+        );
+        let mut child = scratch
+            .cli()
+            .args(["check", "main.vast"])
+            .env("VASTITAS_KERNEL", &backend)
+            .env("READY", &ready)
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !ready.exists() {
+            assert!(Instant::now() < deadline, "backend did not start");
+            assert!(child.try_wait().unwrap().is_none());
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        kill(Pid::from_raw(child.id() as i32), signal).unwrap();
+        while child.try_wait().unwrap().is_none() {
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("backend interruption did not terminate");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        let result = child.wait_with_output().unwrap();
+        assert_eq!(result.status.code(), Some(code));
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(
+            error.contains("E_INTERRUPTED: compilation interrupted"),
+            "{error}"
+        );
+        assert!(!error.contains("cannot start"), "{error}");
+        assert!(!error.contains("Build it with"), "{error}");
     }
 }
 

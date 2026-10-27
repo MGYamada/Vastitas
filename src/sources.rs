@@ -38,6 +38,19 @@ impl Sources {
         let canonical = path
             .canonicalize()
             .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+        self.push_file(path, canonical)?;
+        if let Some(output) = output {
+            self.protect_output(output)?;
+        }
+        let file = self.files.last().unwrap();
+        Ok(SourceInput {
+            source: &file.text,
+            file: &file.name,
+            offset: file.offset,
+        })
+    }
+
+    fn push_file(&mut self, path: &Path, canonical: PathBuf) -> Result<(), String> {
         let text = fs::read_to_string(&canonical)
             .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
         let metadata = fs::metadata(&canonical)
@@ -61,21 +74,12 @@ impl Sources {
             text,
             offset,
         });
-        if let Some(output) = output {
-            self.protect_output(output)?;
-        }
-        let file = self.files.last().unwrap();
-        Ok(SourceInput {
-            source: &file.text,
-            file: &file.name,
-            offset,
-        })
+        Ok(())
     }
 
     pub(crate) fn load(input: &Path, libraries: &[PathBuf]) -> Result<Self, String> {
         let mut seen = HashSet::new();
-        let mut files = Vec::new();
-        let mut offset = 0usize;
+        let mut sources = Self::empty();
         for path in std::iter::once(input).chain(libraries.iter().map(PathBuf::as_path)) {
             if path.extension().is_none_or(|extension| extension != "vast") {
                 return Err(format!(
@@ -92,25 +96,9 @@ impl Sources {
                     path.display()
                 ));
             }
-            let text = fs::read_to_string(path)
-                .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
-            let metadata = fs::metadata(path)
-                .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", path.display()))?;
-            let next_offset = offset
-                .checked_add(text.len())
-                .and_then(|end| end.checked_add(1))
-                .ok_or_else(|| "E_INPUT: compilation unit is too large".to_string())?;
-            files.push(SourceFile {
-                path: path.to_path_buf(),
-                canonical,
-                identity: (metadata.dev(), metadata.ino()),
-                name: path.to_string_lossy().into_owned(),
-                text,
-                offset,
-            });
-            offset = next_offset;
+            sources.push_file(path, canonical)?;
         }
-        Ok(Self { files })
+        Ok(sources)
     }
 
     pub(crate) fn protect_output(&self, output: &Path) -> Result<(), String> {

@@ -58,6 +58,22 @@ fn block_comments_and_package_field_order_have_specific_diagnostics() {
 }
 
 #[test]
+fn byte_order_marks_have_a_specific_diagnostic_and_exact_span() {
+    for source in [
+        "\u{feff}fn main() -> Int { 0 }",
+        "fn main() -> Int { \u{feff}0 }",
+    ] {
+        let errors = vastitas::frontend::parse(source, "bom.vast").unwrap_err();
+        assert_eq!(errors[0].code, "E_LEX");
+        assert!(errors[0].message.contains("UTF-8 without BOM"));
+        assert_eq!(
+            &source[errors[0].span.start..errors[0].span.end],
+            "\u{feff}"
+        );
+    }
+}
+
+#[test]
 fn native_explicit_embedding_and_else_if_preserve_exact_arithmetic() {
     let scratch = Scratch::new(
         "fn main() -> Int { let n: Nat = 123456789012345678901234567890; if false { 0 } else if dimension(Base(QQ)) == 0 { nat_to_int(n) - int(1) } else { -1 } }",

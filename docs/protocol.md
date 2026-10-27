@@ -196,5 +196,5 @@ These checks validate the supplied namespace graph, not the authenticity of
 filesystem contents. Changing a graph into a different *valid* program is not
 an authentication failure: the wire protocol is not a signed artifact format.
 Rust is responsible for canonical file loading and retaining all input files
-for output collision protection. The protocol-3 kernel is usable directly;
-the package CLI and source syntax are delivered in the following frontend PR.
+for output collision protection. Manifest mode selects protocol 3 explicitly; see [packages](packages.md) for
+source syntax, CLI, file loading and compatibility details.

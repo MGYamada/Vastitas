@@ -1,0 +1,5 @@
+mod scalar;
+pub use scalar::increment;
+pub use scalar::add;
+
+pub fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }

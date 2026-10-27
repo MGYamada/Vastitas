@@ -78,10 +78,11 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
     use nix::sys::signal::{Signal, kill};
     use nix::unistd::Pid;
     use std::time::{Duration, Instant};
-    for (signal, code, detached_pipes) in [
-        (Signal::SIGINT, 130, false),
-        (Signal::SIGTERM, 143, false),
-        (Signal::SIGTERM, 143, true),
+    for (signal, code, detached_pipes, manifest) in [
+        (Signal::SIGINT, 130, false, false),
+        (Signal::SIGTERM, 143, false, false),
+        (Signal::SIGTERM, 143, true, false),
+        (Signal::SIGTERM, 143, true, true),
     ] {
         let scratch = Scratch::new();
         let temp = scratch.0.join("tmp");
@@ -105,9 +106,21 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
         paths.extend(std::env::split_paths(
             &std::env::var_os("PATH").unwrap_or_default(),
         ));
+        let input = if manifest {
+            fs::write(
+                scratch.0.join("Vastitas.toml"),
+                "[package]\nname='test'\nversion='0.1.0'\nroot='main.vast'\n",
+            )
+            .unwrap();
+            vec!["--manifest-path", "Vastitas.toml"]
+        } else {
+            vec!["main.vast"]
+        };
         let mut child = scratch
             .cli()
-            .args(["build", "main.vast", "-o", "program"])
+            .arg("build")
+            .args(input)
+            .args(["-o", "program"])
             .env("TMPDIR", &temp)
             .env("READY", &ready)
             .env("WORKER", &worker)

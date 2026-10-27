@@ -227,7 +227,7 @@ cargo clippy --locked --all-targets -- -D warnings
 lake -d lean-kernel build vastitas-kernel
 lake -d lean-kernel build VastitasKernel.TypeAuditRegression
 lake -d lean-kernel build VastitasKernel.DispatchRegression
-lake -d lean-kernel build VastitasKernel.FunctionRegression
+lake -d lean-kernel build VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression
 cargo test --locked --all-targets
 lake -d lean build VastitasOracle
 python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -260,7 +260,7 @@ Rust integration tests exercise parsing and diagnostics, malformed raw IR,
 semantic rejection codes, native execution, source libraries, implementation
 limits, dispatch specialization and rejection, and preservation of existing
 output artifacts on failure. The compiler CI jobs build and test on macOS and
-Linux from a checkout without `lean/` or mathlib, including all three direct kernel
+Linux from a checkout without `lean/` or mathlib, including all four direct kernel
 regression targets. A separate job builds the proof oracle and audits its
 axioms. Dependency-boundary checks prevent the normal compiler path from
 acquiring a mathlib dependency.

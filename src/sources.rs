@@ -24,6 +24,47 @@ pub(crate) struct Sources {
 }
 
 impl Sources {
+    pub(crate) fn empty() -> Self {
+        Self { files: Vec::new() }
+    }
+
+    /// Every manifest and module participates in the same protection/location
+    /// table. Package loading has already checked file reuse and graph cycles.
+    pub(crate) fn add(&mut self, path: &Path) -> Result<SourceInput<'_>, String> {
+        let canonical = path
+            .canonicalize()
+            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+        let text = fs::read_to_string(&canonical)
+            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+        let metadata = fs::metadata(&canonical)
+            .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", path.display()))?;
+        let offset = self
+            .files
+            .last()
+            .map_or(Some(0), |file| {
+                file.offset.checked_add(file.text.len())?.checked_add(1)
+            })
+            .ok_or("E_INPUT: compilation unit is too large")?;
+        offset
+            .checked_add(text.len())
+            .and_then(|end| end.checked_add(1))
+            .ok_or("E_INPUT: compilation unit is too large")?;
+        self.files.push(SourceFile {
+            path: path.to_path_buf(),
+            canonical,
+            identity: (metadata.dev(), metadata.ino()),
+            name: path.to_string_lossy().into_owned(),
+            text,
+            offset,
+        });
+        let file = self.files.last().unwrap();
+        Ok(SourceInput {
+            source: &file.text,
+            file: &file.name,
+            offset,
+        })
+    }
+
     pub(crate) fn load(input: &Path, libraries: &[PathBuf]) -> Result<Self, String> {
         let mut seen = HashSet::new();
         let mut files = Vec::new();

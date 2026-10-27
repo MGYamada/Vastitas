@@ -1,0 +1,3 @@
+pub generic add(left, right) { domain (Int, Int); }
+method add(left: Int, right: Int) -> Int { left + right }
+pub fn increment(x: Int) -> Int { add(x, 1) }

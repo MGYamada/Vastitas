@@ -1,6 +1,7 @@
 import VastitasKernel.SurfaceProtocol
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.NamespaceDiagnostics
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
 import VastitasKernel.Runtime
@@ -16,7 +17,7 @@ private def process (mode input : String) : Lean.Json := Id.run do
     let checked : Except Diagnostic CertifiedModule := do
       if version == 3 then
         let raw ← (decodeNamespaceProgram json).mapError fun message => { code := "E_PROTOCOL", message }
-        checkNamespaceProgram raw (mode == "emit")
+        (checkNamespaceProgram raw (mode == "emit")).mapError (Namespace.describeDiagnostic raw)
       else
         let raw ← (decodeSurfaceModule json).mapError fun message => { code := "E_PROTOCOL", message }
         (checkSurfaceProgram raw (mode == "emit")).mapError (DispatchChecker.describeDiagnostic (Surface.headers raw))

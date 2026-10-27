@@ -10,11 +10,12 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
+const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
 
 struct Options {
     mode: &'static str,
-    input: PathBuf,
+    input: Option<PathBuf>,
+    manifest: Option<PathBuf>,
     libraries: Vec<PathBuf>,
     output: Option<PathBuf>,
 }
@@ -29,9 +30,19 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     let mut input = None;
     let mut output = None;
     let mut libraries = Vec::new();
+    let mut manifest = None;
     let mut remaining = args.iter().skip(1);
     while let Some(arg) = remaining.next() {
-        if arg == "--lib" {
+        if arg == "--manifest-path" {
+            if manifest.is_some() {
+                return Err(usage());
+            }
+            let path = remaining.next().ok_or_else(usage)?;
+            if path.to_string_lossy().starts_with('-') {
+                return Err(usage());
+            }
+            manifest = Some(PathBuf::from(path));
+        } else if arg == "--lib" {
             let path = remaining.next().ok_or_else(usage)?;
             if path.to_string_lossy().starts_with('-') {
                 return Err(usage());
@@ -55,9 +66,13 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     if mode == "emit" && output.is_none() {
         return Err(usage());
     }
+    if manifest.is_some() == input.is_some() || (manifest.is_some() && !libraries.is_empty()) {
+        return Err(usage());
+    }
     Ok(Options {
         mode,
-        input: input.ok_or_else(usage)?,
+        input,
+        manifest,
         libraries,
         output,
     })
@@ -73,7 +88,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if args == ["--version"] {
         println!(
-            "vastitas {} (Stage 1b, protocol {PROTOCOL_VERSION})",
+            "vastitas {} (Stage 1b + packages, protocols {PROTOCOL_VERSION}/3)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -81,16 +96,29 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     let Options {
         mode,
         input,
+        manifest,
         libraries,
         output,
     } = options(&args)?;
-    let sources = Sources::load(&input, &libraries)?;
+    let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
+    let (sources, request, version) = if let Some(manifest) = manifest {
+        let (sources, module) = crate::packages::load(&manifest)?;
+        let request = serde_json::to_vec(&module)
+            .map_err(|error| format!("E_PROTOCOL: cannot encode packages: {error}"))?;
+        (sources, request, crate::packages::PROTOCOL)
+    } else {
+        let sources = Sources::load(input.as_ref().unwrap(), &libraries)?;
+        if let Some(output) = &output {
+            sources.protect_output(output)?;
+        }
+        let module = sources.parse()?;
+        let request = serde_json::to_vec(&module)
+            .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
+        (sources, request, PROTOCOL_VERSION)
+    };
     if let Some(output) = &output {
         sources.protect_output(output)?;
     }
-    let module = sources.parse()?;
-    let request = serde_json::to_vec(&module)
-        .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
     let root = if output.is_some() || configured_executable.is_none() {
         Some(kernel_root()?)
@@ -102,7 +130,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .expect("default executable requires kernel root")
             .join(".lake/build/bin/vastitas-kernel")
     });
-    let response = invoke_kernel(&executable, mode, &request, &sources)?;
+    let response = invoke_kernel(&executable, mode, &request, &sources, version)?;
     if let Some(output) = output {
         let lean_source = response
             .get("lean_source")
@@ -116,7 +144,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         )?;
         println!("built {}", output.display());
     } else {
-        println!("checked {}", input.display());
+        println!("checked {}", display_input.display());
     }
     Ok(())
 }
@@ -138,6 +166,7 @@ fn invoke_kernel(
     mode: &str,
     request: &[u8],
     sources: &Sources,
+    version: u32,
 ) -> Result<Value, String> {
     let mut command = Command::new(executable);
     command.arg(mode);
@@ -154,7 +183,7 @@ fn invoke_kernel(
             String::from_utf8_lossy(&output.stderr)
         )
     })?;
-    if response.get("version") != Some(&json!(PROTOCOL_VERSION)) {
+    if response.get("version") != Some(&json!(version)) {
         return Err("E_PROTOCOL: incompatible backend protocol version".into());
     }
     if response.get("ok") == Some(&Value::Bool(false)) {

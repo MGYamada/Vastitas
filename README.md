@@ -1,12 +1,12 @@
 # Vastitas
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 1b compiler**: `.vast` source → Rust frontend → independently checked
+its **Stage 1b compiler with path packages and modules**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
 The current language supports exact integer computation, a small geometric
 core, finite multiple dispatch over scalar types, and capture-free static
-higher-order functions. Ordinary and smooth
+higher-order functions, local path packages and call-only module imports. Ordinary and smooth
 affine descriptors, points, identity morphisms,
 dependent arguments, and existential packages preserve nominal endpoints.
 The [language design](docs/design.md) describes the larger research direction;
@@ -39,7 +39,7 @@ cargo run --locked -- build examples/pointed.vast -o target/pointed
 successfully. Compilation never runs the generated program.
 
 Build refuses an output path that aliases any input source, including an
-explicit library. On macOS and Linux, SIGINT/SIGTERM cancel compiler children
+explicit library, package manifest or module file. On macOS and Linux, SIGINT/SIGTERM cancel compiler children
 and remove the temporary project and staging output. Existing output is kept
 until the final atomic replacement. SIGKILL or a host crash cannot run cleanup.
 
@@ -50,6 +50,27 @@ trusted backend executable and kernel package directory for development.
 The backend build includes the native runtime. `check` needs only the executable
 when explicitly selected; `build` also needs the package and uses its pinned
 `lean-toolchain` for the generated project.
+
+## Path packages and modules
+
+Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
+and root source, plus optional `[dependencies]` path entries. Package mode
+retains namespaces in protocol 3 and cannot be mixed with positional input or
+`--lib`; protocol 2 remains supported for those existing commands.
+
+```sh
+cargo run --locked -- check --manifest-path examples/packages/demo/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
+./target/demo
+# 42
+```
+
+`mod`, `use`, `as`, `pub`, `pub use`, `package::`, `self::` and `super::` support
+logical modules and aliases. Functions have one defining package/module owner;
+only that exact module can add generic methods. Imports permit repeated calls
+without granting edit authority. See [packages and modules](docs/packages.md)
+for file layout, visibility, limits and proof scope. Registry/Git dependencies,
+edit borrowing and abstract methods remain deferred.
 
 ## Arithmetic standard library
 
@@ -126,7 +147,9 @@ correspondence, terminating typed evaluation, and runtime endpoint preservation.
 It also proves the finite dispatch checker's unique selection, coverage, and
 declaration-order invariance, and connects the public Stage 1b checker's exact
 lowered result to that proved core. Independent capture and static function
-signature audits are connected to actual acceptance. Rust parsing, JSON decoding, full Stage 1
+signature audits are connected to actual acceptance. Protocol-3 owner uniqueness,
+reference/visibility and method-authority audits connect the namespace path to
+the same core theorems. Rust parsing, JSON decoding, full Stage 1
 source rewriting correspondence, native code-generation equivalence, and a
 full mathematical model of schemes remain outside those claims. The precise
 [proof boundary](docs/verification.md) is part of the implementation contract.
@@ -135,7 +158,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression
+lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
@@ -167,6 +190,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Stage 0 core grammar, semantics, and limits](docs/stage0.md)
 - [Stage 1a finite multiple dispatch](docs/stage1a.md)
 - [Stage 1b independent functions](docs/stage1b.md)
+- [Packages and modules](docs/packages.md)
 - [Implementation roadmap](docs/stage1-roadmap.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)

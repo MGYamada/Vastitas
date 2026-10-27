@@ -1,4 +1,5 @@
 /target/
+/stdlib/target/
 **/.lake/
 .DS_Store
 *.olean

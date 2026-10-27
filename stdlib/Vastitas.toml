@@ -1,4 +1,4 @@
 [package]
 name = "vastitas_std"
 version = "0.1.0"
-root = "package/lib.vast"
+root = "target/package/lib.vast"

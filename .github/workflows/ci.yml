@@ -40,7 +40,9 @@ jobs:
       - name: Dependency boundaries
         run: python3 scripts/check_boundaries.py
       - name: Standard-library package matches canonical sources
-        run: python3 scripts/sync_stdlib_package.py --check
+        run: |
+          python3 scripts/build_stdlib_package.py
+          python3 scripts/build_stdlib_package.py --check
 
   compiler-without-mathlib:
     name: Native compiler (${{ matrix.os }}, no mathlib)
@@ -84,7 +86,9 @@ jobs:
       - name: Checked-IR, dispatch, and function regressions
         run: lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasPromotion.Regression
       - name: Rust, native compiler, and standard-library tests
-        run: cargo test --locked --all-targets
+        run: |
+          python3 scripts/build_stdlib_package.py
+          cargo test --locked --all-targets
 
   oracle:
     name: Lean proofs and axiom audit

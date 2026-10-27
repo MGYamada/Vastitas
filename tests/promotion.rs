@@ -5,9 +5,11 @@ use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
+use std::sync::Once;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static SERIAL: AtomicU64 = AtomicU64::new(0);
+static PACKAGE_BUILD: Once = Once::new();
 fn root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
 }
@@ -17,6 +19,14 @@ fn kernel() -> PathBuf {
 struct Scratch(PathBuf);
 impl Scratch {
     fn new(source: &str) -> Self {
+        PACKAGE_BUILD.call_once(|| {
+            success(
+                Command::new("python3")
+                    .arg(root().join("scripts/build_stdlib_package.py"))
+                    .output()
+                    .unwrap(),
+            );
+        });
         let path = std::env::temp_dir().join(format!(
             "vastitas promotion {} {}",
             std::process::id(),
@@ -156,7 +166,7 @@ fn promotion_values_types_reversal_and_idempotence_execute_in_both_modes() {
     }
     success(
         Command::new("python3")
-            .arg(root().join("scripts/sync_stdlib_package.py"))
+            .arg(root().join("scripts/build_stdlib_package.py"))
             .arg("--check")
             .output()
             .unwrap(),

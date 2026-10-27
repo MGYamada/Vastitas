@@ -100,7 +100,9 @@ above. Flat mode checks the whole assembly but has no package owner guarantees.
 
 ## Package use
 
-Add a local path dependency on this directory's `Vastitas.toml`, then write:
+First run `python3 scripts/build_stdlib_package.py` from the repository root.
+It creates the package sources under ignored `stdlib/target/package/`.
+Add a local path dependency on this directory's stable `Vastitas.toml`, then write:
 
 ```vast
 use std::arithmetic::generic::promote;
@@ -113,15 +115,19 @@ edits. The public prefixed kernels are in `arithmetic::integers` and
 visibility checks. No stdlib-specific resolver or authority bypass is used.
 
 ```sh
+python3 scripts/build_stdlib_package.py
 cargo run -- check --manifest-path examples/packages/promotion/Vastitas.toml
 cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o target/promotion
 ./target/promotion
 # 42
 ```
 
-The canonical definitions are the flat sources under `src/arithmetic`.
-`python3 scripts/sync_stdlib_package.py` adds package visibility and explicit
-imports to the checked-in files under `package/`; it does not rewrite bodies.
-CI runs the script with `--check` to prevent the two entry formats diverging.
+The only tracked `.vast` definitions are the flat sources under `src/arithmetic`.
+The build script adds package visibility and explicit imports without rewriting
+bodies. Rerun it after editing the canonical sources; use `--check` to detect
+missing or stale output without writing. A clean checkout needs this explicit
+generation step before manifest-mode stdlib use; flat `--lib` needs no generation.
+Tests and CI prepare the package automatically. The compiler itself loads the
+fixed manifest inputs and contains no special stdlib generation or resolver path.
 See [packages](../docs/packages.md). Neither mode supplies an automatic prelude
 or a registry package manager.

@@ -1,0 +1,26 @@
+import Lean.Data.Json
+import VastitasKernel.Program
+
+namespace VastitasKernel.JsonDecode
+open Lean
+
+def str (j : Json) (key : String) : Except String String :=
+  j.getObjValAs? String key
+
+def field (j : Json) (key : String) : Except String Json :=
+  j.getObjVal? key
+
+def array (j : Json) (key : String) : Except String (List Json) := do
+  pure (← (← field j key).getArr?).toList
+
+def decodeSpan (j : Json) : Except String Span := do
+  let s ← field j "span"
+  let start ← s.getObjValAs? Nat "start"
+  let finish ← s.getObjValAs? Nat "end"
+  let line ← s.getObjValAs? Nat "line"
+  let column ← s.getObjValAs? Nat "column"
+  if start > finish || line == 0 || column == 0 then
+    throw "invalid source span"
+  pure { start, «end» := finish, line, column }
+
+end VastitasKernel.JsonDecode

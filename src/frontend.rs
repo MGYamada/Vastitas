@@ -658,6 +658,21 @@ impl Parser {
         Ok(requires)
     }
 
+    fn method_result(&mut self) -> Result<Type, Diagnostic> {
+        if ["Nat", "Int", "Bool", "Unit", "Pair"]
+            .iter()
+            .any(|name| self.peek().is(name))
+        {
+            self.ty()
+        } else {
+            Err(diagnostic(
+                "E_TYPE",
+                "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>",
+                self.peek().span,
+            ))
+        }
+    }
+
     fn method(&mut self) -> Result<Method, Diagnostic> {
         let start = self.expect("method")?.span;
         let (name, _) = if self.packages {
@@ -673,11 +688,7 @@ impl Parser {
             Vec::new()
         };
         self.expect("->")?;
-        let return_type = if self.peek().is("Pair") {
-            self.ty()?
-        } else {
-            self.dispatch_type(false)?
-        };
+        let return_type = self.method_result()?;
         if self.peek().is("requires") {
             if before_arrow {
                 return Err(diagnostic(
@@ -1694,6 +1705,20 @@ pub fn parse(source: &str, file: &str) -> Result<Module, Vec<Diagnostic>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn method_result_diagnostics_describe_the_result_contract() {
+        for result in ["Any", "Number", "Point<X, Base(QQ)>", "Fn<Int, Int>"] {
+            let source =
+                format!("generic f(x) {{ domain (Int); }} method f(x: Int) -> {result} {{ 0 }}");
+            let errors = parse(&source, "result.vast").unwrap_err();
+            assert_eq!(errors[0].code, "E_TYPE");
+            assert_eq!(
+                errors[0].message,
+                "method results require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>"
+            );
+        }
+    }
 
     #[test]
     fn parses_and_serializes_generic_families_without_selecting_methods() {

@@ -212,3 +212,16 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Proof scope and trust boundary](docs/verification.md)
 - [Design v0.3, reorganized by topic](docs/design.md)
 - [Contributor guidance](AGENTS.md)
+
+## License
+
+Copyright 2026 Vastitas contributors.
+
+Vastitas is licensed under the [Apache License, Version 2.0](LICENSE)
+(`Apache-2.0`). This covers the project's compiler, runtime, Lean proofs,
+standard library, examples, and documentation, except where otherwise noted.
+
+Third-party dependencies and toolchain components retain their own licenses
+and notices. Redistributing them requires preserving their applicable license
+texts and attribution notices; this repository's license does not replace
+those terms.

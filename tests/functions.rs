@@ -295,6 +295,10 @@ fn invalid_function_contracts_and_unresolved_targets_are_rejected() {
             "E_TYPE",
         ),
         (
+            "fn unused(callback: Fn<Int, Int>) -> Fn<Int, Int> { if true { fn(x: Int) -> Int { x } } else { fn(y: Int) -> Int { y + 1 } } }",
+            "E_STATIC_CALL",
+        ),
+        (
             "fn unused(callback: Fn<Fn<Int, Int>, Int>) -> Int { callback(if 1 { fn(x: Int) -> Int { x } } else { fn(y: Int) -> Int { y } }) }",
             "E_TYPE",
         ),

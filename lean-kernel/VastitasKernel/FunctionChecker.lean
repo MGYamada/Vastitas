@@ -201,6 +201,7 @@ mutual
       | .ite condition yes no span =>
         let condition ← lowerExpr fuel ctx functions condition
         let condition ← data condition span
+        let _ ← core (checkExpr 4096 (← get).signatures ctx condition (some .bool))
         let yes ← lowerBlock fuel ctx functions yes
         let no ← lowerBlock fuel ctx functions no
         let target ← match yes.target, no.target with
@@ -208,7 +209,8 @@ mutual
           | some a, some b => do
             sameType a.ty b.ty span
             if a.name == b.name then pure (some a)
-            else if (← get).audit then pure (some { a with abstractTarget := true, name := s!"__branch{span.start}" })
+            else if (← get).audit && (a.abstractTarget || b.abstractTarget) then
+              pure (some { a with abstractTarget := true, name := s!"__vastitas_branch{span.start}" })
             else error span "E_STATIC_CALL" "function-valued branches must resolve to the same static target"
           | _, _ => error span "E_TYPE" "both branches must have the same data or Fn type"
         pure { raw := .ite condition (rawBlock yes span) (rawBlock no span) span, target }
@@ -359,7 +361,7 @@ def lowerPass (p : Program) (definitions : List Function) (families : Families) 
     for f in definitions do
       if audit || !(f.params.any (·.ty.isFunction)) then
         let targets := f.params.filterMap fun param => if param.ty.isFunction then
-          some { name := s!"__probe_{f.name}_{param.name}", ty := param.ty, abstractTarget := true : Target } else none
+          some { name := s!"__vastitas_probe_{f.name}_{param.name}", ty := param.ty, abstractTarget := true : Target } else none
         let _ ← specialize 4096 f targets f.span
         pure ()
   let (_, state) ← action.run {

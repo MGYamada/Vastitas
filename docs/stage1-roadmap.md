@@ -23,7 +23,7 @@ The next stack is:
 | --- | --- | --- |
 | Input/output, codegen, cancellation hardening | #35, #36, #40, #45, #46 | [PR #51](https://github.com/MGYamada/Vastitas/pull/51) |
 | Diagnostics and precise specification/proof scope | #38, #39, #41–44, #47 | [PR #53](https://github.com/MGYamada/Vastitas/pull/53) |
-| Independent functions and static higher-order specialization | [#50](https://github.com/MGYamada/Vastitas/issues/50) | [Stage 1b contract](stage1b.md) |
+| Independent functions and static higher-order specialization | [#50](https://github.com/MGYamada/Vastitas/issues/50) | [PR #54](https://github.com/MGYamada/Vastitas/pull/54), [contract](stage1b.md) |
 
 Each increment requires local validation, macOS/Linux no-mathlib CI, and the
 oracle axiom audit. Fix issues close on PR merge, not merely PR creation.

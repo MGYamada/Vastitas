@@ -122,7 +122,7 @@ Source declaration order does not constrain function calls.
 The `__vastitas_` prefix is reserved for hygienic specialization names and is
 rejected in source binders and references, including forged wire requests.
 
-`SurfaceProtocol.decodeSurfaceModule` decodes the extended request and
+`decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
 `checkSurfaceProgram` checks it. Function syntax remains separate from core
 syntax. Every lambda and function body is checked, including unused functions;
 signature probes for abstract function parameters are confined to a separate

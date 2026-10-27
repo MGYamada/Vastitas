@@ -217,6 +217,21 @@ fn named_functions_can_be_values_without_fn_annotations() {
 }
 
 #[test]
+fn invocation_after_else_if_applies_to_the_entire_chain() {
+    let source = "fn inc(x: Int) -> Int { x + 1 }
+fn factory() -> Fn<Int, Int> { inc }
+fn main() -> Int {
+ let first = if true { inc } else if false { inc } else { inc }(41);
+ let middle = if false { inc } else if true { inc } else { inc }(41);
+ let last = if false { inc } else if false { inc } else if false { inc } else { inc }(41);
+ let chained = if true { factory } else if false { factory } else { factory }()(41);
+ first + middle + last + chained
+}";
+    success(&check(source));
+    native(source, &[], "168");
+}
+
+#[test]
 fn functions_and_dispatch_call_each_other_and_keep_library_locations() {
     native(
         "generic offset(x) { domain (Int); }

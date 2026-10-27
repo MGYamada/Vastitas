@@ -805,6 +805,11 @@ impl Parser {
         check_expression_depth(&left)?;
         while let TokenKind::Symbol(op) = &self.peek().kind {
             if op == "(" {
+                // Else-if parsing requests only the conditional prefix; leave
+                // its trailing invocation for the enclosing expression.
+                if min_binding_power == u8::MAX {
+                    break;
+                }
                 self.advance();
                 let mut args = Vec::new();
                 if !self.consume(")") {

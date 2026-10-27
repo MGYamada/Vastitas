@@ -39,7 +39,7 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Dependency boundaries
         run: python3 scripts/check_boundaries.py
-      - name: Standard-library package matches canonical sources
+      - name: Generate and check the standard-library package
         run: |
           python3 scripts/build_stdlib_package.py
           python3 scripts/build_stdlib_package.py --check

@@ -58,12 +58,48 @@ structure State where
   audit : Bool := false
   deriving Inhabited
 
-abbrev M := StateT State CheckM
+/-- A suspended call retains its local continuation, but receives the updated
+specialization and core states when its dependency finishes. Body fuel is never
+threaded through this scheduler. -/
+inductive Work (α : Type) where
+  | done (value : α) (state : State) (checker : CheckerState)
+  | failed (diagnostic : Diagnostic)
+  | request (function : Function) (targets : List Target) (span : Span)
+      (state : State) (checker : CheckerState)
+      (resume : Instance → State → CheckerState → Work α)
+
+abbrev M (α : Type) := State → CheckerState → Work α
+
+def Work.bind (work : Work α) (next : α → M β) : Work β :=
+  match work with
+  | .done value state checker => next value state checker
+  | .failed diagnostic => .failed diagnostic
+  | .request f targets span state checker resume =>
+    .request f targets span state checker fun compiled state checker =>
+      (resume compiled state checker).bind next
+
+instance : Monad M where
+  pure value state checker := .done value state checker
+  bind action next state checker := (action state checker).bind next
+
+instance : MonadStateOf State M where
+  get state checker := .done state state checker
+  set state _ checker := .done () state checker
+  modifyGet f state checker := let (value, state) := f state; .done value state checker
+
 abbrev Functions := List (String × Target)
 
-def core (action : CheckM α) : M α := fun state => do
-  let value ← action
-  pure (value, state)
+def core (action : CheckM α) : M α := fun state checker =>
+  match action.run checker with
+  | .ok (value, checker) => .done value state checker
+  | .error diagnostic => .failed diagnostic
+
+def instanceKey (f : Function) (targets : List Target) : String :=
+  f.name ++ ":" ++ String.intercalate "|" (targets.map (·.name))
+
+def requestInstance (f : Function) (targets : List Target) (span : Span) : M Instance :=
+  fun state checker => .request f targets span state checker fun compiled state checker =>
+    .done compiled state checker
 
 def error (span : Span) (code message : String) : M α := core (fail span code message)
 
@@ -259,7 +295,7 @@ mutual
       pure (.unpack raw scheme point span :: tail, ctx, functions)
   def invokeTarget : Nat → Context → Target → List Value → Span → M Value
     | 0, _, _, _, span => core (checkingBudgetExceeded span)
-    | fuel + 1, ctx, target, values, span => do
+    | _ + 1, ctx, target, values, span => do
       let .function paramTypes result := target.ty | error span "E_TYPE" "application requires a Fn value"
       let params := paramTypes.toList
       unless params.length == values.length do error span "E_ARITY" s!"{target.ty.label} expects {params.length} arguments, found {values.length}"
@@ -290,49 +326,61 @@ mutual
         return ← probe result s!"{target.name}_result{span.start}" span
       let f ← definition target.name span
       sameType f.type target.ty span
-      let compiled ← specialize fuel f targets span
+      let compiled ← requestInstance f targets span
       modify fun state => { state with calls := { target := f.name, signature := target.ty, bindings } :: state.calls }
       pure { raw := ← effects erased (.call compiled.name args span) span, target := compiled.target }
-  def specialize : Nat → Function → List Target → Span → M Instance
-    | 0, _, _, span => core (checkingBudgetExceeded span)
-    | fuel + 1, f, targets, span => do
-      let key := f.name ++ ":" ++ String.intercalate "|" (targets.map (·.name))
-      if let some compiled := (← get).instances.find? (·.key == key) then return compiled
-      if (← get).active.contains key then
-        let lambda := f.name.startsWith "__vastitas_l"
-        let label := if lambda then s!"lambda at {f.span.line}:{f.span.column}" else f.name
-        let diagnostic : Diagnostic := {
-          code := "E_RECURSION"
-          message := s!"recursive specialization cycle involving '{label}' is not supported"
-          span
-          notes := if lambda then [{ span := f.span, message := "lambda defined here" }] else [] }
-        core (throw diagnostic)
-      let higher := f.params.any (·.ty.isFunction) || f.result.isFunction || f.name.startsWith "__vastitas_l"
-      let id := (← get).nextInstance
-      if higher && id >= 4096 then error span "E_LIMIT" "higher-order specialization exceeds the 4096-instance limit"
-      let name := if higher then s!"__vastitas_h{id}" else f.name
-      modify fun state => { state with active := key :: state.active, nextInstance := id + if higher then 1 else 0 }
-      let params := f.params.filterMap fun param =>
-        if param.ty.isFunction then none else some { name := param.name, ty := param.ty.core, span := param.span : RawParam }
-      let raw : RawFunction := { name, params, returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
-      let signature ← core (prepareSignature raw)
-      modify fun state => { state with signatures := state.signatures.insert name signature }
-      let functions := ((f.params.filter (·.ty.isFunction)).map (·.name)).zip targets
-      let value ← lowerBlock fuel signature.params functions f.body
-      match f.result, value.target with
-      | .function .., some actual => sameType f.result actual.ty f.span
-      | .function .., none => error f.span "E_TYPE" s!"expected {f.result.label}, found data value"
-      | .data _, some _ => error f.span "E_TYPE" "a data-returning function cannot return a Fn value"
-      | _, _ => pure ()
-      let raw := { raw with body := rawBlock value f.span }
-      let _ ← core (checkFunction (← get).signatures { signature with raw })
-      let compiled : Instance := { key, name, target := value.target }
-      modify fun state => { state with
-        functions := state.functions.push raw
-        instances := compiled :: state.instances
-        active := state.active.filter (· != key) }
-      pure compiled
 end
+
+/-- One new instance owns a full body budget, independently of the caller. -/
+def compileInstance (f : Function) (targets : List Target) (span : Span) : M Instance := do
+  let key := instanceKey f targets
+  if let some compiled := (← get).instances.find? (·.key == key) then return compiled
+  if (← get).active.contains key then
+    let lambda := f.name.startsWith "__vastitas_l"
+    let label := if lambda then s!"lambda at {f.span.line}:{f.span.column}" else f.name
+    let diagnostic : Diagnostic := {
+      code := "E_RECURSION"
+      message := s!"recursive specialization cycle involving '{label}' is not supported"
+      span
+      notes := if lambda then [{ span := f.span, message := "lambda defined here" }] else [] }
+    core (throw diagnostic)
+  let higher := f.params.any (·.ty.isFunction) || f.result.isFunction || f.name.startsWith "__vastitas_l"
+  let id := (← get).nextInstance
+  if higher && id >= 4096 then error span "E_LIMIT" "higher-order specialization exceeds the 4096-instance limit"
+  let name := if higher then s!"__vastitas_h{id}" else f.name
+  modify fun state => { state with active := key :: state.active, nextInstance := id + if higher then 1 else 0 }
+  let params := f.params.filterMap fun param =>
+    if param.ty.isFunction then none else some { name := param.name, ty := param.ty.core, span := param.span : RawParam }
+  let raw : RawFunction := { name, params, returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
+  let signature ← core (prepareSignature raw)
+  modify fun state => { state with signatures := state.signatures.insert name signature }
+  let functions := ((f.params.filter (·.ty.isFunction)).map (·.name)).zip targets
+  let value ← lowerBlock 4096 signature.params functions f.body
+  match f.result, value.target with
+  | .function .., some actual => sameType f.result actual.ty f.span
+  | .function .., none => error f.span "E_TYPE" s!"expected {f.result.label}, found data value"
+  | .data _, some _ => error f.span "E_TYPE" "a data-returning function cannot return a Fn value"
+  | _, _ => pure ()
+  let raw := { raw with body := rawBlock value f.span }
+  let _ ← core (checkFunction (← get).signatures { signature with raw })
+  let compiled : Instance := { key, name, target := value.target }
+  modify fun state => { state with
+    functions := state.functions.push raw
+    instances := compiled :: state.instances
+    active := state.active.filter (· != key) }
+  pure compiled
+
+/-- Tail-recursive worklist interpreter. A request either resumes from a cached
+instance or places that instance's body before the suspended caller. -/
+def runWork : Nat → Work α → Except Diagnostic (α × State × CheckerState)
+  | 0, _ => .error { code := "E_LIMIT", message := "specialization worklist budget exceeded" }
+  | _ + 1, .done value state checker => .ok (value, state, checker)
+  | _ + 1, .failed diagnostic => .error diagnostic
+  | fuel + 1, .request f targets span state checker resume =>
+    match state.instances.find? (·.key == instanceKey f targets) with
+    | some compiled => runWork fuel (resume compiled state checker)
+    | none => runWork fuel ((compileInstance f targets span state checker).bind
+        (fun compiled state checker => resume compiled state checker))
 
 -- Body-less headers are used only to reuse declaration and finite-family
 -- validation. The actual bodies are checked below, never these placeholders.
@@ -364,18 +412,40 @@ def prepare (p : Program) : CheckM (List Function × Families) := do
       functions := functions.push { method.toFunction with name := monoName id key, params }
   pure (functions.toList, families.foldl (fun table f => table.insert f.raw.name f) {})
 
+mutual
+  def expressionRequests : Expr → Nat
+    | .call _ args _ => 1 + (args.map expressionRequests).sum
+    | .invoke callee args _ => 1 + expressionRequests callee + (args.map expressionRequests).sum
+    | .lambda _ _ body _ | .block body _ => blockRequests body
+    | .unary _ value _ => expressionRequests value
+    | .binary _ left right _ | .pack left right _ => expressionRequests left + expressionRequests right
+    | .ite condition yes no _ => expressionRequests condition + blockRequests yes + blockRequests no
+    | _ => 0
+  def blockRequests : Block → Nat
+    | .mk statements result _ => (statements.map statementRequests).sum + expressionRequests result
+  def statementRequests : Stmt → Nat
+    | .letE _ _ value _ | .unpack value _ _ _ => expressionRequests value
+end
+
 def lowerPass (p : Program) (definitions : List Function) (families : Families) (audit : Bool) : CheckM Lowered := do
   let action : M Unit := do
     for f in definitions do
       if audit || !(f.params.any (·.ty.isFunction)) then
         let targets := f.params.filterMap fun param => if param.ty.isFunction then
           some { name := s!"__vastitas_probe_{f.name}_{param.name}", ty := param.ty, abstractTarget := true : Target } else none
-        let _ ← specialize 4096 f targets f.span
+        let _ ← requestInstance f targets f.span
         pure ()
-  let (_, state) ← action.run {
+  -- Every ordinary definition has at most one instance; higher-order instances
+  -- are capped at 4096. Each instance can request no more calls than its source
+  -- syntax size. This administrative bound does not consume any body's fuel.
+  let workBudget := (definitions.length + 4097) *
+    (definitions.foldl (fun total f => total + blockRequests f.body + 1) 1)
+  let checker ← get
+  let (_, state, checker) ← runWork workBudget (action {
     definitions, families
     globals := p.functions.map (·.name) ++ p.generics.map (·.name)
-    audit }
+    audit } checker)
+  set checker
   pure {
     module := { version := 1, file := p.file, functions := state.functions.toList }
     definitions := state.definitions, calls := state.calls }
@@ -396,6 +466,8 @@ namespace VastitasKernel
 
 def checkSurfaceProgram (p : Surface.Program) (requireMain : Bool := false) : Except Diagnostic CertifiedModule := do
   if !Surface.CaptureFree p then throw (Surface.captureDiagnostic p)
+  if !Surface.LambdaShadowFree p then
+    throw (p.lambdaShadowDiagnostic.getD { code := "E_SHADOW", message := "lambda shadows an enclosing binding" })
   if let some legacy := p.legacyExact then
     return ← checkProgram legacy requireMain
   let lowered ← Surface.lowerFunctions p

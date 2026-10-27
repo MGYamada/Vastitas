@@ -1345,6 +1345,13 @@ impl<'a> Resolver<'a> {
                 span,
             ));
         }
+        if self.forbidden.iter().any(|outer| outer.contains(name)) {
+            self.errors.push(diagnostic(
+                "E_SHADOW",
+                format!("binding `{name}` shadows an enclosing binding; use a distinct name"),
+                span,
+            ));
+        }
         if !scope.insert(name) {
             self.errors.push(diagnostic(
                 "E_DUPLICATE",

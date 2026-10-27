@@ -36,7 +36,10 @@ fn main() -> Int {
 
 Named ordinary functions are also values. Values can be bound, aliased, passed,
 returned and invoked, including chained applications such as `factory()(42)`.
-Each lambda has independent parameters and local bindings. Referring to an
+Each lambda has independent parameters and local bindings, but cannot shadow
+an enclosing binding with a parameter, `let`, or `unpack` name. Separate sibling
+lambdas may reuse their own local names. This lexical check runs before lifting
+and is independently enforced by Lean. Referring to an
 outer argument, local function value, or local geometric endpoint is
 `E_CAPTURE`; pass needed values explicitly. Top-level functions, generics and
 builtins remain callable. Nested lambdas obey the same independent-scope rule.
@@ -79,6 +82,12 @@ probe results only in this pass; arguments and erased computations are still
 checked. The resulting audit module is passed through the core checker.
 A separate pass with fresh state specializes executable calls by definition ID
 and function-argument IDs. Audit probes never enter that pass or native output.
+Each function instance has its own 4096-unit body-checking budget. A bounded
+worklist suspends calls until their specialized callee is available, including
+calls returning Fn values; the caller's body budget is retained on resumption.
+Call-chain length, declaration order, and an unrelated lambda do not share or
+reduce that budget. Completed instances are memoized and active cycles rejected.
+
 Each pass permits at most 4096 higher-order instances in a compilation unit;
 plain first-order functions do not consume that budget. Limits report `E_LIMIT`.
 Recursive specialization is rejected, followed by the core dependency audit.

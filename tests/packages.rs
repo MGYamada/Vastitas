@@ -334,6 +334,18 @@ fn filesystem_escape_and_module_loading_cycles_are_rejected() {
 }
 
 #[test]
+fn package_lambdas_preserve_the_enclosing_shadowing_ban() {
+    let s = Scratch::new();
+    for source in [
+        "fn main() -> Int { let x = 41; let f = fn(x: Int) -> Int { x + 1 }; f(x) }",
+        "fn main() -> Int { let x = 41; let f = fn() -> Int { let x = 1; x }; f() }",
+    ] {
+        s.package("app", source, "");
+        s.rejects("E_SHADOW");
+    }
+}
+
+#[test]
 fn all_manifests_and_module_sources_are_protected_from_output() {
     let s = Scratch::new();
     s.package("lib", "pub fn value() -> Int { 42 }", "");

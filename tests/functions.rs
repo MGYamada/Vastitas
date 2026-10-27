@@ -133,6 +133,73 @@ fn assert_rejected(request: Value, code: &str) {
 }
 
 #[test]
+fn independent_function_budgets_do_not_depend_on_order_or_unused_lambdas() {
+    let mut functions = vec!["fn main() -> Int { f0() }".to_owned()];
+    for i in 0..1499 {
+        functions.push(format!("fn f{i}() -> Int {{ f{}() }}", i + 1));
+    }
+    functions.push("fn f1499() -> Int { 42 }".to_owned());
+    for reversed in [false, true] {
+        if reversed {
+            functions.reverse();
+        }
+        for lambda in [
+            "",
+            "\nfn unused() -> Int { let g = fn(x: Int) -> Int { x }; g(1) }",
+        ] {
+            success(&check(&(functions.join("\n") + lambda)));
+        }
+    }
+    let body = (0..4100)
+        .map(|i| format!("let x{i} = 0;\n"))
+        .collect::<String>();
+    for lambda in [
+        "",
+        "fn unused() -> Int { let g = fn(x: Int) -> Int { x }; g(1) }",
+    ] {
+        reject(
+            &format!("fn main() -> Int {{ {body} 42 }}\n{lambda}"),
+            "E_LIMIT",
+        );
+    }
+}
+
+#[test]
+fn function_result_dependencies_resume_with_the_original_static_target() {
+    native(
+        "fn main() -> Int { first()(41) }\nfn first() -> Fn<Int, Int> { second() }\nfn second() -> Fn<Int, Int> { fn(value: Int) -> Int { value + 1 } }",
+        &[],
+        "42",
+    );
+    reject(
+        "fn first() -> Fn<Int, Int> { second() }\nfn second() -> Fn<Int, Int> { first() }\nfn main() -> Int { first()(1) }",
+        "E_RECURSION",
+    );
+}
+
+#[test]
+fn lambdas_cannot_shadow_enclosing_parameters_lets_or_unpacked_objects() {
+    for source in [
+        "fn main() -> Int { let x = 41; let f = fn(x: Int) -> Int { x + 1 }; f(x) }",
+        "fn outer(x: Int) -> Int { let f = fn() -> Int { let x = 1; x }; f() }",
+        "fn main() -> Int { let X = Affine(QQ, 1); let f = fn() -> Int { let p = { let Y = Affine(QQ, 1); pack { scheme: Y, point: origin(Y) } }; unpack p as { scheme: X, point: point }; 0 }; f() }",
+    ] {
+        reject(source, "E_SHADOW");
+    }
+    let mut forged =
+        request("fn main() -> Int { let x = 41; let f = fn(y: Int) -> Int { y + 1 }; f(x) }");
+    forged["functions"][0]["body"]["statements"][1]["value"]["params"][0]["name"] = json!("x");
+    forged["functions"][0]["body"]["statements"][1]["value"]["body"]["result"]["left"]["name"] =
+        json!("x");
+    assert_rejected(forged, "E_SHADOW");
+    native(
+        "fn main() -> Int { let f = fn(x: Int) -> Int { x + 1 }; let g = fn(x: Int) -> Int { x + 1 }; f(g(40)) }",
+        &[],
+        "42",
+    );
+}
+
+#[test]
 fn native_function_values_pass_return_and_invoke() {
     native(include_str!("../examples/functions.vast"), &[], "42");
     native("fn inc(x: Int) -> Int { x + 1 }

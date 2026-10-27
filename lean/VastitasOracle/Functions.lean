@@ -16,6 +16,15 @@ theorem checkSurfaceProgram_capture_free (program : Surface.Program) (requireMai
   · exact free
   · simp [checkSurfaceProgram, free, throw, bind, Except.bind] at accepted
 
+theorem checkSurfaceProgram_lambda_shadow_free (program : Surface.Program) (requireMain : Bool)
+    (certified : CertifiedModule)
+    (accepted : checkSurfaceProgram program requireMain = .ok certified) :
+    LambdaShadowFree program := by
+  have free := checkSurfaceProgram_capture_free program requireMain certified accepted
+  by_cases shadowFree : LambdaShadowFree program
+  · exact shadowFree
+  · simp [checkSurfaceProgram, free, shadowFree, throw, bind, Except.bind] at accepted
+
 /-- The new syntax path checks the actual lowering result and its actual target
 ledger before handing that very module to the independent core checker. -/
 theorem checkSurfaceProgram_static_calls (program : Surface.Program) (requireMain : Bool)
@@ -24,19 +33,21 @@ theorem checkSurfaceProgram_static_calls (program : Surface.Program) (requireMai
     ∃ lowered, lowerFunctions program = .ok lowered ∧ StaticCallsValid lowered ∧
       checkModule lowered.module requireMain = .ok certified := by
   have free := checkSurfaceProgram_capture_free program requireMain certified accepted
+  have shadowFree := checkSurfaceProgram_lambda_shadow_free program requireMain certified accepted
   cases lowered : lowerFunctions program with
-  | error diagnostic => simp [checkSurfaceProgram, free, expanded, lowered, bind, Except.bind] at accepted
+  | error diagnostic => simp [checkSurfaceProgram, free, shadowFree, expanded, lowered, bind, Except.bind] at accepted
   | ok result =>
     by_cases valid : StaticCallsValid result
     · refine ⟨result, rfl, valid, ?_⟩
-      simpa [checkSurfaceProgram, free, expanded, lowered, valid, bind, Except.bind] using accepted
-    · simp [checkSurfaceProgram, free, expanded, lowered, valid, bind, Except.bind, throw] at accepted
+      simpa [checkSurfaceProgram, free, shadowFree, expanded, lowered, valid, bind, Except.bind] using accepted
+    · simp [checkSurfaceProgram, free, shadowFree, expanded, lowered, valid, bind, Except.bind, throw] at accepted
 
 theorem checkSurfaceProgram_core (program : Surface.Program) (requireMain : Bool)
     (certified : CertifiedModule)
     (accepted : checkSurfaceProgram program requireMain = .ok certified) :
     ∃ core, checkModule core requireMain = .ok certified := by
   have free := checkSurfaceProgram_capture_free program requireMain certified accepted
+  have shadowFree := checkSurfaceProgram_lambda_shadow_free program requireMain certified accepted
   cases legacy : program.legacyExact with
   | none =>
     obtain ⟨lowered, _, _, checked⟩ :=
@@ -44,7 +55,7 @@ theorem checkSurfaceProgram_core (program : Surface.Program) (requireMain : Bool
     exact ⟨lowered.module, checked⟩
   | some raw =>
     have old : checkProgram raw requireMain = .ok certified := by
-      simpa [checkSurfaceProgram, free, legacy] using accepted
+      simpa [checkSurfaceProgram, free, shadowFree, legacy] using accepted
     obtain ⟨core, _, checked⟩ := DispatchLowering.checkProgram_core raw requireMain certified old
     exact ⟨core, checked⟩
 

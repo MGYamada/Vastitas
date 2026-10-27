@@ -10,7 +10,7 @@ code. They do not require the mathlib proof oracle during compilation.
 | --- | --- | --- |
 | [`src/arithmetic/int.vast`](src/arithmetic/int.vast) | `int_add`, `int_sub`, `int_mul`, `int_neg`, `int_abs`, `int_min`, `int_max` | Exact, arbitrary-precision `Int` |
 | [`src/arithmetic/nat.vast`](src/arithmetic/nat.vast) | `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, `nat_max`, `nat_to_int` | Exact, arbitrary-precision `Nat`; subtraction saturates at zero; explicit embedding into `Int` |
-| [`src/arithmetic/generic.vast`](src/arithmetic/generic.vast) | `promote`, `add`, `maximum` | Four-key Nat/Int promotion; homogeneous arithmetic wrappers; uses both prefixed libraries |
+| [`src/arithmetic/generic.vast`](src/arithmetic/generic.vast) | `promote`, `add`, `maximum` | Four-key Nat/Int promotion and arithmetic; uses both prefixed libraries |
 
 The prefixed functions remain available alongside Stage 1a's generic functions.
 The library does not introduce implicit conversions between `Nat` and `Int`.
@@ -62,9 +62,17 @@ cargo run -- build examples/dispatch-arithmetic.vast \
 ```
 
 `add(20, 22)` selects Int. To select Nat, pass Nat-typed variables; an expected
-result type never selects a method. Mixed `(Nat, Int)` and `(Int, Nat)` calls
-are outside these generics' declared domains. `maximum` requires the static
-`HasOrder` capability, which both supported same-type keys satisfy.
+result type never selects a method. Both mixed directions return Int; Nat/Nat
+retains Nat. Each mixed `add`/`maximum` method binds `promote` once, then passes
+its two projections to the homogeneous Int method. Homogeneous methods still
+call their prefixed kernels directly. `maximum` requires `HasOrder` on all four
+methods. The primitive operators do not perform implicit conversions.
+
+There are still two thin mixed wrappers per operation; this is reuse of one
+conversion policy, not a claim of general linear method-count scaling.
+The specialized dependency graph, including unused instances and helpers,
+must be acyclic. Promotion alone is not a termination argument: a fallback
+that calls itself again on the promoted components is rejected.
 
 ## Explicit promotion
 

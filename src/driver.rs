@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -82,7 +83,10 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     crate::process::install()
         .map_err(|error| format!("E_BACKEND: cannot install signal handlers: {error}"))?;
     let args: Vec<_> = args.collect();
-    if args.is_empty() || args == ["--help"] || args == ["-h"] {
+    let subcommand_help = args.len() == 2
+        && (args[0] == "check" || args[0] == "build")
+        && (args[1] == "--help" || args[1] == "-h");
+    if args.is_empty() || args == ["--help"] || args == ["-h"] || subcommand_help {
         print!("{USAGE}");
         return Ok(());
     }
@@ -100,6 +104,9 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         libraries,
         output,
     } = options(&args)?;
+    if let Some(output) = &output {
+        validate_output(output)?;
+    }
     let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
     let (sources, request, version) = if let Some(manifest) = manifest {
         let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
@@ -116,9 +123,6 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
         (sources, request, PROTOCOL_VERSION)
     };
-    if let Some(output) = &output {
-        sources.protect_output(output)?;
-    }
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
     let root = if output.is_some() || configured_executable.is_none() {
         Some(kernel_root()?)
@@ -170,13 +174,9 @@ fn invoke_kernel(
 ) -> Result<Value, String> {
     let mut command = Command::new(executable);
     command.arg(mode);
-    let output = crate::process::capture(command, Some(request))
-        .map_err(|error| {
-            format!(
-                "E_BACKEND: cannot start {}: {error}\nBuild it with: lake -d lean-kernel build vastitas-kernel",
-                executable.display()
-            )
-        })?;
+    let output = crate::process::capture(command, Some(request)).map_err(|error| {
+        subprocess_error(error, "E_BACKEND", &executable.display().to_string(), true)
+    })?;
     let response: Value = serde_json::from_slice(&output.stdout).map_err(|error| {
         format!(
             "E_PROTOCOL: invalid backend response: {error}\n{}",
@@ -308,7 +308,7 @@ fn build_native(
     let mut command = Command::new("lake");
     command.current_dir(path).args(["build", "program"]);
     let result = crate::process::capture(command, None)
-        .map_err(|error| format!("E_BUILD: cannot start Lake: {error}"))?;
+        .map_err(|error| subprocess_error(error, "E_BUILD", "Lake", false))?;
     if !result.status.success() {
         return Err(format!(
             "E_BUILD: native compilation failed ({})\n{}{}",
@@ -327,7 +327,68 @@ impl Drop for StagingFile {
     }
 }
 
+fn subprocess_error(
+    error: crate::process::CaptureError,
+    code: &str,
+    program: &str,
+    backend_hint: bool,
+) -> String {
+    use crate::process::CaptureError;
+    match error {
+        CaptureError::Interrupted => "E_INTERRUPTED: compilation interrupted".into(),
+        CaptureError::Spawn(error) => {
+            let hint = if backend_hint {
+                "\nBuild it with: lake -d lean-kernel build vastitas-kernel"
+            } else {
+                ""
+            };
+            format!("{code}: cannot start {program}: {error}{hint}")
+        }
+        CaptureError::Wait(error) => format!("{code}: waiting for {program} failed: {error}"),
+        CaptureError::Io(error) => format!("{code}: {program} I/O failed: {error}"),
+    }
+}
+
+fn validate_output(output: &Path) -> Result<(), String> {
+    // Path::file_name normalizes trailing separators and `/.`; inspect the
+    // original spelling as well so a directory request cannot become a file.
+    let last = output
+        .as_os_str()
+        .as_bytes()
+        .rsplit(|byte| *byte == b'/')
+        .next();
+    if output.file_name().is_none() || matches!(last, Some(b"" | b"." | b"..")) {
+        return Err("E_OUTPUT: output must name a file".into());
+    }
+    let parent = output
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let metadata = fs::metadata(parent).map_err(|error| {
+        format!(
+            "E_OUTPUT: cannot inspect parent {}: {error}",
+            parent.display()
+        )
+    })?;
+    if !metadata.is_dir() {
+        return Err(format!(
+            "E_OUTPUT: parent is not a directory: {}",
+            parent.display()
+        ));
+    }
+    match fs::metadata(output) {
+        Ok(metadata) if metadata.is_dir() => Err("E_OUTPUT: output must name a file".into()),
+        Ok(_) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!(
+            "E_OUTPUT: cannot inspect {}: {error}",
+            output.display()
+        )),
+    }
+}
+
 fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(), String> {
+    validate_output(output)?;
     sources.protect_output(output)?;
     let parent = output
         .parent()
@@ -371,6 +432,9 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
     })();
     if let Err(error) = result {
         let _ = fs::remove_file(&staging);
+        if error.kind() == std::io::ErrorKind::Interrupted {
+            return Err("E_INTERRUPTED: compilation interrupted".into());
+        }
         return Err(format!(
             "E_OUTPUT: cannot install {}: {error}",
             output.display()

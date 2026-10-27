@@ -194,6 +194,15 @@ impl<'a> Lexer<'a> {
                 continue;
             }
             let mut span = self.span();
+            if ch == '\u{feff}' {
+                self.advance();
+                span.end = self.offset;
+                return Err(diagnostic(
+                    "E_LEX",
+                    "UTF-8 byte order mark (BOM) is not supported; save the source as UTF-8 without BOM",
+                    span,
+                ));
+            }
             if self.source[self.offset..].starts_with("/*") {
                 self.advance();
                 self.advance();

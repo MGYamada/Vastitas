@@ -47,8 +47,16 @@ pub(crate) fn check() -> io::Result<()> {
     }
 }
 
-pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> io::Result<Output> {
-    check()?;
+#[derive(Debug)]
+pub(crate) enum CaptureError {
+    Interrupted,
+    Spawn(io::Error),
+    Wait(io::Error),
+    Io(io::Error),
+}
+
+pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> Result<Output, CaptureError> {
+    check().map_err(|_| CaptureError::Interrupted)?;
     let mut child = command
         .process_group(0)
         .stdin(if input.is_some() {
@@ -58,7 +66,8 @@ pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> io::Result<
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()?;
+        .spawn()
+        .map_err(CaptureError::Spawn)?;
     let group = Pid::from_raw(child.id() as i32);
     let stdout = child.stdout.take().expect("piped stdout");
     let stderr = child.stderr.take().expect("piped stderr");
@@ -113,23 +122,23 @@ pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> io::Result<
         let _ = killpg(group, Signal::SIGKILL);
         let _ = child.wait();
     }
-    let join_error = || io::Error::other("compiler subprocess I/O thread failed");
+    let join_error = || CaptureError::Io(io::Error::other("compiler subprocess I/O thread failed"));
     let stdout = stdout.join().map_err(|_| join_error())?;
     let stderr = stderr.join().map_err(|_| join_error())?;
     let written = writer
         .map(|writer| writer.join().map_err(|_| join_error()))
         .transpose()?;
-    wait_result?;
-    check()?;
+    check().map_err(|_| CaptureError::Interrupted)?;
+    wait_result.map_err(CaptureError::Wait)?;
     // A rejecting backend may close stdin early; preserve its diagnostic output.
     if let Some(Err(error)) = written
         && error.kind() != io::ErrorKind::BrokenPipe
     {
-        return Err(error);
+        return Err(CaptureError::Io(error));
     }
     Ok(Output {
         status: status.expect("child reaped"),
-        stdout: stdout?,
-        stderr: stderr?,
+        stdout: stdout.map_err(CaptureError::Io)?,
+        stderr: stderr.map_err(CaptureError::Io)?,
     })
 }

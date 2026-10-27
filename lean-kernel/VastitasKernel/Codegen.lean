@@ -99,7 +99,18 @@ def generate (certified : CertifiedModule) : Except String String := do
     throw "checked IR failed declarative typing audit before code generation"
   let some mainId := module.mainId
     | throw "native compilation requires fn main() -> Int"
-  let functions ← module.functions.mapM renderFunction
+  let some main := module.functions.find? (fun f => f.id == mainId)
+    | throw "native entrypoint refers to a missing function"
+  unless main.params.isEmpty && main.returnType == .int do
+    throw "native entrypoint must have no parameters and return Int"
+  -- The independent dependency audit establishes that callees precede callers.
+  -- A reverse scan therefore computes reachability without recursive traversal.
+  let mut reachable : Std.HashSet Nat := ({} : Std.HashSet Nat).insert mainId
+  for function in module.functions.reverse do
+    if reachable.contains function.id then
+      for callee in function.body.callIds do
+        reachable := reachable.insert callee
+  let functions ← (module.functions.filter (fun f => reachable.contains f.id)).mapM renderFunction
   return "import VastitasKernel.Runtime\n\nset_option maxRecDepth 32768\nset_option maxHeartbeats 2000000\nset_option linter.unusedVariables false\n\nnamespace VastitasGenerated\n\n" ++
     String.intercalate "\n" functions ++
     "\nend VastitasGenerated\n\ndef main : IO Unit :=\n  IO.println (" ++

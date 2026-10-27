@@ -36,6 +36,11 @@ cargo run --locked -- build examples/pointed.vast -o target/pointed
 `fn main() -> Int`; the generated entrypoint prints the integer and exits
 successfully. Compilation never runs the generated program.
 
+Build refuses an output path that aliases any input source, including an
+explicit library. On macOS and Linux, SIGINT/SIGTERM cancel compiler children
+and remove the temporary project and staging output. Existing output is kept
+until the final atomic replacement. SIGKILL or a host crash cannot run cleanup.
+
 The compiler uses this checkout's built backend and runtime. A relocatable
 installation and cross-compilation are not provided. The optional
 `VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` environment variables select a

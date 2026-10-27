@@ -4,9 +4,9 @@ use crate::sources::Sources;
 use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::fs::{self, OpenOptions};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
@@ -64,6 +64,8 @@ fn options(args: &[OsString]) -> Result<Options, String> {
 }
 
 pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
+    crate::process::install()
+        .map_err(|error| format!("E_BACKEND: cannot install signal handlers: {error}"))?;
     let args: Vec<_> = args.collect();
     if args.is_empty() || args == ["--help"] || args == ["-h"] {
         print!("{USAGE}");
@@ -83,6 +85,9 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         output,
     } = options(&args)?;
     let sources = Sources::load(&input, &libraries)?;
+    if let Some(output) = &output {
+        sources.protect_output(output)?;
+    }
     let module = sources.parse()?;
     let request = serde_json::to_vec(&module)
         .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
@@ -107,12 +112,17 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             root.as_ref().expect("native build requires kernel root"),
             lean_source,
             &output,
+            &sources,
         )?;
         println!("built {}", output.display());
     } else {
         println!("checked {}", input.display());
     }
     Ok(())
+}
+
+pub fn failure_exit_code() -> i32 {
+    crate::process::exit_code()
 }
 
 fn kernel_root() -> Result<PathBuf, String> {
@@ -129,28 +139,15 @@ fn invoke_kernel(
     request: &[u8],
     sources: &Sources,
 ) -> Result<Value, String> {
-    let mut child = Command::new(executable)
-        .arg(mode)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
+    let mut command = Command::new(executable);
+    command.arg(mode);
+    let output = crate::process::capture(command, Some(request))
         .map_err(|error| {
             format!(
                 "E_BACKEND: cannot start {}: {error}\nBuild it with: lake -d lean-kernel build vastitas-kernel",
                 executable.display()
             )
         })?;
-    let mut stdin = child.stdin.take().expect("piped stdin");
-    // Send while wait_with_output drains stdout/stderr, avoiding pipe deadlocks.
-    let request = request.to_vec();
-    let writer = std::thread::spawn(move || stdin.write_all(&request));
-    let output = child
-        .wait_with_output()
-        .map_err(|error| format!("E_BACKEND: cannot wait for backend: {error}"))?;
-    let write_result = writer
-        .join()
-        .map_err(|_| "E_BACKEND: request writer failed".to_string())?;
     let response: Value = serde_json::from_slice(&output.stdout).map_err(|error| {
         format!(
             "E_PROTOCOL: invalid backend response: {error}\n{}",
@@ -202,7 +199,6 @@ fn invoke_kernel(
             String::from_utf8_lossy(&output.stderr)
         ));
     }
-    write_result.map_err(|error| format!("E_BACKEND: cannot send IR: {error}"))?;
     Ok(response)
 }
 
@@ -250,7 +246,12 @@ impl Drop for BuildDirectory {
     }
 }
 
-fn build_native(kernel_root: &Path, source: &str, output: &Path) -> Result<(), String> {
+fn build_native(
+    kernel_root: &Path,
+    source: &str,
+    output: &Path,
+    sources: &Sources,
+) -> Result<(), String> {
     let toolchain_path = kernel_root.join("lean-toolchain");
     let toolchain = fs::read_to_string(&toolchain_path)
         .map_err(|error| format!("E_BUILD: cannot read {}: {error}", toolchain_path.display()))?;
@@ -275,10 +276,9 @@ fn build_native(kernel_root: &Path, source: &str, output: &Path) -> Result<(), S
         fs::write(path.join(name), contents)
             .map_err(|error| format!("E_BUILD: cannot write {name}: {error}"))?;
     }
-    let result = Command::new("lake")
-        .current_dir(path)
-        .args(["build", "program"])
-        .output()
+    let mut command = Command::new("lake");
+    command.current_dir(path).args(["build", "program"]);
+    let result = crate::process::capture(command, None)
         .map_err(|error| format!("E_BUILD: cannot start Lake: {error}"))?;
     if !result.status.success() {
         return Err(format!(
@@ -288,10 +288,18 @@ fn build_native(kernel_root: &Path, source: &str, output: &Path) -> Result<(), S
             String::from_utf8_lossy(&result.stderr)
         ));
     }
-    install_output(&path.join(".lake/build/bin/program"), output)
+    install_output(&path.join(".lake/build/bin/program"), output, sources)
 }
 
-fn install_output(binary: &Path, output: &Path) -> Result<(), String> {
+struct StagingFile(PathBuf);
+impl Drop for StagingFile {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(), String> {
+    sources.protect_output(output)?;
     let parent = output
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
@@ -312,11 +320,24 @@ fn install_output(binary: &Path, output: &Path) -> Result<(), String> {
         .create_new(true)
         .open(&staging)
         .map_err(|error| format!("E_OUTPUT: cannot stage {}: {error}", output.display()))?;
+    let _staging_guard = StagingFile(staging.clone());
     let result = (|| {
         let mut compiled = fs::File::open(binary)?;
-        std::io::copy(&mut compiled, &mut file)?;
+        let mut buffer = [0u8; 65536];
+        loop {
+            crate::process::check()?;
+            let count = compiled.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            file.write_all(&buffer[..count])?;
+        }
         file.set_permissions(compiled.metadata()?.permissions())?;
         file.sync_all()?;
+        crate::process::check()?;
+        sources
+            .protect_output(output)
+            .map_err(std::io::Error::other)?;
         fs::rename(&staging, output)
     })();
     if let Err(error) = result {

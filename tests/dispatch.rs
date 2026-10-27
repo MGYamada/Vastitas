@@ -144,6 +144,39 @@ fn native_generic_arithmetic_uses_explicit_source_libraries() {
 }
 
 #[test]
+fn unused_specializations_are_checked_but_not_emitted() {
+    let response = kernel(request(
+        "generic wide(a,b,c,d,e,f) { domain; }
+method wide(a: Any,b: Any,c: Any,d: Any,e: Any,f: Any) -> Int { 0 }
+fn unused() -> Int { 7 }
+fn main() -> Int { 42 }",
+    ));
+    assert_eq!(response["ok"], true, "{response}");
+    let source = response["lean_source"].as_str().unwrap();
+    assert_eq!(source.matches("\ndef f_").count(), 1);
+    reject(
+        "generic wide(x) { domain; }
+method wide(x: Any) -> Int { x + 1 }
+fn main() -> Int { 0 }",
+        "E_TYPE",
+    );
+}
+
+#[test]
+fn specialization_cycles_use_readable_names() {
+    let message = reject(
+        "generic recursive(x) { domain (Int); }
+method recursive(x: Int) -> Int { recursive(x) }",
+        "E_RECURSION",
+    );
+    assert!(
+        message.contains("recursive(Int) → recursive(Int)"),
+        "{message}"
+    );
+    assert!(!message.contains("__vastitas_"), "{message}");
+}
+
+#[test]
 fn native_dispatch_lowering_preserves_dependent_geometry_and_packages() {
     native(
         "generic scalar_dimension(n) { domain (Nat); }

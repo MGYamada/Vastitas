@@ -19,12 +19,13 @@
 - Preserve the distinction between `Scheme` and `CInfScheme`, explicit geometric bases, and nominal object identities. Equal dimensions or equal descriptors do not identify endpoints. A coefficient-ring marker such as `QQ` is not itself the geometric test object in `Point<X, S>`.
 - Preserve point/morphism endpoints through dependent arguments and packaging. Unpacking introduces scoped identities; reject escaping points or mismatched objects rather than erasing the failed check. Only checked IR may reach code generation.
 - Preserve the shadowing ban, generative object IDs, arbitrary-precision integers, saturating Nat subtraction, explicit Nat-to-Int conversion, and recursion rejection after specialization. Legacy source libraries remain explicit `--lib` inputs; packages require explicit `--manifest-path` and local path dependencies.
+- Homogeneous `Pair<Nat>` / `Pair<Int>` values use independent operand inference and checked constructor/projection operations. Keep Pair out of dispatch keys and recursive Fn contracts; it is not general parametric or dependent data.
 - Keep both Lean projects on the same pinned toolchain and keep dependency lockfiles. Ordinary compilation and generated executables must remain usable without mathlib.
 
 ## Validation
 
 - Run checks appropriate to the changed subsystem. Rust changes: `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test`. Kernel changes: `lake -d lean-kernel build`. Oracle changes: `lake -d lean build`.
 - For changes crossing the compiler boundary, build the kernel before integration tests and exercise both `vastitas check` and `vastitas build` on relevant `.vast` examples. Execute generated binaries and test invalid source or tampered IR when affected.
-- For kernel checking, dispatch, or function changes, also run `lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression`. These targets exercise forged checked IR, the actual finite engine (including multiple inheritance and triple intersections), and actual function acceptance/static-signature audits.
+- For kernel checking, dispatch, or function changes, also run `lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression`. These targets exercise forged checked IR, the actual finite engine (including multiple inheritance and triple intersections), and actual function acceptance/static-signature audits.
 - Preserve the test that the normal compiler path works without mathlib. Add meaningful semantic or regression cases; avoid tests that merely repeat the implementation.
 - Report actual commands and results. If a dependency or toolchain prevents a check, describe that specific limitation instead of claiming the check passed.

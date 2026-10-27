@@ -40,6 +40,9 @@ encoded as `[]`. Requirement names use their containing method's span.
 Types use a `kind` tag:
 
 - `named`: `name` is `Nat`, `Int`, `Bool`, `Unit`, `Scheme`, or `CInfScheme`.
+- `pair`: `element` is the string `Nat` or `Int`, for example
+  `{"kind":"pair","element":"Nat"}`. Lean independently rejects other elements.
+  This is a closed homogeneous value family, not general parametric data.
 - `point`: `target: Index`, `source: Index`.
 - `morphism`: `source: Index`, `target: Index`.
 - `pointed`: `setting` is `Scheme` or `CInfScheme`; `base` is `QQ` or `CInfReal`.
@@ -61,6 +64,12 @@ declared domain, and every applicable monomorphized body, including nonwinners.
 See [Stage 1a](stage1a.md) for the exact specialization order and limits.
 
 Expressions use a `kind` tag and always include `span`:
+
+`pair`, `pair_first`, and `pair_second` use ordinary `call` nodes. Both constructor
+operands are inferred independently, with no expected-type conversion. Pair
+values can occur in ordinary function contracts and data expressions, but not
+in dispatch keys/selectors or recursive Fn contracts. These additions use the
+existing protocol-2 and protocol-3 envelopes; older kernels reject the new tag.
 
 - `integer`: decimal unsigned `value` string (unary minus is separate).
 - `boolean`: boolean `value`.

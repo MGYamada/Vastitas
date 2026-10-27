@@ -23,6 +23,9 @@ types, object references, and dependent call substitutions. Object identity
 metadata remains available through checking and is erased during code
 generation. The formal evaluation relation operates on this actual `Term`
 language and uses the actual runtime objects, points, morphisms, and packages.
+It also includes the closed `Pair<Nat>` / `Pair<Int>` types, construction and
+projections. The declaration/expression correspondence and whole-core safety
+proofs cover these operations; this does not add a numerical promotion contract.
 
 Successful core `checkModule` runs two independent audits after elaboration:
 
@@ -227,7 +230,7 @@ cargo clippy --locked --all-targets -- -D warnings
 lake -d lean-kernel build vastitas-kernel
 lake -d lean-kernel build VastitasKernel.TypeAuditRegression
 lake -d lean-kernel build VastitasKernel.DispatchRegression
-lake -d lean-kernel build VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression
+lake -d lean-kernel build VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression
 cargo test --locked --all-targets
 lake -d lean build VastitasOracle
 python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -260,7 +263,7 @@ Rust integration tests exercise parsing and diagnostics, malformed raw IR,
 semantic rejection codes, native execution, source libraries, implementation
 limits, dispatch specialization and rejection, and preservation of existing
 output artifacts on failure. The compiler CI jobs build and test on macOS and
-Linux from a checkout without `lean/` or mathlib, including all four direct kernel
+Linux from a checkout without `lean/` or mathlib, including the direct kernel
 regression targets. A separate job builds the proof oracle and audits its
 axioms. Dependency-boundary checks prevent the normal compiler path from
 acquiring a mathlib dependency.
@@ -294,7 +297,7 @@ existing surface/core theorems for the exact returned `CertifiedModule`.
 `NamespaceRegression` and `tests/namespaces.rs` check aliases, duplicate owners,
 visibility, cycles, unauthorized methods, forged reference-ledger entries,
 malformed raw protocol metadata, unused invalid bodies and v2 compatibility.
-All four direct regression targets run in no-mathlib CI.
+These regressions and `PairRegression` run in no-mathlib CI.
 
 This does not prove Rust filesystem loading/authenticity, full source namespace
 syntax preservation, native toolchain equivalence, edit borrowing, or abstract

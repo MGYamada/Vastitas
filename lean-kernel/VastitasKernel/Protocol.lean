@@ -32,6 +32,7 @@ private def decodeIndex (j : Json) : Except String RawIndex := do
 private def decodeType (j : Json) : Except String RawType := do
   match ← str j "kind" with
   | "named" => pure (.named (← str j "name"))
+  | "pair" => pure (.pair (← str j "element"))
   | "point" => pure (.point (← decodeIndex (← field j "target")) (← decodeIndex (← field j "source")))
   | "morphism" => pure (.morphism (← decodeIndex (← field j "source")) (← decodeIndex (← field j "target")))
   | "pointed" => pure (.pointed (← str j "setting") (← str j "base"))

@@ -78,6 +78,20 @@ theorem resolveType_corresponds (ctx : Context) (raw : RawType) (span : Span) :
       · apply establishes_unreachable
         exact establishes_fail _ _ _ _ _
       all_goals contradiction
+  | pair element =>
+      simp only [resolveType]
+      split <;> try contradiction
+      · rename_i equal
+        have same := RawType.pair.inj equal
+        subst element
+        exact establishes_pure .pairNat
+      · rename_i equal
+        have same := RawType.pair.inj equal
+        subst element
+        exact establishes_pure .pairInt
+      · apply establishes_unreachable
+        exact establishes_fail _ _ _ _ _
+      all_goals contradiction
   | point target source =>
       simp only [resolveType]
       apply establishes_bind (resolveIndex_corresponds ctx target span)

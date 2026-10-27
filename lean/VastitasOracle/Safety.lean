@@ -586,6 +586,30 @@ theorem builtin_total_and_typed (world : World) (op : BuiltinOp)
     obtain ⟨n, rfl⟩ := nat_value world value valueTyped.1
     exact ⟨world, _, rfl, ⟨trivial, trivial⟩,
       worldExtends_refl world, worldUnchangedOutside_refl world []⟩
+  · rename_i element left right
+    obtain ⟨rfl, rfl, rfl⟩ := rule
+    obtain ⟨a, b, rfl, aTyped, bTyped⟩ := valuesHaveTypes_two world values _ _ typed
+    cases element <;> cases a <;> cases b <;>
+      simp only [PairElem.ty, ValueHasResultType, ValueHasType, ValueHasObjectRef] at aTyped bTyped <;>
+      try contradiction
+    all_goals exact ⟨world, _, rfl, ⟨rfl, trivial⟩,
+      worldExtends_refl world, worldUnchangedOutside_refl world []⟩
+  · rename_i element actual
+    obtain ⟨rfl, rfl⟩ := rule
+    obtain ⟨value, rfl, valueTyped⟩ := valuesHaveTypes_one world values _ typed
+    cases actual <;> cases value <;>
+      simp only [ValueHasResultType, ValueHasType, ValueHasObjectRef] at valueTyped <;>
+      try contradiction
+    all_goals exact ⟨world, _, rfl, ⟨trivial, trivial⟩,
+      worldExtends_refl world, worldUnchangedOutside_refl world []⟩
+  · rename_i element actual
+    obtain ⟨rfl, rfl⟩ := rule
+    obtain ⟨value, rfl, valueTyped⟩ := valuesHaveTypes_one world values _ typed
+    cases actual <;> cases value <;>
+      simp only [ValueHasResultType, ValueHasType, ValueHasObjectRef] at valueTyped <;>
+      try contradiction
+    all_goals exact ⟨world, _, rfl, ⟨trivial, trivial⟩,
+      worldExtends_refl world, worldUnchangedOutside_refl world []⟩
   · contradiction
 
 theorem branch_result_typed (world : World) (yes no result chosen : ResultType)

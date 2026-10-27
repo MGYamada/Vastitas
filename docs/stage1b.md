@@ -96,6 +96,27 @@ public acceptance path. Full operational correspondence from surface lambda
 syntax through specialization, Rust/JSON correctness and native code equivalence
 remain outside these proofs. See [verification boundaries](verification.md).
 
+## Homogeneous data pairs
+
+The next data extension adds `Pair<Nat>` and `Pair<Int>` to ordinary function
+parameters/results, local bindings and equal-type branches. `pair(x, y)` infers
+both operands independently and requires identical Nat or Int types;
+`pair(1, 2)` is always `Pair<Int>`, even under an expected `Pair<Nat>` annotation.
+`pair_first(p)` and `pair_second(p)` return the ordered components with exactly
+the element type. A bound producer is evaluated once, with ordinary let sharing.
+
+Heterogeneous, nested, Bool/Unit and geometric pairs are unsupported. Pair is
+not a dispatch key/selector or part of a Fn contract; a scalar-signature lambda
+may use Pair internally. `Fn<(A, B), C>` remains an argument sequence, not a Pair.
+This increment does not yet permit Pair method results or implement promotion.
+See [the executable example](../examples/pairs.vast) and [protocol](protocol.md).
+
+The actual core carries finite Pair types and primitive operations. Native code
+uses Lean `Prod Nat Nat` or `Prod Int Int`. Independent typing and the existing
+source-correspondence, evaluation and termination proofs include these cases.
+They do not establish general tuple, abstract-type or source-function rewriting
+semantics.
+
 ## Regression coverage
 
 `tests/functions.rs` checks native calls, aliases, parameters/results, nested
@@ -105,3 +126,7 @@ runtime target choices, recursion, the 4096-instance boundary and forged IR.
 `VastitasKernel.FunctionRegression` checks public acceptance and forged static
 signature ledgers directly without Rust. Both macOS and Linux CI run these
 with no oracle/mathlib checkout; a separate job builds and audits the proofs.
+
+`tests/pairs.rs` checks Pair source/raw-IR typing and native execution in both
+input modes. `VastitasKernel.PairRegression` forges checked Pair construction,
+projection and call annotations and exercises the code-generation audit boundary.

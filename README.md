@@ -133,6 +133,14 @@ cargo run --locked -- build examples/functions.vast -o target/functions
 # 42
 ```
 
+## Homogeneous pairs
+
+Ordinary functions also support homogeneous `Pair<Nat>` / `Pair<Int>` values
+through `pair`, `pair_first`, and `pair_second`. Their elements are inferred
+without conversion; Pair is excluded from dispatch keys and Fn contracts.
+See [the Pair contract](docs/stage1b.md#homogeneous-data-pairs) and
+[native example](examples/pairs.vast). Promotion is a subsequent increment.
+
 ## Architecture
 
 | Directory | Responsibility | Dependencies |
@@ -159,7 +167,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression
+lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets

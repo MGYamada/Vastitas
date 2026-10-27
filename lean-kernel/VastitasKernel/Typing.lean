@@ -100,6 +100,11 @@ def BuiltinTyping (op : BuiltinOp) (args : List ResultType) (result : ResultType
       source = target' ∧ source.baseKind = target.baseKind ∧
       source.baseKind = test.baseKind ∧ result = ⟨.point target test, none⟩
   | .int, [⟨.nat, none⟩] => result = ⟨.int, none⟩
+  | .pair element, [⟨left, none⟩, ⟨right, none⟩] =>
+      left = element.ty ∧ right = element.ty ∧ result = ⟨.pair element, none⟩
+  | .pairFirst element, [⟨.pair actual, none⟩]
+  | .pairSecond element, [⟨.pair actual, none⟩] =>
+      actual = element ∧ result = ⟨element.ty, none⟩
   | _, _ => False
 
 instance (op : BuiltinOp) (args : List ResultType) (result : ResultType) :

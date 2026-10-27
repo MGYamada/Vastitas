@@ -2,8 +2,8 @@ import VastitasKernel.Program
 import VastitasKernel.Dispatch
 import VastitasKernel.Checker
 
-/-! Stage 1 is a typed lowering adapter. The Stage 0 elaborator and its proofs
-remain unchanged; every ordinary and monomorphized body is checked by that core
+/-! Stage 1 dispatch is a typed lowering adapter. Every ordinary and
+monomorphized body is checked by the independently audited core
 after generic calls have been resolved by the finite dispatch checker. -/
 namespace VastitasKernel.DispatchChecker
 open Checker.Internal
@@ -33,7 +33,7 @@ def validateType (ty : RawType) (span : Span) : CheckM Unit := do
   | .point target source | .morphism target source =>
     validateIndex target span
     validateIndex source span
-  | .pointed _ _ => pure ()
+  | .pointed _ _ | .pair _ => pure ()
 
 def checkBinder (globals : Std.HashSet String) (name : String) (span : Span) : CheckM Unit := do
   checkSourceName name span

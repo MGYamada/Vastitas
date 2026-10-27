@@ -36,6 +36,7 @@ private def decodeType : Nat → Json → Except String Surface.TypeExpr
     | "function" => pure (.function (← (← array j "params").mapM (decodeType fuel))
         (← decodeType fuel (← field j "return_type")))
     | "named" => pure (.data (.named (← str j "name")))
+    | "pair" => pure (.data (.pair (← str j "element")))
     | "point" => pure (.data (.point (← decodeIndex (← field j "target")) (← decodeIndex (← field j "source"))))
     | "morphism" => pure (.data (.morphism (← decodeIndex (← field j "source")) (← decodeIndex (← field j "target"))))
     | "pointed" => pure (.data (.pointed (← str j "setting") (← str j "base")))

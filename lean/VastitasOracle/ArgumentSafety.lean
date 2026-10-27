@@ -251,7 +251,7 @@ theorem callSafe_returns (functions : List CheckedFunction) (signatures : Signat
         adopt_local_object caller base result object localResult objectTyped fresh
       exact ⟨function, env, after, .object object, found, bound, evaluated,
         conforms, extension, unchanged⟩
-  | nat | int | bool | unit | point _ _ | morphism _ _ | pointed _ =>
+  | nat | int | bool | unit | pair _ | point _ _ | morphism _ _ | pointed _ =>
       have unnamed : result.objectRef = none := by simpa [resultKind] using shape
       exact ⟨function, env, caller, value, found, bound, evaluated,
         ⟨resultTyped, by simp [ValueHasObjectRef, unnamed]⟩,

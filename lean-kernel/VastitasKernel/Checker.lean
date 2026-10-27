@@ -110,7 +110,7 @@ def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List Diagnosti
   pure notes.toList
 
 def reserved : List String :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int",
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int", "pair", "pair_first", "pair_second", "Pair",
    "QQ", "CInfReal", "Nat", "Int", "Bool", "Unit", "Scheme", "CInfScheme",
    "Point", "Morphism", "Pointed", "Fn", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false",
    "return", "while", "for", "loop", "mut"]
@@ -160,6 +160,9 @@ def resolveType (ctx : Context) (raw : RawType) (span : Span) : CheckM Ty := do
     | .named "Scheme" => pure (.object .qq)
     | .named "CInfScheme" => pure (.object .cinfReal)
     | .named name => fail span "E_TYPE" s!"unsupported type '{name}'"
+    | .pair "Nat" => pure (.pair .nat)
+    | .pair "Int" => pure (.pair .int)
+    | .pair element => fail span "E_TYPE" s!"Pair elements must be Nat or Int; found {element}"
     | .point target source => pure (.point (← resolveIndex ctx target span) (← resolveIndex ctx source span))
     | .morphism source target => pure (.morphism (← resolveIndex ctx source span) (← resolveIndex ctx target span))
     | .pointed setting ring => do
@@ -214,6 +217,17 @@ def rawRing (e : RawExpr) : CheckM BaseKind :=
   | _ => fail e.span "E_BASE" "coefficient base must be the static name QQ or CInfReal"
 
 def isInteger (t : Ty) : Bool := t == .nat || t == .int
+
+def pairElement (left right : Ty) (span : Span) : CheckM PairElem :=
+  match left, right with
+  | .nat, .nat => pure .nat
+  | .int, .int => pure .int
+  | _, _ => fail span "E_TYPE" "pair requires two operands of the same Nat or Int type"
+
+def pairComponent (ty : Ty) (span : Span) : CheckM PairElem :=
+  match ty with
+  | .pair element => pure element
+  | _ => fail span "E_TYPE" "pair projection requires Pair<Nat> or Pair<Int>"
 
 def literalLike : RawExpr → Bool
   | .integer .. => true
@@ -337,6 +351,18 @@ mutual
           span s!"{← typeLabel ctx a.term.ty} and {← typeLabel ctx b.term.ty}" (a.term.ty.refs ++ b.term.ty.refs)
         let op := if name == "compose" then BuiltinOp.compose else .apply
         pure { term := .builtin op [a.term, b.term] ⟨ty, none⟩ }
+      | "pair" =>
+        arity name args 2 span
+        let a ← checkExpr fuel signatures ctx args[0]! none
+        let b ← checkExpr fuel signatures ctx args[1]! none
+        let element ← pairElement a.term.ty b.term.ty span
+        pure { term := .builtin (.pair element) [a.term, b.term] ⟨.pair element, none⟩ }
+      | "pair_first" | "pair_second" =>
+        arity name args 1 span
+        let value ← checkExpr fuel signatures ctx args[0]! none
+        let element ← pairComponent value.term.ty span
+        let op := if name == "pair_first" then BuiltinOp.pairFirst element else .pairSecond element
+        pure { term := .builtin op [value.term] ⟨element.ty, none⟩ }
       | _ =>
         let some signature := signatures[name]?
           | fail span "E_NAME" s!"unknown function '{name}'"

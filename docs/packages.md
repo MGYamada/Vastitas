@@ -112,11 +112,15 @@ limits still apply. Diagnostics retain the original source file and location.
 All manifests and source files participate in output collision protection,
 including aliases, and the native build keeps the same cancellation/cleanup path.
 
-The actual-checker proofs cover unique owners, audited references and method
-authority, alias preservation, and typing/order/termination of the returned
-core. The file-placement invariant assumes the same package identity, logical
-module path and definition name. Rust file loading/authenticity, JSON decoding,
-complete namespace syntax preservation and native compilation are not proved.
+The actual-checker proofs cover unique owners, reference-ledger agreement with
+the actual resolver, method authority, alias preservation, and
+typing/order/termination of the returned core. The reference audit reuses the
+lowering resolver. The owner structure omits source-file placement and aliases;
+equal owners have equal symbols by congruence. Symbol-encoding injectivity and
+correspondence between ledger entries and emitted names are not proved. Actual
+symbol uniqueness is checked during namespace validation. Rust file
+loading/authenticity, JSON decoding, complete namespace syntax preservation
+and native compilation are not proved.
 See [verification](verification.md) and [protocol](protocol.md).
 
 The foundation is available to #48 (abstract types/methods), #49 (geometric

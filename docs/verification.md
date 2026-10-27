@@ -270,15 +270,24 @@ acquiring a mathlib dependency.
 
 `VastitasOracle.Namespaces` imports the actual `NamespaceChecker` implementation.
 `checkNamespaceProgram_audited` connects acceptance to the actual namespace
-lowering result, unique declaration owners, the independent reference audit,
+lowering result, unique declaration owners, re-resolution of the recorded
+reference ledger through the actual resolver,
 and acceptance of that exact surface program. `reference_resolves` establishes
 that each recorded reference resolves to its recorded target through the real
 visibility/import resolver. `method_owner` requires a generic in the exact
 referencing module; children and imports acquire no edit authority.
 `alias_preserves_target` unfolds the actual import branch and proves that it
-returns the original target. `same_logical_owner_same_symbol` states the
-limited file-layout invariant: identity contains only package identity,
-logical module path and definition name.
+returns the original target. The reference audit uses the same resolver as
+lowering; it does not independently specify name resolution. Correspondence
+between the ledger entries and names emitted into the surface program is not
+proved.
+
+`same_logical_owner_same_symbol` is congruence: equal owners have equal symbols.
+The `Owner` structure contains package identity, logical module path and
+definition name, but no source-file placement or alias spelling. This structural
+fact is not a proof of filesystem-layout invariance. Injectivity of `encode`
+and `Owner.symbol` is not proved; namespace validation checks that the actual
+generated symbols are distinct with a separate runtime `Nodup` check.
 
 The typed/ordered and total-for-arguments namespace theorems compose with the
 existing surface/core theorems for the exact returned `CertifiedModule`.

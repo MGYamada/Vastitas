@@ -88,7 +88,8 @@ cargo run --locked -- build examples/stdlib-arithmetic.vast \
 
 `--lib` also works with `check` and may be repeated. Libraries and the entry
 file are checked together by Lean. Each file keeps its own diagnostic locations;
-no implicit prelude or source-language import syntax is introduced.
+this protocol-2 `--lib` mode has no implicit prelude or module/import syntax.
+Use [manifest mode](docs/packages.md) for path packages and imports.
 
 The generic `add` and `maximum` wrappers use the same prefixed functions:
 
@@ -192,6 +193,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Stage 1b independent functions](docs/stage1b.md)
 - [Packages and modules](docs/packages.md)
 - [Implementation roadmap](docs/stage1-roadmap.md)
+- [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

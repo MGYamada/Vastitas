@@ -100,3 +100,11 @@ these design issues closes merely because module ownership is now checked.
 
 See [packages](packages.md) for the current contract. The historical v0.3
 proposal remains unchanged.
+
+## Documentation after Stage 1
+
+After Stage 1 completion is recorded against its acceptance criteria, follow
+the [docs cleanup and mdBook plan](docs-cleanup-plan.md) to reconcile the current
+specifications, preserve the historical proposal, and introduce a browsable
+book with documentation CI. This is planned follow-up work; Stage 1b and the
+package/module foundation alone do not trigger that cleanup.

@@ -44,6 +44,20 @@ fn rejection(source: &str, code: &str) -> String {
 }
 
 #[test]
+fn block_comments_and_package_field_order_have_specific_diagnostics() {
+    let source = "fn main() -> Int {\n    /* comment */\n    0\n}";
+    let errors = vastitas::frontend::parse(source, "comment.vast").unwrap_err();
+    assert_eq!(&source[errors[0].span.start..errors[0].span.end], "/*");
+    assert!(errors[0].message.contains("use // line comments"));
+    for source in [
+        "fn f() -> Pointed<Scheme, QQ> { let X = Affine(QQ, 1); pack { point: origin(X), scheme: X } }",
+        "fn f(p: Pointed<Scheme, QQ>) -> Int { unpack p as { point: x, scheme: X }; 0 }",
+    ] {
+        assert!(rejection(source, "E_PARSE").contains("`scheme`, then `point`"));
+    }
+}
+
+#[test]
 fn native_explicit_embedding_and_else_if_preserve_exact_arithmetic() {
     let scratch = Scratch::new(
         "fn main() -> Int { let n: Nat = 123456789012345678901234567890; if false { 0 } else if dimension(Base(QQ)) == 0 { nat_to_int(n) - int(1) } else { -1 } }",

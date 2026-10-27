@@ -51,6 +51,9 @@ def fail (span : Span) (code message : String)
     (notes : List DiagnosticNote := []) : CheckM α :=
   throw { code, message, span, notes }
 
+abbrev checkingBudgetExceeded (span : Span) : CheckM α :=
+  fail span "E_LIMIT" "function exceeds the checking budget of 4096 units (statements, nesting, and call arguments)"
+
 def fresh : CheckM Nat := do
   let state ← get
   set { state with nextSymbol := state.nextSymbol + 1 }
@@ -121,17 +124,17 @@ def validName (name : String) : Bool :=
 
 def checkName (name : String) (span : Span) : CheckM Unit := do
   unless validName name do fail span "E_NAME" s!"invalid identifier '{name}'"
-  if reserved.contains name then fail span "E_NAME" s!"'{name}' is reserved"
+  if reserved.contains name then fail span "E_RESERVED" s!"'{name}' is reserved"
 
 def checkNewBinding (ctx : Context) (name : String) (span : Span) : CheckM Unit := do
   checkName name span
   if ctx.any (fun b => b.name == name) then
-    fail span "E_DUPLICATE" s!"binding '{name}' is already in scope; Stage 0 does not allow shadowing"
+    fail span "E_DUPLICATE" s!"binding '{name}' is already in scope; shadowing is not allowed"
 
 def getBinding (ctx : Context) (name : String) (span : Span) : CheckM Binding :=
   match ctx.find? (fun b => b.name == name) with
   | some b => pure b
-  | none => fail span "E_UNBOUND" s!"unbound name '{name}'"
+  | none => fail span "E_NAME" s!"unbound name '{name}'"
 
 def parseBase (name : String) (span : Span) : CheckM BaseKind :=
   match name with
@@ -222,7 +225,7 @@ def blockLiteralLike : RawBlock → Bool
 
 mutual
   def checkExpr : Nat → Signatures → Context → RawExpr → Option Ty → CheckM Result
-    | 0, _, _, e, _ => fail e.span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
+    | 0, _, _, e, _ => checkingBudgetExceeded e.span
     | fuel + 1, signatures, ctx, e, expected => do
       let span := e.span
       let result ← match e with
@@ -298,7 +301,7 @@ mutual
       expectedResult ctx expected result span
 
   def checkCall : Nat → Signatures → Context → String → List RawExpr → Span → CheckM Result
-    | 0, _, _, _, _, span => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
+    | 0, _, _, _, _, span => checkingBudgetExceeded span
     | fuel + 1, signatures, ctx, name, args, span => do
       match name with
       | "int" =>
@@ -336,7 +339,7 @@ mutual
         pure { term := .builtin op [a.term, b.term] ⟨ty, none⟩ }
       | _ =>
         let some signature := signatures[name]?
-          | fail span "E_UNBOUND" s!"unknown function '{name}'"
+          | fail span "E_NAME" s!"unknown function '{name}'"
         arity name args signature.params.length span
         let (terms, substitutions) ← checkArguments fuel signatures ctx signature.params args [] span
         let ty := signature.result.rename substitutions
@@ -361,19 +364,19 @@ mutual
     | _, _, _, _, _, _, span => fail span "E_ARITY" "argument count differs from function signature"
 
   def checkBlock : Nat → Signatures → Context → RawBlock → Option Ty → CheckM Result
-    | 0, _, _, .mk _ _ span, _ => fail span "E_LIMIT" "program exceeds Stage 0 checking depth limit"
+    | 0, _, _, .mk _ _ span, _ => checkingBudgetExceeded span
     | fuel + 1, signatures, ctx, .mk statements result span, expected => do
       let checked ← checkStatements fuel signatures ctx statements result expected
       checkEscape ctx checked span
       pure checked
 
   def checkStatements : Nat → Signatures → Context → List RawStmt → RawExpr → Option Ty → CheckM Result
-    | 0, _, _, _, result, _ => fail result.span "E_LIMIT" "too many statements in a block"
+    | 0, _, _, _, result, _ => checkingBudgetExceeded result.span
     | fuel + 1, signatures, ctx, [], result, expected => checkExpr fuel signatures ctx result expected
     | fuel + 1, signatures, ctx, .letE name annotation value span :: rest, result, expected => do
       checkNewBinding ctx name span
       if signatures.contains name then
-        fail span "E_DUPLICATE" s!"binding '{name}' conflicts with a function name"
+        fail span "E_SHADOW" s!"binding '{name}' conflicts with a function name"
       let annotation ← annotation.mapM (fun ty => resolveType ctx ty span)
       let value ← checkExpr fuel signatures ctx value annotation
       let symbol ← fresh
@@ -492,7 +495,7 @@ def sortFunctionIndices (functions : List CheckedFunction) : CheckM (List Nat) :
     let representative := functions[cycle.headD start]!
     let names := cycle.map (fun i => functions[i]!.name)
     fail representative.span "E_RECURSION"
-      s!"recursive call cycle {String.intercalate " → " names} is not supported in Stage 0"
+      s!"recursive call cycle {String.intercalate " → " names} is not supported"
   pure sorted.toList
 
 /-- Reordering can only select declarations from the original checked list.

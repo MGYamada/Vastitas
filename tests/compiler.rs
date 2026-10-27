@@ -297,7 +297,7 @@ fn malformed_ir_version_type_binding_and_literal_are_rejected() {
     let mut value = original.clone();
     value["functions"][0]["body"]["result"]["kind"] = json!("variable");
     value["functions"][0]["body"]["result"]["name"] = json!("forged");
-    assert_rejected(value, "E_UNBOUND");
+    assert_rejected(value, "E_NAME");
     let mut value = original.clone();
     value["functions"][0]["body"]["result"]["value"] = json!("1); IO.println 99");
     assert_rejected(value, "E_LITERAL");

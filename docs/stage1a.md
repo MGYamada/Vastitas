@@ -82,6 +82,21 @@ keys. For example, `(Number)` without requirements and `(Any)` with
 dominates the other: one has the narrower selector, the other the stronger
 condition. Their intersection is ambiguous.
 
+Even `(Int)` without requirements is incomparable with `(Number)` requiring
+`HasOrder`: concrete selectors do not imply declaration requirements. Adding
+`requires (HasOrder)` to the Int method makes it more specific in both
+components. Ambiguity diagnostics show the normalized signatures, the
+conflicting components, and a resolving signature when available. Such a hint
+addresses the reported key; the edited family must still pass all checks.
+
+Capabilities are unary facts intersected across arguments, not relations
+between them. A `(Number, Number)` method requiring `HasOrder` also applies to
+`(Nat, Int)`, even if the callable domain contains only equal-type pairs. A body
+using `left < right` therefore fails there. For now, write separate `(Nat, Nat)`
+and `(Int, Int)` methods, as in the arithmetic library. Shared type variables
+and relational capabilities remain design work (#37); narrowing the domain
+does not suppress body checking.
+
 Every method body is specialized and type-checked for every key to which the
 method applies, even if it never wins or that key lies outside the domain.
 Consequently, an invalid broad fallback cannot be hidden behind more specific

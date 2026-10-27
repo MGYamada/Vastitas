@@ -43,6 +43,66 @@ fn diagnostic(response: &Value, code: &str) -> Value {
 }
 
 #[test]
+fn checking_budget_diagnostic_does_not_depend_on_an_unrelated_generic() {
+    let mut source = String::from("fn main() -> Int {\n");
+    for i in 0..4095 {
+        source.push_str(&format!("let x{i} = 1;\n"));
+    }
+    source.push_str("0\n}");
+    let first = diagnostic(&check(&request(&source)), "E_LIMIT");
+    source.push_str("\ngeneric unrelated() { domain; }");
+    let second = diagnostic(&check(&request(&source)), "E_LIMIT");
+    assert_eq!(first["message"], second["message"]);
+    assert_eq!(first["span"], second["span"]);
+    assert!(
+        first["message"]
+            .as_str()
+            .unwrap()
+            .contains("checking budget of 4096 units")
+    );
+}
+
+#[test]
+fn frontend_and_kernel_use_the_same_name_violation_codes() {
+    let base = "fn f(x: Int) -> Int { let y = x; y }";
+    for (source, field, name, code) in [
+        (
+            "fn f(x: Int) -> Int { let f = x; f }",
+            "binder",
+            "f",
+            "E_SHADOW",
+        ),
+        (
+            "fn f(x: Int) -> Int { let int = x; x }",
+            "binder",
+            "int",
+            "E_RESERVED",
+        ),
+        (
+            "fn f(x: Int) -> Int { let y = absent; y }",
+            "value",
+            "absent",
+            "E_NAME",
+        ),
+    ] {
+        assert_eq!(
+            vastitas::frontend::parse(source, "source").unwrap_err()[0].code,
+            code
+        );
+        let mut raw = request(base);
+        if field == "binder" {
+            raw["functions"][0]["body"]["statements"][0]["name"] = json!(name);
+        } else {
+            raw["functions"][0]["body"]["statements"][0]["value"]["name"] = json!(name);
+        }
+        diagnostic(&check(&raw), code);
+    }
+    let mut raw = request("generic present(x) { domain; } method present(x: Int) -> Int { x }");
+    raw["methods"][0]["name"] = json!("missing");
+    diagnostic(&check(&raw), "E_NAME");
+}
+
+#[test]
 fn forged_ir_cannot_bypass_the_natural_to_integer_contract() {
     let mut raw = request("fn convert(n: Nat) -> Int { 0 }");
     let span = raw["functions"][0]["body"]["result"]["span"].clone();
@@ -68,7 +128,7 @@ fn source_reserved_keywords_are_also_rejected_in_forged_ir() {
     for name in ["return", "while", "for", "loop", "mut", "int"] {
         let mut raw = request("fn harmless() -> Int { 0 }");
         raw["functions"][0]["name"] = json!(name);
-        let d = diagnostic(&check(&raw), "E_NAME");
+        let d = diagnostic(&check(&raw), "E_RESERVED");
         assert!(d["message"].as_str().unwrap().contains("reserved"));
     }
 }

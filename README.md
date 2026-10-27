@@ -1,11 +1,12 @@
 # Vastitas
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 1a compiler**: `.vast` source → Rust frontend → independently checked
+its **Stage 1b compiler**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
 The current language supports exact integer computation, a small geometric
-core, and finite multiple dispatch over scalar types. Ordinary and smooth
+core, finite multiple dispatch over scalar types, and capture-free static
+higher-order functions. Ordinary and smooth
 affine descriptors, points, identity morphisms,
 dependent arguments, and existential packages preserve nominal endpoints.
 The [language design](docs/design.md) describes the larger research direction;
@@ -14,9 +15,10 @@ it is not a list of implemented features.
 Stage 1a adds `generic`/`method` declarations with explicit callable domains,
 nominal selectors and static capabilities. Lean checks all concrete keys for
 ambiguity, every declared domain for coverage, and every applicable method
-body before lowering calls to the proved Stage 0 core. This is not completion
-of the full Stage 1 design: lambdas, edit/borrow ownership, storage ownership,
-and linear algebra remain later work.
+body before lowering calls to the proved Stage 0 core. Stage 1b adds independent
+lambdas, function values and higher-order specialization. This is not completion
+of the full Stage 1 design: abstract types, edit/borrow ownership, storage
+ownership, and linear algebra remain later work.
 
 ## Build and use
 
@@ -84,6 +86,31 @@ There is no implicit conversion or selection using the expected result type.
 See [the Stage 1a specification](docs/stage1a.md) for selectors, capabilities,
 the 4096-key bound, and examples of ambiguity.
 
+## Independent functions
+
+```vast
+fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }
+fn main() -> Int {
+    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
+    invoke(increment, 41)
+}
+```
+
+Function types use `Fn<Int, Int>`, `Fn<(Int, Int), Int>`, `Fn<(), Int>`,
+or `Fn<Unit, Int>`; the last two distinguish zero arguments from one Unit
+argument. Lambdas have explicit parameter/result types and cannot capture
+outer locals. Named functions can also be passed, aliased, returned and called.
+Lean resolves calls to a single static target and erases function values.
+Generic families remain declarations, usable through ordinary wrappers.
+See [Stage 1b](docs/stage1b.md) for the contract and proof boundary.
+
+```sh
+cargo run --locked -- check examples/functions.vast
+cargo run --locked -- build examples/functions.vast -o target/functions
+./target/functions
+# 42
+```
+
 ## Architecture
 
 | Directory | Responsibility | Dependencies |
@@ -97,8 +124,9 @@ Ordinary compilation and generated programs do not call the proof oracle.
 The oracle proves actual Stage 0 checker soundness, source-to-core
 correspondence, terminating typed evaluation, and runtime endpoint preservation.
 It also proves the finite dispatch checker's unique selection, coverage, and
-declaration-order invariance, and connects the public Stage 1a checker's exact
-lowered result to that proved core. Rust parsing, JSON decoding, full Stage 1a
+declaration-order invariance, and connects the public Stage 1b checker's exact
+lowered result to that proved core. Independent capture and static function
+signature audits are connected to actual acceptance. Rust parsing, JSON decoding, full Stage 1
 source rewriting correspondence, native code-generation equivalence, and a
 full mathematical model of schemes remain outside those claims. The precise
 [proof boundary](docs/verification.md) is part of the implementation contract.
@@ -107,7 +135,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression
+lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
@@ -138,7 +166,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 
 - [Stage 0 core grammar, semantics, and limits](docs/stage0.md)
 - [Stage 1a finite multiple dispatch](docs/stage1a.md)
-- [Stage 0 safety gate and Stage 1a delivery plan](docs/stage1-roadmap.md)
+- [Stage 1b independent functions](docs/stage1b.md)
+- [Implementation roadmap](docs/stage1-roadmap.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

@@ -1,7 +1,8 @@
-# Stage 0 hardening and Stage 1a delivery
+# Implementation roadmap through Stage 1b
 
-The four implementation increments below have been implemented and validated
-through Stage 1a. This is not completion of the historical Stage 1 roadmap.
+The initial four implementation increments below were delivered through
+Stage 1a. The current increment adds independent static functions, with its
+own acceptance gates below. This is not completion of historical Stage 1.
 The historical v0.3 proposal remains unchanged under `docs/design/`.
 
 | Delivery | Pull request | Acceptance |
@@ -15,6 +16,17 @@ The PRs are stacked in that order. Their linked implementation issues close
 upon merge; the deferred design issues below remain open. See
 [Stage 1a](stage1a.md) and the [proof boundary](verification.md) for the current
 contract and exact theorem scope.
+
+The next stack is:
+
+| Change set | Tracking | Delivery |
+| --- | --- | --- |
+| Input/output, codegen, cancellation hardening | #35, #36, #40, #45, #46 | [PR #51](https://github.com/MGYamada/Vastitas/pull/51) |
+| Diagnostics and precise specification/proof scope | #38, #39, #41–44, #47 | [PR #53](https://github.com/MGYamada/Vastitas/pull/53) |
+| Independent functions and static higher-order specialization | [#50](https://github.com/MGYamada/Vastitas/issues/50) | [Stage 1b contract](stage1b.md) |
+
+Each increment requires local validation, macOS/Linux no-mathlib CI, and the
+oracle axiom audit. Fix issues close on PR merge, not merely PR creation.
 
 ## Delivery gates
 
@@ -54,8 +66,14 @@ and recursion prohibition. Explicit `int(n)` makes true integer subtraction
 available without an implicit conversion. Reverse conversion and changing the
 entrypoint result type are deferred.
 
-Independent lambdas, user-defined value types/capabilities, function edit
+Stage 1b implements independent lambdas and `Fn<Input, Output>` function values
+with statically resolved calls. A generic family is not a function value;
+ordinary functions/lambdas provide wrappers. This boundary is recorded in
+#48 without claiming abstract types or abstract method contracts are complete.
+
+Issues #37 (same-type argument constraints) and #48 remain open alongside
+#22–26 and #28. User-defined value types/capabilities, function edit
 ownership, impact regions, borrowing, storage ownership, and linear algebra are
-later Stage 1 increments. Stage 1a is not completion of all Stage 1 acceptance
+later Stage 1 increments. Stage 1b is not completion of all Stage 1 acceptance
 criteria in the original proposal. No deferred issue is closed merely because
 it is recorded here.

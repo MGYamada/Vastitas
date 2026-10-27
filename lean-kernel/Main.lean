@@ -1,17 +1,17 @@
-import VastitasKernel.Protocol
-import VastitasKernel.DispatchChecker
+import VastitasKernel.SurfaceProtocol
+import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
 import VastitasKernel.Runtime
 
 open VastitasKernel
 
 private def process (mode input : String) : Lean.Json := Id.run do
-  let parsed := Lean.Json.parse input >>= decodeModule
+  let parsed := Lean.Json.parse input >>= decodeSurfaceModule
   match parsed with
   | .error message => return failureJson { code := "E_PROTOCOL", message }
   | .ok raw =>
-    match checkProgram raw (mode == "emit") with
-    | .error diagnostic => return failureJson diagnostic
+    match checkSurfaceProgram raw (mode == "emit") with
+    | .error diagnostic => return failureJson (DispatchChecker.describeDiagnostic (Surface.headers raw) diagnostic)
     | .ok checked =>
       if mode == "check" then return successJson
       match Codegen.generate checked with

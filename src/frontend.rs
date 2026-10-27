@@ -1,4 +1,4 @@
-//! The Stage 1a lexer, parser, and lexical name resolver.
+//! The Stage 1b lexer, parser, and lexical name resolver.
 //!
 //! Identifiers are ASCII; offsets are UTF-8 byte offsets and diagnostic columns
 //! count Unicode scalar values. No source fragment is ever emitted as Lean code.
@@ -35,6 +35,7 @@ const TYPES: &[&str] = &[
     "Point",
     "Morphism",
     "Pointed",
+    "Fn",
     "Any",
     "Number",
 ];
@@ -63,9 +64,11 @@ fn reserved(name: &str) -> bool {
 
 fn unsupported_keyword(name: &str) -> Option<&'static str> {
     match name {
-        "return" => Some("Stage 1a has no `return`; the final expression of a block is its result"),
-        "while" | "for" | "loop" => Some("loops are not supported in Stage 1a"),
-        "mut" => Some("mutable bindings are not supported in Stage 1a"),
+        "return" => {
+            Some("`return` is not supported; the final expression of a block is its result")
+        }
+        "while" | "for" | "loop" => Some("loops are not supported"),
+        "mut" => Some("mutable bindings are not supported"),
         _ => None,
     }
 }
@@ -172,7 +175,7 @@ impl<'a> Lexer<'a> {
         span.end = self.offset;
         diagnostic(
             "E_UNSUPPORTED",
-            "floating-point literals are not supported in Stage 1a; use an exact Nat or Int literal",
+            "floating-point literals are not supported; use an exact Nat or Int literal",
             span,
         )
     }
@@ -237,9 +240,9 @@ impl<'a> Lexer<'a> {
                     return Err(diagnostic(
                         "E_UNSUPPORTED",
                         if ch == '/' {
-                            "division is not supported in Stage 1a"
+                            "division is not supported"
                         } else {
-                            "remainder is not supported in Stage 1a"
+                            "remainder is not supported"
                         },
                         span,
                     ));
@@ -259,7 +262,7 @@ impl<'a> Lexer<'a> {
                     return Err(diagnostic(
                         "E_LEX",
                         format!(
-                            "unsupported character `{ch}`; Stage 1a uses ASCII identifiers and integer literals"
+                            "unsupported character `{ch}`; use ASCII identifiers and integer literals"
                         ),
                         span,
                     ));
@@ -381,7 +384,7 @@ impl Parser {
             } else {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",
-                    "Stage 1a modules contain named `fn`, `generic`, and `method` declarations",
+                    "modules contain named `fn`, `generic`, and `method` declarations",
                     self.peek().span,
                 ));
             }
@@ -569,8 +572,54 @@ impl Parser {
     }
 
     fn ty(&mut self) -> Result<Type, Diagnostic> {
+        if self.nesting >= MAX_PARSE_NESTING {
+            return Err(diagnostic(
+                "E_LIMIT",
+                "type nesting exceeds the supported limit",
+                self.peek().span,
+            ));
+        }
+        self.nesting += 1;
+        let result = self.ty_inner();
+        self.nesting -= 1;
+        result
+    }
+
+    fn ty_inner(&mut self) -> Result<Type, Diagnostic> {
         let (name, span) = self.name()?;
         match name.as_str() {
+            "Fn" => {
+                self.expect("<")?;
+                let mut params = Vec::new();
+                if self.consume("(") {
+                    if !self.consume(")") {
+                        loop {
+                            params.push(self.ty()?);
+                            if self.consume(")") {
+                                break;
+                            }
+                            self.expect(",")?;
+                            if self.consume(")") {
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    params.push(self.ty()?);
+                }
+                self.expect(",")?;
+                let return_type = Box::new(self.ty()?);
+                self.type_close()?;
+                Ok(Type::Function {
+                    params,
+                    return_type,
+                })
+            }
+            "fn" => Err(diagnostic(
+                "E_PARSE",
+                "function types use Fn<Input, Output>; fn(...) -> ... introduces a function expression",
+                span,
+            )),
             "Nat" | "Int" | "Bool" | "Unit" | "Scheme" | "CInfScheme" => Ok(Type::Named { name }),
             "Point" => {
                 self.expect("<")?;
@@ -607,7 +656,7 @@ impl Parser {
             }
             _ => Err(diagnostic(
                 "E_UNSUPPORTED",
-                format!("type `{name}` is not supported in Stage 1a"),
+                format!("type `{name}` is not supported"),
                 span,
             )),
         }
@@ -738,7 +787,7 @@ impl Parser {
         if self.nesting >= MAX_PARSE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
-                format!("expression nesting exceeds the Stage 1a limit of {MAX_PARSE_NESTING}"),
+                format!("expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"),
                 self.peek().span,
             ));
         }
@@ -755,6 +804,35 @@ impl Parser {
         let mut comparison = false;
         check_expression_depth(&left)?;
         while let TokenKind::Symbol(op) = &self.peek().kind {
+            if op == "(" {
+                self.advance();
+                let mut args = Vec::new();
+                if !self.consume(")") {
+                    loop {
+                        args.push(self.expression(0)?);
+                        if self.consume(")") {
+                            break;
+                        }
+                        self.expect(",")?;
+                        if self.consume(")") {
+                            break;
+                        }
+                    }
+                }
+                let span = left.span.through(self.previous().span);
+                left = Expr {
+                    kind: match left.kind {
+                        ExprKind::Variable { name } => ExprKind::Call { callee: name, args },
+                        _ => ExprKind::Invoke {
+                            callee: Box::new(left),
+                            args,
+                        },
+                    },
+                    span,
+                };
+                check_expression_depth(&left)?;
+                continue;
+            }
             let op = op.as_str();
             let power = match op {
                 "||" => 1,
@@ -847,31 +925,18 @@ impl Parser {
                 ExprKind::Pack { scheme, point }
             }
             TokenKind::Name(ref name) if name == "fn" => {
-                return Err(diagnostic(
-                    "E_UNSUPPORTED",
-                    "anonymous functions and captures are not supported in Stage 1a; use a named function with explicit parameters",
-                    start,
-                ));
+                let params = self.parameters(false)?;
+                self.expect("->")?;
+                let return_type = self.ty()?;
+                let body = self.block()?;
+                ExprKind::Lambda {
+                    params,
+                    return_type,
+                    body,
+                }
             }
             TokenKind::Name(name) if !KEYWORDS.contains(&name.as_str()) => {
-                if self.consume("(") {
-                    let mut args = Vec::new();
-                    if !self.consume(")") {
-                        loop {
-                            args.push(self.expression(0)?);
-                            if self.consume(")") {
-                                break;
-                            }
-                            self.expect(",")?;
-                            if self.consume(")") {
-                                break;
-                            }
-                        }
-                    }
-                    ExprKind::Call { callee: name, args }
-                } else {
-                    ExprKind::Variable { name }
-                }
+                ExprKind::Variable { name }
             }
             TokenKind::Symbol(ref op) if op == "-" || op == "!" => ExprKind::Unary {
                 op: op.clone(),
@@ -924,13 +989,18 @@ fn check_expression_depth(root: &Expr) -> Result<(), Diagnostic> {
         if depth > MAX_AST_DEPTH {
             return Err(diagnostic(
                 "E_LIMIT",
-                format!("expression tree exceeds the Stage 1a depth limit of {MAX_AST_DEPTH}"),
+                format!("expression tree exceeds the supported depth limit of {MAX_AST_DEPTH}"),
                 root.span,
             ));
         }
         let next = depth + 1;
         match node {
             Node::Expr(expr) => match &expr.kind {
+                ExprKind::Lambda { body, .. } => pending.push((Node::Block(body), next)),
+                ExprKind::Invoke { callee, args } => {
+                    pending.push((Node::Expr(callee), next));
+                    pending.extend(args.iter().map(|arg| (Node::Expr(arg), next)));
+                }
                 ExprKind::Call { args, .. } => {
                     pending.extend(args.iter().map(|arg| (Node::Expr(arg), next)));
                 }
@@ -984,6 +1054,7 @@ struct Resolver<'a> {
     generics: HashSet<&'a str>,
     errors: Vec<Diagnostic>,
     calls: Vec<Vec<usize>>,
+    forbidden: Vec<HashSet<&'a str>>,
 }
 
 impl<'a> Resolver<'a> {
@@ -993,6 +1064,7 @@ impl<'a> Resolver<'a> {
             generics: HashSet::new(),
             errors: Vec::new(),
             calls: vec![Vec::new(); module.functions.len()],
+            forbidden: Vec::new(),
         };
         for (i, function) in module.functions.iter().enumerate() {
             if this.functions.insert(&function.name, i).is_some() {
@@ -1066,7 +1138,7 @@ impl<'a> Resolver<'a> {
                     .join(" → ");
                 this.errors.push(diagnostic(
                     "E_RECURSION",
-                    format!("recursive call cycle {path} is not supported in Stage 1a"),
+                    format!("recursive call cycle {path} is not supported"),
                     module.functions[cycle[0]].span,
                 ));
                 break;
@@ -1142,12 +1214,29 @@ impl<'a> Resolver<'a> {
         if let Index::Name { name } = index
             && !scope.contains(name.as_str())
         {
+            if self
+                .forbidden
+                .iter()
+                .any(|outer| outer.contains(name.as_str()))
+            {
+                self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture endpoint `{name}`; pass it as an explicit parameter"), span));
+                return;
+            }
             self.errors.push(diagnostic("E_NAME", format!("unknown endpoint object `{name}`; dependent types can refer only to earlier bindings"), span));
         }
     }
 
     fn ty(&mut self, ty: &Type, scope: &HashSet<&str>, span: Span) {
         match ty {
+            Type::Function {
+                params,
+                return_type,
+            } => {
+                for param in params {
+                    self.ty(param, scope, span);
+                }
+                self.ty(return_type, scope, span);
+            }
             Type::Point { target, source } | Type::Morphism { target, source } => {
                 self.index(target, scope, span);
                 self.index(source, scope, span);
@@ -1193,6 +1282,30 @@ impl<'a> Resolver<'a> {
         ring_position: bool,
     ) {
         match &expr.kind {
+            ExprKind::Lambda {
+                params,
+                return_type,
+                body,
+            } => {
+                self.forbidden.push(scope.clone());
+                let mut local = HashSet::new();
+                for param in params {
+                    self.ty(&param.ty, &local, param.span);
+                    self.bind(&param.name, &mut local, param.span);
+                }
+                self.ty(return_type, &local, expr.span);
+                // The lambda is an independent definition. Its calls are not
+                // edges from the enclosing function; Lean checks them after
+                // lifting and static specialization.
+                self.block(body, &local, None);
+                self.forbidden.pop();
+            }
+            ExprKind::Invoke { callee, args } => {
+                self.expr(callee, scope, function, false);
+                for arg in args {
+                    self.expr(arg, scope, function, false);
+                }
+            }
             ExprKind::Variable { name } => {
                 if name.starts_with("__vastitas_") {
                     self.errors.push(diagnostic(
@@ -1204,7 +1317,21 @@ impl<'a> Resolver<'a> {
                     if !ring_position {
                         self.errors.push(diagnostic("E_RING", format!("`{name}` is a coefficient-ring marker, usable only in Affine or Base"), expr.span));
                     }
-                } else if !scope.contains(name.as_str()) {
+                } else if !scope.contains(name.as_str())
+                    && !self.functions.contains_key(name.as_str())
+                {
+                    if self
+                        .forbidden
+                        .iter()
+                        .any(|outer| outer.contains(name.as_str()))
+                    {
+                        self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{name}`; pass it as an explicit parameter"), expr.span));
+                        return;
+                    }
+                    if self.generics.contains(name.as_str()) {
+                        self.errors.push(diagnostic("E_TYPE", "a generic is not a Fn value; use an explicit ordinary-function wrapper", expr.span));
+                        return;
+                    }
                     self.errors.push(diagnostic(
                         "E_NAME",
                         format!("unknown value `{name}`"),
@@ -1223,6 +1350,14 @@ impl<'a> Resolver<'a> {
                     if let Some(function) = function {
                         self.calls[function].push(target);
                     }
+                } else if scope.contains(callee.as_str()) {
+                    // Function-valued bindings are checked independently by Lean.
+                } else if self
+                    .forbidden
+                    .iter()
+                    .any(|outer| outer.contains(callee.as_str()))
+                {
+                    self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{callee}`; pass it as an explicit parameter"), expr.span));
                 } else if !self.generics.contains(callee.as_str())
                     && !BUILTINS.contains(&callee.as_str())
                 {
@@ -1814,7 +1949,7 @@ fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
         assert_eq!(errors[0].code, "E_RECURSION");
         assert_eq!(
             errors[0].message,
-            "recursive call cycle `a` → `b` → `a` is not supported in Stage 1a"
+            "recursive call cycle `a` → `b` → `a` is not supported"
         );
         assert_eq!(errors[0].span.line, 2);
         assert_eq!(errors[0].span.start, source.find("fn a").unwrap());
@@ -1966,8 +2101,13 @@ fn leaf() -> Int { 0 }";
             "E_RING"
         );
         assert_eq!(
-            parse("fn main() -> Int { let f = fn(x) { x }; 0 }", "bad.vast").unwrap_err()[0].code,
-            "E_UNSUPPORTED"
+            parse(
+                "fn main() -> Int { let x = 1; let f = fn(y: Int) -> Int { x + y }; 0 }",
+                "bad.vast"
+            )
+            .unwrap_err()[0]
+                .code,
+            "E_CAPTURE"
         );
     }
 

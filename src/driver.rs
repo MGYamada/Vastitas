@@ -10,7 +10,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-const USAGE: &str = "Vastitas Stage 1a\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
+const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
 
 struct Options {
     mode: &'static str,
@@ -73,7 +73,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if args == ["--version"] {
         println!(
-            "vastitas {} (Stage 1a, protocol {PROTOCOL_VERSION})",
+            "vastitas {} (Stage 1b, protocol {PROTOCOL_VERSION})",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());

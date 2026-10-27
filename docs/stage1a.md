@@ -132,7 +132,8 @@ original diagnostic position.
 
 ## Scope
 
-Stage 1a is not all of Stage 1. Independent lambdas, user-defined data types,
+Stage 1a is not all of Stage 1. Independent lambdas and static higher-order
+functions are added separately by [Stage 1b](stage1b.md). User-defined data types,
 profiles and capabilities, edit permissions, borrowing, storage ownership,
 linear algebra, and runtime dispatch remain unimplemented. The existing
 shadowing and recursion prohibitions, generative geometric identities, and

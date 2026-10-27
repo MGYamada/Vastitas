@@ -43,6 +43,10 @@ Types use a `kind` tag:
 - `point`: `target: Index`, `source: Index`.
 - `morphism`: `source: Index`, `target: Index`.
 - `pointed`: `setting` is `Scheme` or `CInfScheme`; `base` is `QQ` or `CInfReal`.
+- `function`: `params: [Type...]`, `return_type: Type`. The recursive contract
+  contains only Nat, Int, Bool, Unit and function types. An empty `params` is
+  `Fn<(), R>`; a single Unit element is `Fn<Unit, R>`. `Fn` is a reserved source
+  constructor, not a `named` IR type. Type nesting is bounded to 64 levels.
 
 Index: `{ "kind": "name", "name": "X" }` or
 `{ "kind": "base", "ring": "QQ" }`.
@@ -63,12 +67,21 @@ Expressions use a `kind` tag and always include `span`:
 - `unit`: no payload.
 - `variable`: `name`.
 - `call`: `callee` string, `args: [Expr...]`.
+- `invoke`: `callee: Expr`, `args: [Expr...]`.
+- `lambda`: `params: [Parameter...]`, `return_type: Type`, `body: Block`.
 - `unary`: `op` (`-`, `!`), `operand: Expr`.
 - `binary`: `op` (`+`, `-`, `*`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `&&`, `||`),
   `left: Expr`, `right: Expr`.
 - `if`: `condition: Expr`, `then_branch: Block`, `else_branch: Block`.
 - `block`: `body: Block`.
 - `pack`: `scheme: Expr`, `point: Expr`.
+
+An ordinary function name may occur as `variable`; a generic family may not.
+A string `call` may refer to a local Fn binding. The `invoke` form supports
+arbitrary callee expressions. Lambda IDs and static targets are assigned by
+Lean; spans are diagnostic metadata and cannot establish target identity.
+There is no public internal-reference constructor. Unknown expression tags
+are rejected. All previously valid protocol-2 requests remain supported.
 
 Statements use a `kind` tag and always include `span`:
 
@@ -97,6 +110,9 @@ and `E_DUPLICATE` for repeated declarations or local bindings. `E_ARITY` and
 implementation resources; core checking and dispatch lowering share the
 4096-unit per-function checking-budget diagnostic. Diagnostic wording does
 not change the acceptance rule or its proof boundary.
+`E_CAPTURE` rejects references to outer lambda bindings; `E_STATIC_CALL`
+rejects function values with unresolved or differing runtime targets.
+Higher-order specialization has a separate 4096-instance bound.
 
 The checker rejects recursion (including mutual recursion), duplicate function
 names, reserved names, unbound references, incompatible annotations, escaping
@@ -105,6 +121,14 @@ Check accepts modules without main; emit requires main.
 Source declaration order does not constrain function calls.
 The `__vastitas_` prefix is reserved for hygienic specialization names and is
 rejected in source binders and references, including forged wire requests.
+
+`SurfaceProtocol.decodeSurfaceModule` decodes the extended request and
+`checkSurfaceProgram` checks it. Function syntax remains separate from core
+syntax. Every lambda and function body is checked, including unused functions;
+signature probes for abstract function parameters are confined to a separate
+audit pass. Executable specialization memoizes definition/function-argument
+IDs, erases function values and produces only direct calls. The unchanged
+finite engine still checks all applicable method bodies. See [Stage 1b](stage1b.md).
 
 The backend lowers the accepted program to the existing Stage 0 core input
 representation and runs its independent checker. That internal representation

@@ -5,13 +5,15 @@ The proof oracle in `lean/` imports the implementation's definitions from
 or executing `.vast` programs. mathlib is pinned to v4.35.0; the executable
 kernel and generated runtime depend only on the Lean distribution.
 
-Protocol version 2 enters through `DispatchChecker.checkProgram`. This checks
-finite dispatch families, lowers their specializations, and passes the exact
-lowered module to `checkModule`, the internal Stage 0 core checker. The
+Protocol version 2 enters through `checkSurfaceProgram`. The unchanged-syntax
+path uses `DispatchChecker.checkProgram`; the extended path checks independent
+lambdas and static function contracts, then specializes function calls. Both
+paths check finite dispatch families and pass the exact lowered module to
+`checkModule`, the internal Stage 0 core checker. The
 combined core theorem, `VastitasOracle.checkModule_sound`, establishes decoded
 core source correspondence, independent typing, a strict function dependency
 order, and finite typed evaluation. Stage 1a has additional finite-selection
-and checker-composition theorems described below.
+and checker-composition theorems, extended in Stage 1b as described below.
 
 ## Checked language and independent audits
 
@@ -150,16 +152,48 @@ The proofs contain no `sorry`, `admit`, or project-specific unproved axioms.
 CI audits the oracle namespace against Lean's standard logical axioms
 (`propext`, `Classical.choice`, and `Quot.sound`).
 
+## Stage 1b capture and static function contracts
+
+`VastitasOracle.Functions` imports the actual `FunctionChecker`. Surface Fn
+syntax is separate from core Raw/Checked IR. The actual acceptance path checks
+`CaptureFree`: lexical free names of every independent lambda (including type
+indices, with parameters and ordered local bindings accounted for) are global
+names. Nested lambdas are checked in their own scopes. This predicate is
+specified separately from lifting and specialization.
+
+- `checkSurfaceProgram_capture_free` proves the predicate for every accepted
+  surface program; `lambda_free_names_are_global` exposes its scope/name result.
+- For extended syntax, `checkSurfaceProgram_static_calls` identifies the exact
+  `lowerFunctions` result, proves `StaticCallsValid` for its recorded calls, and
+  retains the equation showing that the very same core passed `checkModule`.
+- `static_target_signature` and `function_argument_signature` state structural
+  type equality with actual backend definitions for recorded targets and erased
+  function arguments. They follow from the independent audit established by
+  the preceding actual-checker theorem, not from a trusted frontend annotation.
+- `checkSurfaceProgram_core` connects both legacy and extended branches to
+  actual core acceptance. `checkSurfaceProgram_typed_and_ordered` and
+  `checkSurfaceProgram_total_for_arguments` establish independent typing,
+  dependency order and terminating typed evaluation of the returned module.
+
+The static audit concerns the actual recorded selection ledger. These results
+are not a theorem that this ledger corresponds operationally to every source
+application, or that lambda lifting, abstract signature probes and erasure
+preserve the full surface-language meaning. The audit checking pass and the
+executable specialization pass use separate state; probes never reach codegen.
+Regressions test unused-body checking, static selection and native results
+across the remaining correspondence boundary. No new unproved axiom is used.
+
 ## What is outside these claims
 
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
-The full Stage 1 rewriting pass from decoded `RawProgram` to that core does
+The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
+`RawProgram`) to that core does
 **not** yet have a source-correspondence theorem. Finite selection tables and
 actual target evidence are proved correct, and the entire resulting core is
 proved well typed and terminating; this does not establish correspondence of
 every rewritten source call or method body to its original generic syntax.
 
-Neither stage verifies Rust lexing, parsing, source-library composition, JSON
+These results do not verify Rust lexing, parsing, source-library composition, JSON
 serialization or decoding, diagnostic spans, or the accuracy of diagnostic
 prose. The core correspondence relation records elaboration into checked
 syntax; it is not a separate operational-equivalence theorem for source text.
@@ -178,7 +212,7 @@ The ordinary/smooth affine descriptors remain a restricted geometric core.
 These results do not formalize all schemes or C-infinity schemes, prove
 general geometric constructions, establish numerical accuracy, or certify
 physical adequacy. The auxiliary coordinate interpretation is limited to the
-stated zero/identity fragment. Independent lambdas, user-defined types and
+stated zero/identity fragment. User-defined types and
 capabilities, function edit ownership, borrowing, storage ownership, linear
 algebra, iteration, and recursion remain unimplemented and outside these
 theorems. Finite static dispatch does not establish those later Stage 1 goals.
@@ -193,6 +227,7 @@ cargo clippy --locked --all-targets -- -D warnings
 lake -d lean-kernel build vastitas-kernel
 lake -d lean-kernel build VastitasKernel.TypeAuditRegression
 lake -d lean-kernel build VastitasKernel.DispatchRegression
+lake -d lean-kernel build VastitasKernel.FunctionRegression
 cargo test --locked --all-targets
 lake -d lean build VastitasOracle
 python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -214,11 +249,18 @@ after pair repairs, complete triple repairs, permutations, and the 4096-key
 boundary. It also checks that applicable losing methods and keys outside the
 domain appear in the ground-body work list.
 
+`FunctionRegression` exercises actual public function acceptance, capture
+rejection and forged static signatures, including mismatched types with equal
+arities and unknown targets for erased function arguments. Rust function tests
+cover native higher-order composition, independent nesting, all Fn arities,
+dispatch and multiple libraries, unused invalid bodies, changed diagnostic
+spans, the 4096-instance limit and reachability after whole-module checking.
+
 Rust integration tests exercise parsing and diagnostics, malformed raw IR,
 semantic rejection codes, native execution, source libraries, implementation
 limits, dispatch specialization and rejection, and preservation of existing
 output artifacts on failure. The compiler CI jobs build and test on macOS and
-Linux from a checkout without `lean/` or mathlib, including both direct kernel
+Linux from a checkout without `lean/` or mathlib, including all three direct kernel
 regression targets. A separate job builds the proof oracle and audits its
 axioms. Dependency-boundary checks prevent the normal compiler path from
 acquiring a mathlib dependency.

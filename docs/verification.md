@@ -94,6 +94,13 @@ implication of normalized requirements, including `HasOrder ⇒ HasEq`. It does
 not compare the sets of keys on which methods happen to apply. Static tuple
 facts are the intersection of argument facts; the empty tuple has no facts.
 
+`Optimal` and `Selection` are independent of the candidate-selection algorithm,
+but are stated over the kernel's executable `applicable`, `moreSpecific`,
+normalization, tuple-fact and hierarchy definitions. Those definitions specify
+the order used by the theorems. Their correspondence with the prose product
+order is supported by code inspection and regressions, not a separate theorem
+deriving these helpers from an independent mathematical specification.
+
 - `check_sound` connects successful execution to the independent `Optimal`
   and `Selection` conditions. It also establishes actual normalization,
   unique method identities and normalized signatures, realizable method

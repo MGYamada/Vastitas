@@ -191,6 +191,16 @@ impl<'a> Lexer<'a> {
                 continue;
             }
             let mut span = self.span();
+            if self.source[self.offset..].starts_with("/*") {
+                self.advance();
+                self.advance();
+                span.end = self.offset;
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    "block comments are not supported; use // line comments",
+                    span,
+                ));
+            }
             let kind = if ch.is_ascii_alphabetic() || ch == '_' {
                 while self
                     .peek()
@@ -603,6 +613,18 @@ impl Parser {
         }
     }
 
+    fn package_field(&mut self, name: &str) -> Result<(), Diagnostic> {
+        if !self.peek().is(name) {
+            return Err(diagnostic(
+                "E_PARSE",
+                "package fields must be written as `scheme`, then `point`",
+                self.peek().span,
+            ));
+        }
+        self.advance();
+        Ok(())
+    }
+
     fn index(&mut self) -> Result<Index, Diagnostic> {
         let (name, span) = self.name()?;
         if name == "Base" {
@@ -691,11 +713,11 @@ impl Parser {
             let value = self.expression(0)?;
             self.expect("as")?;
             self.expect("{")?;
-            self.expect("scheme")?;
+            self.package_field("scheme")?;
             self.expect(":")?;
             let (scheme, _) = self.binding_name()?;
             self.expect(",")?;
-            self.expect("point")?;
+            self.package_field("point")?;
             self.expect(":")?;
             let (point, _) = self.binding_name()?;
             self.consume(",");
@@ -813,11 +835,11 @@ impl Parser {
             }
             TokenKind::Name(ref name) if name == "pack" => {
                 self.expect("{")?;
-                self.expect("scheme")?;
+                self.package_field("scheme")?;
                 self.expect(":")?;
                 let scheme = Box::new(self.expression(0)?);
                 self.expect(",")?;
-                self.expect("point")?;
+                self.package_field("point")?;
                 self.expect(":")?;
                 let point = Box::new(self.expression(0)?);
                 self.consume(",");

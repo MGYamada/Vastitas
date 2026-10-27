@@ -89,6 +89,15 @@ Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.
 
+Frontend and backend use the same codes for name violations: `E_SHADOW` for a
+binding conflicting with a function/generic, `E_RESERVED` for a reserved name,
+`E_NAME` for an invalid or unresolved name (including an undeclared generic),
+and `E_DUPLICATE` for repeated declarations or local bindings. `E_ARITY` and
+`E_TYPE` identify argument-count and type violations. `E_LIMIT` reports bounded
+implementation resources; core checking and dispatch lowering share the
+4096-unit per-function checking-budget diagnostic. Diagnostic wording does
+not change the acceptance rule or its proof boundary.
+
 The checker rejects recursion (including mutual recursion), duplicate function
 names, reserved names, unbound references, incompatible annotations, escaping
 nominal identities, and a main signature other than `fn main() -> Int`.

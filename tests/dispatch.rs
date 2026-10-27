@@ -352,6 +352,22 @@ method cross(x: Number) -> Int { 1 }
 method cross(x: Any) -> Int requires (HasOrder) { 2 }",
         "E_DISPATCH_AMBIGUOUS",
     );
+    let message = reject(
+        "generic describe(x) { domain (Int), (Nat); }
+method describe(x: Number) -> Int requires (HasOrder) { 1 }
+method describe(x: Int) -> Int { 2 }",
+        "E_DISPATCH_AMBIGUOUS",
+    );
+    for expected in [
+        "describe(Number) requires (HasOrder)",
+        "describe(Int)",
+        "has narrower selectors",
+        "does not require HasOrder",
+        "has stronger requirements",
+        "help: declare `describe(Int) requires (HasOrder)`",
+    ] {
+        assert!(message.contains(expected), "missing {expected}: {message}");
+    }
 }
 
 #[test]
@@ -491,13 +507,13 @@ fn main() -> Int { pick(42) }",
     );
     let mut private_call = valid.clone();
     private_call["functions"][0]["body"]["result"]["callee"] = json!("__vastitas_method_0_0");
-    assert_rejected(private_call, "E_NAME");
+    assert_rejected(private_call, "E_RESERVED");
     let mut private_binding = valid.clone();
     private_binding["methods"][0]["params"][0]["name"] = json!("__vastitas_parameter");
-    assert_rejected(private_binding, "E_NAME");
+    assert_rejected(private_binding, "E_RESERVED");
     let mut private_variable = valid.clone();
     private_variable["methods"][0]["body"]["result"]["name"] = json!("__vastitas_parameter");
-    assert_rejected(private_variable, "E_NAME");
+    assert_rejected(private_variable, "E_RESERVED");
 
     let mut invalid_domain = valid.clone();
     invalid_domain["generics"][0]["domain"][0][0]["name"] = json!("Number");

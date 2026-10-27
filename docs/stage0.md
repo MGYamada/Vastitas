@@ -106,6 +106,9 @@ package is opened twice. Returning a local point or morphism without its
 endpoint is rejected; repackaging an object with its point is supported.
 An object itself can be passed or returned as an immutable value.
 
+Package fields are positional: both `pack` and `unpack` require `scheme` first,
+then `point`. The field names do not permit reordering or general records.
+
 The runtime stores descriptors; the origin does not allocate a coordinate
 array of size `n`. Nominal indices are erased only after checking. The core is
 not a general implementation of coordinate rings, all generalized points,

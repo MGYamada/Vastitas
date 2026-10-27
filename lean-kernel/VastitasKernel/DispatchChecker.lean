@@ -16,11 +16,11 @@ def sourceReserved : List String :=
 def checkSourceName (name : String) (span : Span) : CheckM Unit := do
   checkName name span
   if name.startsWith privatePrefix || sourceReserved.contains name then
-    fail span "E_NAME" s!"'{name}' is reserved for the compiler or static dispatch"
+    fail span "E_RESERVED" s!"'{name}' is reserved for the compiler or static dispatch"
 
 def checkReference (name : String) (span : Span) : CheckM Unit := do
   if name.startsWith privatePrefix then
-    fail span "E_NAME" s!"'{privatePrefix}' is reserved for compiler-generated names"
+    fail span "E_RESERVED" s!"'{privatePrefix}' is reserved for compiler-generated names"
 
 def validateIndex (index : RawIndex) (span : Span) : CheckM Unit :=
   match index with
@@ -38,7 +38,7 @@ def validateType (ty : RawType) (span : Span) : CheckM Unit := do
 def checkBinder (globals : Std.HashSet String) (name : String) (span : Span) : CheckM Unit := do
   checkSourceName name span
   if globals.contains name then
-    fail span "E_DUPLICATE" s!"binding '{name}' conflicts with a function or generic name"
+    fail span "E_SHADOW" s!"binding '{name}' conflicts with a function or generic name"
 
 mutual
   def validateExpr : Nat → Std.HashSet String → RawExpr → CheckM Unit
@@ -108,6 +108,54 @@ structure Family where
 
 abbrev Families := Std.HashMap String Family
 
+private def requirementLabel (requirements : List Dispatch.Capability) : String :=
+  if requirements.contains .hasOrder then "HasOrder"
+  else if requirements.contains .hasEq then "HasEq" else ""
+
+private def signatureLabel (name : String) (method : Dispatch.NormalizedMethod) : String :=
+  name ++ keyLabel method.selectors ++
+    (if method.requirements.isEmpty then "" else s!" requires ({requirementLabel method.requirements})")
+
+private def diagnosticCandidate (program : RawProgram) (id : Nat) : Option (RawMethod × Dispatch.NormalizedMethod) := do
+  let raw ← program.methods[id]?
+  let selectors ← raw.params.mapM fun param => match param.ty with
+    | .named name => Dispatch.parseSelector name
+    | _ => none
+  let requirements ← raw.requirements.mapM Dispatch.parseCapability
+  pure (raw, { id, selectors, requirements := Dispatch.normalizeCapabilities requirements })
+
+private def ambiguityNotes (program : RawProgram) (generic : RawGeneric) (ids : List Nat) : List DiagnosticNote := Id.run do
+  let candidates := ids.filterMap (diagnosticCandidate program)
+  let mut notes := []
+  for (raw, candidate) in candidates do
+    let mut message := s!"candidate method `{signatureLabel generic.name candidate}` declared here"
+    for (_, other) in candidates do
+      if candidate.id != other.id then
+        let narrower := Dispatch.nominalBelow Dispatch.publicHierarchy candidate.selectors other.selectors
+        let reverse := Dispatch.nominalBelow Dispatch.publicHierarchy other.selectors candidate.selectors
+        let missing := other.requirements.filter (!candidate.requirements.contains ·)
+        let extra := candidate.requirements.filter (!other.requirements.contains ·)
+        if narrower && !reverse then message := message ++ "; has narrower selectors"
+        if !narrower then message := message ++ "; selectors are not narrower in every argument"
+        if !extra.isEmpty then message := message ++ s!"; has stronger requirements ({requirementLabel extra})"
+        if !missing.isEmpty then message := message ++ s!"; does not require {requirementLabel missing}"
+    notes := notes ++ [{ message, span := raw.span }]
+  if let some (_, first) := candidates.head? then
+    let mut meet := some first
+    for (_, candidate) in candidates.tail do
+      meet := meet.bind fun current => do
+        let selectors ← (current.selectors.zip candidate.selectors).mapM fun (a, b) =>
+          if Dispatch.publicHierarchy.subtype a b then some a
+          else if Dispatch.publicHierarchy.subtype b a then some b else none
+        pure { current with
+          selectors := selectors
+          requirements := Dispatch.normalizeCapabilities (current.requirements ++ candidate.requirements) }
+    if let some resolving := meet then
+      notes := notes ++ [{
+        span := generic.span
+        message := s!"help: declare `{signatureLabel generic.name resolving}` to resolve this key; recheck the entire family after editing" }]
+  return notes
+
 def dispatchDiagnostic (program : RawProgram) (generic : RawGeneric) (error : Dispatch.Error) : Diagnostic :=
   let code := match error.code with
     | "E_DISPATCH_ARITY" => "E_ARITY"
@@ -116,9 +164,10 @@ def dispatchDiagnostic (program : RawProgram) (generic : RawGeneric) (error : Di
     | "E_DISPATCH_DUPLICATE_ID" | "E_DISPATCH_DUPLICATE" => "E_DUPLICATE"
     | "E_DISPATCH_LIMIT" => "E_LIMIT"
     | other => other
-  let notes := error.methods.filterMap fun id =>
-    (program.methods[id]?).map fun method =>
-      { message := s!"candidate method for generic '{generic.name}' declared here", span := method.span : DiagnosticNote }
+  let notes := if error.code == "E_DISPATCH_AMBIGUOUS" then ambiguityNotes program generic error.methods
+    else error.methods.filterMap fun id =>
+      (program.methods[id]?).map fun method =>
+        { message := s!"candidate method for generic '{generic.name}' declared here", span := method.span : DiagnosticNote }
   { code, span := generic.span
     message := s!"generic '{generic.name}': {error.message}" ++
       (error.key.map (fun key => s!" at key {keyLabel key}")).getD ""
@@ -172,7 +221,7 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
   for method in program.methods do
     checkSourceName method.name method.span
     unless genericNames.contains method.name do
-      fail method.span "E_UNBOUND" s!"method refers to undeclared generic '{method.name}'"
+      fail method.span "E_NAME" s!"method refers to undeclared generic '{method.name}'"
     for param in method.params do
       checkBinder globals param.name param.span
     validateBlock 512 globals method.body
@@ -227,7 +276,7 @@ def scalarKey (value : Result) (span : Span) : CheckM Nat :=
 
 mutual
   def lowerExpr : Nat → Families → Signatures → Context → RawExpr → CheckM RawExpr
-    | 0, _, _, _, expr => fail expr.span "E_LIMIT" "dispatch lowering exceeds the supported nesting limit"
+    | 0, _, _, _, expr => checkingBudgetExceeded expr.span
     | fuel + 1, families, signatures, ctx, expr => do
       match expr with
       | .integer .. | .boolean .. | .unit .. | .variable .. => pure expr
@@ -253,14 +302,14 @@ mutual
           let target ← selectTarget family key span
           pure (.call (monoName target.method key) args span)
   def lowerBlock : Nat → Families → Signatures → Context → RawBlock → CheckM RawBlock
-    | 0, _, _, _, .mk _ _ span => fail span "E_LIMIT" "dispatch lowering exceeds the supported nesting limit"
+    | 0, _, _, _, .mk _ _ span => checkingBudgetExceeded span
     | fuel + 1, families, signatures, ctx, .mk statements result span => do
-      let (statements, ctx) ← lowerStatements fuel families signatures ctx statements
+      let (statements, ctx) ← lowerStatements fuel families signatures ctx statements span
       pure (.mk statements (← lowerExpr fuel families signatures ctx result) span)
-  def lowerStatements : Nat → Families → Signatures → Context → List RawStmt → CheckM (List RawStmt × Context)
-    | 0, _, _, _, _ => fail {} "E_LIMIT" "dispatch lowering exceeds the supported statement limit"
-    | _ + 1, _, _, ctx, [] => pure ([], ctx)
-    | fuel + 1, families, signatures, ctx, .letE name annotation raw span :: rest => do
+  def lowerStatements : Nat → Families → Signatures → Context → List RawStmt → Span → CheckM (List RawStmt × Context)
+    | 0, _, _, _, _, span => checkingBudgetExceeded span
+    | _ + 1, _, _, ctx, [], _ => pure ([], ctx)
+    | fuel + 1, families, signatures, ctx, .letE name annotation raw span :: rest, blockSpan => do
       checkNewBinding ctx name span
       let raw ← lowerExpr fuel families signatures ctx raw
       let expected ← annotation.mapM (fun ty => resolveType ctx ty span)
@@ -268,9 +317,9 @@ mutual
       let symbol ← fresh
       if let some ref := value.objectRef then nameObject ref name
       let binding : Binding := { name, symbol, ty := value.term.ty, objectRef := value.objectRef }
-      let (rest, ctx) ← lowerStatements fuel families signatures (binding :: ctx) rest
+      let (rest, ctx) ← lowerStatements fuel families signatures (binding :: ctx) rest blockSpan
       pure (.letE name annotation raw span :: rest, ctx)
-    | fuel + 1, families, signatures, ctx, .unpack raw scheme point span :: rest => do
+    | fuel + 1, families, signatures, ctx, .unpack raw scheme point span :: rest, blockSpan => do
       checkNewBinding ctx scheme span
       checkNewBinding ctx point span
       if scheme == point then fail span "E_DUPLICATE" "unpack needs two distinct binding names"
@@ -284,7 +333,7 @@ mutual
       rememberObject obj span "unpack" (some scheme)
       let objectBinding : Binding := { name := scheme, symbol := objectSymbol, ty := .object base, objectRef := some obj }
       let pointBinding : Binding := { name := point, symbol := pointSymbol, ty := unpackedPointType base objectSymbol }
-      let (rest, ctx) ← lowerStatements fuel families signatures (pointBinding :: objectBinding :: ctx) rest
+      let (rest, ctx) ← lowerStatements fuel families signatures (pointBinding :: objectBinding :: ctx) rest blockSpan
       pure (.unpack raw scheme point span :: rest, ctx)
 end
 

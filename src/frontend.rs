@@ -297,6 +297,7 @@ struct Parser {
     position: usize,
     nesting: usize,
     packages: bool,
+    expression_depths: HashMap<(usize, usize), usize>,
 }
 
 impl Parser {
@@ -924,6 +925,77 @@ impl Parser {
         }
     }
 
+    fn expression_depth(&self, expr: &Expr) -> usize {
+        match expr.kind {
+            ExprKind::Integer { .. }
+            | ExprKind::Boolean { .. }
+            | ExprKind::Unit
+            | ExprKind::Variable { .. } => 1,
+            _ => self.expression_depths[&(expr.span.start, expr.span.end)],
+        }
+    }
+
+    fn block_depth(&self, block: &Block) -> usize {
+        let result = self.expression_depth(&block.result);
+        let statements = block
+            .statements
+            .iter()
+            .map(|statement| match &statement.kind {
+                StatementKind::Let { value, .. } | StatementKind::Unpack { value, .. } => {
+                    1 + self.expression_depth(value)
+                }
+            })
+            .max()
+            .unwrap_or(0);
+        1 + result.max(statements)
+    }
+
+    // Children were checked when constructed. Only inspect this node's direct
+    // edges; parser-private span keys never enter the wire representation.
+    fn check_expression_depth(&mut self, expr: &Expr) -> Result<(), Diagnostic> {
+        let child = match &expr.kind {
+            ExprKind::Lambda { body, .. } | ExprKind::Block { body } => self.block_depth(body),
+            ExprKind::Call { args, .. } => args
+                .iter()
+                .map(|arg| self.expression_depth(arg))
+                .max()
+                .unwrap_or(0),
+            ExprKind::Invoke { callee, args } => self.expression_depth(callee).max(
+                args.iter()
+                    .map(|arg| self.expression_depth(arg))
+                    .max()
+                    .unwrap_or(0),
+            ),
+            ExprKind::Unary { operand, .. } => self.expression_depth(operand),
+            ExprKind::Binary { left, right, .. } => self
+                .expression_depth(left)
+                .max(self.expression_depth(right)),
+            ExprKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => self
+                .expression_depth(condition)
+                .max(self.block_depth(then_branch))
+                .max(self.block_depth(else_branch)),
+            ExprKind::Pack { scheme, point } => self
+                .expression_depth(scheme)
+                .max(self.expression_depth(point)),
+            _ => 0,
+        };
+        let depth = child + 1;
+        if depth > MAX_AST_DEPTH {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!("expression tree exceeds the supported depth limit of {MAX_AST_DEPTH}"),
+                expr.span,
+            ));
+        }
+        self.expression_depths
+            .insert((expr.span.start, expr.span.end), depth);
+        Ok(())
+    }
+
     fn expression(&mut self, min_binding_power: u8) -> Result<Expr, Diagnostic> {
         if self.nesting >= MAX_PARSE_NESTING {
             return Err(diagnostic(
@@ -943,7 +1015,7 @@ impl Parser {
         // A prefix may contain a parenthesized comparison, which is a valid
         // operand. Only comparisons consumed by this Pratt invocation chain.
         let mut comparison = false;
-        check_expression_depth(&left)?;
+        self.check_expression_depth(&left)?;
         while let TokenKind::Symbol(op) = &self.peek().kind {
             if op == "(" {
                 // Else-if parsing requests only the conditional prefix; leave
@@ -976,7 +1048,7 @@ impl Parser {
                     },
                     span,
                 };
-                check_expression_depth(&left)?;
+                self.check_expression_depth(&left)?;
                 continue;
             }
             let op = op.as_str();
@@ -1012,7 +1084,7 @@ impl Parser {
                 span,
             };
             comparison = next_comparison;
-            check_expression_depth(&left)?;
+            self.check_expression_depth(&left)?;
         }
         Ok(left)
     }
@@ -1129,80 +1201,6 @@ impl Parser {
             span: start.through(self.previous().span),
         })
     }
-}
-
-/// Inspect the AST without recursion, before handing it to recursive consumers.
-/// Each child tree has already passed this check. A rejected parent adds only
-/// its bounded syntax layers, so unwinding and dropping it are bounded as well.
-fn check_expression_depth(root: &Expr) -> Result<(), Diagnostic> {
-    enum Node<'a> {
-        Expr(&'a Expr),
-        Block(&'a Block),
-        Statement(&'a Statement),
-    }
-    let mut pending = vec![(Node::Expr(root), 1)];
-    while let Some((node, depth)) = pending.pop() {
-        if depth > MAX_AST_DEPTH {
-            return Err(diagnostic(
-                "E_LIMIT",
-                format!("expression tree exceeds the supported depth limit of {MAX_AST_DEPTH}"),
-                root.span,
-            ));
-        }
-        let next = depth + 1;
-        match node {
-            Node::Expr(expr) => match &expr.kind {
-                ExprKind::Lambda { body, .. } => pending.push((Node::Block(body), next)),
-                ExprKind::Invoke { callee, args } => {
-                    pending.push((Node::Expr(callee), next));
-                    pending.extend(args.iter().map(|arg| (Node::Expr(arg), next)));
-                }
-                ExprKind::Call { args, .. } => {
-                    pending.extend(args.iter().map(|arg| (Node::Expr(arg), next)));
-                }
-                ExprKind::Unary { operand, .. } => {
-                    pending.push((Node::Expr(operand), next));
-                }
-                ExprKind::Binary { left, right, .. } => {
-                    pending.push((Node::Expr(left), next));
-                    pending.push((Node::Expr(right), next));
-                }
-                ExprKind::If {
-                    condition,
-                    then_branch,
-                    else_branch,
-                } => {
-                    pending.push((Node::Expr(condition), next));
-                    pending.push((Node::Block(then_branch), next));
-                    pending.push((Node::Block(else_branch), next));
-                }
-                ExprKind::Block { body } => pending.push((Node::Block(body), next)),
-                ExprKind::Pack { scheme, point } => {
-                    pending.push((Node::Expr(scheme), next));
-                    pending.push((Node::Expr(point), next));
-                }
-                ExprKind::Integer { .. }
-                | ExprKind::Boolean { .. }
-                | ExprKind::Unit
-                | ExprKind::Variable { .. } => {}
-            },
-            Node::Block(block) => {
-                pending.push((Node::Expr(&block.result), next));
-                pending.extend(
-                    block
-                        .statements
-                        .iter()
-                        .map(|statement| (Node::Statement(statement), next)),
-                );
-            }
-            Node::Statement(statement) => match &statement.kind {
-                StatementKind::Let { value, .. } | StatementKind::Unpack { value, .. } => {
-                    pending.push((Node::Expr(value), next));
-                }
-            },
-        }
-    }
-    Ok(())
 }
 
 struct Resolver<'a> {
@@ -1621,6 +1619,7 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
             position: 0,
             nesting: 0,
             packages: false,
+            expression_depths: HashMap::new(),
         }
         .module(input.file)
         .map_err(|error| vec![error])?;
@@ -1673,6 +1672,7 @@ pub(crate) fn parse_module_source(
         position: 0,
         nesting: 0,
         packages: true,
+        expression_depths: HashMap::new(),
     };
     let mut parsed = crate::packages::Parsed {
         modules: Vec::new(),
@@ -2248,6 +2248,7 @@ fn leaf() -> Int { 0 }";
             position: 0,
             nesting: 0,
             packages: false,
+            expression_depths: HashMap::new(),
         };
         let close = parser.type_close().unwrap();
         let assignment = parser.expect("=").unwrap();

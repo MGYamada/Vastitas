@@ -23,6 +23,44 @@ pub(crate) struct Sources {
     files: Vec<SourceFile>,
 }
 
+/// The output's identity is stable for a loading pass. Check each newly loaded
+/// input once, then refresh the identity before the final atomic installation.
+pub(crate) struct OutputIdentity {
+    canonical: PathBuf,
+    identity: (u64, u64),
+}
+
+impl OutputIdentity {
+    pub(crate) fn inspect(output: &Path) -> Result<Option<Self>, String> {
+        let canonical = match output.canonicalize() {
+            Ok(path) => path,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(format!(
+                    "E_OUTPUT: cannot inspect {}: {error}",
+                    output.display()
+                ));
+            }
+        };
+        let metadata = fs::metadata(output)
+            .map_err(|error| format!("E_OUTPUT: cannot inspect {}: {error}", output.display()))?;
+        Ok(Some(Self {
+            canonical,
+            identity: (metadata.dev(), metadata.ino()),
+        }))
+    }
+
+    fn protect(&self, source: &SourceFile) -> Result<(), String> {
+        if source.canonical == self.canonical || source.identity == self.identity {
+            return Err(format!(
+                "E_OUTPUT: output would overwrite input file {}",
+                source.path.display()
+            ));
+        }
+        Ok(())
+    }
+}
+
 impl Sources {
     pub(crate) fn empty() -> Self {
         Self { files: Vec::new() }
@@ -33,16 +71,16 @@ impl Sources {
     pub(crate) fn add(
         &mut self,
         path: &Path,
-        output: Option<&Path>,
+        output: Option<&OutputIdentity>,
     ) -> Result<SourceInput<'_>, String> {
         let canonical = path
             .canonicalize()
             .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
         self.push_file(path, canonical)?;
-        if let Some(output) = output {
-            self.protect_output(output)?;
-        }
         let file = self.files.last().unwrap();
+        if let Some(output) = output {
+            output.protect(file)?;
+        }
         Ok(SourceInput {
             source: &file.text,
             file: &file.name,
@@ -102,25 +140,10 @@ impl Sources {
     }
 
     pub(crate) fn protect_output(&self, output: &Path) -> Result<(), String> {
-        let canonical = match output.canonicalize() {
-            Ok(path) => path,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-            Err(error) => {
-                return Err(format!(
-                    "E_OUTPUT: cannot inspect {}: {error}",
-                    output.display()
-                ));
+        if let Some(identity) = OutputIdentity::inspect(output)? {
+            for source in &self.files {
+                identity.protect(source)?;
             }
-        };
-        let metadata = fs::metadata(output)
-            .map_err(|error| format!("E_OUTPUT: cannot inspect {}: {error}", output.display()))?;
-        if let Some(source) = self.files.iter().find(|source| {
-            source.canonical == canonical || source.identity == (metadata.dev(), metadata.ino())
-        }) {
-            return Err(format!(
-                "E_OUTPUT: output would overwrite input file {}",
-                source.path.display()
-            ));
         }
         Ok(())
     }

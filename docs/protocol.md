@@ -55,7 +55,9 @@ Index: `{ "kind": "name", "name": "X" }` or
 `{ "kind": "base", "ring": "QQ" }`.
 
 `Any` and `Number` are allowed only in method parameter selectors. Domain
-tuples and method results accept only `Nat`, `Int`, `Bool`, and `Unit`.
+tuples accept only `Nat`, `Int`, `Bool`, and `Unit`. Method results additionally
+accept `Pair<Nat>` and `Pair<Int>`. The selected method's declared result is
+preserved in its specialized signature; expected results do not select methods.
 Geometric values and nominal object IDs cannot select a method. The backend
 constructs the nominal hierarchy and capability facts itself; request metadata
 cannot add subtype edges, assert capabilities, or provide a trusted winner.

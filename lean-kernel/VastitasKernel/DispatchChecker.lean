@@ -80,8 +80,15 @@ def scalar (raw : RawType) (span : Span) : CheckM Nat :=
   | .named name =>
     match Dispatch.parseScalar name with
     | some code => pure code
-    | none => fail span "E_TYPE" s!"dispatch domains and method results require Nat, Int, Bool, or Unit; found {name}"
-  | _ => fail span "E_TYPE" "dispatch domains and method results require a concrete scalar type"
+    | none => fail span "E_TYPE" s!"dispatch domains require Nat, Int, Bool, or Unit; found {name}"
+  | _ => fail span "E_TYPE" "dispatch domains require a concrete scalar type"
+
+/-- Result annotations do not participate in the finite key universe or selection. -/
+def methodResult (raw : RawType) (span : Span) : CheckM Unit :=
+  match raw with
+  | .named "Nat" | .named "Int" | .named "Bool" | .named "Unit"
+  | .pair "Nat" | .pair "Int" => pure ()
+  | _ => fail span "E_TYPE" "method results require a concrete scalar, Pair<Nat>, or Pair<Int>"
 
 def selector (raw : RawType) (span : Span) : CheckM Nat :=
   match raw with
@@ -185,7 +192,7 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
     for (id, method) in program.methods.zipIdx.map (fun pair => (pair.2, pair.1)) do
       if method.name == generic.name then
         let selectors ← method.params.mapM fun param => selector param.ty param.span
-        let _ ← scalar method.returnType method.span
+        methodResult method.returnType method.span
         methods := methods ++ [{ id, selectors, requirements := method.requirements }]
     match accepted : Dispatch.check generic.params.length domain methods with
     | .error error => throw (dispatchDiagnostic program generic error)

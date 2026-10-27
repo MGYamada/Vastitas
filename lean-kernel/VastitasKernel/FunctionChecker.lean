@@ -354,7 +354,7 @@ def prepare (p : Program) : CheckM (List Function × Families) := do
   for m in p.methods do
     for param in m.params do
       if param.ty.isFunction then fail param.span "E_TYPE" "function values are not dispatch selectors"
-    if m.result.isFunction then fail m.span "E_TYPE" "method results require concrete scalars"
+    if m.result.isFunction then fail m.span "E_TYPE" "method results require concrete scalars or homogeneous numeric pairs"
   let families ← prepareFamilies raw
   let mut functions := (p.functions ++ lambdas).toArray
   for family in families do

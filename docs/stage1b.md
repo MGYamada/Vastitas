@@ -98,7 +98,7 @@ remain outside these proofs. See [verification boundaries](verification.md).
 
 ## Homogeneous data pairs
 
-The next data extension adds `Pair<Nat>` and `Pair<Int>` to ordinary function
+The data extension adds `Pair<Nat>` and `Pair<Int>` to ordinary function
 parameters/results, local bindings and equal-type branches. `pair(x, y)` infers
 both operands independently and requires identical Nat or Int types;
 `pair(1, 2)` is always `Pair<Int>`, even under an expected `Pair<Nat>` annotation.
@@ -108,7 +108,9 @@ the element type. A bound producer is evaluated once, with ordinary let sharing.
 Heterogeneous, nested, Bool/Unit and geometric pairs are unsupported. Pair is
 not a dispatch key/selector or part of a Fn contract; a scalar-signature lambda
 may use Pair internally. `Fn<(A, B), C>` remains an argument sequence, not a Pair.
-This increment does not yet permit Pair method results or implement promotion.
+Methods may return Pair; their selected signature determines the call and
+projection types in both first-order and function-containing programs. Promotion
+itself is a subsequent stdlib increment.
 See [the executable example](../examples/pairs.vast) and [protocol](protocol.md).
 
 The actual core carries finite Pair types and primitive operations. Native code

@@ -137,6 +137,10 @@ actual family-check and target-selection evidence to domain membership and
 the unique optimal method. The same namespace provides the public checker
 composition results:
 
+- `checked_call_pair_result` proves that the independently audited call result
+  equals the Pair element type of its actual looked-up signature. It applies
+  to the typed cores returned by all three public acceptance paths; it does
+  not add a full source-rewriting equivalence claim.
 - `checkProgram_core` proves that successful `checkProgram` execution produced
   an exact lowered core module accepted by the actual `checkModule`.
 - `checkProgram_typed_and_ordered` establishes independent whole-module typing

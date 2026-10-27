@@ -25,7 +25,11 @@ The generic declares an argument count and the concrete tuples callers may
 use. `domain;` declares an empty domain; `domain ();` declares the single
 zero-argument tuple. Tuple lengths must agree with the generic's arity.
 Methods name an existing generic, give every parameter a selector, and declare
-a concrete scalar result. Result types need not agree between distinct keys.
+a concrete scalar, `Pair<Nat>`, or `Pair<Int>` result. Result types need not agree
+between distinct keys or between a winner and its nonwinners. Lean selects the
+winner using only argument types, then checks calls against that method's exact
+declared result. Projections expose the selected Pair's element type to later
+generic calls. Pair does not extend the scalar key universe or selectors.
 Generic `main` is not an entrypoint; native programs still require an ordinary
 `fn main() -> Int`.
 

@@ -1,26 +1,13 @@
 //! End-to-end path packages, logical modules, source protection and native code.
+mod common;
+use common::{Scratch, success};
 use std::fs;
 use std::os::unix::fs::symlink;
-use std::path::PathBuf;
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
 
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas packages {} {}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
-    }
-    fn write(&self, path: &str, text: &str) {
-        let file = self.0.join(path);
-        fs::create_dir_all(file.parent().unwrap()).unwrap();
-        fs::write(file, text).unwrap();
+        Self::empty("packages")
     }
     fn package(&self, path: &str, source: &str, deps: &str) {
         self.write(&format!("{path}/Vastitas.toml"), &format!("[package]\nname = 'same-name'\nversion = '0.1.0'\nroot = 'src/main.vast'\n[dependencies]\n{deps}\n"));
@@ -69,19 +56,6 @@ impl Scratch {
             format!("{expected}\n")
         );
     }
-}
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-fn success(output: &Output) {
-    assert!(
-        output.status.success(),
-        "stdout: {}\nstderr: {}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
 }
 
 #[test]

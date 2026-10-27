@@ -1,8 +1,6 @@
 //! Protocol-3 adversarial inputs bypass the Rust namespace frontend entirely.
+mod common;
 use serde_json::{Value, json};
-use std::io::Write;
-use std::path::Path;
-use std::process::{Command, Stdio};
 
 fn span() -> Value {
     json!({"start":0,"end":1,"line":1,"column":1})
@@ -34,26 +32,9 @@ fn request() -> Value {
 }
 
 fn check(raw: &Value) -> Value {
-    let mut child = Command::new(
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel/.lake/build/bin/vastitas-kernel"),
-    )
-    .arg("check")
-    .stdin(Stdio::piped())
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped())
-    .spawn()
-    .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(&serde_json::to_vec(raw).unwrap())
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(output.status.success(), result["ok"] == true, "{result}");
-    assert_eq!(result["version"], raw["version"]);
-    result
+    let response = common::kernel(raw, "check");
+    assert_eq!(response["version"], raw["version"]);
+    response
 }
 
 fn rejects(raw: &Value, code: &str) {

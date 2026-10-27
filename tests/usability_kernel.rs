@@ -1,6 +1,4 @@
-use std::io::Write;
-use std::path::Path;
-use std::process::{Command, Stdio};
+mod common;
 
 use serde_json::{Value, json};
 
@@ -9,26 +7,9 @@ fn request(source: &str) -> Value {
         .unwrap()
 }
 
-fn check(request: &Value) -> Value {
-    let executable =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel/.lake/build/bin/vastitas-kernel");
-    let mut child = Command::new(executable)
-        .arg("check")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("build the Lean kernel before running integration tests");
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(&serde_json::to_vec(request).unwrap())
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    let response: Value = serde_json::from_slice(&output.stdout)
-        .unwrap_or_else(|error| panic!("invalid backend response: {error}; {:?}", output.stderr));
-    assert_eq!(output.status.success(), response["ok"] == true);
+fn check(raw: &Value) -> Value {
+    let response = common::kernel(raw, "check");
+    assert_eq!(response["version"], raw["version"]);
     response
 }
 

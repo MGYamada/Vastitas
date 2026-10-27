@@ -15,9 +15,14 @@ open VastitasKernel VastitasKernel.DispatchChecker VastitasKernel.Semantics
 
 theorem selected_target_sound (family : Family) (key : Dispatch.Key) (target : Target family key) :
     key ∈ family.domain ∧
-    Dispatch.Selection Dispatch.publicHierarchy family.checked.methods key (some target.method) :=
-  ⟨target.admitted, VastitasOracle.Dispatch.winner_sound family.raw.params.length
-    family.domain family.methods family.checked family.accepted key target.method target.selected⟩
+    Dispatch.Selection family.nominals.hierarchy family.checked.methods key (some target.method) := by
+  have correct := VastitasOracle.Dispatch.checkWith_sound family.nominals.hierarchy
+    family.raw.params.length family.domain family.methods family.checked family.accepted
+  refine ⟨target.admitted, ?_⟩
+  have selected := VastitasOracle.Dispatch.winner_selection family.nominals.hierarchy
+    family.raw.params.length family.domain family.methods family.checked correct key
+    (correct.domain_valid key target.admitted)
+  simpa [target.selected] using selected
 
 /-- The structural audit fixes a Pair call's result to the actual selected
 signature. No expected type or other candidate result participates. This also

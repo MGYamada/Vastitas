@@ -320,3 +320,23 @@ This does not prove Rust filesystem loading/authenticity, full source namespace
 syntax preservation, native toolchain equivalence, edit borrowing, or abstract
 methods. Package metadata identifies entries in the supplied IR graph; it does
 not certify the bytes on disk. The general Stage 1 design remains incomplete.
+
+
+## Finite abstract selector acceptance
+
+`VastitasOracle.AbstractTypes` imports `VastitasKernel.Abstract`. The checked
+hierarchy retains proof fields for the actual `hierarchyValid` and
+`preservesBuiltins` predicates, the fixed four concrete keys, and the unchanged
+capability fact function. `build_order_independent` proves that the actual
+canonical-name/edge/closure construction is equal under permutations of the
+type and membership declaration lists. `selected_nominal_target` connects the
+actual family `checkWith` equation to the finite engine's selection theorem.
+This is nominal order, not containment of current inhabitant sets.
+
+`Namespaces.membership_owner` establishes exact defining-module authority from
+the independently re-resolved ledger; alias visibility follows the same resolver
+as calls. `AbstractRegression` and `tests/abstract_types.rs` cover multiple
+inheritance, same-inhabitant ambiguity, uninhabited declarations, limits, cycles,
+builtin changes, aliases, unauthorized membership edits, raw IR tampering,
+ordinary/Fn value-type rejection, and native execution. The source/core/native
+and mathematical-geometry proof boundaries described above remain unchanged.

@@ -1,0 +1,18 @@
+// Selector declarations have nominal identity; they do not create values.
+abstract type Numeric <: Number;
+abstract type NaturalNumeric <: Numeric;
+subtype Int <: Numeric;
+subtype Nat <: NaturalNumeric;
+
+// Uninhabited declaration examples, without mathematical axioms or proofs.
+abstract type Variety;
+abstract type Manifold;
+
+generic classify(x) { domain (Nat), (Int); }
+method classify(x: Numeric) -> Int { 0 }
+method classify(x: NaturalNumeric) -> Int { 42 }
+
+fn main() -> Int {
+    let n: Nat = 1;
+    classify(n)
+}

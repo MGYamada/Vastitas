@@ -7,8 +7,9 @@ use std::collections::{HashMap, HashSet};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
-    Block, Expr, ExprKind, Function, Generic, GenericParam, Index, Method, Module,
-    PROTOCOL_VERSION, Param, Span, Statement, StatementKind, Type,
+    ABSTRACT_PROTOCOL_VERSION, AbstractType, Block, Expr, ExprKind, Function, Generic,
+    GenericParam, Index, Method, Module, PROTOCOL_VERSION, Param, Span, Statement, StatementKind,
+    Subtype, Type, TypePath,
 };
 
 const BUILTINS: &[&str] = &[
@@ -26,7 +27,7 @@ const BUILTINS: &[&str] = &[
 ];
 const KEYWORDS: &[&str] = &[
     "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
-    "loop", "mut", "generic", "method", "domain", "requires",
+    "loop", "mut", "generic", "method", "domain", "requires", "abstract", "type", "subtype",
 ];
 const TYPES: &[&str] = &[
     "Nat",
@@ -259,7 +260,7 @@ impl<'a> Lexer<'a> {
                         },
                         span,
                     ));
-                } else if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||", "::"]
+                } else if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||", "::", "<:"]
                     .into_iter()
                     .find(|op| tail.starts_with(op))
                 {
@@ -391,6 +392,8 @@ impl Parser {
         let mut functions = Vec::new();
         let mut generics = Vec::new();
         let mut methods = Vec::new();
+        let mut abstract_types = Vec::new();
+        let mut subtypes = Vec::new();
         while self.peek().kind != TokenKind::Eof {
             if self.peek().is("fn") {
                 functions.push(self.function()?);
@@ -398,6 +401,10 @@ impl Parser {
                 generics.push(self.generic()?);
             } else if self.peek().is("method") {
                 methods.push(self.method()?);
+            } else if self.peek().is("abstract") {
+                abstract_types.push(self.abstract_type()?);
+            } else if self.peek().is("subtype") {
+                subtypes.push(self.subtype()?);
             } else {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",
@@ -408,10 +415,13 @@ impl Parser {
         }
         Ok(Module {
             version: PROTOCOL_VERSION,
+            input: None,
             file: file.into(),
             functions,
             generics,
             methods,
+            abstract_types,
+            subtypes,
         })
     }
 
@@ -456,6 +466,8 @@ impl Parser {
             functions: Vec::new(),
             generics: Vec::new(),
             methods: Vec::new(),
+            abstract_types: Vec::new(),
+            subtypes: Vec::new(),
         };
         while self.peek().kind != TokenKind::Eof && !(inline && self.peek().is("}")) {
             let public = self.consume("pub");
@@ -471,6 +483,13 @@ impl Parser {
                 });
             } else if self.peek().is("method") && !public {
                 module.methods.push(self.method()?);
+            } else if self.peek().is("abstract") {
+                module.abstract_types.push(Public {
+                    declaration: self.abstract_type()?,
+                    public,
+                });
+            } else if self.peek().is("subtype") && !public {
+                module.subtypes.push(self.subtype()?);
             } else if self.consume("mod") {
                 let start = self.previous().span;
                 let (name, _) = if self.peek().is("generic") {
@@ -565,10 +584,68 @@ impl Parser {
         })
     }
 
+    fn type_path(&mut self) -> Result<TypePath, Diagnostic> {
+        let (name, span) = self.reference_path()?;
+        if !self.packages && name.contains("::") {
+            return Err(diagnostic(
+                "E_NAME",
+                "qualified type paths require package input",
+                span,
+            ));
+        }
+        Ok(TypePath {
+            path: name.split("::").map(str::to_owned).collect(),
+            span,
+        })
+    }
+
+    fn abstract_type(&mut self) -> Result<AbstractType, Diagnostic> {
+        let start = self.expect("abstract")?.span;
+        self.expect("type")?;
+        let (name, _) = self.binding_name()?;
+        let mut parents = Vec::new();
+        if self.consume("<:") {
+            if self.consume("(") {
+                loop {
+                    parents.push(self.type_path()?);
+                    if self.consume(")") {
+                        break;
+                    }
+                    self.expect(",")?;
+                }
+            } else {
+                parents.push(self.type_path()?);
+            }
+        }
+        let end = self.expect(";")?.span;
+        Ok(AbstractType {
+            name,
+            parents,
+            span: start.through(end),
+        })
+    }
+
+    fn subtype(&mut self) -> Result<Subtype, Diagnostic> {
+        let start = self.expect("subtype")?.span;
+        let (scalar, _) = self.name()?;
+        self.expect("<:")?;
+        let target = self.type_path()?;
+        let end = self.expect(";")?.span;
+        Ok(Subtype {
+            scalar,
+            target,
+            span: start.through(end),
+        })
+    }
+
     fn dispatch_type(&mut self, selector: bool) -> Result<Type, Diagnostic> {
-        let (name, span) = self.name()?;
+        let (name, span) = if selector {
+            self.reference_path()?
+        } else {
+            self.name()?
+        };
         if matches!(name.as_str(), "Nat" | "Int" | "Bool" | "Unit")
-            || (selector && matches!(name.as_str(), "Any" | "Number"))
+            || (selector && (matches!(name.as_str(), "Any" | "Number") || !reserved(&name)))
         {
             Ok(Type::Named { name })
         } else {
@@ -1217,6 +1294,7 @@ impl Parser {
 struct Resolver<'a> {
     functions: HashMap<&'a str, usize>,
     generics: HashSet<&'a str>,
+    abstract_types: HashSet<&'a str>,
     errors: Vec<Diagnostic>,
     calls: Vec<Vec<usize>>,
     forbidden: Vec<HashSet<&'a str>>,
@@ -1227,6 +1305,7 @@ impl<'a> Resolver<'a> {
         let mut this = Self {
             functions: HashMap::new(),
             generics: HashSet::new(),
+            abstract_types: HashSet::new(),
             errors: Vec::new(),
             calls: vec![Vec::new(); module.functions.len()],
             forbidden: Vec::new(),
@@ -1255,6 +1334,21 @@ impl<'a> Resolver<'a> {
                     "E_MAIN",
                     "the entrypoint must be an ordinary `fn main() -> Int`, not a generic",
                     generic.span,
+                ));
+            }
+        }
+        for declaration in &module.abstract_types {
+            if !this.abstract_types.insert(&declaration.name)
+                || this.functions.contains_key(declaration.name.as_str())
+                || this.generics.contains(declaration.name.as_str())
+            {
+                this.errors.push(diagnostic(
+                    "E_DUPLICATE",
+                    format!(
+                        "declaration `{}` is defined more than once",
+                        declaration.name
+                    ),
+                    declaration.span,
                 ));
             }
         }
@@ -1347,7 +1441,10 @@ impl<'a> Resolver<'a> {
     }
 
     fn bind(&mut self, name: &'a str, scope: &mut HashSet<&'a str>, span: Span) {
-        if self.functions.contains_key(name) || self.generics.contains(name) {
+        if self.functions.contains_key(name)
+            || self.generics.contains(name)
+            || self.abstract_types.contains(name)
+        {
             self.errors.push(diagnostic(
                 "E_SHADOW",
                 format!("binding `{name}` shadows a callable; use a distinct name"),
@@ -1596,10 +1693,13 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
     };
     let mut module = Module {
         version: PROTOCOL_VERSION,
+        input: None,
         file: first.file.into(),
         functions: Vec::new(),
         generics: Vec::new(),
         methods: Vec::new(),
+        abstract_types: Vec::new(),
+        subtypes: Vec::new(),
     };
     for input in sources {
         if input.offset.checked_add(input.source.len()).is_none() {
@@ -1637,6 +1737,12 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         module.functions.extend(parsed.functions);
         module.generics.extend(parsed.generics);
         module.methods.extend(parsed.methods);
+        module.abstract_types.extend(parsed.abstract_types);
+        module.subtypes.extend(parsed.subtypes);
+    }
+    if !module.abstract_types.is_empty() || !module.subtypes.is_empty() {
+        module.version = ABSTRACT_PROTOCOL_VERSION;
+        module.input = Some("flat".into());
     }
     let errors = Resolver::module(&module);
     if errors.is_empty() {

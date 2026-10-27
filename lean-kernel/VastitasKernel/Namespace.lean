@@ -21,7 +21,7 @@ structure Owner where
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 inductive Kind where
-  | module | function | generic
+  | module | function | generic | abstractType
   deriving Repr, Inhabited, DecidableEq, BEq
 
 structure Target where
@@ -45,6 +45,10 @@ structure Generic extends RawGeneric where
   isPublic : Bool
   deriving Repr, Inhabited
 
+structure AbstractType extends RawAbstractType where
+  isPublic : Bool
+  deriving Repr, Inhabited
+
 structure Module where
   path : List String
   isPublic : Bool
@@ -52,6 +56,8 @@ structure Module where
   functions : List Function
   generics : List Generic
   methods : List Surface.Method
+  abstractTypes : List AbstractType := []
+  subtypes : List RawSubtype := []
   span : Span
   deriving Repr, Inhabited
 
@@ -67,6 +73,7 @@ structure Package where
   deriving Repr, Inhabited
 
 structure Program where
+  extended : Bool := false
   file : String
   root : String
   packages : List Package
@@ -80,6 +87,7 @@ def Program.declarations (p : Program) : List Target :=
     let scope : Scope := ⟨pkg.id, m.path⟩
     (m.functions.map fun f => ⟨⟨scope, f.name⟩, .function, f.isPublic⟩) ++
     (m.generics.map fun g => ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩) ++
+    (m.abstractTypes.map fun t => ⟨⟨scope, t.name⟩, .abstractType, t.isPublic⟩) ++
     (if m.path.isEmpty then [] else
       [⟨⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, .module, m.isPublic⟩])
 

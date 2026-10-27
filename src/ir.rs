@@ -3,6 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 pub const PROTOCOL_VERSION: u32 = 2;
+pub const ABSTRACT_PROTOCOL_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Span {
@@ -31,10 +32,36 @@ pub struct Diagnostic {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Module {
     pub version: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub input: Option<String>,
     pub file: String,
     pub functions: Vec<Function>,
     pub generics: Vec<Generic>,
     pub methods: Vec<Method>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub abstract_types: Vec<AbstractType>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subtypes: Vec<Subtype>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TypePath {
+    pub path: Vec<String>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AbstractType {
+    pub name: String,
+    pub parents: Vec<TypePath>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Subtype {
+    pub scalar: String,
+    pub target: TypePath,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

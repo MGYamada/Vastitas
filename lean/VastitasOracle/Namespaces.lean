@@ -96,7 +96,13 @@ theorem method_owner (program : Namespace.Program) (lowered : Namespace.Lowered)
     (valid : ReferencesValid program.indexed lowered) (reference : Reference)
     (member : reference ∈ lowered.references) (method : reference.method = true) :
     reference.target.kind = .generic ∧ reference.target.owner.scope = reference.scope :=
-  (valid reference member).2 method
+  (valid reference member).2.1 method
+
+theorem membership_owner (program : Namespace.Program) (lowered : Namespace.Lowered)
+    (valid : ReferencesValid program.indexed lowered) (reference : Reference)
+    (member : reference ∈ lowered.references) (membership : reference.membership = true) :
+    reference.target.kind = .abstractType ∧ reference.target.owner.scope = reference.scope :=
+  (valid reference member).2.2 membership
 
 /-- Following an import returns the original target, not an identity constructed
 from the alias spelling. Both private-use and public re-export use this code. -/

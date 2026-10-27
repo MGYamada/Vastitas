@@ -209,3 +209,32 @@ an authentication failure: the wire protocol is not a signed artifact format.
 Rust is responsible for canonical file loading and retaining all input files
 for output collision protection. Manifest mode selects protocol 3 explicitly; see [packages](packages.md) for
 source syntax, CLI, file loading and compatibility details.
+
+
+## Protocol 4: finite abstract declarations
+
+Existing sources retain version 2 (flat, including explicit `--lib`) or version 3
+(packages). Abstract declarations select version 4 with a required `input`
+field whose value is exactly `flat` or `package`. Flat input keeps the version-2
+`file`, `functions`, `generics`, and `methods` fields. Package input keeps the
+version-3 `file`, `root`, and `packages` graph. Responses echo version 4.
+
+Flat roots and package modules may contain `abstract_types` and `subtypes`
+arrays; absent arrays mean empty, and present arrays must be arrays. Each
+abstract type has `name`, `parents`, and `span`, with an additional required
+`public` boolean in package mode. A parent is an unresolved `{path: [String],
+span: Span}`; an empty parent list means the default Any parent. Each subtype
+has `scalar`, `target` (an unresolved path plus span), and declaration `span`.
+Path components must be nonempty; flat type paths have one component. Existing
+method selector `named` types retain their unresolved path spelling until Lean
+resolves them in the defining module. No selected IDs or hierarchy matrices are
+accepted from the frontend. Version 2/3 reject these extension fields.
+
+The kernel independently validates the maximum 64 nominal types, cycles,
+duplicates, scalar memberships and unchanged builtin relations/capability facts.
+It resolves abstract selector aliases using the namespace index and records
+membership edit authority in the independently checked reference ledger.
+`E_HIERARCHY` reports cycles or changes to builtin relations; `E_OWNER` reports
+unauthorized membership edits. All existing method/body/core audits remain in
+the acceptance path. See [abstract selectors](abstract-types.md) for semantics
+and theorem boundaries. Abstract method contracts are not yet wire declarations.

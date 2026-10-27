@@ -1,7 +1,7 @@
 # Vastitas
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 1b compiler with path packages and modules**: `.vast` source → Rust frontend → independently checked
+its **Stage 1b compiler with path packages and finite abstract selectors**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
 The current language supports exact integer computation, a small geometric
@@ -17,8 +17,9 @@ nominal selectors and static capabilities. Lean checks all concrete keys for
 ambiguity, every declared domain for coverage, and every applicable method
 body before lowering calls to the proved Stage 0 core. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
-of the full Stage 1 design: abstract types, edit/borrow ownership, storage
-ownership, and linear algebra remain later work.
+of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
+add nominal hierarchies over the existing four keys; abstract method contracts,
+edit/borrow ownership, storage ownership, and linear algebra remain later work.
 
 ## Build and use
 
@@ -55,7 +56,7 @@ when explicitly selected; `build` also needs the package and uses its pinned
 
 Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
 and root source, plus optional `[dependencies]` path entries. Package mode
-retains namespaces in protocol 3 and cannot be mixed with positional input or
+retains namespaces in protocol 3 (protocol 4 when abstract declarations are used) and cannot be mixed with positional input or
 `--lib`; protocol 2 remains supported for those existing commands.
 
 ```sh
@@ -204,6 +205,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Stage 0 core grammar, semantics, and limits](docs/stage0.md)
 - [Stage 1a finite multiple dispatch](docs/stage1a.md)
 - [Stage 1b independent functions](docs/stage1b.md)
+- [Finite abstract scalar selectors](docs/abstract-types.md)
 - [Packages and modules](docs/packages.md)
 - [Implementation roadmap](docs/stage1-roadmap.md)
 - [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)

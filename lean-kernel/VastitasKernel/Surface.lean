@@ -107,6 +107,8 @@ structure Program where
   functions : List Function
   generics : List RawGeneric
   methods : List Method
+  abstractTypes : List RawAbstractType := []
+  subtypes : List RawSubtype := []
   deriving Repr, Inhabited
 
 -- An exact adapter for unchanged first-order syntax keeps its old acceptance
@@ -156,6 +158,6 @@ def Program.legacy (p : Program) : Option RawProgram := do
       body := f.body, span := f.span, requirements := m.requirements : RawMethod }
   pure {
     version := p.version, file := p.file, functions := ← p.functions.mapM Function.legacy,
-    generics := p.generics, methods }
+    generics := p.generics, methods, abstractTypes := p.abstractTypes, subtypes := p.subtypes }
 
 end VastitasKernel.Surface

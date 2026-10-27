@@ -1,5 +1,6 @@
 import VastitasKernel.Program
 import VastitasKernel.Dispatch
+import VastitasKernel.Abstract
 import VastitasKernel.Checker
 
 /-! Stage 1 dispatch is a typed lowering adapter. Every ordinary and
@@ -11,7 +12,7 @@ open Checker.Internal
 def privatePrefix := "__vastitas_"
 
 def sourceReserved : List String :=
-  ["generic", "method", "domain", "requires", "Any", "Number", "Fn"]
+  ["generic", "method", "domain", "requires", "Any", "Number", "Fn", "abstract", "type", "subtype"]
 
 def checkSourceName (name : String) (span : Span) : CheckM Unit := do
   checkName name span
@@ -83,20 +84,12 @@ def scalar (raw : RawType) (span : Span) : CheckM Nat :=
     | none => fail span "E_TYPE" s!"dispatch domains require Nat, Int, Bool, or Unit; found {name}"
   | _ => fail span "E_TYPE" "dispatch domains require a concrete scalar type"
 
-/-- Result annotations do not participate in the finite key universe or selection. -/
+/-- Result annotations do not participate in the finite key nominals or selection. -/
 def methodResult (raw : RawType) (span : Span) : CheckM Unit :=
   match raw with
   | .named "Nat" | .named "Int" | .named "Bool" | .named "Unit"
   | .pair "Nat" | .pair "Int" => pure ()
   | _ => fail span "E_TYPE" "method results require a concrete scalar, Pair<Nat>, or Pair<Int>"
-
-def selector (raw : RawType) (span : Span) : CheckM Nat :=
-  match raw with
-  | .named name =>
-    match Dispatch.parseSelector name with
-    | some code => pure code
-    | none => fail span "E_TYPE" s!"unsupported dispatch selector '{name}'"
-  | _ => fail span "E_TYPE" "method selectors require a scalar, Number, or Any"
 
 def keyLabel (key : Dispatch.Key) : String :=
   "(" ++ String.intercalate ", " (key.map Dispatch.nominalName) ++ ")"
@@ -107,11 +100,12 @@ def monoName (method : Nat) (key : Dispatch.Key) : String :=
 /-- The executable dispatch acceptance equation is retained as erased evidence.
 It connects every selected table to the oracle's finite-selection theorem. -/
 structure Family where
+  nominals : Abstract.Checked
   raw : RawGeneric
   domain : List Dispatch.Key
   methods : List Dispatch.Method
   checked : Dispatch.Checked
-  accepted : Dispatch.check raw.params.length domain methods = .ok checked
+  accepted : Dispatch.checkWith nominals.hierarchy raw.params.length domain methods = .ok checked
 
 abbrev Families := Std.HashMap String Family
 
@@ -119,27 +113,27 @@ private def requirementLabel (requirements : List Dispatch.Capability) : String 
   if requirements.contains .hasOrder then "HasOrder"
   else if requirements.contains .hasEq then "HasEq" else ""
 
-private def signatureLabel (name : String) (method : Dispatch.NormalizedMethod) : String :=
-  name ++ keyLabel method.selectors ++
+private def signatureLabel (nominals : Abstract.Checked) (name : String) (method : Dispatch.NormalizedMethod) : String :=
+  name ++ "(" ++ String.intercalate ", " (method.selectors.map (fun id => nominals.names[id]!)) ++ ")" ++
     (if method.requirements.isEmpty then "" else s!" requires ({requirementLabel method.requirements})")
 
-private def diagnosticCandidate (program : RawProgram) (id : Nat) : Option (RawMethod × Dispatch.NormalizedMethod) := do
+private def diagnosticCandidate (nominals : Abstract.Checked) (program : RawProgram) (id : Nat) : Option (RawMethod × Dispatch.NormalizedMethod) := do
   let raw ← program.methods[id]?
   let selectors ← raw.params.mapM fun param => match param.ty with
-    | .named name => Dispatch.parseSelector name
+    | .named name => if nominals.names.contains name then some (nominals.names.idxOf name) else none
     | _ => none
   let requirements ← raw.requirements.mapM Dispatch.parseCapability
   pure (raw, { id, selectors, requirements := Dispatch.normalizeCapabilities requirements })
 
-private def ambiguityNotes (program : RawProgram) (generic : RawGeneric) (ids : List Nat) : List DiagnosticNote := Id.run do
-  let candidates := ids.filterMap (diagnosticCandidate program)
+private def ambiguityNotes (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (ids : List Nat) : List DiagnosticNote := Id.run do
+  let candidates := ids.filterMap (diagnosticCandidate nominals program)
   let mut notes := []
   for (raw, candidate) in candidates do
-    let mut message := s!"candidate method `{signatureLabel generic.name candidate}` declared here"
+    let mut message := s!"candidate method `{signatureLabel nominals generic.name candidate}` declared here"
     for (_, other) in candidates do
       if candidate.id != other.id then
-        let narrower := Dispatch.nominalBelow Dispatch.publicHierarchy candidate.selectors other.selectors
-        let reverse := Dispatch.nominalBelow Dispatch.publicHierarchy other.selectors candidate.selectors
+        let narrower := Dispatch.nominalBelow nominals.hierarchy candidate.selectors other.selectors
+        let reverse := Dispatch.nominalBelow nominals.hierarchy other.selectors candidate.selectors
         let missing := other.requirements.filter (!candidate.requirements.contains ·)
         let extra := candidate.requirements.filter (!other.requirements.contains ·)
         if narrower && !reverse then message := message ++ "; has narrower selectors"
@@ -152,18 +146,18 @@ private def ambiguityNotes (program : RawProgram) (generic : RawGeneric) (ids : 
     for (_, candidate) in candidates.tail do
       meet := meet.bind fun current => do
         let selectors ← (current.selectors.zip candidate.selectors).mapM fun (a, b) =>
-          if Dispatch.publicHierarchy.subtype a b then some a
-          else if Dispatch.publicHierarchy.subtype b a then some b else none
+          if nominals.hierarchy.subtype a b then some a
+          else if nominals.hierarchy.subtype b a then some b else none
         pure { current with
           selectors := selectors
           requirements := Dispatch.normalizeCapabilities (current.requirements ++ candidate.requirements) }
     if let some resolving := meet then
       notes := notes ++ [{
         span := generic.span
-        message := s!"help: declare `{signatureLabel generic.name resolving}` to resolve this key; recheck the entire family after editing" }]
+        message := s!"help: declare `{signatureLabel nominals generic.name resolving}` to resolve this key; recheck the entire family after editing" }]
   return notes
 
-def dispatchDiagnostic (program : RawProgram) (generic : RawGeneric) (error : Dispatch.Error) : Diagnostic :=
+def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (error : Dispatch.Error) : Diagnostic :=
   let code := match error.code with
     | "E_DISPATCH_ARITY" => "E_ARITY"
     | "E_DISPATCH_SELECTOR" => "E_TYPE"
@@ -171,7 +165,7 @@ def dispatchDiagnostic (program : RawProgram) (generic : RawGeneric) (error : Di
     | "E_DISPATCH_DUPLICATE_ID" | "E_DISPATCH_DUPLICATE" => "E_DUPLICATE"
     | "E_DISPATCH_LIMIT" => "E_LIMIT"
     | other => other
-  let notes := if error.code == "E_DISPATCH_AMBIGUOUS" then ambiguityNotes program generic error.methods
+  let notes := if error.code == "E_DISPATCH_AMBIGUOUS" then ambiguityNotes nominals program generic error.methods
     else error.methods.filterMap fun id =>
       (program.methods[id]?).map fun method =>
         { message := s!"candidate method for generic '{generic.name}' declared here", span := method.span : DiagnosticNote }
@@ -181,6 +175,7 @@ def dispatchDiagnostic (program : RawProgram) (generic : RawGeneric) (error : Di
     notes }
 
 def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
+  let nominals ← Abstract.prepare program.abstractTypes program.subtypes
   let mut result := []
   for generic in program.generics do
     let domain ← generic.domain.mapM (fun key => key.mapM (fun ty => scalar ty generic.span))
@@ -191,16 +186,20 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
     let mut methods := []
     for (id, method) in program.methods.zipIdx.map (fun pair => (pair.2, pair.1)) do
       if method.name == generic.name then
-        let selectors ← method.params.mapM fun param => selector param.ty param.span
+        let selectors ← method.params.mapM fun param => Abstract.selector nominals param.ty param.span
         methodResult method.returnType method.span
         methods := methods ++ [{ id, selectors, requirements := method.requirements }]
-    match accepted : Dispatch.check generic.params.length domain methods with
-    | .error error => throw (dispatchDiagnostic program generic error)
-    | .ok checked => result := result ++ [{ raw := generic, domain, methods, checked, accepted }]
+    if generic.params.length > 6 then fail generic.span "E_LIMIT" "dispatch key space exceeds 4096"
+    match accepted : Dispatch.checkWith nominals.hierarchy generic.params.length domain methods with
+    | .error error => throw (dispatchDiagnostic nominals program generic error)
+    | .ok checked => result := result ++ [{ nominals, raw := generic, domain, methods, checked, accepted }]
   pure result
 
 def validateProgram (program : RawProgram) : CheckM Unit := do
-  unless program.version == 2 do fail {} "E_PROTOCOL" "unsupported IR protocol version; expected 2"
+  unless program.version == 2 || program.version == 4 do
+    fail {} "E_PROTOCOL" "unsupported IR protocol version; expected 2 or 4"
+  if program.version == 2 && (!program.abstractTypes.isEmpty || !program.subtypes.isEmpty) then
+    fail {} "E_PROTOCOL" "abstract declarations require protocol 4"
   let mut globals : Std.HashSet String := {}
   for function in program.functions do
     checkSourceName function.name function.span
@@ -213,6 +212,10 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
     if globals.contains generic.name then fail generic.span "E_DUPLICATE" s!"duplicate function or generic '{generic.name}'"
     globals := globals.insert generic.name
     genericNames := genericNames.insert generic.name
+  for declaration in program.abstractTypes do
+    checkSourceName declaration.name declaration.span
+    if globals.contains declaration.name then fail declaration.span "E_DUPLICATE" "duplicate declaration name"
+    globals := globals.insert declaration.name
   for generic in program.generics do
     let mut params : Std.HashSet String := {}
     for param in generic.params do
@@ -408,9 +411,9 @@ end
 
 def lowerProgramImpl (program : RawProgram) : CheckM RawModule := do
   validateProgram program
+  let families ← prepareFamilies program
   if program.generics.isEmpty then
     return { version := 1, file := program.file, functions := program.functions }
-  let families ← prepareFamilies program
   let instances ← instantiate program families
   let notes := instantiationNotes program families
   let functions := program.functions ++ instances

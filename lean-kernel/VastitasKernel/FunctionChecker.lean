@@ -393,6 +393,7 @@ def runWork : Nat → Work α → Except Diagnostic (α × State × CheckerState
 -- validation. The actual bodies are checked below, never these placeholders.
 def headers (p : Program) : RawProgram := {
   version := p.version, file := p.file, generics := p.generics
+  abstractTypes := p.abstractTypes, subtypes := p.subtypes
   functions := p.functions.map fun f => {
     name := f.name, params := f.params.map fun param => { name := param.name, ty := param.ty.core, span := param.span }
     returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
@@ -404,7 +405,7 @@ def prepare (p : Program) : CheckM (List Function × Families) := do
   let (p, lambdas) ← liftProgram p
   let raw := headers p
   DispatchChecker.validateProgram raw
-  let globals := p.functions.map (·.name) ++ p.generics.map (·.name)
+  let globals := p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name)
   for f in p.functions ++ lambdas do validateFunction f globals
   for m in p.methods do
     for param in m.params do
@@ -450,7 +451,7 @@ def lowerPass (p : Program) (definitions : List Function) (families : Families) 
   let checker ← get
   let (_, state, checker) ← runWork workBudget (action {
     definitions, families
-    globals := p.functions.map (·.name) ++ p.generics.map (·.name)
+    globals := p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name)
     audit } checker)
   set checker
   pure {

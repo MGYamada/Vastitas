@@ -2,7 +2,7 @@
 //! wire request: only Lean can accept them and assign function identities.
 use crate::frontend;
 use crate::ir::{Function, Generic, Method, Span};
-use crate::sources::Sources;
+use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
 use std::os::unix::fs::MetadataExt;
@@ -96,7 +96,7 @@ struct Loader {
     sources: Sources,
     packages: Vec<Package>,
     active: HashSet<PathBuf>,
-    output: Option<PathBuf>,
+    output: Option<OutputIdentity>,
 }
 
 fn canonical(path: &Path) -> Result<PathBuf, String> {
@@ -138,7 +138,7 @@ impl Loader {
             return Err("E_LIMIT: package dependency nesting exceeds 64".into());
         }
         self.active.insert(manifest.clone());
-        let input = self.sources.add(&manifest, self.output.as_deref())?;
+        let input = self.sources.add(&manifest, self.output.as_ref())?;
         let parsed: Manifest = toml::from_str(input.source)
             .map_err(|error| format!("{}: E_MANIFEST: {error}", manifest.display()))?;
         if parsed.package.name.is_empty() {
@@ -243,7 +243,7 @@ impl Loader {
                 file.display()
             ));
         }
-        let input = self.sources.add(&file, self.output.as_deref())?;
+        let input = self.sources.add(&file, self.output.as_ref())?;
         let parsed =
             frontend::parse_module_source(input, path, public, declaration).map_err(|error| {
                 self.sources
@@ -307,7 +307,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         sources: Sources::empty(),
         packages: Vec::new(),
         active: HashSet::new(),
-        output: output.map(Path::to_path_buf),
+        output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
     };
     let root = loader.package(manifest)?;
     let program = Program {

@@ -20,6 +20,9 @@ const BUILTINS: &[&str] = &[
     "apply",
     "dimension",
     "int",
+    "pair",
+    "pair_first",
+    "pair_second",
 ];
 const KEYWORDS: &[&str] = &[
     "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
@@ -36,6 +39,7 @@ const TYPES: &[&str] = &[
     "Morphism",
     "Pointed",
     "Fn",
+    "Pair",
     "Any",
     "Number",
 ];
@@ -693,6 +697,19 @@ impl Parser {
     fn ty_inner(&mut self) -> Result<Type, Diagnostic> {
         let (name, span) = self.name()?;
         match name.as_str() {
+            "Pair" => {
+                self.expect("<")?;
+                let (element, element_span) = self.name()?;
+                if !matches!(element.as_str(), "Nat" | "Int") {
+                    return Err(diagnostic(
+                        "E_TYPE",
+                        "Pair elements must be Nat or Int",
+                        element_span,
+                    ));
+                }
+                self.type_close()?;
+                Ok(Type::Pair { element })
+            }
             "Fn" => {
                 self.expect("<")?;
                 let mut params = Vec::new();

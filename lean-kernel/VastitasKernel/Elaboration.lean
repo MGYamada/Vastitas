@@ -93,6 +93,12 @@ mutual
         Arguments signatures ctx raws values →
         Call signatures ctx name raws (.call signature.id values substitutions
           ⟨signature.result.rename substitutions, objectRef⟩)
+    | pair {left right a b element} : Expr signatures ctx left a → Expr signatures ctx right b →
+        Call signatures ctx "pair" [left, right] (.builtin (.pair element) [a, b] ⟨.pair element, none⟩)
+    | pairFirst {raw value element} : Expr signatures ctx raw value →
+        Call signatures ctx "pair_first" [raw] (.builtin (.pairFirst element) [value] ⟨element.ty, none⟩)
+    | pairSecond {raw value element} : Expr signatures ctx raw value →
+        Call signatures ctx "pair_second" [raw] (.builtin (.pairSecond element) [value] ⟨element.ty, none⟩)
 end
 
 /-- Parameters retain both the executable symbol and their nominal index. -/

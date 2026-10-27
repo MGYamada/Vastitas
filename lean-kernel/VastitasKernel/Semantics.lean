@@ -64,6 +64,8 @@ inductive Value where
   | int (value : Int)
   | bool (value : Bool)
   | unit
+  | pairNat (first second : Nat)
+  | pairInt (first second : Int)
   | object (value : Runtime.Object)
   | point (value : Runtime.Point)
   | morphism (value : Runtime.Morphism)
@@ -72,6 +74,8 @@ inductive Value where
 
 def ValueHasType (world : World) : Value → Ty → Prop
   | .nat _, .nat | .int _, .int | .bool _, .bool | .unit, .unit => True
+  | .pairNat _ _, .pair element => element = .nat
+  | .pairInt _ _, .pair element => element = .int
   | .object value, .object base => ObjectHasBase value base
   | .point value, .point target source =>
       RefDenotes world target value.target ∧ RefDenotes world source value.source
@@ -186,6 +190,12 @@ def evalBuiltin (op : BuiltinOp) (args : List Value) :
       some (.point (Runtime.applyMap f point))
   | .dimension, [.object object] => some (.nat object.dimension)
   | .int, [.nat value] => some (.int (Int.ofNat value))
+  | .pair .nat, [.nat first, .nat second] => some (.pairNat first second)
+  | .pair .int, [.int first, .int second] => some (.pairInt first second)
+  | .pairFirst .nat, [.pairNat first _] => some (.nat first)
+  | .pairFirst .int, [.pairInt first _] => some (.int first)
+  | .pairSecond .nat, [.pairNat _ second] => some (.nat second)
+  | .pairSecond .int, [.pairInt _ second] => some (.int second)
   | _, _ => none
 
 def builtinAllocations (op : BuiltinOp) (result : ResultType) : List ObjectRef :=

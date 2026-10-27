@@ -46,19 +46,33 @@ def ObjectRef.label : ObjectRef → String
   | .base b => s!"Base({b.ringName})"
   | .local b n => s!"{b.settingName}#{n}"
 
+inductive PairElem where
+  | nat | int
+  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
+
+def PairElem.label : PairElem → String
+  | .nat => "Nat"
+  | .int => "Int"
+
 inductive Ty where
   | nat | int | bool | unit
+  | pair (element : PairElem)
   | object (base : BaseKind)
   | point (target source : ObjectRef)
   | morphism (source target : ObjectRef)
   | pointed (base : BaseKind)
   deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
 
+def PairElem.ty : PairElem → Ty
+  | .nat => .nat
+  | .int => .int
+
 def Ty.label : Ty → String
   | .nat => "Nat"
   | .int => "Int"
   | .bool => "Bool"
   | .unit => "Unit"
+  | .pair element => s!"Pair<{element.label}>"
   | .object b => b.settingName
   | .point x s => s!"Point<{x.label}, {s.label}>"
   | .morphism x y => s!"Morphism<{x.label}, {y.label}>"
@@ -152,6 +166,7 @@ inductive RawIndex where
 
 inductive RawType where
   | named (name : String)
+  | pair (element : String)
   | point (target source : RawIndex)
   | morphism (source target : RawIndex)
   | pointed (setting base : String)
@@ -226,6 +241,9 @@ inductive BuiltinOp where
   | affine (base : BaseKind)
   | base (base : BaseKind)
   | origin | identity | compose | apply | dimension | int
+  | pair (element : PairElem)
+  | pairFirst (element : PairElem)
+  | pairSecond (element : PairElem)
   deriving Repr, DecidableEq, BEq, Inhabited
 
 /-- The checked result retains a geometric object's identity until codegen.

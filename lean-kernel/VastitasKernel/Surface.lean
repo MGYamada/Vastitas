@@ -23,6 +23,7 @@ instance : Coe (List TypeExpr) TypeList := ⟨fun types => types.foldr TypeList.
 def TypeExpr.labelAt : Nat → TypeExpr → String
   | 0, _ => "…"
   | _ + 1, .data (.named name) => name
+  | _ + 1, .data (.pair element) => s!"Pair<{element}>"
   | _ + 1, .data (.point ..) => "Point"
   | _ + 1, .data (.morphism ..) => "Morphism"
   | _ + 1, .data (.pointed ..) => "Pointed"

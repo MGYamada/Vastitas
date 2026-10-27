@@ -13,6 +13,8 @@ private def renderType : Ty → String
   | .int => "Int"
   | .bool => "Bool"
   | .unit => "Unit"
+  | .pair .nat => "(Prod Nat Nat)"
+  | .pair .int => "(Prod Int Int)"
   | .object _ => "VastitasKernel.Runtime.Object"
   | .point _ _ => "VastitasKernel.Runtime.Point"
   | .morphism _ _ => "VastitasKernel.Runtime.Morphism"
@@ -42,6 +44,9 @@ private def renderBuiltin (op : BuiltinOp) (args : List String) : Except String 
       .ok (application "VastitasKernel.Runtime.applyMap" [f, p])
   | .dimension, [x] => .ok s!"({x}).dimension"
   | .int, [n] => .ok (application "Int.ofNat" [n])
+  | .pair _, [a, b] => .ok (application "Prod.mk" [a, b])
+  | .pairFirst _, [p] => .ok (application "Prod.fst" [p])
+  | .pairSecond _, [p] => .ok (application "Prod.snd" [p])
   | _, _ => .error "invalid builtin arity in checked term"
 
 private def renderUnary (op : UnaryOp) (operand : String) : Except String String :=

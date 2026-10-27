@@ -80,6 +80,9 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Type {
+    Pair {
+        element: String,
+    },
     Function {
         params: Vec<Type>,
         return_type: Box<Type>,

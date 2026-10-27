@@ -20,6 +20,8 @@ inductive TypeAnnotation (ctx : Context) : RawType → Ty → Prop
   | int : TypeAnnotation ctx (.named "Int") .int
   | bool : TypeAnnotation ctx (.named "Bool") .bool
   | unit : TypeAnnotation ctx (.named "Unit") .unit
+  | pairNat : TypeAnnotation ctx (.pair "Nat") (.pair .nat)
+  | pairInt : TypeAnnotation ctx (.pair "Int") (.pair .int)
   | scheme : TypeAnnotation ctx (.named "Scheme") (.object .qq)
   | cinfScheme : TypeAnnotation ctx (.named "CInfScheme") (.object .cinfReal)
   | point {rawTarget rawSource target source} :

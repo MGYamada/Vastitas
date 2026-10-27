@@ -136,6 +136,35 @@ theorem checkCall_step (previous : SoundAt fuel) (signatures : Signatures) (ctx 
     apply establishes_bind_any
     intro ty
     exact establishes_pure (Call.apply leftCorresponds rightCorresponds)
+  · apply establishes_bind (arity_length _ args 2 span)
+    intro _ length
+    obtain ⟨left, right, rfl⟩ := pair_of_length_two args length
+    simp only [List.getElem!_cons_zero, List.getElem!_cons_succ]
+    apply establishes_bind (previous.expr signatures ctx left none)
+    intro a leftCorresponds
+    apply establishes_bind (previous.expr signatures ctx right none)
+    intro b rightCorresponds
+    apply establishes_bind_any
+    intro element
+    exact establishes_pure (Call.pair leftCorresponds rightCorresponds)
+  · apply establishes_bind (arity_length _ args 1 span)
+    intro _ length
+    obtain ⟨raw, rfl⟩ := singleton_of_length_one args length
+    simp only [List.getElem!_cons_zero]
+    apply establishes_bind (previous.expr signatures ctx raw none)
+    intro value corresponds
+    apply establishes_bind_any
+    intro element
+    exact establishes_pure (Call.pairFirst corresponds)
+  · apply establishes_bind (arity_length _ args 1 span)
+    intro _ length
+    obtain ⟨raw, rfl⟩ := singleton_of_length_one args length
+    simp only [List.getElem!_cons_zero]
+    apply establishes_bind (previous.expr signatures ctx raw none)
+    intro value corresponds
+    apply establishes_bind_any
+    intro element
+    exact establishes_pure (Call.pairSecond corresponds)
   · split
     · rename_i signature found
       apply establishes_bind_any

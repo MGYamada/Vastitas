@@ -69,7 +69,7 @@ mutual
 end
 
 def builtinNames : List String :=
-  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int", "QQ", "CInfReal"]
+  ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int", "pair", "pair_first", "pair_second", "QQ", "CInfReal"]
 
 def Program.globals (p : Program) : List String :=
   p.functions.map (·.name) ++ p.generics.map (·.name) ++ builtinNames

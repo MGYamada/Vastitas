@@ -1,8 +1,8 @@
-# Implementation roadmap through Stage 1b
+# Implementation roadmap through Stage 1b and package foundations
 
 The initial four implementation increments below were delivered through
-Stage 1a. The current increment adds independent static functions, with its
-own acceptance gates below. This is not completion of historical Stage 1.
+Stage 1a. Independent static functions and the first package/module increment are
+implemented, with separate acceptance gates below. This is not completion of historical Stage 1.
 The historical v0.3 proposal remains unchanged under `docs/design/`.
 
 | Delivery | Pull request | Acceptance |
@@ -77,3 +77,26 @@ ownership, impact regions, borrowing, storage ownership, and linear algebra are
 later Stage 1 increments. Stage 1b is not completion of all Stage 1 acceptance
 criteria in the original proposal. No deferred issue is closed merely because
 it is recorded here.
+
+
+## Package/module foundation (#56, first increment of #52)
+
+Protocol 3 adds a separately validated namespace IR, preserving protocol 2.
+[PR #57](https://github.com/MGYamada/Vastitas/pull/57) supplies Lean
+resolution/visibility/owner checks and proofs;
+[PR #65](https://github.com/MGYamada/Vastitas/pull/65) supplies the explicit `Vastitas.toml` loader, modules, CLI, native examples
+and documentation. Both require all four kernel regression targets, Rust fmt,
+strict Clippy, all tests, oracle build and axiom audit, macOS/Linux no-mathlib
+CI, review resolution, merge and local main synchronization.
+
+The implemented boundary is local path dependencies and call-only imports.
+Only the exact owning module may add generic methods. #52 remains open for
+edit borrowing, authority transfer, impact regions and revalidation semantics.
+#48 still needs abstract types and abstract methods; #49 needs those interfaces
+and further ownership work to move geometry into the stdlib; #55 needs an
+explicit promoted-result representation and static common-type rules in addition
+to this ownership foundation. #37 stays an independent next candidate. None of
+these design issues closes merely because module ownership is now checked.
+
+See [packages](packages.md) for the current contract. The historical v0.3
+proposal remains unchanged.

@@ -136,11 +136,28 @@ def validVersion (s : String) : Bool := Id.run do
   return numbers.length == 3 && numbers.all versionNumber &&
     (pieces.length == 1 || versionIdentifiers (String.intercalate "-" (pieces.drop 1)) true)
 
+def duplicateSpan [BEq α] (entries : List (α × Span)) : Span := Id.run do
+  let mut seen := []
+  for (key, span) in entries do
+    if seen.contains key then return span
+    seen := key :: seen
+  return {}
+
+def ownerLocations (p : Program) : List (Owner × Span) :=
+  p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
+    let scope : Scope := ⟨pkg.id, m.path⟩
+    (m.functions.map fun f => (⟨scope, f.name⟩, f.span)) ++
+    (m.generics.map fun g => (⟨scope, g.name⟩, g.span)) ++
+    (if m.path.isEmpty then [] else
+      [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
+
 def validate (p : Program) : Result Unit := do
   if p.packages.isEmpty || (packageAt p p.root).isNone then problem {} "E_PROTOCOL" "missing root package"
   if !(p.packages.map (·.id.source)).Nodup then problem {} "E_DUPLICATE" "duplicate package location"
-  if !p.scopes.Nodup then problem {} "E_DUPLICATE" "duplicate logical module"
-  if !UniqueOwners p then problem {} "E_DUPLICATE" "duplicate declaration owner"
+  if !p.scopes.Nodup then
+    problem (duplicateSpan (p.packages.flatMap fun pkg =>
+      pkg.modules.map fun m => (Scope.mk pkg.id m.path, m.span))) "E_DUPLICATE" "duplicate logical module"
+  if !UniqueOwners p then problem (duplicateSpan (ownerLocations p)) "E_DUPLICATE" "duplicate declaration owner"
   if !(p.declarations.map (symbol p)).Nodup then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
   validateGraph p
   for pkg in p.packages do

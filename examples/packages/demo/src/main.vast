@@ -1,0 +1,10 @@
+use arithmetic::increment as next;
+mod pipeline {
+    use arithmetic::invoke;
+    pub fn twice(f: Fn<Int, Int>, x: Int) -> Int { invoke(f, invoke(f, x)) }
+}
+fn main() -> Int {
+    let package = 40;
+    let callback: Fn<Int, Int> = if true { next } else { arithmetic::increment };
+    pipeline::twice(callback, package)
+}

@@ -246,7 +246,7 @@ impl<'a> Lexer<'a> {
                         },
                         span,
                     ));
-                } else if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||"]
+                } else if let Some(op) = ["->", "==", "!=", "<=", ">=", "&&", "||", "::"]
                     .into_iter()
                     .find(|op| tail.starts_with(op))
                 {
@@ -283,6 +283,7 @@ struct Parser {
     tokens: Vec<Token>,
     position: usize,
     nesting: usize,
+    packages: bool,
 }
 
 impl Parser {
@@ -359,7 +360,9 @@ impl Parser {
 
     fn binding_name(&mut self) -> Result<(String, Span), Diagnostic> {
         let (name, span) = self.name()?;
-        if reserved(&name) {
+        if reserved(&name)
+            || (self.packages && ["mod", "use", "pub", "self", "super"].contains(&name.as_str()))
+        {
             Err(diagnostic(
                 "E_RESERVED",
                 format!("`{name}` is reserved and cannot be used as a binding name"),
@@ -396,6 +399,95 @@ impl Parser {
             generics,
             methods,
         })
+    }
+
+    fn reference_path(&mut self) -> Result<(String, Span), Diagnostic> {
+        let (mut path, start) = self.name()?;
+        while self.consume("::") {
+            let (component, _) = self.name()?;
+            path.push_str("::");
+            path.push_str(&component);
+        }
+        Ok((path, start.through(self.previous().span)))
+    }
+
+    fn namespace(
+        &mut self,
+        path: Vec<String>,
+        public: bool,
+        span: Span,
+        inline: bool,
+        parsed: &mut crate::packages::Parsed,
+    ) -> Result<(), Diagnostic> {
+        use crate::packages::{External, Import, Module as NamespaceModule, Public};
+        if path.len() > MAX_PARSE_NESTING {
+            return Err(diagnostic("E_LIMIT", "module nesting exceeds 64", span));
+        }
+        let mut module = NamespaceModule {
+            path: path.clone(),
+            public,
+            span,
+            imports: Vec::new(),
+            functions: Vec::new(),
+            generics: Vec::new(),
+            methods: Vec::new(),
+        };
+        while self.peek().kind != TokenKind::Eof && !(inline && self.peek().is("}")) {
+            let public = self.consume("pub");
+            if self.peek().is("fn") {
+                module.functions.push(Public {
+                    declaration: self.function()?,
+                    public,
+                });
+            } else if self.peek().is("generic") {
+                module.generics.push(Public {
+                    declaration: self.generic()?,
+                    public,
+                });
+            } else if self.peek().is("method") && !public {
+                module.methods.push(self.method()?);
+            } else if self.consume("mod") {
+                let start = self.previous().span;
+                let (name, _) = self.binding_name()?;
+                let mut child = path.clone();
+                child.push(name);
+                if self.consume(";") {
+                    parsed.external.push(External {
+                        path: child,
+                        public,
+                        span: start.through(self.previous().span),
+                    });
+                } else {
+                    self.expect("{")?;
+                    self.namespace(child, public, start, true, parsed)?;
+                    self.expect("}")?;
+                }
+            } else if self.consume("use") {
+                let start = self.previous().span;
+                let (name, _) = self.reference_path()?;
+                let components: Vec<String> = name.split("::").map(str::to_owned).collect();
+                let alias = if self.consume("as") {
+                    self.binding_name()?.0
+                } else {
+                    components.last().unwrap().clone()
+                };
+                let end = self.expect(";")?.span;
+                module.imports.push(Import {
+                    path: components,
+                    alias,
+                    public,
+                    span: start.through(end),
+                });
+            } else {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "expected a module-level fn, generic, method, mod, or use declaration; methods cannot be pub",
+                    self.peek().span,
+                ));
+            }
+        }
+        parsed.modules.push(module);
+        Ok(())
     }
 
     fn parameters(&mut self, selectors: bool) -> Result<Vec<Param>, Diagnostic> {
@@ -539,7 +631,11 @@ impl Parser {
 
     fn method(&mut self) -> Result<Method, Diagnostic> {
         let start = self.expect("method")?.span;
-        let (name, _) = self.binding_name()?;
+        let (name, _) = if self.packages {
+            self.reference_path()?
+        } else {
+            self.binding_name()?
+        };
         let params = self.parameters(true)?;
         let before_arrow = self.consume("requires");
         let mut requires = if before_arrow {
@@ -940,7 +1036,14 @@ impl Parser {
                     body,
                 }
             }
-            TokenKind::Name(name) if !KEYWORDS.contains(&name.as_str()) => {
+            TokenKind::Name(mut name) if !KEYWORDS.contains(&name.as_str()) => {
+                if self.packages {
+                    while self.consume("::") {
+                        let (component, _) = self.name()?;
+                        name.push_str("::");
+                        name.push_str(&component);
+                    }
+                }
                 ExprKind::Variable { name }
             }
             TokenKind::Symbol(ref op) if op == "-" || op == "!" => ExprKind::Unary {
@@ -1462,6 +1565,7 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
             tokens,
             position: 0,
             nesting: 0,
+            packages: false,
         }
         .module(input.file)
         .map_err(|error| vec![error])?;
@@ -1475,6 +1579,52 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
     } else {
         Err(errors)
     }
+}
+
+/// Parse package syntax without flattening or resolving its namespace. Lean
+/// independently accepts names and owners from the preserved protocol-3 graph.
+pub(crate) fn parse_module_source(
+    input: SourceInput<'_>,
+    path: Vec<String>,
+    public: bool,
+    declaration: Option<Span>,
+) -> Result<crate::packages::Parsed, Diagnostic> {
+    if input.offset.checked_add(input.source.len()).is_none() {
+        return Err(diagnostic(
+            "E_LIMIT",
+            "source byte positions exceed the supported range",
+            Span {
+                start: input.offset,
+                end: input.offset,
+                line: 1,
+                column: 1,
+            },
+        ));
+    }
+    let shift = |span: &mut Span| {
+        span.start += input.offset;
+        span.end += input.offset;
+    };
+    let mut tokens = Lexer::new(input.source).tokenize().map_err(|mut error| {
+        shift(&mut error.span);
+        error
+    })?;
+    for token in &mut tokens {
+        shift(&mut token.span);
+    }
+    let span = declaration.unwrap_or(tokens[0].span);
+    let mut parser = Parser {
+        tokens,
+        position: 0,
+        nesting: 0,
+        packages: true,
+    };
+    let mut parsed = crate::packages::Parsed {
+        modules: Vec::new(),
+        external: Vec::new(),
+    };
+    parser.namespace(path, public, span, false, &mut parsed)?;
+    Ok(parsed)
 }
 
 /// Parse and resolve a single `.vast` source. Semantic acceptance belongs to Lean.
@@ -2042,6 +2192,7 @@ fn leaf() -> Int { 0 }";
             tokens,
             position: 0,
             nesting: 0,
+            packages: false,
         };
         let close = parser.type_close().unwrap();
         let assignment = parser.expect("=").unwrap();

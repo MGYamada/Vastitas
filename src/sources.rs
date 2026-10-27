@@ -7,10 +7,13 @@ use crate::frontend::{self, SourceInput};
 use crate::ir::{Module, Span};
 use std::collections::HashSet;
 use std::fs;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 struct SourceFile {
     path: PathBuf,
+    canonical: PathBuf,
+    identity: (u64, u64),
     name: String,
     text: String,
     offset: usize,
@@ -35,7 +38,7 @@ impl Sources {
             let canonical = path
                 .canonicalize()
                 .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
-            if !seen.insert(canonical) {
+            if !seen.insert(canonical.clone()) {
                 return Err(format!(
                     "E_INPUT: source file supplied more than once: {}",
                     path.display()
@@ -43,12 +46,16 @@ impl Sources {
             }
             let text = fs::read_to_string(path)
                 .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
+            let metadata = fs::metadata(path)
+                .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", path.display()))?;
             let next_offset = offset
                 .checked_add(text.len())
                 .and_then(|end| end.checked_add(1))
                 .ok_or_else(|| "E_INPUT: compilation unit is too large".to_string())?;
             files.push(SourceFile {
                 path: path.to_path_buf(),
+                canonical,
+                identity: (metadata.dev(), metadata.ino()),
                 name: path.to_string_lossy().into_owned(),
                 text,
                 offset,
@@ -56,6 +63,30 @@ impl Sources {
             offset = next_offset;
         }
         Ok(Self { files })
+    }
+
+    pub(crate) fn protect_output(&self, output: &Path) -> Result<(), String> {
+        let canonical = match output.canonicalize() {
+            Ok(path) => path,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => {
+                return Err(format!(
+                    "E_OUTPUT: cannot inspect {}: {error}",
+                    output.display()
+                ));
+            }
+        };
+        let metadata = fs::metadata(output)
+            .map_err(|error| format!("E_OUTPUT: cannot inspect {}: {error}", output.display()))?;
+        if let Some(source) = self.files.iter().find(|source| {
+            source.canonical == canonical || source.identity == (metadata.dev(), metadata.ino())
+        }) {
+            return Err(format!(
+                "E_OUTPUT: output would overwrite input file {}",
+                source.path.display()
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn parse(&self) -> Result<Module, String> {

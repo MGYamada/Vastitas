@@ -1,6 +1,7 @@
 //! Driver configuration regressions; each child receives its own environment.
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::symlink;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -37,6 +38,128 @@ fn kernel() -> PathBuf {
 fn executable(path: &Path, source: &str) {
     fs::write(path, source).unwrap();
     fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+}
+
+#[test]
+fn output_cannot_replace_any_input_or_alias() {
+    let scratch = Scratch::new();
+    let original = fs::read(scratch.0.join("main.vast")).unwrap();
+    fs::write(scratch.0.join("library.vast"), "fn answer() -> Int { 42 }").unwrap();
+    symlink("main.vast", scratch.0.join("alias.vast")).unwrap();
+    fs::hard_link(scratch.0.join("main.vast"), scratch.0.join("hard.vast")).unwrap();
+    for output in [
+        "main.vast",
+        "./main.vast",
+        "alias.vast",
+        "hard.vast",
+        "library.vast",
+    ] {
+        let result = scratch
+            .cli()
+            .args(["build", "main.vast", "--lib", "library.vast", "-o", output])
+            .env("VASTITAS_KERNEL", scratch.0.join("absent-backend"))
+            .output()
+            .unwrap();
+        assert!(!result.status.success());
+        assert!(
+            String::from_utf8_lossy(&result.stderr)
+                .contains("E_OUTPUT: output would overwrite input")
+        );
+        assert_eq!(fs::read(scratch.0.join("main.vast")).unwrap(), original);
+        assert_eq!(
+            fs::read_to_string(scratch.0.join("library.vast")).unwrap(),
+            "fn answer() -> Int { 42 }"
+        );
+    }
+}
+
+#[test]
+fn interrupted_build_reaps_children_and_removes_temporary_files() {
+    use nix::sys::signal::{Signal, kill};
+    use nix::unistd::Pid;
+    use std::time::{Duration, Instant};
+    for (signal, code, detached_pipes) in [
+        (Signal::SIGINT, 130, false),
+        (Signal::SIGTERM, 143, false),
+        (Signal::SIGTERM, 143, true),
+    ] {
+        let scratch = Scratch::new();
+        let temp = scratch.0.join("tmp");
+        let bin = scratch.0.join("bin");
+        fs::create_dir(&temp).unwrap();
+        fs::create_dir(&bin).unwrap();
+        let ready = scratch.0.join("ready");
+        let worker = scratch.0.join("worker");
+        executable(
+            &bin.join("lake"),
+            if detached_pipes {
+                // This descendant ignores cancellation and closes every pipe.
+                // Waiting only for the direct child and I/O would leak it.
+                "#!/bin/sh\ntrap 'exit 0' INT TERM\nsh -c 'trap \"\" INT TERM; echo ready > \"$READY\"; exec sleep 60' </dev/null >/dev/null 2>&1 &\necho $! > \"$WORKER\"\nwait\n"
+            } else {
+                "#!/bin/sh\ntrap 'exit 0' INT TERM\nsleep 60 &\necho $! > \"$WORKER\"\necho ready > \"$READY\"\nwait\n"
+            },
+        );
+        fs::write(scratch.0.join("program"), b"existing output").unwrap();
+        let mut paths = vec![bin];
+        paths.extend(std::env::split_paths(
+            &std::env::var_os("PATH").unwrap_or_default(),
+        ));
+        let mut child = scratch
+            .cli()
+            .args(["build", "main.vast", "-o", "program"])
+            .env("TMPDIR", &temp)
+            .env("READY", &ready)
+            .env("WORKER", &worker)
+            .env("PATH", std::env::join_paths(paths).unwrap())
+            .spawn()
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while !ready.exists() || !worker.exists() {
+            assert!(Instant::now() < deadline, "Lake mock did not start");
+            assert!(
+                child.try_wait().unwrap().is_none(),
+                "build exited before mock readiness"
+            );
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        kill(Pid::from_raw(child.id() as i32), signal).unwrap();
+        let status = loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                break status;
+            }
+            if Instant::now() >= deadline {
+                child.kill().unwrap();
+                child.wait().unwrap();
+                panic!("interrupted build did not terminate");
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        };
+        assert_eq!(status.code(), Some(code));
+        assert_eq!(fs::read_dir(&temp).unwrap().count(), 0);
+        assert_eq!(
+            fs::read(scratch.0.join("program")).unwrap(),
+            b"existing output"
+        );
+        assert!(!fs::read_dir(&scratch.0).unwrap().any(|entry| {
+            entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .contains(".vastitas-")
+        }));
+        let pid: i32 = fs::read_to_string(worker).unwrap().trim().parse().unwrap();
+        // The worker may briefly be a zombie awaiting the host's init reaper.
+        let status = Command::new("ps")
+            .args(["-o", "stat=", "-p", &pid.to_string()])
+            .output()
+            .unwrap();
+        let state = String::from_utf8_lossy(&status.stdout);
+        assert!(
+            state.trim().is_empty() || state.trim().starts_with('Z'),
+            "worker still running: {state}"
+        );
+    }
 }
 
 #[test]

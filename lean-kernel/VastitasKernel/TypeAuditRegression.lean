@@ -134,4 +134,17 @@ private def codegenRejects (functions : List CheckedFunction) (message : String)
     | .ok _ => true
     | .error _ => false)
 
+#eval check "codegen rejects missing main ID" (match certifyModule
+    { functions := [function 0 (.literal .int 42)], mainId := some 99 } with
+  | .ok certified => match Codegen.generate certified with
+    | .error message => message == "native entrypoint refers to a missing function"
+    | .ok _ => false
+  | .error _ => false)
+#eval check "codegen rejects parameterized entrypoint" (codegenRejects
+  [function 0 (.literal .int 42) .int [⟨1, ⟨.int, none⟩⟩]]
+  "native entrypoint must have no parameters and return Int")
+#eval check "codegen rejects Bool entrypoint" (codegenRejects
+  [function 0 (.boolean true) .bool]
+  "native entrypoint must have no parameters and return Int")
+
 end VastitasKernel.TypeAuditRegression

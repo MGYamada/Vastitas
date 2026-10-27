@@ -178,20 +178,20 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
     validateBlock 512 globals method.body
 
 def instantiate (program : RawProgram) (families : List Family) : CheckM (List RawFunction) := do
-  let mut functions := []
+  let mut functions : Array RawFunction := #[]
   for family in families do
     for (id, key) in family.checked.applicablePairs do
       let some method := program.methods[id]?
         | fail family.raw.span "E_INTERNAL_DISPATCH" "dispatch table contains an unknown method identity"
       let params := (method.params.zip key).map fun (param, code) =>
         { param with ty := .named (Dispatch.nominalName code) }
-      functions := functions ++ [{
+      functions := functions.push {
         name := monoName id key
         params
         returnType := method.returnType
         body := method.body
-        span := method.span }]
-  pure functions
+        span := method.span }
+  pure functions.toList
 
 def instantiationNotes (program : RawProgram) (families : List Family) : Std.HashMap String DiagnosticNote := Id.run do
   let mut notes := {}
@@ -315,13 +315,27 @@ def lowerProgram (program : RawProgram) : Except Diagnostic RawModule := do
 
 /-- Private names never become the user-facing cycle's method names. -/
 def describeDiagnostic (program : RawProgram) (diagnostic : Diagnostic) : Diagnostic := Id.run do
-  let mut message := diagnostic.message
-  if message.contains privatePrefix then
-    for (method, id) in program.methods.zipIdx do
-      if method.params.length ≤ 6 then
-        for key in Dispatch.keys [0, 1, 2, 3] method.params.length do
-          message := message.replace (monoName id key) s!"{method.name}{keyLabel key}"
-  return { diagnostic with message }
+  let render (token : String) : String := Id.run do
+    if !token.startsWith s!"{privatePrefix}m" then return token
+    let parts := (token.drop (privatePrefix.length + 1)).toString.splitOn "_"
+    let idText := parts.head!
+    let some id := idText.toNat? | return token
+    let some method := program.methods[id]? | return token
+    let codes := parts.tail!
+    let codes := if codes == [""] then [] else codes
+    let some key := codes.mapM String.toNat? | return token
+    if key.length != method.params.length || key.any (· > 3) || monoName id key != token then
+      return token
+    return s!"{method.name}{keyLabel key}"
+  let mut message := ""
+  let mut token := ""
+  for char in diagnostic.message.toList do
+    if char.isAlphanum || char == '_' then
+      token := token.push char
+    else
+      message := (message ++ render token).push char
+      token := ""
+  return { diagnostic with message := message ++ render token }
 
 end VastitasKernel.DispatchChecker
 

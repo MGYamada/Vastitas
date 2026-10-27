@@ -298,7 +298,15 @@ mutual
     | fuel + 1, f, targets, span => do
       let key := f.name ++ ":" ++ String.intercalate "|" (targets.map (·.name))
       if let some compiled := (← get).instances.find? (·.key == key) then return compiled
-      if (← get).active.contains key then error span "E_RECURSION" s!"recursive specialization cycle involving '{f.name}' is not supported"
+      if (← get).active.contains key then
+        let lambda := f.name.startsWith "__vastitas_l"
+        let label := if lambda then s!"lambda at {f.span.line}:{f.span.column}" else f.name
+        let diagnostic : Diagnostic := {
+          code := "E_RECURSION"
+          message := s!"recursive specialization cycle involving '{label}' is not supported"
+          span
+          notes := if lambda then [{ span := f.span, message := "lambda defined here" }] else [] }
+        core (throw diagnostic)
       let higher := f.params.any (·.ty.isFunction) || f.result.isFunction || f.name.startsWith "__vastitas_l"
       let id := (← get).nextInstance
       if higher && id >= 4096 then error span "E_LIMIT" "higher-order specialization exceeds the 4096-instance limit"

@@ -357,6 +357,38 @@ fn repeat(x: Int) -> Int { run(repeat, x) }",
 }
 
 #[test]
+fn lambda_cycle_diagnostics_use_source_locations_in_flat_and_package_modes() {
+    let source = "fn inc(x: Int) -> Int { x + 1 }\nfn f(h: Fn<Int, Int>) -> Int { let g = fn() -> Int { f(inc) }; g() }\nfn main() -> Int { 0 }";
+    let scratch = Scratch::new();
+    let input = scratch.source(source);
+    let manifest = scratch.0.join("Vastitas.toml");
+    fs::write(
+        &manifest,
+        "[package]\nname='cycle'\nversion='0.1.0'\nroot='function input.vast'\n",
+    )
+    .unwrap();
+    for package in [false, true] {
+        let mut command = cli();
+        command.arg("check");
+        if package {
+            command.arg("--manifest-path").arg(&manifest);
+        } else {
+            command.arg(&input);
+        }
+        let output = command.output().unwrap();
+        let message = String::from_utf8(output.stderr).unwrap();
+        assert!(!output.status.success());
+        assert!(message.contains("E_RECURSION"), "{message}");
+        assert!(message.contains("lambda at 2:40"), "{message}");
+        assert!(
+            message.contains(":2:40: note: lambda defined here"),
+            "{message}"
+        );
+        assert!(!message.contains("__vastitas_"), "{message}");
+    }
+}
+
+#[test]
 fn functions_do_not_hide_invalid_applicable_methods() {
     reject(
         "generic fallback(x) { domain; }

@@ -65,6 +65,7 @@ jobs:
             /lean-kernel/
             /Cargo.toml
             /Cargo.lock
+            /LICENSE
             /rust-toolchain.toml
             /lean-toolchain
             /.gitignore

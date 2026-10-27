@@ -62,6 +62,84 @@ fn failure(output: &Output, expected: &str) -> String {
 }
 
 #[test]
+fn generated_package_preserves_comment_boundaries_in_native_programs() {
+    let scratch = Scratch::new();
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    fs::create_dir_all(scratch.0.join("scripts")).unwrap();
+    fs::copy(
+        root.join("scripts/build_stdlib_package.py"),
+        scratch.0.join("scripts/build_stdlib_package.py"),
+    )
+    .unwrap();
+    let sources = scratch.0.join("stdlib/src/arithmetic");
+    fs::create_dir_all(&sources).unwrap();
+    for name in ["int", "nat", "generic"] {
+        fs::copy(
+            library(&format!("{name}.vast")),
+            sources.join(format!("{name}.vast")),
+        )
+        .unwrap();
+    }
+    let original = fs::read_to_string(sources.join("int.vast")).unwrap();
+    // Every separator below is a line boundary to Python, but only LF ends a
+    // Vastitas comment. All injected additions must remain inside comments.
+    let comments = [
+        '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{85}', '\u{2028}', '\u{2029}',
+    ]
+    .iter()
+    .map(|separator| format!("    // ignored{separator} + 100\n"))
+    .collect::<String>();
+    let changed = original.replacen("left + right", &format!("left\n{comments}    + right"), 1);
+    assert_ne!(changed, original);
+    fs::write(sources.join("int.vast"), changed).unwrap();
+    fs::write(
+        scratch.0.join("stdlib/Vastitas.toml"),
+        "[package]\nname='stdlib'\nversion='0.1.0'\nroot='target/package/lib.vast'\n",
+    )
+    .unwrap();
+    scratch.write("Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='package.vast'\n[dependencies]\nstd={path='stdlib'}\n");
+    scratch.write("flat.vast", "fn main() -> Int { add(2, 3) }");
+    scratch.write(
+        "package.vast",
+        "use std::arithmetic::generic::add;\nfn main() -> Int { add(2, 3) }",
+    );
+    for args in [vec![], vec!["--check"]] {
+        success(
+            &Command::new("python3")
+                .arg(scratch.0.join("scripts/build_stdlib_package.py"))
+                .args(args)
+                .output()
+                .unwrap(),
+        );
+    }
+    for package in [false, true] {
+        for mode in ["check", "build"] {
+            let mut command = cli();
+            command.current_dir(&scratch.0).arg(mode);
+            if package {
+                command.args(["--manifest-path", "Vastitas.toml"]);
+            } else {
+                command.arg("flat.vast");
+                for name in ["int", "nat", "generic"] {
+                    command
+                        .arg("--lib")
+                        .arg(sources.join(format!("{name}.vast")));
+                }
+            }
+            if mode == "build" {
+                command.args(["-o", "program"]);
+            }
+            success(&command.output().unwrap());
+            if mode == "build" {
+                let output = Command::new(scratch.0.join("program")).output().unwrap();
+                success(&output);
+                assert_eq!(output.stdout, b"5\n");
+            }
+        }
+    }
+}
+
+#[test]
 fn native_standard_arithmetic_handles_integer_and_natural_boundaries() {
     let scratch = Scratch::new();
     let source = scratch.write(

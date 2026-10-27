@@ -94,10 +94,14 @@ pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> io::Result<
             if status.is_none() {
                 status = child.try_wait()?;
             }
+            // Descendants can close their inherited pipes while continuing to
+            // run. On cancellation, give the whole group the grace period and
+            // enforce SIGKILL even when the direct child and I/O already ended.
             if status.is_some()
                 && stdout.is_finished()
                 && stderr.is_finished()
                 && writer.as_ref().is_none_or(|writer| writer.is_finished())
+                && (interrupted.is_none() || killed || killpg(group, None).is_err())
             {
                 break;
             }

@@ -78,7 +78,11 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
     use nix::sys::signal::{Signal, kill};
     use nix::unistd::Pid;
     use std::time::{Duration, Instant};
-    for (signal, code) in [(Signal::SIGINT, 130), (Signal::SIGTERM, 143)] {
+    for (signal, code, detached_pipes) in [
+        (Signal::SIGINT, 130, false),
+        (Signal::SIGTERM, 143, false),
+        (Signal::SIGTERM, 143, true),
+    ] {
         let scratch = Scratch::new();
         let temp = scratch.0.join("tmp");
         let bin = scratch.0.join("bin");
@@ -88,7 +92,13 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
         let worker = scratch.0.join("worker");
         executable(
             &bin.join("lake"),
-            "#!/bin/sh\ntrap 'exit 0' INT TERM\nsleep 60 &\necho $! > \"$WORKER\"\necho ready > \"$READY\"\nwait\n",
+            if detached_pipes {
+                // This descendant ignores cancellation and closes every pipe.
+                // Waiting only for the direct child and I/O would leak it.
+                "#!/bin/sh\ntrap 'exit 0' INT TERM\nsh -c 'trap \"\" INT TERM; echo ready > \"$READY\"; exec sleep 60' </dev/null >/dev/null 2>&1 &\necho $! > \"$WORKER\"\nwait\n"
+            } else {
+                "#!/bin/sh\ntrap 'exit 0' INT TERM\nsleep 60 &\necho $! > \"$WORKER\"\necho ready > \"$READY\"\nwait\n"
+            },
         );
         fs::write(scratch.0.join("program"), b"existing output").unwrap();
         let mut paths = vec![bin];
@@ -105,7 +115,7 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
             .spawn()
             .unwrap();
         let deadline = Instant::now() + Duration::from_secs(15);
-        while !ready.exists() {
+        while !ready.exists() || !worker.exists() {
             assert!(Instant::now() < deadline, "Lake mock did not start");
             assert!(
                 child.try_wait().unwrap().is_none(),

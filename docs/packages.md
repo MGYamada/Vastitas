@@ -77,7 +77,11 @@ uses of the same source file in different logical modules remain different owner
 
 Declaration names and local bindings obey the existing reserved-name and
 shadowing rules; package mode additionally reserves `mod`, `use`, `pub`,
-`self` and `super`. A binding cannot shadow a dependency alias. Logical module
+`self` and `super`. `generic` is also permitted as a contextual module name and
+path component (for example `std::arithmetic::generic::promote`); it remains
+reserved for functions, variables and import aliases. Import that module using
+an explicit alias such as `use std::arithmetic::generic as arithmetic;`.
+A binding cannot shadow a dependency alias. Logical module
 nesting and dependency nesting are bounded to 64 in the loader; namespace
 resolution has a shared 4096-member work budget and rejects exhaustion with
 `E_LIMIT`, instead of expanding shared import paths indefinitely.

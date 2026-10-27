@@ -139,7 +139,9 @@ Ordinary functions and selected methods support homogeneous `Pair<Nat>` / `Pair<
 through `pair`, `pair_first`, and `pair_second`. Their elements are inferred
 without conversion; Pair is excluded from dispatch keys and Fn contracts.
 See [the Pair contract](docs/stage1b.md#homogeneous-data-pairs) and
-[native example](examples/pairs.vast). Promotion is a subsequent increment.
+[native example](examples/pairs.vast). The stdlib's four-key `promote` preserves
+Nat/Nat as Pair<Nat> and embeds mixed keys into Pair<Int> explicitly. See the
+[promotion contract and package usage](stdlib/README.md#explicit-promotion).
 
 ## Architecture
 

@@ -63,6 +63,15 @@ private def ownerModule : Module := { mod [] with generics := [generic], methods
 #eval check "ordinary functions cannot receive methods" (rejects "E_OWNER" (replaceRoot
   { mod [] [fn "value" (.integer "0" {})] with methods := [method "value"] }))
 
+#eval check "contextual generic module path" ((checkNamespaceProgram (replaceRoot
+  (mod [] [fn "main" (.call "generic::value" [] {})])
+  [mod ["generic"] [fn "value" (.integer "42" {})]])).isOk)
+#eval check "generic remains a reserved function name" (rejects "E_RESERVED" (replaceRoot
+  (mod [] [fn "generic" (.integer "0" {})])))
+#eval check "contextual name grants no method authority" (rejects "E_OWNER" (replaceRoot
+  (mod []) [{ ownerModule with path := ["generic"] },
+    { mod ["generic", "child"] with methods := [method "super::choose"] }]))
+
 private def callback : Program := replaceRoot { mod [] [
   fn "value" (.integer "42" {}),
   fn "main" (.invoke (.ite (.boolean true {}) (.mk [] (.variable "value" {}) {})

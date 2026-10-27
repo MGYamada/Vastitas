@@ -109,8 +109,8 @@ Heterogeneous, nested, Bool/Unit and geometric pairs are unsupported. Pair is
 not a dispatch key/selector or part of a Fn contract; a scalar-signature lambda
 may use Pair internally. `Fn<(A, B), C>` remains an argument sequence, not a Pair.
 Methods may return Pair; their selected signature determines the call and
-projection types in both first-order and function-containing programs. Promotion
-itself is a subsequent stdlib increment.
+projection types in both first-order and function-containing programs. The
+[stdlib](../stdlib/README.md#explicit-promotion) supplies four Nat/Int promotion methods.
 See [the executable example](../examples/pairs.vast) and [protocol](protocol.md).
 
 The actual core carries finite Pair types and primitive operations. Native code

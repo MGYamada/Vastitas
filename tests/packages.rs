@@ -334,6 +334,41 @@ fn filesystem_escape_and_module_loading_cycles_are_rejected() {
 }
 
 #[test]
+fn package_diagnostics_preserve_main_and_identify_the_declaring_manifest() {
+    let s = Scratch::new();
+    s.package("app", "fn main(x: Int) -> Int { x }", "");
+    let error = s.rejects("E_MAIN");
+    assert!(
+        error.contains("entry point must have signature fn main() -> Int"),
+        "{error}"
+    );
+    assert!(!error.contains("same-name::main"), "{error}");
+    s.package("leaf", "pub fn value() -> Int { 1 }", "");
+    for alias in [
+        "int",
+        "fn",
+        "self",
+        "Nat",
+        "generic",
+        "package",
+        "__vastitas_hidden",
+    ] {
+        s.package(
+            "lib",
+            "pub fn value() -> Int { 1 }",
+            &format!("{alias} = {{ path = '../leaf' }}"),
+        );
+        s.package("app", "fn main() -> Int { 0 }", "dep = { path = '../lib' }");
+        let error = s.rejects("E_MANIFEST");
+        assert!(error.contains("lib/Vastitas.toml:"), "{error}");
+        assert!(
+            error.contains(&format!("dependency alias '{alias}' is reserved")),
+            "{error}"
+        );
+    }
+}
+
+#[test]
 fn package_lambdas_preserve_the_enclosing_shadowing_ban() {
     let s = Scratch::new();
     for source in [

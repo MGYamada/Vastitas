@@ -354,10 +354,12 @@ end VastitasKernel.Namespace
 
 namespace VastitasKernel
 
-def checkNamespaceProgram (p : Namespace.Program) (requireMain : Bool := false) : Except Diagnostic CertifiedModule := do
+def checkNamespaceProgram (p : Namespace.Program) (requireMain : Bool := false)
+    (render : Namespace.Lowered → Diagnostic → Diagnostic := fun _ diagnostic => diagnostic) : Except Diagnostic CertifiedModule := do
   let lowered ← Namespace.lower p
-  if !Namespace.UniqueOwners p || !Namespace.ReferencesValid p lowered then
-    throw { code := "E_INTERNAL_NAMESPACE", message := "namespace identity or reference audit failed" }
-  checkSurfaceProgram lowered.surface requireMain
+  (do
+    if !Namespace.UniqueOwners p || !Namespace.ReferencesValid p lowered then
+      throw ({ code := "E_INTERNAL_NAMESPACE", message := "namespace identity or reference audit failed" } : Diagnostic)
+    checkSurfaceProgram lowered.surface requireMain).mapError (render lowered)
 
 end VastitasKernel

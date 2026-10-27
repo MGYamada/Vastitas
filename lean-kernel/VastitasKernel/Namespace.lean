@@ -8,17 +8,17 @@ structure PackageId where
   source : String
   name : String
   version : String
-  deriving Repr, Inhabited, DecidableEq, BEq
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 structure Scope where
   package : PackageId
   path : List String
-  deriving Repr, Inhabited, DecidableEq, BEq
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 structure Owner where
   scope : Scope
   name : String
-  deriving Repr, Inhabited, DecidableEq, BEq
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 inductive Kind where
   | module | function | generic
@@ -82,6 +82,26 @@ def Program.declarations (p : Program) : List Target :=
     (m.generics.map fun g => ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩) ++
     (if m.path.isEmpty then [] else
       [⟨⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, .module, m.isPublic⟩])
+
+/-- Internal, backend-built declaration index. It is not a wire input. The list
+retains declaration order for diagnostics and duplicate checks; both indexes use
+first-declaration precedence, including on invalid duplicate input. -/
+structure Indexed extends Program where
+  declarations : List Target
+  byOwner : Std.HashMap Owner Target
+  byScope : Std.HashMap Scope (List Target)
+
+def ownerIndex (declarations : List Target) : Std.HashMap Owner Target :=
+  declarations.foldr (fun target table => table.insert target.owner target) {}
+
+def scopeIndex (declarations : List Target) : Std.HashMap Scope (List Target) :=
+  declarations.foldr (fun target table =>
+    table.insert target.owner.scope (target :: table[target.owner.scope]?.getD [])) {}
+
+def Program.indexed (program : Program) : Indexed :=
+  let declarations := program.declarations
+  { toProgram := program, declarations,
+    byOwner := ownerIndex declarations, byScope := scopeIndex declarations }
 
 def Target.moduleScope (t : Target) : Scope :=
   ⟨t.owner.scope.package, t.owner.scope.path ++ [t.owner.name]⟩

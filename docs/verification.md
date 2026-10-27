@@ -295,6 +295,13 @@ lowering; it does not independently specify name resolution. Correspondence
 between the ledger entries and names emitted into the surface program is not
 proved.
 
+The kernel builds one internal declaration index per namespace check and shares
+it across lowering, binding checks, validation and reference auditing.
+`indexed_owner_lookup` and `indexed_scope_lookup` prove equality with the
+original list search/filter, including first-declaration behavior on duplicate
+input. No index is accepted from wire IR. `alias_preserves_target` retains the
+original list-search premise while unfolding the actual indexed resolver.
+
 `same_logical_owner_same_symbol` is congruence: equal owners have equal symbols.
 The `Owner` structure contains package identity, logical module path and
 definition name, but no source-file placement or alias spelling. This structural

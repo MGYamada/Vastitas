@@ -103,3 +103,24 @@ fn unused_dependencies_and_legacy_protocol_remain_checked() {
     .unwrap();
     assert_eq!(check(&legacy)["ok"], true);
 }
+
+#[test]
+fn many_declarations_share_indexed_resolution_and_retain_visibility() {
+    let mut raw = request();
+    let mut source = String::from("fn value() -> Int { 42 }\n");
+    for i in 0..1500 {
+        source.push_str(&format!(
+            "fn check{i}() -> Int {{ let local = value(); local }}\n"
+        ));
+    }
+    raw["packages"][1]["modules"][0] = module(&source);
+    assert_eq!(check(&raw)["ok"], true);
+    // Reordering the declaration table cannot change identity or visibility.
+    raw["packages"][1]["modules"][0]["functions"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    assert_eq!(check(&raw)["ok"], true);
+    raw["packages"][1]["modules"][0]["functions"][1500]["public"] = json!(false);
+    rejects(&raw, "E_VISIBILITY");
+}

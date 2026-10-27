@@ -31,8 +31,8 @@ private def replaceRoot (m : Module) (extra : List Module := []) : Program :=
   | .ok checked => (Codegen.generate checked).isOk
   | .error _ => false)
 #eval check "dependency alias preserves target" (
-  (resolve program ⟨root, []⟩ ["other", "value"] {}).toOption ==
-  (resolve program ⟨root, []⟩ ["alias", "value"] {}).toOption)
+  (resolve program.indexed ⟨root, []⟩ ["other", "value"] {}).toOption ==
+  (resolve program.indexed ⟨root, []⟩ ["alias", "value"] {}).toOption)
 #eval check "distinct locations preserve owners" (
   (Owner.mk ⟨root, []⟩ "value").symbol != (Owner.mk ⟨dependency, []⟩ "value").symbol)
 #eval check "duplicate owner" (rejects "E_DUPLICATE" (replaceRoot
@@ -91,13 +91,13 @@ private def ref : Reference := {
   target := ⟨⟨⟨dependency, []⟩, "value"⟩, .function, true⟩ }
 private def ledger (r : Reference) : Lowered := {
   surface := { version := 2, file := "", functions := [], generics := [], methods := [] }, references := [r] }
-#eval check "real reference audit" (decide (ReferencesValid program (ledger ref)))
-#eval check "forged owner" (!decide (ReferencesValid program (ledger
+#eval check "real reference audit" (decide (ReferencesValid program.indexed (ledger ref)))
+#eval check "forged owner" (!decide (ReferencesValid program.indexed (ledger
   { ref with target := { ref.target with owner := ⟨⟨root, []⟩, "value"⟩ } })))
-#eval check "forged visibility" (!decide (ReferencesValid program (ledger
+#eval check "forged visibility" (!decide (ReferencesValid program.indexed (ledger
   { ref with target := { ref.target with isPublic := false } })))
-#eval check "forged edit authority" (!decide (ReferencesValid program (ledger { ref with method := true })))
-#eval check "forged reference path" (!decide (ReferencesValid program (ledger { ref with path := ["absent"] })))
+#eval check "forged edit authority" (!decide (ReferencesValid program.indexed (ledger { ref with method := true })))
+#eval check "forged reference path" (!decide (ReferencesValid program.indexed (ledger { ref with path := ["absent"] })))
 #eval check "SemVer" (validVersion "1.2.3-alpha.1+build.01" && !validVersion "1.2" && !validVersion "1.2.3-01")
 
 -- Without completed-node memoization this tiny DAG has 2^40 traversal paths.

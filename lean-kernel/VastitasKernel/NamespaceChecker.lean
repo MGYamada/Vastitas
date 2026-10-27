@@ -19,17 +19,17 @@ the ordinary reserved-name checks. This grants no additional edit authority. -/
 def moduleName (name : String) (span : Span) : Result Unit :=
   if name == "generic" then pure () else sourceName name span
 
-def packageAt (p : Program) (source : String) : Option Package :=
+def packageAt (p : Indexed) (source : String) : Option Package :=
   p.packages.find? (·.id.source == source)
 
-def moduleAt (p : Program) (scope : Scope) : Option Module := do
+def moduleAt (p : Indexed) (scope : Scope) : Option Module := do
   let pkg ← packageAt p scope.package.source
   if pkg.id != scope.package then none else pkg.modules.find? (·.path == scope.path)
 
 def dependencyRoot (pkg : Package) : Target :=
   ⟨⟨⟨pkg.id, []⟩, ""⟩, .module, true⟩
 
-def moduleTarget (p : Program) (scope : Scope) (span : Span) : Result Target := do
+def moduleTarget (p : Indexed) (scope : Scope) (span : Span) : Result Target := do
   let some m := moduleAt p scope | problem span "E_NAME" "unknown module"
   if scope.path.isEmpty then return ⟨⟨scope, ""⟩, .module, true⟩
   return ⟨⟨⟨scope.package, scope.path.dropLast⟩, scope.path.getLast!⟩, .module, m.isPublic⟩
@@ -54,11 +54,11 @@ def charge (span : Span) : ResolutionM Unit
 -- visibility edge. Resolving an alias checks its declaration's visibility first,
 -- then its source path in the alias's own scope, preserving the original target.
 mutual
-  def memberAt : Nat → Program → Scope → Scope → String → List (Scope × String) → Span → ResolutionM Target
+  def memberAt : Nat → Indexed → Scope → Scope → String → List (Scope × String) → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
     | fuel + 1, p, requester, scope, name, active, span => do
       charge span
-      if let some target := p.declarations.find? (fun t => t.owner == ⟨scope, name⟩) then
+      if let some target := p.byOwner[Owner.mk scope name]? then
         if !visible requester target then
           problem span "E_VISIBILITY" s!"'{name}' is private in its declaring module"
         return target
@@ -72,7 +72,7 @@ mutual
       if entry.isPublic && !target.isPublic then
         problem entry.span "E_VISIBILITY" "pub use requires a public declaration"
       return target
-  def descend : Nat → Program → Scope → Target → List String → List (Scope × String) → Span → ResolutionM Target
+  def descend : Nat → Indexed → Scope → Target → List String → List (Scope × String) → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
     | fuel + 1, p, requester, target, path, active, span => do
       match path with
@@ -81,7 +81,7 @@ mutual
         if target.kind != .module then problem span "E_NAME" "a function cannot contain path components"
         let next ← memberAt fuel p requester (targetScope target) name active span
         descend fuel p requester next rest active span
-  def resolveAt : Nat → Program → Scope → List String → List (Scope × String) → Span → ResolutionM Target
+  def resolveAt : Nat → Indexed → Scope → List String → List (Scope × String) → Span → ResolutionM Target
     | 0, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
     | fuel + 1, p, scope, path, active, span => do
       let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
@@ -101,19 +101,19 @@ mutual
           descend fuel p scope target rest active span
 end
 
-def resolve (p : Program) (scope : Scope) (path : List String) (span : Span) : Result Target :=
+def resolve (p : Indexed) (scope : Scope) (path : List String) (span : Span) : Result Target :=
   ((resolveAt 4096 p scope path [] span).run 4096).map (·.1)
 
 def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&
       target.owner.name == "main" then "main" else target.owner.symbol
 
-def UniqueOwners (p : Program) : Prop :=
+def UniqueOwners (p : Indexed) : Prop :=
   (p.declarations.map (·.owner)).Nodup
 
-instance (p : Program) : Decidable (UniqueOwners p) := inferInstanceAs (Decidable (List.Nodup _))
+instance (p : Indexed) : Decidable (UniqueOwners p) := inferInstanceAs (Decidable (List.Nodup _))
 
-def graphVisit : Nat → Program → String → List String → StateT (Std.HashSet String) Result Unit
+def graphVisit : Nat → Indexed → String → List String → StateT (Std.HashSet String) Result Unit
   | 0, _, _, _ => problem {} "E_LIMIT" "dependency graph exceeds the 4096-unit budget"
   | fuel + 1, p, source, active => do
     if active.contains source then problem {} "E_CYCLE" "cyclic package dependency"
@@ -122,7 +122,7 @@ def graphVisit : Nat → Program → String → List String → StateT (Std.Hash
     for dep in pkg.dependencies do graphVisit fuel p dep.target (source :: active)
     modify (·.insert source)
 
-def validateGraph (p : Program) : Result Unit :=
+def validateGraph (p : Indexed) : Result Unit :=
   ((p.packages.forM fun pkg => graphVisit 4096 p pkg.id.source []).run {}).map (·.1)
 
 def versionNumber (s : String) : Bool :=
@@ -148,7 +148,7 @@ def duplicateSpan [BEq α] (entries : List (α × Span)) : Span := Id.run do
     seen := key :: seen
   return {}
 
-def ownerLocations (p : Program) : List (Owner × Span) :=
+def ownerLocations (p : Indexed) : List (Owner × Span) :=
   p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     let scope : Scope := ⟨pkg.id, m.path⟩
     (m.functions.map fun f => (⟨scope, f.name⟩, f.span)) ++
@@ -156,14 +156,14 @@ def ownerLocations (p : Program) : List (Owner × Span) :=
     (if m.path.isEmpty then [] else
       [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
 
-def validate (p : Program) : Result Unit := do
+def validate (p : Indexed) : Result Unit := do
   if p.packages.isEmpty || (packageAt p p.root).isNone then problem {} "E_PROTOCOL" "missing root package"
   if !(p.packages.map (·.id.source)).Nodup then problem {} "E_DUPLICATE" "duplicate package location"
   if !p.scopes.Nodup then
     problem (duplicateSpan (p.packages.flatMap fun pkg =>
       pkg.modules.map fun m => (Scope.mk pkg.id m.path, m.span))) "E_DUPLICATE" "duplicate logical module"
   if !UniqueOwners p then problem (duplicateSpan (ownerLocations p)) "E_DUPLICATE" "duplicate declaration owner"
-  if !(p.declarations.map (symbol p)).Nodup then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
+  if !(p.declarations.map (symbol p.toProgram)).Nodup then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
   validateGraph p
   for pkg in p.packages do
     if pkg.id.name.isEmpty || pkg.id.source.isEmpty || !validVersion pkg.id.version then
@@ -180,7 +180,7 @@ def validate (p : Program) : Result Unit := do
         if part == "package" then problem m.span "E_RESERVED" "package is reserved as a path prefix"
       if !m.path.isEmpty && (moduleAt p ⟨pkg.id, m.path.dropLast⟩).isNone then
         problem m.span "E_NAME" "module has no declared parent"
-      let declarations := p.declarations.filter (·.owner.scope == scope)
+      let declarations := p.byScope[scope]?.getD []
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
       if !names.Nodup then problem m.span "E_DUPLICATE" "declaration, import, or dependency alias collision"
       for decl in declarations do
@@ -208,17 +208,17 @@ structure Lowered where
 def Authorized (reference : Reference) : Prop :=
   reference.method = true → reference.target.kind = .generic ∧ reference.target.owner.scope = reference.scope
 
-def ReferencesValid (p : Program) (lowered : Lowered) : Prop :=
+def ReferencesValid (p : Indexed) (lowered : Lowered) : Prop :=
   ∀ reference ∈ lowered.references,
     (resolve p reference.scope reference.path reference.span).toOption = some reference.target ∧ Authorized reference
 
-instance (p : Program) (lowered : Lowered) : Decidable (ReferencesValid p lowered) := by
+instance (p : Indexed) (lowered : Lowered) : Decidable (ReferencesValid p lowered) := by
   unfold ReferencesValid Authorized
   infer_instance
 
 abbrev M := StateT (List Reference) Result
 
-def lookup (p : Program) (scope : Scope) (name : String) (span : Span) (method := false) : M Target := do
+def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method := false) : M Target := do
   let path := (name.splitOn "::")
   let target ← resolve p scope path span
   if method && (target.kind != .generic || target.owner.scope != scope) then
@@ -226,11 +226,11 @@ def lookup (p : Program) (scope : Scope) (name : String) (span : Span) (method :
   modify (⟨scope, path, span, target, method⟩ :: ·)
   return target
 
-def binder (p : Program) (scope : Scope) (name : String) (span : Span) : Result String := do
+def binder (p : Indexed) (scope : Scope) (name : String) (span : Span) : Result String := do
   sourceName name span
   let some m := moduleAt p scope | problem span "E_NAME" "unknown module"
   let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
-  if p.declarations.any (fun t => t.owner == ⟨scope, name⟩) || m.imports.any (·.alias == name) ||
+  if p.byOwner.contains ⟨scope, name⟩ || m.imports.any (·.alias == name) ||
       pkg.dependencies.any (·.alias == name) then
     problem span "E_SHADOW" s!"binding '{name}' conflicts with a module declaration, import or dependency alias"
   return localName name
@@ -253,19 +253,19 @@ mutual
     | .cons head tail => .cons (type head) (types tail)
 end
 
-def parameters (p : Program) (scope : Scope) (params : List Param) : Result (List Param) :=
+def parameters (p : Indexed) (scope : Scope) (params : List Param) : Result (List Param) :=
   params.mapM fun param => do
     return { param with name := ← binder p scope param.name param.span, ty := type param.ty }
 
-def referenceName (p : Program) (scope : Scope) (bound : List String) (name : String) (span : Span) : M String := do
+def referenceName (p : Indexed) (scope : Scope) (bound : List String) (name : String) (span : Span) : M String := do
   if !name.contains ':' && (bound.contains name || builtinNames.contains name) then
     return if builtinNames.contains name then name else localName name
   let target ← lookup p scope name span
   if target.kind == .module then problem span "E_NAME" "a module is not a value"
-  return symbol p target
+  return symbol p.toProgram target
 
 mutual
-  def expression : Nat → Program → Scope → List String → Expr → M Expr
+  def expression : Nat → Indexed → Scope → List String → Expr → M Expr
     | 0, _, _, _, expr => problem expr.span "E_LIMIT" "namespace expression nesting limit exceeded"
     | fuel + 1, p, scope, bound, expr => do
       match expr with
@@ -298,7 +298,7 @@ mutual
       | .pack scheme point span =>
         return .pack (← expression fuel p scope bound scheme)
           (← expression fuel p scope bound point) span
-  def block : Nat → Program → Scope → List String → Block → M Block
+  def block : Nat → Indexed → Scope → List String → Block → M Block
     | 0, _, _, _, .mk _ _ span => problem span "E_LIMIT" "namespace block nesting limit exceeded"
     | fuel + 1, p, scope, bound, .mk statements result span => do
       let mut bound := bound
@@ -319,14 +319,14 @@ mutual
       return .mk output (← expression fuel p scope bound result) span
 end
 
-def function (p : Program) (scope : Scope) (f : Surface.Function) (target : Target) : M Surface.Function := do
+def function (p : Indexed) (scope : Scope) (f : Surface.Function) (target : Target) : M Surface.Function := do
   return { f with
-    name := symbol p target
+    name := symbol p.toProgram target
     params := ← parameters p scope f.params
     result := type f.result
     body := ← block 1024 p scope (f.params.map (·.name)) f.body }
 
-def lower (p : Program) : Result Lowered := do
+def lower (p : Indexed) : Result Lowered := do
   validate p
   let action : M Surface.Program := do
     let mut functions := []
@@ -341,7 +341,7 @@ def lower (p : Program) : Result Lowered := do
           let params ← g.params.mapM fun param => do
             return { param with name := ← binder p scope param.name param.span }
           generics := generics ++ [{ g.toRawGeneric with
-            name := symbol p ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩, params }]
+            name := symbol p.toProgram ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩, params }]
         for method in m.methods do
           let target ← lookup p scope method.name method.span true
           let f ← function p scope method.toFunction target
@@ -356,9 +356,10 @@ namespace VastitasKernel
 
 def checkNamespaceProgram (p : Namespace.Program) (requireMain : Bool := false)
     (render : Namespace.Lowered → Diagnostic → Diagnostic := fun _ diagnostic => diagnostic) : Except Diagnostic CertifiedModule := do
-  let lowered ← Namespace.lower p
+  let indexed := p.indexed
+  let lowered ← Namespace.lower indexed
   (do
-    if !Namespace.UniqueOwners p || !Namespace.ReferencesValid p lowered then
+    if !Namespace.UniqueOwners indexed || !Namespace.ReferencesValid indexed lowered then
       throw ({ code := "E_INTERNAL_NAMESPACE", message := "namespace identity or reference audit failed" } : Diagnostic)
     checkSurfaceProgram lowered.surface requireMain).mapError (render lowered)
 

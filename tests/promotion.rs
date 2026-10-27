@@ -1,22 +1,13 @@
 //! Actual stdlib sources through flat and package inputs, including raw-IR tampering.
+mod common;
+use common::{Scratch, kernel_path as kernel, root};
 use serde_json::{Value, json};
 use std::fs;
-use std::io::Write;
 use std::os::unix::fs::PermissionsExt;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::sync::Once;
-use std::sync::atomic::{AtomicU64, Ordering};
 
-static SERIAL: AtomicU64 = AtomicU64::new(0);
 static PACKAGE_BUILD: Once = Once::new();
-fn root() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-}
-fn kernel() -> PathBuf {
-    root().join("lean-kernel/.lake/build/bin/vastitas-kernel")
-}
-struct Scratch(PathBuf);
 impl Scratch {
     fn new(source: &str) -> Self {
         PACKAGE_BUILD.call_once(|| {
@@ -27,12 +18,8 @@ impl Scratch {
                     .unwrap(),
             );
         });
-        let path = std::env::temp_dir().join(format!(
-            "vastitas promotion {} {}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
+        let scratch = Self::empty("promotion");
+        let path = &scratch.0;
         fs::write(path.join("flat.vast"), source).unwrap();
         fs::write(
             path.join("main.vast"),
@@ -40,7 +27,7 @@ impl Scratch {
         )
         .unwrap();
         fs::write(path.join("Vastitas.toml"), format!("[package]\nname='promotion_app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={{path={}}}\n", serde_json::to_string(&root().join("stdlib").to_string_lossy()).unwrap())).unwrap();
-        Self(path)
+        scratch
     }
     fn cli(&self, mode: &str, package: bool) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
@@ -77,32 +64,11 @@ impl Scratch {
         serde_json::from_slice(&fs::read(capture).unwrap()).unwrap()
     }
 }
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
 fn success(output: Output) {
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    common::success(&output);
 }
 fn check_raw(raw: &Value) -> Value {
-    let mut child = Command::new(kernel())
-        .arg("check")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(&serde_json::to_vec(raw).unwrap())
-        .unwrap();
-    serde_json::from_slice(&child.wait_with_output().unwrap().stdout).unwrap()
+    common::kernel(raw, "check")
 }
 
 fn flat_request(source: &str) -> Value {

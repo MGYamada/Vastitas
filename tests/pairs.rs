@@ -1,28 +1,21 @@
 //! Pair values cross the frontend, independently checked core and native runtime.
+mod common;
+use common::Scratch;
 use serde_json::{Value, json};
 use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::process::{Command, Output};
 
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-struct Scratch(PathBuf);
 impl Scratch {
     fn new(source: &str) -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas-pairs-{}-{}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
+        let scratch = Self::empty("pairs");
+        let path = &scratch.0;
         fs::write(path.join("main.vast"), source).unwrap();
         fs::write(
             path.join("Vastitas.toml"),
             "[package]\nname='pairs'\nversion='0.1.0'\nroot='main.vast'\n",
         )
         .unwrap();
-        Self(path)
+        scratch
     }
     fn cli(&self, mode: &str, package: bool) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
@@ -35,37 +28,14 @@ impl Scratch {
         command
     }
 }
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
 fn success(output: Output) {
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
+    common::success(&output);
 }
 fn request(source: &str) -> Value {
-    serde_json::to_value(vastitas::frontend::parse(source, "pairs.vast").unwrap()).unwrap()
+    common::request(source, "pairs.vast")
 }
 fn backend(raw: &Value) -> Value {
-    let path =
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel/.lake/build/bin/vastitas-kernel");
-    let mut child = Command::new(path)
-        .arg("check")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(&serde_json::to_vec(raw).unwrap())
-        .unwrap();
-    serde_json::from_slice(&child.wait_with_output().unwrap().stdout).unwrap()
+    common::kernel(raw, "check")
 }
 fn rejects(raw: Value) {
     let result = backend(&raw);

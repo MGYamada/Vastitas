@@ -1,24 +1,14 @@
 //! Stage 1b function values are independently checked and specialized by Lean.
+mod common;
+use common::{Scratch, cli, success};
 use serde_json::{Value, json};
 use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
-
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-
-struct Scratch(PathBuf);
+use std::path::PathBuf;
+use std::process::Output;
 
 impl Scratch {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas function tests {} {}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        Self::empty("functions")
     }
 
     fn source(&self, source: &str) -> PathBuf {
@@ -28,108 +18,29 @@ impl Scratch {
     }
 }
 
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-
-fn root() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-}
-
-fn cli() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_vastitas"))
-}
-
-fn success(output: &Output) {
-    assert!(
-        output.status.success(),
-        "stdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-}
-
 fn check(source: &str) -> Output {
-    let scratch = Scratch::new();
-    cli()
-        .arg("check")
-        .arg(scratch.source(source))
-        .output()
-        .unwrap()
+    common::check(source, "function input.vast")
 }
 
 fn reject(source: &str, code: &str) -> String {
-    let output = check(source);
-    assert!(
-        !output.status.success(),
-        "accepted invalid source: {source}"
-    );
-    let message = String::from_utf8(output.stderr).unwrap();
-    assert!(
-        message.contains(&format!(": {code}: ")),
-        "expected {code}: {message}"
-    );
-    assert!(message.contains("function input.vast:"));
-    message
+    common::reject(source, code, "function input.vast")
 }
 
 fn native(source: &str, libraries: &[PathBuf], expected: &str) {
-    let scratch = Scratch::new();
-    let output_path = scratch.0.join("function program");
-    let mut command = cli();
-    command
-        .arg("build")
-        .arg(scratch.source(source))
-        .arg("-o")
-        .arg(&output_path);
-    for library in libraries {
-        command.arg("--lib").arg(library);
-    }
-    success(&command.output().unwrap());
-    let output = Command::new(output_path).output().unwrap();
-    success(&output);
-    assert_eq!(
-        String::from_utf8(output.stdout).unwrap(),
-        format!("{expected}\n")
-    );
+    common::native(source, libraries, expected, "function input.vast");
 }
 
 fn request(source: &str) -> Value {
-    serde_json::to_value(vastitas::frontend::parse(source, "forged-dispatch.vast").unwrap())
-        .unwrap()
+    common::request(source, "forged-dispatch.vast")
 }
 
 fn kernel(request: Value) -> Value {
-    let executable = root().join("lean-kernel/.lake/build/bin/vastitas-kernel");
-    assert!(executable.is_file(), "build the Lean kernel before tests");
-    let mut child = Command::new(executable)
-        .arg("emit")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let input = serde_json::to_vec(&request).unwrap();
-    let mut stdin = child.stdin.take().unwrap();
-    let writer = std::thread::spawn(move || stdin.write_all(&input));
-    let output = child.wait_with_output().unwrap();
-    writer.join().unwrap().unwrap();
-    serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
-        panic!(
-            "invalid kernel response: {error}; stderr: {}",
-            String::from_utf8_lossy(&output.stderr)
-        )
-    })
+    common::kernel(request, "emit")
 }
 
 fn assert_rejected(request: Value, code: &str) {
-    let response = kernel(request);
+    let response = common::assert_rejected(request, code);
     assert_eq!(response["version"], 2, "{response}");
-    assert_eq!(response["ok"], false, "{response}");
-    assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
-    assert!(response.get("lean_source").is_none(), "{response}");
 }
 
 #[test]

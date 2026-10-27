@@ -1,54 +1,20 @@
 //! Standard-library inclusion is source composition, with independent checking.
+mod common;
+use common::{Scratch, cli, success};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
-
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-
-struct Scratch(PathBuf);
 
 impl Scratch {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas stdlib tests {} {}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        Self::empty("stdlib")
     }
-
-    fn write(&self, name: &str, source: &str) -> PathBuf {
-        let path = self.0.join(name);
-        fs::write(&path, source).unwrap();
-        path
-    }
-}
-
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-
-fn cli() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_vastitas"))
 }
 
 fn library(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("stdlib/src/arithmetic")
         .join(name)
-}
-
-fn success(output: &Output) {
-    assert!(
-        output.status.success(),
-        "stdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
 }
 
 fn failure(output: &Output, expected: &str) -> String {

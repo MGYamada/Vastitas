@@ -1,20 +1,15 @@
+mod common;
+use common::{Scratch, success};
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::path::Path;
+use std::process::Command;
 
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-struct Scratch(PathBuf);
 impl Scratch {
     fn new(source: &str) -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas-usability-{}-{}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
+        let scratch = Self::empty("usability");
+        let path = &scratch.0;
         fs::write(path.join("main.vast"), source).unwrap();
-        Self(path)
+        scratch
     }
     fn cli(&self, mode: &str) -> Command {
         let mut cmd = Command::new(env!("CARGO_BIN_EXE_vastitas"));
@@ -22,25 +17,8 @@ impl Scratch {
         cmd
     }
 }
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-fn success(output: &Output) {
-    assert!(
-        output.status.success(),
-        "{}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-}
 fn rejection(source: &str, code: &str) -> String {
-    let scratch = Scratch::new(source);
-    let output = scratch.cli("check").output().unwrap();
-    assert!(!output.status.success());
-    let error = String::from_utf8(output.stderr).unwrap();
-    assert!(error.contains(&format!(": {code}: ")), "{error}");
-    error
+    common::reject(source, code, "main.vast")
 }
 
 #[test]

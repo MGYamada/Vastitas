@@ -1,24 +1,14 @@
 //! End-to-end tests require `lake -d lean-kernel build vastitas-kernel` first.
+mod common;
+use common::{Scratch, assert_rejected, cli, kernel, success as assert_success};
 use serde_json::{Value, json};
 use std::fs;
-use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{Duration, Instant};
+use std::path::PathBuf;
+use std::process::Output;
 
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-
-struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas tests {} {}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
-        Self(path)
+        Self::empty("compiler")
     }
     fn source(&self, text: &str) -> PathBuf {
         let file = self.0.join("input file.vast");
@@ -26,135 +16,18 @@ impl Scratch {
         file
     }
 }
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
 
-fn root() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-}
-fn cli() -> Command {
-    Command::new(env!("CARGO_BIN_EXE_vastitas"))
-}
-fn assert_success(output: &Output) {
-    assert!(
-        output.status.success(),
-        "stdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
-}
 fn check(source: &str) -> Output {
-    let scratch = Scratch::new();
-    cli()
-        .arg("check")
-        .arg(scratch.source(source))
-        .output()
-        .unwrap()
+    common::check(source, "input file.vast")
 }
-fn reject(source: &str, expected: &str) -> String {
-    let result = check(source);
-    assert!(
-        !result.status.success(),
-        "accepted invalid source: {source}"
-    );
-    let message = String::from_utf8_lossy(&result.stderr).into_owned();
-    assert!(
-        message.contains(&format!(": {expected}: ")),
-        "expected {expected:?}: {message}"
-    );
-    assert!(
-        message.contains("input file.vast:"),
-        "missing source location: {message}"
-    );
-    message
+fn reject(source: &str, code: &str) -> String {
+    common::reject(source, code, "input file.vast")
 }
 fn native(source: &str, expected: &str) {
-    let scratch = Scratch::new();
-    let file = scratch.source(source);
-    let output = scratch.0.join("native program");
-    let result = cli()
-        .arg("build")
-        .arg(file)
-        .arg("-o")
-        .arg(&output)
-        .output()
-        .unwrap();
-    assert_success(&result);
-    let result = Command::new(&output).output().unwrap();
-    assert_success(&result);
-    assert_eq!(
-        String::from_utf8(result.stdout).unwrap(),
-        format!("{expected}\n")
-    );
-}
-fn kernel(request: Value, mode: &str) -> Value {
-    let path = root().join("lean-kernel/.lake/build/bin/vastitas-kernel");
-    assert!(
-        path.is_file(),
-        "Build backend first: lake -d lean-kernel build vastitas-kernel"
-    );
-    let mut child = Command::new(path)
-        .arg(mode)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    let input = serde_json::to_vec(&request).unwrap();
-    let mut stdin = child.stdin.take().unwrap();
-    let writer = std::thread::spawn(move || stdin.write_all(&input));
-    let mut stdout = child.stdout.take().unwrap();
-    let reader = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stdout.read_to_end(&mut bytes).unwrap();
-        bytes
-    });
-    let mut stderr = child.stderr.take().unwrap();
-    let errors = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stderr.read_to_end(&mut bytes).unwrap();
-        bytes
-    });
-    let deadline = Instant::now() + Duration::from_secs(60);
-    let timed_out = loop {
-        if child.try_wait().unwrap().is_some() {
-            break false;
-        }
-        if Instant::now() >= deadline {
-            child.kill().unwrap();
-            child.wait().unwrap();
-            break true;
-        }
-        std::thread::sleep(Duration::from_millis(10));
-    };
-    let write_result = writer.join().unwrap();
-    let stdout = reader.join().unwrap();
-    let stderr = errors.join().unwrap();
-    assert!(
-        !timed_out,
-        "kernel exceeded 60-second regression deadline: {}",
-        String::from_utf8_lossy(&stderr)
-    );
-    write_result.unwrap();
-    serde_json::from_slice(&stdout).unwrap_or_else(|error| {
-        panic!(
-            "invalid response: {error}; {}",
-            String::from_utf8_lossy(&stderr)
-        )
-    })
+    common::native(source, &[], expected, "input file.vast");
 }
 fn request(source: &str) -> Value {
-    serde_json::to_value(vastitas::frontend::parse(source, "forged.vast").unwrap()).unwrap()
-}
-fn assert_rejected(value: Value, expected_code: &str) -> Value {
-    let result = kernel(value, "emit");
-    assert_eq!(result["ok"], false, "backend accepted forged IR: {result}");
-    assert!(result.get("lean_source").is_none());
-    assert_eq!(result["diagnostics"][0]["code"], expected_code, "{result}");
-    result
+    common::request(source, "forged.vast")
 }
 
 #[test]

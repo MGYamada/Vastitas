@@ -1,23 +1,18 @@
 //! Driver configuration regressions; each child receives its own environment.
+mod common;
+use common::{Scratch, kernel_path as kernel};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::fs::symlink;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::{Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
 
-static SERIAL: AtomicU64 = AtomicU64::new(0);
-struct Scratch(PathBuf);
 impl Scratch {
     fn new() -> Self {
-        let path = std::env::temp_dir().join(format!(
-            "vastitas-driver-{}-{}",
-            std::process::id(),
-            SERIAL.fetch_add(1, Ordering::Relaxed)
-        ));
-        fs::create_dir(&path).unwrap();
+        let scratch = Self::empty("driver_issues");
+        let path = &scratch.0;
         fs::write(path.join("main.vast"), "fn main() -> Int { 42 }").unwrap();
-        Self(path)
+        scratch
     }
     fn cli(&self) -> Command {
         let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
@@ -26,14 +21,6 @@ impl Scratch {
             .env("VASTITAS_KERNEL", kernel());
         command
     }
-}
-impl Drop for Scratch {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-fn kernel() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel/.lake/build/bin/vastitas-kernel")
 }
 fn executable(path: &Path, source: &str) {
     fs::write(path, source).unwrap();

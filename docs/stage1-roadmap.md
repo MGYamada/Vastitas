@@ -48,7 +48,7 @@ Rust parser, JSON decoder, Lean/C code generator, linker, or operating system.
 The initial public dispatch universe is `Nat`, `Int`, `Bool`, and `Unit`.
 `Any` and `Number` are selector-only abstract types; Nat and Int are siblings.
 Generic declarations explicitly list concrete callable-domain tuples; methods
-have explicit selectors and scalar result types. Optional `requires (HasOrder)`
+have explicit selectors and concrete scalar or homogeneous numeric Pair result types. Optional `requires (HasOrder)`
 uses compiler-established static facts (`HasOrder` implies `HasEq`).
 
 Lean constructs and verifies the finite key environment. Ambiguity is checked

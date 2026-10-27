@@ -561,7 +561,7 @@ impl Parser {
                 if selector {
                     "a method selector must be Nat, Int, Bool, Unit, Number, or Any"
                 } else {
-                    "dispatch domains and method results require a concrete scalar type: Nat, Int, Bool, or Unit"
+                    "dispatch domains require a concrete scalar type: Nat, Int, Bool, or Unit"
                 },
                 span,
             ))
@@ -657,7 +657,11 @@ impl Parser {
             Vec::new()
         };
         self.expect("->")?;
-        let return_type = self.dispatch_type(false)?;
+        let return_type = if self.peek().is("Pair") {
+            self.ty()?
+        } else {
+            self.dispatch_type(false)?
+        };
         if self.peek().is("requires") {
             if before_arrow {
                 return Err(diagnostic(

@@ -159,3 +159,91 @@ fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
         assert!(vastitas::frontend::parse(source, "pair.vast").is_err());
     }
 }
+
+const PAIR_METHODS: &str = "
+generic choose(x, y) { domain (Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int); }
+method choose(x: Nat, y: Nat) -> Pair<Nat> { pair(x, y) }
+method choose(x: Nat, y: Int) -> Pair<Int> { pair(int(x), y) }
+method choose(x: Int, y: Nat) -> Pair<Int> { pair(x, int(y)) }
+method choose(x: Int, y: Int) -> Pair<Int> { pair(x, y) }
+";
+
+#[test]
+fn selected_pair_results_flow_to_projections_and_downstream_dispatch() {
+    let caller = "
+generic scalar(x) { domain (Nat), (Int); }
+method scalar(x: Nat) -> Int { int(x) }
+method scalar(x: Int) -> Int { x }
+fn main() -> Int {
+    let n: Nat = 20;
+    let nn: Pair<Nat> = choose(n, n);
+    let ni: Pair<Int> = choose(n, -7);
+    let in_: Pair<Int> = choose(-7, n);
+    let ii: Pair<Int> = choose(-7, 22);
+    if scalar(pair_first(nn)) == 20 && pair_second(nn) == n &&
+       pair_first(ni) == 20 && pair_second(ni) == -7 &&
+       pair_first(in_) == -7 && pair_second(in_) == 20 &&
+       pair_first(ii) == -7 && scalar(pair_second(ii)) == 22 { 42 } else { 0 }
+}";
+    // Force both the legacy and function-containing lowering paths.
+    for extra in [
+        "",
+        "fn unused() -> Int { let f = fn(x: Int) -> Int { pair_first(choose(x, x)) }; f(1) }",
+    ] {
+        let source = format!("{PAIR_METHODS}\n{caller}\n{extra}");
+        assert_eq!(backend(&request(&source))["ok"], true);
+        let scratch = Scratch::new(&source);
+        for package in [false, true] {
+            success(scratch.cli("check", package).output().unwrap());
+            success(
+                scratch
+                    .cli("build", package)
+                    .args(["-o", "program"])
+                    .output()
+                    .unwrap(),
+            );
+            let output = Command::new(scratch.0.join("program")).output().unwrap();
+            assert_eq!(output.stdout, b"42\n");
+            success(output);
+        }
+    }
+}
+
+#[test]
+fn pair_results_do_not_change_selection_or_whole_body_audits() {
+    let cases = [
+        (format!("{PAIR_METHODS} fn bad(n: Nat) -> Pair<Nat> {{ choose(n, 2) }}"), "E_TYPE"),
+        (format!("{PAIR_METHODS} fn bad() -> Pair<Nat> {{ choose(1, 2) }}"), "E_TYPE"),
+        (format!("{PAIR_METHODS} method choose(x: Number, y: Number) -> Pair<Int> {{ pair(x, y) }}"), "E_TYPE"),
+        ("generic g(x) { domain (Int); } method g(x: Int) -> Pair<Int> { pair(x, x) } method g(x: Any) -> Pair<Int> { pair(x, x) }".into(), "E_TYPE"),
+        ("generic g(x) { domain (Int); } method g(x: Int) -> Pair<Int> { pair(x, x) } method g(x: Int) -> Int { x }".into(), "E_DUPLICATE"),
+        ("generic g(x) { domain (Int), (Nat); } method g(x: Int) -> Pair<Int> { pair(x, x) }".into(), "E_DISPATCH_COVERAGE"),
+        ("generic g(x, y) { domain (Nat, Nat); } method g(x: Nat, y: Number) -> Pair<Int> { pair(1, 2) } method g(x: Number, y: Int) -> Int { 0 }".into(), "E_DISPATCH_AMBIGUOUS"),
+    ];
+    for (source, expected) in cases {
+        for extra in [
+            "",
+            "fn probe() -> Int { let f = fn(x: Int) -> Int { x }; f(0) }",
+        ] {
+            let source = format!("{source}\n{extra}");
+            let response = backend(&request(&source));
+            assert_eq!(response["ok"], false, "{source}: {response}");
+            assert!(
+                response.to_string().contains(expected),
+                "{source}: {response}"
+            );
+            let scratch = Scratch::new(&source);
+            for package in [false, true] {
+                let output = scratch.cli("check", package).output().unwrap();
+                assert!(!output.status.success());
+                assert!(
+                    String::from_utf8_lossy(&output.stderr).contains(expected),
+                    "{source}: {output:?}"
+                );
+            }
+        }
+    }
+    // A losing method may return a different type when its own body is valid.
+    let valid = "generic g(x) { domain (Int); } method g(x: Int) -> Pair<Int> { pair(x, x) } method g(x: Number) -> Bool { true } fn main() -> Int { pair_first(g(42)) }";
+    assert_eq!(backend(&request(valid))["ok"], true);
+}

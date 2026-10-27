@@ -19,7 +19,22 @@ theorem selected_target_sound (family : Family) (key : Dispatch.Key) (target : T
   ⟨target.admitted, VastitasOracle.Dispatch.winner_sound family.raw.params.length
     family.domain family.methods family.checked family.accepted key target.method target.selected⟩
 
-/-- No branch accepts before the unchanged core checker has accepted the exact
+/-- The structural audit fixes a Pair call's result to the actual selected
+signature. No expected type or other candidate result participates. This also
+applies to calls returned by surface and namespace acceptance via their core
+typing theorems; it does not claim full raw-lowering correspondence. -/
+theorem checked_call_pair_result (signatures : Typing.Signatures) (ctx : Typing.Context)
+    (id : Nat) (args : List Term) (substitution : List (ObjectRef × ObjectRef))
+    (result : ResultType) (signature : Typing.FunctionSignature) (element : PairElem)
+    (found : Typing.lookupSignature signatures id = some signature)
+    (returns : signature.returnType = .pair element)
+    (typed : Typing.HasType signatures ctx (.call id args substitution result)) :
+    result.ty = .pair element := by
+  have rule := typed.2.2
+  simp only [Typing.CallTyping, found] at rule
+  simpa only [returns, Ty.rename] using rule.2.2.2.1
+
+/-- No branch accepts before the core checker has accepted the exact
 lowered module. Diagnostic decoration affects failures only. -/
 theorem checkProgram_core (program : RawProgram) (requireMain : Bool) (certified : CertifiedModule)
     (accepted : checkProgram program requireMain = .ok certified) :

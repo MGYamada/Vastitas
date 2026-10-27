@@ -141,3 +141,22 @@ with no oracle/mathlib checkout; a separate job builds and audits the proofs.
 `tests/pairs.rs` checks Pair source/raw-IR typing and native execution in both
 input modes. `VastitasKernel.PairRegression` forges checked Pair construction,
 projection and call annotations and exercises the code-generation audit boundary.
+
+
+### Lowering type information
+
+Both lowering paths retain backend-inferred `ResultType` information with the
+raw expression. It includes nominal object references. Generic keys, scalar/Pair
+call arguments, let/unpack bindings, and block results reuse that information
+when it is already fixed; nested scalar generic calls no longer recheck all
+inner calls merely to discover their result types. A generic operand is inferred
+independently before the selected method's parameter types are considered.
+
+Context-dependent integer/operator/conditional expressions remain unresolved
+until their expected type is available. Geometric calls still use the core's
+dependent argument substitution and fresh-object construction, and reusing a
+block result retains the original escape check. This is a conservative reuse
+optimization, not a global AST cache: uncached expressions still use core
+inference. No metadata is trusted by the final independent function/module
+check, which rechecks the retained raw bodies and performs the typing/dependency
+audits as before.

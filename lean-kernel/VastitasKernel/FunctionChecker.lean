@@ -10,8 +10,7 @@ structure Target where
   abstractTarget : Bool := false
   deriving Repr, BEq, Inhabited
 
-structure Value where
-  raw : RawExpr
+structure Value extends LoweredExpr where
   target : Option Target := none
   deriving Inhabited
 
@@ -171,7 +170,7 @@ private def probe (ty : TypeExpr) (name : String) (span : Span) : M Value := do
   match ty with
   | .function .. => pure { raw := .unit span, target := some { name, ty, abstractTarget := true } }
   | .data (.named "Bool") => pure { raw := .boolean false span }
-  | .data (.named "Unit") => pure { raw := .unit span }
+  | .data (.named "Unit") => pure { raw := .unit span, known := some ⟨.unit, none⟩ }
   | .data raw =>
     let id ← core fresh
     let name := s!"__vastitas_probe{id}"
@@ -183,8 +182,8 @@ mutual
     | fuel + 1, ctx, functions, expr => do
       match expr with
       | .integer value span => pure { raw := .integer value span }
-      | .boolean value span => pure { raw := .boolean value span }
-      | .unit span => pure { raw := .unit span }
+      | .boolean value span => pure { raw := .boolean value span, known := some ⟨.bool, none⟩ }
+      | .unit span => pure { raw := .unit span, known := some ⟨.unit, none⟩ }
       | .variable name span =>
         core (checkReference name span)
         if let some (_, target) := functions.find? (·.1 == name) then
@@ -193,7 +192,7 @@ mutual
           unless f.type.callableData do error span "E_TYPE" "function values require scalar/Fn signatures"
           return { raw := .unit span, target := some { name, ty := f.type } }
         if (← get).families.contains name then error span "E_TYPE" "a generic is not a Fn value; use an explicit ordinary-function wrapper"
-        pure { raw := .variable name span }
+        pure { toLoweredExpr := LoweredExpr.atom (.variable name span) ctx }
       | .lambda _ _ _ span => error span "E_INTERNAL_FUNCTION" "lambda was not lifted"
       | .reference name span =>
         let f ← definition name span
@@ -206,16 +205,19 @@ mutual
           return ← invokeTarget fuel ctx target values span
         if ctx.any (·.name == name) then error span "E_TYPE" "application requires a Fn value"
         if let some family := (← get).families[name]? then
+          let values ← values.mapM fun value => do
+            let _ ← data value span
+            let info ← core (value.toLoweredExpr.infer (← get).signatures ctx)
+            return { value with known := some info }
           let key ← values.mapM fun value => do
-            let raw ← data value span
-            let result ← core (checkExpr 4096 (← get).signatures ctx raw none)
-            core (scalarKey result span)
+            core (scalarKey (← core (value.toLoweredExpr.infer (← get).signatures ctx)) span)
           let target ← core (selectTarget family key span)
           let f ← definition (monoName target.method key) span
           return ← invokeTarget fuel ctx { name := f.name, ty := f.type } values span
         if let some f := (← get).definitions.find? (·.name == name) then
           return ← invokeTarget fuel ctx { name, ty := f.type } values span
-        pure { raw := .call name (← values.mapM (fun value => data value span)) span }
+        let _ ← values.mapM (fun value => data value span)
+        return { toLoweredExpr := ← core (lowerCall (← get).signatures ctx name (values.map (·.toLoweredExpr)) span) }
       | .invoke callee args span =>
         let callee ← lowerExpr fuel ctx functions callee
         let target ← requireTarget callee span
@@ -236,8 +238,8 @@ mutual
       | .block body _ => lowerBlock fuel ctx functions body
       | .ite condition yes no span =>
         let condition ← lowerExpr fuel ctx functions condition
-        let condition ← data condition span
-        let _ ← core (checkExpr 4096 (← get).signatures ctx condition (some .bool))
+        let _ ← data condition span
+        let _ ← core (condition.toLoweredExpr.infer (← get).signatures ctx (some .bool))
         let yes ← lowerBlock fuel ctx functions yes
         let no ← lowerBlock fuel ctx functions no
         let target ← match yes.target, no.target with
@@ -249,13 +251,14 @@ mutual
               pure (some { a with abstractTarget := true, name := s!"__vastitas_branch{span.start}" })
             else error span "E_STATIC_CALL" "function-valued branches must resolve to the same static target"
           | _, _ => error span "E_TYPE" "both branches must have the same data or Fn type"
-        pure { raw := .ite condition (rawBlock yes span) (rawBlock no span) span, target }
+        pure { raw := .ite condition.raw (rawBlock yes span) (rawBlock no span) span, target }
   def lowerBlock : Nat → Context → Functions → Block → M Value
     | 0, _, _, .mk _ _ span => core (checkingBudgetExceeded span)
     | fuel + 1, ctx, functions, .mk statements result span => do
-      let (statements, ctx, functions) ← lowerStatements fuel ctx functions statements span
-      let value ← lowerExpr fuel ctx functions result
-      pure { value with raw := .block (.mk statements value.raw span) span }
+      let (statements, inner, functions) ← lowerStatements fuel ctx functions statements span
+      let value ← lowerExpr fuel inner functions result
+      let data ← core (lowerBlockResult ctx statements value.toLoweredExpr span)
+      pure { value with toLoweredExpr := data }
   def lowerStatements : Nat → Context → Functions → List Stmt → Span → M (List RawStmt × Context × Functions)
     | 0, _, _, _, span => core (checkingBudgetExceeded span)
     | _ + 1, ctx, functions, [], _ => pure ([], ctx, functions)
@@ -269,10 +272,10 @@ mutual
         | none, some (.function ..) => error span "E_TYPE" "expected a Fn value"
         | none, some (.data raw) => some <$> core (resolveType ctx raw span)
         | none, none => pure none
-      let checked ← core (checkExpr 4096 (← get).signatures ctx value.raw expected)
+      let checked ← core (value.toLoweredExpr.infer (← get).signatures ctx expected)
       let symbol ← core fresh
       if let some ref := checked.objectRef then core (nameObject ref name)
-      let binding : Checker.Internal.Binding := { name, symbol, ty := checked.term.ty, objectRef := checked.objectRef }
+      let binding : Checker.Internal.Binding := { name, symbol, ty := checked.ty, objectRef := checked.objectRef }
       let functions := match value.target with | some target => (name, target) :: functions | none => functions
       let (tail, ctx, functions) ← lowerStatements fuel (binding :: ctx) functions rest blockSpan
       let annotation := match value.target with | some _ => some (.named "Unit") | none => annotation.map TypeExpr.core
@@ -283,8 +286,8 @@ mutual
       if scheme == point then error span "E_DUPLICATE" "unpack needs two distinct binding names"
       let value ← lowerExpr fuel ctx functions expr
       let raw ← data value span
-      let checked ← core (checkExpr 4096 (← get).signatures ctx raw none)
-      let .pointed base := checked.term.ty | error span "E_TYPE" "unpack requires Pointed"
+      let checked ← core (value.toLoweredExpr.infer (← get).signatures ctx)
+      let .pointed base := checked.ty | error span "E_TYPE" "unpack requires Pointed"
       let objectSymbol ← core fresh
       let pointSymbol ← core fresh
       let obj := ObjectRef.local base objectSymbol
@@ -301,7 +304,6 @@ mutual
       unless params.length == values.length do error span "E_ARITY" s!"{target.ty.label} expects {params.length} arguments, found {values.length}"
       let mut targets := []
       let mut bindings := []
-      let mut args := []
       let mut erased := []
       for (param, value) in params.zip values do
         if param.isFunction then
@@ -309,11 +311,13 @@ mutual
           sameType param actual.ty span
           -- Signature probes must also check the computations whose resulting
           -- function values are erased, including conditions and nested calls.
-          let _ ← core (checkExpr 4096 (← get).signatures ctx value.raw (some .unit))
+          let _ ← core (value.toLoweredExpr.infer (← get).signatures ctx (some .unit))
           targets := targets ++ [actual]
           bindings := bindings ++ [(param, actual)]
           erased := erased ++ [value.raw]
-        else args := args ++ [← data value span]
+        else
+          let _ ← data value span
+          pure ()
       if target.abstractTarget then
         unless (← get).audit do error span "E_STATIC_CALL" "call target is not statically known"
         -- A signature-only type probe checks data arguments with their declared
@@ -321,14 +325,17 @@ mutual
         for (param, value) in params.zip values do
           unless param.isFunction do
             let expected ← core (resolveType ctx param.core span)
-            let _ ← core (checkExpr 4096 (← get).signatures ctx value.raw (some expected))
+            let _ ← core (value.toLoweredExpr.infer (← get).signatures ctx (some expected))
             pure ()
         return ← probe result s!"{target.name}_result{span.start}" span
       let f ← definition target.name span
       sameType f.type target.ty span
       let compiled ← requestInstance f targets span
       modify fun state => { state with calls := { target := f.name, signature := target.ty, bindings } :: state.calls }
-      pure { raw := ← effects erased (.call compiled.name args span) span, target := compiled.target }
+      let dataValues := (params.zip values).filterMap fun (param, value) =>
+        if param.isFunction then none else some value.toLoweredExpr
+      let value ← core (lowerCall (← get).signatures ctx compiled.name dataValues span)
+      pure { toLoweredExpr := { value with raw := ← effects erased value.raw span }, target := compiled.target }
 end
 
 /-- One new instance owns a full body budget, independently of the caller. -/

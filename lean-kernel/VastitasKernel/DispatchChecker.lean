@@ -276,64 +276,126 @@ def selectTarget (family : Family) (key : Dispatch.Key) (span : Span) : CheckM (
   else
     fail span "E_DISPATCH_DOMAIN" s!"generic '{family.raw.name}' does not admit call key {keyLabel key}"
 
-def scalarKey (value : Result) (span : Span) : CheckM Nat :=
-  match value.term.ty with
+/-- Lowering metadata is never sent to the final core checker. In particular,
+integer expressions remain unresolved until their actual expected type is known.
+ResultType retains nominal object references, not just the coarse Ty. -/
+structure LoweredExpr where
+  raw : RawExpr
+  known : Option ResultType := none
+  deriving Inhabited
+
+def LoweredExpr.infer (value : LoweredExpr) (signatures : Signatures) (ctx : Context)
+    (expected : Option Ty := none) : CheckM ResultType := do
+  match value.known with
+  | some info =>
+    let _ ← expectedResult ctx expected ⟨.var 0 info⟩ value.raw.span
+    return info
+  | none => return (← checkExpr 4096 signatures ctx value.raw expected).term.resultType
+
+def LoweredExpr.atom (raw : RawExpr) (ctx : Context) : LoweredExpr :=
+  { raw, known := match raw with
+    | .boolean .. => some ⟨.bool, none⟩
+    | .unit .. => some ⟨.unit, none⟩
+    | .variable name _ => (ctx.find? (·.name == name)).map (·.resultType)
+    | _ => none }
+
+def scalarKey (value : ResultType) (span : Span) : CheckM Nat :=
+  match value.ty with
   | .nat => pure 0 | .int => pure 1 | .bool => pure 2 | .unit => pure 3
   | ty => fail span "E_TYPE" s!"generic dispatch requires concrete scalar arguments; found {ty.label}"
 
+def independentData : Ty → Bool
+  | .nat | .int | .bool | .unit | .pair _ => true
+  | _ => false
+
+/-- Calls have an expected-type-independent result. Scalar/Pair signatures reuse
+already inferred operands; geometric calls keep the core's dependent argument
+substitution and fresh-object construction. Both paths retain their ResultType. -/
+def lowerCall (signatures : Signatures) (ctx : Context) (name : String)
+    (args : List LoweredExpr) (span : Span) : CheckM LoweredExpr := do
+  let raw := RawExpr.call name (args.map (·.raw)) span
+  if let some signature := signatures[name]? then
+    if signature.params.all (fun p => independentData p.ty) && independentData signature.result then
+      arity name (args.map (·.raw)) signature.params.length span
+      for (param, arg) in signature.params.zip args do
+        let _ ← arg.infer signatures ctx (some param.ty)
+      return { raw, known := some ⟨signature.result, none⟩ }
+  let info := (← checkExpr 4096 signatures ctx raw none).term.resultType
+  return { raw, known := some info }
+
+/-- Reusing a result across a block still checks its original escape boundary.
+The original statements are preserved for the final independent core check. -/
+def lowerBlockResult (ctx : Context) (statements : List RawStmt) (result : LoweredExpr)
+    (span : Span) : CheckM LoweredExpr := do
+  if let some info := result.known then checkEscape ctx ⟨.var 0 info⟩ span
+  return { result with raw := .block (.mk statements result.raw span) span }
+
+def loweredBlock (value : LoweredExpr) (span : Span) : RawBlock :=
+  match value.raw with
+  | .block body _ => body
+  | raw => .mk [] raw span
+
 mutual
-  def lowerExpr : Nat → Families → Signatures → Context → RawExpr → CheckM RawExpr
+  def lowerExpr : Nat → Families → Signatures → Context → RawExpr → CheckM LoweredExpr
     | 0, _, _, _, expr => checkingBudgetExceeded expr.span
     | fuel + 1, families, signatures, ctx, expr => do
       match expr with
-      | .integer .. | .boolean .. | .unit .. | .variable .. => pure expr
-      | .unary op value span => pure (.unary op (← lowerExpr fuel families signatures ctx value) span)
+      | .integer .. | .boolean .. | .unit .. | .variable .. => pure (LoweredExpr.atom expr ctx)
+      | .unary op value span =>
+        pure { raw := .unary op ((← lowerExpr fuel families signatures ctx value).raw) span }
       | .binary op left right span =>
-        pure (.binary op (← lowerExpr fuel families signatures ctx left) (← lowerExpr fuel families signatures ctx right) span)
+        let left ← lowerExpr fuel families signatures ctx left
+        let right ← lowerExpr fuel families signatures ctx right
+        pure { raw := .binary op left.raw right.raw span }
       | .pack scheme point span =>
-        pure (.pack (← lowerExpr fuel families signatures ctx scheme) (← lowerExpr fuel families signatures ctx point) span)
+        let scheme ← lowerExpr fuel families signatures ctx scheme
+        let point ← lowerExpr fuel families signatures ctx point
+        pure { raw := .pack scheme.raw point.raw span }
       | .ite condition yes no span =>
-        pure (.ite (← lowerExpr fuel families signatures ctx condition)
-          (← lowerBlock fuel families signatures ctx yes) (← lowerBlock fuel families signatures ctx no) span)
-      | .block body span => pure (.block (← lowerBlock fuel families signatures ctx body) span)
+        let condition ← lowerExpr fuel families signatures ctx condition
+        let yes ← lowerBlock fuel families signatures ctx yes
+        let no ← lowerBlock fuel families signatures ctx no
+        pure { raw := .ite condition.raw (loweredBlock yes span) (loweredBlock no span) span }
+      | .block body _ => lowerBlock fuel families signatures ctx body
       | .call name args span =>
         let args ← args.mapM (lowerExpr fuel families signatures ctx)
         match families[name]? with
-        | none => pure (.call name args span)
+        | none => lowerCall signatures ctx name args span
         | some family =>
-          arity name args family.raw.params.length span
-          -- Dispatch never infers from the expected return type or a chosen
-          -- method parameter. In particular, a bare integer defaults to Int.
-          let key ← args.mapM fun arg => do
-            scalarKey (← checkExpr 4096 signatures ctx arg none) arg.span
+          arity name (args.map (·.raw)) family.raw.params.length span
+          -- Keys remain independently inferred: method/result expectations
+          -- cannot turn an unannotated integer argument into Nat.
+          let args ← args.mapM fun arg => do
+            return { arg with known := some (← arg.infer signatures ctx) }
+          let key ← args.mapM fun arg => do scalarKey (← arg.infer signatures ctx) arg.raw.span
           let target ← selectTarget family key span
-          pure (.call (monoName target.method key) args span)
-  def lowerBlock : Nat → Families → Signatures → Context → RawBlock → CheckM RawBlock
+          lowerCall signatures ctx (monoName target.method key) args span
+  def lowerBlock : Nat → Families → Signatures → Context → RawBlock → CheckM LoweredExpr
     | 0, _, _, _, .mk _ _ span => checkingBudgetExceeded span
     | fuel + 1, families, signatures, ctx, .mk statements result span => do
-      let (statements, ctx) ← lowerStatements fuel families signatures ctx statements span
-      pure (.mk statements (← lowerExpr fuel families signatures ctx result) span)
+      let (statements, inner) ← lowerStatements fuel families signatures ctx statements span
+      lowerBlockResult ctx statements (← lowerExpr fuel families signatures inner result) span
   def lowerStatements : Nat → Families → Signatures → Context → List RawStmt → Span → CheckM (List RawStmt × Context)
     | 0, _, _, _, _, span => checkingBudgetExceeded span
     | _ + 1, _, _, ctx, [], _ => pure ([], ctx)
     | fuel + 1, families, signatures, ctx, .letE name annotation raw span :: rest, blockSpan => do
       checkNewBinding ctx name span
-      let raw ← lowerExpr fuel families signatures ctx raw
+      let value ← lowerExpr fuel families signatures ctx raw
       let expected ← annotation.mapM (fun ty => resolveType ctx ty span)
-      let value ← checkExpr 4096 signatures ctx raw expected
+      let info ← value.infer signatures ctx expected
       let symbol ← fresh
-      if let some ref := value.objectRef then nameObject ref name
-      let binding : Binding := { name, symbol, ty := value.term.ty, objectRef := value.objectRef }
+      if let some ref := info.objectRef then nameObject ref name
+      let binding : Binding := { name, symbol, ty := info.ty, objectRef := info.objectRef }
       let (rest, ctx) ← lowerStatements fuel families signatures (binding :: ctx) rest blockSpan
-      pure (.letE name annotation raw span :: rest, ctx)
+      pure (.letE name annotation value.raw span :: rest, ctx)
     | fuel + 1, families, signatures, ctx, .unpack raw scheme point span :: rest, blockSpan => do
       checkNewBinding ctx scheme span
       checkNewBinding ctx point span
       if scheme == point then fail span "E_DUPLICATE" "unpack needs two distinct binding names"
-      let raw ← lowerExpr fuel families signatures ctx raw
-      let value ← checkExpr 4096 signatures ctx raw none
-      let .pointed base := value.term.ty
-        | fail span "E_TYPE" s!"unpack requires Pointed, found {value.term.ty.label}"
+      let value ← lowerExpr fuel families signatures ctx raw
+      let info ← value.infer signatures ctx
+      let .pointed base := info.ty
+        | fail span "E_TYPE" s!"unpack requires Pointed, found {info.ty.label}"
       let objectSymbol ← fresh
       let pointSymbol ← fresh
       let obj := ObjectRef.local base objectSymbol
@@ -341,7 +403,7 @@ mutual
       let objectBinding : Binding := { name := scheme, symbol := objectSymbol, ty := .object base, objectRef := some obj }
       let pointBinding : Binding := { name := point, symbol := pointSymbol, ty := unpackedPointType base objectSymbol }
       let (rest, ctx) ← lowerStatements fuel families signatures (pointBinding :: objectBinding :: ctx) rest blockSpan
-      pure (.unpack raw scheme point span :: rest, ctx)
+      pure (.unpack value.raw scheme point span :: rest, ctx)
 end
 
 def lowerProgramImpl (program : RawProgram) : CheckM RawModule := do
@@ -358,7 +420,7 @@ def lowerProgramImpl (program : RawProgram) : CheckM RawModule := do
   let functions ← signatureList.mapM fun signature =>
     withInstantiationNote notes[signature.raw.name]? do
       let body ← lowerBlock 4096 families signatures signature.params signature.raw.body
-      let raw := { signature.raw with body }
+      let raw := { signature.raw with body := loweredBlock body signature.raw.span }
       -- Check each monomorphized body before discarding its diagnostic context.
       -- The full lowered module is still checked independently afterward.
       if notes.contains raw.name then

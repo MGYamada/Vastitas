@@ -452,3 +452,38 @@ fn function_type_depth_is_bounded_on_both_sides() {
     raw["functions"][0]["body"]["statements"][0]["value"]["return_type"] = ty;
     assert_rejected(raw, "E_PROTOCOL");
 }
+
+#[test]
+fn lowered_type_reuse_preserves_contextual_literals_and_nominal_endpoints() {
+    let declarations = "generic keep(x) { domain (Nat), (Int); }
+method keep(x: Nat) -> Nat { x }
+method keep(x: Int) -> Int { x }
+fn point(X: Scheme) -> Point<X, Base(QQ)> { origin(X) }
+fn natural(n: Nat) -> Nat { let zero: Nat = { let z: Nat = 0 + 0; z }; if true { 0 } else { keep(n) + zero } }
+";
+    let mut nested = "42".to_owned();
+    for _ in 0..35 {
+        nested = format!("keep({nested})");
+    }
+    for lambda in [
+        "",
+        "fn unused() -> Int { let f = fn(x: Int) -> Int { keep(x) }; f(0) }",
+    ] {
+        let source = format!(
+            "{declarations}{lambda}
+fn main() -> Int {{
+ let X = Affine(QQ, 1);
+ let Y = Affine(QQ, 1);
+ let p: Point<X, Base(QQ)> = {{ let alias = X; point(alias) }};
+ let q: Point<X, Base(QQ)> = apply(id(X), p);
+ {nested} + int(natural(1))
+}}"
+        );
+        native(&source, &[], "42");
+        reject(
+            &source.replace("let q: Point<X", "let q: Point<Y"),
+            "E_TYPE",
+        );
+        reject(&source.replace(&nested, "int(keep(0))"), "E_TYPE");
+    }
+}

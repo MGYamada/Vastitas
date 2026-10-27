@@ -29,7 +29,7 @@ method promote(left: Int, right: Int) -> Pair<Int> {
 }
 
 pub generic add(left, right) {
-    domain (Int, Int), (Nat, Nat);
+    domain (Int, Int), (Nat, Nat), (Nat, Int), (Int, Nat);
 }
 
 method add(left: Int, right: Int) -> Int {
@@ -40,8 +40,18 @@ method add(left: Nat, right: Nat) -> Nat {
     nat_add(left, right)
 }
 
+method add(left: Nat, right: Int) -> Int {
+    let p = promote(left, right);
+    add(pair_first(p), pair_second(p))
+}
+
+method add(left: Int, right: Nat) -> Int {
+    let p = promote(left, right);
+    add(pair_first(p), pair_second(p))
+}
+
 pub generic maximum(left, right) {
-    domain (Int, Int), (Nat, Nat);
+    domain (Int, Int), (Nat, Nat), (Nat, Int), (Int, Nat);
 }
 
 method maximum(left: Int, right: Int) -> Int requires (HasOrder) {
@@ -50,4 +60,14 @@ method maximum(left: Int, right: Int) -> Int requires (HasOrder) {
 
 method maximum(left: Nat, right: Nat) -> Nat requires (HasOrder) {
     nat_max(left, right)
+}
+
+method maximum(left: Nat, right: Int) -> Int requires (HasOrder) {
+    let p = promote(left, right);
+    maximum(pair_first(p), pair_second(p))
+}
+
+method maximum(left: Int, right: Nat) -> Int requires (HasOrder) {
+    let p = promote(left, right);
+    maximum(pair_first(p), pair_second(p))
 }

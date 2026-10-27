@@ -1,5 +1,5 @@
 fn main() -> Int {
     let n: Nat = 20;
     let p: Pair<Int> = promote(n, 22);
-    pair_first(p) + pair_second(p)
+    maximum(add(pair_first(p), pair_second(p)), add(n, -7))
 }

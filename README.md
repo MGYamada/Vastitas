@@ -102,8 +102,9 @@ cargo run --locked -- build examples/dispatch-arithmetic.vast \
 # 42
 ```
 
-Their domains are `(Int, Int)` and `(Nat, Nat)`. Generic arguments determine
-selection, so bare literals choose Int; pass Nat-typed values to choose Nat.
+Their domains are all four Nat/Int pairs. Mixed methods bind `promote` once and
+delegate through its projections to the Int/Int method. Nat/Nat retains Nat.
+Generic arguments determine selection, so bare literals choose Int.
 There is no implicit conversion or selection using the expected result type.
 See [the Stage 1a specification](docs/stage1a.md) for selectors, capabilities,
 the 4096-key bound, and examples of ambiguity.

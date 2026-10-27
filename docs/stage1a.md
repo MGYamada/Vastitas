@@ -97,7 +97,8 @@ Capabilities are unary facts intersected across arguments, not relations
 between them. A `(Number, Number)` method requiring `HasOrder` also applies to
 `(Nat, Int)`, even if the callable domain contains only equal-type pairs. A body
 using `left < right` therefore fails there. For now, write separate `(Nat, Nat)`
-and `(Int, Int)` methods, as in the arithmetic library. Shared type variables
+and `(Int, Int)` methods, plus explicit mixed methods that call `promote` and
+delegate to a homogeneous method, as in the arithmetic library. Shared type variables
 and relational capabilities remain design work (#37); narrowing the domain
 does not suppress body checking.
 

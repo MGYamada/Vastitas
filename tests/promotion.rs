@@ -94,6 +94,26 @@ fn check_raw(raw: &Value) -> Value {
         .unwrap();
     serde_json::from_slice(&child.wait_with_output().unwrap().stdout).unwrap()
 }
+
+fn flat_request(source: &str) -> Value {
+    let libraries = ["int", "nat", "generic"].map(|name| {
+        fs::read_to_string(root().join(format!("stdlib/src/arithmetic/{name}.vast"))).unwrap()
+    });
+    let mut offset = 0;
+    let sources: Vec<_> = std::iter::once(source)
+        .chain(libraries.iter().map(String::as_str))
+        .map(|source| {
+            let input = vastitas::frontend::SourceInput {
+                source,
+                file: "promotion-contract.vast",
+                offset,
+            };
+            offset += source.len() + 1;
+            input
+        })
+        .collect();
+    serde_json::to_value(vastitas::frontend::parse_sources(&sources).unwrap()).unwrap()
+}
 fn rejects(raw: &Value, code: &str) {
     let result = check_raw(raw);
     assert_eq!(result["ok"], false, "{result}");
@@ -316,4 +336,117 @@ fn source_children_and_siblings_cannot_extend_the_promote_owner() {
             "{output:?}"
         );
     }
+}
+
+#[test]
+fn mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes() {
+    let source = "fn main() -> Int {
+        let n: Nat = 20; let m: Nat = 22; let z: Nat = 0;
+        let big: Nat = 123456789012345678901234567890;
+        let nn: Nat = add(n, m); let nm: Nat = maximum(n, m);
+        if nn == 42 && nm == m && add(n, 22) == 42 && add(22, n) == 42 &&
+           maximum(n, 22) == 22 && maximum(22, n) == 22 &&
+           add(n, -7) == 13 && add(-7, n) == 13 &&
+           maximum(n, -7) == 20 && maximum(-7, n) == 20 &&
+           add(-7, -2) == -9 && maximum(-7, -2) == -2 &&
+           add(big, -1) == 123456789012345678901234567889 &&
+           maximum(-1, big) == int(big) && add(z, 0) == 0 && maximum(z, -1) == 0
+        { 42 } else { -1 }
+    }";
+    let scratch = Scratch::new(source);
+    fs::write(
+        scratch.0.join("main.vast"),
+        format!(
+            "use std::arithmetic::generic::add; use std::arithmetic::generic::maximum;\n{source}"
+        ),
+    )
+    .unwrap();
+    assert_eq!(check_raw(&flat_request(source))["ok"], true);
+    for package in [false, true] {
+        success(scratch.cli("check", package).output().unwrap());
+        success(
+            scratch
+                .cli("build", package)
+                .args(["-o", "program"])
+                .output()
+                .unwrap(),
+        );
+        let output = Command::new(scratch.0.join("program")).output().unwrap();
+        assert_eq!(output.stdout, b"42\n");
+        success(output);
+    }
+}
+
+#[test]
+fn promotion_does_not_hide_specialized_cycles_or_bad_applicable_bodies() {
+    let declarations = [
+        (
+            "generic cycle(x, y) { domain (Nat, Nat), (Nat, Int), (Int, Nat), (Int, Int); } method cycle(x: Number, y: Number) -> Int { let p = promote(x, y); cycle(pair_first(p), pair_second(p)) }",
+            "E_RECURSION",
+        ),
+        (
+            "generic cycle(x, y) { domain (Nat, Int), (Int, Int); } method cycle(x: Nat, y: Int) -> Int { let p = promote(x, y); cycle(pair_first(p), pair_second(p)) } method cycle(x: Int, y: Int) -> Int { cycle(x, y) }",
+            "E_RECURSION",
+        ),
+        (
+            "fn helper(x: Int, y: Int) -> Int { cycle(x, y) } generic cycle(x, y) { domain (Int, Int); } method cycle(x: Int, y: Int) -> Int { helper(x, y) }",
+            "E_RECURSION",
+        ),
+        (
+            "method add(x: Number, y: Number) -> Int { let p = promote(x, y); pair_first(p) }",
+            "E_TYPE",
+        ),
+        (
+            "method add(x: Any, y: Any) -> Int { let p = promote(x, y); pair_first(p) }",
+            "E_TYPE",
+        ),
+        ("fn bad(n: Nat) -> Int { n + 1 }", "E_TYPE"),
+    ];
+    for (source, code) in declarations {
+        // Higher-order presence must not disable unused-instance auditing.
+        for extra in [
+            "",
+            "fn unused() -> Int { let f = fn(x: Int) -> Int { x }; f(0) }",
+        ] {
+            let source = format!("{source}\n{extra}");
+            rejects(&flat_request(&source), code);
+            let scratch = Scratch::new(&source);
+            let output = scratch.cli("check", false).output().unwrap();
+            assert!(!output.status.success());
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains(code),
+                "{output:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn missing_homogeneous_delegation_is_an_error() {
+    let base = flat_request("fn main() -> Int { 0 }");
+    let mut raw = base.clone();
+    raw["methods"].as_array_mut().unwrap().retain(|m| {
+        !(m["name"] == "add"
+            && m["params"][0]["ty"]["name"] == "Int"
+            && m["params"][1]["ty"]["name"] == "Int")
+    });
+    rejects(&raw, "E_DISPATCH_COVERAGE");
+    let mut raw = base.clone();
+    let add = raw["generics"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|g| g["name"] == "add")
+        .unwrap();
+    add["domain"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|key| key != &json!([{"kind":"named","name":"Int"},{"kind":"named","name":"Int"}]));
+    rejects(&raw, "E_DISPATCH_DOMAIN");
+    let mut raw = base;
+    raw["functions"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|f| f["name"] != "int_add");
+    rejects(&raw, "E_NAME");
 }

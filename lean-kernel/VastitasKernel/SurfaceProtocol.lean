@@ -94,15 +94,43 @@ def decodeSurfaceMethod (j : Json) : Except String Surface.Method := do
     body := ← decodeBlock 512 (← field j "body")
     span := ← decodeSpan j }
 
+def decodeTypePath (j : Json) : Except String TypePath := do
+  fields j ["path", "span"]
+  let path ← (← array j "path").mapM Json.getStr?
+  if path.isEmpty || path.any String.isEmpty then throw "empty type path"
+  return { path, span := ← decodeSpan j }
+
+def decodeAbstractType (j : Json) : Except String RawAbstractType := do
+  return {
+    name := ← str j "name", parents := ← (← array j "parents").mapM decodeTypePath,
+    span := ← decodeSpan j }
+
+def decodeSubtype (j : Json) : Except String RawSubtype := do
+  fields j ["scalar", "target", "span"]
+  return { scalar := ← str j "scalar", target := ← decodeTypePath (← field j "target"), span := ← decodeSpan j }
+
 def decodeSurfaceModule (j : Json) : Except String Surface.Program := do
   let version ← j.getObjValAs? Nat "version"
-  if version != 2 then throw s!"unsupported IR protocol version {version}; expected 2"
+  if version != 2 && version != 4 then throw s!"unsupported IR protocol version {version}; expected 2 or 4"
+  if version == 4 then
+    fields j ["version", "file", "functions", "generics", "methods", "input", "abstract_types", "subtypes"]
+    if (← str j "input") != "flat" then throw "protocol 4 input must be flat"
+  else
+    -- Preserve v2's treatment of unrelated, untrusted hint metadata, but never
+    -- silently erase declarations from a downgraded protocol-4 request.
+    for key in ["input", "abstract_types", "subtypes"] do
+      if (j.getObjVal? key).isOk then throw "abstract declarations require protocol 4"
+  let abstractTypes ← (← optionalArray j "abstract_types").mapM fun t => do
+    fields t ["name", "parents", "span"]
+    decodeAbstractType t
+  let subtypes ← (← optionalArray j "subtypes").mapM decodeSubtype
   pure {
     version
     file := ← str j "file"
     functions := ← (← array j "functions").mapM decodeSurfaceFunction
     generics := ← (← array j "generics").mapM decodeSurfaceGeneric
-    methods := ← (← array j "methods").mapM decodeSurfaceMethod }
+    methods := ← (← array j "methods").mapM decodeSurfaceMethod
+    abstractTypes, subtypes }
 
 
 end VastitasKernel

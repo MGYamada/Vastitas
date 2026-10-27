@@ -13,6 +13,15 @@ def field (j : Json) (key : String) : Except String Json :=
 def array (j : Json) (key : String) : Except String (List Json) := do
   pure (← (← field j key).getArr?).toList
 
+def optionalArray (j : Json) (key : String) : Except String (List Json) := do
+  match j.getObjVal? key with
+  | .error _ => return []
+  | .ok value => return (← value.getArr?).toList
+
+def fields (j : Json) (allowed : List String) : Except String Unit := do
+  for (key, _) in (← j.getObj?).toArray do
+    if !allowed.contains key then throw s!"unknown protocol field '{key}'"
+
 def decodeSpan (j : Json) : Except String Span := do
   let s ← field j "span"
   let start ← s.getObjValAs? Nat "start"

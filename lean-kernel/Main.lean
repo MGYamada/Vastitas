@@ -13,9 +13,10 @@ private def process (mode input : String) : Lean.Json := Id.run do
   match parsed with
   | .error message => return failureJson { code := "E_PROTOCOL", message }
   | .ok json =>
-    let version := if (json.getObjValAs? Nat "version").toOption == some 3 then 3 else 2
+    let requested := (json.getObjValAs? Nat "version").toOption
+    let version := if requested == some 4 then 4 else if requested == some 3 then 3 else 2
     let checked : Except Diagnostic CertifiedModule := do
-      if version == 3 then
+      if version == 3 || (version == 4 && (json.getObjValAs? String "input").toOption == some "package") then
         let raw ← (decodeNamespaceProgram json).mapError fun message => { code := "E_PROTOCOL", message }
         checkNamespaceProgram raw (mode == "emit") (Namespace.describeDiagnostic raw)
       else

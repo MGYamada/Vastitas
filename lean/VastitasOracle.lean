@@ -2,6 +2,7 @@ import VastitasOracle.Core
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness
+import VastitasOracle.AbstractTypes
 import VastitasOracle.DispatchLowering
 import VastitasOracle.Functions
 import VastitasOracle.Namespaces

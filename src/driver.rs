@@ -92,7 +92,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if args == ["--version"] {
         println!(
-            "vastitas {} (Stage 1b + packages, protocols {PROTOCOL_VERSION}/3)",
+            "vastitas {} (Stage 1b + packages + abstract selectors, protocols {PROTOCOL_VERSION}/3/4)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -112,7 +112,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
         let request = serde_json::to_vec(&module)
             .map_err(|error| format!("E_PROTOCOL: cannot encode packages: {error}"))?;
-        (sources, request, crate::packages::PROTOCOL)
+        (sources, request, module.version)
     } else {
         let sources = Sources::load(input.as_ref().unwrap(), &libraries)?;
         if let Some(output) = &output {
@@ -121,7 +121,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         let module = sources.parse()?;
         let request = serde_json::to_vec(&module)
             .map_err(|error| format!("E_PROTOCOL: cannot encode module: {error}"))?;
-        (sources, request, PROTOCOL_VERSION)
+        (sources, request, module.version)
     };
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
     let root = if output.is_some() || configured_executable.is_none() {

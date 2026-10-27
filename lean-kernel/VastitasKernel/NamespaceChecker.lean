@@ -153,10 +153,14 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
     let scope : Scope := ⟨pkg.id, m.path⟩
     (m.functions.map fun f => (⟨scope, f.name⟩, f.span)) ++
     (m.generics.map fun g => (⟨scope, g.name⟩, g.span)) ++
+    (m.abstractTypes.map fun t => (⟨scope, t.name⟩, t.span)) ++
     (if m.path.isEmpty then [] else
       [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
 
 def validate (p : Indexed) : Result Unit := do
+  if !p.extended && p.packages.any (fun pkg => pkg.modules.any fun m =>
+      !m.abstractTypes.isEmpty || !m.subtypes.isEmpty) then
+    problem {} "E_PROTOCOL" "abstract declarations require protocol 4"
   if p.packages.isEmpty || (packageAt p p.root).isNone then problem {} "E_PROTOCOL" "missing root package"
   if !(p.packages.map (·.id.source)).Nodup then problem {} "E_DUPLICATE" "duplicate package location"
   if !p.scopes.Nodup then
@@ -198,6 +202,7 @@ structure Reference where
   span : Span
   target : Target
   method : Bool := false
+  membership : Bool := false
   deriving Repr, Inhabited
 
 structure Lowered where
@@ -206,7 +211,8 @@ structure Lowered where
   deriving Repr, Inhabited
 
 def Authorized (reference : Reference) : Prop :=
-  reference.method = true → reference.target.kind = .generic ∧ reference.target.owner.scope = reference.scope
+  (reference.method = true → reference.target.kind = .generic ∧ reference.target.owner.scope = reference.scope) ∧
+  (reference.membership = true → reference.target.kind = .abstractType ∧ reference.target.owner.scope = reference.scope)
 
 def ReferencesValid (p : Indexed) (lowered : Lowered) : Prop :=
   ∀ reference ∈ lowered.references,
@@ -218,12 +224,14 @@ instance (p : Indexed) (lowered : Lowered) : Decidable (ReferencesValid p lowere
 
 abbrev M := StateT (List Reference) Result
 
-def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method := false) : M Target := do
+def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method := false) (membership := false) : M Target := do
   let path := (name.splitOn "::")
   let target ← resolve p scope path span
   if method && (target.kind != .generic || target.owner.scope != scope) then
     problem span "E_OWNER" "only the exact module defining a generic may add methods"
-  modify (⟨scope, path, span, target, method⟩ :: ·)
+  if membership && (target.kind != .abstractType || target.owner.scope != scope) then
+    problem span "E_OWNER" "only the exact module defining an abstract type may add scalar memberships"
+  modify (⟨scope, path, span, target, method, membership⟩ :: ·)
   return target
 
 def binder (p : Indexed) (scope : Scope) (name : String) (span : Span) : Result String := do
@@ -261,7 +269,8 @@ def referenceName (p : Indexed) (scope : Scope) (bound : List String) (name : St
   if !name.contains ':' && (bound.contains name || builtinNames.contains name) then
     return if builtinNames.contains name then name else localName name
   let target ← lookup p scope name span
-  if target.kind == .module then problem span "E_NAME" "a module is not a value"
+  if target.kind == .module || target.kind == .abstractType then
+    problem span "E_NAME" "a module or abstract selector is not a value"
   return symbol p.toProgram target
 
 mutual
@@ -326,15 +335,39 @@ def function (p : Indexed) (scope : Scope) (f : Surface.Function) (target : Targ
     result := type f.result
     body := ← block 1024 p scope (f.params.map (·.name)) f.body }
 
+def abstractPath (p : Indexed) (scope : Scope) (path : TypePath) (membership := false) : M TypePath := do
+  if path.path.length == 1 && Abstract.builtins.contains path.name then
+    if membership then problem path.span "E_OWNER" "builtin subtype relations cannot be edited"
+    return path
+  let target ← lookup p scope path.name path.span false membership
+  if target.kind != .abstractType then problem path.span "E_TYPE" "expected an abstract type declaration"
+  return { path with path := [symbol p.toProgram target] }
+
+def selectorType (p : Indexed) (scope : Scope) (ty : TypeExpr) (span : Span) : M TypeExpr := do
+  match ty with
+  | .data (.named name) =>
+    let path ← abstractPath p scope ⟨name.splitOn "::", span⟩
+    return .data (.named path.name)
+  | _ => return ty
+
 def lower (p : Indexed) : Result Lowered := do
   validate p
   let action : M Surface.Program := do
     let mut functions := []
     let mut generics := []
     let mut methods := []
+    let mut abstractTypes := []
+    let mut subtypes := []
     for pkg in p.packages do
       for m in pkg.modules do
         let scope : Scope := ⟨pkg.id, m.path⟩
+        for declaration in m.abstractTypes do
+          let target : Target := ⟨⟨scope, declaration.name⟩, .abstractType, declaration.isPublic⟩
+          abstractTypes := abstractTypes ++ [{ declaration.toRawAbstractType with
+            name := symbol p.toProgram target
+            parents := ← declaration.parents.mapM (abstractPath p scope) }]
+        for membership in m.subtypes do
+          subtypes := subtypes ++ [{ membership with target := ← abstractPath p scope membership.target true }]
         for f in m.functions do
           functions := functions ++ [← function p scope f.toFunction ⟨⟨scope, f.name⟩, .function, f.isPublic⟩]
         for g in m.generics do
@@ -344,9 +377,11 @@ def lower (p : Indexed) : Result Lowered := do
             name := symbol p.toProgram ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩, params }]
         for method in m.methods do
           let target ← lookup p scope method.name method.span true
-          let f ← function p scope method.toFunction target
+          let params ← method.params.mapM fun param => do
+            return { param with ty := ← selectorType p scope param.ty param.span }
+          let f ← function p scope { method.toFunction with params } target
           methods := methods ++ [{ f with requirements := method.requirements }]
-    return { version := 2, file := p.file, functions, generics, methods }
+    return { version := if p.extended then 4 else 2, file := p.file, functions, generics, methods, abstractTypes, subtypes }
   let (surface, references) ← action.run []
   return { surface, references }
 

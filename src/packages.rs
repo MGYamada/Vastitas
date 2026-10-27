@@ -1,7 +1,9 @@
 //! Explicit path-package loading. Namespace references remain unresolved in the
 //! wire request: only Lean can accept them and assign function identities.
 use crate::frontend;
-use crate::ir::{Function, Generic, Method, Span};
+use crate::ir::{
+    ABSTRACT_PROTOCOL_VERSION, AbstractType, Function, Generic, Method, Span, Subtype,
+};
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
@@ -33,6 +35,10 @@ pub(crate) struct Module {
     pub functions: Vec<Public<Function>>,
     pub generics: Vec<Public<Generic>>,
     pub methods: Vec<Method>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub abstract_types: Vec<Public<AbstractType>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub subtypes: Vec<Subtype>,
     pub span: Span,
 }
 
@@ -64,7 +70,9 @@ struct Package {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Program {
-    version: u32,
+    pub version: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    input: Option<String>,
     file: String,
     root: String,
     packages: Vec<Package>,
@@ -310,8 +318,18 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
     };
     let root = loader.package(manifest)?;
+    let extended = loader
+        .packages
+        .iter()
+        .flat_map(|p| &p.modules)
+        .any(|m| !m.abstract_types.is_empty() || !m.subtypes.is_empty());
     let program = Program {
-        version: PROTOCOL,
+        version: if extended {
+            ABSTRACT_PROTOCOL_VERSION
+        } else {
+            PROTOCOL
+        },
+        input: extended.then(|| "package".into()),
         file: root.clone(),
         root,
         packages: loader.packages,

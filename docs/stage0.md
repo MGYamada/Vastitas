@@ -145,11 +145,12 @@ kernel package directory. Native builds still require `VASTITAS_KERNEL_ROOT`
 (or this checkout's default package), and copy that package's `lean-toolchain`
 into the temporary Lake project.
 
-Unimplemented syntax or operations are rejected. Modules/imports, generics
-beyond the listed indexed types, dispatch, ownership of editable functions,
-tensor operations, AD, numerical solvers, and physical evidence are later
-milestones. There is no REPL, user-facing interpreter, LSP, package manager, or
-cross-compilation target in Stage 0.
+Unimplemented syntax or operations are rejected. Beyond this Stage 0 core,
+[Stage 1a](stage1a.md) adds scalar dispatch, [Stage 1b](stage1b.md) adds independent
+functions, and [package mode](packages.md) adds path packages and modules/imports.
+User-defined abstract types, ownership of editable functions, tensor operations,
+AD, numerical solvers, and physical evidence remain later work. There is no
+REPL, user-facing interpreter, LSP, package manager, or cross-compilation target.
 
 ## Source libraries
 
@@ -163,7 +164,7 @@ vastitas build app.vast --lib stdlib/src/arithmetic/int.vast -o app
 Each source is parsed independently; declarations are then resolved and checked
 as one compilation unit. Functions may call declarations in other included
 files in either direction, subject to the existing recursion prohibition. All
-functions currently share one namespace; duplicate function definitions and
+functions in this protocol-2 mode share one namespace; duplicate function definitions and
 duplicate input files are errors. A library cannot supply the `main` entrypoint.
 Diagnostics identify the original file and its local line/column, including
 errors reported by the Lean backend. Library paths are relative to the command's
@@ -175,4 +176,6 @@ file exposes `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, `nat_max`, and `nat_to_
 The prefixes distinguish types while overloading remains outside Stage 0.
 The ordinary operator syntax and its scalar typing rules are unchanged; these
 `.vast` functions build on the existing exact arithmetic primitives. Libraries
-are never loaded implicitly, and there is no package resolver or import syntax.
+are never loaded implicitly. This explicit `--lib` mode does not resolve packages
+or support module/import syntax; use [manifest mode](packages.md) for those
+features. Neither mode introduces an implicit prelude or a registry package manager.

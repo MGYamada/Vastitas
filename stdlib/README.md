@@ -66,5 +66,7 @@ result type never selects a method. Mixed `(Nat, Int)` and `(Int, Nat)` calls
 are outside these generics' declared domains. `maximum` requires the static
 `HasOrder` capability, which both supported same-type keys satisfy.
 
-Explicit source inclusion is the current loading mechanism. There is no
-automatic prelude, package manager, or general module/import syntax.
+These arithmetic files use explicit `--lib` inclusion and its flat namespace.
+[Manifest mode](../docs/packages.md) separately supports local path packages and
+module/import syntax. Neither mode supplies an automatic prelude or a registry
+package manager.

@@ -5,6 +5,17 @@ defaultTargets = ["vastitas-kernel"]
 [[lean_lib]]
 name = "VastitasKernel"
 
+[[input_file]]
+name = "promotionFixture"
+path = "../tests/fixtures/promotion.json"
+text = true
+
+# Test/proof fixtures are separate from the ordinary compiler library.
+[[lean_lib]]
+name = "VastitasPromotion"
+roots = ["VastitasPromotion.Fixture", "VastitasPromotion.Regression"]
+needs = ["promotionFixture"]
+
 [[lean_exe]]
 name = "vastitas-kernel"
 root = "Main"

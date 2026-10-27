@@ -83,6 +83,17 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertTrue(any("forbidden import Mathlib" in error for error in errors))
         self.assertTrue(any("forbidden import StdEvil" in error for error in errors))
 
+    def test_promotion_fixture_library_cannot_enter_the_compiler(self):
+        self.write("lean-kernel/VastitasPromotion/Regression.lean",
+                   "import VastitasPromotion.Fixture\nimport VastitasKernel.Core\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/Core.lean", "import VastitasPromotion.Fixture\n")
+        self.assertTrue(any("forbidden import VastitasPromotion.Fixture" in error
+                            for error in check_boundaries(self.root)))
+        self.write("lean-kernel/VastitasPromotion/Fixture.lean", "import Mathlib\n")
+        self.assertTrue(any("forbidden import Mathlib" in error
+                            for error in check_boundaries(self.root)))
+
     def test_runtime_cannot_import_compiler_or_external_packages(self):
         self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Lean\nimport VastitasKernel.Core\n")
         self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": [{"name": "mathlib"}]}))

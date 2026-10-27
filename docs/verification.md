@@ -25,7 +25,8 @@ generation. The formal evaluation relation operates on this actual `Term`
 language and uses the actual runtime objects, points, morphisms, and packages.
 It also includes the closed `Pair<Nat>` / `Pair<Int>` types, construction and
 projections. The declaration/expression correspondence and whole-core safety
-proofs cover these operations; this does not add a numerical promotion contract.
+proofs cover these operations. Separate [stdlib numerical contracts](promotion.md)
+cover the value policy of promotion and its arithmetic callers.
 
 Successful core `checkModule` runs two independent audits after elaboration:
 
@@ -226,6 +227,11 @@ theorems. Finite static dispatch does not establish those later Stage 1 goals.
 
 ## Validation
 
+The [initial promotion contract](promotion.md) documents the arbitrary-input
+numerical proofs in `VastitasOracle.Promotion`, reflection of the actual checked
+stdlib bodies, frontend-fixture agreement, and the distinction between proof
+statements and executable fixture/namespace/native checks.
+
 Run from the repository root:
 
 ```sh
@@ -234,7 +240,7 @@ cargo clippy --locked --all-targets -- -D warnings
 lake -d lean-kernel build vastitas-kernel
 lake -d lean-kernel build VastitasKernel.TypeAuditRegression
 lake -d lean-kernel build VastitasKernel.DispatchRegression
-lake -d lean-kernel build VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression
+lake -d lean-kernel build VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasPromotion.Regression
 cargo test --locked --all-targets
 lake -d lean build VastitasOracle
 python3 -m unittest discover -s scripts -p 'test_*.py'

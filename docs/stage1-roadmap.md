@@ -52,7 +52,7 @@ have explicit selectors and concrete scalar or homogeneous numeric Pair result t
 uses compiler-established static facts (`HasOrder` implies `HasEq`).
 
 Lean constructs and verifies the finite key environment. Ambiguity is checked
-on every admitted key, coverage on the declared domain, and selection follows
+on every key in the finite scalar universe, coverage on the declared domain, and selection follows
 the nominal/capability product order. There is no runtime generic-dispatch
 fallback or selection using erased geometry identities. The key-space limit
 is 4096. Every applicable ground method body is checked before lowering to the
@@ -93,10 +93,12 @@ The implemented boundary is local path dependencies and call-only imports.
 Only the exact owning module may add generic methods. #52 remains open for
 edit borrowing, authority transfer, impact regions and revalidation semantics.
 #48 still needs abstract types and abstract methods; #49 needs those interfaces
-and further ownership work to move geometry into the stdlib; #55 needs an
-explicit promoted-result representation and static common-type rules in addition
-to this ownership foundation. #37 stays an independent next candidate. None of
-these design issues closes merely because module ownership is now checked.
+and further ownership work to move geometry into the stdlib. #55's initial
+four-key Nat/Int increment adds Pair, selected results and shared arithmetic
+promotion with actual-body numerical contracts; see [promotion](promotion.md).
+#37 stays an independent design candidate. Abstract types, edit/storage
+ownership, geometric stdlib, macros and linear algebra remain open work; their
+dependencies are not discharged by completing numeric promotion.
 
 See [packages](packages.md) for the current contract. The historical v0.3
 proposal remains unchanged.

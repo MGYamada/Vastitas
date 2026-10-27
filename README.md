@@ -143,6 +143,8 @@ See [the Pair contract](docs/stage1b.md#homogeneous-data-pairs) and
 [native example](examples/pairs.vast). The stdlib's four-key `promote` preserves
 Nat/Nat as Pair<Nat> and embeds mixed keys into Pair<Int> explicitly. See the
 [promotion contract and package usage](stdlib/README.md#explicit-promotion).
+The [numerical proof contract](docs/promotion.md) covers the actual checked
+stdlib bodies; this increment does not complete the historical Stage 1 proposal.
 
 ## Architecture
 
@@ -170,7 +172,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression
+lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasPromotion.Regression
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets

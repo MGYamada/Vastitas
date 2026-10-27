@@ -450,3 +450,24 @@ fn missing_homogeneous_delegation_is_an_error() {
         .retain(|f| f["name"] != "int_add");
     rejects(&raw, "E_NAME");
 }
+
+#[test]
+fn stdlib_ir_matches_proof_fixture() {
+    let actual = flat_request("");
+    let path = root().join("tests/fixtures/promotion.json");
+    if std::env::var_os("VASTITAS_UPDATE_PROMOTION_FIXTURE").as_deref()
+        == Some(std::ffi::OsStr::new("1"))
+    {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
+    }
+    let expected: Value = serde_json::from_slice(
+        &fs::read(path).expect("regenerate the promotion fixture as documented"),
+    )
+    .unwrap();
+    assert_eq!(
+        actual, expected,
+        "stdlib frontend IR differs from the numerical proof fixture"
+    );
+    assert_eq!(check_raw(&expected)["ok"], true);
+}

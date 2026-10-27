@@ -141,7 +141,10 @@ def check_boundaries(root):
             errors.append(f"{source.relative_to(root)}: {error}")
             continue
         for name in imports:
-            if not module_allowed(name, {"Init", "Std", "Lean", "VastitasKernel"}):
+            allowed = {"Init", "Std", "Lean", "VastitasKernel"}
+            if source.is_relative_to(kernel / "VastitasPromotion"):
+                allowed.add("VastitasPromotion")
+            if not module_allowed(name, allowed):
                 errors.append(f"{source.relative_to(root)}: forbidden import {name}")
             if source == runtime:
                 if not module_allowed(name, {"Init", "Std"}):

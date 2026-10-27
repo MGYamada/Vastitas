@@ -118,6 +118,9 @@ result does not change `add(20, 22)` to the Nat specialization. Use `int(n)` or
 
 ## Standard library and use
 
+The [initial promotion increment](promotion.md) adds exact Pair return types and
+shared mixed Nat/Int arithmetic, with numerical contracts for the actual bodies.
+
 `stdlib/src/arithmetic/generic.vast` provides `add` and `maximum` using the
 existing `int_*` and `nat_*` functions. Existing operators and prefixed
 functions retain their behavior, including saturating Nat subtraction.

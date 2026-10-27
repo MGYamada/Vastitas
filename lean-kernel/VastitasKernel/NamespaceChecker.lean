@@ -96,12 +96,17 @@ def UniqueOwners (p : Program) : Prop :=
 
 instance (p : Program) : Decidable (UniqueOwners p) := inferInstanceAs (Decidable (List.Nodup _))
 
-def graphVisit : Nat → Program → String → List String → Result Unit
+def graphVisit : Nat → Program → String → List String → StateT (Std.HashSet String) Result Unit
   | 0, _, _, _ => problem {} "E_LIMIT" "dependency graph exceeds the 4096-unit budget"
   | fuel + 1, p, source, active => do
     if active.contains source then problem {} "E_CYCLE" "cyclic package dependency"
+    if (← get).contains source then return
     let some pkg := packageAt p source | problem {} "E_NAME" "unknown package dependency"
     for dep in pkg.dependencies do graphVisit fuel p dep.target (source :: active)
+    modify (·.insert source)
+
+def validateGraph (p : Program) : Result Unit :=
+  ((p.packages.forM fun pkg => graphVisit 4096 p pkg.id.source []).run {}).map (·.1)
 
 def versionNumber (s : String) : Bool :=
   !s.isEmpty && s.toList.all Char.isDigit && (s == "0" || !s.startsWith "0")
@@ -125,15 +130,15 @@ def validate (p : Program) : Result Unit := do
   if !p.scopes.Nodup then problem {} "E_DUPLICATE" "duplicate logical module"
   if !UniqueOwners p then problem {} "E_DUPLICATE" "duplicate declaration owner"
   if !(p.declarations.map (symbol p)).Nodup then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
+  validateGraph p
   for pkg in p.packages do
-    sourceName pkg.id.name {}
-    if pkg.id.source.isEmpty || !validVersion pkg.id.version then problem {} "E_PROTOCOL" "invalid package location or SemVer version"
+    if pkg.id.name.isEmpty || pkg.id.source.isEmpty || !validVersion pkg.id.version then
+      problem {} "E_PROTOCOL" "invalid package name, location or SemVer version"
     if !(pkg.modules.any (·.path.isEmpty)) then problem {} "E_PROTOCOL" "package has no root module"
     if !(pkg.dependencies.map (·.alias)).Nodup then problem {} "E_DUPLICATE" "duplicate dependency alias"
     for dep in pkg.dependencies do
       sourceName dep.alias {}
       if dep.alias == "package" then problem {} "E_RESERVED" "package is reserved as a path prefix"
-    graphVisit 4096 p pkg.id.source []
     for m in pkg.modules do
       let scope : Scope := ⟨pkg.id, m.path⟩
       for part in m.path do

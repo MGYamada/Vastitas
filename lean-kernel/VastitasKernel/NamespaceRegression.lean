@@ -91,4 +91,17 @@ private def ledger (r : Reference) : Lowered := {
 #eval check "forged reference path" (!decide (ReferencesValid program (ledger { ref with path := ["absent"] })))
 #eval check "SemVer" (validVersion "1.2.3-alpha.1+build.01" && !validVersion "1.2" && !validVersion "1.2.3-01")
 
+-- Without completed-node memoization this tiny DAG has 2^40 traversal paths.
+private def sharedGraph : Program := {
+  file := "shared graph", root := "/0/Vastitas.toml"
+  packages := (List.range 40).map fun i => {
+    id := ⟨s!"/{i}/Vastitas.toml", "shared", "0.1.0"⟩, modules := [mod []]
+    dependencies := if i == 39 then [] else
+      [⟨"left", s!"/{i+1}/Vastitas.toml"⟩, ⟨"right", s!"/{i+1}/Vastitas.toml"⟩] } }
+#eval check "shared dependency DAG stays bounded" ((checkNamespaceProgram sharedGraph).isOk)
+#eval check "shared graph still detects cycles" (rejects "E_CYCLE" {
+  sharedGraph with packages := sharedGraph.packages.map fun pkg =>
+    if pkg.id.source == "/39/Vastitas.toml" then
+      { pkg with dependencies := [⟨"cycle", sharedGraph.root⟩] } else pkg })
+
 end VastitasKernel.Namespace.Regression

@@ -1,4 +1,4 @@
-# Compiler protocol (version 2)
+# Compiler protocols (versions 2 and 3)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -8,8 +8,8 @@ bindings; the wire format cannot supply a trusted object identity.
 
 Request: `{ "version": 2, "file": "input.vast", "functions": [...],
 "generics": [...], "methods": [...] }`. All three declaration arrays are
-present, including when empty. Requests and responses with another protocol
-version are rejected.
+present, including when empty. Protocol 3 uses the separate namespace request
+below; package requests never fall back to protocol 2. Other versions are rejected.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
@@ -142,3 +142,59 @@ Runtime representation: generated Lean code uses only
 `Pointed`. Their nominal typing is established before erasure by the checker.
 User symbols are always renamed to generated identifiers; source text is never
 inserted as Lean syntax. Integers are validated decimal literals.
+
+
+## Protocol 3: package namespaces
+
+The namespace request is `{ "version": 3, "file": "entry manifest",
+"root": "/canonical/app/Vastitas.toml", "packages": [Package...] }`.
+The response has the same shape as version 2 and echoes version 3.
+
+- Package: `source` (canonical manifest location), `name`, `version` (SemVer),
+  `dependencies: [{ "alias": "math", "target": "/canonical/math/Vastitas.toml" }]`,
+  `modules: [Module...]`. The three identity fields distinguish owners. A
+  manifest location occurs once, regardless of how many dependency aliases use it.
+- Module: `path: ["logical", "components"]`, `public: Bool`, `span`,
+  `imports`, `functions`, `generics`, `methods`. The root has path `[]`.
+  Each non-root path has a declared parent. Its visibility belongs to the
+  module declaration in that parent. There is no source-file owner field.
+- Import: `path: ["package", "math", "add"]`, `alias`, `public`, `span`.
+- Functions and generics retain the v2 fields and add `public: Bool`.
+  Methods retain the v2 fields; `name` is an unresolved reference path.
+- Expressions retain the v2 shape. Global `variable.name` and `call.callee`
+  preserve unresolved `::` paths. Locals and dependent indices remain lexical
+  names. There are no frontend-supplied function IDs or edit-authority grants.
+
+Lean validates package/module/declaration uniqueness, acyclic dependencies,
+imports and reexports (including unused ones), visibility on every traversed
+path, and exact-module generic method authority. Each resolution shares a
+4096-member work budget across path components and aliases, as well as a
+nesting bound; exhaustion returns `E_LIMIT` at the referring source span.
+Completed dependency nodes are memoized, so duplicate aliases do not cause
+repeated graph traversal. Unknown namespace metadata
+fields, including claimed owners, are rejected. A public reexport preserves
+its original target and requires a public declaration; private intermediates
+must be accessible from the reexporting module. Private declarations are
+visible from their declaring module and descendants only. Parent names are
+not implicitly in scope. Dependency aliases are only initial path components.
+
+`Namespace.lower` assigns symbols from package identity + logical module path
++ declaration name; it also renames local bindings hygienically, including
+geometric type indices. Only an ordinary root-package root-module `main`
+becomes the core entrypoint. It checks every dependency and body, then the
+existing surface/dispatch checker independently checks all applicable method
+specializations and the final core. Protocol 2 keeps its flat namespace.
+The namespace audit re-resolves recorded references and checks exact method
+owners before calling the existing surface acceptance path.
+
+`E_VISIBILITY` identifies private access or a nonpublic reexport; `E_OWNER`
+identifies unauthorized method extension, including ordinary functions.
+`E_CYCLE` identifies package or import cycles. Existing duplicate, name,
+shadowing, capture, static-call and checking-limit codes remain in use.
+
+These checks validate the supplied namespace graph, not the authenticity of
+filesystem contents. Changing a graph into a different *valid* program is not
+an authentication failure: the wire protocol is not a signed artifact format.
+Rust is responsible for canonical file loading and retaining all input files
+for output collision protection. The protocol-3 kernel is usable directly;
+the package CLI and source syntax are delivered in the following frontend PR.

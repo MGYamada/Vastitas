@@ -4,6 +4,7 @@ import VastitasOracle.Coordinates
 import VastitasOracle.Soundness
 import VastitasOracle.DispatchLowering
 import VastitasOracle.Functions
+import VastitasOracle.Namespaces
 
 /-!
 Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this

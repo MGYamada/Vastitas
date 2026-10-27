@@ -148,14 +148,14 @@ def checkPack (object : ObjectRef) (point : Ty) : Except String Ty := do
 inductive RawIndex where
   | name (name : String)
   | base (ring : String)
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
 
 inductive RawType where
   | named (name : String)
   | point (target source : RawIndex)
   | morphism (source target : RawIndex)
   | pointed (setting base : String)
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, BEq, ReflBEq, LawfulBEq, Inhabited
 
 mutual
   inductive RawExpr where

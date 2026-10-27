@@ -112,7 +112,7 @@ def objectNotes (ctx : Context) (refs : List ObjectRef) : CheckM (List Diagnosti
 def reserved : List String :=
   ["Affine", "Base", "origin", "id", "compose", "apply", "dimension", "int",
    "QQ", "CInfReal", "Nat", "Int", "Bool", "Unit", "Scheme", "CInfScheme",
-   "Point", "Morphism", "Pointed", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false",
+   "Point", "Morphism", "Pointed", "Fn", "fn", "let", "if", "else", "pack", "unpack", "as", "true", "false",
    "return", "while", "for", "loop", "mut"]
 
 def validName (name : String) : Bool :=

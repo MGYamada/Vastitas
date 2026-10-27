@@ -80,10 +80,25 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Type {
-    Named { name: String },
-    Point { target: Index, source: Index },
-    Morphism { source: Index, target: Index },
-    Pointed { setting: String, base: String },
+    Function {
+        params: Vec<Type>,
+        return_type: Box<Type>,
+    },
+    Named {
+        name: String,
+    },
+    Point {
+        target: Index,
+        source: Index,
+    },
+    Morphism {
+        source: Index,
+        target: Index,
+    },
+    Pointed {
+        setting: String,
+        base: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,6 +125,15 @@ pub struct Expr {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ExprKind {
+    Lambda {
+        params: Vec<Param>,
+        return_type: Type,
+        body: Block,
+    },
+    Invoke {
+        callee: Box<Expr>,
+        args: Vec<Expr>,
+    },
     Integer {
         value: String,
     },

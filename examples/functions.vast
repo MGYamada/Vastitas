@@ -1,0 +1,12 @@
+fn invoke(f: Fn<Int, Int>, x: Int) -> Int {
+    f(x)
+}
+
+fn keep(f: Fn<Int, Int>) -> Fn<Int, Int> {
+    f
+}
+
+fn main() -> Int {
+    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
+    invoke(keep(increment), 41)
+}

@@ -11,7 +11,7 @@ open Checker.Internal
 def privatePrefix := "__vastitas_"
 
 def sourceReserved : List String :=
-  ["generic", "method", "domain", "requires", "Any", "Number"]
+  ["generic", "method", "domain", "requires", "Any", "Number", "Fn"]
 
 def checkSourceName (name : String) (span : Span) : CheckM Unit := do
   checkName name span

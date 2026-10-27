@@ -102,7 +102,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     } = options(&args)?;
     let display_input = manifest.as_ref().or(input.as_ref()).unwrap().clone();
     let (sources, request, version) = if let Some(manifest) = manifest {
-        let (sources, module) = crate::packages::load(&manifest)?;
+        let (sources, module) = crate::packages::load(&manifest, output.as_deref())?;
         let request = serde_json::to_vec(&module)
             .map_err(|error| format!("E_PROTOCOL: cannot encode packages: {error}"))?;
         (sources, request, crate::packages::PROTOCOL)

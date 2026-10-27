@@ -382,6 +382,25 @@ fn all_manifests_and_module_sources_are_protected_from_output() {
             assert_eq!(fs::read(s.0.join(input)).unwrap(), before);
         }
     }
+    // Protection precedes parsing, even when the protected input is malformed.
+    for input in ["app/src/math.vast", "app/Vastitas.toml"] {
+        s.write(input, "invalid input");
+        let out = s
+            .cli()
+            .args(["build", "--manifest-path", "app/Vastitas.toml", "-o", input])
+            .env("VASTITAS_KERNEL", "/nonexistent/kernel")
+            .output()
+            .unwrap();
+        assert!(
+            String::from_utf8_lossy(&out.stderr).contains("E_OUTPUT:"),
+            "{:?}",
+            out
+        );
+        assert_eq!(
+            fs::read_to_string(s.0.join(input)).unwrap(),
+            "invalid input"
+        );
+    }
 }
 
 #[test]
@@ -432,4 +451,16 @@ fn package_requests_do_not_fall_back_to_a_protocol_two_backend() {
         .unwrap();
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("E_PROTOCOL:"));
+}
+
+#[test]
+fn duplicate_owners_point_to_the_declaring_external_source() {
+    let s = Scratch::new();
+    s.package("app", "mod math; fn main() -> Int { 0 }", "");
+    s.write(
+        "app/src/math.vast",
+        "fn f() -> Int { 0 }\nfn f() -> Int { 1 }\n",
+    );
+    let error = s.rejects("E_DUPLICATE");
+    assert!(error.contains("math.vast:2:1:"), "{error}");
 }

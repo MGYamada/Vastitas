@@ -30,7 +30,11 @@ impl Sources {
 
     /// Every manifest and module participates in the same protection/location
     /// table. Package loading has already checked file reuse and graph cycles.
-    pub(crate) fn add(&mut self, path: &Path) -> Result<SourceInput<'_>, String> {
+    pub(crate) fn add(
+        &mut self,
+        path: &Path,
+        output: Option<&Path>,
+    ) -> Result<SourceInput<'_>, String> {
         let canonical = path
             .canonicalize()
             .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
@@ -57,6 +61,9 @@ impl Sources {
             text,
             offset,
         });
+        if let Some(output) = output {
+            self.protect_output(output)?;
+        }
         let file = self.files.last().unwrap();
         Ok(SourceInput {
             source: &file.text,

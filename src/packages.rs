@@ -96,6 +96,7 @@ struct Loader {
     sources: Sources,
     packages: Vec<Package>,
     active: HashSet<PathBuf>,
+    output: Option<PathBuf>,
 }
 
 fn canonical(path: &Path) -> Result<PathBuf, String> {
@@ -137,7 +138,7 @@ impl Loader {
             return Err("E_LIMIT: package dependency nesting exceeds 64".into());
         }
         self.active.insert(manifest.clone());
-        let input = self.sources.add(&manifest)?;
+        let input = self.sources.add(&manifest, self.output.as_deref())?;
         let parsed: Manifest = toml::from_str(input.source)
             .map_err(|error| format!("{}: E_MANIFEST: {error}", manifest.display()))?;
         if parsed.package.name.is_empty() {
@@ -231,7 +232,7 @@ impl Loader {
                 file.display()
             ));
         }
-        let input = self.sources.add(&file)?;
+        let input = self.sources.add(&file, self.output.as_deref())?;
         let parsed =
             frontend::parse_module_source(input, path, public, declaration).map_err(|error| {
                 self.sources
@@ -290,11 +291,12 @@ impl Loader {
     }
 }
 
-pub(crate) fn load(manifest: &Path) -> Result<(Sources, Program), String> {
+pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, Program), String> {
     let mut loader = Loader {
         sources: Sources::empty(),
         packages: Vec::new(),
         active: HashSet::new(),
+        output: output.map(Path::to_path_buf),
     };
     let root = loader.package(manifest)?;
     let program = Program {

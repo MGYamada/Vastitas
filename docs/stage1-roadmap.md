@@ -82,8 +82,9 @@ it is recorded here.
 ## Package/module foundation (#56, first increment of #52)
 
 Protocol 3 adds a separately validated namespace IR, preserving protocol 2.
-The first PR supplies Lean resolution/visibility/owner checks and proofs; the
-second supplies the explicit `Vastitas.toml` loader, modules, CLI, native examples
+[PR #57](https://github.com/MGYamada/Vastitas/pull/57) supplies Lean
+resolution/visibility/owner checks and proofs;
+[PR #65](https://github.com/MGYamada/Vastitas/pull/65) supplies the explicit `Vastitas.toml` loader, modules, CLI, native examples
 and documentation. Both require all four kernel regression targets, Rust fmt,
 strict Clippy, all tests, oracle build and axiom audit, macOS/Linux no-mathlib
 CI, review resolution, merge and local main synchronization.

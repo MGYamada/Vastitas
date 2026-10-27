@@ -10,7 +10,7 @@ code. They do not require the mathlib proof oracle during compilation.
 | --- | --- | --- |
 | [`src/arithmetic/int.vast`](src/arithmetic/int.vast) | `int_add`, `int_sub`, `int_mul`, `int_neg`, `int_abs`, `int_min`, `int_max` | Exact, arbitrary-precision `Int` |
 | [`src/arithmetic/nat.vast`](src/arithmetic/nat.vast) | `nat_add`, `nat_sub`, `nat_mul`, `nat_min`, `nat_max`, `nat_to_int` | Exact, arbitrary-precision `Nat`; subtraction saturates at zero; explicit embedding into `Int` |
-| [`src/arithmetic/generic.vast`](src/arithmetic/generic.vast) | `add`, `maximum` | Finite dispatch on `(Int, Int)` and `(Nat, Nat)`; uses both prefixed libraries |
+| [`src/arithmetic/generic.vast`](src/arithmetic/generic.vast) | `promote`, `add`, `maximum` | Four-key Nat/Int promotion; homogeneous arithmetic wrappers; uses both prefixed libraries |
 
 The prefixed functions remain available alongside Stage 1a's generic functions.
 The library does not introduce implicit conversions between `Nat` and `Int`.
@@ -66,7 +66,52 @@ result type never selects a method. Mixed `(Nat, Int)` and `(Int, Nat)` calls
 are outside these generics' declared domains. `maximum` requires the static
 `HasOrder` capability, which both supported same-type keys satisfy.
 
-These arithmetic files use explicit `--lib` inclusion and its flat namespace.
-[Manifest mode](../docs/packages.md) separately supports local path packages and
-module/import syntax. Neither mode supplies an automatic prelude or a registry
-package manager.
+## Explicit promotion
+
+`promote(left, right)` accepts exactly four keys:
+
+| Input | Result | Conversion |
+| --- | --- | --- |
+| Nat, Nat | Pair<Nat> | Identity |
+| Nat, Int | Pair<Int> | `int(left)` |
+| Int, Nat | Pair<Int> | `int(right)` |
+| Int, Int | Pair<Int> | Identity |
+
+Bind the Pair once and read `pair_first(p)` / `pair_second(p)`. There is no
+Int-to-Nat conversion or conversion-path search. Negative and arbitrary-size
+values are preserved. Expected results never change selection; bare literals
+select Int. The library's intended value preservation, identity, reversal and
+idempotence contracts are stronger than typing: ordinary user code returning
+`pair(0, 0)` can typecheck. Numerical oracle proofs are tracked separately in
+#76; this increment establishes implementation and regression evidence.
+
+The [flat example](../examples/promotion.vast) uses the three explicit libraries
+above. Flat mode checks the whole assembly but has no package owner guarantees.
+
+## Package use
+
+Add a local path dependency on this directory's `Vastitas.toml`, then write:
+
+```vast
+use std::arithmetic::generic::promote;
+```
+
+The generic and all four methods belong to exactly `arithmetic::generic` in
+that package identity. Aliases and public reexports permit calls, not method
+edits. The public prefixed kernels are in `arithmetic::integers` and
+`arithmetic::naturals`; the generic module imports them through ordinary
+visibility checks. No stdlib-specific resolver or authority bypass is used.
+
+```sh
+cargo run -- check --manifest-path examples/packages/promotion/Vastitas.toml
+cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o target/promotion
+./target/promotion
+# 42
+```
+
+The canonical definitions are the flat sources under `src/arithmetic`.
+`python3 scripts/sync_stdlib_package.py` adds package visibility and explicit
+imports to the checked-in files under `package/`; it does not rewrite bodies.
+CI runs the script with `--check` to prevent the two entry formats diverging.
+See [packages](../docs/packages.md). Neither mode supplies an automatic prelude
+or a registry package manager.

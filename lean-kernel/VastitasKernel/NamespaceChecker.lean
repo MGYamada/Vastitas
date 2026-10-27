@@ -14,6 +14,11 @@ def sourceName (name : String) (span : Span) : Result Unit := do
   if ["mod", "use", "pub", "self", "super"].contains name then
     problem span "E_RESERVED" s!"'{name}' is reserved for modules"
 
+/-- Contextual module spelling only; functions, generics and bindings retain
+the ordinary reserved-name checks. This grants no additional edit authority. -/
+def moduleName (name : String) (span : Span) : Result Unit :=
+  if name == "generic" then pure () else sourceName name span
+
 def packageAt (p : Program) (source : String) : Option Package :=
   p.packages.find? (·.id.source == source)
 
@@ -171,14 +176,16 @@ def validate (p : Program) : Result Unit := do
     for m in pkg.modules do
       let scope : Scope := ⟨pkg.id, m.path⟩
       for part in m.path do
-        sourceName part m.span
+        moduleName part m.span
         if part == "package" then problem m.span "E_RESERVED" "package is reserved as a path prefix"
       if !m.path.isEmpty && (moduleAt p ⟨pkg.id, m.path.dropLast⟩).isNone then
         problem m.span "E_NAME" "module has no declared parent"
       let declarations := p.declarations.filter (·.owner.scope == scope)
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
       if !names.Nodup then problem m.span "E_DUPLICATE" "declaration, import, or dependency alias collision"
-      for decl in declarations do sourceName decl.owner.name m.span
+      for decl in declarations do
+        if decl.kind == .module then moduleName decl.owner.name m.span
+        else sourceName decl.owner.name m.span
       for entry in m.imports do
         sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"

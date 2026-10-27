@@ -415,13 +415,24 @@ impl Parser {
     }
 
     fn reference_path(&mut self) -> Result<(String, Span), Diagnostic> {
-        let (mut path, start) = self.name()?;
+        let (mut path, start) = self.path_component()?;
         while self.consume("::") {
-            let (component, _) = self.name()?;
+            let (component, _) = self.path_component()?;
             path.push_str("::");
             path.push_str(&component);
         }
         Ok((path, start.through(self.previous().span)))
+    }
+
+    // `generic` remains a declaration keyword and forbidden binding name, but
+    // is a contextual module component (e.g. arithmetic::generic::promote).
+    fn path_component(&mut self) -> Result<(String, Span), Diagnostic> {
+        if self.packages && self.peek().is("generic") {
+            let token = self.advance();
+            Ok(("generic".into(), token.span))
+        } else {
+            self.name()
+        }
     }
 
     fn namespace(
@@ -461,7 +472,11 @@ impl Parser {
                 module.methods.push(self.method()?);
             } else if self.consume("mod") {
                 let start = self.previous().span;
-                let (name, _) = self.binding_name()?;
+                let (name, _) = if self.peek().is("generic") {
+                    self.path_component()?
+                } else {
+                    self.binding_name()?
+                };
                 let mut child = path.clone();
                 child.push(name);
                 if self.consume(";") {
@@ -1066,10 +1081,13 @@ impl Parser {
                     body,
                 }
             }
-            TokenKind::Name(mut name) if !KEYWORDS.contains(&name.as_str()) => {
+            TokenKind::Name(mut name)
+                if !KEYWORDS.contains(&name.as_str())
+                    || (self.packages && name == "generic" && self.peek().is("::")) =>
+            {
                 if self.packages {
                     while self.consume("::") {
-                        let (component, _) = self.name()?;
+                        let (component, _) = self.path_component()?;
                         name.push_str("::");
                         name.push_str(&component);
                     }

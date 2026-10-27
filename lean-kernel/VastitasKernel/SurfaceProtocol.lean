@@ -85,7 +85,7 @@ mutual
         (← decodeExpr fuel (← field j "result")) (← decodeSpan j))
 end
 
-private def decodeFunction (j : Json) : Except String Surface.Function := do
+def decodeSurfaceFunction (j : Json) : Except String Surface.Function := do
   let name ← str j "name"
   let params ← (← array j "params").mapM decodeParam
   let result ← decodeType 64 (← field j "return_type")
@@ -93,7 +93,7 @@ private def decodeFunction (j : Json) : Except String Surface.Function := do
   let span ← decodeSpan j
   pure { name, params, result, body, span }
 
-private def decodeGeneric (j : Json) : Except String RawGeneric := do
+def decodeSurfaceGeneric (j : Json) : Except String RawGeneric := do
   let params ← (← array j "params").mapM fun param => do
     pure { name := ← str param "name", span := ← decodeSpan param : RawGenericParam }
   let domain ← (← array j "domain").mapM fun key => do
@@ -102,7 +102,7 @@ private def decodeGeneric (j : Json) : Except String RawGeneric := do
       pure raw
   pure { name := ← str j "name", params, domain, span := ← decodeSpan j }
 
-private def decodeMethod (j : Json) : Except String Surface.Method := do
+def decodeSurfaceMethod (j : Json) : Except String Surface.Method := do
   pure {
     name := ← str j "name"
     params := ← (← array j "params").mapM decodeParam
@@ -117,9 +117,9 @@ def decodeSurfaceModule (j : Json) : Except String Surface.Program := do
   pure {
     version
     file := ← str j "file"
-    functions := ← (← array j "functions").mapM decodeFunction
-    generics := ← (← array j "generics").mapM decodeGeneric
-    methods := ← (← array j "methods").mapM decodeMethod }
+    functions := ← (← array j "functions").mapM decodeSurfaceFunction
+    generics := ← (← array j "generics").mapM decodeSurfaceGeneric
+    methods := ← (← array j "methods").mapM decodeSurfaceMethod }
 
 
 end VastitasKernel

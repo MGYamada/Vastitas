@@ -264,3 +264,30 @@ Linux from a checkout without `lean/` or mathlib, including all three direct ker
 regression targets. A separate job builds the proof oracle and audits its
 axioms. Dependency-boundary checks prevent the normal compiler path from
 acquiring a mathlib dependency.
+
+
+## Package namespace acceptance
+
+`VastitasOracle.Namespaces` imports the actual `NamespaceChecker` implementation.
+`checkNamespaceProgram_audited` connects acceptance to the actual namespace
+lowering result, unique declaration owners, the independent reference audit,
+and acceptance of that exact surface program. `reference_resolves` establishes
+that each recorded reference resolves to its recorded target through the real
+visibility/import resolver. `method_owner` requires a generic in the exact
+referencing module; children and imports acquire no edit authority.
+`alias_preserves_target` unfolds the actual import branch and proves that it
+returns the original target. `same_logical_owner_same_symbol` states the
+limited file-layout invariant: identity contains only package identity,
+logical module path and definition name.
+
+The typed/ordered and total-for-arguments namespace theorems compose with the
+existing surface/core theorems for the exact returned `CertifiedModule`.
+`NamespaceRegression` and `tests/namespaces.rs` check aliases, duplicate owners,
+visibility, cycles, unauthorized methods, forged reference-ledger entries,
+malformed raw protocol metadata, unused invalid bodies and v2 compatibility.
+All four direct regression targets run in no-mathlib CI.
+
+This does not prove Rust filesystem loading/authenticity, full source namespace
+syntax preservation, native toolchain equivalence, edit borrowing, or abstract
+methods. Package metadata identifies entries in the supplied IR graph; it does
+not certify the bytes on disk. The general Stage 1 design remains incomplete.

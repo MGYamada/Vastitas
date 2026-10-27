@@ -167,7 +167,11 @@ The response has the same shape as version 2 and echoes version 3.
 
 Lean validates package/module/declaration uniqueness, acyclic dependencies,
 imports and reexports (including unused ones), visibility on every traversed
-path, and exact-module generic method authority. Unknown namespace metadata
+path, and exact-module generic method authority. Each resolution shares a
+4096-member work budget across path components and aliases, as well as a
+nesting bound; exhaustion returns `E_LIMIT` at the referring source span.
+Completed dependency nodes are memoized, so duplicate aliases do not cause
+repeated graph traversal. Unknown namespace metadata
 fields, including claimed owners, are rejected. A public reexport preserves
 its original target and requires a public declaration; private intermediates
 must be accessible from the reexporting module. Private declarations are

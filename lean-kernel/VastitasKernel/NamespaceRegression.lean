@@ -104,4 +104,17 @@ private def sharedGraph : Program := {
     if pkg.id.source == "/39/Vastitas.toml" then
       { pkg with dependencies := [⟨"cycle", sharedGraph.root⟩] } else pkg })
 
+private def sharedImports : Program := replaceRoot { mod [] with
+  imports := ⟨["self"], "a0", false, {}⟩ :: (List.range 30).map fun i =>
+    ⟨[s!"a{i}", s!"a{i}"], s!"a{i+1}", false, {}⟩ }
+#eval check "total import work is bounded" (rejects "E_LIMIT" sharedImports)
+#eval check "dependency aliases cannot be shadowed" (rejects "E_SHADOW" (replaceRoot
+  (mod [] [{ fn "main" (.integer "0" {}) with
+    body := .mk [.letE "other" none (.integer "1" {}) {}] (.variable "other" {}) {} }])))
+#eval check "self retains private module visibility" (rejects "E_VISIBILITY" (replaceRoot (mod [])
+  [{ mod ["hidden"] with isPublic := false, imports := [⟨["self"], "exposed", true, {}⟩] }]))
+#eval check "super retains private module visibility" (rejects "E_VISIBILITY" (replaceRoot (mod [])
+  [{ mod ["hidden"] with isPublic := false },
+   { mod ["hidden", "child"] with imports := [⟨["super"], "exposed", true, {}⟩] }]))
+
 end VastitasKernel.Namespace.Regression

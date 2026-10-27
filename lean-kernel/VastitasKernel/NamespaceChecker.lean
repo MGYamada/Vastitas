@@ -24,6 +24,11 @@ def moduleAt (p : Program) (scope : Scope) : Option Module := do
 def dependencyRoot (pkg : Package) : Target :=
   ⟨⟨⟨pkg.id, []⟩, ""⟩, .module, true⟩
 
+def moduleTarget (p : Program) (scope : Scope) (span : Span) : Result Target := do
+  let some m := moduleAt p scope | problem span "E_NAME" "unknown module"
+  if scope.path.isEmpty then return ⟨⟨scope, ""⟩, .module, true⟩
+  return ⟨⟨⟨scope.package, scope.path.dropLast⟩, scope.path.getLast!⟩, .module, m.isPublic⟩
+
 def targetScope (t : Target) : Scope :=
   if t.owner.name.isEmpty then t.owner.scope else t.moduleScope
 
@@ -34,13 +39,20 @@ def ancestors (scope : Scope) (path : List String) (span : Span) : Result (Scope
     ancestors { scope with path := scope.path.dropLast } rest span
   | rest => return (scope, rest)
 
+abbrev ResolutionM := StateT Nat Result
+
+def charge (span : Span) : ResolutionM Unit
+  | 0 => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
+  | remaining + 1 => .ok ((), remaining)
+
 -- Import resolution uses the original requesting scope for each traversed
 -- visibility edge. Resolving an alias checks its declaration's visibility first,
 -- then its source path in the alias's own scope, preserving the original target.
 mutual
-  def memberAt : Nat → Program → Scope → Scope → String → List (Scope × String) → Span → Result Target
+  def memberAt : Nat → Program → Scope → Scope → String → List (Scope × String) → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
     | fuel + 1, p, requester, scope, name, active, span => do
+      charge span
       if let some target := p.declarations.find? (fun t => t.owner == ⟨scope, name⟩) then
         if !visible requester target then
           problem span "E_VISIBILITY" s!"'{name}' is private in its declaring module"
@@ -55,7 +67,7 @@ mutual
       if entry.isPublic && !target.isPublic then
         problem entry.span "E_VISIBILITY" "pub use requires a public declaration"
       return target
-  def descend : Nat → Program → Scope → Target → List String → List (Scope × String) → Span → Result Target
+  def descend : Nat → Program → Scope → Target → List String → List (Scope × String) → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
     | fuel + 1, p, requester, target, path, active, span => do
       match path with
@@ -64,17 +76,17 @@ mutual
         if target.kind != .module then problem span "E_NAME" "a function cannot contain path components"
         let next ← memberAt fuel p requester (targetScope target) name active span
         descend fuel p requester next rest active span
-  def resolveAt : Nat → Program → Scope → List String → List (Scope × String) → Span → Result Target
+  def resolveAt : Nat → Program → Scope → List String → List (Scope × String) → Span → ResolutionM Target
     | 0, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
     | fuel + 1, p, scope, path, active, span => do
       let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
       match path with
       | [] => problem span "E_NAME" "empty reference path"
       | "package" :: name :: rest => descend fuel p scope (dependencyRoot pkg) (name :: rest) active span
-      | "self" :: rest => descend fuel p scope ⟨⟨scope, ""⟩, .module, true⟩ rest active span
+      | "self" :: rest => descend fuel p scope (← moduleTarget p scope span) rest active span
       | "super" :: rest =>
         let (parent, remaining) ← ancestors scope ("super" :: rest) span
-        descend fuel p scope ⟨⟨parent, ""⟩, .module, true⟩ remaining active span
+        descend fuel p scope (← moduleTarget p parent span) remaining active span
       | name :: rest =>
         if let some dep := pkg.dependencies.find? (·.alias == name) then
           let some target := packageAt p dep.target | problem span "E_NAME" "unknown dependency target"
@@ -85,7 +97,7 @@ mutual
 end
 
 def resolve (p : Program) (scope : Scope) (path : List String) (span : Span) : Result Target :=
-  resolveAt 4096 p scope path [] span
+  ((resolveAt 4096 p scope path [] span).run 4096).map (·.1)
 
 def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&
@@ -153,7 +165,7 @@ def validate (p : Program) : Result Unit := do
       for entry in m.imports do
         sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
-        let _ ← memberAt 4096 p scope scope entry.alias [] entry.span
+        let _ ← (memberAt 4096 p scope scope entry.alias [] entry.span).run 4096
         pure ()
 
 structure Reference where
@@ -193,8 +205,10 @@ def lookup (p : Program) (scope : Scope) (name : String) (span : Span) (method :
 def binder (p : Program) (scope : Scope) (name : String) (span : Span) : Result String := do
   sourceName name span
   let some m := moduleAt p scope | problem span "E_NAME" "unknown module"
-  if p.declarations.any (fun t => t.owner == ⟨scope, name⟩) || m.imports.any (·.alias == name) then
-    problem span "E_SHADOW" s!"binding '{name}' conflicts with a module declaration or import"
+  let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
+  if p.declarations.any (fun t => t.owner == ⟨scope, name⟩) || m.imports.any (·.alias == name) ||
+      pkg.dependencies.any (·.alias == name) then
+    problem span "E_SHADOW" s!"binding '{name}' conflicts with a module declaration, import or dependency alias"
   return localName name
 
 def index : RawIndex → RawIndex

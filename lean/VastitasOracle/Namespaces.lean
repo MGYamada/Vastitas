@@ -54,17 +54,22 @@ theorem method_owner (program : Namespace.Program) (lowered : Namespace.Lowered)
 from the alias spelling. Both private-use and public re-export use this code. -/
 theorem alias_preserves_target (fuel : Nat) (program : Namespace.Program)
     (requester scope : Scope) (name : String) (active : List (Scope × String)) (span : Span)
-    (m : Namespace.Module) (entry : Import) (target : Namespace.Target)
+    (m : Namespace.Module) (entry : Import) (target : Namespace.Target) (budget remaining : Nat)
     (noDeclaration : program.declarations.find? (fun t => t.owner == ⟨scope, name⟩) = none)
     (moduleFound : moduleAt program scope = some m)
     (importFound : m.imports.find? (·.alias == name) = some entry)
     (accessible : visible requester ⟨⟨scope, name⟩, .module, entry.isPublic⟩ = true)
     (acyclic : active.contains (scope, name) = false)
-    (resolved : resolveAt fuel program scope entry.path ((scope, name) :: active) entry.span = .ok target)
+    (resolved : (resolveAt fuel program scope entry.path ((scope, name) :: active) entry.span).run budget = .ok (target, remaining))
     (exportable : (entry.isPublic && !target.isPublic) = false) :
-    memberAt (fuel + 1) program requester scope name active span = .ok target := by
-  simp [memberAt, noDeclaration, moduleFound, importFound, accessible, acyclic,
-    resolved, exportable, bind, Except.bind, pure, Except.pure]
+    (memberAt (fuel + 1) program requester scope name active span).run (budget + 1) = .ok (target, remaining) := by
+  simp only [StateT.run] at resolved
+  have permitted : ¬ (entry.isPublic = true ∧ target.isPublic = false) := by
+    intro ⟨publicEntry, privateTarget⟩
+    simp [publicEntry, privateTarget] at exportable
+  simp [memberAt, charge, noDeclaration, moduleFound, importFound, accessible, acyclic,
+    resolved, permitted, bind, Except.bind, pure, Except.pure, StateT.run, StateT.bind, StateT.pure]
+
 
 /-- Owner identity contains no source-file placement or import spelling. -/
 theorem same_logical_owner_same_symbol (package : PackageId) (path : List String) (name : String)

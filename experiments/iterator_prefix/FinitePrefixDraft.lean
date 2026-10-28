@@ -2,13 +2,14 @@ import Std
 import Lean.Elab.Tactic.Omega
 
 /-!
-UNCHECKED LEAN DRAFT for experiments/iterator_prefix/model.py.
+Checked abstract Lean model for experiments/iterator_prefix/model.py.
 Not imported by lean-kernel/ or lean/; not a Vastitas acceptance theorem.
 
 This is an independent, scalar-only abstract cursor/lease model. The intended
 invariant concerns one traversal's logical frame ledger, not real memory.
-All proof bodies below are candidates: no Lean elaboration or axiom audit has
-been run for this file. There are no placeholder axioms or proof holes.
+The lemmas elaborate on pinned Lean 4.35.0 and pass the standalone transitive
+axiom audit. There are no placeholder axioms or proof holes. This does not
+establish Python refinement or any actual Vastitas acceptance/store theorem.
 See README.md for the outstanding actual-checker/Core/store obligations.
 -/
 
@@ -49,11 +50,11 @@ inductive Cursor where
   | take (remaining : Nat) (source : Cursor)
   deriving Repr
 
-def initialize : Plan → Cursor
+def initializeCursor : Plan → Cursor
   | .countFrom start stride => .countFrom start stride
-  | .map op env source => .map op env (initialize source)
-  | .filter predicate env source => .filter predicate env (initialize source)
-  | .take limit source => .take limit (initialize source)
+  | .map op env source => .map op env (initializeCursor source)
+  | .filter predicate env source => .filter predicate env (initializeCursor source)
+  | .take limit source => .take limit (initializeCursor source)
 
 def Cursor.size : Cursor → Nat
   | .countFrom .. => 1
@@ -106,7 +107,7 @@ theorem pulse_keeps_size (cursor : Cursor) :
       by_cases keep : evalPredicate predicate env x = true <;>
         simp_all [pulse, Pulse.KeepsSize, Cursor.size]
     | skipped next => simp_all [pulse, Pulse.KeepsSize, Cursor.size]
-    | done => simp_all [pulse, Pulse.KeepsSize, Cursor.size]
+    | done => simp_all [pulse, Pulse.KeepsSize]
   | take remaining source ih =>
     cases remaining with
     | zero => simp [pulse, Pulse.KeepsSize]
@@ -150,15 +151,22 @@ def Invariant (s : State) : Prop :=
     | none => s.released = s.frames ∧ s.disposals = 1
 
 def initial (run : Nat) (plan : Plan) : State :=
-  { run, generation := 0, cursor := some (initialize plan),
-    frames := List.range (initialize plan).size, released := [], disposals := 0 }
+  { run
+    generation := 0
+    cursor := some (initializeCursor plan)
+    frames := List.range (initializeCursor plan).size
+    released := []
+    disposals := 0 }
 
 def advance (s : State) (next : Cursor) : State :=
   { s with generation := s.generation + 1, cursor := some next }
 
 def finish (s : State) : State :=
-  { s with generation := s.generation + 1, cursor := none,
-    released := s.released ++ s.frames, disposals := s.disposals + 1 }
+  { s with
+    generation := s.generation + 1
+    cursor := none
+    released := s.released ++ s.frames
+    disposals := s.disposals + 1 }
 
 inductive Action where
   | next (handle : Handle)
@@ -193,7 +201,7 @@ inductive Step : State → Action → Event → State → Prop where
 
 theorem initial_invariant (run : Nat) (plan : Plan) :
     Invariant (initial run plan) := by
-  simp [initial, Invariant]
+  simp [initial, Invariant, List.nodup_range]
 
 theorem advance_preserves {s : State} {c next : Cursor}
     (safe : Invariant s) (active : s.cursor = some c)

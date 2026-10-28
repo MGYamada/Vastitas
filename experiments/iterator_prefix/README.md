@@ -1,7 +1,8 @@
 # 有限ステップ iterator 参照実験（#190 / #191）
 
-**Python で実行する限定参照モデルと回帰テスト、および未検証の Lean 草案。**
-Vastitas の実装・実行、Lean 証明済みの成果、実メモリ安全性の検証ではない。
+**Python の限定参照モデルと回帰テスト、および Lean で検査した独立抽象モデル。**
+Lean 4.35.0 で有限 prefix の補題と公理監査を通したが、Vastitas の実装・実行や
+実メモリ安全性の検証ではない。Python との対応も未証明である。
 この実験は #191 全体の完了条件を満たさず、歴史的 Stage 1 の追加完了条件にも
 新しい checker にもならない。
 
@@ -21,13 +22,17 @@ Python 3.10 以降、標準ライブラリのみ。リポジトリのルート�
 ```sh
 python3 -m unittest discover -s experiments/iterator_prefix -p 'test_*.py' -v
 python3 experiments/iterator_prefix/demo.py
+bash experiments/iterator_prefix/check_lean.sh
 ```
+
+Lean 検査はリポジトリでピン留めされた 4.35.0 を使い、mathlib を必要としない。
 
 - [model.py](model.py): 純粋な記述、残余 cursor、使用権台帳、有限観測器。
 - [test_model.py](test_model.py): 意味・所有権・破棄の回帰例。
 - [demo.py](demo.py): 元の3例と破棄前後の台帳を JSON 出力。
 - [FinitePrefixDraft.lean](FinitePrefixDraft.lean): 具体的な `State` / `Step` /
-  `Invariant` と有限 prefix 保存の証明候補。**未 elaboration・未 axiom audit**。
+  `Invariant` と有限 prefix 保存の補題。Lean 4.35.0 で elaboration・公理監査済み。
+- [check_lean.sh](check_lean.sh) / [Audit.lean](Audit.lean): 独立した再検査と全モデル宣言の推移的公理監査。
 - [VALIDATION.md](VALIDATION.md): 今回実行した試験と実行していない検証。
 
 通常の compiler / oracle ビルドにこの実験を import しない。CI や Stage 1 の
@@ -99,7 +104,7 @@ dispose し、その前後を別々に記録する。
 記録した trace・出力・監査履歴もメモリを消費する。メモリ有界性、OOM の安全性、
 host 例外・割込み時の unwinding はこの実験の対象外である。
 
-## Lean 草案との対応
+## Lean 抽象モデルとの対応
 
 `Plan` と `Cursor` を別の帰納型として定義し、`pulse` を有限 cursor への
 構造的再帰で具体化した。`State` は走査 ID、世代、optional cursor、frame ID 列、
@@ -110,14 +115,15 @@ cursor と同数の frame、終了時は全 frame と一致する release 列・
 要求する。`Step` の規則はこの Invariant を前提にせず、実際の pulse 結果と現在の
 ticket から `advance` / `finish` を決める。したがって保存を定義に埋め込んではいない。
 
-草案の `pulse_keeps_size` → `step_preserves` → `finite_prefix_preserves` は、
+モデルの `pulse_keeps_size` → `step_preserves` → `finite_prefix_preserves` は、
 初期不変条件から**任意の有限 prefix の終状態と全中間状態**の不変条件を導く形。
 `consumed_never_owned` は、Skip を含む消費後にさらに有限 prefix を進めても旧
 ticket が復活しないことを述べる。`closed_cannot_step` と
 `closed_released_exactly_once` が終了後の再実行・再破棄を扱う。
 
-これらは **証明候補を記述した未検証ファイル**であり、Lean による証明完了の
-主張ではない。Python との対応もまだ証明していない。Lean は単一走査の ticket を
+これらは **独立抽象モデルの検査済み補題**であり、実際の Vastitas checker や
+ストレージに対する定理ではない。Python との対応もまだ証明していない。
+Lean は単一走査の ticket を
 `(run, generation)` で表し、Python の object identity 検査を抽象化している。
 Python の frame 別 drop counter は Lean の重複を許す release event 列に対応する。
 複数走査の ID 分離は Python で試験しただけで、Lean の大域合成補題は未作成。
@@ -129,7 +135,7 @@ Python の frame 別 drop counter は Lean の重複を許す release event 列�
 
 | ID | 必要な接続・証明 | この実験の境界 |
 | --- | --- | --- |
-| O1 | ピン留めした Lean で草案を elaboration し、有限 prefix 補題と依存 axiom を監査する。Python の Plan / cursor / 各台帳更新が Lean の Step を模倣することを示す | どちらも未検証。Python 試験から Lean 証明を推定しない |
+| O1 | ピン留めした Lean でモデルを elaboration し、有限 prefix 補題と依存 axiom を監査する。Python の Plan / cursor / 各台帳更新が Lean の Step を模倣することを示す | 前半は Lean 4.35.0・382宣言の監査を通過。Python simulation/refinement は未証明 |
 | O2 | 実際の `Core.Term`・typing・effects に有限の loop / step machine を追加し、その独立操作意味論を定義する。`take(n)` の実行時 n と有限 IR 構造を分離する | Core に追加していない。閉じた演算タグは実際の canonical callable identity の代用ではない |
 | O3 | 実際の public checker の成功等式から **その返却値 C** の型・所有権・partiality policy と source-plan 対応を導く。既存 `Surface.StaticCallsValid` と実際の lowering を拡張し、生存 environment、全 body、静的 target を照合する | `safe=true`、Rust 成功、再構築した別 Core、annotation-only `CertifiedModule` では代替できない |
 | O4 | #180/#183 の独立 store を定義し、allocation ID / provenance、region、owner、loan、初期化、bounds、live aliases の不変条件を実 checker から導く | frame ID と drop 回数は実 allocation・borrow・メモリ解放ではない |

@@ -78,7 +78,8 @@ README の短い状況説明はこの表と同期し、証明の説明は `verif
 
 ```toml
 [book]
-title = "Vastitas"
+title = "Vastitas Programming Language"
+authors = ["Vastitas Project Contributors"]
 language = "en"
 src = "docs"
 
@@ -92,6 +93,11 @@ mathjax-support = true
 [output.html.playground]
 runnable = false
 ```
+
+book のタイトルは `Vastitas Programming Language`、著者名は
+`Vastitas Project Contributors` に統一する。book の入口に
+`Copyright 2026 Vastitas Project Contributors` と Apache License, Version 2.0 の
+案内を表示し、リポジトリの `README.md` と `LICENSE` に表記を合わせる。
 
 生成物は既存の ignore 対象である `target/` に置き、コミットしない。
 `create-missing = false` で目次の誤記による空ページ生成を防ぐ。

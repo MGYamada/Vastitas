@@ -217,7 +217,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 
 ## License
 
-Copyright 2026 Vastitas contributors.
+Copyright 2026 Vastitas Project Contributors
 
 Vastitas is licensed under the [Apache License, Version 2.0](LICENSE)
 (`Apache-2.0`). This covers the project's compiler, runtime, Lean proofs,

@@ -639,3 +639,20 @@ Indexed signatures now use a once-per-module hash table. The oracle's
 The shared constructive `Finite.distinctFrom_iff` and `Finite.distinct_iff`
 connect the linear hash-set audit to mathematical list distinctness; the existing
 legacy distinctness soundness theorem now uses this same implementation.
+
+The first indexed evaluation fragment is in `VastitasOracle.IndexedSemantics`.
+It imports the actual Core semantics and proves domain upcasts, reference
+denotation and world-extension lemmas. `primitive_total_and_typed` covers every
+closed registry binding; `checked_primitive_semantics` and
+`core_primitive_semantics` connect it to the real primitive checker and a real
+typed Core node. Typed runtime arguments and constructor-slot freshness are
+explicit premises, not inferred from an unrelated certificate. Composition's
+shared middle reference denotes the same runtime object on both sides.
+
+`primitive_runtime_erasure` connects successful logical registry evaluation to
+the actual minimal runtime operations. The bounded Core evaluator and twenty
+regressions test the same source-independent fixtures as native generation, but
+are not whole-program proofs. Package opening, dependent calls, allocation
+freshness through full evaluation, legacy translation and generated native
+code still need their correspondence theorems. The new operation lemmas do not
+extend the retained legacy whole-program theorems to the indexed backend.

@@ -81,6 +81,7 @@ fn unsupported_keyword(name: &str) -> Option<&'static str> {
 enum TokenKind {
     Name(String),
     Number(String),
+    Text(String),
     Symbol(String),
     Eof,
 }
@@ -101,7 +102,10 @@ impl Token {
 
     fn description(&self) -> String {
         match &self.kind {
-            TokenKind::Name(s) | TokenKind::Number(s) | TokenKind::Symbol(s) => format!("`{s}`"),
+            TokenKind::Name(s)
+            | TokenKind::Number(s)
+            | TokenKind::Symbol(s)
+            | TokenKind::Text(s) => format!("`{s}`"),
             TokenKind::Eof => "end of file".into(),
         }
     }
@@ -225,11 +229,25 @@ impl<'a> Lexer<'a> {
                     self.advance();
                 }
                 let name = &self.source[span.start..self.offset];
-                if let Some(message) = unsupported_keyword(name) {
+                if let Some(message) = unsupported_keyword(name).filter(|_| name != "return") {
                     span.end = self.offset;
                     return Err(diagnostic("E_UNSUPPORTED", message, span));
                 }
                 TokenKind::Name(name.into())
+            } else if ch == '"' {
+                self.advance();
+                let mut escaped = false;
+                while let Some(c) = self.advance() {
+                    if !escaped && c == '"' {
+                        break;
+                    }
+                    escaped = !escaped && c == '\\';
+                }
+                let value =
+                    serde_json::from_str(&self.source[span.start..self.offset]).map_err(|_| {
+                        diagnostic("E_LEX", "invalid quoted manifest or module path", span)
+                    })?;
+                TokenKind::Text(value)
             } else if ch.is_ascii_digit() {
                 while self.peek().is_some_and(|c| c.is_ascii_digit()) {
                     self.advance();
@@ -375,6 +393,11 @@ impl Parser {
     fn name(&mut self) -> Result<(String, Span), Diagnostic> {
         let token = self.advance();
         match token.kind {
+            TokenKind::Name(ref name) if unsupported_keyword(name).is_some() => Err(diagnostic(
+                "E_UNSUPPORTED",
+                unsupported_keyword(name).unwrap(),
+                token.span,
+            )),
             TokenKind::Name(name) if !KEYWORDS.contains(&name.as_str()) => Ok((name, token.span)),
             _ => Err(diagnostic("E_PARSE", "expected an identifier", token.span)),
         }
@@ -484,6 +507,9 @@ impl Parser {
             abstract_types: Vec::new(),
             subtypes: Vec::new(),
             abstract_methods: Vec::new(),
+            grants: Vec::new(),
+            contributions: Vec::new(),
+            assembly: None,
         };
         while self.peek().kind != TokenKind::Eof && !(inline && self.peek().is("}")) {
             let public = self.consume("pub");
@@ -508,6 +534,25 @@ impl Parser {
                 });
             } else if self.peek().is("subtype") && !public {
                 module.subtypes.push(self.subtype()?);
+            } else if self.peek().is("grant") {
+                module.grants.push(Public {
+                    declaration: self.grant()?,
+                    public,
+                });
+            } else if self.peek().is("contribution") {
+                module.contributions.push(Public {
+                    declaration: self.contribution()?,
+                    public,
+                });
+            } else if self.peek().is("assembly") && !public {
+                if module.assembly.is_some() {
+                    return Err(diagnostic(
+                        "E_DUPLICATE",
+                        "a module may contain only one assembly",
+                        self.peek().span,
+                    ));
+                }
+                module.assembly = Some(self.assembly()?);
             } else if self.consume("mod") {
                 let start = self.previous().span;
                 let (name, _) = if self.peek().is("generic") {
@@ -599,6 +644,146 @@ impl Parser {
             return_type,
             body,
             span,
+        })
+    }
+
+    fn quoted_path(&mut self) -> Result<String, Diagnostic> {
+        let token = self.advance();
+        match token.kind {
+            TokenKind::Text(value) => Ok(value),
+            _ => Err(diagnostic("E_PARSE", "expected a quoted path", token.span)),
+        }
+    }
+
+    fn edit_path(&mut self) -> Result<Vec<String>, Diagnostic> {
+        Ok(self
+            .reference_path()?
+            .0
+            .split("::")
+            .map(str::to_owned)
+            .collect())
+    }
+
+    fn grant(&mut self) -> Result<crate::packages::Grant, Diagnostic> {
+        let start = self.expect("grant")?.span;
+        let name = self.binding_name()?.0;
+        self.expect(":")?;
+        let target = self.edit_path()?;
+        self.expect("to")?;
+        self.expect("module")?;
+        self.expect("(")?;
+        let grantee_source = self.quoted_path()?;
+        self.expect(",")?;
+        let path = self.quoted_path()?;
+        let grantee_path = if path.is_empty() {
+            Vec::new()
+        } else {
+            path.split("::").map(str::to_owned).collect()
+        };
+        self.expect(")")?;
+        self.expect("{")?;
+        self.expect("domain")?;
+        let mut region = Vec::new();
+        if !self.consume(";") {
+            loop {
+                self.expect("(")?;
+                let mut key = Vec::new();
+                if !self.consume(")") {
+                    loop {
+                        let Type::Named { name } = self.dispatch_type(false)? else {
+                            unreachable!()
+                        };
+                        key.push(name);
+                        if self.consume(")") {
+                            break;
+                        }
+                        self.expect(",")?;
+                    }
+                }
+                region.push(key);
+                if self.consume(";") {
+                    break;
+                }
+                self.expect(",")?;
+            }
+        }
+        let end = self.expect("}")?.span;
+        Ok(crate::packages::Grant {
+            name,
+            target,
+            grantee_source,
+            grantee_path,
+            region,
+            span: start.through(end),
+        })
+    }
+
+    fn contribution(&mut self) -> Result<crate::packages::Contribution, Diagnostic> {
+        let start = self.expect("contribution")?.span;
+        let name = self.binding_name()?.0;
+        self.expect(":")?;
+        let target = self.edit_path()?;
+        self.expect("{")?;
+        let mut methods = Vec::new();
+        while !self.peek().is("}") {
+            methods.push(self.method()?);
+        }
+        let end = self.expect("}")?.span;
+        Ok(crate::packages::Contribution {
+            name,
+            target,
+            methods,
+            span: start.through(end),
+        })
+    }
+
+    fn assembly(&mut self) -> Result<crate::packages::Assembly, Diagnostic> {
+        use crate::packages::EditEvent;
+        let start = self.expect("assembly")?.span;
+        self.expect("{")?;
+        let mut events = Vec::new();
+        while !self.peek().is("}") {
+            let command = self.advance();
+            let event = if command.is("borrow") {
+                let grant = self.edit_path()?;
+                self.expect("as")?;
+                let loan = self.binding_name()?.0;
+                let span = command.span.through(self.expect(";")?.span);
+                EditEvent::Borrow { grant, loan, span }
+            } else if command.is("apply") {
+                let contribution = self.edit_path()?;
+                let loan = if self.consume("using") {
+                    Some(self.binding_name()?.0)
+                } else {
+                    None
+                };
+                let span = command.span.through(self.expect(";")?.span);
+                EditEvent::Apply {
+                    contribution,
+                    loan,
+                    span,
+                }
+            } else if command.is("return") {
+                let loan = self.binding_name()?.0;
+                let span = command.span.through(self.expect(";")?.span);
+                EditEvent::Return { loan, span }
+            } else if command.is("seal") {
+                let target = self.edit_path()?;
+                let span = command.span.through(self.expect(";")?.span);
+                EditEvent::Seal { target, span }
+            } else {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "expected borrow, apply, return or seal in assembly",
+                    command.span,
+                ));
+            };
+            events.push(event);
+        }
+        let end = self.expect("}")?.span;
+        Ok(crate::packages::Assembly {
+            events,
+            span: start.through(end),
         })
     }
 
@@ -1262,6 +1447,13 @@ impl Parser {
         let token = self.advance();
         let start = token.span;
         let kind = match token.kind {
+            TokenKind::Name(ref name) if unsupported_keyword(name).is_some() => {
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    unsupported_keyword(name).unwrap(),
+                    token.span,
+                ));
+            }
             TokenKind::Number(value) => {
                 let stripped = value.trim_start_matches('0');
                 ExprKind::Integer {

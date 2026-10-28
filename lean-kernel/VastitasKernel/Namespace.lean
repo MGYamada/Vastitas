@@ -21,7 +21,7 @@ structure Owner where
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 inductive Kind where
-  | module | function | generic | abstractType
+  | module | function | generic | abstractType | grant | contribution
   deriving Repr, Inhabited, DecidableEq, BEq
 
 structure Target where
@@ -49,6 +49,39 @@ structure AbstractType extends RawAbstractType where
   isPublic : Bool
   deriving Repr, Inhabited
 
+structure Grant where
+  name : String
+  target : List String
+  granteeSource : String
+  granteePath : List String
+  region : List (List String)
+  span : Span
+  isPublic : Bool
+  deriving Repr, Inhabited
+
+structure Contribution where
+  name : String
+  target : List String
+  methods : List Surface.Method
+  span : Span
+  isPublic : Bool
+  deriving Repr, Inhabited
+
+inductive EditEvent where
+  | borrow (grant : List String) (loan : String) (span : Span)
+  | apply (contribution : List String) (loan : Option String) (span : Span)
+  | release (loan : String) (span : Span)
+  | seal (target : List String) (span : Span)
+  deriving Repr, Inhabited
+
+def EditEvent.span : EditEvent → Span
+  | .borrow _ _ span | .apply _ _ span | .release _ span | .seal _ span => span
+
+structure Assembly where
+  events : List EditEvent
+  span : Span
+  deriving Repr, Inhabited
+
 structure Module where
   path : List String
   isPublic : Bool
@@ -59,6 +92,9 @@ structure Module where
   abstractTypes : List AbstractType := []
   subtypes : List RawSubtype := []
   abstractMethods : List RawAbstractMethod := []
+  grants : List Grant := []
+  contributions : List Contribution := []
+  assembly : Option Assembly := none
   span : Span
   deriving Repr, Inhabited
 
@@ -75,6 +111,7 @@ structure Package where
 
 structure Program where
   extended : Bool := false
+  editable : Bool := false
   file : String
   root : String
   packages : List Package
@@ -89,6 +126,8 @@ def Program.declarations (p : Program) : List Target :=
     (m.functions.map fun f => ⟨⟨scope, f.name⟩, .function, f.isPublic⟩) ++
     (m.generics.map fun g => ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩) ++
     (m.abstractTypes.map fun t => ⟨⟨scope, t.name⟩, .abstractType, t.isPublic⟩) ++
+    (m.grants.map fun g => ⟨⟨scope, g.name⟩, .grant, g.isPublic⟩) ++
+    (m.contributions.map fun c => ⟨⟨scope, c.name⟩, .contribution, c.isPublic⟩) ++
     (if m.path.isEmpty then [] else
       [⟨⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, .module, m.isPublic⟩])
 

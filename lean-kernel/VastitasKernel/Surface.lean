@@ -66,7 +66,7 @@ structure Param where
   name : String
   ty : TypeExpr
   span : Span
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, Inhabited
 
 mutual
   inductive Expr where
@@ -93,6 +93,253 @@ mutual
     deriving Repr, Inhabited
 end
 
+-- Nested mutual syntax requires an explicit structural equality decision.
+-- Every constructor, body, annotation and span participates in provenance.
+mutual
+  private def equalExpr (a b : Expr) : Decidable (a = b) :=
+    match a, b with
+    | .integer a0 a1, .integer b0 b1 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+    | .integer _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .unit _ => isFalse (by intro h; cases h)
+    | .integer _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .integer _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .boolean a0 a1, .boolean b0 b1 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+    | .boolean _ _, .unit _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .boolean _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .integer _ _ => isFalse (by intro h; cases h)
+    | .unit _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .unit a0, .unit b0 =>
+      decidable_of_iff (a0 = b0) (by simp)
+    | .unit _, .variable _ _ => isFalse (by intro h; cases h)
+    | .unit _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .reference _ _ => isFalse (by intro h; cases h)
+    | .unit _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .unit _, .block _ _ => isFalse (by intro h; cases h)
+    | .unit _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .unit _ => isFalse (by intro h; cases h)
+    | .variable a0 a1, .variable b0 b1 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+    | .variable _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .variable _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .call a0 a1 a2, .call b0 b1 b2 =>
+      let _ : Decidable (a1 = b1) := equalListExpr a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp)
+    | .call _ _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .call _ _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .invoke a0 a1 a2, .invoke b0 b1 b2 =>
+      let _ : Decidable (a0 = b0) := equalExpr a0 b0
+      let _ : Decidable (a1 = b1) := equalListExpr a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp)
+    | .invoke _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .invoke _ _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .unit _ => isFalse (by intro h; cases h)
+    | .reference _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .reference a0 a1, .reference b0 b1 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+    | .reference _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .reference _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .lambda a0 a1 a2 a3, .lambda b0 b1 b2 b3 =>
+      let _ : Decidable (a2 = b2) := equalBlock a2 b2
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp)
+    | .lambda _ _ _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .lambda _ _ _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .unary a0 a1 a2, .unary b0 b1 b2 =>
+      let _ : Decidable (a1 = b1) := equalExpr a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp)
+    | .unary _ _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .unary _ _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .binary a0 a1 a2 a3, .binary b0 b1 b2 b3 =>
+      let _ : Decidable (a1 = b1) := equalExpr a1 b1
+      let _ : Decidable (a2 = b2) := equalExpr a2 b2
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp)
+    | .binary _ _ _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .binary _ _ _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .ite a0 a1 a2 a3, .ite b0 b1 b2 b3 =>
+      let _ : Decidable (a0 = b0) := equalExpr a0 b0
+      let _ : Decidable (a1 = b1) := equalBlock a1 b1
+      let _ : Decidable (a2 = b2) := equalBlock a2 b2
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp)
+    | .ite _ _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .ite _ _ _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .unit _ => isFalse (by intro h; cases h)
+    | .block _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .block _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .block a0 a1, .block b0 b1 =>
+      let _ : Decidable (a0 = b0) := equalBlock a0 b0
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+    | .block _ _, .pack _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .integer _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .boolean _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .unit _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .variable _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .call _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .invoke _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .reference _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .lambda _ _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .unary _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .binary _ _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .ite _ _ _ _ => isFalse (by intro h; cases h)
+    | .pack _ _ _, .block _ _ => isFalse (by intro h; cases h)
+    | .pack a0 a1 a2, .pack b0 b1 b2 =>
+      let _ : Decidable (a0 = b0) := equalExpr a0 b0
+      let _ : Decidable (a1 = b1) := equalExpr a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp)
+  termination_by sizeOf a
+  private def equalStmt (a b : Stmt) : Decidable (a = b) :=
+    match a, b with
+    | .letE a0 a1 a2 a3, .letE b0 b1 b2 b3 =>
+      let _ : Decidable (a2 = b2) := equalExpr a2 b2
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp)
+    | .letE _ _ _ _, .unpack _ _ _ _ => isFalse (by intro h; cases h)
+    | .unpack _ _ _ _, .letE _ _ _ _ => isFalse (by intro h; cases h)
+    | .unpack a0 a1 a2 a3, .unpack b0 b1 b2 b3 =>
+      let _ : Decidable (a0 = b0) := equalExpr a0 b0
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp)
+  termination_by sizeOf a
+  private def equalBlock (a b : Block) : Decidable (a = b) :=
+    match a, b with
+    | .mk a0 a1 a2, .mk b0 b1 b2 =>
+      let _ : Decidable (a0 = b0) := equalListStmt a0 b0
+      let _ : Decidable (a1 = b1) := equalExpr a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp)
+  termination_by sizeOf a
+  private def equalListExpr (a b : (List Expr)) : Decidable (a = b) :=
+    match a, b with
+    | .nil, .nil =>
+      isTrue rfl
+    | .nil, .cons _ _ => isFalse (by intro h; cases h)
+    | .cons _ _, .nil => isFalse (by intro h; cases h)
+    | .cons a0 a1, .cons b0 b1 =>
+      let _ : Decidable (a0 = b0) := equalExpr a0 b0
+      let _ : Decidable (a1 = b1) := equalListExpr a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+  termination_by sizeOf a
+  private def equalListStmt (a b : (List Stmt)) : Decidable (a = b) :=
+    match a, b with
+    | .nil, .nil =>
+      isTrue rfl
+    | .nil, .cons _ _ => isFalse (by intro h; cases h)
+    | .cons _ _, .nil => isFalse (by intro h; cases h)
+    | .cons a0 a1, .cons b0 b1 =>
+      let _ : Decidable (a0 = b0) := equalStmt a0 b0
+      let _ : Decidable (a1 = b1) := equalListStmt a1 b1
+      decidable_of_iff (a0 = b0 ∧ a1 = b1) (by simp)
+  termination_by sizeOf a
+end
+
+instance : DecidableEq Expr := equalExpr
+instance : DecidableEq Stmt := equalStmt
+instance : DecidableEq Block := equalBlock
+
 def Expr.span : Expr → Span
   | .integer _ s | .boolean _ s | .unit s | .variable _ s | .call _ _ s
   | .reference _ s | .invoke _ _ s | .lambda _ _ _ s | .unary _ _ s | .binary _ _ _ s
@@ -104,14 +351,14 @@ structure Function where
   result : TypeExpr
   body : Block
   span : Span
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, Inhabited
 
 def Function.type (f : Function) : TypeExpr := .function (f.params.map (·.ty)) f.result
 
 /-- The source name is retained for diagnostics; internal lookup uses `id`. -/
 structure Definition extends Function where
   id : FunctionName
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, Inhabited
 
 def Definition.type (f : Definition) : TypeExpr := f.toFunction.type
 
@@ -123,7 +370,7 @@ def Definition.label (f : Definition) : String :=
 
 structure Method extends Function where
   requirements : List String
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, Inhabited
 
 structure Program where
   version : Nat

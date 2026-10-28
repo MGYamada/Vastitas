@@ -1,0 +1,8 @@
+assembly {
+  borrow base::integers as edit;
+  apply addon::sum using edit;
+  return edit;
+  seal base::choose;
+}
+
+fn main() -> Int { base::choose(40, 2) }

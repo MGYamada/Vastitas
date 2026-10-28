@@ -14,5 +14,7 @@
   "dispatchArity": 6,
   "nominalTypes": 64,
   "namespaceResolution": 4096,
-  "dependencyGraph": 4096
+  "dependencyGraph": 4096,
+  "assemblyEvents": 4096,
+  "contributionMethods": 4096
 }

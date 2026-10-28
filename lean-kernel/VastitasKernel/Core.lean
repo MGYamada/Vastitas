@@ -8,7 +8,7 @@ structure Span where
   «end» : Nat := 0
   line : Nat := 1
   column : Nat := 1
-  deriving Repr, Inhabited
+  deriving Repr, DecidableEq, Inhabited
 
 structure DiagnosticNote where
   message : String

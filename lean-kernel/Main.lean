@@ -1,6 +1,7 @@
 import VastitasKernel.SurfaceProtocol
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.Edit
 import VastitasKernel.NamespaceDiagnostics
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
@@ -14,11 +15,16 @@ private def process (mode input : String) : Lean.Json := Id.run do
   | .error message => return failureJson { code := "E_PROTOCOL", message }
   | .ok json =>
     let requested := (json.getObjValAs? Nat "version").toOption
-    let version := if requested == some 4 then 4 else if requested == some 3 then 3 else 2
+    let version := if requested == some 5 then 5 else if requested == some 4 then 4 else if requested == some 3 then 3 else 2
     let checked : Except Diagnostic CertifiedModule := do
-      if version == 3 || (version == 4 && (json.getObjValAs? String "input").toOption == some "package") then
+      if version == 3 || version == 5 || (version == 4 && (json.getObjValAs? String "input").toOption == some "package") then
         let raw ← (decodeNamespaceProgram json).mapError fun message => { code := "E_PROTOCOL", message }
-        checkNamespaceProgram raw (mode == "emit") (Namespace.describeDiagnostic raw)
+        if version == 5 then
+          (checkEditProgram raw (mode == "emit")).mapError fun diagnostic =>
+            match Namespace.lower raw.indexed with
+            | .ok lowered => Namespace.describeDiagnostic raw lowered diagnostic
+            | .error _ => diagnostic
+        else checkNamespaceProgram raw (mode == "emit") (Namespace.describeDiagnostic raw)
       else
         let raw ← (decodeSurfaceModule json).mapError fun message => { code := "E_PROTOCOL", message }
         (checkSurfaceProgram raw (mode == "emit")).mapError (DispatchChecker.describeDiagnostic (Surface.headers raw))

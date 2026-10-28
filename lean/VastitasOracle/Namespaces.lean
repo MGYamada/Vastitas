@@ -53,8 +53,8 @@ theorem diagnostic_rendering_preserves_acceptance (program : Namespace.Program)
     (certified : CertifiedModule) :
     checkNamespaceProgram program requireMain render = .ok certified ↔
       checkNamespaceProgram program requireMain = .ok certified := by
-  cases lowered : lower program.indexed <;>
-    simp [checkNamespaceProgram, lowered, bind, Except.bind]
+  cases editable : program.editable <;> cases lowered : lower program.indexed <;>
+    simp [checkNamespaceProgram, editable, lowered, bind, Except.bind, throw]
 
 theorem checkNamespaceProgram_full_audit (program : Namespace.Program) (requireMain : Bool)
     (certified : CertifiedModule)
@@ -63,20 +63,24 @@ theorem checkNamespaceProgram_full_audit (program : Namespace.Program) (requireM
       membershipGraph program.indexed = .ok graph ∧ MembershipsAuthorized graph ∧
       UniqueOwners program.indexed ∧ ReferencesValid program.indexed lowered ∧
       checkSurfaceProgram lowered.surface requireMain = .ok certified := by
+  have legacy : program.editable = false := by
+    cases editable : program.editable with
+    | false => rfl
+    | true => simp [checkNamespaceProgram, editable, throw, bind, Except.bind] at accepted
   cases lowered : lower program.indexed with
-  | error diagnostic => simp [checkNamespaceProgram, lowered, bind, Except.bind] at accepted
+  | error diagnostic => simp [checkNamespaceProgram, legacy, lowered, bind, Except.bind] at accepted
   | ok result =>
     cases graph : membershipGraph program.indexed with
-    | error diagnostic => simp [checkNamespaceProgram, lowered, graph, bind, Except.bind, Except.mapError] at accepted
+    | error diagnostic => simp [checkNamespaceProgram, legacy, lowered, graph, bind, Except.bind, Except.mapError] at accepted
     | ok authority =>
       by_cases authorized : MembershipsAuthorized authority
       · by_cases owners : UniqueOwners program.indexed
         · by_cases references : ReferencesValid program.indexed result
           · refine ⟨result, authority, rfl, rfl, authorized, owners, references, ?_⟩
-            simpa [checkNamespaceProgram, lowered, graph, authorized, owners, references, bind, Except.bind] using accepted
-          · simp [checkNamespaceProgram, lowered, graph, authorized, references, bind, Except.bind, throw] at accepted
-        · simp [checkNamespaceProgram, lowered, graph, authorized, owners, bind, Except.bind, throw] at accepted
-      · simp [checkNamespaceProgram, lowered, graph, authorized, bind, Except.bind, throw] at accepted
+            simpa [checkNamespaceProgram, legacy, lowered, graph, authorized, owners, references, bind, Except.bind] using accepted
+          · simp [checkNamespaceProgram, legacy, lowered, graph, authorized, references, bind, Except.bind, throw] at accepted
+        · simp [checkNamespaceProgram, legacy, lowered, graph, authorized, owners, bind, Except.bind, throw] at accepted
+      · simp [checkNamespaceProgram, legacy, lowered, graph, authorized, bind, Except.bind, throw] at accepted
 
 theorem checkNamespaceProgram_audited (program : Namespace.Program) (requireMain : Bool)
     (certified : CertifiedModule)

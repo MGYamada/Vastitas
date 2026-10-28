@@ -1,4 +1,5 @@
 import VastitasKernel.Typing
+import VastitasKernel.Distinct
 
 /-!
 Executable validation of the independent structural typing rules. This audit
@@ -103,12 +104,7 @@ def auditBodies (module : CheckedModule) : Bool :=
   module.functions.all (fun function => decide (FunctionWellTyped signatures function))
 
 /-- Linear-time distinctness validation used for function IDs and fresh brands. -/
-def distinctFrom {α : Type} [BEq α] [Hashable α]
-    (seen : Std.HashSet α) : List α → Bool
-  | [] => true
-  | value :: rest =>
-      if seen.contains value then false
-      else distinctFrom (seen.insert value) rest
+abbrev distinctFrom := @VastitasKernel.Finite.distinctFrom
 
 def freshRefs (module : CheckedModule) : List ObjectRef :=
   module.functions.flatMap fun function =>

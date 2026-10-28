@@ -6,7 +6,7 @@ import VastitasKernel.Authority
 import VastitasKernel.NamespaceDiagnostics
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
-import VastitasKernel.Runtime
+import VastitasKernel.IndexedRuntime
 
 open VastitasKernel
 
@@ -34,7 +34,10 @@ private def process (mode input : String) : Lean.Json := Id.run do
     match checked with
     | .error diagnostic => return failureJson diagnostic version
     | .ok checked =>
-      if mode == "check" then return successJson none version
+      if mode == "check" then
+        match LegacyIndexed.check checked.val false with
+        | .ok _ => return successJson none version
+        | .error diagnostic => return failureJson diagnostic version
       match Codegen.generate checked with
       | .ok source => return successJson (some source) version
       | .error message => return failureJson { code := "E_CODEGEN", message } version

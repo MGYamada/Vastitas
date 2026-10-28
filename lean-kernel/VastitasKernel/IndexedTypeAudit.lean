@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedTyping
 import VastitasKernel.Dependency
+import VastitasKernel.Distinct
 
 namespace VastitasKernel.Indexed.Core.Typing
 open VastitasKernel.Indexed.Audit
@@ -164,11 +165,17 @@ structure ModuleTyped (module : Module) : Prop where
   fresh : (freshSerials module).Nodup
   functions : ∀ function ∈ module.functions, FunctionTyped module.declarations (signatures module) function
 
-instance (module : Module) : Decidable (ModuleTyped module) :=
+instance (module : Module) : Decidable (ModuleTyped module) := by
+  haveI : Decidable (module.functions.map Function.id).Nodup :=
+    decidable_of_iff (Finite.distinct (module.functions.map Function.id) = true) (Finite.distinct_iff _)
+  haveI : Decidable (freshSerials module).Nodup :=
+    decidable_of_iff (Finite.distinct (freshSerials module) = true) (Finite.distinct_iff _)
+  let table := signatures module
+  exact
   decidable_of_iff
     (module.declarations.Valid ∧ (module.functions.map Function.id).Nodup ∧
       (freshSerials module).Nodup ∧ ∀ function ∈ module.functions,
-        FunctionTyped module.declarations (signatures module) function)
+        FunctionTyped module.declarations table function)
     ⟨fun ⟨declarations, unique, fresh, functions⟩ => ⟨declarations, unique, fresh, functions⟩,
       fun valid => ⟨valid.declarations, valid.uniqueFunctions, valid.fresh, valid.functions⟩⟩
 

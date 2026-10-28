@@ -63,7 +63,7 @@ theorem typed_ascription (env : Declarations) (functions : Signatures) (ctx : Co
 
 theorem typed_call_substitution (env : Declarations) (functions : Signatures) (ctx : Context)
     (id : Nat) (arguments : List Term) (substitution : List (ObjectRef × ObjectRef)) (result : Result)
-    (signature : Signature) (found : functions.find? (fun signature => signature.id == id) = some signature)
+    (signature : Signature) (found : functions[id]? = some signature)
     (typed : HasType env functions ctx (.call id arguments substitution result)) :
     CallSubstitution env substitution := by
   have relation := typed.2.2

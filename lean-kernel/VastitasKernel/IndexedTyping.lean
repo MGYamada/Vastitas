@@ -53,10 +53,13 @@ structure Signature where
   result : DataType
   deriving Repr, Inhabited
 
-abbrev Signatures := List Signature
+abbrev Signatures := Std.HashMap Nat Signature
+
+def signatureOf (function : Function) : Signature :=
+  ⟨function.id, function.parameters, function.returnType⟩
 
 def signatures (module : Module) : Signatures :=
-  module.functions.map fun function => ⟨function.id, function.parameters, function.returnType⟩
+  module.functions.foldl (fun table function => table.insert function.id (signatureOf function)) {}
 
 def ArgumentsMatch (env : Declarations) : List Parameter → List Result →
     List (ObjectRef × ObjectRef) → List (ObjectRef × ObjectRef) → Prop
@@ -113,7 +116,7 @@ instance (env : Declarations) (parameters : List Parameter) (arguments : List Re
 
 def CallTyping (env : Declarations) (functions : Signatures) (id : Nat) (arguments : List Result)
     (substitution : List (ObjectRef × ObjectRef)) (result : Result) : Prop :=
-  match functions.find? (fun signature => signature.id == id) with
+  match functions[id]? with
   | none => False
   | some signature =>
       ArgumentsMatch env signature.parameters arguments [] substitution ∧

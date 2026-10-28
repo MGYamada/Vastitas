@@ -2,12 +2,14 @@
 
 This is internal infrastructure for #58/#59/#62, not completion of those issues
 or #49. `VastitasKernel.Indexed` supplies a finite declaration environment and
-an independently audited indexed application. It is not yet the public source
-checker. Protocol 7 remains unavailable, and the existing geometry checker has
-not yet been replaced. No new public source syntax or operation is claimed here.
+an independently audited indexed application. The public compatibility path now
+translates its checked legacy Core into this declaration-driven Core for an
+additional independent audit and native generation. Protocol 7 remains
+unavailable; source geometry still uses the legacy frontend/elaborator. No new
+public source syntax or operation is claimed here.
 The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
-annotation contracts in PR #189 (`b3f8ff7`). The internal Core now connects those
-contracts to actual terms and standalone native generation, as described below.
+annotation contracts in PR #189 (`b3f8ff7`), and Core/native generation in PR #194
+(`c29e1cd`). The compatibility adapter is described below.
 
 ## Identity and declarations
 
@@ -88,8 +90,8 @@ finite domains, distinct global/local identities, hidden token escapes and
 invalid substitutions. It runs in the common no-mathlib regression script.
 
 The next integration must update Rust and Lean together, retain unresolved
-namespace provenance, introduce protocol 7, and route compatibility syntax into
-the same environment-driven type checker. The existing geometry source
+namespace provenance and introduce protocol 7. Compatibility Core already uses
+the common environment-driven checker and native generator. The existing geometry source
 correspondence and typed-evaluation proofs must move with that path. No old
 public spelling is a substitute for completing this work.
 
@@ -160,7 +162,8 @@ still required before #60/#62/#63 can close.
 `IndexedPackageRegression` and `IndexedPrimitiveRegression` add 45 direct cases,
 including repeated openings/repacking, false field associations, abstract-domain
 capability loss, changed family IDs, false result endpoints and reused brands.
-The existing public compiler and its wire versions 2–6 remain unchanged.
+Wire versions 2–6 retain their source contracts; their final lowering now passes
+through the common declaration-driven Core.
 
 ## Audited Core and native generation
 
@@ -210,8 +213,49 @@ and dependency failures. `bash scripts/check_indexed_native.sh` compiles and run
 three standalone fixtures (package output `2`, all primitives output `42`, and
 arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI jobs run them.
 
-Public protocol 7, Rust parsing/resolution, source-to-Core correspondence,
-stdlib geometry declarations and the legacy adapter remain pending. Typed
+Public protocol 7, Rust declaration parsing/resolution, source-to-Core correspondence
+and stdlib geometry declarations remain pending. Typed
 evaluation, activation/world correspondence and native refinement are not
 claimed by the new structural theorem or by native regression tests. These
 limits prevent closing #49/#58–63 at this increment.
+
+## Compatibility adapter for protocols 2–6
+
+`LegacyIndexed` translates the actual legacy checked Core into the same indexed
+terms audited above. Its closed compatibility profile explicitly declares two
+coefficient markers, the existing two affine implementations, canonical base
+objects, indexed point/morphism families, two existential cases and the closed
+primitive bindings. Each legacy object type admits exactly its existing affine
+implementation; it does not grant operations to an arbitrary future classification.
+Reserved compatibility declaration IDs come from the adapter itself, never a
+source filename or displayed name. Object serials, dependent substitutions,
+actual bodies, call IDs and entrypoint selection survive translation.
+
+The public `check` path requires both existing acceptance and the common audit.
+The public `build` path and legacy `Codegen.generate` API independently validate
+legacy certificates, translate, audit the resulting indexed Core and invoke
+`IndexedCodegen`. The former duplicate geometry/native renderer is removed.
+Generated programs import only `IndexedRuntime`; the old runtime remains for
+the existing legacy evaluation theorems. Ordinary compilation still needs
+neither mathlib nor OpenBLAS.
+
+The signature table is reconstructed once per module using a hash index.
+`VastitasOracle.IndexedSignatures` proves membership, absence and actual-target
+correspondence. The shared `Distinct` audit proves its hash-set check equivalent
+to list distinctness; both old and indexed typing reuse it. The existing
+20,000-function watchdog regression continues to pass through this added audit.
+
+`VastitasOracle.LegacyIndexed.check_acceptance` connects the exact adapter input,
+its actual converted module, complete typing on both sides and the real dependency
+graphs. Nine `LegacyIndexedRegression` cases check the profile, executable package
+translation, forged certificates, mutated converted Core and cross-base reuse of
+a numeric serial. Existing source/native tests exercise both geometric settings,
+unpack, higher-order specialization, dispatch, packages and edit authority through
+the new path.
+
+This is a structural compatibility bridge. It does not prove evaluation
+preservation of the translation, activation/world correspondence or native
+equivalence. Legacy source-to-Core and evaluation theorems still describe the
+retained legacy intermediate; the indexed semantic bridge remains explicit work.
+Source geometry declarations have not yet moved to `.vast` stdlib files, so
+this adapter alone does not complete the migration.

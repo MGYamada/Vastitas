@@ -3,8 +3,8 @@ import VastitasKernel.IndexedContractAudit
 
 /-! The declaration-driven Core data model. IndexedTypeAudit independently
 checks complete modules and IndexedCodegen lowers them to the minimal runtime.
-Public source/protocol integration and evaluation proofs remain pending;
-existing public acceptance is not changed by this internal module. -/
+LegacyIndexed routes the existing public compatibility path through this audit.
+Public declaration syntax/protocol 7 and evaluation proofs remain pending. -/
 namespace VastitasKernel.Indexed.Core
 
 structure NamedPackage where

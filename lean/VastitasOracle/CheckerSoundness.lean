@@ -14,23 +14,8 @@ open VastitasKernel VastitasKernel.Typing
 theorem distinctFrom_sound {α : Type} [BEq α] [Hashable α] [LawfulBEq α]
     (seen : Std.HashSet α) (items : List α)
     (accepted : distinctFrom seen items = true) :
-    items.Nodup ∧ ∀ value ∈ items, value ∉ seen := by
-  induction items generalizing seen with
-  | nil => simp
-  | cons head rest ih =>
-      simp only [distinctFrom] at accepted
-      split at accepted
-      · contradiction
-      · rename_i absent
-        obtain ⟨unique, fresh⟩ := ih (seen.insert head) accepted
-        constructor
-        · exact List.nodup_cons.mpr ⟨fun member => fresh head member (by simp), unique⟩
-        · intro value member
-          rcases List.mem_cons.mp member with equal | member
-          · subst value
-            simpa using absent
-          · intro previous
-            exact fresh value member (by simp [previous])
+    items.Nodup ∧ ∀ value ∈ items, value ∉ seen :=
+  (Finite.distinctFrom_iff seen items).mp accepted
 
 /-- Every actual function body has a derivation of the independent rules. -/
 theorem auditBodies_sound (module : CheckedModule) (accepted : auditBodies module = true) :

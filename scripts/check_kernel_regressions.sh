@@ -14,4 +14,5 @@ lake -d lean-kernel build \
   VastitasKernel.IndexedPackageRegression \
   VastitasKernel.IndexedPrimitiveRegression \
   VastitasKernel.IndexedCoreRegression \
+  VastitasKernel.LegacyIndexedRegression \
   VastitasPromotion.Regression

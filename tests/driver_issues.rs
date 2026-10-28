@@ -467,8 +467,8 @@ fn runtime_native_artifacts_are_prebuilt_and_reused() {
     let scratch = Scratch::new();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("lean-kernel");
     let artifacts = [
-        root.join(".lake/build/lib/lean/VastitasKernel/Runtime.olean"),
-        root.join(".lake/build/ir/VastitasKernel/Runtime.c.o.export"),
+        root.join(".lake/build/lib/lean/VastitasKernel/IndexedRuntime.olean"),
+        root.join(".lake/build/ir/VastitasKernel/IndexedRuntime.c.o.export"),
     ];
     let before: Vec<_> = artifacts
         .iter()

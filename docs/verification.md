@@ -591,8 +591,9 @@ identity preservation are also proved for these internal records.
 
 This is prerequisite infrastructure for #58/#59/#62. It is not a public
 protocol-7 acceptance theorem, a port of indexed program evaluation, or completion
-of the geometry migration. The public compiler still uses its existing geometry
-path. See [indexed-declarations.md](indexed-declarations.md) for exact checks,
+of the geometry migration. The public compiler retains its legacy geometry
+elaboration and now passes the result through the common indexed Core audit and
+native generator. See [indexed-declarations.md](indexed-declarations.md) for exact checks,
 limits, regression coverage and the remaining source/namespace/primitive/
 existential/Core integration.
 
@@ -606,7 +607,7 @@ closed binding validity, complete-domain capabilities, fresh construction,
 composition endpoints and application test-object preservation. The 45 added
 kernel cases exercise these audits directly. The propositions concern internal
 type annotations; the internal Core layer below connects them to actual terms.
-Public source/evaluator integration remains pending and the existing geometry
+New declaration source/evaluator integration remains pending and the existing geometry
 acceptance proofs remain in force.
 
 `VastitasOracle.IndexedCore.checkModule_acceptance` proves exact input identity,
@@ -624,3 +625,17 @@ native fixtures run without mathlib. This is not yet a source acceptance or
 typed evaluation theorem, nor a proof of native equivalence. Function activation
 worlds, public protocol 7, source lowering and compatibility geometry still need
 their correspondence proofs. See [indexed-declarations.md](indexed-declarations.md).
+
+`VastitasOracle.LegacyIndexed.check_acceptance` connects the exact legacy input
+to the actual translated indexed module, with complete typing and actual
+dependency order on both sides. Public `check` uses that boundary; native
+generation separately repeats both audits on the same translation. This is a
+structural association theorem, not evaluation preservation. Existing legacy
+source/evaluation theorems remain about the retained intermediate Core and old
+runtime; translation semantics and native equivalence remain unproved.
+
+Indexed signatures now use a once-per-module hash table. The oracle's
+`IndexedSignatures` lemmas establish actual member/absent/target correspondence.
+The shared constructive `Finite.distinctFrom_iff` and `Finite.distinct_iff`
+connect the linear hash-set audit to mathematical list distinctness; the existing
+legacy distinctness soundness theorem now uses this same implementation.

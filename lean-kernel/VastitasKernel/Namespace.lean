@@ -21,7 +21,7 @@ structure Owner where
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 inductive Kind where
-  | module | function | generic | abstractType | grant | contribution
+  | module | function | generic | abstractType | grant | contribution | delegation | transfer
   deriving Repr, Inhabited, DecidableEq, BEq
 
 structure Target where
@@ -55,6 +55,16 @@ structure Grant where
   granteeSource : String
   granteePath : List String
   region : List (List String)
+  delegable : Bool := false
+  span : Span
+  isPublic : Bool
+  deriving Repr, Inhabited
+
+structure Transfer where
+  name : String
+  target : List String
+  granteeSource : String
+  granteePath : List String
   span : Span
   isPublic : Bool
   deriving Repr, Inhabited
@@ -72,10 +82,17 @@ inductive EditEvent where
   | apply (contribution : List String) (loan : Option String) (span : Span)
   | release (loan : String) (span : Span)
   | seal (target : List String) (span : Span)
+  | reborrow (parent : String) (delegation : List String) (loan : String) (span : Span)
+  | transfer (declaration : List String) (span : Span)
   deriving Repr, Inhabited
 
 def EditEvent.span : EditEvent → Span
-  | .borrow _ _ span | .apply _ _ span | .release _ span | .seal _ span => span
+  | .borrow _ _ span | .apply _ _ span | .release _ span | .seal _ span
+    | .reborrow _ _ _ span | .transfer _ span => span
+
+def EditEvent.authority : EditEvent → Bool
+  | .reborrow .. | .transfer .. => true
+  | _ => false
 
 structure Assembly where
   events : List EditEvent
@@ -93,6 +110,8 @@ structure Module where
   subtypes : List RawSubtype := []
   abstractMethods : List RawAbstractMethod := []
   grants : List Grant := []
+  delegations : List Grant := []
+  transfers : List Transfer := []
   contributions : List Contribution := []
   assembly : Option Assembly := none
   span : Span
@@ -112,6 +131,7 @@ structure Package where
 structure Program where
   extended : Bool := false
   editable : Bool := false
+  authority : Bool := false
   file : String
   root : String
   packages : List Package
@@ -127,6 +147,8 @@ def Program.declarations (p : Program) : List Target :=
     (m.generics.map fun g => ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩) ++
     (m.abstractTypes.map fun t => ⟨⟨scope, t.name⟩, .abstractType, t.isPublic⟩) ++
     (m.grants.map fun g => ⟨⟨scope, g.name⟩, .grant, g.isPublic⟩) ++
+    (m.delegations.map fun g => ⟨⟨scope, g.name⟩, .delegation, g.isPublic⟩) ++
+    (m.transfers.map fun t => ⟨⟨scope, t.name⟩, .transfer, t.isPublic⟩) ++
     (m.contributions.map fun c => ⟨⟨scope, c.name⟩, .contribution, c.isPublic⟩) ++
     (if m.path.isEmpty then [] else
       [⟨⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, .module, m.isPublic⟩])

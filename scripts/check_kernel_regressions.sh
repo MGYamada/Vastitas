@@ -9,4 +9,5 @@ lake -d lean-kernel build \
   VastitasKernel.PairRegression \
   VastitasKernel.AbstractRegression \
   VastitasKernel.ContractRegression \
+  VastitasKernel.AuthorityRegression \
   VastitasPromotion.Regression

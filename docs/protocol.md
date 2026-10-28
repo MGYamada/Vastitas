@@ -1,4 +1,4 @@
-# Compiler protocols (versions 2, 3, 4 and 5)
+# Compiler protocols (versions 2–6)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -9,7 +9,7 @@ bindings; the wire format cannot supply a trusted object identity.
 Request: `{ "version": 2, "file": "input.vast", "functions": [...],
 "generics": [...], "methods": [...] }`. All three declaration arrays are
 present, including when empty. Protocol 3 uses the separate namespace request
-below. Protocol 4 adds abstract declarations and protocol 5 adds package edit assemblies as described below; package requests never fall back to protocol 2. Other versions are rejected.
+below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assemblies, and protocol 6 adds nested loans and permanent authority transfer as described below; package requests never fall back to protocol 2. Other versions are rejected.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
@@ -304,3 +304,33 @@ The shared limits allow 4096 assembly events, 4096 contribution methods in the
 whole closure, and 4096 ground functions in the separate unapplied-body audit.
 Existing per-family key, hierarchy, type-depth and specialization bounds remain.
 No digest in this same input proves filesystem or author authenticity.
+
+## Protocol 6: nested loans and current edit authority
+
+Protocol 6 is package-only and keeps the version-5 envelope and declarations.
+Grants may additionally carry `delegable: Bool` (default false); presence of
+this field is rejected in protocol 5 even when false. Modules may add:
+
+- `delegations: [Grant...]`: the same record shape, with the issuer derived from
+  its declaring module. It is usable only through an active explicitly delegable
+  parent loan held by that module, with the same target and a contained region.
+- `transfers: [{name, target, grantee_source, grantee_path, public, span}]`:
+  a named permanent transfer operation, declared by its issuer module. The exact
+  recipient must already exist in the selected closure.
+
+The additional assembly events are
+`{op: "reborrow", parent: String, delegation: Path, loan: String, span}` and
+`{op: "transfer", declaration: Path, span}`. Unknown fields are rejected;
+claimed issuer/current-owner IDs, accepted flags and supplied histories are not
+wire fields. All old event schemas remain unchanged. Protocol 2 also rejects
+semantic package/authority fields while retaining its unrelated hint metadata
+compatibility.
+
+`checkAuthorityProgram` reconstructs histories and complete delegation chains,
+audits each transition against an independent relation, and performs the same
+namespace, membership, final dispatch, footprint, all-body and Core audits.
+The original function identity never changes. A returned loan or transfer
+preserves contributions and unresolved completion obligations. The final
+winning region is contained in every ancestor's grant, and transfer requires
+no outstanding loans. See [source semantics](edit-authority.md) and
+[the proof boundary](verification.md#edit-authority-acceptance-protocol-6).

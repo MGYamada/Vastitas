@@ -1,0 +1,11 @@
+pub delegation inner : base::choose to module("Vastitas.toml", "ops") {
+  domain (Int, Int);
+}
+pub mod ops {
+  pub contribution sum : base::choose {
+    method base::choose(x: Int, y: Int) -> Int { x + y }
+  }
+}
+pub contribution boolean : base::choose {
+  method base::choose(x: Bool, y: Bool) -> Int { 2 }
+}

@@ -11,6 +11,7 @@ structure GrantEntry where
   target : Namespace.Target
   grantee : Scope
   region : List Dispatch.Key
+  delegable : Bool := false
   span : Span
   deriving Repr, DecidableEq, Inhabited
 
@@ -73,7 +74,7 @@ def ContributionsCorrespond (p : Indexed) (prepared : Prepared p) : Prop :=
 instance : Decidable (ContributionsCorrespond p prepared) := inferInstanceAs (Decidable (_ = _))
 
 def lowerGrant (p : Indexed) (scope : Scope) (grant : Namespace.Grant) : Namespace.M GrantEntry := do
-  let target ← Namespace.lookup p scope (String.intercalate "::" grant.target) grant.span true
+  let target ← Namespace.lookup p scope (String.intercalate "::" grant.target) grant.span (!p.authority)
   let arity ← genericArity p target grant.span
   let some granteePackage := packageAt p grant.granteeSource
     | problem grant.span "E_OWNER" "grant grantee is outside the selected dependency closure"
@@ -87,7 +88,7 @@ def lowerGrant (p : Indexed) (scope : Scope) (grant : Namespace.Grant) : Namespa
       | none => problem grant.span "E_TYPE" "grant regions require concrete scalar tuples"
   if region.length > Limits.dispatchKeys then problem grant.span "E_LIMIT" "grant region exceeds key limit"
   if !region.Nodup then problem grant.span "E_DUPLICATE" "duplicate grant region key"
-  return { id := ⟨scope, grant.name⟩, target, grantee, region, span := grant.span }
+  return { id := ⟨scope, grant.name⟩, target, grantee, region, delegable := grant.delegable, span := grant.span }
 
 def reconstructGrants (p : Indexed) : Result (List GrantEntry) :=
   (p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
@@ -170,6 +171,7 @@ instance : Decidable (Exclusive state) := by unfold Exclusive; infer_instance
 
 def step (p : Indexed) (prepared : Prepared p) (state : State) (event : EditEvent) : Result State := do
   match event with
+  | .reborrow .. | .transfer .. => problem event.span "E_PROTOCOL" "authority events require protocol 6 acceptance"
   | .borrow path name span =>
     sourceName name span
     let target ← resolve p prepared.rootScope path span
@@ -248,6 +250,7 @@ the whole installed contribution list, and replay compares complete records. -/
 def TransitionAllowed (p : Indexed) (prepared : Prepared p)
     (before : State) (event : EditEvent) (after : State) : Prop :=
   match event with
+  | .reborrow .. | .transfer .. => False
   | .borrow path name span =>
     ∃ grant ∈ prepared.grants,
       ResolvesAs p prepared.rootScope path span .grant grant.id ∧
@@ -418,6 +421,7 @@ structure Assembled (p : Indexed) where
   auditFrom : unappliedAudit prepared state families = .ok audit
 
 def assemble (p : Indexed) : Result (Assembled p) := do
+  if p.authority then problem {} "E_PROTOCOL" "protocol 6 requires authority acceptance"
   match preparedFrom : prepare p with
   | .error error => throw error
   | .ok prepared =>

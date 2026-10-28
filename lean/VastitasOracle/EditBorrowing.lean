@@ -85,6 +85,8 @@ theorem transition_preserves_provenance (prepared : Prepared p)
     (valid : TransitionAllowed p prepared before event after)
     (prior : Provenance prepared before) : Provenance prepared after := by
   cases event with
+  | reborrow parent path name span => exact False.elim valid
+  | transfer path span => exact False.elim valid
   | borrow path name span =>
     obtain ⟨_, _, _, _, _, _, same⟩ := valid
     intro applied included

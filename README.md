@@ -19,7 +19,7 @@ body before lowering calls to the proved Stage 0 core. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.
-[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) now permit owner-approved external contributions. Ownership transfer, storage ownership and linear algebra remain later work.
+[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. Storage ownership and linear algebra remain pending in the [Stage 1 completion gate](docs/stage1-completion.md).
 
 ## Build and use
 
@@ -56,7 +56,7 @@ when explicitly selected; `build` also needs the package and uses its pinned
 
 Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
 and root source, plus optional `[dependencies]` path entries. Package mode
-retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies) and cannot be mixed with positional input or
+retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies, protocol 6 for delegated loans/transfers) and cannot be mixed with positional input or
 `--lib`; protocol 2 remains supported for those existing commands.
 
 ```sh
@@ -71,7 +71,7 @@ logical modules and aliases. Functions have one defining package/module owner;
 ordinary methods require that exact module; explicit grants and active assembly loans permit external contributions. Imports permit repeated calls
 without granting edit authority. See [packages and modules](docs/packages.md)
 for file layout, visibility, limits and proof scope. Registry/Git dependencies and
-general abstract values remain deferred; explicit edit borrowing uses protocol 5.
+general abstract values remain deferred; explicit edit borrowing uses protocols 5/6.
 
 ## Arithmetic standard library
 
@@ -164,7 +164,7 @@ declaration-order invariance, and connects the public Stage 1b checker's exact
 lowered result to that proved core. Independent capture and static function
 signature audits are connected to actual acceptance. Protocol-3 owner uniqueness,
 reference/visibility and method-authority audits connect the namespace path to
-the same core theorems. Protocol-5 acceptance also audits grant origins, exclusive loan transitions, complete contribution bodies and final winning footprints; its exact assembled surface enters that same checker. Rust parsing, JSON decoding, full Stage 1
+the same core theorems. Protocols 5/6 also audit grant origins, exclusive loan transitions, complete contribution bodies and final winning footprints; protocol 6 additionally audits nested delegation and current-owner histories. Their exact assembled surfaces enter that same checker. Rust parsing, JSON decoding, full Stage 1
 source rewriting correspondence, native code-generation equivalence, and a
 full mathematical model of schemes remain outside those claims. The precise
 [proof boundary](docs/verification.md) is part of the implementation contract.
@@ -210,6 +210,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Implementation roadmap](docs/stage1-roadmap.md)
 - [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
 - [Scoped edit borrowing and assemblies](docs/edit-borrowing.md)
+- [Nested edit loans and permanent authority transfer](docs/edit-authority.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

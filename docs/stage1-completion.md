@@ -8,16 +8,16 @@ protocol-5 increment do not complete the historical Stage 1 proposal.
 | Step | Implementation / issue | Acceptance evidence and status |
 | --- | --- | --- |
 | Indexed static-call audit | PR #175, merge `e0866c8` | Complete: 205 local tests, kernel regressions, oracle, 6,386-declaration axiom audit, macOS/Linux CI |
-| Stabilization | #123–125, #147–149, #169–174, #176–177 | Current changes: empty root assembly, bounded progressive pipe I/O, contextual literal typing, protocol failures and diagnostics; tests in `stabilization.rs`, `edit_borrowing.rs`, `driver_issues.rs`, and `EditRegression` |
-| Nested edit loans | #181, part of #52/#64 | Pending: explicit delegation, region inclusion, suspended parent authority, inner-first return, complete provenance and final winning-footprint checks |
-| Permanent authority transfer | #182, part of #52/#64 | Pending: immutable definition identity, current owner, explicit transfer, no active loans, retained grants/methods/obligations and revoked former-owner editing |
+| Stabilization | #123–125, #147–149, #169–174, #176–177; PR #185, merge `92091a9` | Complete: 216 local tests, kernel/oracle, 6,391-declaration axiom audit, both OS CI and automatic review passed |
+| Nested edit loans | #181, part of #52/#64 | Protocol 6: explicit delegation, region inclusion, suspended parent authority, inner-first return, complete provenance and final winning-footprint checks; see `edit_authority.rs` and `AuthorityRegression` |
+| Permanent authority transfer | #182, part of #52/#64 | Protocol 6: immutable definition identity, current owner, explicit transfer, no active loans, retained grants/methods/obligations and revoked former-owner editing; actual-checker proofs in `VastitasOracle.Authority` |
 | Indexed declarations and existing geometry | needed #48 foundation; #58–63 and #49 | Pending: nominal declaration/index identities, finite representation, scoped existential packages, primitive/evidence contracts; geometry and a non-geometric example use the same checker |
 | Storage ownership | #183, Core Safety boundary in #180 | Pending: allocation provenance, affine moves, read/write loans, initialization, views, branch-state joins and final independent resource audit |
 | Linear algebra and networks | #66/#67/#69/#91/#92 | Pending: real/complex GEMM, nominal objects/bases/dual/conjugation/metric, finite occurrence/port/edge/boundary checks and deterministic contraction schedule |
 | Integrated completion | #179 | Pending: complete acceptance mapping, merged commit, exact proof boundaries, examples and CI results |
 
-Wire extensions are planned as 6 (edit authority), 7 (indexed declarations),
-and 8 (resources/numerics/networks). Both frontend and independent kernel must
+Wire extension 6 supplies edit authority; 7 (indexed declarations) and
+8 (resources/numerics/networks) remain planned. Both frontend and independent kernel must
 change together. Protocols 2–5 and explicit `--lib` stay supported; new fields
 must not be silently ignored in an old envelope.
 

@@ -109,5 +109,7 @@ jobs:
           axiom-audit: true
           axiom-audit-root: VastitasOracle
           axiom-audit-allow: propext,Classical.choice,Quot.sound
+      - name: Finite edit acceptance indices
+        run: cd lean && lake env lean ../scripts/check_edit_acceptance.lean
       - name: Dependency boundaries
         run: python3 scripts/check_boundaries.py

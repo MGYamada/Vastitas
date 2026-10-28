@@ -1,24 +1,9 @@
 import VastitasKernel.Surface
+import VastitasKernel.Identity
 
 /-! Protocol 3 retains unresolved paths and declaration provenance. Files are
 placement metadata; only package identity and logical modules determine owners. -/
 namespace VastitasKernel.Namespace
-
-structure PackageId where
-  source : String
-  name : String
-  version : String
-  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
-
-structure Scope where
-  package : PackageId
-  path : List String
-  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
-
-structure Owner where
-  scope : Scope
-  name : String
-  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq, Hashable
 
 inductive Kind where
   | module | function | generic | abstractType | grant | contribution | delegation | transfer

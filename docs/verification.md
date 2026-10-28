@@ -595,3 +595,15 @@ of the geometry migration. The public compiler still uses its existing geometry
 path. See [indexed-declarations.md](indexed-declarations.md) for exact checks,
 limits, regression coverage and the remaining source/namespace/primitive/
 existential/Core integration.
+
+
+The internal package/primitive extension is proved in
+`VastitasOracle.IndexedPackages` and `VastitasOracle.IndexedPrimitives`. Its checked
+records preserve the same environment, package contract, allocation context,
+operands and result. Package proofs cover exact field association, only bound or
+global free references, freshness and distinct reopening. Primitive proofs cover
+closed binding validity, complete-domain capabilities, fresh construction,
+composition endpoints and application test-object preservation. The 45 added
+kernel cases exercise these audits directly. The propositions concern internal
+type annotations; public source/term/evaluator/codegen integration remains
+pending and the existing geometry acceptance proofs remain in force.

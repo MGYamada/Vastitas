@@ -4,7 +4,9 @@ This is internal infrastructure for #58/#59/#62, not completion of those issues
 or #49. `VastitasKernel.Indexed` supplies a finite declaration environment and
 an independently audited indexed application. It is not yet the public source
 checker. Protocol 7 remains unavailable, and the existing geometry checker has
-not yet been replaced. No new source syntax or native operation is claimed here.
+not yet been replaced. No new source syntax or native operation is claimed here. The declaration base
+was merged in PR #188 (`09f9e9d`); the package and primitive contracts below are
+the next internal integration increment.
 
 ## Identity and declarations
 
@@ -33,8 +35,8 @@ Implementation capability records currently contain the closed `origin` and
 `dimension` tags for the finite affine descriptor representation. They are
 explicit per implementation; classification or inheritance does not fill them
 in. These records alone are not mathematical evidence or operation acceptance.
-The primitive binding checker and executable use of the records are still part
-of #60. The ordinary namespace/membership authority audit must also be connected
+The closed primitive binding checker is described below. Executable source/
+term/runtime use of these records remains part of #60. The ordinary namespace/membership authority audit must also be connected
 before a public program may install these declarations.
 
 ## Indexed applications and scopes
@@ -55,8 +57,9 @@ object, and two global declarations of the same implementation remain distinct.
 All object indices contribute to the generic scope traversal, including indices
 of tokens with empty runtime representations. Substitution fixes globals,
 requires unique local sources and preserves the source's exact object type.
-Fresh allocation, abstract coercion, function substitution, existential opening
-and the corresponding evaluator/codegen proofs remain integration work; this
+Function substitution and the corresponding evaluator/codegen proofs remain
+integration work; the package and primitive layers below audit their own
+freshness, association and domain refinement contracts, but this
 foundation does not by itself establish those broader properties.
 
 ## Independent checks and proof boundary
@@ -87,3 +90,70 @@ namespace provenance, introduce protocol 7, and route compatibility syntax into
 the same environment-driven type checker. The existing geometry source
 correspondence and typed-evaluation proofs must move with that path. No old
 public spelling is a substitute for completing this work.
+
+
+## Single-witness existential contracts
+
+`IndexedPackages.lean` gives package contracts one explicit object witness and
+an ordered list of bound family applications. A bound index is the witness,
+a declared global object, a coefficient/domain marker or a natural index; it
+cannot contain an unbound local object. The complete finite witness domain is
+retained after hiding and opening. A symbolic representative validates the
+contract before any payload is inspected.
+
+A payload must fit the declared witness domain, preserve its marker, and have
+exactly the fields obtained by instantiating the same templates at that witness.
+Every field application is independently checked. This rejects a point from a
+different object, a changed base, dropped/extra fields and hidden free brands.
+A narrower concrete implementation may be packaged under a broader admitted
+domain, but that does not add capabilities to the domain visible after opening.
+
+Opening synthesizes a local witness and fields, then independently audits them.
+The brand serial must differ from every local serial in the supplied allocation
+context, including locals with different claimed type metadata. The field
+annotations must use that exact new witness and remain scoped with it. Opening
+the same package twice therefore produces distinct brands while the first is
+retained in the context. Term-level allocation must supply the complete relevant
+context; connecting this to compiler allocation and runtime values is pending.
+
+`VastitasOracle.IndexedPackages` proves the executable audits equivalent to their
+independent propositions, field/witness association, absence of any other free
+local field index, scoped opening fields, brand freshness and distinct reopening.
+These are contracts over the exact checked **type annotations**; actual field
+terms and evaluator/package-value correspondence are not yet covered.
+
+## Closed primitive binding inventory
+
+`IndexedPrimitives.lean` represents explicit bindings to a closed finite registry.
+No source spelling, arbitrary native symbol, certificate string or `trusted` flag
+chooses an implementation. The binding IDs, operand annotations and result
+annotation are independently audited against the same checked environment.
+
+| Registry entry | Operand and result contract | Additional obligation |
+| --- | --- | --- |
+| Descriptor construction | `Nat` to a local object of the named implementation | Implementation exists; supplied brand serial is fresh |
+| Global object | No operand; exact canonical global reference | Global declaration resolves to a valid implementation |
+| Origin | Object X to the bound point family at X and the explicitly bound global base | Every implementation in the binding domain supports origin; object/base markers agree |
+| Identity | Object X to the bound morphism family at X,X | Family is a sealed morphism representation; complete input domain is admitted |
+| Dimension | Object to `Nat` | Every implementation in the binding domain supports finite dimension |
+| Composition | Bound-family Y→Z and X→Y to X→Z | Exact family IDs, exact middle object, valid input and output family constraints |
+| Application | Bound-family X→Y and point at X over S to point at Y over S | Exact family IDs and source object; preserve S exactly |
+
+Input object annotations must refine the binding's whole finite domain. Keeping
+an original narrow brand cannot bypass a broader current annotation that admits
+an implementation without the required capability. Conversely, the independently
+checked reference/annotation relation rejects an unsupported narrowing.
+
+Result synthesis is deliberately followed by `checkPrimitive`; directly supplied
+or mutated candidates pass the same independent `PrimitiveTyped` audit. Oracle
+proofs connect the checked result to that judgment, including application test
+objects, composition endpoints, fresh descriptor construction and whole-domain
+origin/dimension support. None of these contracts proves mathematical scheme
+axioms, source-term typing, evaluation or native equivalence. Binding this
+registry to the source checker and porting the existing evaluator proofs are
+still required before #60/#62/#63 can close.
+
+`IndexedPackageRegression` and `IndexedPrimitiveRegression` add 45 direct cases,
+including repeated openings/repacking, false field associations, abstract-domain
+capability loss, changed family IDs, false result endpoints and reused brands.
+The existing public compiler and its wire versions 2–6 remain unchanged.

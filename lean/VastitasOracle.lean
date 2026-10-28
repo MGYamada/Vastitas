@@ -11,6 +11,8 @@ import VastitasOracle.EditBorrowing
 import VastitasOracle.EditAcceptance
 import VastitasOracle.Authority
 import VastitasOracle.Indexed
+import VastitasOracle.IndexedPackages
+import VastitasOracle.IndexedPrimitives
 import VastitasOracle.Promotion
 
 /-!

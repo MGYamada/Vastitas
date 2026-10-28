@@ -64,10 +64,43 @@ def lookup (names : List String) (path : TypePath) : CheckM Nat := do
   if !names.contains path.name then fail path.span "E_NAME" s!"unknown abstract selector '{path.name}'"
   return names.idxOf path.name
 
+def hierarchyDiagnostic (declarations : List RawAbstractType) (memberships : List RawSubtype)
+    (h : Dispatch.Hierarchy) (message : String) : Diagnostic := Id.run do
+  let names := canonicalNames declarations
+  for declaration in declarations do
+    for parent in declaration.parents do
+      if h.subtype (names.idxOf parent.name) (names.idxOf declaration.name) then
+        return {
+          code := "E_HIERARCHY", message, span := parent.span
+          notes := declarations.filterMap fun other =>
+            if h.subtype (names.idxOf declaration.name) (names.idxOf other.name) &&
+                h.subtype (names.idxOf other.name) (names.idxOf declaration.name) then
+              some { span := other.span, message := s!"'{other.name}' participates in this inheritance cycle" }
+            else none }
+  for membership in memberships do
+    let scalar := Dispatch.parseScalar membership.scalar |>.getD 0
+    if (List.range 6).any (fun target => h.subtype scalar target && !Dispatch.publicHierarchy.subtype scalar target) then
+      return {
+        code := "E_HIERARCHY", message, span := membership.span
+        notes := declarations.filterMap fun declaration =>
+          if h.subtype (names.idxOf membership.target.name) (names.idxOf declaration.name) then
+            some { span := declaration.span, message := s!"membership propagates through '{declaration.name}'" }
+          else none }
+  return { code := "E_HIERARCHY", message, span := (declarations.head?).map (·.span) |>.getD {} }
+
 def prepare (declarations : List RawAbstractType) (memberships : List RawSubtype) : CheckM Checked := do
   let names := canonicalNames declarations
-  if names.length > 64 then fail {} "E_LIMIT" "nominal hierarchy exceeds 64 types including the six builtins"
-  if !names.Nodup then fail {} "E_DUPLICATE" "duplicate nominal type declaration"
+  if names.length > Limits.nominalTypes then
+    fail ((declarations[Limits.nominalTypes - builtins.length]?).map (·.span) |>.getD {})
+      "E_LIMIT" s!"nominal hierarchy exceeds {Limits.nominalTypes} types including the six builtins"
+  let mut declared : List RawAbstractType := []
+  for declaration in declarations do
+    if builtins.contains declaration.name then fail declaration.span "E_DUPLICATE" "duplicate nominal type declaration"
+    if let some previous := declared.find? (·.name == declaration.name) then
+      throw {
+        code := "E_DUPLICATE", message := "duplicate nominal type declaration", span := declaration.span
+        notes := [{ span := previous.span, message := "first declaration is here" }] }
+    declared := declaration :: declared
   for declaration in declarations do
     if !(declaration.parents.map (·.path)).Nodup then
       fail declaration.span "E_DUPLICATE" "duplicate abstract parent"
@@ -87,8 +120,8 @@ def prepare (declarations : List RawAbstractType) (memberships : List RawSubtype
   if valid : Dispatch.hierarchyValid h = true then
     if preserved : preservesBuiltins h = true then
       return { names, hierarchy := h, valid, preserved, concrete := rfl, facts := rfl }
-    else fail {} "E_HIERARCHY" "abstract declarations change a builtin subtype relation"
-  else fail {} "E_HIERARCHY" "abstract hierarchy contains a cycle or invalid nominal relation"
+    else throw (hierarchyDiagnostic declarations memberships h "abstract declarations change a builtin subtype relation")
+  else throw (hierarchyDiagnostic declarations memberships h "abstract hierarchy contains a cycle or invalid nominal relation")
 
 def selector (checked : Checked) (raw : RawType) (span : Span) : CheckM Nat :=
   match raw with

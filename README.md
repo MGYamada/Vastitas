@@ -173,7 +173,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasPromotion.Regression
+bash scripts/check_kernel_regressions.sh
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
@@ -217,7 +217,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 
 ## License
 
-Copyright 2026 Vastitas contributors.
+Copyright 2026 Vastitas Project Contributors
 
 Vastitas is licensed under the [Apache License, Version 2.0](LICENSE)
 (`Apache-2.0`). This covers the project's compiler, runtime, Lean proofs,

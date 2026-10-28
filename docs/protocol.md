@@ -1,4 +1,4 @@
-# Compiler protocols (versions 2 and 3)
+# Compiler protocols (versions 2, 3 and 4)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;

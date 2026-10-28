@@ -155,7 +155,7 @@ fn main() -> Int {
        pair_first(in_) == -7 && pair_second(in_) == 20 &&
        pair_first(ii) == -7 && scalar(pair_second(ii)) == 22 { 42 } else { 0 }
 }";
-    // Force both the legacy and function-containing lowering paths.
+    // Exercise the common lowering with and without function constructs.
     for extra in [
         "",
         "fn unused() -> Int { let f = fn(x: Int) -> Int { pair_first(choose(x, x)) }; f(1) }",

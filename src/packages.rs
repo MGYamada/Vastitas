@@ -5,6 +5,7 @@ use crate::ir::{
     ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Function, Generic, Method, Span,
     Subtype,
 };
+use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
@@ -145,8 +146,10 @@ impl Loader {
         if self.packages.iter().any(|package| package.source == source) {
             return Ok(source);
         }
-        if self.active.len() >= 64 {
-            return Err("E_LIMIT: package dependency nesting exceeds 64".into());
+        if self.active.len() >= MAX_PACKAGE_NESTING {
+            return Err(format!(
+                "E_LIMIT: package dependency nesting exceeds {MAX_PACKAGE_NESTING}"
+            ));
         }
         self.active.insert(manifest.clone());
         let input = self.sources.add(&manifest, self.output.as_ref())?;
@@ -240,8 +243,10 @@ impl Loader {
         seen: &mut HashSet<(u64, u64)>,
         modules: &mut Vec<Module>,
     ) -> Result<(), String> {
-        if path.len() > 64 {
-            return Err("E_LIMIT: module nesting exceeds 64".into());
+        if path.len() > MAX_MODULE_NESTING {
+            return Err(format!(
+                "E_LIMIT: module nesting exceeds {MAX_MODULE_NESTING}"
+            ));
         }
         let file = canonical(file)?;
         self.inside(&file, package)?;

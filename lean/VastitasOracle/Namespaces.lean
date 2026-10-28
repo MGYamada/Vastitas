@@ -56,20 +56,53 @@ theorem diagnostic_rendering_preserves_acceptance (program : Namespace.Program)
   cases lowered : lower program.indexed <;>
     simp [checkNamespaceProgram, lowered, bind, Except.bind]
 
+theorem checkNamespaceProgram_full_audit (program : Namespace.Program) (requireMain : Bool)
+    (certified : CertifiedModule)
+    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
+    ∃ lowered graph, lower program.indexed = .ok lowered ∧
+      membershipGraph program.indexed = .ok graph ∧ MembershipsAuthorized graph ∧
+      UniqueOwners program.indexed ∧ ReferencesValid program.indexed lowered ∧
+      checkSurfaceProgram lowered.surface requireMain = .ok certified := by
+  cases lowered : lower program.indexed with
+  | error diagnostic => simp [checkNamespaceProgram, lowered, bind, Except.bind] at accepted
+  | ok result =>
+    cases graph : membershipGraph program.indexed with
+    | error diagnostic => simp [checkNamespaceProgram, lowered, graph, bind, Except.bind, Except.mapError] at accepted
+    | ok authority =>
+      by_cases authorized : MembershipsAuthorized authority
+      · by_cases owners : UniqueOwners program.indexed
+        · by_cases references : ReferencesValid program.indexed result
+          · refine ⟨result, authority, rfl, rfl, authorized, owners, references, ?_⟩
+            simpa [checkNamespaceProgram, lowered, graph, authorized, owners, references, bind, Except.bind] using accepted
+          · simp [checkNamespaceProgram, lowered, graph, authorized, references, bind, Except.bind, throw] at accepted
+        · simp [checkNamespaceProgram, lowered, graph, authorized, owners, bind, Except.bind, throw] at accepted
+      · simp [checkNamespaceProgram, lowered, graph, authorized, bind, Except.bind, throw] at accepted
+
 theorem checkNamespaceProgram_audited (program : Namespace.Program) (requireMain : Bool)
     (certified : CertifiedModule)
     (accepted : checkNamespaceProgram program requireMain = .ok certified) :
     ∃ lowered, lower program.indexed = .ok lowered ∧ UniqueOwners program.indexed ∧
       ReferencesValid program.indexed lowered ∧ checkSurfaceProgram lowered.surface requireMain = .ok certified := by
-  cases lowered : lower program.indexed with
-  | error diagnostic => simp [checkNamespaceProgram, lowered, bind, Except.bind] at accepted
-  | ok result =>
-    by_cases owners : UniqueOwners program.indexed
-    · by_cases references : ReferencesValid program.indexed result
-      · refine ⟨result, rfl, owners, references, ?_⟩
-        simpa [checkNamespaceProgram, lowered, owners, references, bind, Except.bind] using accepted
-      · simp [checkNamespaceProgram, lowered, references, bind, Except.bind, throw] at accepted
-    · simp [checkNamespaceProgram, lowered, owners, bind, Except.bind, throw] at accepted
+  obtain ⟨lowered, _, equation, _, _, owners, references, checked⟩ :=
+    checkNamespaceProgram_full_audit program requireMain certified accepted
+  exact ⟨lowered, equation, owners, references, checked⟩
+
+/-- Every transitive scalar membership in the independently reconstructed graph
+has a support declaration in that ancestor's exact module. Foreign inheritance
+alone never supplies this support. -/
+theorem accepted_memberships_authorized (program : Namespace.Program) (requireMain : Bool)
+    (certified : CertifiedModule)
+    (accepted : checkNamespaceProgram program requireMain = .ok certified) :
+    ∃ graph, membershipGraph program.indexed = .ok graph ∧
+      ∀ ancestor ∈ graph.declarations, ∀ scalar ∈ [0, 1, 2, 3],
+        graph.hierarchy.subtype scalar (graph.names.idxOf ancestor.declaration.name) = true →
+        ∃ support ∈ graph.memberships, support.scope = ancestor.scope ∧
+          Dispatch.parseScalar support.membership.scalar = some scalar ∧
+          graph.inheritance.subtype (graph.names.idxOf support.membership.target.name)
+            (graph.names.idxOf ancestor.declaration.name) = true := by
+  obtain ⟨_, graph, _, equation, authorized, _⟩ :=
+    checkNamespaceProgram_full_audit program requireMain certified accepted
+  exact ⟨graph, equation, authorized⟩
 
 theorem accepted_owners_unique (program : Namespace.Program) (requireMain : Bool)
     (certified : CertifiedModule)

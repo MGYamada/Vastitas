@@ -1,4 +1,5 @@
 import Std
+import VastitasKernel.Limits
 
 namespace VastitasKernel
 
@@ -290,7 +291,7 @@ def Term.ty (term : Term) : Ty := term.resultType.ty
 
 /-- A finite per-function lowering budget shared by check and build. An unpack
 expands to a package binding and its two projections in the emitted Lean. -/
-def generatedLetLimit : Nat := 4096
+def generatedLetLimit : Nat := Limits.generatedLets
 
 def Term.generatedLetCount : Term → Nat
   | .call _ args _ _ | .builtin _ args _ => (args.map Term.generatedLetCount).sum

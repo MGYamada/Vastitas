@@ -140,7 +140,7 @@ end
 
 def captureDiagnostic (p : Program) : Diagnostic := Id.run do
   for f in p.functions ++ p.methods.map (·.toFunction) do
-    if let some problem := blockProblem 8192 p.globals (f.params.map (·.name)) [] f.body then
+    if let some problem := blockProblem Limits.captureDiagnostic p.globals (f.params.map (·.name)) [] f.body then
       return problem
   for (names, span) in p.scopes do
     if let some name := names.find? (!p.globals.contains ·) then
@@ -194,7 +194,8 @@ def Program.lambdaShadowDiagnostic (p : Program) : Option Diagnostic :=
 def LambdaShadowFree (p : Program) : Prop := p.lambdaShadowDiagnostic.isNone = true
 instance (p : Program) : Decidable (LambdaShadowFree p) := inferInstanceAs (Decidable (_ = _))
 
--- The legacy path is exact only when no global function is used as a value.
+-- First-order fixture conversion is exact only when no global function is used
+-- as a value. This helper does not select an acceptance path.
 mutual
   def valueNames : Expr → List String
     | .variable name _ => [name]

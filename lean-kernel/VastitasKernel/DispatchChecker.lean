@@ -1,4 +1,5 @@
 import VastitasKernel.Program
+import VastitasKernel.Names
 import VastitasKernel.Dispatch
 import VastitasKernel.Abstract
 import VastitasKernel.Contracts
@@ -96,7 +97,7 @@ def keyLabel (key : Dispatch.Key) : String :=
   "(" ++ String.intercalate ", " (key.map Dispatch.nominalName) ++ ")"
 
 def monoName (method : Nat) (key : Dispatch.Key) : String :=
-  s!"{privatePrefix}m{method}_" ++ String.intercalate "_" (key.map toString)
+  (FunctionName.method method key).render
 
 /-- The executable dispatch acceptance equation is retained as erased evidence.
 It connects every selected table to the oracle's finite-selection theorem. -/
@@ -194,7 +195,7 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
         let selectors ← method.params.mapM fun param => Abstract.selector nominals param.ty param.span
         methodResult method.returnType method.span
         methods := methods ++ [{ id, selectors, requirements := method.requirements }]
-    if generic.params.length > 6 then fail generic.span "E_LIMIT" "dispatch key space exceeds 4096"
+    if generic.params.length > Limits.dispatchArity then fail generic.span "E_LIMIT" s!"dispatch key space exceeds {Limits.dispatchKeys}"
     let allKeys := Dispatch.keys nominals.hierarchy.concrete generic.params.length
     unless base.all allKeys.contains do
       fail generic.span "E_DISPATCH_DOMAIN" "domain contains a nonconcrete key or wrong arity"
@@ -250,14 +251,14 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
       checkBinder globals param.name param.span
       validateType param.ty param.span
     validateType function.returnType function.span
-    validateBlock 512 globals function.body
+    validateBlock Limits.sourceNesting globals function.body
   for method in program.methods do
     checkSourceName method.name method.span
     unless genericNames.contains method.name do
       fail method.span "E_NAME" s!"method refers to undeclared generic '{method.name}'"
     for param in method.params do
       checkBinder globals param.name param.span
-    validateBlock 512 globals method.body
+    validateBlock Limits.sourceNesting globals method.body
 
   for contract in program.abstractMethods do
     checkSourceName contract.name contract.span
@@ -268,35 +269,6 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
       checkBinder globals param.name param.span
       if params.contains param.name then fail param.span "E_DUPLICATE" "duplicate abstract method parameter"
       params := params.insert param.name
-
-def instantiate (program : RawProgram) (families : List Family) : CheckM (List RawFunction) := do
-  let mut functions : Array RawFunction := #[]
-  for family in families do
-    for (id, key) in family.checked.applicablePairs do
-      let some method := program.methods[id]?
-        | fail family.raw.span "E_INTERNAL_DISPATCH" "dispatch table contains an unknown method identity"
-      let params := (method.params.zip key).map fun (param, code) =>
-        { param with ty := .named (Dispatch.nominalName code) }
-      functions := functions.push {
-        name := monoName id key
-        params
-        returnType := method.returnType
-        body := method.body
-        span := method.span }
-  pure functions.toList
-
-def instantiationNotes (program : RawProgram) (families : List Family) : Std.HashMap String DiagnosticNote := Id.run do
-  let mut notes := {}
-  for family in families do
-    for (id, key) in family.checked.applicablePairs do
-      if let some method := program.methods[id]? then
-        notes := notes.insert (monoName id key) {
-          message := s!"while checking method '{method.name}' for concrete key {keyLabel key}"
-          span := method.span }
-  return notes
-
-def withInstantiationNote (note : Option DiagnosticNote) (action : CheckM α) : CheckM α := do
-  try action catch diagnostic => throw { diagnostic with notes := diagnostic.notes ++ note.toList }
 
 /-- A successful lookup carries the actual checked row equation. -/
 structure Target (family : Family) (key : Dispatch.Key) where
@@ -326,7 +298,7 @@ def LoweredExpr.infer (value : LoweredExpr) (signatures : Signatures) (ctx : Con
   | some info =>
     let _ ← expectedResult ctx expected ⟨.var 0 info⟩ value.raw.span
     return info
-  | none => return (← checkExpr 4096 signatures ctx value.raw expected).term.resultType
+  | none => return (← checkExpr Limits.bodyChecking signatures ctx value.raw expected).term.resultType
 
 def LoweredExpr.atom (raw : RawExpr) (ctx : Context) : LoweredExpr :=
   { raw, known := match raw with
@@ -356,7 +328,7 @@ def lowerCall (signatures : Signatures) (ctx : Context) (name : String)
       for (param, arg) in signature.params.zip args do
         let _ ← arg.infer signatures ctx (some param.ty)
       return { raw, known := some ⟨signature.result, none⟩ }
-  let info := (← checkExpr 4096 signatures ctx raw none).term.resultType
+  let info := (← checkExpr Limits.bodyChecking signatures ctx raw none).term.resultType
   return { raw, known := some info }
 
 /-- Reusing a result across a block still checks its original escape boundary.
@@ -370,102 +342,6 @@ def loweredBlock (value : LoweredExpr) (span : Span) : RawBlock :=
   match value.raw with
   | .block body _ => body
   | raw => .mk [] raw span
-
-mutual
-  def lowerExpr : Nat → Families → Signatures → Context → RawExpr → CheckM LoweredExpr
-    | 0, _, _, _, expr => checkingBudgetExceeded expr.span
-    | fuel + 1, families, signatures, ctx, expr => do
-      match expr with
-      | .integer .. | .boolean .. | .unit .. | .variable .. => pure (LoweredExpr.atom expr ctx)
-      | .unary op value span =>
-        pure { raw := .unary op ((← lowerExpr fuel families signatures ctx value).raw) span }
-      | .binary op left right span =>
-        let left ← lowerExpr fuel families signatures ctx left
-        let right ← lowerExpr fuel families signatures ctx right
-        pure { raw := .binary op left.raw right.raw span }
-      | .pack scheme point span =>
-        let scheme ← lowerExpr fuel families signatures ctx scheme
-        let point ← lowerExpr fuel families signatures ctx point
-        pure { raw := .pack scheme.raw point.raw span }
-      | .ite condition yes no span =>
-        let condition ← lowerExpr fuel families signatures ctx condition
-        let yes ← lowerBlock fuel families signatures ctx yes
-        let no ← lowerBlock fuel families signatures ctx no
-        pure { raw := .ite condition.raw (loweredBlock yes span) (loweredBlock no span) span }
-      | .block body _ => lowerBlock fuel families signatures ctx body
-      | .call name args span =>
-        let args ← args.mapM (lowerExpr fuel families signatures ctx)
-        match families[name]? with
-        | none => lowerCall signatures ctx name args span
-        | some family =>
-          arity name (args.map (·.raw)) family.raw.params.length span
-          -- Keys remain independently inferred: method/result expectations
-          -- cannot turn an unannotated integer argument into Nat.
-          let args ← args.mapM fun arg => do
-            return { arg with known := some (← arg.infer signatures ctx) }
-          let key ← args.mapM fun arg => do scalarKey (← arg.infer signatures ctx) arg.raw.span
-          let target ← selectTarget family key span
-          lowerCall signatures ctx (monoName target.method key) args span
-  def lowerBlock : Nat → Families → Signatures → Context → RawBlock → CheckM LoweredExpr
-    | 0, _, _, _, .mk _ _ span => checkingBudgetExceeded span
-    | fuel + 1, families, signatures, ctx, .mk statements result span => do
-      let (statements, inner) ← lowerStatements fuel families signatures ctx statements span
-      lowerBlockResult ctx statements (← lowerExpr fuel families signatures inner result) span
-  def lowerStatements : Nat → Families → Signatures → Context → List RawStmt → Span → CheckM (List RawStmt × Context)
-    | 0, _, _, _, _, span => checkingBudgetExceeded span
-    | _ + 1, _, _, ctx, [], _ => pure ([], ctx)
-    | fuel + 1, families, signatures, ctx, .letE name annotation raw span :: rest, blockSpan => do
-      checkNewBinding ctx name span
-      let value ← lowerExpr fuel families signatures ctx raw
-      let expected ← annotation.mapM (fun ty => resolveType ctx ty span)
-      let info ← value.infer signatures ctx expected
-      let symbol ← fresh
-      if let some ref := info.objectRef then nameObject ref name
-      let binding : Binding := { name, symbol, ty := info.ty, objectRef := info.objectRef }
-      let (rest, ctx) ← lowerStatements fuel families signatures (binding :: ctx) rest blockSpan
-      pure (.letE name annotation value.raw span :: rest, ctx)
-    | fuel + 1, families, signatures, ctx, .unpack raw scheme point span :: rest, blockSpan => do
-      checkNewBinding ctx scheme span
-      checkNewBinding ctx point span
-      if scheme == point then fail span "E_DUPLICATE" "unpack needs two distinct binding names"
-      let value ← lowerExpr fuel families signatures ctx raw
-      let info ← value.infer signatures ctx
-      let .pointed base := info.ty
-        | fail span "E_TYPE" s!"unpack requires Pointed, found {info.ty.label}"
-      let objectSymbol ← fresh
-      let pointSymbol ← fresh
-      let obj := ObjectRef.local base objectSymbol
-      rememberObject obj span "unpack" (some scheme)
-      let objectBinding : Binding := { name := scheme, symbol := objectSymbol, ty := .object base, objectRef := some obj }
-      let pointBinding : Binding := { name := point, symbol := pointSymbol, ty := unpackedPointType base objectSymbol }
-      let (rest, ctx) ← lowerStatements fuel families signatures (pointBinding :: objectBinding :: ctx) rest blockSpan
-      pure (.unpack value.raw scheme point span :: rest, ctx)
-end
-
-def lowerProgramImpl (program : RawProgram) : CheckM RawModule := do
-  validateProgram program
-  let families ← prepareFamilies program
-  if program.generics.isEmpty then
-    return { version := 1, file := program.file, functions := program.functions }
-  let instances ← instantiate program families
-  let notes := instantiationNotes program families
-  let functions := program.functions ++ instances
-  let signatureList ← functions.mapM prepareSignature
-  let signatures : Signatures := signatureList.foldl (fun table signature => table.insert signature.raw.name signature) {}
-  let families : Families := families.foldl (fun table family => table.insert family.raw.name family) {}
-  let functions ← signatureList.mapM fun signature =>
-    withInstantiationNote notes[signature.raw.name]? do
-      let body ← lowerBlock 4096 families signatures signature.params signature.raw.body
-      let raw := { signature.raw with body := loweredBlock body signature.raw.span }
-      -- Check each monomorphized body before discarding its diagnostic context.
-      -- The full lowered module is still checked independently afterward.
-      if notes.contains raw.name then
-        let _ ← checkFunction signatures { signature with raw }
-      pure raw
-  pure { version := 1, file := program.file, functions }
-
-def lowerProgram (program : RawProgram) : Except Diagnostic RawModule := do
-  pure (← (lowerProgramImpl program).run {}).1
 
 /-- Private names never become the user-facing cycle's method names. -/
 def describeDiagnostic (program : RawProgram) (diagnostic : Diagnostic) : Diagnostic := Id.run do
@@ -492,15 +368,3 @@ def describeDiagnostic (program : RawProgram) (diagnostic : Diagnostic) : Diagno
   return { diagnostic with message := message ++ render token }
 
 end VastitasKernel.DispatchChecker
-
-namespace VastitasKernel
-
-/-- Public protocol-2 checking always ends at the proved core checker, including
-its independent full typing/freshness and dependency-order audits. -/
-def checkProgram (program : RawProgram) (requireMain : Bool := false) : Except Diagnostic CertifiedModule := do
-  let raw ← DispatchChecker.lowerProgram program
-  match checkModule raw requireMain with
-  | .ok certified => pure certified
-  | .error diagnostic => throw (DispatchChecker.describeDiagnostic program diagnostic)
-
-end VastitasKernel

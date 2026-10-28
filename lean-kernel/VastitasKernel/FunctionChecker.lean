@@ -5,9 +5,8 @@ open Checker.Internal
 open DispatchChecker
 
 structure Target where
-  name : String
+  name : TargetName
   ty : TypeExpr
-  abstractTarget : Bool := false
   deriving Repr, BEq, Inhabited
 
 structure Value extends LoweredExpr where
@@ -15,45 +14,103 @@ structure Value extends LoweredExpr where
   deriving Inhabited
 
 structure Instance where
-  key : String
-  name : String
+  key : InstanceKey
+  name : EmittedName
   target : Option Target
   deriving Inhabited
 
 /-- Recorded concrete higher-order selections are independently audited against
 backend declarations. Abstract signature probes never enter this ledger. -/
 structure StaticCall where
-  target : String
+  target : FunctionName
   signature : TypeExpr
   bindings : List (TypeExpr × Target) := []
   deriving Inhabited
 
 structure Lowered where
   module : RawModule
-  definitions : List Function
+  definitions : List Definition
   calls : List StaticCall
   deriving Inhabited
 
 def StaticCallsValid (lowered : Lowered) : Prop :=
   ∀ call ∈ lowered.calls,
-    (∃ definition ∈ lowered.definitions, definition.name = call.target ∧ definition.type = call.signature) ∧
+    (∃ definition ∈ lowered.definitions, definition.id = call.target ∧ definition.type = call.signature) ∧
     ∀ binding ∈ call.bindings, binding.1 = binding.2.ty ∧
-      ∃ definition ∈ lowered.definitions, definition.name = binding.2.name ∧ definition.type = binding.2.ty
+      ∃ definition ∈ lowered.definitions, TargetName.concrete definition.id = binding.2.name ∧ definition.type = binding.2.ty
 
 instance (lowered : Lowered) : Decidable (StaticCallsValid lowered) := by
   unfold StaticCallsValid
   infer_instance
 
+/-- Values carry membership evidence, erased at runtime. The audit constructs
+its own index from the actual definitions; it accepts no frontend index. -/
+abbrev DefinitionIndex (definitions : List Definition) :=
+  Std.HashMap FunctionName { definition // definition ∈ definitions }
+
+def definitionIndex (definitions : List Definition) : DefinitionIndex definitions :=
+  definitions.attach.foldl (fun index definition => index.insert definition.val.id definition) {}
+
+def staticTargetValid (index : DefinitionIndex definitions) (name : FunctionName)
+    (signature : TypeExpr) : Bool :=
+  match index[name]? with
+  | none => false
+  | some definition => decide (definition.val.id = name ∧ definition.val.type = signature)
+
+def staticBindingValid (index : DefinitionIndex definitions) (binding : TypeExpr × Target) : Bool :=
+  decide (binding.1 = binding.2.ty) && match binding.2.name with
+    | .probe _ => false
+    | .concrete name => staticTargetValid index name binding.2.ty
+
+def staticCallsValid (lowered : Lowered) : Bool :=
+  let index := definitionIndex lowered.definitions
+  lowered.calls.all fun call =>
+    staticTargetValid index call.target call.signature && call.bindings.all (staticBindingValid index)
+
+theorem staticTargetValid_sound (index : DefinitionIndex definitions)
+    (valid : staticTargetValid index name signature = true) :
+    ∃ definition ∈ definitions, definition.id = name ∧ definition.type = signature := by
+  unfold staticTargetValid at valid
+  split at valid
+  · contradiction
+  · rename_i definition found
+    exact ⟨definition.val, definition.property, of_decide_eq_true valid⟩
+
+theorem staticBindingValid_sound (index : DefinitionIndex definitions)
+    (valid : staticBindingValid index binding = true) :
+    binding.1 = binding.2.ty ∧ ∃ definition ∈ definitions,
+      TargetName.concrete definition.id = binding.2.name ∧ definition.type = binding.2.ty := by
+  unfold staticBindingValid at valid
+  obtain ⟨same, target⟩ := Bool.and_eq_true_iff.mp valid
+  refine ⟨of_decide_eq_true same, ?_⟩
+  cases name : binding.2.name with
+  | probe id => simp [name] at target
+  | concrete function =>
+    obtain ⟨definition, member, equal, signature⟩ :=
+      staticTargetValid_sound index (by simpa [name] using target)
+    exact ⟨definition, member, by rw [equal], signature⟩
+
+theorem staticCallsValid_sound (lowered : Lowered)
+    (valid : staticCallsValid lowered = true) : StaticCallsValid lowered := by
+  intro call member
+  obtain ⟨target, bindings⟩ := Bool.and_eq_true_iff.mp (List.all_eq_true.mp valid call member)
+  refine ⟨staticTargetValid_sound _ target, ?_⟩
+  intro binding member
+  exact staticBindingValid_sound _ (List.all_eq_true.mp bindings binding member)
+
 structure State where
-  definitions : List Function
+  definitions : List Definition
+  byName : Std.HashMap FunctionName Definition
   families : Families
-  globals : List String
+  globals : Std.HashSet String
   signatures : Signatures := {}
-  instances : List Instance := []
-  active : List String := []
+  instances : Std.HashMap InstanceKey Instance := {}
+  active : List InstanceKey := []
+  activeSet : Std.HashSet InstanceKey := {}
   functions : Array RawFunction := #[]
   calls : List StaticCall := []
   nextInstance : Nat := 0
+  nextProbe : Nat := 0
   audit : Bool := false
   deriving Inhabited
 
@@ -63,7 +120,7 @@ threaded through this scheduler. -/
 inductive Work (α : Type) where
   | done (value : α) (state : State) (checker : CheckerState)
   | failed (diagnostic : Diagnostic)
-  | request (function : Function) (targets : List Target) (span : Span)
+  | request (function : Definition) (targets : List Target) (span : Span)
       (state : State) (checker : CheckerState)
       (resume : Instance → State → CheckerState → Work α)
 
@@ -76,6 +133,20 @@ def Work.bind (work : Work α) (next : α → M β) : Work β :=
   | .request f targets span state checker resume =>
     .request f targets span state checker fun compiled state checker =>
       (resume compiled state checker).bind next
+
+def Work.withMethodNote (work : Work α) (f : Definition) : Work α :=
+  match work with
+  | .done value state checker => .done value state checker
+  | .failed diagnostic =>
+    let notes : List DiagnosticNote := match f.id with
+      | .method _ key => [{
+        span := f.span
+        message := s!"while checking method '{f.name}' for concrete key {keyLabel key}" }]
+      | _ => []
+    .failed { diagnostic with notes := diagnostic.notes ++ notes }
+  | .request callee targets span state checker resume =>
+    .request callee targets span state checker fun compiled state checker =>
+      (resume compiled state checker).withMethodNote f
 
 instance : Monad M where
   pure value state checker := .done value state checker
@@ -93,10 +164,10 @@ def core (action : CheckM α) : M α := fun state checker =>
   | .ok (value, checker) => .done value state checker
   | .error diagnostic => .failed diagnostic
 
-def instanceKey (f : Function) (targets : List Target) : String :=
-  f.name ++ ":" ++ String.intercalate "|" (targets.map (·.name))
+def instanceKey (f : Definition) (targets : List Target) : InstanceKey :=
+  { function := f.id, arguments := targets.map (·.name) }
 
-def requestInstance (f : Function) (targets : List Target) (span : Span) : M Instance :=
+def requestInstance (f : Definition) (targets : List Target) (span : Span) : M Instance :=
   fun state checker => .request f targets span state checker fun compiled state checker =>
     .done compiled state checker
 
@@ -107,10 +178,10 @@ def data (value : Value) (span : Span) : M RawExpr := do
     error span "E_TYPE" s!"expected a data value, found {target.ty.label}"
   else pure value.raw
 
-def definition (name : String) (span : Span) : M Function := do
-  match (← get).definitions.find? (·.name == name) with
+def definition (name : FunctionName) (span : Span) : M Definition := do
+  match (← get).byName[name]? with
   | some f => pure f
-  | none => error span "E_NAME" s!"unknown function '{name}'"
+  | none => error span "E_NAME" s!"unknown function '{name.render}'"
 
 def sameType (expected actual : TypeExpr) (span : Span) : M Unit := do
   unless expected == actual do
@@ -130,13 +201,15 @@ def bindName (ctx : Context) (functions : Functions) (name : String) (span : Spa
   core (checkNewBinding ctx name span)
 
 def validateType (ty : TypeExpr) (span : Span) : CheckM Unit := do
+  unless ty.withinDepth Limits.typeNesting do
+    fail span "E_LIMIT" s!"declared type nesting exceeds {Limits.typeNesting}"
   match ty with
   | .data raw => DispatchChecker.validateType raw span
   | .function .. =>
     unless ty.callableData do
       fail span "E_TYPE" "Fn signatures support only Nat, Int, Bool, Unit and Fn types"
 
-def validateFunction (f : Function) (globals : List String) : CheckM Unit := do
+def validateFunction (f : Function) (globals : Std.HashSet String) : CheckM Unit := do
   let mut names := []
   for param in f.params do
     checkSourceName param.name param.span
@@ -166,9 +239,14 @@ def effects (values : List RawExpr) (result : RawExpr) (span : Span) : M RawExpr
       statements := statements ++ [.letE s!"__vastitas_effect{id}" none value span]
   if statements.isEmpty then pure result else pure (.block (.mk statements result span) span)
 
-private def probe (ty : TypeExpr) (name : String) (span : Span) : M Value := do
+private def freshProbe (ty : TypeExpr) : M Target := do
+  let id := (← get).nextProbe
+  modify fun state => { state with nextProbe := id + 1 }
+  pure { name := .probe id, ty }
+
+private def probe (ty : TypeExpr) (span : Span) : M Value := do
   match ty with
-  | .function .. => pure { raw := .unit span, target := some { name, ty, abstractTarget := true } }
+  | .function .. => pure { raw := .unit span, target := some (← freshProbe ty) }
   | .data (.named "Bool") => pure { raw := .boolean false span }
   | .data (.named "Unit") => pure { raw := .unit span, known := some ⟨.unit, none⟩ }
   | .data raw =>
@@ -188,16 +266,16 @@ mutual
         core (checkReference name span)
         if let some (_, target) := functions.find? (·.1 == name) then
           return { raw := .unit span, target := some target }
-        if let some f := (← get).definitions.find? (·.name == name) then
+        if let some f := (← get).byName[FunctionName.source name]? then
           unless f.type.callableData do error span "E_TYPE" "function values require scalar/Fn signatures"
-          return { raw := .unit span, target := some { name, ty := f.type } }
+          return { raw := .unit span, target := some { name := .concrete f.id, ty := f.type } }
         if (← get).families.contains name then error span "E_TYPE" "a generic is not a Fn value; use an explicit ordinary-function wrapper"
         pure { toLoweredExpr := LoweredExpr.atom (.variable name span) ctx }
       | .lambda _ _ _ span => error span "E_INTERNAL_FUNCTION" "lambda was not lifted"
       | .reference name span =>
         let f ← definition name span
         unless f.type.callableData do error span "E_TYPE" "lambda signatures require scalar/Fn types"
-        pure { raw := .unit span, target := some { name, ty := f.type } }
+        pure { raw := .unit span, target := some { name := .concrete f.id, ty := f.type } }
       | .call name args span =>
         core (checkReference name span)
         let values ← args.mapM (lowerExpr fuel ctx functions)
@@ -205,6 +283,7 @@ mutual
           return ← invokeTarget fuel ctx target values span
         if ctx.any (·.name == name) then error span "E_TYPE" "application requires a Fn value"
         if let some family := (← get).families[name]? then
+          core (arity name (values.map (·.raw)) family.raw.params.length span)
           let values ← values.mapM fun value => do
             let _ ← data value span
             let info ← core (value.toLoweredExpr.infer (← get).signatures ctx)
@@ -212,10 +291,10 @@ mutual
           let key ← values.mapM fun value => do
             core (scalarKey (← core (value.toLoweredExpr.infer (← get).signatures ctx)) span)
           let target ← core (selectTarget family key span)
-          let f ← definition (monoName target.method key) span
-          return ← invokeTarget fuel ctx { name := f.name, ty := f.type } values span
-        if let some f := (← get).definitions.find? (·.name == name) then
-          return ← invokeTarget fuel ctx { name, ty := f.type } values span
+          let f ← definition (.method target.method key) span
+          return ← invokeTarget fuel ctx { name := .concrete f.id, ty := f.type } values span
+        if let some f := (← get).byName[FunctionName.source name]? then
+          return ← invokeTarget fuel ctx { name := .concrete f.id, ty := f.type } values span
         let _ ← values.mapM (fun value => data value span)
         return { toLoweredExpr := ← core (lowerCall (← get).signatures ctx name (values.map (·.toLoweredExpr)) span) }
       | .invoke callee args span =>
@@ -247,8 +326,8 @@ mutual
           | some a, some b => do
             sameType a.ty b.ty span
             if a.name == b.name then pure (some a)
-            else if (← get).audit && (a.abstractTarget || b.abstractTarget) then
-              pure (some { a with abstractTarget := true, name := s!"__vastitas_branch{span.start}" })
+            else if (← get).audit && (a.name.isProbe || b.name.isProbe) then
+              some <$> freshProbe a.ty
             else error span "E_STATIC_CALL" "function-valued branches must resolve to the same static target"
           | _, _ => error span "E_TYPE" "both branches must have the same data or Fn type"
         pure { raw := .ite condition.raw (rawBlock yes span) (rawBlock no span) span, target }
@@ -318,7 +397,7 @@ mutual
         else
           let _ ← data value span
           pure ()
-      if target.abstractTarget then
+      if target.name.isProbe then
         unless (← get).audit do error span "E_STATIC_CALL" "call target is not statically known"
         -- A signature-only type probe checks data arguments with their declared
         -- types. No probe definition is ever placed in the executable module.
@@ -327,42 +406,45 @@ mutual
             let expected ← core (resolveType ctx param.core span)
             let _ ← core (value.toLoweredExpr.infer (← get).signatures ctx (some expected))
             pure ()
-        return ← probe result s!"{target.name}_result{span.start}" span
-      let f ← definition target.name span
+        return ← probe result span
+      let .concrete name := target.name | error span "E_INTERNAL_FUNCTION" "probe escaped the audit pass"
+      let f ← definition name span
       sameType f.type target.ty span
       let compiled ← requestInstance f targets span
-      modify fun state => { state with calls := { target := f.name, signature := target.ty, bindings } :: state.calls }
+      modify fun state => { state with calls := { target := f.id, signature := target.ty, bindings } :: state.calls }
       let dataValues := (params.zip values).filterMap fun (param, value) =>
         if param.isFunction then none else some value.toLoweredExpr
-      let value ← core (lowerCall (← get).signatures ctx compiled.name dataValues span)
+      let value ← core (lowerCall (← get).signatures ctx compiled.name.render dataValues span)
       pure { toLoweredExpr := { value with raw := ← effects erased value.raw span }, target := compiled.target }
 end
 
 /-- One new instance owns a full body budget, independently of the caller. -/
-def compileInstance (f : Function) (targets : List Target) (span : Span) : M Instance := do
+def compileInstance (f : Definition) (targets : List Target) (span : Span) : M Instance := do
   let key := instanceKey f targets
-  if let some compiled := (← get).instances.find? (·.key == key) then return compiled
-  if (← get).active.contains key then
-    let lambda := f.name.startsWith "__vastitas_l"
-    let label := if lambda then s!"lambda at {f.span.line}:{f.span.column}" else f.name
+  if let some compiled := (← get).instances[key]? then return compiled
+  if (← get).activeSet.contains key then
+    let state ← get
+    let cycle := state.active.reverse.dropWhile (· != key) ++ [key]
+    let labels := cycle.map fun k =>
+      (state.byName[k.function]?).map (·.label) |>.getD k.function.render
     let diagnostic : Diagnostic := {
       code := "E_RECURSION"
-      message := s!"recursive specialization cycle involving '{label}' is not supported"
-      span
-      notes := if lambda then [{ span := f.span, message := "lambda defined here" }] else [] }
+      message := s!"recursive call cycle {String.intercalate " → " labels} is not supported"
+      span := f.span
+      notes := if f.id.isLambda then [{ span := f.span, message := "lambda defined here" }] else [] }
     core (throw diagnostic)
-  let higher := f.params.any (·.ty.isFunction) || f.result.isFunction || f.name.startsWith "__vastitas_l"
+  let higher := f.params.any (·.ty.isFunction) || f.result.isFunction || f.id.isLambda
   let id := (← get).nextInstance
-  if higher && id >= 4096 then error span "E_LIMIT" "higher-order specialization exceeds the 4096-instance limit"
-  let name := if higher then s!"__vastitas_h{id}" else f.name
-  modify fun state => { state with active := key :: state.active, nextInstance := id + if higher then 1 else 0 }
+  if higher && id >= Limits.specializations then error span "E_LIMIT" s!"higher-order specialization exceeds the {Limits.specializations}-instance limit"
+  let name := if higher then EmittedName.specialized id else .original f.id
+  modify fun state => { state with active := key :: state.active, activeSet := state.activeSet.insert key, nextInstance := id + if higher then 1 else 0 }
   let params := f.params.filterMap fun param =>
     if param.ty.isFunction then none else some { name := param.name, ty := param.ty.core, span := param.span : RawParam }
-  let raw : RawFunction := { name, params, returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
+  let raw : RawFunction := { name := name.render, params, returnType := f.result.core, body := .mk [] (.unit f.span) f.span, span := f.span }
   let signature ← core (prepareSignature raw)
-  modify fun state => { state with signatures := state.signatures.insert name signature }
+  modify fun state => { state with signatures := state.signatures.insert name.render signature }
   let functions := ((f.params.filter (·.ty.isFunction)).map (·.name)).zip targets
-  let value ← lowerBlock 4096 signature.params functions f.body
+  let value ← lowerBlock Limits.bodyChecking signature.params functions f.body
   match f.result, value.target with
   | .function .., some actual => sameType f.result actual.ty f.span
   | .function .., none => error f.span "E_TYPE" s!"expected {f.result.label}, found data value"
@@ -373,8 +455,9 @@ def compileInstance (f : Function) (targets : List Target) (span : Span) : M Ins
   let compiled : Instance := { key, name, target := value.target }
   modify fun state => { state with
     functions := state.functions.push raw
-    instances := compiled :: state.instances
-    active := state.active.filter (· != key) }
+    instances := state.instances.insert key compiled
+    active := state.active.tail
+    activeSet := state.activeSet.erase key }
   pure compiled
 
 /-- Tail-recursive worklist interpreter. A request either resumes from a cached
@@ -384,9 +467,9 @@ def runWork : Nat → Work α → Except Diagnostic (α × State × CheckerState
   | _ + 1, .done value state checker => .ok (value, state, checker)
   | _ + 1, .failed diagnostic => .error diagnostic
   | fuel + 1, .request f targets span state checker resume =>
-    match state.instances.find? (·.key == instanceKey f targets) with
+    match state.instances[instanceKey f targets]? with
     | some compiled => runWork fuel (resume compiled state checker)
-    | none => runWork fuel ((compileInstance f targets span state checker).bind
+    | none => runWork fuel (((compileInstance f targets span state checker).withMethodNote f).bind
         (fun compiled state checker => resume compiled state checker))
 
 -- Body-less headers are used only to reuse declaration and finite-family
@@ -401,23 +484,23 @@ def headers (p : Program) : RawProgram := {
     name := m.name, params := m.params.map fun param => { name := param.name, ty := param.ty.core, span := param.span }
     returnType := m.result.core, body := .mk [] (.unit m.span) m.span, span := m.span, requirements := m.requirements } }
 
-def prepare (p : Program) : CheckM (List Function × Families) := do
+def prepare (p : Program) : CheckM (List Definition × Families) := do
   let (p, lambdas) ← liftProgram p
   let raw := headers p
   DispatchChecker.validateProgram raw
-  let globals := p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name)
-  for f in p.functions ++ lambdas do validateFunction f globals
+  let globals := Std.HashSet.ofList (p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name))
+  for f in p.functions ++ lambdas.map (·.toFunction) do validateFunction f globals
   for m in p.methods do
     for param in m.params do
       if param.ty.isFunction then fail param.span "E_TYPE" "function values are not dispatch selectors"
     if m.result.isFunction then fail m.span "E_TYPE" "method results require concrete scalars or homogeneous numeric pairs"
   let families ← prepareFamilies raw
-  let mut functions := (p.functions ++ lambdas).toArray
+  let mut functions := ((p.functions.map fun f => { toFunction := f, id := .source f.name : Definition }) ++ lambdas).toArray
   for family in families do
     for (id, key) in family.checked.applicablePairs do
       let some method := p.methods[id]? | fail {} "E_INTERNAL_DISPATCH" "missing method"
       let params := (method.params.zip key).map fun (param, code) => { param with ty := .data (.named (Dispatch.nominalName code)) }
-      functions := functions.push { method.toFunction with name := monoName id key, params }
+      functions := functions.push { toFunction := { method.toFunction with params }, id := .method id key }
   pure (functions.toList, families.foldl (fun table f => table.insert f.raw.name f) {})
 
 mutual
@@ -435,23 +518,23 @@ mutual
     | .letE _ _ value _ | .unpack value _ _ _ => expressionRequests value
 end
 
-def lowerPass (p : Program) (definitions : List Function) (families : Families) (audit : Bool) : CheckM Lowered := do
+def lowerPass (p : Program) (definitions : List Definition) (families : Families) (audit : Bool) : CheckM Lowered := do
   let action : M Unit := do
     for f in definitions do
       if audit || !(f.params.any (·.ty.isFunction)) then
-        let targets := f.params.filterMap fun param => if param.ty.isFunction then
-          some { name := s!"__vastitas_probe_{f.name}_{param.name}", ty := param.ty, abstractTarget := true : Target } else none
+        let targets ← (f.params.filter (·.ty.isFunction)).mapM fun param => freshProbe param.ty
         let _ ← requestInstance f targets f.span
         pure ()
   -- Every ordinary definition has at most one instance; higher-order instances
   -- are capped at 4096. Each instance can request no more calls than its source
   -- syntax size. This administrative bound does not consume any body's fuel.
-  let workBudget := (definitions.length + 4097) *
+  let workBudget := (definitions.length + Limits.specializations + 1) *
     (definitions.foldl (fun total f => total + blockRequests f.body + 1) 1)
   let checker ← get
   let (_, state, checker) ← runWork workBudget (action {
     definitions, families
-    globals := p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name)
+    byName := definitions.foldl (fun table f => table.insert f.id f) {}
+    globals := Std.HashSet.ofList (p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name))
     audit } checker)
   set checker
   pure {
@@ -476,11 +559,14 @@ def checkSurfaceProgram (p : Surface.Program) (requireMain : Bool := false) : Ex
   if !Surface.CaptureFree p then throw (Surface.captureDiagnostic p)
   if !Surface.LambdaShadowFree p then
     throw (p.lambdaShadowDiagnostic.getD { code := "E_SHADOW", message := "lambda shadows an enclosing binding" })
-  if let some legacy := p.legacyExact then
-    return ← checkProgram legacy requireMain
   let lowered ← Surface.lowerFunctions p
-  if !Surface.StaticCallsValid lowered then
+  if !Surface.staticCallsValid lowered then
     throw { code := "E_INTERNAL_FUNCTION", message := "static target signature audit failed" }
   checkModule lowered.module requireMain
+
+/-- Compatibility entry point for raw first-order clients. The adapter does
+not select a different lowering algorithm. -/
+def checkProgram (p : RawProgram) (requireMain : Bool := false) : Except Diagnostic CertifiedModule :=
+  checkSurfaceProgram (Surface.Program.ofRaw p) requireMain
 
 end VastitasKernel

@@ -1,0 +1,18 @@
+{
+  "parseNesting": 64,
+  "astDepth": 128,
+  "moduleNesting": 64,
+  "packageNesting": 64,
+  "typeNesting": 64,
+  "sourceNesting": 512,
+  "namespaceNesting": 1024,
+  "captureDiagnostic": 8192,
+  "bodyChecking": 4096,
+  "generatedLets": 4096,
+  "specializations": 4096,
+  "dispatchKeys": 4096,
+  "dispatchArity": 6,
+  "nominalTypes": 64,
+  "namespaceResolution": 4096,
+  "dependencyGraph": 4096
+}

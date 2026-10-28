@@ -5,10 +5,12 @@ The proof oracle in `lean/` imports the implementation's definitions from
 or executing `.vast` programs. mathlib is pinned to v4.35.0; the executable
 kernel and generated runtime depend only on the Lean distribution.
 
-Protocol version 2 enters through `checkSurfaceProgram`. The unchanged-syntax
-path uses `DispatchChecker.checkProgram`; the extended path checks independent
-lambdas and static function contracts, then specializes function calls. Both
-paths check finite dispatch families and pass the exact lowered module to
+Flat protocol versions 2 and 4 enter through `checkSurfaceProgram`. Package
+versions 3 and 4 resolve namespaces before entering the same surface checker.
+The first-order `checkProgram` API is an input adapter to that checker.
+All inputs check independent lambdas, static function contracts and finite
+dispatch families, then use one lowering and specialization implementation.
+They pass the exact lowered module to
 `checkModule`, the internal Stage 0 core checker. The
 combined core theorem, `VastitasOracle.checkModule_sound`, establishes decoded
 core source correspondence, independent typing, a strict function dependency
@@ -171,14 +173,14 @@ specified separately from lifting and specialization.
 
 - `checkSurfaceProgram_capture_free` proves the predicate for every accepted
   surface program; `lambda_free_names_are_global` exposes its scope/name result.
-- For extended syntax, `checkSurfaceProgram_static_calls` identifies the exact
+- `checkSurfaceProgram_static_calls` identifies the exact
   `lowerFunctions` result, proves `StaticCallsValid` for its recorded calls, and
   retains the equation showing that the very same core passed `checkModule`.
 - `static_target_signature` and `function_argument_signature` state structural
   type equality with actual backend definitions for recorded targets and erased
   function arguments. They follow from the independent audit established by
   the preceding actual-checker theorem, not from a trusted frontend annotation.
-- `checkSurfaceProgram_core` connects both legacy and extended branches to
+- `checkSurfaceProgram_core` connects the common surface lowering to
   actual core acceptance. `checkSurfaceProgram_typed_and_ordered` and
   `checkSurfaceProgram_total_for_arguments` establish independent typing,
   dependency order and terminating typed evaluation of the returned module.
@@ -238,9 +240,7 @@ Run from the repository root:
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression
-lake -d lean-kernel build VastitasKernel.DispatchRegression
-lake -d lean-kernel build VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasPromotion.Regression
+bash scripts/check_kernel_regressions.sh
 cargo test --locked --all-targets
 lake -d lean build VastitasOracle
 python3 -m unittest discover -s scripts -p 'test_*.py'
@@ -364,3 +364,31 @@ continue to connect protocol-4 acceptance to the exact independently checked
 core, its typing, dependency order, endpoint preservation and termination.
 No theorem asserts native toolchain equivalence or mathematical properties of
 uninhabited Variety/Manifold declarations. Compiler/runtime remain mathlib-free.
+
+## Stabilization audits
+
+`checkNamespaceProgram_full_audit` and `accepted_memberships_authorized` connect
+the public package checker to a separately reconstructed membership graph.
+Every inherited scalar membership has support declared in the ancestor's exact
+module, using an abstract-only inheritance path. This is a decoded-input
+authority guarantee, not filesystem or author authentication.
+
+The common function lowerer indexes structural function/instance identities.
+`staticCallsValid_sound` proves that its indexed static-call audit implies the
+original `StaticCallsValid` specification, using definition-membership witnesses
+that are erased at runtime. Ordered output arrays and active diagnostic stacks
+remain explicit. Type shape checks do not count a synthesized Fn wrapper toward
+the 64-level declared-type limit.
+
+Run the transitive local axiom audit with:
+
+```sh
+(cd lean && lake env lean ../scripts/audit_axioms.lean)
+```
+
+`python3 scripts/benchmark_lowering.py` measures parameterized call chains. On
+the local macOS host, three-run medians for 2,000 / 4,000 / 8,000 functions were
+0.080 / 0.190 / 0.531 seconds without a lambda and 0.080 / 0.190 / 0.519 with one.
+These are observations, not timing guarantees or a proof of total compiler
+complexity. The integration suite also checks 20,000 functions in both modes
+under its 60-second watchdog.

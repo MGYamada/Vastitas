@@ -45,6 +45,11 @@ assembly {
 }
 ```
 
+Omitting the root assembly is equivalent to `assembly { }`. Consumers of a
+library that declares grants need not activate those grants. Grant declarations
+and every unapplied contribution body still undergo independent checking;
+assemblies in dependency packages or child modules remain invalid.
+
 An owner contribution uses `apply owner::repair;` without a loan. It is forbidden
 while that generic is borrowed. The root coordinates this declarative trace;
 it does not acquire arbitrary edit authority. Grant and contribution visibility

@@ -276,7 +276,7 @@ fn recursion_diagnostics_identify_the_cycle_not_its_caller() {
     assert_eq!(diagnostic["span"]["line"], 2);
     assert_eq!(diagnostic["span"]["column"], 1);
     let message = diagnostic["message"].as_str().unwrap();
-    assert!(message.contains("a → b → a"), "{message}");
+    assert!(message.contains("`a` → `b` → `a`"), "{message}");
     assert!(!message.contains("main"), "{message}");
 }
 

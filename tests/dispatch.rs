@@ -39,8 +39,9 @@ fn kernel(request: Value) -> Value {
 }
 
 fn assert_rejected(request: Value, code: &str) {
+    let expected_version = request["version"].as_u64().unwrap_or(2);
     let response = common::assert_rejected(request, code);
-    assert_eq!(response["version"], 2, "{response}");
+    assert_eq!(response["version"], expected_version, "{response}");
 }
 
 #[test]
@@ -81,7 +82,7 @@ method recursive(x: Int) -> Int { recursive(x) }",
         "E_RECURSION",
     );
     assert!(
-        message.contains("recursive(Int) → recursive(Int)"),
+        message.contains("`recursive(Int)` → `recursive(Int)`"),
         "{message}"
     );
     assert!(!message.contains("__vastitas_"), "{message}");

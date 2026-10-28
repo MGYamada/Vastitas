@@ -183,16 +183,14 @@ fn invoke_kernel(
             String::from_utf8_lossy(&output.stderr)
         )
     })?;
-    if response.get("version") != Some(&json!(version)) {
-        return Err("E_PROTOCOL: incompatible backend protocol version".into());
-    }
+    let version_mismatch = response.get("version") != Some(&json!(version));
     if response.get("ok") == Some(&Value::Bool(false)) {
         let diagnostics = response
             .get("diagnostics")
             .and_then(Value::as_array)
             .filter(|items| !items.is_empty())
             .ok_or_else(|| "E_PROTOCOL: backend failure has no diagnostics".to_string())?;
-        return Err(diagnostics
+        let mut rendered = diagnostics
             .iter()
             .map(|item| {
                 let code = item
@@ -219,7 +217,14 @@ fn invoke_kernel(
                 rendered
             })
             .collect::<Vec<_>>()
-            .join("\n"));
+            .join("\n");
+        if version_mismatch {
+            rendered.push_str("\nnote: incompatible backend protocol version in failure response");
+        }
+        return Err(rendered);
+    }
+    if version_mismatch {
+        return Err("E_PROTOCOL: incompatible backend protocol version".into());
     }
     if response.get("ok") != Some(&Value::Bool(true)) || !output.status.success() {
         return Err(format!(

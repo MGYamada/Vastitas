@@ -487,7 +487,7 @@ def compileInstance (f : Definition) (targets : List Target) (span : Span) : M I
       (state.byName[k.function]?).map (·.label) |>.getD k.function.render
     let diagnostic : Diagnostic := {
       code := "E_RECURSION"
-      message := s!"recursive call cycle {String.intercalate " → " labels} is not supported"
+      message := s!"recursive call cycle {String.intercalate " → " (labels.map (fun name => "`" ++ name ++ "`"))} is not supported"
       span := f.span
       notes := if f.id.isLambda then [{ span := f.span, message := "lambda defined here" }] else [] }
     core (throw diagnostic)

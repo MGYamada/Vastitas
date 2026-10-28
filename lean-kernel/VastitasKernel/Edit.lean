@@ -123,7 +123,10 @@ def prepare (p : Indexed) : Result (Prepared p) := do
           if rootAssembly.isSome then problem value.span "E_DUPLICATE" "duplicate root assembly"
           if value.events.length > Limits.assemblyEvents then problem value.span "E_LIMIT" "assembly event limit exceeded"
           rootAssembly := some value
-    let some assembly := rootAssembly | problem {} "E_ASSEMBLY" "protocol 5 requires an explicit root assembly"
+    -- Merely publishing a grant/contribution must not force call-only consumers
+    -- to write an empty trace. All declarations and unapplied bodies still pass
+    -- through the same preparation and completion checks below.
+    let assembly := rootAssembly.getD { events := [], span := (moduleAt p rootScope).map (·.span) |>.getD {} }
     let action : Namespace.M (List GrantEntry × List ContributionEntry) := do
       let mut grants := []
       let mut contributions := []

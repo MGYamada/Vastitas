@@ -145,6 +145,8 @@ only by the generic's exact defining module. Public exposure, child modules and
 imports grant neither permission. Abstract parents and contract-domain selectors
 may refer to visible types in other modules without editing those declarations.
 Existing package sources without abstract or edit declarations still use protocol 3. New grants, contributions or an assembly select protocol 5; see [edit borrowing](edit-borrowing.md).
+The root may omit its assembly, which selects an empty edit trace without
+skipping grant validation or checking of unapplied contributions.
 
 ## Explicit edit authority
 

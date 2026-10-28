@@ -181,7 +181,14 @@ fn anonymous_and_escaped_objects_have_source_locations() {
     assert!(message.contains("Scheme from Affine at 2:"), "{d}");
     assert!(message.contains("Scheme from Affine at 3:"), "{d}");
     assert!(!message.contains("Scheme#"), "{d}");
-    assert_eq!(d["notes"].as_array().unwrap().len(), 2);
+    let notes = d["notes"].as_array().unwrap();
+    assert_eq!(notes.len(), 3);
+    assert!(
+        notes[2]["message"]
+            .as_str()
+            .unwrap()
+            .contains("bind the object once")
+    );
 
     let source =
         "fn main() -> Int {\n let p = {\n let Hidden = Affine(QQ, 2);\n origin(Hidden)\n };\n 0\n}";

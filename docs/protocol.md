@@ -112,6 +112,11 @@ Failure: `{ "version": 2, "ok": false, "diagnostics": [
 Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.
+Failure responses preserve any readable natural-number request version, even
+when unsupported. An unreadable version or invalid JSON uses version 2 as the
+fallback. `supportedProtocolVersions` in the kernel defines the complete wire
+version list. Drivers display failure diagnostics before adding a version
+mismatch note; a mismatched success response is always rejected.
 
 Frontend and backend use the same codes for name violations: `E_SHADOW` for a
 binding conflicting with a function/generic, `E_RESERVED` for a reserved name,
@@ -282,7 +287,8 @@ IDs derive from package identity, module path and declaration name; method
 ordinals distinguish methods within a contribution. Unknown fields in these
 new records and events are rejected. Ordinary expressions retain their existing
 protocol decoder contract. A maximum of one assembly is permitted, exactly at
-the root package's root module. Protocol 5 requires this explicit assembly.
+the root package's root module. An omitted root assembly is an empty trace;
+all declaration, unapplied-body and completion audits still run.
 
 The kernel independently reconstructs grant and contribution lowering from
 original scopes, checks exact module authority and unresolved references,

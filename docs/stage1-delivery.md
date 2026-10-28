@@ -1,5 +1,10 @@
 # Stage 1 stabilization and edit-borrow delivery
 
+This records the earlier protocol-5 delivery. The subsequent historical
+Stage 1 completion work and current status are tracked in
+[Stage 1 completion](stage1-completion.md) and issue #179; the later-work
+snapshot below is retained as the scope of this earlier increment.
+
 Snapshot: 2026-10-28. Every open issue is classified below. Classification is not completion. Issues close only when a merged PR meets their acceptance criteria and records validation. Parent issues #48, #49, #52 and #64 remain open for residual scope.
 
 ## Current fixes

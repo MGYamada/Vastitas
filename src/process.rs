@@ -125,6 +125,7 @@ pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> Result<Outp
         let mut killed = None;
         let mut forced = false;
         loop {
+            let transferred = (written, output.len(), errors.len());
             let now = Instant::now();
             if terminating.is_none() && received() != 0 {
                 let signal = Signal::try_from(received() as i32).unwrap_or(Signal::SIGTERM);
@@ -183,7 +184,12 @@ pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> Result<Outp
                 forced = true;
                 break;
             }
-            std::thread::sleep(Duration::from_millis(10));
+            // Keep servicing ready pipes without imposing a per-chunk delay.
+            // Each drain/write remains bounded, so signals and deadlines are
+            // checked even when a descendant continuously produces output.
+            if (written, output.len(), errors.len()) == transferred {
+                std::thread::sleep(Duration::from_millis(10));
+            }
         }
         check().map_err(|_| CaptureError::Interrupted)?;
         if forced {
@@ -207,4 +213,20 @@ pub(crate) fn capture(mut command: Command, input: Option<&[u8]>) -> Result<Outp
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn capture_preserves_multimegabyte_input_and_output() {
+        let bytes = vec![b'x'; 8 * 1024 * 1024];
+        let start = Instant::now();
+        let output = capture(Command::new("cat"), Some(&bytes)).unwrap();
+        assert!(output.status.success());
+        assert_eq!(output.stdout, bytes);
+        assert!(output.stderr.is_empty());
+        eprintln!("8 MiB duplex pipe transfer: {:?}", start.elapsed());
+    }
 }

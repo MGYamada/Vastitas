@@ -5,6 +5,7 @@ use crate::ir::{
     ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Function, Generic, Method, Span,
     Subtype,
 };
+use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
@@ -12,6 +13,54 @@ use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
 pub(crate) const PROTOCOL: u32 = 3;
+pub(crate) const EDIT_PROTOCOL: u32 = 5;
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Grant {
+    pub name: String,
+    pub target: Vec<String>,
+    pub grantee_source: String,
+    pub grantee_path: Vec<String>,
+    pub region: Vec<Vec<String>>,
+    pub span: Span,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Contribution {
+    pub name: String,
+    pub target: Vec<String>,
+    pub methods: Vec<Method>,
+    pub span: Span,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Assembly {
+    pub events: Vec<EditEvent>,
+    pub span: Span,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub(crate) enum EditEvent {
+    Borrow {
+        grant: Vec<String>,
+        loan: String,
+        span: Span,
+    },
+    Apply {
+        contribution: Vec<String>,
+        loan: Option<String>,
+        span: Span,
+    },
+    Return {
+        loan: String,
+        span: Span,
+    },
+    Seal {
+        target: Vec<String>,
+        span: Span,
+    },
+}
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Public<T> {
@@ -42,6 +91,12 @@ pub(crate) struct Module {
     pub subtypes: Vec<Subtype>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub abstract_methods: Vec<AbstractMethod>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub grants: Vec<Public<Grant>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub contributions: Vec<Public<Contribution>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assembly: Option<Assembly>,
     pub span: Span,
 }
 
@@ -145,8 +200,10 @@ impl Loader {
         if self.packages.iter().any(|package| package.source == source) {
             return Ok(source);
         }
-        if self.active.len() >= 64 {
-            return Err("E_LIMIT: package dependency nesting exceeds 64".into());
+        if self.active.len() >= MAX_PACKAGE_NESTING {
+            return Err(format!(
+                "E_LIMIT: package dependency nesting exceeds {MAX_PACKAGE_NESTING}"
+            ));
         }
         self.active.insert(manifest.clone());
         let input = self.sources.add(&manifest, self.output.as_ref())?;
@@ -240,8 +297,10 @@ impl Loader {
         seen: &mut HashSet<(u64, u64)>,
         modules: &mut Vec<Module>,
     ) -> Result<(), String> {
-        if path.len() > 64 {
-            return Err("E_LIMIT: module nesting exceeds 64".into());
+        if path.len() > MAX_MODULE_NESTING {
+            return Err(format!(
+                "E_LIMIT: module nesting exceeds {MAX_MODULE_NESTING}"
+            ));
         }
         let file = canonical(file)?;
         self.inside(&file, package)?;
@@ -321,16 +380,45 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
     };
     let root = loader.package(manifest)?;
+    let selected: HashSet<_> = loader.packages.iter().map(|p| p.source.clone()).collect();
+    // Grants only name inputs in the closure already selected by dependencies.
+    // Canonicalizing the location never loads an additional package.
+    for package in &mut loader.packages {
+        let directory = Path::new(&package.source).parent().unwrap();
+        for module in &mut package.modules {
+            for grant in &mut module.grants {
+                let target = canonical(&directory.join(&grant.declaration.grantee_source))?;
+                let target = target
+                    .to_str()
+                    .ok_or("E_INPUT: grant manifest path must be UTF-8")?;
+                if !selected.contains(target) {
+                    return Err(loader.sources.diagnostic(
+                        "E_OWNER",
+                        "grant grantee must belong to the selected dependency closure",
+                        grant.declaration.span,
+                    ));
+                }
+                grant.declaration.grantee_source = target.into();
+            }
+        }
+    }
+    let editable = loader
+        .packages
+        .iter()
+        .flat_map(|p| &p.modules)
+        .any(|m| !m.grants.is_empty() || !m.contributions.is_empty() || m.assembly.is_some());
     let extended = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
         !m.abstract_types.is_empty() || !m.subtypes.is_empty() || !m.abstract_methods.is_empty()
     });
     let program = Program {
-        version: if extended {
+        version: if editable {
+            EDIT_PROTOCOL
+        } else if extended {
             ABSTRACT_PROTOCOL_VERSION
         } else {
             PROTOCOL
         },
-        input: extended.then(|| "package".into()),
+        input: (extended || editable).then(|| "package".into()),
         file: root.clone(),
         root,
         packages: loader.packages,

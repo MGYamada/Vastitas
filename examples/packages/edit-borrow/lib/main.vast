@@ -1,0 +1,6 @@
+pub generic choose(x, y) { domain (Int, Int); }
+method choose(x: Number, y: Number) -> Int { 0 }
+
+pub grant integers : choose to module("../addon/Vastitas.toml", "") {
+  domain (Int, Int);
+}

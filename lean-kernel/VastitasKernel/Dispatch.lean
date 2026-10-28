@@ -1,4 +1,5 @@
 import Std
+import VastitasKernel.Limits
 
 /-! Closed-world nominal/static-capability method selection. The public universe
 is fixed; `checkWith` uses the same algorithm for finite synthetic hierarchies.
@@ -136,7 +137,7 @@ def RowsCorrect (hierarchy : Hierarchy) (methods : List NormalizedMethod)
   ∀ row ∈ rows, Selection hierarchy methods row.key row.winner
 
 def hierarchyValid (hierarchy : Hierarchy) : Bool := Id.run do
-  if hierarchy.nominalCount == 0 || hierarchy.nominalCount > 64 then return false
+  if hierarchy.nominalCount == 0 || hierarchy.nominalCount > Limits.nominalTypes then return false
   if hierarchy.concrete.isEmpty || !hierarchy.concrete.Nodup then return false
   if !hierarchy.concrete.all (· < hierarchy.nominalCount) then return false
   let names := List.range hierarchy.nominalCount
@@ -197,8 +198,8 @@ def checkWith (hierarchy : Hierarchy) (arity : Nat) (domain : List Key)
     (methods : List Method) : Except Error Checked := do
   if !hierarchyValid hierarchy then
     throw { code := "E_DISPATCH_HIERARCHY", message := "nominal hierarchy or static facts are invalid" }
-  if arity > 4096 || hierarchy.concrete.length ^ arity > 4096 then
-    throw { code := "E_DISPATCH_LIMIT", message := "dispatch key space exceeds 4096" }
+  if arity > Limits.dispatchKeys || hierarchy.concrete.length ^ arity > Limits.dispatchKeys then
+    throw { code := "E_DISPATCH_LIMIT", message := s!"dispatch key space exceeds {Limits.dispatchKeys}" }
   let allKeys := keys hierarchy.concrete arity
   if !domain.all allKeys.contains then
     throw { code := "E_DISPATCH_DOMAIN", message := "domain contains a nonconcrete key or wrong arity" }
@@ -208,8 +209,8 @@ def checkWith (hierarchy : Hierarchy) (arity : Nat) (domain : List Key)
   return { keys := allKeys, methods := normalized, rows, applicablePairs := allApplicablePairs hierarchy normalized allKeys }
 
 def check (arity : Nat) (domain : List Key) (methods : List Method) : Except Error Checked :=
-  if arity > 6 then
-    .error { code := "E_DISPATCH_LIMIT", message := "dispatch key space exceeds 4096" }
+  if arity > Limits.dispatchArity then
+    .error { code := "E_DISPATCH_LIMIT", message := s!"dispatch key space exceeds {Limits.dispatchKeys}" }
   else checkWith publicHierarchy arity domain methods
 
 end VastitasKernel.Dispatch

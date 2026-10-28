@@ -442,6 +442,21 @@ fn specialization_limit_checks_unused_functions_before_reachability() {
 
 #[test]
 fn function_type_depth_is_bounded_on_both_sides() {
+    // Depth includes the scalar leaf; the function declaration's synthetic
+    // wrapper is not part of the declared type syntax budget.
+    for depth in [63, 64] {
+        let ty = format!(
+            "{}Int{}",
+            "Fn<Int, ".repeat(depth - 1),
+            ">".repeat(depth - 1)
+        );
+        let source =
+            format!("fn unused(callback: {ty}) -> {ty} {{ callback }} fn main() -> Int {{ 0 }}");
+        let response = kernel(request(&source));
+        assert_eq!(response["ok"], true, "depth={depth}: {response}");
+    }
+    let ty = format!("{}Int{}", "Fn<Int, ".repeat(64), ">".repeat(64));
+    reject(&format!("fn invalid(f: {ty}) -> Int {{ 0 }}"), "E_LIMIT");
     let ty = format!("{}Int{}", "Fn<Int, ".repeat(70), ">".repeat(70));
     reject(&format!("fn invalid(f: {ty}) -> Int {{ 0 }}"), "E_LIMIT");
     let mut raw = request("fn main() -> Int { let f = fn(x: Int) -> Int { x }; 0 }");

@@ -52,7 +52,7 @@ def fail (span : Span) (code message : String)
   throw { code, message, span, notes }
 
 abbrev checkingBudgetExceeded (span : Span) : CheckM α :=
-  fail span "E_LIMIT" "function exceeds the checking budget of 4096 units (statements, nesting, and call arguments)"
+  fail span "E_LIMIT" s!"function exceeds the checking budget of {Limits.bodyChecking} units (statements, nesting, and call arguments)"
 
 def fresh : CheckM Nat := do
   let state ← get
@@ -452,7 +452,7 @@ def prepareSignature (raw : RawFunction) : CheckM Signature := do
   pure { id, raw, params, result }
 
 def checkFunction (signatures : Signatures) (signature : Signature) : CheckM CheckedFunction := do
-  let body ← checkBlock 4096 signatures signature.params signature.raw.body (some signature.result)
+  let body ← checkBlock Limits.bodyChecking signatures signature.params signature.raw.body (some signature.result)
   if body.term.generatedLetCount > generatedLetLimit then
     fail signature.raw.span "E_LIMIT" s!"function exceeds the generated-let budget of {generatedLetLimit}; let costs 1 and unpack costs 3"
   pure {

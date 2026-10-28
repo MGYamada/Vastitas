@@ -68,8 +68,9 @@ results in the internal core; their static result target is carried separately.
 
 Protocol 2 adds surface types, lambda expressions and expression invocation.
 The surface tree is separate from the unchanged core's Raw/Checked syntax.
-Requests without function constructs retain the exact legacy checker path.
-The public entry point is `checkSurfaceProgram`.
+All requests use the same surface lowering, including programs without function
+constructs. The public entry point is `checkSurfaceProgram`; the first-order
+`checkProgram` API converts its input to surface syntax and uses that entry point.
 
 Lean independently checks lambda free names, assigns lambda IDs by syntax
 traversal, validates signatures, and constructs every applicable dispatch
@@ -145,7 +146,7 @@ projection and call annotations and exercises the code-generation audit boundary
 
 ### Lowering type information
 
-Both lowering paths retain backend-inferred `ResultType` information with the
+The common lowering retains backend-inferred `ResultType` information with the
 raw expression. It includes nominal object references. Generic keys, scalar/Pair
 call arguments, let/unpack bindings, and block results reuse that information
 when it is already fixed; nested scalar generic calls no longer recheck all
@@ -160,3 +161,20 @@ optimization, not a global AST cache: uncached expressions still use core
 inference. No metadata is trusted by the final independent function/module
 check, which rechecks the retained raw bodies and performs the typing/dependency
 audits as before.
+
+### Internal identities and resource limits
+
+Source functions, lifted lambdas and method instances have distinct
+`FunctionName` constructors. Static targets distinguish executable definitions
+from signature probes, and an `InstanceKey` stores a function identity and its
+ordered function-argument identities. Lookup, memoization, branch equality and
+cycle detection use these types. Generated strings are rendered when producing
+the preserved core; public JSON names and protocol versions are unchanged.
+
+Resource values are defined in
+[`lean-kernel/compiler-limits.json`](../lean-kernel/compiler-limits.json).
+Cargo generates frontend constants from it; Lean reifies the kernel's values
+as transparent natural-number definitions in `VastitasKernel.Limits`. Both build
+systems track changes to the file. Parsing depth, source traversal, body checking,
+generated lets, specialization count, dispatch keys and namespace resolution
+retain separate named budgets even when their numeric values coincide.

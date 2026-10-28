@@ -1,4 +1,4 @@
-# Compiler protocols (versions 2 and 3)
+# Compiler protocols (versions 2, 3, 4 and 5)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -9,7 +9,7 @@ bindings; the wire format cannot supply a trusted object identity.
 Request: `{ "version": 2, "file": "input.vast", "functions": [...],
 "generics": [...], "methods": [...] }`. All three declaration arrays are
 present, including when empty. Protocol 3 uses the separate namespace request
-below; package requests never fall back to protocol 2. Other versions are rejected.
+below. Protocol 4 adds abstract declarations and protocol 5 adds package edit assemblies as described below; package requests never fall back to protocol 2. Other versions are rejected.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
@@ -252,3 +252,49 @@ contract domains. Contracts never enter the candidate list. `E_CONTRACT_EMPTY`,
 `E_CONTRACT_DOMAIN`, and `E_CONTRACT_RESULT` distinguish empty expansion,
 inapplicable contract keys, and selected-result conflicts. Missing/ambiguous
 concrete winners retain the existing dispatch diagnostics.
+
+## Protocol 5: scoped edits and assembly
+
+Protocol 5 extends the protocol-4 package envelope, requires `input: "package"`,
+and retains all package identities, declarations, hierarchy and unresolved paths.
+Inputs without edit declarations continue to use versions 2/3/4. There is no
+cached or pre-approved assembly input. See [edit borrowing](edit-borrowing.md)
+for the source contract and proof boundary.
+
+Each module additionally permits `grants: [Grant...]`,
+`contributions: [Contribution...]` and `assembly: Assembly | null` (each optional).
+The decoded module determines each declaration's owner; the wire cannot assert
+an issuer, owner, accepted flag or stable identity independently of that module.
+
+```text
+Grant = { name, target: [identifier...], grantee_source: manifest-location,
+          grantee_path: [identifier...], region: [[scalar...], ...], public, span }
+Contribution = { name, target: [identifier...], methods: [Method...], public, span }
+Assembly = { events: [Event...], span }
+Event = { op: "borrow", grant: [identifier...], loan: identifier, span }
+      | { op: "apply", contribution: [identifier...], loan: identifier | null, span }
+      | { op: "return", loan: identifier, span }
+      | { op: "seal", target: [identifier...], span }
+```
+
+Grant paths refer only to the selected dependency closure. Grant/contribution
+IDs derive from package identity, module path and declaration name; method
+ordinals distinguish methods within a contribution. Unknown fields in these
+new records and events are rejected. Ordinary expressions retain their existing
+protocol decoder contract. A maximum of one assembly is permitted, exactly at
+the root package's root module. Protocol 5 requires this explicit assembly.
+
+The kernel independently reconstructs grant and contribution lowering from
+original scopes, checks exact module authority and unresolved references,
+audits every exclusive borrow/apply/return/seal transition and complete replay
+provenance, and requires all loans returned and edited generics sealed. It checks
+completion in the final immutable environment, including domain-union coverage,
+contract results, all-key ambiguity and each installed method's final winning
+footprint. All applied bodies and every applicable ground instance of unapplied
+contributions are checked; unapplied declarations never become dispatch candidates.
+The resulting executable surface uses the common function lowerer and core audits.
+
+The shared limits allow 4096 assembly events, 4096 contribution methods in the
+whole closure, and 4096 ground functions in the separate unapplied-body audit.
+Existing per-family key, hierarchy, type-depth and specialization bounds remain.
+No digest in this same input proves filesystem or author authenticity.

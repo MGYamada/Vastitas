@@ -301,13 +301,18 @@ fn kernel_checks_twenty_thousand_functions_within_the_watchdog() {
     use std::fmt::Write;
 
     const COUNT: usize = 20_000;
-    let mut source = String::new();
-    for i in 0..COUNT - 1 {
-        writeln!(source, "fn f{i}() -> Int {{ f{}() }}", i + 1).unwrap();
+    for lambda in [false, true] {
+        let mut source = String::new();
+        for i in 0..COUNT - 1 {
+            writeln!(source, "fn f{i}(x: Int) -> Int {{ f{}(x) }}", i + 1).unwrap();
+        }
+        writeln!(source, "fn f{}(x: Int) -> Int {{ x }}", COUNT - 1).unwrap();
+        if lambda {
+            source.push_str("fn unused() -> Int { let g = fn(x: Int) -> Int { x }; g(42) }\n");
+        }
+        let response = kernel(request(&source), "check");
+        assert_eq!(response["ok"], true, "lambda={lambda}: {response}");
     }
-    writeln!(source, "fn f{}() -> Int {{ 0 }}", COUNT - 1).unwrap();
-    let response = kernel(request(&source), "check");
-    assert_eq!(response["ok"], true, "{response}");
 }
 
 #[test]

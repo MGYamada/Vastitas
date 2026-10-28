@@ -194,7 +194,7 @@ normalization result and all method/key pairs used for ground body checking. -/
 structure Correct (hierarchy : Hierarchy) (arity : Nat) (domain : List Key)
     (source : List Method) (checked : Checked) : Prop where
   hierarchy_valid : hierarchyValid hierarchy = true
-  key_bound : hierarchy.concrete.length ^ arity ≤ 4096
+  key_bound : hierarchy.concrete.length ^ arity ≤ VastitasKernel.Limits.dispatchKeys
   enumerated : checked.keys = keys hierarchy.concrete arity
   domain_valid : ∀ key ∈ domain, key ∈ checked.keys
   normalized : source.mapM (normalizeMethod hierarchy arity) = .ok checked.methods
@@ -241,7 +241,7 @@ theorem checkWith_sound (hierarchy : Hierarchy) (arity : Nat) (domain : List Key
                     exact {
                       hierarchy_valid := by simpa using valid
                       key_bound := by
-                        have bounds : ¬arity > 4096 ∧ ¬hierarchy.concrete.length ^ arity > 4096 := by
+                        have bounds : ¬arity > VastitasKernel.Limits.dispatchKeys ∧ ¬hierarchy.concrete.length ^ arity > VastitasKernel.Limits.dispatchKeys := by
                           simpa using bound
                         exact Nat.le_of_not_gt bounds.2
                       enumerated := rfl
@@ -517,7 +517,7 @@ theorem checkWith_permutation_success (hierarchy : Hierarchy) (arity : Nat)
                   have equal := congrArg Checked.rows accepted
                   change rows = first.rows at equal
                   simp only [← equal]
-  have bound : ¬(arity > 4096 || hierarchy.concrete.length ^ arity > 4096) = true := by
+  have bound : ¬(arity > VastitasKernel.Limits.dispatchKeys || hierarchy.concrete.length ^ arity > VastitasKernel.Limits.dispatchKeys) = true := by
     simp only [checkWith] at accepted
     split at accepted
     · simp [throw, bind, Except.bind] at accepted
@@ -578,7 +578,7 @@ theorem keys_length (concrete : List Nat) (arity : Nat) :
 or merely the declared domain. Its actual enumeration respects the key bound. -/
 theorem check_key_universe (arity : Nat) (domain : List Key) (source : List Method)
     (checked : Checked) (accepted : check arity domain source = .ok checked) :
-    checked.keys.length = 4 ^ arity ∧ checked.keys.length ≤ 4096 ∧
+    checked.keys.length = 4 ^ arity ∧ checked.keys.length ≤ VastitasKernel.Limits.dispatchKeys ∧
       ∀ key, key ∈ checked.keys ↔ key.length = arity ∧ ∀ ty ∈ key, ty ∈ [0, 1, 2, 3] := by
   have correct := check_sound arity domain source checked accepted
   rw [correct.enumerated, keys_length]

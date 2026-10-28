@@ -154,10 +154,15 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
     (m.functions.map fun f => (⟨scope, f.name⟩, f.span)) ++
     (m.generics.map fun g => (⟨scope, g.name⟩, g.span)) ++
     (m.abstractTypes.map fun t => (⟨scope, t.name⟩, t.span)) ++
+    (m.grants.map fun g => (⟨scope, g.name⟩, g.span)) ++
+    (m.contributions.map fun c => (⟨scope, c.name⟩, c.span)) ++
     (if m.path.isEmpty then [] else
       [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
 
 def validate (p : Indexed) : Result Unit := do
+  if !p.editable && p.packages.any (fun pkg => pkg.modules.any fun m =>
+      !m.grants.isEmpty || !m.contributions.isEmpty || m.assembly.isSome) then
+    problem {} "E_PROTOCOL" "edit declarations require protocol 5"
   if !p.extended && p.packages.any (fun pkg => pkg.modules.any fun m =>
       !m.abstractTypes.isEmpty || !m.subtypes.isEmpty || !m.abstractMethods.isEmpty) then
     problem {} "E_PROTOCOL" "abstract declarations require protocol 4"
@@ -269,8 +274,8 @@ def referenceName (p : Indexed) (scope : Scope) (bound : List String) (name : St
   if !name.contains ':' && (bound.contains name || builtinNames.contains name) then
     return if builtinNames.contains name then name else localName name
   let target ← lookup p scope name span
-  if target.kind == .module || target.kind == .abstractType then
-    problem span "E_NAME" "a module or abstract selector is not a value"
+  if target.kind != .function && target.kind != .generic then
+    problem span "E_NAME" "this declaration is not a function or generic value"
   return symbol p.toProgram target
 
 mutual
@@ -499,6 +504,8 @@ namespace VastitasKernel
 
 def checkNamespaceProgram (p : Namespace.Program) (requireMain : Bool := false)
     (render : Namespace.Lowered → Diagnostic → Diagnostic := fun _ diagnostic => diagnostic) : Except Diagnostic CertifiedModule := do
+  if p.editable then
+    throw ({ code := "E_PROTOCOL", message := "protocol 5 requires the edit assembly checker" } : Diagnostic)
   let indexed := p.indexed
   let lowered ← Namespace.lower indexed
   (do

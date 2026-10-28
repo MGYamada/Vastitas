@@ -72,9 +72,9 @@ ordinary functions/lambdas provide wrappers. This boundary is recorded in
 #48 while finite abstract selectors and bodyless contracts are now delivered by PRs #138 and #139. Broader abstract values remain deferred.
 
 Issues #37 (same-type argument constraints) and #48 remain open alongside
-#22–26 and #28. User-defined value types/capabilities, function edit
-ownership, impact regions, borrowing, storage ownership, and linear algebra are
-later Stage 1 increments. Stage 1b is not completion of all Stage 1 acceptance
+#22–26 and #28. User-defined value types/capabilities, ownership transfer, reborrowing, storage
+ownership and linear algebra are later Stage 1 increments. Scoped edit borrowing
+and finite impact regions are implemented separately in protocol 5. Stage 1b is not completion of all Stage 1 acceptance
 criteria in the original proposal. No deferred issue is closed merely because
 it is recorded here.
 
@@ -90,12 +90,13 @@ strict Clippy, all tests, oracle build and axiom audit, macOS/Linux no-mathlib
 CI, review resolution, merge and local main synchronization.
 
 The implemented boundary is local path dependencies and call-only imports.
-Only the exact owning module may add generic methods. #52 remains open for
-edit borrowing, authority transfer, impact regions and revalidation semantics.
+Ordinary methods require the exact owning module; explicit protocol-5 grants
+and assembly loans permit scoped external contributions. #52 remains open for
+authority transfer and the broader ownership design.
 #48 includes the delivered finite selector/contract increment (PRs #138/#139); its broader abstract-value and historical Stage 1 scope remains open. #49 still needs generalized dependent interfaces and ownership work to move geometry into the stdlib. #55's initial
 four-key Nat/Int increment adds Pair, selected results and shared arithmetic
 promotion with actual-body numerical contracts; see [promotion](promotion.md).
-#37 stays an independent design candidate. Abstract values, edit/storage
+#37 stays an independent design candidate. Abstract values, ownership transfer/storage
 ownership, geometric stdlib, macros and linear algebra remain open work; their
 dependencies are not discharged by completing numeric promotion.
 
@@ -116,6 +117,6 @@ The [delivery ledger](stage1-delivery.md) classifies every open issue and record
 the dependency chain #140–146 → #154 → #155 → #156 → #157 → #158.
 Finite abstract selectors and contracts are implemented under protocol 4; see
 [abstract types](abstract-types.md). This does not complete #48 or historical
-Stage 1. The next increment is package-only owner grants, contributions and
-validated assemblies; subsequent ownership transfer, reborrowing, storage and
+Stage 1. The implemented protocol-5 increment adds package-only owner grants, contributions
+and validated assemblies ([contract](edit-borrowing.md)); subsequent ownership transfer, reborrowing, storage and
 geometric stdlib work stays separate.

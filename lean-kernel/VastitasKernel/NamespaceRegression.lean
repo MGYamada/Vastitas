@@ -1,4 +1,5 @@
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.EditRegression
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.Codegen
 

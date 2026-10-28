@@ -7,6 +7,7 @@ kernel and generated runtime depend only on the Lean distribution.
 
 Flat protocol versions 2 and 4 enter through `checkSurfaceProgram`. Package
 versions 3 and 4 resolve namespaces before entering the same surface checker.
+Protocol 5 additionally validates the edit assembly and final contributions.
 The first-order `checkProgram` API is an input adapter to that checker.
 All inputs check independent lambdas, static function contracts and finite
 dispatch families, then use one lowering and specialization implementation.
@@ -223,7 +224,7 @@ These results do not formalize all schemes or C-infinity schemes, prove
 general geometric constructions, establish numerical accuracy, or certify
 physical adequacy. The auxiliary coordinate interpretation is limited to the
 stated zero/identity fragment. User-defined types and
-capabilities, function edit ownership, borrowing, storage ownership, linear
+capabilities, ownership transfer, storage ownership, linear
 algebra, iteration, and recursion remain unimplemented and outside these
 theorems. Finite static dispatch does not establish those later Stage 1 goals.
 
@@ -317,7 +318,7 @@ malformed raw protocol metadata, unused invalid bodies and v2 compatibility.
 These regressions and `PairRegression` run in no-mathlib CI.
 
 This does not prove Rust filesystem loading/authenticity, full source namespace
-syntax preservation, native toolchain equivalence, edit borrowing, or general
+syntax preservation, native toolchain equivalence, or general
 abstract values. Package metadata identifies entries in the supplied IR graph; it does
 not certify the bytes on disk. The general Stage 1 design remains incomplete.
 
@@ -392,3 +393,46 @@ the local macOS host, three-run medians for 2,000 / 4,000 / 8,000 functions were
 These are observations, not timing guarantees or a proof of total compiler
 complexity. The integration suite also checks 20,000 functions in both modes
 under its 60-second watchdog.
+
+## Scoped edit assembly acceptance (protocol 5)
+
+`VastitasOracle.EditBorrowing` imports the actual `VastitasKernel.Edit` checker.
+Its `runTrace_sound` proves that successful execution has a `Trace` whose every
+step satisfies the independent `TransitionAllowed` relation and `StateValid`
+provenance/exclusivity predicate. `trace_final_exclusive` and
+`assembled_applications_authorized` connect that trace to canonical generic loans
+and exact owner/grantee/region records. `return_preserves_contributions` preserves
+the full installed method list, including bodies and provenance, while allowing
+Open returns. Exact replay compares those complete records, not hashes or names.
+
+`grant_lowering_correspondence` and `contribution_lowering_correspondence` connect
+the accepted prepared records to re-resolution of every original decoded grant
+and contribution from its declaring scope. The accepted certificate also retains
+namespace uniqueness/reference audits, inherited membership authority, and the
+actual `Namespace.lower` result. `final_method_provenance` witnesses every added
+method in a complete original contribution. No frontend owner flag is trusted.
+
+`final_winner_authorized` proves that every final table row won by an externally
+installed method belongs to that application's approved region. The certificate
+retains the actual `completeFamilies` equation, using the existing finite dispatch
+and abstract contract checks for all-key uniqueness, union coverage and exact
+contract results. Seal prevents subsequent edits of that generic; completion is
+checked over the final immutable environment before acceptance. This does not
+claim an intermediate Open state is callable or complete.
+
+`checkEditProgram_audited` unfolds the public checker: its exact discarded audit
+surface and exact final executable surface both pass `checkSurfaceProgram`.
+The audit adds ground instances of unapplied contribution bodies without adding
+dispatch candidates. Existing all-applicable-method checks include losing applied
+bodies. `checkEditProgram_typed_and_ordered` and
+`checkEditProgram_total_for_arguments` compose the final accepted module with
+existing core typing, dependency and terminating typed-evaluation theorems.
+This composition does not prove arbitrary Rust parsing or native codegen correct.
+
+`EditRegression` runs through `NamespaceRegression` in the common eight-target
+script. It exercises actual acceptance and direct Lean API forgery attempts.
+`tests/edit_borrowing.rs` covers source packages, tampered protocol 5, alias replay,
+exclusive loans, owner suspension, Open repair, final footprints, losing/unused
+bodies, changed hierarchy/contracts and native execution. Both run in macOS/Linux
+no-mathlib CI; the proof oracle and transitive axiom audit remain separate.
+Guarantees start at decoded input, not filesystem authenticity or authorship.

@@ -7,6 +7,7 @@ import VastitasOracle.AbstractTypes
 import VastitasOracle.DispatchLowering
 import VastitasOracle.Functions
 import VastitasOracle.Namespaces
+import VastitasOracle.EditBorrowing
 import VastitasOracle.Promotion
 
 /-!

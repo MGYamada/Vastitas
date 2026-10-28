@@ -28,4 +28,7 @@ def nominalTypes : Nat := compiler_limit% "nominalTypes"
 def namespaceResolution : Nat := compiler_limit% "namespaceResolution"
 def dependencyGraph : Nat := compiler_limit% "dependencyGraph"
 
+def assemblyEvents : Nat := compiler_limit% "assemblyEvents"
+def contributionMethods : Nat := compiler_limit% "contributionMethods"
+
 end VastitasKernel.Limits

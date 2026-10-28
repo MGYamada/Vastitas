@@ -92,7 +92,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if args == ["--version"] {
         println!(
-            "vastitas {} (Stage 1b + packages + abstract selectors, protocols {PROTOCOL_VERSION}/3/4)",
+            "vastitas {} (Stage 1b + packages + abstract selectors + edit assemblies, protocols {PROTOCOL_VERSION}/3/4/5)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());

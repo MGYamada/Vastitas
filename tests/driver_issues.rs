@@ -504,3 +504,41 @@ fn runtime_native_artifacts_are_prebuilt_and_reused() {
     assert!(result.status.success());
     assert_eq!(result.stdout, b"42\n");
 }
+
+#[test]
+fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
+    let scratch = Scratch::new();
+    let backend = scratch.0.join("kernel");
+    executable(
+        &backend,
+        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":3,\"ok\":false,\"diagnostics\":[{\"code\":\"E_SENTINEL\",\"message\":\"original diagnostic\"}]}'\nexit 1\n",
+    );
+    let output = scratch
+        .cli()
+        .env("VASTITAS_KERNEL", &backend)
+        .args(["check", "main.vast"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let message = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        message.contains("E_SENTINEL: original diagnostic"),
+        "{message}"
+    );
+    assert!(
+        message.contains("note: incompatible backend protocol version"),
+        "{message}"
+    );
+    executable(
+        &backend,
+        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":3,\"ok\":true}'\n",
+    );
+    let output = scratch
+        .cli()
+        .env("VASTITAS_KERNEL", &backend)
+        .args(["check", "main.vast"])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("E_PROTOCOL: incompatible"));
+}

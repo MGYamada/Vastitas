@@ -4,6 +4,14 @@ import VastitasKernel.Program
 namespace VastitasKernel
 open Lean
 
+/-- Public wire versions, not the internal Core tag. Unknown requests must not
+be silently routed to a legacy decoder or have their diagnostic discarded. -/
+def supportedProtocolVersions : List Nat := [2, 3, 4, 5]
+
+def unsupportedProtocolVersion (version : Nat) : String :=
+  s!"unsupported IR protocol version {version}; expected " ++
+    String.intercalate ", " (supportedProtocolVersions.map toString)
+
 def spanJson (s : Span) : Json := Json.mkObj [
   ("start", toJson s.start), ("end", toJson s.end),
   ("line", toJson s.line), ("column", toJson s.column)]

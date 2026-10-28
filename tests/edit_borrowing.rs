@@ -204,7 +204,7 @@ fn exact_module_root_placement_and_selected_closure_are_required() {
     rejects(&s, "E_OWNER");
     let s = fixture(BASE, ADDON, EVENTS);
     s.write("app/main.vast", "fn main() -> Int { 0 }");
-    rejects(&s, "E_ASSEMBLY");
+    success(&check(&s));
 }
 
 #[test]
@@ -340,4 +340,45 @@ fn new_words_are_contextual_and_ordinary_return_stays_unsupported() {
     let errors =
         vastitas::frontend::parse("fn main() -> Int { return 42; }", "return.vast").unwrap_err();
     assert_eq!(errors[0].code, "E_UNSUPPORTED");
+}
+
+#[test]
+fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
+    for empty in ["", "assembly { }"] {
+        let s = fixture(BASE, ADDON, "");
+        s.write(
+            "app/main.vast",
+            &format!("{empty} fn main() -> Int {{ base::choose(40, 2) }}"),
+        );
+        success(&check(&s));
+        s.write("addon/main.vast", &ADDON.replace("{ x + y }", "{ true }"));
+        rejects(&s, "E_TYPE");
+        s.write("addon/main.vast", ADDON);
+        s.write("base/main.vast", &BASE.replace(", \"\")", ", \"absent\")"));
+        rejects(&s, "E_OWNER");
+    }
+    let mut raw = raw_program();
+    raw["packages"][0]["modules"][0]
+        .as_object_mut()
+        .unwrap()
+        .remove("assembly");
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    raw["packages"][1]["modules"][0]["contributions"][0]["methods"][0]["return_type"] =
+        json!({"kind":"named","name":"Bool"});
+    assert_eq!(kernel(&raw, "check")["diagnostics"][0]["code"], "E_TYPE");
+}
+
+#[test]
+fn domains_share_trailing_comma_rules_and_public_contracts_have_a_specific_error() {
+    let base = BASE.replace("(Int, Int);", "(Int, Int,), ;")
+        + "abstract method choose(x: Int, y: Int) -> Int { domain (Int, Int,), ; }";
+    success(&check(&fixture(&base, ADDON, EVENTS)));
+    let s = fixture(
+        &base.replace("abstract method", "pub abstract method"),
+        ADDON,
+        EVENTS,
+    );
+    let output = check(&s);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("abstract methods cannot be pub"));
 }

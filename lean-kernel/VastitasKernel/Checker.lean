@@ -179,7 +179,8 @@ def expectedResult (ctx : Context) (expected : Option Ty) (r : Result) (span : S
   if let some ty := expected then
     unless r.term.ty == ty do
       fail span "E_TYPE" s!"expected {← typeLabel ctx ty}, found {← typeLabel ctx r.term.ty}"
-        (← objectNotes ctx (ty.refs ++ r.term.ty.refs))
+        ((← objectNotes ctx (ty.refs ++ r.term.ty.refs)) ++
+          if ty == .int && r.term.ty == .nat then [{ span, message := "help: convert explicitly with int(...); Nat values are never converted implicitly" }] else [])
   pure r
 
 def objectOf (ctx : Context) (r : Result) (span : Span) : CheckM ObjectRef :=
@@ -189,11 +190,26 @@ def objectOf (ctx : Context) (r : Result) (span : Span) : CheckM ObjectRef :=
       fail span "E_TYPE" s!"expected a geometric object, found {← typeLabel ctx r.term.ty}"
         (← objectNotes ctx r.term.ty.refs)
 
+def generativeNotes (refs : List ObjectRef) (span : Span) : CheckM (List DiagnosticNote) := do
+  let origins := (← get).origins
+  for left in refs do
+    if let .local .. := left then
+      if let some a := origins[left]? then
+        if a.bindingName.isNone && (a.reason == "Affine" || a.reason.startsWith "function call '") then
+          for right in refs do
+            if left != right then
+              if let some b := origins[right]? then
+                if b.bindingName.isNone && a.reason == b.reason then
+                  return [{ span, message := "help: each Affine(...) or call returning an object creates a fresh object, even with equal arguments; bind the object once with let and reuse that binding" }]
+  return []
+
 def liftRule (ctx : Context) (rule : Except String Ty) (span : Span)
     (details : String) (refs : List ObjectRef) : CheckM Ty :=
   match rule with
   | .ok ty => pure ty
-  | .error e => do fail span "E_ENDPOINT" s!"{e}: {details}" (← objectNotes ctx refs)
+  | .error e => do
+      fail span "E_ENDPOINT" s!"{e}: {details}"
+        ((← objectNotes ctx refs) ++ (← generativeNotes refs span))
 
 def checkEscape (ctx : Context) (r : Result) (span : Span) : CheckM Unit := do
   let allowed := ctx.flatMap fun binding => binding.objectRef.toList ++ binding.ty.refs
@@ -231,7 +247,9 @@ def pairComponent (ty : Ty) (span : Span) : CheckM PairElem :=
 
 def literalLike : RawExpr → Bool
   | .integer .. => true
-  | .unary "-" (.integer ..) _ => true
+  | .unary "-" value _ => literalLike value
+  | .binary op left right _ =>
+      (op == "+" || op == "-" || op == "*") && literalLike left && literalLike right
   | _ => false
 
 def blockLiteralLike : RawBlock → Bool
@@ -521,7 +539,7 @@ def sortFunctionIndices (functions : List CheckedFunction) : CheckM (List Nat) :
     let representative := functions[cycle.headD start]!
     let names := cycle.map (fun i => functions[i]!.name)
     fail representative.span "E_RECURSION"
-      s!"recursive call cycle {String.intercalate " → " names} is not supported"
+      s!"recursive call cycle {String.intercalate " → " (names.map (fun name => "`" ++ name ++ "`"))} is not supported"
   pure sorted.toList
 
 /-- Reordering can only select declarations from the original checked list.

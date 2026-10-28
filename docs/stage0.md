@@ -63,6 +63,11 @@ standard library also exposes `nat_to_int(n)`. For true subtraction of natural
 values, use `int(a) - int(b)`. No reverse conversion is provided.
 An integer literal defaults to `Int` unless an expected `Nat` type determines
 it, as in an annotation, argument, or the dimension of `Affine`.
+Closed integer expressions built from literals, unary minus, and `+`, `-`, `*`
+receive the same contextual typing. Either operand or conditional branch can
+provide the `Nat` context, independent of ordering. This is structural typing,
+not constant folding: unary minus still requires `Int`, variables retain their
+declared type, and an unconstrained expression defaults to `Int`.
 Division, remainder, floating-point values, strings, I/O, loops, and mutable
 variables are not available. The generated executable's small entrypoint
 prints the pure `main` result; that is not a general source-language effect system.
@@ -127,7 +132,9 @@ The backend and its native runtime artifacts must already be built with
 `lake -d lean-kernel build vastitas-kernel`. A missing backend, protocol mismatch,
 semantic error, or failed native build is an error; there is no frontend-only
 fallback. The frontend bounds recursive parsing at 64 levels and syntax trees
-at 128 nodes of depth, including left-associated operator chains. The protocol
+at 128 nodes of depth, including left-associated operator chains. A standalone
+`if`/`else if` chain supports at most 62 conditions; enclosing expressions also
+consume the nesting budget. The protocol
 decoder allows up to 512 recursive decoding steps. The semantic checker starts
 each function with 4096 units of fuel, consumed along recursive checking paths
 by expression nesting, statements, and call arguments; this is not solely a

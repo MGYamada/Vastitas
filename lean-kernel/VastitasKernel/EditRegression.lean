@@ -53,6 +53,24 @@ private def rejects (code : String) (p : Namespace.Program) : Bool :=
   | .ok _ => false
   | .error diagnostic => diagnostic.code == code
 
+private def withoutAssembly : Namespace.Program :=
+  let p := program
+  { p with packages := p.packages.map fun pkg =>
+      if pkg.id == app then { pkg with modules := pkg.modules.map fun m => { m with assembly := none } }
+      else pkg }
+
+#eval check "omitted assembly uses the same empty-trace audits" ((checkEditProgram withoutAssembly true).isOk)
+#eval check "omitted assembly still rejects invalid unused grant" (rejects "E_OWNER"
+  { withoutAssembly with packages := withoutAssembly.packages.map fun pkg =>
+      { pkg with modules := pkg.modules.map fun m =>
+          { m with grants := m.grants.map fun g => { g with granteePath := ["absent"] } } } })
+#eval check "omitted assembly still checks unapplied bodies" (rejects "E_TYPE"
+  { withoutAssembly with packages := withoutAssembly.packages.map fun pkg =>
+      { pkg with modules := pkg.modules.map fun m =>
+          { m with contributions := m.contributions.map fun c =>
+              { c with methods := c.methods.map fun method =>
+                  { method with result := .data (.named "Bool") } } } } })
+
 #eval check "external edit accepted by actual checker" ((checkEditProgram (program) true).isOk)
 #eval check "legacy checker cannot skip assembly" (match checkNamespaceProgram (program) with
   | .error diagnostic => diagnostic.code == "E_PROTOCOL"

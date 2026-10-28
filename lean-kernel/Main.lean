@@ -15,8 +15,10 @@ private def process (mode input : String) : Lean.Json := Id.run do
   | .error message => return failureJson { code := "E_PROTOCOL", message }
   | .ok json =>
     let requested := (json.getObjValAs? Nat "version").toOption
-    let version := if requested == some 5 then 5 else if requested == some 4 then 4 else if requested == some 3 then 3 else 2
+    let version := requested.getD 2
     let checked : Except Diagnostic CertifiedModule := do
+      unless supportedProtocolVersions.contains version do
+        throw { code := "E_PROTOCOL", message := unsupportedProtocolVersion version }
       if version == 3 || version == 5 || (version == 4 && (json.getObjValAs? String "input").toOption == some "package") then
         let raw ← (decodeNamespaceProgram json).mapError fun message => { code := "E_PROTOCOL", message }
         if version == 5 then

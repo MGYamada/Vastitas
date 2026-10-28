@@ -163,6 +163,31 @@ private def ambiguityNotes (nominals : Abstract.Checked) (program : RawProgram) 
         message := s!"help: declare `{signatureLabel nominals generic.name resolving}` to resolve this key; recheck the entire family after editing" }]
   return notes
 
+private def coverageNotes (nominals : Abstract.Checked) (program : RawProgram)
+    (generic : RawGeneric) (key : Dispatch.Key) : List DiagnosticNote := Id.run do
+  let mut notes := []
+  for (raw, id) in program.methods.zipIdx do
+    if raw.name == generic.name then
+      if let some (_, candidate) := diagnosticCandidate nominals program id then
+        let mut reasons := []
+        if !Dispatch.nominalBelow nominals.hierarchy key candidate.selectors then
+          reasons := reasons ++ ["selector mismatch"]
+        let missing := candidate.requirements.filter (!(Dispatch.tupleFacts nominals.hierarchy key).contains ·)
+        if !missing.isEmpty then
+          reasons := reasons ++ [s!"key lacks {requirementLabel missing}"]
+        notes := notes ++ [{ span := raw.span, message := s!"candidate method `{signatureLabel nominals generic.name candidate}` declared here; " ++ String.intercalate "; " reasons }]
+  if generic.domain.any (fun clause =>
+      clause.mapM (fun ty => match ty with | .named name => Dispatch.parseScalar name | _ => none) == some key) then
+    notes := notes ++ [{ span := generic.span, message := s!"key {keyLabel key} comes from this generic's domain" }]
+  for contract in program.abstractMethods do
+    if contract.name == generic.name && contract.domain.any (fun clause =>
+        match clause.mapM (fun path =>
+          if nominals.names.contains path.name then some (nominals.names.idxOf path.name) else none) with
+        | some selectors => Dispatch.nominalBelow nominals.hierarchy key selectors
+        | none => false) then
+      notes := notes ++ [{ span := contract.span, message := s!"key {keyLabel key} is in the callable domain because of this abstract method contract" }]
+  return notes ++ [{ span := generic.span, message := s!"help: declare a method for `{generic.name}` applicable at {keyLabel key}; recheck every promised domain" }]
+
 def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (error : Dispatch.Error) : Diagnostic :=
   let code := match error.code with
     | "E_DISPATCH_ARITY" => "E_ARITY"
@@ -172,6 +197,8 @@ def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (gen
     | "E_DISPATCH_LIMIT" => "E_LIMIT"
     | other => other
   let notes := if error.code == "E_DISPATCH_AMBIGUOUS" then ambiguityNotes nominals program generic error.methods
+    else if error.code == "E_DISPATCH_COVERAGE" then
+      (error.key.map (coverageNotes nominals program generic)).getD []
     else error.methods.filterMap fun id =>
       (program.methods[id]?).map fun method =>
         { message := s!"candidate method for generic '{generic.name}' declared here", span := method.span : DiagnosticNote }

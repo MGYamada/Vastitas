@@ -229,10 +229,6 @@ impl<'a> Lexer<'a> {
                     self.advance();
                 }
                 let name = &self.source[span.start..self.offset];
-                if let Some(message) = unsupported_keyword(name).filter(|_| name != "return") {
-                    span.end = self.offset;
-                    return Err(diagnostic("E_UNSUPPORTED", message, span));
-                }
                 TokenKind::Name(name.into())
             } else if ch == '"' {
                 self.advance();
@@ -393,7 +389,16 @@ impl Parser {
     fn name(&mut self) -> Result<(String, Span), Diagnostic> {
         let token = self.advance();
         match token.kind {
-            TokenKind::Name(ref name) if unsupported_keyword(name).is_some() => Err(diagnostic(
+            TokenKind::Name(ref name)
+                if matches!(name.as_str(), "while" | "for" | "loop" | "mut") =>
+            {
+                Err(diagnostic(
+                    "E_RESERVED",
+                    format!("`{name}` is reserved and cannot be used as a name"),
+                    token.span,
+                ))
+            }
+            TokenKind::Name(ref name) if name == "return" => Err(diagnostic(
                 "E_UNSUPPORTED",
                 unsupported_keyword(name).unwrap(),
                 token.span,
@@ -525,7 +530,14 @@ impl Parser {
                 });
             } else if self.peek().is("method") && !public {
                 module.methods.push(self.method()?);
-            } else if self.abstract_method_start() && !public {
+            } else if self.abstract_method_start() {
+                if public {
+                    return Err(diagnostic(
+                        "E_PARSE",
+                        "abstract methods cannot be pub; they have no visibility",
+                        self.peek().span,
+                    ));
+                }
                 module.abstract_methods.push(self.abstract_method()?);
             } else if self.peek().is("abstract") {
                 module.abstract_types.push(Public {
@@ -664,6 +676,41 @@ impl Parser {
             .collect())
     }
 
+    // Generic, contract and grant domains share tuple/list punctuation.
+    fn domain_list<T>(
+        &mut self,
+        mut element: impl FnMut(&mut Self) -> Result<T, Diagnostic>,
+    ) -> Result<Vec<Vec<T>>, Diagnostic> {
+        let mut domain = Vec::new();
+        if !self.consume(";") {
+            loop {
+                self.expect("(")?;
+                let mut key = Vec::new();
+                if !self.consume(")") {
+                    loop {
+                        key.push(element(self)?);
+                        if self.consume(")") {
+                            break;
+                        }
+                        self.expect(",")?;
+                        if self.consume(")") {
+                            break;
+                        }
+                    }
+                }
+                domain.push(key);
+                if self.consume(";") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(";") {
+                    break;
+                }
+            }
+        }
+        Ok(domain)
+    }
+
     fn grant(&mut self) -> Result<crate::packages::Grant, Diagnostic> {
         let start = self.expect("grant")?.span;
         let name = self.binding_name()?.0;
@@ -683,30 +730,12 @@ impl Parser {
         self.expect(")")?;
         self.expect("{")?;
         self.expect("domain")?;
-        let mut region = Vec::new();
-        if !self.consume(";") {
-            loop {
-                self.expect("(")?;
-                let mut key = Vec::new();
-                if !self.consume(")") {
-                    loop {
-                        let Type::Named { name } = self.dispatch_type(false)? else {
-                            unreachable!()
-                        };
-                        key.push(name);
-                        if self.consume(")") {
-                            break;
-                        }
-                        self.expect(",")?;
-                    }
-                }
-                region.push(key);
-                if self.consume(";") {
-                    break;
-                }
-                self.expect(",")?;
-            }
-        }
+        let region = self.domain_list(|parser| {
+            let Type::Named { name } = parser.dispatch_type(false)? else {
+                unreachable!()
+            };
+            Ok(name)
+        })?;
         let end = self.expect("}")?.span;
         Ok(crate::packages::Grant {
             name,
@@ -885,33 +914,7 @@ impl Parser {
         }
         self.expect("{")?;
         self.expect("domain")?;
-        let mut domain = Vec::new();
-        if !self.consume(";") {
-            loop {
-                self.expect("(")?;
-                let mut key = Vec::new();
-                if !self.consume(")") {
-                    loop {
-                        key.push(self.dispatch_type(false)?);
-                        if self.consume(")") {
-                            break;
-                        }
-                        self.expect(",")?;
-                        if self.consume(")") {
-                            break;
-                        }
-                    }
-                }
-                domain.push(key);
-                if self.consume(";") {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(";") {
-                    break;
-                }
-            }
-        }
+        let domain = self.domain_list(|parser| parser.dispatch_type(false))?;
         let end = self.expect("}")?.span;
         Ok(Generic {
             name,
@@ -1016,33 +1019,7 @@ impl Parser {
         let header = self.method_header()?;
         self.expect("{")?;
         self.expect("domain")?;
-        let mut domain = Vec::new();
-        if !self.consume(";") {
-            loop {
-                self.expect("(")?;
-                let mut key = Vec::new();
-                if !self.consume(")") {
-                    loop {
-                        key.push(self.type_path()?);
-                        if self.consume(")") {
-                            break;
-                        }
-                        self.expect(",")?;
-                        if self.consume(")") {
-                            break;
-                        }
-                    }
-                }
-                domain.push(key);
-                if self.consume(";") {
-                    break;
-                }
-                self.expect(",")?;
-                if self.consume(";") {
-                    break;
-                }
-            }
-        }
+        let domain = self.domain_list(Self::type_path)?;
         let end = self.expect("}")?.span;
         Ok(AbstractMethod {
             name: header.name,
@@ -1219,6 +1196,18 @@ impl Parser {
             });
         }
         let result = self.expression(0)?;
+        if self.peek().is("as")
+            && self
+                .tokens
+                .get(self.position + 1)
+                .is_some_and(|token| token.is("{"))
+        {
+            return Err(diagnostic(
+                "E_PARSE",
+                "to open a package, write `unpack value as { scheme: X, point: p };`",
+                self.peek().span,
+            ));
+        }
         if self.peek().is(";") {
             return Err(diagnostic(
                 "E_UNSUPPORTED",
@@ -1237,6 +1226,18 @@ impl Parser {
     fn statement(&mut self) -> Result<Statement, Diagnostic> {
         let token = self.advance();
         if token.is("let") {
+            if self.peek().is("mut")
+                && self
+                    .tokens
+                    .get(self.position + 1)
+                    .is_some_and(|next| matches!(next.kind, TokenKind::Name(_)))
+            {
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    "mutable bindings are not supported",
+                    self.peek().span,
+                ));
+            }
             let (name, _) = self.binding_name()?;
             let annotation = if self.consume(":") {
                 Some(self.ty()?)
@@ -1475,7 +1476,12 @@ impl Parser {
                     // Parse just the conditional prefix with the usual depth
                     // guard. Operators after its final block still belong to
                     // the surrounding expression, not the synthetic block.
-                    let result = self.expression(u8::MAX)?;
+                    let result = self.expression(u8::MAX).map_err(|mut error| {
+                        if error.code == "E_LIMIT" && (error.message.starts_with("expression nesting") || error.message.starts_with("expression tree")) {
+                            error.message = format!("`else if` chain exceeds the supported nesting limit; a standalone chain supports at most {} conditions, and enclosing expressions also consume nesting budget", MAX_PARSE_NESTING - 2);
+                        }
+                        error
+                    })?;
                     Block {
                         span: result.span,
                         statements: Vec::new(),
@@ -2836,8 +2842,13 @@ fn leaf() -> Int { 0 }";
             for body in [format!("{word} 1;"), format!("let {word} = 1; 0")] {
                 let source = format!("fn f() -> Int {{ {body} }}");
                 let errors = parse(&source, "unsupported.vast").unwrap_err();
-                assert_eq!(errors[0].code, "E_UNSUPPORTED");
-                assert!(errors[0].message.contains(explanation));
+                if body.starts_with("let ") && word != "return" {
+                    assert_eq!(errors[0].code, "E_RESERVED");
+                    assert!(errors[0].message.contains("reserved"));
+                } else {
+                    assert_eq!(errors[0].code, "E_UNSUPPORTED");
+                    assert!(errors[0].message.contains(explanation));
+                }
                 assert_eq!(&source[errors[0].span.start..errors[0].span.end], word);
             }
         }

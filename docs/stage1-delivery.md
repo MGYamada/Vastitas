@@ -4,7 +4,7 @@ Snapshot: 2026-10-28. Every open issue is classified below. Classification is no
 
 ## Current fixes
 
-Dependency: all of these precede protocol 5 implementation. The existing common-lowering/typed-ID/shared-limit refactor is delivered with #141. Implementation PR: pending.
+Dependency: all of these precede protocol 5 implementation. The existing common-lowering/typed-ID/shared-limit refactor is delivered with #141. Implementation PR: [#167](https://github.com/MGYamada/Vastitas/pull/167), merged after all hosted checks passed.
 
 | Issue | Work |
 | --- | --- |
@@ -18,7 +18,7 @@ Dependency: all of these precede protocol 5 implementation. The existing common-
 
 ## Edit borrowing implementation
 
-Dependency chain: #140–146 → #154 → #155 → #156 → #157 → #158. Implementation PR: pending. #52 and #64 are umbrella tracking, not automatically closed by this increment.
+Dependency chain: #140–146 → #154 → #155 → #156 → #157 → #158. Implementation PR and hosted acceptance evidence are linked from children #154–158 below. #52 and #64 are umbrella tracking, not automatically closed by this increment.
 
 | Issue | Work |
 | --- | --- |
@@ -88,8 +88,28 @@ These issues remain open; no unrelated behavior changes are included. #48's fini
 | [#151](https://github.com/MGYamada/Vastitas/issues/151) | Implement a finite QQ principal-open descent checker with overlap and cocycle proofs |
 | [#152](https://github.com/MGYamada/Vastitas/issues/152) | v0.2.0 release gate: migrate the entire compiler and CLI to Lean 4 |
 | [#153](https://github.com/MGYamada/Vastitas/issues/153) | Implement explicit Int partial application with static targets and checked environments |
+| [#159](https://github.com/MGYamada/Vastitas/issues/159) | Mathematics checker architecture umbrella |
+| [#160](https://github.com/MGYamada/Vastitas/issues/160) | Mathematics standard-library implementation epic |
+| [#161](https://github.com/MGYamada/Vastitas/issues/161) | Weil primitives and forward-over-reverse HVP |
+| [#162](https://github.com/MGYamada/Vastitas/issues/162) | HomG / SU(2) and linear algebra |
+| [#163](https://github.com/MGYamada/Vastitas/issues/163) | Owner-controlled custom pullback registration (depends on #52/#64 plus later AD) |
+| [#164](https://github.com/MGYamada/Vastitas/issues/164) | Optimizer primal and pullback design |
+| [#165](https://github.com/MGYamada/Vastitas/issues/165) | Exact fields versus Float certified numerics |
 
 ## Completion evidence
 
 Record implementation PRs, local commands/results, hosted macOS/Linux no-mathlib CI and oracle axiom audit before requesting merge. Do not infer completion from documentation, a draft PR or partial parent checklists. Reborrowing, ownership transfer, runtime editing, incremental caching, recursion extensions, geometric stdlib migration, storage ownership and linear algebra are excluded.
 
+
+### Protocol-5 local validation (2026-10-28)
+
+- `cargo fmt --check` and `cargo clippy --locked --all-targets -- -D warnings`: passed.
+- `cargo test --locked --all-targets`: 204 passed, including 9 edit-borrowing tests and the 20,000-function watchdogs.
+- `lake -d lean-kernel build` and `bash scripts/check_kernel_regressions.sh`: passed, including the imported direct EditRegression checks.
+- `lake -d lean build`: passed. `(cd lean && lake env lean ../scripts/audit_axioms.lean)`: 6,351 declarations audited with only the standard allowed axioms.
+- Python checker tests: 14 passed; dependency boundaries and generated stdlib consistency passed.
+- `vastitas check` / `vastitas build` for `examples/packages/edit-borrow/app/Vastitas.toml`: passed; generated binary printed `42`.
+
+The linked implementation PR records hosted macOS/Linux no-mathlib CI, oracle
+axiom audit, review and merge evidence. These local results alone do not close
+any child or umbrella issue.

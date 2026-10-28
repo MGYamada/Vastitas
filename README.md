@@ -1,7 +1,7 @@
 # Vastitas
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 1b compiler with path packages and finite abstract selectors and contracts**: `.vast` source → Rust frontend → independently checked
+its **Stage 1b compiler with path packages, finite abstract selectors/contracts and scoped edit assemblies**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
 The current language supports exact integer computation, a small geometric
@@ -19,7 +19,7 @@ body before lowering calls to the proved Stage 0 core. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.
-Edit/borrow ownership, storage ownership, and linear algebra remain later work.
+[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) now permit owner-approved external contributions. Ownership transfer, storage ownership and linear algebra remain later work.
 
 ## Build and use
 
@@ -56,7 +56,7 @@ when explicitly selected; `build` also needs the package and uses its pinned
 
 Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
 and root source, plus optional `[dependencies]` path entries. Package mode
-retains namespaces in protocol 3 (protocol 4 when abstract declarations are used) and cannot be mixed with positional input or
+retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies) and cannot be mixed with positional input or
 `--lib`; protocol 2 remains supported for those existing commands.
 
 ```sh
@@ -68,10 +68,10 @@ cargo run --locked -- build --manifest-path examples/packages/demo/Vastitas.toml
 
 `mod`, `use`, `as`, `pub`, `pub use`, `package::`, `self::` and `super::` support
 logical modules and aliases. Functions have one defining package/module owner;
-only that exact module can add generic methods. Imports permit repeated calls
+ordinary methods require that exact module; explicit grants and active assembly loans permit external contributions. Imports permit repeated calls
 without granting edit authority. See [packages and modules](docs/packages.md)
-for file layout, visibility, limits and proof scope. Registry/Git dependencies,
-edit borrowing and general abstract values remain deferred.
+for file layout, visibility, limits and proof scope. Registry/Git dependencies and
+general abstract values remain deferred; explicit edit borrowing uses protocol 5.
 
 ## Arithmetic standard library
 
@@ -164,7 +164,7 @@ declaration-order invariance, and connects the public Stage 1b checker's exact
 lowered result to that proved core. Independent capture and static function
 signature audits are connected to actual acceptance. Protocol-3 owner uniqueness,
 reference/visibility and method-authority audits connect the namespace path to
-the same core theorems. Rust parsing, JSON decoding, full Stage 1
+the same core theorems. Protocol-5 acceptance also audits grant origins, exclusive loan transitions, complete contribution bodies and final winning footprints; its exact assembled surface enters that same checker. Rust parsing, JSON decoding, full Stage 1
 source rewriting correspondence, native code-generation equivalence, and a
 full mathematical model of schemes remain outside those claims. The precise
 [proof boundary](docs/verification.md) is part of the implementation contract.
@@ -209,6 +209,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Packages and modules](docs/packages.md)
 - [Implementation roadmap](docs/stage1-roadmap.md)
 - [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
+- [Scoped edit borrowing and assemblies](docs/edit-borrowing.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

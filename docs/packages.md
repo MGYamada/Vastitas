@@ -3,7 +3,7 @@
 This is the first increment of [#52](https://github.com/MGYamada/Vastitas/issues/52),
 tracked by [#56](https://github.com/MGYamada/Vastitas/issues/56). It adds path
 packages, modules, unique function owners and call-only imports to Stage 1b.
-It does not implement edit borrowing, authority transfer or impact regions.
+The subsequent [protocol-5 increment](edit-borrowing.md) adds scoped edit borrowing and finite impact regions. Authority transfer remains deferred.
 
 ## Manifest and commands
 
@@ -98,8 +98,9 @@ accessible private module. It cannot reexport a private target. `self` and
 A function owner is the resolved package identity, logical module path and
 definition name. Aliases, reexports, source filenames and read order do not
 create or transfer ownership. Functions with equal short names in different
-modules remain separate. Methods may be added only in the exact module that
-defines the generic. Child modules, public visibility, qualified names and
+modules remain separate. Ordinary methods may be added only in the exact module
+that defines the generic; protocol-5 contributions require explicit grants and
+active assembly loans. Child modules, public visibility, qualified names and
 imports grant no edit authority; ordinary functions cannot receive methods.
 Calls may be repeated, and aliases of function values retain the same static
 function target. Generics remain callable families, not function values.
@@ -143,4 +144,12 @@ the abstract type's exact defining module; an abstract contract is editable
 only by the generic's exact defining module. Public exposure, child modules and
 imports grant neither permission. Abstract parents and contract-domain selectors
 may refer to visible types in other modules without editing those declarations.
-Existing package sources without abstract declarations still use protocol 3.
+Existing package sources without abstract or edit declarations still use protocol 3. New grants, contributions or an assembly select protocol 5; see [edit borrowing](edit-borrowing.md).
+
+## Explicit edit authority
+
+Ordinary imports remain call-only. The exact generic owner may issue a grant to
+one module in the selected dependency closure; that module contributes methods
+only through a root assembly with an active exclusive loan. Neither imports,
+child modules nor aliases imply this permission. See [the syntax and completion
+contract](edit-borrowing.md) and `examples/packages/edit-borrow/app/Vastitas.toml`.

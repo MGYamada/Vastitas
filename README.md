@@ -173,7 +173,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
-lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasPromotion.Regression
+bash scripts/check_kernel_regressions.sh
 cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets

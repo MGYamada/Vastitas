@@ -118,3 +118,13 @@ actual checker, native flat/package/--lib paths, higher-order lowering, unions,
 empty domains, overlapping/conflicting results, authority and tampered IR.
 The implementation is the finite initial increment of #48, not the complete
 historical Stage 1 design.
+
+## Inherited membership authority
+
+Package inputs also audit every scalar-to-abstract relation in the transitive
+closure. The ancestor's exact module must have declared a membership for that
+scalar into the ancestor or one of its descendants. Support paths use abstract
+inheritance alone, so scalar membership cannot circularly justify itself.
+Foreign inheritance and aliases remain legal when they reuse independently
+owner-authorized scalars; introducing a new foreign membership reports `E_OWNER`.
+The audit reconstructs origins from decoded package/module declarations.

@@ -96,10 +96,11 @@ class RepositoryBoundaryTests(unittest.TestCase):
 
     def test_runtime_cannot_import_compiler_or_external_packages(self):
         self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Lean\nimport VastitasKernel.Core\n")
+        self.write("lean-kernel/VastitasKernel/IndexedRuntime.lean", "import VastitasKernel.IndexedCore\n")
         self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": [{"name": "mathlib"}]}))
         errors = check_boundaries(self.root)
         self.assertTrue(any("no external Lake" in error for error in errors))
-        self.assertEqual(sum("runtime must not import" in error for error in errors), 2)
+        self.assertEqual(sum("runtime must not import" in error for error in errors), 3)
 
     def test_missing_runtime_cannot_silently_pass(self):
         (self.root / "lean-kernel/VastitasKernel/Runtime.lean").unlink()

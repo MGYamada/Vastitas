@@ -13,6 +13,7 @@ import VastitasOracle.Authority
 import VastitasOracle.Indexed
 import VastitasOracle.IndexedPackages
 import VastitasOracle.IndexedPrimitives
+import VastitasOracle.IndexedCore
 import VastitasOracle.Promotion
 
 /-!

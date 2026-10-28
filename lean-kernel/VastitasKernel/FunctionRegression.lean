@@ -50,19 +50,48 @@ private def shadowing : Program := program [{ main (.integer "0" {}) with
   (.integer "0" {}) {}) {})]))
 
 #eval check "old protocol version" (rejects "E_PROTOCOL" { program [identity] with version := 1 })
-#eval check "forged lifted reference" (rejects "E_RESERVED" (program [main (.reference "__vastitas_l0" {})]))
+#eval check "forged lifted reference" (rejects "E_RESERVED" (program [main (.reference (.lambda 0) {})]))
 #eval check "Fn is reserved" (rejects "E_RESERVED" (program [{ identity with name := "Fn" }]))
 #eval check "main before function erasure" (rejects "E_MAIN" (program [{
   main (.integer "0" {}) with params := [{ name := "f", ty := unary int, span := {} }] }]))
 
 private def ledger (call : StaticCall) : Lowered := {
-  module := { version := 1, file := "ledger", functions := [] }, definitions := [identity], calls := [call] }
-#eval check "valid static target" (decide (StaticCallsValid (ledger { target := "identity", signature := unary int })))
-#eval check "forged signature with same arity" (!decide (StaticCallsValid (ledger { target := "identity", signature := unary bool })))
-#eval check "unknown static target" (!decide (StaticCallsValid (ledger { target := "absent", signature := unary int })))
+  module := { version := 1, file := "ledger", functions := [] }, definitions := [{ toFunction := identity, id := .source "identity" }], calls := [call] }
+#eval check "valid static target" (decide (StaticCallsValid (ledger { target := .source "identity", signature := unary int })))
+#eval check "forged signature with same arity" (!decide (StaticCallsValid (ledger { target := .source "identity", signature := unary bool })))
+#eval check "unknown static target" (!decide (StaticCallsValid (ledger { target := .source "absent", signature := unary int })))
 #eval check "erased argument type mismatch" (!decide (StaticCallsValid (ledger {
-  target := "identity", signature := unary int, bindings := [(unary bool, { name := "identity", ty := unary int })] })))
+  target := .source "identity", signature := unary int, bindings := [(unary bool, { name := .concrete (.source "identity"), ty := unary int })] })))
 #eval check "erased argument unknown implementation" (!decide (StaticCallsValid (ledger {
-  target := "identity", signature := unary int, bindings := [(unary int, { name := "absent", ty := unary int })] })))
+  target := .source "identity", signature := unary int, bindings := [(unary int, { name := .concrete (.source "absent"), ty := unary int })] })))
+
+#eval check "audit probe cannot be an executable argument" (!decide (StaticCallsValid (ledger {
+  target := .source "identity", signature := unary int,
+  bindings := [(unary int, { name := .probe 0, ty := unary int })] })))
+
+-- Matching printed names cannot forge a different kind of internal identity.
+private def forgedIdentity : Lowered := {
+  module := { version := 1, file := "ledger", functions := [] }
+  definitions := [{ toFunction := identity, id := .source "__vastitas_l0" }]
+  calls := [{ target := .lambda 0, signature := unary int }] }
+#eval check "rendered name does not establish identity" (!decide (StaticCallsValid forgedIdentity))
+
+-- Plain calls now receive the same static-signature audit as higher-order calls.
+private def firstOrder := program [identity, main (.call "identity" [.integer "42" {}] {})]
+#eval check "ordinary call ledger and raw compatibility" (match lowerFunctions firstOrder, firstOrder.legacy with
+  | .ok lowered, some raw =>
+    !lowered.calls.isEmpty && decide (StaticCallsValid lowered) &&
+      match checkProgram raw true, checkSurfaceProgram firstOrder true with
+      | .ok left, .ok right => reprStr left.val == reprStr right.val
+      | _, _ => false
+  | _, _ => false)
+
+#eval check "indexed audit rejects forged signature" (!staticCallsValid (ledger {
+  target := .source "identity", signature := unary bool }))
+#eval check "indexed audit accepts actual signature" (staticCallsValid (ledger {
+  target := .source "identity", signature := unary int }))
+#eval check "indexed audit rejects probe binding" (!staticCallsValid (ledger {
+  target := .source "identity", signature := unary int,
+  bindings := [(unary int, { name := .probe 0, ty := unary int })] }))
 
 end VastitasKernel.Surface.Regression

@@ -126,4 +126,25 @@ private def sharedImports : Program := replaceRoot { mod [] with
   [{ mod ["hidden"] with isPublic := false },
    { mod ["hidden", "child"] with imports := [⟨["super"], "exposed", true, {}⟩] }]))
 
+
+private def abstractDecl (name : String) (parents : List String := []) : AbstractType := {
+  name, parents := parents.map fun name => ⟨name.splitOn "::", {}⟩, span := {}, isPublic := true }
+private def subtype (scalar target : String) : RawSubtype := {
+  scalar, target := ⟨target.splitOn "::", {}⟩, span := {} }
+private def inherited (scalar : String) (authorized := true) : Program := {
+  program with extended := true, packages := [
+    { program.packages[0]! with modules := [{
+      mod [] with
+      abstractTypes := [abstractDecl "Child" ["alias::Parent"]]
+      subtypes := [subtype scalar "Child"] }] },
+    pkg dependency [{ mod [] [fn "value" (.integer "42" {})] with
+      abstractTypes := [abstractDecl "Parent"],
+      subtypes := if authorized then [subtype "Int" "Parent"] else [] }] ] }
+#eval check "foreign inheritance reuses owner membership" ((checkNamespaceProgram (inherited "Int")).isOk)
+#eval check "foreign inheritance cannot introduce membership" (rejects "E_OWNER" (inherited "Nat"))
+#eval check "removing owner support revalidates closure" (rejects "E_OWNER" (inherited "Int" false))
+#eval check "independent authority audit rejects indirect extension" (match membershipGraph (inherited "Nat").indexed with
+  | .error _ => false
+  | .ok graph => !decide (MembershipsAuthorized graph))
+
 end VastitasKernel.Namespace.Regression

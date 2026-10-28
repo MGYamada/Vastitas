@@ -1,4 +1,4 @@
-import VastitasKernel.DispatchChecker
+import VastitasKernel.FunctionChecker
 import VastitasOracle.Dispatch
 import VastitasOracle.ActivationSafety
 
@@ -43,24 +43,28 @@ theorem checked_call_pair_result (signatures : Typing.Signatures) (ctx : Typing.
 lowered module. Diagnostic decoration affects failures only. -/
 theorem checkProgram_core (program : RawProgram) (requireMain : Bool) (certified : CertifiedModule)
     (accepted : checkProgram program requireMain = .ok certified) :
-    ∃ core, lowerProgram program = .ok core ∧ checkModule core requireMain = .ok certified := by
-  unfold checkProgram at accepted
-  cases lowered : lowerProgram program with
-  | error diagnostic => simp [lowered, bind, Except.bind] at accepted
-  | ok core =>
-      simp only [lowered, bind, Except.bind] at accepted
-      cases checked : checkModule core requireMain with
-      | error diagnostic => simp [checked, throw] at accepted
+    ∃ lowered, Surface.lowerFunctions (Surface.Program.ofRaw program) = .ok lowered ∧
+      checkModule lowered.module requireMain = .ok certified := by
+  let surface := Surface.Program.ofRaw program
+  change checkSurfaceProgram surface requireMain = .ok certified at accepted
+  by_cases free : Surface.CaptureFree surface
+  · by_cases shadowFree : Surface.LambdaShadowFree surface
+    · cases lowered : Surface.lowerFunctions surface with
+      | error diagnostic =>
+        simp [checkSurfaceProgram, free, shadowFree, lowered, bind, Except.bind] at accepted
       | ok result =>
-          simp [checked, pure, Except.pure] at accepted
-          subst result
-          exact ⟨core, rfl, checked⟩
+        by_cases valid : Surface.staticCallsValid result = true
+        · refine ⟨result, rfl, ?_⟩
+          simpa [checkSurfaceProgram, free, shadowFree, lowered, valid, bind, Except.bind] using accepted
+        · simp [checkSurfaceProgram, free, shadowFree, lowered, valid, bind, Except.bind, throw] at accepted
+    · simp [checkSurfaceProgram, free, shadowFree, bind, Except.bind, throw] at accepted
+  · simp [checkSurfaceProgram, free, bind, Except.bind, throw] at accepted
 
 theorem checkProgram_typed_and_ordered (program : RawProgram) (requireMain : Bool)
     (certified : CertifiedModule) (accepted : checkProgram program requireMain = .ok certified) :
     Typing.ModuleWellTyped certified.val ∧ Dependency.ModuleOrdered certified.val := by
   obtain ⟨core, _, checked⟩ := checkProgram_core program requireMain certified accepted
-  obtain ⟨_, _, typed, ordered⟩ := checkModule_typed_and_ordered core requireMain certified checked
+  obtain ⟨_, _, typed, ordered⟩ := checkModule_typed_and_ordered core.module requireMain certified checked
   exact ⟨typed, ordered⟩
 
 /-- Public Stage 1 acceptance establishes termination and endpoint preservation

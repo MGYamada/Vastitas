@@ -6,6 +6,12 @@ defaultTargets = ["vastitas-kernel"]
 
 [[lean_lib]]
 name = "VastitasKernel"
+needs = ["compilerLimits"]
+
+[[input_file]]
+name = "compilerLimits"
+path = "compiler-limits.json"
+text = true
 
 [[input_file]]
 name = "promotionFixture"

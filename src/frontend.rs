@@ -48,8 +48,7 @@ const TYPES: &[&str] = &[
 // Bound recursive descent before it consumes the process stack. The separate
 // tree limit also catches left-associated Pratt chains, which are parsed in a
 // loop but would otherwise recurse without a bound in resolution and serde.
-const MAX_PARSE_NESTING: usize = 64;
-const MAX_AST_DEPTH: usize = 128;
+use crate::limits::{MAX_AST_DEPTH, MAX_MODULE_NESTING, MAX_PARSE_NESTING};
 
 fn diagnostic(code: &str, message: impl Into<String>, span: Span) -> Diagnostic {
     Diagnostic {
@@ -467,8 +466,12 @@ impl Parser {
         parsed: &mut crate::packages::Parsed,
     ) -> Result<(), Diagnostic> {
         use crate::packages::{External, Import, Module as NamespaceModule, Public};
-        if path.len() > MAX_PARSE_NESTING {
-            return Err(diagnostic("E_LIMIT", "module nesting exceeds 64", span));
+        if path.len() > MAX_MODULE_NESTING {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!("module nesting exceeds {MAX_MODULE_NESTING}"),
+                span,
+            ));
         }
         let mut module = NamespaceModule {
             path: path.clone(),
@@ -655,7 +658,8 @@ impl Parser {
 
     fn dispatch_type(&mut self, selector: bool) -> Result<Type, Diagnostic> {
         let (name, span) = if selector {
-            self.reference_path()?
+            let path = self.type_path()?;
+            (path.path.join("::"), path.span)
         } else {
             self.name()?
         };

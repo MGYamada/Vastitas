@@ -25,39 +25,30 @@ theorem checkSurfaceProgram_lambda_shadow_free (program : Surface.Program) (requ
   · exact shadowFree
   · simp [checkSurfaceProgram, free, shadowFree, throw, bind, Except.bind] at accepted
 
-/-- The new syntax path checks the actual lowering result and its actual target
+/-- Every surface program checks the actual lowering result and its actual target
 ledger before handing that very module to the independent core checker. -/
 theorem checkSurfaceProgram_static_calls (program : Surface.Program) (requireMain : Bool)
-    (certified : CertifiedModule) (expanded : program.legacyExact = none)
+    (certified : CertifiedModule)
     (accepted : checkSurfaceProgram program requireMain = .ok certified) :
     ∃ lowered, lowerFunctions program = .ok lowered ∧ StaticCallsValid lowered ∧
       checkModule lowered.module requireMain = .ok certified := by
   have free := checkSurfaceProgram_capture_free program requireMain certified accepted
   have shadowFree := checkSurfaceProgram_lambda_shadow_free program requireMain certified accepted
   cases lowered : lowerFunctions program with
-  | error diagnostic => simp [checkSurfaceProgram, free, shadowFree, expanded, lowered, bind, Except.bind] at accepted
+  | error diagnostic => simp [checkSurfaceProgram, free, shadowFree, lowered, bind, Except.bind] at accepted
   | ok result =>
-    by_cases valid : StaticCallsValid result
-    · refine ⟨result, rfl, valid, ?_⟩
-      simpa [checkSurfaceProgram, free, shadowFree, expanded, lowered, valid, bind, Except.bind] using accepted
-    · simp [checkSurfaceProgram, free, shadowFree, expanded, lowered, valid, bind, Except.bind, throw] at accepted
+    by_cases valid : staticCallsValid result = true
+    · refine ⟨result, rfl, staticCallsValid_sound result valid, ?_⟩
+      simpa [checkSurfaceProgram, free, shadowFree, lowered, valid, bind, Except.bind] using accepted
+    · simp [checkSurfaceProgram, free, shadowFree, lowered, valid, bind, Except.bind, throw] at accepted
 
 theorem checkSurfaceProgram_core (program : Surface.Program) (requireMain : Bool)
     (certified : CertifiedModule)
     (accepted : checkSurfaceProgram program requireMain = .ok certified) :
     ∃ core, checkModule core requireMain = .ok certified := by
-  have free := checkSurfaceProgram_capture_free program requireMain certified accepted
-  have shadowFree := checkSurfaceProgram_lambda_shadow_free program requireMain certified accepted
-  cases legacy : program.legacyExact with
-  | none =>
-    obtain ⟨lowered, _, _, checked⟩ :=
-      checkSurfaceProgram_static_calls program requireMain certified legacy accepted
-    exact ⟨lowered.module, checked⟩
-  | some raw =>
-    have old : checkProgram raw requireMain = .ok certified := by
-      simpa [checkSurfaceProgram, free, shadowFree, legacy] using accepted
-    obtain ⟨core, _, checked⟩ := DispatchLowering.checkProgram_core raw requireMain certified old
-    exact ⟨core, checked⟩
+  obtain ⟨lowered, _, _, checked⟩ :=
+    checkSurfaceProgram_static_calls program requireMain certified accepted
+  exact ⟨lowered.module, checked⟩
 
 theorem checkSurfaceProgram_typed_and_ordered (program : Surface.Program) (requireMain : Bool)
     (certified : CertifiedModule)
@@ -79,7 +70,7 @@ backend definition; equal argument counts alone would not establish this. -/
 theorem static_target_signature (lowered : Lowered) (valid : StaticCallsValid lowered)
     (call : StaticCall) (member : call ∈ lowered.calls) :
     ∃ definition ∈ lowered.definitions,
-      definition.name = call.target ∧ definition.type = call.signature :=
+      definition.id = call.target ∧ definition.type = call.signature :=
   (valid call member).1
 
 /-- Function arguments retain their expected contract even when erased from the
@@ -88,7 +79,7 @@ theorem function_argument_signature (lowered : Lowered) (valid : StaticCallsVali
     (call : StaticCall) (member : call ∈ lowered.calls)
     (binding : TypeExpr × Surface.Target) (argument : binding ∈ call.bindings) :
     binding.1 = binding.2.ty ∧ ∃ definition ∈ lowered.definitions,
-      definition.name = binding.2.name ∧ definition.type = binding.2.ty :=
+      TargetName.concrete definition.id = binding.2.name ∧ definition.type = binding.2.ty :=
   (valid call member).2 binding argument
 
 theorem checkSurfaceProgram_total_for_arguments (program : Surface.Program) (requireMain : Bool)

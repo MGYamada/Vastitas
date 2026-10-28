@@ -11,6 +11,139 @@ fn reject(source: &str, code: &str) {
 const NUMERIC: &str = "abstract type Numeric; subtype Nat <: Numeric; subtype Int <: Numeric;";
 
 #[test]
+fn inherited_memberships_require_every_ancestor_owners_support() {
+    let s = Scratch::empty("inherited authority");
+    package(
+        &s,
+        "lib",
+        "pub abstract type Small <: Number; subtype Int <: Small;
+pub generic choose(x) { domain (Nat), (Int); }
+method choose(x: Number) -> Int { 2 }
+method choose(x: Small) -> Int { 1 }",
+        "",
+    );
+    package(&s, "app", "", "lib={path='../lib'}");
+    for (members, accepted) in [("Int", true), ("Nat", false)] {
+        s.write(
+            "app/main.vast",
+            &format!(
+                "use lib::Small as Alias;
+abstract type Middle <: Alias; abstract type Tiny <: Middle;
+subtype {members} <: Tiny;
+fn main() -> Int {{ lib::choose(1) }}"
+            ),
+        );
+        let result = package_check(&s);
+        if accepted {
+            success(&result);
+        } else {
+            assert!(String::from_utf8_lossy(&result.stderr).contains("E_OWNER"));
+        }
+    }
+    // Same package still has separate module owners. A public alias cannot
+    // authorize new membership; existing ancestor support does permit reuse.
+    for (scalar, accepted) in [("Int", true), ("Nat", false)] {
+        s.write(
+            "app/main.vast",
+            &format!(
+                "mod owner {{ pub abstract type A; subtype Int <: A; }}
+use owner::A as Exported;
+mod peer {{ abstract type B <: super::Exported; subtype {scalar} <: B; }}
+fn main() -> Int {{ 0 }}"
+            ),
+        );
+        let result = package_check(&s);
+        assert_eq!(
+            result.status.success(),
+            accepted,
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        if !accepted {
+            assert!(String::from_utf8_lossy(&result.stderr).contains("E_OWNER"));
+        }
+    }
+    // Unauthorized memberships cannot introduce new ambiguity or enlarge a
+    // contract's domain behind the owner's back.
+    package(
+        &s,
+        "lib",
+        "pub abstract type Small <: Number; subtype Int <: Small;
+pub abstract type Other; subtype Nat <: Other;
+pub generic choose(x) { domain (Int); }
+abstract method choose(x: Small) -> Int { domain (Small); }
+method choose(x: Small) -> Int { 1 }
+method choose(x: Other) -> Bool { true }",
+        "",
+    );
+    s.write(
+        "app/main.vast",
+        "abstract type Attack <: lib::Small; subtype Nat <: Attack; fn main() -> Int { 0 }",
+    );
+    let result = package_check(&s);
+    assert!(String::from_utf8_lossy(&result.stderr).contains("E_OWNER"));
+}
+
+#[test]
+fn raw_indirect_membership_authority_is_recomputed_after_input_changes() {
+    let mut app = raw_module("abstract type Child; subtype Int <: Child;");
+    app["abstract_types"][0]["parents"] =
+        json!([{"path":["lib","Parent"],"span":{"start":0,"end":0,"line":1,"column":1}}]);
+    let mut raw = json!({"version":4,"input":"package","file":"raw.vast","root":"/app/Vastitas.toml","packages":[
+        {"source":"/app/Vastitas.toml","name":"app","version":"0.1.0","dependencies":[{"alias":"lib","target":"/lib/Vastitas.toml"}],"modules":[app]},
+        {"source":"/lib/Vastitas.toml","name":"lib","version":"0.1.0","dependencies":[],"modules":[raw_module("abstract type Parent; subtype Int <: Parent;")]}
+    ]});
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    raw["packages"][0]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
+    assert_eq!(kernel(&raw, "check")["diagnostics"][0]["code"], "E_OWNER");
+    raw["packages"][1]["modules"][0]["subtypes"][0]["scalar"] = json!("Nat");
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    raw["packages"][1]["modules"][0]["subtypes"] = json!([]);
+    assert_eq!(kernel(&raw, "check")["diagnostics"][0]["code"], "E_OWNER");
+}
+
+#[test]
+fn hierarchy_errors_point_to_source_declarations_and_flat_selectors_share_path_checks() {
+    let source = "\n\nabstract type A <: B;\nabstract type B <: A;";
+    let response = kernel(request(source, "hierarchy.vast"), "check");
+    assert_eq!(response["diagnostics"][0]["span"]["line"], 3);
+    assert!(
+        !response["diagnostics"][0]["notes"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let response = kernel(
+        request(
+            "\nabstract type A <: Number;\nsubtype Bool <: A;",
+            "hierarchy.vast",
+        ),
+        "check",
+    );
+    assert_eq!(response["diagnostics"][0]["span"]["line"], 3);
+    assert!(
+        !response["diagnostics"][0]["notes"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    for source in [
+        "generic f(x) { domain; } method f(x: lib::A) -> Int { 0 }",
+        "generic f(x) { domain; } abstract method f(x: lib::A) -> Int { domain; }",
+        "abstract type A <: lib::B;",
+        "abstract type A; subtype Int <: lib::A;",
+    ] {
+        let error = vastitas::frontend::parse(source, "flat.vast").unwrap_err();
+        assert_eq!(error[0].code, "E_NAME");
+        assert!(
+            error[0]
+                .message
+                .contains("qualified type paths require package input")
+        );
+    }
+}
+
+#[test]
 fn nominal_inheritance_and_same_inhabitants_do_not_collapse_selectors() {
     let declarations = [
         "abstract type General;",

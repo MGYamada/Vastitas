@@ -16,7 +16,7 @@ def expand (hierarchy : Dispatch.Hierarchy) (arity : Nat) (clauses : List (List 
     clauses.any (Dispatch.nominalBelow hierarchy key)
 
 def prepare (nominals : Abstract.Checked) (arity : Nat) (raw : RawAbstractMethod) : CheckM (Contract nominals.hierarchy) := do
-  if arity > 6 then fail raw.span "E_LIMIT" "dispatch key space exceeds 4096"
+  if arity > Limits.dispatchArity then fail raw.span "E_LIMIT" s!"dispatch key space exceeds {Limits.dispatchKeys}"
   if raw.params.length != arity then fail raw.span "E_ARITY" "abstract method parameter count differs from its generic"
   let selectors ← raw.params.mapM fun param => Abstract.selector nominals param.ty param.span
   let requirements ← raw.requirements.mapM fun name =>

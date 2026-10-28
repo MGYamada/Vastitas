@@ -1,4 +1,5 @@
 import VastitasKernel.Program
+import VastitasKernel.Names
 
 /-! Protocol-2 surface syntax. Function values never enter the preserved core. -/
 namespace VastitasKernel.Surface
@@ -33,15 +34,25 @@ def TypeExpr.labelAt : Nat → TypeExpr → String
       | _ => "(" ++ String.intercalate ", " (params.toList.map (labelAt fuel)) ++ ")") ++
       ", " ++ labelAt fuel result ++ ">"
 
-def TypeExpr.label (ty : TypeExpr) : String := ty.labelAt 64
+def TypeExpr.label (ty : TypeExpr) : String := ty.labelAt Limits.typeNesting
 
-def TypeExpr.callableDataAt : Nat → TypeExpr → Bool
+-- Signature shape and declared syntax depth are separate checks. A synthetic
+-- function wrapper must not consume the declared type's nesting allowance.
+mutual
+  def TypeExpr.callableData : TypeExpr → Bool
+    | .data (.named name) => ["Nat", "Int", "Bool", "Unit"].contains name
+    | .function params result => params.callableData && result.callableData
+    | _ => false
+  def TypeList.callableData : TypeList → Bool
+    | .nil => true
+    | .cons head tail => head.callableData && tail.callableData
+end
+
+def TypeExpr.withinDepth : Nat → TypeExpr → Bool
   | 0, _ => false
-  | _ + 1, .data (.named name) => ["Nat", "Int", "Bool", "Unit"].contains name
-  | fuel + 1, .function params result => params.toList.all (callableDataAt fuel) && callableDataAt fuel result
-  | _, _ => false
-
-def TypeExpr.callableData (ty : TypeExpr) : Bool := ty.callableDataAt 64
+  | _ + 1, .data _ => true
+  | fuel + 1, .function params result =>
+    params.toList.all (withinDepth fuel) && withinDepth fuel result
 
 def TypeExpr.core : TypeExpr → RawType
   | .data ty => ty
@@ -65,7 +76,7 @@ mutual
     | variable (name : String) (span : Span)
     | call (callee : String) (args : List Expr) (span : Span)
     | invoke (callee : Expr) (args : List Expr) (span : Span)
-    | reference (name : String) (span : Span) -- backend-only lifted lambda
+    | reference (name : FunctionName) (span : Span) -- backend-only lifted lambda
     | lambda (params : List Param) (result : TypeExpr) (body : Block) (span : Span)
     | unary (op : String) (operand : Expr) (span : Span)
     | binary (op : String) (left right : Expr) (span : Span)
@@ -97,6 +108,19 @@ structure Function where
 
 def Function.type (f : Function) : TypeExpr := .function (f.params.map (·.ty)) f.result
 
+/-- The source name is retained for diagnostics; internal lookup uses `id`. -/
+structure Definition extends Function where
+  id : FunctionName
+  deriving Repr, Inhabited
+
+def Definition.type (f : Definition) : TypeExpr := f.toFunction.type
+
+def Definition.label (f : Definition) : String :=
+  match f.id with
+  | .source _ => f.name
+  | .lambda _ => s!"lambda at {f.span.line}:{f.span.column}"
+  | .method _ key => f.name ++ "(" ++ String.intercalate ", " (key.map Dispatch.nominalName) ++ ")"
+
 structure Method extends Function where
   requirements : List String
   deriving Repr, Inhabited
@@ -112,8 +136,8 @@ structure Program where
   abstractMethods : List RawAbstractMethod := []
   deriving Repr, Inhabited
 
--- An exact adapter for unchanged first-order syntax keeps its old acceptance
--- path, budgets and proofs intact. Function syntax always goes through Stage 1b.
+-- Compatibility conversion for first-order clients and fixtures. It is not a
+-- separate acceptance or lowering path.
 def TypeExpr.legacy : TypeExpr → Option RawType
   | .data ty => some ty
   | _ => none
@@ -160,5 +184,35 @@ def Program.legacy (p : Program) : Option RawProgram := do
   pure {
     version := p.version, file := p.file, functions := ← p.functions.mapM Function.legacy,
     generics := p.generics, methods, abstractTypes := p.abstractTypes, subtypes := p.subtypes, abstractMethods := p.abstractMethods }
+
+mutual
+  def Expr.ofRaw : RawExpr → Expr
+    | .integer value span => .integer value span
+    | .boolean value span => .boolean value span
+    | .unit span => .unit span
+    | .variable name span => .variable name span
+    | .call name args span => .call name (args.map Expr.ofRaw) span
+    | .unary op value span => .unary op (Expr.ofRaw value) span
+    | .binary op left right span => .binary op (Expr.ofRaw left) (Expr.ofRaw right) span
+    | .ite condition yes no span => .ite (Expr.ofRaw condition) (Block.ofRaw yes) (Block.ofRaw no) span
+    | .block body span => .block (Block.ofRaw body) span
+    | .pack scheme point span => .pack (Expr.ofRaw scheme) (Expr.ofRaw point) span
+  def Stmt.ofRaw : RawStmt → Stmt
+    | .letE name annotation value span => .letE name (annotation.map TypeExpr.data) (Expr.ofRaw value) span
+    | .unpack value scheme point span => .unpack (Expr.ofRaw value) scheme point span
+  def Block.ofRaw : RawBlock → Block
+    | .mk statements result span => .mk (statements.map Stmt.ofRaw) (Expr.ofRaw result) span
+end
+
+def Function.ofRaw (f : RawFunction) : Function := {
+  name := f.name, params := f.params.map fun p => { name := p.name, ty := .data p.ty, span := p.span }
+  result := .data f.returnType, body := Block.ofRaw f.body, span := f.span }
+
+/-- First-order callers enter the same surface lowering and independent audits. -/
+def Program.ofRaw (p : RawProgram) : Program := {
+  version := p.version, file := p.file, functions := p.functions.map Function.ofRaw
+  generics := p.generics
+  methods := p.methods.map fun m => { toFunction := Function.ofRaw { name := m.name, params := m.params, returnType := m.returnType, body := m.body, span := m.span }, requirements := m.requirements }
+  abstractTypes := p.abstractTypes, subtypes := p.subtypes, abstractMethods := p.abstractMethods }
 
 end VastitasKernel.Surface

@@ -14,7 +14,7 @@ fn reject(source: &str, code: &str) {
 }
 
 #[test]
-fn abstract_domains_extend_empty_generic_domains_in_both_lowering_paths() {
+fn abstract_domains_extend_empty_generic_domains_with_and_without_functions() {
     for higher_order in [false, true] {
         let main = if higher_order {
             "fn main() -> Int { let f = fn(x: Int) -> Int { widen(x) }; let n: Nat = 20; widen(n) + f(22) }"

@@ -28,6 +28,91 @@ fn executable(path: &Path, source: &str) {
 }
 
 #[test]
+fn exited_compilers_cannot_leave_pipe_holders_or_silent_descendants() {
+    use nix::sys::signal::{Signal, kill};
+    use nix::unistd::Pid;
+    use std::time::{Duration, Instant};
+
+    for build in [false, true] {
+        for detached_pipes in [false, true] {
+            let scratch = Scratch::new();
+            let bin = scratch.0.join("bin");
+            fs::create_dir(&bin).unwrap();
+            let worker = scratch.0.join("worker");
+            let mock = if build {
+                bin.join("lake")
+            } else {
+                bin.join("kernel")
+            };
+            let redirection = if detached_pipes {
+                " </dev/null >/dev/null 2>&1"
+            } else {
+                ""
+            };
+            executable(
+                &mock,
+                &format!(
+                    "#!/bin/sh\nsh -c 'trap \"\" TERM INT; exec sleep 60'{redirection} &\necho $! > \"$WORKER\"\nexit 0\n"
+                ),
+            );
+            let mut paths = vec![bin];
+            paths.extend(std::env::split_paths(
+                &std::env::var_os("PATH").unwrap_or_default(),
+            ));
+            fs::write(scratch.0.join("program"), b"existing artifact").unwrap();
+            let mut command = scratch.cli();
+            if build {
+                command.args(["build", "main.vast", "-o", "program"]);
+            } else {
+                command
+                    .args(["check", "main.vast"])
+                    .env("VASTITAS_KERNEL", mock);
+            }
+            let mut child = command
+                .env("WORKER", &worker)
+                .env("PATH", std::env::join_paths(paths).unwrap())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            let deadline = Instant::now() + Duration::from_secs(12);
+            while child.try_wait().unwrap().is_none() {
+                if Instant::now() >= deadline {
+                    child.kill().unwrap();
+                    child.wait().unwrap();
+                    if let Ok(pid) = fs::read_to_string(&worker) {
+                        let _ = kill(Pid::from_raw(pid.trim().parse().unwrap()), Signal::SIGKILL);
+                    }
+                    panic!("post-exit cleanup exceeded watchdog");
+                }
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            let result = child.wait_with_output().unwrap();
+            assert!(!result.status.success());
+            let error = String::from_utf8_lossy(&result.stderr);
+            assert!(
+                error.contains(if build { "E_BUILD" } else { "E_BACKEND" }),
+                "{error}"
+            );
+            assert!(error.contains("forced cleanup"), "{error}");
+            assert_eq!(
+                fs::read(scratch.0.join("program")).unwrap(),
+                b"existing artifact"
+            );
+            let pid = fs::read_to_string(&worker).unwrap();
+            let state = Command::new("ps")
+                .args(["-o", "stat=", "-p", pid.trim()])
+                .output()
+                .unwrap();
+            let state = String::from_utf8_lossy(&state.stdout);
+            assert!(
+                state.trim().is_empty() || state.trim().starts_with('Z'),
+                "worker still running: {state}"
+            );
+        }
+    }
+}
+
+#[test]
 fn output_cannot_replace_any_input_or_alias() {
     let scratch = Scratch::new();
     let original = fs::read(scratch.0.join("main.vast")).unwrap();

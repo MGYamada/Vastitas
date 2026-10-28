@@ -47,7 +47,7 @@ def ancestors (scope : Scope) (path : List String) (span : Span) : Result (Scope
 abbrev ResolutionM := StateT Nat Result
 
 def charge (span : Span) : ResolutionM Unit
-  | 0 => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
+  | 0 => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
   | remaining + 1 => .ok ((), remaining)
 
 -- Import resolution uses the original requesting scope for each traversed
@@ -55,7 +55,7 @@ def charge (span : Span) : ResolutionM Unit
 -- then its source path in the alias's own scope, preserving the original target.
 mutual
   def memberAt : Nat → Indexed → Scope → Scope → String → List (Scope × String) → Span → ResolutionM Target
-    | 0, _, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
+    | 0, _, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
     | fuel + 1, p, requester, scope, name, active, span => do
       charge span
       if let some target := p.byOwner[Owner.mk scope name]? then
@@ -73,7 +73,7 @@ mutual
         problem entry.span "E_VISIBILITY" "pub use requires a public declaration"
       return target
   def descend : Nat → Indexed → Scope → Target → List String → List (Scope × String) → Span → ResolutionM Target
-    | 0, _, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
+    | 0, _, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
     | fuel + 1, p, requester, target, path, active, span => do
       match path with
       | [] => return target
@@ -82,7 +82,7 @@ mutual
         let next ← memberAt fuel p requester (targetScope target) name active span
         descend fuel p requester next rest active span
   def resolveAt : Nat → Indexed → Scope → List String → List (Scope × String) → Span → ResolutionM Target
-    | 0, _, _, _, _, span => problem span "E_LIMIT" "namespace resolution exceeds the 4096-unit budget"
+    | 0, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
     | fuel + 1, p, scope, path, active, span => do
       let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
       match path with
@@ -102,7 +102,7 @@ mutual
 end
 
 def resolve (p : Indexed) (scope : Scope) (path : List String) (span : Span) : Result Target :=
-  ((resolveAt 4096 p scope path [] span).run 4096).map (·.1)
+  ((resolveAt Limits.namespaceResolution p scope path [] span).run Limits.namespaceResolution).map (·.1)
 
 def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&
@@ -114,7 +114,7 @@ def UniqueOwners (p : Indexed) : Prop :=
 instance (p : Indexed) : Decidable (UniqueOwners p) := inferInstanceAs (Decidable (List.Nodup _))
 
 def graphVisit : Nat → Indexed → String → List String → StateT (Std.HashSet String) Result Unit
-  | 0, _, _, _ => problem {} "E_LIMIT" "dependency graph exceeds the 4096-unit budget"
+  | 0, _, _, _ => problem {} "E_LIMIT" s!"dependency graph exceeds the {Limits.dependencyGraph}-unit budget"
   | fuel + 1, p, source, active => do
     if active.contains source then problem {} "E_CYCLE" "cyclic package dependency"
     if (← get).contains source then return
@@ -123,7 +123,7 @@ def graphVisit : Nat → Indexed → String → List String → StateT (Std.Hash
     modify (·.insert source)
 
 def validateGraph (p : Indexed) : Result Unit :=
-  ((p.packages.forM fun pkg => graphVisit 4096 p pkg.id.source []).run {}).map (·.1)
+  ((p.packages.forM fun pkg => graphVisit Limits.dependencyGraph p pkg.id.source []).run {}).map (·.1)
 
 def versionNumber (s : String) : Bool :=
   !s.isEmpty && s.toList.all Char.isDigit && (s == "0" || !s.startsWith "0")
@@ -193,7 +193,7 @@ def validate (p : Indexed) : Result Unit := do
       for entry in m.imports do
         sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
-        let _ ← (memberAt 4096 p scope scope entry.alias [] entry.span).run 4096
+        let _ ← (memberAt Limits.namespaceResolution p scope scope entry.alias [] entry.span).run Limits.namespaceResolution
         pure ()
 
 structure Reference where
@@ -333,7 +333,7 @@ def function (p : Indexed) (scope : Scope) (f : Surface.Function) (target : Targ
     name := symbol p.toProgram target
     params := ← parameters p scope f.params
     result := type f.result
-    body := ← block 1024 p scope (f.params.map (·.name)) f.body }
+    body := ← block Limits.namespaceNesting p scope (f.params.map (·.name)) f.body }
 
 def abstractPath (p : Indexed) (scope : Scope) (path : TypePath) (membership := false) : M TypePath := do
   if path.path.length == 1 && Abstract.builtins.contains path.name then
@@ -349,6 +349,105 @@ def selectorType (p : Indexed) (scope : Scope) (ty : TypeExpr) (span : Span) : M
     let path ← abstractPath p scope ⟨name.splitOn "::", span⟩
     return .data (.named path.name)
   | _ => return ty
+
+/-- Origins are reconstructed from enclosing decoded package/module declarations,
+never from caller-supplied owner fields. -/
+structure AbstractOrigin where
+  scope : Scope
+  declaration : RawAbstractType
+  deriving Repr, Inhabited
+
+structure MembershipOrigin where
+  scope : Scope
+  membership : RawSubtype
+  deriving Repr, Inhabited
+
+structure MembershipGraph where
+  declarations : List AbstractOrigin
+  memberships : List MembershipOrigin
+  deriving Repr, Inhabited
+
+def membershipGraph (p : Indexed) : Result MembershipGraph := do
+  let mut declarations := []
+  let mut memberships := []
+  for pkg in p.packages do
+    for m in pkg.modules do
+      let scope : Scope := ⟨pkg.id, m.path⟩
+      for declaration in m.abstractTypes do
+        let parents ← declaration.parents.mapM fun path => do
+          if path.path.length == 1 && Abstract.builtins.contains path.name then return path
+          let target ← resolve p scope path.path path.span
+          if target.kind != .abstractType then problem path.span "E_TYPE" "expected an abstract type declaration"
+          return { path with path := [symbol p.toProgram target] }
+        let target : Target := ⟨⟨scope, declaration.name⟩, .abstractType, declaration.isPublic⟩
+        declarations := { scope, declaration := { declaration.toRawAbstractType with
+          name := symbol p.toProgram target, parents } } :: declarations
+      for membership in m.subtypes do
+        let target ← resolve p scope membership.target.path membership.target.span
+        if target.kind != .abstractType || target.owner.scope != scope then
+          problem membership.span "E_OWNER" "only the exact module defining an abstract type may add scalar memberships"
+        memberships := { scope, membership := { membership with target :=
+          { membership.target with path := [symbol p.toProgram target] } } } :: memberships
+  if declarations.length + Abstract.builtins.length > Limits.nominalTypes then
+    problem ((declarations.head?).map (·.declaration.span) |>.getD {}) "E_LIMIT"
+      s!"nominal hierarchy exceeds {Limits.nominalTypes} types including the six builtins"
+  return { declarations := declarations.reverse, memberships := memberships.reverse }
+
+def MembershipGraph.rawDeclarations (graph : MembershipGraph) : List RawAbstractType :=
+  graph.declarations.map (·.declaration)
+
+def MembershipGraph.names (graph : MembershipGraph) : List String :=
+  Abstract.canonicalNames graph.rawDeclarations
+
+def MembershipGraph.hierarchy (graph : MembershipGraph) : Dispatch.Hierarchy :=
+  Abstract.build graph.rawDeclarations (graph.memberships.map (·.membership))
+
+/-- Only abstract inheritance is used for a support path. Scalar edges cannot
+circularly justify their own authority. -/
+def MembershipGraph.inheritance (graph : MembershipGraph) : Dispatch.Hierarchy :=
+  Abstract.build graph.rawDeclarations []
+
+def MembershipSupported (graph : MembershipGraph) (inheritance : Dispatch.Hierarchy)
+    (ancestor : AbstractOrigin) (scalar : Nat) : Prop :=
+  ∃ support ∈ graph.memberships,
+    support.scope = ancestor.scope ∧
+    Dispatch.parseScalar support.membership.scalar = some scalar ∧
+    inheritance.subtype (graph.names.idxOf support.membership.target.name)
+      (graph.names.idxOf ancestor.declaration.name) = true
+
+instance : Decidable (MembershipSupported graph inheritance ancestor scalar) := by
+  unfold MembershipSupported
+  infer_instance
+
+def MembershipsAuthorized (graph : MembershipGraph) : Prop :=
+  let hierarchy := graph.hierarchy
+  let inheritance := graph.inheritance
+  ∀ ancestor ∈ graph.declarations, ∀ scalar ∈ [0, 1, 2, 3],
+    hierarchy.subtype scalar (graph.names.idxOf ancestor.declaration.name) = true →
+      MembershipSupported graph inheritance ancestor scalar
+
+instance : Decidable (MembershipsAuthorized graph) := by
+  unfold MembershipsAuthorized
+  infer_instance
+
+def membershipAuthorityDiagnostic (graph : MembershipGraph) : Diagnostic := Id.run do
+  let hierarchy := graph.hierarchy
+  let inheritance := graph.inheritance
+  for ancestor in graph.declarations do
+    for scalar in [0, 1, 2, 3] do
+      if hierarchy.subtype scalar (graph.names.idxOf ancestor.declaration.name) &&
+          !decide (MembershipSupported graph inheritance ancestor scalar) then
+        let cause := graph.memberships.find? fun m =>
+          Dispatch.parseScalar m.membership.scalar == some scalar &&
+          inheritance.subtype (graph.names.idxOf m.membership.target.name)
+            (graph.names.idxOf ancestor.declaration.name)
+        return {
+          code := "E_OWNER"
+          message := s!"inherited {Dispatch.nominalName scalar} membership lacks authorization from the ancestor's exact defining module"
+          span := cause.map (·.membership.span) |>.getD ancestor.declaration.span
+          notes := [{ span := ancestor.declaration.span, message := "this abstract selector's owner must independently declare the scalar membership" }] }
+  return { code := "E_OWNER", message := "inherited scalar membership lacks owner authorization" }
+
 
 def lower (p : Indexed) : Result Lowered := do
   validate p
@@ -403,6 +502,9 @@ def checkNamespaceProgram (p : Namespace.Program) (requireMain : Bool := false)
   let indexed := p.indexed
   let lowered ← Namespace.lower indexed
   (do
+    let graph ← Namespace.membershipGraph indexed
+    if !Namespace.MembershipsAuthorized graph then
+      throw (Namespace.membershipAuthorityDiagnostic graph)
     if !Namespace.UniqueOwners indexed || !Namespace.ReferencesValid indexed lowered then
       throw ({ code := "E_INTERNAL_NAMESPACE", message := "namespace identity or reference audit failed" } : Diagnostic)
     checkSurfaceProgram lowered.surface requireMain).mapError (render lowered)

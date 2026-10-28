@@ -20,12 +20,23 @@ private def import3 (j : Json) : Except String Namespace.Import := do
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
 
 
-private def grant5 (j : Json) : Except String Namespace.Grant := do
-  fields3 j ["name", "target", "grantee_source", "grantee_path", "region", "span", "public"]
+private def grant5 (authority : Bool) (j : Json) : Except String Namespace.Grant := do
+  fields3 j (["name", "target", "grantee_source", "grantee_path", "region", "span", "public"] ++
+    if authority then ["delegable"] else [])
+  let delegable ← match j.getObjVal? "delegable" with
+    | .error _ => pure false
+    | .ok value => value.getBool?
   return {
     name := ← str j "name", target := ← path3 j "target",
     granteeSource := ← str j "grantee_source", granteePath := ← path3 j "grantee_path",
     region := ← (← array j "region").mapM fun key => do (← key.getArr?).toList.mapM Json.getStr?,
+    delegable, span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
+
+private def transfer6 (j : Json) : Except String Namespace.Transfer := do
+  fields3 j ["name", "target", "grantee_source", "grantee_path", "span", "public"]
+  return {
+    name := ← str j "name", target := ← path3 j "target",
+    granteeSource := ← str j "grantee_source", granteePath := ← path3 j "grantee_path",
     span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
 private def contribution5 (j : Json) : Except String Namespace.Contribution := do
@@ -37,7 +48,7 @@ private def contribution5 (j : Json) : Except String Namespace.Contribution := d
     name := ← str j "name", target := ← path3 j "target", methods,
     span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
-private def event5 (j : Json) : Except String Namespace.EditEvent := do
+private def event5 (authority : Bool) (j : Json) : Except String Namespace.EditEvent := do
   let op ← str j "op"
   let span ← decodeSpan j
   match op with
@@ -55,19 +66,28 @@ private def event5 (j : Json) : Except String Namespace.EditEvent := do
   | "seal" =>
     fields3 j ["op", "target", "span"]
     return .seal (← path3 j "target") span
+  | "reborrow" =>
+    if !authority then throw "reborrowing requires protocol 6"
+    fields3 j ["op", "parent", "delegation", "loan", "span"]
+    return .reborrow (← str j "parent") (← path3 j "delegation") (← str j "loan") span
+  | "transfer" =>
+    if !authority then throw "transfer requires protocol 6"
+    fields3 j ["op", "declaration", "span"]
+    return .transfer (← path3 j "declaration") span
   | _ => throw "unknown assembly event"
 
-private def assembly5 (j : Json) : Except String Namespace.Assembly := do
+private def assembly5 (authority : Bool) (j : Json) : Except String Namespace.Assembly := do
   fields3 j ["events", "span"]
   let events ← array j "events"
   if events.length > Limits.assemblyEvents then throw "assembly event limit exceeded"
-  return { events := ← events.mapM event5, span := ← decodeSpan j }
+  return { events := ← events.mapM (event5 authority), span := ← decodeSpan j }
 
 
-private def module3 (extended editable : Bool) (j : Json) : Except String Namespace.Module := do
+private def module3 (extended editable authority : Bool) (j : Json) : Except String Namespace.Module := do
   fields3 j (["path", "public", "span", "imports", "functions", "generics", "methods"] ++
     (if extended then ["abstract_types", "subtypes", "abstract_methods"] else []) ++
-    (if editable then ["grants", "contributions", "assembly"] else []))
+    (if editable then ["grants", "contributions", "assembly"] else []) ++
+    (if authority then ["delegations", "transfers"] else []))
   let functions ← (← array j "functions").mapM fun f => do
     fields3 f ["name", "params", "return_type", "body", "span", "public"]
     return { (← decodeSurfaceFunction f) with isPublic := ← f.getObjValAs? Bool "public" : Namespace.Function }
@@ -83,16 +103,18 @@ private def module3 (extended editable : Bool) (j : Json) : Except String Namesp
   let subtypes ← (← optionalArray j "subtypes").mapM decodeSubtype
   let assembly ← match j.getObjVal? "assembly" with
     | .error _ => pure none
-    | .ok value => some <$> assembly5 value
+    | .ok value => some <$> assembly5 authority value
   return {
     path := ← path3 j "path", isPublic := ← j.getObjValAs? Bool "public",
     span := ← decodeSpan j, imports := ← (← array j "imports").mapM import3,
     functions, generics, methods, abstractTypes, subtypes, assembly,
-    grants := ← (← optionalArray j "grants").mapM grant5,
+    grants := ← (← optionalArray j "grants").mapM (grant5 authority),
+    delegations := ← (← optionalArray j "delegations").mapM (grant5 authority),
+    transfers := ← (← optionalArray j "transfers").mapM transfer6,
     contributions := ← (← optionalArray j "contributions").mapM contribution5,
     abstractMethods := ← (← optionalArray j "abstract_methods").mapM decodeAbstractMethod }
 
-private def package3 (extended editable : Bool) (j : Json) : Except String Namespace.Package := do
+private def package3 (extended editable authority : Bool) (j : Json) : Except String Namespace.Package := do
   fields3 j ["source", "name", "version", "dependencies", "modules"]
   let dependencies ← (← array j "dependencies").mapM fun dep => do
     fields3 dep ["alias", "target"]
@@ -101,18 +123,19 @@ private def package3 (extended editable : Bool) (j : Json) : Except String Names
     id := {
       source := ← j.getObjValAs? String "source", name := ← j.getObjValAs? String "name",
       version := ← j.getObjValAs? String "version" }, dependencies,
-    modules := ← (← array j "modules").mapM (module3 extended editable) }
+    modules := ← (← array j "modules").mapM (module3 extended editable authority) }
 
 def decodeNamespaceProgram (j : Json) : Except String Namespace.Program := do
   let version ← j.getObjValAs? Nat "version"
-  let editable := version == 5
+  let authority := version == 6
+  let editable := version == 5 || authority
   let extended := version == 4 || editable
-  if version != 3 && !extended then throw "expected protocol 3, 4 or 5"
+  if version != 3 && !extended then throw "expected protocol 3, 4, 5 or 6"
   fields3 j (["version", "file", "root", "packages"] ++ if extended then ["input"] else [])
   if extended then
-    if (← str j "input") != "package" then throw "protocol 4/5 namespace input must be package"
+    if (← str j "input") != "package" then throw "protocol 4/5/6 namespace input must be package"
   return {
-    extended, editable, file := ← j.getObjValAs? String "file", root := ← j.getObjValAs? String "root",
-    packages := ← (← array j "packages").mapM (package3 extended editable) }
+    extended, editable, authority, file := ← j.getObjValAs? String "file", root := ← j.getObjValAs? String "root",
+    packages := ← (← array j "packages").mapM (package3 extended editable authority) }
 
 end VastitasKernel

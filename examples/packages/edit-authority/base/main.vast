@@ -1,0 +1,7 @@
+pub generic choose(x, y) { domain (Int, Int), (Bool, Bool); }
+method choose(x: Any, y: Any) -> Int { 0 }
+
+pub grant outer : choose to module("../addon/Vastitas.toml", "") delegable {
+  domain (Int, Int);
+}
+pub transfer handoff : choose to module("../addon/Vastitas.toml", "");

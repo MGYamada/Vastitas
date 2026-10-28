@@ -155,11 +155,18 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
     (m.generics.map fun g => (⟨scope, g.name⟩, g.span)) ++
     (m.abstractTypes.map fun t => (⟨scope, t.name⟩, t.span)) ++
     (m.grants.map fun g => (⟨scope, g.name⟩, g.span)) ++
+    (m.delegations.map fun g => (⟨scope, g.name⟩, g.span)) ++
+    (m.transfers.map fun t => (⟨scope, t.name⟩, t.span)) ++
     (m.contributions.map fun c => (⟨scope, c.name⟩, c.span)) ++
     (if m.path.isEmpty then [] else
       [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
 
 def validate (p : Indexed) : Result Unit := do
+  if p.authority && !p.editable then problem {} "E_PROTOCOL" "authority requires edit input"
+  if !p.authority && p.packages.any (fun pkg => pkg.modules.any fun m =>
+      !m.delegations.isEmpty || !m.transfers.isEmpty || m.grants.any (·.delegable) ||
+      (m.assembly.map fun a => a.events.any EditEvent.authority).getD false) then
+    problem {} "E_PROTOCOL" "delegation and transfer require protocol 6"
   if !p.editable && p.packages.any (fun pkg => pkg.modules.any fun m =>
       !m.grants.isEmpty || !m.contributions.isEmpty || m.assembly.isSome) then
     problem {} "E_PROTOCOL" "edit declarations require protocol 5"
@@ -208,7 +215,7 @@ structure Reference where
   target : Target
   method : Bool := false
   membership : Bool := false
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, DecidableEq
 
 structure Lowered where
   surface : Surface.Program

@@ -4,9 +4,10 @@ This is internal infrastructure for #58/#59/#62, not completion of those issues
 or #49. `VastitasKernel.Indexed` supplies a finite declaration environment and
 an independently audited indexed application. It is not yet the public source
 checker. Protocol 7 remains unavailable, and the existing geometry checker has
-not yet been replaced. No new source syntax or native operation is claimed here. The declaration base
-was merged in PR #188 (`09f9e9d`); the package and primitive contracts below are
-the next internal integration increment.
+not yet been replaced. No new public source syntax or operation is claimed here.
+The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
+annotation contracts in PR #189 (`b3f8ff7`). The internal Core now connects those
+contracts to actual terms and standalone native generation, as described below.
 
 ## Identity and declarations
 
@@ -36,7 +37,8 @@ Implementation capability records currently contain the closed `origin` and
 explicit per implementation; classification or inheritance does not fill them
 in. These records alone are not mathematical evidence or operation acceptance.
 The closed primitive binding checker is described below. Executable source/
-term/runtime use of these records remains part of #60. The ordinary namespace/membership authority audit must also be connected
+term use of these records is checked by the internal Core below. Public source
+integration remains part of #60. The ordinary namespace/membership authority audit must also be connected
 before a public program may install these declarations.
 
 ## Indexed applications and scopes
@@ -57,10 +59,10 @@ object, and two global declarations of the same implementation remain distinct.
 All object indices contribute to the generic scope traversal, including indices
 of tokens with empty runtime representations. Substitution fixes globals,
 requires unique local sources and preserves the source's exact object type.
-Function substitution and the corresponding evaluator/codegen proofs remain
-integration work; the package and primitive layers below audit their own
-freshness, association and domain refinement contracts, but this
-foundation does not by itself establish those broader properties.
+The internal Core has a separate checked call substitution relation that permits
+whole-domain refinement, rechecks every dependent argument after substitution
+and fixes globals. Evaluator/codegen refinement proofs remain integration work;
+the annotation foundation alone does not establish those broader properties.
 
 ## Independent checks and proof boundary
 
@@ -113,14 +115,16 @@ The brand serial must differ from every local serial in the supplied allocation
 context, including locals with different claimed type metadata. The field
 annotations must use that exact new witness and remain scoped with it. Opening
 the same package twice therefore produces distinct brands while the first is
-retained in the context. Term-level allocation must supply the complete relevant
-context; connecting this to compiler allocation and runtime values is pending.
+retained in the context. The internal Core supplies its complete variable context
+and additionally audits unique allocation serials over all function parameters
+and allocation nodes. Runtime value correspondence remains a proof obligation.
 
 `VastitasOracle.IndexedPackages` proves the executable audits equivalent to their
 independent propositions, field/witness association, absence of any other free
 local field index, scoped opening fields, brand freshness and distinct reopening.
-These are contracts over the exact checked **type annotations**; actual field
-terms and evaluator/package-value correspondence are not yet covered.
+These package-layer theorems concern the exact checked **type annotations**.
+The Core layer below additionally checks actual field terms; evaluator/package-
+value correspondence is not yet proved.
 
 ## Closed primitive binding inventory
 
@@ -157,3 +161,57 @@ still required before #60/#62/#63 can close.
 including repeated openings/repacking, false field associations, abstract-domain
 capability loss, changed family IDs, false result endpoints and reused brands.
 The existing public compiler and its wire versions 2–6 remain unchanged.
+
+## Audited Core and native generation
+
+`IndexedCore`, `IndexedTyping` and `IndexedTypeAudit` now compose the declaration,
+package and primitive contracts over actual terms. Every node carries an audited
+result, and every function body is checked, including unreachable functions and
+both branches. Calls use signatures extracted from the same module and actual
+call IDs feed the existing dependency-order audit. There is no separate trusted
+dependency graph. The entrypoint must have no arguments and return `Int`.
+
+Object ascription preserves the original reference but restricts operations by
+the current static domain. Variable lookup checks the entire annotation, so a
+forged variable type cannot recover a discarded capability. Dependent calls
+preserve exact indexed endpoints; object-valued calls introduce a fresh caller
+identity. Different branch results require a fresh merged identity even for a
+constant condition. Numeric allocation serials are unique across all allocation
+sites and object parameters, independently of claimed type metadata.
+
+Lexical scopes and existential openings reject result types containing new local
+indices. References already present inside an outer indexed value remain in
+scope even when that object's original binding was anonymous. Packages use an
+explicit finite case table indexed by domain and coefficient marker, at most
+64 cases per declaration. Cases cannot overlap. Runtime objects and dimensions
+are never case or dispatch keys. Fields use the single-witness templates above.
+
+`VastitasOracle.IndexedCore.checkModule_acceptance` identifies the exact input
+module and combines its complete structural typing, declaration/freshness,
+actual dependency order and entrypoint checks. Additional consequences cover
+scopes, ascription, dependent substitution, primitive contracts and payload
+association. Constructive checker/proposition equivalence lemmas shared with
+the oracle live in `IndexedAudit` and `IndexedContractAudit`, allowing executable
+decisions without classical choice or mathlib. Existing oracle names are exported.
+
+`IndexedCodegen.generate` takes a checked module and repeats the complete audit
+immediately before generation, then emits only reachable functions. Native
+representations come from validated family contracts. Generated existential
+structures retain the witness and every ordered field; numeric identifiers
+avoid inserting source names into Lean code. The generated program imports only
+`IndexedRuntime`, whose finite operations are descriptors, origins, identities
+and their composition/application. Type identity, classification and coefficient
+markers may be erased after checking; equal runtime descriptors confer no
+static compatibility. This runtime is not an arbitrary scheme implementation.
+
+`IndexedCoreRegression` has 34 cases, including actual package/function/primitive
+composition and forged annotation, substitution, scope, freshness, declaration
+and dependency failures. `bash scripts/check_indexed_native.sh` compiles and runs
+three standalone fixtures (package output `2`, all primitives output `42`, and
+arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI jobs run them.
+
+Public protocol 7, Rust parsing/resolution, source-to-Core correspondence,
+stdlib geometry declarations and the legacy adapter remain pending. Typed
+evaluation, activation/world correspondence and native refinement are not
+claimed by the new structural theorem or by native regression tests. These
+limits prevent closing #49/#58–63 at this increment.

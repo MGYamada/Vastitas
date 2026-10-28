@@ -605,5 +605,22 @@ global free references, freshness and distinct reopening. Primitive proofs cover
 closed binding validity, complete-domain capabilities, fresh construction,
 composition endpoints and application test-object preservation. The 45 added
 kernel cases exercise these audits directly. The propositions concern internal
-type annotations; public source/term/evaluator/codegen integration remains
-pending and the existing geometry acceptance proofs remain in force.
+type annotations; the internal Core layer below connects them to actual terms.
+Public source/evaluator integration remains pending and the existing geometry
+acceptance proofs remain in force.
+
+`VastitasOracle.IndexedCore.checkModule_acceptance` proves exact input identity,
+complete module typing (including every body and declaration), actual call-graph
+dependency order and the entrypoint contract for `Indexed.Core.Typing.checkModule`.
+Consequences cover unique allocation serials, scope escape rejection, ascription,
+dependent call substitution and the primitive/package associations of typed
+terms. The executable decision procedures use constructive checker equivalences
+in `IndexedAudit` and `IndexedContractAudit`, also exported by the existing oracle
+modules. No frontend-selected signatures or dependency graph enter this theorem.
+
+The internal generator repeats the audit, emits native Lean functions and imports
+only `IndexedRuntime`. Thirty-four structural regressions and three standalone
+native fixtures run without mathlib. This is not yet a source acceptance or
+typed evaluation theorem, nor a proof of native equivalence. Function activation
+worlds, public protocol 7, source lowering and compatibility geometry still need
+their correspondence proofs. See [indexed-declarations.md](indexed-declarations.md).

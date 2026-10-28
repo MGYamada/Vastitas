@@ -1,24 +1,11 @@
-import VastitasKernel.IndexedPackages
+import VastitasKernel.IndexedContractAudit
 import VastitasOracle.Indexed
 
 namespace VastitasOracle.Indexed
 open VastitasKernel.Indexed
 
-theorem validPackageShape_iff (env : Environment) (shape : PackageShape) :
-    validPackageShape env shape = true ↔ shape.Valid env := by
-  simp [validPackageShape, PackageShape.Valid, Bool.and_eq_true, List.all_eq_true,
-    validApplication_iff, and_assoc]
-
-theorem validPackagePayload_iff (env : Environment) (shape : PackageShape) (payload : PackagePayload) :
-    validPackagePayload env shape payload = true ↔ payload.Valid env shape := by
-  simp [validPackagePayload, PackagePayload.Valid, Bool.and_eq_true, List.all_eq_true,
-    validApplication_iff, and_assoc]
-
-theorem validPackageOpening_iff (env : Environment) (shape : PackageShape) (allowed : List ObjectRef)
-    (brand : Nat) (opening : PackageOpening) :
-    validPackageOpening env shape allowed brand opening = true ↔ opening.Valid env shape allowed brand := by
-  simp [validPackageOpening, PackageOpening.Valid, Bool.and_eq_true, List.all_eq_true,
-    validApplication_iff, and_assoc]
+export VastitasKernel.Indexed.Audit
+  (validPackageShape_iff validPackagePayload_iff validPackageOpening_iff)
 
 theorem checked_package_shape_valid {env : CheckedEnvironment} (shape : CheckedPackageShape env) :
     shape.shape.Valid env.environment := (validPackageShape_iff _ _).mp shape.accepted

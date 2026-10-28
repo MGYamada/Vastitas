@@ -87,6 +87,8 @@ jobs:
           python3 scripts/check_boundaries.py
       - name: Checked-IR, dispatch, and function regressions
         run: bash scripts/check_kernel_regressions.sh
+      - name: Declaration-driven Core native regressions
+        run: bash scripts/check_indexed_native.sh
       - name: Rust, native compiler, and standard-library tests
         run: |
           python3 scripts/build_stdlib_package.py

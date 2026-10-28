@@ -1,35 +1,11 @@
-import VastitasKernel.IndexedPrimitives
+import VastitasKernel.IndexedContractAudit
 import VastitasOracle.IndexedPackages
 
 namespace VastitasOracle.Indexed
 open VastitasKernel.Indexed
 
-theorem validPrimitiveBinding_iff (env : Environment) (binding : PrimitiveBinding) :
-    validPrimitiveBinding env binding = true ↔ binding.Valid env := by
-  cases binding with
-  | descriptor implementation =>
-    simp only [validPrimitiveBinding, PrimitiveBinding.Valid]
-    cases implementationType env implementation <;> simp
-  | global => simp [validPrimitiveBinding, PrimitiveBinding.Valid]
-  | origin | identity =>
-    simp [validPrimitiveBinding, PrimitiveBinding.Valid, originContract, identityContract,
-      Bool.and_eq_true, validApplication_iff, and_assoc]
-  | dimension | compose | apply =>
-    simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true]
-
-theorem validValueType_iff (env : Environment) (type : ValueType) :
-    validValueType env type = true ↔ type.Valid env := by
-  cases type <;> simp [validValueType, ValueType.Valid, validApplication_iff]
-
-theorem validPrimitive_iff (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
-    (brand : Nat) (arguments : List ValueType) (result : ValueType) :
-    validPrimitive env binding allowed brand arguments result = true ↔
-      PrimitiveTyped env binding allowed brand arguments result := by
-  simp only [validPrimitive, Bool.and_eq_true, List.all_eq_true, validPrimitiveBinding_iff,
-    validValueType_iff, decide_eq_true_eq, and_assoc]
-  exact ⟨fun ⟨bindingValid, argumentsValid, resultValid, association⟩ =>
-    ⟨bindingValid, argumentsValid, resultValid, association⟩,
-    fun valid => ⟨valid.bindingValid, valid.argumentsValid, valid.resultValid, valid.association⟩⟩
+export VastitasKernel.Indexed.Audit
+  (validPrimitiveBinding_iff validValueType_iff validPrimitive_iff)
 
 theorem checked_primitive_typed {env : CheckedEnvironment} {binding : PrimitiveBinding}
     {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType}

@@ -8,6 +8,8 @@ kernel and generated runtime depend only on the Lean distribution.
 Flat protocol versions 2 and 4 enter through `checkSurfaceProgram`. Package
 versions 3 and 4 resolve namespaces before entering the same surface checker.
 Protocol 5 additionally validates the edit assembly and final contributions.
+Protocol 6's `checkAuthorityProgram` additionally validates nested delegations
+and current-owner transfer histories before entering that same surface checker.
 The first-order `checkProgram` API is an input adapter to that checker.
 All inputs check independent lambdas, static function contracts and finite
 dispatch families, then use one lowering and specialization implementation.
@@ -538,3 +540,40 @@ python3 scripts/check_boundaries.py
 
 These are reproduction commands, not a claim that a particular host or CI run
 executed them; report actual validation results with each change.
+## Edit authority acceptance (protocol 6)
+
+`VastitasKernel.Authority` is the actual implementation used by public wire
+version 6. It imports the namespace, contribution-lowering, final dispatch and
+unapplied-body mechanisms from the existing compiler. Its `TransitionAllowed`,
+`StateValid`, `ChainValid` and `HistoryValid` propositions are defined separately
+from `step`; acceptance audits every prefix. `DeclarationsCorrespond` compares
+complete reconstructed declarations and reference provenance with the prepared
+records. The final executable surface is assembled from those same bodies.
+
+`VastitasOracle.Authority.runTrace_sound` connects successful execution to the
+declarative trace. `assembled_trace` and `assembled_state_valid` give exclusive
+leaf editing, valid ownership histories and returned loans. The reborrow,
+application, return and transfer theorems establish explicit delegation,
+contained regions, suspended parents, inner-first return, current-owner
+authority and preservation of complete contribution records. A transfer changes
+the editor, not the canonical definition identity. `applied_region_contained`
+and `final_winner_authorized` connect final winning footprints to every ancestor
+region. Membership and abstract-contract authority continue through the existing
+exact-defining-module namespace audits.
+
+`checkAuthorityProgram_audited` connects the actual returned `CertifiedModule`
+to both the checked unapplied-body audit surface and the exact checked final
+surface. `checkAuthorityProgram_typed_and_ordered` and
+`checkAuthorityProgram_total_for_arguments` compose with the existing Core
+theorems. No claim is made that an Open intermediate family is executable.
+
+`AuthorityRegression` is an additional target in the shared regression script.
+It exercises actual acceptance, rejected legacy API bypasses, forged parent
+links/regions/recipient records and invented histories. `tests/edit_authority.rs`
+covers source and wire paths, native execution, alias replay, transfer before
+or after borrowing, retained grants and Open obligations, repaired ambiguity,
+invalid bodies, final footprints and immutable membership/contract authority.
+The regression target runs without mathlib; the oracle and axiom audit remain
+separate. The trust boundary still excludes Rust parsing, JSON decoding, input
+authenticity and native/backend equivalence. This is edit authority, not storage
+borrow safety or a claim to have implemented all eight domain checkers.

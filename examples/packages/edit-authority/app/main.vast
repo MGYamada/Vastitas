@@ -1,0 +1,11 @@
+assembly {
+  borrow base::outer as parent;
+  reborrow parent via addon::inner as child;
+  apply addon::ops::sum using child;
+  return child;
+  return parent;
+  transfer base::handoff;
+  apply addon::boolean;
+  seal base::choose;
+}
+fn main() -> Int { base::choose(40, 2) + base::choose(true, true) }

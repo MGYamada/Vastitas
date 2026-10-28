@@ -513,6 +513,8 @@ impl Parser {
             subtypes: Vec::new(),
             abstract_methods: Vec::new(),
             grants: Vec::new(),
+            delegations: Vec::new(),
+            transfers: Vec::new(),
             contributions: Vec::new(),
             assembly: None,
         };
@@ -548,7 +550,17 @@ impl Parser {
                 module.subtypes.push(self.subtype()?);
             } else if self.peek().is("grant") {
                 module.grants.push(Public {
-                    declaration: self.grant()?,
+                    declaration: self.grant("grant")?,
+                    public,
+                });
+            } else if self.peek().is("delegation") {
+                module.delegations.push(Public {
+                    declaration: self.grant("delegation")?,
+                    public,
+                });
+            } else if self.peek().is("transfer") {
+                module.transfers.push(Public {
+                    declaration: self.transfer()?,
                     public,
                 });
             } else if self.peek().is("contribution") {
@@ -711,8 +723,8 @@ impl Parser {
         Ok(domain)
     }
 
-    fn grant(&mut self) -> Result<crate::packages::Grant, Diagnostic> {
-        let start = self.expect("grant")?.span;
+    fn grant(&mut self, keyword: &str) -> Result<crate::packages::Grant, Diagnostic> {
+        let start = self.expect(keyword)?.span;
         let name = self.binding_name()?.0;
         self.expect(":")?;
         let target = self.edit_path()?;
@@ -728,6 +740,7 @@ impl Parser {
             path.split("::").map(str::to_owned).collect()
         };
         self.expect(")")?;
+        let delegable = self.consume("delegable");
         self.expect("{")?;
         self.expect("domain")?;
         let region = self.domain_list(|parser| {
@@ -743,6 +756,34 @@ impl Parser {
             grantee_source,
             grantee_path,
             region,
+            delegable,
+            span: start.through(end),
+        })
+    }
+
+    fn transfer(&mut self) -> Result<crate::packages::Transfer, Diagnostic> {
+        let start = self.expect("transfer")?.span;
+        let name = self.binding_name()?.0;
+        self.expect(":")?;
+        let target = self.edit_path()?;
+        self.expect("to")?;
+        self.expect("module")?;
+        self.expect("(")?;
+        let grantee_source = self.quoted_path()?;
+        self.expect(",")?;
+        let module = self.quoted_path()?;
+        let grantee_path = if module.is_empty() {
+            Vec::new()
+        } else {
+            module.split("::").map(str::to_owned).collect()
+        };
+        self.expect(")")?;
+        let end = self.expect(";")?.span;
+        Ok(crate::packages::Transfer {
+            name,
+            target,
+            grantee_source,
+            grantee_path,
             span: start.through(end),
         })
     }
@@ -800,10 +841,27 @@ impl Parser {
                 let target = self.edit_path()?;
                 let span = command.span.through(self.expect(";")?.span);
                 EditEvent::Seal { target, span }
+            } else if command.is("reborrow") {
+                let parent = self.binding_name()?.0;
+                self.expect("via")?;
+                let delegation = self.edit_path()?;
+                self.expect("as")?;
+                let loan = self.binding_name()?.0;
+                let span = command.span.through(self.expect(";")?.span);
+                EditEvent::Reborrow {
+                    parent,
+                    delegation,
+                    loan,
+                    span,
+                }
+            } else if command.is("transfer") {
+                let declaration = self.edit_path()?;
+                let span = command.span.through(self.expect(";")?.span);
+                EditEvent::Transfer { declaration, span }
             } else {
                 return Err(diagnostic(
                     "E_PARSE",
-                    "expected borrow, apply, return or seal in assembly",
+                    "expected borrow, reborrow, apply, return, transfer or seal in assembly",
                     command.span,
                 ));
             };

@@ -2,6 +2,7 @@ import VastitasKernel.SurfaceProtocol
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.Edit
+import VastitasKernel.Authority
 import VastitasKernel.NamespaceDiagnostics
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
@@ -19,10 +20,10 @@ private def process (mode input : String) : Lean.Json := Id.run do
     let checked : Except Diagnostic CertifiedModule := do
       unless supportedProtocolVersions.contains version do
         throw { code := "E_PROTOCOL", message := unsupportedProtocolVersion version }
-      if version == 3 || version == 5 || (version == 4 && (json.getObjValAs? String "input").toOption == some "package") then
+      if version == 3 || version == 5 || version == 6 || (version == 4 && (json.getObjValAs? String "input").toOption == some "package") then
         let raw ← (decodeNamespaceProgram json).mapError fun message => { code := "E_PROTOCOL", message }
-        if version == 5 then
-          (checkEditProgram raw (mode == "emit")).mapError fun diagnostic =>
+        if version == 5 || version == 6 then
+          (if version == 6 then checkAuthorityProgram raw (mode == "emit") else checkEditProgram raw (mode == "emit")).mapError fun diagnostic =>
             match Namespace.lower raw.indexed with
             | .ok lowered => Namespace.describeDiagnostic raw lowered diagnostic
             | .error _ => diagnostic

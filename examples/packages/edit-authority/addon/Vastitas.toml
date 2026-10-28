@@ -1,0 +1,7 @@
+[package]
+name = "addon"
+version = "0.1.0"
+root = "main.vast"
+
+[dependencies]
+base = { path = "../base" }

@@ -3,7 +3,7 @@
 This is the first increment of [#52](https://github.com/MGYamada/Vastitas/issues/52),
 tracked by [#56](https://github.com/MGYamada/Vastitas/issues/56). It adds path
 packages, modules, unique function owners and call-only imports to Stage 1b.
-The subsequent [protocol-5 increment](edit-borrowing.md) adds scoped edit borrowing and finite impact regions. Authority transfer remains deferred.
+The [protocol-5 increment](edit-borrowing.md) adds scoped edit borrowing and finite impact regions. [Protocol 6](edit-authority.md) adds explicit nested delegation and permanent authority transfer without changing function identity.
 
 ## Manifest and commands
 

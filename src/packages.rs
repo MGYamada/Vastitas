@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 
 pub(crate) const PROTOCOL: u32 = 3;
 pub(crate) const EDIT_PROTOCOL: u32 = 5;
+pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Grant {
@@ -22,6 +23,17 @@ pub(crate) struct Grant {
     pub grantee_source: String,
     pub grantee_path: Vec<String>,
     pub region: Vec<Vec<String>>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub delegable: bool,
+    pub span: Span,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Transfer {
+    pub name: String,
+    pub target: Vec<String>,
+    pub grantee_source: String,
+    pub grantee_path: Vec<String>,
     pub span: Span,
 }
 
@@ -60,6 +72,16 @@ pub(crate) enum EditEvent {
         target: Vec<String>,
         span: Span,
     },
+    Reborrow {
+        parent: String,
+        delegation: Vec<String>,
+        loan: String,
+        span: Span,
+    },
+    Transfer {
+        declaration: Vec<String>,
+        span: Span,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -93,6 +115,10 @@ pub(crate) struct Module {
     pub abstract_methods: Vec<AbstractMethod>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub grants: Vec<Public<Grant>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub delegations: Vec<Public<Grant>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub transfers: Vec<Public<Transfer>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub contributions: Vec<Public<Contribution>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -386,8 +412,17 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     for package in &mut loader.packages {
         let directory = Path::new(&package.source).parent().unwrap();
         for module in &mut package.modules {
-            for grant in &mut module.grants {
-                let target = canonical(&directory.join(&grant.declaration.grantee_source))?;
+            let grants = module
+                .grants
+                .iter_mut()
+                .chain(&mut module.delegations)
+                .map(|g| (&mut g.declaration.grantee_source, g.declaration.span));
+            let transfers = module
+                .transfers
+                .iter_mut()
+                .map(|t| (&mut t.declaration.grantee_source, t.declaration.span));
+            for (source, span) in grants.chain(transfers) {
+                let target = canonical(&directory.join(&*source))?;
                 let target = target
                     .to_str()
                     .ok_or("E_INPUT: grant manifest path must be UTF-8")?;
@@ -395,23 +430,38 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
                     return Err(loader.sources.diagnostic(
                         "E_OWNER",
                         "grant grantee must belong to the selected dependency closure",
-                        grant.declaration.span,
+                        span,
                     ));
                 }
-                grant.declaration.grantee_source = target.into();
+                *source = target.into();
             }
         }
     }
-    let editable = loader
-        .packages
-        .iter()
-        .flat_map(|p| &p.modules)
-        .any(|m| !m.grants.is_empty() || !m.contributions.is_empty() || m.assembly.is_some());
+    let authority = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+        !m.delegations.is_empty()
+            || !m.transfers.is_empty()
+            || m.grants.iter().any(|g| g.declaration.delegable)
+            || m.assembly.as_ref().is_some_and(|a| {
+                a.events.iter().any(|event| {
+                    matches!(
+                        event,
+                        EditEvent::Reborrow { .. } | EditEvent::Transfer { .. }
+                    )
+                })
+            })
+    });
+    let editable =
+        authority
+            || loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+                !m.grants.is_empty() || !m.contributions.is_empty() || m.assembly.is_some()
+            });
     let extended = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
         !m.abstract_types.is_empty() || !m.subtypes.is_empty() || !m.abstract_methods.is_empty()
     });
     let program = Program {
-        version: if editable {
+        version: if authority {
+            AUTHORITY_PROTOCOL
+        } else if editable {
             EDIT_PROTOCOL
         } else if extended {
             ABSTRACT_PROTOCOL_VERSION

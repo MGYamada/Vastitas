@@ -9,6 +9,7 @@ import VastitasOracle.Functions
 import VastitasOracle.Namespaces
 import VastitasOracle.EditBorrowing
 import VastitasOracle.EditAcceptance
+import VastitasOracle.Authority
 import VastitasOracle.Promotion
 
 /-!

@@ -176,7 +176,7 @@ fn unknown_wire_version_is_echoed_with_the_complete_supported_set() {
     assert_eq!(response["diagnostics"][0]["code"], "E_PROTOCOL");
     assert_eq!(
         response["diagnostics"][0]["message"],
-        "unsupported IR protocol version 999; expected 2, 3, 4, 5"
+        "unsupported IR protocol version 999; expected 2, 3, 4, 5, 6"
     );
     let raw = request("fn main() -> Int { 42 }", "normal.vast");
     assert_eq!(kernel(&raw, "check")["version"], 2);

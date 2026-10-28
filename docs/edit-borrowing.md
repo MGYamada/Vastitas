@@ -2,6 +2,8 @@
 
 This is the protocol-5 implemented increment under #64 and #154–158. It is a
 finite package-only increment, not completion of historical Stage 1.
+The subsequent [protocol-6 extension](edit-authority.md) adds nested reborrowing
+and permanent edit-authority transfer while preserving this protocol-5 route.
 
 ## Source declarations
 

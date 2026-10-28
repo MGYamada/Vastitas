@@ -317,8 +317,8 @@ malformed raw protocol metadata, unused invalid bodies and v2 compatibility.
 These regressions and `PairRegression` run in no-mathlib CI.
 
 This does not prove Rust filesystem loading/authenticity, full source namespace
-syntax preservation, native toolchain equivalence, edit borrowing, or abstract
-methods. Package metadata identifies entries in the supplied IR graph; it does
+syntax preservation, native toolchain equivalence, edit borrowing, or general
+abstract values. Package metadata identifies entries in the supplied IR graph; it does
 not certify the bytes on disk. The general Stage 1 design remains incomplete.
 
 
@@ -340,3 +340,27 @@ inheritance, same-inhabitant ambiguity, uninhabited declarations, limits, cycles
 builtin changes, aliases, unauthorized membership edits, raw IR tampering,
 ordinary/Fn value-type rejection, and native execution. The source/core/native
 and mathematical-geometry proof boundaries described above remain unchanged.
+
+
+## Abstract method contract acceptance
+
+`VastitasOracle.Contracts` imports the actual `Contracts` and `DispatchChecker`
+definitions. The checker retains evidence that each expanded domain satisfies
+its parameter selectors/capabilities, that every contract key belongs to the
+actual callable union, and that the selected source result equals the contract
+result. `contract_covered` composes those checks with the existing finite engine
+soundness theorem: every contract key has its unique optimal concrete winner
+and the required result annotation. Contracts are not candidate methods.
+
+`expanded_key_iff` and `callable_key_iff` characterize the actual expansion
+and union as membership propositions. `expand_order_independent` proves invariance under domain-clause permutation;
+`effective_domain_order_independent` proves the actual canonical union invariant
+under permutations of the base keys and validated contracts. Together with the
+hierarchy construction and finite engine's method-permutation theorems, these
+cover the order-independent components used for selection. They do not assert
+that diagnostics have identical ordering, or prove all parser/lowering behavior.
+The existing `Functions.checkSurfaceProgram_core` and namespace composition
+continue to connect protocol-4 acceptance to the exact independently checked
+core, its typing, dependency order, endpoint preservation and termination.
+No theorem asserts native toolchain equivalence or mathematical properties of
+uninhabited Variety/Manifold declarations. Compiler/runtime remain mathlib-free.

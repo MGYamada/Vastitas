@@ -159,7 +159,7 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
 
 def validate (p : Indexed) : Result Unit := do
   if !p.extended && p.packages.any (fun pkg => pkg.modules.any fun m =>
-      !m.abstractTypes.isEmpty || !m.subtypes.isEmpty) then
+      !m.abstractTypes.isEmpty || !m.subtypes.isEmpty || !m.abstractMethods.isEmpty) then
     problem {} "E_PROTOCOL" "abstract declarations require protocol 4"
   if p.packages.isEmpty || (packageAt p p.root).isNone then problem {} "E_PROTOCOL" "missing root package"
   if !(p.packages.map (·.id.source)).Nodup then problem {} "E_DUPLICATE" "duplicate package location"
@@ -358,6 +358,7 @@ def lower (p : Indexed) : Result Lowered := do
     let mut methods := []
     let mut abstractTypes := []
     let mut subtypes := []
+    let mut abstractMethods := []
     for pkg in p.packages do
       for m in pkg.modules do
         let scope : Scope := ⟨pkg.id, m.path⟩
@@ -375,13 +376,21 @@ def lower (p : Indexed) : Result Lowered := do
             return { param with name := ← binder p scope param.name param.span }
           generics := generics ++ [{ g.toRawGeneric with
             name := symbol p.toProgram ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩, params }]
+        for contract in m.abstractMethods do
+          let target ← lookup p scope contract.name contract.span true
+          let params ← contract.params.mapM fun param => do
+            let ty ← selectorType p scope (.data param.ty) param.span
+            return { param with name := ← binder p scope param.name param.span, ty := ty.core }
+          let domain ← contract.domain.mapM fun clause => clause.mapM (abstractPath p scope)
+          abstractMethods := abstractMethods ++ [{ contract with
+            name := symbol p.toProgram target, params, domain }]
         for method in m.methods do
           let target ← lookup p scope method.name method.span true
           let params ← method.params.mapM fun param => do
             return { param with ty := ← selectorType p scope param.ty param.span }
           let f ← function p scope { method.toFunction with params } target
           methods := methods ++ [{ f with requirements := method.requirements }]
-    return { version := if p.extended then 4 else 2, file := p.file, functions, generics, methods, abstractTypes, subtypes }
+    return { version := if p.extended then 4 else 2, file := p.file, functions, generics, methods, abstractTypes, subtypes, abstractMethods }
   let (surface, references) ← action.run []
   return { surface, references }
 

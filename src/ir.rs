@@ -42,6 +42,8 @@ pub struct Module {
     pub abstract_types: Vec<AbstractType>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub subtypes: Vec<Subtype>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub abstract_methods: Vec<AbstractMethod>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -85,6 +87,16 @@ pub struct Method {
     pub return_type: Type,
     pub requires: Vec<String>,
     pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AbstractMethod {
+    pub name: String,
+    pub params: Vec<Param>,
+    pub return_type: Type,
+    pub requires: Vec<String>,
+    pub domain: Vec<Vec<TypePath>>,
     pub span: Span,
 }
 

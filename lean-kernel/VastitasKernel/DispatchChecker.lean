@@ -1,6 +1,7 @@
 import VastitasKernel.Program
 import VastitasKernel.Dispatch
 import VastitasKernel.Abstract
+import VastitasKernel.Contracts
 import VastitasKernel.Checker
 
 /-! Stage 1 dispatch is a typed lowering adapter. Every ordinary and
@@ -104,8 +105,12 @@ structure Family where
   raw : RawGeneric
   domain : List Dispatch.Key
   methods : List Dispatch.Method
+  sourceMethods : List RawMethod
+  contracts : List (Contracts.Contract nominals.hierarchy)
+  included : contracts.all (fun contract => contract.domain.all domain.contains) = true
   checked : Dispatch.Checked
   accepted : Dispatch.checkWith nominals.hierarchy raw.params.length domain methods = .ok checked
+  fulfilled : contracts.all (Contracts.satisfied sourceMethods checked) = true
 
 abbrev Families := Std.HashMap String Family
 
@@ -178,9 +183,9 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
   let nominals ← Abstract.prepare program.abstractTypes program.subtypes
   let mut result := []
   for generic in program.generics do
-    let domain ← generic.domain.mapM (fun key => key.mapM (fun ty => scalar ty generic.span))
+    let base ← generic.domain.mapM (fun key => key.mapM (fun ty => scalar ty generic.span))
     let mut seen : Std.HashSet Dispatch.Key := {}
-    for key in domain do
+    for key in base do
       if seen.contains key then fail generic.span "E_DUPLICATE" s!"duplicate domain key {keyLabel key}"
       seen := seen.insert key
     let mut methods := []
@@ -190,15 +195,33 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
         methodResult method.returnType method.span
         methods := methods ++ [{ id, selectors, requirements := method.requirements }]
     if generic.params.length > 6 then fail generic.span "E_LIMIT" "dispatch key space exceeds 4096"
-    match accepted : Dispatch.checkWith nominals.hierarchy generic.params.length domain methods with
-    | .error error => throw (dispatchDiagnostic nominals program generic error)
-    | .ok checked => result := result ++ [{ nominals, raw := generic, domain, methods, checked, accepted }]
+    let allKeys := Dispatch.keys nominals.hierarchy.concrete generic.params.length
+    unless base.all allKeys.contains do
+      fail generic.span "E_DISPATCH_DOMAIN" "domain contains a nonconcrete key or wrong arity"
+    let contracts ← (program.abstractMethods.filter (·.name == generic.name)).mapM fun contract => do
+      methodResult contract.returnType contract.span
+      Contracts.prepare nominals generic.params.length contract
+    let domain := Contracts.effectiveDomain nominals.hierarchy generic.params.length base contracts
+    if included : contracts.all (fun contract => contract.domain.all domain.contains) = true then
+      match accepted : Dispatch.checkWith nominals.hierarchy generic.params.length domain methods with
+      | .error error => throw (dispatchDiagnostic nominals program generic error)
+      | .ok checked =>
+        if fulfilled : contracts.all (Contracts.satisfied program.methods checked) = true then
+          result := result ++ [{
+            nominals, raw := generic, domain, methods, sourceMethods := program.methods
+            contracts, included, checked, accepted, fulfilled }]
+        else
+          let contract := contracts.find? (fun contract => !Contracts.satisfied program.methods checked contract)
+          fail (contract.map (·.raw.span) |>.getD generic.span) "E_CONTRACT_RESULT"
+            "selected concrete method does not satisfy the abstract contract result type"
+    else fail generic.span "E_INTERNAL_DISPATCH" "contract domain union lost a key"
+
   pure result
 
 def validateProgram (program : RawProgram) : CheckM Unit := do
   unless program.version == 2 || program.version == 4 do
     fail {} "E_PROTOCOL" "unsupported IR protocol version; expected 2 or 4"
-  if program.version == 2 && (!program.abstractTypes.isEmpty || !program.subtypes.isEmpty) then
+  if program.version == 2 && (!program.abstractTypes.isEmpty || !program.subtypes.isEmpty || !program.abstractMethods.isEmpty) then
     fail {} "E_PROTOCOL" "abstract declarations require protocol 4"
   let mut globals : Std.HashSet String := {}
   for function in program.functions do
@@ -235,6 +258,16 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
     for param in method.params do
       checkBinder globals param.name param.span
     validateBlock 512 globals method.body
+
+  for contract in program.abstractMethods do
+    checkSourceName contract.name contract.span
+    unless genericNames.contains contract.name do
+      fail contract.span "E_NAME" s!"abstract method refers to undeclared generic '{contract.name}'"
+    let mut params : Std.HashSet String := {}
+    for param in contract.params do
+      checkBinder globals param.name param.span
+      if params.contains param.name then fail param.span "E_DUPLICATE" "duplicate abstract method parameter"
+      params := params.insert param.name
 
 def instantiate (program : RawProgram) (families : List Family) : CheckM (List RawFunction) := do
   let mut functions : Array RawFunction := #[]

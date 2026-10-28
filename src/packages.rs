@@ -2,7 +2,8 @@
 //! wire request: only Lean can accept them and assign function identities.
 use crate::frontend;
 use crate::ir::{
-    ABSTRACT_PROTOCOL_VERSION, AbstractType, Function, Generic, Method, Span, Subtype,
+    ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Function, Generic, Method, Span,
+    Subtype,
 };
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
@@ -39,6 +40,8 @@ pub(crate) struct Module {
     pub abstract_types: Vec<Public<AbstractType>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub subtypes: Vec<Subtype>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub abstract_methods: Vec<AbstractMethod>,
     pub span: Span,
 }
 
@@ -318,11 +321,9 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
     };
     let root = loader.package(manifest)?;
-    let extended = loader
-        .packages
-        .iter()
-        .flat_map(|p| &p.modules)
-        .any(|m| !m.abstract_types.is_empty() || !m.subtypes.is_empty());
+    let extended = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+        !m.abstract_types.is_empty() || !m.subtypes.is_empty() || !m.abstract_methods.is_empty()
+    });
     let program = Program {
         version: if extended {
             ABSTRACT_PROTOCOL_VERSION

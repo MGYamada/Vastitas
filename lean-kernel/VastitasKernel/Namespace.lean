@@ -58,6 +58,7 @@ structure Module where
   methods : List Surface.Method
   abstractTypes : List AbstractType := []
   subtypes : List RawSubtype := []
+  abstractMethods : List RawAbstractMethod := []
   span : Span
   deriving Repr, Inhabited
 

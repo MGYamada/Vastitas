@@ -7,9 +7,9 @@ use std::collections::{HashMap, HashSet};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
-    ABSTRACT_PROTOCOL_VERSION, AbstractType, Block, Expr, ExprKind, Function, Generic,
-    GenericParam, Index, Method, Module, PROTOCOL_VERSION, Param, Span, Statement, StatementKind,
-    Subtype, Type, TypePath,
+    ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Block, Expr, ExprKind, Function,
+    Generic, GenericParam, Index, Method, Module, PROTOCOL_VERSION, Param, Span, Statement,
+    StatementKind, Subtype, Type, TypePath,
 };
 
 const BUILTINS: &[&str] = &[
@@ -293,6 +293,14 @@ impl<'a> Lexer<'a> {
     }
 }
 
+struct MethodHeader {
+    name: String,
+    params: Vec<Param>,
+    return_type: Type,
+    requires: Vec<String>,
+    span: Span,
+}
+
 struct Parser {
     tokens: Vec<Token>,
     position: usize,
@@ -394,6 +402,7 @@ impl Parser {
         let mut methods = Vec::new();
         let mut abstract_types = Vec::new();
         let mut subtypes = Vec::new();
+        let mut abstract_methods = Vec::new();
         while self.peek().kind != TokenKind::Eof {
             if self.peek().is("fn") {
                 functions.push(self.function()?);
@@ -401,6 +410,8 @@ impl Parser {
                 generics.push(self.generic()?);
             } else if self.peek().is("method") {
                 methods.push(self.method()?);
+            } else if self.abstract_method_start() {
+                abstract_methods.push(self.abstract_method()?);
             } else if self.peek().is("abstract") {
                 abstract_types.push(self.abstract_type()?);
             } else if self.peek().is("subtype") {
@@ -422,6 +433,7 @@ impl Parser {
             methods,
             abstract_types,
             subtypes,
+            abstract_methods,
         })
     }
 
@@ -468,6 +480,7 @@ impl Parser {
             methods: Vec::new(),
             abstract_types: Vec::new(),
             subtypes: Vec::new(),
+            abstract_methods: Vec::new(),
         };
         while self.peek().kind != TokenKind::Eof && !(inline && self.peek().is("}")) {
             let public = self.consume("pub");
@@ -483,6 +496,8 @@ impl Parser {
                 });
             } else if self.peek().is("method") && !public {
                 module.methods.push(self.method()?);
+            } else if self.abstract_method_start() && !public {
+                module.abstract_methods.push(self.abstract_method()?);
             } else if self.peek().is("abstract") {
                 module.abstract_types.push(Public {
                     declaration: self.abstract_type()?,
@@ -750,7 +765,7 @@ impl Parser {
         }
     }
 
-    fn method(&mut self) -> Result<Method, Diagnostic> {
+    fn method_header(&mut self) -> Result<MethodHeader, Diagnostic> {
         let start = self.expect("method")?.span;
         let (name, _) = if self.packages {
             self.reference_path()?
@@ -777,14 +792,76 @@ impl Parser {
             self.advance();
             requires = self.requirements()?;
         }
-        let body = self.block()?;
-        Ok(Method {
+        Ok(MethodHeader {
             name,
             params,
             return_type,
             requires,
-            span: start.through(body.span),
+            span: start,
+        })
+    }
+
+    fn method(&mut self) -> Result<Method, Diagnostic> {
+        let header = self.method_header()?;
+        let body = self.block()?;
+        Ok(Method {
+            name: header.name,
+            params: header.params,
+            return_type: header.return_type,
+            requires: header.requires,
+            span: header.span.through(body.span),
             body,
+        })
+    }
+
+    fn abstract_method_start(&self) -> bool {
+        self.peek().is("abstract")
+            && self
+                .tokens
+                .get(self.position + 1)
+                .is_some_and(|t| t.is("method"))
+    }
+
+    fn abstract_method(&mut self) -> Result<AbstractMethod, Diagnostic> {
+        let start = self.expect("abstract")?.span;
+        let header = self.method_header()?;
+        self.expect("{")?;
+        self.expect("domain")?;
+        let mut domain = Vec::new();
+        if !self.consume(";") {
+            loop {
+                self.expect("(")?;
+                let mut key = Vec::new();
+                if !self.consume(")") {
+                    loop {
+                        key.push(self.type_path()?);
+                        if self.consume(")") {
+                            break;
+                        }
+                        self.expect(",")?;
+                        if self.consume(")") {
+                            break;
+                        }
+                    }
+                }
+                domain.push(key);
+                if self.consume(";") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(";") {
+                    break;
+                }
+            }
+        }
+        let end = self.expect("}")?.span;
+        Ok(AbstractMethod {
+            name: header.name,
+            params: header.params,
+            return_type: header.return_type,
+            requires: header.requires,
+            domain,
+            span: start.through(end),
         })
     }
 
@@ -1387,6 +1464,22 @@ impl<'a> Resolver<'a> {
             // concrete method instances.
             this.block(&method.body, &scope, None);
         }
+        for contract in &module.abstract_methods {
+            if !this.generics.contains(contract.name.as_str()) {
+                this.errors.push(diagnostic(
+                    "E_NAME",
+                    format!(
+                        "abstract method `{}` requires a declared generic",
+                        contract.name
+                    ),
+                    contract.span,
+                ));
+            }
+            let mut scope = HashSet::new();
+            for param in &contract.params {
+                this.bind(&param.name, &mut scope, param.span);
+            }
+        }
         let mut marks = vec![0; module.functions.len()];
         for i in 0..module.functions.len() {
             if let Some(cycle) = this.cycle(i, &mut marks) {
@@ -1700,6 +1793,7 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         methods: Vec::new(),
         abstract_types: Vec::new(),
         subtypes: Vec::new(),
+        abstract_methods: Vec::new(),
     };
     for input in sources {
         if input.offset.checked_add(input.source.len()).is_none() {
@@ -1739,8 +1833,12 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         module.methods.extend(parsed.methods);
         module.abstract_types.extend(parsed.abstract_types);
         module.subtypes.extend(parsed.subtypes);
+        module.abstract_methods.extend(parsed.abstract_methods);
     }
-    if !module.abstract_types.is_empty() || !module.subtypes.is_empty() {
+    if !module.abstract_types.is_empty()
+        || !module.subtypes.is_empty()
+        || !module.abstract_methods.is_empty()
+    {
         module.version = ABSTRACT_PROTOCOL_VERSION;
         module.input = Some("flat".into());
     }

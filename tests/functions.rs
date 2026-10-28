@@ -89,6 +89,40 @@ fn function_result_dependencies_resume_with_the_original_static_target() {
 }
 
 #[test]
+fn shared_specializations_preserve_native_results_and_recursion_diagnostics() {
+    let declarations = [
+        "fn relay(callback: Fn<Int, Int>, x: Int) -> Int { callback(x) }",
+        "fn leaf(x: Int) -> Int { x }",
+        "fn left(x: Int) -> Int { relay(leaf, x) }",
+        "fn right(x: Int) -> Int { relay(leaf, x) }",
+    ];
+    for reversed in [false, true] {
+        let mut functions = declarations.to_vec();
+        if reversed {
+            functions.reverse();
+        }
+        for main in [
+            "fn main() -> Int { left(10) + right(22) + left(10) }",
+            "fn main() -> Int { let g = fn(x: Int) -> Int { x }; g(left(10) + right(22) + left(10)) }",
+        ] {
+            native(&(functions.join("\n") + main), &[], "42");
+        }
+    }
+    for extra in [
+        "",
+        "fn unused() -> Int { let g = fn(x: Int) -> Int { x }; g(0) }",
+    ] {
+        let message = reject(
+            &format!(
+                "fn main() -> Int {{ a() }}\nfn a() -> Int {{ b() }}\nfn b() -> Int {{ a() }}\n{extra}"
+            ),
+            "E_RECURSION",
+        );
+        assert!(message.contains("`a` → `b` → `a`"), "{message}");
+    }
+}
+
+#[test]
 fn lambdas_cannot_shadow_enclosing_parameters_lets_or_unpacked_objects() {
     for source in [
         "fn main() -> Int { let x = 41; let f = fn(x: Int) -> Int { x + 1 }; f(x) }",

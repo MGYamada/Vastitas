@@ -26,7 +26,9 @@ theorem checkSurfaceProgram_lambda_shadow_free (program : Surface.Program) (requ
   · simp [checkSurfaceProgram, free, shadowFree, throw, bind, Except.bind] at accepted
 
 /-- Every surface program checks the actual lowering result and its actual target
-ledger before handing that very module to the independent core checker. -/
+ledger before handing that very module to the independent core checker. The
+indexed audit is equivalent to the existential specification, including on
+duplicate-definition ledgers; no unproved uniqueness premise is needed. -/
 theorem checkSurfaceProgram_static_calls (program : Surface.Program) (requireMain : Bool)
     (certified : CertifiedModule)
     (accepted : checkSurfaceProgram program requireMain = .ok certified) :
@@ -38,7 +40,7 @@ theorem checkSurfaceProgram_static_calls (program : Surface.Program) (requireMai
   | error diagnostic => simp [checkSurfaceProgram, free, shadowFree, lowered, bind, Except.bind] at accepted
   | ok result =>
     by_cases valid : staticCallsValid result = true
-    · refine ⟨result, rfl, staticCallsValid_sound result valid, ?_⟩
+    · refine ⟨result, rfl, (staticCallsValid_iff result).mp valid, ?_⟩
       simpa [checkSurfaceProgram, free, shadowFree, lowered, valid, bind, Except.bind] using accepted
     · simp [checkSurfaceProgram, free, shadowFree, lowered, valid, bind, Except.bind, throw] at accepted
 

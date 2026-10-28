@@ -301,17 +301,36 @@ fn kernel_checks_twenty_thousand_functions_within_the_watchdog() {
     use std::fmt::Write;
 
     const COUNT: usize = 20_000;
-    for lambda in [false, true] {
-        let mut source = String::new();
+    for (shared, reversed, lambda) in [
+        (false, false, false),
+        (false, false, true),
+        (false, true, true),
+        (true, false, true),
+    ] {
+        let mut declarations = Vec::new();
         for i in 0..COUNT - 1 {
-            writeln!(source, "fn f{i}(x: Int) -> Int {{ f{}(x) }}", i + 1).unwrap();
+            let callee = if shared { COUNT - 1 } else { i + 1 };
+            declarations.push(format!("fn f{i}(x: Int) -> Int {{ f{callee}(x) }}"));
         }
-        writeln!(source, "fn f{}(x: Int) -> Int {{ x }}", COUNT - 1).unwrap();
+        declarations.push(format!("fn f{}(x: Int) -> Int {{ x }}", COUNT - 1));
+        if reversed {
+            declarations.reverse();
+        }
+        let mut source = declarations.join("\n");
         if lambda {
-            source.push_str("fn unused() -> Int { let g = fn(x: Int) -> Int { x }; g(42) }\n");
+            writeln!(
+                source,
+                "\nfn main() -> Int {{ let g = fn(x: Int) -> Int {{ x }}; g(f0(42)) }}"
+            )
+            .unwrap();
+        } else {
+            writeln!(source, "\nfn main() -> Int {{ f0(42) }}").unwrap();
         }
         let response = kernel(request(&source), "check");
-        assert_eq!(response["ok"], true, "lambda={lambda}: {response}");
+        assert_eq!(
+            response["ok"], true,
+            "shared={shared}, reversed={reversed}, lambda={lambda}: {response}"
+        );
     }
 }
 

@@ -1,4 +1,5 @@
 import VastitasKernel.FunctionLift
+import Std.Data.HashMap.Lemmas
 
 namespace VastitasKernel.Surface
 open Checker.Internal
@@ -43,19 +44,51 @@ instance (lowered : Lowered) : Decidable (StaticCallsValid lowered) := by
   unfold StaticCallsValid
   infer_instance
 
-/-- Values carry membership evidence, erased at runtime. The audit constructs
-its own index from the actual definitions; it accepts no frontend index. -/
-abbrev DefinitionIndex (definitions : List Definition) :=
-  Std.HashMap FunctionName { definition // definition ∈ definitions }
+/-- Lookup preserves the original first-declaration behavior, even for callers
+of `lowerPass` that have not run duplicate-name validation. -/
+def definitionLookup (definitions : List Definition) : Std.HashMap FunctionName Definition :=
+  definitions.foldr (fun definition index => index.insert definition.id definition) {}
+
+theorem definitionLookup_matches_list (definitions : List Definition) (name : FunctionName) :
+    (definitionLookup definitions)[name]? = definitions.find? (·.id == name) := by
+  induction definitions with
+  | nil => simp [definitionLookup]
+  | cons head tail ih =>
+    change ((definitionLookup tail).insert head.id head)[name]? = _
+    rw [Std.HashMap.getElem?_insert, ih]
+    cases h : head.id == name <;> simp [h]
+
+/-- Existence auditing must retain every definition with the requested identity.
+Unlike lookup, a first/last match can lose a valid signature on duplicate input. -/
+def definitionBuckets (definitions : List Definition) : Std.HashMap FunctionName (List Definition) :=
+  definitions.foldr (fun definition index =>
+    index.insert definition.id (definition :: index[definition.id]?.getD [])) {}
+
+theorem definitionBuckets_matches_list (definitions : List Definition) (name : FunctionName) :
+    (definitionBuckets definitions)[name]?.getD [] = definitions.filter (·.id == name) := by
+  induction definitions with
+  | nil => simp [definitionBuckets]
+  | cons head tail ih =>
+    change ((definitionBuckets tail).insert head.id
+      (head :: (definitionBuckets tail)[head.id]?.getD []))[name]?.getD [] = _
+    rw [Std.HashMap.getElem?_insert]
+    by_cases h : head.id = name
+    · subst name
+      simp [ih]
+    · simp [ih, beq_eq_false_iff_ne.mpr h]
+
+/-- Constructed in the backend from the actual definitions. The bucket equality
+is erased at runtime; no frontend index or uniqueness assumption is trusted. -/
+structure DefinitionIndex (definitions : List Definition) where
+  entries : Std.HashMap FunctionName (List Definition)
+  lookup_eq : ∀ name, entries[name]?.getD [] = definitions.filter (·.id == name)
 
 def definitionIndex (definitions : List Definition) : DefinitionIndex definitions :=
-  definitions.attach.foldl (fun index definition => index.insert definition.val.id definition) {}
+  ⟨definitionBuckets definitions, definitionBuckets_matches_list definitions⟩
 
 def staticTargetValid (index : DefinitionIndex definitions) (name : FunctionName)
     (signature : TypeExpr) : Bool :=
-  match index[name]? with
-  | none => false
-  | some definition => decide (definition.val.id = name ∧ definition.val.type = signature)
+  (index.entries[name]?.getD []).any (fun definition => decide (definition.type = signature))
 
 def staticBindingValid (index : DefinitionIndex definitions) (binding : TypeExpr × Target) : Bool :=
   decide (binding.1 = binding.2.ty) && match binding.2.name with
@@ -67,14 +100,21 @@ def staticCallsValid (lowered : Lowered) : Bool :=
   lowered.calls.all fun call =>
     staticTargetValid index call.target call.signature && call.bindings.all (staticBindingValid index)
 
+theorem staticTargetValid_iff (index : DefinitionIndex definitions) :
+    staticTargetValid index name signature = true ↔
+      ∃ definition ∈ definitions, definition.id = name ∧ definition.type = signature := by
+  simp only [staticTargetValid, index.lookup_eq, List.any_eq_true, List.mem_filter,
+    beq_iff_eq, decide_eq_true_eq]
+  constructor
+  · rintro ⟨definition, ⟨member, same⟩, signature⟩
+    exact ⟨definition, member, same, signature⟩
+  · rintro ⟨definition, member, same, signature⟩
+    exact ⟨definition, ⟨member, same⟩, signature⟩
+
 theorem staticTargetValid_sound (index : DefinitionIndex definitions)
     (valid : staticTargetValid index name signature = true) :
-    ∃ definition ∈ definitions, definition.id = name ∧ definition.type = signature := by
-  unfold staticTargetValid at valid
-  split at valid
-  · contradiction
-  · rename_i definition found
-    exact ⟨definition.val, definition.property, of_decide_eq_true valid⟩
+    ∃ definition ∈ definitions, definition.id = name ∧ definition.type = signature :=
+  (staticTargetValid_iff index).mp valid
 
 theorem staticBindingValid_sound (index : DefinitionIndex definitions)
     (valid : staticBindingValid index binding = true) :
@@ -97,6 +137,24 @@ theorem staticCallsValid_sound (lowered : Lowered)
   refine ⟨staticTargetValid_sound _ target, ?_⟩
   intro binding member
   exact staticBindingValid_sound _ (List.all_eq_true.mp bindings binding member)
+
+theorem staticBindingValid_iff (index : DefinitionIndex definitions) :
+    staticBindingValid index binding = true ↔
+      binding.1 = binding.2.ty ∧ ∃ definition ∈ definitions,
+        TargetName.concrete definition.id = binding.2.name ∧ definition.type = binding.2.ty := by
+  constructor
+  · exact staticBindingValid_sound index
+  · rintro ⟨same, definition, member, name, signature⟩
+    simp only [staticBindingValid, same, decide_true, Bool.true_and]
+    rw [← name]
+    exact (staticTargetValid_iff index).mpr ⟨definition, member, rfl, signature⟩
+
+/-- Exact equivalence, including duplicate identities with different signatures.
+The audit never substitutes one arbitrarily chosen declaration for existence. -/
+theorem staticCallsValid_iff (lowered : Lowered) :
+    staticCallsValid lowered = true ↔ StaticCallsValid lowered := by
+  simp only [staticCallsValid, StaticCallsValid, List.all_eq_true, Bool.and_eq_true_iff,
+    staticTargetValid_iff, staticBindingValid_iff]
 
 structure State where
   definitions : List Definition
@@ -533,7 +591,7 @@ def lowerPass (p : Program) (definitions : List Definition) (families : Families
   let checker ← get
   let (_, state, checker) ← runWork workBudget (action {
     definitions, families
-    byName := definitions.foldl (fun table f => table.insert f.id f) {}
+    byName := definitionLookup definitions
     globals := Std.HashSet.ofList (p.functions.map (·.name) ++ p.generics.map (·.name) ++ p.abstractTypes.map (·.name))
     audit } checker)
   set checker

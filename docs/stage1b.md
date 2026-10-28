@@ -139,6 +139,14 @@ runtime target choices, recursion, the 4096-instance boundary and forged IR.
 signature ledgers directly without Rust. Both macOS and Linux CI run these
 with no oracle/mathlib checkout; a separate job builds and audits the proofs.
 
+The indexed audit also checks duplicate identities with different signatures
+against the original existential predicate, including witnesses at every
+position. Declaration-order/shared-callee cases pin the emitted dependency
+order, while the existing 60-second watchdog covers 20,000 functions with and
+without a lambda, reversed declarations, and a shared callee. The reproducible
+[indexing measurements](stage1b-indexing.md) distinguish those regressions from
+timing claims.
+
 `tests/pairs.rs` checks Pair source/raw-IR typing and native execution in both
 input modes. `VastitasKernel.PairRegression` forges checked Pair construction,
 projection and call annotations and exercises the code-generation audit boundary.

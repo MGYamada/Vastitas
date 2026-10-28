@@ -94,4 +94,82 @@ private def firstOrder := program [identity, main (.call "identity" [.integer "4
   target := .source "identity", signature := unary int,
   bindings := [(unary int, { name := .probe 0, ty := unary int })] }))
 
+-- The specification quantifies over *all* matching definitions, even in a
+-- forged ledger which could not pass normal declaration validation. Exercise
+-- both target and erased-argument membership with the witness first/middle/last.
+private def duplicateDefinitions : List Definition := [
+  { toFunction := { identity with params := [{ name := "x", ty := bool, span := {} }] },
+    id := .source "identity" },
+  { toFunction := identity, id := .source "identity" },
+  { toFunction := { identity with result := bool }, id := .source "identity" }]
+
+#eval do
+  for definitions in [duplicateDefinitions, duplicateDefinitions.reverse,
+      duplicateDefinitions.drop 1 ++ duplicateDefinitions.take 1] do
+    for signature in [unary int, unary bool, .function [int] bool] do
+      let lowered := { ledger {
+        target := .source "identity", signature,
+        bindings := [(signature, { name := .concrete (.source "identity"), ty := signature })] }
+        with definitions }
+      check "duplicate signature exists in any position" (staticCallsValid lowered)
+      check "duplicate signature agrees with existential specification"
+        (staticCallsValid lowered == decide (StaticCallsValid lowered))
+    let absent := { ledger { target := .source "identity", signature := .function .nil int }
+      with definitions }
+    check "duplicate name cannot justify an absent signature" (!staticCallsValid absent)
+    check "lookup keeps the first definition"
+      (((definitionLookup definitions)[FunctionName.source "identity"]?).map Definition.type ==
+        definitions.head?.map Definition.type)
+
+#eval do
+  let good : StaticCall := { target := .source "identity", signature := unary int }
+  let cases := [ledger good,
+    ledger { good with target := .source "missing" },
+    ledger { good with signature := unary bool },
+    ledger { good with bindings := [(unary bool, { name := .concrete (.source "identity"), ty := unary int })] },
+    ledger { good with bindings := [(unary int, { name := .concrete (.source "missing"), ty := unary int })] },
+    ledger { good with bindings := [(unary bool, { name := .concrete (.source "identity"), ty := unary bool })] },
+    ledger { good with bindings := [(unary int, { name := .probe 0, ty := unary int })] },
+    forgedIdentity,
+    { ledger good with definitions := [] },
+    { ledger good with definitions := [], calls := [] }]
+  for lowered in cases do
+    check "indexed audit matches original predicate on adversarial ledgers"
+      (staticCallsValid lowered == decide (StaticCallsValid lowered))
+
+-- Index construction must not reorder definitions, diagnostics, or emitted
+-- dependencies. Shared callees finish once and are no longer active on reuse.
+private def leaf := { identity with name := "leaf" }
+private def caller (name callee : String) : Function := {
+  identity with name, body := block (.call callee [.variable "x" {}] {}) }
+private def diamondMain := main (.binary "+"
+  (.call "left" [.integer "20" {}] {}) (.call "right" [.integer "22" {}] {}) {})
+private def unusedLambda : Function := {
+  name := "unused", params := [], result := int, span := {}
+  body := .mk [.letE "g" none (.lambda [] int (block (.integer "1" {})) {}) {}]
+    (.invoke (.variable "g" {}) [] {}) {} }
+
+#eval do
+  for (functions, expected) in [
+      ([diamondMain, caller "left" "leaf", caller "right" "leaf", leaf],
+        ["leaf", "left", "right", "main"]),
+      ([caller "right" "leaf", leaf, diamondMain, caller "left" "leaf"],
+        ["leaf", "right", "left", "main"])] do
+    for withLambda in [false, true] do
+      let extra := if (withLambda : Bool) then [unusedLambda] else []
+      let p := program (functions ++ extra)
+      match lowerFunctions p with
+      | .error diagnostic => throw (IO.userError s!"{diagnostic.message}")
+      | .ok lowered =>
+        check "ordered dependency output with shared callee"
+          ((lowered.module.functions.take 4).map RawFunction.name == expected)
+        check "actual ledger passes both audits"
+          (staticCallsValid lowered && decide (StaticCallsValid lowered))
+      check "shared callee accepted" (checkSurfaceProgram p true).isOk
+
+-- A duplicate source declaration is still rejected before body checking.
+#eval check "duplicate declarations retain diagnostic precedence"
+  (rejects "E_DUPLICATE" (program [identity,
+    { identity with body := block (.variable "missing" {}) }]))
+
 end VastitasKernel.Surface.Regression

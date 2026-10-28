@@ -375,11 +375,24 @@ module, using an abstract-only inheritance path. This is a decoded-input
 authority guarantee, not filesystem or author authentication.
 
 The common function lowerer indexes structural function/instance identities.
-`staticCallsValid_sound` proves that its indexed static-call audit implies the
-original `StaticCallsValid` specification, using definition-membership witnesses
-that are erased at runtime. Ordered output arrays and active diagnostic stacks
-remain explicit. Type shape checks do not count a synthesized Fn wrapper toward
-the 64-level declared-type limit.
+`definitionLookup_matches_list` proves equality with the original first-match
+list lookup, even before duplicate-name validation. The independent static-call
+audit has a different contract: it must find *any* definition with both the
+requested identity and structural signature. Its backend-built index therefore
+retains every definition in each identity bucket. `definitionBuckets_matches_list`
+proves exact equality with filtering the original list; this evidence is erased
+at runtime. `staticTargetValid_iff`, `staticBindingValid_iff` and
+`staticCallsValid_iff` establish full equivalence to the original existential
+specification, without a uniqueness premise, including duplicate identities
+with different signatures. `checkSurfaceProgram_static_calls` uses that
+equivalence for the actual lowered result and the same accepted core.
+
+Ordered output arrays and active diagnostic stacks remain explicit. Completed
+instances are memoized in a separate map; active membership uses a set, and
+completion pops the stack and erases the key without filtering the entire stack.
+Signature-probe and executable passes have separate state. Type shape checks do
+not count a synthesized Fn wrapper toward the 64-level declared-type limit.
+See [the indexing regression and measurement notes](stage1b-indexing.md).
 
 Run the transitive local axiom audit with:
 

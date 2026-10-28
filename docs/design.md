@@ -1,5 +1,7 @@
 # Vastitas 言語設計
 
+**現行の規範的な stdlib 境界:** [ADR 0001 — Mathematics-first standard-library admission and trust boundary](adr/0001-mathematics-first-stdlib.md)。本頁以下の v0.3 設計草稿は歴史的提案として保存し、規範と実装状況は区別する。実装の追跡は [#160](https://github.com/MGYamada/Vastitas/issues/160) を参照。
+
 Vastitasは、数学的対象を第一級の値として扱い、数学的意味・実行表現・物理的な証拠を区別する言語を目指す。通常の`Scheme`と滑らかな`CInfScheme`を並行した幾何設定とし、明示的な基底、対象の同一性、射の始終域を保持する。
 
 この索引は、2026年10月26日の設計草稿v0.3をテーマ別に整理したものである。原文の全18節、数式、仮定、注意事項、受入例、参考文献を各文書に保持した。節番号は原文と同じであり、文書中の「Section 8.3」などもその番号を指す。変更したのは、分割に伴う元の目次のリンク先と、索引・案内の追加である。

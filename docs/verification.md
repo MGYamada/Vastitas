@@ -577,3 +577,21 @@ The regression target runs without mathlib; the oracle and axiom audit remain
 separate. The trust boundary still excludes Rust parsing, JSON decoding, input
 authenticity and native/backend equivalence. This is edit authority, not storage
 borrow safety or a claim to have implemented all eight domain checkers.
+
+
+## Internal indexed declaration foundation
+
+`VastitasOracle.Indexed` proves `validEnvironment_iff` and
+`validApplication_iff` for the actual kernel algorithms and their independently
+stated logical judgments. Checked applications retain the same checked
+environment; `checkEnvironment_input` and `checkApplication_input` identify the
+exact original input. `inheritance_acyclic` rules out every nonempty chain of
+class-parent edges from a declaration to itself. Scope traversal and global/family
+identity preservation are also proved for these internal records.
+
+This is prerequisite infrastructure for #58/#59/#62. It is not a public
+protocol-7 acceptance theorem, a port of indexed program evaluation, or completion
+of the geometry migration. The public compiler still uses its existing geometry
+path. See [indexed-declarations.md](indexed-declarations.md) for exact checks,
+limits, regression coverage and the remaining source/namespace/primitive/
+existential/Core integration.

@@ -21,7 +21,7 @@ private def import3 (j : Json) : Except String Namespace.Import := do
 
 private def module3 (extended : Bool) (j : Json) : Except String Namespace.Module := do
   fields3 j (["path", "public", "span", "imports", "functions", "generics", "methods"] ++
-    if extended then ["abstract_types", "subtypes"] else [])
+    if extended then ["abstract_types", "subtypes", "abstract_methods"] else [])
   let functions ← (← array j "functions").mapM fun f => do
     fields3 f ["name", "params", "return_type", "body", "span", "public"]
     return { (← decodeSurfaceFunction f) with isPublic := ← f.getObjValAs? Bool "public" : Namespace.Function }
@@ -38,7 +38,8 @@ private def module3 (extended : Bool) (j : Json) : Except String Namespace.Modul
   return {
     path := ← path3 j "path", isPublic := ← j.getObjValAs? Bool "public",
     span := ← decodeSpan j, imports := ← (← array j "imports").mapM import3,
-    functions, generics, methods, abstractTypes, subtypes }
+    functions, generics, methods, abstractTypes, subtypes,
+    abstractMethods := ← (← optionalArray j "abstract_methods").mapM decodeAbstractMethod }
 
 private def package3 (extended : Bool) (j : Json) : Except String Namespace.Package := do
   fields3 j ["source", "name", "version", "dependencies", "modules"]

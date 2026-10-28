@@ -92,6 +92,8 @@ theorem reference_resolves (program : Namespace.Program) (lowered : Namespace.Lo
     subst target
     rfl
 
+/-- Applies to concrete methods and bodyless abstract contracts: both record
+a generic-edit reference in the actual lowering ledger. -/
 theorem method_owner (program : Namespace.Program) (lowered : Namespace.Lowered)
     (valid : ReferencesValid program.indexed lowered) (reference : Reference)
     (member : reference ∈ lowered.references) (method : reference.method = true) :

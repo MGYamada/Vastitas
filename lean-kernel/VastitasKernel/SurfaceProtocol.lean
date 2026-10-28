@@ -109,16 +109,30 @@ def decodeSubtype (j : Json) : Except String RawSubtype := do
   fields j ["scalar", "target", "span"]
   return { scalar := ← str j "scalar", target := ← decodeTypePath (← field j "target"), span := ← decodeSpan j }
 
+def decodeAbstractMethod (j : Json) : Except String RawAbstractMethod := do
+  fields j ["name", "params", "return_type", "requires", "domain", "span"]
+  let params ← (← array j "params").mapM fun param => do
+    let decoded ← decodeParam param
+    let .data ty := decoded.ty | throw "abstract method selectors cannot be function types"
+    pure { name := decoded.name, ty, span := decoded.span : RawParam }
+  let .data returnType ← decodeType 64 (← field j "return_type")
+    | throw "abstract method results cannot be function types"
+  let domain ← (← array j "domain").mapM fun clause => do
+    (← clause.getArr?).toList.mapM decodeTypePath
+  return {
+    name := ← str j "name", params, returnType
+    requirements := ← (← array j "requires").mapM Json.getStr?, domain, span := ← decodeSpan j }
+
 def decodeSurfaceModule (j : Json) : Except String Surface.Program := do
   let version ← j.getObjValAs? Nat "version"
   if version != 2 && version != 4 then throw s!"unsupported IR protocol version {version}; expected 2 or 4"
   if version == 4 then
-    fields j ["version", "file", "functions", "generics", "methods", "input", "abstract_types", "subtypes"]
+    fields j ["version", "file", "functions", "generics", "methods", "input", "abstract_types", "subtypes", "abstract_methods"]
     if (← str j "input") != "flat" then throw "protocol 4 input must be flat"
   else
     -- Preserve v2's treatment of unrelated, untrusted hint metadata, but never
     -- silently erase declarations from a downgraded protocol-4 request.
-    for key in ["input", "abstract_types", "subtypes"] do
+    for key in ["input", "abstract_types", "subtypes", "abstract_methods"] do
       if (j.getObjVal? key).isOk then throw "abstract declarations require protocol 4"
   let abstractTypes ← (← optionalArray j "abstract_types").mapM fun t => do
     fields t ["name", "parents", "span"]
@@ -130,7 +144,7 @@ def decodeSurfaceModule (j : Json) : Except String Surface.Program := do
     functions := ← (← array j "functions").mapM decodeSurfaceFunction
     generics := ← (← array j "generics").mapM decodeSurfaceGeneric
     methods := ← (← array j "methods").mapM decodeSurfaceMethod
-    abstractTypes, subtypes }
+    abstractTypes, subtypes, abstractMethods := ← (← optionalArray j "abstract_methods").mapM decodeAbstractMethod }
 
 
 end VastitasKernel

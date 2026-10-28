@@ -1,7 +1,7 @@
 # Vastitas
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 1b compiler with path packages and finite abstract selectors**: `.vast` source → Rust frontend → independently checked
+its **Stage 1b compiler with path packages and finite abstract selectors and contracts**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
 The current language supports exact integer computation, a small geometric
@@ -18,8 +18,8 @@ ambiguity, every declared domain for coverage, and every applicable method
 body before lowering calls to the proved Stage 0 core. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
-add nominal hierarchies over the existing four keys; abstract method contracts,
-edit/borrow ownership, storage ownership, and linear algebra remain later work.
+add nominal hierarchies and bodyless method contracts over the existing four keys.
+Edit/borrow ownership, storage ownership, and linear algebra remain later work.
 
 ## Build and use
 
@@ -71,7 +71,7 @@ logical modules and aliases. Functions have one defining package/module owner;
 only that exact module can add generic methods. Imports permit repeated calls
 without granting edit authority. See [packages and modules](docs/packages.md)
 for file layout, visibility, limits and proof scope. Registry/Git dependencies,
-edit borrowing and abstract methods remain deferred.
+edit borrowing and general abstract values remain deferred.
 
 ## Arithmetic standard library
 

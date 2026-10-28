@@ -43,6 +43,15 @@ structure RawSubtype where
   span : Span
   deriving Repr, Inhabited
 
+structure RawAbstractMethod where
+  name : String
+  params : List RawParam
+  returnType : RawType
+  requirements : List String
+  domain : List (List TypePath)
+  span : Span
+  deriving Repr, Inhabited
+
 structure RawProgram where
   version : Nat
   file : String
@@ -51,6 +60,7 @@ structure RawProgram where
   methods : List RawMethod
   abstractTypes : List RawAbstractType := []
   subtypes : List RawSubtype := []
+  abstractMethods : List RawAbstractMethod := []
   deriving Repr, Inhabited
 
 end VastitasKernel

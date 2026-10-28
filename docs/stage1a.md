@@ -141,7 +141,9 @@ original diagnostic position.
 ## Scope
 
 Stage 1a is not all of Stage 1. Independent lambdas and static higher-order
-functions are added separately by [Stage 1b](stage1b.md). User-defined data types,
+functions are added separately by [Stage 1b](stage1b.md). [Finite abstract
+selectors and bodyless contracts](abstract-types.md) extend the same four-key
+engine, with contract domains added to the callable domain. User-defined concrete data types,
 profiles and capabilities, edit permissions, borrowing, storage ownership,
 linear algebra, and runtime dispatch remain unimplemented. The existing
 shadowing and recursion prohibitions, generative geometric identities, and

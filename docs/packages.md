@@ -132,3 +132,15 @@ stdlib interfaces), and #55 (`promote`), but does not implement their remaining
 requirements. #37 (same-concrete-type argument constraints) is an independent
 next candidate. #22–26 and #28 retain their existing design decisions. Stage 1
 as a whole remains incomplete.
+
+
+## Finite abstract declarations
+
+[Abstract selectors and contracts](abstract-types.md) use protocol 4's explicit
+package mode and the same owner/index/reference audit. `pub abstract type`
+participates in visibility and aliases. Scalar membership is editable only by
+the abstract type's exact defining module; an abstract contract is editable
+only by the generic's exact defining module. Public exposure, child modules and
+imports grant neither permission. Abstract parents and contract-domain selectors
+may refer to visible types in other modules without editing those declarations.
+Existing package sources without abstract declarations still use protocol 3.

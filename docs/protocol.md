@@ -219,7 +219,7 @@ field whose value is exactly `flat` or `package`. Flat input keeps the version-2
 `file`, `functions`, `generics`, and `methods` fields. Package input keeps the
 version-3 `file`, `root`, and `packages` graph. Responses echo version 4.
 
-Flat roots and package modules may contain `abstract_types` and `subtypes`
+Flat roots and package modules may contain `abstract_types`, `subtypes` and `abstract_methods`
 arrays; absent arrays mean empty, and present arrays must be arrays. Each
 abstract type has `name`, `parents`, and `span`, with an additional required
 `public` boolean in package mode. A parent is an unresolved `{path: [String],
@@ -237,4 +237,18 @@ membership edit authority in the independently checked reference ledger.
 `E_HIERARCHY` reports cycles or changes to builtin relations; `E_OWNER` reports
 unauthorized membership edits. All existing method/body/core audits remain in
 the acceptance path. See [abstract selectors](abstract-types.md) for semantics
-and theorem boundaries. Abstract method contracts are not yet wire declarations.
+and theorem boundaries.
+
+An `abstract_methods` entry has `name`, `params`, `return_type`, `requires`,
+`domain`, and `span`, with no body or visibility field. Parameters use the
+existing named selector encoding; results are scalar or homogeneous numeric
+Pair types. `domain` is an array of tuples of unresolved `{path, span}` objects.
+An empty array is an explicit empty domain; `[[]]` is the nullary tuple. Every
+written tuple must expand to at least one concrete key. Lean resolves each
+path, enforces exact generic-owner authority, validates selector/capability
+applicability, and checks the selected concrete result for every contract key.
+The callable domain is the union of the generic domain and all expanded
+contract domains. Contracts never enter the candidate list. `E_CONTRACT_EMPTY`,
+`E_CONTRACT_DOMAIN`, and `E_CONTRACT_RESULT` distinguish empty expansion,
+inapplicable contract keys, and selected-result conflicts. Missing/ambiguous
+concrete winners retain the existing dispatch diagnostics.

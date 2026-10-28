@@ -1,9 +1,10 @@
-# Finite abstract scalar selectors
+# Finite abstract scalar selectors and contracts
 
 The first abstract-type increment adds nominal selectors to the existing finite
 Nat/Int/Bool/Unit dispatch universe. It does not add concrete values, value-type
 upcasts, Union types, ownership, storage, linear algebra, or geometric models.
-Abstract method contracts are a separate increment.
+Bodyless abstract method contracts extend callable domains and constrain the
+selected concrete result without creating runtime methods.
 
 ```vast
 abstract type Numeric <: Number;
@@ -67,3 +68,53 @@ The existing checked-core typing, dependency and termination theorems continue
 to concern the exact returned core. Source-to-IR preservation, filesystem
 identity authenticity and native toolchain equivalence remain outside the proof
 boundary. Ordinary compilation and generated executables require no mathlib.
+
+## Abstract method contracts
+
+```vast
+abstract type Numeric;
+subtype Nat <: Numeric;
+subtype Int <: Numeric;
+generic widen(x) { domain; }
+abstract method widen(x: Numeric) -> Int { domain (Numeric); }
+method widen(x: Nat) -> Int { int(x) }
+method widen(x: Int) -> Int { x }
+```
+
+The callable domain is the union of the generic's concrete tuples and every
+abstract method's expanded domain. A domain tuple contains scalar or abstract
+selectors. Lean enumerates the existing four-key universe and expands each
+tuple component through the validated hierarchy. For example, `(Numeric, Bool)`
+expands to `(Nat, Bool)` and `(Int, Bool)`. Repeated clauses and overlapping
+contracts do not duplicate callable keys. Generic domains retain their existing
+concrete-only syntax and duplicate-key rejection.
+
+Every expanded key must satisfy that contract's parameter selectors and
+`requires` clause. This checks concrete keys, so an unrelated selector with the
+same inhabitants may describe a contract domain without creating a nominal
+subtype relation. Requirements use the established HasEq/HasOrder facts.
+`domain;` is an explicit empty contract and is allowed. A written tuple that
+expands to no keys is an error, even if another tuple expands nonempty. `domain
+();` describes the single nullary key; that key has no capability facts.
+
+Contracts have no executable body and never participate in dispatch. The usual
+nominal/capability product order chooses the unique concrete winner. Its result
+annotation must exactly match every contract covering the key, including
+`Pair<Nat>` versus `Pair<Int>`. Results do not influence selection; no numeric
+coercions are introduced. Missing or ambiguous concrete winners are rejected.
+All applicable concrete bodies, including nonwinners and bodies outside the
+callable domain, still undergo the independent core checks.
+
+Only the generic's exact defining module may add abstract contracts. Imports,
+public exposure, aliases and child modules grant no edit authority. Domain and
+parameter paths use ordinary visibility/alias resolution. An alias in the same
+module preserves the original owner's authority. Contracts have no `pub`
+modifier of their own. Flat sources and explicit `--lib` inputs retain their
+shared namespace.
+
+The [contract example](../examples/abstract-contracts.vast) checks, builds and
+runs to 42. `ContractRegression` and `tests/abstract_contracts.rs` exercise the
+actual checker, native flat/package/--lib paths, higher-order lowering, unions,
+empty domains, overlapping/conflicting results, authority and tampered IR.
+The implementation is the finite initial increment of #48, not the complete
+historical Stage 1 design.

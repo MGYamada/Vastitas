@@ -85,7 +85,7 @@ jobs:
           test ! -d lean
           python3 scripts/check_boundaries.py
       - name: Checked-IR, dispatch, and function regressions
-        run: lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasKernel.AbstractRegression VastitasPromotion.Regression
+        run: lake -d lean-kernel build VastitasKernel.TypeAuditRegression VastitasKernel.DispatchRegression VastitasKernel.FunctionRegression VastitasKernel.NamespaceRegression VastitasKernel.PairRegression VastitasKernel.AbstractRegression VastitasKernel.ContractRegression VastitasPromotion.Regression
       - name: Rust, native compiler, and standard-library tests
         run: |
           python3 scripts/build_stdlib_package.py

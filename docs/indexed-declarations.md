@@ -259,3 +259,50 @@ equivalence. Legacy source-to-Core and evaluation theorems still describe the
 retained legacy intermediate; the indexed semantic bridge remains explicit work.
 Source geometry declarations have not yet moved to `.vast` stdlib files, so
 this adapter alone does not complete the migration.
+
+## Indexed runtime semantics: first proved fragment
+
+`IndexedSemantics` defines values and a bounded observation of the actual Core
+terms, with strict argument evaluation, separate function activations, explicit
+package witnesses/fields and the closed primitive registry. The evaluator is
+internal semantic test infrastructure, has no public CLI, and does not impose
+its observation fuel on generated programs. It deliberately ignores result
+annotations; independent acceptance must justify those annotations.
+
+Logical objects retain their declaration's implementation ID alongside the
+actual runtime descriptor. Object typing checks that ID against the complete
+declared finite domain. An activation-local world maps numeric brand serials to
+objects; changing a reference's claimed type does not change its slot. Worlds
+need not be injective, so two different brands may denote equal descriptors
+without making those brands interchangeable in the checker. Indexed tokens
+retain every object-index obligation even though their runtime representation
+is empty. A package's semantic type relates its actual ordered fields to its
+actual witness under a private representative world.
+
+`VastitasOracle.IndexedSemantics` proves whole-domain object upcasts, unique
+denotation of a given reference, preservation of values/results under world
+extension, and fresh local binding. For every accepted closed primitive, typed
+runtime operands and (for construction) a fresh world slot produce a typed
+result while preserving prior bindings. `checked_primitive_semantics` uses the
+actual `CheckedPrimitive`; `core_primitive_semantics` obtains the contract from
+the actual Core node's typing derivation, declaration lookup and exact operand/
+result conversions. Composition's middle runtime endpoints agree through their
+shared nominal reference.
+
+`primitive_runtime_erasure` proves that a successful logical registry operation
+erases to the corresponding actual `IndexedRuntime` operation, including the
+explicit canonical base for origin. This operation-level theorem does not prove
+the generated source or Lean/C toolchain correct. Native representation does not
+retain implementation IDs and cannot supply typing or authority evidence.
+
+Twenty new semantic regressions evaluate the same three fixtures as the native
+checks, repeated function/package activations, finite observation exhaustion,
+nominal-world behavior, scalar and Pair boundaries, wrong arities/shapes, and
+the distinction between operational evaluation and independent rejection of
+forged/unused-branch annotations. They run without mathlib.
+
+Whole-term preservation/totality, package opening and dependent-call world
+correspondence, deriving dynamic freshness from the allocation audit, legacy
+translation preservation, public protocol 7 and stdlib declaration migration
+remain open. These primitive lemmas do not close #49/#58–63 or assert storage
+safety, arbitrary geometry, floating-point properties or full native refinement.

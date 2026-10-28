@@ -449,3 +449,92 @@ exclusive loans, owner suspension, Open repair, final footprints, losing/unused
 bodies, changed hierarchy/contracts and native execution. Both run in macOS/Linux
 no-mathlib CI; the proof oracle and transitive axiom audit remain separate.
 Guarantees start at decoded input, not filesystem authenticity or authorship.
+
+### First finite edit composition contract (v1)
+
+`VastitasOracle.EditBorrowing.checkEditProgram_finite_acceptance`, in
+[`EditAcceptance.lean`](../lean/VastitasOracle/EditAcceptance.lean), has the premise
+`checkEditProgram program requireMain = .ok certified` and concludes
+`∃ assembled : Assembled program.indexed,
+FiniteEditAcceptance program requireMain certified assembled`.
+It calls `checkEditProgram_audited` **once**, then composes existing results for
+that witness and its final-surface acceptance equation. No executable checker,
+lowering pass or underlying soundness proof is reimplemented.
+This includes the current omitted-assembly/empty-trace path; no new condition
+requires a call-only consumer to provide an explicit assembly.
+
+The proposition is indexed by the complete decoded `Namespace.Program`, the
+entrypoint policy, the exact returned `CertifiedModule`, and one assembly.
+The assembly retains the actual preparation/base-lowering equations, namespace
+and membership authority, sealing, `completeFamilies` for its final surface,
+and construction of its unapplied-body audit. The new bundle adds:
+
+| Evidence | Exact object and established contract |
+| --- | --- |
+| `assembledFrom`, `auditAccepted`, `finalAccepted` | This input produces this assembly; its discarded audit passes; its final surface returns exactly `certified`. The audit result is deliberately not the executable Core. |
+| `trace`, `exclusive`, `returned` | Each finite edit step satisfies `TransitionAllowed` and the next state's `StateValid`; the final state is exclusive and has no outstanding edit loans. Owner suspension, exact grantee authority and return preservation are the existing transition contracts. |
+| `grantsFrom`, `grantsAuthorized`, `contributionsFrom` | Grants and complete contribution records are reconstructed from this decoded input; authority uses exact defining/grantee scopes. |
+| `applicationsAuthorized`, `methodProvenance` | Applied records have their exact grant/owner provenance; every final method belongs to the base or an original reconstructed contribution. |
+| `winnerAuthorized`, `dispatchCorrect` | In this assembly's completed families, external winners stay in their approved regions and the finite engine satisfies `Dispatch.Correct`, including unique optimal selections and callable-domain coverage. All-key rows include keys outside callable domains. |
+| `loweredAccepted` | The same final surface produces an actual `Surface.Lowered`, its static-call ledger is valid, and its exact raw Core passes `checkModule` with the same policy and returned `certified`. |
+| `typed`, `ordered`, `total` | `certified.val` is independently well typed and acyclic; every function in that same module has finite typed evaluation for every well-typed argument environment. |
+
+`FiniteEditAcceptance.accepted` recovers the actual acceptance equation from
+the bundle. `FiniteEditAcceptance.unique` proves equality of both assemblies
+and returned certificates for two bundles with the same decoded input and
+policy. Changing the input, assembly, policy or returned Core requires new
+proofs or explicit equality transport. A different independently well-typed
+Core or the legacy annotation-only certificate is insufficient. This is a
+proof-only `Prop` with proof-requiring constructors, not a serialized success
+flag or a new runtime `AcceptedProgram` API.
+
+This is a **limited first composition for #184**, not completion of that issue,
+all eight Domain Checkers, or the independent Ownership/Borrow checker. It adds
+no release condition. The stable architecture remains **8 Domain Checkers + 1
+independent Ownership/Borrow Core Safety Checker**. Only the finite dispatch,
+provenance, edit-loan and Core facts above are composed; no missing domain is
+given a fabricated `Verified` field.
+
+| Remaining obligation | Status relative to this theorem |
+| --- | --- |
+| Full Source → Core correspondence | Still unproved for Stage 1 surface rewriting, specialization and erasure. Exact execution equations and static-ledger validity do not establish operational correspondence of every source call/body. Existing Stage 0 decoded-Core results remain narrower. |
+| Input/snapshot authenticity | Fixed decoded data and structural package/module identities only. Rust loading, parser/JSON decoding, dependency snapshots, on-disk bytes and authorship are not authenticated by this theorem. |
+| General storage ownership/borrowing | Not covered. Exclusive whole-generic edit loans and their return do not establish storage alias safety, moves, reborrowing or lifetimes. |
+| Domain applicability and obligation ledger | No general claims/profile applicability or transformation-preserved obligation ledger is proved. Existing finite checks do not complete Graph, Fiber/Basepoint, Linearity, Regularity, Descent, Base/Coefficient/Grading, Coherence or Provenance as general domains; separate finite results are not silently incorporated. |
+| Effects, transforms and backends | Totality is the existing pure terminating Core semantics, not a general effect/partiality policy, AD/optimizer preservation, numerical refinement, native equivalence or a resource bound. |
+
+The proof adds no axiom or native reflection shortcut. The existing transitive
+oracle audit checks its dependencies against `propext`, `Classical.choice` and
+`Quot.sound`; the pinned Lean toolchain/kernel remains part of the trust boundary.
+
+#### Regression connection and validation
+
+[`scripts/check_edit_acceptance.lean`](../scripts/check_edit_acceptance.lean)
+contains compile-time attempts to reuse evidence for a different program,
+policy, assembly or even another well-typed Core. They must fail. It also proves
+that a genuinely different returned Core cannot have a bundle for the same
+accepted input, and that a rejected input cannot acquire a bundle. The existing
+oracle CI runs this script after building the oracle.
+
+The existing executable regressions exercise the hypotheses of the composition:
+
+| Existing suite | Rejection boundary connected to the bundle |
+| --- | --- |
+| `EditRegression` | Changed contribution bodies, forged grant origins/regions, changed-body replay, overlapping loans, invalid footprints and invalid unapplied bodies exercise reconstruction, trace, authorization and audit premises. |
+| `TypeAuditRegression` | Forged operands, nominal endpoints, substitutions and dependency cycles exercise `typed`/`ordered`; codegen rejects forged legacy annotation certificates independently. |
+| `tests/edit_borrowing.rs` | Raw protocol-5 authority/target/stale-input mutations, unreturned loans, final footprints and unused/losing bodies exercise the actual source/IR route. These are executable regressions, not proofs of snapshot authenticity or full source correspondence. |
+
+Run the existing suites and the new proof-index regressions with:
+
+```sh
+lake -d lean build
+(cd lean && lake env lean ../scripts/audit_axioms.lean)
+(cd lean && lake env lean ../scripts/check_edit_acceptance.lean)
+lake -d lean-kernel build
+bash scripts/check_kernel_regressions.sh
+cargo test --locked --test edit_borrowing
+python3 scripts/check_boundaries.py
+```
+
+These are reproduction commands, not a claim that a particular host or CI run
+executed them; report actual validation results with each change.

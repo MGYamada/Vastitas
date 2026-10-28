@@ -301,8 +301,36 @@ nominal-world behavior, scalar and Pair boundaries, wrong arities/shapes, and
 the distinction between operational evaluation and independent rejection of
 forged/unused-branch annotations. They run without mathlib.
 
-Whole-term preservation/totality, package opening and dependent-call world
-correspondence, deriving dynamic freshness from the allocation audit, legacy
+Whole-term preservation/totality, dependent-call world correspondence,
+deriving dynamic freshness from the allocation audit, legacy
 translation preservation, public protocol 7 and stdlib declaration migration
 remain open. These primitive lemmas do not close #49/#58–63 or assert storage
 safety, arbitrary geometry, floating-point properties or full native refinement.
+
+## Existential payload preservation
+
+`IndexedPackageSemantics` now relates actual runtime fields to the bound witness
+through packing and opening. The transport follows each `BoundIndex` in the
+declared template. In particular, if the witness is a global object also named
+explicitly by another index, opening replaces only the witness occurrence;
+the explicit global remains global. This also applies to token families whose
+runtime representation is empty and to multiple heterogeneous ordered fields.
+
+`IndexedSubstitution.valid_opening_of_shape` proves that a valid shape remains
+valid at a new witness serial. `openPackage_success` connects that fact and the
+checked allocation context's freshness to the actual generated-opening audit.
+`opening_fields_semantics` then preserves the actual witness and runtime fields
+at the exact reference returned by that audit. `core_pack_semantics` and
+`core_opening_semantics` obtain the exact shape and payload association from
+actual typed Core nodes and their declaration environment. Fresh dynamic slots
+preserve previous world bindings; deriving that freshness throughout execution
+remains a whole-term obligation.
+
+Eleven additional no-mathlib regressions cover a global witness equal to its
+explicit global base, two fresh openings, repacking, heterogeneous field order,
+forged global annotations, cross-opening field misuse, scope escape and a
+non-geometric indexed token. Two new standalone native fixtures exercise the
+global-witness round trip and both fields after opening and repacking, bringing
+the native fixture suite to five. The package operation lemmas do not yet prove
+the unpack body or dependent calls preserve types, the whole program terminates,
+or the native toolchain refines the semantics.

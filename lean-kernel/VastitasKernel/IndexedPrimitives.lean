@@ -2,7 +2,8 @@ import VastitasKernel.IndexedPackages
 
 /-! Closed primitive signature/binding contracts for the finite descriptor
 representation. These internal audits do not accept arbitrary native primitives
-or attest mathematical geometry; source/term/runtime integration is pending. -/
+or attest mathematical geometry. Core typing and primitive runtime semantics
+use these exact contracts; public declaration syntax remains pending. -/
 namespace VastitasKernel.Indexed
 
 /-- Upcasts use the complete current static domain. A narrow original brand

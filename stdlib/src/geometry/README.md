@@ -3,7 +3,7 @@
 The existing finite ordinary/smooth affine profile is implemented by ordinary
 `.vast` indexed declarations under two sibling modules. Both use public protocol
 7 and the same independent Lean checker as application declarations. This is the
-first migration increment of #49/#58–63, not general scheme or manifold support.
+finite migration profile of #49/#58–63, not general scheme or manifold support.
 
 The canonical source tree mirrors the public module hierarchy. Each module has
 its own directory and a `mod.vast` entrypoint:
@@ -134,7 +134,7 @@ Copies of the library retain distinct package identities. Coherently renaming
 all declaration paths and the export works without changing legacy source.
 Protocols 2–6 and explicit `--lib` retain their existing audited adapter path.
 
-Twenty integration tests exercise both settings, original `pointed.vast` and
+Twenty-one integration tests exercise both settings, original `pointed.vast` and
 `smooth.vast` bytes, mixed syntax, alias/family/function identity, coherent
 renaming, dependent calls/repacking, fresh/unpacked/copied identities, missing
 capabilities, visibility, external method authority, Fn capture and unused-body
@@ -147,9 +147,12 @@ The structural proofs in `VastitasOracle.GeometryCompatibility` connect the
 validated export to the exact compiler input and returned Core. Existing forged-Core
 regressions continue to cover the shared code generator.
 
-These declarations and regressions do not prove general scheme mathematics,
-whole-term indexed evaluation, legacy semantic correspondence or native
-correctness. Those remaining obligations keep #49/#58–63 open.
+The exact returned Core has typed total evaluation through `IndexedProgramSafety`.
+`GeometryResults` proves that the validated primitive roles preserve finite
+legacy runtime results after erasure. These results do not prove general scheme
+mathematics, complete surface operational correspondence or native correctness.
+See the [migration acceptance map](../../../docs/geometry-migration.md) for the
+inventory, regression matrix and remaining trust boundaries.
 
 ## Representation and future design
 

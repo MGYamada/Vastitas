@@ -648,8 +648,8 @@ silently discarded. The certificate includes the exact lowering equation;
 independent ledgers alone are insufficient. This is structural acceptance,
 not source evaluation preservation, public protocol-7 acceptance, or native
 refinement. Fifty-two new cases and three additional standalone native fixtures
-exercise actual internal source bodies; public parsing and full Fn/dispatch/edit
-composition remain pending.
+exercise actual internal source bodies. Public parsing and full Fn/dispatch/edit
+composition use the later public checker described below.
 
 `VastitasOracle.IndexedFunctions` adds structural acceptance for the internal
 Fn adapter. `pipeline_reconstructed` connects the actual declaration input,
@@ -708,9 +708,9 @@ The underlying individual-adapter theorems above retain their narrower scope.
 Twelve direct kernel wire regressions and actual Rust-source integration tests
 cover old-envelope rejection, forged metadata, all-body checking, nominal identity,
 scope escape, nongeometric indices and nested authority composition.
-These are structural acceptance results. Whole-term indexed evaluation,
-legacy correspondence, native refinement and C-level performance remain unproved
-or unmeasured as separately recorded in the completion gate.
+These are structural acceptance results. The later program theorem supplies
+whole-term indexed evaluation. Full source operational correspondence, native
+refinement and C-level performance remain unproved or unmeasured.
 
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
@@ -720,13 +720,11 @@ exact original input. `inheritance_acyclic` rules out every nonempty chain of
 class-parent edges from a declaration to itself. Scope traversal and global/family
 identity preservation are also proved for these internal records.
 
-This is prerequisite infrastructure for #58/#59/#62. It is not a public
-protocol-7 acceptance theorem, a port of indexed program evaluation, or completion
-of the geometry migration. The public compiler retains its legacy geometry
-elaboration and now passes the result through the common indexed Core audit and
-native generator. See [indexed-declarations.md](indexed-declarations.md) for exact checks,
-limits, regression coverage and the remaining source/namespace/primitive/
-existential/Core integration.
+These declaration-only lemmas are prerequisites for the public checker, not its
+entire acceptance theorem. Every public protocol now uses the common indexed
+source checker and returned Core. See [indexed-declarations.md](indexed-declarations.md)
+for exact checks and [migration acceptance](geometry-migration.md) for the complete
+source/namespace/primitive/existential/Core evidence map.
 
 
 The internal package/primitive extension is proved in
@@ -738,8 +736,8 @@ closed binding validity, complete-domain capabilities, fresh construction,
 composition endpoints and application test-object preservation. The 45 added
 kernel cases exercise these audits directly. The propositions concern internal
 type annotations; the internal Core layer below connects them to actual terms.
-New declaration source/evaluator integration remains pending and the existing geometry
-acceptance proofs remain in force.
+The common source checker and the evaluation theorems below compose these
+contracts with actual accepted terms.
 
 `VastitasOracle.IndexedCore.checkModule_acceptance` proves exact input identity,
 complete module typing (including every body and declaration), actual call-graph
@@ -752,10 +750,10 @@ modules. No frontend-selected signatures or dependency graph enter this theorem.
 
 The internal generator repeats the audit, emits native Lean functions and imports
 only `IndexedRuntime`. Thirty-four structural regressions and three standalone
-native fixtures run without mathlib. This is not yet a source acceptance or
-typed evaluation theorem, nor a proof of native equivalence. Function activation
-worlds, public protocol 7, source lowering and compatibility geometry still need
-their correspondence proofs. See [indexed-declarations.md](indexed-declarations.md).
+native fixtures run without mathlib. This structural theorem alone is not a source
+acceptance, typed evaluation or native equivalence theorem. The public acceptance
+and program evaluation results described here compose with it; native equivalence
+remains unproved. See [indexed-declarations.md](indexed-declarations.md).
 
 `VastitasOracle.LegacyIndexed.check_acceptance` connects the exact legacy input
 to the actual translated indexed module, with complete typing and actual
@@ -872,7 +870,7 @@ generation, and to the audit Core that also includes unapplied/unused bodies.
 These are theorems about the actual indexed Core evaluator, not equality with a
 source interpreter or the retained legacy evaluator, native-code refinement,
 storage safety, mathematical geometric axioms or numerical accuracy. Legacy
-result correspondence and native refinement remain open; typed totality does not
+whole-source result correspondence and native refinement remain open; typed totality does not
 complete the historical Stage 1 plan or establish Fast like C.
 
 ## Geometry standard-library migration regressions
@@ -884,7 +882,7 @@ arithmetic; the temporary `stdlib/indexed` facade is removed. Its explicit
 `geometry_compat` export supplies old syntax through independently resolved and
 validated declaration roles, without runtime forwarding or new editing rights.
 
-`tests/stdlib_geometry.rs` contains twenty integration tests: native `42`/`2`
+`tests/stdlib_geometry.rs` contains twenty-one integration tests: native `42`/`2`
 workflows including unchanged original source, mixed annotations/pack/unpack,
 dependent test objects, coherent source/profile renaming, re-export identity,
 nominal separation, visibility, missing capabilities, Fn capture and unused-body
@@ -908,9 +906,33 @@ family constraints that would invalidate the legacy interface.
   authority checker, has that validated profile, and yields a typed executable
   Core. Existing all-body, authority, capture and codegen audits still apply.
 
-These are structural checker guarantees. Whole-term indexed evaluation, legacy
-semantic correspondence and removal of the separate protocols-2–6 frontend path
-remain pending. General scheme/manifold mathematics, native equivalence and C
+These are structural checker guarantees. Whole-term indexed evaluation is supplied
+by `IndexedProgramSafety`; protocols 2–6 use the common source checker via
+`LegacySource`. General scheme/manifold mathematics, native equivalence and C
 performance measurements are not established by these theorems or tests. See the
 [library contract](../stdlib/src/geometry/README.md) and
 [completion ledger](stage1-completion.md).
+
+### Finite geometry result compatibility
+
+`VastitasOracle.GeometryResults` connects the actual validated profile's seven
+primitive roles to the retained finite `Runtime` operations after descriptor
+erasure. `affine_result`, `base_result`, `origin_result`, `identity_result`,
+`dimension_result`, `compose_result` and `apply_result` use the profile's actual
+declaration lookup, including coherently renamed profiles. They do not require
+singleton implementation domains or any specific library spelling.
+
+`declared_primitive_erasure` composes that declaration lookup with the existing
+`IndexedSemantics.primitive_runtime_erasure` theorem. It requires successful
+logical primitive evaluation; typed total evaluation of accepted Core is supplied
+independently by `IndexedProgramSafety`. `wire_dimension_result` instantiates the
+role contract from the exact public checker. `GeometryCompatibility.checked_profile`
+and `LegacySource.checked_profile` supply the same premise for the other roles.
+
+Erasure drops nominal/marker tags. These equations do not permit mixing bases,
+equating distinct brands or fabricating endpoint evidence; the typing and world
+theorems establish those obligations before erasure. This is operation-level
+finite result compatibility, not whole-source equivalence or native compilation
+correctness. [The migration map](geometry-migration.md) records how the separate
+proofs and actual-source regressions fulfill #49/#58–63 without expanding their
+claims to arbitrary geometry or the complete native toolchain.

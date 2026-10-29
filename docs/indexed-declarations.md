@@ -1,14 +1,16 @@
 # Indexed declaration foundation
 
-This is internal infrastructure for #58/#59/#62, not completion of those issues
-or #49. `VastitasKernel.Indexed` supplies a finite declaration environment and
-an independently audited indexed application. The public compatibility path now
-translates its checked legacy Core into this declaration-driven Core for an
-additional independent audit and native generation. Package-only protocol 7 now
+`VastitasKernel.Indexed` supplies the finite declaration environment and
+independent indexed audits used by every public protocol. Protocols 2–6 adapt
+decoded source into the common checker, not an already accepted legacy Core.
+Package-only protocol 7
 exposes unresolved declarations and rich source bodies through the full authority
 composition; see [source syntax](indexed-source.md). The [geometry stdlib package](../stdlib/src/geometry/README.md)
 now supplies the finite affine declarations and an explicit checked compatibility
-export for legacy syntax in protocol 7. Whole-term/legacy semantics remain pending.
+export for legacy syntax in protocol 7. Typed total evaluation covers the exact
+returned Core. [Migration acceptance](geometry-migration.md) maps #49/#58–63 to
+implementation, proofs and regressions, including finite primitive compatibility
+and the limits of the source/native guarantees.
 The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
 annotation contracts in PR #189 (`b3f8ff7`), and Core/native generation in PR #194
 (`c29e1cd`). The compatibility adapter is described below.
@@ -41,11 +43,9 @@ Implementation capability records currently contain the closed `origin` and
 explicit per implementation; classification or inheritance does not fill them
 in. These records alone are not mathematical evidence or operation acceptance.
 The closed primitive binding checker is described below. Executable source/
-term use of these records is checked by the internal Core below. Public source
-integration remains part of #60. The declaration namespace resolver below uses
-the actual package visibility and ownership machinery. Scalar membership/edit
-audits and complete term elaboration must still be composed before a public
-program may install these declarations.
+term use of these records is checked by the Core below. The declaration namespace
+resolver uses actual package visibility and ownership. Public source acceptance
+composes it with scalar membership/edit audits and complete term elaboration.
 
 ## Unresolved declaration input and namespace audit
 
@@ -85,7 +85,7 @@ actual Core checking/code generation and returns `7`.
 This certificate accepts declarations only. It does not check function bodies,
 finite dispatch or edit assemblies, and it is not a public protocol-7 entry
 point. Rust parsing, the wire decoder and the full scalar/function/authority
-composition remain pending; the separate internal data-body adapter is described below. The internal regression
+composition are connected by `Indexed.Wire.check`; the separate internal data-body adapter is described below. The internal regression
 constructs Core terms directly; it is not a `.vast` source migration test.
 
 ### Dependent type annotations
@@ -156,7 +156,7 @@ metadata and edit/authority envelopes whose checks it cannot yet compose.
 It has no Fn expressions or specialization; the separate adapter below extends
 the internal syntax. The later adapters below compose finite dispatch and
 authority and are now used by every public protocol, with source adaptation for
-versions 2–6. Whole-term evaluation and native refinement remain open.
+versions 2–6. The later program theorem establishes Core evaluation; native refinement remains unproved.
 
 ### Internal independent functions and static specialization
 
@@ -198,7 +198,8 @@ original source function and lifted definition has a typed audit instance,
 executable static targets are concrete, their signatures match the original
 definitions, emitted call IDs identify their exact specialization keys, and
 recorded source calls resolve through the actual namespace. These are structural
-acceptance guarantees, not source evaluation preservation or typed termination.
+acceptance guarantees. Typed termination follows from the later program theorem;
+source evaluation preservation is a separate unproved claim.
 
 Fifty-five cases cover capture, shadowing, unused bodies, malformed signatures,
 private targets, probe separation, branch targets, nominal scope escape, forged
@@ -208,7 +209,7 @@ operations, a returned private function and ordered package fields. All fourteen
 fixtures link only the minimal runtime. The subsequent adapters below add finite
 dispatch/all-applicable-body and edit-authority composition. Public protocol 7
 now exposes that composition and the geometry stdlib below uses it. Whole-term
-evaluation proofs remain pending.
+Core evaluation is covered by the later program theorem.
 This plain Fn entry rejects old dispatch/edit envelopes explicitly.
 
 ### Internal finite dispatch over indexed method bodies
@@ -301,8 +302,9 @@ generation.
 expansion, lifting, preparation and lowering equations. Its theorems expose
 the actual authorized trace and final footprints, nominal owner/lexical scope,
 complete typed body coverage and executable exclusion of unapplied origins.
-These are structural acceptance guarantees; they do not prove whole-source
-evaluation preservation, typed termination or native implementation refinement.
+These are structural acceptance guarantees; the later program theorem supplies
+typed termination. Whole-source evaluation preservation and native implementation
+refinement remain unproved.
 
 Thirty-nine regressions cover nested loan suspension/return, explicit delegation,
 contained regions, transfer and revoked old authority, returned Open obligations
@@ -333,8 +335,8 @@ of tokens with empty runtime representations. Substitution fixes globals,
 requires unique local sources and preserves the source's exact object type.
 The internal Core has a separate checked call substitution relation that permits
 whole-domain refinement, rechecks every dependent argument after substitution
-and fixes globals. Evaluator/codegen refinement proofs remain integration work;
-the annotation foundation alone does not establish those broader properties.
+and fixes globals. `IndexedArgumentSafety`/`IndexedCallTransport` connect those
+calls to typed evaluation. Native refinement remains outside the proof boundary.
 
 ## Independent checks and proof boundary
 
@@ -360,10 +362,9 @@ finite domains, distinct global/local identities, hidden token escapes and
 invalid substitutions. It runs in the common no-mathlib regression script.
 
 The public protocol-7 integration updates Rust and Lean together and retains
-unresolved namespace provenance. Compatibility Core already uses
-the common environment-driven checker and native generator. The existing geometry source
-correspondence and typed-evaluation proofs must move with that path. No old
-public spelling is a substitute for completing this work.
+unresolved namespace provenance. All public protocols use the common checker and
+native generator. Their exact returned Core is covered by `IndexedProgramSafety`;
+the migration acceptance map separates this from full source/native equivalence.
 
 
 ## Single-witness existential contracts
@@ -389,14 +390,15 @@ annotations must use that exact new witness and remain scoped with it. Opening
 the same package twice therefore produces distinct brands while the first is
 retained in the context. The internal Core supplies its complete variable context
 and additionally audits unique allocation serials over all function parameters
-and allocation nodes. Runtime value correspondence remains a proof obligation.
+and allocation nodes. Runtime value correspondence is established by
+`IndexedPackageSemantics` and composed by `IndexedProgramSafety`.
 
 `VastitasOracle.IndexedPackages` proves the executable audits equivalent to their
 independent propositions, field/witness association, absence of any other free
 local field index, scoped opening fields, brand freshness and distinct reopening.
 These package-layer theorems concern the exact checked **type annotations**.
-The Core layer below additionally checks actual field terms; evaluator/package-
-value correspondence is not yet proved.
+The Core layer below additionally checks actual field terms; the later
+`IndexedPackageSemantics` lemmas connect them to runtime payloads.
 
 ## Closed primitive binding inventory
 
@@ -425,9 +427,9 @@ or mutated candidates pass the same independent `PrimitiveTyped` audit. Oracle
 proofs connect the checked result to that judgment, including application test
 objects, composition endpoints, fresh descriptor construction and whole-domain
 origin/dimension support. None of these contracts proves mathematical scheme
-axioms, source-term typing, evaluation or native equivalence. Binding this
-registry to the source checker and porting the existing evaluator proofs are
-still required before #60/#62/#63 can close.
+axioms or native equivalence. The common source checker uses these exact bindings;
+`IndexedSemantics` and `IndexedProgramSafety` supply typed evaluation, and
+`GeometryResults` supplies finite legacy result compatibility.
 
 `IndexedPackageRegression` and `IndexedPrimitiveRegression` add 45 direct cases,
 including repeated openings/repacking, false field associations, abstract-domain
@@ -483,11 +485,10 @@ and dependency failures. `bash scripts/check_indexed_native.sh` compiles and run
 three standalone fixtures (package output `2`, all primitives output `42`, and
 arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI jobs run them.
 
-Public protocol 7 now parses and independently resolves declarations;
-source-to-Core semantic correspondence remains pending. Typed
-evaluation, activation/world correspondence and native refinement are not
-claimed by the new structural theorem or by native regression tests. These
-limits prevent closing #49/#58–63 at this increment.
+Public protocol 7 parses and independently resolves declarations. The structural
+theorem alone does not establish evaluation; `IndexedProgramSafety` supplies
+typed evaluation and activation/world correspondence. Full source operational
+correspondence and native refinement remain outside the migration's claims.
 
 ## Geometry standard-library declarations
 
@@ -502,7 +503,7 @@ All existing affine descriptor/origin/identity/dimension/composition/application
 operations use ordinary declared primitive contracts. Each module's `pointed`
 is an ordinary `.vast` function that constructs and packages data.
 
-Twenty integration tests exercise both settings, alias identity, coherent renaming,
+Twenty-one integration tests exercise both settings, alias identity, coherent renaming,
 separately generated/opened/copied nominal objects, coefficient versus test-object
 distinction, missing capabilities, dependent morphism calls with retained test
 objects/repacking, composition with arithmetic in the same protocol-7 closure,
@@ -528,9 +529,10 @@ witnesses; capture, scope escape and unused-body checks are unchanged.
 `GeometryCompatibilityRegression` checks twelve positive/negative profile cases.
 `VastitasOracle.GeometryCompatibility` proves that actual public acceptance uses
 the independently validated profile in the function compiler, with distinct
-markers and matching origin/package roles. These structural theorems do not prove
-whole-term evaluation or legacy semantic correspondence. Protocols 2–6 now use
-the source adapter below; the semantic obligations keep #49/#58–63 open.
+markers and matching origin/package roles. The program theorem supplies whole-term
+Core evaluation; `GeometryResults` connects declared primitive results to the
+retained finite runtime. Protocols 2–6 use the source adapter below. See the
+[acceptance map](geometry-migration.md) for the full migration boundary.
 
 ## Compatibility adapter for protocols 2–6
 
@@ -575,9 +577,9 @@ edit authority, including all applied and unapplied bodies.
 to the actual common checker, both typed Core passes, real dependency order,
 entrypoint validation, returned loans, final winning footprints, checked body
 coverage and the same validated geometry profile used by the function compiler.
-These are structural acceptance theorems. Whole-term source evaluation,
-activation/world freshness, legacy semantic correspondence and native refinement
-remain explicit obligations and keep #49/#58–63 open.
+The same module's totality corollaries connect both returned Core passes to the
+program theorem, which derives activation/world freshness. Full source
+operational correspondence and native refinement remain separate unproved claims.
 
 `LegacyIndexed` and `Codegen.generate` remain internal compatibility APIs for the
 retained old Core and its regression/proof boundary. Their structural translation
@@ -630,9 +632,9 @@ forged/unused-branch annotations. They run without mathlib.
 The later checked-program theorem derives typed total evaluation and allocation
 freshness from the actual module audits, including dependent calls; see
 [the precise premises and remaining obligations](verification.md#conditional-indexed-term-and-function-evaluation).
-Legacy translation preservation, native refinement and full geometry migration
-acceptance remain open. These primitive lemmas do not close #49/#58–63 or assert storage
-safety, arbitrary geometry, floating-point properties or full native refinement.
+Full source operational correspondence and native refinement remain unproved.
+These primitive lemmas alone do not establish the [migration acceptance](geometry-migration.md)
+or assert storage safety, arbitrary geometry or floating-point properties.
 
 ## Existential payload preservation
 

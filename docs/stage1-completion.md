@@ -13,8 +13,9 @@ protocol-5 increment do not complete the historical Stage 1 proposal.
 | Nested edit loans | #181, PR #186, merge `a779a67`; part of #52/#64 | Complete: 222 Rust tests, nine kernel regressions, oracle, integrated 6,780-declaration audit and both OS CI. Protocol 6: explicit delegation, region inclusion, suspended parent authority, inner-first return, complete provenance and final winning-footprint checks; see `edit_authority.rs` and `AuthorityRegression` |
 | Permanent authority transfer | #182, PR #186, merge `a779a67`; part of #52/#64 | Complete with the same validation. Protocol 6: immutable definition identity, current owner, explicit transfer, no active loans, retained grants/methods/obligations and revoked former-owner editing; actual-checker proofs in `VastitasOracle.Authority` |
 | Indexed declarations and existing geometry | needed #48 foundation; #58–63 and #49 | In progress: declaration/annotation contracts (#188/#189), audited Core/native generation (#194), compatibility lowering (#195), primitive/package semantics (#196/#198), unresolved declaration/type/body adapters (#200/#202/#205), independent Fn specialization (#212, merge `c3d1abf`), finite scalar dispatch (#213, merge `dd21dd6`), and internal edit-authority composition with all applied/unapplied bodies; see `indexed-declarations.md`. Public protocol 7, whole-term typed evaluation and stdlib declarations remain pending |
-| Storage ownership | #183, Core Safety boundary in #180 | Pending: allocation provenance, affine moves, read/write loans, initialization, views, branch-state joins and final independent resource audit |
+| Storage ownership | #183, Core Safety boundary in #180 | Pending: allocation provenance, affine moves, read/write loans, initialization, views, branch-state joins and final independent resource audit; required layout/alias/cost contracts are specified in [revised Chapter 7](storage-ownership.md) |
 | Linear algebra and networks | #66/#67/#69/#91/#92 | Pending: real/complex GEMM, nominal objects/bases/dual/conjugation/metric, finite occurrence/port/edge/boundary checks and deterministic contraction schedule |
+| Fast like C | Cross-cutting architecture/performance goal; #183 and numerical consumers | Pending: equivalent-C runtime and memory comparisons, explicit packing/retention costs, destination/scratch reuse and recorded budgets; see [performance acceptance](storage-ownership.md#713-performance-evidence-and-acceptance). Native compilation and BLAS use alone do not satisfy this gate |
 | Integrated completion | #179 | Pending: complete acceptance mapping, merged commit, exact proof boundaries, examples and CI results |
 
 Wire extension 6 supplies edit authority; 7 (indexed declarations) and
@@ -33,6 +34,14 @@ adapter. Overwrite must not read old output; accumulate requires initialized
 output. Preflight failure must preserve output. Non-numerical compilation and
 execution must work without OpenBLAS. Numerical CI uses one thread. Floating
 point results and the native implementation remain explicit trust boundaries.
+
+Fast like C is the primary performance and architecture goal. Measure the same
+algorithm, scalar semantics, layout, backend and numerical policy against C,
+including full-operation and prepared-kernel costs. Record allocation/copy counts
+and peak live memory as well as runtime. Performance gaps cannot be silently
+deferred while claiming the corresponding Stage 1 acceptance condition complete.
+Residual retention is specified now to constrain storage design; AD implementation
+and its performance gates remain in the later AD stage.
 
 For each implementation PR, run applicable Rust formatting, strict Clippy and
 locked all-target tests; kernel build and direct regressions; oracle build and

@@ -159,6 +159,11 @@ The compiler's first finite fragment may normalize degree equations in $\mathbb 
 
 <!-- draft-v0.3:6:end -->
 
+> Current storage design: [revised Chapter 7](../storage-ownership.md) makes
+> Fast like C the primary performance goal and specifies layouts, aliasing,
+> resource transitions and residual retention. The preserved section below is
+> the historical v0.3 proposal; use the revision for current implementation work.
+
 <!-- draft-v0.3:7:start -->
 ## 7. Ownership and tensor-network ports
 

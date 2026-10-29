@@ -86,6 +86,36 @@ point. Rust parsing, the wire decoder, source term elaboration and the full
 scalar/function/authority composition remain pending. The internal regression
 constructs Core terms directly; it is not a `.vast` source migration test.
 
+### Dependent type annotations
+
+`IndexedSourceTypes` elaborates internal data-type annotations against that
+same declaration certificate. Inputs distinguish pure types, an explicit
+object domain/coefficient pair, and a named family/package application. The
+declared parameter contract determines whether each argument is an object,
+domain, marker or natural literal. A local object name uses the exact reference
+in its supplied Core binding; a qualified name uses the real namespace resolver
+and must designate an appropriate declaration. Coefficient markers cannot be
+used as global test objects. Package applications retain their explicit domain
+and marker case, and natural indices cannot be runtime variables.
+
+The type certificate retains the exact input, scope, context and lowering
+equation. The checker validates supplied binding annotations, bans shadowing,
+duplicate names/symbols and invented module scopes, re-resolves all declaration
+references, and independently audits the resulting Core type and its scope.
+The oracle proves deterministic output for the same inputs, exact local-index
+selection from the binding, and that every local index in the result occurs in
+an actual input binding. This includes empty-runtime token families. These
+statements do not establish execution or freshness of arbitrary supplied
+contexts; a complete term checker must derive those contexts from actual code.
+
+Thirty-five regression cases cover wrong sorts/arity/endpoints, alias identity,
+nominally different openings, malformed contexts and dependent Core calls. The
+seventh native fixture uses an elaborated dependent parameter/result type in a
+checked function and call and returns `13`. It still assembles Core terms
+directly. Public source/wire integration, complete body elaboration and the
+protocol-7 composition with scalar dispatch, Fn capture/static-signature audits
+and edit authority remain pending. Protocols 2–6 retain their existing audits.
+
 ## Indexed applications and scopes
 
 Family parameters distinguish classification domains, coefficient markers,

@@ -42,6 +42,8 @@ private def program : Program := {
   packages := [⟨app, [⟨"geo", lib.source⟩, ⟨"other", lib.source⟩], [rootModule]⟩,
     ⟨lib, [], [mod geometry]⟩] }
 private def id (name : String) : DeclId := ⟨⟨lib, []⟩, name⟩
+/-- Unresolved declarations shared by type-elaboration regressions. -/
+def declarationFixture : Program := program
 private def check (name : String) (condition : Bool) : IO Unit :=
   unless condition do throw (IO.userError s!"indexed source regression failed: {name}")
 private def accepts (p : Program) : Bool := (checkDeclarations p).isOk

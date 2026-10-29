@@ -18,6 +18,7 @@ def Called (module : Module) (id : Nat) (arguments : List Value) (value : Value)
 def CallReturns (module : Module) (functions : Signatures) (id : Nat) : Prop :=
   ∀ world arguments operands substitution result,
     CallTyping module.declarations functions id arguments substitution result →
+    result.Valid module.declarations →
     ResultsHaveTypes module.declarations world operands arguments →
     WorldFreshFor world (resultSerials result) →
     ∃ after value, Called module id operands value ∧
@@ -264,7 +265,7 @@ theorem safe_call {module : Module} {functions : Signatures} {arguments : List T
     (fresh_subset (fun _ member => List.mem_append_right _ member) fresh)
     (fun slot outputMember argMember => disjoint slot argMember slot outputMember rfl)
   obtain ⟨after, value, called, valueTyped, extension, frame⟩ :=
-    calls id (List.mem_cons_self) middle _ inputs substitution result typed.2.2 inputTypes outputFresh
+    calls id (List.mem_cons_self) middle _ inputs substitution result typed.2.2 typed.1 inputTypes outputFresh
   obtain ⟨function, activation, found, bound, bodyEval⟩ := called
   refine ⟨after, value, call found evaluated bound bodyEval, valueTyped,
     worldExtends_trans argExtends extension, ?_⟩

@@ -18,6 +18,7 @@ import VastitasOracle.LegacyIndexed
 import VastitasOracle.IndexedSemantics
 import VastitasOracle.IndexedPackageSemantics
 import VastitasOracle.IndexedSource
+import VastitasOracle.IndexedSourceTypes
 import VastitasOracle.Promotion
 
 /-!

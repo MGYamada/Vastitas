@@ -592,6 +592,17 @@ acceptance only: it does not certify function bodies, scalar dispatch, edit
 assemblies, a public protocol-7 decoder or source-term translation. The six
 native fixtures include one using this exact resolved declaration environment.
 
+`VastitasOracle.IndexedSourceTypes` connects internal type elaboration to the
+same declaration certificate, raw annotation, requesting scope and supplied
+Core bindings. Its exact-lowering and uniqueness theorems prevent replacing
+that output with a type from a different context. `local_argument_exact`
+follows the actual variable lookup, and `local_index_from_binding` shows that
+elaboration invents no local index, including within non-geometric families.
+The checked type satisfies the actual Core validity and scope predicates.
+Execution/freshness of arbitrary input bindings, source body elaboration and
+protocol-7 function/dispatch/authority composition remain outside these claims.
+The seventh native fixture uses the elaborated dependent function type.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

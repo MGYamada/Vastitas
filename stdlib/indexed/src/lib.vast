@@ -1,0 +1,3 @@
+// Transitional combined entrypoint. Re-exports preserve the canonical owners.
+pub use arithmetic_library::arithmetic;
+pub use geometry_library as geometry;

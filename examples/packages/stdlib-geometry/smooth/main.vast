@@ -1,0 +1,14 @@
+// Declaration-driven counterpart of examples/smooth.vast.
+use std::geometry::smooth as smooth;
+
+fn make_smooth(n: Nat) -> smooth::Pointed<smooth::CInfScheme, smooth::CInfReal> {
+    let X: Object<smooth::CInfScheme, smooth::CInfReal> = smooth::Affine(n);
+    pack smooth::Pointed<smooth::CInfScheme, smooth::CInfReal> { witness: X, fields: [smooth::origin(X)] }
+}
+
+fn main() -> Int {
+    let problem = make_smooth(2);
+    unpack problem as { witness: X, fields: [p] };
+    let result: smooth::Point<X, smooth::BaseSmooth> = smooth::apply(smooth::id(X), p);
+    if smooth::dimension(X) == 2 { 2 } else { -1 }
+}

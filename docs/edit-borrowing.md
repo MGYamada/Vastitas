@@ -112,3 +112,7 @@ cargo run -- check --manifest-path examples/packages/edit-borrow/app/Vastitas.to
 cargo run -- build --manifest-path examples/packages/edit-borrow/app/Vastitas.toml -o /tmp/vastitas-edit
 /tmp/vastitas-edit # 42
 ```
+
+The [non-punitive diagnostic reference](diagnostic-reference.md) reuses the
+crossing-method return/repair regression for presentation and identity experiments.
+Its synthetic attribution records are not a checker-derived provenance ledger.

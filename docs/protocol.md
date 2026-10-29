@@ -142,23 +142,30 @@ The `__vastitas_` prefix is reserved for hygienic specialization names and is
 rejected in source binders and references, including forged wire requests.
 
 `decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
-`checkSurfaceProgram` checks it. Function syntax remains separate from core
+`Indexed.LegacySource` converts its unresolved syntax into the common
+`Indexed.AuthoritySource.checkProgram` input. The old `checkSurfaceProgram`
+remains an internal API with separate retained proofs. Function syntax remains separate from core
 syntax. Every lambda and function body is checked, including unused functions;
 signature probes for abstract function parameters are confined to a separate
 audit pass. Executable specialization memoizes definition/function-argument
 IDs, erases function values and produces only direct calls. The unchanged
 finite engine still checks all applicable method bodies. See [Stage 1b](stage1b.md).
 
-The backend lowers the accepted program to the existing Stage 0 core input
-representation and runs its independent checker. That internal representation
-retains its original version tag; it is not an alternative wire protocol.
-External clients must use version 2 even for programs containing only ordinary
-functions. The wire request is decoded and checked before this internal adapter.
+After the original wire decoder, protocols 2–6 adapt source functions, methods,
+contributions and namespace metadata before semantic elaboration. Flat input uses
+an adapter-owned module identity independent of the displayed filename. The
+adapter supplies a closed, unresolved compatibility declaration package because
+these wire versions cannot carry indexed declarations. The original namespace
+must validate before injection; a source dependency cannot resolve through the
+private profile. The same declaration/profile, authority, Fn/dispatch and Core
+checks used by protocol 7 remain mandatory. Old wire versions continue to reject
+new declaration fields. Internal Core formats are not alternative wire protocols.
 
-Runtime representation: generated Lean code uses only
-`import VastitasKernel.Runtime`. Scalar types map to Lean `Nat`, `Int`, `Bool`,
-`Unit`. Geometric values map to runtime `Object`, `Point`, `Morphism`, and
-`Pointed`. Their nominal typing is established before erasure by the checker.
+Runtime representation: generated Lean code imports only
+`VastitasKernel.IndexedRuntime`. Scalar types map to Lean `Nat`, `Int`, `Bool`,
+`Unit`; geometric objects, indexed points/morphisms and existential payloads use
+the common runtime representations. Nominal typing is established before erasure.
+The old runtime remains for retained legacy evaluation proofs.
 User symbols are always renamed to generated identifiers; source text is never
 inserted as Lean syntax. Integers are validated decimal literals.
 

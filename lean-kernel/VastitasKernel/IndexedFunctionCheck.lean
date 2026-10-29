@@ -162,7 +162,7 @@ def checkProgram (program : Program) (requireMain : Bool := false) : Namespace.R
                 else Namespace.problem {} "E_INTERNAL_FUNCTION" "signature audit omitted a source function or lambda"
               else Namespace.problem {} "E_OWNER" "signature preparation changed definition identities"
           else Namespace.problem {} "E_OWNER" "lifted function origin audit failed"
-      else Namespace.problem {} "E_MAIN" "entry point must have source signature fn main() -> Int"
+      else Namespace.problem {} "E_MAIN" "entry point must have signature fn main() -> Int"
     else .error (scopeDiagnostic program)
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

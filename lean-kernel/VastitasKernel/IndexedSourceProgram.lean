@@ -3,7 +3,8 @@ import VastitasKernel.IndexedSourceBodies
 namespace VastitasKernel.Indexed.Source.Bodies
 
 /-- The restricted internal adapter must reject features whose actual bodies
-or authority state it cannot yet compose. The public 2–6 path is unchanged. -/
+or authority state it cannot compose. Public source uses the later combined
+authority/Fn/dispatch checker, including source adaptation for protocols 2–6. -/
 def dataOnly (p : Source.Program) : Namespace.Result Unit := do
   if p.extended || p.editable || p.authority || p.packages.any (fun pkg => pkg.modules.any fun m =>
       !m.module.functions.isEmpty || !m.module.generics.isEmpty || !m.module.methods.isEmpty ||

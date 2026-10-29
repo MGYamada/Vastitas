@@ -93,6 +93,11 @@ jobs:
         run: |
           python3 scripts/build_stdlib_package.py
           cargo test --locked --all-targets
+      - name: Diagnostic reference against the built compiler
+        run: |
+          test -x target/debug/vastitas
+          test -x lean-kernel/.lake/build/bin/vastitas-kernel
+          python3 -m unittest discover -s scripts -p 'test_diagnostic_reference.py' -v
 
   oracle:
     name: Lean proofs and axiom audit

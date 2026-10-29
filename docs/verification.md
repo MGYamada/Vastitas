@@ -759,11 +759,20 @@ their correspondence proofs. See [indexed-declarations.md](indexed-declarations.
 
 `VastitasOracle.LegacyIndexed.check_acceptance` connects the exact legacy input
 to the actual translated indexed module, with complete typing and actual
-dependency order on both sides. Public `check` uses that boundary; native
-generation separately repeats both audits on the same translation. This is a
-structural association theorem, not evaluation preservation. Existing legacy
-source/evaluation theorems remain about the retained intermediate Core and old
-runtime; translation semantics and native equivalence remain unproved.
+dependency order on both sides. This retained internal API is a structural
+association theorem, not evaluation preservation or the current public path.
+Existing legacy source/evaluation theorems remain about the old Core and runtime;
+translation semantics and native equivalence remain unproved.
+
+Public protocols 2–6 now use `Indexed.LegacySource`: original wire decoding,
+source adaptation, then the same `Indexed.AuthoritySource` checker as protocol 7.
+`VastitasOracle.LegacySource` connects the exact decoder/adapter/checker equations
+to both typed Core passes, dependency order, entrypoint validation, returned edit
+loans, final footprints and body coverage. It also connects the validated profile
+to the one used by the actual function compiler. Thirteen adapter regressions
+exercise all supported old envelopes and profile injection boundaries. These
+checks do not establish whole-term evaluation preservation. They do not extend
+the retained legacy evaluation theorems to the indexed compiler.
 
 Indexed signatures now use a once-per-module hash table. The oracle's
 `IndexedSignatures` lemmas establish actual member/absent/target correspondence.

@@ -22,7 +22,10 @@ every optimization.
 Stage 1a adds `generic`/`method` declarations with explicit callable domains,
 nominal selectors and static capabilities. Lean checks all concrete keys for
 ambiguity, every declared domain for coverage, and every applicable method
-body before lowering calls to the proved Stage 0 core. Stage 1b adds independent
+body before lowering calls to independently audited indexed Core. All public wire
+versions now reach the same declaration/function/dispatch/authority checker;
+[legacy source adaptation](docs/indexed-declarations.md#compatibility-adapter-for-protocols-26)
+preserves existing input formats. Whole-term indexed semantic correspondence remains pending. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.

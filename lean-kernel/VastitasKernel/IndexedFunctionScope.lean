@@ -136,9 +136,8 @@ instance (program : Program) : Decidable (ScopesSafe program) :=
   decidable_of_iff (scopesSafe program = true) (scopesSafe_iff program)
 
 /-- Diagnostic selection is not the acceptance test. -/
-def scopeDiagnostic (program : Program) : Diagnostic := Id.run do
-  let index := program.headers.indexed
-  for (scope, lambda) in program.lambdaScopes do
+def scopeDiagnosticFor (index : Namespace.Indexed) (scopes : List (Namespace.Scope × LambdaScope)) : Diagnostic := Id.run do
+  for (scope, lambda) in scopes do
     if lambda.function.callable.isNone then
       return { code := "E_TYPE", message := "lambda signatures require scalar/Fn types", span := lambda.function.span }
     for (name, span) in lambda.bindings do
@@ -153,5 +152,7 @@ def scopeDiagnostic (program : Program) : Diagnostic := Id.run do
           span := use.span
           message := s!"independent lambda cannot access '{name}'; use an explicit parameter or a visible global declaration" }
   return { code := "E_SCOPE", message := "lambda scope audit failed" }
+
+def scopeDiagnostic (program : Program) : Diagnostic := scopeDiagnosticFor program.headers.indexed program.lambdaScopes
 
 end VastitasKernel.Indexed.FunctionSource

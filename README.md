@@ -12,6 +12,13 @@ dependent arguments, and existential packages preserve nominal endpoints.
 The [language design](docs/design.md) describes the larger research direction;
 it is not a list of implemented features.
 
+**Fast like C is the primary performance and architecture goal.** Numerical
+abstractions must support explicit layouts, checked aliasing, reusable destinations
+and visible allocation/copy costs. The [storage and ownership design](docs/storage-ownership.md)
+defines the contract and equivalent-C measurement gates; C-level performance has
+not yet been established. Correctness and declared numerical semantics constrain
+every optimization.
+
 Stage 1a adds `generic`/`method` declarations with explicit callable domains,
 nominal selectors and static capabilities. Lean checks all concrete keys for
 ambiguity, every declared domain for coverage, and every applicable method

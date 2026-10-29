@@ -4,9 +4,10 @@ This is internal infrastructure for #58/#59/#62, not completion of those issues
 or #49. `VastitasKernel.Indexed` supplies a finite declaration environment and
 an independently audited indexed application. The public compatibility path now
 translates its checked legacy Core into this declaration-driven Core for an
-additional independent audit and native generation. Protocol 7 remains
-unavailable; source geometry still uses the legacy frontend/elaborator. No new
-public source syntax or operation is claimed here.
+additional independent audit and native generation. Package-only protocol 7 now
+exposes unresolved declarations and rich source bodies through the full authority
+composition; see [source syntax](indexed-source.md). Actual stdlib geometry migration,
+the legacy syntax bridge inside protocol 7 and whole-term semantics remain pending.
 The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
 annotation contracts in PR #189 (`b3f8ff7`), and Core/native generation in PR #194
 (`c29e1cd`). The compatibility adapter is described below.
@@ -112,8 +113,9 @@ Thirty-five regression cases cover wrong sorts/arity/endpoints, alias identity,
 nominally different openings, malformed contexts and dependent Core calls. The
 seventh native fixture uses an elaborated dependent parameter/result type in a
 checked function and call and returns `13`. It still assembles Core terms
-directly. Public source/wire integration and the protocol-7 composition with scalar dispatch, Fn capture/static-signature audits
-and edit authority remain pending. Protocols 2–6 retain their existing audits.
+directly. Those individual annotation tests do not replace the public protocol-7
+composition of scalar dispatch, Fn and authority checks described in
+[indexed source](indexed-source.md). Protocols 2–6 retain their existing audits.
 
 ### Internal data-function bodies
 
@@ -152,10 +154,9 @@ The adapter explicitly rejects old function bodies, generic/method/abstract
 metadata and edit/authority envelopes whose checks it cannot yet compose.
 It has no Fn expressions or specialization; the separate adapter below extends
 the internal syntax. Public protocols 2–6 retain the
-existing complete function/dispatch/authority path; protocol 7 is still not
-accepted. Later internal adapters below compose finite dispatch and authority.
-Rust/wire integration, stdlib declarations, whole-term evaluation and native
-refinement remain open.
+existing complete function/dispatch/authority path. The later adapters below
+compose finite dispatch and authority and are used by the public protocol-7
+entry. Stdlib declarations, whole-term evaluation and native refinement remain open.
 
 ### Internal independent functions and static specialization
 
@@ -255,9 +256,9 @@ ownership, capture/shadowing, recursion and forged expansion/target records.
 Four additional native fixtures execute indexed/higher-order method bodies,
 contract-domain calls, nominal selectors and Pair results (eighteen in total).
 The adapter rejects edit/authority envelopes and old unconnected method bodies.
-The authority composition below adds a separate entry point. Rust/public
-protocol 7, stdlib declarations and whole-term semantics remain pending;
-no public syntax has been enabled.
+The authority composition below adds the entry used by public protocol 7.
+Stdlib declarations and whole-term semantics remain pending; the plain dispatch
+adapter itself is not the public entry.
 
 ### Internal edit authority over indexed contribution bodies
 
@@ -308,8 +309,8 @@ and repair, exact private scope, all-body checking, final out-of-domain footprin
 contribution order, empty-root assembly, scope escape and forged metadata.
 Four additional native fixtures execute nested contribution helpers, transfer,
 obligation repair and the empty-assembly path (twenty-two in total).
-Public protocol 7 still requires Rust/Lean syntax and wire updates together,
-the compatibility adapter and actual stdlib geometry migration.
+Public protocol 7 now decodes Rust source into this exact combined checker.
+The protocol-7 legacy syntax bridge and actual stdlib geometry migration remain pending.
 
 ## Indexed applications and scopes
 
@@ -357,8 +358,8 @@ wrong kinds/arity, base mismatch, cyclic/incompatible inheritance, complete
 finite domains, distinct global/local identities, hidden token escapes and
 invalid substitutions. It runs in the common no-mathlib regression script.
 
-The next integration must update Rust and Lean together, retain unresolved
-namespace provenance and introduce protocol 7. Compatibility Core already uses
+The public protocol-7 integration updates Rust and Lean together and retains
+unresolved namespace provenance. Compatibility Core already uses
 the common environment-driven checker and native generator. The existing geometry source
 correspondence and typed-evaluation proofs must move with that path. No old
 public spelling is a substitute for completing this work.
@@ -481,8 +482,8 @@ and dependency failures. `bash scripts/check_indexed_native.sh` compiles and run
 three standalone fixtures (package output `2`, all primitives output `42`, and
 arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI jobs run them.
 
-Public protocol 7, Rust declaration parsing/resolution, source-to-Core correspondence
-and stdlib geometry declarations remain pending. Typed
+Public protocol 7 now parses and independently resolves declarations;
+source-to-Core semantic correspondence and stdlib geometry declarations remain pending. Typed
 evaluation, activation/world correspondence and native refinement are not
 claimed by the new structural theorem or by native regression tests. These
 limits prevent closing #49/#58–63 at this increment.
@@ -571,7 +572,7 @@ forged/unused-branch annotations. They run without mathlib.
 
 Whole-term preservation/totality, dependent-call world correspondence,
 deriving dynamic freshness from the allocation audit, legacy
-translation preservation, public protocol 7 and stdlib declaration migration
+translation preservation and stdlib declaration migration
 remain open. These primitive lemmas do not close #49/#58–63 or assert storage
 safety, arbitrary geometry, floating-point properties or full native refinement.
 

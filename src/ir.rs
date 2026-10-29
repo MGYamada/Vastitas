@@ -119,6 +119,14 @@ pub struct Param {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Type {
+    IndexedObject {
+        domain: Box<TypePath>,
+        marker: Box<TypePath>,
+    },
+    IndexedApply {
+        family: Box<TypePath>,
+        arguments: Vec<crate::indexed::Argument>,
+    },
     Pair {
         element: String,
     },
@@ -167,6 +175,11 @@ pub struct Expr {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ExprKind {
+    IndexedPack {
+        package: Box<Type>,
+        witness: Box<Expr>,
+        fields: Vec<Expr>,
+    },
     Lambda {
         params: Vec<Param>,
         return_type: Type,
@@ -223,6 +236,11 @@ pub struct Statement {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum StatementKind {
+    UnpackFields {
+        value: Expr,
+        witness: String,
+        fields: Vec<String>,
+    },
     Let {
         name: String,
         annotation: Option<Type>,

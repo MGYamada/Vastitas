@@ -1,0 +1,14 @@
+mod geo;
+
+fn make(n: Nat) -> geo::Pointed<geo::Scheme, geo::QQ> {
+    let X = geo::affine(n);
+    pack geo::Pointed<geo::Scheme, geo::QQ> { witness: X, fields: [geo::origin(X)] }
+}
+
+fn main() -> Int {
+    let packed = make(41);
+    unpack packed as { witness: Y, fields: [p] };
+    let q: geo::Point<Y, geo::Base> = geo::apply(geo::identity(Y), p);
+    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
+    increment(int(geo::dimension(Y)))
+}

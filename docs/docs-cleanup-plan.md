@@ -75,7 +75,7 @@ README の短い状況説明はこの表と同期し、証明の説明は `verif
 | `stage1a.md`、`stage1b.md` | 現行言語仕様 | dispatchと独立関数の正本。新仕様との参照を更新 |
 | `packages.md`、`abstract-types.md`、`promotion.md` | 現行言語・stdlib仕様 | パッケージ、abstract selector、値のpromotion方針を維持 |
 | `edit-borrowing.md`、`edit-authority.md` | 現行編集権限仕様 | protocol 5と6、定義IDと編集権限、貸出と移転を区別 |
-| `indexed-declarations.md` | 内部実装仕様・移行状況 | 完了時点の公開7と内部checkerの区別へ更新。未完了証明を残す |
+| `indexed-declarations.md`、`indexed-source.md` | 公開indexed構文・内部実装仕様・移行状況 | 公開7と内部checker、互換adapterと未移行stdlibを区別。未完了証明を残す |
 | `storage-ownership.md` | 採用設計・改訂7章 | レイアウト、alias、残差保持、費用、性能受入条件の正本。実装証拠は台帳へ接続 |
 | `protocol.md`、`verification.md` | 公開境界・検証の正本 | 対応version、実checker、定理、仮定と未証明事項を照合 |
 | `adr/0001-mathematics-first-stdlib.md` | 採用方針・ADR | マージ済み方針のstatusを確認し、後続ADRと実装状態を区別 |

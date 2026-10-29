@@ -130,6 +130,33 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
 }
 
 #[test]
+fn protocol_seven_preserves_nested_loans_transfer_and_unapplied_audits() {
+    let base = format!("indexed marker Wire; {BASE}");
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    native(&fixture(&base, ADDON, &events), b"44\n");
+    reject(
+        &fixture(
+            &base,
+            ADDON,
+            &format!("transfer base::handoff; apply base::old; {NESTED}"),
+        ),
+        "E_OWNER",
+    );
+    reject(
+        &fixture(
+            &base,
+            ADDON,
+            "borrow base::outer as parent; reborrow parent via addon::inner as child; return parent;",
+        ),
+        "E_BORROW",
+    );
+    reject(
+        &fixture(&base.replace("{ 99 }", "{ true }"), ADDON, &events),
+        "E_TYPE",
+    );
+}
+
+#[test]
 fn suspended_parent_return_order_and_exact_delegation_are_enforced() {
     let prefix = "borrow base::outer as parent; reborrow parent via addon::inner as child;";
     for suffix in [

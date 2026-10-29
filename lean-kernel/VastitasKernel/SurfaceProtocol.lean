@@ -134,7 +134,7 @@ def decodeSurfaceModule (j : Json) : Except String Surface.Program := do
     -- silently erase declarations from a downgraded protocol-4 request.
     for key in ["input", "abstract_types", "subtypes", "abstract_methods"] do
       if (j.getObjVal? key).isOk then throw "abstract declarations require protocol 4"
-    for key in ["grants", "contributions", "assembly", "delegations", "transfers", "packages", "root"] do
+    for key in ["grants", "contributions", "assembly", "delegations", "transfers", "packages", "root", "indexed_declarations"] do
       if (j.getObjVal? key).isOk then throw "package and authority declarations require their package protocol"
   let abstractTypes ← (← optionalArray j "abstract_types").mapM fun t => do
     fields t ["name", "parents", "span"]

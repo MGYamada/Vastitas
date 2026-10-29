@@ -141,6 +141,8 @@ def body (action : Source.Bodies.M α) : M α := fun state =>
 def error (span : Span) (code message : String) : M α :=
   fun _ => .failed { code, message, span }
 
+def checkingBudgetExceeded (span : Span) : M α := body (Source.Bodies.checkingBudgetExceeded span)
+
 def result (action : Namespace.Result α) : M α := fun state =>
   match action with | .ok value => .done value state | .error diagnostic => .failed diagnostic
 
@@ -187,6 +189,7 @@ def probe (signature : Surface.TypeExpr) : M Target := do
 
 def resolve (input : Input) (scope : Namespace.Scope) (path : Source.Path) : M Nat := do
   let target ← result (Namespace.resolve input.body.index scope path.path path.span)
+  if target.kind == .module then error path.span "E_NAME" "a module is not a value"
   unless target.kind == .function do error path.span "E_TYPE" "expected an ordinary function; generic families are not Fn values"
   let some id := input.named[target.owner]? | error path.span "E_NAME" "function has no source definition"
   modify fun state => { state with calls := ⟨scope, path, target, id⟩ :: state.calls }
@@ -229,6 +232,8 @@ def prepareDefinition (input : Source.Bodies.Input) (definition : Definition) : 
         pure (Core.DataType.pure .unit)
     let symbol ← Source.Bodies.fresh
     let reference := match type with | .object type => some (.local type symbol) | _ => none
+    if let some reference := reference then
+      Source.Bodies.rememberObject reference parameter.span "parameter" (some parameter.name)
     let binding : Source.Binding := ⟨parameter.name, ⟨symbol, ⟨type, reference⟩⟩, parameter.span⟩
     context := context ++ [binding]
     if let .data _ := parameter.type then parameters := parameters ++ [binding.parameter]
@@ -256,7 +261,9 @@ def emitCall (input : Input) (id : Nat) (targets : List Target) (values : List V
   let compiled ← request id targets span
   modify fun state => { state with emittedCalls := ⟨key id targets, compiled.id⟩ :: state.emittedCalls }
   let type := definition.result.rename substitution
-  let reference ← match type with | .object type => some <$> (ObjectRef.local type <$> fresh) | _ => pure none
+  let reference ← match type with
+    | .object type => some <$> body (Source.Bodies.freshObject type span s!"function call '{definition.definition.owner.name}'")
+    | _ => pure none
   let term := Core.Term.call compiled.id arguments substitution ⟨type, reference⟩
   return ⟨bindings.foldr (fun (symbol, value) rest => .letE symbol value rest) term, compiled.target⟩
 

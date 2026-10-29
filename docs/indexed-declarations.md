@@ -154,10 +154,9 @@ These are internal AST tests, not Rust-parsed `.vast` fixtures.
 The adapter explicitly rejects old function bodies, generic/method/abstract
 metadata and edit/authority envelopes whose checks it cannot yet compose.
 It has no Fn expressions or specialization; the separate adapter below extends
-the internal syntax. Public protocols 2–6 retain the
-existing complete function/dispatch/authority path. The later adapters below
-compose finite dispatch and authority and are used by the public protocol-7
-entry. Stdlib declarations, whole-term evaluation and native refinement remain open.
+the internal syntax. The later adapters below compose finite dispatch and
+authority and are now used by every public protocol, with source adaptation for
+versions 2–6. Whole-term evaluation and native refinement remain open.
 
 ### Internal independent functions and static specialization
 
@@ -530,51 +529,62 @@ witnesses; capture, scope escape and unused-body checks are unchanged.
 `VastitasOracle.GeometryCompatibility` proves that actual public acceptance uses
 the independently validated profile in the function compiler, with distinct
 markers and matching origin/package roles. These structural theorems do not prove
-whole-term evaluation or legacy semantic correspondence. Protocols 2–6 still
-retain the elaboration path below; those obligations keep #49/#58–63 open.
+whole-term evaluation or legacy semantic correspondence. Protocols 2–6 now use
+the source adapter below; the semantic obligations keep #49/#58–63 open.
 
 ## Compatibility adapter for protocols 2–6
 
-`LegacyIndexed` translates the actual legacy checked Core into the same indexed
-terms audited above. Its closed compatibility profile explicitly declares two
-coefficient markers, the existing two affine implementations, canonical base
-objects, indexed point/morphism families, two existential cases and the closed
-primitive bindings. Each legacy object type admits exactly its existing affine
-implementation; it does not grant operations to an arbitrary future classification.
-Reserved compatibility declaration IDs come from the adapter itself, never a
-source filename or displayed name. Object serials, dependent substitutions,
-actual bodies, call IDs and entrypoint selection survive translation.
+`Indexed.LegacySource` retains the original wire decoders and converts decoded
+source directly to `Indexed.AuthoritySource.checkProgram`, the same declaration,
+function, finite-dispatch and edit-authority checker used by protocol 7. It does
+not use the old geometry elaborator's acceptance or translate an old checked Core
+on the public path. Both `check` and `build` require the common audit; code
+emission uses the exact returned executable Core and independently audits it again.
 
-The public `check` path requires both existing acceptance and the common audit.
-The public `build` path and legacy `Codegen.generate` API independently validate
-legacy certificates, translate, audit the resulting indexed Core and invoke
-`IndexedCodegen`. The former duplicate geometry/native renderer is removed.
-Generated programs import only `IndexedRuntime`; the old runtime remains for
-the existing legacy evaluation theorems. Ordinary compilation still needs
-neither mathlib nor OpenBLAS.
+Flat functions, methods, abstract declarations and contracts retain their actual
+bodies and spans in a synthetic module whose identity is independent of display
+filenames. Flat input gains no qualified module paths. Package inputs retain
+original package IDs, module owners, imports, visibility, grants, contributions,
+delegations, transfers and assemblies. Scalar header validation preserves the
+old diagnostic ordering; it supplies no accepted bodies or checked Core.
 
-The signature table is reconstructed once per module using a hash index.
-`VastitasOracle.IndexedSignatures` proves membership, absence and actual-target
-correspondence. The shared `Distinct` audit proves its hash-set check equivalent
-to list distinctness; both old and indexed typing reuse it. The existing
-20,000-function watchdog regression continues to pass through this added audit.
+Old wire formats cannot declare indexed types. The adapter therefore appends a
+closed package of unresolved ordinary/smooth affine declarations and an explicit
+compatibility export. The common declaration/profile checker validates its two
+coefficient markers, finite implementations, canonical base objects, point and
+morphism families, existential cases and primitive contracts. The adapter first
+validates the original namespace and rejects a source package colliding with the
+reserved profile identity. Injecting that package cannot repair an unknown source
+dependency or grant imports, edits, memberships or contracts. Protocol 7 continues
+to use explicit library exports and canonical stdlib declaration IDs.
 
-`VastitasOracle.LegacyIndexed.check_acceptance` connects the exact adapter input,
-its actual converted module, complete typing on both sides and the real dependency
-graphs. Nine `LegacyIndexedRegression` cases check the profile, executable package
-translation, forged certificates, mutated converted Core and cross-base reuse of
-a numeric serial. Existing source/native tests exercise both geometric settings,
-unpack, higher-order specialization, dispatch, packages and edit authority through
-the new path.
+The common source compiler retains object introduction sites for parameters,
+constructors, object-returning calls, branch merges and unpacking. These names and
+locations affect diagnostics only. Nominal references, scope, independent Core
+typing and actual dependency ordering continue to determine acceptance. Aliases
+retain the original introduction; equal descriptors never identify objects.
 
-This is a structural compatibility bridge. It does not prove evaluation
-preservation of the translation, activation/world correspondence or native
-equivalence. Legacy source-to-Core and evaluation theorems still describe the
-retained legacy intermediate; the indexed semantic bridge remains explicit work.
-Source geometry declarations now live in the `.vast` stdlib modules above.
-The protocol-7 library export above now supplies legacy syntax in indexed
-packages. Semantic correspondence is still required; these structural adapters
-alone do not complete the migration.
+`LegacySourceRegression` exercises all six flat/package envelope combinations
+across versions 2–6, library/entrypoint behavior, unused invalid bodies, flat path
+rejection, reserved profile collisions, forged dependencies and a corrupted
+injected profile. Existing source/native regressions cover both geometric
+settings, dependent substitution, Fn specialization, full scalar dispatch and
+edit authority, including all applied and unapplied bodies.
+
+`VastitasOracle.LegacySource` connects the exact decoder and source-adapter results
+to the actual common checker, both typed Core passes, real dependency order,
+entrypoint validation, returned loans, final winning footprints, checked body
+coverage and the same validated geometry profile used by the function compiler.
+These are structural acceptance theorems. Whole-term source evaluation,
+activation/world freshness, legacy semantic correspondence and native refinement
+remain explicit obligations and keep #49/#58–63 open.
+
+`LegacyIndexed` and `Codegen.generate` remain internal compatibility APIs for the
+retained old Core and its regression/proof boundary. Their structural translation
+theorem and nine direct regressions remain useful, but they no longer describe
+public source acceptance. The old evaluation theorems still concern that old Core
+and runtime. Public generated programs import only `IndexedRuntime`; ordinary
+compilation needs neither mathlib nor OpenBLAS.
 
 ## Indexed runtime semantics: first proved fragment
 

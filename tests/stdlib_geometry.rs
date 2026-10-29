@@ -168,17 +168,41 @@ fn main() -> Int {
 #[test]
 fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
     let cases = [
-        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(Y));",
-        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let f = compose(id(X), id(Y));",
-        "let X = Affine(QQ, 2); let p: Point<X, Base(CInfReal)> = origin(X);",
-        "let X = Affine(QQ, 2); let p: Point<X, QQ> = origin(X);",
-        "let X = Affine(QQ, 2); let S = Affine(QQ, 0); let p: Point<X, S> = origin(X);",
-        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = pack { scheme: X, point: origin(Y) };",
-        "let p = { let X = Affine(QQ, 2); origin(X) };",
-        "let X = Affine(QQ, 2); let a = pack { scheme: X, point: origin(X) }; unpack a as { scheme: Y, point: p }; unpack a as { scheme: Z, point: q }; let bad: Point<Y, Base(QQ)> = q;",
-        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let Z = if true { X } else { Y }; let p: Point<Z, Base(QQ)> = origin(X);",
+        (
+            "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(Y));",
+            "E_ENDPOINT",
+        ),
+        (
+            "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let f = compose(id(X), id(Y));",
+            "E_ENDPOINT",
+        ),
+        (
+            "let X = Affine(QQ, 2); let p: Point<X, Base(CInfReal)> = origin(X);",
+            "E_BASE",
+        ),
+        (
+            "let X = Affine(QQ, 2); let p: Point<X, QQ> = origin(X);",
+            "E_TYPE",
+        ),
+        (
+            "let X = Affine(QQ, 2); let S = Affine(QQ, 0); let p: Point<X, S> = origin(X);",
+            "E_TYPE",
+        ),
+        (
+            "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = pack { scheme: X, point: origin(Y) };",
+            "E_ENDPOINT",
+        ),
+        ("let p = { let X = Affine(QQ, 2); origin(X) };", "E_ESCAPE"),
+        (
+            "let X = Affine(QQ, 2); let a = pack { scheme: X, point: origin(X) }; unpack a as { scheme: Y, point: p }; unpack a as { scheme: Z, point: q }; let bad: Point<Y, Base(QQ)> = q;",
+            "E_TYPE",
+        ),
+        (
+            "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let Z = if true { X } else { Y }; let p: Point<Z, Base(QQ)> = origin(X);",
+            "E_TYPE",
+        ),
     ];
-    for body in cases {
+    for (body, code) in cases {
         let s = fixture(&format!("fn main() -> Int {{ {body} 0 }}"), str::to_owned);
         s.write("program", "preserve this output");
         for mode in ["check", "build"] {
@@ -192,12 +216,7 @@ fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
             let output = command.output().unwrap();
             assert!(!output.status.success(), "accepted {body}");
             let error = String::from_utf8_lossy(&output.stderr);
-            assert!(
-                error.contains("E_TYPE")
-                    || error.contains("E_ENDPOINT")
-                    || error.contains("E_ESCAPE"),
-                "{error}"
-            );
+            assert!(error.contains(&format!(": {code}: ")), "{error}");
             assert_eq!(
                 std::fs::read(s.0.join("program")).unwrap(),
                 b"preserve this output"

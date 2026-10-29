@@ -29,9 +29,20 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
     let labels := cycle.map fun k =>
       let entry := input.prepared[k.definition]!
       let owner := entry.definition.owner
-      "`" ++ String.intercalate "::" (owner.scope.package.name :: owner.scope.path ++ [owner.name]) ++
-        (if entry.definition.isLambda then s!"::<lambda {k.definition}>" else "") ++ "`"
-    error span "E_RECURSION" s!"recursive call cycle {String.intercalate " → " labels} is not supported"
+      let name := String.intercalate "::" (owner.scope.package.name :: owner.scope.path ++ [owner.name])
+      let label := if entry.definition.isLambda then
+          let location := entry.definition.function.span
+          s!"{name}::<lambda at {location.line}:{location.column}>"
+        else if k.definition >= input.sourceCount then
+          name ++ "(" ++ String.intercalate ", " (entry.parameters.map fun parameter =>
+            Source.Diagnostics.typeLabel input.body.declarations input.body.geometry {} parameter.result.type) ++ ")"
+        else name
+      "`" ++ label ++ "`"
+    let lambdas := cycle.filter (fun k => input.prepared[k.definition]!.definition.isLambda) |>.eraseDups
+    let notes := lambdas.map fun k =>
+      { span := input.prepared[k.definition]!.definition.function.span, message := "lambda defined here" : DiagnosticNote }
+    body (Source.Bodies.fail definition.definition.function.span "E_RECURSION"
+      s!"recursive call cycle {String.intercalate " → " labels} is not supported" notes)
   let specialized := definition.definition.isLambda || definition.definition.function.higher
   if specialized && (← get).specializations >= Limits.specializations then
     error span "E_LIMIT" s!"higher-order specialization exceeds the {Limits.specializations}-instance limit"

@@ -1,4 +1,4 @@
-import VastitasKernel.IndexedSourceTypes
+import VastitasKernel.IndexedSourceDiagnostics
 
 /-! Internal data-function elaboration. The public protocol-7 entry point must
 also compose Fn specialization, finite dispatch and edit authority. This adapter
@@ -22,6 +22,7 @@ structure CallReference where
 
 structure State where
   nextSymbol : Nat := 1
+  origins : Diagnostics.Origins := {}
   references : List Source.Reference := []
   calls : List CallReference := []
   deriving Inhabited
@@ -34,13 +35,50 @@ structure Input where
   signatures : Std.HashMap DeclId Signature := {}
   geometry : Option (GeometryProfile DeclId) := none
 
-def fail (span : Span) (code message : String) : M α :=
-  throw { code, message, span }
+def fail (span : Span) (code message : String) (notes : List DiagnosticNote := []) : M α :=
+  throw { code, message, span, notes }
+
+def checkingBudgetExceeded (span : Span) : M α :=
+  fail span "E_LIMIT" s!"function exceeds the checking budget of {Limits.bodyChecking} units (statements, nesting, and call arguments)"
 
 def fresh : M Nat := do
   let symbol := (← get).nextSymbol
   modify fun state => { state with nextSymbol := symbol + 1 }
   return symbol
+
+def rememberObject (reference : ObjectRef) (span : Span) (reason : String)
+    (name : Option String := none) : M Unit := do
+  if let .local _ brand := reference then
+    modify fun state => { state with origins := state.origins.insert brand ⟨name, span, reason⟩ }
+
+def freshObject (type : Indexed.ObjectType) (span : Span) (reason : String) : M ObjectRef := do
+  let reference := ObjectRef.local type (← fresh)
+  rememberObject reference span reason
+  return reference
+
+def nameObject (reference : Option ObjectRef) (name : String) : M Unit := do
+  if let some (.local _ brand) := reference then
+    if let some source := (← get).origins[brand]? then
+      if source.name.isNone then
+        modify fun state => { state with origins := state.origins.insert brand { source with name := some name } }
+
+def typeLabel (input : Input) (type : Core.DataType) : M String := do
+  return Diagnostics.typeLabel input.declarations input.geometry (← get).origins type
+
+def objectNotes (input : Input) (refs : List ObjectRef) : M (List DiagnosticNote) := do
+  return Diagnostics.objectNotes input.declarations input.geometry (← get).origins refs
+
+def endpointFailure (input : Input) (values : List Core.Result) (span : Span) (message : String) : M α := do
+  let refs := values.flatMap Core.Result.refs
+  let labels ← values.mapM fun value => typeLabel input value.type
+  fail span "E_ENDPOINT" (message ++ ": " ++ String.intercalate ", " labels)
+    ((← objectNotes input refs) ++ Diagnostics.generativeNotes (← get).origins refs span)
+
+def checkEscape (input : Input) (ctx : TypeContext) (type : Core.DataType) (span : Span) : M Unit := do
+  let escaped := type.refs.filter fun ref => !decide (ref.Scoped (Core.Typing.contextRefs ctx.core))
+  unless escaped.isEmpty do
+    fail span "E_ESCAPE" s!"{← typeLabel input type} contains a local object index; package its witness and fields before returning"
+      (← objectNotes input escaped)
 
 def bindName (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
     (name : String) (span : Span) : M Unit := do
@@ -52,7 +90,9 @@ contexts here are built by parameter/let/unpack elaboration, not wire metadata. 
 def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
     (raw : Source.DataType) (span : Span) : M Core.DataType := do
   let (type, references) ← (elaborateDataType input.index input.declarations scope ctx raw input.geometry).run []
-  unless type.Valid input.declarations do fail span "E_TYPE" "invalid indexed annotation"
+  unless type.Valid input.declarations do
+    let code := match raw with | .legacy (.point ..) | .legacy (.morphism ..) => "E_BASE" | _ => "E_TYPE"
+    fail span code s!"invalid indexed annotation {← typeLabel input type}"
   unless type.Scoped (Core.Typing.contextRefs ctx.core) do fail span "E_SCOPE" "annotation contains a local object outside its scope"
   modify fun state => { state with references := references ++ state.references }
   return type
@@ -60,7 +100,10 @@ def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
 def expect (input : Input) (expected : Option Core.DataType) (value : Core.Term) (span : Span) : M Core.Term := do
   if let some expected := expected then
     unless Core.Typing.Compatible input.declarations value.result.type expected do
-      fail span "E_TYPE" "value does not satisfy the expected type; no implicit scalar or object-identity conversion"
+      fail span "E_TYPE" s!"expected {← typeLabel input expected}, found {← typeLabel input value.result.type}"
+        ((← objectNotes input (expected.refs ++ value.result.type.refs)) ++
+          if expected == .pure .int && value.result.type == .pure .nat then
+            [{ span, message := "help: convert explicitly with int(...); Nat values are never converted implicitly" }] else [])
   return value
 
 def literalLike : Source.Expr → Bool
@@ -92,7 +135,11 @@ def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
   let some output := inferPrimitiveResult input.declarations.indexed binding brand operands
     | fail span "E_TYPE" "primitive operand shape mismatch"
   unless validPrimitive input.declarations.indexed binding (Core.Typing.contextRefs ctx.core) brand operands output do
-    fail span "E_ENDPOINT" "primitive capability, endpoint or coefficient contract failed"
+    endpointFailure input (values.map Core.Term.result) span "primitive capability, endpoint or coefficient contract failed"
+  if let .descriptor _ := binding then
+    if let .object _ reference := output then
+      let legacy := input.geometry.any fun profile => id == profile.scheme.affine || id == profile.smooth.affine
+      rememberObject reference span (if legacy then "Affine" else s!"primitive '{id.name}'")
   return .primitive id values (primitiveResult output)
 
 def requireGeometry (input : Input) (span : Span) : M (GeometryProfile DeclId) := do
@@ -144,13 +191,14 @@ def prepareSignature (input : Input) (owner : DeclId) (source : Source.Function)
     let type ← type input owner.scope context parameter.type parameter.span
     let symbol ← fresh
     let reference := match type with | .object type => some (.local type symbol) | _ => none
+    if let some reference := reference then rememberObject reference parameter.span "parameter" (some parameter.name)
     context := context ++ [⟨parameter.name, ⟨symbol, ⟨type, reference⟩⟩, parameter.span⟩]
   let result ← type input owner.scope context source.result source.span
   return ⟨id, owner, source, context, result⟩
 
 mutual
   def expression : Nat → Input → Namespace.Scope → TypeContext → Source.Expr → Option Core.DataType → M Core.Term
-    | 0, _, _, _, expr, _ => fail expr.span "E_LIMIT" s!"function exceeds the {Limits.bodyChecking}-unit checking budget"
+    | 0, _, _, _, expr, _ => checkingBudgetExceeded expr.span
     | fuel + 1, input, scope, ctx, expr, expected => do
       let span := expr.span
       let value ← match expr with
@@ -205,7 +253,7 @@ mutual
           let reference ← match yes.result.type with
             | .object type =>
               if yes.result.reference == no.result.reference then pure yes.result.reference
-              else pure (some (.local type (← fresh)))
+              else some <$> freshObject type span "if merge of distinct objects"
             | _ => pure none
           pure (.branch condition yes no ⟨yes.result.type, reference⟩)
       | .block body _ => block fuel input scope ctx body expected
@@ -221,16 +269,16 @@ mutual
               pure (application, ← expression fuel input scope ctx witness (some (.object shape.witnessType)))
           let fields ← fields.mapM fun field => expression fuel input scope ctx field none
           unless Core.Typing.PackageTyping input.declarations application witness.result (fields.map Core.Term.result) do
-            fail span "E_ENDPOINT" "package fields do not match the exact witness and ordered field contract"
+            endpointFailure input (witness.result :: fields.map Core.Term.result) span "package fields do not match the exact witness and ordered field contract"
           pure (.pack application witness fields)
       | .call callee arguments _ => call fuel input scope ctx callee arguments span
       expect input expected value span
 
   def call : Nat → Input → Namespace.Scope → TypeContext → Path → List Source.Expr → Span → M Core.Term
-    | 0, _, _, _, _, _, span => fail span "E_LIMIT" "call exceeds the checking budget"
+    | 0, _, _, _, _, _, span => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, callee, arguments, span => do
       if callee.path == ["int"] then
-        let [argument] := arguments | fail span "E_ARITY" "int expects one argument"
+        let [argument] := arguments | fail span "E_ARITY" s!"int expects 1 argument, found {arguments.length}"
         return .natToInt (← expression fuel input scope ctx argument (some (.pure .nat)))
       if callee.path == ["pair"] then
         let [first, second] := arguments | fail span "E_ARITY" "pair expects two arguments"
@@ -273,14 +321,14 @@ mutual
       let (values, substitution) ← argumentsFor fuel input scope ctx signature.context arguments [] span
       let resultType := signature.result.rename substitution
       let reference ← match resultType with
-        | .object type => pure (some (.local type (← fresh)))
+        | .object type => some <$> freshObject type span s!"function call '{callee.name}'"
         | _ => pure none
       modify fun state => { state with calls := ⟨scope, callee, target, signature.id⟩ :: state.calls }
       return .call signature.id values substitution ⟨resultType, reference⟩
 
   def argumentsFor : Nat → Input → Namespace.Scope → TypeContext → TypeContext → List Source.Expr →
       List (ObjectRef × ObjectRef) → Span → M (List Core.Term × List (ObjectRef × ObjectRef))
-    | 0, _, _, _, _, _, _, span => fail span "E_LIMIT" "arguments exceed the checking budget"
+    | 0, _, _, _, _, _, _, span => checkingBudgetExceeded span
     | _ + 1, _, _, _, [], [], substitution, _ => pure ([], substitution)
     | fuel + 1, input, scope, ctx, formal :: formals, argument :: arguments, substitution, span => do
         let value ← expression fuel input scope ctx argument (some (formal.parameter.result.type.rename substitution))
@@ -293,16 +341,15 @@ mutual
     | _, _, _, _, _, _, _, span => fail span "E_ARITY" "wrong function argument count"
 
   def block : Nat → Input → Namespace.Scope → TypeContext → Source.Block → Option Core.DataType → M Core.Term
-    | 0, _, _, _, .mk _ _ span, _ => fail span "E_LIMIT" "block exceeds the checking budget"
+    | 0, _, _, _, .mk _ _ span, _ => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, .mk statements result span, expected => do
         let body ← statementsThen fuel input scope ctx statements result expected span
-        unless body.result.type.Scoped (Core.Typing.contextRefs ctx.core) do
-          fail span "E_ESCAPE" "block result contains a local object index; package the witness with its fields"
+        checkEscape input ctx body.result.type span
         return .scope body
 
   def statementsThen : Nat → Input → Namespace.Scope → TypeContext → List Source.Stmt → Source.Expr →
       Option Core.DataType → Span → M Core.Term
-    | 0, _, _, _, _, _, _, span => fail span "E_LIMIT" "statements exceed the checking budget"
+    | 0, _, _, _, _, _, _, span => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, [], result, expected, _ => expression fuel input scope ctx result expected
     | fuel + 1, input, scope, ctx, .letE name annotation value span :: rest, result, expected, blockSpan => do
         bindName input scope ctx name span
@@ -310,6 +357,7 @@ mutual
         let value ← expression fuel input scope ctx value annotation
         let value := match annotation with | some type => Core.Term.ascribe type value | none => value
         let symbol ← fresh
+        nameObject value.result.reference name
         let inner := ctx ++ [⟨name, ⟨symbol, value.result⟩, span⟩]
         return .letE symbol value (← statementsThen fuel input scope inner rest result expected blockSpan)
     | fuel + 1, input, scope, ctx, .unpack value witness fields span :: rest, result, expected, blockSpan => do
@@ -320,6 +368,7 @@ mutual
         bindName input scope ctx witness span
         let symbol ← fresh
         let reference := ObjectRef.local shape.witnessType symbol
+        rememberObject reference span "unpack" (some witness)
         let mut inner := ctx ++ [⟨witness, ⟨symbol, ⟨.object shape.witnessType, some reference⟩⟩, span⟩]
         let mut fieldSymbols := []
         for (name, application) in fields.zip (shape.instantiate reference) do
@@ -328,8 +377,7 @@ mutual
           fieldSymbols := fieldSymbols ++ [field]
           inner := inner ++ [⟨name, ⟨field, ⟨.indexed application, none⟩⟩, span⟩]
         let body ← statementsThen fuel input scope inner rest result expected blockSpan
-        unless body.result.type.Scoped (Core.Typing.contextRefs ctx.core) do
-          fail span "E_ESCAPE" "unpack result contains the opened local witness; repack it before returning"
+        checkEscape input ctx body.result.type span
         return .unpack symbol fieldSymbols value body
 end
 

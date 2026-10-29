@@ -59,6 +59,6 @@ def checkProgram (program : DispatchSource.Program) (requireMain : Bool := false
               else Namespace.problem {} "E_OWNER" "authority method/key/body scope correspondence failed"
             else Namespace.problem {} "E_OWNER" "preparation changed definition identities or source scopes"
         else Namespace.problem {} "E_OWNER" "lifted source identity/scope audit failed"
-    else Namespace.problem {} "E_MAIN" "entry point must have source signature fn main() -> Int"
+    else Namespace.problem {} "E_MAIN" "entry point must have signature fn main() -> Int"
 
 end VastitasKernel.Indexed.AuthoritySource

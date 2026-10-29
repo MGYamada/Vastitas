@@ -1,6 +1,7 @@
 import VastitasKernel.LegacySource
 import VastitasOracle.IndexedAuthority
 import VastitasOracle.GeometryCompatibility
+import VastitasOracle.IndexedProgramSafety
 
 /-! The original protocols are decoded and adapted before semantic acceptance.
 These theorems connect that exact source transformation to the actual common
@@ -25,6 +26,30 @@ theorem checked_cores {json : Lean.Json} (accepted : Indexed.LegacySource.Checke
 theorem codegen_input {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json true) :
     accepted.checked.executable.core.module = accepted.checked.executable.lowered.module :=
   accepted.checked.executable.coreInput
+
+/-- Original protocols now share the same executable Core totality theorem.
+This is about the exact adapted/checked Core, not equality with the retained
+legacy evaluator's results. -/
+theorem executable_functions_total {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json requireMain) :
+    ∀ function ∈ accepted.checked.executable.lowered.module.functions,
+      IndexedFunctionSafety.FunctionReturns accepted.checked.executable.lowered.module function := by
+  simpa only [accepted.checked.executable.coreInput] using
+    IndexedProgramSafety.checked_functions_total_and_typed accepted.checked.executable.core
+
+theorem audit_functions_total {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json requireMain) :
+    ∀ function ∈ accepted.checked.audit.lowered.module.functions,
+      IndexedFunctionSafety.FunctionReturns accepted.checked.audit.lowered.module function := by
+  simpa only [accepted.checked.audit.coreInput] using
+    IndexedProgramSafety.checked_functions_total_and_typed accepted.checked.audit.core
+
+theorem main_total {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json true) :
+    ∃ id function result,
+      accepted.checked.executable.lowered.module.main = some id ∧
+      accepted.checked.executable.lowered.module.functions.find? (fun function => function.id == id) = some function ∧
+      IndexedEvaluation.Evaluates accepted.checked.executable.lowered.module (fun _ => none)
+        function.body (.integer result) := by
+  simpa only [accepted.checked.executable.coreInput] using
+    IndexedProgramSafety.checked_main_total accepted.checked.executable.core
 
 theorem returned_loans {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json requireMain) :
     VastitasKernel.Authority.Exclusive accepted.checked.authority.headers.assembled.state ∧

@@ -25,7 +25,7 @@ ambiguity, every declared domain for coverage, and every applicable method
 body before lowering calls to independently audited indexed Core. All public wire
 versions now reach the same declaration/function/dispatch/authority checker;
 [legacy source adaptation](docs/indexed-declarations.md#compatibility-adapter-for-protocols-26)
-preserves existing input formats. Whole-term indexed semantic correspondence remains pending. Stage 1b adds independent
+preserves existing input formats. The exact checked indexed Core has proved terminating typed evaluation; legacy source-result correspondence remains pending. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.
@@ -167,10 +167,10 @@ stdlib bodies; this increment does not complete the historical Stage 1 proposal.
 | `stdlib/src/` | Standard library written in `.vast` | Explicitly included `.vast` sources |
 
 Ordinary compilation and generated programs do not call the proof oracle.
-The oracle proves actual Stage 0 checker soundness, source-to-core
+On the retained legacy Core path, the oracle proves Stage 0 checker soundness, source-to-core
 correspondence, terminating typed evaluation, and runtime endpoint preservation.
 It also proves the finite dispatch checker's unique selection, coverage, and
-declaration-order invariance, and connects the public Stage 1b checker's exact
+declaration-order invariance, and connects the retained Stage 1b checker's exact
 lowered result to that proved core. Independent capture and static function
 signature audits are connected to actual acceptance. Protocol-3 owner uniqueness,
 reference/visibility and method-authority audits connect the namespace path to
@@ -184,8 +184,10 @@ functions, finite scalar dispatch and edit-authority assemblies, including
 applied and unapplied contribution bodies. [Public protocol 7](docs/indexed-source.md)
 connects the Rust declaration/body syntax to that same combined checker and
 returned Core. Legacy geometry syntax in protocol 7 uses the library’s explicit,
-independently checked compatibility export. Whole-term indexed evaluation and
-legacy semantic correspondence proofs remain pending. See
+independently checked compatibility export. `IndexedProgramSafety` proves finite
+typed evaluation for all functions and main in the exact returned Core, including
+dependent calls and package openings. Legacy semantic correspondence and native
+refinement remain pending. See
 [indexed declarations](docs/indexed-declarations.md).
 
 The [geometry standard library](stdlib/src/geometry/README.md) exposes

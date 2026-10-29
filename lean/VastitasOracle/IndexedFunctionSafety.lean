@@ -1,7 +1,8 @@
 import VastitasOracle.IndexedEvaluationSafety
 
 /-! Function-level consequences of the actual indexed Core audit. The callee
-contracts are explicit until dependent argument transport discharges them. -/
+contracts are explicit here; IndexedProgramSafety discharges them using
+dependent argument transport and the checked dependency order. -/
 namespace VastitasOracle.IndexedFunctionSafety
 open VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics VastitasKernel.Indexed.Core.Typing

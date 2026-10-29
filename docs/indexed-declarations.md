@@ -258,8 +258,8 @@ Four additional native fixtures execute indexed/higher-order method bodies,
 contract-domain calls, nominal selectors and Pair results (eighteen in total).
 The adapter rejects edit/authority envelopes and old unconnected method bodies.
 The authority composition below adds the entry used by public protocol 7.
-Stdlib declarations and whole-term semantics remain pending; the plain dispatch
-adapter itself is not the public entry.
+The later stdlib and checked-Core evaluation increments below compose this
+foundation; the plain dispatch adapter itself is not the public entry.
 
 ### Internal edit authority over indexed contribution bodies
 
@@ -627,12 +627,11 @@ nominal-world behavior, scalar and Pair boundaries, wrong arities/shapes, and
 the distinction between operational evaluation and independent rejection of
 forged/unused-branch annotations. They run without mathlib.
 
-The later conditional term/function theorem now derives typed evaluation and
-allocation freshness under explicit callee contracts; see
+The later checked-program theorem derives typed total evaluation and allocation
+freshness from the actual module audits, including dependent calls; see
 [the precise premises and remaining obligations](verification.md#conditional-indexed-term-and-function-evaluation).
-Dependent-call world correspondence, unconditional checked-program evaluation,
-legacy translation preservation and full geometry migration acceptance remain
-open. These primitive lemmas do not close #49/#58–63 or assert storage
+Legacy translation preservation, native refinement and full geometry migration
+acceptance remain open. These primitive lemmas do not close #49/#58–63 or assert storage
 safety, arbitrary geometry, floating-point properties or full native refinement.
 
 ## Existential payload preservation
@@ -652,7 +651,8 @@ at the exact reference returned by that audit. `core_pack_semantics` and
 `core_opening_semantics` obtain the exact shape and payload association from
 actual typed Core nodes and their declaration environment. Fresh dynamic slots
 preserve previous world bindings. `IndexedEvaluationSafety` now derives that
-freshness throughout the unpack body under its explicit callee contracts.
+freshness throughout the unpack body; `IndexedProgramSafety` discharges its
+callee contracts from the actual checked dependency order.
 
 Eleven additional no-mathlib regressions cover a global witness equal to its
 explicit global base, two fresh openings, repacking, heterogeneous field order,
@@ -660,6 +660,6 @@ forged global annotations, cross-opening field misuse, scope escape and a
 non-geometric indexed token. Two new standalone native fixtures exercise the
 global-witness round trip and both fields after opening and repacking, bringing
 the native fixture suite to five. The package operation lemmas alone do not prove
-unpack-body preservation; the later conditional term theorem supplies that
-composition. Dependent-call transport, unconditional whole-program totality and
+unpack-body preservation; the later term/function/program theorems supply that
+composition and dependent-call transport. Legacy correspondence and
 native-toolchain refinement remain pending.

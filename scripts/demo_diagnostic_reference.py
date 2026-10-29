@@ -114,8 +114,12 @@ def main():
         records = dr.from_kernel_response(dr.load_json(args.kernel_response.read_text()), args.expected_version)
     else:
         records = [fixture()]
-    for record in records:
-        print(json.dumps(dr.machine_report(record), indent=2) if args.json else dr.render(record))
+    if args.json:
+        # One JSON document for both single and multiple diagnostics.
+        print(json.dumps([dr.machine_report(record) for record in records], indent=2))
+    else:
+        for record in records:
+            print(dr.render(record))
     # Importing a failed compiler result must not report compiler success.
     return 1 if args.kernel_response else 0
 

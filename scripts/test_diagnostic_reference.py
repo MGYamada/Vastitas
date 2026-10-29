@@ -247,15 +247,25 @@ class DiagnosticReferenceTests(unittest.TestCase):
     def test_demo_json_and_captured_failure_exit_status(self):
         demo = subprocess.run([sys.executable, str(ROOT / "scripts/demo_diagnostic_reference.py"), "--json"],
                               capture_output=True, text=True, check=True)
-        self.assertEqual(json.loads(demo.stdout), dr.machine_report(fixture()))
+        self.assertEqual(json.loads(demo.stdout), [dr.machine_report(fixture())])
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "response.json"
-            path.write_text(json.dumps(failure()))
-            result = subprocess.run([sys.executable, str(ROOT / "scripts/demo_diagnostic_reference.py"),
-                                     "--kernel-response", str(path), "--expected-version", "5", "--json"],
-                                    capture_output=True, text=True)
-            self.assertEqual(result.returncode, 1)
-            self.assertEqual(json.loads(result.stdout)["record"]["semantic"]["outcome"], "rejected")
+            response = failure()
+            for multiple in (False, True):
+                if multiple:
+                    other = copy.deepcopy(response["diagnostics"][0])
+                    other["code"] = "E_OWNER"
+                    response["diagnostics"].append(other)
+                path.write_text(json.dumps(response))
+                result = subprocess.run([sys.executable, str(ROOT / "scripts/demo_diagnostic_reference.py"),
+                                         "--kernel-response", str(path), "--expected-version", "5", "--json"],
+                                        capture_output=True, text=True)
+                self.assertEqual(result.returncode, 1)
+                reports = json.loads(result.stdout)
+                self.assertEqual(reports, [dr.machine_report(record)
+                                          for record in dr.from_kernel_response(response, 5)])
+                self.assertTrue(all(report["record"]["semantic"]["outcome"] == "rejected"
+                                    for report in reports))
 
 
 @unittest.skipUnless(CLI.is_file() and KERNEL.is_file(), "build Rust CLI and Lean kernel for live integration")

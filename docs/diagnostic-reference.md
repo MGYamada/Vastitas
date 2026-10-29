@@ -29,6 +29,10 @@ Without those binaries, that test is explicitly skipped. The existing native
 compiler CI job runs it after the Rust/Lean builds, on Linux and macOS; the
 ordinary Python discovery job also runs the standalone reference regressions.
 
+`--json` always emits one JSON array of reports, including for a single diagnostic
+or the synthetic example. A captured failure retains exit status 1, and every
+diagnostic and its notes remain in the corresponding array element.
+
 ## Record and trust boundary
 
 `scripts/diagnostic_reference.py` separates the unresolved obligation, semantic

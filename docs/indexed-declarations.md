@@ -6,8 +6,9 @@ an independently audited indexed application. The public compatibility path now
 translates its checked legacy Core into this declaration-driven Core for an
 additional independent audit and native generation. Package-only protocol 7 now
 exposes unresolved declarations and rich source bodies through the full authority
-composition; see [source syntax](indexed-source.md). Actual stdlib geometry migration,
-the legacy syntax bridge inside protocol 7 and whole-term semantics remain pending.
+composition; see [source syntax](indexed-source.md). The [geometry stdlib package](../stdlib/geometry/README.md)
+now supplies the finite affine declarations. The legacy syntax bridge inside
+protocol 7 and whole-term/legacy semantics remain pending.
 The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
 annotation contracts in PR #189 (`b3f8ff7`), and Core/native generation in PR #194
 (`c29e1cd`). The compatibility adapter is described below.
@@ -206,8 +207,9 @@ metadata, the 4,096/4,097 boundary and a 4,200-function dependency chain. Four m
 standalone native fixtures exercise higher-order/lambda execution, indexed local
 operations, a returned private function and ordered package fields. All fourteen
 fixtures link only the minimal runtime. The subsequent adapters below add finite
-dispatch/all-applicable-body and edit-authority composition. Rust/public protocol
-7, stdlib geometry declarations and whole-term evaluation proofs remain pending.
+dispatch/all-applicable-body and edit-authority composition. Public protocol 7
+now exposes that composition and the geometry stdlib below uses it. Whole-term
+evaluation proofs remain pending.
 This plain Fn entry rejects old dispatch/edit envelopes explicitly.
 
 ### Internal finite dispatch over indexed method bodies
@@ -310,7 +312,7 @@ contribution order, empty-root assembly, scope escape and forged metadata.
 Four additional native fixtures execute nested contribution helpers, transfer,
 obligation repair and the empty-assembly path (twenty-two in total).
 Public protocol 7 now decodes Rust source into this exact combined checker.
-The protocol-7 legacy syntax bridge and actual stdlib geometry migration remain pending.
+The geometry stdlib below now uses that public path; the protocol-7 legacy syntax bridge remains pending.
 
 ## Indexed applications and scopes
 
@@ -483,10 +485,39 @@ three standalone fixtures (package output `2`, all primitives output `42`, and
 arbitrary-precision scalar/Pair arithmetic). Both OS no-mathlib CI jobs run them.
 
 Public protocol 7 now parses and independently resolves declarations;
-source-to-Core semantic correspondence and stdlib geometry declarations remain pending. Typed
+source-to-Core semantic correspondence remains pending. Typed
 evaluation, activation/world correspondence and native refinement are not
 claimed by the new structural theorem or by native regression tests. These
 limits prevent closing #49/#58–63 at this increment.
+
+## Geometry standard-library declarations
+
+`stdlib/geometry` is an explicit path package using the public protocol-7 source
+checker. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
+finite classifications in sibling `scheme`/`smooth` modules, actual global base
+objects, shared indexed Point/Morphism families with same-base constraints, and
+the two finite Pointed package cases. `stdlib/indexed` re-exports these canonical
+modules as `std::geometry::scheme` and `std::geometry::smooth`, alongside the
+original arithmetic declarations. No definitions are copied into the facade.
+All existing affine descriptor/origin/identity/dimension/composition/application
+operations use ordinary declared primitive contracts. Each module's `pointed`
+is an ordinary `.vast` function that constructs and packages data.
+
+Thirteen integration tests exercise both settings, alias identity, coherent renaming,
+separately generated/opened/copied nominal objects, coefficient versus test-object
+distinction, missing capabilities, dependent morphism calls with retained test
+objects/repacking, composition with arithmetic in the same protocol-7 closure,
+private support visibility, external method authority, legacy client compatibility
+and rejection of mutated actual wire contracts by both checking and emission.
+The combined and pointed examples return `42`; the smooth example preserves
+its explicit abstract annotation and returns `2` after unpacking. The implementation still uses the finite descriptor
+representation; no general polynomial map, chart, tensor or numerical buffer is
+added. Primitive/package proofs retain their original stated scope.
+
+The existing arithmetic package remains its own entrypoint during migration.
+Protocol-2–6 geometry continues through the compatibility adapter below. The
+legacy syntax bridge within protocol-7 packages and whole-term/legacy semantic
+correspondence remain unfinished, so #49/#58–63 stay open.
 
 ## Compatibility adapter for protocols 2–6
 
@@ -526,8 +557,9 @@ This is a structural compatibility bridge. It does not prove evaluation
 preservation of the translation, activation/world correspondence or native
 equivalence. Legacy source-to-Core and evaluation theorems still describe the
 retained legacy intermediate; the indexed semantic bridge remains explicit work.
-Source geometry declarations have not yet moved to `.vast` stdlib files, so
-this adapter alone does not complete the migration.
+Source geometry declarations now live in the `.vast` stdlib modules above.
+The legacy syntax bridge inside protocol 7 and semantic correspondence are still
+required; this adapter alone does not complete the migration.
 
 ## Indexed runtime semantics: first proved fragment
 

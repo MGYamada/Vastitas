@@ -774,3 +774,26 @@ lookup and association of actual typed Core nodes. Runtime operand typing and
 fresh dynamic slots are explicit premises. Eleven kernel regressions and two
 additional native fixtures support this increment; full evaluation, lexical
 body/activation safety and backend refinement remain separate obligations.
+
+## Geometry standard-library migration regressions
+
+The ordinary `.vast` modules behind `std::geometry::scheme` and
+`std::geometry::smooth` use the existing public `Indexed.Wire.check` acceptance
+path. The `stdlib/indexed` entrypoint re-exports their canonical declarations and
+the arithmetic package; it adds no trusted name recognition or runtime forwarding
+layer. Existing declaration, primitive, package, authority and returned-Core audit
+theorems apply with their original assumptions and scope.
+
+`tests/stdlib_geometry.rs` contains thirteen integration tests, including native
+`42`/`2` workflows, abstract annotation/unpack, dependent test objects, source
+renaming, re-export identity, nominal separation, visibility, missing capabilities
+and legacy entrypoint compatibility. Mutations of actual Rust wire input alter a
+module's visibility, a primitive's base, declared capabilities or a forged owner;
+both checking and code emission reject them. These are executable regressions,
+not new mathematical or whole-term semantic theorems.
+
+The protocol-7 legacy syntax bridge, whole-term indexed evaluation and legacy
+semantic correspondence remain pending. General scheme/manifold mathematics,
+new representation contracts and C performance measurements are not established
+by these tests. See the [library contract](../stdlib/geometry/README.md) and
+[completion ledger](stage1-completion.md).

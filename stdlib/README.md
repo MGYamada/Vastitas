@@ -4,6 +4,14 @@ The standard library consists of ordinary `.vast` source files. Its functions
 pass through the same Rust frontend and independent Lean checker as application
 code. They do not require the mathlib proof oracle during compilation.
 
+The [geometry library](geometry/README.md) exposes the existing finite affine
+profile through `std::geometry::scheme` and `std::geometry::smooth`. Select
+`stdlib/indexed` as the `std` dependency for the combined geometry/arithmetic
+entrypoint. It re-exports the canonical declarations and uses protocol 7.
+The original arithmetic entrypoint below remains available to legacy geometry
+clients while the protocol-7 legacy syntax bridge and full migration acceptance
+remain pending.
+
 ## Arithmetic
 
 | Source | Functions | Semantics |

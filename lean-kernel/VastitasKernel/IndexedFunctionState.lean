@@ -34,11 +34,20 @@ structure Prepared where
   result : Core.DataType
   deriving Inhabited
 
+/-- The finite dispatcher supplies actual checked families and a reconstructed
+source-method/key table. Plain Fn programs use the empty dispatcher. -/
+structure DispatchInput where
+  families : Std.HashMap DeclId DispatchChecker.Family := {}
+  definitions : Std.HashMap (Nat × Dispatch.Key) Nat := {}
+  deriving Inhabited
+
 structure Input where
   source : Program
   body : Source.Bodies.Input
   prepared : Array Prepared
   named : Std.HashMap DeclId Nat
+  sourceCount : Nat
+  dispatch : DispatchInput := {}
 
 structure Key where
   definition : Nat
@@ -68,6 +77,15 @@ structure EmittedCall where
   id : Nat
   deriving Inhabited
 
+structure DispatchCall where
+  scope : Namespace.Scope
+  path : Source.Path
+  target : Namespace.Target
+  key : Dispatch.Key
+  method : Nat
+  definition : Nat
+  deriving Inhabited
+
 structure State where
   body : Source.Bodies.State := {}
   instances : Std.HashMap Key Instance := {}
@@ -78,6 +96,7 @@ structure State where
   emittedCalls : List EmittedCall := []
   calls : List CallReference := []
   staticUses : List StaticUse := []
+  dispatchCalls : List DispatchCall := []
   nextProbe : Nat := 0
   specializations : Nat := 0
   audit : Bool := false
@@ -148,6 +167,8 @@ def recordTarget (target : Target) (expected : Surface.TypeExpr) : M Unit :=
 
 def concrete (input : Input) (id : Nat) (span : Span) : M Target := do
   let definition ← prepared input id span
+  unless definition.definition.isLambda || id < input.sourceCount do
+    error span "E_TYPE" "generic methods are not Fn values"
   let some signature := definition.definition.function.callable
     | error span "E_TYPE" "Fn values require scalar/Fn signatures; indexed and Pair functions are direct-call only"
   let target := Target.mk (.concrete id) signature
@@ -212,5 +233,26 @@ def prepareDefinition (input : Source.Bodies.Input) (definition : Definition) : 
       unless (FnType.function signature).Valid do Source.Bodies.fail function.span "E_TYPE" "invalid Fn result"
       pure (Core.DataType.pure .unit)
   return ⟨definition, context, parameters, result⟩
+
+/-- Shared final call construction evaluates every argument exactly once.
+The dependent substitution was checked while elaborating the actual arguments. -/
+def emitCall (input : Input) (id : Nat) (targets : List Target) (values : List Value)
+    (substitution : List (ObjectRef × ObjectRef)) (span : Span) : M Value := do
+  let definition ← prepared input id span
+  let parameters := definition.definition.function.params
+  unless parameters.length == values.length do error span "E_ARITY" "wrong checked call argument count"
+  let mut bindings := []
+  let mut arguments := []
+  for (parameter, value) in parameters.zip values do
+    let symbol ← fresh
+    bindings := bindings ++ [(symbol, value.term)]
+    if let .data _ := parameter.type then
+      arguments := arguments ++ [Core.Term.variable symbol value.term.result]
+  let compiled ← request id targets span
+  modify fun state => { state with emittedCalls := ⟨key id targets, compiled.id⟩ :: state.emittedCalls }
+  let type := definition.result.rename substitution
+  let reference ← match type with | .object type => some <$> (ObjectRef.local type <$> fresh) | _ => pure none
+  let term := Core.Term.call compiled.id arguments substitution ⟨type, reference⟩
+  return ⟨bindings.foldr (fun (symbol, value) rest => .letE symbol value rest) term, compiled.target⟩
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

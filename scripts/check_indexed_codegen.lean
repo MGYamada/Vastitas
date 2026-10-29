@@ -5,6 +5,7 @@ import VastitasKernel.IndexedSourceRegression
 import VastitasKernel.IndexedSourceTypeRegression
 import VastitasKernel.IndexedSourceBodyRegression
 import VastitasKernel.IndexedFunctionRegression
+import VastitasKernel.IndexedDispatchRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -30,6 +31,14 @@ def main (arguments : List String) : IO Unit := do
         VastitasKernel.Indexed.Source.BodyRegression.multipleFixture)] do
     let .ok checked := VastitasKernel.Indexed.FunctionSource.Compiler.checkProgram program true
       | throw (IO.userError s!"fixture {name} failed source Fn checking")
+    bodies := bodies ++ [(name, checked.executable.core.module)]
+  for (name, program) in [
+      ("dispatch", VastitasKernel.Indexed.DispatchSource.Regression.dispatchFixture),
+      ("dispatch_contract", VastitasKernel.Indexed.DispatchSource.Regression.contractFixture),
+      ("dispatch_nominal", VastitasKernel.Indexed.DispatchSource.Regression.nominalFixture),
+      ("dispatch_pair", VastitasKernel.Indexed.DispatchSource.Regression.pairFixture)] do
+    let .ok checked := VastitasKernel.Indexed.DispatchSource.checkProgram program true
+      | throw (IO.userError s!"fixture {name} failed source dispatch checking")
     bodies := bodies ++ [(name, checked.executable.core.module)]
   for (name, module) in [("package", Regression.packageFixture),
       ("primitives", Regression.primitiveFixture), ("scalar", Regression.scalarFixture),

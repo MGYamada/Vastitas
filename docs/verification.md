@@ -635,6 +635,21 @@ native fixtures exercise this path. These statements do not prove source
 operational correspondence, typed termination, dispatch/edit composition,
 protocol-7 acceptance or correctness of the native toolchain.
 
+`VastitasOracle.IndexedDispatch` connects the internal rich-method adapter to
+that same Fn/Core path and the existing finite dispatch checker. The actual
+family certificate retains `Dispatch.checkWith` acceptance and fulfilled scalar
+contracts. `applicable_expansion` and `applicable_body_checked` cover every
+applicable method/key, including nonwinners and keys outside the callable domain;
+an independent expansion check and full audit coverage prevent dropping them.
+`source_body_checked` and `lifted_definition_checked` cover original functions
+and lambdas. `dispatch_call_selected` derives the independent `Dispatch.Selection`
+relation from the actual generic resolution, domain/winner and exact source
+specialization. The reconstruction theorem retains the same input, headers,
+rich method bodies, expanded definitions and returned Core passes. Thirty-seven
+regressions and four native fixtures exercise the composition. Edit/authority
+envelopes remain rejected. Public protocol 7, whole-term typed evaluation and
+native refinement are still outside these structural guarantees.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

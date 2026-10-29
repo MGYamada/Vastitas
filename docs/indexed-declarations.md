@@ -208,6 +208,55 @@ edit-authority composition, Rust/public protocol 7, stdlib geometry declarations
 and whole-term evaluation proofs remain pending. Unsupported old dispatch/edit
 envelopes are explicitly rejected rather than accepted with omitted checks.
 
+### Internal finite dispatch over indexed method bodies
+
+`IndexedDispatchSource` retains the same generic/abstract selector declarations
+and rich method bodies. A method has the existing scalar selectors, capabilities
+and scalar/Pair result contract; indexed values remain local data, never keys.
+The adapter projects declaration headers into the actual namespace and finite
+dispatch engines. Placeholder bodies are never accepted as method implementations.
+Source positions and complete resolved headers are independently compared, with
+the actual rich body retained at its original position. Ordinary method ownership,
+scalar membership ownership, visibility and abstract contract authority still
+use the exact defining module.
+
+`IndexedDispatchPreparation` runs the real `DispatchChecker.prepareFamilies`,
+retaining its accepted `Dispatch.checkWith` equation and fulfilled contracts.
+The nominal/capability product order, complete key-space ambiguity checks,
+contract-domain union and exact selected result contract are unchanged. Every
+`applicablePairs` entry becomes a source specialization, including nonwinners
+and concrete keys outside the callable domain. An independent equality check
+rejects omitted or invented method/key entries. Each body can create indexed
+objects, call ordinary data/higher-order functions and use independent lambdas.
+Each lexical method lambda is lifted once and shared across concrete keys;
+different source lambdas retain different identities even with identical spans
+and bodies. Key expansion therefore does not multiply the lambda budget.
+
+Both the complete audit pass and executable pass use the Fn compiler above.
+Generic arguments infer independently, once and in source order; their scalar
+tuple selects the actual checked winner without consulting an expected result.
+A separate ledger re-resolves the generic path and checks its admitted key,
+selected method and emitted source definition. Core typing independently checks
+the resulting call signatures, nominal indices, scopes and dependency order.
+All ordinary source functions and lifted lambdas retain the same coverage audit.
+
+`VastitasOracle.IndexedDispatch.applicable_body_checked` connects every actual
+applicable pair to a typed body in the returned audit Core. `source_body_checked`
+and `lifted_definition_checked` cover original functions and lambdas.
+`dispatch_call_selected` establishes the existing independent `Dispatch.Selection`
+relation for every recorded generic call, together with namespace resolution and
+exact source-target lookup. Reconstruction equations tie these results to the
+same headers, rich bodies, declaration environment, expansion and final passes.
+
+Thirty-seven new regressions cover nonwinning/out-of-domain bodies, abstract
+contracts, nominal selectors with equal inhabitants, capability order, exact
+ownership, capture/shadowing, recursion and forged expansion/target records.
+Four additional native fixtures execute indexed/higher-order method bodies,
+contract-domain calls, nominal selectors and Pair results (eighteen in total).
+The adapter rejects edit/authority envelopes and old unconnected method bodies.
+Authority/contribution composition, Rust/public protocol 7, stdlib declarations
+and whole-term semantics remain pending; no public syntax has been enabled.
+
 ## Indexed applications and scopes
 
 Family parameters distinguish classification domains, coefficient markers,

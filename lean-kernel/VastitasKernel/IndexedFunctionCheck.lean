@@ -2,14 +2,16 @@ import VastitasKernel.IndexedFunctionCompiler
 
 namespace VastitasKernel.Indexed.FunctionSource.Compiler
 
-def validDefinitions (program : Program) (lifted : Lifted) : Bool :=
-  let source := program.functions.toArray
+def validDefinitionsFor (functions : List (DeclId × Function)) (lifted : Lifted) : Bool :=
+  let source := functions.toArray
   lifted.namedCount == source.size && lifted.definitions.size >= source.size &&
     lifted.definitions.toList.zipIdx.all fun (definition, index) =>
       definition.id == index && (source[definition.origin]?).map Prod.fst == some definition.owner &&
       if index < source.size then
         !definition.isLambda && definition.origin == index && definition.function.name == definition.owner.name
       else definition.isLambda
+
+def validDefinitions (program : Program) (lifted : Lifted) : Bool := validDefinitionsFor program.functions lifted
 
 def fnParameters (entry : Prepared) : List Surface.TypeExpr :=
   entry.definition.function.params.filterMap fun parameter =>
@@ -29,7 +31,8 @@ def validTargetName (input : Input) (audit : Bool) (name : TargetName) (signatur
   | .probe _ => audit
   | .concrete id => match input.prepared[id]? with
     | none => false
-    | some definition => definition.definition.function.callable == some signature
+    | some definition => definition.definition.function.callable == some signature &&
+        (definition.definition.isLambda || id < input.sourceCount)
 
 def validKey (input : Input) (audit : Bool) (key : Key) : Bool :=
   match input.prepared[key.definition]? with
@@ -57,12 +60,22 @@ def validSourceCalls (input : Input) (pass : Pass) : Bool :=
     | none => false
     | some definition => !definition.definition.isLambda && definition.definition.owner == call.target.owner
 
+def validDispatchCalls (input : Input) (pass : Pass) : Bool :=
+  pass.dispatchCalls.all fun call =>
+    decide (call.scope ∈ input.body.index.scopes) && decide (call.target.kind = .generic) &&
+    decide ((Namespace.resolve input.body.index call.scope call.path.path call.path.span).toOption = some call.target) &&
+    match input.dispatch.families[call.target.owner]? with
+    | none => false
+    | some family => family.domain.contains call.key && family.checked.winner call.key == some call.method &&
+        input.dispatch.definitions[(call.method, call.key)]? == some call.definition
+
 def validPass (input : Input) (audit : Bool) (pass : Pass) : Bool :=
   validOrigins input audit pass &&
     pass.staticUses.all (fun use => use.target.signature == use.expected && validTargetName input audit use.target.name use.expected) &&
     pass.emittedCalls.all (fun call => pass.origins[call.id]? == some call.key) &&
     validSourceCalls input pass &&
-    pass.references.all (fun reference => decide (reference.Valid input.body.index))
+    pass.references.all (fun reference => decide (reference.Valid input.body.index)) &&
+    validDispatchCalls input pass
 
 /-- Coverage concerns the separate audit pass, where every named function and
 lifted lambda must have a typed emitted instance, even when never invoked. -/

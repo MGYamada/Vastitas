@@ -50,12 +50,13 @@ mutual
       return .mk statements (← liftExpr fuel namedCount origin owner result) span
 end
 
-def liftProgram (program : Program) : Namespace.Result Lifted := do
-  let functions := program.functions
+def liftDefinitions (functions : List (DeclId × Function)) : Namespace.Result Lifted := do
   let action : LiftM (List Definition) := functions.zipIdx.mapM fun ((owner, function), id) => do
     let body ← liftBlock Limits.sourceNesting functions.length id owner function.body
     return ⟨id, id, owner, { function with body }, false⟩
   let (named, lambdas) ← action.run #[]
   return ⟨named.toArray ++ lambdas, named.length⟩
+
+def liftProgram (program : Program) : Namespace.Result Lifted := liftDefinitions program.functions
 
 end VastitasKernel.Indexed.FunctionSource

@@ -553,6 +553,17 @@ python3 scripts/check_boundaries.py
 
 These are reproduction commands, not a claim that a particular host or CI run
 executed them; report actual validation results with each change.
+
+### Polynomial symplectic reference (#211)
+
+The [exact symplectic reference](symplectic-reference.md) separates subject
+binding, alternation, exterior derivative and domain-qualified inverse checks
+for polynomial 2-forms on `R^4` or `D(1+q1)`. It has executable Python regressions,
+including same-determinant evidence replay and invalid global extension, but no
+Lean soundness proof or connection to the actual accepted Core. Its S1–S6 proof
+obligations and production bridge preserve Lawvere-first implementation and the
+existing 8+1 division. It does not extend the finite acceptance theorem above.
+
 ## Edit authority acceptance (protocol 6)
 
 `VastitasKernel.Authority` is the actual implementation used by public wire

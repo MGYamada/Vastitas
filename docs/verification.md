@@ -603,6 +603,23 @@ Execution/freshness of arbitrary input bindings, source body elaboration and
 protocol-7 function/dispatch/authority composition remain outside these claims.
 The seventh native fixture uses the elaborated dependent function type.
 
+`VastitasOracle.IndexedSourceBodies` now connects a separate internal data-body
+adapter to the exact accepted Core. `checked_program` retains the reconstruction
+equation, actual Core typing, dependency order and entrypoint. `function_source`
+and `function_owner` recover original input positions and enclosing owners.
+`source_covered` combines count equality, original-position checks and actual
+Core ID uniqueness to prove that no input function is dropped or replaced by a
+duplicate; `source_body_checked` covers every such body, including unused ones.
+`call_resolves` proves that recorded calls resolve to the actual output function,
+and `declaration_resolves` checks canonical declaration references. `data_only`
+proves that unsupported old bodies or dispatch/authority envelopes cannot be
+silently discarded. The certificate includes the exact lowering equation;
+independent ledgers alone are insufficient. This is structural acceptance,
+not source evaluation preservation, public protocol-7 acceptance, or native
+refinement. Fifty-two new cases and three additional standalone native fixtures
+exercise actual internal source bodies; public parsing and full Fn/dispatch/edit
+composition remain pending.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

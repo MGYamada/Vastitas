@@ -5,17 +5,6 @@ path. Type names choose canonical declarations, never a privileged geometric
 meaning. Local object indices come from actual supplied Core bindings. -/
 namespace VastitasKernel.Indexed.Source
 
-inductive TypeArgument where
-  | name (path : Path)
-  | natural (value : Nat)
-  deriving Repr, Inhabited
-
-inductive DataType where
-  | pure (type : Core.PureType)
-  | object (type : Source.ObjectType)
-  | application (family : Path) (arguments : List TypeArgument)
-  deriving Repr, Inhabited
-
 structure Binding where
   name : String
   parameter : Core.Parameter

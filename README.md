@@ -211,7 +211,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
 - [Scoped edit borrowing and assemblies](docs/edit-borrowing.md)
 - [Nested edit loans and permanent authority transfer](docs/edit-authority.md)
-- [Indexed Core, compatibility lowering, runtime semantics and internal declaration resolution](docs/indexed-declarations.md)
+- [Indexed Core, runtime semantics and internal declaration/type/body elaboration](docs/indexed-declarations.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

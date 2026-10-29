@@ -82,8 +82,8 @@ actual Core checking/code generation and returns `7`.
 
 This certificate accepts declarations only. It does not check function bodies,
 finite dispatch or edit assemblies, and it is not a public protocol-7 entry
-point. Rust parsing, the wire decoder, source term elaboration and the full
-scalar/function/authority composition remain pending. The internal regression
+point. Rust parsing, the wire decoder and the full scalar/function/authority
+composition remain pending; the separate internal data-body adapter is described below. The internal regression
 constructs Core terms directly; it is not a `.vast` source migration test.
 
 ### Dependent type annotations
@@ -112,9 +112,48 @@ Thirty-five regression cases cover wrong sorts/arity/endpoints, alias identity,
 nominally different openings, malformed contexts and dependent Core calls. The
 seventh native fixture uses an elaborated dependent parameter/result type in a
 checked function and call and returns `13`. It still assembles Core terms
-directly. Public source/wire integration, complete body elaboration and the
-protocol-7 composition with scalar dispatch, Fn capture/static-signature audits
+directly. Public source/wire integration and the protocol-7 composition with scalar dispatch, Fn capture/static-signature audits
 and edit authority remain pending. Protocols 2–6 retain their existing audits.
+
+### Internal data-function bodies
+
+`IndexedSourceBodies` and `IndexedSourceProgram` now elaborate unresolved
+internal data-function ASTs, including dependent parameters/calls, scalar and
+Pair operations, branches, declared primitives, explicit package construction,
+and unpacking of all ordered fields. Parameter, let and unpack contexts are
+derived from the actual bodies. Imports and primitive calls resolve through
+the real namespace index; primitive spelling and expected result types never
+select implementations. Fresh object identities, scoped openings and exact
+call substitutions pass through the common Core typing and freshness audit.
+Both branches and every function in every package are checked, including unused
+bodies. Integer literal hints remain symmetric, Pair operands infer independently,
+and Nat-to-Int conversion remains explicit.
+
+Calls retain their original source IDs through a stable dependency ordering.
+An independent audit checks output count and each ID's original source owner;
+Core ID uniqueness then excludes replacing an unused function with a duplicate.
+`VastitasOracle.IndexedSourceBodies.source_covered` proves every input ID occurs
+in the output, and `source_body_checked` establishes actual Core typing for all
+of them. The same-input certificate retains the reconstruction equation,
+independent declaration/call reference ledgers, exact accepted Core, dependency
+order and entrypoint validation. A ledger by itself is not a source-to-Core
+correspondence certificate.
+
+The 52 new regression cases include private/re-exported functions, unused
+dependency bodies, constant branches with distinct identities, non-geometric
+token indices, object-return generativity, aliases, repeated unpacking, multiple
+heterogeneous fields, repacking and forged origins/call records. Three additional
+standalone native fixtures now start with these unresolved source AST bodies
+and return `2`, a large arbitrary-precision integer, and `3`. There are ten native
+fixtures in total; generated executables still import only IndexedRuntime.
+These are internal AST tests, not Rust-parsed `.vast` fixtures.
+
+The adapter explicitly rejects old function bodies, generic/method/abstract
+metadata and edit/authority envelopes whose checks it cannot yet compose.
+It has no Fn expressions or specialization. Public protocols 2–6 retain the
+existing complete function/dispatch/authority path; protocol 7 is still not
+accepted. Rust/wire integration, complete Fn/finite-dispatch/edit composition,
+stdlib declarations, whole-term evaluation and native refinement remain open.
 
 ## Indexed applications and scopes
 

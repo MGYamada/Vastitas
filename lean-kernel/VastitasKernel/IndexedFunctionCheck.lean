@@ -7,18 +7,31 @@ def validDefinitionsFor (functions : List (DeclId × Function)) (lifted : Lifted
   lifted.namedCount == source.size && lifted.definitions.size >= source.size &&
     lifted.definitions.toList.zipIdx.all fun (definition, index) =>
       definition.id == index && (source[definition.origin]?).map Prod.fst == some definition.owner &&
+      definition.bodyScope == definition.owner.scope &&
       if index < source.size then
         !definition.isLambda && definition.origin == index && definition.function.name == definition.owner.name
       else definition.isLambda
 
 def validDefinitions (program : Program) (lifted : Lifted) : Bool := validDefinitionsFor program.functions lifted
 
+/-- A contributed body retains its own source scope while its canonical
+function identity remains the generic's defining owner. -/
+def validScopedDefinitions (functions : List (DeclId × Namespace.Scope × Function)) (lifted : Lifted) : Bool :=
+  let source := functions.toArray
+  lifted.namedCount == source.size && lifted.definitions.size >= source.size &&
+    lifted.definitions.toList.zipIdx.all fun (definition, index) =>
+      definition.id == index &&
+      (source[definition.origin]?).map (fun entry => (entry.1, entry.2.1)) == some (definition.owner, definition.bodyScope) &&
+      if index < source.size then
+        !definition.isLambda && definition.origin == index && definition.function.name == definition.owner.name
+      else definition.isLambda
+
 def fnParameters (entry : Prepared) : List Surface.TypeExpr :=
   entry.definition.function.params.filterMap fun parameter =>
     match parameter.type with | .function signature => some signature | _ => none
 
-def definitionIdentity (definition : Definition) : Nat × Nat × DeclId × Bool :=
-  (definition.id, definition.origin, definition.owner, definition.isLambda)
+def definitionIdentity (definition : Definition) : Nat × Nat × DeclId × Bool × Namespace.Scope :=
+  (definition.id, definition.origin, definition.owner, definition.isLambda, definition.bodyScope)
 
 /-- Recheck identity/coverage after signature preparation; the reconstruction
 equation additionally ties the actual function bodies and types to the input. -/
@@ -32,7 +45,7 @@ def validTargetName (input : Input) (audit : Bool) (name : TargetName) (signatur
   | .concrete id => match input.prepared[id]? with
     | none => false
     | some definition => definition.definition.function.callable == some signature &&
-        (definition.definition.isLambda || id < input.sourceCount)
+        (definition.definition.isLambda || id < input.sourceCount) && (audit || input.executable definition.definition)
 
 def validKey (input : Input) (audit : Bool) (key : Key) : Bool :=
   match input.prepared[key.definition]? with
@@ -40,7 +53,8 @@ def validKey (input : Input) (audit : Bool) (key : Key) : Bool :=
   | some definition =>
     let parameters := fnParameters definition
     parameters.length == key.targets.length &&
-      (parameters.zip key.targets).all fun (signature, target) => validTargetName input audit target signature
+      (parameters.zip key.targets).all (fun (signature, target) => validTargetName input audit target signature) &&
+      (audit || input.executable definition.definition)
 
 def validOrigins (input : Input) (audit : Bool) (pass : Pass) : Bool :=
   pass.origins.size == pass.module.functions.length &&

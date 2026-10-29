@@ -35,11 +35,25 @@ def Method.header (method : Method) : Surface.Method := {
   body := .mk [] (.unit method.span) method.span
   span := method.span }
 
+structure Contribution where
+  name : String
+  target : Source.Path
+  methods : List Method
+  span : Span := {}
+  isPublic : Bool := false
+  deriving Repr, Inhabited
+
+def Contribution.header (contribution : Contribution) : Namespace.Contribution := {
+  name := contribution.name, target := contribution.target.path,
+  methods := contribution.methods.map Method.header, span := contribution.span,
+  isPublic := contribution.isPublic }
+
 structure Module where
   module : Namespace.Module
   declarations : List Source.Declaration
   functions : List FunctionSource.Function := []
   methods : List Method := []
+  contributions : List Contribution := []
   deriving Repr, Inhabited
 
 structure Package where
@@ -63,7 +77,9 @@ def Program.source (program : Program) : FunctionSource.Program := {
   packages := program.packages.map fun pkg => {
     id := pkg.id, dependencies := pkg.dependencies,
     modules := pkg.modules.map fun m => {
-      module := { m.module with methods := m.module.methods ++ m.methods.map Method.header },
+      module := { m.module with
+        methods := m.module.methods ++ m.methods.map Method.header,
+        contributions := m.module.contributions ++ m.contributions.map Contribution.header },
       declarations := m.declarations, functions := m.functions } } }
 
 /-- Original order and enclosing scope are retained before selector expansion.
@@ -72,21 +88,27 @@ def Program.methods (program : Program) : List (Namespace.Scope × Method) :=
   program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     m.methods.map (⟨pkg.id, m.module.path⟩, ·)
 
+def Program.contributions (program : Program) : List (Namespace.Scope × Contribution) :=
+  program.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
+    m.contributions.map (⟨pkg.id, m.module.path⟩, ·)
+
 def Program.lambdaScopes (program : Program) : List (Namespace.Scope × FunctionSource.LambdaScope) :=
-  program.source.lambdaScopes ++ program.methods.flatMap fun (scope, method) =>
-    (FunctionSource.blockScopes (method.params.map (·.name)) method.body).map (scope, ·)
+  program.source.lambdaScopes ++
+    (program.methods ++ program.contributions.flatMap fun (scope, contribution) =>
+      contribution.methods.map (scope, ·)).flatMap fun (scope, method) =>
+        (FunctionSource.blockScopes (method.params.map (·.name)) method.body).map (scope, ·)
 
 def Program.scopesSafe (program : Program) : Bool :=
   let index := program.source.headers.indexed
   program.lambdaScopes.all fun (scope, lambda) => decide (FunctionSource.ScopeSafe index scope lambda)
 
-/-- Until authority composition is installed, reject every old body/edit
-envelope explicitly. Abstract selector declarations are checked below. -/
+/-- This plain dispatch entry rejects old bodies and edit envelopes. Rich
+contributions use the separate authority adapter and its actual assembler. -/
 def supported (program : Program) : Namespace.Result Unit := do
   if program.editable || program.authority || program.packages.any (fun pkg => pkg.modules.any fun m =>
-      !m.module.functions.isEmpty || !m.module.methods.isEmpty ||
+      !m.module.functions.isEmpty || !m.module.methods.isEmpty || !m.contributions.isEmpty ||
       !m.module.grants.isEmpty || !m.module.delegations.isEmpty || !m.module.transfers.isEmpty ||
       !m.module.contributions.isEmpty || m.module.assembly.isSome) then
-    Namespace.problem {} "E_STAGE" "indexed dispatch adapter does not yet compose old bodies or edit authority"
+    Namespace.problem {} "E_STAGE" "plain indexed dispatch does not accept old bodies or edit authority"
 
 end VastitasKernel.Indexed.DispatchSource

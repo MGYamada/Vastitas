@@ -42,6 +42,7 @@ structure MethodInstance where
   key : Dispatch.Key
   owner : DeclId
   function : FunctionSource.Function
+  scope : Namespace.Scope := owner.scope
   deriving Inhabited
 
 def scalarType : Nat → Option Core.PureType
@@ -63,7 +64,7 @@ def expandMethods (methods : Array ResolvedMethod) (families : List DispatchChec
       let function : FunctionSource.Function := {
         name := method.target.owner.name, params, result := .data (.pure method.source.result),
         body := method.source.body, span := method.source.span }
-      instances := instances.push ⟨ordinal, key, method.target.owner, function⟩
+      instances := instances.push ⟨ordinal, key, method.target.owner, function, method.scope⟩
   return instances.toList
 
 def expansionValid (families : List DispatchChecker.Family) (instances : List MethodInstance) : Bool :=

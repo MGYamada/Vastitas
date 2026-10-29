@@ -9,31 +9,34 @@ def Prepared.seeds {program : Program} (prepared : Prepared program) : List (Dec
 /-- Lift each lexical lambda once, before copying a method across concrete
 keys. Independent lambdas cannot capture method parameters; sharing their
 identity avoids spending specialization budget once per applicable key. -/
-def liftProgram {program : Program} (prepared : Prepared program) : Namespace.Result FunctionSource.Lifted := do
-  let source := program.source.functions
+def liftMethods (source : List (DeclId × FunctionSource.Function)) (resolved : Array ResolvedMethod)
+    (instances : List MethodInstance) : Namespace.Result FunctionSource.Lifted := do
   let sourceCount := source.length
-  let namedCount := sourceCount + prepared.instances.length
-  let firstByMethod := prepared.instances.zipIdx.foldl (fun table (entry, position) =>
+  let namedCount := sourceCount + instances.length
+  let firstByMethod := instances.zipIdx.foldl (fun table (entry, position) =>
     if table.contains entry.method then table else table.insert entry.method (entry.owner, sourceCount + position))
     ({} : Std.HashMap Nat (DeclId × Nat))
   let action : FunctionSource.LiftM (List FunctionSource.Definition) := do
     let functions ← source.zipIdx.mapM fun ((owner, function), id) => do
-      let body ← FunctionSource.liftBlock Limits.sourceNesting namedCount id owner function.body
-      return FunctionSource.Definition.mk id id owner { function with body } false
+      let body ← FunctionSource.liftBlock Limits.sourceNesting namedCount id owner owner.scope function.body
+      return FunctionSource.Definition.mk id id owner { function with body } false owner.scope
     let mut bodies : Std.HashMap Nat FunctionSource.Block := {}
-    for method in prepared.methods do
+    for method in resolved do
       let some (owner, origin) := firstByMethod[method.ordinal]?
         | throw { code := "E_INTERNAL_DISPATCH", message := "source method has no applicable specialization", span := method.source.span }
-      let body ← FunctionSource.liftBlock Limits.sourceNesting namedCount origin owner method.source.body
+      let body ← FunctionSource.liftBlock Limits.sourceNesting namedCount origin owner method.scope method.source.body
       bodies := bodies.insert method.ordinal body
-    let methods ← prepared.instances.zipIdx.mapM fun (entry, position) => do
+    let methods ← instances.zipIdx.mapM fun (entry, position) => do
       let some body := bodies[entry.method]?
         | throw { code := "E_INTERNAL_DISPATCH", message := "source method body was omitted", span := entry.function.span }
       let id := sourceCount + position
-      return FunctionSource.Definition.mk id id entry.owner { entry.function with body } false
+      return FunctionSource.Definition.mk id id entry.owner { entry.function with body } false entry.scope
     return functions ++ methods
   let (named, lambdas) ← action.run #[]
   return ⟨named.toArray ++ lambdas, namedCount⟩
+
+def liftProgram {program : Program} (prepared : Prepared program) : Namespace.Result FunctionSource.Lifted :=
+  liftMethods program.source.functions prepared.methods prepared.instances
 
 def Prepared.dispatcher {program : Program} (prepared : Prepared program) : Namespace.Result Compiler.DispatchInput := do
   let byName := prepared.families.foldl (fun table family => table.insert family.raw.name family)
@@ -64,7 +67,7 @@ def instancesValid {program : Program} (prepared : Prepared program)
       | none => false
       | some definition => definition.definition.id == sourceCount + ordinal &&
           definition.definition.origin == sourceCount + ordinal && !definition.definition.isLambda &&
-          definition.definition.owner == entry.owner
+          definition.definition.owner == entry.owner && definition.definition.bodyScope == entry.scope
 
 structure CheckedProgram (program : Program) (requireMain : Bool) where
   dispatch : Prepared program

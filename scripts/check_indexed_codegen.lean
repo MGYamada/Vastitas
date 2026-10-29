@@ -6,6 +6,7 @@ import VastitasKernel.IndexedSourceTypeRegression
 import VastitasKernel.IndexedSourceBodyRegression
 import VastitasKernel.IndexedFunctionRegression
 import VastitasKernel.IndexedDispatchRegression
+import VastitasKernel.IndexedAuthorityRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -39,6 +40,14 @@ def main (arguments : List String) : IO Unit := do
       ("dispatch_pair", VastitasKernel.Indexed.DispatchSource.Regression.pairFixture)] do
     let .ok checked := VastitasKernel.Indexed.DispatchSource.checkProgram program true
       | throw (IO.userError s!"fixture {name} failed source dispatch checking")
+    bodies := bodies ++ [(name, checked.executable.core.module)]
+  for (name, program) in [
+      ("authority", VastitasKernel.Indexed.AuthoritySource.Regression.authorityFixture),
+      ("authority_transfer", VastitasKernel.Indexed.AuthoritySource.Regression.transferFixture),
+      ("authority_repaired", VastitasKernel.Indexed.AuthoritySource.Regression.repairedFixture),
+      ("authority_empty", VastitasKernel.Indexed.AuthoritySource.Regression.emptyAssemblyFixture)] do
+    let .ok checked := VastitasKernel.Indexed.AuthoritySource.checkProgram program true
+      | throw (IO.userError s!"fixture {name} failed indexed authority checking")
     bodies := bodies ++ [(name, checked.executable.core.module)]
   for (name, module) in [("package", Regression.packageFixture),
       ("primitives", Regression.primitiveFixture), ("scalar", Regression.scalarFixture),

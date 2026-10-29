@@ -792,9 +792,10 @@ shared middle reference denotes the same runtime object on both sides.
 `primitive_runtime_erasure` connects successful logical registry evaluation to
 the actual minimal runtime operations. The bounded Core evaluator and twenty
 regressions test the same source-independent fixtures as native generation, but
-are not whole-program proofs. The unpack body, dependent calls, allocation
-freshness through full evaluation, legacy translation and generated native
-code still need their correspondence theorems. The new operation lemmas do not
+are not whole-program proofs. Unconditional dependent-call preservation, legacy
+translation and generated native code still need their correspondence theorems.
+The conditional term/function theorem below now covers the unpack body and
+allocation freshness. The operation lemmas do not
 extend the retained legacy whole-program theorems to the indexed backend.
 
 `VastitasOracle.IndexedSubstitution` proves validity under reference maps that
@@ -806,8 +807,44 @@ including global witnesses, explicit globals, token indices and ordered fields.
 Its `core_pack_semantics` and `core_opening_semantics` use the exact declaration
 lookup and association of actual typed Core nodes. Runtime operand typing and
 fresh dynamic slots are explicit premises. Eleven kernel regressions and two
-additional native fixtures support this increment; full evaluation, lexical
-body/activation safety and backend refinement remain separate obligations.
+additional native fixtures support that operation-level increment; the later
+conditional theorem below composes it through lexical bodies and activations.
+Unconditional program evaluation and backend refinement remain separate obligations.
+
+### Conditional indexed term and function evaluation
+
+`IndexedEvaluation.Evaluates` is an equation about the actual
+`Indexed.Core.Semantics.eval`: it provides a finite bound and the same value at
+every larger observation fuel. It is not a second interpreter or an assumption
+that evaluation succeeds. `IndexedEvaluationSafety.evaluation_total_and_typed`
+proves this property by structural induction over every actual Core constructor,
+including branches, argument sequencing, primitives, calls, pairs, let bindings,
+packing, unpack bodies and scopes. Its premises are actual `HasType`, a valid
+declaration environment, a typed value context, unique fresh allocation slots,
+and an explicit `CallReturns` contract for every called function.
+
+The conclusion includes result typing, world extension and an exact allocation
+frame: slots outside the term's `allocatedSerials` remain unchanged. This frame
+and the real numeric uniqueness audit preserve freshness during sequential
+evaluation. Descriptor primitives expose their exact world update; branch
+rebranding and package opening obey the same frame discipline. Field binding
+uses the actual ordered `bindFields` operation and preserves the enclosing
+context. Explicit globals are retained through the existing template-based
+package transport.
+
+`IndexedFunctionSafety.checked_function_returns_under_calls` consumes a member
+of the actual `CheckedModule`. It derives a fresh activation by restricting the
+world to parameter slots, evaluates the body, applies the declared result
+compatibility and uses the checked return scope to discard local allocations.
+It requires no freshness or injectivity premise on the ambient world.
+`checked_call_free_function_returns` discharges the callee premise for functions
+whose actual body has no calls.
+
+For general checked programs, dependent argument/return transport between caller
+and callee worlds and discharge of `CallReturns` by the actual checked dependency
+order remain open. The current conditional theorem does not establish that
+remaining step, legacy translation preservation, native-code refinement,
+storage safety, mathematical geometric axioms or numerical accuracy.
 
 ## Geometry standard-library migration regressions
 

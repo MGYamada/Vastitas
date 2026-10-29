@@ -259,4 +259,40 @@ theorem unpack {module : Module} {values opened : Values} {package body : Term}
   | zero => omega
   | succ fuel => simp [eval, ha fuel (by omega), bound, hb fuel (by omega)]
 
+theorem arguments_cons_inv {module : Module} {values : Values} {term : Term} {terms : List Term}
+    {value : Value} {results : List Value}
+    (evaluated : ArgumentsEvaluate module values (term :: terms) (value :: results)) :
+    Evaluates module values term value ∧ ArgumentsEvaluate module values terms results := by
+  obtain ⟨bound, evaluated⟩ := evaluated
+  have step : ∀ fuel, bound ≤ fuel → eval module fuel values term = some value ∧
+      terms.mapM (eval module fuel values) = some results := by
+    intro fuel enough
+    have observed := evaluated fuel enough
+    cases head : eval module fuel values term <;>
+      cases tail : terms.mapM (eval module fuel values) <;>
+      simp_all [List.mapM_cons]
+  exact ⟨⟨bound, fun fuel enough => (step fuel enough).1⟩,
+    ⟨bound, fun fuel enough => (step fuel enough).2⟩⟩
+
+theorem fields_from_arguments {module : Module} {values : Values} {terms : List Term}
+    {fields : List IndexedValue} (evaluated : ArgumentsEvaluate module values terms (fields.map Value.indexed)) :
+    FieldsEvaluate module values terms fields := by
+  induction terms generalizing fields with
+  | nil =>
+    obtain ⟨bound, evaluated⟩ := evaluated
+    have observed := evaluated bound (Nat.le_refl _)
+    cases fields
+    · exact fields_nil module values
+    · simp at observed
+  | cons term terms ih =>
+    cases fields with
+    | nil =>
+      obtain ⟨bound, evaluated⟩ := evaluated
+      have observed := evaluated bound (Nat.le_refl _)
+      cases head : eval module bound values term <;>
+        cases tail : terms.mapM (eval module bound values) <;> simp_all [List.mapM_cons]
+    | cons field fields =>
+      obtain ⟨head, tail⟩ := arguments_cons_inv evaluated
+      exact fields_cons head (ih tail)
+
 end VastitasOracle.IndexedEvaluation

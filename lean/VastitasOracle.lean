@@ -19,6 +19,9 @@ import VastitasOracle.IndexedSemantics
 import VastitasOracle.IndexedPackageSemantics
 import VastitasOracle.IndexedEvaluation
 import VastitasOracle.IndexedWorld
+import VastitasOracle.IndexedValueSafety
+import VastitasOracle.IndexedEvaluationSafety
+import VastitasOracle.IndexedFunctionSafety
 import VastitasOracle.IndexedSource
 import VastitasOracle.IndexedSourceTypes
 import VastitasOracle.IndexedSourceBodies

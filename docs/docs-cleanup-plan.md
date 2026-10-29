@@ -129,6 +129,7 @@ all current Markdown documents and attached data under `docs/`.
 | `storage-ownership.md` | Adopted design / revised Chapter 7 | Source of truth for layout, aliasing, residual retention, costs, and performance acceptance; link implementation evidence to the ledger |
 | `storage-layout-preflight.md` | Executable storage-layout reference / pending compiler integration | Keep reference validation distinct from production ownership, native GEMM, and measured C performance |
 | `symplectic-reference.md`, `l2-tail-reference.md` | Executable mathematical references / later features | Preserve exact contracts and limitations; do not present Python references as public compiler features |
+| `identifier-ascii-reference.md`, `identifier-ascii-validation.md` | Identifier round-trip reference / pending frontend integration | Preserve the fixed Unicode profile, exact-name policy, metadata and authority boundary; keep reference tests distinct from compiler acceptance and meaning preservation |
 | `protocol.md`, `verification.md` | Public boundary / verification sources of truth | Reconcile versions, actual checkers, theorems, assumptions, and unproved obligations |
 | `adr/0001-mathematics-first-stdlib.md` | Adopted policy / ADR | Check the merged policy status; distinguish later ADRs and implementation status |
 | `graph-crossings.md` | Internal implementation / later feature | State the finite crossing checker's scope; do not equate it with completed Stage 1 networks |

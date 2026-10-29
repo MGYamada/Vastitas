@@ -155,3 +155,22 @@ one module in the selected dependency closure; that module contributes methods
 only through a root assembly with an active exclusive loan. Neither imports,
 child modules nor aliases imply this permission. See [the syntax and completion
 contract](edit-borrowing.md) and `examples/packages/edit-borrow/app/Vastitas.toml`.
+
+## Indexed geometry compatibility exports
+
+A package can explicitly export `[geometry_compat]` with `scheme` and `smooth`
+subtables. This selects protocol 7 and maps legacy geometric syntax to ordinary
+indexed declarations. Paths are resolved in the exporting package’s root scope
+and independently checked by Lean; no owner, capability or validity certificate
+is trusted from the manifest. Every export is checked. Exactly one is required
+for legacy syntax; qualified indexed syntax also works with zero or multiple
+valid exports. Older protocols reject this metadata. See the
+[complete wire schema](protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)
+and [source semantics](indexed-source.md#legacy-geometry-syntax-in-packages).
+
+The standard entrypoint is `stdlib/Vastitas.toml`, combining arithmetic with
+`std::geometry::scheme` and `std::geometry::smooth`. The temporary `stdlib/indexed`
+entrypoint has been removed. Geometry definitions remain in their canonical
+`stdlib/src/geometry/{scheme,smooth}/mod.vast` directories, retaining their
+original package/module owners through re-exports. Flat `--lib` inputs keep
+their existing compatibility behavior.

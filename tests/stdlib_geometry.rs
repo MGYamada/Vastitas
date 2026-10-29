@@ -14,18 +14,29 @@ const LIBRARY: &[(&str, &str)] = &[
         include_str!("../stdlib/src/geometry/smooth/mod.vast"),
     ),
 ];
-const ENTRYPOINT: &str = include_str!("../stdlib/indexed/src/lib.vast");
 const MANIFEST: &str = include_str!("../stdlib/src/geometry/Vastitas.toml");
 const DEMO: &str = include_str!("../examples/packages/stdlib-geometry/main.vast");
 
 fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
     let s = Scratch::empty("stdlib geometry");
-    s.write("geo/Vastitas.toml", MANIFEST);
+    s.write("geo/Vastitas.toml", &rewrite(MANIFEST));
     for (name, source) in LIBRARY {
         s.write(&format!("geo/{name}"), &rewrite(source));
     }
-    s.write("standard/src/lib.vast", ENTRYPOINT);
-    s.write("standard/Vastitas.toml", &format!("[package]\nname='vastitas_std_indexed'\nversion='0.1.0'\nroot='src/lib.vast'\n[dependencies]\ngeometry_library={{path='../geo'}}\narithmetic_library={{path='{}'}}\n", common::root().join("stdlib").display()));
+    for name in [
+        "lib.vast",
+        "arithmetic.vast",
+        "arithmetic/integers.vast",
+        "arithmetic/naturals.vast",
+        "arithmetic/generic.vast",
+    ] {
+        s.write(
+            &format!("standard/{name}"),
+            &std::fs::read_to_string(common::root().join("stdlib/target/package").join(name))
+                .unwrap(),
+        );
+    }
+    s.write("standard/Vastitas.toml", "[package]\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\n");
     s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={path='../standard'}\ngeo={path='../geo'}\nsame={path='../geo'}\n");
     s.write("app/main.vast", source);
     s
@@ -87,6 +98,141 @@ fn pointed_and_smooth_workflows_migrate_without_erasing_abstract_annotations() {
         ),
         b"2\n",
     );
+}
+
+#[test]
+fn unchanged_legacy_examples_use_the_declared_stdlib_profile() {
+    native(&fixture(
+        include_str!("../examples/pointed.vast"),
+        str::to_owned,
+    ));
+    native_result(
+        &fixture(include_str!("../examples/smooth.vast"), str::to_owned),
+        b"2\n",
+    );
+}
+
+#[test]
+fn legacy_and_declared_types_share_endpoints_packages_and_primitives() {
+    native(&fixture(
+        r#"
+fn act(X: Scheme, S: Scheme, f: geo::Morphism<X, X>, p: Point<X, S>) -> geo::Point<X, S> {
+    apply(f, p)
+}
+fn main() -> Int {
+    let X: Scheme = geo::scheme::Affine(42);
+    let S = Base(QQ);
+    let p = act(X, S, id(X), geo::scheme::origin(X));
+    let boxed: geo::Pointed<geo::scheme::Scheme, geo::scheme::QQ> = pack { scheme: X, point: p };
+    unpack boxed as { witness: Y, fields: [q] };
+    let again: Pointed<Scheme, QQ> = pack geo::Pointed<geo::scheme::Scheme, geo::scheme::QQ> { witness: Y, fields: [apply(geo::scheme::id(Y), q)] };
+    unpack again as { scheme: Z, point: z };
+    int(geo::scheme::dimension(Z))
+}
+"#,
+        str::to_owned,
+    ));
+}
+
+#[test]
+fn legacy_profile_paths_can_be_coherently_renamed() {
+    native(&fixture(include_str!("../examples/pointed.vast"), |text| {
+        text.replace("Scheme", "Space")
+            .replace("QQ", "Rational")
+            .replace("Point", "Position")
+            .replace("Morphism", "Arrow")
+    }));
+}
+
+#[test]
+fn legacy_geometry_inside_independent_lambdas_is_checked() {
+    native(&fixture(
+        r#"
+fn run(f: Fn<Nat, Int>, n: Nat) -> Int { f(n) }
+fn main() -> Int {
+    run(fn(n: Nat) -> Int { let X: Scheme = Affine(QQ, n); int(dimension(X)) }, 42)
+}
+"#,
+        str::to_owned,
+    ));
+    reject(
+        "fn main() -> Int { let X = Affine(QQ, 2); let f = fn(n: Int) -> Int { let p: Point<X, Base(QQ)> = origin(X); n }; 0 }",
+        "E_CAPTURE",
+    );
+    reject(
+        "fn unused(f: Fn<Int, Int>) -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(Y)); f(0) } fn main() -> Int { 0 }",
+        "E_ENDPOINT",
+    );
+}
+
+#[test]
+fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
+    let cases = [
+        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(Y));",
+        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let f = compose(id(X), id(Y));",
+        "let X = Affine(QQ, 2); let p: Point<X, Base(CInfReal)> = origin(X);",
+        "let X = Affine(QQ, 2); let p: Point<X, QQ> = origin(X);",
+        "let X = Affine(QQ, 2); let S = Affine(QQ, 0); let p: Point<X, S> = origin(X);",
+        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = pack { scheme: X, point: origin(Y) };",
+        "let p = { let X = Affine(QQ, 2); origin(X) };",
+        "let X = Affine(QQ, 2); let a = pack { scheme: X, point: origin(X) }; unpack a as { scheme: Y, point: p }; unpack a as { scheme: Z, point: q }; let bad: Point<Y, Base(QQ)> = q;",
+        "let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let Z = if true { X } else { Y }; let p: Point<Z, Base(QQ)> = origin(X);",
+    ];
+    for body in cases {
+        let s = fixture(&format!("fn main() -> Int {{ {body} 0 }}"), str::to_owned);
+        s.write("program", "preserve this output");
+        for mode in ["check", "build"] {
+            let mut command = cli();
+            command
+                .current_dir(&s.0)
+                .args([mode, "--manifest-path", "app/Vastitas.toml"]);
+            if mode == "build" {
+                command.args(["-o", "program"]);
+            }
+            let output = command.output().unwrap();
+            assert!(!output.status.success(), "accepted {body}");
+            let error = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                error.contains("E_TYPE")
+                    || error.contains("E_ENDPOINT")
+                    || error.contains("E_ESCAPE"),
+                "{error}"
+            );
+            assert_eq!(
+                std::fs::read(s.0.join("program")).unwrap(),
+                b"preserve this output"
+            );
+        }
+    }
+}
+
+#[test]
+fn missing_or_ambiguous_profiles_do_not_supply_legacy_meaning() {
+    let source = "fn main() -> Int { let X = Affine(QQ, 42); int(dimension(X)) }";
+    let s = fixture(source, str::to_owned);
+    s.write(
+        "geo/Vastitas.toml",
+        MANIFEST.split("[geometry_compat]").next().unwrap(),
+    );
+    assert!(!check(&s).status.success());
+    s.write(
+        "app/main.vast",
+        "fn main() -> Int { let X = geo::scheme::Affine(42); int(geo::scheme::dimension(X)) }",
+    );
+    native(&s);
+    s.write("geo/Vastitas.toml", MANIFEST);
+    s.write("other/Vastitas.toml", MANIFEST);
+    for (name, source) in LIBRARY {
+        s.write(&format!("other/{name}"), source);
+    }
+    let manifest = std::fs::read_to_string(s.0.join("app/Vastitas.toml")).unwrap()
+        + "other={path='../other'}\n";
+    s.write("app/Vastitas.toml", &manifest);
+    native(&s); // two independent libraries work through explicit names
+    s.write("app/main.vast", source);
+    let output = check(&s);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("exactly one"));
 }
 
 #[test]
@@ -170,11 +316,7 @@ fn geometry_and_arithmetic_share_the_checked_protocol_seven_closure() {
         str::to_owned,
     );
     let path = s.0.join("app/Vastitas.toml");
-    let manifest = std::fs::read_to_string(path).unwrap()
-        + &format!(
-            "arithmetic={{path='{}'}}\n",
-            common::root().join("stdlib").display()
-        );
+    let manifest = std::fs::read_to_string(path).unwrap() + "arithmetic={path='../standard'}\n";
     s.write("app/Vastitas.toml", &manifest);
     native(&s);
 }
@@ -234,10 +376,7 @@ fn main() -> Int {
         str::to_owned,
     );
     let manifest = std::fs::read_to_string(s.0.join("app/Vastitas.toml")).unwrap()
-        + &format!(
-            "arithmetic={{path='{}'}}\n",
-            common::root().join("stdlib").display()
-        );
+        + "arithmetic={path='../standard'}\n";
     s.write("app/Vastitas.toml", &manifest);
     native(&s);
 }
@@ -268,9 +407,7 @@ fn original_arithmetic_entrypoint_still_accepts_legacy_geometry() {
     native(&s);
 }
 
-#[test]
-fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
-    let s = fixture(DEMO, str::to_owned);
+fn captured_wire(s: &Scratch) -> Value {
     let stub = s.write("capture", "#!/bin/sh\ncat > wire.json\nprintf '%s\\n' '{\"version\":7,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
     std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
     let output = cli()
@@ -286,6 +423,13 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
     let original: Value =
         serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap();
     assert_eq!(original["version"], 7);
+    original
+}
+
+#[test]
+fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
+    let s = fixture(DEMO, str::to_owned);
+    let original = captured_wire(&s);
     assert_eq!(kernel(&original, "check")["ok"], true);
     assert_eq!(kernel(&original, "emit")["ok"], true);
     let geo = original["packages"]
@@ -337,4 +481,79 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
             assert!(result.get("lean_source").is_none(), "{result}");
         }
     }
+}
+
+#[test]
+fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
+    let s = fixture(include_str!("../examples/pointed.vast"), str::to_owned);
+    let original = captured_wire(&s);
+    assert_eq!(kernel(&original, "check")["ok"], true);
+    let geo = original["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|p| p["name"] == "vastitas_geometry")
+        .unwrap();
+    for mutation in [
+        "missing profile",
+        "wrong base",
+        "wrong origin",
+        "same marker",
+        "wrong point",
+        "unknown field",
+        "null profile",
+    ] {
+        let mut raw = original.clone();
+        let package = &mut raw["packages"][geo];
+        match mutation {
+            "missing profile" => {
+                package.as_object_mut().unwrap().remove("geometry_compat");
+            }
+            "wrong base" => {
+                package["geometry_compat"]["scheme"]["base_object"] =
+                    json!("self::smooth::BaseSmooth")
+            }
+            "wrong origin" => {
+                package["geometry_compat"]["scheme"]["origin"] = json!("self::scheme::dimension")
+            }
+            "same marker" => {
+                package["geometry_compat"]["smooth"]["marker"] = json!("self::scheme::QQ")
+            }
+            "wrong point" => package["geometry_compat"]["point"] = json!("self::Morphism"),
+            "unknown field" => package["geometry_compat"]["trusted"] = json!(true),
+            _ => package["geometry_compat"] = Value::Null,
+        }
+        for mode in ["check", "emit"] {
+            let output = kernel(&raw, mode);
+            assert_eq!(output["ok"], false, "{mutation}/{mode}: {output}");
+            assert!(output.get("lean_source").is_none());
+        }
+    }
+    for version in 3..=6 {
+        let mut raw = original.clone();
+        raw["version"] = json!(version);
+        if version == 3 {
+            raw.as_object_mut().unwrap().remove("input");
+        }
+        for pkg in raw["packages"].as_array_mut().unwrap() {
+            for module in pkg["modules"].as_array_mut().unwrap() {
+                module
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("indexed_declarations");
+            }
+        }
+        let output = kernel(&raw, "emit");
+        assert_eq!(output["ok"], false, "downgrade {version}: {output}");
+        assert!(
+            output["diagnostics"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("geometry_compat"),
+            "{output}"
+        );
+    }
+    let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
+    flat["geometry_compat"] = original["packages"][geo]["geometry_compat"].clone();
+    assert_eq!(kernel(&flat, "emit")["ok"], false);
 }

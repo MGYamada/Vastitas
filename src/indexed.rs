@@ -4,6 +4,33 @@
 use crate::ir::{Span, TypePath};
 use serde::{Deserialize, Serialize};
 
+/// A library's explicit export of the finite legacy geometry dialect.
+/// Paths remain unresolved until the independent kernel checks every role.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeometrySetting {
+    pub domain: String,
+    pub marker: String,
+    pub base_object: String,
+    pub affine: String,
+    pub base: String,
+    pub origin: String,
+    pub identity: String,
+    pub dimension: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeometryProfile {
+    pub scheme: GeometrySetting,
+    pub smooth: GeometrySetting,
+    pub point: String,
+    pub morphism: String,
+    pub pointed: String,
+    pub compose: String,
+    pub apply: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Declaration {
     pub name: String,

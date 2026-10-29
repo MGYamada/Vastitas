@@ -345,7 +345,7 @@ Package/module identity, dependencies, imports, abstract selectors/contracts and
 all protocol-6 authority metadata retain their existing schemas and checks.
 Each module may add `indexed_declarations`, defaulting to an empty array.
 Rust selects 7 when any loaded module uses an indexed declaration, annotation,
-typed pack or ordered-field unpack. Every body in that package closure then uses
+typed pack or ordered-field unpack, or any package exports `geometry_compat`. Every body in that package closure then uses
 the rich source path. Flat input and explicit `--lib` keep protocol 2/4.
 
 A declaration has `{kind,name,public,span,...}` with these additional fields:
@@ -395,17 +395,46 @@ Arguments are `{kind:"name",reference:TypePath}` or
 name refers to a declaration or a preceding local object binding.
 Fn types keep the scalar/recursive-Fn-only contract and existing depth bound.
 
-Ordinary expression and statement forms retain their schemas, except legacy
-geometry `pack`/`unpack` and `point`/`morphism`/`pointed` annotations are not decoded
-on this path. Use `{kind:"indexed_pack",package:Type,witness:Expr,fields:[Expr],span}`
-and `{kind:"unpack_fields",value:Expr,witness:String,fields:[String],span}`.
-The protocol-7 legacy-geometry syntax bridge and stdlib migration remain pending;
-the existing protocol-2–6 compatibility path is preserved.
+Ordinary expression and statement forms retain their schemas. Explicit packages
+use `{kind:"indexed_pack",package:Type,witness:Expr,fields:[Expr],span}` and
+`{kind:"unpack_fields",value:Expr,witness:String,fields:[String],span}`.
+The existing legacy `pack`/`unpack`, named Scheme/CInfScheme and
+`point`/`morphism`/`pointed` annotation schemas are also decoded strictly.
+Their meaning requires exactly one validated compatibility export. Inferred
+legacy pack types are an internal body-only form, never a signature escape hatch.
+The existing protocol-2–6 compatibility path is preserved.
+
+A package may add `geometry_compat` (omission means no export; `null` is invalid):
+
+```text
+{
+  point: String, morphism: String, pointed: String,
+  compose: String, apply: String,
+  scheme: GeometrySetting, smooth: GeometrySetting
+}
+GeometrySetting = {
+  domain: String, marker: String, base_object: String,
+  affine: String, base: String, origin: String, identity: String, dimension: String
+}
+```
+
+These are unresolved `::`-separated paths, exactly as in the manifest’s
+`[geometry_compat]`, `[geometry_compat.scheme]` and `[geometry_compat.smooth]`
+tables. Lean resolves them in the exporting package’s root scope, preserving
+canonical owners, and audits all exports against the same accepted declaration
+environment. Contracts require distinct markers, compatible classification/base/
+affine roles, exact primitive bindings, Point/Morphism representations with
+exactly `same_base(0,1)`, and matching Pointed package cases. No serialized
+validity flag or trusted ID is accepted. Zero or multiple exports disable only
+legacy syntax; qualified indexed syntax remains available. A malformed unused
+export still rejects the program. The [source contract](indexed-source.md)
+defines fallback precedence and nominal identity behavior.
 
 Declarations, rich types/bodies and the envelope reject unknown fields. No
 serialized owner, winner, lifted lambda ID, certificate or checked Core can enter
-acceptance. Older package versions reject `indexed_declarations`; flat protocol 2
-also rejects that semantic field rather than ignoring it as unrelated metadata.
+acceptance. Older package versions reject `indexed_declarations` and
+`geometry_compat`; flat protocol 2 also rejects these semantic fields rather
+than ignoring them as unrelated metadata.
 
 `Indexed.Wire.check` retains the exact decode and actual
 `Indexed.AuthoritySource.checkProgram` result. The actual authority assembler,

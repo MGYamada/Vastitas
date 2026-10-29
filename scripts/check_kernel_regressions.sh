@@ -25,4 +25,5 @@ lake -d lean-kernel build \
   VastitasKernel.IndexedDispatchRegression \
   VastitasKernel.IndexedAuthorityRegression \
   VastitasKernel.IndexedWireRegression \
+  VastitasKernel.GeometryCompatibilityRegression \
   VastitasPromotion.Regression

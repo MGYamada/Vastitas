@@ -180,15 +180,17 @@ The internal declaration-driven source adapters now compose independent
 functions, finite scalar dispatch and edit-authority assemblies, including
 applied and unapplied contribution bodies. [Public protocol 7](docs/indexed-source.md)
 connects the Rust declaration/body syntax to that same combined checker and
-returned Core. The legacy syntax bridge inside protocol 7 and whole-term indexed
-evaluation proofs remain pending. See
+returned Core. Legacy geometry syntax in protocol 7 uses the library’s explicit,
+independently checked compatibility export. Whole-term indexed evaluation and
+legacy semantic correspondence proofs remain pending. See
 [indexed declarations](docs/indexed-declarations.md).
 
 The [geometry standard library](stdlib/src/geometry/README.md) exposes
 `std::geometry::scheme` and `std::geometry::smooth` for the existing affine
 descriptors, nominal points, morphisms and existential packages. Use the
-`stdlib/indexed` dependency entrypoint for geometry and arithmetic together;
-the original arithmetic entrypoint remains compatible with legacy clients.
+`stdlib` dependency entrypoint for geometry and arithmetic together. Original
+legacy geometry clients use the same declaration identities in that package
+closure; the temporary `stdlib/indexed` entrypoint has been removed.
 The new declarations use the same protocol-7 checker as application declarations,
 without privileges from geometric names. General scheme/manifold mathematics,
 new geometric constructions and the rest of #211 remain future work.

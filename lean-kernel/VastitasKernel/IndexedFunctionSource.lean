@@ -98,6 +98,7 @@ structure Package where
   id : Namespace.PackageId
   dependencies : List Namespace.Dependency
   modules : List Module
+  geometryCompat : Option (GeometryProfile Source.Path) := none
   deriving Repr, Inhabited
 
 structure Program where
@@ -113,7 +114,7 @@ def Program.headers (program : Program) : Source.Program := {
   file := program.file, root := program.root,
   extended := program.extended, editable := program.editable, authority := program.authority,
   packages := program.packages.map fun pkg => {
-    id := pkg.id, dependencies := pkg.dependencies,
+    id := pkg.id, dependencies := pkg.dependencies, geometryCompat := pkg.geometryCompat,
     modules := pkg.modules.map fun m => {
       module := m.module, declarations := m.declarations,
       functions := m.functions.map Function.namespaceHeader } } }

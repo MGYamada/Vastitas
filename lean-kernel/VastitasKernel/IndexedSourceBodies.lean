@@ -32,6 +32,7 @@ structure Input where
   index : Namespace.Indexed
   declarations : Core.Declarations
   signatures : Std.HashMap DeclId Signature := {}
+  geometry : Option (GeometryProfile DeclId) := none
 
 def fail (span : Span) (code message : String) : M α :=
   throw { code, message, span }
@@ -50,7 +51,7 @@ def bindName (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
 contexts here are built by parameter/let/unpack elaboration, not wire metadata. -/
 def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
     (raw : Source.DataType) (span : Span) : M Core.DataType := do
-  let (type, references) ← (elaborateDataType input.index input.declarations scope ctx raw).run []
+  let (type, references) ← (elaborateDataType input.index input.declarations scope ctx raw input.geometry).run []
   unless type.Valid input.declarations do fail span "E_TYPE" "invalid indexed annotation"
   unless type.Scoped (Core.Typing.contextRefs ctx.core) do fail span "E_SCOPE" "annotation contains a local object outside its scope"
   modify fun state => { state with references := references ++ state.references }
@@ -79,6 +80,62 @@ def primitiveResult : ValueType → Core.Result
   | .natural => ⟨.pure .nat, none⟩
   | .object type reference => ⟨.object type, some reference⟩
   | .indexed application => ⟨.indexed application, none⟩
+
+/-- Both declared calls and the legacy syntax adapter use this same primitive
+contract check. The final independent Core audit remains mandatory. -/
+def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
+    (values : List Core.Term) (span : Span) : M Core.Term := do
+  let some binding := input.declarations.primitive? id | fail span "E_TYPE" "unknown declared primitive"
+  let some operands := (values.map Core.Term.result).mapM Core.Result.primitiveType?
+    | fail span "E_TYPE" "primitive operand shape mismatch"
+  let brand ← match binding with | .descriptor _ => fresh | _ => pure 0
+  let some output := inferPrimitiveResult input.declarations.indexed binding brand operands
+    | fail span "E_TYPE" "primitive operand shape mismatch"
+  unless validPrimitive input.declarations.indexed binding (Core.Typing.contextRefs ctx.core) brand operands output do
+    fail span "E_ENDPOINT" "primitive capability, endpoint or coefficient contract failed"
+  return .primitive id values (primitiveResult output)
+
+def requireGeometry (input : Input) (span : Span) : M (GeometryProfile DeclId) := do
+  let some profile := input.geometry
+    | fail span "E_TYPE" "legacy geometry syntax requires exactly one explicit library compatibility export"
+  return profile
+
+def geometryOf (input : Input) (profile : GeometryProfile DeclId) (value : Core.Term) (span : Span) : M BaseKind := do
+  let .object type := value.result.type | fail span "E_TYPE" "legacy operation requires a geometric object"
+  let some base := profile.baseOf input.declarations.indexed type
+    | fail span "E_TYPE" "object is outside the declared legacy geometry profile"
+  return base
+
+def legacyPackage (input : Input) (witness : Core.Term) (span : Span) : M Application := do
+  let profile ← requireGeometry input span
+  return profile.package (← geometryOf input profile witness span)
+
+def legacyOperation (path : List String) : Bool :=
+  [["Affine"], ["Base"], ["origin"], ["id"], ["dimension"], ["compose"], ["apply"]].contains path
+
+def legacyFallback (input : Input) (scope : Namespace.Scope) (path : Path) : Bool :=
+  legacyOperation path.path && match Namespace.resolve input.index scope path.path path.span with
+    | .error diagnostic => diagnostic.code == "E_NAME"
+    | .ok _ => false
+
+def legacyMarker (name : String) (span : Span) : M BaseKind :=
+  match name with
+  | "QQ" => pure .qq | "CInfReal" => pure .cinfReal
+  | _ => fail span "E_RING" "Affine/Base requires QQ or CInfReal as a coefficient marker"
+
+def emitLegacy (input : Input) (ctx : TypeContext) (name : String) (base : Option BaseKind)
+    (values : List Core.Term) (span : Span) : M Core.Term := do
+  let profile ← requireGeometry input span
+  let id ← match name, base, values with
+    | "Affine", some base, [_] => pure (profile.setting base).affine
+    | "Base", some base, [] => pure (profile.setting base).base
+    | "compose", none, [_, _] => pure profile.compose
+    | "apply", none, [_, _] => pure profile.apply
+    | "origin", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).origin
+    | "id", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).identity
+    | "dimension", none, [value] => do pure (profile.setting (← geometryOf input profile value span)).dimension
+    | _, _, _ => fail span "E_ARITY" "wrong legacy geometry argument count"
+  emitPrimitive input ctx id values span
 
 def prepareSignature (input : Input) (owner : DeclId) (source : Source.Function) (id : Nat) : M Signature := do
   let mut context : TypeContext := []
@@ -153,10 +210,15 @@ mutual
           pure (.branch condition yes no ⟨yes.result.type, reference⟩)
       | .block body _ => block fuel input scope ctx body expected
       | .pack annotation witness fields _ => do
-          let .package application ← type input scope ctx annotation span
-            | fail span "E_TYPE" "pack annotation must name an existential package"
-          let some shape := input.declarations.package? application | fail span "E_TYPE" "unknown package case"
-          let witness ← expression fuel input scope ctx witness (some (.object shape.witnessType))
+          let (application, witness) ← match annotation with
+            | .inferredPackage => do
+              let witness ← expression fuel input scope ctx witness none
+              pure (← legacyPackage input witness span, witness)
+            | _ => do
+              let .package application ← type input scope ctx annotation span
+                | fail span "E_TYPE" "pack annotation must name an existential package"
+              let some shape := input.declarations.package? application | fail span "E_TYPE" "unknown package case"
+              pure (application, ← expression fuel input scope ctx witness (some (.object shape.witnessType)))
           let fields ← fields.mapM fun field => expression fuel input scope ctx field none
           unless Core.Typing.PackageTyping input.declarations application witness.result (fields.map Core.Term.result) do
             fail span "E_ENDPOINT" "package fields do not match the exact witness and ordered field contract"
@@ -186,6 +248,15 @@ mutual
         return .project element (callee.path == ["pair_first"]) value
       if let [name] := callee.path then
         if (ctx.lookup name).isSome then fail span "E_TYPE" "a data value is not callable"
+      if legacyFallback input scope callee then
+        let name := callee.path.head!
+        let (base, arguments) ← if name == "Affine" || name == "Base" then do
+          let .variable marker _ :: rest := arguments | fail span "E_RING" "Affine/Base requires an explicit coefficient marker"
+          pure (some (← legacyMarker marker span), rest)
+        else pure (none, arguments)
+        let hint := if name == "Affine" then some (Core.DataType.pure .nat) else none
+        let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
+        return ← emitLegacy input ctx name base values span
       let target ← Namespace.resolve input.index scope callee.path callee.span
       if target.kind == .indexedDeclaration then
         let some binding := input.declarations.primitive? target.owner
@@ -195,14 +266,7 @@ mutual
         unless arguments.length == arity do fail span "E_ARITY" s!"primitive expects {arity} arguments"
         let hint := match binding with | .descriptor _ => some (Core.DataType.pure .nat) | _ => none
         let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
-        let some operands := (values.map Core.Term.result).mapM Core.Result.primitiveType?
-          | fail span "E_TYPE" "primitive operand shape mismatch"
-        let brand ← match binding with | .descriptor _ => fresh | _ => pure 0
-        let some result := inferPrimitiveResult input.declarations.indexed binding brand operands
-          | fail span "E_TYPE" "primitive operand shape mismatch"
-        unless validPrimitive input.declarations.indexed binding (Core.Typing.contextRefs ctx.core) brand operands result do
-          fail span "E_ENDPOINT" "primitive capability, endpoint or coefficient contract failed"
-        return .primitive target.owner values (primitiveResult result)
+        return ← emitPrimitive input ctx target.owner values span
       unless target.kind == .function do fail span "E_TYPE" "expected an ordinary function or declared primitive"
       let some signature := input.signatures[target.owner]? | fail span "E_NAME" "function has no source signature"
       unless signature.context.length == arguments.length do fail span "E_ARITY" "wrong function argument count"

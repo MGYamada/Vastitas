@@ -39,8 +39,8 @@ private def rootModule : Module := {
   module := { (mod []).module with imports := [⟨["geo", "Point"], "Point", true, {}⟩] } }
 private def program : Program := {
   file := "indexed-source-regression", root := app.source,
-  packages := [⟨app, [⟨"geo", lib.source⟩, ⟨"other", lib.source⟩], [rootModule]⟩,
-    ⟨lib, [], [mod geometry]⟩] }
+  packages := [⟨app, [⟨"geo", lib.source⟩, ⟨"other", lib.source⟩], [rootModule], none⟩,
+    ⟨lib, [], [mod geometry], none⟩] }
 private def id (name : String) : DeclId := ⟨⟨lib, []⟩, name⟩
 /-- Unresolved declarations shared by type-elaboration regressions. -/
 def declarationFixture : Program := program
@@ -50,7 +50,7 @@ private def accepts (p : Program) : Bool := (checkDeclarations p).isOk
 private def rejects (code : String) (p : Program) : Bool :=
   match checkDeclarations p with | .error error => error.code == code | .ok _ => false
 private def changeLibrary (f : Module → Module) : Program :=
-  { program with packages := [program.packages[0]!, ⟨lib, [], [f (mod geometry)]⟩] }
+  { program with packages := [program.packages[0]!, ⟨lib, [], [f (mod geometry)], none⟩] }
 private def change (name : String) (body : Body) : Program := changeLibrary fun m =>
   { m with declarations := m.declarations.map fun d => if d.name == name then { d with body } else d }
 private def add (declaration : Declaration) : Program := changeLibrary fun m =>
@@ -64,7 +64,7 @@ private def add (declaration : Declaration) : Program := changeLibrary fun m =>
   (Namespace.resolve program.indexed ⟨app, []⟩ ["Point"] {}).toOption.map (·.owner) == some (id "Point") &&
   (Namespace.resolve program.indexed ⟨app, []⟩ ["other", "Point"] {}).toOption.map (·.owner) == some (id "Point"))
 #eval check "declaration and package order independent" (accepts { program with packages :=
-  [⟨lib, [], [mod geometry.reverse]⟩, program.packages[0]!] })
+  [⟨lib, [], [mod geometry.reverse], none⟩, program.packages[0]!] })
 #eval check "display filename does not affect identities" (match lower program, lower { program with file := "elsewhere.vast" } with
   | .ok a, .ok b => a.declarations == b.declarations
   | _, _ => false)
@@ -72,7 +72,7 @@ private def add (declaration : Declaration) : Program := changeLibrary fun m =>
 private def copyId : Namespace.PackageId := { lib with source := "/another-lib/Vastitas.toml" }
 private def twoLibraries : Program := { program with packages :=
   [{ program.packages[0]! with dependencies := program.packages[0]!.dependencies ++ [⟨"copy", copyId.source⟩] },
-    program.packages[1]!, ⟨copyId, [], [mod geometry]⟩] }
+    program.packages[1]!, ⟨copyId, [], [mod geometry], none⟩] }
 #eval check "equal package names and declarations keep distinct identities" (match checkDeclarations twoLibraries with
   | .error _ => false
   | .ok checked =>
@@ -138,12 +138,12 @@ private def ordinary : Namespace.Function := {
 
 private def privateParent : Program := { file := "parent", root := lib.source, packages := [⟨lib, [], [
   mod [decl "Secret" .marker false],
-  mod [decl "Child" (.implementation (path "super::Secret") .affineDescriptor [])] ["child"]]⟩] }
+  mod [decl "Child" (.implementation (path "super::Secret") .affineDescriptor [])] ["child"]], none⟩] }
 #eval check "descendant can reference private parent but owns its new declaration" (match checkDeclarations privateParent with
   | .ok checked => checked.resolved.declarations.ids.contains ⟨⟨lib, ["child"]⟩, "Child"⟩
   | .error _ => false)
 #eval check "no implicit parent name" (rejects "E_NAME" { privateParent with packages := [⟨lib, [], [
-  mod [decl "Secret" .marker false], mod [decl "Child" (.implementation (path "Secret") .affineDescriptor [])] ["child"]]⟩] })
+  mod [decl "Secret" .marker false], mod [decl "Child" (.implementation (path "Secret") .affineDescriptor [])] ["child"]], none⟩] })
 
 #eval check "forged lookup certificates rejected" (match checkDeclarations program with
   | .error _ => false

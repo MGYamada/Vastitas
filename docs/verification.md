@@ -804,21 +804,38 @@ body/activation safety and backend refinement remain separate obligations.
 
 The ordinary `.vast` modules behind `std::geometry::scheme` and
 `std::geometry::smooth` use the existing public `Indexed.Wire.check` acceptance
-path. The `stdlib/indexed` entrypoint re-exports their canonical declarations and
-the arithmetic package; it adds no trusted name recognition or runtime forwarding
-layer. Existing declaration, primitive, package, authority and returned-Core audit
-theorems apply with their original assumptions and scope.
+path. The single `stdlib` entrypoint re-exports their canonical declarations and
+arithmetic; the temporary `stdlib/indexed` facade is removed. Its explicit
+`geometry_compat` export supplies old syntax through independently resolved and
+validated declaration roles, without runtime forwarding or new editing rights.
 
-`tests/stdlib_geometry.rs` contains thirteen integration tests, including native
-`42`/`2` workflows, abstract annotation/unpack, dependent test objects, source
-renaming, re-export identity, nominal separation, visibility, missing capabilities
-and legacy entrypoint compatibility. Mutations of actual Rust wire input alter a
-module's visibility, a primitive's base, declared capabilities or a forged owner;
-both checking and code emission reject them. These are executable regressions,
-not new mathematical or whole-term semantic theorems.
+`tests/stdlib_geometry.rs` contains twenty integration tests: native `42`/`2`
+workflows including unchanged original source, mixed annotations/pack/unpack,
+dependent test objects, coherent source/profile renaming, re-export identity,
+nominal separation, visibility, missing capabilities, Fn capture and unused-body
+checking. Actual wire mutations change visibility, primitive/base roles,
+capabilities, purported owner or compatibility metadata; both checking and
+emission reject them. Old wire versions reject the new export. Twelve direct
+`GeometryCompatibilityRegression` cases check role contracts and additional
+family constraints that would invalidate the legacy interface.
 
-The protocol-7 legacy syntax bridge, whole-term indexed evaluation and legacy
-semantic correspondence remain pending. General scheme/manifold mathematics,
-new representation contracts and C performance measurements are not established
-by these tests. See the [library contract](../stdlib/src/geometry/README.md) and
+`VastitasOracle.GeometryCompatibility` imports the actual checker and proves:
+
+- `checked_profile`: selected exports satisfy `GeometryProfile.valid` in the
+  same independently accepted declaration environment.
+- `settings_distinct`, `setting_contracts`, `origin_and_package`: the settings
+  have distinct markers and exact checked origin/package roles using the same
+  Point family and actual global base object.
+- `prepared_profile`, `lowered_profile`, `compiler_uses_checked_profile`: the
+  actual function compiler uses the exact profile certified by declaration
+  checking, through their shared path resolver.
+- `wire_profile`: the exact decoded protocol-7 input is accepted by the actual
+  authority checker, has that validated profile, and yields a typed executable
+  Core. Existing all-body, authority, capture and codegen audits still apply.
+
+These are structural checker guarantees. Whole-term indexed evaluation, legacy
+semantic correspondence and removal of the separate protocols-2–6 frontend path
+remain pending. General scheme/manifold mathematics, native equivalence and C
+performance measurements are not established by these theorems or tests. See the
+[library contract](../stdlib/src/geometry/README.md) and
 [completion ledger](stage1-completion.md).

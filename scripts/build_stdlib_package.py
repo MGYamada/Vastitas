@@ -35,7 +35,7 @@ def main():
     parser.add_argument("--check", action="store_true")
     args = parser.parse_args()
     outputs = {
-        "lib.vast": HEADER + b"pub mod arithmetic;\n",
+        "lib.vast": HEADER + b"pub mod arithmetic;\npub use geometry_library as geometry;\n",
         "arithmetic.vast": HEADER + b"pub mod integers;\npub mod naturals;\npub mod generic;\n",
     }
     for source, module in [("int", "integers"), ("nat", "naturals"), ("generic", "generic")]:

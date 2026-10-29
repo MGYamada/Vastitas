@@ -7,12 +7,41 @@ and both Core audits on that same input. See [the foundation](indexed-declaratio
 for the internal contracts and [protocol](protocol.md) for the wire format.
 
 The [geometry stdlib](../stdlib/src/geometry/README.md) exposes `std::geometry::scheme`
-and `std::geometry::smooth` through `stdlib/indexed`, declaring the finite
-ordinary/smooth affine profile through this path. This does not complete #49/#58–63:
-the legacy syntax bridge inside protocol-7 packages and whole-term/legacy semantic
-correspondence remain pending. Protocols 2–6 and explicit `--lib` retain their existing geometry
+and `std::geometry::smooth` through `stdlib`, declaring the finite ordinary/smooth
+affine profile through this path. An explicit checked `geometry_compat` library
+export maps legacy syntax to those same declarations. This does not complete
+#49/#58–63: whole-term/legacy semantic correspondence remains pending. Protocols 2–6 and explicit `--lib` retain their existing geometry
 syntax and checked compatibility lowering. Storage ownership, numerical arrays
 and performance evidence remain separate pending work.
+
+## Legacy geometry syntax in packages
+
+The geometry library manifest exports unresolved role paths under `geometry_compat`
+(see [wire schema](protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)).
+Lean resolves them in the provider’s root scope, checks the complete declaration
+environment and validates each role. This is an explicit syntax facade, including
+intentional access to the provider’s own declarations; it grants no edit authority.
+The two settings require distinct markers, actual global base objects, compatible
+finite affine implementations, exact origin/identity/dimension contracts, shared
+Point/Morphism families with exactly the same-base constraint, and the matching
+single-point existential cases. Names and equal dimensions grant no compatibility.
+
+Exactly one export enables the original `Scheme`/`CInfScheme`, Point/Morphism/
+Pointed annotations, old pack/unpack and unqualified geometry calls in the entire
+closure. Explicit indexed syntax and old syntax then use the same canonical IDs.
+A legacy `Base(QQ)` or `Base(CInfReal)` index is translated to the exported
+base object; a bare coefficient marker is rejected as an object index. Local Fn bindings
+and declared names are resolved first; only an unresolved unqualified builtin
+spelling falls back, never a private-name rejection. Both forms emit the same
+checked primitives. Legacy annotation references still participate in capture
+checks, and both syntax forms retain independent unused-body and Core audits.
+
+All exports are audited. With zero or multiple exports, qualified new syntax
+continues to work and legacy syntax fails with the exact-one-export diagnostic.
+This supports independent copies without collapsing nominal package identities.
+Profile resolution has no generated runtime operation. Whole-term evaluation,
+legacy semantic correspondence and C performance measurements remain separate
+obligations; protocols 2–6 still use their existing legacy elaboration path.
 
 ## Declarations and source example
 

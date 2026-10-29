@@ -8,6 +8,11 @@ This is the current design contract replacing the storage discussion in
 The archived v0.3 text and its source hashes remain unchanged.
 The notation below describes required IR behavior, not available surface syntax.
 
+The [dense layout/preflight reference](storage-layout-preflight.md) supplies an
+executable integer model, regression cases and proposed Lean obligations for
+the first dense/transpose fragment. It is not production resource acceptance,
+completed Lean soundness, native check elimination or performance evidence.
+
 ## 7.1 Fast like C: the primary design goal
 
 **Fast like C is Vastitas's highest-priority performance and architecture goal.**

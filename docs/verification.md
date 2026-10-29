@@ -198,6 +198,13 @@ across the remaining correspondence boundary. No new unproved axiom is used.
 
 ## What is outside these claims
 
+The [dense layout/preflight reference](storage-layout-preflight.md) separates
+byte bounds, alignment, write injectivity, native narrowing and loan conflicts.
+Its Python regressions and successful-session receipts do not establish Lean
+resource safety or authorize native check elimination. The linked document
+states the pending all-access, exact-return and successful-branch soundness
+obligations for the actual Ownership/Borrow Checker.
+
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in
 `VastitasOracle.Graph`. It does not extend these source/Core evaluation claims

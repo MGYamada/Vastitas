@@ -162,6 +162,23 @@ mutual
           let some selected := binding.target | error span "E_TYPE" "a data value is not callable"
           return ← invokeTarget fuel input scope ctx selected arguments span
       let resolved ← result (Namespace.resolve input.body.index scope path.path path.span)
+      if resolved.kind == .generic then
+        let some family := input.dispatch.families[resolved.owner]?
+          | error span "E_STAGE" "generic has no checked finite dispatch environment"
+        unless arguments.length == family.raw.params.length do error span "E_ARITY" "wrong generic argument count"
+        let values ← arguments.mapM fun argument => expression fuel input scope ctx argument none
+        let key ← values.mapM fun value => do
+          let term ← data value span
+          match term.result.type with
+          | .pure .nat => pure 0 | .pure .int => pure 1
+          | .pure .bool => pure 2 | .pure .unit => pure 3
+          | _ => error span "E_TYPE" "dispatch keys require Nat, Int, Bool or Unit"
+        let selected ← result (((DispatchChecker.selectTarget family key span).run {}).map Prod.fst)
+        let some definition := input.dispatch.definitions[(selected.method, key)]?
+          | error span "E_INTERNAL_DISPATCH" "winner has no checked source specialization"
+        modify fun state => { state with dispatchCalls :=
+          ⟨scope, path, resolved, key, selected.method, definition⟩ :: state.dispatchCalls }
+        return ← emitCall input definition [] values [] span
       if resolved.kind == .indexedDeclaration then
         let some binding := input.body.declarations.primitive? resolved.owner | error span "E_TYPE" "declaration is not a primitive"
         let arity := match binding with | .global _ => 0 | .compose _ | .apply .. => 2 | _ => 1
@@ -185,14 +202,7 @@ mutual
       let parameters := definition.definition.function.params.zip definition.context
       unless parameters.length == arguments.length do error span "E_ARITY" "wrong function argument count"
       let (values, targets, substitution) ← argumentsFor fuel input scope ctx parameters arguments [] span
-      let (bindings, frozen) ← freeze values
-      let compiled ← request id targets span
-      modify fun state => { state with emittedCalls := ⟨key id targets, compiled.id⟩ :: state.emittedCalls }
-      let arguments := (parameters.zip frozen).filterMap fun ((parameter, _), value) =>
-        match parameter.type with | .data _ => some value.term | .function _ => none
-      let type := definition.result.rename substitution
-      let reference ← match type with | .object type => some <$> (ObjectRef.local type <$> fresh) | _ => pure none
-      return wrap bindings ⟨.call compiled.id arguments substitution ⟨type, reference⟩, compiled.target⟩
+      emitCall input id targets values substitution span
 
   def argumentsFor : Nat → Input → Namespace.Scope → Context → List (Param × Source.Binding) → List Expr →
       List (ObjectRef × ObjectRef) → Span → M (List Value × List Target × List (ObjectRef × ObjectRef))

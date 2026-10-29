@@ -69,7 +69,7 @@ theorem target_signature_exact {prepared : PreparedProgram} (checked : CheckedPa
   | some definition =>
     refine ⟨definition, rfl, ?_, same⟩
     simp only [validTargetName, concrete, found, Bool.and_eq_true, beq_iff_eq, and_assoc] at valid
-    exact valid.2.2
+    exact valid.2.2.1
 
 theorem emitted_call_exact {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
     (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) :
@@ -174,7 +174,7 @@ theorem source_body_checked {program : Program} (checked : CheckedProgram progra
       Core.Typing.FunctionTyped checked.audit.lowered.module.declarations
         (Core.Typing.signatures checked.audit.lowered.module) function := by
   have valid := checked.definitions
-  simp only [validDefinitions, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, and_assoc] at valid
+  simp only [validDefinitions, validDefinitionsFor, Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq, and_assoc] at valid
   have inside : id < checked.lifted.definitions.size := by
     have size := valid.2.1
     simp only [List.size_toArray] at size

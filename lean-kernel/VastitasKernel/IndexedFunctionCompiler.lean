@@ -87,12 +87,14 @@ structure PreparedProgram where
   input : Input
   initial : Source.Bodies.State
 
-def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted) : Namespace.Result PreparedProgram := do
+def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
+    (dispatch : DispatchInput := {}) : Namespace.Result PreparedProgram := do
   let input : Source.Bodies.Input := { index := program.headers.indexed, declarations }
   let (prepared, initial) ← (lifted.definitions.mapM (prepareDefinition input)).run {}
-  let named := (prepared.toList.filter (!·.definition.isLambda)).foldl (fun table entry =>
+  let sourceCount := program.functions.length
+  let named := (prepared.toList.filter (fun entry => !entry.definition.isLambda && entry.definition.id < sourceCount)).foldl (fun table entry =>
     table.insert entry.definition.owner entry.definition.id) ({} : Std.HashMap DeclId Nat)
-  return ⟨⟨program, input, prepared, named⟩, initial⟩
+  return ⟨⟨program, input, prepared, named, sourceCount, dispatch⟩, initial⟩
 
 def entryDefinition (program : Program) : Option Nat :=
   ((program.functions.zipIdx).find? fun ((owner, _), _) => owner.name == "main" &&
@@ -113,6 +115,7 @@ structure Pass where
   calls : List CallReference
   staticUses : List StaticUse
   references : List Source.Reference
+  dispatchCalls : List DispatchCall := []
   deriving Inhabited
 
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
@@ -130,6 +133,6 @@ def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pas
   let main := (entryDefinition prepared.input.source).bind fun main =>
     (state.origins.toList.zipIdx.find? (fun (key, _) => key.definition == main)).map Prod.snd
   return ⟨⟨prepared.input.body.declarations, state.functions.toList, main⟩, state.origins,
-    state.emittedCalls, state.calls, state.staticUses, state.body.references⟩
+    state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls⟩
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

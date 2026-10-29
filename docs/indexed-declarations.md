@@ -40,8 +40,51 @@ explicit per implementation; classification or inheritance does not fill them
 in. These records alone are not mathematical evidence or operation acceptance.
 The closed primitive binding checker is described below. Executable source/
 term use of these records is checked by the internal Core below. Public source
-integration remains part of #60. The ordinary namespace/membership authority audit must also be connected
-before a public program may install these declarations.
+integration remains part of #60. The declaration namespace resolver below uses
+the actual package visibility and ownership machinery. Scalar membership/edit
+audits and complete term elaboration must still be composed before a public
+program may install these declarations.
+
+## Unresolved declaration input and namespace audit
+
+`IndexedSource` and `IndexedSourceChecker` accept an internal unresolved
+declaration program. Each declaration has a name, body, visibility and span; its
+canonical owner is reconstructed from the enclosing package ID and logical
+module. References contain paths, never frontend-selected owners or checked
+flags. Package modules retain the existing function/generic/edit declarations,
+imports and package graph in a shared namespace.
+
+The backend builds its indexes once for resolution, then uses the existing
+bounded `Namespace.resolve` and `Namespace.validate`. Dependency aliases and
+public re-exports retain original declaration IDs. Private declarations and
+private re-exports remain inaccessible, children obtain no parent identity, and
+cross-category duplicate names or import/dependency collisions are rejected.
+Compatibility spellings such as `Scheme`, `Point` or `origin` are permitted only
+for real indexed declarations and their aliases; the spelling does not select
+their role or representation. Scalar types, `Fn`, `Pair` and language keywords
+remain reserved. Protocols 2–6 cannot create the new namespace kind.
+
+All declarations, including unused dependency declarations, resolve to the
+actual `Indexed.Core.Declarations` tables. Complete finite domain, index sort,
+arity, package and closed primitive contracts then undergo the existing Core
+declaration audit. The checked record retains the exact lowering equation,
+original owner sequence, namespace validation and an independently re-resolved
+reference ledger. `VastitasOracle.IndexedSource` proves that every output ID
+comes from an actual enclosing input declaration, every recorded reference
+resolves to its exact canonical target, and the same output environment has
+valid package and primitive contracts.
+
+`IndexedSourceRegression` adds 34 cases, including non-geometric token/package
+contracts, coefficient-versus-object errors, whole-domain capability loss,
+order/alias invariance, private access and forged reference ledgers. A sixth
+standalone native fixture takes the resolved declaration environment through
+actual Core checking/code generation and returns `7`.
+
+This certificate accepts declarations only. It does not check function bodies,
+finite dispatch or edit assemblies, and it is not a public protocol-7 entry
+point. Rust parsing, the wire decoder, source term elaboration and the full
+scalar/function/authority composition remain pending. The internal regression
+constructs Core terms directly; it is not a `.vast` source migration test.
 
 ## Indexed applications and scopes
 

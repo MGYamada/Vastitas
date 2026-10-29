@@ -7,6 +7,7 @@ namespace VastitasKernel.Namespace
 
 inductive Kind where
   | module | function | generic | abstractType | grant | contribution | delegation | transfer
+  | indexedDeclaration
   deriving Repr, Inhabited, DecidableEq, BEq
 
 structure Target where

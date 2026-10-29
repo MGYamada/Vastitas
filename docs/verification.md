@@ -581,6 +581,17 @@ borrow safety or a claim to have implemented all eight domain checkers.
 
 ## Internal indexed declaration foundation
 
+`VastitasOracle.IndexedSource` now connects internal unresolved declarations to
+the actual namespace resolver and `Indexed.Core.Declarations` audit. Its checked
+record is indexed by the same input package/module program and retains the
+exact lowering equation. Output IDs originate in the enclosing input package
+and logical module; reference ledgers are independently re-resolved with real
+visibility/import checks. The proved output contracts include complete finite
+domains, package cases and the closed primitive registry. This is declaration
+acceptance only: it does not certify function bodies, scalar dispatch, edit
+assemblies, a public protocol-7 decoder or source-term translation. The six
+native fixtures include one using this exact resolved declaration environment.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

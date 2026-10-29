@@ -17,6 +17,8 @@ import VastitasOracle.IndexedCore
 import VastitasOracle.LegacyIndexed
 import VastitasOracle.IndexedSemantics
 import VastitasOracle.IndexedPackageSemantics
+import VastitasOracle.IndexedEvaluation
+import VastitasOracle.IndexedWorld
 import VastitasOracle.IndexedSource
 import VastitasOracle.IndexedSourceTypes
 import VastitasOracle.IndexedSourceBodies

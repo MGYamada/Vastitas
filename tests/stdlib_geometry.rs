@@ -166,6 +166,26 @@ fn main() -> Int {
 }
 
 #[test]
+fn legacy_alias_branches_and_anonymous_outer_endpoints_survive_library_lowering() {
+    native(&fixture(
+        r#"
+fn main() -> Int {
+    let X = Affine(QQ, 42);
+    let Y = X;
+    let Z = if false { X } else { Y };
+    let p: Point<Z, Base(QQ)> = apply(compose(id(X), id(Y)), origin(X));
+    let anonymous = origin(Affine(QQ, 2));
+    let kept = { anonymous };
+    let boxed = pack { scheme: Z, point: p };
+    unpack boxed as { scheme: W, point: q };
+    int(dimension(W))
+}
+"#,
+        str::to_owned,
+    ));
+}
+
+#[test]
 fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
     let cases = [
         (
@@ -193,6 +213,19 @@ fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
             "E_ENDPOINT",
         ),
         ("let p = { let X = Affine(QQ, 2); origin(X) };", "E_ESCAPE"),
+        ("let f = { let X = Affine(QQ, 2); id(X) };", "E_ESCAPE"),
+        (
+            "let p = { let X = Affine(QQ, 2); let a = pack { scheme: X, point: origin(X) }; unpack a as { scheme: Y, point: q }; q };",
+            "E_ESCAPE",
+        ),
+        (
+            "let X = Affine(QQ, 2); let a: Pointed<CInfScheme, CInfReal> = pack { scheme: X, point: origin(X) };",
+            "E_TYPE",
+        ),
+        (
+            "let X = Affine(QQ, 2); let Y = same_object(X); let p: Point<Y, Base(QQ)> = origin(X);",
+            "E_TYPE",
+        ),
         (
             "let X = Affine(QQ, 2); let a = pack { scheme: X, point: origin(X) }; unpack a as { scheme: Y, point: p }; unpack a as { scheme: Z, point: q }; let bad: Point<Y, Base(QQ)> = q;",
             "E_TYPE",
@@ -203,7 +236,10 @@ fn legacy_endpoint_base_and_scope_failures_preserve_existing_output() {
         ),
     ];
     for (body, code) in cases {
-        let s = fixture(&format!("fn main() -> Int {{ {body} 0 }}"), str::to_owned);
+        let s = fixture(
+            &format!("fn same_object(X: Scheme) -> Scheme {{ X }} fn main() -> Int {{ {body} 0 }}"),
+            str::to_owned,
+        );
         s.write("program", "preserve this output");
         for mode in ["check", "build"] {
             let mut command = cli();

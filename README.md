@@ -25,7 +25,9 @@ ambiguity, every declared domain for coverage, and every applicable method
 body before lowering calls to independently audited indexed Core. All public wire
 versions now reach the same declaration/function/dispatch/authority checker;
 [legacy source adaptation](docs/indexed-declarations.md#compatibility-adapter-for-protocols-26)
-preserves existing input formats. The exact checked indexed Core has proved terminating typed evaluation; legacy source-result correspondence remains pending. Stage 1b adds independent
+preserves existing input formats. The exact checked indexed Core has proved
+terminating typed evaluation; [finite geometry migration](docs/geometry-migration.md)
+records primitive result compatibility and the broader source/native proof limits. Stage 1b adds independent
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.
@@ -186,8 +188,9 @@ connects the Rust declaration/body syntax to that same combined checker and
 returned Core. Legacy geometry syntax in protocol 7 uses the library’s explicit,
 independently checked compatibility export. `IndexedProgramSafety` proves finite
 typed evaluation for all functions and main in the exact returned Core, including
-dependent calls and package openings. Legacy semantic correspondence and native
-refinement remain pending. See
+dependent calls and package openings. Finite geometry primitive results agree
+with the retained runtime after erasure. Full source operational correspondence
+and native refinement remain unproved. See
 [indexed declarations](docs/indexed-declarations.md).
 
 The [geometry standard library](stdlib/src/geometry/README.md) exposes

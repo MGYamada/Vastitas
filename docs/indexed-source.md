@@ -9,8 +9,9 @@ for the internal contracts and [protocol](protocol.md) for the wire format.
 The [geometry stdlib](../stdlib/src/geometry/README.md) exposes `std::geometry::scheme`
 and `std::geometry::smooth` through `stdlib`, declaring the finite ordinary/smooth
 affine profile through this path. An explicit checked `geometry_compat` library
-export maps legacy syntax to those same declarations. This does not complete
-#49/#58–63: legacy semantic correspondence and full migration acceptance remain pending. Protocols 2–6
+export maps legacy syntax to those same declarations. The
+[migration acceptance map](geometry-migration.md) covers #49/#58–63 and separates
+finite compatibility from broader source/native proof limits. Protocols 2–6
 and explicit `--lib` retain their existing geometry syntax and wire formats.
 `Indexed.LegacySource` adapts their decoded source into this same common checker
 with a separately validated closed compatibility declaration package. Storage ownership, numerical arrays
@@ -41,9 +42,10 @@ checks, and both syntax forms retain independent unused-body and Core audits.
 All exports are audited. With zero or multiple exports, qualified new syntax
 continues to work and legacy syntax fails with the exact-one-export diagnostic.
 This supports independent copies without collapsing nominal package identities.
-Profile resolution has no generated runtime operation. Whole-term evaluation,
-legacy semantic correspondence and C performance measurements remain separate
-obligations. Protocols 2–6 use the source adapter described in
+Profile resolution has no generated runtime operation. The returned Core has
+typed total evaluation and finite primitive result compatibility; full source
+operational correspondence, native equivalence and C performance measurements
+are separate unproved or unmeasured claims. Protocols 2–6 use the source adapter described in
 [indexed declarations](indexed-declarations.md#compatibility-adapter-for-protocols-26).
 
 ## Declarations and source example

@@ -33,6 +33,7 @@ import VastitasOracle.IndexedDispatch
 import VastitasOracle.IndexedAuthority
 import VastitasOracle.IndexedWire
 import VastitasOracle.GeometryCompatibility
+import VastitasOracle.GeometryResults
 import VastitasOracle.LegacySource
 import VastitasOracle.Promotion
 import VastitasOracle.Graph

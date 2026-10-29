@@ -54,8 +54,9 @@ transfer. The declaration-driven indexed Core and the internal function, dispatc
 and authority checkers are connected through [public protocol 7](indexed-source.md).
 The [finite geometry stdlib](../stdlib/src/geometry/README.md) now uses
 `std::geometry::scheme` and `std::geometry::smooth`. The
-[Stage 1 completion ledger](stage1-completion.md) tracks the remaining compatibility
-and semantic proofs, storage ownership, linear algebra, and finite networks.
+[geometry migration acceptance map](geometry-migration.md) records finite
+compatibility and semantic guarantees. The [Stage 1 completion ledger](stage1-completion.md)
+tracks storage ownership, linear algebra, finite networks and performance evidence.
 The Rust frontend is in `src/`, the mathlib-free Lean backend in `lean-kernel/`, and
 the mathlib-dependent proof oracle in `lean/`; the oracle imports the actual backend
 definitions. Ordinary compilation does not invoke the proof oracle.

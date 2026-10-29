@@ -166,6 +166,10 @@ Runtime representation: generated Lean code imports only
 `Unit`; geometric objects, indexed points/morphisms and existential payloads use
 the common runtime representations. Nominal typing is established before erasure.
 The old runtime remains for retained legacy evaluation proofs.
+The [finite migration acceptance map](geometry-migration.md) records checked
+primitive result compatibility, source regressions and the limits of the
+source/native proof claims. The compatibility adapter is not an additional wire
+version or a privileged semantic checker.
 User symbols are always renamed to generated identifiers; source text is never
 inserted as Lean syntax. Integers are validated decimal literals.
 

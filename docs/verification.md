@@ -652,7 +652,19 @@ shared middle reference denotes the same runtime object on both sides.
 `primitive_runtime_erasure` connects successful logical registry evaluation to
 the actual minimal runtime operations. The bounded Core evaluator and twenty
 regressions test the same source-independent fixtures as native generation, but
-are not whole-program proofs. Package opening, dependent calls, allocation
+are not whole-program proofs. The unpack body, dependent calls, allocation
 freshness through full evaluation, legacy translation and generated native
 code still need their correspondence theorems. The new operation lemmas do not
 extend the retained legacy whole-program theorems to the indexed backend.
+
+`VastitasOracle.IndexedSubstitution` proves validity under reference maps that
+preserve object types, and connects valid package templates and fresh serials to
+the real `openPackage` audit. These reference-map lemmas are proof helpers, not
+additional admitted call substitutions or authority operations.
+`IndexedPackageSemantics` proves runtime-field transport by the bound template,
+including global witnesses, explicit globals, token indices and ordered fields.
+Its `core_pack_semantics` and `core_opening_semantics` use the exact declaration
+lookup and association of actual typed Core nodes. Runtime operand typing and
+fresh dynamic slots are explicit premises. Eleven kernel regressions and two
+additional native fixtures support this increment; full evaluation, lexical
+body/activation safety and backend refinement remain separate obligations.

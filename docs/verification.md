@@ -620,6 +620,21 @@ refinement. Fifty-two new cases and three additional standalone native fixtures
 exercise actual internal source bodies; public parsing and full Fn/dispatch/edit
 composition remain pending.
 
+`VastitasOracle.IndexedFunctions` adds structural acceptance for the internal
+Fn adapter. `pipeline_reconstructed` connects the actual declaration input,
+lambda lifting, signature preparation and both separate lowering passes.
+`both_passes` establishes Core typing for the same returned audit/executable
+modules. `source_body_checked` and `lifted_definition_checked` cover every input
+function and lambda, including unused higher-order bodies. `lambda_scope`
+includes type-index free names and the shadowing ban. `target_signature_exact`,
+`executable_target_concrete`, `function_origin`, `emitted_call_exact` and
+`source_call_resolves` extract the independent static-target, origin and namespace
+audits. Coverage cannot be replaced with a list of executable winners or probes
+reused as executable targets. Fifty-five regressions and four more standalone
+native fixtures exercise this path. These statements do not prove source
+operational correspondence, typed termination, dispatch/edit composition,
+protocol-7 acceptance or correctness of the native toolchain.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

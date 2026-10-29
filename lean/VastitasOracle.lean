@@ -20,6 +20,7 @@ import VastitasOracle.IndexedPackageSemantics
 import VastitasOracle.IndexedSource
 import VastitasOracle.IndexedSourceTypes
 import VastitasOracle.IndexedSourceBodies
+import VastitasOracle.IndexedFunctions
 import VastitasOracle.Promotion
 
 /-!

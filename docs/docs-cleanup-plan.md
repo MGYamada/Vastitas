@@ -1,145 +1,211 @@
-# Stage 1 完了後の docs cleanup と mdBook 導入計画
+<a id="stage-1-完了後の-docs-cleanup-と-mdbook-導入計画"></a>
 
-状態: 計画。Stage 1 完了後に実施する。現時点では docs の再編、mdBook の導入、サイト公開は未実施。
+# Documentation cleanup and mdBook adoption after Stage 1
 
-作成日: 2026-10-27（JST）、更新日: 2026-10-29（JST）。今回の棚卸し基準は
-PR #215のマージ `5e98abc` と本改訂の文書群である。実装状況の正本は
-[README](../README.md)、[Stage 1完了台帳](stage1-completion.md)、テストと検証記録とする。
-移行開始時にもう一度棚卸しし、完了時点のコミットを固定する。
-本書は整理作業の計画であり、Stage 1 の実装完了や形式検証の範囲を拡張するものではない。
+Status: plan, with English-language preparation completed before Stage 1 at the
+user's request. Book reorganization, mdBook installation, and site publication remain
+after the Stage 1 completion record; none is claimed complete here.
 
-## 1. 開始条件と整理の目的
+Created: 27 October 2026 (JST). Updated: 29 October 2026 (JST). The inventory now uses
+PR #234's merge `4de22b4` and the documentation in this revision as its baseline.
+The [README](../README.md), [Stage 1 completion ledger](stage1-completion.md), tests,
+and validation records remain the implementation sources of truth. Repeat the
+inventory when migration starts and pin the completed implementation commit.
+This document plans documentation work; it does not expand the implemented Stage 1
+scope or formal-verification claims.
 
-現在の公開実装は Stage 1b、path package / call-only module import、有限abstract
-selector/contract、編集assemblyとprotocol 6の再借用・権限移転を含むが、
-歴史的な Stage 1 全体の完了ではない。
-[v0.3 の Stage 1](design/roadmap-acceptance.md#14-initial-implementation-sequence) は、
-独立ラムダや有限ディスパッチに加え、関数の編集権限、宣言的差分の合成、影響範囲、
-義務の移譲と修復、ストレージ所有権、基本線形代数などを含む。
+<a id="1-開始条件と整理の目的"></a>
 
-整理開始時に、実装ロードマップへ次を記録する。
+## 1. Entry conditions and purpose
 
-- Stage 1 の完了対象と受入条件、対応する実装・テスト・証明・CI の証拠。
-- 完了したコミットまたはタグ、および残る制限・未解決事項。
-- 原設計から範囲を変更した場合、その理由と移した項目。未実装項目を黙って完了扱いにしない。
+The public implementation includes Stage 1b, path packages / call-only module
+imports, finite abstract selectors/contracts, edit assemblies, protocol-6
+reborrowing and authority transfer, and protocol-7 indexed declarations with the
+finite geometry stdlib. This is not completion of the entire historical Stage 1.
+[Stage 1 in v0.3](design/roadmap-acceptance.md#14-initial-implementation-sequence)
+includes independent lambdas and finite dispatch, function edit authority,
+composition of declarative differences, footprints, obligation transfer and repair,
+storage ownership, basic linear algebra, and more.
 
-この基準を確定してから、利用者が「使える機能」「使い方」「保証の範囲」「将来設計」を
-区別して読めるように整理する。Stage 1 完了までの正確性修正は通常の開発とともに続ける。
-cleanup のために言語仕様や証明の意味を変更せず、不整合が見つかった場合は根拠を確認して修正する。
+Before starting the book reorganization, record the following in the implementation roadmap:
 
-**Fast like Cを最上位の性能・アーキテクチャ目標とする。**
-[改訂7章](storage-ownership.md)のレイアウト・エイリアシング・残差保持・費用契約と
-C比較の受入条件を、実装済みという誤解なくbookに掲載する。文書の章立てでも
-所有権・ストレージをdispatchと同じ深さで読めるようにする。
-現在行うのは棚卸し・計画・必要な設計改訂であり、mdBookのインストール、
-設定追加、本文の一括移動、サイト公開はStage 1完了記録後に行う。
+- The Stage 1 scope and acceptance criteria, with corresponding implementation,
+  test, proof, and CI evidence.
+- The completed commit or tag, remaining limitations, and open questions.
+- Any scope changes from the original design, their reasons, and the new destination
+  of deferred items. Do not silently mark unimplemented items complete.
 
-## 2. 文書の役割と正本
+Once that baseline is established, organize the documents so readers can distinguish
+available features, usage, guarantees, and future design. Continue correctness fixes
+alongside ordinary development until Stage 1 is complete. Cleanup must not change
+language semantics or the meaning of proofs; investigate the evidence before fixing
+inconsistencies.
 
-| 文書群 | 整理後の役割 | 方針 |
+**Fast like C is the highest-priority performance and architecture goal.** Include the
+[revised Chapter 7](storage-ownership.md) contracts for layout, aliasing, residual
+retention, costs, and C-comparison acceptance without implying implementation.
+The book structure must give ownership and storage the same depth of treatment as
+dispatch. Current preparation covers inventory, planning, necessary design revisions,
+and English documentation. Install/configure mdBook, reorganize book content, and
+publish the site only after recording Stage 1 completion.
+
+### English preparation before Stage 1 completion
+
+Use English for the documentation's reader-facing prose. The implementation
+specifications and preserved v0.3 draft are already English. Translate the design
+index, this migration plan, and the navigation of the eight draft documents.
+Preserve equations, code, qualifications, section numbers, and source-record hashes.
+Keep existing Japanese heading anchors as invisible compatibility targets when
+translating headings; do not maintain duplicate language editions or translate
+historical source blocks that are already English.
+
+Check local links and both old and new anchors, scan for untranslated prose, and
+reconstruct the original draft against `source-record.json`. This preparation does
+not require mdBook installation and does not change Stage 1 acceptance criteria.
+
+English preparation validation (29 October 2026): all 33 Markdown documents under
+`docs/` have English reader-facing prose; the ten changed documents retain all
+14 original heading anchors and pass 65 local link/fragment checks. Reconstructing
+the preface and all 18 draft sections yields the original 145,829 bytes and SHA-256
+`4bc09c0c4a168dcbacc3e982750fb922a1b1ca0302746445088b1ae2ef4da456`.
+The preservation record is unchanged. Japanese remains only in invisible legacy
+anchor identifiers. Rendering with mdBook is deferred to adoption.
+
+<a id="2-文書の役割と正本"></a>
+
+## 2. Document roles and sources of truth
+
+| Documents | Role after cleanup | Policy |
 | --- | --- | --- |
-| ルート `README.md` | リポジトリの入口 | 概要、現在の到達点、最短のビルド例、book と詳細仕様へのリンクに絞る |
-| `docs/README.md`（新規） | book の入口 | 読者別の案内と実装状況表を置く。README の手順全文を複製しない |
-| `docs/guide/`（新規） | 利用手順 | 導入、CLI、実行例、ライブラリ利用、診断をまとめる |
-| `docs/stage0.md`、`stage1a.md`、`stage1b.md`、`packages.md` | 実装仕様 | 既存パスを保ち、Stage 1 完了時点の契約と制限を照合する。後続 increment の仕様も接続する |
-| `docs/protocol.md` | フロントエンド／kernel 間の契約 | public wire protocol と内部 core を区別し、互換性・独立検査の境界を明記する |
-| `docs/verification.md` | 証明範囲の正本 | 定理、対象となる実装定義、仮定、未証明部分、回帰テストを区別する |
-| `docs/development/`（新規） | 開発者向け手順 | アーキテクチャ、検証コマンド、docs 更新手順を集約する |
-| `docs/stage1-completion.md`、`stage1-roadmap.md`、`stage1-delivery.md`、本書 | 完了台帳・開発計画・履歴 | 現行台帳と過去のsnapshotを分け、現在の仕様は個別仕様書へ案内する |
-| `docs/design.md`、`docs/design/` | 歴史的設計と研究上の背景 | v0.3 保存本文を維持し、現行仕様との違いは索引や別文書に書く |
-| `docs/storage-ownership.md`、`docs/adr/` | 採用した設計・方針 | 仕様として採用した契約と実装・証明・性能測定の状態を別に表示する |
-| `stdlib/README.md`、`AGENTS.md` | 各ディレクトリの入口／貢献規約 | 標準ライブラリの詳細は book 内の正本へ集約し、入口を残す。貢献規約はコピーせず参照する |
+| Root `README.md` | Repository entrypoint | Keep the overview, current milestone, shortest build example, and links to the book and detailed specifications |
+| `docs/README.md` (new) | Book entrypoint | Add reader-oriented navigation and an implementation-status table; do not duplicate all README instructions |
+| `docs/guide/` (new) | Usage guide | Cover setup, CLI, examples, library use, and diagnostics |
+| `docs/stage0.md`, `stage1a.md`, `stage1b.md`, `packages.md` | Implementation specifications | Retain existing paths; reconcile contracts/limits at Stage 1 completion and link subsequent increments |
+| `docs/protocol.md` | Frontend/kernel contract | Distinguish public wire protocols from internal Core, and document compatibility/independent-checking boundaries |
+| `docs/verification.md` | Source of truth for proof scope | Distinguish theorems, actual implementation definitions, assumptions, unproved parts, and regressions |
+| `docs/development/` (new) | Contributor procedures | Collect architecture, validation commands, and documentation maintenance |
+| `docs/stage1-completion.md`, `stage1-roadmap.md`, `stage1-delivery.md`, this plan | Completion ledger, development plans, and history | Separate the current ledger from historical snapshots; direct readers to individual specifications for current contracts |
+| `docs/design.md`, `docs/design/` | Historical design and research context | Preserve v0.3 source blocks; describe differences from current specifications outside those blocks |
+| `docs/storage-ownership.md`, `docs/adr/` | Adopted designs and policy | Display adopted contracts separately from implementation, proof, and performance-measurement status |
+| `stdlib/README.md`, `AGENTS.md` | Directory entrypoint / contributor guidance | Link standard-library details to the book's source of truth while retaining an entrypoint; reference contributor guidance rather than copying it |
 
-実装状況表は「機能／仕様書／実装と回帰テスト／証明と仮定／制限・後続課題」を列にする。
-実装済み、試験済み、証明済み、仮定、提案、延期を同一の状態として扱わない。
-README の短い状況説明はこの表と同期し、証明の説明は `verification.md` を参照する。
-現行仕様は既存の英語を基本に、案内・計画の日本語は残す。一括翻訳や二言語版の常時同期は別作業とする。
+The implementation-status table should have columns for feature, specification,
+implementation/regressions, proofs/assumptions, and limitations/follow-up work.
+Implemented, tested, proved, assumed, proposed, and deferred are distinct states.
+Keep the README's short status summary synchronized with this table and link proof
+descriptions to `verification.md`. English preparation is authorized before the
+book migration; maintaining synchronized bilingual editions is outside this plan.
 
-棚卸しでは特に次を確認する。
+Pay particular attention to:
 
-- `docs/design.md` の Stage 0 中心の実装案内を、原文保存部分とは分けて更新する。
-- `stdlib/README.md` の import に関する説明を、明示的な `--lib` と package mode の違いに合わせる。
-- 仕様書の「後続」「未実装」とロードマップの時制を、完了時点の実装に合わせる。
-- 完了時点で公開されている全protocol、`--lib` / `--manifest-path`、所有モジュールと呼出権限の説明を横断確認する。現在の公開2–7と予定8を混同しない。
-- Rust acceptance と Lean semantic acceptance、通常コンパイラと proof oracle の依存境界を維持する。
+- Updating any Stage-0-centered implementation guidance in `docs/design.md`
+  outside the preserved source blocks.
+- Keeping import guidance in `stdlib/README.md` consistent with explicit `--lib`
+  versus package mode.
+- Reconciling “future” / “unimplemented” wording and roadmap tense with the
+  implementation at the completion baseline.
+- Cross-checking all public protocols at completion, `--lib` / `--manifest-path`,
+  defining modules, and call authority. Do not confuse current protocols 2–7 with
+  planned protocol 8.
+- Preserving Rust acceptance versus Lean semantic acceptance, and the dependency
+  boundary between the ordinary compiler and proof oracle.
 
-### 2.1 現在の全資料の配置先
+<a id="21-現在の全資料の配置先"></a>
 
-ファイル名の古さでobsoleteと判定しない。現在サポートしている互換機能の仕様、
-過去の検証証拠、未実装の採用設計は、それぞれ異なる扱いにする。
-以下は本改訂時点の`docs/`全Markdownと添付データの棚卸しである。
+### 2.1 Inventory and destinations
 
-| 現在のパス（`docs/`からの相対） | 分類・bookでの配置 | 移行時の処置 |
+Do not classify a document as obsolete based on its filename's age. Supported
+compatibility specifications, historical validation evidence, and adopted but
+unimplemented designs require different treatment. The following inventory covers
+all current Markdown documents and attached data under `docs/`.
+
+| Current path (relative to `docs/`) | Classification / book placement | Migration treatment |
 | --- | --- | --- |
-| `stage0.md` | 現行の互換言語仕様 | 旧幾何構文・`--lib`のサポート範囲を明示。丸ごとobsoleteにはしない |
-| `stage1a.md`、`stage1b.md` | 現行言語仕様 | dispatchと独立関数の正本。新仕様との参照を更新 |
-| `packages.md`、`abstract-types.md`、`promotion.md` | 現行言語・stdlib仕様 | パッケージ、abstract selector、値のpromotion方針を維持 |
-| `edit-borrowing.md`、`edit-authority.md` | 現行編集権限仕様 | protocol 5と6、定義IDと編集権限、貸出と移転を区別 |
-| `indexed-declarations.md`、`indexed-source.md` | 公開indexed構文・内部実装仕様・移行状況 | 公開7と内部checker、互換adapter、移行済みの有限幾何stdlibと残る互換・証明作業を区別 |
-| `storage-ownership.md` | 採用設計・改訂7章 | レイアウト、alias、残差保持、費用、性能受入条件の正本。実装証拠は台帳へ接続 |
-| `protocol.md`、`verification.md` | 公開境界・検証の正本 | 対応version、実checker、定理、仮定と未証明事項を照合 |
-| `adr/0001-mathematics-first-stdlib.md` | 採用方針・ADR | マージ済み方針のstatusを確認し、後続ADRと実装状態を区別 |
-| `graph-crossings.md` | 内部実装・後続機能 | 有限crossing checkerの範囲を表示。Stage 1ネットワーク完成と同一視しない |
-| `graph-proof-obligations.md` | 未解決設計・証明義務 | 後続の研究・計画節に置く。証明済みの章へ移さない |
-| `stage1-completion.md` | 現行完了台帳 | 完了コミット、受入条件、性能測定、制限の入口 |
-| `stage1-roadmap.md` | 過去の工程・到達記録 | 履歴節へ。古い「next」等は当時の記述と表示し、現行台帳へ誘導 |
-| `stage1-delivery.md` | protocol 5時点の履歴 | 当時のIssue snapshotとして保持。現在の未解決一覧として扱わない |
-| `stage1b-indexing.md` | 実装・性能調査の証拠 | 測定commitと条件を保持。現在の実行性能比較とは分ける |
-| `benchmarks/stage1b-{original,main}-comparison.csv` | 測定添付データ2件 | 元データのまま配布し、調査文書からリンク |
-| `docs-cleanup-plan.md` | 移行・保守計画 | 各段階の実施commitと未完了項目を追記 |
-| `design.md` | 現行の設計索引 | 採用設計と保存草稿への入口。古い実装案内は原文外で修正 |
-| `design/vision-status.md`、`geometry.md`、`tensor-resources-units.md`、`functions-dispatch.md` | 保存草稿v0.3（序文・1–8章） | 原文区間は不変。現行仕様への案内は区間外に追加 |
-| `design/differentiation-spectral.md`、`physics-compiler-verification.md`、`roadmap-acceptance.md`、`history-references.md` | 保存草稿v0.3（9–18章） | 同上。採用設計、将来提案、obsolete部分を章単位で説明 |
-| `design/source-record.json` | 原文保存の証拠 | 移動先・逆置換・バイト数・ハッシュを保持して再構成検査に使う |
+| `stage0.md` | Current compatibility-language specification | State the supported legacy geometry and `--lib` scope; do not mark the entire document obsolete |
+| `stage1a.md`, `stage1b.md` | Current language specifications | Keep as the dispatch and independent-function sources of truth; update cross-references |
+| `packages.md`, `abstract-types.md`, `promotion.md` | Current language/stdlib specifications | Preserve packages, abstract selectors, and value-promotion policy |
+| `edit-borrowing.md`, `edit-authority.md` | Current edit-authority specifications | Distinguish protocols 5/6, definition identity versus edit authority, loans, and transfer |
+| `indexed-declarations.md`, `indexed-source.md` | Public indexed syntax, internal implementation, and migration status | Distinguish public protocol 7, internal checkers, compatibility adapters, the migrated finite geometry stdlib, and remaining migration/proof work |
+| `storage-ownership.md` | Adopted design / revised Chapter 7 | Source of truth for layout, aliasing, residual retention, costs, and performance acceptance; link implementation evidence to the ledger |
+| `storage-layout-preflight.md` | Executable storage-layout reference / pending compiler integration | Keep reference validation distinct from production ownership, native GEMM, and measured C performance |
+| `symplectic-reference.md`, `l2-tail-reference.md` | Executable mathematical references / later features | Preserve exact contracts and limitations; do not present Python references as public compiler features |
+| `protocol.md`, `verification.md` | Public boundary / verification sources of truth | Reconcile versions, actual checkers, theorems, assumptions, and unproved obligations |
+| `adr/0001-mathematics-first-stdlib.md` | Adopted policy / ADR | Check the merged policy status; distinguish later ADRs and implementation status |
+| `graph-crossings.md` | Internal implementation / later feature | State the finite crossing checker's scope; do not equate it with completed Stage 1 networks |
+| `graph-proof-obligations.md` | Open design / proof obligations | Place under future research/planning, not completed proofs |
+| `stage1-completion.md` | Current completion ledger | Entry point for completion commits, acceptance criteria, performance measurements, and limitations |
+| `stage1-roadmap.md` | Historical sequence / milestone records | Place under history; label old “next” statements as historical and link the current ledger |
+| `stage1-delivery.md` | Protocol-5-era history | Retain as an issue snapshot from that time, not the current open-issue list |
+| `stage1b-indexing.md` | Implementation/performance investigation evidence | Preserve measured commits and conditions; distinguish compilation measurements from current executable performance |
+| `benchmarks/stage1b-{original,main}-comparison.csv` | Two measurement data attachments | Distribute unchanged and link from the investigation document |
+| `docs-cleanup-plan.md` | Migration / maintenance plan | Record each stage's implementation commit and unfinished work |
+| `design.md` | Current design index | Entry point to adopted designs and preserved drafts; correct stale guidance outside original-source blocks |
+| `design/vision-status.md`, `geometry.md`, `tensor-resources-units.md`, `functions-dispatch.md` | Preserved v0.3 draft (preface, Sections 1–8) | Keep original-source blocks immutable; add current-specification guidance outside them |
+| `design/differentiation-spectral.md`, `physics-compiler-verification.md`, `roadmap-acceptance.md`, `history-references.md` | Preserved v0.3 draft (Sections 9–18) | Same policy; distinguish adopted design, future proposals, and obsolete portions by section |
+| `design/source-record.json` | Original-source preservation evidence | Retain destinations, reverse rewrites, byte counts, and hashes for reconstruction checks |
 
-ルートREADME、`stdlib/README.md`、`AGENTS.md`、実例、検証scriptはbook外の
-参照元として別途追跡する。開始時の差分で増えた仕様・ADR・添付データにも行を追加する。
+Track the root README, `stdlib/README.md`, `AGENTS.md`, examples, and validation
+scripts separately as sources outside the book. Add rows for specifications, ADRs,
+and attachments introduced before the migration baseline is fixed.
 
-### 2.2 obsolete文書と検索の扱い
+<a id="22-obsolete文書と検索の扱い"></a>
 
-各ページに「現行仕様」「採用設計／実装待ち」「内部実装」「履歴」「保存草稿」
-の状態、基準commitまたは日付、後継の正本を示す。完全に置換済みの内容だけを
-obsoleteとし、後継リンクと置換理由を付ける。古いテスト結果を削除して現行の
-結果に書き換えることや、将来提案をobsoleteという理由で消すことはしない。
+### 2.2 Obsolete documents and search
 
-たとえば旧7章は改訂7章へ、旧8.3の公開実装に対応する部分は`stage1a.md`、
-`edit-borrowing.md`、`edit-authority.md`へ案内する。原草稿全体を現行仕様とみなさない。
-bookの通常導線では現行文書を先に置き、履歴・保存草稿は独立した付録にまとめる。
-検索結果にも状態が分かるタイトル／案内を表示する。固定版で章単位の検索除外が
-可能か検証し、できなければ表示ラベルで区別する。未確認の設定を前提にしない。
+Give every page a status—current specification, adopted design awaiting
+implementation, internal implementation, history, or preserved draft—together with
+a baseline commit/date and a link to its successor source of truth. Mark content
+obsolete only when it is fully superseded, and explain why with a successor link.
+Do not replace old test evidence with current results or delete future proposals
+merely by labeling them obsolete.
 
-旧Markdownパスと見出しアンカーは原則維持する。移動が不可欠な場合は
-旧パス・旧アンカー・後継パス・後継アンカー・参照元を対応表に記録し、旧ページに
-案内を残す。HTMLのredirectだけではGitHub上のMarkdownリンクを救えないため、
-両方を検査する。意味が違う新章へ黙って同じアンカーを向けない。
+For example, direct readers from original Chapter 7 to the revised chapter, and
+from the implemented portions of original Section 8.3 to `stage1a.md`,
+`edit-borrowing.md`, and `edit-authority.md`. Do not treat the full draft as current
+specification. Put current documents first in normal navigation, with history and
+preserved drafts in a separate appendix. Make status visible in search-result
+titles or guidance. Verify whether the pinned mdBook version supports excluding
+individual chapters from search; otherwise distinguish them with visible labels.
+Do not assume an unverified configuration option exists.
 
-## 3. mdBook の構成
+Preserve old Markdown paths and heading anchors by default. If a move is necessary,
+record old path/anchor, successor path/anchor, and referring documents, and leave
+navigation at the old page. HTML redirects alone do not repair GitHub Markdown
+links, so test both. Do not silently redirect an old anchor to a chapter with a
+different meaning.
 
-リポジトリルートに `book.toml`、`docs/` に `SUMMARY.md` を追加し、既存 Markdown を
-直接 book の入力にする。別の book 用本文コピーは作らず、目次の並べ方で読者別に整理する。
-既存仕様書の一括移動・改名は避け、移動が必要な箇所は移動表、旧リンクの扱い、参照元修正を同じ変更に含める。
+<a id="3-mdbook-の構成"></a>
 
-予定する目次は次のとおり。新規ページは各段階で内容を用意してから目次へ登録する。
+## 3. mdBook structure
+
+Add `book.toml` at the repository root and `SUMMARY.md` under `docs/`, using the
+existing Markdown directly as book input. Organize readers' paths through the table
+of contents rather than maintaining duplicate book text. Avoid bulk moves or
+renames of existing specifications; include a mapping, old-link handling, and
+referring-link updates in any necessary move.
+
+The planned contents follow. Add new pages to the contents only after writing them.
 
 ```text
-入口・実装状況                    docs/README.md
-利用ガイド                        docs/guide/{getting-started,cli,stdlib}.md
-言語仕様                          docs/{stage0,stage1a,stage1b,packages}.md
-                                  + Stage 1 完了までに追加された仕様書
-ストレージと性能                  docs/storage-ownership.md と測定記録
-実装と検証                        docs/development/{architecture,validation}.md
+Entry and implementation status   docs/README.md
+Usage guide                       docs/guide/{getting-started,cli,stdlib}.md
+Language specification            docs/{stage0,stage1a,stage1b,packages}.md
+                                  + specifications added before Stage 1 completion
+Storage and performance           docs/storage-ownership.md and measurement records
+Implementation and verification   docs/development/{architecture,validation}.md
                                   docs/{protocol,verification}.md
-設計方針・未解決設計              docs/adr/ と後続機能の設計文書
-現在の完了台帳                    docs/stage1-completion.md
-履歴・保存草稿                    docs/design.md と docs/design/ 内の全8文書
+Design policy and open designs    docs/adr/ and later-feature design documents
+Current completion ledger         docs/stage1-completion.md
+History and preserved drafts      docs/design.md and all eight docs/design/ documents
                                   docs/{stage1-roadmap,stage1-delivery,stage1b-indexing}.md
-移行計画と文書保守                docs/docs-cleanup-plan.md
+Migration and maintenance         docs/docs-cleanup-plan.md
                                   docs/development/documentation.md
 ```
 
-設定の初期案は以下。これは導入時に検証する設定例であり、現在のビルド手順ではない。
-[設定仕様](https://rust-lang.github.io/mdBook/format/configuration/general.html) と
-[目次形式](https://rust-lang.github.io/mdBook/format/summary.html) に従う。
+The initial configuration below is an example to validate during adoption, not a
+current build procedure. Follow the
+[configuration specification](https://rust-lang.github.io/mdBook/format/configuration/general.html)
+and [contents format](https://rust-lang.github.io/mdBook/format/summary.html).
 
 ```toml
 [book]
@@ -159,94 +225,117 @@ mathjax-support = true
 runnable = false
 ```
 
-book のタイトルは `Vastitas Programming Language`、著者名は
-`Vastitas Project Contributors` に統一する。book の入口に
-`Copyright 2026 Vastitas Project Contributors` と Apache License, Version 2.0 の
-案内を表示し、リポジトリの `README.md` と `LICENSE` に表記を合わせる。
+Use `Vastitas Programming Language` as the book title and
+`Vastitas Project Contributors` as the author name. Show
+`Copyright 2026 Vastitas Project Contributors` and an Apache License, Version 2.0
+notice at the book entrypoint, consistent with the repository README and LICENSE.
 
-生成物は既存の ignore 対象である `target/` に置き、コミットしない。
-`create-missing = false` で目次の誤記による空ページ生成を防ぐ。
-mdBook はドキュメント用の開発ツールとして固定バージョンを導入し、コンパイラの Cargo / Lake
-依存には追加しない。導入時に互換性を確認した版を選び、ローカルと CI で共通のバージョン指定を使う。
-インストールは `cargo install mdbook --version '=選定した版' --locked` を基本とする。
-[公式 CI ガイド](https://rust-lang.github.io/mdBook/continuous-integration.html) を参照し、
-使用する Actions も既存 CI と同様にコミット SHA で固定する。
+Place generated output under the already ignored `target/` directory and do not
+commit it. `create-missing = false` prevents typo-driven empty chapter creation.
+Pin mdBook as a documentation development tool; do not add it to compiler Cargo or
+Lake dependencies. Select a compatible version at adoption and use the same pin
+locally and in CI. The default installation command is
+`cargo install mdbook --version '=SELECTED_VERSION' --locked`. Consult the
+[official CI guide](https://rust-lang.github.io/mdBook/continuous-integration.html)
+and pin Actions to commit SHAs, as in the existing CI.
 
-### 数式・コード・リンクの互換性
+<a id="数式コードリンクの互換性"></a>
 
-- v0.3 は `$...$` / `$$...$$` を含むため、`mathjax-support = true` だけで表示できるとは見なさない。
-  [公式の MathJax 説明](https://rust-lang.github.io/mdBook/format/mathjax.html) にも区切り記号の制約がある。
-  導入する版で数式、複数行の式、表中の式を試し、必要なら描画時だけ変換する最小限の仕組みを追加する。
-  保存本文の数式やエスケープを直接書き換えて解決しない。
-- 原文の `draft-v0.3:*` 区間、節番号、仮定、注意事項、参考文献と
-  [source-record.json](design/source-record.json) を維持する。
-  原目次リンクの置換を逆変換して、各節と再構成した全体のバイト数・SHA-256 を検査する。
-  不一致に合わせて記録済みハッシュを更新してはならない。
-- 実行できる例には `vast`、シェルには `sh`、設計疑似コードにはその旨を明記する。
-  Vastitas 用の強調表示は後続改善とし、Rust として実行する UI は付けない。
-- `README.md`、`AGENTS.md`、`examples/`、ソースコードなど `docs/` 外へのリンクは、
-  HTML で存在しない相対パスにならないよう整理する。book 内の説明へ参照先を移すか、
-  対応するリポジトリ上のファイルへリンクする。保存本文に調整が必要なら描画側で処理する。
-- GitHub 上の Markdown と生成 HTML の両方で、相互参照、見出しアンカー、画像、
-  `source-record.json` などの添付資料が開けることを確認する。
+### Mathematics, code, and link compatibility
 
-## 4. 実施順序と成果物
+- v0.3 contains `$...$` / `$$...$$`; do not assume `mathjax-support = true` alone
+  renders them correctly. The [official MathJax documentation](https://rust-lang.github.io/mdBook/format/mathjax.html)
+  describes delimiter restrictions. Test equations, multiline expressions, and
+  mathematics in tables with the adopted version. If needed, add minimal
+  render-time conversion; do not directly rewrite preserved equations or escapes.
+- Preserve `draft-v0.3:*` blocks, section numbers, assumptions, qualifications,
+  references, and [source-record.json](design/source-record.json). Reverse the
+  original contents-link rewrites and check byte counts and SHA-256 hashes of
+  every section and the reconstructed whole. Never update recorded hashes to
+  conceal a mismatch.
+- Label runnable examples `vast`, shell commands `sh`, and design pseudocode
+  explicitly as such. Vastitas highlighting can follow later; do not expose a
+  UI that runs these examples as Rust.
+- Arrange links outside `docs/`, including README, AGENTS, examples, and source,
+  so generated HTML does not point to nonexistent relative paths. Link to book
+  explanations or the corresponding repository files. Handle any necessary
+  preserved-text adjustments at rendering time.
+- Verify cross-references, heading anchors, images, and attachments such as
+  `source-record.json` in both GitHub Markdown and generated HTML.
 
-| 段階 | 作業 | 完了条件 |
+<a id="4-実施順序と成果物"></a>
+
+## 4. Sequence and deliverables
+
+| Stage | Work | Completion criterion |
 | --- | --- | --- |
-| 1. 棚卸し | Stage 1 完了の基準を固定し、本書の一覧を全ページ・重複・古い記述・参照元に照合する | 未分類ファイルがなく、各文書の正本、状態、移動先、保存対象、修正根拠が決まっている |
-| 2. 内容整理 | 実装状況表、利用ガイド、開発手順を整え、仕様・証明範囲・README の説明を同期する | 現行仕様と歴史的提案を区別でき、例と根拠をたどれる |
-| 3. mdBook 導入 | 固定版、`book.toml`、`SUMMARY.md`、必要最小限の描画対応を追加する | ローカルで build / serve が動き、数式・コード・全章の表示を確認できる |
-| 4. CI と保守 | docs build、リンク・原文保存チェック、検証手順、HTML artifact を追加する | PR から出力を確認でき、壊れた章・リンク・保存本文の改変を検出する |
-| 5. 公開 | ローカルと CI の完成後、公開先・対象ブランチ・URL を確定して配信を設定する | 公開 URL と更新手順が記録され、サブパスを含む実サイトの導線を確認できる |
+| 0. English preparation | Translate remaining navigation/planning prose before Stage 1; preserve original draft blocks and old anchors | English prose, valid links/anchors, and matching source hashes; no mdBook dependency added |
+| 1. Inventory | Fix the Stage 1 completion baseline and reconcile this inventory with every page, duplicate, stale statement, and reference | Every file has a classification, source of truth, status, destination, preservation policy, and basis for corrections |
+| 2. Content organization | Prepare implementation status, usage guidance, and contributor procedures; synchronize specifications, proof scope, and README | Readers can distinguish current specifications from historical proposals and trace examples/evidence |
+| 3. mdBook adoption | Add the pinned version, `book.toml`, `SUMMARY.md`, and minimal rendering support | Local build/serve works; equations, code, and every chapter are visually checked |
+| 4. CI and maintenance | Add docs build, link/source-preservation checks, procedures, and an HTML artifact | PR output is reviewable; broken chapters, links, and changes to preserved text are detected |
+| 5. Publication | After local/CI completion, choose the destination, branch, and URL and configure deployment | Record the published URL and update procedure; verify the real site's navigation, including subpaths |
 
-実装PRは段階1–2の内容整理、段階3のbook構成、段階4の検査と保守、
-段階5の公開を分ける。各PRに対象文書一覧と表示／リンク検査結果を残す。
-導入で問題が出ても既存Markdownを読める状態を維持し、HTML生成物にしか
-情報がない構成を作らない。Stage 1実装PRへmdBook依存を混在させない。
+Keep English preparation, stages 1–2 content work, stage 3 book configuration,
+stage 4 checks/maintenance, and stage 5 publication in separate reviewable changes.
+Record affected documents and rendering/link checks in each PR. Keep existing
+Markdown readable if adoption encounters problems; do not make generated HTML the
+only place information exists. Do not mix mdBook dependencies into Stage 1
+implementation PRs.
 
-各段階をレビュー可能な変更として進める。mdBook 導入とサイト公開は別の成果物とし、
-公開先が未確定でも段階 1–4 を完成できるようにする。
-公開先の第一候補は GitHub Pages。採用時はプロジェクトの URL に合わせて `site-url` を設定し、
-PR は検証・artifact 作成まで、公開は選定したブランチまたはタグの検証成功後に限定する。
-公開用の権限は配信ジョブに限定する。現在の計画追加では配信設定を変更しない。
+Treat mdBook adoption and site publication as separate deliverables so stages 1–4
+can finish before a publication destination is chosen. GitHub Pages is the first
+candidate. If adopted, configure `site-url` for the project URL; PRs validate and
+produce artifacts, while publication is restricted to successful validation of the
+selected branch or tag. Limit deployment permissions to the deployment job. This
+plan and English preparation do not change deployment configuration.
 
-## 5. 検証と保守
+<a id="5-検証と保守"></a>
 
-docs 用 CI はコンパイラ／oracle のジョブから独立させる。Markdown と設定・描画用資材だけで
-book を生成できる構成にし、通常コンパイラの no-mathlib CI を維持する。
+## 5. Validation and maintenance
 
-| 確認対象 | 導入時に行う検証 |
+Keep documentation CI separate from compiler/oracle jobs. The book should build
+from Markdown, configuration, and rendering resources alone. Preserve ordinary
+compiler no-mathlib CI.
+
+| Area | Validation at adoption |
 | --- | --- |
-| 章構成と生成 | 固定版の `mdbook build`、目次に載る全ファイルの存在、意図しない空章・未掲載ページの確認 |
-| リンク | Markdown のローカル参照と生成 HTML のファイル・アンカーを検査。外部リンクの疎通はネットワーク依存の検査として分ける |
-| 原文保存 | `source-record.json` に基づく全節と全文の再構成検証。描画処理が入力ファイルを変更しないことも確認 |
-| 表示 | `mdbook serve` で目次、検索、日本語、数式、表、コード、狭い画面、公開サブパスでの導線を確認 |
-| 実装例 | kernel を先にビルドし、実行例に `vastitas check` と `vastitas build` を実行、生成物の出力を照合 |
-| 拒否例と互換性 | 対応する既存テストで拒否理由、完了時点の公開全protocol、`--lib` / package mode を確認。追加の例には意味のある回帰ケースを追加 |
-| 状態・性能説明 | obsoleteの後継リンク、改訂7章の実装状態、C比較の条件・元データ・未達事項を確認。コンパイル時間の測定を生成物の実行速度と取り違えない |
-| 証明の説明 | 実装定義・定理名・仮定・CI の証拠と照合。証明や kernel に変更が必要なら、その変更に対応する既定の全検証を行う |
+| Structure and generation | Pinned `mdbook build`, existence of every listed file, unintended empty chapters, and omitted pages |
+| Links | Check local Markdown references and generated HTML files/anchors; keep network-dependent external-link checks separate |
+| Source preservation | Reconstruct all sections and the whole document using `source-record.json`; ensure rendering does not modify inputs |
+| Presentation | Use `mdbook serve` to inspect contents, search, English prose and Unicode, equations, tables, code, narrow screens, and published-subpath navigation |
+| Executable examples | Build the kernel first; run `vastitas check` / `vastitas build` and compare generated-program output |
+| Rejection and compatibility | Use relevant existing tests for diagnostic categories, all public protocols at completion, and `--lib` / package mode; add meaningful regressions for new examples |
+| Status and performance | Check obsolete-page successors, revised Chapter 7 implementation status, C-comparison conditions/data, and unmet goals; do not confuse compilation time with executable runtime |
+| Proof descriptions | Reconcile implementation definitions, theorem names, assumptions, and CI evidence; changes to proofs/kernel require the full prescribed validation for that subsystem |
 
-[`mdbook test`](https://rust-lang.github.io/mdBook/cli/test.html) は Rust のコード例向けであり、
-`.vast` の検証の代わりにはしない。実行例の正本は可能な限り `examples/` や既存の回帰ケースに置き、
-docs 側の例と対応を記録する。歴史的設計の疑似コードを現行コンパイラの成功例に含めない。
+[`mdbook test`](https://rust-lang.github.io/mdBook/cli/test.html) targets Rust code
+examples and does not replace `.vast` validation. Keep runnable examples in
+`examples/` or existing regressions where possible and record their relationship
+to documentation snippets. Do not count historical pseudocode as a current
+compiler success case.
 
-`docs/development/documentation.md` には固定版の導入、`mdbook build` / `mdbook serve`、
-章の追加、リンク検査、実行例の更新、原文保存検査、公開手順を記載する。
-CLI・仕様・protocol・証明範囲が変わる PR では、対応する正本と実装状況表も更新する。
+`docs/development/documentation.md` should cover installing the pinned version,
+`mdbook build` / `mdbook serve`, chapter additions, link checks, example updates,
+original-source preservation, and publication. PRs changing CLI, language,
+protocols, or proof scope must also update the corresponding source of truth and
+implementation-status table.
 
-## 6. 完了チェックリスト
+<a id="6-完了チェックリスト"></a>
 
-- [ ] Stage 1 の完了基準・コミット・証拠・残る制限を記録した。
-- [ ] 利用ガイド、現行仕様、実装・証明境界、歴史的設計を別々にたどれる。
-- [ ] 全資料に分類と正本があり、obsoleteページには後継と置換理由がある。互換仕様と履歴証拠を誤って廃止していない。
-- [ ] 改訂7章の費用・性能契約を掲載し、Fast like Cの測定済み範囲と未達を実装状態からたどれる。
-- [ ] 重複する説明の正本を決め、README と既存入口から詳細へ到達できる。
-- [ ] v0.3 の全18節と序文を保持し、保存ハッシュが一致する。
-- [ ] 固定した mdBook でローカルと CI のビルドが通り、内部リンクと添付資料が開ける。
-- [ ] 旧Markdownパス・見出しとHTMLの参照を確認し、移動箇所には対応表と互換導線がある。
-- [ ] 数式・表・コード・目次・検索を表示確認し、問題や検索の制限を記録した。
-- [ ] 実装例の check / build / 実行結果と拒否例を確認し、実行コマンドと結果を記録した。
-- [ ] 通常コンパイラと生成実行ファイルに mdBook・mathlib の依存を追加していない。
-- [ ] 文書更新手順と CI artifact の確認方法を記載した。
-- [ ] 公開を実施した場合は、URL・配信条件・実サイトの確認結果を記録した。
+## 6. Completion checklist
+
+- [x] English preparation is recorded with prose, link/anchor, and source-hash checks.
+- [ ] Stage 1 completion criteria, commit, evidence, and remaining limits are recorded.
+- [ ] Readers can navigate usage, current specifications, implementation/proof boundaries, and historical design separately.
+- [ ] Every resource has a classification and source of truth; obsolete pages identify successors/reasons, without incorrectly retiring compatibility specifications or historical evidence.
+- [ ] Revised Chapter 7 cost/performance contracts are included, with measured Fast like C scope and unmet goals traceable from implementation status.
+- [ ] Duplicated explanations have a designated source of truth, reachable from README and existing entrypoints.
+- [ ] The v0.3 preface and all 18 sections are preserved with matching hashes.
+- [ ] Pinned mdBook builds locally and in CI; internal links and attachments open.
+- [ ] Old Markdown paths/headings and HTML references are checked; moves have mappings and compatibility navigation.
+- [ ] Equations, tables, code, contents, and search are visually checked, with problems and search limitations recorded.
+- [ ] Example check/build/output and rejection behavior are verified, with actual commands/results recorded.
+- [ ] Ordinary compilation and generated executables have no added mdBook or mathlib dependency.
+- [ ] Documentation-update procedures and CI-artifact inspection are documented.
+- [ ] If published, the URL, deployment conditions, and real-site verification are recorded.

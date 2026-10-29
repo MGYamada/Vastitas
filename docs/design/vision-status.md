@@ -1,6 +1,6 @@
 # Vision and design status
 
-[設計書の索引 / Design index](../design.md) · [出典 / References](history-references.md#18-mathematical-and-language-references)
+[Design index](../design.md) · [References](history-references.md#18-mathematical-and-language-references)
 
 > Historical design proposal: Draft v0.3, 26 October 2026 (JST). Original section numbering and qualifications are retained. This document does not assert current implementation or proof coverage; see the [repository README](../../README.md) for the implementation status.
 

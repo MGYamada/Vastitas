@@ -1,7 +1,7 @@
 import VastitasKernel.IndexedSourceChecker
 
-/-! Declaration-driven type elaboration, still internal to the future source
-path. Type names choose canonical declarations, never a privileged geometric
+/-! Declaration-driven type elaboration shared by all public source protocols.
+Type names choose canonical declarations, never a privileged geometric
 meaning. Local object indices come from actual supplied Core bindings. -/
 namespace VastitasKernel.Indexed.Source
 
@@ -80,7 +80,7 @@ def legacyDataType (profile : GeometryProfile DeclId) (ctx : TypeContext) : RawT
   | .pointed setting marker => do
     let base ← geometryBase marker
     unless (setting == "Scheme" && base == .qq) || (setting == "CInfScheme" && base == .cinfReal) do
-      Namespace.problem {} "E_TYPE" "Pointed setting and coefficient base disagree"
+      Namespace.problem {} "E_BASE" "Pointed setting and coefficient base disagree"
     return .package (profile.package base)
   | _ => Namespace.problem {} "E_TYPE" "unsupported legacy geometry annotation"
 

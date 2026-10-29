@@ -211,6 +211,13 @@ profile/port/return audits and conditional structural rewrite theorems in
 to tensor syntax. Its categorical law provider, selected-method realization,
 and bridge from `Graph.Core` to actual returned indexed terms remain pending.
 
+The [exact real ℓ² tail reference](l2-tail-reference.md) checks closed geometric
+and reciprocal certificate rules with rational arithmetic in Python. Its
+generator/environment/returned-record audits are reference tests only. The
+document states the Lean analytic soundness goals and actual returned-Core
+integration obligations; no new Hilbert theorem, compiler acceptance,
+completeness proof, or iterator memory-safety claim follows from those tests.
+
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
 `RawProgram`) to that core does

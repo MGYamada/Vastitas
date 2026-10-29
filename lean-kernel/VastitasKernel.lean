@@ -2,3 +2,4 @@ import VastitasKernel.Core
 import VastitasKernel.Checker
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Runtime
+import VastitasKernel.Graph

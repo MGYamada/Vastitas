@@ -7,8 +7,8 @@ translates its checked legacy Core into this declaration-driven Core for an
 additional independent audit and native generation. Package-only protocol 7 now
 exposes unresolved declarations and rich source bodies through the full authority
 composition; see [source syntax](indexed-source.md). The [geometry stdlib package](../stdlib/src/geometry/README.md)
-now supplies the finite affine declarations. The legacy syntax bridge inside
-protocol 7 and whole-term/legacy semantics remain pending.
+now supplies the finite affine declarations and an explicit checked compatibility
+export for legacy syntax in protocol 7. Whole-term/legacy semantics remain pending.
 The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
 annotation contracts in PR #189 (`b3f8ff7`), and Core/native generation in PR #194
 (`c29e1cd`). The compatibility adapter is described below.
@@ -312,7 +312,7 @@ contribution order, empty-root assembly, scope escape and forged metadata.
 Four additional native fixtures execute nested contribution helpers, transfer,
 obligation repair and the empty-assembly path (twenty-two in total).
 Public protocol 7 now decodes Rust source into this exact combined checker.
-The geometry stdlib below now uses that public path; the protocol-7 legacy syntax bridge remains pending.
+The geometry stdlib below now uses that public path; the explicit library export also supports legacy syntax in the same closure.
 
 ## Indexed applications and scopes
 
@@ -496,14 +496,14 @@ limits prevent closing #49/#58–63 at this increment.
 checker. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
 finite classifications in sibling `scheme`/`smooth` modules, actual global base
 objects, shared indexed Point/Morphism families with same-base constraints, and
-the two finite Pointed package cases. `stdlib/indexed` re-exports these canonical
+the two finite Pointed package cases. `stdlib` re-exports these canonical
 modules as `std::geometry::scheme` and `std::geometry::smooth`, alongside the
 original arithmetic declarations. No definitions are copied into the facade.
 All existing affine descriptor/origin/identity/dimension/composition/application
 operations use ordinary declared primitive contracts. Each module's `pointed`
 is an ordinary `.vast` function that constructs and packages data.
 
-Thirteen integration tests exercise both settings, alias identity, coherent renaming,
+Twenty integration tests exercise both settings, alias identity, coherent renaming,
 separately generated/opened/copied nominal objects, coefficient versus test-object
 distinction, missing capabilities, dependent morphism calls with retained test
 objects/repacking, composition with arithmetic in the same protocol-7 closure,
@@ -514,10 +514,24 @@ its explicit abstract annotation and returns `2` after unpacking. The implementa
 representation; no general polynomial map, chart, tensor or numerical buffer is
 added. Primitive/package proofs retain their original stated scope.
 
-The existing arithmetic package remains its own entrypoint during migration.
-Protocol-2–6 geometry continues through the compatibility adapter below. The
-legacy syntax bridge within protocol-7 packages and whole-term/legacy semantic
-correspondence remain unfinished, so #49/#58–63 stay open.
+The original `stdlib` entrypoint now supplies both libraries; the temporary
+`stdlib/indexed` facade is removed. The geometry manifest explicitly exports
+`geometry_compat` paths. Lean resolves them in the provider root, checks all
+exports, and validates exact base/family/package/primitive contracts before
+legacy syntax can use the same IDs and primitive emitter as new syntax. Exactly
+one export is required only for legacy syntax; qualified calls to multiple
+independent libraries remain supported. Existing declared/local names take
+precedence, and visibility errors cannot fall back to builtin spelling.
+Unchanged `examples/pointed.vast` and `examples/smooth.vast` run through the
+same protocol-7 closure. Mixed syntax retains dependent endpoints and package
+witnesses; capture, scope escape and unused-body checks are unchanged.
+
+`GeometryCompatibilityRegression` checks twelve positive/negative profile cases.
+`VastitasOracle.GeometryCompatibility` proves that actual public acceptance uses
+the independently validated profile in the function compiler, with distinct
+markers and matching origin/package roles. These structural theorems do not prove
+whole-term evaluation or legacy semantic correspondence. Protocols 2–6 still
+retain the elaboration path below; those obligations keep #49/#58–63 open.
 
 ## Compatibility adapter for protocols 2–6
 
@@ -558,8 +572,9 @@ preservation of the translation, activation/world correspondence or native
 equivalence. Legacy source-to-Core and evaluation theorems still describe the
 retained legacy intermediate; the indexed semantic bridge remains explicit work.
 Source geometry declarations now live in the `.vast` stdlib modules above.
-The legacy syntax bridge inside protocol 7 and semantic correspondence are still
-required; this adapter alone does not complete the migration.
+The protocol-7 library export above now supplies legacy syntax in indexed
+packages. Semantic correspondence is still required; these structural adapters
+alone do not complete the migration.
 
 ## Indexed runtime semantics: first proved fragment
 

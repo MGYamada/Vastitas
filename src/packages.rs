@@ -155,6 +155,8 @@ struct Package {
     version: String,
     dependencies: Vec<Dependency>,
     modules: Vec<Module>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    geometry_compat: Option<crate::indexed::GeometryProfile>,
 }
 
 #[derive(Debug, Serialize)]
@@ -173,6 +175,7 @@ struct Manifest {
     package: Metadata,
     #[serde(default)]
     dependencies: BTreeMap<String, PathDependency>,
+    geometry_compat: Option<crate::indexed::GeometryProfile>,
 }
 
 #[derive(Deserialize)]
@@ -295,6 +298,7 @@ impl Loader {
             version: parsed.package.version,
             dependencies,
             modules,
+            geometry_compat: parsed.geometry_compat,
         });
         self.active.remove(&manifest);
         Ok(source)
@@ -467,7 +471,8 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         .packages
         .iter()
         .flat_map(|p| &p.modules)
-        .any(|m| m.uses_indexed);
+        .any(|m| m.uses_indexed)
+        || loader.packages.iter().any(|p| p.geometry_compat.is_some());
     let program = Program {
         version: if indexed {
             INDEXED_PROTOCOL

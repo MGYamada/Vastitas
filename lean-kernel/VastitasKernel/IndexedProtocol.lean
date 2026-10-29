@@ -22,14 +22,29 @@ def module (j : Json) : Except String DispatchSource.Module := do
     methods := ← (← array j "methods").mapM method,
     contributions := ← (← optionalArray j "contributions").mapM contribution }
 
+def geometrySetting (j : Json) : Except String (GeometrySetting Source.Path) := do
+  fields j ["domain", "marker", "base_object", "affine", "base", "origin", "identity", "dimension"]
+  let get (key : String) := do namedPath (← str j key) {}
+  return ⟨← get "domain", ← get "marker", ← get "base_object", ← get "affine",
+    ← get "base", ← get "origin", ← get "identity", ← get "dimension"⟩
+
+def geometryProfile (j : Json) : Except String (GeometryProfile Source.Path) := do
+  fields j ["scheme", "smooth", "point", "morphism", "pointed", "compose", "apply"]
+  let get (key : String) := do namedPath (← str j key) {}
+  return ⟨← geometrySetting (← field j "scheme"), ← geometrySetting (← field j "smooth"),
+    ← get "point", ← get "morphism", ← get "pointed", ← get "compose", ← get "apply"⟩
+
 def package (j : Json) : Except String DispatchSource.Package := do
-  fields j ["source", "name", "version", "dependencies", "modules"]
+  fields j ["source", "name", "version", "dependencies", "modules", "geometry_compat"]
   let dependencies ← (← array j "dependencies").mapM fun dep => do
     fields dep ["alias", "target"]
     return { alias := ← str dep "alias", target := ← str dep "target" : Namespace.Dependency }
+  let geometryCompat ← match j.getObjVal? "geometry_compat" with
+    | .error _ => pure none
+    | .ok value => some <$> geometryProfile value
   return {
     id := ⟨← str j "source", ← str j "name", ← str j "version"⟩,
-    dependencies, modules := ← (← array j "modules").mapM module }
+    dependencies, modules := ← (← array j "modules").mapM module, geometryCompat }
 
 def program (j : Json) : Except String DispatchSource.Program := do
   fields j ["version", "input", "file", "root", "packages"]

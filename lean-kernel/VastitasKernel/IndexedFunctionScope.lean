@@ -6,8 +6,15 @@ namespace VastitasKernel.Indexed.FunctionSource
 private def unbound (names : List String) (path : Source.Path) : List Source.Path :=
   if let [name] := path.path then if names.contains name then [] else [path] else [path]
 
+private def legacyIndexUses (bound : List String) : RawIndex → List Source.Path
+  | .name name => unbound bound ⟨[name], {}⟩
+  | .base _ => []
+
 def dataTypeUses (bound : List String) : Source.DataType → List Source.Path
   | .pure _ => []
+  | .legacy (.point target source) | .legacy (.morphism source target) =>
+      legacyIndexUses bound target ++ legacyIndexUses bound source
+  | .legacy _ | .inferredPackage => []
   | .object type => unbound bound type.domain ++ unbound bound type.marker
   | .application family arguments => unbound bound family ++ arguments.flatMap fun argument =>
       match argument with | .natural _ => [] | .name path => unbound bound path
@@ -107,7 +114,9 @@ def Program.lambdaScopes (program : Program) : List (Namespace.Scope × LambdaSc
     (blockScopes (function.params.map (·.name)) function.body).map (owner.scope, ·)
 
 def available (index : Namespace.Indexed) (scope : Namespace.Scope) (path : Source.Path) : Bool :=
-  if [["int"], ["pair"], ["pair_first"], ["pair_second"]].contains path.path then true
+  if [["int"], ["pair"], ["pair_first"], ["pair_second"],
+      ["Affine"], ["Base"], ["origin"], ["id"], ["dimension"], ["compose"], ["apply"],
+      ["QQ"], ["CInfReal"]].contains path.path then true
   else (Namespace.resolve index scope path.path path.span).isOk
 
 /-- These conditions are recomputed from the actual input, not accepted from

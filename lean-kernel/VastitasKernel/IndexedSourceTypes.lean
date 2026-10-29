@@ -56,11 +56,45 @@ def resolveTypeArguments (program : Namespace.Indexed) (scope : Namespace.Scope)
   (parameters.zip arguments).mapM fun (parameter, argument) =>
     resolveTypeArgument program scope ctx parameter argument
 
+def geometryBase (name : String) : ResolveM BaseKind :=
+  match name with
+  | "QQ" => pure .qq | "CInfReal" => pure .cinfReal
+  | _ => Namespace.problem {} "E_RING" "unknown compatibility coefficient marker"
+
+def geometryIndex (profile : GeometryProfile DeclId) (ctx : TypeContext) : RawIndex → ResolveM Indexed.ObjectRef
+  | .base name => return .global (profile.setting (← geometryBase name)).baseObject
+  | .name name => do
+    let some binding := ctx.lookup name
+      | Namespace.problem {} "E_TYPE" "legacy object index requires an in-scope object, not a coefficient marker"
+    let .object _ := binding.result.type | Namespace.problem {} "E_TYPE" "legacy index is not an object"
+    let some ref := binding.result.reference | Namespace.problem {} "E_TYPE" "object index has no nominal reference"
+    return ref
+
+def legacyDataType (profile : GeometryProfile DeclId) (ctx : TypeContext) : RawType → ResolveM Core.DataType
+  | .named "Scheme" => pure (.object profile.scheme.objectType)
+  | .named "CInfScheme" => pure (.object profile.smooth.objectType)
+  | .point target source => return .indexed ⟨profile.point,
+      [.object (← geometryIndex profile ctx target), .object (← geometryIndex profile ctx source)]⟩
+  | .morphism source target => return .indexed ⟨profile.morphism,
+      [.object (← geometryIndex profile ctx source), .object (← geometryIndex profile ctx target)]⟩
+  | .pointed setting marker => do
+    let base ← geometryBase marker
+    unless (setting == "Scheme" && base == .qq) || (setting == "CInfScheme" && base == .cinfReal) do
+      Namespace.problem {} "E_TYPE" "Pointed setting and coefficient base disagree"
+    return .package (profile.package base)
+  | _ => Namespace.problem {} "E_TYPE" "unsupported legacy geometry annotation"
+
 def elaborateDataType (program : Namespace.Indexed) (env : Core.Declarations)
-    (scope : Namespace.Scope) (ctx : TypeContext) (input : Source.DataType) : ResolveM Core.DataType := do
+    (scope : Namespace.Scope) (ctx : TypeContext) (input : Source.DataType)
+    (geometry : Option (GeometryProfile DeclId) := none) : ResolveM Core.DataType := do
   match input with
   | .pure type => return .pure type
   | .object type => return .object (← resolveType program scope type)
+  | .legacy type =>
+      let some profile := geometry
+        | Namespace.problem {} "E_TYPE" "legacy geometry syntax requires exactly one explicit library compatibility export"
+      legacyDataType profile ctx type
+  | .inferredPackage => Namespace.problem {} "E_TYPE" "an inferred package is only valid in legacy pack syntax"
   | .application path arguments =>
       let id ← resolveId program scope path
       match Indexed.lookup env.indexed id with
@@ -79,7 +113,9 @@ structure ResolvedDataType where
 
 def lowerDataType (program : Source.Program) (env : Core.Declarations) (scope : Namespace.Scope)
     (ctx : TypeContext) (input : Source.DataType) : Namespace.Result ResolvedDataType := do
-  let (type, references) ← (elaborateDataType program.indexed env scope ctx input).run []
+  let (type, references) ← (do
+    let geometry ← resolveGeometry program env
+    elaborateDataType program.indexed env scope ctx input geometry).run []
   return ⟨type, references.reverse⟩
 
 /-- Indexed by the actual declaration certificate, scope, bindings and input.

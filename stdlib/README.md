@@ -6,11 +6,11 @@ code. They do not require the mathlib proof oracle during compilation.
 
 The [geometry library](src/geometry/README.md) exposes the existing finite affine
 profile through `std::geometry::scheme` and `std::geometry::smooth`. Select
-`stdlib/indexed` as the `std` dependency for the combined geometry/arithmetic
+`stdlib` as the `std` dependency for the combined geometry/arithmetic
 entrypoint. It re-exports the canonical declarations and uses protocol 7.
-The original arithmetic entrypoint below remains available to legacy geometry
-clients while the protocol-7 legacy syntax bridge and full migration acceptance
-remain pending.
+An explicit, checked library export maps legacy geometry syntax to those same
+declarations. The temporary `stdlib/indexed` entrypoint has been removed.
+Whole-term and legacy semantic correspondence remain pending.
 
 ## Source layout
 
@@ -140,7 +140,8 @@ cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o 
 # 42
 ```
 
-The only tracked `.vast` definitions are the flat sources under `src/arithmetic`.
+The tracked arithmetic `.vast` definitions are the flat sources under `src/arithmetic`;
+geometry sources are loaded directly from their canonical module directories.
 The build script adds package visibility and explicit imports without rewriting
 bodies. Rerun it after editing the canonical sources; use `--check` to detect
 missing or stale output without writing. A clean checkout needs this explicit

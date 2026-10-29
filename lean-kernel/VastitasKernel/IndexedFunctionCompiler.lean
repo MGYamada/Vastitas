@@ -91,8 +91,9 @@ structure PreparedProgram where
 
 def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
     (dispatch : DispatchInput := {}) (excluded : Std.HashSet Nat := {}) : Namespace.Result PreparedProgram := do
-  let input : Source.Bodies.Input := { index := program.headers.indexed, declarations }
-  let (prepared, initial) ← (lifted.definitions.mapM (prepareDefinition input)).run {}
+  let (geometry, references) ← (Source.resolveGeometry program.headers declarations).run []
+  let input : Source.Bodies.Input := { index := program.headers.indexed, declarations, geometry }
+  let (prepared, initial) ← (lifted.definitions.mapM (prepareDefinition input)).run { references }
   let sourceCount := program.functions.length
   let named := (prepared.toList.filter (fun entry => !entry.definition.isLambda && entry.definition.id < sourceCount)).foldl (fun table entry =>
     table.insert entry.definition.owner entry.definition.id) ({} : Std.HashMap DeclId Nat)

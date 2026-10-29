@@ -76,7 +76,8 @@ structure Lowered where
 
 def lower (program : Source.Program) (declarations : Core.Declarations) : Namespace.Result Lowered := do
   dataOnly program
-  let input : Input := { index := program.indexed, declarations }
+  let (geometry, references) ← (resolveGeometry program declarations).run []
+  let input : Input := { index := program.indexed, declarations, geometry }
   let action : M (List Core.Function) := do
     let signatures ← program.functions.zipIdx.mapM fun ((owner, source), id) =>
       prepareSignature input owner source id
@@ -88,7 +89,7 @@ def lower (program : Source.Program) (declarations : Core.Declarations) : Namesp
       return {
         id := signature.id, definition := signature.owner, parameters := signature.context.core,
         returnType := signature.result, body, span := signature.source.span }
-  let (functions, state) ← action.run {}
+  let (functions, state) ← action.run { references }
   let functions ← sortFunctions functions
   let main := (functions.find? fun f => f.definition.name == "main" && f.definition.scope.path.isEmpty &&
     f.definition.scope.package.source == program.root).map (·.id)

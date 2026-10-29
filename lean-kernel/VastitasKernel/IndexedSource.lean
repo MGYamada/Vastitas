@@ -1,5 +1,6 @@
 import VastitasKernel.Namespace
 import VastitasKernel.IndexedCore
+import VastitasKernel.IndexedGeometryProfile
 
 /-! Unresolved declaration input for the forthcoming source/protocol-7 path.
 Owners are reconstructed from enclosing packages/modules, never supplied on a
@@ -79,6 +80,8 @@ inductive DataType where
   | pure (type : Core.PureType)
   | object (type : Source.ObjectType)
   | application (family : Path) (arguments : List TypeArgument)
+  | legacy (type : RawType)
+  | inferredPackage -- only produced by the old pack syntax; never a signature
   deriving Repr, Inhabited
 
 /- The initial internal body adapter handles data functions. Fn lifting and
@@ -142,6 +145,7 @@ structure Package where
   id : Namespace.PackageId
   dependencies : List Namespace.Dependency
   modules : List Module
+  geometryCompat : Option (GeometryProfile Path) := none
   deriving Repr, Inhabited
 
 structure Program where
@@ -201,6 +205,7 @@ structure Reference where
 structure Resolved where
   declarations : Core.Declarations
   references : List Reference
+  geometry : Option (GeometryProfile DeclId) := none
   deriving Repr, Inhabited
 
 end VastitasKernel.Indexed.Source

@@ -60,7 +60,7 @@ fn generated_package_preserves_comment_boundaries_in_native_programs() {
     fs::write(sources.join("int.vast"), changed).unwrap();
     fs::write(
         scratch.0.join("stdlib/Vastitas.toml"),
-        "[package]\nname='stdlib'\nversion='0.1.0'\nroot='target/package/lib.vast'\n",
+        format!("[package]\nname='stdlib'\nversion='0.1.0'\nroot='target/package/lib.vast'\n[dependencies]\ngeometry_library={{path='{}'}}\n", root.join("stdlib/src/geometry").display()),
     )
     .unwrap();
     scratch.write("Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='package.vast'\n[dependencies]\nstd={path='stdlib'}\n");

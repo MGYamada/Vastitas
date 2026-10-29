@@ -127,10 +127,15 @@ mutual
           pure ⟨.branch condition yes no ⟨yes.result.type, reference⟩, selected⟩
       | .block value _ => block fuel input scope ctx value expected
       | .pack annotation witness fields _ => do
-          let .package application ← body (Source.Bodies.type input.body scope ctx.data annotation span)
-            | error span "E_TYPE" "pack annotation must name an existential package"
-          let some shape := input.body.declarations.package? application | error span "E_TYPE" "unknown package case"
-          let witness ← data (← expression fuel input scope ctx witness (some (.object shape.witnessType))) span
+          let (application, witness) ← match annotation with
+            | .inferredPackage => do
+              let witness ← data (← expression fuel input scope ctx witness none) span
+              pure (← body (Source.Bodies.legacyPackage input.body witness span), witness)
+            | _ => do
+              let .package application ← body (Source.Bodies.type input.body scope ctx.data annotation span)
+                | error span "E_TYPE" "pack annotation must name an existential package"
+              let some shape := input.body.declarations.package? application | error span "E_TYPE" "unknown package case"
+              pure (application, ← data (← expression fuel input scope ctx witness (some (.object shape.witnessType))) span)
           let fields ← fields.mapM fun field => do data (← expression fuel input scope ctx field none) span
           unless Core.Typing.PackageTyping input.body.declarations application witness.result (fields.map Core.Term.result) do
             error span "E_ENDPOINT" "package fields do not match the exact witness and ordered field contract"
@@ -161,6 +166,15 @@ mutual
         if let some binding := ctx.find? (fun binding => binding.source.name == name) then
           let some selected := binding.target | error span "E_TYPE" "a data value is not callable"
           return ← invokeTarget fuel input scope ctx selected arguments span
+      if Source.Bodies.legacyFallback input.body scope path then
+        let name := path.path.head!
+        let (base, arguments) ← if name == "Affine" || name == "Base" then do
+          let .variable marker _ :: rest := arguments | error span "E_RING" "Affine/Base requires an explicit coefficient marker"
+          pure (some (← body (Source.Bodies.legacyMarker marker span)), rest)
+        else pure (none, arguments)
+        let hint := if name == "Affine" then some (Core.DataType.pure .nat) else none
+        let values ← arguments.mapM fun argument => do data (← expression fuel input scope ctx argument hint) span
+        return ⟨← body (Source.Bodies.emitLegacy input.body ctx.data name base values span), none⟩
       let resolved ← result (Namespace.resolve input.body.index scope path.path path.span)
       if resolved.kind == .generic then
         let some family := input.dispatch.families[resolved.owner]?
@@ -185,13 +199,8 @@ mutual
         unless arguments.length == arity do error span "E_ARITY" "wrong primitive argument count"
         let hint := match binding with | .descriptor _ => some (Core.DataType.pure .nat) | _ => none
         let values ← arguments.mapM fun argument => do data (← expression fuel input scope ctx argument hint) span
-        let some operands := (values.map Core.Term.result).mapM Core.Result.primitiveType? | error span "E_TYPE" "primitive operand shape mismatch"
-        let brand ← match binding with | .descriptor _ => fresh | _ => pure 0
-        let some output := inferPrimitiveResult input.body.declarations.indexed binding brand operands | error span "E_TYPE" "primitive operand shape mismatch"
-        unless validPrimitive input.body.declarations.indexed binding (Core.Typing.contextRefs ctx.data.core) brand operands output do
-          error span "E_ENDPOINT" "primitive capability, endpoint or coefficient contract failed"
         modify fun state => { state with body := { state.body with references := ⟨scope, path, resolved⟩ :: state.body.references } }
-        return ⟨.primitive resolved.owner values (Source.Bodies.primitiveResult output), none⟩
+        return ⟨← body (Source.Bodies.emitPrimitive input.body ctx.data resolved.owner values span), none⟩
       let id ← resolve input scope path
       invokeDefinition fuel input scope ctx id arguments span
 

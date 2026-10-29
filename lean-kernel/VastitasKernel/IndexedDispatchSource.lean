@@ -60,6 +60,7 @@ structure Package where
   id : Namespace.PackageId
   dependencies : List Namespace.Dependency
   modules : List Module
+  geometryCompat : Option (GeometryProfile Source.Path) := none
   deriving Repr, Inhabited
 
 structure Program where
@@ -75,7 +76,7 @@ def Program.source (program : Program) : FunctionSource.Program := {
   file := program.file, root := program.root, extended := program.extended,
   editable := program.editable, authority := program.authority,
   packages := program.packages.map fun pkg => {
-    id := pkg.id, dependencies := pkg.dependencies,
+    id := pkg.id, dependencies := pkg.dependencies, geometryCompat := pkg.geometryCompat,
     modules := pkg.modules.map fun m => {
       module := { m.module with
         methods := m.module.methods ++ m.methods.map Method.header,

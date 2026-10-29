@@ -4,4 +4,4 @@ version = "0.1.0"
 root = "main.vast"
 
 [dependencies]
-std = { path = "../../../../stdlib/indexed" }
+std = { path = "../../../../stdlib" }

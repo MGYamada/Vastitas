@@ -34,7 +34,7 @@ Select the combined entrypoint, adjusting the path for the application:
 
 ```toml
 [dependencies]
-std = { path = "../Vastitas/stdlib/indexed" }
+std = { path = "../Vastitas/stdlib" }
 ```
 
 ```vast
@@ -57,7 +57,7 @@ explicit `CInfScheme` annotation and dimension check after unpacking.
 
 ```sh
 cargo run --locked -- check --manifest-path stdlib/src/geometry/Vastitas.toml
-cargo run --locked -- check --manifest-path stdlib/indexed/Vastitas.toml
+cargo run --locked -- check --manifest-path stdlib/Vastitas.toml
 cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
 # 42
@@ -112,23 +112,40 @@ declarations, even when its name, version and source bytes are unchanged.
 | Primitive/package typing and bounded semantic evidence | Existing scoped theorems in [verification](../../../docs/verification.md) |
 | Old source syntax on protocols 2–6 | Existing elaborator followed by the independently audited `LegacyIndexed` adapter |
 
-`stdlib/indexed` is a transitional combined entrypoint. The original
-`stdlib/Vastitas.toml` still supplies arithmetic for clients that use old geometry
-syntax. Adding the combined entrypoint selects protocol 7 for the entire closure;
-`Affine(QQ,n)`, bare legacy geometric types and `pack {scheme:...,point:...}` are
-not yet accepted within that closure. They remain supported on protocols 2–6 and
-with explicit `--lib`. The original entrypoint can re-export geometry once that
-mixed-syntax bridge preserves nominal identities and passes the compatibility
-matrix. Keep the canonical arithmetic and geometry declaration owners stable
-when consolidating entrypoints; do not copy their definitions into the facade.
+The single `stdlib/Vastitas.toml` entrypoint re-exports geometry and arithmetic.
+The temporary `stdlib/indexed` facade has been removed. The geometry manifest
+explicitly exports the roles used by old syntax in `[geometry_compat]`, with
+`scheme` and `smooth` subtables. Lean resolves each path in the exporting
+package’s root scope and independently checks its family, package, base and
+primitive contracts. The export is a syntax facade; it grants no editing,
+membership or mathematical authority.
 
-Thirteen integration tests exercise both settings, the actual combined source
-entrypoint, alias/family/function identity, coherent renaming, dependent calls and
-repacking, fresh/unpacked/copied identities, missing capabilities, visibility,
-external method authority and preserved legacy clients. Actual Rust wire input
-is independently checked; mutations of module visibility, primitive base,
-capabilities and purported declaration ownership fail both checking and emission.
-Existing forged-Core regressions continue to cover the shared code generator.
+With exactly one export in the package closure, `Scheme`, `CInfScheme`,
+`Point<X,Base(QQ)>`, `Morphism<X,Y>`, `Pointed<Scheme,QQ>`, `Affine(QQ,n)`,
+`Base(QQ)`, `origin`, `id`, `dimension`, `compose`, `apply` and legacy pack/unpack
+use the same declared IDs and common primitive lowering as qualified new syntax.
+`Base(QQ)` in a legacy point index denotes the exported base object; `QQ`
+alone is a coefficient marker and is rejected as an object. Declared functions and local Fn bindings take precedence over
+legacy operation fallback; a visibility failure is not bypassed.
+
+Every export is checked even when unused. Zero or multiple valid exports leave
+qualified new syntax usable, but legacy syntax requires exactly one export.
+Copies of the library retain distinct package identities. Coherently renaming
+all declaration paths and the export works without changing legacy source.
+Protocols 2–6 and explicit `--lib` retain their existing audited adapter path.
+
+Twenty integration tests exercise both settings, original `pointed.vast` and
+`smooth.vast` bytes, mixed syntax, alias/family/function identity, coherent
+renaming, dependent calls/repacking, fresh/unpacked/copied identities, missing
+capabilities, visibility, external method authority, Fn capture and unused-body
+checks. Mutations of actual Rust wire input alter visibility, primitive/base roles,
+capabilities, export fields and purported ownership; checking and emission reject
+them. Older wire versions reject the new export instead of ignoring it.
+Twelve direct kernel regressions also check profile contracts, including a family
+whose extra same-object constraint would incorrectly restrict legacy morphisms.
+The structural proofs in `VastitasOracle.GeometryCompatibility` connect the
+validated export to the exact compiler input and returned Core. Existing forged-Core
+regressions continue to cover the shared code generator.
 
 These declarations and regressions do not prove general scheme mathematics,
 whole-term indexed evaluation, legacy semantic correspondence or native

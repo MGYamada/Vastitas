@@ -2,3 +2,32 @@
 name = "vastitas_geometry"
 version = "0.1.0"
 root = "mod.vast"
+
+# Explicit program-wide interpretation of the preserved legacy syntax.
+# The independent checker resolves and validates every contract in this table.
+[geometry_compat]
+point = "self::Point"
+morphism = "self::Morphism"
+pointed = "self::Pointed"
+compose = "self::compose"
+apply = "self::apply"
+
+[geometry_compat.scheme]
+domain = "self::scheme::Scheme"
+marker = "self::scheme::QQ"
+base_object = "self::scheme::BaseQQ"
+affine = "self::scheme::Affine"
+base = "self::scheme::base"
+origin = "self::scheme::origin"
+identity = "self::scheme::id"
+dimension = "self::scheme::dimension"
+
+[geometry_compat.smooth]
+domain = "self::smooth::CInfScheme"
+marker = "self::smooth::CInfReal"
+base_object = "self::smooth::BaseSmooth"
+affine = "self::smooth::Affine"
+base = "self::smooth::base"
+origin = "self::smooth::origin"
+identity = "self::smooth::id"
+dimension = "self::smooth::dimension"

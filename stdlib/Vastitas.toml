@@ -2,3 +2,6 @@
 name = "vastitas_std"
 version = "0.1.0"
 root = "target/package/lib.vast"
+
+[dependencies]
+geometry_library = { path = "src/geometry" }

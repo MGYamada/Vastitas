@@ -34,9 +34,29 @@ def typeArgument (j : Json) : Except String Source.TypeArgument := do
   | "natural" => fields j ["kind", "value"]; return .natural (← natural j)
   | _ => throw "unknown indexed type argument"
 
+def legacyIndex (j : Json) : Except String RawIndex := do
+  match ← str j "kind" with
+  | "name" => fields j ["kind", "name"]; return .name (← str j "name")
+  | "base" => fields j ["kind", "ring"]; return .base (← str j "ring")
+  | _ => throw "unknown legacy geometry index"
+
 def dataType (j : Json) : Except String Source.DataType := do
   match ← str j "kind" with
-  | "named" | "pair" => return .pure (← pureType j)
+  | "named" =>
+    fields j ["kind", "name"]
+    let name ← str j "name"
+    if name == "Scheme" || name == "CInfScheme" then return .legacy (.named name)
+    return .pure (← pureType j)
+  | "pair" => return .pure (← pureType j)
+  | "point" =>
+    fields j ["kind", "target", "source"]
+    return .legacy (.point (← legacyIndex (← field j "target")) (← legacyIndex (← field j "source")))
+  | "morphism" =>
+    fields j ["kind", "source", "target"]
+    return .legacy (.morphism (← legacyIndex (← field j "source")) (← legacyIndex (← field j "target")))
+  | "pointed" =>
+    fields j ["kind", "setting", "base"]
+    return .legacy (.pointed (← str j "setting") (← str j "base"))
   | "indexed_object" =>
     fields j ["kind", "domain", "marker"]
     return .object ⟨← path (← field j "domain"), ← path (← field j "marker")⟩
@@ -111,6 +131,10 @@ mutual
         fields j (common ++ ["package", "witness", "fields"])
         return .pack (← dataType (← field j "package"))
           (← expression fuel (← field j "witness")) (← (← array j "fields").mapM (expression fuel)) span
+      | "pack" =>
+        fields j (common ++ ["scheme", "point"])
+        return .pack .inferredPackage (← expression fuel (← field j "scheme"))
+          [← expression fuel (← field j "point")] span
       | _ => throw "unknown indexed expression kind"
   def statement : Nat → Json → Except String FunctionSource.Stmt
     | 0, _ => throw "IR nesting exceeds the supported limit"
@@ -126,6 +150,10 @@ mutual
         fields j ["kind", "span", "value", "witness", "fields"]
         return .unpack (← expression fuel (← field j "value"))
           (← str j "witness") (← (← array j "fields").mapM Json.getStr?) span
+      | "unpack" =>
+        fields j ["kind", "span", "value", "scheme", "point"]
+        return .unpack (← expression fuel (← field j "value"))
+          (← str j "scheme") [← str j "point"] span
       | _ => throw "unknown indexed statement kind"
   def block : Nat → Json → Except String FunctionSource.Block
     | 0, _ => throw "IR nesting exceeds the supported limit"

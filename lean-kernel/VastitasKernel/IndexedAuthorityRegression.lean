@@ -37,7 +37,7 @@ def authorityFixture : DispatchSource.Program := {
   packages := [
     ⟨app, [⟨"base", base.source⟩, ⟨"addon", addon.source⟩], [{ mod with
       module := { mod.module with assembly := some ⟨events, {}⟩ },
-      functions := [fn "main" (block (call "base::choose" [num 38])) true] }]⟩,
+      functions := [fn "main" (block (call "base::choose" [num 38])) true] }], none⟩,
     ⟨base, [], [{ mod with
       module := { mod.module with
         generics := [{ name := "choose", params := [⟨"x", {}⟩], domain := [[.named "Int"]], span := {}, isPublic := true }],
@@ -49,7 +49,7 @@ def authorityFixture : DispatchSource.Program := {
           granteePath := [], span := {}, isPublic := true }] },
       functions := [fn "helper" (block (num 100))],
       methods := [method "choose" "Number" (block (num 5))],
-      contributions := [⟨"own", path "choose", [method "choose" "Nat" (block (num 6))], {}, true⟩] }]⟩,
+      contributions := [⟨"own", path "choose", [method "choose" "Nat" (block (num 6))], {}, true⟩] }], none⟩,
     ⟨addon, [⟨"base", base.source⟩, ⟨"geo", geo.id.source⟩], [
       { mod with
         module := { mod.module with
@@ -62,8 +62,8 @@ def authorityFixture : DispatchSource.Program := {
         functions := [fn "helper" (block (call "int" [call "geo::dimension" [call "geo::Affine" [num 4]]]))],
         contributions := [
           ⟨"sum", path "base::choose", [method "base::choose" "Int" contributionBody], {}, true⟩,
-          ⟨"unused", path "base::choose", [method "base::choose" "Number" unusedBody], {}, true⟩] } ]⟩,
-    ⟨geo.id, geo.dependencies, geo.modules.map fun m => { module := m.module, declarations := m.declarations }⟩ ] }
+          ⟨"unused", path "base::choose", [method "base::choose" "Number" unusedBody], {}, true⟩] } ], none⟩,
+    ⟨geo.id, geo.dependencies, (geo.modules.map fun m => { module := m.module, declarations := m.declarations }), geo.geometryCompat⟩ ] }
 
 private def changeModule (p : DispatchSource.Program) (owner : Namespace.PackageId) (modulePath : List String)
     (change : DispatchSource.Module → DispatchSource.Module) : DispatchSource.Program :=
@@ -156,7 +156,7 @@ def repairedFixture : DispatchSource.Program := changeModule transferFixture bas
   packages := [⟨app, [], [{ mod with
     functions := [fn "main" (block (num 0)) true],
     module := { mod.module with generics := [{
-      name := "choose", params := [⟨"x", {}⟩, ⟨"x", {}⟩], domain := [], span := {}, isPublic := true }] } }]⟩] }
+      name := "choose", params := [⟨"x", {}⟩, ⟨"x", {}⟩], domain := [], span := {}, isPublic := true }] } }], none⟩] }
 
 private def orderedFixture (reverse : Bool) : DispatchSource.Program :=
   let p := changeModule authorityFixture base [] fun m => { m with module := { m.module with

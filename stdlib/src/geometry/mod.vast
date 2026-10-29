@@ -1,0 +1,15 @@
+// Shared finite indexed contracts. The public mathematical settings are siblings.
+pub mod scheme;
+pub mod smooth;
+
+indexed classification Objects {
+    parents(); domain(scheme::GridQQ, smooth::GridSmooth);
+};
+pub indexed family Point(object(Objects), object(Objects)) = point constraints(same_base(0, 1));
+pub indexed family Morphism(object(Objects), object(Objects)) = morphism constraints(same_base(0, 1));
+pub indexed package Pointed {
+    case(scheme::Scheme, scheme::QQ) { Point(witness, global(scheme::BaseQQ)); }
+    case(smooth::CInfScheme, smooth::CInfReal) { Point(witness, global(smooth::BaseSmooth)); }
+};
+pub indexed primitive compose = compose(Morphism);
+pub indexed primitive apply = apply(Morphism, Point);

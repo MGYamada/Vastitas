@@ -60,7 +60,7 @@ README の短い状況説明はこの表と同期し、証明の説明は `verif
 - `docs/design.md` の Stage 0 中心の実装案内を、原文保存部分とは分けて更新する。
 - `stdlib/README.md` の import に関する説明を、明示的な `--lib` と package mode の違いに合わせる。
 - 仕様書の「後続」「未実装」とロードマップの時制を、完了時点の実装に合わせる。
-- 完了時点で公開されている全protocol、`--lib` / `--manifest-path`、所有モジュールと呼出権限の説明を横断確認する。現在の公開2–6と予定7–8を混同しない。
+- 完了時点で公開されている全protocol、`--lib` / `--manifest-path`、所有モジュールと呼出権限の説明を横断確認する。現在の公開2–7と予定8を混同しない。
 - Rust acceptance と Lean semantic acceptance、通常コンパイラと proof oracle の依存境界を維持する。
 
 ### 2.1 現在の全資料の配置先
@@ -75,7 +75,7 @@ README の短い状況説明はこの表と同期し、証明の説明は `verif
 | `stage1a.md`、`stage1b.md` | 現行言語仕様 | dispatchと独立関数の正本。新仕様との参照を更新 |
 | `packages.md`、`abstract-types.md`、`promotion.md` | 現行言語・stdlib仕様 | パッケージ、abstract selector、値のpromotion方針を維持 |
 | `edit-borrowing.md`、`edit-authority.md` | 現行編集権限仕様 | protocol 5と6、定義IDと編集権限、貸出と移転を区別 |
-| `indexed-declarations.md`、`indexed-source.md` | 公開indexed構文・内部実装仕様・移行状況 | 公開7と内部checker、互換adapterと未移行stdlibを区別。未完了証明を残す |
+| `indexed-declarations.md`、`indexed-source.md` | 公開indexed構文・内部実装仕様・移行状況 | 公開7と内部checker、互換adapter、移行済みの有限幾何stdlibと残る互換・証明作業を区別 |
 | `storage-ownership.md` | 採用設計・改訂7章 | レイアウト、alias、残差保持、費用、性能受入条件の正本。実装証拠は台帳へ接続 |
 | `protocol.md`、`verification.md` | 公開境界・検証の正本 | 対応version、実checker、定理、仮定と未証明事項を照合 |
 | `adr/0001-mathematics-first-stdlib.md` | 採用方針・ADR | マージ済み方針のstatusを確認し、後続ADRと実装状態を区別 |

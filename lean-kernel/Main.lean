@@ -7,6 +7,7 @@ import VastitasKernel.NamespaceDiagnostics
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
 import VastitasKernel.IndexedRuntime
+import VastitasKernel.IndexedAcceptance
 
 open VastitasKernel
 
@@ -17,6 +18,18 @@ private def process (mode input : String) : Lean.Json := Id.run do
   | .ok json =>
     let requested := (json.getObjValAs? Nat "version").toOption
     let version := requested.getD 2
+    if version == 7 then
+      if mode == "emit" then
+        match Indexed.Wire.check json true with
+        | .error diagnostic => return failureJson diagnostic version
+        | .ok accepted =>
+          match Indexed.Core.Codegen.generate accepted.checked.executable.core with
+          | .error message => return failureJson { code := "E_CODEGEN", message } version
+          | .ok source => return successJson (some source) version
+      else
+        match Indexed.Wire.check json false with
+        | .error diagnostic => return failureJson diagnostic version
+        | .ok _ => return successJson none version
     let checked : Except Diagnostic CertifiedModule := do
       unless supportedProtocolVersions.contains version do
         throw { code := "E_PROTOCOL", message := unsupportedProtocolVersion version }

@@ -63,7 +63,7 @@ when explicitly selected; `build` also needs the package and uses its pinned
 
 Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
 and root source, plus optional `[dependencies]` path entries. Package mode
-retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies, protocol 6 for delegated loans/transfers) and cannot be mixed with positional input or
+retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies, protocol 6 for delegated loans/transfers, protocol 7 for indexed declarations) and cannot be mixed with positional input or
 `--lib`; protocol 2 remains supported for those existing commands.
 
 ```sh
@@ -178,9 +178,11 @@ full mathematical model of schemes remain outside those claims. The precise
 
 The internal declaration-driven source adapters now compose independent
 functions, finite scalar dispatch and edit-authority assemblies, including
-applied and unapplied contribution bodies. They are not public protocol 7;
-Rust/wire integration, stdlib geometry migration and whole-term indexed
-evaluation proofs remain pending. See [indexed declarations](docs/indexed-declarations.md).
+applied and unapplied contribution bodies. [Public protocol 7](docs/indexed-source.md)
+connects the Rust declaration/body syntax to that same combined checker and
+returned Core. Stdlib geometry migration, the legacy syntax bridge inside
+protocol 7 and whole-term indexed evaluation proofs remain pending. See
+[indexed declarations](docs/indexed-declarations.md).
 
 ## Validation
 

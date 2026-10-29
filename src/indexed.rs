@@ -1,0 +1,145 @@
+//! Unresolved declaration-driven source IR. The kernel reconstructs every ID
+//! from its enclosing package/module and independently checks each contract.
+
+use crate::ir::{Span, TypePath};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Declaration {
+    pub name: String,
+    #[serde(flatten)]
+    pub body: DeclarationBody,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DeclarationBody {
+    Marker,
+    Implementation {
+        marker: TypePath,
+        representation: Representation,
+        capabilities: Vec<Capability>,
+    },
+    Classification {
+        parents: Vec<TypePath>,
+        domain: Vec<TypePath>,
+    },
+    Global {
+        implementation: TypePath,
+    },
+    Family {
+        parameters: Vec<Parameter>,
+        constraints: Vec<Constraint>,
+        representation: FamilyRepresentation,
+    },
+    Package {
+        cases: Vec<PackageShape>,
+    },
+    Primitive {
+        binding: Primitive,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Representation {
+    AffineDescriptor,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Capability {
+    Origin,
+    Dimension,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FamilyRepresentation {
+    Token,
+    Point,
+    Morphism,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Parameter {
+    Domain,
+    Marker,
+    Natural,
+    Object { domain: TypePath },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Constraint {
+    SameObject { left: u32, right: u32 },
+    SameBase { left: u32, right: u32 },
+    Over { object: u32, marker: u32 },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ObjectType {
+    pub domain: TypePath,
+    pub marker: TypePath,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PackageShape {
+    pub witness_type: ObjectType,
+    pub fields: Vec<BoundApplication>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BoundApplication {
+    pub family: TypePath,
+    pub indices: Vec<BoundIndex>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum BoundIndex {
+    Witness,
+    Global { declaration: TypePath },
+    Domain { declaration: TypePath },
+    Marker { declaration: TypePath },
+    Natural { value: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum Argument {
+    Name { reference: TypePath },
+    Natural { value: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum Primitive {
+    Descriptor {
+        implementation: TypePath,
+    },
+    Global {
+        declaration: TypePath,
+    },
+    Origin {
+        domain: ObjectType,
+        point_family: TypePath,
+        base_object: TypePath,
+    },
+    Identity {
+        domain: ObjectType,
+        map_family: TypePath,
+    },
+    Dimension {
+        domain: ObjectType,
+    },
+    Compose {
+        map_family: TypePath,
+    },
+    Apply {
+        map_family: TypePath,
+        point_family: TypePath,
+    },
+}

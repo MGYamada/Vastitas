@@ -6,7 +6,7 @@ open Lean
 
 /-- Public wire versions, not the internal Core tag. Unknown requests must not
 be silently routed to a legacy decoder or have their diagnostic discarded. -/
-def supportedProtocolVersions : List Nat := [2, 3, 4, 5, 6]
+def supportedProtocolVersions : List Nat := [2, 3, 4, 5, 6, 7]
 
 def unsupportedProtocolVersion (version : Nat) : String :=
   s!"unsupported IR protocol version {version}; expected " ++

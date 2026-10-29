@@ -5,6 +5,8 @@
 
 use std::collections::{HashMap, HashSet};
 
+mod indexed_parser;
+
 pub use crate::ir::Diagnostic;
 use crate::ir::{
     ABSTRACT_PROTOCOL_VERSION, AbstractMethod, AbstractType, Block, Expr, ExprKind, Function,
@@ -280,7 +282,7 @@ impl<'a> Lexer<'a> {
                     self.advance();
                     self.advance();
                     TokenKind::Symbol(op.into())
-                } else if "(){}<>,:;=+-*!".contains(ch) {
+                } else if "(){}[]<>,:;=+-*!".contains(ch) {
                     self.advance();
                     TokenKind::Symbol(ch.to_string())
                 } else {
@@ -319,6 +321,7 @@ struct Parser {
     position: usize,
     nesting: usize,
     packages: bool,
+    indexed: bool,
     expression_depths: HashMap<(usize, usize), usize>,
 }
 
@@ -509,6 +512,8 @@ impl Parser {
             functions: Vec::new(),
             generics: Vec::new(),
             methods: Vec::new(),
+            indexed_declarations: Vec::new(),
+            uses_indexed: false,
             abstract_types: Vec::new(),
             subtypes: Vec::new(),
             abstract_methods: Vec::new(),
@@ -520,7 +525,12 @@ impl Parser {
         };
         while self.peek().kind != TokenKind::Eof && !(inline && self.peek().is("}")) {
             let public = self.consume("pub");
-            if self.peek().is("fn") {
+            if self.peek().is("indexed") {
+                module.indexed_declarations.push(Public {
+                    declaration: self.indexed_declaration()?,
+                    public,
+                });
+            } else if self.peek().is("fn") {
                 module.functions.push(Public {
                     declaration: self.function()?,
                     public,
@@ -621,6 +631,7 @@ impl Parser {
                 ));
             }
         }
+        module.uses_indexed = self.indexed;
         parsed.modules.push(module);
         Ok(())
     }
@@ -1105,6 +1116,13 @@ impl Parser {
 
     fn ty_inner(&mut self) -> Result<Type, Diagnostic> {
         let (name, span) = self.name()?;
+        if self.packages
+            && (self.peek().is("::")
+                || name == "Object"
+                || !TYPES.contains(&name.as_str()) && self.peek().is("<"))
+        {
+            return self.indexed_type(name, span);
+        }
         match name.as_str() {
             "Pair" => {
                 self.expect("<")?;
@@ -1317,6 +1335,27 @@ impl Parser {
             let value = self.expression(0)?;
             self.expect("as")?;
             self.expect("{")?;
+            if self.packages && self.peek().is("witness") {
+                self.indexed = true;
+                self.expect("witness")?;
+                self.expect(":")?;
+                let witness = self.binding_name()?.0;
+                self.expect(",")?;
+                self.expect("fields")?;
+                self.expect(":")?;
+                let fields = self.indexed_list("[", "]", |p| Ok(p.binding_name()?.0))?;
+                self.consume(",");
+                self.expect("}")?;
+                let end = self.expect(";")?.span;
+                return Ok(Statement {
+                    kind: StatementKind::UnpackFields {
+                        value,
+                        witness,
+                        fields,
+                    },
+                    span: token.span.through(end),
+                });
+            }
             self.package_field("scheme")?;
             self.expect(":")?;
             let (scheme, _) = self.binding_name()?;
@@ -1354,9 +1393,9 @@ impl Parser {
             .statements
             .iter()
             .map(|statement| match &statement.kind {
-                StatementKind::Let { value, .. } | StatementKind::Unpack { value, .. } => {
-                    1 + self.expression_depth(value)
-                }
+                StatementKind::Let { value, .. }
+                | StatementKind::Unpack { value, .. }
+                | StatementKind::UnpackFields { value, .. } => 1 + self.expression_depth(value),
             })
             .max()
             .unwrap_or(0);
@@ -1394,6 +1433,15 @@ impl Parser {
             ExprKind::Pack { scheme, point } => self
                 .expression_depth(scheme)
                 .max(self.expression_depth(point)),
+            ExprKind::IndexedPack {
+                witness, fields, ..
+            } => self.expression_depth(witness).max(
+                fields
+                    .iter()
+                    .map(|field| self.expression_depth(field))
+                    .max()
+                    .unwrap_or(0),
+            ),
             _ => 0,
         };
         let depth = child + 1;
@@ -1555,17 +1603,21 @@ impl Parser {
                 }
             }
             TokenKind::Name(ref name) if name == "pack" => {
-                self.expect("{")?;
-                self.package_field("scheme")?;
-                self.expect(":")?;
-                let scheme = Box::new(self.expression(0)?);
-                self.expect(",")?;
-                self.package_field("point")?;
-                self.expect(":")?;
-                let point = Box::new(self.expression(0)?);
-                self.consume(",");
-                self.expect("}")?;
-                ExprKind::Pack { scheme, point }
+                if self.packages && !self.peek().is("{") {
+                    self.indexed_pack()?
+                } else {
+                    self.expect("{")?;
+                    self.package_field("scheme")?;
+                    self.expect(":")?;
+                    let scheme = Box::new(self.expression(0)?);
+                    self.expect(",")?;
+                    self.package_field("point")?;
+                    self.expect(":")?;
+                    let point = Box::new(self.expression(0)?);
+                    self.consume(",");
+                    self.expect("}")?;
+                    ExprKind::Pack { scheme, point }
+                }
             }
             TokenKind::Name(ref name) if name == "fn" => {
                 let params = self.parameters(false)?;
@@ -1891,6 +1943,17 @@ impl<'a> Resolver<'a> {
                     self.bind(scheme, &mut scope, statement.span);
                     self.bind(point, &mut scope, statement.span);
                 }
+                StatementKind::UnpackFields {
+                    value,
+                    witness,
+                    fields,
+                } => {
+                    self.expr(value, &scope, function, false);
+                    self.bind(witness, &mut scope, statement.span);
+                    for field in fields {
+                        self.bind(field, &mut scope, statement.span);
+                    }
+                }
             }
         }
         self.expr(&block.result, &scope, function, false);
@@ -2013,6 +2076,17 @@ impl<'a> Resolver<'a> {
                 self.expr(scheme, scope, function, false);
                 self.expr(point, scope, function, false);
             }
+            ExprKind::IndexedPack {
+                package,
+                witness,
+                fields,
+            } => {
+                self.ty(package, scope, expr.span);
+                self.expr(witness, scope, function, false);
+                for field in fields {
+                    self.expr(field, scope, function, false);
+                }
+            }
             ExprKind::Integer { .. } | ExprKind::Boolean { .. } | ExprKind::Unit => {}
         }
     }
@@ -2084,6 +2158,7 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
             position: 0,
             nesting: 0,
             packages: false,
+            indexed: false,
             expression_depths: HashMap::new(),
         }
         .module(input.file)
@@ -2147,6 +2222,7 @@ pub(crate) fn parse_module_source(
         position: 0,
         nesting: 0,
         packages: true,
+        indexed: false,
         expression_depths: HashMap::new(),
     };
     let mut parsed = crate::packages::Parsed {
@@ -2737,6 +2813,7 @@ fn leaf() -> Int { 0 }";
             position: 0,
             nesting: 0,
             packages: false,
+            indexed: false,
             expression_depths: HashMap::new(),
         };
         let close = parser.type_close().unwrap();

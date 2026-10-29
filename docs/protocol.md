@@ -1,4 +1,4 @@
-# Compiler protocols (versions 2–6)
+# Compiler protocols (versions 2–7)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -9,7 +9,10 @@ bindings; the wire format cannot supply a trusted object identity.
 Request: `{ "version": 2, "file": "input.vast", "functions": [...],
 "generics": [...], "methods": [...] }`. All three declaration arrays are
 present, including when empty. Protocol 3 uses the separate namespace request
-below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assemblies, and protocol 6 adds nested loans and permanent authority transfer as described below; package requests never fall back to protocol 2. Other versions are rejected.
+below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assemblies,
+protocol 6 adds nested loans and permanent authority transfer, and package-only
+protocol 7 adds indexed declarations and rich bodies as described below.
+Package requests never fall back to protocol 2. Other versions are rejected.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
@@ -334,3 +337,79 @@ preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
 no outstanding loans. See [source semantics](edit-authority.md) and
 [the proof boundary](verification.md#edit-authority-acceptance-protocol-6).
+
+## Protocol 7: indexed declarations and rich package bodies
+
+The package-only envelope is `{version:7,input:"package",file,root,packages}`.
+Package/module identity, dependencies, imports, abstract selectors/contracts and
+all protocol-6 authority metadata retain their existing schemas and checks.
+Each module may add `indexed_declarations`, defaulting to an empty array.
+Rust selects 7 when any loaded module uses an indexed declaration, annotation,
+typed pack or ordered-field unpack. Every body in that package closure then uses
+the rich source path. Flat input and explicit `--lib` keep protocol 2/4.
+
+A declaration has `{kind,name,public,span,...}` with these additional fields:
+
+| Kind | Fields |
+| --- | --- |
+| `marker` | None |
+| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"|"dimension"]` |
+| `classification` | `parents:[TypePath]`, `domain:[TypePath]` |
+| `global` | `implementation:TypePath` |
+| `family` | `parameters:[Parameter]`, `constraints:[Constraint]`, `representation:"token"|"point"|"morphism"` |
+| `package` | `cases:[{witness_type:ObjectType,fields:[BoundApplication]}]` |
+| `primitive` | `binding:Primitive` |
+
+`TypePath` is `{path:[String],span}`; the path is unresolved and nonempty.
+`ObjectType` is `{domain:TypePath,marker:TypePath}`.
+Parameter tags are `{kind:"domain"|"marker"|"natural"}` or
+`{kind:"object",domain:TypePath}`. Constraint tags are
+`{kind:"same_object"|"same_base",left:Nat,right:Nat}` or
+`{kind:"over",object:Nat,marker:Nat}`; positions are zero-based.
+The Rust source parser bounds constraint positions to `u32`; Lean additionally
+checks them against the actual finite parameter contract.
+
+`BoundApplication` is `{family:TypePath,indices:[BoundIndex]}`.
+Bound-index tags are `{kind:"witness"}`, `{kind:"natural",value:String}` or
+`{kind:"global"|"domain"|"marker",declaration:TypePath}`.
+Natural values use unsigned decimal strings, preserving arbitrary precision.
+Every package field is ordered and checked against its exact opened witness.
+
+Primitive bindings use `op`, with these payloads:
+
+| Op | Fields |
+| --- | --- |
+| `descriptor` | `implementation:TypePath` |
+| `global` | `declaration:TypePath` |
+| `origin` | `domain:ObjectType`, `point_family:TypePath`, `base_object:TypePath` |
+| `identity` | `domain:ObjectType`, `map_family:TypePath` |
+| `dimension` | `domain:ObjectType` |
+| `compose` | `map_family:TypePath` |
+| `apply` | `map_family:TypePath`, `point_family:TypePath` |
+
+Data annotations retain concrete scalar `named` and homogeneous `pair` types and add
+`{kind:"indexed_object",domain:TypePath,marker:TypePath}` and
+`{kind:"indexed_apply",family:TypePath,arguments:[Argument]}`.
+Arguments are `{kind:"name",reference:TypePath}` or
+`{kind:"natural",value:String}`; expected parameter kinds determine whether a
+name refers to a declaration or a preceding local object binding.
+Fn types keep the scalar/recursive-Fn-only contract and existing depth bound.
+
+Ordinary expression and statement forms retain their schemas, except legacy
+geometry `pack`/`unpack` and `point`/`morphism`/`pointed` annotations are not decoded
+on this path. Use `{kind:"indexed_pack",package:Type,witness:Expr,fields:[Expr],span}`
+and `{kind:"unpack_fields",value:Expr,witness:String,fields:[String],span}`.
+The protocol-7 legacy-geometry syntax bridge and stdlib migration remain pending;
+the existing protocol-2–6 compatibility path is preserved.
+
+Declarations, rich types/bodies and the envelope reject unknown fields. No
+serialized owner, winner, lifted lambda ID, certificate or checked Core can enter
+acceptance. Older package versions reject `indexed_declarations`; flat protocol 2
+also rejects that semantic field rather than ignoring it as unrelated metadata.
+
+`Indexed.Wire.check` retains the exact decode and actual
+`Indexed.AuthoritySource.checkProgram` result. The actual authority assembler,
+all-key footprints, every applied/unapplied body, independent Fn audits and both
+Core checks therefore run before success. `emit` passes that exact executable
+Core to `Indexed.Core.Codegen.generate`, which independently rechecks it.
+See [source syntax and limitations](indexed-source.md).

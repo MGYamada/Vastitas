@@ -15,6 +15,7 @@ use std::path::{Path, PathBuf};
 pub(crate) const PROTOCOL: u32 = 3;
 pub(crate) const EDIT_PROTOCOL: u32 = 5;
 pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
+pub(crate) const INDEXED_PROTOCOL: u32 = 7;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Grant {
@@ -107,6 +108,10 @@ pub(crate) struct Module {
     pub functions: Vec<Public<Function>>,
     pub generics: Vec<Public<Generic>>,
     pub methods: Vec<Method>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub indexed_declarations: Vec<Public<crate::indexed::Declaration>>,
+    #[serde(skip)]
+    pub uses_indexed: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub abstract_types: Vec<Public<AbstractType>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -458,8 +463,15 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     let extended = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
         !m.abstract_types.is_empty() || !m.subtypes.is_empty() || !m.abstract_methods.is_empty()
     });
+    let indexed = loader
+        .packages
+        .iter()
+        .flat_map(|p| &p.modules)
+        .any(|m| m.uses_indexed);
     let program = Program {
-        version: if authority {
+        version: if indexed {
+            INDEXED_PROTOCOL
+        } else if authority {
             AUTHORITY_PROTOCOL
         } else if editable {
             EDIT_PROTOCOL
@@ -468,7 +480,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         } else {
             PROTOCOL
         },
-        input: (extended || editable).then(|| "package".into()),
+        input: (indexed || extended || editable).then(|| "package".into()),
         file: root.clone(),
         root,
         packages: loader.packages,

@@ -23,6 +23,7 @@ import VastitasOracle.IndexedSourceBodies
 import VastitasOracle.IndexedFunctions
 import VastitasOracle.IndexedDispatch
 import VastitasOracle.IndexedAuthority
+import VastitasOracle.IndexedWire
 import VastitasOracle.Promotion
 import VastitasOracle.Graph
 

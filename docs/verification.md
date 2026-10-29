@@ -673,6 +673,20 @@ Public protocol-7 decoding, whole-term semantics, stdlib migration and native
 refinement remain separate; synthetic header bodies are never certified as
 the contribution implementations.
 
+`VastitasOracle.IndexedWire` now connects public protocol-7 JSON to this combined
+authority path. `reconstructed` retains the exact decoder input/result and the
+actual combined checker's acceptance equation. `checked_cores` gives typing of
+both returned passes, executable dependency order and the main contract;
+`codegen_input` identifies the exact executable Core passed to generation.
+`returned_loans` and `final_footprints` retain the actual authority guarantees.
+The underlying individual-adapter theorems above retain their narrower scope.
+Twelve direct kernel wire regressions and actual Rust-source integration tests
+cover old-envelope rejection, forged metadata, all-body checking, nominal identity,
+scope escape, nongeometric indices and nested authority composition.
+These are structural acceptance results. Whole-term indexed evaluation,
+legacy correspondence, native refinement and C-level performance remain unproved
+or unmeasured as separately recorded in the completion gate.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

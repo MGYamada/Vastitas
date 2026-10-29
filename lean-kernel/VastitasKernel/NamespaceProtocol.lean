@@ -83,7 +83,10 @@ private def assembly5 (authority : Bool) (j : Json) : Except String Namespace.As
   return { events := ← events.mapM (event5 authority), span := ← decodeSpan j }
 
 
-private def module3 (extended editable authority : Bool) (j : Json) : Except String Namespace.Module := do
+/-- Shared strict namespace-envelope decoder. Rich indexed wire inputs first
+validate their own field set and replace all bodies with empty metadata lists;
+their actual bodies are decoded and independently checked on the rich path. -/
+def decodeNamespaceModule (extended editable authority : Bool) (j : Json) : Except String Namespace.Module := do
   fields3 j (["path", "public", "span", "imports", "functions", "generics", "methods"] ++
     (if extended then ["abstract_types", "subtypes", "abstract_methods"] else []) ++
     (if editable then ["grants", "contributions", "assembly"] else []) ++
@@ -123,7 +126,7 @@ private def package3 (extended editable authority : Bool) (j : Json) : Except St
     id := {
       source := ← j.getObjValAs? String "source", name := ← j.getObjValAs? String "name",
       version := ← j.getObjValAs? String "version" }, dependencies,
-    modules := ← (← array j "modules").mapM (module3 extended editable authority) }
+    modules := ← (← array j "modules").mapM (decodeNamespaceModule extended editable authority) }
 
 def decodeNamespaceProgram (j : Json) : Except String Namespace.Program := do
   let version ← j.getObjValAs? Nat "version"

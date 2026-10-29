@@ -144,16 +144,69 @@ dependency bodies, constant branches with distinct identities, non-geometric
 token indices, object-return generativity, aliases, repeated unpacking, multiple
 heterogeneous fields, repacking and forged origins/call records. Three additional
 standalone native fixtures now start with these unresolved source AST bodies
-and return `2`, a large arbitrary-precision integer, and `3`. There are ten native
-fixtures in total; generated executables still import only IndexedRuntime.
+and return `2`, a large arbitrary-precision integer, and `3`. These bring the native
+fixtures to ten before the Fn extension below; executables import only IndexedRuntime.
 These are internal AST tests, not Rust-parsed `.vast` fixtures.
 
 The adapter explicitly rejects old function bodies, generic/method/abstract
 metadata and edit/authority envelopes whose checks it cannot yet compose.
-It has no Fn expressions or specialization. Public protocols 2–6 retain the
+It has no Fn expressions or specialization; the separate adapter below extends
+the internal syntax. Public protocols 2–6 retain the
 existing complete function/dispatch/authority path; protocol 7 is still not
-accepted. Rust/wire integration, complete Fn/finite-dispatch/edit composition,
+accepted. Rust/wire integration, complete finite-dispatch/edit composition,
 stdlib declarations, whole-term evaluation and native refinement remain open.
+
+### Internal independent functions and static specialization
+
+`IndexedFunctionSource` adds an internal source AST for named function values,
+independent lambdas, invocation and recursive `Fn` signatures. Data annotations
+reuse the same indexed declarations, exact namespace resolver and dependent Core.
+Higher-order signatures contain only Nat/Int/Bool/Unit and recursive Fn types;
+Pair and indexed types remain available in direct data calls and local bodies.
+Generic families are not Fn values. This is not a public wire format.
+
+The backend reconstructs source IDs and lifted lambda IDs from the enclosing
+package/module and traversal, independently audits their provenance, and rejects
+frontend-supplied lifted references. The lambda scope audit traverses indexed
+annotations and every ordered package field as well as expressions. Capturing
+outer data or Fn bindings and shadowing enclosing bindings remain invalid.
+Signature preparation preserves every original and lifted definition identity.
+
+`IndexedFunctionCompiler` uses separate states for signature-probe and executable
+specialization. The audit pass checks every definition, including unused
+higher-order functions and lambdas; coverage is independently rechecked. Probes
+are scalar/Fn signature placeholders and never executable targets. Concrete
+specializations preserve exact Fn signatures; differing function targets across
+branches are rejected without constant folding. There are at most 4,096 higher-
+order/lambda instances in each pass. Ordinary dependency traversal uses a bounded
+worklist separate from body fuel and rejects recursion after specialization.
+
+Each executable instance records its original definition, static target tuple,
+canonical owner and complete data signature. Calls preserve argument evaluation
+order and evaluate every argument once, including erased Fn arguments. Private
+functions may be intentionally returned by public functions, but direct access
+still requires namespace visibility. Entry validity is checked before erasing Fn
+parameters, so a malformed source `main` cannot become a valid scalar entrypoint.
+Both passes undergo independent common-Core typing, freshness and dependency
+audits; only the executable pass reaches native generation.
+
+`VastitasOracle.IndexedFunctions` connects the exact source/declaration/lifting/
+preparation/pass equations to both returned typed Core modules. It proves every
+original source function and lifted definition has a typed audit instance,
+executable static targets are concrete, their signatures match the original
+definitions, emitted call IDs identify their exact specialization keys, and
+recorded source calls resolve through the actual namespace. These are structural
+acceptance guarantees, not source evaluation preservation or typed termination.
+
+Fifty-five cases cover capture, shadowing, unused bodies, malformed signatures,
+private targets, probe separation, branch targets, nominal scope escape, forged
+metadata, the 4,096/4,097 boundary and a 4,200-function dependency chain. Four more
+standalone native fixtures exercise higher-order/lambda execution, indexed local
+operations, a returned private function and ordered package fields. All fourteen
+fixtures link only the minimal runtime. Finite dispatch/all-applicable-body and
+edit-authority composition, Rust/public protocol 7, stdlib geometry declarations
+and whole-term evaluation proofs remain pending. Unsupported old dispatch/edit
+envelopes are explicitly rejected rather than accepted with omitted checks.
 
 ## Indexed applications and scopes
 

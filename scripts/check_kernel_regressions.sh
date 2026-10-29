@@ -20,4 +20,5 @@ lake -d lean-kernel build \
   VastitasKernel.IndexedSourceRegression \
   VastitasKernel.IndexedSourceTypeRegression \
   VastitasKernel.IndexedSourceBodyRegression \
+  VastitasKernel.IndexedFunctionRegression \
   VastitasPromotion.Regression

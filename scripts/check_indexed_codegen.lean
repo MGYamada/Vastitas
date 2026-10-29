@@ -4,6 +4,7 @@ import VastitasKernel.IndexedPackageSemanticRegression
 import VastitasKernel.IndexedSourceRegression
 import VastitasKernel.IndexedSourceTypeRegression
 import VastitasKernel.IndexedSourceBodyRegression
+import VastitasKernel.IndexedFunctionRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -21,6 +22,15 @@ def main (arguments : List String) : IO Unit := do
     let .ok checked := VastitasKernel.Indexed.Source.Bodies.checkProgram program true
       | throw (IO.userError s!"fixture {name} failed source body checking")
     bodies := bodies ++ [(name, checked.core.module)]
+  for (name, program) in [
+      ("functions", VastitasKernel.Indexed.FunctionSource.Regression.higherFixture),
+      ("function_objects", VastitasKernel.Indexed.FunctionSource.Regression.indexedLambdaFixture),
+      ("function_private", VastitasKernel.Indexed.FunctionSource.Regression.privateTargetFixture),
+      ("function_fields", VastitasKernel.Indexed.FunctionSource.Regression.dataProgram
+        VastitasKernel.Indexed.Source.BodyRegression.multipleFixture)] do
+    let .ok checked := VastitasKernel.Indexed.FunctionSource.Compiler.checkProgram program true
+      | throw (IO.userError s!"fixture {name} failed source Fn checking")
+    bodies := bodies ++ [(name, checked.executable.core.module)]
   for (name, module) in [("package", Regression.packageFixture),
       ("primitives", Regression.primitiveFixture), ("scalar", Regression.scalarFixture),
       ("global_witness", PackageSemanticRegression.globalWitnessFixture),

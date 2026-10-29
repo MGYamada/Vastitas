@@ -3,23 +3,25 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
-lake -d lean-kernel build VastitasKernel.IndexedCoreRegression VastitasKernel.IndexedPackageSemanticRegression VastitasKernel.IndexedSourceRegression VastitasKernel.IndexedSourceTypeRegression VastitasKernel.IndexedSourceBodyRegression VastitasKernel.IndexedCodegen VastitasKernel.IndexedRuntime:c.o
+lake -d lean-kernel build VastitasKernel.IndexedCoreRegression VastitasKernel.IndexedPackageSemanticRegression VastitasKernel.IndexedSourceRegression VastitasKernel.IndexedSourceTypeRegression VastitasKernel.IndexedSourceBodyRegression VastitasKernel.IndexedFunctionRegression VastitasKernel.IndexedCodegen VastitasKernel.IndexedRuntime:c.o
 (cd lean-kernel && lake env lean --run ../scripts/check_indexed_codegen.lean "$work")
 # Compile the runtime and generated modules directly. No compiler, oracle or
 # mathlib module is present in the executable dependency graph.
-for fixture in package primitives scalar global_witness multiple_fields source_declarations source_types source_bodies source_scalars source_fields; do
+for fixture in package primitives scalar global_witness multiple_fields source_declarations source_types source_bodies source_scalars source_fields functions function_objects function_private function_fields; do
   (cd lean-kernel && lake env lean -R "$work" -c "$work/$fixture.c" "$work/$fixture.lean")
   (cd lean-kernel && lake env leanc "$work/$fixture.c" .lake/build/ir/VastitasKernel/IndexedRuntime.c.o.export -o "$work/$fixture")
   actual=$("$work/$fixture")
   case "$fixture" in
     package|source_bodies) expected=2 ;;
-    primitives) expected=42 ;;
+    primitives|functions) expected=42 ;;
     scalar|source_scalars) expected=999999999999999999999999999999999999999997 ;;
     global_witness|multiple_fields) expected=0 ;;
     source_declarations) expected=7 ;;
     source_types) expected=13 ;;
-    source_fields) expected=3 ;;
+    source_fields|function_fields) expected=3 ;;
+    function_objects) expected=10 ;;
+    function_private) expected=9 ;;
   esac
   test "$actual" = "$expected" || { echo "$fixture: expected $expected, got $actual" >&2; exit 1; }
 done
-echo 'indexed Core: 10 standalone native fixtures passed'
+echo 'indexed Core: 14 standalone native fixtures passed'

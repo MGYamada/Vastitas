@@ -19,6 +19,18 @@ the ordinary reserved-name checks. This grants no additional edit authority. -/
 def moduleName (name : String) (span : Span) : Result Unit :=
   if name == "generic" then pure () else sourceName name span
 
+/-- Compatibility spellings may name actual indexed declarations. They do not
+select a declaration kind, representation, or operation. Scalar/Fn/Pair and
+language keywords remain reserved. Public protocols 2–6 cannot create this kind. -/
+def indexedSpelling (name : String) : Bool :=
+  ["Scheme", "CInfScheme", "Point", "Morphism", "Pointed", "QQ", "CInfReal",
+    "Affine", "Base", "origin", "id", "compose", "apply", "dimension"].contains name
+
+def declarationName (kind : Kind) (name : String) (span : Span) : Result Unit :=
+  if kind == .module then moduleName name span
+  else if kind == .indexedDeclaration && indexedSpelling name then pure ()
+  else sourceName name span
+
 def packageAt (p : Indexed) (source : String) : Option Package :=
   p.packages.find? (·.id.source == source)
 
@@ -200,13 +212,18 @@ def validate (p : Indexed) : Result Unit := do
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
       if !names.Nodup then problem m.span "E_DUPLICATE" "declaration, import, or dependency alias collision"
       for decl in declarations do
-        if decl.kind == .module then moduleName decl.owner.name m.span
-        else sourceName decl.owner.name m.span
+        declarationName decl.kind decl.owner.name m.span
       for entry in m.imports do
-        sourceName entry.alias entry.span
+        -- Keep the legacy diagnostic order unless an indexed spelling can be
+        -- resolved in this declaration-aware namespace. The target is still
+        -- checked below, so a function cannot acquire a reserved alias.
+        if !(indexedSpelling entry.alias &&
+            p.declarations.any (·.kind == .indexedDeclaration)) then
+          sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
-        let _ ← (memberAt Limits.namespaceResolution p scope scope entry.alias [] entry.span).run Limits.namespaceResolution
-        pure ()
+        let (target, _) ← (memberAt Limits.namespaceResolution p scope scope entry.alias [] entry.span).run Limits.namespaceResolution
+        declarationName (if target.kind == .indexedDeclaration then target.kind else .function)
+          entry.alias entry.span
 
 structure Reference where
   scope : Scope

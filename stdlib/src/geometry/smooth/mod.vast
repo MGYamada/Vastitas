@@ -1,0 +1,22 @@
+// Smooth affine geometry over CInfReal. No general manifold claims are implied.
+pub indexed marker CInfReal;
+pub indexed implementation GridSmooth(CInfReal, affine_descriptor) capabilities(origin, dimension);
+pub indexed classification CInfScheme { parents(super::Objects); domain(GridSmooth); };
+pub indexed global BaseSmooth(GridSmooth);
+
+pub use super::Point;
+pub use super::Morphism;
+pub use super::Pointed;
+pub use super::compose;
+pub use super::apply;
+
+pub indexed primitive Affine = descriptor(GridSmooth);
+pub indexed primitive base = global(BaseSmooth);
+pub indexed primitive origin = origin((CInfScheme, CInfReal), Point, BaseSmooth);
+pub indexed primitive id = identity((CInfScheme, CInfReal), Morphism);
+pub indexed primitive dimension = dimension((CInfScheme, CInfReal));
+
+pub fn pointed(n: Nat) -> self::Pointed<CInfScheme, CInfReal> {
+    let X: Object<CInfScheme, CInfReal> = Affine(n);
+    pack self::Pointed<CInfScheme, CInfReal> { witness: X, fields: [origin(X)] }
+}

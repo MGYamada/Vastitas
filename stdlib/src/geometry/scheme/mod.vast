@@ -1,0 +1,22 @@
+// Ordinary affine geometry over QQ. These are finite implementation contracts.
+pub indexed marker QQ;
+pub indexed implementation GridQQ(QQ, affine_descriptor) capabilities(origin, dimension);
+pub indexed classification Scheme { parents(super::Objects); domain(GridQQ); };
+pub indexed global BaseQQ(GridQQ);
+
+pub use super::Point;
+pub use super::Morphism;
+pub use super::Pointed;
+pub use super::compose;
+pub use super::apply;
+
+pub indexed primitive Affine = descriptor(GridQQ);
+pub indexed primitive base = global(BaseQQ);
+pub indexed primitive origin = origin((Scheme, QQ), Point, BaseQQ);
+pub indexed primitive id = identity((Scheme, QQ), Morphism);
+pub indexed primitive dimension = dimension((Scheme, QQ));
+
+pub fn pointed(n: Nat) -> self::Pointed<Scheme, QQ> {
+    let X: Object<Scheme, QQ> = Affine(n);
+    pack self::Pointed<Scheme, QQ> { witness: X, fields: [origin(X)] }
+}

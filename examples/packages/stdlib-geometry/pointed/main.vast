@@ -1,0 +1,21 @@
+// Declaration-driven counterpart of examples/pointed.vast.
+use std::geometry::scheme as scheme;
+
+fn make_origin(n: Nat) -> scheme::Pointed<scheme::Scheme, scheme::QQ> {
+    let X = scheme::Affine(n);
+    pack scheme::Pointed<scheme::Scheme, scheme::QQ> { witness: X, fields: [scheme::origin(X)] }
+}
+
+fn preserve(X: Object<scheme::Scheme, scheme::QQ>, p: scheme::Point<X, scheme::BaseQQ>) -> scheme::Point<X, scheme::BaseQQ> {
+    scheme::apply(scheme::compose(scheme::id(X), scheme::id(X)), p)
+}
+
+fn main() -> Int {
+    let problem = make_origin(3);
+    unpack problem as { witness: X, fields: [x] };
+    let y: scheme::Point<X, scheme::BaseQQ> = preserve(X, x);
+    let repacked = pack scheme::Pointed<scheme::Scheme, scheme::QQ> { witness: X, fields: [y] };
+    unpack repacked as { witness: Y, fields: [z] };
+    let checked_again = scheme::apply(scheme::id(Y), z);
+    if scheme::dimension(Y) == 3 { 42 } else { 0 }
+}

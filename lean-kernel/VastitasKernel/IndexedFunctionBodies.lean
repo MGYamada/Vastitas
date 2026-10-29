@@ -45,7 +45,7 @@ private def callableData (type : Surface.TypeExpr) (span : Span) : M (Option Cor
 
 mutual
   def expression : Nat → Input → Namespace.Scope → Context → Expr → Option Core.DataType → M Value
-    | 0, _, _, _, expr, _ => error expr.span "E_LIMIT" "function body exceeds the checking budget"
+    | 0, _, _, _, expr, _ => checkingBudgetExceeded expr.span
     | fuel + 1, input, scope, ctx, expr, expected => do
       let span := expr.span
       let value ← match expr with
@@ -122,7 +122,7 @@ mutual
           let reference ← match yes.result.type with
             | .object type =>
               if yes.result.reference == no.result.reference then pure yes.result.reference
-              else pure (some (.local type (← fresh)))
+              else some <$> body (Source.Bodies.freshObject type span "if merge of distinct objects")
             | _ => pure none
           pure ⟨.branch condition yes no ⟨yes.result.type, reference⟩, selected⟩
       | .block value _ => block fuel input scope ctx value expected
@@ -138,15 +138,16 @@ mutual
               pure (application, ← data (← expression fuel input scope ctx witness (some (.object shape.witnessType))) span)
           let fields ← fields.mapM fun field => do data (← expression fuel input scope ctx field none) span
           unless Core.Typing.PackageTyping input.body.declarations application witness.result (fields.map Core.Term.result) do
-            error span "E_ENDPOINT" "package fields do not match the exact witness and ordered field contract"
+            body (Source.Bodies.endpointFailure input.body (witness.result :: fields.map Core.Term.result) span
+              "package fields do not match the exact witness and ordered field contract")
           pure ⟨.pack application witness fields, none⟩
       expect input expected value span
 
   def call : Nat → Input → Namespace.Scope → Context → Source.Path → List Expr → Span → M Value
-    | 0, _, _, _, _, _, span => error span "E_LIMIT" "call exceeds the checking budget"
+    | 0, _, _, _, _, _, span => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, path, arguments, span => do
       if path.path == ["int"] then
-        let [argument] := arguments | error span "E_ARITY" "int expects one argument"
+        let [argument] := arguments | error span "E_ARITY" s!"int expects 1 argument, found {arguments.length}"
         return ⟨.natToInt (← data (← expression fuel input scope ctx argument (some (.pure .nat))) span), none⟩
       if path.path == ["pair"] then
         let [first, second] := arguments | error span "E_ARITY" "pair expects two arguments"
@@ -205,7 +206,8 @@ mutual
       invokeDefinition fuel input scope ctx id arguments span
 
   def invokeDefinition : Nat → Input → Namespace.Scope → Context → Nat → List Expr → Span → M Value
-    | 0, _, _, _, _, _, span => error span "E_LIMIT" "invocation exceeds the checking budget"
+    | 0, _, _, _, _, _, span => error span "E_LIMIT"
+        s!"too many function arguments for the remaining checking budget of {Limits.bodyChecking} units (statements, nesting, and call arguments)"
     | fuel + 1, input, scope, ctx, id, arguments, span => do
       let definition ← prepared input id span
       let parameters := definition.definition.function.params.zip definition.context
@@ -215,7 +217,7 @@ mutual
 
   def argumentsFor : Nat → Input → Namespace.Scope → Context → List (Param × Source.Binding) → List Expr →
       List (ObjectRef × ObjectRef) → Span → M (List Value × List Target × List (ObjectRef × ObjectRef))
-    | 0, _, _, _, _, _, _, span => error span "E_LIMIT" "arguments exceed the checking budget"
+    | 0, _, _, _, _, _, _, span => checkingBudgetExceeded span
     | _ + 1, _, _, _, [], [], substitution, _ => pure ([], [], substitution)
     | fuel + 1, input, scope, ctx, (parameter, formal) :: parameters, argument :: arguments, substitution, span => do
         let expected := match parameter.type with | .data _ => some (formal.parameter.result.type.rename substitution) | .function _ => none
@@ -236,7 +238,7 @@ mutual
     | _, _, _, _, _, _, _, span => error span "E_ARITY" "wrong function argument count"
 
   def invokeTarget : Nat → Input → Namespace.Scope → Context → Target → List Expr → Span → M Value
-    | 0, _, _, _, _, _, span => error span "E_LIMIT" "Fn invocation exceeds the checking budget"
+    | 0, _, _, _, _, _, span => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, selected, arguments, span => do
       recordTarget selected selected.signature
       match selected.name with
@@ -256,15 +258,14 @@ mutual
           return wrap bindings (← probeResult resultType span)
 
   def block : Nat → Input → Namespace.Scope → Context → Block → Option Core.DataType → M Value
-    | 0, _, _, _, .mk _ _ span, _ => error span "E_LIMIT" "block exceeds the checking budget"
+    | 0, _, _, _, .mk _ _ span, _ => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, .mk statements result span, expected => do
         let value ← statementsThen fuel input scope ctx statements result expected span
-        unless value.term.result.type.Scoped (Core.Typing.contextRefs ctx.data.core) do
-          error span "E_ESCAPE" "block result contains a local object index; package its witness and fields"
+        body (Source.Bodies.checkEscape input.body ctx.data value.term.result.type span)
         return { value with term := .scope value.term }
 
   def statementsThen : Nat → Input → Namespace.Scope → Context → List Stmt → Expr → Option Core.DataType → Span → M Value
-    | 0, _, _, _, _, _, _, span => error span "E_LIMIT" "statements exceed the checking budget"
+    | 0, _, _, _, _, _, _, span => checkingBudgetExceeded span
     | fuel + 1, input, scope, ctx, [], result, expected, _ => expression fuel input scope ctx result expected
     | fuel + 1, input, scope, ctx, .letE name type value span :: rest, output, expected, blockSpan => do
         body (Source.Bodies.bindName input.body scope ctx.data name span)
@@ -273,6 +274,7 @@ mutual
         if let some type := type then checkAnnotation type value span
         let term := match hint with | some type => Core.Term.ascribe type value.term | none => value.term
         let symbol ← fresh
+        body (Source.Bodies.nameObject term.result.reference name)
         let inner := ctx ++ [⟨⟨name, ⟨symbol, term.result⟩, span⟩, value.target⟩]
         let value ← statementsThen fuel input scope inner rest output expected blockSpan
         return { value with term := .letE symbol term value.term }
@@ -284,6 +286,7 @@ mutual
         body (Source.Bodies.bindName input.body scope ctx.data witness span)
         let symbol ← fresh
         let reference := ObjectRef.local shape.witnessType symbol
+        body (Source.Bodies.rememberObject reference span "unpack" (some witness))
         let mut inner : Context := ctx ++ [⟨⟨witness, ⟨symbol, ⟨.object shape.witnessType, some reference⟩⟩, span⟩, none⟩]
         let mut symbols := []
         for (name, application) in fields.zip (shape.instantiate reference) do
@@ -292,8 +295,7 @@ mutual
           symbols := symbols ++ [field]
           inner := inner ++ [⟨⟨name, ⟨field, ⟨.indexed application, none⟩⟩, span⟩, none⟩]
         let valueBody ← statementsThen fuel input scope inner rest output expected blockSpan
-        unless valueBody.term.result.type.Scoped (Core.Typing.contextRefs ctx.data.core) do
-          error span "E_ESCAPE" "unpack result contains the opened witness; repack it before returning"
+        body (Source.Bodies.checkEscape input.body ctx.data valueBody.term.result.type span)
         return { valueBody with term := .unpack symbol symbols value valueBody.term }
 end
 

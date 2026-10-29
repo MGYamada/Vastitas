@@ -2,8 +2,12 @@
 
 Stage 1b extends the scalar/geometry core and [Stage 1a dispatch](stage1a.md)
 with capture-free function values. It does not complete historical Stage 1.
-Abstract types/method contracts, function editing, borrowing, storage ownership
-and linear algebra remain later work. Tracking: [#50](https://github.com/MGYamada/Vastitas/issues/50).
+Later increments added abstract selectors/contracts, edit borrowing and authority
+transfer. Storage ownership and linear algebra remain pending. All public wire
+versions now use the common declaration-driven function/dispatch/authority checker;
+see [the compatibility boundary](indexed-declarations.md#compatibility-adapter-for-protocols-26).
+The historical implementation details below describe the retained Stage 1b
+lowering API and its proofs, not the current public acceptance path. Tracking: [#50](https://github.com/MGYamada/Vastitas/issues/50).
 
 ## Syntax and values
 

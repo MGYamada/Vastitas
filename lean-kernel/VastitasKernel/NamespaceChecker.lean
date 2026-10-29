@@ -1,5 +1,6 @@
 import VastitasKernel.Namespace
 import VastitasKernel.FunctionChecker
+import VastitasKernel.Distinct
 
 namespace VastitasKernel.Namespace
 open Surface
@@ -123,7 +124,11 @@ def symbol (p : Program) (target : Target) : String :=
 def UniqueOwners (p : Indexed) : Prop :=
   (p.declarations.map (·.owner)).Nodup
 
-instance (p : Indexed) : Decidable (UniqueOwners p) := inferInstanceAs (Decidable (List.Nodup _))
+/-- The proposition remains list distinctness; the executable decision uses the
+shared, proved hash-set audit instead of comparing every pair of owners. -/
+instance (p : Indexed) : Decidable (UniqueOwners p) :=
+  decidable_of_iff (Finite.distinct (p.declarations.map (·.owner)) = true)
+    (Finite.distinct_iff _)
 
 def graphVisit : Nat → Indexed → String → List String → StateT (Std.HashSet String) Result Unit
   | 0, _, _, _ => problem {} "E_LIMIT" s!"dependency graph exceeds the {Limits.dependencyGraph}-unit budget"
@@ -186,18 +191,18 @@ def validate (p : Indexed) : Result Unit := do
       !m.abstractTypes.isEmpty || !m.subtypes.isEmpty || !m.abstractMethods.isEmpty) then
     problem {} "E_PROTOCOL" "abstract declarations require protocol 4"
   if p.packages.isEmpty || (packageAt p p.root).isNone then problem {} "E_PROTOCOL" "missing root package"
-  if !(p.packages.map (·.id.source)).Nodup then problem {} "E_DUPLICATE" "duplicate package location"
-  if !p.scopes.Nodup then
+  if !Finite.distinct (p.packages.map (·.id.source)) then problem {} "E_DUPLICATE" "duplicate package location"
+  if !Finite.distinct p.scopes then
     problem (duplicateSpan (p.packages.flatMap fun pkg =>
       pkg.modules.map fun m => (Scope.mk pkg.id m.path, m.span))) "E_DUPLICATE" "duplicate logical module"
   if !UniqueOwners p then problem (duplicateSpan (ownerLocations p)) "E_DUPLICATE" "duplicate declaration owner"
-  if !(p.declarations.map (symbol p.toProgram)).Nodup then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
+  if !Finite.distinct (p.declarations.map (symbol p.toProgram)) then problem {} "E_DUPLICATE" "conflicting generated declaration identities"
   validateGraph p
   for pkg in p.packages do
     if pkg.id.name.isEmpty || pkg.id.source.isEmpty || !validVersion pkg.id.version then
       problem {} "E_PROTOCOL" "invalid package name, location or SemVer version"
     if !(pkg.modules.any (·.path.isEmpty)) then problem {} "E_PROTOCOL" "package has no root module"
-    if !(pkg.dependencies.map (·.alias)).Nodup then problem {} "E_DUPLICATE" "duplicate dependency alias"
+    if !Finite.distinct (pkg.dependencies.map (·.alias)) then problem {} "E_DUPLICATE" "duplicate dependency alias"
     for dep in pkg.dependencies do
       sourceName dep.alias {}
       if dep.alias == "package" then problem {} "E_RESERVED" "package is reserved as a path prefix"
@@ -210,7 +215,7 @@ def validate (p : Indexed) : Result Unit := do
         problem m.span "E_NAME" "module has no declared parent"
       let declarations := p.byScope[scope]?.getD []
       let names := declarations.map (·.owner.name) ++ m.imports.map (·.alias) ++ pkg.dependencies.map (·.alias)
-      if !names.Nodup then problem m.span "E_DUPLICATE" "declaration, import, or dependency alias collision"
+      if !Finite.distinct names then problem m.span "E_DUPLICATE" "declaration, import, or dependency alias collision"
       for decl in declarations do
         declarationName decl.kind decl.owner.name m.span
       for entry in m.imports do

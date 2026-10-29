@@ -10,8 +10,10 @@ The [geometry stdlib](../stdlib/src/geometry/README.md) exposes `std::geometry::
 and `std::geometry::smooth` through `stdlib`, declaring the finite ordinary/smooth
 affine profile through this path. An explicit checked `geometry_compat` library
 export maps legacy syntax to those same declarations. This does not complete
-#49/#58–63: whole-term/legacy semantic correspondence remains pending. Protocols 2–6 and explicit `--lib` retain their existing geometry
-syntax and checked compatibility lowering. Storage ownership, numerical arrays
+#49/#58–63: whole-term/legacy semantic correspondence remains pending. Protocols 2–6
+and explicit `--lib` retain their existing geometry syntax and wire formats.
+`Indexed.LegacySource` adapts their decoded source into this same common checker
+with a separately validated closed compatibility declaration package. Storage ownership, numerical arrays
 and performance evidence remain separate pending work.
 
 ## Legacy geometry syntax in packages
@@ -41,7 +43,8 @@ continues to work and legacy syntax fails with the exact-one-export diagnostic.
 This supports independent copies without collapsing nominal package identities.
 Profile resolution has no generated runtime operation. Whole-term evaluation,
 legacy semantic correspondence and C performance measurements remain separate
-obligations; protocols 2–6 still use their existing legacy elaboration path.
+obligations. Protocols 2–6 use the source adapter described in
+[indexed declarations](indexed-declarations.md#compatibility-adapter-for-protocols-26).
 
 ## Declarations and source example
 

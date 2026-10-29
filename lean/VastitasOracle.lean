@@ -17,6 +17,14 @@ import VastitasOracle.IndexedCore
 import VastitasOracle.LegacyIndexed
 import VastitasOracle.IndexedSemantics
 import VastitasOracle.IndexedPackageSemantics
+import VastitasOracle.IndexedEvaluation
+import VastitasOracle.IndexedWorld
+import VastitasOracle.IndexedValueSafety
+import VastitasOracle.IndexedEvaluationSafety
+import VastitasOracle.IndexedFunctionSafety
+import VastitasOracle.IndexedCallTransport
+import VastitasOracle.IndexedArgumentSafety
+import VastitasOracle.IndexedProgramSafety
 import VastitasOracle.IndexedSource
 import VastitasOracle.IndexedSourceTypes
 import VastitasOracle.IndexedSourceBodies

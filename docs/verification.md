@@ -771,8 +771,10 @@ to both typed Core passes, dependency order, entrypoint validation, returned edi
 loans, final footprints and body coverage. It also connects the validated profile
 to the one used by the actual function compiler. Thirteen adapter regressions
 exercise all supported old envelopes and profile injection boundaries. These
-checks do not establish whole-term evaluation preservation. They do not extend
-the retained legacy evaluation theorems to the indexed compiler.
+structural checks alone do not establish evaluation preservation. The new
+`LegacySource` totality corollaries below concern their exact returned indexed
+Core; they do not extend the retained legacy evaluator's result-correspondence
+theorems to the current compiler.
 
 Indexed signatures now use a once-per-module hash table. The oracle's
 `IndexedSignatures` lemmas establish actual member/absent/target correspondence.
@@ -792,9 +794,10 @@ shared middle reference denotes the same runtime object on both sides.
 `primitive_runtime_erasure` connects successful logical registry evaluation to
 the actual minimal runtime operations. The bounded Core evaluator and twenty
 regressions test the same source-independent fixtures as native generation, but
-are not whole-program proofs. The unpack body, dependent calls, allocation
-freshness through full evaluation, legacy translation and generated native
-code still need their correspondence theorems. The new operation lemmas do not
+are not whole-program proofs. The term/function/program theorem below supplies
+typed total evaluation, dependent-call transport and allocation freshness from
+the actual module audits. Legacy translation and generated native code still
+need their correspondence theorems. The operation lemmas do not
 extend the retained legacy whole-program theorems to the indexed backend.
 
 `VastitasOracle.IndexedSubstitution` proves validity under reference maps that
@@ -806,8 +809,71 @@ including global witnesses, explicit globals, token indices and ordered fields.
 Its `core_pack_semantics` and `core_opening_semantics` use the exact declaration
 lookup and association of actual typed Core nodes. Runtime operand typing and
 fresh dynamic slots are explicit premises. Eleven kernel regressions and two
-additional native fixtures support this increment; full evaluation, lexical
-body/activation safety and backend refinement remain separate obligations.
+additional native fixtures support that operation-level increment; the later
+program theorem below composes it through lexical bodies and activations.
+Backend refinement remains a separate obligation.
+
+<a id="conditional-indexed-term-and-function-evaluation"></a>
+
+### Indexed term, function and checked-program evaluation
+
+`IndexedEvaluation.Evaluates` is an equation about the actual
+`Indexed.Core.Semantics.eval`: it provides a finite bound and the same value at
+every larger observation fuel. It is not a second interpreter or an assumption
+that evaluation succeeds. `IndexedEvaluationSafety.evaluation_total_and_typed`
+proves this property by structural induction over every actual Core constructor,
+including branches, argument sequencing, primitives, calls, pairs, let bindings,
+packing, unpack bodies and scopes. Its premises are actual `HasType`, a valid
+declaration environment, a typed value context, unique fresh allocation slots,
+and an explicit `CallReturns` contract for every called function.
+
+The conclusion includes result typing, world extension and an exact allocation
+frame: slots outside the term's `allocatedSerials` remain unchanged. This frame
+and the real numeric uniqueness audit preserve freshness during sequential
+evaluation. Descriptor primitives expose their exact world update; branch
+rebranding and package opening obey the same frame discipline. Field binding
+uses the actual ordered `bindFields` operation and preserves the enclosing
+context. Explicit globals are retained through the existing template-based
+package transport.
+
+`IndexedFunctionSafety.checked_function_returns_under_calls` consumes a member
+of the actual `CheckedModule`. It derives a fresh activation by restricting the
+world to parameter slots, evaluates the body, applies the declared result
+compatibility and uses the checked return scope to discard local allocations.
+It requires no freshness or injectivity premise on the ambient world.
+`checked_call_free_function_returns` discharges the callee premise for functions
+whose actual body has no calls.
+
+`IndexedCallTransport` transports indexed values through actual reference
+substitution. It uses the same runtime object on both sides, allowing a narrower
+actual finite domain than the formal parameter domain. It does not assume equal
+type metadata. Points and morphisms retain both endpoints; tokens retain all
+object-index obligations. Valid existential package indices are fixed by call
+substitution. `IndexedArgumentSafety.call_activation` uses the actual
+`bindArguments`, checked parameter scopes, and `FinalArgumentsMatch` to construct
+a typed callee environment and the required reference correspondence. The
+declared return scope transports the result back to the caller; object results
+receive the caller's fresh audited slot.
+
+`IndexedProgramSafety.checked_functions_total_and_typed` discharges every
+`CallReturns` premise by induction over the actual `Dependency.OrderedFrom`
+certificate obtained from `CheckedModule.ordered`. The real signature table and
+runtime function lookup resolve to the same unique declaration. Every function
+therefore has finite typed evaluation for every typed parameter environment,
+without a callee-safety, evaluator-success or ambient-freshness assumption.
+`checked_main_total` proves finite Int-valued evaluation of the accepted main.
+
+`IndexedWire.executable_functions_total`, `audit_functions_total` and `main_total`
+apply those theorems to the exact Core modules returned from protocol 7.
+`LegacySource` exposes the same three corollaries for protocols 2–6. Their
+`coreInput` equations tie the proofs to the same executable Core passed to native
+generation, and to the audit Core that also includes unapplied/unused bodies.
+
+These are theorems about the actual indexed Core evaluator, not equality with a
+source interpreter or the retained legacy evaluator, native-code refinement,
+storage safety, mathematical geometric axioms or numerical accuracy. Legacy
+result correspondence and native refinement remain open; typed totality does not
+complete the historical Stage 1 plan or establish Fast like C.
 
 ## Geometry standard-library migration regressions
 

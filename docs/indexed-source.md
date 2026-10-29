@@ -10,7 +10,7 @@ The [geometry stdlib](../stdlib/src/geometry/README.md) exposes `std::geometry::
 and `std::geometry::smooth` through `stdlib`, declaring the finite ordinary/smooth
 affine profile through this path. An explicit checked `geometry_compat` library
 export maps legacy syntax to those same declarations. This does not complete
-#49/#58–63: whole-term/legacy semantic correspondence remains pending. Protocols 2–6
+#49/#58–63: legacy semantic correspondence and full migration acceptance remain pending. Protocols 2–6
 and explicit `--lib` retain their existing geometry syntax and wire formats.
 `Indexed.LegacySource` adapts their decoded source into this same common checker
 with a separately validated closed compatibility declaration package. Storage ownership, numerical arrays
@@ -144,8 +144,10 @@ to both typed Core passes, dependency order, main validity, returned loans and
 final winning footprints. Native code generation receives the actual executable
 Core certificate and independently rechecks that Core at its boundary.
 
-These statements establish structural acceptance, not whole-source evaluation,
-unpack/call-activation semantics, legacy translation preservation or native
-correctness. Primitive/package semantic theorems retain their separately stated
-scope. None of these proofs establishes the [Fast like C](storage-ownership.md)
+`IndexedProgramSafety` now proves typed total evaluation, including dependent
+calls and unpack bodies, for an actual checked Core module. `IndexedWire` and
+`LegacySource` expose that theorem for the exact audit/executable modules returned
+from protocols 2–7, and prove finite Int-valued main evaluation. This does not
+prove whole-source rewriting correspondence, equality with the retained legacy
+evaluator or native code-generation correctness. None of these proofs establishes the [Fast like C](storage-ownership.md)
 performance goal.

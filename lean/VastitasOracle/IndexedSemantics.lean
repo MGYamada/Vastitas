@@ -186,10 +186,17 @@ theorem primitive_morphism {env : Indexed.Environment} {world : World} {value : 
   cases value <;> simp only [PrimitiveValueHasType] at typed <;> try contradiction
   case indexed value => cases value <;> simp_all [IndexedHasType]
 
+/-- Logical world update of the closed registry. Runtime execution does not
+inspect these brands; the update records only a descriptor's declared fresh slot. -/
+def primitiveWorld (world : World) (binding : PrimitiveBinding) (output : ValueType) (value : Value) : World :=
+  match binding, output, value with
+  | .descriptor _, .object _ (.local _ brand), .object object => bindLocal world brand object
+  | _, _, _ => world
+
 def PrimitiveOutcome (env : Indexed.Environment) (world : World) (binding : PrimitiveBinding)
     (values : List Value) (output : ValueType) : Prop :=
   ∃ after value, evalPrimitive env binding values = some value ∧ WorldExtends world after ∧
-    PrimitiveValueHasType env after value output
+    PrimitiveValueHasType env after value output ∧ after = primitiveWorld world binding output value
 
 theorem descriptor_total {env : Indexed.Environment} {world : World} {implementation : DeclId}
     {allowed : List Indexed.ObjectRef} {brand : Nat} {output : ValueType} {values : List Value}
@@ -203,7 +210,7 @@ theorem descriptor_total {env : Indexed.Environment} {world : World} {implementa
   have objectTyped := descriptor_typed found valid dimension
   refine ⟨bindLocal world brand ⟨implementation, IndexedRuntime.descriptor dimension⟩,
     .object ⟨implementation, IndexedRuntime.descriptor dimension⟩, rfl,
-    bindLocal_fresh_extends world brand _ fresh, objectTyped, ?_⟩
+    bindLocal_fresh_extends world brand _ fresh, ⟨objectTyped, ?_⟩, rfl⟩
   exact bindLocal_denotes env world brand _ type objectTyped
 
 theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
@@ -218,7 +225,7 @@ theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
   obtain ⟨actual, actualFound, objectTyped⟩ := denotes.2
   have equal : actual = type := Option.some.inj (actualFound.symm.trans found)
   subst actual
-  exact ⟨world, .object object, by simp [evalPrimitive, computed], worldExtends_refl world, objectTyped, denotes⟩
+  exact ⟨world, .object object, by simp [evalPrimitive, computed], worldExtends_refl world, ⟨objectTyped, denotes⟩, rfl⟩
 
 theorem origin_total {env : Indexed.Environment} {world : World} {expected actual : ObjectType}
     {family base : DeclId} {ref : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
@@ -231,7 +238,7 @@ theorem origin_total {env : Indexed.Environment} {world : World} {expected actua
   obtain ⟨_, rfl⟩ := rule.association
   have baseValid := application_ref_valid rule.resultValid (ref := .global base) (by simp [Application.refs])
   obtain ⟨baseObject, computed, baseDenotes⟩ := global_denotes env world base baseValid
-  refine ⟨world, .indexed (.point ⟨object, baseObject⟩), ?_, worldExtends_refl world, ?_⟩
+  refine ⟨world, .indexed (.point ⟨object, baseObject⟩), ?_, worldExtends_refl world, ?_, rfl⟩
   · simp [evalPrimitive, computed]
   · exact ⟨rule.resultValid, by simpa only [rule.bindingValid.2.1] using And.intro denotes baseDenotes⟩
 
@@ -244,7 +251,7 @@ theorem identity_total {env : Indexed.Environment} {world : World} {expected act
   obtain ⟨value, rfl, operandTyped⟩ := primitive_single typed
   obtain ⟨object, rfl, _, denotes⟩ := primitive_object operandTyped
   obtain ⟨_, rfl⟩ := rule.association
-  refine ⟨world, .indexed (.morphism ⟨object, object⟩), rfl, worldExtends_refl world, rule.resultValid, ?_⟩
+  refine ⟨world, .indexed (.morphism ⟨object, object⟩), rfl, worldExtends_refl world, ⟨rule.resultValid, ?_⟩, rfl⟩
   simpa only [rule.bindingValid.2.1] using And.intro denotes denotes
 
 theorem dimension_total {env : Indexed.Environment} {world : World} {expected actual : ObjectType}
@@ -255,7 +262,7 @@ theorem dimension_total {env : Indexed.Environment} {world : World} {expected ac
   obtain ⟨value, rfl, operandTyped⟩ := primitive_single typed
   obtain ⟨object, rfl, _, _⟩ := primitive_object operandTyped
   obtain ⟨_, rfl⟩ := rule.association
-  exact ⟨world, .natural object.descriptor.dimension, rfl, worldExtends_refl world, True.intro⟩
+  exact ⟨world, .natural object.descriptor.dimension, rfl, worldExtends_refl world, True.intro, rfl⟩
 
 theorem compose_total {env : Indexed.Environment} {world : World} {family gf ff : DeclId}
     {middle target source other : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
@@ -269,7 +276,7 @@ theorem compose_total {env : Indexed.Environment} {world : World} {family gf ff 
   obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := primitive_pair typed
   obtain ⟨after, rfl, _, targetDenotes⟩ := primitive_morphism rule.bindingValid leftTyped
   obtain ⟨before, rfl, sourceDenotes, _⟩ := primitive_morphism rule.bindingValid rightTyped
-  refine ⟨world, .indexed (.morphism ⟨before.source, after.target⟩), rfl, worldExtends_refl world, rule.resultValid, ?_⟩
+  refine ⟨world, .indexed (.morphism ⟨before.source, after.target⟩), rfl, worldExtends_refl world, ⟨rule.resultValid, ?_⟩, rfl⟩
   have representation : familyRepresentation env ff = some .morphism := rule.bindingValid
   simpa only [representation] using And.intro sourceDenotes targetDenotes
 
@@ -285,7 +292,7 @@ theorem apply_total {env : Indexed.Environment} {world : World} {maps points mf 
   obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := primitive_pair typed
   obtain ⟨map, rfl, _, targetDenotes⟩ := primitive_morphism rule.bindingValid.1 leftTyped
   obtain ⟨point, rfl, _, testDenotes⟩ := primitive_point rule.bindingValid.2 rightTyped
-  refine ⟨world, .indexed (.point ⟨map.target, point.source⟩), rfl, worldExtends_refl world, rule.resultValid, ?_⟩
+  refine ⟨world, .indexed (.point ⟨map.target, point.source⟩), rfl, worldExtends_refl world, ⟨rule.resultValid, ?_⟩, rfl⟩
   simpa only [rule.bindingValid.2] using And.intro targetDenotes testDenotes
 
 /-- Every accepted registry operation has a typed runtime value. The only

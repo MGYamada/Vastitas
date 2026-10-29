@@ -126,9 +126,12 @@ unchanged. Tests for flat old inputs remain in `tests/compiler.rs`,
 PR #240 (`f2876ef`) established the common public source checker. PR #250
 (`6d1d752`) added total typed evaluation: 26 kernel regression targets,
 22 native fixtures, full oracle, 14,719-declaration axiom audit and all eight
-hosted checks passed. The final migration change adds the primitive result
-equations and strengthens the public compatibility matrix; its PR validation
-record must pass before closing #49/#58–63.
+hosted checks passed. [PR #255](https://github.com/MGYamada/Vastitas/pull/255) adds the primitive result
+equations and strengthens the public compatibility matrix. Its final validation
+record covers 252 Rust tests (including 21 geometry tests), formatting/strict
+Clippy, the 129-job kernel, 26 regression targets, 22 native fixtures, the 734-job
+oracle and the 14,749-declaration axiom audit. The PR records the exact final head,
+hosted macOS/Linux checks, review and merge; issue closure follows that merge.
 
 The trust boundary includes Rust parsing/serialization, generated source and the
 Lean/C/native toolchain. Tests exercise those boundaries; the formal guarantees

@@ -198,6 +198,12 @@ across the remaining correspondence boundary. No new unproved axiom is used.
 
 ## What is outside these claims
 
+The internal [Graph crossing checker](graph-crossings.md) has separate
+profile/port/return audits and conditional structural rewrite theorems in
+`VastitasOracle.Graph`. It does not extend these source/Core evaluation claims
+to tensor syntax. Its categorical law provider, selected-method realization,
+and bridge from `Graph.Core` to actual returned indexed terms remain pending.
+
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
 `RawProgram`) to that core does

@@ -442,3 +442,12 @@ all-key footprints, every applied/unapplied body, independent Fn audits and both
 Core checks therefore run before success. `emit` passes that exact executable
 Core to `Indexed.Core.Codegen.generate`, which independently rechecks it.
 See [source syntax and limitations](indexed-source.md).
+
+## Expected-rejection doctest consumer (reference only)
+
+The [doctest result contract](doctest-result-reference.md) for #236 separates
+ordinary language rejection from protocol, transport, and execution failure.
+It reuses the diagnostic payload above without changing this wire protocol or
+the driver's preservation of diagnostics on incompatible failure responses.
+The Python reference and fixture regressions do not implement production driver
+receipts, doctest execution, or official package admission.

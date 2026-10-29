@@ -6,7 +6,7 @@ an independently audited indexed application. The public compatibility path now
 translates its checked legacy Core into this declaration-driven Core for an
 additional independent audit and native generation. Package-only protocol 7 now
 exposes unresolved declarations and rich source bodies through the full authority
-composition; see [source syntax](indexed-source.md). The [geometry stdlib package](../stdlib/geometry/README.md)
+composition; see [source syntax](indexed-source.md). The [geometry stdlib package](../stdlib/src/geometry/README.md)
 now supplies the finite affine declarations. The legacy syntax bridge inside
 protocol 7 and whole-term/legacy semantics remain pending.
 The declaration base was merged in PR #188 (`09f9e9d`), and package/primitive
@@ -492,7 +492,7 @@ limits prevent closing #49/#58–63 at this increment.
 
 ## Geometry standard-library declarations
 
-`stdlib/geometry` is an explicit path package using the public protocol-7 source
+`stdlib/src/geometry` is an explicit path package using the public protocol-7 source
 checker. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
 finite classifications in sibling `scheme`/`smooth` modules, actual global base
 objects, shared indexed Point/Morphism families with same-base constraints, and

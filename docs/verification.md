@@ -795,5 +795,5 @@ not new mathematical or whole-term semantic theorems.
 The protocol-7 legacy syntax bridge, whole-term indexed evaluation and legacy
 semantic correspondence remain pending. General scheme/manifold mathematics,
 new representation contracts and C performance measurements are not established
-by these tests. See the [library contract](../stdlib/geometry/README.md) and
+by these tests. See the [library contract](../stdlib/src/geometry/README.md) and
 [completion ledger](stage1-completion.md).

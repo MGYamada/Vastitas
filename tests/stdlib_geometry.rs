@@ -4,25 +4,25 @@ use serde_json::{Value, json};
 use std::os::unix::fs::PermissionsExt;
 
 const LIBRARY: &[(&str, &str)] = &[
-    ("lib.vast", include_str!("../stdlib/geometry/src/lib.vast")),
+    ("mod.vast", include_str!("../stdlib/src/geometry/mod.vast")),
     (
         "scheme.vast",
-        include_str!("../stdlib/geometry/src/scheme.vast"),
+        include_str!("../stdlib/src/geometry/scheme.vast"),
     ),
     (
         "smooth.vast",
-        include_str!("../stdlib/geometry/src/smooth.vast"),
+        include_str!("../stdlib/src/geometry/smooth.vast"),
     ),
 ];
 const ENTRYPOINT: &str = include_str!("../stdlib/indexed/src/lib.vast");
-const MANIFEST: &str = include_str!("../stdlib/geometry/Vastitas.toml");
+const MANIFEST: &str = include_str!("../stdlib/src/geometry/Vastitas.toml");
 const DEMO: &str = include_str!("../examples/packages/stdlib-geometry/main.vast");
 
 fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
     let s = Scratch::empty("stdlib geometry");
     s.write("geo/Vastitas.toml", MANIFEST);
     for (name, source) in LIBRARY {
-        s.write(&format!("geo/src/{name}"), &rewrite(source));
+        s.write(&format!("geo/{name}"), &rewrite(source));
     }
     s.write("standard/src/lib.vast", ENTRYPOINT);
     s.write("standard/Vastitas.toml", &format!("[package]\nname='vastitas_std_indexed'\nversion='0.1.0'\nroot='src/lib.vast'\n[dependencies]\ngeometry_library={{path='../geo'}}\narithmetic_library={{path='{}'}}\n", common::root().join("stdlib").display()));
@@ -150,7 +150,7 @@ fn copying_the_library_package_does_not_copy_its_nominal_identity() {
     );
     s.write("other/Vastitas.toml", MANIFEST);
     for (name, source) in LIBRARY {
-        s.write(&format!("other/src/{name}"), source);
+        s.write(&format!("other/{name}"), source);
     }
     let path = s.0.join("app/Vastitas.toml");
     let manifest = std::fs::read_to_string(&path).unwrap() + "other={path='../other'}\n";

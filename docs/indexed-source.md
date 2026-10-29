@@ -6,7 +6,7 @@ actual edit-authority assembly, finite dispatch, independent Fn specialization
 and both Core audits on that same input. See [the foundation](indexed-declarations.md)
 for the internal contracts and [protocol](protocol.md) for the wire format.
 
-The [geometry stdlib](../stdlib/geometry/README.md) exposes `std::geometry::scheme`
+The [geometry stdlib](../stdlib/src/geometry/README.md) exposes `std::geometry::scheme`
 and `std::geometry::smooth` through `stdlib/indexed`, declaring the finite
 ordinary/smooth affine profile through this path. This does not complete #49/#58–63:
 the legacy syntax bridge inside protocol-7 packages and whole-term/legacy semantic

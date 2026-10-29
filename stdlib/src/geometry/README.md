@@ -5,6 +5,11 @@ The existing finite ordinary/smooth affine profile is implemented by ordinary
 7 and the same independent Lean checker as application declarations. This is the
 first migration increment of #49/#58–63, not general scheme or manifold support.
 
+The canonical sources are [`scheme.vast`](scheme.vast), [`smooth.vast`](smooth.vast)
+and the shared contracts in [`mod.vast`](mod.vast), all under
+`stdlib/src/geometry/`. The local manifest loads these files directly; there is
+no generated or copied geometry source tree.
+
 ## Use
 
 Generate the existing arithmetic package once from the repository root:
@@ -31,15 +36,15 @@ fn main() -> Int {
 }
 ```
 
-The [complete example](../../examples/packages/stdlib-geometry/main.vast) also
+The [complete example](../../../examples/packages/stdlib-geometry/main.vast) also
 constructs points and identity maps, composes/applies maps and unpacks both settings.
-The ported [pointed](../../examples/packages/stdlib-geometry/pointed/main.vast) and
-[smooth](../../examples/packages/stdlib-geometry/smooth/main.vast) examples retain
+The ported [pointed](../../../examples/packages/stdlib-geometry/pointed/main.vast) and
+[smooth](../../../examples/packages/stdlib-geometry/smooth/main.vast) examples retain
 the original workflows and return `42` and `2`; the smooth example keeps its
 explicit `CInfScheme` annotation and dimension check after unpacking.
 
 ```sh
-cargo run --locked -- check --manifest-path stdlib/geometry/Vastitas.toml
+cargo run --locked -- check --manifest-path stdlib/src/geometry/Vastitas.toml
 cargo run --locked -- check --manifest-path stdlib/indexed/Vastitas.toml
 cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
@@ -77,7 +82,7 @@ Equal dimensions do not identify objects. There is no implicit conversion betwee
 `Scheme` and `CInfScheme`, their coefficient markers or their base objects.
 
 The combined entrypoint uses ordinary module re-exports. Direct dependencies on
-`stdlib/geometry` expose `geo::scheme`/`geo::smooth` when named `geo`; they retain
+`stdlib/src/geometry` expose `geo::scheme`/`geo::smooth` when named `geo`; they retain
 exactly the same declaration owners as `std::geometry`. Arithmetic re-exports
 likewise preserve the owners of the original arithmetic package. Renaming imports
 adds no editing rights. A copied package at another location has distinct nominal
@@ -92,7 +97,7 @@ declarations, even when its name, version and source bytes are unchanged.
 | Indexed arity/sorts, endpoints, same-base constraints and substitution | Generic indexed declaration/type/Core checker |
 | Fresh objects, existential witnesses and escape rejection | Generic indexed scope/package/body checker |
 | Descriptor, origin, identity, dimension, compose and apply execution | Explicit finite primitive contracts and `IndexedRuntime` |
-| Primitive/package typing and bounded semantic evidence | Existing scoped theorems in [verification](../../docs/verification.md) |
+| Primitive/package typing and bounded semantic evidence | Existing scoped theorems in [verification](../../../docs/verification.md) |
 | Old source syntax on protocols 2–6 | Existing elaborator followed by the independently audited `LegacyIndexed` adapter |
 
 `stdlib/indexed` is a transitional combined entrypoint. The original
@@ -137,5 +142,5 @@ facades are aliases rather than runtime forwarding functions. This increment
 uses finite descriptors and introduces no numerical coordinate arrays or storage
 ownership. Future computational representations must expose layout, aliasing,
 allocation/copy and residual-lifetime contracts under the
-[revised storage design](../../docs/storage-ownership.md). No C performance result
+[revised storage design](../../../docs/storage-ownership.md). No C performance result
 is claimed from the descriptor examples or their regression tests.

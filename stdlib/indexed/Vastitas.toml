@@ -5,4 +5,4 @@ root = "src/lib.vast"
 
 [dependencies]
 arithmetic_library = { path = ".." }
-geometry_library = { path = "../geometry" }
+geometry_library = { path = "../src/geometry" }

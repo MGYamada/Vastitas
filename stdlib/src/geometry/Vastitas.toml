@@ -1,4 +1,4 @@
 [package]
 name = "vastitas_geometry"
 version = "0.1.0"
-root = "src/lib.vast"
+root = "mod.vast"

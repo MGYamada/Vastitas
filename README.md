@@ -184,7 +184,7 @@ returned Core. The legacy syntax bridge inside protocol 7 and whole-term indexed
 evaluation proofs remain pending. See
 [indexed declarations](docs/indexed-declarations.md).
 
-The [geometry standard library](stdlib/geometry/README.md) exposes
+The [geometry standard library](stdlib/src/geometry/README.md) exposes
 `std::geometry::scheme` and `std::geometry::smooth` for the existing affine
 descriptors, nominal points, morphisms and existential packages. Use the
 `stdlib/indexed` dependency entrypoint for geometry and arithmetic together;

@@ -28,7 +28,7 @@ Vastitasは、数学的対象を第一級の値として扱い、数学的意味
 
 草稿中のコードは疑似コードであり、すべてが実装済みという意味ではない。幾何の構成に関する数学的議論、条件付きのディスパッチ補題、数値的性質、形式証明の完了状況も区別する。実装済みの文法・ビルド手順・検証結果は[README](../README.md)と個別の開発文書を参照する。RustとLeanの通信形式は[コンパイラプロトコル](protocol.md)で定める。
 
-現在の公開実装はStage 1b、path package、有限abstract selector/contract、編集assemblyとprotocol 6の再借用・権限移転を含む。宣言ベースのindexed Core、関数・dispatch・権限の内部checkerも接続されているが、[公開protocol 7](indexed-source.md)がその経路を使用する。[有限幾何stdlib](../stdlib/geometry/README.md)は`std::geometry::scheme`と`std::geometry::smooth`へ移行し、残る互換・意味論の証明、ストレージ所有権、線形代数と有限ネットワークの完成は[Stage 1完了台帳](stage1-completion.md)で追跡する。Rustフロントエンドを`src/`、mathlibを含まないLeanバックエンドを`lean-kernel/`、その実定義をimportして証明するmathlib付きオラクルを`lean/`に分離する。通常のコンパイルは証明オラクルを呼び出さない。
+現在の公開実装はStage 1b、path package、有限abstract selector/contract、編集assemblyとprotocol 6の再借用・権限移転を含む。宣言ベースのindexed Core、関数・dispatch・権限の内部checkerも接続されているが、[公開protocol 7](indexed-source.md)がその経路を使用する。[有限幾何stdlib](../stdlib/src/geometry/README.md)は`std::geometry::scheme`と`std::geometry::smooth`へ移行し、残る互換・意味論の証明、ストレージ所有権、線形代数と有限ネットワークの完成は[Stage 1完了台帳](stage1-completion.md)で追跡する。Rustフロントエンドを`src/`、mathlibを含まないLeanバックエンドを`lean-kernel/`、その実定義をimportして証明するmathlib付きオラクルを`lean/`に分離する。通常のコンパイルは証明オラクルを呼び出さない。
 
 Stage 0の幾何構文は互換機能として残るため、その仕様書を古いという理由だけでobsoleteにはしない。一般の多項式射、AD、数値ソルバ、物理モデルと証拠管理は後続であり、この索引や草稿の存在をもって実装・証明済みとは扱わない。文書の分類と移行手順は[mdBook移行計画](docs-cleanup-plan.md)を参照する。
 

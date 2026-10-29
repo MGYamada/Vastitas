@@ -153,8 +153,9 @@ metadata and edit/authority envelopes whose checks it cannot yet compose.
 It has no Fn expressions or specialization; the separate adapter below extends
 the internal syntax. Public protocols 2–6 retain the
 existing complete function/dispatch/authority path; protocol 7 is still not
-accepted. Rust/wire integration, complete finite-dispatch/edit composition,
-stdlib declarations, whole-term evaluation and native refinement remain open.
+accepted. Later internal adapters below compose finite dispatch and authority.
+Rust/wire integration, stdlib declarations, whole-term evaluation and native
+refinement remain open.
 
 ### Internal independent functions and static specialization
 
@@ -203,10 +204,10 @@ private targets, probe separation, branch targets, nominal scope escape, forged
 metadata, the 4,096/4,097 boundary and a 4,200-function dependency chain. Four more
 standalone native fixtures exercise higher-order/lambda execution, indexed local
 operations, a returned private function and ordered package fields. All fourteen
-fixtures link only the minimal runtime. Finite dispatch/all-applicable-body and
-edit-authority composition, Rust/public protocol 7, stdlib geometry declarations
-and whole-term evaluation proofs remain pending. Unsupported old dispatch/edit
-envelopes are explicitly rejected rather than accepted with omitted checks.
+fixtures link only the minimal runtime. The subsequent adapters below add finite
+dispatch/all-applicable-body and edit-authority composition. Rust/public protocol
+7, stdlib geometry declarations and whole-term evaluation proofs remain pending.
+This plain Fn entry rejects old dispatch/edit envelopes explicitly.
 
 ### Internal finite dispatch over indexed method bodies
 
@@ -254,8 +255,61 @@ ownership, capture/shadowing, recursion and forged expansion/target records.
 Four additional native fixtures execute indexed/higher-order method bodies,
 contract-domain calls, nominal selectors and Pair results (eighteen in total).
 The adapter rejects edit/authority envelopes and old unconnected method bodies.
-Authority/contribution composition, Rust/public protocol 7, stdlib declarations
-and whole-term semantics remain pending; no public syntax has been enabled.
+The authority composition below adds a separate entry point. Rust/public
+protocol 7, stdlib declarations and whole-term semantics remain pending;
+no public syntax has been enabled.
+
+### Internal edit authority over indexed contribution bodies
+
+`IndexedAuthoritySource`, `IndexedAuthorityPreparation` and
+`IndexedAuthorityCheck` connect the rich source AST to the actual
+`Authority.assemble` result. Grants, nested loans, transfer histories,
+returned-loan and seal checks, final finite families and winning footprints
+come from that existing assembler. The complete final headers also pass the
+existing declaration validator; placeholder bodies never replace rich body
+checking. Transferred edit authority still grants neither scalar membership
+nor abstract contract ownership.
+
+Contribution declarations retain enclosing lexical scopes and rich methods.
+Canonical contribution IDs and original method positions connect each applied
+body to the checked trace; the complete resolved headers must match the final
+assembled method list. Every applicable pair becomes a specialization,
+including nonwinners and keys outside the callable domain. Unapplied methods
+expand against the same final hierarchy and capabilities, with the existing
+4,096 audit-specialization bound. Their complete reconstructed audit headers
+must equal the actual assembler's discarded audit. They never enter the
+dispatch candidate table.
+
+Each prepared definition has both its canonical generic/function owner and
+its lexical body scope. A contributed method keeps the defining generic ID
+after a permanent transfer, while its private helper paths and indexed type
+annotations resolve in the contributor's module. Lifted lambdas retain that
+same source scope and original definition. Scope and identity are independently
+audited before and after signature preparation.
+
+The separate audit pass checks all ordinary functions, applied/unapplied
+specializations and lifted lambdas. The executable pass excludes unapplied
+definitions and any lambda originating in them. Independent instance, origin
+and static-target checks reject a forged candidate mapping, exclusion set or
+unapplied executable target. Both passes then undergo actual common-Core
+typing/freshness/dependency audits. Only the executable result reaches native
+generation.
+
+`VastitasOracle.IndexedAuthority` retains the exact assembler, source-method,
+expansion, lifting, preparation and lowering equations. Its theorems expose
+the actual authorized trace and final footprints, nominal owner/lexical scope,
+complete typed body coverage and executable exclusion of unapplied origins.
+These are structural acceptance guarantees; they do not prove whole-source
+evaluation preservation, typed termination or native implementation refinement.
+
+Thirty-nine regressions cover nested loan suspension/return, explicit delegation,
+contained regions, transfer and revoked old authority, returned Open obligations
+and repair, exact private scope, all-body checking, final out-of-domain footprints,
+contribution order, empty-root assembly, scope escape and forged metadata.
+Four additional native fixtures execute nested contribution helpers, transfer,
+obligation repair and the empty-assembly path (twenty-two in total).
+Public protocol 7 still requires Rust/Lean syntax and wire updates together,
+the compatibility adapter and actual stdlib geometry migration.
 
 ## Indexed applications and scopes
 

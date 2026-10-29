@@ -22,6 +22,8 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
   let instanceKey := key id targets
   if let some compiled := (← get).instances[instanceKey]? then return compiled
   let definition ← prepared input id span
+  unless (← get).audit || input.executable definition.definition do
+    error span "E_OWNER" "unapplied contribution cannot enter executable specialization"
   if (← get).activeSet.contains instanceKey then
     let cycle := (← get).active.reverse.dropWhile (· != instanceKey) ++ [instanceKey]
     let labels := cycle.map fun k =>
@@ -38,7 +40,7 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
     activeSet := state.activeSet.insert instanceKey, specializations := state.specializations + if specialized then 1 else 0 }
   let context ← initialContext definition targets
   let hint := match definition.definition.function.result with | .data _ => some definition.result | .function _ => none
-  let value ← block Limits.bodyChecking input definition.definition.owner.scope context definition.definition.function.body hint
+  let value ← block Limits.bodyChecking input definition.definition.bodyScope context definition.definition.function.body hint
   checkAnnotation definition.definition.function.result value span
   if let .function signature := definition.definition.function.result then
     recordTarget (← target value span) signature
@@ -88,13 +90,13 @@ structure PreparedProgram where
   initial : Source.Bodies.State
 
 def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
-    (dispatch : DispatchInput := {}) : Namespace.Result PreparedProgram := do
+    (dispatch : DispatchInput := {}) (excluded : Std.HashSet Nat := {}) : Namespace.Result PreparedProgram := do
   let input : Source.Bodies.Input := { index := program.headers.indexed, declarations }
   let (prepared, initial) ← (lifted.definitions.mapM (prepareDefinition input)).run {}
   let sourceCount := program.functions.length
   let named := (prepared.toList.filter (fun entry => !entry.definition.isLambda && entry.definition.id < sourceCount)).foldl (fun table entry =>
     table.insert entry.definition.owner entry.definition.id) ({} : Std.HashMap DeclId Nat)
-  return ⟨⟨program, input, prepared, named, sourceCount, dispatch⟩, initial⟩
+  return ⟨⟨program, input, prepared, named, sourceCount, dispatch, excluded⟩, initial⟩
 
 def entryDefinition (program : Program) : Option Nat :=
   ((program.functions.zipIdx).find? fun ((owner, _), _) => owner.name == "main" &&
@@ -121,6 +123,7 @@ structure Pass where
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
   let action : M Unit := do
     for entry in prepared.input.prepared do
+      unless audit || prepared.input.executable entry.definition do continue
       if audit || !(entry.definition.function.params.any fun param => match param.type with | .function _ => true | _ => false) then
         let mut targets := []
         for param in entry.definition.function.params do

@@ -169,6 +169,12 @@ source rewriting correspondence, native code-generation equivalence, and a
 full mathematical model of schemes remain outside those claims. The precise
 [proof boundary](docs/verification.md) is part of the implementation contract.
 
+The internal declaration-driven source adapters now compose independent
+functions, finite scalar dispatch and edit-authority assemblies, including
+applied and unapplied contribution bodies. They are not public protocol 7;
+Rust/wire integration, stdlib geometry migration and whole-term indexed
+evaluation proofs remain pending. See [indexed declarations](docs/indexed-declarations.md).
+
 ## Validation
 
 ```sh
@@ -211,7 +217,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
 - [Scoped edit borrowing and assemblies](docs/edit-borrowing.md)
 - [Nested edit loans and permanent authority transfer](docs/edit-authority.md)
-- [Indexed Core, runtime semantics and internal declaration/function/dispatch elaboration](docs/indexed-declarations.md)
+- [Indexed Core, runtime semantics and internal declaration/function/dispatch/authority elaboration](docs/indexed-declarations.md)
 - [Compiler protocol](docs/protocol.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)

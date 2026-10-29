@@ -656,6 +656,23 @@ regressions and four native fixtures exercise the composition. Edit/authority
 envelopes remain rejected. Public protocol 7, whole-term typed evaluation and
 native refinement are still outside these structural guarantees.
 
+`VastitasOracle.IndexedAuthority` connects rich contribution bodies to the
+actual `Authority.assemble` certificate. `authority_trace`, `applied_authorized`
+and `final_footprints` retain the existing independent loan/transfer/history and
+all-key winning-footprint guarantees. `lifted_owner_and_scope` separates
+canonical definition identity from the contributor's lexical scope.
+`applicable_expansion`, `instance_body_checked`, `seed_body_checked` and
+`lifted_definition_checked` connect the complete source/specialization/lambda
+set to typed functions in the actual audit Core, including unapplied bodies.
+`executable_excludes_unapplied` checks every returned executable origin and
+its lambda origin against the unapplied set. Reconstruction equations retain
+the same assembly, original bodies, discarded-audit headers, lifted definitions
+and both Core outputs. The compiler also independently rejects unapplied static
+targets. Thirty-nine regressions and four native fixtures exercise these checks.
+Public protocol-7 decoding, whole-term semantics, stdlib migration and native
+refinement remain separate; synthetic header bodies are never certified as
+the contribution implementations.
+
 `VastitasOracle.Indexed` proves `validEnvironment_iff` and
 `validApplication_iff` for the actual kernel algorithms and their independently
 stated logical judgments. Checked applications retain the same checked

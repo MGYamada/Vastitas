@@ -48,6 +48,11 @@ structure Input where
   named : Std.HashMap DeclId Nat
   sourceCount : Nat
   dispatch : DispatchInput := {}
+  excluded : Std.HashSet Nat := {}
+
+/-- Unapplied contribution instances (and their lambdas) are audit-only. -/
+def Input.executable (input : Input) (definition : Definition) : Bool :=
+  !input.excluded.contains definition.id && !input.excluded.contains definition.origin
 
 structure Key where
   definition : Nat
@@ -215,9 +220,9 @@ def prepareDefinition (input : Source.Bodies.Input) (definition : Definition) : 
   let mut context : Source.TypeContext := []
   let mut parameters := []
   for parameter in function.params do
-    Source.Bodies.bindName input definition.owner.scope context parameter.name parameter.span
+    Source.Bodies.bindName input definition.bodyScope context parameter.name parameter.span
     let type ← match parameter.type with
-      | .data type => Source.Bodies.type input definition.owner.scope context type parameter.span
+      | .data type => Source.Bodies.type input definition.bodyScope context type parameter.span
       | .function signature => do
         unless (FnType.function signature).Valid do
           Source.Bodies.fail parameter.span "E_TYPE" "Fn signatures require scalar/recursive-Fn types"
@@ -228,7 +233,7 @@ def prepareDefinition (input : Source.Bodies.Input) (definition : Definition) : 
     context := context ++ [binding]
     if let .data _ := parameter.type then parameters := parameters ++ [binding.parameter]
   let result ← match function.result with
-    | .data type => Source.Bodies.type input definition.owner.scope context type function.span
+    | .data type => Source.Bodies.type input definition.bodyScope context type function.span
     | .function signature => do
       unless (FnType.function signature).Valid do Source.Bodies.fail function.span "E_TYPE" "invalid Fn result"
       pure (Core.DataType.pure .unit)

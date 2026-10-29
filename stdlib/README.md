@@ -12,6 +12,16 @@ The original arithmetic entrypoint below remains available to legacy geometry
 clients while the protocol-7 legacy syntax bridge and full migration acceptance
 remain pending.
 
+## Source layout
+
+Canonical stdlib module directories mirror their public namespace hierarchy.
+Use a directory per module and `mod.vast` as its entrypoint, for example
+`stdlib/src/geometry/scheme/mod.vast` for `std::geometry::scheme` and
+`stdlib/src/geometry/smooth/mod.vast` for `std::geometry::smooth`.
+Declarations keep their logical package/module owners when source files move
+between supported layouts. The current arithmetic flat-source generator remains
+a compatibility path; its layout is not the template for new stdlib modules.
+
 ## Arithmetic
 
 | Source | Functions | Semantics |

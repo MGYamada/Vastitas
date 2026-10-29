@@ -5,9 +5,21 @@ The existing finite ordinary/smooth affine profile is implemented by ordinary
 7 and the same independent Lean checker as application declarations. This is the
 first migration increment of #49/#58–63, not general scheme or manifold support.
 
-The canonical sources are [`scheme.vast`](scheme.vast), [`smooth.vast`](smooth.vast)
-and the shared contracts in [`mod.vast`](mod.vast), all under
-`stdlib/src/geometry/`. The local manifest loads these files directly; there is
+The canonical source tree mirrors the public module hierarchy. Each module has
+its own directory and a `mod.vast` entrypoint:
+
+```text
+stdlib/src/geometry/
+├── mod.vast
+├── scheme/
+│   └── mod.vast
+└── smooth/
+    └── mod.vast
+```
+
+[`geometry/mod.vast`](mod.vast) owns the shared contracts;
+[`scheme/mod.vast`](scheme/mod.vast) and [`smooth/mod.vast`](smooth/mod.vast)
+own the two settings. The local manifest loads these files directly; there is
 no generated or copied geometry source tree.
 
 ## Use

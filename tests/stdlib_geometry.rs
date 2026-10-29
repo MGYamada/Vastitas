@@ -6,12 +6,12 @@ use std::os::unix::fs::PermissionsExt;
 const LIBRARY: &[(&str, &str)] = &[
     ("mod.vast", include_str!("../stdlib/src/geometry/mod.vast")),
     (
-        "scheme.vast",
-        include_str!("../stdlib/src/geometry/scheme.vast"),
+        "scheme/mod.vast",
+        include_str!("../stdlib/src/geometry/scheme/mod.vast"),
     ),
     (
-        "smooth.vast",
-        include_str!("../stdlib/src/geometry/smooth.vast"),
+        "smooth/mod.vast",
+        include_str!("../stdlib/src/geometry/smooth/mod.vast"),
     ),
 ];
 const ENTRYPOINT: &str = include_str!("../stdlib/indexed/src/lib.vast");

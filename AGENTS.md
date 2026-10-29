@@ -10,6 +10,7 @@
 
 ## Architecture and semantic boundaries
 
+- Keep canonical stdlib/package module directories aligned with their logical namespace hierarchy, using a directory per module and `mod.vast` as its entrypoint (for example `stdlib/src/geometry/scheme/mod.vast`). Preserve logical declaration identity during layout changes; existing flat/inline language support and arithmetic compatibility inputs remain supported.
 - Put the Rust frontend and CLI in `src/`. Send the versioned IR defined in [docs/protocol.md](docs/protocol.md) to Lean; Rust acceptance alone is not semantic acceptance. Update both protocol implementations and relevant tests together.
 - Keep `lean-kernel/` independent of mathlib and `lean/`. It owns independent IR validation, checked code generation, and the minimal runtime. Generated programs use the runtime, not the compiler driver or proof oracle.
 - Protocols 2–6 retain legacy elaboration, then `LegacyIndexed` translates and independently audits the actual result through declaration-driven Core. Native generation uses `IndexedCodegen` and `IndexedRuntime`. Compatibility declaration IDs are adapter-owned, never derived from display filenames. Keep the retained legacy evaluation theorems distinct from the still-pending indexed semantic bridge; see `docs/indexed-declarations.md`.

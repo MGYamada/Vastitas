@@ -1,0 +1,7 @@
+[package]
+name = "stdlib_smooth_demo"
+version = "0.1.0"
+root = "main.vast"
+
+[dependencies]
+std = { path = "../../../../stdlib/indexed" }

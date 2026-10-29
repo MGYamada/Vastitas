@@ -1,0 +1,13 @@
+use std::geometry::scheme as scheme;
+use std::geometry::smooth as smooth;
+
+fn main() -> Int {
+    let ordinary = scheme::pointed(20);
+    let differentiable = smooth::pointed(22);
+    unpack ordinary as { witness: X, fields: [p] };
+    unpack differentiable as { witness: Y, fields: [q] };
+    let px: scheme::Point<X, scheme::BaseQQ> =
+        scheme::apply(scheme::compose(scheme::id(X), scheme::id(X)), p);
+    let qy: smooth::Point<Y, smooth::BaseSmooth> = smooth::apply(smooth::id(Y), q);
+    std::arithmetic::generic::add(int(scheme::dimension(X)), int(smooth::dimension(Y)))
+}

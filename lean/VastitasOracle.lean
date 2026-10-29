@@ -23,6 +23,7 @@ import VastitasOracle.IndexedSourceBodies
 import VastitasOracle.IndexedFunctions
 import VastitasOracle.IndexedDispatch
 import VastitasOracle.Promotion
+import VastitasOracle.Graph
 
 /-!
 Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this

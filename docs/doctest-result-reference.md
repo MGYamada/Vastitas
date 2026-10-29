@@ -180,7 +180,7 @@ expectation. Its `from_kernel_response` checks the failure envelope/version but
 does **not** establish ordinary-driver execution, process completion, or input
 binding. Calling that adapter alone cannot produce the observation required here.
 This reference uses the existing payload directly and does not fork #238's record
-or fingerprint implementation; it has no dependency on that unmerged PR.
+or fingerprint implementation; it has no dependency on that attribution module.
 
 | Existing boundary | Required future connection (not implemented here) |
 | --- | --- |

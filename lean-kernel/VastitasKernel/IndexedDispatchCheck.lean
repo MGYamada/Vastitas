@@ -10,9 +10,11 @@ def Prepared.seeds {program : Program} (prepared : Prepared program) : List (Dec
 keys. Independent lambdas cannot capture method parameters; sharing their
 identity avoids spending specialization budget once per applicable key. -/
 def liftMethods (source : List (DeclId × FunctionSource.Function)) (resolved : Array ResolvedMethod)
-    (instances : List MethodInstance) : Namespace.Result FunctionSource.Lifted := do
+    (instances : List MethodInstance)
+    (extras : List (DeclId × FunctionSource.Function) := []) : Namespace.Result FunctionSource.Lifted := do
   let sourceCount := source.length
-  let namedCount := sourceCount + instances.length
+  let extraStart := sourceCount + instances.length
+  let namedCount := extraStart + extras.length
   let firstByMethod := instances.zipIdx.foldl (fun table (entry, position) =>
     if table.contains entry.method then table else table.insert entry.method (entry.owner, sourceCount + position))
     ({} : Std.HashMap Nat (DeclId × Nat))
@@ -31,7 +33,11 @@ def liftMethods (source : List (DeclId × FunctionSource.Function)) (resolved : 
         | throw { code := "E_INTERNAL_DISPATCH", message := "source method body was omitted", span := entry.function.span }
       let id := sourceCount + position
       return FunctionSource.Definition.mk id id entry.owner { entry.function with body } false entry.scope
-    return functions ++ methods
+    let additional ← extras.zipIdx.mapM fun ((owner, function), position) => do
+      let id := extraStart + position
+      let body ← FunctionSource.liftBlock Limits.sourceNesting namedCount id owner owner.scope function.body
+      return FunctionSource.Definition.mk id id owner {function with body} false owner.scope
+    return functions ++ methods ++ additional
   let (named, lambdas) ← action.run #[]
   return ⟨named.toArray ++ lambdas, namedCount⟩
 

@@ -18,8 +18,9 @@ logical transitions, canonical layouts, initialization and branch joins, with
 actual-checker byte-region and active-loan theorems. Its component schema is not
 public protocol 8. Its optional native runtime and
 [internal resource functions](storage-functions.md) exercise allocation, calls,
-destination reuse and failure cleanup. Public source composition, dynamic shapes,
-numerical consumers and performance comparisons remain pending.
+destination reuse and failure cleanup. [Protocol 8](resource-source.md) now connects the initial static resource profile
+to package source and pure return blocks. Dynamic shapes/value flow, numerical
+consumers and performance comparisons remain pending.
 
 ## 7.1 Fast like C: the primary design goal
 

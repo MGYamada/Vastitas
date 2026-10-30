@@ -1,0 +1,76 @@
+import VastitasKernel.ResourceProtocol
+import VastitasOracle.StorageFunctions
+import VastitasOracle.IndexedAuthority
+import VastitasOracle.IndexedProgramSafety
+
+/-! Public resource/source composition facts, tied to actual reconstruction and
+both independent checkers. Pure-Core totality does not establish mutable native
+heap semantics, source operational correspondence or numerical correctness. -/
+namespace VastitasOracle.ResourceSource
+open VastitasKernel VastitasKernel.ResourceSource
+open VastitasKernel.Storage VastitasKernel.Indexed
+
+theorem exact_components {program : Program} (checked : Checked program requireMain) :
+    Indexed.AuthoritySource.checkProgram program.pureProgram (requireMain && program.entry.isNone) = .ok checked.pureProgram ∧
+    lower program = .ok checked.lowered ∧
+    Functions.checkLibrary checked.lowered.functions = .ok checked.library :=
+  ⟨checked.pureAccepted, checked.reconstructed, checked.libraryAccepted⟩
+
+theorem complete_resource_identity {program : Program} (checked : Checked program requireMain) :
+    checked.lowered.owners = program.owned.map Prod.fst ∧
+    checked.lowered.functions.map Functions.Function.id = List.range program.owned.length ∧
+    checked.lowered.functions.length = program.owned.length := by
+  refine ⟨checked.provenance.1, checked.provenance.2.1, ?_⟩
+  have length := congrArg List.length checked.provenance.2.1
+  simpa using length
+
+theorem call_provenance {program : Program} (checked : Checked program requireMain)
+    (reference : Reference) (member : reference ∈ checked.lowered.references) :
+    (program.owned[reference.caller]?).map (fun entry => entry.1.scope) = some reference.scope ∧
+    reference.target.kind = .resourceFunction ∧
+    (Namespace.resolve program.pureProgram.source.headers.indexed reference.scope reference.path.path reference.path.span).toOption = some reference.target ∧
+    (program.owned[reference.callee]?).map Prod.fst = some reference.target.owner :=
+  checked.provenance.2.2 reference member
+
+theorem every_resource_body {program : Program} (checked : Checked program requireMain)
+    (function : Functions.Function) (member : function ∈ checked.lowered.functions) :
+    ∃ result ∈ checked.library.bodies, result.function = function.id ∧
+      Functions.probe checked.lowered.functions function = .ok result ∧
+      Storage.checkPlan result.statements = .ok result.resources :=
+  StorageFunctions.every_library_body checked.library member
+
+theorem original_authority {program : Program} (checked : Checked program requireMain) :
+    Authority.Trace program.pureProgram.source.headers.indexed checked.pureProgram.authority.headers.assembled.prepared {}
+      checked.pureProgram.authority.headers.assembled.prepared.core.assembly.events
+      checked.pureProgram.authority.headers.assembled.state ∧
+    Authority.Exclusive checked.pureProgram.authority.headers.assembled.state ∧
+    checked.pureProgram.authority.headers.assembled.state.loans = [] :=
+  IndexedAuthority.authority_trace checked.pureProgram
+
+theorem pure_value_bodies_typed {program : Program} (checked : Checked program requireMain) :
+    Core.Typing.ModuleTyped checked.values.audit.lowered.module ∧
+    Core.Typing.ModuleTyped checked.values.executable.lowered.module :=
+  ⟨(IndexedFunctions.checked_pass checked.values.audit).2.2.1,
+    (IndexedFunctions.checked_pass checked.values.executable).2.2.1⟩
+
+theorem pure_value_functions_total {program : Program} (checked : Checked program requireMain) :
+    ∀ function ∈ checked.values.executable.core.module.functions,
+      IndexedFunctionSafety.FunctionReturns checked.values.executable.core.module function :=
+  IndexedProgramSafety.checked_functions_total_and_typed checked.values.executable.core
+
+theorem actual_entry_closed {program : Program} (checked : Checked program requireMain)
+    (entry : Nat) (found : program.entry = some entry) :
+    let execution := checked.execution entry found
+    Functions.check ⟨checked.lowered.functions, entry⟩ = .ok execution.checked ∧
+    Storage.run 4096 {} execution.checked.statements = .ok execution.checked.resources.finalState ∧
+    execution.checked.resources.finalState.allocations = [] ∧ execution.checked.resources.finalState.loans = [] :=
+  ⟨(checked.execution entry found).accepted, (checked.execution entry found).checked.resources.accepted,
+    (checked.execution entry found).checked.resources.closed⟩
+
+theorem public_input {json : Lean.Json} (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
+    VastitasKernel.ResourceSource.Wire.program json = .ok input.input ∧
+    VastitasKernel.ResourceSource.check input.input requireMain = .ok input.checked ∧
+    lower input.input = .ok input.checked.lowered :=
+  ⟨input.decoded, input.accepted, input.checked.reconstructed⟩
+
+end VastitasOracle.ResourceSource

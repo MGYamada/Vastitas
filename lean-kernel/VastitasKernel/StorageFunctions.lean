@@ -62,14 +62,14 @@ def remaining : Nat → Nat → List Statement → Option Nat
       | _ => pure unused
     remaining depth after rest
 
-def headers (program : Program) : Except Error Unit := do
-  if program.functions.isEmpty || program.functions.length > 4096 then
-    reject "E_RESOURCE_LIMIT" "resource program requires 1–4096 functions"
+def definitions (functions : List Function) : Except Error Unit := do
+  if functions.length > 4096 then
+    reject "E_RESOURCE_LIMIT" "resource library exceeds 4096 functions"
   let mut unused := 4096
-  for function in program.functions do
+  for function in functions do
     if function.parameters.length > 64 || function.results.length > 64 then
       reject "E_RESOURCE_LIMIT" "resource function contract exceeds 64 inputs or outputs"
-    if program.functions.countP (·.id == function.id) != 1 then
+    if functions.countP (·.id == function.id) != 1 then
       reject "E_RESOURCE_FUNCTION" "resource function identifiers must be unique"
     let names := function.parameters.map Parameter.name
     if names.any (fun name => names.count name != 1) then
@@ -79,6 +79,11 @@ def headers (program : Program) : Except Error Unit := do
     let some after := remaining 4096 unused function.body
       | reject "E_RESOURCE_LIMIT" "resource source exceeds the global statement budget"
     unused := after
+
+def headers (program : Program) : Except Error Unit := do
+  if program.functions.isEmpty then
+    reject "E_RESOURCE_LIMIT" "resource program requires an entry function"
+  definitions program.functions
   let some entry := program.functions.find? (·.id == program.entry)
     | reject "E_RESOURCE_FUNCTION" "resource entry function does not exist"
   if !entry.parameters.isEmpty || !entry.results.isEmpty then
@@ -357,6 +362,20 @@ def probe (functions : List Function) (function : Function) : Except Error Probe
 def executable (program : Program) : Except Error Context := do
   let (_, context) ← (invoke 4096 program.functions [] program.entry []).run {}
   return context
+
+/-- Check-only packages do not need a fabricated executable entry. Every
+original resource definition still has its actual independently checked probe. -/
+structure CheckedLibrary (functions : List Function) where
+  headers : definitions functions = .ok ()
+  bodies : List Probe
+  bodiesFrom : functions.mapM (probe functions) = .ok bodies
+
+def checkLibrary (functions : List Function) : Except Error (CheckedLibrary functions) :=
+  match headers : definitions functions with
+  | .error diagnostic => .error diagnostic
+  | .ok () => match bodiesFrom : functions.mapM (probe functions) with
+    | .error diagnostic => .error diagnostic
+    | .ok bodies => .ok ⟨headers, bodies, bodiesFrom⟩
 
 structure Checked (program : Program) where
   headerAccepted : headers program = .ok ()

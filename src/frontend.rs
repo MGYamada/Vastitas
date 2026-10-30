@@ -6,6 +6,7 @@
 use std::collections::{HashMap, HashSet};
 
 mod indexed_parser;
+mod resource_parser;
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
@@ -510,6 +511,7 @@ impl Parser {
             span,
             imports: Vec::new(),
             functions: Vec::new(),
+            resource_functions: Vec::new(),
             generics: Vec::new(),
             methods: Vec::new(),
             indexed_declarations: Vec::new(),
@@ -528,6 +530,16 @@ impl Parser {
             if self.peek().is("indexed") {
                 module.indexed_declarations.push(Public {
                     declaration: self.indexed_declaration()?,
+                    public,
+                });
+            } else if self.peek().is("resource")
+                && self
+                    .tokens
+                    .get(self.position + 1)
+                    .is_some_and(|token| token.is("fn"))
+            {
+                module.resource_functions.push(Public {
+                    declaration: self.resource_function()?,
                     public,
                 });
             } else if self.peek().is("fn") {

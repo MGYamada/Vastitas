@@ -27,3 +27,13 @@ needs = ["promotionFixture"]
 [[lean_exe]]
 name = "vastitas-kernel"
 root = "Main"
+
+[[input_file]]
+name = "storageFixture"
+path = "../tests/fixtures/storage.json"
+text = true
+
+[[lean_lib]]
+name = "VastitasStorageTest"
+roots = ["VastitasStorageTest.Regression"]
+needs = ["storageFixture"]

@@ -2,8 +2,9 @@
 
 This is an internal foundation for [#183](https://github.com/MGYamada/Vastitas/issues/183),
 implementing part of the [Chapter 7 contract](storage-ownership.md). It is not
-public protocol 8, `.vast` storage syntax, or native buffer execution. Those
-connections, numerical consumers and measured C performance remain in the
+public protocol 8 or `.vast` storage syntax. The exact checked component can now
+produce standalone native buffer executables through the optional runtime below.
+Public/source composition, numerical consumers and measured C performance remain in the
 [Stage 1 completion gate](stage1-completion.md).
 
 ## Input and acceptance
@@ -46,7 +47,7 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 | `release` | Live loan with no children; return loans inside out |
 | `transpose` | Swap logical axes, preserving physical allocation and byte footprint; reject suspended parent changes |
 | `fill`, `store` | Writable active loan, exact scalar representation; record the whole view or the one addressed cell |
-| `expect` | Readable active loan, valid index and initialized cell; the expected payload is reserved for a future runtime assertion |
+| `expect` | Readable active loan, valid index and initialized cell; native execution asserts the supplied bit pattern |
 | `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source |
 | Branch join | Same owners, allocations and loan structure; intersect initialization guarantees and merge logical versions |
 
@@ -73,8 +74,8 @@ The admitted layout is a column-major physical rectangle with an explicit
 logical transpose. Offset and capacity are bytes; leading dimension is elements.
 `f64` uses 8 bytes and `complex_f64` uses 16 bytes, with 8-byte relative alignment.
 Scalar literals are raw IEEE payloads, not a new public floating-point type or a
-claim about floating-point arithmetic. The future native adapter must establish
-its matching representation, base alignment and allocator contract separately.
+claim about floating-point arithmetic. The native adapter checks its matching
+representation, base alignment and allocator contract separately.
 
 Rows, columns and leading dimension fit nonnegative LP64 dimensions. Leading
 dimension is at least `max(1, rows)`, including empty layouts. Capacities and
@@ -93,6 +94,54 @@ when either writes, even if a stronger partition proof could separate them.
 Arbitrary strides, read-only broadcast, general partitions and packing remain
 pending.
 
+## Native lowering and execution
+
+`Storage.Native.compile` reconstructs every native instruction from the actual
+checked schedule. `Storage.Native.audit` rechecks that original schedule and
+compares the complete lowering, including allocation IDs, layouts, scalar
+payloads and both branch arms. `generate` repeats this audit before returning
+code. Moves, loans, releases and view transposes are resolved at compilation;
+they do not introduce runtime loan objects or per-element reference counts.
+The generated program uses structured `IO` with `finally` cleanup. This mutable
+execution remains separate from pure indexed Core and its totality proofs.
+
+`lean-kernel/native/` is an optional, separately locked Lake package with no
+compiler, oracle, mathlib or BLAS dependency. Its C adapter uses binary64 doubles
+and interleaved pairs of doubles for complex storage. Build-time assertions
+check the 64-bit platform profile. Each synchronous operation validates live
+allocation handles, scalar representations, full bounds, alignment, LP64
+narrowing and signed offset arithmetic before element access. Copy also checks
+logical shapes and separation before writing; an identical source/destination
+mapping is a no-op. `restrict` is confined to the copy kernel after these checks.
+Empty views form no data pointer, while still validating metadata. No implicit
+packing occurs. A view's transpose swaps axes and does not conjugate values.
+
+Each arena is used synchronously by one caller. Class registration is synchronized
+once per arena construction, outside element operations. Data allocation failures
+and assertion failures unwind through generated cleanup; the external object's
+finalizer provides additional cleanup. Close is idempotent. A live-byte budget
+makes allocation failure deterministic in regressions. The raw C/Lean runtime
+API does **not** independently establish initialization, source ownership or loan
+authority: those obligations come from the exact checked schedule. The C adapter,
+FFI ABI, allocator and native compiler remain trusted implementations.
+
+The adapter reports data allocation/free counts, live and peak data bytes,
+written/copied bytes, successful metadata allocations, and the retained
+metadata size. Explicit copy reuses its existing destination and allocates no
+scratch. These counters exclude Lean objects, allocator overhead and process RSS;
+they are not a complete performance or residual-retention measurement.
+The shared fixture reports three data allocations, three frees, zero live bytes,
+128 peak data bytes, 176 written bytes and 64 copied bytes. Failure fixtures also
+finish with zero live data bytes. These observations are regression evidence,
+not proofs about native memory or an equivalent-C speed result.
+
+Run `bash scripts/check_storage_native.sh` for strict C compilation with
+AddressSanitizer/UndefinedBehaviorSanitizer, all four real/complex transpose-copy
+combinations, padding preservation, malformed preflight rejection, alias checks,
+destination reuse and standalone generated success/failure executables. Both
+no-mathlib CI OS jobs run this gate. `VastitasStorageTest.Emit` is only a test
+harness; it does not expose a public wire version or a user-facing interpreter.
+
 ## Proofs and regression evidence
 
 The oracle imports the actual kernel definitions:
@@ -102,13 +151,16 @@ The oracle imports the actual kernel definitions:
 | `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds and relatively aligned; distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
 | `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning |
 | `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; decoder certificates retain the exact checked plan |
+| `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
 
 `StorageRegression` compares bounds, injectivity, containment and separation with
 an independent enumeration of bytes for small real/complex, padded, shifted,
 transposed and empty layouts. It also checks moves, access modes, nested loans,
 branch joins, initialization, forged states, metadata budgets and a billion-by-
 billion layout without expanding its elements. `VastitasStorageTest.Regression`
-checks the Rust fixture and malformed component inputs.
+checks the Rust fixture and malformed component inputs. Its `NativeRegression`
+sibling rejects forged native allocation IDs, sizes, scalars, layouts, payloads,
+copy aliases, operation sequences and branch structure before generation.
 
 These theorems do not prove that actual native memory has been allocated or
 written, native pointer addition is valid, cleanup occurs on failure, copies or
@@ -119,8 +171,9 @@ from the empty state reconstructs its history. Arbitrary externally supplied
 audited states are not trusted execution histories.
 
 Public/source integration must preserve all existing function, dispatch,
-authority and all-body checks, then send the exact checked resource schedule to
-an independent pre-codegen audit. Native liveness and failure-before-write,
-destination/scratch reuse, cost records, dependency retention and equivalent-C
-measurements remain required. Pure indexed Core theorems do not imply these
-mutable-resource guarantees, and this increment does not close #183.
+authority and all-body checks, then compose with this exact resource schedule
+and its pre-codegen audit. Public owned arguments/results, caller-owned buffers,
+dynamic shapes, general scratch reuse, dependency retention and equivalent-C
+measurements remain required. Native liveness, writes and cleanup have the tests
+above but no native refinement theorem. Pure indexed Core theorems do not imply
+these mutable-resource guarantees, and this increment does not close #183.

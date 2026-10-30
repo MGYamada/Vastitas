@@ -210,10 +210,15 @@ theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization
 entailment, normalized write/join meaning, and nonoverlap of distinct active
 loans when either writes. Exact decoder/checker certificates start from an
-empty logical environment. These results do not yet compose with public
-protocol 8, source functions or native allocation/execution, and they do not
+empty logical environment. `StorageCodegen` proves that successful native-plan
+lowering follows those actual transitions, has unique instructions for the same
+input, and requires the rechecked schedule before returning code. The optional
+native runtime has sanitizer and generated-executable regression evidence for
+real/complex buffers, output preservation and failure cleanup. These results do
+not yet compose with public protocol 8 or source functions, and they do not
 extend pure-Core totality to mutable storage. Actual memory initialization,
-allocator liveness, native failure cleanup and C performance remain pending.
+allocator liveness, native cleanup and native refinement are not proved; C
+performance comparisons remain pending.
 
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in

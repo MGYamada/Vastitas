@@ -76,6 +76,12 @@ explicit library, package manifest or module file. On macOS and Linux, SIGINT/SI
 and remove the temporary project and staging output. Existing output is kept
 until the final atomic replacement. SIGKILL or a host crash cannot run cleanup.
 
+Storage and numerical builds coordinate access to their shared optional native
+packages, including aliased paths. Waiting is interruptible; builds using only
+the prebuilt pure runtime or independent optional packages can proceed concurrently. This
+coordination adds no lock to generated programs. Keep direct `lake` builds or
+package edits separate from compiler builds that use the same package artifacts.
+
 The compiler uses this checkout's built backend and runtime. A relocatable
 installation and cross-compilation are not provided. The optional
 `VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` environment variables select a

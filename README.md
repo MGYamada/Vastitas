@@ -86,9 +86,13 @@ crate. Generate an NDJSON file with `lean4export`, then run:
 cargo run --locked -- audit-lean path/to/lean4export.ndjson
 ```
 
-`audit-lean` uses the checked-in [axiom policy](config/nanoda-internal-audit.json):
-only `propext`, `Classical.choice`, and `Quot.sound` are allowed, with hard
-rejection of all other exported axioms. In particular, `sorryAx` and
+`audit-lean` uses the checked-in [axiom-name policy](config/nanoda-internal-audit.json):
+only the names `propext`, `Classical.choice`, and `Quot.sound` are allowed, with hard
+rejection of all other exported axiom names. Their statements and dependencies
+are not authenticated against the standard Lean environment. Every result is
+explicitly conditional on the supplied environment and reports its exported
+axiom count; renaming an arbitrary assumption does not validate it as a standard
+Lean axiom. In particular, `sorryAx` and
 `Lean.trustCompiler` are not permitted. The internal checker runs in an
 isolated worker because rejection in upstream nanoda may panic or exit.
 

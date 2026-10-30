@@ -201,13 +201,22 @@ across the remaining correspondence boundary. No new unproved axiom is used.
 The Rust compiler can use the third-party `nanoda_lib` library for an opt-in
 cross-check of an already generated `lean4export` NDJSON proof environment.
 `vastitas audit-lean EXPORT.ndjson` reads the export and invokes the linked
-Rust checker in a separate worker process. A passing receipt reports only
-`internal_only` and the number of declarations checked. It **must not**
+Rust checker in a separate worker process. A completed receipt reports
+`internal_only`, scope `relative_to_supplied_environment`,
+`axiom_environment_authenticated: false`, and the counts of declarations and
+exported axioms in the actual parsed environment. It **must not**
 be interpreted as `kernel_verified` or as successful public source/IR
 acceptance, a completed constitutional theorem, or checked native refinement.
 
 The policy in `config/nanoda-internal-audit.json` allows exactly three
-standard axioms: `propext`, `Classical.choice`, and `Quot.sound`.
+axiom **names**: `propext`, `Classical.choice`, and `Quot.sound`.
+It does not authenticate their statements or referenced environment as the
+standard Lean axioms. For example, a supplied `propext : ∀ P : Prop, P` can be
+well-typed as an assumption and pass this name policy, but proves nothing under
+the standard Lean assumptions. The CLI therefore reports a **conditional**
+check relative to the supplied environment, even for exports with no axioms;
+it never reports that the standard axiom environment was verified. The
+regression exercises this spoofed name and the actual worker receipt.
 `unpermitted_axiom_hard_error` is true, and `unsafe_permit_all_axioms`
 is false. This deliberately rejects even *unused* exported declarations of
 other axioms. `sorryAx` and `Lean.trustCompiler` are not whitelisted;

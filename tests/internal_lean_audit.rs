@@ -53,9 +53,62 @@ fn checked_export_returns_internal_only_receipt() {
         "nanoda rejected reference fixture: {output:?}"
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("internal-only Lean audit passed"));
+    assert!(stdout.contains("internal-only conditional Lean audit completed"));
+    assert!(stdout.contains("0 exported axioms"));
+    assert!(stdout.contains("axiom statements and environment are NOT authenticated"));
     assert!(stdout.contains("NOT official Lean-kernel verification"));
     assert!(stdout.contains("no Vastitas Core or constitutional acceptance"));
+}
+
+#[test]
+fn standard_axiom_name_cannot_authenticate_an_arbitrary_statement() {
+    let header = include_str!("fixtures/lean_audit/id_prop.ndjson")
+        .lines()
+        .next()
+        .unwrap();
+    // Well-typed but inconsistent assumption: propext : forall P : Prop, P.
+    // It has the allowed name, but is not Lean's propositional extensionality.
+    let input = [
+        header,
+        r#"{"in":1,"str":{"pre":0,"str":"propext"}}"#,
+        r#"{"in":2,"str":{"pre":0,"str":"P"}}"#,
+        r#"{"ie":0,"sort":0}"#,
+        r#"{"ie":1,"bvar":0}"#,
+        r#"{"ie":2,"forallE":{"binderInfo":"default","body":1,"name":2,"type":0}}"#,
+        r#"{"axiom":{"name":1,"levelParams":[],"type":2,"isUnsafe":false}}"#,
+    ]
+    .join("\n");
+    let (_, output) = temporary_export(&input);
+    assert!(output.status.success(), "{output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("conditional Lean audit completed"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("relative to the supplied environment (1 exported axioms)"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("NOT authenticated as the standard Lean axioms"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("Lean audit passed"), "{stdout}");
+
+    let path = temporary_path();
+    fs::write(&path, &input).unwrap();
+    let worker = Command::new(env!("CARGO_BIN_EXE_vastitas"))
+        .arg("__internal-nanoda-worker")
+        .arg(&path)
+        .output()
+        .unwrap();
+    fs::remove_file(path).unwrap();
+    assert!(worker.status.success(), "{worker:?}");
+    let receipt: serde_json::Value = serde_json::from_slice(&worker.stdout).unwrap();
+    assert_eq!(receipt["status"], "internal_only");
+    assert_eq!(receipt["scope"], "relative_to_supplied_environment");
+    assert_eq!(receipt["axiom_environment_authenticated"], false);
+    assert_eq!(receipt["exported_axioms"], 1);
 }
 
 #[test]

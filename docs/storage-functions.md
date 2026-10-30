@@ -18,6 +18,8 @@ integer narrowing are independently rejected.
 | --- | --- |
 | Owned parameter | Check scalar, capacity and required initialized regions; move into a fresh callee binding and revoke the caller binding. |
 | Borrowed parameter | Check scalar and logical shape; create a child of the actual caller loan with the declared rights, preserving its real offset, padding, transpose and allocation. |
+| Numerical space/basis parameter | Preserve the exact caller identity; check explicit static profile/dimension and preceding parameter dependencies. |
+| Numerical map parameter | Check both caller bases and the original live snapshot, create an actual child loan, and audit that its map retains both endpoints and the exact borrow transition. |
 | Initialized borrowed output | On successful return, require the whole original argument footprint initialized. A single-cell store does not initialize a larger output. |
 | Owned result | Check scalar, capacity and initialized regions; reject duplicates and outstanding loans; move into a fresh caller binding in declared result order. |
 
@@ -86,10 +88,13 @@ tampering, actual alias conflicts, probe/caller layout disagreement, incomplete
 initialization, escape, capture, recursion and expansion limits.
 
 Calls currently expand synchronously with static shapes and capacities. Public
-namespace and nominal tensor types, pure-Core/resource interoperation, runtime
+dependent numerical inputs compose through [protocol 8](numerical-values.md#dependent-numerical-inputs);
+the older resource-only internal wire schema remains unchanged. Numerical
+input receipts supplement the existing exact call replay and loan-return checks.
+General tensor types, general pure-Core/resource interoperation, runtime
 dimensions/conditions, general owned-result branch joins and escaping-loan
-lifetime contracts are not supplied by this component. General dynamic source composition,
-numerical operations, general scratch/dependency handling and equivalent-C
+lifetime contracts are not supplied by this component. General dynamic source
+composition, dependent numerical results, general scratch/dependency handling and equivalent-C
 measurements remain in Stage 1. Independent compilation caching and broader
 lifetime extensions retain their separate scope.
 

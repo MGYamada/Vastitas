@@ -347,8 +347,14 @@ declaration environment to resource probes and actual expansion.
 `numerical_provenance` checks original caller scopes and independently resolved
 profile references; `public_product_origin` binds each returned product receipt
 to that same public input and accepted declaration environment.
-Dependent numerical parameters/results, dual/metric laws and native refinement
-remain pending. Activation freshness, scope and stale-view rejection are tested
+For numerical inputs, `actual_input` records the actual accepted contract,
+`input_space_identity` and `input_basis_identity` preserve caller identities,
+and `input_map_reborrow` extracts unchanged endpoints and the exact successful
+borrow transition. `public_numerical_input_origin` ties these receipts to the
+same accepted public declaration environment. These contracts have explicit
+static dimensions; no universal claim is derived from synthetic probes.
+Dependent numerical results, dynamic shape/scalar interfaces, dual/metric laws
+and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native
 execution evidence. Raw internal GEMM operations retain only their resource
 certificate and do not acquire nominal authority from this optional typed path.

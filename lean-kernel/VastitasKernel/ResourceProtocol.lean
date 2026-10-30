@@ -21,6 +21,17 @@ private def parameter (j : Json) : Except String Parameter := do
     return .borrowed (← str j "name") (← Storage.Wire.scalar (← str j "scalar"))
       (← size j "rows") (← size j "columns") (← Storage.Wire.access (← str j "access"))
       (← j.getObjValAs? Bool "initializes") span
+  | "space" =>
+    fields j ["kind", "name", "implementation", "dimension", "span"]
+    return .space (← str j "name") (← Indexed.Wire.path (← field j "implementation"))
+      (← size j "dimension") span
+  | "basis" =>
+    fields j ["kind", "name", "space", "span"]
+    return .basis (← str j "name") (← str j "space") span
+  | "map" =>
+    fields j ["kind", "name", "source", "target", "access", "initializes", "span"]
+    return .map (← str j "name") (← str j "source") (← str j "target")
+      (← Storage.Wire.access (← str j "access")) (← j.getObjValAs? Bool "initializes") span
   | _ => throw "unknown resource source parameter kind"
 
 private def action (j : Json) : Except String Action := do

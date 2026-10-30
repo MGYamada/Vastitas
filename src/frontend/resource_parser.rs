@@ -107,6 +107,54 @@ impl Parser {
                 span: start.through(self.previous().span),
             });
         }
+        if self.consume("Space") {
+            self.expect("<")?;
+            let implementation = self.type_path()?;
+            self.expect(",")?;
+            let dimension = self.resource_number()?;
+            self.expect(">")?;
+            return Ok(Parameter::Space {
+                name,
+                implementation,
+                dimension,
+                span: start.through(self.previous().span),
+            });
+        }
+        if self.consume("Basis") {
+            self.expect("<")?;
+            let (space, _) = self.binding_name()?;
+            self.expect(">")?;
+            return Ok(Parameter::Basis {
+                name,
+                space,
+                span: start.through(self.previous().span),
+            });
+        }
+        let map_access = if self.consume("ReadMap") {
+            Some(Access::Read)
+        } else if self.consume("WriteMap") {
+            Some(Access::Write)
+        } else if self.consume("ReadWriteMap") {
+            Some(Access::ReadWrite)
+        } else {
+            None
+        };
+        if let Some(access) = map_access {
+            self.expect("<")?;
+            let (source, _) = self.binding_name()?;
+            self.expect(",")?;
+            let (target, _) = self.binding_name()?;
+            self.expect(">")?;
+            let initializes = self.consume("initializes");
+            return Ok(Parameter::Map {
+                name,
+                source,
+                target,
+                access,
+                initializes,
+                span: start.through(self.previous().span),
+            });
+        }
         let access = if self.consume("Read") {
             Access::Read
         } else if self.consume("Write") {
@@ -116,7 +164,7 @@ impl Parser {
         } else {
             return Err(diagnostic(
                 "E_TYPE",
-                "resource parameters require Owned, Read, Write or ReadWrite",
+                "resource parameters require Owned, Read/Write/ReadWrite, Space, Basis or ReadMap/WriteMap/ReadWriteMap",
                 self.peek().span,
             ));
         };

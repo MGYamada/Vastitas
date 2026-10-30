@@ -69,6 +69,154 @@ fn local_operation<'a>(body: &'a mut [Value], name: &str) -> &'a mut Value {
         .unwrap()["operation"]
 }
 
+// Exercise two activation levels and both destination modes using the same
+// real/complex numerical payloads as the direct-call fixture.
+fn with_interfaces(source: &str, profile: &str) -> String {
+    let header = format!(
+        "u: Space<super::profiles::{profile}, 2>, v: Space<super::profiles::{profile}, 3>, \
+         w: Space<super::profiles::{profile}, 2>, bu: Basis<u>, bv: Basis<v>, bw: Basis<w>, \
+         left: ReadMap<bv, bw>, right: ReadMap<bu, bv>"
+    );
+    let source = source
+        .replace(
+            "gemm(left, right, destination, overwrite, NativeFast);",
+            "call forward(u, v, w, bu, bv, bw, left, right, destination) -> ();",
+        )
+        .replace(
+            "gemm(left, right, accumulated, accumulate, NativeFast);",
+            "call add_product(u, v, w, bu, bv, bw, left, right, accumulated) -> ();",
+        );
+    format!(
+        "{source}\nresource fn forward({header}, destination: WriteMap<bu, bw> initializes) -> Unit {{
+            call multiply_into(u, v, w, bu, bv, bw, left, right, destination) -> ();
+            value {{ () }}
+        }}
+        resource fn multiply_into({header}, destination: WriteMap<bu, bw> initializes) -> Unit {{
+            gemm(left, right, destination, overwrite, NativeFast);
+            value {{ () }}
+        }}
+        resource fn add_product({header}, accumulated: ReadWriteMap<bu, bw>) -> Unit {{
+            gemm(left, right, accumulated, accumulate, NativeFast);
+            value {{ () }}
+        }}"
+    )
+}
+
+#[test]
+fn numerical_inputs_preserve_nominal_contracts_and_emit_without_extra_storage() {
+    let s = fixture(&with_interfaces(REAL, "RealSmooth"));
+    s.write(
+        "src/complex/mod.vast",
+        &with_interfaces(COMPLEX, "ComplexSmooth"),
+    );
+    success(&command(&s, "check").output().unwrap());
+    let response = kernel(captured(&s), "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    let generated = response["lean_source"].as_str().unwrap();
+    assert_eq!(
+        generated.matches("VastitasGemmNative.gemm arena").count(),
+        4
+    );
+    assert_eq!(generated.matches("allocate arena").count(), 6);
+    assert!(!generated.contains("copy arena"));
+    // Even a library/pure entry checks each original numerical contract/body.
+    s.write(
+        "src/main.vast",
+        "mod profiles; mod real; mod complex; fn main() -> Int { 42 }",
+    );
+    let response = kernel(captured(&s), "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    assert_eq!(response["numerical_runtime"], false);
+    assert_eq!(response["storage_runtime"], false);
+}
+
+#[test]
+fn numerical_input_source_rejects_wrong_dependencies_permissions_and_postconditions() {
+    let source = with_interfaces(REAL, "RealSmooth");
+    for (before, after, code) in [
+        (
+            "call forward(u, v, w",
+            "call forward(w, v, w",
+            "E_NUMERICAL_TYPE",
+        ),
+        ("bu: Basis<u>", "bu: Basis<w>", "E_NUMERICAL_TYPE"),
+        ("bu: Basis<u>", "bu: Basis<bu>", "E_RESOURCE_NAME"),
+        (
+            "u: Space<super::profiles::RealSmooth, 2>",
+            "u: Space<super::profiles::RealSmooth, 3>",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "v: Space<super::profiles::RealSmooth, 3>",
+            "v: Basis<u>",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "right: ReadMap<bu, bv>",
+            "right: ReadMap<bv, bu>",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "left: ReadMap<bv, bw>",
+            "left: WriteMap<bv, bw>",
+            "E_RESOURCE_ACCESS",
+        ),
+        (
+            "gemm(left, right, destination, overwrite, NativeFast);",
+            "",
+            "E_RESOURCE_INIT",
+        ),
+        (
+            "gemm(left, right, destination, overwrite, NativeFast);",
+            "fill(destination, f64_bits(0));",
+            "E_RESOURCE_LOAN",
+        ),
+        (
+            "call forward(u, v, w",
+            "transpose(output); call forward(u, v, w",
+            "E_NUMERICAL_TYPE",
+        ),
+    ] {
+        assert!(source.contains(before), "missing mutation {before}");
+        let s = fixture(&source.replace(before, after));
+        rejection(&s, code);
+    }
+}
+
+#[test]
+fn numerical_input_wire_rechecks_headers_and_rejects_forged_metadata() {
+    let s = fixture(&with_interfaces(REAL, "RealSmooth"));
+    let raw = captured(&s);
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    for unused in [false, true] {
+        let mut raw = raw.clone();
+        if unused {
+            s.write(
+                "src/main.vast",
+                "mod profiles; mod real; mod complex; fn main() -> Int { 42 }",
+            );
+            raw = captured(&s);
+        }
+        for (index, key, value, code) in [
+            (0, "dimension", json!(3), "E_NUMERICAL_TYPE"),
+            (3, "space", json!("w"), "E_NUMERICAL_TYPE"),
+            (3, "space", json!("bu"), "E_RESOURCE_NAME"),
+            (6, "source", json!("bu"), "E_NUMERICAL_TYPE"),
+            (6, "access", json!("write"), "E_RESOURCE_ACCESS"),
+            (6, "checked_id", json!(7), "E_PROTOCOL"),
+            (8, "proof", json!(true), "E_PROTOCOL"),
+        ] {
+            let mut altered = raw.clone();
+            module(&mut altered, "real")["resource_functions"][2]["parameters"][index][key] = value;
+            assert_rejected(altered, code);
+        }
+        let mut altered = raw.clone();
+        module(&mut altered, "real")["resource_functions"][2]["parameters"][0]["implementation"]
+            ["checked_id"] = json!(12);
+        assert_rejected(altered, "E_PROTOCOL");
+    }
+}
+
 #[test]
 fn public_numerical_check_and_emit_do_not_require_openblas() {
     let s = fixture(REAL);
@@ -469,6 +617,29 @@ fn numerical_build_flags_are_explicit_and_failure_preserves_existing_output() {
             b"existing artifact"
         );
     }
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn numerical_inputs_build_execute_nested_real_complex_products() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let s = fixture(&with_interfaces(REAL, "RealSmooth"));
+    s.write(
+        "src/complex/mod.vast",
+        &with_interfaces(COMPLEX, "ComplexSmooth"),
+    );
+    let mut build = command(&s, "build");
+    build
+        .args(["-o", "program", "--openblas-prefix"])
+        .arg(prefix);
+    if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+        build.arg("--native-cc").arg(cc);
+    }
+    success(&build.output().unwrap());
+    let output = Command::new(s.0.join("program")).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
 }
 
 #[test]

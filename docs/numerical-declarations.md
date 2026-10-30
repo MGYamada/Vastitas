@@ -3,8 +3,10 @@
 **Implemented boundary:** package source can declare and independently check
 ideal real/complex coefficient kinds, nominal geometric scalar bases and finite
 linear representation profiles. These use the existing indexed declaration
-namespace and the complete authority/Fn/dispatch checker. This increment does
-not expose public linear object constructors, bases, map views or GEMM.
+namespace and the complete authority/Fn/dispatch checker. Declaration acceptance
+alone does not authorize numerical operations; the separate
+[numerical-value path](numerical-values.md) checks local spaces, bases, actual
+map loans and typed GEMM in public resource functions.
 
 The [mathematics-first charter](adr/0001-mathematics-first-stdlib.md) distinguishes
 an ideal mathematical coefficient domain from its numerical realization. The
@@ -96,12 +98,12 @@ that contract to the actual protocol-8 decoded and accepted input. These prove
 structural declaration facts, not mathematical field/module laws, native
 refinement or floating-point accuracy.
 
-The [internal numerical-value compiler](numerical-values.md) now constructs
+The [numerical-value compiler](numerical-values.md) now constructs
 local nominal spaces/bases and loan-backed maps, checks their bilinear GEMM
 composition and emits the exact independently rechecked storage schedule.
-The public decoder and source grammar do not yet expose these operations.
+The public decoder and source grammar expose these operations inside resource
+functions, with independently resolved profile paths and exact receipt provenance.
 
-Public generative linear objects and bases, dual/conjugate/metric evidence,
-map views tied to actual loans, typed GEMM and finite tensor networks remain
+Dependent numerical interfaces, dual/conjugate/metric evidence and finite tensor networks remain
 required by [the Stage 1 gate](stage1-completion.md). These declarations do not
 close #66, #67, #91 or #92, or introduce a new mathematical `std` family by name.

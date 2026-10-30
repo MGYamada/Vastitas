@@ -34,8 +34,16 @@ inductive Action where
   | copy (source target : String)
   deriving Repr, Inhabited
 
+inductive NumericalOperation where
+  | space (name : String) (implementation : Indexed.Source.Path) (dimension : Nat)
+  | basis (name space : String)
+  | map (name loan source target : String)
+  | gemm (left right output : String) (mode : GemmMode) (policy : NumericalPolicy)
+  deriving Repr, Inhabited
+
 inductive Statement where
   | action (operation : Action) (span : Span)
+  | numerical (operation : NumericalOperation) (span : Span)
   | call (callee : Indexed.Source.Path) (arguments results : List String) (span : Span)
   | branch (condition : Bool) (yes no : List Statement) (span : Span)
   deriving Repr, Inhabited
@@ -100,10 +108,11 @@ def Function.resourceNames (function : Function) : List String :=
   function.parameters.map Parameter.name ++ function.body.flatMap fun statement =>
     match statement with
     | .action (.allocate name ..) _ | .action (.move _ name) _ | .action (.borrow name ..) _ => [name]
+    | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _ => [name]
     | .call _ _ results _ => results
     | _ => []
 
-inductive BindingKind where | owner | loan
+inductive BindingKind where | owner | loan | numerical
   deriving Repr, Inhabited
 
 abbrev Frame := List (String × Symbol × BindingKind)
@@ -116,9 +125,15 @@ structure Reference where
   callee : Nat
   deriving Repr, Inhabited
 
+structure NumericalReference where
+  caller : Nat
+  reference : Indexed.Source.Reference
+  deriving Repr, Inhabited
+
 structure State where
   next : Nat := 0
   references : List Reference := []
+  numericalReferences : List NumericalReference := []
   unused : Nat := 4096
   deriving Inhabited
 
@@ -153,7 +168,10 @@ private def lowerAction (index : Namespace.Indexed) (scope : Namespace.Scope) (f
   | .borrow loan source layout access =>
     let (source, kind) ← lookup frame source span
     let (frame, loan) ← bindName index scope frame loan .loan span
-    let source := match kind with | .owner => Storage.Source.owner source | .loan => .loan source
+    let source ← match kind with
+      | .owner => pure (Storage.Source.owner source)
+      | .loan => pure (.loan source)
+      | .numerical => throw {code := "E_RESOURCE_TYPE", message := "numerical values cannot be borrowed as storage", span}
     return (frame, .borrow loan source layout access)
   | .release loan => return (frame, .release (← name loan))
   | .transpose loan => return (frame, .transpose (← name loan))
@@ -161,6 +179,29 @@ private def lowerAction (index : Namespace.Indexed) (scope : Namespace.Scope) (f
   | .store loan row column value => return (frame, .store (← name loan) row column value)
   | .expect loan row column value => return (frame, .expect (← name loan) row column value)
   | .copy source target => return (frame, .copy (← name source) (← name target))
+
+private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : Namespace.Scope)
+    (frame : Frame) (span : Span) (operation : NumericalOperation) : M (Frame × Numerical.Operation) := do
+  let name (value : String) := Prod.fst <$> lookup frame value span
+  match operation with
+  | .space output implementation dimension =>
+    let (resolved, references) ← (Indexed.Source.resolveId index scope implementation).run []
+    let references := references.map (fun reference => NumericalReference.mk caller reference)
+    modify fun state => {state with numericalReferences := state.numericalReferences ++ references}
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .space output resolved dimension)
+  | .basis output space =>
+    let space ← name space
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .basis output space)
+  | .map output loan source target =>
+    let loan ← name loan
+    let source ← name source
+    let target ← name target
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .map output loan source target)
+  | .gemm left right output mode policy =>
+    return (frame, .gemm (← name left) (← name right) (← name output) mode policy)
 
 private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.DeclId)
     (caller : Nat) (scope : Namespace.Scope) : Nat → Frame → List Statement → M (Frame × List Functions.Statement)
@@ -174,6 +215,9 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     | .action action span => do
       let (frame, action) ← lowerAction index scope frame span action
       pure (frame, .action action)
+    | .numerical operation span => do
+      let (frame, operation) ← lowerNumerical index caller scope frame span operation
+      pure (frame, .numerical operation)
     | .call path arguments outputs span => do
       if arguments.length > 64 || outputs.length > 64 then
         throw {code := "E_RESOURCE_LIMIT", message := "resource call exceeds 64 arguments or owned results", span}
@@ -222,6 +266,7 @@ structure Lowered where
   functions : List Functions.Function
   owners : List Indexed.DeclId
   references : List Reference
+  numericalReferences : List NumericalReference
   deriving Inhabited
 
 def lower (program : Program) : Namespace.Result Lowered := do
@@ -230,7 +275,7 @@ def lower (program : Program) : Namespace.Result Lowered := do
   let index := program.pureProgram.source.headers.indexed
   let (functions, state) ← (program.owned.zipIdx.mapM fun ((owner, function), id) =>
     lowerFunction index owners owner function id).run {}
-  return ⟨functions, owners, state.references⟩
+  return ⟨functions, owners, state.references, state.numericalReferences⟩
 
 def Reference.Valid (program : Program) (reference : Reference) : Prop :=
   (program.owned[reference.caller]?).map (fun entry => entry.1.scope) = some reference.scope ∧
@@ -241,10 +286,18 @@ def Reference.Valid (program : Program) (reference : Reference) : Prop :=
 instance (program : Program) (reference : Reference) : Decidable (reference.Valid program) :=
   inferInstanceAs (Decidable (_ ∧ _))
 
+def NumericalReference.Valid (program : Program) (reference : NumericalReference) : Prop :=
+  (program.owned[reference.caller]?).map (fun entry => entry.1.scope) = some reference.reference.scope ∧
+  reference.reference.Valid program.pureProgram.source.headers.indexed
+
+instance (program : Program) (reference : NumericalReference) : Decidable (reference.Valid program) :=
+  inferInstanceAs (Decidable (_ ∧ _))
+
 def Lowered.Valid (program : Program) (lowered : Lowered) : Prop :=
   lowered.owners = program.owned.map Prod.fst ∧
   lowered.functions.map Functions.Function.id = List.range program.owned.length ∧
-  ∀ reference ∈ lowered.references, reference.Valid program
+  (∀ reference ∈ lowered.references, reference.Valid program) ∧
+  ∀ reference ∈ lowered.numericalReferences, reference.Valid program
 
 instance (program : Program) (lowered : Lowered) : Decidable (lowered.Valid program) := by
   unfold Lowered.Valid
@@ -291,6 +344,8 @@ def numericalEnvironment {source requireMain}
 structure Execution (functions : List Functions.Function) (entry : Nat) (environment : Indexed.Environment) where
   checked : Functions.Checked ⟨functions, entry⟩ environment
   accepted : Functions.check ⟨functions, entry⟩ environment = .ok checked
+  numericalOrigins : checked.context.environment = environment ∧
+    ∀ receipt ∈ checked.context.products.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -330,11 +385,16 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
             | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) with
               | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) diagnostic)
-              | .ok executable => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                  library, libraryAccepted, fun actual same => by
-                    have : actual = id := Option.some.inj (same.symm.trans entry)
-                    subst actual
-                    exact ⟨executable, accepted⟩⟩
+              | .ok executable =>
+                if origins : executable.context.environment = numericalEnvironment pureProgram ∧
+                    ∀ receipt ∈ executable.context.products.toList,
+                      receipt.environment = numericalEnvironment pureProgram then
+                  .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                    library, libraryAccepted, fun actual same => by
+                      have : actual = id := Option.some.inj (same.symm.trans entry)
+                      subst actual
+                      exact ⟨executable, accepted, origins⟩⟩
+                else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"
         else Namespace.problem {} "E_OWNER" "resource source identity or call provenance audit failed"
 
 end VastitasKernel.ResourceSource

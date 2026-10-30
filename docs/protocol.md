@@ -19,8 +19,9 @@ checks. Each resource function carries `name`, `parameters`, ordered owned
 `results`, resource `body`, pure `value_type`/`value_body`, `public` and `span`.
 Calls carry unresolved paths and local names, not checked IDs. The strict schema
 is defined by `storage.rs::source` and `ResourceProtocol.lean`. Emit responses
-include `storage_runtime: Bool` to request the optional native package only when
-the actual entry needs it. The [internal storage component schema](storage-ir.md)
+include `storage_runtime: Bool` and `numerical_runtime: Bool` to request optional
+native packages only when the actual entry needs them. A numerical requirement
+also requires storage and explicit driver build configuration. The [internal storage component schema](storage-ir.md)
 is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
@@ -30,7 +31,17 @@ in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and
 unresolved nominal base paths. They require version 8 even without resource
 functions. Protocol 7 retains only `"affine_descriptor"`; it rejects these new
-representations. Declaration acceptance does not enable public GEMM.
+representations. Declaration acceptance alone does not enable GEMM.
+
+Resource bodies also support `kind: "numerical"` statements carrying `operation`
+and `span`. Operations are `space` (name, unresolved implementation path,
+dimension), `basis` (name, space), `map` (name, loan, source/target bases), and
+`gemm` (left, right, output, mode, policy). Mode is `overwrite` or `accumulate`;
+policy is explicitly `native_fast`. See [the source contract](numerical-values.md).
+All names remain unresolved. Numeric IDs, trusted certificates, raw GEMM flags
+and extra fields are rejected. The old raw resource `action` schema does not
+acquire a public GEMM operation. Version 8 composes independent path resolution,
+nominal value checking and actual resource checks before native generation.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,

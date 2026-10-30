@@ -31,7 +31,13 @@ theorem call_provenance {program : Program} (checked : Checked program requireMa
     reference.target.kind = .resourceFunction ∧
     (Namespace.resolve program.pureProgram.source.headers.indexed reference.scope reference.path.path reference.path.span).toOption = some reference.target ∧
     (program.owned[reference.callee]?).map Prod.fst = some reference.target.owner :=
-  checked.provenance.2.2 reference member
+  checked.provenance.2.2.1 reference member
+
+theorem numerical_provenance {program : Program} (checked : Checked program requireMain)
+    (reference : NumericalReference) (member : reference ∈ checked.lowered.numericalReferences) :
+    (program.owned[reference.caller]?).map (fun entry => entry.1.scope) = some reference.reference.scope ∧
+    reference.reference.Valid program.pureProgram.source.headers.indexed :=
+  checked.provenance.2.2.2 reference member
 
 theorem every_resource_body {program : Program} (checked : Checked program requireMain)
     (function : Functions.Function) (member : function ∈ checked.lowered.functions) :
@@ -85,5 +91,20 @@ theorem public_numerical_declaration {json : Lean.Json}
       marker capabilities :=
   (IndexedSource.checked_implementation_contract _ input.checked.pureProgram.authority.headers.declarations
     id marker representation capabilities member).2.2
+
+/-- Every actual product receipt belongs to the environment returned by this
+same public source check, and records its own exact emitted resource operation. -/
+theorem public_product_origin {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (entry : Nat) (found : input.input.entry = some entry)
+    (receipt : Functions.NumericalReceipt)
+    (member : receipt ∈ (input.checked.execution entry found).checked.context.products.toList) :
+    receipt.environment = numericalEnvironment input.checked.pureProgram ∧
+    Storage.Numerical.checkProduct receipt.environment receipt.resources receipt.values
+      receipt.left receipt.right receipt.output receipt.mode receipt.policy = .ok receipt.checked ∧
+    receipt.priorCode ++ [.action (.gemm (receipt.checked.product.request receipt.mode receipt.policy))] = receipt.code ∧
+    Storage.checkAction receipt.resources (.gemm (receipt.checked.product.request receipt.mode receipt.policy)) = .ok receipt.after :=
+  ⟨(input.checked.execution entry found).numericalOrigins.2 receipt member,
+    receipt.accepted, receipt.emitted, receipt.transitioned⟩
 
 end VastitasOracle.ResourceSource

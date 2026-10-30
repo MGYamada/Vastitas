@@ -295,10 +295,10 @@ complete declaration certificate. `IndexedSource.checked_implementation_contract
 and `checked_descriptor_is_affine` establish the actual accepted metadata
 contracts. `ResourceSource.public_numerical_declaration` connects them to the
 same decoded protocol-8 input and authority checker. These are structural type
-and provenance facts; they do not establish field/module laws, linear object
-construction, public GEMM, floating-point accuracy or native refinement.
+and provenance facts; by themselves they do not establish field/module laws,
+linear object construction, public GEMM, floating-point accuracy or native refinement.
 
-The [internal numerical-value compiler](numerical-values.md) now has a separate
+The [numerical-value compiler](numerical-values.md) now has a separate
 `StorageNumerical` certificate composed with that resource checker.
 `accepted_profiles` derives each map endpoint's actual declaration contract;
 `nominal_endpoints` preserves exact objects and basis identities;
@@ -306,8 +306,11 @@ The [internal numerical-value compiler](numerical-values.md) now has a separate
 `exact_storage_check` connects it to the existing GEMM access/initialization
 check; and `actual_emission` binds the certificate to the exact emitted request
 and resource transition. Public `ResourceSource` supplies its full accepted
-declaration environment to resource probes and actual expansion. Public syntax,
-dependent numerical parameters/results, dual/metric laws and native refinement
+declaration environment to resource probes and actual expansion.
+`numerical_provenance` checks original caller scopes and independently resolved
+profile references; `public_product_origin` binds each returned product receipt
+to that same public input and accepted declaration environment.
+Dependent numerical parameters/results, dual/metric laws and native refinement
 remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native
 execution evidence. Raw internal GEMM operations retain only their resource

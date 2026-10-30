@@ -29,6 +29,7 @@ def entryValue {program : Program} (checked : Checked program true) (entry : Nat
 structure Generated where
   source : String
   storageRuntime : Bool
+  numericalRuntime : Bool
 
 def generate (program : Program) : Except Diagnostic Generated := do
   let checked ← ResourceSource.check program true
@@ -37,7 +38,7 @@ def generate (program : Program) : Except Diagnostic Generated := do
     let core : Core.Typing.CheckedModule true := by
       simpa [entry] using checked.pureProgram.executable.core
     let source ← (Core.Codegen.generate core).mapError fun message => {code := "E_CODEGEN", message}
-    return ⟨source, false⟩
+    return ⟨source, false, false⟩
   | some id =>
     let target ← entryValue checked id
     let pureSource ← (Core.Codegen.generateLibrary checked.values.executable.core [target]).mapError fun message =>
@@ -47,10 +48,11 @@ def generate (program : Program) : Except Diagnostic Generated := do
       {code := problem.code, message := problem.message}
     let operations ← (Native.generateBody plan).mapError fun problem =>
       {code := problem.code, message := problem.message}
-    let source := "import VastitasStorageNative\n" ++ pureSource ++
+    let numericalImport := if plan.needsNumerical then "import VastitasGemmNative\n" else ""
+    let source := "import VastitasStorageNative\n" ++ numericalImport ++ pureSource ++
       "\nopen VastitasStorageNative\n\ndef main : IO Unit := do\n" ++
       s!"  let arena ← newArena {Storage.byteLimit}\n  try\n" ++ operations ++
       s!"    IO.println ({Core.Codegen.functionReference target})\n  finally\n    close arena\n"
-    return ⟨source, true⟩
+    return ⟨source, true, plan.needsNumerical⟩
 
 end VastitasKernel.ResourceSource.Codegen

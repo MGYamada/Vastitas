@@ -40,15 +40,18 @@ and allocation/copy counters. [Internal resource functions](docs/storage-functio
 check owned arguments/results and borrowed destinations against actual caller
 resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
 static storage schedules and pure return expressions to package source and native
-execution. Dynamic shapes/value flow, public numerical consumers and end-to-end C
-performance comparisons are still pending.
+execution. Dynamic shapes/value flow and end-to-end C performance comparisons
+are still pending.
 An [optional internal GEMM path](docs/numerical-adapter.md) checks resource access,
 initialization and exact native lowering, then executes through pinned OpenBLAS.
 [Numerical declaration profiles](docs/numerical-declarations.md) now independently
 check ideal real/complex coefficients and nominal scalar bases through protocol 8.
-The [internal numerical-value compiler](docs/numerical-values.md) checks local
+The [protocol-8 numerical-value compiler](docs/numerical-values.md) checks local
 nominal spaces, bases and loan-backed map products through actual GEMM lowering.
-Their public source integration remains pending.
+Public resource functions can use these operations; numerical builds require an
+explicit `--openblas-prefix`, while ordinary compilation and `check` need no BLAS.
+Dependent numerical interfaces, dual/conjugate/metric operations and networks
+remain pending.
 
 ## Build and use
 

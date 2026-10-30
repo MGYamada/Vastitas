@@ -47,6 +47,23 @@ private def action (j : Json) : Except String Action := do
   | "copy" => fields j ["op", "source", "target"]; return .copy (← str j "source") (← str j "target")
   | _ => throw "unknown resource source operation"
 
+private def numericalOperation (j : Json) : Except String NumericalOperation := do
+  match ← str j "op" with
+  | "space" =>
+    fields j ["op", "name", "implementation", "dimension"]
+    return .space (← str j "name") (← Indexed.Wire.path (← field j "implementation")) (← size j "dimension")
+  | "basis" =>
+    fields j ["op", "name", "space"]
+    return .basis (← str j "name") (← str j "space")
+  | "map" =>
+    fields j ["op", "name", "loan", "source", "target"]
+    return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")
+  | "gemm" =>
+    fields j ["op", "left", "right", "output", "mode", "policy"]
+    return .gemm (← str j "left") (← str j "right") (← str j "output")
+      (← Storage.Wire.gemmMode (← str j "mode")) (← Storage.Wire.numericalPolicy (← str j "policy"))
+  | _ => throw "unknown numerical source operation"
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
@@ -56,6 +73,9 @@ private def statements : Nat → List Json → Except String (List Statement)
       | "action" =>
         fields first ["kind", "action", "span"]
         pure (.action (← action (← field first "action")) span)
+      | "numerical" =>
+        fields first ["kind", "operation", "span"]
+        pure (.numerical (← numericalOperation (← field first "operation")) span)
       | "call" =>
         fields first ["kind", "callee", "arguments", "results", "span"]
         pure (.call (← Indexed.Wire.namedPath (← str first "callee") span)

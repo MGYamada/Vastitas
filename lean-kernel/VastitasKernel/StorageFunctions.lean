@@ -1,4 +1,5 @@
 import VastitasKernel.StorageCodegen
+import VastitasKernel.StorageNumerical
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
 bounded child loans for borrowed arguments, return those loans, and transfer
@@ -25,6 +26,7 @@ def Parameter.name : Parameter → Symbol
 
 inductive Statement where
   | action (operation : Action)
+  | numerical (operation : Numerical.Operation)
   | call (callee : Nat) (arguments results : List Symbol)
   | branch (condition : Bool) (yes no : List Statement)
   deriving Repr, BEq, Inhabited
@@ -126,7 +128,28 @@ def resolve (frame : Frame) (localName : Symbol) : Except Error Symbol :=
   | some binding => pure binding.2
   | none => reject "E_RESOURCE_NAME" "resource name is outside this function or branch scope"
 
+/-- Exact mathematical/resource certificate recorded before the emitted GEMM. -/
+structure NumericalReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  mode : GemmMode
+  policy : NumericalPolicy
+  checked : Numerical.CheckedProduct environment resources values left right output mode policy
+  accepted : Numerical.checkProduct environment resources values left right output mode policy = .ok checked
+  after : State
+  transitioned : checkAction resources (.gemm (checked.product.request mode policy)) = .ok after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.gemm (checked.product.request mode policy))] = code
+
 structure Context where
+  environment : Indexed.Environment := []
+  numerical : Numerical.Values := []
+  products : Array NumericalReceipt := #[]
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
@@ -190,6 +213,53 @@ def operation (frame : Frame) : Action → M Frame
     let right ← resolve frame request.right
     let output ← resolve frame request.output
     step (.gemm {request with left, right, output})
+    return frame
+
+/-- Values share the activation's fresh-name supply, but never enter the native
+heap. Only the checked product's exact physical request enters the schedule. -/
+def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
+  let context ← get
+  match operation with
+  | .gemm left right output mode policy =>
+    let left ← resolve frame left
+    let right ← resolve frame right
+    let output ← resolve frame output
+    match accepted : Numerical.checkProduct context.environment context.resources context.numerical
+        left right output mode policy with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      step (.gemm (checked.product.request mode policy))
+      let after ← get
+      match transitioned : checkAction context.resources (.gemm (checked.product.request mode policy)) with
+      | .error diagnostic => throw diagnostic
+      | .ok resources =>
+        if same : resources = after.resources then
+          if emitted : context.code.toList ++ [.action (.gemm (checked.product.request mode policy))] = after.code.toList then
+            let receipt : NumericalReceipt :=
+              ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy,
+                checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted⟩
+            set {after with products := after.products.push receipt}
+            return frame
+          else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its emitted schedule"⟩
+        else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its resource transition"⟩
+  | other =>
+    let (frame, operation) ← match other with
+      | .space name implementation dimension => do
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.space name implementation dimension)
+      | .basis name space => do
+        let space ← resolve frame space
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.basis name space)
+      | .map name loan source target => do
+        let loan ← resolve frame loan
+        let source ← resolve frame source
+        let target ← resolve frame target
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.map name loan source target)
+      | .gemm .. => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
+    let values ← Numerical.construct context.environment context.resources context.numerical operation
+    modify fun after => {after with numerical := values}
     return frame
 
 structure BorrowedArgument where
@@ -259,6 +329,7 @@ mutual
       spend
       let after ← match first with
         | .action action => operation frame action
+        | .numerical op => numericalOperation frame op
         | .call callee actuals outputs => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
           let returned ← invoke fuel functions stack callee actuals
@@ -271,7 +342,7 @@ mutual
           pure frame
         | .branch condition yes no => do
           let before ← get
-          set {before with code := #[], calls := #[]}
+          set {before with code := #[], calls := #[], products := #[]}
           let _ ← expand fuel functions stack frame yes
           let left ← get
           set {before with
@@ -279,6 +350,7 @@ mutual
             unused := left.unused
             code := #[]
             calls := #[]
+            products := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
           let right ← get
@@ -286,7 +358,9 @@ mutual
           set {right with
             resources
             code := before.code.push (.branch condition left.code.toList right.code.toList)
-            calls := before.calls ++ left.calls ++ right.calls}
+            calls := before.calls ++ left.calls ++ right.calls
+            numerical := before.numerical
+            products := before.products ++ left.products ++ right.products}
           pure frame
       expand fuel functions stack after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Symbol)
@@ -312,7 +386,7 @@ mutual
             if valid : ExitValid before.resources after.resources results then
               let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
                 before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
-              set {after with calls := after.calls.push receipt}
+              set {after with calls := after.calls.push receipt, numerical := before.numerical}
               return results.map Prod.fst
             else throw ⟨"E_RESOURCE_ESCAPE", "call exit failed the independent resource audit"⟩
           else throw ⟨"E_RESOURCE_STATE", "call expansion differs from replayed resource transitions"⟩
@@ -359,54 +433,55 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
     step (.release loan)
     step (.drop owner)
 
-def probe (functions : List Function) (function : Function) : Except Error Probe := do
-  let (_, context) ← (probeSetup functions function).run {}
+def probe (functions : List Function) (function : Function) (environment : Indexed.Environment := []) : Except Error Probe := do
+  let (_, context) ← (probeSetup functions function).run {environment}
   match accepted : checkPlan context.code.toList with
   | .error diagnostic => .error diagnostic
   | .ok resources => return ⟨function.id, context.code.toList, resources, accepted⟩
 
-def executable (program : Program) : Except Error Context := do
-  let (_, context) ← (invoke 4096 program.functions [] program.entry []).run {}
+def executable (program : Program) (environment : Indexed.Environment := []) : Except Error Context := do
+  let (_, context) ← (invoke 4096 program.functions [] program.entry []).run {environment}
   return context
 
 /-- Check-only packages do not need a fabricated executable entry. Every
 original resource definition still has its actual independently checked probe. -/
-structure CheckedLibrary (functions : List Function) where
+structure CheckedLibrary (functions : List Function) (environment : Indexed.Environment := []) where
   headers : definitions functions = .ok ()
   bodies : List Probe
-  bodiesFrom : functions.mapM (probe functions) = .ok bodies
+  bodiesFrom : functions.mapM (fun function => probe functions function environment) = .ok bodies
 
-def checkLibrary (functions : List Function) : Except Error (CheckedLibrary functions) :=
+def checkLibrary (functions : List Function) (environment : Indexed.Environment := []) : Except Error (CheckedLibrary functions environment) :=
   match headers : definitions functions with
   | .error diagnostic => .error diagnostic
-  | .ok () => match bodiesFrom : functions.mapM (probe functions) with
+  | .ok () => match bodiesFrom : functions.mapM (fun function => probe functions function environment) with
     | .error diagnostic => .error diagnostic
     | .ok bodies => .ok ⟨headers, bodies, bodiesFrom⟩
 
-structure Checked (program : Program) where
+structure Checked (program : Program) (environment : Indexed.Environment := []) where
   headerAccepted : headers program = .ok ()
   bodies : List Probe
-  bodiesFrom : program.functions.mapM (probe program.functions) = .ok bodies
+  bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment) = .ok bodies
   context : Context
-  expanded : executable program = .ok context
+  expanded : executable program environment = .ok context
   resources : CheckedPlan context.code.toList
   accepted : checkPlan context.code.toList = .ok resources
 
-def Checked.statements {program} (checked : Checked program) : List Storage.Statement := checked.context.code.toList
+def Checked.statements {program environment} (checked : Checked program environment) : List Storage.Statement := checked.context.code.toList
 
-def check (program : Program) : Except Error (Checked program) :=
+def check (program : Program) (environment : Indexed.Environment := []) : Except Error (Checked program environment) :=
   match headerAccepted : headers program with
   | .error diagnostic => .error diagnostic
-  | .ok () => match bodiesFrom : program.functions.mapM (probe program.functions) with
+  | .ok () => match bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment) with
     | .error diagnostic => .error diagnostic
-    | .ok bodies => match expanded : executable program with
+    | .ok bodies => match expanded : executable program environment with
       | .error diagnostic => .error diagnostic
       | .ok context => match accepted : checkPlan context.code.toList with
         | .error diagnostic => .error diagnostic
         | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded, resources, accepted⟩
 
-def generate (program : Program) (report : Bool := false) (budget : Nat := byteLimit) : Except Error String := do
-  let checked ← check program
+def generate (program : Program) (report : Bool := false) (budget : Nat := byteLimit)
+    (environment : Indexed.Environment := []) : Except Error String := do
+  let checked ← check program environment
   let plan ← Native.compile checked.statements
   Native.generate plan report budget
 

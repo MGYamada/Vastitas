@@ -282,9 +282,15 @@ def envelope (program : Program) : Namespace.Result Unit := do
     let some (_, function) := program.owned[entry]? | Namespace.problem {} "E_MAIN" "missing resource main"
     unless function.valueType == .int do Namespace.problem function.span "E_MAIN" "resource main must return Int"
 
-structure Execution (functions : List Functions.Function) (entry : Nat) where
-  checked : Functions.Checked ⟨functions, entry⟩
-  accepted : Functions.check ⟨functions, entry⟩ = .ok checked
+/-- The numerical compiler receives the exact environment accepted by the
+complete source/authority checker, never a separately supplied declaration table. -/
+def numericalEnvironment {source requireMain}
+    (checked : Indexed.AuthoritySource.CheckedProgram source requireMain) : Indexed.Environment :=
+  checked.authority.headers.declarations.resolved.declarations.indexed
+
+structure Execution (functions : List Functions.Function) (entry : Nat) (environment : Indexed.Environment) where
+  checked : Functions.Checked ⟨functions, entry⟩ environment
+  accepted : Functions.check ⟨functions, entry⟩ environment = .ok checked
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -294,15 +300,15 @@ structure Checked (program : Program) (requireMain : Bool) where
   lowered : Lowered
   reconstructed : lower program = .ok lowered
   provenance : lowered.Valid program
-  library : Functions.CheckedLibrary lowered.functions
-  libraryAccepted : Functions.checkLibrary lowered.functions = .ok library
-  execution : (entry : Nat) → program.entry = some entry → Execution lowered.functions entry
+  library : Functions.CheckedLibrary lowered.functions (numericalEnvironment pureProgram)
+  libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) = .ok library
+  execution : (entry : Nat) → program.entry = some entry → Execution lowered.functions entry (numericalEnvironment pureProgram)
 
-private def resourceError (program : Program) (lowered : Lowered) (error : Storage.Error) : Diagnostic := Id.run do
+private def resourceError (program : Program) (lowered : Lowered) (environment : Indexed.Environment) (error : Storage.Error) : Diagnostic := Id.run do
   -- On rejection only, locate the first actual invalid contract/probe rather
   -- than attributing every resource diagnostic to a synthetic zero span.
   for (function, (_, source)) in lowered.functions.zip program.owned do
-    if !(Functions.definitions [function]).isOk || !(Functions.probe lowered.functions function).isOk then
+    if !(Functions.definitions [function]).isOk || !(Functions.probe lowered.functions function environment).isOk then
       return ⟨error.code, error.message, source.span, []⟩
   return ⟨error.code, error.message, (program.owned.head?).map (·.2.span) |>.getD {}, []⟩
 
@@ -317,13 +323,13 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
       | .error diagnostic => .error diagnostic
       | .ok lowered =>
         if provenance : lowered.Valid program then
-          match libraryAccepted : Functions.checkLibrary lowered.functions with
-          | .error diagnostic => .error (resourceError program lowered diagnostic)
+          match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) with
+          | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) diagnostic)
           | .ok library => match entry : program.entry with
             | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
-            | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ with
-              | .error diagnostic => .error (resourceError program lowered diagnostic)
+            | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) with
+              | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) diagnostic)
               | .ok executable => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
                   library, libraryAccepted, fun actual same => by
                     have : actual = id := Option.some.inj (same.symm.trans entry)

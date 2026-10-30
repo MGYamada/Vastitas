@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Execute actual checked internal GEMM schedules through the optional Lean FFI.
 
-This is neither nominal map typing nor a public source GEMM entry point.
+Also executes closed fixtures through the nominal resource-function checker.
+Neither fixture entry point is a public source GEMM interface.
 """
 import argparse
 import copy
@@ -52,8 +53,9 @@ def run(command, *, cwd=ROOT, success=True, env=None):
 
 def check(prefix, lean_cc=None):
     prefix = prefix.resolve()
-    run(["lake", "-d", "lean-kernel", "build", "storage-native-fixture"])
+    run(["lake", "-d", "lean-kernel", "build", "storage-native-fixture", "numerical-native-fixture"])
     emitter = ROOT / "lean-kernel/.lake/build/bin/storage-native-fixture"
+    numerical_emitter = ROOT / "lean-kernel/.lake/build/bin/numerical-native-fixture"
     fixture = json.loads((ROOT / "tests/fixtures/storage-gemm.json").read_text())
     # Host-built BLAS may reference newer libc symbols than Lean's portable
     # bundled linker libraries. Select the matching host compiler/linker for
@@ -116,6 +118,17 @@ def check(prefix, lean_cc=None):
             counters = [int(x) for x in match[1].split(",")]
             assert counters[0] == counters[1] and counters[2] == 0 and counters[5] == 0, counters
             print(f"checked GEMM {name}: bits and cleanup passed")
+        for kind, peak in [("real", 128), ("complex", 256)]:
+            run([numerical_emitter, kind, work / "Main.lean"])
+            generated = (work / "Main.lean").read_text()
+            assert generated.count("VastitasGemmNative.gemm arena") == 1
+            run(["lake", "build", "fixture"], cwd=work, env=native_env)
+            result = run([work / ".lake/build/bin/fixture"], cwd=work)
+            match = re.search(r"#\[([\d, ]+)\]", result.stdout)
+            assert match, result
+            counters = [int(x) for x in match[1].split(",")]
+            assert counters[:6] == [3, 3, 0, peak, peak, 0], counters
+            print(f"nominal {kind} product: checked objects/bases, exact bits and destination reuse passed")
         # Each raw action is rejected before code generation; no native output
         # file may be produced on an initialization/mode/policy/alias failure.
         first_gemm = next(i for i, s in enumerate(fixture["statements"]) if s["action"]["op"] == "gemm")
@@ -134,7 +147,7 @@ def check(prefix, lean_cc=None):
         header.write_text(header.read_text() + "\n/* header dependency regression */\n")
         run(["lake", "build", "fixture"], cwd=work, env=native_env)
         assert all(p.stat().st_mtime_ns != old for p, old in zip(objects, before))
-    print("Actual checked GEMM IR/native FFI passed; nominal source integration remains separate.")
+    print("Checked raw and nominal GEMM/native FFI passed; public source integration remains separate.")
 
 
 if __name__ == "__main__":

@@ -344,6 +344,60 @@ impl Drop for BuildDirectory {
     }
 }
 
+// Lake writes setup files and compiled objects inside local dependency packages.
+// Coordinate optional-package builds across compiler processes, including path
+// aliases. Lock the existing directories so no removable/stale lockfile or write
+// permission on a warmed package is needed. The supported Unix hosts use flock;
+// direct Lake invocations must still be kept separate from compiler builds.
+fn lock_native_packages(kernel_root: &Path, numerical: bool) -> Result<Vec<fs::File>, String> {
+    let mut paths = vec![kernel_root.join("native")];
+    if numerical {
+        paths.push(kernel_root.join("numerical"));
+    }
+    let mut paths = paths
+        .into_iter()
+        .map(|path| {
+            path.canonicalize().map_err(|error| {
+                format!(
+                    "E_BUILD: cannot locate native package {}: {error}",
+                    path.display()
+                )
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    // A fixed order also handles shared packages reached from distinct roots.
+    paths.sort();
+    paths.dedup();
+    let mut locks = Vec::new();
+    for path in paths {
+        let file = fs::File::open(&path).map_err(|error| {
+            format!(
+                "E_BUILD: cannot open native package {}: {error}",
+                path.display()
+            )
+        })?;
+        loop {
+            crate::process::check().map_err(|_| "E_INTERRUPTED: compilation interrupted")?;
+            match file.try_lock() {
+                Ok(()) => break,
+                Err(fs::TryLockError::WouldBlock) => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(fs::TryLockError::Error(error))
+                    if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(fs::TryLockError::Error(error)) => {
+                    return Err(format!(
+                        "E_BUILD: cannot lock native package {}: {error}",
+                        path.display()
+                    ));
+                }
+            }
+        }
+        locks.push(file);
+    }
+    Ok(locks)
+}
+
 fn build_native(
     kernel_root: &Path,
     source: &str,
@@ -427,6 +481,11 @@ fn build_native(
         fs::write(path.join(name), contents)
             .map_err(|error| format!("E_BUILD: cannot write {name}: {error}"))?;
     }
+    let _native_locks = if storage_runtime {
+        lock_native_packages(kernel_root, numerical_prefix.is_some())?
+    } else {
+        Vec::new()
+    };
     let mut command = Command::new("lake");
     command.current_dir(path).args(["build", "program"]);
     if let Some(compiler) = native_cc {

@@ -238,6 +238,15 @@ pure Core and closed logical entry resources. The public decoder/checker equatio
 refer to that same input. Dynamic shapes/value flow and native/source refinement
 remain separate obligations.
 
+The [numerical declaration profiles](numerical-declarations.md) use the same
+complete declaration certificate. `IndexedSource.checked_implementation_contract`,
+`checked_linear_base`, `checked_smooth_complex_base`, `checked_coefficient_unique`
+and `checked_descriptor_is_affine` establish the actual accepted metadata
+contracts. `ResourceSource.public_numerical_declaration` connects them to the
+same decoded protocol-8 input and authority checker. These are structural type
+and provenance facts; they do not establish field/module laws, linear object
+construction, public GEMM, floating-point accuracy or native refinement.
+
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in
 `VastitasOracle.Graph`. It does not extend these source/Core evaluation claims

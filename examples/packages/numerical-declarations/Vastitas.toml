@@ -1,0 +1,4 @@
+[package]
+name = "numerical_declarations"
+version = "0.1.0"
+root = "src/main.vast"

@@ -46,6 +46,11 @@ inductive PrimitiveBinding where
 def implementationType (env : Environment) (id : DeclId) : Option ObjectType :=
   (implementationMarker env id).map fun marker => ⟨id, marker⟩
 
+def affineGlobal (env : Environment) (id : DeclId) : Bool :=
+  match lookup env id with
+  | some (.global implementation) => affineImplementation env implementation
+  | _ => false
+
 def originContract (env : Environment) (domain : ObjectType) (family base : DeclId) : Bool :=
   decide (domain.Supports env .origin) && familyRepresentation env family == some .point &&
     validApplication env ⟨family, [.object (.local domain 0), .object (.global base)]⟩
@@ -55,8 +60,9 @@ def identityContract (env : Environment) (domain : ObjectType) (family : DeclId)
     validApplication env ⟨family, [.object (.local domain 0), .object (.local domain 0)]⟩
 
 def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
-  | .descriptor implementation => ∃ ty ∈ implementationType env implementation, ty.Valid env
-  | .global id => ObjectRef.Valid env (.global id)
+  | .descriptor implementation => affineImplementation env implementation = true ∧
+      ∃ ty ∈ implementationType env implementation, ty.Valid env
+  | .global id => affineGlobal env id = true ∧ ObjectRef.Valid env (.global id)
   | .origin domain family base => domain.Supports env .origin ∧
       familyRepresentation env family = some .point ∧
       Application.Valid env ⟨family, [.object (.local domain 0), .object (.global base)]⟩
@@ -70,9 +76,9 @@ def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
 
 def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .descriptor implementation => match implementationType env implementation with
-    | some ty => decide (ty.Valid env)
+    | some ty => affineImplementation env implementation && decide (ty.Valid env)
     | none => false
-  | .global id => decide (ObjectRef.Valid env (.global id))
+  | .global id => affineGlobal env id && decide (ObjectRef.Valid env (.global id))
   | .origin domain family base => originContract env domain family base
   | .identity domain family => identityContract env domain family
   | .dimension domain => decide (domain.Supports env .dimension)

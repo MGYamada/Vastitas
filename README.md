@@ -44,7 +44,9 @@ execution. Dynamic shapes/value flow, public numerical consumers and end-to-end 
 performance comparisons are still pending.
 An [optional internal GEMM path](docs/numerical-adapter.md) checks resource access,
 initialization and exact native lowering, then executes through pinned OpenBLAS.
-Its nominal mathematical types and public source integration are pending.
+[Numerical declaration profiles](docs/numerical-declarations.md) now independently
+check ideal real/complex coefficients and nominal scalar bases through protocol 8.
+Generative linear objects, bases and typed public GEMM integration remain pending.
 
 ## Build and use
 

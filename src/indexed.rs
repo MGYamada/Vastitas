@@ -68,10 +68,32 @@ pub enum DeclarationBody {
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub enum Representation {
     AffineDescriptor,
+    ScalarBase {
+        setting: GeometricSetting,
+        coefficient: CoefficientKind,
+    },
+    LinearDescriptor {
+        base: TypePath,
+        coefficient: CoefficientKind,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CoefficientKind {
+    Real,
+    Complex,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GeometricSetting {
+    Scheme,
+    Smooth,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

@@ -9,6 +9,12 @@ namespace VastitasKernel.Indexed.Source
 
 abbrev Path := TypePath
 
+inductive Representation where
+  | affineDescriptor
+  | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
+  | linearDescriptor (base : Path) (coefficient : CoefficientKind)
+  deriving Repr, Inhabited
+
 inductive Parameter where
   | domain | marker | natural
   | object (domain : Path)

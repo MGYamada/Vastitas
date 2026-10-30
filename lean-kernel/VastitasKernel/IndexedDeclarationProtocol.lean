@@ -88,10 +88,32 @@ def primitive (j : Json) : Except String Source.Primitive := do
     return .apply (← path (← field j "map_family")) (← path (← field j "point_family"))
   | _ => throw "unknown indexed primitive contract"
 
-def representation (j : Json) : Except String Representation := do
+def coefficientKind (j : Json) : Except String CoefficientKind := do
   match ← j.getStr? with
-  | "affine_descriptor" => return .affineDescriptor
-  | _ => throw "unsupported concrete object representation"
+  | "real" => return .real
+  | "complex" => return .complex
+  | _ => throw "expected ideal coefficient kind real or complex"
+
+def geometricSetting (j : Json) : Except String GeometricSetting := do
+  match ← j.getStr? with
+  | "scheme" => return .scheme
+  | "smooth" => return .smooth
+  | _ => throw "expected scheme or smooth setting"
+
+def representation (j : Json) (numerical : Bool := false) : Except String Source.Representation := do
+  if j == Json.str "affine_descriptor" then return .affineDescriptor
+  unless numerical do throw "numerical declarations require protocol 8"
+  let entries ← j.getObj?
+  if entries.size != 1 then throw "expected exactly one concrete representation"
+  if let .ok body := j.getObjVal? "scalar_base" then
+    fields body ["setting", "coefficient"]
+    return .scalarBase (← geometricSetting (← field body "setting"))
+      (← coefficientKind (← field body "coefficient"))
+  if let .ok body := j.getObjVal? "linear_descriptor" then
+    fields body ["base", "coefficient"]
+    return .linearDescriptor (← path (← field body "base"))
+      (← coefficientKind (← field body "coefficient"))
+  throw "unsupported concrete object representation"
 
 def capability (j : Json) : Except String Capability := do
   match ← j.getStr? with
@@ -106,13 +128,13 @@ def familyRepresentation (j : Json) : Except String FamilyRepresentation := do
   | "morphism" => return .morphism
   | _ => throw "unsupported indexed family representation"
 
-def declarationBody (j : Json) : Except String Source.Body := do
+def declarationBody (j : Json) (numerical : Bool := false) : Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
   match ← str j "kind" with
   | "marker" => fields j common; return .marker
   | "implementation" =>
     fields j (common ++ ["marker", "representation", "capabilities"])
-    return .implementation (← path (← field j "marker")) (← representation (← field j "representation"))
+    return .implementation (← path (← field j "marker")) (← representation (← field j "representation") numerical)
       (← (← array j "capabilities").mapM capability)
   | "classification" =>
     fields j (common ++ ["parents", "domain"])
@@ -128,8 +150,8 @@ def declarationBody (j : Json) : Except String Source.Body := do
   | "primitive" => fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding"))
   | _ => throw "unknown indexed declaration kind"
 
-def declaration (j : Json) : Except String Source.Declaration := do
-  let body ← declarationBody j
+def declaration (j : Json) (numerical : Bool := false) : Except String Source.Declaration := do
+  let body ← declarationBody j numerical
   return ⟨← str j "name", body, ← j.getObjValAs? Bool "public", ← decodeSpan j⟩
 
 end VastitasKernel.Indexed.Wire

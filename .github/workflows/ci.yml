@@ -101,6 +101,34 @@ jobs:
           test -x lean-kernel/.lake/build/bin/vastitas-kernel
           python3 -m unittest discover -s scripts -p 'test_diagnostic_reference.py' -v
 
+  numerical-adapter:
+    name: Optional GEMM adapter (${{ matrix.os }}, OpenBLAS 0.3.34)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Build pinned sequential LP64 OpenBLAS
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/vastitas-openblas" --jobs 4 --target HASWELL
+          else
+            python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/vastitas-openblas" --jobs 4
+          fi
+      - name: Install native uninitialized-memory checker
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Adapter, sanitizer, ABI and uninitialized-memory tests
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas" --valgrind
+          else
+            python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas"
+          fi
+
   oracle:
     name: Lean proofs and axiom audit
     runs-on: ubuntu-latest

@@ -9,7 +9,6 @@ pub resource fn product() -> Unit {
     allocate b: F64[6];
     allocate c: F64[4];
     borrow init_a = write(a, layout(0, 2, 3, 2, false));
-    fill(init_a, f64_bits(0));
     store(init_a, 0, 0, f64_bits(4607182418800017408));
     store(init_a, 0, 1, f64_bits(4611686018427387904));
     store(init_a, 0, 2, f64_bits(4613937818241073152));
@@ -18,7 +17,6 @@ pub resource fn product() -> Unit {
     store(init_a, 1, 2, f64_bits(4618441417868443648));
     release(init_a);
     borrow init_b = write(b, layout(0, 3, 2, 3, false));
-    fill(init_b, f64_bits(0));
     store(init_b, 0, 0, f64_bits(4619567317775286272));
     store(init_b, 0, 1, f64_bits(4620693217682128896));
     store(init_b, 1, 0, f64_bits(4621256167635550208));

@@ -49,7 +49,11 @@ Borrowed parameters use `Read<S, rows, columns>`, `Write<S, rows, columns>` or
 scoped child loans of the actual caller view. Their scalar and logical shape must
 match, but their real offset, padding and transpose are preserved. The caller's
 loan resumes only after all children are returned. Two read arguments may alias;
-parameter names never prove separation for a writer.
+parameter names never prove separation for a writer. Individual cell stores can
+establish an entire initialized output, including a padded caller view, through
+the bounded write-union check. Both branches must independently cover each
+requested cell. No preliminary fill is required when the stores suffice; missing
+cells, padding holes and exhausted coverage budgets remain unreadable.
 
 | Statement | Meaning |
 | --- | --- |

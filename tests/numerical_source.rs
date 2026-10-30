@@ -1,5 +1,5 @@
 mod common;
-use common::{Scratch, cli, kernel, success};
+use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::process::Command;
@@ -49,15 +49,24 @@ fn rejection(s: &Scratch, code: &str) {
         "expected {code}: {output:?}"
     );
 }
-fn real_body(raw: &mut Value) -> &mut Vec<Value> {
+fn module<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
     raw["packages"][0]["modules"]
         .as_array_mut()
         .unwrap()
         .iter_mut()
-        .find(|m| m["path"] == json!(["real"]))
-        .unwrap()["resource_functions"][0]["body"]
+        .find(|m| m["path"] == json!([name]))
+        .unwrap()
+}
+fn numerical_body<'a>(raw: &'a mut Value, name: &str) -> &'a mut Vec<Value> {
+    module(raw, name)["resource_functions"][0]["body"]
         .as_array_mut()
         .unwrap()
+}
+fn local_operation<'a>(body: &'a mut [Value], name: &str) -> &'a mut Value {
+    &mut body
+        .iter_mut()
+        .find(|statement| statement["operation"]["name"] == name)
+        .unwrap()["operation"]
 }
 
 #[test]
@@ -144,6 +153,11 @@ fn public_products_reject_nominal_resource_and_scope_errors() {
         (
             "gemm(left, right, destination, overwrite",
             "transpose(input_a); gemm(left, right, destination, overwrite",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "gemm(left, right, destination, overwrite",
+            "transpose(output); gemm(left, right, destination, overwrite",
             "E_NUMERICAL_TYPE",
         ),
         (
@@ -237,6 +251,116 @@ fn numerical_paths_are_resolved_with_actual_visibility_and_alias_identity() {
 }
 
 #[test]
+fn raw_numerical_bodies_recheck_nominal_identity_and_live_loans_even_when_unused() {
+    // Mutate an accepted frontend request, then call Lean directly. Source-only
+    // rejections cannot demonstrate that the independent checker enforces these
+    // contracts. Exercise both coefficients and the separate all-body probes.
+    let s = fixture(REAL);
+    for main in [
+        MAIN,
+        "mod profiles; mod real; mod complex; fn main() -> Int { 42 }",
+    ] {
+        s.write("src/main.vast", main);
+        let raw = captured(&s);
+        let response = kernel(&raw, "emit");
+        assert_eq!(response["ok"], true, "{response}");
+        assert_eq!(response["numerical_runtime"], main == MAIN);
+        for name in ["real", "complex"] {
+            // u and w both have dimension two but different object identities.
+            let mut changed = raw.clone();
+            local_operation(numerical_body(&mut changed, name), "destination")["source"] =
+                json!("bw");
+            assert_rejected(changed, "E_NUMERICAL_TYPE");
+
+            for distinct_space in [false, true] {
+                let mut changed = raw.clone();
+                let body = numerical_body(&mut changed, name);
+                let basis_index = body
+                    .iter()
+                    .position(|statement| statement["operation"]["name"] == "bv")
+                    .unwrap();
+                let mut basis = body[basis_index].clone();
+                basis["operation"]["name"] = json!("other_basis");
+                if distinct_space {
+                    let mut space = body
+                        .iter()
+                        .find(|statement| statement["operation"]["name"] == "v")
+                        .unwrap()
+                        .clone();
+                    space["operation"]["name"] = json!("other_space");
+                    basis["operation"]["space"] = json!("other_space");
+                    body.insert(basis_index, space);
+                }
+                body.insert(basis_index + 1, basis);
+                local_operation(body, "right")["target"] = json!("other_basis");
+                assert_rejected(changed, "E_NUMERICAL_TYPE");
+            }
+
+            for action in [
+                // Square output: dimensions still agree, but the exact layout
+                // snapshot does not. A shape-only stale-view check would pass.
+                json!({"op": "transpose", "loan": "output"}),
+                json!({"op": "release", "loan": "input_a"}),
+                json!({"op": "borrow", "name": "child", "source": "input_a",
+                    "layout": {"offset": 0, "rows": 2, "columns": 3,
+                        "leading": 2, "transposed": false}, "access": "read"}),
+            ] {
+                let mut changed = raw.clone();
+                let body = numerical_body(&mut changed, name);
+                let gemm = body
+                    .iter()
+                    .position(|statement| statement["operation"]["op"] == "gemm")
+                    .unwrap();
+                let span = body[gemm]["span"].clone();
+                body.insert(
+                    gemm,
+                    json!({"kind": "action", "action": action, "span": span}),
+                );
+                assert_rejected(changed, "E_NUMERICAL_TYPE");
+            }
+        }
+    }
+}
+
+#[test]
+fn raw_numerical_profiles_resolve_against_the_actual_declarations() {
+    let raw = captured(&fixture(REAL));
+    assert_eq!(kernel(&raw, "check")["ok"], true);
+    for (name, profile, marker) in [
+        ("real", "RealSmooth", "RealCoefficients"),
+        ("complex", "ComplexSmooth", "ComplexCoefficients"),
+    ] {
+        let mut changed = raw.clone();
+        let declaration = module(&mut changed, "profiles")["indexed_declarations"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|declaration| declaration["name"] == profile)
+            .unwrap();
+        declaration["public"] = json!(false);
+        assert_rejected(changed, "E_VISIBILITY");
+
+        // The declaration is valid and public, but it is not a linear profile.
+        let mut changed = raw.clone();
+        local_operation(numerical_body(&mut changed, name), "u")["implementation"]["path"] =
+            json!(["super", "profiles", marker]);
+        assert_rejected(changed, "E_NUMERICAL_TYPE");
+
+        // A malformed declaration cannot be hidden behind an otherwise valid
+        // numerical body or an old frontend acceptance of this same path.
+        let mut changed = raw.clone();
+        let declaration = module(&mut changed, "profiles")["indexed_declarations"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|declaration| declaration["name"] == profile)
+            .unwrap();
+        declaration["representation"]["linear_descriptor"]["base"]["path"] = json!([marker]);
+        assert_rejected(changed, "E_TYPE");
+    }
+}
+
+#[test]
 fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
     let raw = captured(&fixture(REAL));
     for version in 2..8 {
@@ -251,14 +375,16 @@ fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
         ("space", "owner", json!("trusted")),
         ("space", "dimension", json!(-1)),
         ("space", "checked", json!(true)),
+        ("basis", "brand", json!(0)),
         ("map", "allocation", json!(0)),
         ("map", "source", json!(0)),
+        ("gemm", "certificate", json!({"checked": true})),
         ("gemm", "conjugate_left", json!(true)),
         ("gemm", "policy", json!("exact")),
         ("gemm", "mode", json!("unknown")),
     ] {
         let mut changed = raw.clone();
-        let operation = &mut real_body(&mut changed)
+        let operation = &mut numerical_body(&mut changed, "real")
             .iter_mut()
             .find(|s| s["operation"]["op"] == op)
             .unwrap()["operation"];
@@ -271,8 +397,16 @@ fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
         );
         assert!(response.get("lean_source").is_none());
     }
+    // Nested paths have their own strict decoder. A checked ID or proof tag
+    // cannot be smuggled beside the otherwise valid unresolved path.
+    for key in ["checked_id", "proof"] {
+        let mut changed = raw.clone();
+        local_operation(numerical_body(&mut changed, "real"), "u")["implementation"][key] =
+            json!("trusted");
+        assert_rejected(changed, "E_PROTOCOL");
+    }
     let mut changed = raw;
-    let operation = &mut real_body(&mut changed)
+    let operation = &mut numerical_body(&mut changed, "real")
         .iter_mut()
         .find(|s| s["operation"]["op"] == "gemm")
         .unwrap()["operation"];

@@ -40,10 +40,13 @@ and allocation/copy counters. [Internal resource functions](docs/storage-functio
 check owned arguments/results and borrowed destinations against actual caller
 resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
 static storage schedules and pure return expressions to package source and native
-execution. Dynamic shapes/value flow, numerical consumers and measured C
-performance are still pending.
-An [optional internal GEMM adapter](docs/numerical-adapter.md) tests pinned
-OpenBLAS against actual native storage; its typed source integration is pending.
+execution. Dynamic shapes/value flow, public numerical consumers and end-to-end C
+performance comparisons are still pending.
+An [optional internal GEMM path](docs/numerical-adapter.md) checks resource access,
+initialization and exact native lowering, then executes through pinned OpenBLAS.
+[Numerical declaration profiles](docs/numerical-declarations.md) now independently
+check ideal real/complex coefficients and nominal scalar bases through protocol 8.
+Generative linear objects, bases and typed public GEMM integration remain pending.
 
 ## Build and use
 
@@ -287,6 +290,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Indexed Core, runtime semantics and internal declaration/function/dispatch/authority elaboration](docs/indexed-declarations.md)
 - [Compiler protocol](docs/protocol.md)
 - [Identifier ASCII round-trip reference and integration contract](docs/identifier-ascii-reference.md)
+- [Finite random-supply, exact-law, and logical-address reference](docs/rand-reference.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)
 - [Design v0.3, reorganized by topic](docs/design.md)

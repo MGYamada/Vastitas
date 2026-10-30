@@ -41,6 +41,7 @@ import VastitasOracle.StorageLayout
 import VastitasOracle.StorageRegions
 import VastitasOracle.StorageSafety
 import VastitasOracle.StorageCodegen
+import VastitasOracle.StorageGemm
 import VastitasOracle.StorageFunctions
 import VastitasOracle.ResourceSource
 

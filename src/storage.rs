@@ -43,6 +43,19 @@ pub enum Literal {
     ComplexF64 { real: u64, imaginary: u64 },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GemmMode {
+    Overwrite,
+    Accumulate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NumericalPolicy {
+    NativeFast,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
@@ -89,6 +102,17 @@ pub enum Action {
     Copy {
         source: u32,
         target: u32,
+    },
+    // Internal resource operation only. Public source additionally needs
+    // nominal endpoint/frame/metric validation before selecting this backend.
+    Gemm {
+        left: u32,
+        right: u32,
+        output: u32,
+        conjugate_left: bool,
+        conjugate_right: bool,
+        mode: GemmMode,
+        policy: NumericalPolicy,
     },
 }
 

@@ -185,6 +185,12 @@ def operation (frame : Frame) : Action → M Frame
   | .store name row column value => do step (.store (← resolve frame name) row column value); return frame
   | .expect name row column value => do step (.expect (← resolve frame name) row column value); return frame
   | .copy source target => do step (.copy (← resolve frame source) (← resolve frame target)); return frame
+  | .gemm request => do
+    let left ← resolve frame request.left
+    let right ← resolve frame request.right
+    let output ← resolve frame request.output
+    step (.gemm {request with left, right, output})
+    return frame
 
 structure BorrowedArgument where
   child : Symbol

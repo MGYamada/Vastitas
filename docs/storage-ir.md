@@ -50,6 +50,7 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 | `fill`, `store` | Writable active loan, exact scalar representation; record the whole view or the one addressed cell |
 | `expect` | Readable active loan, valid index and initialized cell; native execution asserts the supplied bit pattern |
 | `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source |
+| Internal `gemm` | Initialized readable inputs, exclusive compatible output, explicit NativeFast policy/mode/orientation, independent input/output byte separation; accumulate also requires initialized readable output |
 | Branch join | Same owners, allocations and loan structure; intersect initialization guarantees and merge logical versions |
 
 Symbols cannot be reused or shadowed, including after move or release. Fresh
@@ -156,6 +157,7 @@ The oracle imports the actual kernel definitions:
 | `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning |
 | `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; decoder certificates retain the exact checked plan |
 | `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
+| `VastitasOracle.StorageGemm` | Actual GEMM subject and accepted transition, input/accumulate initialization, output byte separation, and initialized destination bytes in the reconstructed post-state; no nominal or native numerical guarantee |
 | `VastitasOracle.StorageFunctions` | Exact call-slice replay, caller-loan restoration, unique owned results with declared initialized bytes, all-body probe coverage and exact decoder/executable/closed-plan connection |
 
 `StorageRegression` compares bounds, injectivity, containment and separation with

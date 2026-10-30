@@ -12,6 +12,9 @@ inductive Instruction where
   | store (allocation : Nat) (layout : Layout) (row column : Nat) (value : Literal)
   | expect (allocation : Nat) (layout : Layout) (row column : Nat) (value : Literal)
   | copy (source : Nat) (input : Layout) (target : Nat) (output : Layout)
+  | gemm (left : Nat) (leftView : Layout) (conjugateLeft : Bool)
+      (right : Nat) (rightView : Layout) (conjugateRight : Bool)
+      (output : Nat) (outputView : Layout) (mode : GemmMode) (policy : NumericalPolicy)
   | branch (condition : Bool)
   | otherwise | finish | skip
   deriving Repr, BEq, DecidableEq, Inhabited
@@ -36,6 +39,12 @@ def action (state : State) : Action → Except Error (List Instruction)
     let some input := state.loan? source | reject "missing copy source during native lowering"
     let some output := state.loan? target | reject "missing copy target during native lowering"
     pure [.copy input.allocation input.layout output.allocation output.layout]
+  | .gemm request => do
+    let checked ← checkGemm state request
+    let args := checked.operands
+    pure [.gemm args.left.allocation args.left.layout request.conjugateLeft
+      args.right.allocation args.right.layout request.conjugateRight
+      args.output.allocation args.output.layout request.mode request.policy]
   | .move .. | .borrow .. | .release .. | .transpose .. => pure []
 
 def lower : Nat → State → List Statement → Except Error (State × List Instruction)
@@ -111,6 +120,9 @@ private def render (instructions : List Instruction) : Except Error String := do
         | .store id view row column value => s!"store arena {id} {layout view} {row} {column} {literal value}"
         | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {literal value}"
         | .copy source input target output => s!"copy arena {source} {layout input} {target} {layout output}"
+        | .gemm left leftView conjugateLeft right rightView conjugateRight output outputView mode _ =>
+          let mode := match mode with | .overwrite => 0 | .accumulate => 1
+          s!"VastitasGemmNative.gemm arena {left} {layout leftView} {conjugateLeft} {right} {layout rightView} {conjugateRight} {output} {layout outputView} {mode}"
         | _ => "pure ()"
       result := result ++ spaces ++ line ++ "\n"
   if indent != 4 then reject "unclosed native branch"
@@ -122,6 +134,9 @@ def generateBody (plan : Plan) : Except Error String := do
   let _ ← audit plan
   render plan.instructions
 
+def Plan.needsNumerical (plan : Plan) : Bool :=
+  plan.instructions.any fun instruction => match instruction with | .gemm .. => true | _ => false
+
 /-- Generation accepts a raw plan only after independently auditing it again.
 Cleanup is structured IO, including runtime assertion/allocation failures.
 The optional reporting entry point is for native regression/cost fixtures. -/
@@ -131,7 +146,8 @@ def generate (plan : Plan) (report : Bool := false) (byteBudget : Nat := byteLim
   let operations ← generateBody plan
   let reporting := if report then
     "    let counters ← stats arena\n    IO.println counters\n" else ""
-  return "import VastitasStorageNative\n\nopen VastitasStorageNative\n\n" ++
+  let numericalImport := if plan.needsNumerical then "import VastitasGemmNative\n" else ""
+  return "import VastitasStorageNative\n" ++ numericalImport ++ "\nopen VastitasStorageNative\n\n" ++
     "def main : IO Unit := do\n" ++ s!"  let arena ← newArena {byteBudget}\n  try\n" ++
     operations ++ "    pure ()\n  finally\n    close arena\n" ++ reporting
 

@@ -1,0 +1,158 @@
+{
+  "started_utc": "2026-10-30T07:08:40.023751+00:00",
+  "argv": [
+    "experiments/storage_copy/run.py",
+    "--output",
+    "/workspace/scratch/6f482abd7151/storage-copy-full",
+    "--samples",
+    "11",
+    "--target-ms",
+    "5",
+    "--no-leak-sanitizer"
+  ],
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "cpu_affinity_before": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "cpu_affinity": 0,
+  "threads": 1,
+  "flags": [
+    "-std=c11",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wpedantic",
+    "-fno-lto"
+  ],
+  "cc": [
+    "cc"
+  ],
+  "source_sha256": {
+    "lean-kernel/native/storage.c": "4ab4ecee5a4efe67b7052140a3b2f1283bceac136a31ab2c55732133ed239742",
+    "lean-kernel/native/storage.h": "38e080b20854cfbc0bf663eca9f45e522a68f3a56a1f99d9d4ba4bb3d8865ba5",
+    "lean-kernel/native/test_storage.c": "8727dd9e67c67f3dabb03ca14e9b099873081c73c5f4effd1d94bceef4ac30f1",
+    "experiments/storage_copy/bench.h": "91977eebf947fe1a09e53679eb7b2560cb476f003b23103fee8bc919bf880c0f",
+    "experiments/storage_copy/probe.c": "8f1449846b200087f5905966c66faa7a8395907c787dc97e742d363a0fbeb24e",
+    "experiments/storage_copy/driver.c": "69c134d9605bf0579a753faa3db31854e62ee8ee7d80aa475d13a12bf5a7001a",
+    "experiments/storage_copy/run.py": "93efbef18c1c843255c5512393999eec35e9c443ae5a08117fefc35eda524717"
+  },
+  "scope": "Synchronous C adapter only; no Lean FFI, compiler/protocol-8, GEMM, GPU or native refinement claim.",
+  "sanitizers": "required separate untimed executables",
+  "environment": {
+    "OMP_NUM_THREADS": null,
+    "OPENBLAS_NUM_THREADS": null,
+    "MALLOC_ARENA_MAX": null,
+    "LD_PRELOAD": null,
+    "ASAN_OPTIONS": ":detect_leaks=0",
+    "UBSAN_OPTIONS": null
+  },
+  "host": {
+    "compiler": {
+      "command": [
+        "cc",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "cc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": ""
+    },
+    "compiler_target": {
+      "command": [
+        "cc",
+        "-dumpmachine"
+      ],
+      "returncode": 0,
+      "stdout": "x86_64-linux-gnu\n",
+      "stderr": ""
+    },
+    "git_head": {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "228d378d98863b3f5669d978acc5598812c3544f\n",
+      "stderr": ""
+    },
+    "git_status": {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "followup_commits": {
+      "command": [
+        "git",
+        "log",
+        "--format=%H %s",
+        "63d944ed67d96bfb8ad8183ddb5d7b1303c6c9ab..HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "228d378d98863b3f5669d978acc5598812c3544f Add optional matched-contract C storage copy benchmark\n2d6a86ce4c8a44bd883d879035aa9c924ed8fc71 Merge pull request #271 from MGYamada/codex/stage1-storage-source\n451d61c3b2e55e26a135019fe82c2306d6080d80 Connect package resource functions to protocol 8 and checked native execution\nd783b5a6e393214a54cb408501963b1e42a7be94 Merge pull request #269 from MGYamada/codex/stage1-resource-functions\nabf843e1a3a7efa27c07d3f4e69e634c6a3bf07c Check affine resource calls against actual caller storage\n",
+      "stderr": ""
+    },
+    "adapter_diff_since_267": {
+      "command": [
+        "git",
+        "diff",
+        "63d944ed67d96bfb8ad8183ddb5d7b1303c6c9ab",
+        "HEAD",
+        "--",
+        "lean-kernel/native"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "lscpu": {
+      "command": [
+        "lscpu"
+      ],
+      "returncode": 0,
+      "stdout": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           46 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  9\nOn-line CPU(s) list:                     0-8\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 9V74 80-Core Processor\nBIOS Model name:                           CPU @ 0.0GHz\nBIOS CPU family:                         0\nCPU family:                              25\nModel:                                   17\nThread(s) per core:                      1\nCore(s) per socket:                      9\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5192.29\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx512_bf16 clzero xsaveerptr arat npt nrip_save tsc_scale vmcb_clean flushbyasid pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm arch_capabilities\nHypervisor vendor:                       KVM\nVirtualization type:                     full\nL1d cache:                               160 KiB (5 instances)\nL1i cache:                               160 KiB (5 instances)\nL2 cache:                                5 MiB (5 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-8\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers\nVulnerability Spectre v2:                Vulnerable; STIBP: disabled; PBRSB-eIBRS: Not affected; BHI: Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+      "stderr": ""
+    },
+    "uname": {
+      "command": [
+        "uname",
+        "-a"
+      ],
+      "returncode": 0,
+      "stdout": "Linux 82b5f933e125 6.18.55 #1 SMP Wed Oct 14 19:45:18 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    "libc": {
+      "command": [
+        "ldd",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "ldd (Ubuntu GLIBC 2.39-0ubuntu8.6) 2.39\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper.\n",
+      "stderr": ""
+    },
+    "/sys/fs/cgroup/cpu.max": "800000 100000\n",
+    "/sys/fs/cgroup/memory.max": "8589934592\n",
+    "/sys/fs/cgroup/cpu.stat": "usage_usec 187700088\nuser_usec 135366251\nsystem_usec 52333836\nnice_usec 0\nnr_periods 30691\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+    "/proc/loadavg": "0.01 0.05 0.01 1/204 14\n",
+    "loadavg_after": "1.01 0.72 0.33 3/192 373\n",
+    "cpu_stat_after": "usage_usec 531138954\nuser_usec 403886951\nsystem_usec 127252003\nnice_usec 0\nnr_periods 34088\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n"
+  },
+  "finished_utc": "2026-10-30T07:14:19.684798+00:00",
+  "case_count": 200,
+  "raw_row_count": 18876
+}

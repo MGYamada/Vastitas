@@ -1,0 +1,14 @@
+{"version": "1.3.0",
+ "packagesDir": ".lake/packages",
+ "packages":
+ [{"type": "path",
+   "scope": "",
+   "name": "vastitas_storage_native",
+   "manifestFile": "lake-manifest.json",
+   "inherited": false,
+   "dir": "../native",
+   "copy": false,
+   "configFile": "lakefile.lean"}],
+ "name": "vastitas_gemm_native",
+ "lakeDir": ".lake",
+ "fixedToolchain": false}

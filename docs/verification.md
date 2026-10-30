@@ -256,6 +256,14 @@ resource safety or authorize native check elimination. The linked document
 states the pending all-access, exact-return and successful-branch soundness
 obligations for the actual Ownership/Borrow Checker.
 
+`StorageGemm` additionally proves facts about the actual internal GEMM resource
+transition: input and accumulate initialization, reconstructed allocation subject,
+output byte separation and initialized output bytes in its exact post-state.
+It does not establish nominal endpoint/basis/metric typing, ideal multiplication,
+floating-point accuracy, native no-read behavior or source/native refinement.
+The [generated numerical runtime checks](numerical-adapter.md) provide separate
+execution and cleanup evidence; the optional native package is not an oracle dependency.
+
 The separate [internal resource IR](storage-ir.md) now has actual-checker
 theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization
@@ -281,6 +289,15 @@ pure Core and closed logical entry resources. The public decoder/checker equatio
 refer to that same input. Dynamic shapes/value flow and native/source refinement
 remain separate obligations.
 
+The [numerical declaration profiles](numerical-declarations.md) use the same
+complete declaration certificate. `IndexedSource.checked_implementation_contract`,
+`checked_linear_base`, `checked_smooth_complex_base`, `checked_coefficient_unique`
+and `checked_descriptor_is_affine` establish the actual accepted metadata
+contracts. `ResourceSource.public_numerical_declaration` connects them to the
+same decoded protocol-8 input and authority checker. These are structural type
+and provenance facts; they do not establish field/module laws, linear object
+construction, public GEMM, floating-point accuracy or native refinement.
+
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in
 `VastitasOracle.Graph`. It does not extend these source/Core evaluation claims
@@ -293,6 +310,14 @@ generator/environment/returned-record audits are reference tests only. The
 document states the Lean analytic soundness goals and actual returned-Core
 integration obligations; no new Hilbert theorem, compiler acceptance,
 completeness proof, or iterator memory-safety claim follows from those tests.
+
+The [exact real-plane metric reference](metric-reference.md) separately tests
+metric-free polynomial differentials/cotangent pullbacks, selected constant
+metrics and their musical maps. Exact inverse and real positivity checks are
+distinct, and evidence retains the object/base/frame/basepoint/metric identity.
+Its coordinate-change regressions and nominal-evidence audits are Python
+reference results only; the document lists separate future Lean soundness and
+same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
 
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy

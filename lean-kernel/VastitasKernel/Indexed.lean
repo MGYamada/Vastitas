@@ -7,9 +7,20 @@ namespace VastitasKernel.Indexed
 
 abbrev DeclId := Namespace.Owner
 
+/-- Ideal coefficient kinds. These do not assert field laws for machine bits. -/
+inductive CoefficientKind where
+  | real | complex
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+inductive GeometricSetting where
+  | scheme | smooth
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-- This is a backend representation, not an assertion of geometric axioms. -/
 inductive Representation where
   | affineDescriptor
+  | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
+  | linearDescriptor (base : DeclId) (coefficient : CoefficientKind)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The finite descriptor backend implements these two operations. Declaring a
@@ -65,6 +76,60 @@ def isMarker (env : Environment) (id : DeclId) : Bool :=
 
 def implementationMarker (env : Environment) (id : DeclId) : Option DeclId :=
   match lookup env id with | some (.implementation marker _ _) => some marker | _ => none
+
+def affineImplementation (env : Environment) (id : DeclId) : Bool :=
+  match lookup env id with
+  | some (.implementation _ .affineDescriptor _) => true
+  | _ => false
+
+/-- The base is an actual global object, not its coefficient marker. -/
+def scalarBaseProfile (env : Environment) (base : DeclId) :
+    Option (DeclId × GeometricSetting × CoefficientKind) := do
+  let .global implementation ← lookup env base | none
+  let .implementation marker (.scalarBase setting coefficient) _ ← lookup env implementation | none
+  return (marker, setting, coefficient)
+
+def Representation.coefficient : Representation → Option CoefficientKind
+  | .affineDescriptor => none
+  | .scalarBase _ kind | .linearDescriptor _ kind => some kind
+
+/-- A nominal coefficient marker cannot denote both ideal coefficient kinds,
+including in unused declarations or declarations in a different module. -/
+def coefficientConsistent (env : Environment) (marker : DeclId) (kind : CoefficientKind) : Bool :=
+  env.all fun entry => match entry.declaration with
+    | .implementation other representation _ =>
+        other != marker || representation.coefficient.all (· == kind)
+    | _ => true
+
+def Representation.Valid (env : Environment) (marker : DeclId) (capabilities : List Capability) :
+    Representation → Prop
+  | .affineDescriptor => True
+  | .scalarBase setting coefficient =>
+      capabilities = [] ∧ coefficientConsistent env marker coefficient = true ∧
+      (setting = .smooth → coefficient = .real)
+  | .linearDescriptor base coefficient =>
+      capabilities = [] ∧ coefficientConsistent env marker coefficient = true ∧
+      match scalarBaseProfile env base with
+      | none => False
+      | some (baseMarker, setting, baseCoefficient) =>
+        match setting with
+        | .scheme => coefficient = baseCoefficient ∧ marker = baseMarker
+        | .smooth => baseCoefficient = .real ∧
+            (match coefficient with | .real => marker = baseMarker | .complex => marker ≠ baseMarker)
+
+instance (env : Environment) (marker : DeclId) (capabilities : List Capability)
+    (representation : Representation) : Decidable (representation.Valid env marker capabilities) := by
+  cases representation with
+  | affineDescriptor => unfold Representation.Valid; infer_instance
+  | scalarBase setting coefficient => unfold Representation.Valid; infer_instance
+  | linearDescriptor base coefficient =>
+    unfold Representation.Valid
+    cases h : scalarBaseProfile env base with
+    | none => simp only [h]; infer_instance
+    | some profile =>
+      simp only [h]
+      rcases profile with ⟨baseMarker, setting, baseCoefficient⟩
+      cases setting <;> cases coefficient <;> dsimp <;> infer_instance
 
 def domain (env : Environment) (id : DeclId) : List DeclId :=
   match lookup env id with
@@ -197,7 +262,10 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
   | .point | .morphism => f.parameters.length = 2 ∧
       isObjectParameter f.parameters[0]? = true ∧
       isObjectParameter f.parameters[1]? = true ∧
-      Constraint.sameBase 0 1 ∈ f.constraints)
+      Constraint.sameBase 0 1 ∈ f.constraints ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (affineImplementation env)
+        | _ => true) = true)
 
 instance (env : Environment) (f : Family) : Decidable (f.Valid env) := by
   unfold Family.Valid
@@ -231,8 +299,8 @@ def classRank (ranks : List (DeclId × Nat)) (id : DeclId) : Nat :=
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
-  | .implementation marker _ capabilities =>
-      isMarker env marker = true ∧ capabilities.Nodup
+  | .implementation marker representation capabilities =>
+      isMarker env marker = true ∧ capabilities.Nodup ∧ representation.Valid env marker capabilities
   | .classification parents implementations =>
       parents.Nodup ∧ implementations.Nodup ∧ implementations ≠ [] ∧
       implementations.length ≤ 64 ∧
@@ -257,7 +325,8 @@ def validParents (env : Environment) (ranks : List (DeclId × Nat)) (entry : Ent
 def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Bool :=
   match entry.declaration with
   | .marker => true
-  | .implementation marker _ capabilities => isMarker env marker && decide capabilities.Nodup
+  | .implementation marker representation capabilities =>
+      isMarker env marker && decide capabilities.Nodup && decide (representation.Valid env marker capabilities)
   | .classification parents implementations =>
       decide parents.Nodup && decide implementations.Nodup && !implementations.isEmpty &&
       implementations.length ≤ 64 &&

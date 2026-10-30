@@ -110,3 +110,79 @@ pub enum Statement {
 pub struct Plan {
     pub statements: Vec<Statement>,
 }
+
+/// Internal affine function component. These IDs and contracts do not supply
+/// package visibility, edit authority, public protocol acceptance, or trusted
+/// initialization. Lean reconstructs every call against the actual resources.
+pub mod functions {
+    use super::{Access, Action, Layout, Scalar};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct OwnedType {
+        pub scalar: Scalar,
+        pub elements: u64,
+        pub initialized: Vec<Layout>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Parameter {
+        Owned {
+            name: u32,
+            #[serde(rename = "type")]
+            ty: OwnedType,
+        },
+        Borrowed {
+            name: u32,
+            scalar: Scalar,
+            rows: u64,
+            columns: u64,
+            access: Access,
+            initializes: bool,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Result {
+        pub name: u32,
+        #[serde(rename = "type")]
+        pub ty: OwnedType,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Statement {
+        Action {
+            action: Action,
+        },
+        Call {
+            callee: u32,
+            arguments: Vec<u32>,
+            results: Vec<u32>,
+        },
+        Branch {
+            condition: bool,
+            yes: Vec<Statement>,
+            no: Vec<Statement>,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Function {
+        pub id: u32,
+        pub parameters: Vec<Parameter>,
+        pub results: Vec<Result>,
+        pub body: Vec<Statement>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Program {
+        pub functions: Vec<Function>,
+        pub entry: u32,
+    }
+}

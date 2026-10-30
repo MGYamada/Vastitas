@@ -218,7 +218,12 @@ real/complex buffers, output preservation and failure cleanup. These results do
 not yet compose with public protocol 8 or source functions, and they do not
 extend pure-Core totality to mutable storage. Actual memory initialization,
 allocator liveness, native cleanup and native refinement are not proved; C
-performance comparisons remain pending.
+performance comparisons remain pending. The [internal resource function component](storage-functions.md)
+adds actual call-slice replay, restored caller loans, unique live owned results
+with declared initialized bytes, and checked probes for every source body.
+Probes are separate from executable expansion and do not prove a universal
+parametric contract; actual calls are independently checked again. The component
+still does not expose public source functions or change pure-Core semantics.
 
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in

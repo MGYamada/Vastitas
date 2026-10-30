@@ -36,7 +36,9 @@ add nominal hierarchies and bodyless method contracts over the existing four key
 The [internal storage resource IR](docs/storage-ir.md) checks logical ownership,
 loans, initialization and layouts with byte-region proofs. Its exact checked
 schedule can generate native real/complex buffer operations with failure cleanup
-and allocation/copy counters. Public storage syntax, protocol 8, numerical
+and allocation/copy counters. [Internal resource functions](docs/storage-functions.md)
+check owned arguments/results and borrowed destinations against actual caller
+resources. Public storage syntax, protocol 8, numerical
 consumers and measured C performance are still pending.
 
 ## Build and use

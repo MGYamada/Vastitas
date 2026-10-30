@@ -30,4 +30,5 @@ lake -d lean-kernel build \
   VastitasKernel.StorageRegression \
   VastitasStorageTest.Regression \
   VastitasStorageTest.NativeRegression \
+  VastitasStorageTest.FunctionRegression \
   VastitasPromotion.Regression

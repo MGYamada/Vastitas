@@ -65,3 +65,50 @@ fn internal_resource_components_cannot_bypass_public_protocol_acceptance() {
     assert_eq!(response["ok"], false, "{response}");
     assert_eq!(response["version"], 8);
 }
+
+#[test]
+fn resource_function_fixture_preserves_contracts_and_actual_call_operands() {
+    use vastitas::storage::functions::{Parameter, Program, Statement};
+    let raw: Value = serde_json::from_str(include_str!("fixtures/storage-functions.json")).unwrap();
+    let program: Program = serde_json::from_value(raw.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&program).unwrap(), raw);
+    assert_eq!(program.functions.len(), 7);
+    let copier = program.functions.iter().find(|f| f.id == 2).unwrap();
+    assert!(matches!(
+        copier.parameters[1],
+        Parameter::Borrowed {
+            initializes: true,
+            ..
+        }
+    ));
+    let entry = program
+        .functions
+        .iter()
+        .find(|f| f.id == program.entry)
+        .unwrap();
+    assert!(
+        matches!(&entry.body[11], Statement::Call { callee: 5, arguments, results }
+        if arguments == &[10] && results == &[30])
+    );
+    for (path, value) in [
+        ("/checked_state", json!({})),
+        ("/functions/0/checked", json!(true)),
+        ("/functions/0/parameters/0/type/initialized", json!(true)),
+        ("/functions/1/parameters/1/disjoint", json!(true)),
+        ("/functions/2/body/0/callee", json!(1_u64 << 32)),
+        ("/functions/2/body/0/arguments", json!([-1])),
+    ] {
+        let mut changed = raw.clone();
+        let (parent, field) = path.rsplit_once('/').unwrap();
+        changed
+            .pointer_mut(parent)
+            .unwrap()
+            .as_object_mut()
+            .unwrap()
+            .insert(field.into(), value);
+        assert!(
+            serde_json::from_value::<Program>(changed).is_err(),
+            "{path}"
+        );
+    }
+}

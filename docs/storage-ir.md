@@ -53,8 +53,11 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 
 Symbols cannot be reused or shadowed, including after move or release. Fresh
 allocations in different branches get different identities and must be dropped
-within the branch under this initial closed-plan profile. Explicit owned results,
-function lifetime contracts and caller-owned buffers are still pending.
+within the branch under this initial closed-plan profile. The
+[internal function component](storage-functions.md) additionally checks owned
+arguments/results and call-scoped borrowed arguments with caller-owned output
+reuse. Public function composition and escaping-loan lifetime contracts remain
+pending.
 
 Write-only access never reads, and cannot gain read authority by creating a
 child loan. An initialized region can instead be reborrowed through an owner
@@ -152,6 +155,7 @@ The oracle imports the actual kernel definitions:
 | `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning |
 | `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; decoder certificates retain the exact checked plan |
 | `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
+| `VastitasOracle.StorageFunctions` | Exact call-slice replay, caller-loan restoration, unique owned results with declared initialized bytes, all-body probe coverage and exact decoder/executable/closed-plan connection |
 
 `StorageRegression` compares bounds, injectivity, containment and separation with
 an independent enumeration of bytes for small real/complex, padded, shifted,

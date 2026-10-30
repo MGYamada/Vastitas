@@ -1,6 +1,7 @@
 import VastitasKernel.ResourceProtocol
 import VastitasOracle.StorageFunctions
 import VastitasOracle.IndexedAuthority
+import VastitasOracle.IndexedSource
 import VastitasOracle.IndexedProgramSafety
 
 /-! Public resource/source composition facts, tied to actual reconstruction and
@@ -72,5 +73,17 @@ theorem public_input {json : Lean.Json} (input : VastitasKernel.ResourceSource.W
     VastitasKernel.ResourceSource.check input.input requireMain = .ok input.checked ∧
     lower input.input = .ok input.checked.lowered :=
   ⟨input.decoded, input.accepted, input.checked.reconstructed⟩
+
+/-- Public protocol 8 uses the same numerical declaration contract as the
+actual complete authority checker. This is not a floating-point result theorem. -/
+theorem public_numerical_declaration {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (id marker : DeclId) (representation : Indexed.Representation) (capabilities : List Capability)
+    (member : ⟨id, .implementation marker representation capabilities⟩ ∈
+      input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed) :
+    representation.Valid input.checked.pureProgram.authority.headers.declarations.resolved.declarations.indexed
+      marker capabilities :=
+  (IndexedSource.checked_implementation_contract _ input.checked.pureProgram.authority.headers.declarations
+    id marker representation capabilities member).2.2
 
 end VastitasOracle.ResourceSource

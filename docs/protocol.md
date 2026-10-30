@@ -25,6 +25,13 @@ is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
+Protocol 8 also admits [numerical declaration profiles](numerical-declarations.md)
+in the existing `indexed_declarations` array: `scalar_base` and
+`linear_descriptor` representation objects preserve ideal coefficient kinds and
+unresolved nominal base paths. They require version 8 even without resource
+functions. Protocol 7 retains only `"affine_descriptor"`; it rejects these new
+representations. Declaration acceptance does not enable public GEMM.
+
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
 one-based Unicode-scalar columns). Types and indices have their containing

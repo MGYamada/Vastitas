@@ -27,8 +27,8 @@ theorem validPrimitiveBinding_iff (env : Environment) (binding : PrimitiveBindin
   cases binding with
   | descriptor implementation =>
     simp only [validPrimitiveBinding, PrimitiveBinding.Valid]
-    cases implementationType env implementation <;> simp
-  | global => simp [validPrimitiveBinding, PrimitiveBinding.Valid]
+    cases implementationType env implementation <;> simp [Bool.and_eq_true]
+  | global => simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true]
   | origin | identity =>
     simp [validPrimitiveBinding, PrimitiveBinding.Valid, originContract, identityContract,
       Bool.and_eq_true, validApplication_iff, and_assoc]

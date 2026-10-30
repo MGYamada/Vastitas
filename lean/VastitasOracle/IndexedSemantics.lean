@@ -221,7 +221,7 @@ theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
   have empty := primitive_nil typed
   subst values
   obtain ⟨type, found, rfl⟩ := rule.association
-  obtain ⟨object, computed, denotes⟩ := global_denotes env world id rule.bindingValid
+  obtain ⟨object, computed, denotes⟩ := global_denotes env world id rule.bindingValid.2
   obtain ⟨actual, actualFound, objectTyped⟩ := denotes.2
   have equal : actual = type := Option.some.inj (actualFound.symm.trans found)
   subst actual

@@ -477,12 +477,14 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         .any(|m| m.uses_indexed)
         || loader.packages.iter().any(|p| p.geometry_compat.is_some());
     let program = Program {
-        version: if loader
-            .packages
-            .iter()
-            .flat_map(|p| &p.modules)
-            .any(|m| !m.resource_functions.is_empty())
-        {
+        version: if loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+            !m.resource_functions.is_empty()
+                || m.indexed_declarations.iter().any(|d| {
+                    matches!(&d.declaration.body, crate::indexed::DeclarationBody::Implementation {
+                    representation, ..
+                } if !matches!(representation, crate::indexed::Representation::AffineDescriptor))
+                })
+        }) {
             RESOURCE_PROTOCOL
         } else if indexed {
             INDEXED_PROTOCOL

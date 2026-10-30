@@ -5,6 +5,61 @@ use crate::indexed::{
 };
 
 impl Parser {
+    fn indexed_coefficient(&mut self) -> Result<indexed::CoefficientKind, Diagnostic> {
+        let token = self.peek().clone();
+        match self.indexed_tag()?.as_str() {
+            "real" => Ok(indexed::CoefficientKind::Real),
+            "complex" => Ok(indexed::CoefficientKind::Complex),
+            _ => Err(diagnostic(
+                "E_TYPE",
+                "expected ideal coefficient kind real or complex",
+                token.span,
+            )),
+        }
+    }
+
+    fn indexed_representation(&mut self) -> Result<indexed::Representation, Diagnostic> {
+        let token = self.peek().clone();
+        match self.indexed_tag()?.as_str() {
+            "affine_descriptor" => Ok(indexed::Representation::AffineDescriptor),
+            "scalar_base" => {
+                self.expect("(")?;
+                let token = self.peek().clone();
+                let setting = match self.indexed_tag()?.as_str() {
+                    "scheme" => indexed::GeometricSetting::Scheme,
+                    "smooth" => indexed::GeometricSetting::Smooth,
+                    _ => {
+                        return Err(diagnostic(
+                            "E_TYPE",
+                            "expected scheme or smooth setting",
+                            token.span,
+                        ));
+                    }
+                };
+                self.expect(",")?;
+                let coefficient = self.indexed_coefficient()?;
+                self.expect(")")?;
+                Ok(indexed::Representation::ScalarBase {
+                    setting,
+                    coefficient,
+                })
+            }
+            "linear_descriptor" => {
+                self.expect("(")?;
+                let base = self.type_path()?;
+                self.expect(",")?;
+                let coefficient = self.indexed_coefficient()?;
+                self.expect(")")?;
+                Ok(indexed::Representation::LinearDescriptor { base, coefficient })
+            }
+            _ => Err(diagnostic(
+                "E_TYPE",
+                "unsupported concrete object representation",
+                token.span,
+            )),
+        }
+    }
+
     // Keep the ordinary recursive prefix parser's frame small. The existing
     // source-depth limit must diagnose excessive nesting before stack exhaustion.
     pub(super) fn indexed_pack(&mut self) -> Result<ExprKind, Diagnostic> {
@@ -244,7 +299,7 @@ impl Parser {
                 self.expect("(")?;
                 let marker = self.type_path()?;
                 self.expect(",")?;
-                self.expect("affine_descriptor")?;
+                let representation = self.indexed_representation()?;
                 self.expect(")")?;
                 self.expect("capabilities")?;
                 let capabilities = self.indexed_list("(", ")", |parser| {
@@ -261,7 +316,7 @@ impl Parser {
                 })?;
                 DeclarationBody::Implementation {
                     marker,
-                    representation: indexed::Representation::AffineDescriptor,
+                    representation,
                     capabilities,
                 }
             }

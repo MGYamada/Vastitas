@@ -47,6 +47,12 @@ def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primiti
   | .compose family => return .compose (← resolveId p scope family)
   | .apply maps points => return .apply (← resolveId p scope maps) (← resolveId p scope points)
 
+def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
+    Source.Representation → ResolveM Indexed.Representation
+  | .affineDescriptor => pure .affineDescriptor
+  | .scalarBase setting coefficient => pure (.scalarBase setting coefficient)
+  | .linearDescriptor base coefficient => return .linearDescriptor (← resolveId p scope base) coefficient
+
 def resolveBody (p : Namespace.Indexed) (owner : DeclId) (body : Body) (env : Core.Declarations) :
     ResolveM Core.Declarations := do
   let scope := owner.scope
@@ -54,7 +60,8 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (body : Body) (env : Co
   match body with
   | .marker => return add .marker
   | .implementation marker representation capabilities =>
-      return add (.implementation (← resolveId p scope marker) representation capabilities)
+      return add (.implementation (← resolveId p scope marker)
+        (← resolveRepresentation p scope representation) capabilities)
   | .classification parents domain =>
       return add (.classification (← parents.mapM (resolveId p scope)) (← domain.mapM (resolveId p scope)))
   | .global implementation => return add (.global (← resolveId p scope implementation))

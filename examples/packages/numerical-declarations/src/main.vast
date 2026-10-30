@@ -1,0 +1,4 @@
+mod profiles;
+
+// Declaration checking does not yet provide public numerical execution.
+fn main() -> Int { 42 }

@@ -83,7 +83,7 @@ private def without (j : Json) (key : String) : Except String Json := do
   return Json.mkObj ((← j.getObj?).toArray.toList.filter (·.1 != key))
 
 def module (j : Json) : Except String Module := do
-  let pureModule ← Indexed.Wire.module (← without j "resource_functions")
+  let pureModule ← Indexed.Wire.module (← without j "resource_functions") true
   return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function⟩
 
 def package (j : Json) : Except String Package := do
@@ -92,7 +92,7 @@ def package (j : Json) : Except String Package := do
   -- into a pure function. Unknown metadata fields remain rejected.
   let stripped ← (← array j "modules").mapM (without · "resource_functions")
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
-  let pkg ← Indexed.Wire.package metadata
+  let pkg ← Indexed.Wire.package metadata true
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
 def program (j : Json) : Except String Program := do

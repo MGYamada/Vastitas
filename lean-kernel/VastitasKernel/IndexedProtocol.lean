@@ -6,7 +6,7 @@ declaration/authority/dispatch/Fn/Core check. No checked IDs are deserialized. -
 namespace VastitasKernel.Indexed.Wire
 open Lean JsonDecode
 
-def module (j : Json) : Except String DispatchSource.Module := do
+def module (j : Json) (numerical : Bool := false) : Except String DispatchSource.Module := do
   fields j ["path", "public", "span", "imports", "functions", "generics", "methods",
     "abstract_types", "subtypes", "abstract_methods", "grants", "contributions",
     "assembly", "delegations", "transfers", "indexed_declarations"]
@@ -17,7 +17,7 @@ def module (j : Json) : Except String DispatchSource.Module := do
     ("contributions", toJson ([] : List Json))])
   return {
     module := ← decodeNamespaceModule true true true metadata,
-    declarations := ← (← optionalArray j "indexed_declarations").mapM declaration,
+    declarations := ← (← optionalArray j "indexed_declarations").mapM (declaration · numerical),
     functions := ← (← array j "functions").mapM function,
     methods := ← (← array j "methods").mapM method,
     contributions := ← (← optionalArray j "contributions").mapM contribution }
@@ -34,7 +34,7 @@ def geometryProfile (j : Json) : Except String (GeometryProfile Source.Path) := 
   return ⟨← geometrySetting (← field j "scheme"), ← geometrySetting (← field j "smooth"),
     ← get "point", ← get "morphism", ← get "pointed", ← get "compose", ← get "apply"⟩
 
-def package (j : Json) : Except String DispatchSource.Package := do
+def package (j : Json) (numerical : Bool := false) : Except String DispatchSource.Package := do
   fields j ["source", "name", "version", "dependencies", "modules", "geometry_compat"]
   let dependencies ← (← array j "dependencies").mapM fun dep => do
     fields dep ["alias", "target"]
@@ -44,7 +44,7 @@ def package (j : Json) : Except String DispatchSource.Package := do
     | .ok value => some <$> geometryProfile value
   return {
     id := ⟨← str j "source", ← str j "name", ← str j "version"⟩,
-    dependencies, modules := ← (← array j "modules").mapM module, geometryCompat }
+    dependencies, modules := ← (← array j "modules").mapM (module · numerical), geometryCompat }
 
 def program (j : Json) : Except String DispatchSource.Program := do
   fields j ["version", "input", "file", "root", "packages"]

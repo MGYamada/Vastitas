@@ -159,9 +159,14 @@ fn internal_gemm_cannot_supply_public_mathematical_authority() {
     let raw = request(&fixture(MAIN, OPERATIONS));
     let root = module(&raw, "storage_example", json!([]));
     let mut changed = raw;
+    let span = changed
+        .pointer(&format!("{root}/resource_functions/0/body/0/span"))
+        .unwrap()
+        .clone();
     *changed
         .pointer_mut(&format!("{root}/resource_functions/0/body/0"))
         .unwrap() = json!({
+        "span": span,
         "kind": "action", "action": {"op": "gemm", "left": "a", "right": "b", "output": "c",
             "conjugate_left": false, "conjugate_right": false, "mode": "overwrite", "policy": "native_fast"}
     });
@@ -169,6 +174,15 @@ fn internal_gemm_cannot_supply_public_mathematical_authority() {
     assert_eq!(response["ok"], false, "{response}");
     assert_eq!(
         response["diagnostics"][0]["code"], "E_PROTOCOL",
+        "{response}"
+    );
+    // A missing span used to fail before the action decoder was reached,
+    // leaving the resource-only GEMM bypass untested.
+    assert!(
+        response["diagnostics"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("unknown resource source operation"),
         "{response}"
     );
     assert!(response.get("lean_source").is_none());

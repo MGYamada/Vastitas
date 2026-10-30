@@ -64,6 +64,41 @@ options are rejected for `check` and for entries without numerical operations.
 Failed checking, prefix resolution or native compilation preserves an existing
 output artifact.
 
+## Source and wire compatibility
+
+These forms extend the static body of a package `resource fn`; their prefixes
+are parsed in that context. Existing pure functions and resource statements
+retain their syntax. Dimensions are unsigned static literals, map endpoints are
+explicit local bases, and both the GEMM mode and `NativeFast` policy are required.
+This does not add numerical parameter/return types or an implicit product syntax.
+
+| Source form | Protocol-8 `operation` fields (besides `op`) |
+| --- | --- |
+| `space x = linear(path, n);` | `name`, `implementation: {path, span}`, `dimension` |
+| `basis b = basis(x);` | `name`, `space` |
+| `map m = view(loan, source_basis, target_basis);` | `name`, `loan`, `source`, `target` |
+| `gemm(a, b, c, overwrite\|accumulate, NativeFast);` | `left`, `right`, `output`, `mode`, `policy: "native_fast"` |
+
+Every operation is wrapped in `{kind: "numerical", operation, span}`. Profile
+paths remain unresolved path segments, and local operands remain names. The
+independent Lean decoder validates the schema; `ResourceSource.lowerNumerical`
+resolves each profile in its original module and lowers to
+`Storage.Functions.Statement.numerical`. The actual full declaration checker
+supplies `numericalEnvironment` for both all-body probes and executable expansion.
+The kernel rechecks profile visibility, kind and base against those declarations
+even if the frontend previously accepted the input. Checked IDs, proof tags,
+native conjugation flags and product receipts are not input authority.
+
+This is an additive extension within protocol 8, with no change to the existing
+protocol-2–7 schemas. Versions 2–7 reject numerical/resource payloads; a kernel
+predating the numerical extension of version 8 rejects the unknown statement
+tag. A matching version number alone is therefore not feature negotiation.
+Use the matching frontend/kernel revision for these forms. No downgrade to raw
+resource GEMM or fallback after rejection is permitted. Unknown semantic fields
+remain errors, including fields nested in the profile path. Future incompatible
+changes must use a new protocol version rather than reinterpret these forms;
+additional optional operations must continue to fail closed on older kernels.
+
 ## Objects, bases and views
 
 A space constructor requires a concrete `linearDescriptor` implementation from
@@ -132,7 +167,13 @@ rectangular real and complex fixtures with exact expected bit patterns and
 allocation/copy counters, using pinned OpenBLAS 0.3.34.
 `tests/numerical_source.rs` tests the actual public source and wire boundaries,
 visibility and aliases, wrong bases/objects, scope/capture, old versions and
-forged fields. Both OS numerical CI jobs explicitly run its OpenBLAS-dependent
+forged fields. Direct wire mutations exercise both real and complex bodies,
+including unused definitions, equal-dimension distinct spaces, distinct bases,
+released/suspended loans and a square transpose whose dimensions do not change.
+The raw resource-GEMM rejection in `tests/resource_source.rs` preserves a valid
+statement span and checks the action-decoder diagnostic, so rejection cannot be
+satisfied by missing metadata before the GEMM boundary is reached.
+Both OS numerical CI jobs explicitly run the OpenBLAS-dependent
 test for generated real/complex execution, runtime assertion failure and output
 protection. Normal compiler CI runs the remaining tests without OpenBLAS.
 

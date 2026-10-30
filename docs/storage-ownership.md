@@ -19,8 +19,11 @@ actual-checker byte-region and active-loan theorems. Its component schema is not
 public protocol 8. Its optional native runtime and
 [internal resource functions](storage-functions.md) exercise allocation, calls,
 destination reuse and failure cleanup. [Protocol 8](resource-source.md) now connects the initial static resource profile
-to package source and pure return blocks. Dynamic shapes/value flow, numerical
-consumers and performance comparisons remain pending.
+to package source and pure return blocks, including local nominal real/complex
+GEMM. Bounded partial-write coverage removes redundant input fills in the worked
+numerical examples; its actual-byte theorems and native operation counters are
+recorded in [the resource IR](storage-ir.md). Dynamic shapes/value flow, general
+scratch/dependency handling and equivalent-C acceptance remain pending.
 
 ## 7.1 Fast like C: the primary design goal
 

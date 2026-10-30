@@ -83,9 +83,8 @@ def Layout.covers (outer inner : Layout) (scalar : Scalar) : Bool :=
 def Layout.disjoint (left right : Layout) (scalar : Scalar) : Bool :=
   left.empty || right.empty || left.endByte scalar ≤ right.offset || right.endByte scalar ≤ left.offset
 
-/-- Exact record of writes and branch intersections. The finite entailment
-procedure may reject a union of writes it cannot establish without additional
-partition evidence; it never marks an enclosing padded interval initialized. -/
+/-- Exact record of writes and branch intersections. Entailment preserves
+padding holes and never treats an enclosing envelope as a write. -/
 inductive Initialization where
   | none
   | written (layout : Layout) (previous : Initialization)
@@ -109,10 +108,63 @@ def Initialization.meet (left right : Initialization) : Initialization :=
   | .none, _ | _, .none => .none
   | _, _ => if left = right then left else .intersection left right
 
-def Initialization.covers (scalar : Scalar) (layout : Layout) : Initialization → Bool
+def Initialization.coversRectangle (scalar : Scalar) (layout : Layout) : Initialization → Bool
   | .none => layout.empty
-  | .written footprint previous => footprint.covers layout scalar || previous.covers scalar layout
-  | .intersection left right => left.covers scalar layout && right.covers scalar layout
+  | .written footprint previous => footprint.covers layout scalar || previous.coversRectangle scalar layout
+  | .intersection left right => left.coversRectangle scalar layout && right.coversRectangle scalar layout
+
+/-- Extend only through a contiguous write containing the cursor. A padded
+rectangle is not flattened into its enclosing byte interval. -/
+def Layout.initializedEnd (scalar : Scalar) (cursor : Nat) (layout : Layout) : Nat :=
+  if layout.contiguous = true ∧ layout.empty = false ∧ layout.offset ≤ cursor
+  then max cursor (layout.endByte scalar)
+  else cursor
+
+/-- At a branch join both histories must justify every byte of the extension.
+This traverses write metadata, never the allocation or its elements. -/
+def Initialization.reach (scalar : Scalar) (cursor : Nat) : Initialization → Nat
+  | .none => cursor
+  | .written footprint previous => max (footprint.initializedEnd scalar cursor) (previous.reach scalar cursor)
+  | .intersection left right => min (left.reach scalar cursor) (right.reach scalar cursor)
+
+def Initialization.coversInterval (scalar : Scalar) (history : Initialization) : Nat → Nat → Nat → Bool
+  | 0, cursor, finish => decide (finish ≤ cursor)
+  | fuel + 1, cursor, finish =>
+    if finish ≤ cursor then true
+    else
+      let next := history.reach scalar cursor
+      if cursor < next then history.coversInterval scalar fuel next finish
+      else false
+
+/-- A fixed metadata-work budget prevents a large union or branch history from
+turning an individual initialization query into unbounded repeated traversal. -/
+def initializationWorkLimit : Nat := 65536
+
+def initializationSteps (nodes : Nat) : Nat := min nodes (initializationWorkLimit / nodes)
+
+/-- A padded request checks only its physical columns, not the padding. The
+column count must fit the metadata-derived budget before constructing its range;
+each column receives an equal share of the bounded interval traversals. -/
+def Initialization.coversColumns (scalar : Scalar) (layout : Layout) (steps : Nat)
+    (history : Initialization) : Bool :=
+  if layout.columns ≤ steps then
+    (List.range layout.columns).all fun column =>
+      let start := layout.offset + column * (layout.leading * scalar.width)
+      history.coversInterval scalar (steps / layout.columns) start (start + layout.rows * scalar.width)
+  else false
+
+/-- Keep exact rectangular containment as the fast path. Otherwise reconstruct
+coverage from contiguous write intervals, including intersections at joins.
+Padded requests check separate columns; their gaps need not be initialized.
+At most 4096 metadata nodes and 65536 fallback node visits are admitted per query;
+budget exhaustion rejects rather than assuming initialization. -/
+def Initialization.covers (scalar : Scalar) (layout : Layout) (history : Initialization) : Bool :=
+  match history.remaining 4096 with
+  | Option.none => false
+  | some remaining =>
+    history.coversRectangle scalar layout || (if layout.contiguous then
+      history.coversInterval scalar (initializationSteps (4096 - remaining)) layout.offset (layout.endByte scalar)
+    else history.coversColumns scalar layout (initializationSteps (4096 - remaining)))
 
 /-- Writing an already initialized region does not enlarge its metadata. -/
 def Initialization.record (scalar : Scalar) (layout : Layout) (previous : Initialization) : Initialization :=

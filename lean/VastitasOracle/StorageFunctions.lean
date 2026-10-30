@@ -75,9 +75,9 @@ private theorem mapM_member {α β ε : Type} (f : α → Except ε β) {source 
 
 /-- Every source body, including an unused definition, has a separately checked
 probe schedule. Actual calls still recheck the caller's layout and alias state. -/
-theorem probe_identity {functions : List Function} {function : Function} {result : Probe}
-    (accepted : probe functions function = .ok result) : result.function = function.id := by
-  cases setup : (probeSetup functions function).run {} with
+theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {functions : List Function} {function : Function} {result : Probe}
+    (accepted : probe functions function environment = .ok result) : result.function = function.id := by
+  cases setup : (probeSetup functions function).run {environment} with
   | error diagnostic => simp [probe, setup] at accepted
   | ok pair =>
     simp only [probe, setup, bind, Except.bind] at accepted
@@ -85,16 +85,16 @@ theorem probe_identity {functions : List Function} {function : Function} {result
     · contradiction
     · exact congrArg Probe.function (Except.ok.inj accepted).symm
 
-theorem every_body {program : Program} (checked : Checked program) {function : Function}
+theorem every_body {program : Program} {environment} (checked : Checked program environment) {function : Function}
     (member : function ∈ program.functions) :
-    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe program.functions function = .ok result ∧
+    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe program.functions function environment = .ok result ∧
       checkPlan result.statements = .ok result.resources := by
   obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
 
-theorem every_library_body {functions : List Function} (checked : CheckedLibrary functions) {function : Function}
+theorem every_library_body {functions : List Function} {environment} (checked : CheckedLibrary functions environment) {function : Function}
     (member : function ∈ functions) :
-    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe functions function = .ok result ∧
+    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe functions function environment = .ok result ∧
       checkPlan result.statements = .ok result.resources := by
   obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
@@ -106,9 +106,9 @@ theorem decoded_executable {json : Lean.Json} (input : Functions.Wire.CheckedInp
     input.checked.resources.finalState.allocations = [] ∧ input.checked.resources.finalState.loans = [] :=
   ⟨input.decoded, input.checked.expanded, input.checked.resources.accepted, input.checked.resources.closed⟩
 
-theorem generated_checked {program : Program} {report : Bool} {budget : Nat} {text : String}
-    (generated : generate program report budget = .ok text) : Nonempty (Checked program) := by
-  cases accepted : check program with
+theorem generated_checked {program : Program} {report : Bool} {budget : Nat} {text : String} {environment}
+    (generated : generate program report budget environment = .ok text) : Nonempty (Checked program environment) := by
+  cases accepted : check program environment with
   | error diagnostic => simp [generate, accepted] at generated
   | ok checked => exact ⟨checked⟩
 

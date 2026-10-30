@@ -81,4 +81,69 @@ theorem checked_package_contract (program : Source.Program) (checked : CheckedDe
     package.Valid checked.resolved.declarations.indexed :=
   (Core.Typing.validDeclarations_iff _ |>.mp checked.accepted).packages package member
 
+/-- Numerical representation contracts are checked in the same complete
+environment as every original declaration, not in a second profile registry. -/
+theorem checked_implementation_contract (program : Source.Program) (checked : CheckedDeclarations program)
+    (id marker : DeclId) (representation : Indexed.Representation) (capabilities : List Capability)
+    (member : ⟨id, .implementation marker representation capabilities⟩ ∈ checked.resolved.declarations.indexed) :
+    isMarker checked.resolved.declarations.indexed marker = true ∧ capabilities.Nodup ∧
+      representation.Valid checked.resolved.declarations.indexed marker capabilities :=
+  (Core.Typing.validDeclarations_iff _ |>.mp checked.accepted).indexed.declarations _ member
+
+theorem checked_linear_base (program : Source.Program) (checked : CheckedDeclarations program)
+    (id marker base : DeclId) (coefficient : CoefficientKind) (capabilities : List Capability)
+    (member : ⟨id, .implementation marker (.linearDescriptor base coefficient) capabilities⟩ ∈
+      checked.resolved.declarations.indexed) :
+    capabilities = [] ∧ ∃ baseMarker setting baseCoefficient,
+      scalarBaseProfile checked.resolved.declarations.indexed base = some (baseMarker, setting, baseCoefficient) ∧
+      (match setting with
+      | .scheme => coefficient = baseCoefficient ∧ marker = baseMarker
+      | .smooth => baseCoefficient = .real ∧
+          (match coefficient with | .real => marker = baseMarker | .complex => marker ≠ baseMarker)) := by
+  have valid := (checked_implementation_contract program checked id marker _ capabilities member).2.2
+  refine ⟨valid.1, ?_⟩
+  have compatible := valid.2.2
+  cases found : scalarBaseProfile checked.resolved.declarations.indexed base with
+  | none => simp only [found] at compatible
+  | some profile =>
+    rcases profile with ⟨baseMarker, setting, baseCoefficient⟩
+    refine ⟨baseMarker, setting, baseCoefficient, rfl, ?_⟩
+    simp only [found] at compatible
+    cases setting <;> cases coefficient <;> exact compatible
+
+theorem checked_smooth_complex_base (program : Source.Program) (checked : CheckedDeclarations program)
+    (id marker base baseMarker : DeclId) (baseCoefficient : CoefficientKind) (capabilities : List Capability)
+    (member : ⟨id, .implementation marker (.linearDescriptor base .complex) capabilities⟩ ∈
+      checked.resolved.declarations.indexed)
+    (baseProfile : scalarBaseProfile checked.resolved.declarations.indexed base =
+      some (baseMarker, .smooth, baseCoefficient)) :
+    baseCoefficient = .real ∧ marker ≠ baseMarker := by
+  have valid := (checked_implementation_contract program checked id marker _ capabilities member).2.2.2.2
+  simpa only [baseProfile] using valid
+
+theorem checked_coefficient_unique (program : Source.Program) (checked : CheckedDeclarations program)
+    (id otherId marker : DeclId) (representation other : Indexed.Representation)
+    (capabilities otherCapabilities : List Capability) (kind otherKind : CoefficientKind)
+    (member : ⟨id, .implementation marker representation capabilities⟩ ∈ checked.resolved.declarations.indexed)
+    (otherMember : ⟨otherId, .implementation marker other otherCapabilities⟩ ∈ checked.resolved.declarations.indexed)
+    (coefficient : representation.coefficient = some kind)
+    (otherCoefficient : other.coefficient = some otherKind) : kind = otherKind := by
+  have valid := (checked_implementation_contract program checked id marker representation capabilities member).2.2
+  have consistent : coefficientConsistent checked.resolved.declarations.indexed marker kind = true := by
+    cases representation <;> simp only [Indexed.Representation.coefficient, Option.some.injEq] at coefficient
+    · contradiction
+    all_goals subst kind; exact valid.2.1
+  have compatible := List.all_eq_true.mp consistent _ otherMember
+  change (marker != marker || other.coefficient.all (· == kind)) = true at compatible
+  have same : otherKind = kind := by simpa [otherCoefficient] using compatible
+  exact same.symm
+
+/-- No scalar base or linear profile can acquire the old affine constructor
+merely by declaring a primitive with a familiar spelling. -/
+theorem checked_descriptor_is_affine (program : Source.Program) (checked : CheckedDeclarations program)
+    (id implementation : DeclId)
+    (member : ⟨id, .descriptor implementation⟩ ∈ checked.resolved.declarations.primitives) :
+    affineImplementation checked.resolved.declarations.indexed implementation = true :=
+  (checked_primitive_contract program checked _ member).1
+
 end VastitasOracle.IndexedSource

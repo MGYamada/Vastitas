@@ -151,4 +151,80 @@ private def enumerated : IO Unit := do
 #eval enumerated
 #eval check "huge layouts do not enumerate cells" (checkLayout .f64 byteLimit ⟨0, 1000000000, 1000000000, 1000000000, false⟩)
 
+private def matrix : Layout := ⟨0, 2, 3, 2, false⟩
+private def matrixStores : List Action :=
+  [(0,0), (0,1), (0,2), (1,0), (1,1), (1,2)].map fun (row, column) => .store 1 row column value
+private def matrixPrefix : List Action := [allocate, write 1 matrix]
+private def matrixSuffix : List Action := [.release 1, read 2 matrix.transpose,
+  .expect 2 2 1 value, .release 2, .move 0 3, .drop 3]
+#eval check "individual unordered stores initialize the complete transposed read" (
+  accepts (matrixPrefix ++ matrixStores ++ matrixSuffix))
+#eval check "individual stores initialize a padded rectangle without touching gaps" (accepts
+  ([.allocate 0 .f64 16, write 1 ⟨8,2,3,4,false⟩] ++ matrixStores ++
+    [.release 1, read 2 ⟨8,2,3,4,true⟩, .expect 2 2 1 value, .release 2, .drop 0]))
+#eval check "padded cell union still cannot initialize a gap" (rejects "E_RESOURCE_INIT"
+  ([.allocate 0 .f64 16, write 1 ⟨8,2,3,4,false⟩] ++ matrixStores ++
+    [.release 1, read 2 ⟨24,1,1,1,false⟩]))
+#eval check "omitting one store leaves a real hole" (
+  rejects "E_RESOURCE_INIT" (matrixPrefix ++ matrixStores.take 5 ++ matrixSuffix))
+#eval check "different branch write orders establish the same complete region" ((checkPlan
+  (actions matrixPrefix ++ [.branch false (actions matrixStores) (actions matrixStores.reverse)] ++
+    actions matrixSuffix)).isOk)
+#eval check "complementary incomplete branches do not combine their writes" (!(checkPlan
+  (actions matrixPrefix ++ [.branch true (actions (matrixStores.take 3)) (actions (matrixStores.drop 3))] ++
+    actions matrixSuffix)).isOk)
+#eval check "one incomplete branch cannot initialize a whole read" (!(checkPlan
+  (actions matrixPrefix ++ [.branch true (actions matrixStores) (actions (matrixStores.take 5))] ++
+    actions matrixSuffix)).isOk)
+
+private def scalarCell (scalar : Scalar) (index : Nat) : Layout := ⟨index * scalar.width, 1, 1, 1, false⟩
+private def history (scalar : Scalar) (indices : List Nat) : Initialization :=
+  indices.foldl (fun previous index => .written (scalarCell scalar index) previous) .none
+
+/- Independent finite byte-set oracle, including branch intersections and
+padding. Enumeration is confined to small tests, never the compiler. -/
+#eval show IO Unit from do
+  for scalar in [Scalar.f64, .complexF64] do
+    let subsets := (List.range 16).map fun mask => (List.range 4).filter fun i => mask / 2^i % 2 == 1
+    for left in subsets do
+      for right in subsets do
+        let combined := history scalar (left ++ right.reverse)
+        let common := Initialization.intersection (history scalar left) (history scalar right.reverse)
+        for start in List.range 4 do
+          for size in List.range (5 - start) do
+            let query : Layout := ⟨start * scalar.width, size, 1, max 1 size, false⟩
+            let wanted := List.range size |>.map (start + ·)
+            check "finite union coverage agrees with cell sets"
+              (combined.covers scalar query == wanted.all (fun i => left.contains i || right.contains i))
+            check "finite branch coverage agrees with cell intersections"
+              (common.covers scalar query == wanted.all (fun i => left.contains i && right.contains i))
+        for transposed in [false, true] do
+          for offset in [0, scalar.width] do
+            let query : Layout := ⟨offset,1,2,2,transposed⟩
+            let wanted := cells query scalar |>.map (· / scalar.width)
+            check "padded union coverage excludes gaps in both orientations"
+              (combined.covers scalar query == wanted.all (fun i => left.contains i || right.contains i))
+            check "padded branch coverage uses the actual common cells"
+              (common.covers scalar query == wanted.all (fun i => left.contains i && right.contains i))
+    let paddedWrite : Layout := ⟨0, 1, 2, 2, false⟩
+    let paddedHistory := Initialization.written paddedWrite (history scalar [3])
+    check "union never flattens padded writes"
+      (!(paddedHistory.covers scalar ⟨0,4,1,4,false⟩))
+    check "a union can explicitly fill a padding gap"
+      ((Initialization.written ⟨0,1,1,1,false⟩ (history scalar [1,2,3])).covers scalar ⟨0,4,1,4,false⟩)
+  let tooLarge := (List.range 64).foldl (fun h _ => .intersection h h) (history .f64 [0])
+  check "coverage bounds forged exponential histories before traversal" (!tooLarge.covers .f64 first)
+  check "interval work exhaustion does not infer missing initialization"
+    (!(history .f64 (List.range 300)).covers .f64 ⟨0,300,1,300,false⟩)
+  check "uncovered huge padded requests reject before column enumeration"
+    (!(history .f64 [0]).covers .f64 ⟨0,1,1000000000,2,false⟩)
+  let large : Layout := ⟨0,1000000000,1000000000,1000000000,false⟩
+  let half : Layout := {large with columns := 500000000}
+  check "two metadata writes cover a billion-by-billion matrix without enumeration"
+    (accepts [.allocate 0 .f64 1000000000000000000,
+      write 1 half, .fill 1 value, .release 1,
+      write 2 {half with offset := half.endByte .f64}, .fill 2 value, .release 2,
+      read 3 large, .release 3, .drop 0])
+  IO.println "initialization unions: unordered cells, branch intersection, padding holes, bounded work and huge metadata-only coverage passed"
+
 end VastitasKernel.Storage.Regression

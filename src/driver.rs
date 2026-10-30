@@ -2,7 +2,7 @@
 use crate::ir::{PROTOCOL_VERSION, Span};
 use crate::sources::Sources;
 use serde_json::{Value, json};
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
 use std::os::unix::ffi::OsStrExt;
@@ -11,7 +11,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
+const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
 
 struct Options {
     mode: &'static str,
@@ -19,6 +19,8 @@ struct Options {
     manifest: Option<PathBuf>,
     libraries: Vec<PathBuf>,
     output: Option<PathBuf>,
+    openblas: Option<PathBuf>,
+    native_cc: Option<OsString>,
 }
 
 fn options(args: &[OsString]) -> Result<Options, String> {
@@ -32,6 +34,8 @@ fn options(args: &[OsString]) -> Result<Options, String> {
     let mut output = None;
     let mut libraries = Vec::new();
     let mut manifest = None;
+    let mut openblas = None;
+    let mut native_cc = None;
     let mut remaining = args.iter().skip(1);
     while let Some(arg) = remaining.next() {
         if arg == "--manifest-path" {
@@ -43,6 +47,21 @@ fn options(args: &[OsString]) -> Result<Options, String> {
                 return Err(usage());
             }
             manifest = Some(PathBuf::from(path));
+        } else if arg == "--openblas-prefix" || arg == "--native-cc" {
+            if mode != "emit" {
+                return Err(usage());
+            }
+            let value = remaining.next().ok_or_else(usage)?;
+            if value.is_empty() || value.to_string_lossy().starts_with('-') {
+                return Err(usage());
+            }
+            if arg == "--openblas-prefix" {
+                if openblas.replace(PathBuf::from(value)).is_some() {
+                    return Err(usage());
+                }
+            } else if native_cc.replace(value.clone()).is_some() {
+                return Err(usage());
+            }
         } else if arg == "--lib" {
             let path = remaining.next().ok_or_else(usage)?;
             if path.to_string_lossy().starts_with('-') {
@@ -76,6 +95,8 @@ fn options(args: &[OsString]) -> Result<Options, String> {
         manifest,
         libraries,
         output,
+        openblas,
+        native_cc,
     })
 }
 
@@ -84,7 +105,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         .map_err(|error| format!("E_BACKEND: cannot install signal handlers: {error}"))?;
     let args: Vec<_> = args.collect();
     let subcommand_help = args.len() == 2
-        && (args[0] == "check" || args[0] == "build")
+        && (args[0] == "check" || args[0] == "build" || args[0] == "audit-lean")
         && (args[1] == "--help" || args[1] == "-h");
     if args.is_empty() || args == ["--help"] || args == ["-h"] || subcommand_help {
         print!("{USAGE}");
@@ -97,12 +118,23 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         );
         return Ok(());
     }
+    if args.first().is_some_and(|command| command == "audit-lean") {
+        return crate::internal_lean_audit::run_cli(&args[1..]);
+    }
+    if args
+        .first()
+        .is_some_and(|command| command == crate::internal_lean_audit::WORKER_COMMAND)
+    {
+        return crate::internal_lean_audit::run_worker(&args[1..]);
+    }
     let Options {
         mode,
         input,
         manifest,
         libraries,
         output,
+        openblas,
+        native_cc,
     } = options(&args)?;
     if let Some(output) = &output {
         validate_output(output)?;
@@ -149,12 +181,34 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
                 return Err("E_PROTOCOL: invalid optional storage runtime requirement".into());
             }
         };
+        let numerical_runtime = match response.get("numerical_runtime") {
+            None => false,
+            Some(Value::Bool(required)) if version == crate::packages::RESOURCE_PROTOCOL => {
+                *required
+            }
+            Some(_) => {
+                return Err("E_PROTOCOL: invalid optional numerical runtime requirement".into());
+            }
+        };
+        if numerical_runtime && !storage_runtime {
+            return Err(
+                "E_PROTOCOL: numerical runtime requires the checked storage runtime".into(),
+            );
+        }
+        if numerical_runtime && openblas.is_none() {
+            return Err("E_BUILD: numerical program requires --openblas-prefix with pinned sequential LP64 OpenBLAS 0.3.34".into());
+        }
+        if !numerical_runtime && (openblas.is_some() || native_cc.is_some()) {
+            return Err("E_USAGE: --openblas-prefix and --native-cc require a program with checked numerical operations".into());
+        }
         build_native(
             root.as_ref().expect("native build requires kernel root"),
             lean_source,
             &output,
             &sources,
             storage_runtime,
+            openblas.as_deref(),
+            native_cc.as_deref(),
         )?;
         println!("built {}", output.display());
     } else {
@@ -296,6 +350,8 @@ fn build_native(
     output: &Path,
     sources: &Sources,
     storage_runtime: bool,
+    numerical_prefix: Option<&Path>,
+    native_cc: Option<&OsStr>,
 ) -> Result<(), String> {
     let toolchain_path = kernel_root.join("lean-toolchain");
     let toolchain = fs::read_to_string(&toolchain_path)
@@ -317,11 +373,54 @@ fn build_native(
     } else {
         String::new()
     };
-    let manifest = format!(
+    let ordinary_manifest = format!(
         "name = \"vastitas_program\"\nversion = \"0.1.0\"\ndefaultTargets = [\"program\"]\n\n[[require]]\nname = \"vastitas_kernel\"\npath = {dependency_path}\n{optional_storage}\n[[lean_exe]]\nname = \"program\"\nroot = \"Main\"\n"
     );
+    let (manifest_name, manifest) = if let Some(prefix) = numerical_prefix {
+        let prefix = prefix.canonicalize().map_err(|error| {
+            format!(
+                "E_BUILD: cannot locate OpenBLAS prefix {}: {error}",
+                prefix.display()
+            )
+        })?;
+        let prefix = serde_json::to_string(&prefix.to_string_lossy())
+            .map_err(|error| format!("E_BUILD: invalid OpenBLAS path: {error}"))?;
+        let numerical = serde_json::to_string(&kernel_root.join("numerical").to_string_lossy())
+            .map_err(|error| format!("E_BUILD: invalid numerical runtime path: {error}"))?;
+        let package_options = if native_cc.is_some() {
+            // Select host libc while retaining the pinned Lean C++ support
+            // libraries. Do not add Lean's portable lib/glibc to this path.
+            let mut command = Command::new("lean");
+            command.current_dir(kernel_root).arg("--print-prefix");
+            let result = crate::process::capture(command, None)
+                .map_err(|error| subprocess_error(error, "E_BUILD", "Lean prefix query", false))?;
+            if !result.status.success() {
+                return Err("E_BUILD: cannot query the pinned Lean installation".into());
+            }
+            let lean_prefix = std::str::from_utf8(&result.stdout)
+                .map_err(|_| "E_BUILD: invalid Lean installation path".to_string())?
+                .trim();
+            if lean_prefix.is_empty() {
+                return Err("E_BUILD: empty Lean installation path".into());
+            }
+            let library_path =
+                serde_json::to_string(&Path::new(lean_prefix).join("lib").to_string_lossy())
+                    .map_err(|error| format!("E_BUILD: invalid Lean library path: {error}"))?;
+            format!(" where\n  moreLinkArgs := #[\"-L\", {library_path}]")
+        } else {
+            String::new()
+        };
+        (
+            "lakefile.lean",
+            format!(
+                "import Lake\nopen Lake DSL\npackage vastitas_program{package_options}\n\nrequire vastitas_kernel from {dependency_path}\nrequire vastitas_gemm_native from {numerical} with\n  NameMap.empty.insert `openblas {prefix}\n\n@[default_target]\nlean_exe program where root := `Main\n"
+            ),
+        )
+    } else {
+        ("lakefile.toml", ordinary_manifest)
+    };
     for (name, contents) in [
-        ("lakefile.toml", manifest.as_str()),
+        (manifest_name, manifest.as_str()),
         ("lean-toolchain", toolchain.as_str()),
         ("Main.lean", source),
     ] {
@@ -330,6 +429,9 @@ fn build_native(
     }
     let mut command = Command::new("lake");
     command.current_dir(path).args(["build", "program"]);
+    if let Some(compiler) = native_cc {
+        command.env("LEAN_CC", compiler);
+    }
     let result = crate::process::capture(command, None)
         .map_err(|error| subprocess_error(error, "E_BUILD", "Lake", false))?;
     if !result.status.success() {

@@ -227,6 +227,57 @@ executable specialization pass use separate state; probes never reach codegen.
 Regressions test unused-body checking, static selection and native results
 across the remaining correspondence boundary. No new unproved axiom is used.
 
+## Independent internal Lean export audit (v0.1.0 gate)
+
+The Rust compiler can use the third-party `nanoda_lib` library for an opt-in
+cross-check of an already generated `lean4export` NDJSON proof environment.
+`vastitas audit-lean EXPORT.ndjson` reads the export and invokes the linked
+Rust checker in a separate worker process. A completed receipt reports
+`internal_only`, scope `relative_to_supplied_environment`,
+`axiom_environment_authenticated: false`, and the counts of declarations and
+exported axioms in the actual parsed environment. It **must not**
+be interpreted as `kernel_verified` or as successful public source/IR
+acceptance, a completed constitutional theorem, or checked native refinement.
+
+The policy in `config/nanoda-internal-audit.json` allows exactly three
+axiom **names**: `propext`, `Classical.choice`, and `Quot.sound`.
+It does not authenticate their statements or referenced environment as the
+standard Lean axioms. For example, a supplied `propext : ∀ P : Prop, P` can be
+well-typed as an assumption and pass this name policy, but proves nothing under
+the standard Lean assumptions. The CLI therefore reports a **conditional**
+check relative to the supplied environment, even for exports with no axioms;
+it never reports that the standard axiom environment was verified. The
+regression exercises this spoofed name and the actual worker receipt.
+`unpermitted_axiom_hard_error` is true, and `unsafe_permit_all_axioms`
+is false. This deliberately rejects even *unused* exported declarations of
+other axioms. `sorryAx` and `Lean.trustCompiler` are not whitelisted;
+any relaxation requires explicit constitutional review. In Lean 4.35.0,
+`Lean.trustCompiler` was removed. An ordinary Lean/Mathlib environment
+containing other declarations of axioms may fail this strict export policy
+even when the intended theorem does not use those axioms; prepare an
+appropriately scoped export instead of silently weakening the policy.
+
+nanoda_lib 0.4.31 is pinned by Git revision in Cargo and accepts the
+`lean4export` 3.1.x format. The included minimal theorem fixture is hand-assembled from documented
+format 3.1.0 nodes (with illustrative historical metadata); the compiler
+and official proof projects remain pinned to Lean 4.35.0. Building and invoking `audit-lean` does not require
+the `lean/` proof oracle project. Because nanoda's parser/checker may
+panic or exit on malformed or rejected exports, the driver supervises a
+separate worker and converts such outcomes into audit errors.
+
+**Trust separation:**
+
+- GitHub CI proof/axiom audit, independent `lean-kernel/` compilation,
+  the public `check`/`build` checker and the constitutional CS/MS/CF proof
+  obligations retain the **official Lean kernel** as the sole authority.
+- nanoda checks a *supplied* proof term for independent diagnostic feedback.
+  It does not generate a proof or elaborate Mathlib source itself.
+- A future proof-carrying compilation path must bind the exported theorem,
+  axiom environment and evidence to the exact accepted source/Core and
+  generated artifact, then have the official kernel validate the relevant
+  obligation. Merely passing a separately supplied export to nanoda does
+  not provide that binding (see #159/#184 and release gate #282).
+
 ## What is outside these claims
 
 The [dense layout/preflight reference](storage-layout-preflight.md) separates
@@ -236,11 +287,25 @@ resource safety or authorize native check elimination. The linked document
 states the pending all-access, exact-return and successful-branch soundness
 obligations for the actual Ownership/Borrow Checker.
 
+`StorageGemm` additionally proves facts about the actual internal GEMM resource
+transition: input and accumulate initialization, reconstructed allocation subject,
+output byte separation and initialized output bytes in its exact post-state.
+It does not establish nominal endpoint/basis/metric typing, ideal multiplication,
+floating-point accuracy, native no-read behavior or source/native refinement.
+The [generated numerical runtime checks](numerical-adapter.md) provide separate
+execution and cleanup evidence; the optional native package is not an oracle dependency.
+
 The separate [internal resource IR](storage-ir.md) now has actual-checker
 theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization
 entailment, normalized write/join meaning, and nonoverlap of distinct active
-loans when either writes. Exact decoder/checker certificates start from an
+loans when either writes. Initialization entailment now includes bounded unions
+of contiguous writes, branch intersections and separate padded columns.
+`reach_sound`, `interval_sound` and `columns_sound` feed the actual
+`initialization_bytes` theorem used by read/GEMM safety; `remaining_nodes` and
+`checked_initialization_work_bound` relate the fallback work budget to the actual
+bounded metadata traversal. These are logical-byte and arithmetic bounds, not
+native memory or elapsed-time theorems. Exact decoder/checker certificates start from an
 empty logical environment. `StorageCodegen` proves that successful native-plan
 lowering follows those actual transitions, has unique instructions for the same
 input, and requires the rechecked schedule before returning code. The optional
@@ -260,6 +325,33 @@ actual call provenance, original authority trace, typed totality of its returned
 pure Core and closed logical entry resources. The public decoder/checker equations
 refer to that same input. Dynamic shapes/value flow and native/source refinement
 remain separate obligations.
+
+The [numerical declaration profiles](numerical-declarations.md) use the same
+complete declaration certificate. `IndexedSource.checked_implementation_contract`,
+`checked_linear_base`, `checked_smooth_complex_base`, `checked_coefficient_unique`
+and `checked_descriptor_is_affine` establish the actual accepted metadata
+contracts. `ResourceSource.public_numerical_declaration` connects them to the
+same decoded protocol-8 input and authority checker. These are structural type
+and provenance facts; by themselves they do not establish field/module laws,
+linear object construction, public GEMM, floating-point accuracy or native refinement.
+
+The [numerical-value compiler](numerical-values.md) now has a separate
+`StorageNumerical` certificate composed with that resource checker.
+`accepted_profiles` derives each map endpoint's actual declaration contract;
+`nominal_endpoints` preserves exact objects and basis identities;
+`actual_loan_layout` binds the type to the live loan snapshot;
+`exact_storage_check` connects it to the existing GEMM access/initialization
+check; and `actual_emission` binds the certificate to the exact emitted request
+and resource transition. Public `ResourceSource` supplies its full accepted
+declaration environment to resource probes and actual expansion.
+`numerical_provenance` checks original caller scopes and independently resolved
+profile references; `public_product_origin` binds each returned product receipt
+to that same public input and accepted declaration environment.
+Dependent numerical parameters/results, dual/metric laws and native refinement
+remain pending. Activation freshness, scope and stale-view rejection are tested
+by `NumericalRegression`; generated real/complex fixtures provide separate native
+execution evidence. Raw internal GEMM operations retain only their resource
+certificate and do not acquire nominal authority from this optional typed path.
 
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in

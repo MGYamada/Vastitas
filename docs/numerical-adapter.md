@@ -2,21 +2,27 @@
 
 `lean-kernel/numerical` is the initial **internal C backend** for the planned
 typed numerical path. It uses the actual native storage arena and its independent
-physical layout validation. It is not yet callable from `.vast`, protocol 8,
-the logical resource checker or the Lean proof oracle. Endpoint/frame/metric
-checking, checked GEMM initialization transitions and source/native lowering are
-still required by [#91](https://github.com/MGYamada/Vastitas/issues/91).
+physical layout validation. The internal resource checker now checks GEMM access,
+initialization and separation, and lowers that exact schedule through a separate
+optional Lean FFI package. It is not yet callable from `.vast` or protocol 8:
+endpoint/frame/metric checking and public numerical source composition are still
+required by [#91](https://github.com/MGYamada/Vastitas/issues/91).
 Neither [#92](https://github.com/MGYamada/Vastitas/issues/92) nor Stage 1 is complete.
 
 ## Build and dependency boundary
 
 Build this optional dependency explicitly with Python 3.12+, Make and a host C
-toolchain:
+toolchain. The checked executable tests also require the pinned Lean toolchain:
 
 ```sh
 python3 scripts/build_openblas.py --prefix /tmp/vastitas-openblas --jobs 4
 python3 scripts/check_gemm_native.py --prefix /tmp/vastitas-openblas
 ```
+
+On Linux run
+`python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas --lean-cc cc`.
+On macOS run
+`python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas`.
 
 The builder downloads the [OpenBLAS 0.3.34 release](https://github.com/OpenMathLib/OpenBLAS/releases/tag/v0.3.34)
 and verifies SHA-256
@@ -28,6 +34,19 @@ no LAPACK/Fortran dependency, and no shared library. This is a build-host artifa
 not a portable prebuilt distribution. `vastitas-openblas.json` records the source
 pin and build options; the prefix also contains the upstream BSD-3-Clause notice.
 Redistributing linked binaries requires retaining that notice.
+
+Linux numerical consumers select the host compiler with Lake's `LEAN_CC=cc`
+override, matching the libc used to build OpenBLAS. The regression script's
+`--lean-cc cc` applies this override only to generated consumers and adds
+`-L <lean-prefix>/lib` to their link arguments. This retains Lean's matching
+C++ ABI and support archives instead of substituting an incompatible host
+libc++ version; it does **not** add `<lean-prefix>/lib/glibc`. Lean's
+[portable toolchain](https://github.com/leanprover/lean4/blob/v4.35.0/script/prepare-llvm-linux.sh)
+bundles an older libc for linking and only minimal C headers, not a full C SDK.
+A host-built archive can reference newer libc symbols such as `__isoc23_strtol`
+that the bundled linker libraries lack.
+macOS CI tests the existing bundled Lean linker against its host-built archive.
+These are host-specific linked programs; no broader deployment ABI is claimed.
 
 The ordinary compiler, checking kernel, storage-only runtime and nonnumerical
 programs do not invoke this builder or link OpenBLAS. The numerical CI job is
@@ -52,7 +71,7 @@ An arena is used synchronously by one resource operation at a time.
 
 The initial `NativeFast` operation fixes alpha to one:
 
-| Mode | Numerical action | Required logical authority at future integration |
+| Mode | Numerical action | Required logical resource authority |
 | --- | --- | --- |
 | `VGEMM_OVERWRITE` | `C := A B`, beta zero, no old-C dependency | Exclusive write; output may be uninitialized |
 | `VGEMM_ACCUMULATE` | `C := C + A B`, beta one | Exclusive read/write; all logical output cells initialized |
@@ -105,9 +124,73 @@ a certified error bound. Mathematical smoothness concerns the ideal operation,
 not the discrete bit-pattern function. Broader alpha/beta scaling and LAPACK
 operations need separate typed contracts.
 
-The adapter currently trusts its caller's logical initialization and read/write
-rights, as the existing native storage layer does. Nominal numerical types,
-resource-checker transitions/proofs, source integration, optional generated-program
-linking, finite networks and equivalent-C performance measurements remain work.
+The C API trusts its caller's logical initialization and read/write rights, as
+the existing native storage layer does. The checked internal path below supplies
+those rights. Nominal numerical types, public source integration, finite networks
+and equivalent-C GEMM performance measurements remain work.
 This increment does not establish **Fast like C**; use the
 [storage performance gate](storage-ownership.md#713-performance-evidence-and-acceptance).
+
+## Checked internal resource execution
+
+`Storage.Action.gemm` names existing loans, explicit `native_fast` policy,
+`overwrite`/`accumulate` mode and explicit input conjugation flags. The strict
+Rust/Lean component decoders reject missing/unknown policy and mode fields.
+This component is not a public wire envelope or a mathematical map constructor.
+Public resource source still rejects this operation until nominal types and
+transformed endpoint/basis/metric checks can supply its mathematical authority.
+
+`Storage.checkGemm` reconstructs each loan and its allocation from the actual
+state, rejects suspended parents, requires initialized readable inputs and a
+writable output, and checks scalar representations, logical dimensions and the
+supported native orientation. Accumulate additionally requires readable,
+initialized output. Explicit input/output separation is checked even when the
+same read/write handle is reused in multiple operand roles. Read inputs may
+alias; disjoint views of the same allocation may use checked byte envelopes.
+No allocation, packing, copy or metric selection is inserted.
+
+A successful resource transition records exactly the output rectangle and
+advances its logical version. Zero-inner overwrite initializes zeros in native
+execution; zero-inner accumulate retains previously initialized output. Empty
+regions contain no bytes. These logical guarantees apply to successful completion;
+a failed native call throws and the generated `finally` closes the arena. Earlier
+completed writes are not rolled back. Native backend faults remain trusted-boundary
+failures, not recoverable checked transitions.
+
+`Storage.Native` retains the exact allocation IDs, physical views, flags, mode and
+policy, and repeats original schedule/lowering comparison before generation.
+GEMM plans import `VastitasGemmNative`; other plans import only the storage runtime.
+The numerical Lake package depends solely on the sibling storage package and an
+explicit pinned OpenBLAS prefix. The archive is a transitive native dependency,
+including downstream generated executables; no system BLAS fallback is selected.
+For a direct package build use
+`lake -d lean-kernel/numerical -Kopenblas=/path/to/prefix build`;
+on Linux set `LEAN_CC=cc` for that build and each downstream executable build,
+and give the downstream package `moreLinkArgs := #["-L", "<lean-prefix>/lib"]`
+using its actual `lean --print-prefix` output.
+The regression consumer demonstrates a dependency-specific `openblas` Lake option.
+
+`VastitasOracle.StorageGemm` imports the actual checker. It proves the exact
+accepted transition, input initialization, accumulate's old-output requirement,
+input/output byte separation and initialized output bytes in the actual logical
+post-state. Existing exact-lowering and closed-exit theorems cover these actions.
+It does not prove nominal map typing, ideal matrix multiplication, floating-point
+results, native no-read behavior or source/native refinement.
+
+The shared Rust/Lean fixture executes real and complex rectangular products,
+overwrite into uninitialized output and accumulate in reused output. Native tests
+also cover T versus C on `[i]`, empty output, zero inner dimension, failure cleanup,
+and header dependency rebuilding. Forged native IDs/layouts/flags/modes, unavailable
+or suspended loans, wrong shapes, input/output aliases, uninitialized reads and
+branch-only initialization are rejected. Numerical CI runs the actual generated
+consumer on both supported operating systems; it remains separate from no-BLAS
+compiler/storage jobs. Runtime counters exclude backend workspace and Lean overhead.
+
+
+The [public numerical path](numerical-values.md) now checks local nominal
+spaces/bases and map views before using this adapter. Public `gemm` does not
+accept the raw component flags or resource-only authority above. Use
+`vastitas build --manifest-path ... --openblas-prefix /path/to/prefix -o OUTPUT`,
+with `--native-cc cc` on Linux when OpenBLAS uses the host libc. Ordinary builds
+and public `check` do not need OpenBLAS. Dependent numerical interfaces,
+dual/conjugate/metric operations, networks and native refinement remain pending.

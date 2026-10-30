@@ -43,6 +43,19 @@ pub enum Literal {
     ComplexF64 { real: u64, imaginary: u64 },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GemmMode {
+    Overwrite,
+    Accumulate,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NumericalPolicy {
+    NativeFast,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
@@ -89,6 +102,17 @@ pub enum Action {
     Copy {
         source: u32,
         target: u32,
+    },
+    // Internal resource operation only. Public source additionally needs
+    // nominal endpoint/frame/metric validation before selecting this backend.
+    Gemm {
+        left: u32,
+        right: u32,
+        output: u32,
+        conjugate_left: bool,
+        conjugate_right: bool,
+        mode: GemmMode,
+        policy: NumericalPolicy,
     },
 }
 
@@ -190,8 +214,8 @@ pub mod functions {
 /// Unresolved package resource source. Owners, local symbols and call targets
 /// are assigned independently by Lean, alongside the ordinary package checker.
 pub mod source {
-    use super::{Access, Layout, Literal, Scalar, functions::OwnedType};
-    use crate::ir::{Block, Span, Type};
+    use super::{Access, GemmMode, Layout, Literal, NumericalPolicy, Scalar, functions::OwnedType};
+    use crate::ir::{Block, Span, Type, TypePath};
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -272,10 +296,41 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Numerical {
+        Space {
+            name: String,
+            implementation: TypePath,
+            dimension: u64,
+        },
+        Basis {
+            name: String,
+            space: String,
+        },
+        Map {
+            name: String,
+            loan: String,
+            source: String,
+            target: String,
+        },
+        Gemm {
+            left: String,
+            right: String,
+            output: String,
+            mode: GemmMode,
+            policy: NumericalPolicy,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
         Action {
             action: Action,
+            span: Span,
+        },
+        Numerical {
+            operation: Numerical,
             span: Span,
         },
         Call {

@@ -103,6 +103,17 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertTrue(any("no external Lake" in error for error in errors))
         self.assertEqual(sum("runtime must not import" in error for error in errors), 3)
 
+    def test_storage_fixtures_stay_within_the_test_library(self):
+        self.write("lean-kernel/VastitasStorageTest/Regression.lean",
+                   "import VastitasStorageTest.NumericalFixture\nimport VastitasKernel.Storage\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/Storage.lean", "import VastitasStorageTest.NumericalFixture\n")
+        self.write("lean-kernel/VastitasStorageTestExtra/Bad.lean", "import VastitasStorageTest.NumericalFixture\n")
+        self.write("lean-kernel/VastitasStorageTest/NumericalFixture.lean", "import Mathlib\n")
+        errors = check_boundaries(self.root)
+        self.assertEqual(sum("forbidden import VastitasStorageTest.NumericalFixture" in e for e in errors), 2)
+        self.assertTrue(any("forbidden import Mathlib" in e for e in errors))
+
     def test_missing_runtime_cannot_silently_pass(self):
         (self.root / "lean-kernel/VastitasKernel/Runtime.lean").unlink()
         self.assertIn("kernel runtime source is missing", check_boundaries(self.root))
@@ -132,6 +143,34 @@ class RepositoryBoundaryTests(unittest.TestCase):
         errors = check_boundaries(self.root)
         self.assertTrue(any("native storage runtime and kernel" in error for error in errors))
         self.assertTrue(any("native storage runtime must have no external" in error for error in errors))
+
+    def numerical_package(self):
+        self.native_package()
+        self.write("lean-kernel/numerical/lean-toolchain", "leanprover/lean4:v4.35.0\n")
+        self.write("lean-kernel/numerical/lakefile.lean", "import Lake\n")
+        self.write("lean-kernel/numerical/VastitasGemmNative.lean", "import VastitasStorageNative\n")
+        self.write("lean-kernel/numerical/lake-manifest.json", json.dumps({"packages": [{
+            "type": "path", "name": "vastitas_storage_native", "dir": "../native"}]}))
+
+    def test_gemm_runtime_does_not_enter_normal_compiler_or_storage(self):
+        self.numerical_package()
+        self.assertEqual(check_boundaries(self.root), [])
+        for path in ["lean-kernel/VastitasKernel/Core.lean", "lean-kernel/native/Extra.lean"]:
+            self.write(path, "import VastitasGemmNative\n")
+        self.write("lean-kernel/numerical/Extra.lean", "import VastitasKernel.Storage\nimport Mathlib\n")
+        errors = check_boundaries(self.root)
+        self.assertEqual(sum("forbidden import VastitasGemmNative" in e for e in errors), 2)
+        self.assertTrue(any("forbidden import VastitasKernel.Storage" in e for e in errors))
+        self.assertTrue(any("forbidden import Mathlib" in e for e in errors))
+
+    def test_gemm_runtime_cannot_redirect_its_native_dependency(self):
+        self.numerical_package()
+        self.write("lean-kernel/numerical/lake-manifest.json", json.dumps({"packages": [{
+            "type": "path", "name": "vastitas_storage_native", "dir": "../forged"}]}))
+        self.write("lean-kernel/numerical/lean-toolchain", "leanprover/lean4:v4.34.0\n")
+        errors = check_boundaries(self.root)
+        self.assertTrue(any("sibling native storage" in e for e in errors))
+        self.assertTrue(any("numerical runtime and kernel" in e for e in errors))
 
     def test_root_and_oracle_toolchains_must_match_kernel(self):
         self.oracle_package()

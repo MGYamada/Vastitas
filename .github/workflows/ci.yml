@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -10,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 defaults:
@@ -58,6 +57,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /src/
+            /config/
             /tests/
             /examples/
             /stdlib/
@@ -104,13 +104,16 @@ jobs:
   numerical-adapter:
     name: Optional GEMM adapter (${{ matrix.os }}, OpenBLAS 0.3.34)
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
       - name: Build pinned sequential LP64 OpenBLAS
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
@@ -128,6 +131,30 @@ jobs:
           else
             python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
+      - name: Build the independent resource checker
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-kernel
+          auto-config: false
+          build: true
+          build-args: vastitas-kernel storage-native-fixture
+          use-mathlib-cache: false
+      - name: Exact checked GEMM schedules and generated native cleanup
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 scripts/check_gemm_checked.py --prefix "$RUNNER_TEMP/vastitas-openblas" --lean-cc cc
+          else
+            python3 scripts/check_gemm_checked.py --prefix "$RUNNER_TEMP/vastitas-openblas"
+          fi
+      - name: Public typed real and complex GEMM source execution
+        env:
+          OPENBLAS_NUM_THREADS: '1'
+          VASTITAS_TEST_OPENBLAS_PREFIX: ${{ runner.temp }}/vastitas-openblas
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            export VASTITAS_TEST_NATIVE_CC=cc
+          fi
+          cargo test --locked --test numerical_source -- --ignored
 
   oracle:
     name: Lean proofs and axiom audit (no mathlib)

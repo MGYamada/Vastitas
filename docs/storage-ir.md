@@ -50,6 +50,7 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 | `fill`, `store` | Writable active loan, exact scalar representation; record the whole view or the one addressed cell |
 | `expect` | Readable active loan, valid index and initialized cell; native execution asserts the supplied bit pattern |
 | `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source |
+| Internal `gemm` | Initialized readable inputs, exclusive compatible output, explicit NativeFast policy/mode/orientation, independent input/output byte separation; accumulate also requires initialized readable output |
 | Branch join | Same owners, allocations and loan structure; intersect initialization guarantees and merge logical versions |
 
 Symbols cannot be reused or shadowed, including after move or release. Fresh
@@ -91,9 +92,23 @@ Containment of a contiguous view uses its interval. Containment of a padded
 rectangle additionally checks the row/column shift and compatible column grid;
 it never treats padding as initialized. A write records its actual rectangle,
 and a scalar store records only its single cell. Branch initialization is the
-intersection of both exits. The entailment procedure is conservative: separate
-partial writes are not combined into a whole-region guarantee without additional
-partition evidence. Interleaved views with overlapping envelopes are rejected
+intersection of both exits. Entailment first tries exact rectangular containment.
+Its bounded fallback combines contiguous write intervals in any order, takes the
+common covered interval at branch joins, and checks padded requests column by
+column without reading their gaps. A padded write is never flattened into its
+bounding interval. Every successful query implies coverage of the requested
+actual bytes through the same `StorageRegions.initialization_bytes` theorem.
+
+The query checks at most 4096 history nodes before any full traversal. Fallback
+interval advancement has a 65,536-node-visit budget, divided among requested
+columns; their count must fit that metadata-derived budget before constructing
+a range. Large dimensions and allocation capacity do not set the traversal
+budget. Exhaustion rejects conservatively. Combinations of padded write profiles
+that need stronger symbolic partition reasoning can still be rejected; this is
+not a complete geometric union solver. The existing rectangular path continues
+to handle large padded rectangles directly.
+
+Interleaved views with overlapping envelopes are rejected
 when either writes, even if a stronger partition proof could separate them.
 Arbitrary strides, read-only broadcast, general partitions and packing remain
 pending.
@@ -153,16 +168,21 @@ The oracle imports the actual kernel definitions:
 | Module | Proved boundary |
 | --- | --- |
 | `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds and relatively aligned; distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
-| `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning |
+| `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning; bounded interval unions and per-column checks cover actual bytes, with arithmetic work-budget lemmas tied to the actual history traversal |
 | `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; decoder certificates retain the exact checked plan |
 | `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
+| `VastitasOracle.StorageGemm` | Actual GEMM subject and accepted transition, input/accumulate initialization, output byte separation, and initialized destination bytes in the reconstructed post-state; no nominal or native numerical guarantee |
 | `VastitasOracle.StorageFunctions` | Exact call-slice replay, caller-loan restoration, unique owned results with declared initialized bytes, all-body probe coverage and exact decoder/executable/closed-plan connection |
 
 `StorageRegression` compares bounds, injectivity, containment and separation with
 an independent enumeration of bytes for small real/complex, padded, shifted,
 transposed and empty layouts. It also checks moves, access modes, nested loans,
 branch joins, initialization, forged states, metadata budgets and a billion-by-
-billion layout without expanding its elements. `VastitasStorageTest.Regression`
+billion layout and two-half initialization without expanding their elements.
+Small independent cell-set tests check real/complex write unions and branch
+intersections. Public source tests cover caller-owned padded output initialization
+from individual stores, transposed reads and rejection of an incomplete untaken
+branch. `VastitasStorageTest.Regression`
 checks the Rust fixture and malformed component inputs. Its `NativeRegression`
 sibling rejects forged native allocation IDs, sizes, scalars, layouts, payloads,
 copy aliases, operation sequences and branch structure before generation.

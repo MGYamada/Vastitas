@@ -40,10 +40,18 @@ and allocation/copy counters. [Internal resource functions](docs/storage-functio
 check owned arguments/results and borrowed destinations against actual caller
 resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
 static storage schedules and pure return expressions to package source and native
-execution. Dynamic shapes/value flow, numerical consumers and measured C
-performance are still pending.
-An [optional internal GEMM adapter](docs/numerical-adapter.md) tests pinned
-OpenBLAS against actual native storage; its typed source integration is pending.
+execution. Dynamic shapes/value flow and end-to-end C performance comparisons
+are still pending.
+An [optional internal GEMM path](docs/numerical-adapter.md) checks resource access,
+initialization and exact native lowering, then executes through pinned OpenBLAS.
+[Numerical declaration profiles](docs/numerical-declarations.md) now independently
+check ideal real/complex coefficients and nominal scalar bases through protocol 8.
+The [protocol-8 numerical-value compiler](docs/numerical-values.md) checks local
+nominal spaces, bases and loan-backed map products through actual GEMM lowering.
+Public resource functions can use these operations; numerical builds require an
+explicit `--openblas-prefix`, while ordinary compilation and `check` need no BLAS.
+Dependent numerical interfaces, dual/conjugate/metric operations and networks
+remain pending.
 
 ## Build and use
 
@@ -75,6 +83,33 @@ trusted backend executable and kernel package directory for development.
 The backend build includes the native runtime. `check` needs only the executable
 when explicitly selected; `build` also needs the package and uses its pinned
 `lean-toolchain` for the generated project.
+
+### Internal Lean proof audit (v0.1.0 gate)
+
+The Rust compiler also offers an opt-in, **non-authoritative** cross-check of
+Lean proof exports using the pinned [`nanoda_lib`](https://github.com/ammkrn/nanoda_lib)
+crate. Generate an NDJSON file with `lean4export`, then run:
+
+```sh
+cargo run --locked -- audit-lean path/to/lean4export.ndjson
+```
+
+`audit-lean` uses the checked-in [axiom-name policy](config/nanoda-internal-audit.json):
+only the names `propext`, `Classical.choice`, and `Quot.sound` are allowed, with hard
+rejection of all other exported axiom names. Their statements and dependencies
+are not authenticated against the standard Lean environment. Every result is
+explicitly conditional on the supplied environment and reports its exported
+axiom count; renaming an arbitrary assumption does not validate it as a standard
+Lean axiom. In particular, `sorryAx` and
+`Lean.trustCompiler` are not permitted. The internal checker runs in an
+isolated worker because rejection in upstream nanoda may panic or exit.
+
+This command **rechecks an existing proof term**; it does not elaborate Lean
+source, discover proofs, authorize `.vast` source/IR, or discharge any
+constitutional theorem. The official Lean kernel remains the sole authority
+for CI proofs, kernel compilation, and CS/MS/CF proof obligations. See
+[the exact trust boundary](docs/verification.md#independent-internal-lean-export-audit-v010-gate)
+and [v0.1.0 gate #282](https://github.com/MGYamada/Vastitas/issues/282).
 
 ## Path packages and modules
 
@@ -241,8 +276,9 @@ principle in [ADR 0001](docs/adr/0001-mathematics-first-stdlib.md#9-mathematical
 CI runs Rust formatting and strict Clippy once, tests native compilation and
 the arithmetic standard library on macOS and Linux with the oracle directory
 absent, and builds/audits proofs without Mathlib in a separate job. It runs on pull requests,
-pushes to `main`, and manual dispatch. Superseded runs on the same branch/PR
-are cancelled; action revisions and language toolchains are pinned.
+pushes to every branch, and manual dispatch. Superseded runs for the same event
+and branch/PR are cancelled; push and pull-request runs do not cancel each other.
+Action revisions and language toolchains are pinned.
 
 The dependency-boundary checker has its own regression tests:
 

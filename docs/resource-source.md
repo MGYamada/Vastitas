@@ -49,7 +49,11 @@ Borrowed parameters use `Read<S, rows, columns>`, `Write<S, rows, columns>` or
 scoped child loans of the actual caller view. Their scalar and logical shape must
 match, but their real offset, padding and transpose are preserved. The caller's
 loan resumes only after all children are returned. Two read arguments may alias;
-parameter names never prove separation for a writer.
+parameter names never prove separation for a writer. Individual cell stores can
+establish an entire initialized output, including a padded caller view, through
+the bounded write-union check. Both branches must independently cover each
+requested cell. No preliminary fill is required when the stores suffice; missing
+cells, padding holes and exhausted coverage budgets remain unreadable.
 
 | Statement | Meaning |
 | --- | --- |
@@ -63,6 +67,10 @@ parameter names never prove separation for a writer.
 | `store(view, row, column, payload);` | Initialize one checked cell. |
 | `expect(view, row, column, payload);` | Assert the exact bits of an initialized readable cell at runtime. |
 | `copy(input, output);` | Copy between compatible checked views; reuse the destination. |
+| `space v = linear(Profile, 3);` | Construct a fresh nominal linear space from an independently resolved profile. |
+| `basis bv = basis(v);` | Introduce a distinct basis tied to that space. |
+| `map a = view(input, bv, bw);` | Interpret a live loan as a map from `v` to `w` in those bases. |
+| `gemm(a, b, c, overwrite, NativeFast);` | Check exact endpoints/bases and resources, then multiply into `c`; also `accumulate`. |
 | `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
 | `if true { ... } else { ... }` | Check both resource branches and join their states; current conditions are literal booleans. |
 
@@ -106,7 +114,10 @@ publish the pure return value. Earlier completed writes are not rolled back.
 
 The optional `lean-kernel/native` package is linked only for a resource entry.
 A protocol-8 program with only an ordinary pure entry still builds without that
-runtime. Neither route needs mathlib or OpenBLAS. Native code performs no runtime
+runtime. Neither route needs mathlib. A checked GEMM schedule additionally links
+the optional numerical package with explicit pinned OpenBLAS configuration;
+other entries remain BLAS-free. See [numerical source and build](numerical-values.md).
+Native code performs no runtime
 loan interpretation or implicit alias-repair copy; operation costs remain visible
 in the checked schedule.
 
@@ -128,8 +139,8 @@ metadata. The existing forged native-plan, sanitizer, failure-cleanup and alloca
 counter regressions remain required.
 
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-nominal numerical object/basis/dual types, general owned-result branch joins,
-scratch/dependency handling, typed real/complex GEMM, finite networks and
+dependent numerical object/basis interfaces, dual/conjugate/metric evidence,
+general owned-result branch joins, scratch/dependency handling, finite networks and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
 broader lifetime interfaces retain their separate scope. Protocol 8's static
 profile and native compilation alone do not establish **Fast like C**.

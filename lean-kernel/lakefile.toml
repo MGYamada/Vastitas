@@ -35,8 +35,13 @@ text = true
 
 [[lean_lib]]
 name = "VastitasStorageTest"
-roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression"]
-needs = ["storageFixture", "storageFunctionFixture"]
+roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression", "VastitasStorageTest.GemmRegression", "VastitasStorageTest.NumericalRegression", "VastitasStorageTest.NumericalFixture"]
+needs = ["storageFixture", "storageFunctionFixture", "storageGemmFixture"]
+
+[[input_file]]
+name = "storageGemmFixture"
+path = "../tests/fixtures/storage-gemm.json"
+text = true
 
 [[input_file]]
 name = "storageFunctionFixture"
@@ -46,3 +51,7 @@ text = true
 [[lean_exe]]
 name = "storage-native-fixture"
 root = "VastitasStorageTest.Emit"
+
+[[lean_exe]]
+name = "numerical-native-fixture"
+root = "VastitasStorageTest.NumericalEmit"

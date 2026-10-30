@@ -14,8 +14,10 @@ export maps legacy syntax to those same declarations. The
 finite compatibility from broader source/native proof limits. Protocols 2–6
 and explicit `--lib` retain their existing geometry syntax and wire formats.
 `Indexed.LegacySource` adapts their decoded source into this same common checker
-with a separately validated closed compatibility declaration package. Storage ownership, numerical arrays
-and performance evidence remain separate pending work.
+with a separately validated closed compatibility declaration package.
+[Protocol 8 resource functions](resource-source.md) and
+[numerical declaration profiles](numerical-declarations.md) compose with this same
+checker. Public numerical arrays/maps and performance acceptance remain pending.
 
 ## Legacy geometry syntax in packages
 

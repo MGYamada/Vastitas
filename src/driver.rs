@@ -92,7 +92,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     }
     if args == ["--version"] {
         println!(
-            "vastitas {} (Stage 1b + packages + abstract selectors + edit authority + indexed declarations, protocols {PROTOCOL_VERSION}/3/4/5/6/7)",
+            "vastitas {} (Stage 1b + packages + abstract selectors + edit authority + indexed declarations + static resources, protocols {PROTOCOL_VERSION}/3/4/5/6/7/8)",
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
@@ -140,11 +140,21 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .get("lean_source")
             .and_then(Value::as_str)
             .ok_or_else(|| "E_PROTOCOL: backend omitted generated Lean source".to_string())?;
+        let storage_runtime = match response.get("storage_runtime") {
+            None => false,
+            Some(Value::Bool(required)) if version == crate::packages::RESOURCE_PROTOCOL => {
+                *required
+            }
+            Some(_) => {
+                return Err("E_PROTOCOL: invalid optional storage runtime requirement".into());
+            }
+        };
         build_native(
             root.as_ref().expect("native build requires kernel root"),
             lean_source,
             &output,
             &sources,
+            storage_runtime,
         )?;
         println!("built {}", output.display());
     } else {
@@ -285,6 +295,7 @@ fn build_native(
     source: &str,
     output: &Path,
     sources: &Sources,
+    storage_runtime: bool,
 ) -> Result<(), String> {
     let toolchain_path = kernel_root.join("lean-toolchain");
     let toolchain = fs::read_to_string(&toolchain_path)
@@ -299,8 +310,15 @@ fn build_native(
     let path = &directory.0;
     let dependency_path = serde_json::to_string(&kernel_root.to_string_lossy())
         .map_err(|error| format!("E_BUILD: invalid kernel path: {error}"))?;
+    let optional_storage = if storage_runtime {
+        let path = serde_json::to_string(&kernel_root.join("native").to_string_lossy())
+            .map_err(|error| format!("E_BUILD: invalid native runtime path: {error}"))?;
+        format!("\n[[require]]\nname = \"vastitas_storage_native\"\npath = {path}\n")
+    } else {
+        String::new()
+    };
     let manifest = format!(
-        "name = \"vastitas_program\"\nversion = \"0.1.0\"\ndefaultTargets = [\"program\"]\n\n[[require]]\nname = \"vastitas_kernel\"\npath = {dependency_path}\n\n[[lean_exe]]\nname = \"program\"\nroot = \"Main\"\n"
+        "name = \"vastitas_program\"\nversion = \"0.1.0\"\ndefaultTargets = [\"program\"]\n\n[[require]]\nname = \"vastitas_kernel\"\npath = {dependency_path}\n{optional_storage}\n[[lean_exe]]\nname = \"program\"\nroot = \"Main\"\n"
     );
     for (name, contents) in [
         ("lakefile.toml", manifest.as_str()),

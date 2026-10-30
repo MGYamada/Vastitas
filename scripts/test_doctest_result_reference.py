@@ -68,7 +68,7 @@ class ResultTests(unittest.TestCase):
         self.assert_judgment("failed", "frontend_backend_inconsistent")
 
     def test_matching_supported_kernel_protocols(self):
-        for version in range(2, 8):
+        for version in range(2, 9):
             with self.subTest(version=version):
                 self.result["backend"]["request_version"] = version
                 self.result["backend"]["response"]["version"] = version

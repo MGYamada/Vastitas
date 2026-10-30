@@ -1,4 +1,4 @@
-# Compiler protocols (versions 2–7)
+# Compiler protocols (versions 2–8)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -13,9 +13,16 @@ below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assem
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
 
-The [internal storage component schema](storage-ir.md) is not a public wire
-version. Protocol 8 remains unsupported, and a top-level `resources` extension
-must not be silently discarded by legacy protocol 2.
+Package-only [protocol 8](resource-source.md) adds unresolved `resource_functions`
+to modules while preserving the full protocol-7 declaration/Fn/dispatch/authority
+checks. Each resource function carries `name`, `parameters`, ordered owned
+`results`, resource `body`, pure `value_type`/`value_body`, `public` and `span`.
+Calls carry unresolved paths and local names, not checked IDs. The strict schema
+is defined by `storage.rs::source` and `ResourceProtocol.lean`. Emit responses
+include `storage_runtime: Bool` to request the optional native package only when
+the actual entry needs it. The [internal storage component schema](storage-ir.md)
+is not an alternative public envelope; top-level `resources` and downgraded
+`resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:

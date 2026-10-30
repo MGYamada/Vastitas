@@ -116,13 +116,19 @@ private def render (instructions : List Instruction) : Except Error String := do
   if indent != 4 then reject "unclosed native branch"
   return result
 
+/-- Checked operations for composition with another independently checked
+executable body. This repeats the same full original-plan/instruction audit. -/
+def generateBody (plan : Plan) : Except Error String := do
+  let _ ← audit plan
+  render plan.instructions
+
 /-- Generation accepts a raw plan only after independently auditing it again.
 Cleanup is structured IO, including runtime assertion/allocation failures.
 The optional reporting entry point is for native regression/cost fixtures. -/
 def generate (plan : Plan) (report : Bool := false) (byteBudget : Nat := byteLimit) : Except Error String := do
   let _ ← audit plan
   if byteBudget > byteLimit then reject "native live-byte budget exceeds profile"
-  let operations ← render plan.instructions
+  let operations ← generateBody plan
   let reporting := if report then
     "    let counters ← stats arena\n    IO.println counters\n" else ""
   return "import VastitasStorageNative\n\nopen VastitasStorageNative\n\n" ++

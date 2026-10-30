@@ -92,6 +92,13 @@ theorem every_body {program : Program} (checked : Checked program) {function : F
   obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
 
+theorem every_library_body {functions : List Function} (checked : CheckedLibrary functions) {function : Function}
+    (member : function ∈ functions) :
+    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe functions function = .ok result ∧
+      checkPlan result.statements = .ok result.resources := by
+  obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
+  exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
+
 theorem decoded_executable {json : Lean.Json} (input : Functions.Wire.CheckedInput json) :
     Functions.Wire.program json = .ok input.input ∧
     executable input.input = .ok input.checked.context ∧

@@ -101,13 +101,15 @@ private def renderFunction (env : Declarations) (function : Function) : Except S
 
 /-- Recheck all declarations, bodies, identities and actual dependencies at the
 last compiler boundary, including functions omitted by reachability lowering. -/
-def generate (checked : Typing.CheckedModule true) : Except String String := do
+def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule requireMain)
+    (roots : List Nat) : Except String String := do
   let module := checked.module
-  match Typing.checkModule module true with
+  match Typing.checkModule module requireMain with
   | .error diagnostic => throw diagnostic.message
   | .ok _ => pure ()
-  let some main := module.main | throw "native compilation requires an entrypoint"
-  let mut reachable : Std.HashSet Nat := ({} : Std.HashSet Nat).insert main
+  unless roots.all (fun id => module.functions.any (·.id == id)) do
+    throw "native library root has no checked function"
+  let mut reachable : Std.HashSet Nat := Std.HashSet.ofList roots
   for function in module.functions.reverse do
     if reachable.contains function.id then
       for callee in function.body.callIds do
@@ -119,6 +121,13 @@ def generate (checked : Typing.CheckedModule true) : Except String String := do
   return "import VastitasKernel.IndexedRuntime\n\nset_option maxRecDepth 32768\n" ++
     "set_option maxHeartbeats 2000000\nset_option linter.unusedVariables false\n\n" ++
     "namespace VastitasGenerated\n\n" ++ String.intercalate "\n" (packages ++ functions) ++
-    "\nend VastitasGenerated\n\ndef main : IO Unit :=\n  IO.println (VastitasGenerated." ++ functionName main ++ ")\n"
+    "\nend VastitasGenerated\n"
+
+def functionReference (id : Nat) : String := "VastitasGenerated." ++ functionName id
+
+def generate (checked : Typing.CheckedModule true) : Except String String := do
+  let some main := checked.module.main | throw "native compilation requires an entrypoint"
+  let source ← generateLibrary checked [main]
+  return source ++ "\ndef main : IO Unit :=\n  IO.println (" ++ functionReference main ++ ")\n"
 
 end VastitasKernel.Indexed.Core.Codegen

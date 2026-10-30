@@ -1,0 +1,17 @@
+pub resource fn make() returns (data: Owned<F64, 8> initialized [layout(8, 2, 2, 4, false)]) -> Unit {
+    allocate data: F64[8];
+    borrow output = write(data, layout(8, 2, 2, 4, false));
+    fill(output, f64_bits(4613937818241073152));
+    release(output);
+    value { () }
+}
+
+pub resource fn inspect(input: Read<F64, 2, 2>) -> Unit {
+    expect(input, 0, 0, f64_bits(4613937818241073152));
+    value { () }
+}
+
+pub resource fn round_trip(data: Owned<F64, 8> initialized [layout(8, 2, 2, 4, false)])
+    returns (data: Owned<F64, 8> initialized [layout(8, 2, 2, 4, false)]) -> Unit {
+    value { () }
+}

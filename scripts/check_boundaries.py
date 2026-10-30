@@ -4,10 +4,10 @@ import json
 from pathlib import Path
 import re
 import sys
+import tomllib
 from typing import NamedTuple
 
 
-MATHLIB_REVISION = "56a005855ea17e0b0958f73ec801ae140b0a1679"
 _SEGMENT = r"(?:[^\W\d][\w']*|«[^»]*»)"
 _NAME = re.compile(rf"{_SEGMENT}(?:\.{_SEGMENT})*")
 _SEGMENTS = re.compile(_SEGMENT)
@@ -122,18 +122,48 @@ def module_allowed(name, roots):
     return first in roots
 
 
+def check_lake_dependencies(package, label, errors, *, oracle=False):
+    """Enforce the current closed Lake graph, including inherited packages.
+
+    Oracle may require only the checked local kernel, which has no package
+    dependencies. Checking both the declarative config
+    and the complete lockfile rejects stale locks, renamed/forked packages and
+    transitive Mathlib without resolving or trusting external package code.
+    Future local packages require an explicit boundary-policy amendment.
+    """
+    if (package / "lakefile.lean").exists():
+        errors.append(f"{label}: executable lakefile.lean is not allowed; use lakefile.toml")
+    try:
+        config = tomllib.loads((package / "lakefile.toml").read_text())
+        manifest = json.loads((package / "lake-manifest.json").read_text())
+        required = [{"name": "vastitas_kernel", "path": "../lean-kernel"}] if oracle else []
+        locked = [{
+            "type": "path", "scope": "", "name": "vastitas_kernel",
+            "manifestFile": "lake-manifest.json", "inherited": False,
+            "dir": "../lean-kernel", "copy": False, "configFile": "lakefile.toml",
+        }] if oracle else []
+        policy = ("only the local ../lean-kernel Lake dependency" if oracle
+                  else "no external Lake package dependencies")
+        if config.get("require", []) != required:
+            errors.append(f"{label} must have {policy} (lakefile.toml)")
+        if not isinstance(manifest, dict) or manifest.get("packages") != locked:
+            errors.append(f"{label} must have {policy} (complete manifest, including transitive dependencies)")
+    except (OSError, ValueError) as error:
+        errors.append(f"{label}: cannot check Lake dependencies: {error}")
+
+
 def check_boundaries(root):
     root = Path(root)
     kernel = root / "lean-kernel"
     errors = []
-    manifest = json.loads((kernel / "lake-manifest.json").read_text())
-    if manifest.get("packages"):
-        errors.append("lean-kernel must have no external Lake package dependencies")
+    check_lake_dependencies(kernel, "lean-kernel", errors)
     runtime = kernel / "VastitasKernel" / "Runtime.lean"
     runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean"}
     native = kernel / "native"
     numerical = kernel / "numerical"
     if native.exists():
+        # The optional native runtime retains its existing executable Lake
+        # configuration; its standalone lockfile still admits no dependencies.
         native_manifest = json.loads((native / "lake-manifest.json").read_text())
         if native_manifest.get("packages"):
             errors.append("native storage runtime must have no external Lake package dependencies")
@@ -190,10 +220,21 @@ def check_boundaries(root):
     if oracle.exists():
         if (oracle / "lean-toolchain").read_text().strip() != kernel_toolchain:
             errors.append("kernel and oracle must use the same Lean toolchain")
-        oracle_manifest = json.loads((oracle / "lake-manifest.json").read_text())
-        mathlib = next((p for p in oracle_manifest["packages"] if p["name"] == "mathlib"), None)
-        if not mathlib or mathlib.get("rev") != MATHLIB_REVISION:
-            errors.append("oracle mathlib must be pinned to the v4.35.0 commit")
+        check_lake_dependencies(oracle, "oracle", errors, oracle=True)
+        for source in oracle.rglob("*.lean"):
+            if ".lake" in source.parts:
+                continue
+            try:
+                imports = lean_imports(source.read_text())
+            except ValueError as error:
+                errors.append(f"{source.relative_to(root)}: {error}")
+                continue
+            for name in imports:
+                if not module_allowed(name, {
+                    "Init", "Std", "Lean", "VastitasKernel", "VastitasOracle",
+                    "VastitasPromotion",  # existing actual-source promotion fixture
+                }):
+                    errors.append(f"{source.relative_to(root)}: forbidden import {name}")
     return errors
 
 

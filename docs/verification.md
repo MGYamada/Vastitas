@@ -2,8 +2,39 @@
 
 The proof oracle in `lean/` imports the implementation's definitions from
 `lean-kernel/`. It has no executable target and is not consulted when compiling
-or executing `.vast` programs. mathlib is pinned to v4.35.0; the executable
-kernel and generated runtime depend only on the Lean distribution.
+or executing `.vast` programs. Both packages pin Lean v4.35.0; the oracle,
+executable kernel and generated runtime depend only on that Lean distribution
+and the local implementation. Mathlib mathematical alignment is a separate
+semantic obligation, not an Oracle build dependency; see
+[ADR 0001, amendment for #285](adr/0001-mathematics-first-stdlib.md#9-mathematical-alignment-and-oracle-dependency-independence).
+
+The first #285 increment replaces the two direct Mathlib imports with core
+`Rat.intCast_inj`, `List.mergeSort_perm`, `List.pairwise_mergeSort` and
+`List.Perm.eq_of_pairwise`. `Rat` is the same type previously written `ℚ`;
+nonempty coordinate dimension and all theorem hypotheses remain in place.
+The transitive Batteries import in `ModuleEffects` is also removed: its
+pointwise list relation is now the proof-local
+`VastitasOracle.Elaboration.Forall₂`, with the same nil/cons rules (including
+equal length and positional correspondence). `ModuleElaborated` and
+`ModuleCorresponds` use that relation without changing their obligations.
+No global `List.Forall₂` declaration is shadowed, so a future separate Bridge
+can import Batteries without a name collision. No proof or theorem is removed.
+
+`scripts/check_boundaries.py` reuses the Lean header scanner for every Oracle
+source, allowing only distribution, actual kernel/promotion-fixture and Oracle
+modules. Both declarative Lake configs and complete manifests are checked:
+the kernel has no packages and the Oracle has exactly the local kernel.
+Inherited dependencies, renamed/forked packages, redirected local paths, stale
+locks and executable Lake overrides are rejected. Local wrapper modules are
+scanned as well. This deliberately closed graph must be amended when future
+packages are actually introduced; it is not a general Lake dependency resolver.
+CI checks the boundary before resolution and after the official build, disables
+Mathlib cache downloads, and preserves the allowed axiom set. The existing
+`audit_axioms.lean` additionally audits transitive declarations in the Oracle,
+kernel and promotion fixture namespaces. `check_oracle_core.lean` exercises
+nonempty/empty coordinate spaces, duplicate/Unicode names and positional lists.
+This increment adds neither `VastitasMath` nor `VastitasBridge`, and does not
+claim any new std correspondence or constitutional theorem.
 
 Flat protocol versions 2 and 4 enter through `checkSurfaceProgram`. Package
 versions 3 and 4 resolve namespaces before entering the same surface checker.
@@ -230,7 +261,7 @@ nanoda_lib 0.4.31 is pinned by Git revision in Cargo and accepts the
 `lean4export` 3.1.x format. The included minimal theorem fixture is hand-assembled from documented
 format 3.1.0 nodes (with illustrative historical metadata); the compiler
 and official proof projects remain pinned to Lean 4.35.0. Building and invoking `audit-lean` does not require
-the `lean/` Mathlib oracle project. Because nanoda's parser/checker may
+the `lean/` proof oracle project. Because nanoda's parser/checker may
 panic or exit on malformed or rejected exports, the driver supervises a
 separate worker and converts such outcomes into audit errors.
 

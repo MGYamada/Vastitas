@@ -157,11 +157,14 @@ jobs:
           cargo test --locked --test numerical_source -- --ignored
 
   oracle:
+    # Preserve the repository's required-check name; this job is Mathlib-free.
     name: Lean proofs and axiom audit
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check proof dependency boundary before Lake resolution
+        run: python3 scripts/check_boundaries.py
       - name: Build and audit the proof-only oracle
         uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
         with:
@@ -169,11 +172,18 @@ jobs:
           auto-config: false
           build: true
           build-args: VastitasOracle
-          use-mathlib-cache: true
+          use-mathlib-cache: false
           axiom-audit: true
           axiom-audit-root: VastitasOracle
           axiom-audit-allow: propext,Classical.choice,Quot.sound
+      - name: Audit transitive oracle and kernel axioms
+        run: cd lean && lake env lean ../scripts/audit_axioms.lean
+      - name: Core proof migration regressions
+        run: cd lean && lake env lean ../scripts/check_oracle_core.lean
       - name: Finite edit acceptance indices
         run: cd lean && lake env lean ../scripts/check_edit_acceptance.lean
       - name: Dependency boundaries
-        run: python3 scripts/check_boundaries.py
+        run: |
+          lake -d lean update
+          python3 scripts/check_boundaries.py
+          git diff --exit-code -- lean/lake-manifest.json lean-kernel/lake-manifest.json

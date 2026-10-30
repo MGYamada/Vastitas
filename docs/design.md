@@ -58,7 +58,7 @@ The [finite geometry stdlib](../stdlib/src/geometry/README.md) now uses
 compatibility and semantic guarantees. The [Stage 1 completion ledger](stage1-completion.md)
 tracks storage ownership, linear algebra, finite networks and performance evidence.
 The Rust frontend is in `src/`, the mathlib-free Lean backend in `lean-kernel/`, and
-the mathlib-dependent proof oracle in `lean/`; the oracle imports the actual backend
+the mathlib-free proof oracle in `lean/`; the oracle imports the actual backend
 definitions. Ordinary compilation does not invoke the proof oracle.
 
 Stage 0 geometry syntax remains supported for compatibility, so its specification

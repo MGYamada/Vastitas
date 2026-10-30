@@ -7,7 +7,8 @@ refinement. It adds no production API, profiler, CI job, package gate, performan
 threshold, or completion claim for [#183](https://github.com/MGYamada/Vastitas/issues/183)
 or [#222](https://github.com/MGYamada/Vastitas/issues/222).
 
-Recorded run: [2026-10-30 EPYC results and limitations](results/2026-10-30-epyc/RESULTS.md).
+Recorded runs: [latest post-#280 results](results/2026-10-30-epyc-post280/RESULTS.md)
+and [earlier pre-#280 results](results/2026-10-30-epyc/RESULTS.md).
 
 ## Reproduce
 
@@ -70,6 +71,11 @@ they are not misreported as runtime `written_bytes`. This initialization can
 dominate lifecycle time, so checked-call results must be considered alongside it.
 The lifecycle's O(1) observation and stats aggregation are common harness costs,
 and are not subtracted. No Lean object allocation or FFI overhead is included.
+
+The prepared-loop wrapper has a different compiler specialization context from
+the inlined kernel inside a checked copy. Timing variation and that context can
+make a prepared-loop sample slower than a checked call. Do not subtract the two
+measurements to estimate preflight cost; they are separately measured scopes.
 
 ## Cases and correctness
 

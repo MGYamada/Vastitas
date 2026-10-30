@@ -1,5 +1,8 @@
 # Synchronous C adapter baseline — 30 October 2026
 
+This is the earlier pre-#280 run. The [post-#280 refresh](../2026-10-30-epyc-post280/RESULTS.md)
+contains the current baseline; both raw datasets are retained separately.
+
 All 200 cases passed bitwise output/source/padding checks and matched allocation,
 write and copy counters. Across the 32 **bulk cases that copy data** (16 real,
 16 complex), median paired

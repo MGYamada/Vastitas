@@ -159,3 +159,9 @@ kernel regression script, and builds/audits `VastitasOracle.Graph` through the
 oracle root. Python is a development reference, not a compiler/runtime
 dependency. The existing 8 Domain Checkers plus independent Ownership/Borrow
 architecture and historical Stage 1 completion criteria are unchanged.
+
+The [finite CAR/spin reference](car-spin-reference.md) reuses this exact
+evaluator and fixture authority for #246's one/two-mode examples. It retains
+the QQ scalar-line profiles, explicitly embeds their coefficients into Q(i),
+and distinguishes ordinary spin tensor from Koszul exchange. Its matrix
+equalities and Pauli rank witnesses grant no additional Graph rewrite rules.

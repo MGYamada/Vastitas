@@ -16,15 +16,19 @@ fn run_audit(path: &Path) -> Output {
         .expect("run Vastitas audit-lean")
 }
 
-fn temporary_export(contents: &str) -> (PathBuf, Output) {
+fn temporary_path() -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let path = std::env::temp_dir().join(format!(
+    std::env::temp_dir().join(format!(
         "vastitas-nanoda-{}-{nanos}.ndjson",
         std::process::id()
-    ));
+    ))
+}
+
+fn temporary_export(contents: &str) -> (PathBuf, Output) {
+    let path = temporary_path();
     fs::write(&path, contents).expect("write temporary Lean export");
     let output = run_audit(&path);
     fs::remove_file(&path).expect("remove temporary Lean export");
@@ -93,4 +97,75 @@ fn ordinary_compiler_help_is_unchanged() {
         .expect("run Vastitas check help");
     assert!(output.status.success());
     assert!(String::from_utf8_lossy(&output.stdout).contains("vastitas check INPUT.vast"));
+}
+
+#[test]
+fn interrupted_audit_terminates_and_reaps_its_worker() {
+    use nix::errno::Errno;
+    use nix::sys::signal::{Signal, kill};
+    use nix::sys::stat::Mode;
+    use nix::unistd::{Pid, mkfifo};
+    use std::os::unix::fs::OpenOptionsExt;
+    use std::process::Stdio;
+    use std::time::{Duration, Instant};
+
+    for (signal, code) in [(Signal::SIGINT, 130), (Signal::SIGTERM, 143)] {
+        let fifo = temporary_path();
+        mkfifo(&fifo, Mode::S_IRUSR | Mode::S_IWUSR).unwrap();
+        let mut child = Command::new(env!("CARGO_BIN_EXE_vastitas"))
+            .arg("audit-lean")
+            .arg(&fifo)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        // Opening a nonblocking writer succeeds only once the actual audit
+        // worker is opening the FIFO. Keep it open without bytes so checking
+        // cannot finish by itself, and signal only the parent process.
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let writer = loop {
+            match fs::OpenOptions::new()
+                .write(true)
+                .custom_flags(nix::libc::O_NONBLOCK)
+                .open(&fifo)
+            {
+                Ok(writer) => break writer,
+                Err(error) if error.raw_os_error() == Some(Errno::ENXIO as i32) => {
+                    assert!(Instant::now() < deadline, "audit worker did not open input");
+                    assert!(child.try_wait().unwrap().is_none());
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) => panic!("open audit input: {error}"),
+            }
+        };
+        kill(Pid::from_raw(child.id() as i32), signal).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while child.try_wait().unwrap().is_none() {
+            if Instant::now() >= deadline {
+                drop(writer);
+                child.kill().unwrap();
+                child.wait().unwrap();
+                fs::remove_file(&fifo).unwrap();
+                panic!("audit cancellation exceeded watchdog");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+        let output = child.wait_with_output().unwrap();
+        assert_eq!(output.status.code(), Some(code));
+        assert!(
+            String::from_utf8_lossy(&output.stderr).contains("E_LEAN_AUDIT: audit interrupted")
+        );
+        // No FIFO reader may survive the parent. A leaked checker would make
+        // this open succeed even though it emits no output.
+        let reopened = fs::OpenOptions::new()
+            .write(true)
+            .custom_flags(nix::libc::O_NONBLOCK)
+            .open(&fifo);
+        assert_eq!(
+            reopened.unwrap_err().raw_os_error(),
+            Some(Errno::ENXIO as i32)
+        );
+        drop(writer);
+        fs::remove_file(&fifo).unwrap();
+    }
 }

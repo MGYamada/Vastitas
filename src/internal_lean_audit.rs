@@ -66,11 +66,12 @@ pub fn run_cli(args: &[OsString]) -> Result<(), String> {
     let path = export_path(args)?;
     let executable = std::env::current_exe()
         .map_err(|error| format!("E_LEAN_AUDIT: cannot locate audit worker: {error}"))?;
-    let output = Command::new(executable)
-        .arg(WORKER_COMMAND)
-        .arg(&path)
-        .output()
-        .map_err(|error| format!("E_LEAN_AUDIT: cannot run audit worker: {error}"))?;
+    let mut command = Command::new(executable);
+    command.arg(WORKER_COMMAND).arg(&path);
+    let output = crate::process::capture(command, None).map_err(|error| match error {
+        crate::process::CaptureError::Interrupted => "E_LEAN_AUDIT: audit interrupted".into(),
+        error => format!("E_LEAN_AUDIT: cannot run audit worker: {error:?}"),
+    })?;
     if !output.status.success() {
         let diagnostics = String::from_utf8_lossy(&output.stderr);
         let brief = diagnostics.trim().chars().take(2000).collect::<String>();

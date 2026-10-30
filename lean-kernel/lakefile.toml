@@ -35,8 +35,13 @@ text = true
 
 [[lean_lib]]
 name = "VastitasStorageTest"
-roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression"]
-needs = ["storageFixture"]
+roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression"]
+needs = ["storageFixture", "storageFunctionFixture"]
+
+[[input_file]]
+name = "storageFunctionFixture"
+path = "../tests/fixtures/storage-functions.json"
+text = true
 
 [[lean_exe]]
 name = "storage-native-fixture"

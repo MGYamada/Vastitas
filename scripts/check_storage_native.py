@@ -72,6 +72,33 @@ def main():
             print(f"{name}: allocations/frees/live/peak/written/copied = {counters[:6]}; "
                   f"metadata allocations/bytes = {counters[6:]}")
 
+        functions = json.loads((ROOT / "tests/fixtures/storage-functions.json").read_text())
+        for name, budget, failure, expected in [
+            ("functions", 128, None, [3, 3, 0, 128, 128, 64]),
+            ("function_assertion_failure", 128, "E_NATIVE_EXPECT", [2, 2, 0, 128, 96, 64]),
+            ("function_allocation_failure", 64, "E_NATIVE_ALLOCATION", [1, 1, 0, 64, 32, 0]),
+        ]:
+            source = copy.deepcopy(functions)
+            if name == "function_assertion_failure":
+                function = next(f for f in source["functions"] if f["id"] == 3)
+                function["body"][1]["action"]["value"]["bits"] = 0
+            path.write_text(json.dumps(source))
+            run([EMITTER, path, work / "Main.lean", budget])
+            generated = (work / "Main.lean").read_text()
+            # Both branch arms appear in source; only one runs. Synthetic
+            # all-body probes and the unused complex function must not be emitted.
+            assert generated.count("allocate arena ") == 4, generated
+            run(["lake", "build", "fixture"], cwd=work)
+            result = run([work / ".lake/build/bin/fixture"], cwd=work, success=failure is None)
+            if failure:
+                assert failure in result.stderr, result
+            match = re.search(r"#\[([\d, ]+)\]", result.stdout)
+            assert match, result
+            counters = [int(item) for item in match[1].split(",")]
+            assert len(counters) == 8 and counters[:6] == expected, (name, counters)
+            assert counters[6] == 2 and counters[7] > 0, (name, counters)
+            print(f"{name}: allocations/frees/live/peak/written/copied = {counters[:6]}")
+
         # Header-only changes must invalidate both C objects, including the FFI.
         # Exercise this in the isolated package, never by editing the checkout.
         objects = [runtime / ".lake/build" / name for name in ["storage.o", "ffi.o"]]

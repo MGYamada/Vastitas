@@ -16,7 +16,10 @@ completed Lean soundness, native check elimination or performance evidence.
 The [internal resource IR](storage-ir.md) now supplies independently checked
 logical transitions, canonical layouts, initialization and branch joins, with
 actual-checker byte-region and active-loan theorems. Its component schema is not
-public protocol 8; source/native integration and performance evidence are pending.
+public protocol 8. Its optional native runtime and
+[internal resource functions](storage-functions.md) exercise allocation, calls,
+destination reuse and failure cleanup. Public source composition, dynamic shapes,
+numerical consumers and performance comparisons remain pending.
 
 ## 7.1 Fast like C: the primary design goal
 

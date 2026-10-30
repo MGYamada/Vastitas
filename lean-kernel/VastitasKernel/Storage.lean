@@ -247,6 +247,35 @@ inductive Statement where
   | branch (condition : Bool) (yes no : List Statement)
   deriving Repr, BEq, Inhabited
 
+mutual
+  def Statement.decEq (left right : Statement) : Decidable (left = right) :=
+    match left, right with
+    | .action a, .action b =>
+      if h : a = b then isTrue (h ▸ rfl) else isFalse (fun h' => h (Statement.action.inj h'))
+    | .action _, .branch .. => isFalse (by intro h; cases h)
+    | .branch .., .action _ => isFalse (by intro h; cases h)
+    | .branch c y n, .branch d z m =>
+      match decEq c d, Statements.decEq y z, Statements.decEq n m with
+      | isTrue h, isTrue j, isTrue k => isTrue (h ▸ j ▸ k ▸ rfl)
+      | isFalse h, _, _ => isFalse (fun e => h (Statement.branch.inj e).1)
+      | _, isFalse h, _ => isFalse (fun e => h (Statement.branch.inj e).2.1)
+      | _, _, isFalse h => isFalse (fun e => h (Statement.branch.inj e).2.2)
+  termination_by sizeOf left + sizeOf right
+  def Statements.decEq (left right : List Statement) : Decidable (left = right) :=
+    match left, right with
+    | [], [] => isTrue rfl
+    | [], _ :: _ => isFalse (by intro h; cases h)
+    | _ :: _, [] => isFalse (by intro h; cases h)
+    | a :: rest, b :: tail =>
+      match Statement.decEq a b, Statements.decEq rest tail with
+      | isTrue h, isTrue j => isTrue (h ▸ j ▸ rfl)
+      | isFalse h, _ => isFalse (fun e => h (List.cons.inj e).1)
+      | _, isFalse h => isFalse (fun e => h (List.cons.inj e).2)
+  termination_by sizeOf left + sizeOf right
+end
+
+instance : DecidableEq Statement := Statement.decEq
+
 /-- A global node budget in addition to the traversal-depth bound. Both branch
 arms consume the same finite allowance, even for literal conditions. -/
 def remaining : Nat → Nat → List Statement → Option Nat

@@ -243,6 +243,14 @@ document states the Lean analytic soundness goals and actual returned-Core
 integration obligations; no new Hilbert theorem, compiler acceptance,
 completeness proof, or iterator memory-safety claim follows from those tests.
 
+The [exact real-plane metric reference](metric-reference.md) separately tests
+metric-free polynomial differentials/cotangent pullbacks, selected constant
+metrics and their musical maps. Exact inverse and real positivity checks are
+distinct, and evidence retains the object/base/frame/basepoint/metric identity.
+Its coordinate-change regressions and nominal-evidence audits are Python
+reference results only; the document lists separate future Lean soundness and
+same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
+
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
 `RawProgram`) to that core does

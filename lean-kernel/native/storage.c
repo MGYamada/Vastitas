@@ -98,8 +98,11 @@ const char *vstorage_error(VStorageStatus status) {
     case VS_LAYOUT: return "E_NATIVE_LAYOUT: invalid layout, bounds, alignment or narrowing";
     case VS_OVERFLOW: return "E_NATIVE_OVERFLOW: native size or accounting overflow";
     case VS_BOUNDS: return "E_NATIVE_BOUNDS: cell index is outside the view";
-    case VS_ALIAS: return "E_NATIVE_ALIAS: copy regions may overlap";
+    case VS_ALIAS: return "E_NATIVE_ALIAS: accessed regions may overlap";
     case VS_EXPECT: return "E_NATIVE_EXPECT: stored bit pattern differs";
+    case VS_ABI: return "E_NATIVE_ABI: unsupported numerical backend version, ABI or threading";
+    case VS_SHAPE: return "E_NATIVE_SHAPE: numerical operand dimensions differ";
+    case VS_OPERATION: return "E_NATIVE_OPERATION: unsupported numerical operation or layout";
     }
     return "E_NATIVE_STATUS: unknown status";
 }
@@ -162,6 +165,32 @@ static VStorageStatus typed(VStorageArena *arena, uint32_t id, VStorageLayout vi
     VStorageStatus status = prepare(arena, id, view, out);
     if (status != VS_OK) return status;
     return scalar == out->buffer->scalar ? VS_OK : VS_SCALAR;
+}
+
+VStorageStatus vstorage_prepare_dense(VStorageArena *arena, uint32_t id,
+                                     VStorageLayout view, VStorageDense *out) {
+    if (!out) return VS_OPERATION;
+    Prepared prepared;
+    VStorageStatus status = prepare(arena, id, view, &prepared);
+    if (status != VS_OK) return status;
+    /* Empty views form no pointer, including an aligned or unaligned offset at
+     * the allocation's end. No backend may dereference that empty descriptor. */
+    double *data = prepared.bytes ? prepared.buffer->data + prepared.start / 8 : NULL;
+    *out = (VStorageDense){data, prepared.start, prepared.end,
+        prepared.rows, prepared.columns, view.leading, prepared.bytes, id,
+        prepared.buffer->scalar, view.transposed};
+    return VS_OK;
+}
+
+VStorageStatus vstorage_prepare_write(VStorageArena *arena, uint64_t bytes) {
+    if (!arena || arena->closed) return VS_HANDLE;
+    return counter_fits(arena->stats.written_bytes, bytes) ? VS_OK : VS_OVERFLOW;
+}
+
+/* Only after successful preflight and a synchronous infallible kernel return.
+ * The arena is not shared concurrently between resource operations. */
+void vstorage_record_write(VStorageArena *arena, uint64_t bytes) {
+    arena->stats.written_bytes += bytes;
 }
 
 static uint64_t cell(const Prepared *view, uint64_t row, uint64_t column) {

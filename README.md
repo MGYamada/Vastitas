@@ -34,8 +34,10 @@ add nominal hierarchies and bodyless method contracts over the existing four key
 [Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. Storage ownership and linear algebra remain pending in the [Stage 1 completion gate](docs/stage1-completion.md).
 
 The [internal storage resource IR](docs/storage-ir.md) checks logical ownership,
-loans, initialization and layouts with byte-region proofs. Public storage syntax,
-protocol 8, native buffers and measured C performance are still pending.
+loans, initialization and layouts with byte-region proofs. Its exact checked
+schedule can generate native real/complex buffer operations with failure cleanup
+and allocation/copy counters. Public storage syntax, protocol 8, numerical
+consumers and measured C performance are still pending.
 
 ## Build and use
 

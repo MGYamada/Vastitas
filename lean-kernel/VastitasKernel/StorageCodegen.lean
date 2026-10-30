@@ -1,0 +1,132 @@
+import VastitasKernel.Storage
+
+/-! Lower the exact checked resource schedule to synchronous native calls.
+Logical owners/loans are reconstructed at compile time, not interpreted in the
+element loop. A raw native plan is independently re-lowered before generation. -/
+namespace VastitasKernel.Storage.Native
+
+inductive Instruction where
+  | allocate (allocation : Nat) (scalar : Scalar) (elements : Nat)
+  | drop (allocation : Nat)
+  | fill (allocation : Nat) (layout : Layout) (value : Literal)
+  | store (allocation : Nat) (layout : Layout) (row column : Nat) (value : Literal)
+  | expect (allocation : Nat) (layout : Layout) (row column : Nat) (value : Literal)
+  | copy (source : Nat) (input : Layout) (target : Nat) (output : Layout)
+  | branch (condition : Bool)
+  | otherwise | finish | skip
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+private def reject (message : String) : Except Error α := .error ⟨"E_RESOURCE_CODEGEN", message⟩
+
+def action (state : State) : Action → Except Error (List Instruction)
+  | .allocate _ scalar elements => pure [.allocate state.nextAllocation scalar elements]
+  | .drop owner => do
+    let some allocation := state.owner? owner | reject "missing owner during native lowering"
+    pure [.drop allocation.identity]
+  | .fill name value => do
+    let some loan := state.loan? name | reject "missing fill loan during native lowering"
+    pure [.fill loan.allocation loan.layout value]
+  | .store name row column value => do
+    let some loan := state.loan? name | reject "missing store loan during native lowering"
+    pure [.store loan.allocation loan.layout row column value]
+  | .expect name row column value => do
+    let some loan := state.loan? name | reject "missing read loan during native lowering"
+    pure [.expect loan.allocation loan.layout row column value]
+  | .copy source target => do
+    let some input := state.loan? source | reject "missing copy source during native lowering"
+    let some output := state.loan? target | reject "missing copy target during native lowering"
+    pure [.copy input.allocation input.layout output.allocation output.layout]
+  | .move .. | .borrow .. | .release .. | .transpose .. => pure []
+
+def lower : Nat → State → List Statement → Except Error (State × List Instruction)
+  | _, state, [] => pure (state, [])
+  | 0, _, _ :: _ => .error ⟨"E_RESOURCE_CODEGEN", "native lowering exceeds traversal bound"⟩
+  | fuel + 1, state, first :: rest => do
+    let (after, instructions) ← match first with
+      | .action operation => do
+        let after ← checkAction state operation
+        pure (after, ← action state operation)
+      | .branch condition yes no => do
+        let (left, yesCode) ← lower fuel state yes
+        let (right, noCode) ← lower fuel {state with nextAllocation := left.nextAllocation} no
+        let after ← join left right
+        pure (after, [.branch condition] ++ yesCode ++ [.skip, .otherwise] ++ noCode ++ [.skip, .finish])
+    let (finalState, restCode) ← lower fuel after rest
+    pure (finalState, instructions ++ restCode)
+
+structure Plan where
+  input : List Statement
+  instructions : List Instruction
+
+structure Checked (plan : Plan) where
+  source : CheckedPlan plan.input
+  lowered : lower 4096 {} plan.input = .ok (source.finalState, plan.instructions)
+
+/-- Reconstruct logical rights and every native operand from the source IR.
+Changing a native allocation, offset, payload, branch or operation invalidates
+the equality; there is no trusted native-instruction flag. -/
+def audit (plan : Plan) : Except Error (Checked plan) := do
+  let source ← checkPlan plan.input
+  match lowered : lower 4096 {} plan.input with
+  | .error diagnostic => .error diagnostic
+  | .ok result =>
+    if exactPlan : result = (source.finalState, plan.instructions) then
+      .ok ⟨source, exactPlan ▸ lowered⟩
+    else reject "native instructions differ from the exact checked resource schedule"
+
+def compile (input : List Statement) : Except Error Plan := do
+  let _ ← checkPlan input
+  let (_, instructions) ← lower 4096 {} input
+  let plan := {input, instructions}
+  let _ ← audit plan
+  pure plan
+
+private def scalar : Scalar → Nat | .f64 => 0 | .complexF64 => 1
+private def layout (view : Layout) : String :=
+  s!"{view.offset} {view.rows} {view.columns} {view.leading} {view.transposed}"
+private def literal : Literal → String
+  | .f64 bits => s!"0 {bits.toNat} 0"
+  | .complexF64 real imaginary => s!"1 {real.toNat} {imaginary.toNat}"
+
+private def render (instructions : List Instruction) : Except Error String := do
+  let mut indent := 4
+  let mut result := ""
+  for instruction in instructions do
+    let spaces := String.ofList (List.replicate indent ' ')
+    match instruction with
+    | .branch condition =>
+      result := result ++ spaces ++ s!"if {condition} then\n"
+      indent := indent + 2
+    | .otherwise =>
+      if indent < 6 then reject "unbalanced native branch"
+      result := result ++ String.ofList (List.replicate (indent - 2) ' ') ++ "else\n"
+    | .finish =>
+      if indent < 6 then reject "unbalanced native branch"
+      indent := indent - 2
+    | other =>
+      let line := match other with
+        | .allocate id type count => s!"allocate arena {id} {scalar type} {count}"
+        | .drop id => s!"drop arena {id}"
+        | .fill id view value => s!"fill arena {id} {layout view} {literal value}"
+        | .store id view row column value => s!"store arena {id} {layout view} {row} {column} {literal value}"
+        | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {literal value}"
+        | .copy source input target output => s!"copy arena {source} {layout input} {target} {layout output}"
+        | _ => "pure ()"
+      result := result ++ spaces ++ line ++ "\n"
+  if indent != 4 then reject "unclosed native branch"
+  return result
+
+/-- Generation accepts a raw plan only after independently auditing it again.
+Cleanup is structured IO, including runtime assertion/allocation failures.
+The optional reporting entry point is for native regression/cost fixtures. -/
+def generate (plan : Plan) (report : Bool := false) (byteBudget : Nat := byteLimit) : Except Error String := do
+  let _ ← audit plan
+  if byteBudget > byteLimit then reject "native live-byte budget exceeds profile"
+  let operations ← render plan.instructions
+  let reporting := if report then
+    "    let counters ← stats arena\n    IO.println counters\n" else ""
+  return "import VastitasStorageNative\n\nopen VastitasStorageNative\n\n" ++
+    "def main : IO Unit := do\n" ++ s!"  let arena ← newArena {byteBudget}\n  try\n" ++
+    operations ++ "    pure ()\n  finally\n    close arena\n" ++ reporting
+
+end VastitasKernel.Storage.Native

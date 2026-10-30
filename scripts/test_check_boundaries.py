@@ -106,6 +106,32 @@ class RepositoryBoundaryTests(unittest.TestCase):
         (self.root / "lean-kernel/VastitasKernel/Runtime.lean").unlink()
         self.assertIn("kernel runtime source is missing", check_boundaries(self.root))
 
+    def native_package(self):
+        self.write("lean-kernel/native/lean-toolchain", "leanprover/lean4:v4.35.0\n")
+        self.write("lean-kernel/native/lake-manifest.json", json.dumps({"packages": []}))
+        self.write("lean-kernel/native/lakefile.lean", "import Lake\n")
+        self.write("lean-kernel/native/VastitasStorageNative.lean", "import VastitasStorageNative.Runtime\n")
+        self.write("lean-kernel/native/VastitasStorageNative/Runtime.lean", "import Init\n")
+
+    def test_optional_native_runtime_cannot_enter_compiler_or_import_it(self):
+        self.native_package()
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/Core.lean", "import VastitasStorageNative.Runtime\n")
+        self.write("lean-kernel/native/VastitasStorageNative/Runtime.lean", "import VastitasKernel.Core\n")
+        self.write("lean-kernel/native/Other.lean", "import Lake\nimport Mathlib\n")
+        errors = check_boundaries(self.root)
+        for expected in ["forbidden import VastitasStorageNative", "runtime must not import compiler",
+                         "forbidden import Lake", "forbidden import Mathlib"]:
+            self.assertTrue(any(expected in error for error in errors), expected)
+
+    def test_native_runtime_dependencies_and_toolchain_are_pinned(self):
+        self.native_package()
+        self.write("lean-kernel/native/lean-toolchain", "leanprover/lean4:v4.34.0\n")
+        self.write("lean-kernel/native/lake-manifest.json", json.dumps({"packages": [{"name": "mathlib"}]}))
+        errors = check_boundaries(self.root)
+        self.assertTrue(any("native storage runtime and kernel" in error for error in errors))
+        self.assertTrue(any("native storage runtime must have no external" in error for error in errors))
+
     def test_root_and_oracle_toolchains_must_match_kernel(self):
         self.write("lean-toolchain", "leanprover/lean4:v4.34.0\n")
         self.write("lean/lean-toolchain", "leanprover/lean4:v4.34.0\n")

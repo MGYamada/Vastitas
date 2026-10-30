@@ -35,5 +35,9 @@ text = true
 
 [[lean_lib]]
 name = "VastitasStorageTest"
-roots = ["VastitasStorageTest.Regression"]
+roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression"]
 needs = ["storageFixture"]
+
+[[lean_exe]]
+name = "storage-native-fixture"
+root = "VastitasStorageTest.Emit"

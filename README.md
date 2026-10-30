@@ -40,10 +40,11 @@ and allocation/copy counters. [Internal resource functions](docs/storage-functio
 check owned arguments/results and borrowed destinations against actual caller
 resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
 static storage schedules and pure return expressions to package source and native
-execution. Dynamic shapes/value flow, numerical consumers and measured C
-performance are still pending.
-An [optional internal GEMM adapter](docs/numerical-adapter.md) tests pinned
-OpenBLAS against actual native storage; its typed source integration is pending.
+execution. Dynamic shapes/value flow, public numerical consumers and end-to-end C
+performance comparisons are still pending.
+An [optional internal GEMM path](docs/numerical-adapter.md) checks resource access,
+initialization and exact native lowering, then executes through pinned OpenBLAS.
+Its nominal mathematical types and public source integration are pending.
 
 ## Build and use
 

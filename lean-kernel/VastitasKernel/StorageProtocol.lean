@@ -45,6 +45,14 @@ def literal (j : Json) : Except String Literal := do
     return .complexF64 (UInt64.ofNat (← size j "real")) (UInt64.ofNat (← size j "imaginary"))
   | _ => throw "invalid resource literal representation"
 
+def gemmMode (value : String) : Except String GemmMode := match value with
+  | "overwrite" => pure .overwrite | "accumulate" => pure .accumulate
+  | _ => throw "unsupported GEMM output mode"
+
+def numericalPolicy (value : String) : Except String NumericalPolicy := match value with
+  | "native_fast" => pure .nativeFast
+  | _ => throw "unsupported numerical policy"
+
 def action (j : Json) : Except String Action := do
   match ← str j "op" with
   | "allocate" =>
@@ -78,6 +86,11 @@ def action (j : Json) : Except String Action := do
   | "copy" =>
     fields j ["op", "source", "target"]
     return .copy (← symbol j "source") (← symbol j "target")
+  | "gemm" =>
+    fields j ["op", "left", "right", "output", "conjugate_left", "conjugate_right", "mode", "policy"]
+    return .gemm ⟨← symbol j "left", ← symbol j "right", ← symbol j "output",
+      ← j.getObjValAs? Bool "conjugate_left", ← j.getObjValAs? Bool "conjugate_right",
+      ← gemmMode (← str j "mode"), ← numericalPolicy (← str j "policy")⟩
   | _ => throw "unknown resource operation"
 
 def statements : Nat → List Json → Except String (List Statement)

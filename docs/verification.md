@@ -205,6 +205,14 @@ resource safety or authorize native check elimination. The linked document
 states the pending all-access, exact-return and successful-branch soundness
 obligations for the actual Ownership/Borrow Checker.
 
+`StorageGemm` additionally proves facts about the actual internal GEMM resource
+transition: input and accumulate initialization, reconstructed allocation subject,
+output byte separation and initialized output bytes in its exact post-state.
+It does not establish nominal endpoint/basis/metric typing, ideal multiplication,
+floating-point accuracy, native no-read behavior or source/native refinement.
+The [generated numerical runtime checks](numerical-adapter.md) provide separate
+execution and cleanup evidence; the optional native package is not an oracle dependency.
+
 The separate [internal resource IR](storage-ir.md) now has actual-checker
 theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization

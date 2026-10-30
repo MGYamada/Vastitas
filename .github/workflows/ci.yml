@@ -157,7 +157,8 @@ jobs:
           cargo test --locked --test numerical_source -- --ignored
 
   oracle:
-    name: Lean proofs and axiom audit (no mathlib)
+    # Preserve the repository's required-check name; this job is Mathlib-free.
+    name: Lean proofs and axiom audit
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

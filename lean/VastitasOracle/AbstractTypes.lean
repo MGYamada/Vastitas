@@ -32,7 +32,7 @@ theorem canonical_names_permutation (left right : List RawAbstractType)
           have ab' : a ≤ b := by simpa using ab
           have bc' : b ≤ c := by simpa using bc
           simpa using Std.le_trans ab' bc')
-        (fun a b => by simpa using Std.le_total a b) names)
+        (fun a b => by simpa using (Std.le_total : a ≤ b ∨ b ≤ a)) names)
   apply List.Perm.eq_of_pairwise (le := fun a b : String => a ≤ b)
     (fun _ _ _ _ ab ba => Std.le_antisymm ab ba)
     (sorted _) (sorted _)

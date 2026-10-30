@@ -218,7 +218,7 @@ stdlib bodies; this increment does not complete the historical Stage 1 proposal.
 | --- | --- | --- |
 | `src/` | Rust CLI, parser, lexical resolution, versioned IR | Rust dependencies in `Cargo.lock` |
 | `lean-kernel/` | Independent semantic checking, hygienic code generation, minimal runtime | Lean distribution only; no mathlib |
-| `lean/` | Proofs about the actual kernel definitions | Kernel and pinned mathlib |
+| `lean/` | Proofs about the actual kernel definitions | Local kernel and Lean distribution only; no mathlib |
 | `stdlib/src/` | Standard library written in `.vast` | Explicitly included `.vast` sources |
 
 Ordinary compilation and generated programs do not call the proof oracle.
@@ -270,16 +270,21 @@ python3 scripts/check_boundaries.py
 To build the separate proof oracle:
 
 ```sh
-lake -d lean exe cache get
 lake -d lean build VastitasOracle
+(cd lean && lake env lean ../scripts/audit_axioms.lean)
+(cd lean && lake env lean ../scripts/check_oracle_core.lean)
 ```
 
-The oracle manifest pins mathlib v4.35.0 and its transitive dependencies.
+Both Lean packages pin Lean v4.35.0. The oracle manifest contains only the
+local kernel; Mathlib and its transitive packages are forbidden in both packages.
+This build boundary preserves the separate mathematical-definition alignment
+principle in [ADR 0001](docs/adr/0001-mathematics-first-stdlib.md#9-mathematical-alignment-and-oracle-dependency-independence).
 CI runs Rust formatting and strict Clippy once, tests native compilation and
 the arithmetic standard library on macOS and Linux with the oracle directory
-absent, and builds/audits proofs in a separate job. It runs on pull requests,
-pushes to `main`, and manual dispatch. Superseded runs on the same branch/PR
-are cancelled; action revisions and language toolchains are pinned.
+absent, and builds/audits proofs without Mathlib in a separate job. It runs on pull requests,
+pushes to every branch, and manual dispatch. Superseded runs for the same event
+and branch/PR are cancelled; push and pull-request runs do not cancel each other.
+Action revisions and language toolchains are pinned.
 
 The dependency-boundary checker has its own regression tests:
 

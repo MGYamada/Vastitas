@@ -2,7 +2,7 @@
 
 The standard library consists of ordinary `.vast` source files. Its functions
 pass through the same Rust frontend and independent Lean checker as application
-code. They do not require the mathlib proof oracle during compilation.
+code. They do not require the proof oracle during compilation.
 
 The [geometry library](src/geometry/README.md) exposes the existing finite affine
 profile through `std::geometry::scheme` and `std::geometry::smooth`. Select

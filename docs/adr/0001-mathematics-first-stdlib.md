@@ -5,6 +5,7 @@
 - **Scope:** Standard-library governance and mathematical contracts, **not** a claim of implemented or proved functionality
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
+- **Dependency amendment proposal (2026-10-30):** §9, first migration increment of [#285](https://github.com/MGYamada/Vastitas/issues/285); effective upon review and merge of this amendment.
 
 ## Context and decision
 
@@ -113,6 +114,56 @@ A frozen charter and a growing mathematics-first standard library are compatible
 5. **Compatibility and public-name audit.** Check existing method/function owners, ambiguous dispatch, current public names and prior ADRs. Cross-link the implementation tracker, record version/migration effects and reconcile conflicting draft text without rewriting historical source records.
 
 The new family is admitted by an explicitly reviewed charter change; the prior charter is not silently expanded by an implementation PR, import, popular package, or an internal compiler convenience. The ADR itself can be superseded through a new recorded decision.
+
+### 9. Mathematical alignment and Oracle dependency independence
+
+This amendment records the first, bounded increment of
+[#285](https://github.com/MGYamada/Vastitas/issues/285) through the §8 review
+procedure. It does not adopt an implementation or completion claim for the
+entire future four-package architecture.
+
+**Mathematical alignment and build dependencies are separate contracts.**
+Following [#278](https://github.com/MGYamada/Vastitas/issues/278), applicable
+`std` mathematical definitions, laws, hypotheses and operation conventions
+must agree with the corresponding pinned Lean/mathlib definitions. In
+particular, exact field inversion remains totalized at zero; a formula's
+applicability hypotheses must still be checked. Machine floats do not acquire
+exact field laws. This migration retains mathlib v4.35.0, commit
+`56a005855ea17e0b0958f73ec801ae140b0a1679`, as the mathematical reference, not
+as an Oracle package requirement. An upstream semantic change requires review;
+removing an import is neither a new mathematical definition nor a conformance proof.
+
+The current executable kernel and proof-only Oracle **MUST NOT** depend directly
+or transitively on Mathlib. For this increment, `lean/` may require only the
+actual local `lean-kernel/`, which itself has no external Lake dependencies.
+Both stay on the pinned Lean v4.35.0 distribution. Core proofs replace the
+Oracle's rational-cast and sorted-permutation wrappers; the existing pointwise
+list correspondence uses a proof-local nil/cons relation instead of a transitive
+Batteries import. Existing theorem hypotheses, source-to-Core connections and
+proof scope must be preserved. Proof deletion, `sorry`, `admit` and new unproved
+axioms are not migration mechanisms.
+
+The official Lean kernel remains authoritative. The allowed axioms remain
+exactly `propext`, `Classical.choice`, and `Quot.sound`. An optional independent
+export audit cannot replace this acceptance or expand the allowed set.
+CI must build and audit the complete Oracle without a Mathlib cache, check
+source imports and both Lake configurations/complete manifests, and reject
+deliberate direct and transitive dependency regressions. The separate ordinary
+compiler CI must continue to work with the Oracle directory absent.
+
+This amendment introduces no public `std` API, executable numerical profile or
+new mathematical family. The declaration-local `Forall₂` relation preserves
+length and positional correspondence; it does not claim a reusable mathematics
+library or occupy Batteries' global name. The associated regression checks and
+their execution status are recorded separately from mathematical conformance.
+The [verification boundary](../verification.md) documents the changed proof
+dependencies and required official build/axiom checks.
+
+Independent `VastitasMath`, separate pinned-Mathlib `VastitasBridge`, conformance
+manifests and new correspondence proofs remain subsequent work under #285.
+They must not be inferred from this dependency removal. The historical v0.3
+source records remain unchanged; current build/contributor documentation is
+updated to match this bounded amendment.
 
 ## Consequences, validation and migration
 

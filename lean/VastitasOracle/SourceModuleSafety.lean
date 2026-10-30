@@ -72,8 +72,8 @@ def preparedSignatures (signatures : List Signature) : Signatures :=
 source traversal and body traversal remain related to their original inputs. -/
 def ModuleElaborated (raw : RawModule) (module : CheckedModule) : Prop :=
   ∃ signatures source,
-    List.Forall₂ VastitasKernel.Declaration.Signature raw.functions signatures ∧
-    List.Forall₂ (VastitasKernel.Elaboration.Function (preparedSignatures signatures))
+    Forall₂ VastitasKernel.Declaration.Signature raw.functions signatures ∧
+    Forall₂ (VastitasKernel.Elaboration.Function (preparedSignatures signatures))
       signatures source ∧
     module.functions.length = source.length ∧
     (∀ function ∈ module.functions, function ∈ source) ∧
@@ -111,7 +111,7 @@ has a decoded declaration with the same parameter/result annotations and source
 syntax. Reordering cannot drop or synthesize declarations. -/
 def ModuleCorresponds (raw : RawModule) (module : CheckedModule) : Prop :=
   ∃ signatures,
-    List.Forall₂ VastitasKernel.Declaration.Signature raw.functions signatures ∧
+    Forall₂ VastitasKernel.Declaration.Signature raw.functions signatures ∧
     (∀ function ∈ module.functions,
       ∃ signature ∈ signatures,
         VastitasKernel.Elaboration.Function (preparedSignatures signatures) signature function) ∧

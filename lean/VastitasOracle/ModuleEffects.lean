@@ -1,15 +1,25 @@
 import VastitasOracle.ElaborationBase
-import Batteries.Data.List.Basic
+import Init.Data.List.Monadic
 
 /-! Compositional success lemmas for module-level traversal. Relations remain
 independent postconditions, rather than being defined by successful execution. -/
 namespace VastitasOracle.Elaboration
 open VastitasKernel VastitasKernel.Checker.Internal
 
+/-- Pointwise correspondence of two lists, preserving length and order.
+This proof-local relation has exactly the nil/cons rules previously supplied
+by Batteries' `List.Forall₂`; it is kept out of the global `List` namespace so
+a future, separately built Mathlib bridge can import both without a collision. -/
+inductive Forall₂ {α β : Type} (relation : α → β → Prop) : List α → List β → Prop
+  | nil : Forall₂ relation [] []
+  | cons {value result values results} :
+      relation value result → Forall₂ relation values results →
+        Forall₂ relation (value :: values) (result :: results)
+
 theorem establishes_mapM {α β : Type} (action : α → CheckM β)
     (relation : α → β → Prop) (values : List α)
     (step : ∀ value ∈ values, Establishes (action value) (relation value)) :
-    Establishes (values.mapM action) (fun results => List.Forall₂ relation values results) := by
+    Establishes (values.mapM action) (fun results => Forall₂ relation values results) := by
   induction values with
   | nil =>
       rw [List.mapM_nil]
@@ -23,7 +33,7 @@ theorem establishes_mapM {α β : Type} (action : α → CheckM β)
       exact establishes_pure (.cons related allRelated)
 
 theorem forall₂_right_member {α β : Type} {relation : α → β → Prop}
-    {values : List α} {results : List β} (related : List.Forall₂ relation values results)
+    {values : List α} {results : List β} (related : Forall₂ relation values results)
     (result : β) (member : result ∈ results) :
     ∃ value ∈ values, relation value result := by
   induction related with
@@ -35,7 +45,7 @@ theorem forall₂_right_member {α β : Type} {relation : α → β → Prop}
         exact ⟨value, by simp [member], relation⟩
 
 theorem forall₂_left_member {α β : Type} {relation : α → β → Prop}
-    {values : List α} {results : List β} (related : List.Forall₂ relation values results)
+    {values : List α} {results : List β} (related : Forall₂ relation values results)
     (value : α) (member : value ∈ values) :
     ∃ result ∈ results, relation value result := by
   induction related with

@@ -42,7 +42,9 @@ pub fn run_worker(args: &[OsString]) -> Result<(), String> {
         .to_export_file()
         .map_err(|error| format!("E_LEAN_AUDIT: cannot read/recheck export: {error}"))?;
     if !skipped_axioms.is_empty() || export.declars.is_empty() {
-        return Err("E_LEAN_AUDIT: empty export or skipped axioms are not an accepted audit".into());
+        return Err(
+            "E_LEAN_AUDIT: empty export or skipped axioms are not an accepted audit".into(),
+        );
     }
     // nanoda_lib may panic or exit on invalid exports; the caller supervises
     // this worker in a separate process so no rejection can crash the driver.

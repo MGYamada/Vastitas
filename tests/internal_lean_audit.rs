@@ -5,8 +5,7 @@ use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("tests/fixtures/lean_audit/proj_from_prop.ndjson")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/lean_audit/proj_from_prop.ndjson")
 }
 
 fn run_audit(path: &Path) -> Output {
@@ -59,11 +58,7 @@ fn checked_export_returns_internal_only_receipt() {
 fn invalid_proof_term_is_rejected_without_crashing_the_parent() {
     // Change an actual definition's lambda to a constant of the wrong type.
     let original = include_str!("fixtures/lean_audit/proj_from_prop.ndjson");
-    let modified = original.replacen(
-        r#""type":37,"value":45}}"#,
-        r#""type":37,"value":38}}"#,
-        1,
-    );
+    let modified = original.replacen(r#""type":37,"value":45}}"#, r#""type":37,"value":38}}"#, 1);
     assert_ne!(original, modified);
     rejected(&temporary_export(&modified).1);
 }

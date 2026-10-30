@@ -1,8 +1,8 @@
 pub mod driver;
 pub mod frontend;
 pub mod indexed;
-pub mod ir;
 mod internal_lean_audit;
+pub mod ir;
 mod limits;
 mod packages;
 mod process;

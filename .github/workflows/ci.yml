@@ -58,6 +58,7 @@ jobs:
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /src/
+            /config/
             /tests/
             /examples/
             /stdlib/

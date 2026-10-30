@@ -11,7 +11,7 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
+const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
 
 struct Options {
     mode: &'static str,
@@ -84,7 +84,7 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         .map_err(|error| format!("E_BACKEND: cannot install signal handlers: {error}"))?;
     let args: Vec<_> = args.collect();
     let subcommand_help = args.len() == 2
-        && (args[0] == "check" || args[0] == "build")
+        && (args[0] == "check" || args[0] == "build" || args[0] == "audit-lean")
         && (args[1] == "--help" || args[1] == "-h");
     if args.is_empty() || args == ["--help"] || args == ["-h"] || subcommand_help {
         print!("{USAGE}");
@@ -96,6 +96,15 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             env!("CARGO_PKG_VERSION")
         );
         return Ok(());
+    }
+    if args.first().is_some_and(|command| command == "audit-lean") {
+        return crate::internal_lean_audit::run_cli(&args[1..]);
+    }
+    if args
+        .first()
+        .is_some_and(|command| command == crate::internal_lean_audit::WORKER_COMMAND)
+    {
+        return crate::internal_lean_audit::run_worker(&args[1..]);
     }
     let Options {
         mode,

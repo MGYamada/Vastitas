@@ -243,6 +243,14 @@ document states the Lean analytic soundness goals and actual returned-Core
 integration obligations; no new Hilbert theorem, compiler acceptance,
 completeness proof, or iterator memory-safety claim follows from those tests.
 
+The [derivative-rule coherence reference](derivative-coherence-reference.md)
+distinguishes ambient derivatives, within-set derivatives and selected backwards.
+It tests exact direct/composite rules, branch evidence, within uniqueness versus
+neighborhood promotion, and rejected candidates versus independently proved
+routes. These are Python reference results. The linked document separates the
+required mathematical lemmas from actual validator/accepted-Core correspondence;
+neither general AD nor the cotangent CF theorem is established by this reference.
+
 The [exact real-plane metric reference](metric-reference.md) separately tests
 metric-free polynomial differentials/cotangent pullbacks, selected constant
 metrics and their musical maps. Exact inverse and real positivity checks are

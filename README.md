@@ -261,6 +261,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Compiler protocol](docs/protocol.md)
 - [Identifier ASCII round-trip reference and integration contract](docs/identifier-ascii-reference.md)
 - [Finite random-supply, exact-law, and logical-address reference](docs/rand-reference.md)
+- [Derivative-rule evidence, coherence, and admission reference](docs/derivative-coherence-reference.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)
 - [Design v0.3, reorganized by topic](docs/design.md)

@@ -6,6 +6,7 @@ This is neither nominal map typing nor a public source GEMM entry point.
 import argparse
 import copy
 import json
+import os
 from pathlib import Path
 import re
 import shutil
@@ -42,18 +43,24 @@ def scalar_fixture(conjugate, inner=1, empty=False):
     return {"statements": steps}
 
 
-def run(command, *, cwd=ROOT, success=True):
-    result = subprocess.run([str(x) for x in command], cwd=cwd, capture_output=True, text=True)
+def run(command, *, cwd=ROOT, success=True, env=None):
+    result = subprocess.run([str(x) for x in command], cwd=cwd, env=env, capture_output=True, text=True)
     if (result.returncode == 0) != success:
         raise RuntimeError(f"{command}\n{result.stdout}\n{result.stderr}")
     return result
 
 
-def check(prefix):
+def check(prefix, lean_cc=None):
     prefix = prefix.resolve()
     run(["lake", "-d", "lean-kernel", "build", "storage-native-fixture"])
     emitter = ROOT / "lean-kernel/.lake/build/bin/storage-native-fixture"
     fixture = json.loads((ROOT / "tests/fixtures/storage-gemm.json").read_text())
+    # Host-built BLAS may reference newer libc symbols than Lean's portable
+    # bundled linker libraries. Select the matching host compiler/linker for
+    # numerical consumers only; the independent kernel retains its own build.
+    native_env = os.environ.copy()
+    if lean_cc is not None:
+        native_env["LEAN_CC"] = lean_cc
     with tempfile.TemporaryDirectory(prefix="vastitas-checked-gemm-") as directory:
         work = Path(directory)
         for package in ("native", "numerical"):
@@ -80,7 +87,7 @@ def check(prefix):
             assert generated.count("VastitasGemmNative.gemm arena") == 4
             assert "import VastitasGemmNative" in generated
             assert "borrow " not in generated
-            run(["lake", "build", "fixture"], cwd=work)
+            run(["lake", "build", "fixture"], cwd=work, env=native_env)
             result = run([work / ".lake/build/bin/fixture"], cwd=work, success=failure is None)
             if failure:
                 assert failure in result.stderr, result
@@ -97,7 +104,7 @@ def check(prefix):
                              ("zero_inner", scalar_fixture(False, inner=0)), ("empty_output", scalar_fixture(False, empty=True))]:
             path.write_text(json.dumps(source))
             run([emitter, path, work / "Main.lean", 256])
-            run(["lake", "build", "fixture"], cwd=work)
+            run(["lake", "build", "fixture"], cwd=work, env=native_env)
             result = run([work / ".lake/build/bin/fixture"], cwd=work)
             match = re.search(r"#\[([\d, ]+)\]", result.stdout)
             assert match, result
@@ -120,7 +127,7 @@ def check(prefix):
         before = [p.stat().st_mtime_ns for p in objects]
         header = work / "numerical/gemm.h"
         header.write_text(header.read_text() + "\n/* header dependency regression */\n")
-        run(["lake", "build", "fixture"], cwd=work)
+        run(["lake", "build", "fixture"], cwd=work, env=native_env)
         assert all(p.stat().st_mtime_ns != old for p, old in zip(objects, before))
     print("Actual checked GEMM IR/native FFI passed; nominal source integration remains separate.")
 
@@ -128,4 +135,6 @@ def check(prefix):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--prefix", type=Path, required=True)
-    check(parser.parse_args().prefix)
+    parser.add_argument("--lean-cc", help="native consumer compiler executable, e.g. cc for host Linux libc")
+    args = parser.parse_args()
+    check(args.prefix, args.lean_cc)

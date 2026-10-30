@@ -12,13 +12,17 @@ Neither [#92](https://github.com/MGYamada/Vastitas/issues/92) nor Stage 1 is com
 ## Build and dependency boundary
 
 Build this optional dependency explicitly with Python 3.12+, Make and a host C
-toolchain:
+toolchain. The checked executable tests also require the pinned Lean toolchain:
 
 ```sh
 python3 scripts/build_openblas.py --prefix /tmp/vastitas-openblas --jobs 4
 python3 scripts/check_gemm_native.py --prefix /tmp/vastitas-openblas
-python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas
 ```
+
+On Linux, install `libgmp-dev`, `libuv1-dev` and `libssl-dev`, then run
+`python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas --lean-cc cc`.
+On macOS run
+`python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas`.
 
 The builder downloads the [OpenBLAS 0.3.34 release](https://github.com/OpenMathLib/OpenBLAS/releases/tag/v0.3.34)
 and verifies SHA-256
@@ -30,6 +34,17 @@ no LAPACK/Fortran dependency, and no shared library. This is a build-host artifa
 not a portable prebuilt distribution. `vastitas-openblas.json` records the source
 pin and build options; the prefix also contains the upstream BSD-3-Clause notice.
 Redistributing linked binaries requires retaining that notice.
+
+Linux numerical consumers select the host compiler with Lake's `LEAN_CC=cc`
+override, matching the libc used to build OpenBLAS. The regression script's
+`--lean-cc cc` applies this override only to generated consumers. Lean's
+[portable toolchain](https://github.com/leanprover/lean4/blob/v4.35.0/script/prepare-llvm-linux.sh)
+bundles an older libc for linking and only minimal C headers, not a full C SDK.
+A host-built archive can reference newer libc symbols such as `__isoc23_strtol`
+that the bundled linker libraries lack. Linux CI installs the host GMP, libuv
+and OpenSSL development libraries required by Lean's external-compiler mode.
+macOS CI tests the existing bundled Lean linker against its host-built archive.
+These are host-specific linked programs; no broader deployment ABI is claimed.
 
 The ordinary compiler, checking kernel, storage-only runtime and nonnumerical
 programs do not invoke this builder or link OpenBLAS. The numerical CI job is
@@ -147,7 +162,8 @@ The numerical Lake package depends solely on the sibling storage package and an
 explicit pinned OpenBLAS prefix. The archive is a transitive native dependency,
 including downstream generated executables; no system BLAS fallback is selected.
 For a direct package build use
-`lake -d lean-kernel/numerical -Kopenblas=/path/to/prefix build`.
+`lake -d lean-kernel/numerical -Kopenblas=/path/to/prefix build`;
+on Linux set `LEAN_CC=cc` for that build and each downstream executable build.
 The regression consumer demonstrates a dependency-specific `openblas` Lake option.
 
 `VastitasOracle.StorageGemm` imports the actual checker. It proves the exact

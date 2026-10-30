@@ -175,6 +175,8 @@ def check_boundaries(root):
                     allowed = {"Lake"}
             if source.is_relative_to(kernel / "VastitasPromotion"):
                 allowed.add("VastitasPromotion")
+            if source.is_relative_to(kernel / "VastitasStorageTest"):
+                allowed.add("VastitasStorageTest")
             if not module_allowed(name, allowed):
                 errors.append(f"{source.relative_to(root)}: forbidden import {name}")
             if source in runtimes:

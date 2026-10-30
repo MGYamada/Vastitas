@@ -46,7 +46,9 @@ An [optional internal GEMM path](docs/numerical-adapter.md) checks resource acce
 initialization and exact native lowering, then executes through pinned OpenBLAS.
 [Numerical declaration profiles](docs/numerical-declarations.md) now independently
 check ideal real/complex coefficients and nominal scalar bases through protocol 8.
-Generative linear objects, bases and typed public GEMM integration remain pending.
+The [internal numerical-value compiler](docs/numerical-values.md) checks local
+nominal spaces, bases and loan-backed map products through actual GEMM lowering.
+Their public source integration remains pending.
 
 ## Build and use
 

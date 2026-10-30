@@ -43,6 +43,7 @@ import VastitasOracle.StorageSafety
 import VastitasOracle.StorageCodegen
 import VastitasOracle.StorageGemm
 import VastitasOracle.StorageFunctions
+import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
 
 /-!

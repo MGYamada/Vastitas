@@ -96,6 +96,11 @@ that contract to the actual protocol-8 decoded and accepted input. These prove
 structural declaration facts, not mathematical field/module laws, native
 refinement or floating-point accuracy.
 
+The [internal numerical-value compiler](numerical-values.md) now constructs
+local nominal spaces/bases and loan-backed maps, checks their bilinear GEMM
+composition and emits the exact independently rechecked storage schedule.
+The public decoder and source grammar do not yet expose these operations.
+
 Public generative linear objects and bases, dual/conjugate/metric evidence,
 map views tied to actual loans, typed GEMM and finite tensor networks remain
 required by [the Stage 1 gate](stage1-completion.md). These declarations do not

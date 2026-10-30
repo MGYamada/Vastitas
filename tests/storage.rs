@@ -8,6 +8,50 @@ fn fixture() -> Value {
 }
 
 #[test]
+fn internal_gemm_schema_retains_explicit_policy_flags_and_output_mode() {
+    let raw: Value = serde_json::from_str(include_str!("fixtures/storage-gemm.json")).unwrap();
+    let plan: Plan = serde_json::from_value(raw.clone()).unwrap();
+    assert_eq!(serde_json::to_value(&plan).unwrap(), raw);
+    let gemms: Vec<_> = plan
+        .statements
+        .iter()
+        .filter(|s| {
+            matches!(
+                s,
+                Statement::Action {
+                    action: Action::Gemm { .. }
+                }
+            )
+        })
+        .collect();
+    assert_eq!(gemms.len(), 4);
+    let action = raw["statements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["action"]["op"] == "gemm")
+        .unwrap()["action"]
+        .clone();
+    for (name, value) in [
+        ("policy", json!("exact")),
+        ("mode", json!("beta_zero")),
+        ("conjugate_left", json!(1)),
+        ("left", json!(1_u64 << 32)),
+        ("checked_metric", json!(true)),
+        ("disjoint", json!(true)),
+    ] {
+        let mut bad = action.clone();
+        bad.as_object_mut().unwrap().insert(name.into(), value);
+        assert!(serde_json::from_value::<Action>(bad).is_err(), "{name}");
+    }
+    for name in ["policy", "mode", "conjugate_left", "conjugate_right"] {
+        let mut bad = action.clone();
+        bad.as_object_mut().unwrap().remove(name);
+        assert!(serde_json::from_value::<Action>(bad).is_err(), "{name}");
+    }
+}
+
+#[test]
 fn actual_rust_resource_ir_matches_the_lean_fixture_without_payload_narrowing() {
     let raw = fixture();
     let plan: Plan = serde_json::from_value(raw.clone()).unwrap();

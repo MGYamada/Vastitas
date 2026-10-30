@@ -1,0 +1,1050 @@
+{
+  "statements": [
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 0,
+        "scalar": "f64",
+        "elements": 6
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 10,
+        "source": {
+          "kind": "owner",
+          "name": 0
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 3,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "fill",
+        "loan": 10,
+        "value": {
+          "kind": "f64",
+          "bits": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 10,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4607182418800017408
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 10,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4616189618054758400
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 10,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4611686018427387904
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 10,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4617315517961601024
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 10,
+        "row": 0,
+        "column": 2,
+        "value": {
+          "kind": "f64",
+          "bits": 4613937818241073152
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 10,
+        "row": 1,
+        "column": 2,
+        "value": {
+          "kind": "f64",
+          "bits": 4618441417868443648
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 10
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 20,
+        "source": {
+          "kind": "owner",
+          "name": 0
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 3,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 1,
+        "scalar": "f64",
+        "elements": 6
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 11,
+        "source": {
+          "kind": "owner",
+          "name": 1
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 3,
+          "columns": 2,
+          "leading": 3,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "fill",
+        "loan": 11,
+        "value": {
+          "kind": "f64",
+          "bits": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4619567317775286272
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4621256167635550208
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 2,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4622382067542392832
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4620693217682128896
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4621819117588971520
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 2,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4622945017495814144
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 11
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 21,
+        "source": {
+          "kind": "owner",
+          "name": 1
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 3,
+          "columns": 2,
+          "leading": 3,
+          "transposed": false
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 2,
+        "scalar": "f64",
+        "elements": 4
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 12,
+        "source": {
+          "kind": "owner",
+          "name": 2
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "gemm",
+        "left": 20,
+        "right": 21,
+        "output": 12,
+        "conjugate_left": false,
+        "conjugate_right": false,
+        "mode": "overwrite",
+        "policy": "native_fast"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 12
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 22,
+        "source": {
+          "kind": "owner",
+          "name": 2
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "read_write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4633359591634108416
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4639094644284588032
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4634204016564240384
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4639622409865920512
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "gemm",
+        "left": 20,
+        "right": 21,
+        "output": 22,
+        "conjugate_left": false,
+        "conjugate_right": false,
+        "mode": "accumulate",
+        "policy": "native_fast"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4637863191261478912
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "f64",
+          "bits": 4643598243911958528
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4638707616191610880
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 22,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4644126009493291008
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 20
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 21
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 22
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 0
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 1
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 2
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 100,
+        "scalar": "complex_f64",
+        "elements": 6
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 110,
+        "source": {
+          "kind": "owner",
+          "name": 100
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 3,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "fill",
+        "loan": 110,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 110,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4607182418800017408,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 110,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 110,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 4607182418800017408
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 110,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4607182418800017408,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 110,
+        "row": 0,
+        "column": 2,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4611686018427387904,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 110,
+        "row": 1,
+        "column": 2,
+        "value": {
+          "kind": "complex_f64",
+          "real": 9223372036854775808,
+          "imaginary": 13830554455654793216
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 110
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 120,
+        "source": {
+          "kind": "owner",
+          "name": 100
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 3,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 101,
+        "scalar": "complex_f64",
+        "elements": 6
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 111,
+        "source": {
+          "kind": "owner",
+          "name": 101
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 3,
+          "columns": 2,
+          "leading": 3,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "fill",
+        "loan": 111,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 111,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4607182418800017408,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 111,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4611686018427387904,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 111,
+        "row": 2,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 111,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 111,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4607182418800017408,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 111,
+        "row": 2,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 4607182418800017408
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 111
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 121,
+        "source": {
+          "kind": "owner",
+          "name": 101
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 3,
+          "columns": 2,
+          "leading": 3,
+          "transposed": false
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 102,
+        "scalar": "complex_f64",
+        "elements": 4
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 112,
+        "source": {
+          "kind": "owner",
+          "name": 102
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "gemm",
+        "left": 120,
+        "right": 121,
+        "output": 112,
+        "conjugate_left": false,
+        "conjugate_right": false,
+        "mode": "overwrite",
+        "policy": "native_fast"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 112
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 122,
+        "source": {
+          "kind": "owner",
+          "name": 102
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "read_write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4607182418800017408,
+          "imaginary": 4611686018427387904
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4611686018427387904,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 4613937818241073152
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4611686018427387904,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "gemm",
+        "left": 120,
+        "right": 121,
+        "output": 122,
+        "conjugate_left": false,
+        "conjugate_right": false,
+        "mode": "accumulate",
+        "policy": "native_fast"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 0,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4611686018427387904,
+          "imaginary": 4616189618054758400
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4616189618054758400,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 4618441417868443648
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 122,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 4616189618054758400,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 120
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 121
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 122
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 100
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 101
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 102
+      }
+    }
+  ]
+}

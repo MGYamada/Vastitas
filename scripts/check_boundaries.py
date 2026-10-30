@@ -132,6 +132,7 @@ def check_boundaries(root):
     runtime = kernel / "VastitasKernel" / "Runtime.lean"
     runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean"}
     native = kernel / "native"
+    numerical = kernel / "numerical"
     if native.exists():
         native_manifest = json.loads((native / "lake-manifest.json").read_text())
         if native_manifest.get("packages"):
@@ -142,6 +143,16 @@ def check_boundaries(root):
         runtimes.add(native_runtime)
         if not native_runtime.is_file():
             errors.append("native storage runtime source is missing")
+    if (numerical / "VastitasGemmNative.lean").exists():
+        numerical_manifest = json.loads((numerical / "lake-manifest.json").read_text())
+        dependencies = numerical_manifest.get("packages", [])
+        if len(dependencies) != 1 or any(
+            p.get("type") != "path" or p.get("name") != "vastitas_storage_native"
+            or p.get("dir") != "../native" for p in dependencies
+        ):
+            errors.append("numerical runtime must depend only on the sibling native storage runtime")
+        if (numerical / "lean-toolchain").read_text().strip() != (kernel / "lean-toolchain").read_text().strip():
+            errors.append("numerical runtime and kernel must use the same Lean toolchain")
     if not runtime.is_file():
         errors.append("kernel runtime source is missing")
     for source in kernel.rglob("*.lean"):
@@ -157,6 +168,10 @@ def check_boundaries(root):
             if source.is_relative_to(native):
                 allowed = {"Init", "Std", "VastitasStorageNative"}
                 if source == native / "lakefile.lean":
+                    allowed = {"Lake"}
+            if source.is_relative_to(numerical):
+                allowed = {"Init", "Std", "VastitasStorageNative", "VastitasGemmNative"}
+                if source == numerical / "lakefile.lean":
                     allowed = {"Lake"}
             if source.is_relative_to(kernel / "VastitasPromotion"):
                 allowed.add("VastitasPromotion")

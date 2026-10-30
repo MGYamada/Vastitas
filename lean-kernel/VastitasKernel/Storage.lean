@@ -116,6 +116,26 @@ inductive Literal where
   deriving Repr, BEq, DecidableEq, Inhabited
 def Literal.scalar : Literal → Scalar | .f64 _ => .f64 | .complexF64 .. => .complexF64
 
+/-- This is a resource/backend operation, not nominal mathematical map authority.
+Public source must additionally check endpoints, bases and transformed roles. -/
+inductive NumericalPolicy where
+  | nativeFast
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+inductive GemmMode where
+  | overwrite | accumulate
+  deriving Repr, BEq, ReflBEq, LawfulBEq, DecidableEq, Inhabited
+
+structure Gemm where
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  conjugateLeft : Bool
+  conjugateRight : Bool
+  mode : GemmMode
+  policy : NumericalPolicy
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 inductive Action where
   | allocate (owner : Symbol) (scalar : Scalar) (elements : Nat)
   | move (source target : Symbol)
@@ -127,6 +147,7 @@ inductive Action where
   | store (loan row column : Nat) (value : Literal)
   | expect (loan row column : Nat) (value : Literal)
   | copy (source target : Symbol)
+  | gemm (request : Gemm)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def State.markWritten (state : State) (allocation : Nat) (layout : Layout) : State :=
@@ -156,6 +177,56 @@ private def usable (state : State) (name : Symbol) (write : Bool) : Except Error
 /-- Single-cell writes record only that cell, even inside a padded rectangle. -/
 def cellLayout (layout : Layout) (scalar : Scalar) (row column : Nat) : Layout :=
   ⟨layout.address scalar row column, 1, 1, 1, false⟩
+
+structure GemmOperands where
+  left : Loan
+  right : Loan
+  output : Loan
+  leftAllocation : Allocation
+  rightAllocation : Allocation
+  outputAllocation : Allocation
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- Reconstruct the complete access subject. Even reusing the very same read/write
+loan for input and output must prove byte separation; the general same-name loan
+compatibility exemption is not sufficient for GEMM. Empty regions contain no bytes. -/
+def GemmOperands.valid (state : State) (request : Gemm) (args : GemmOperands) : Bool :=
+  decide (state.loan? request.left = some args.left) && decide (state.loan? request.right = some args.right) &&
+  decide (state.loan? request.output = some args.output) &&
+  decide (state.allocation? args.left.allocation = some args.leftAllocation) &&
+  decide (state.allocation? args.right.allocation = some args.rightAllocation) &&
+  decide (state.allocation? args.output.allocation = some args.outputAllocation) &&
+  !state.suspended request.left && !state.suspended request.right && !state.suspended request.output &&
+  args.left.access.reads && args.right.access.reads && args.output.access.writes &&
+  (request.mode != .accumulate || args.output.access.reads) &&
+  args.leftAllocation.scalar == args.rightAllocation.scalar &&
+  args.leftAllocation.scalar == args.outputAllocation.scalar &&
+  args.left.layout.logicalColumns == args.right.layout.logicalRows &&
+  args.output.layout.logicalRows == args.left.layout.logicalRows &&
+  args.output.layout.logicalColumns == args.right.layout.logicalColumns &&
+  !args.output.layout.transposed &&
+  (!request.conjugateLeft || args.left.layout.transposed) &&
+  (!request.conjugateRight || args.right.layout.transposed) &&
+  args.leftAllocation.initialization.covers args.leftAllocation.scalar args.left.layout &&
+  args.rightAllocation.initialization.covers args.rightAllocation.scalar args.right.layout &&
+  (request.mode != .accumulate ||
+    args.outputAllocation.initialization.covers args.outputAllocation.scalar args.output.layout) &&
+  (args.left.allocation != args.output.allocation ||
+    args.left.layout.disjoint args.output.layout args.leftAllocation.scalar) &&
+  (args.right.allocation != args.output.allocation ||
+    args.right.layout.disjoint args.output.layout args.rightAllocation.scalar)
+
+structure CheckedGemm (state : State) (request : Gemm) where
+  operands : GemmOperands
+  valid : operands.valid state request = true
+
+def checkGemm (state : State) (request : Gemm) : Except Error (CheckedGemm state request) := do
+  let (left, leftAllocation) ← usable state request.left false
+  let (right, rightAllocation) ← usable state request.right false
+  let (output, outputAllocation) ← usable state request.output true
+  let operands := {left, right, output, leftAllocation, rightAllocation, outputAllocation : GemmOperands}
+  if valid : operands.valid state request then return ⟨operands, valid⟩
+  else reject "E_RESOURCE_GEMM" "GEMM requires initialized readable inputs, a compatible exclusive output, supported views and disjoint input/output bytes; accumulate also reads initialized output"
 
 def executeAction (state : State) : Action → Except Error State
   | .allocate owner scalar elements => do
@@ -232,6 +303,9 @@ def executeAction (state : State) : Action → Except Error State
     if !sourceAllocation.initialization.covers sourceAllocation.scalar input.layout then
       reject "E_RESOURCE_INIT" "copy source is not fully initialized"
     return state.markWritten targetAllocation.identity output.layout
+  | .gemm request => do
+    let checked ← checkGemm state request
+    return state.markWritten checked.operands.outputAllocation.identity checked.operands.output.layout
 
 /-- Input and reconstructed output undergo separate whole-state audits. -/
 def checkAction (state : State) (action : Action) : Except Error State :=

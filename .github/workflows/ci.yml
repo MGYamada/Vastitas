@@ -128,6 +128,16 @@ jobs:
           else
             python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
+      - name: Build the independent resource checker
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-kernel
+          auto-config: false
+          build: true
+          build-args: storage-native-fixture
+          use-mathlib-cache: false
+      - name: Exact checked GEMM schedules and generated native cleanup
+        run: python3 scripts/check_gemm_checked.py --prefix "$RUNNER_TEMP/vastitas-openblas"
 
   oracle:
     name: Lean proofs and axiom audit

@@ -596,6 +596,17 @@ Lean soundness proof or connection to the actual accepted Core. Its S1–S6 proo
 obligations and production bridge preserve Lawvere-first implementation and the
 existing 8+1 division. It does not extend the finite acceptance theorem above.
 
+### Finite CAR and ordinary-spin reference (#246)
+
+The [CAR/spin reference](car-spin-reference.md) checks one/two-mode CAR,
+ordinary spin-site commutation, explicit adjoints over Q(i), and the
+nonfaithful three-generator Pauli image. It reuses the existing crossing
+reference for all exchange coefficients and structural-rule tests. Full
+model/basis/parity/profile metadata is retained, but these finite matrix
+observations are neither Graph authority nor Lean certificates. Named-model
+resolution, actual accepted-Core correspondence and Lean soundness remain
+explicit obligations; no production acceptance theorem is extended.
+
 ## Edit authority acceptance (protocol 6)
 
 `VastitasKernel.Authority` is the actual implementation used by public wire

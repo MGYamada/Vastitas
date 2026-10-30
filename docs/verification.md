@@ -607,6 +607,18 @@ observations are neither Graph authority nor Lean certificates. Named-model
 resolution, actual accepted-Core correspondence and Lean soundness remain
 explicit obligations; no production acceptance theorem is extended.
 
+### Finite time-reversal reference (#301)
+
+The [time-reversal reference](time-reversal-reference.md) reuses the CAR
+reference's exact Q(i) arithmetic for separately selected spin-1/2 and
+spinless semilinear actions. It checks coefficient conjugation in composition,
+antilinearity, unitarity, the selected square, explicit phase/basis transport,
+and distinct Hamiltonian/state invariance claims. Expected model, basis,
+embedding, profile and phase are supplied independently of candidates;
+reported observations are recomputed and cannot be replayed by name alone.
+These Python regressions add no Lean theorem, accepted-Core connection or
+empirical physical identification. The wider #301 design remains open.
+
 ## Edit authority acceptance (protocol 6)
 
 `VastitasKernel.Authority` is the actual implementation used by public wire

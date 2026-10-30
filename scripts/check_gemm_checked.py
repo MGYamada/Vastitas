@@ -94,6 +94,7 @@ def check(prefix, lean_cc=None):
             assert generated.count("VastitasGemmNative.gemm arena") == 4
             assert "import VastitasGemmNative" in generated
             assert "borrow " not in generated
+            assert "fill arena" not in generated
             run(["lake", "build", "fixture"], cwd=work, env=native_env)
             result = run([work / ".lake/build/bin/fixture"], cwd=work, success=failure is None)
             if failure:
@@ -103,9 +104,9 @@ def check(prefix, lean_cc=None):
             counters = [int(x) for x in match[1].split(",")]
             assert counters[0] == counters[1] and counters[2] == 0 and counters[5] == 0, counters
             if name == "products":
-                assert counters[:6] == [6, 6, 0, 256, 768, 0], counters
+                assert counters[:6] == [6, 6, 0, 256, 480, 0], counters
             elif name == "allocation_failure":
-                assert counters[:6] == [4, 4, 0, 128, 448, 0], counters
+                assert counters[:6] == [4, 4, 0, 128, 256, 0], counters
             print(f"checked GEMM {name}: allocations/frees/live/peak/written/copied={counters[:6]}")
         for name, source in [("transpose", scalar_fixture(False)), ("conjugate_transpose", scalar_fixture(True)),
                              ("zero_inner", scalar_fixture(False, inner=0)), ("empty_output", scalar_fixture(False, empty=True))]:

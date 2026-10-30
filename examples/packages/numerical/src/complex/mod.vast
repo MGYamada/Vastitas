@@ -9,7 +9,6 @@ pub resource fn product() -> Unit {
     allocate b: Complex<F64>[6];
     allocate c: Complex<F64>[4];
     borrow init_a = write(a, layout(0, 2, 3, 2, false));
-    fill(init_a, complex_bits(0, 0));
     store(init_a, 0, 0, complex_bits(4607182418800017408, 0));
     store(init_a, 0, 1, complex_bits(0, 4607182418800017408));
     store(init_a, 0, 2, complex_bits(4611686018427387904, 0));
@@ -18,7 +17,6 @@ pub resource fn product() -> Unit {
     store(init_a, 1, 2, complex_bits(9223372036854775808, 13830554455654793216));
     release(init_a);
     borrow init_b = write(b, layout(0, 3, 2, 3, false));
-    fill(init_b, complex_bits(0, 0));
     store(init_b, 0, 0, complex_bits(4607182418800017408, 0));
     store(init_b, 0, 1, complex_bits(0, 0));
     store(init_b, 1, 0, complex_bits(4611686018427387904, 0));

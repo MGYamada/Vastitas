@@ -155,8 +155,8 @@ def Initialized (scalar : Scalar) (byte : Nat) : Initialization → Prop
   | .written layout previous => ContainsByte layout scalar byte ∨ Initialized scalar byte previous
   | .intersection left right => Initialized scalar byte left ∧ Initialized scalar byte right
 
-theorem initialization_bytes {initialization : Initialization} {layout : Layout} {scalar : Scalar}
-    (covered : initialization.covers scalar layout = true) {byte : Nat}
+theorem rectangular_initialization_bytes {initialization : Initialization} {layout : Layout} {scalar : Scalar}
+    (covered : initialization.coversRectangle scalar layout = true) {byte : Nat}
     (inside : ContainsByte layout scalar byte) : Initialized scalar byte initialization := by
   induction initialization with
   | none =>
@@ -164,13 +164,133 @@ theorem initialization_bytes {initialization : Initialization} {layout : Layout}
     rw [contains_nonempty inside] at empty
     contradiction
   | written footprint previous ih =>
-    simp only [Initialization.covers, Bool.or_eq_true] at covered
+    simp only [Initialization.coversRectangle, Bool.or_eq_true] at covered
     rcases covered with now | before
     · exact Or.inl (covers_bytes now inside)
     · exact Or.inr (ih before)
   | intersection left right leftIH rightIH =>
-    simp only [Initialization.covers, Bool.and_eq_true] at covered
+    simp only [Initialization.coversRectangle, Bool.and_eq_true] at covered
     exact ⟨leftIH covered.1, rightIH covered.2⟩
+
+theorem footprint_sound {scalar : Scalar} {cursor byte : Nat} {layout : Layout}
+    (lo : cursor ≤ byte) (hi : byte < layout.initializedEnd scalar cursor) :
+    ContainsByte layout scalar byte := by
+  unfold Layout.initializedEnd at hi
+  split at hi
+  next h =>
+    have finish : byte < layout.endByte scalar := by omega
+    exact contiguous_bytes h.1 h.2.1 (by omega) finish
+  next h => omega
+
+theorem reach_sound {scalar : Scalar} {cursor byte : Nat} (initialization : Initialization)
+    (lo : cursor ≤ byte) (hi : byte < initialization.reach scalar cursor) :
+    Initialized scalar byte initialization := by
+  induction initialization with
+  | none => simp [Initialization.reach] at hi; omega
+  | written footprint previous ih =>
+    simp only [Initialization.reach] at hi
+    have alternatives : byte < footprint.initializedEnd scalar cursor ∨ byte < previous.reach scalar cursor := by omega
+    rcases alternatives with current | prior
+    · exact Or.inl (footprint_sound lo current)
+    · exact Or.inr (ih prior)
+  | intersection left right ihLeft ihRight =>
+    simp only [Initialization.reach, Nat.lt_min] at hi
+    exact ⟨ihLeft hi.1, ihRight hi.2⟩
+
+theorem interval_sound {scalar : Scalar} {initialization : Initialization}
+    (fuel : Nat) {cursor finish byte : Nat}
+    (accepted : initialization.coversInterval scalar fuel cursor finish = true)
+    (lo : cursor ≤ byte) (hi : byte < finish) : Initialized scalar byte initialization := by
+  induction fuel generalizing cursor with
+  | zero => simp only [Initialization.coversInterval, decide_eq_true_eq] at accepted; omega
+  | succ fuel ih =>
+    simp only [Initialization.coversInterval] at accepted
+    split at accepted
+    next done => omega
+    next pending =>
+      split at accepted
+      next advances =>
+        by_cases inside : byte < initialization.reach scalar cursor
+        · exact reach_sound initialization lo inside
+        · exact ih accepted (by omega)
+      next stopped => contradiction
+
+theorem columns_sound {initialization : Initialization} {layout : Layout} {scalar : Scalar}
+    (steps : Nat) (covered : initialization.coversColumns scalar layout steps = true)
+    {byte : Nat} (inside : ContainsByte layout scalar byte) : Initialized scalar byte initialization := by
+  unfold Initialization.coversColumns at covered
+  split at covered
+  next bounded =>
+    obtain ⟨column, member, lo, hi⟩ := inside
+    have accepted := (List.all_eq_true.mp covered) column (List.mem_range.mpr member)
+    exact interval_sound _ accepted lo hi
+  next tooLarge => contradiction
+
+theorem initialization_bytes {initialization : Initialization} {layout : Layout} {scalar : Scalar}
+    (covered : initialization.covers scalar layout = true) {byte : Nat}
+    (inside : ContainsByte layout scalar byte) : Initialized scalar byte initialization := by
+  unfold Initialization.covers at covered
+  split at covered
+  next absent => contradiction
+  next remaining bounded =>
+    simp only [Bool.or_eq_true] at covered
+    rcases covered with rectangle | intervals
+    · exact rectangular_initialization_bytes rectangle inside
+    · split at intervals
+      · exact interval_sound _ intervals (byte_bounds inside).1 (byte_bounds inside).2
+      · exact columns_sound _ intervals inside
+
+/-- The fallback's repeated history traversals have a fixed metadata-work bound,
+independent of allocation capacity and matrix dimensions. -/
+theorem initialization_work_bound (nodes : Nat) :
+    initializationSteps nodes * nodes ≤ initializationWorkLimit := by
+  apply Nat.le_trans (Nat.mul_le_mul_right nodes (Nat.min_le_right _ _))
+  exact Nat.div_mul_le_self initializationWorkLimit nodes
+
+theorem initialization_column_work_bound (nodes columns : Nat) :
+    (initializationSteps nodes / columns * columns) * nodes ≤ initializationWorkLimit := by
+  apply Nat.le_trans (Nat.mul_le_mul_right nodes (Nat.div_mul_le_self _ _))
+  exact initialization_work_bound nodes
+
+/-- A proof-only node count for the actual bounded-history traversal. -/
+def initializationNodes : Initialization → Nat
+  | .none => 1
+  | .written _ previous => 1 + initializationNodes previous
+  | .intersection left right => 1 + initializationNodes left + initializationNodes right
+
+theorem remaining_nodes {history : Initialization} {fuel remaining : Nat}
+    (bounded : history.remaining fuel = some remaining) :
+    initializationNodes history + remaining = fuel := by
+  induction history generalizing fuel remaining with
+  | none =>
+    cases fuel <;> simp_all [Initialization.remaining, initializationNodes, Nat.add_comm]
+  | written footprint previous ih =>
+    cases fuel with
+    | zero => simp [Initialization.remaining] at bounded
+    | succ fuel =>
+      have smaller := ih bounded
+      simp only [initializationNodes]
+      omega
+  | intersection left right leftIH rightIH =>
+    cases fuel with
+    | zero => simp [Initialization.remaining] at bounded
+    | succ fuel =>
+      cases first : left.remaining fuel with
+      | none => simp [Initialization.remaining, first] at bounded
+      | some afterLeft =>
+        have leftSize := leftIH first
+        simp [Initialization.remaining, first] at bounded
+        have rightSize := rightIH bounded
+        simp only [initializationNodes]
+        omega
+
+theorem checked_initialization_work_bound {history : Initialization} {remaining : Nat}
+    (bounded : history.remaining 4096 = some remaining) :
+    initializationSteps (4096 - remaining) * initializationNodes history ≤ initializationWorkLimit := by
+  have count := remaining_nodes bounded
+  have same : 4096 - remaining = initializationNodes history := by omega
+  rw [same]
+  exact initialization_work_bound _
 
 theorem meet_bytes (left right : Initialization) (scalar : Scalar) (byte : Nat) :
     Initialized scalar byte (left.meet right) ↔ Initialized scalar byte left ∧ Initialized scalar byte right := by

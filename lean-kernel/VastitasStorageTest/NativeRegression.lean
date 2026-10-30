@@ -32,6 +32,21 @@ namespace VastitasKernel.Storage.Native.Regression
   -- Even the unchosen arm must satisfy resource initialization and closure.
   let bad : List Statement := [.branch false [.action (.allocate 100 .f64 1)] []]
   if (generate {input := bad, instructions := []}).isOk then throw (IO.userError "unchecked branch accepted")
-  IO.println s!"native storage: exact lowering and {mutations.length + 5} forged/boundary cases passed"
+  let view : Layout := ⟨8,2,3,4,false⟩
+  let stores := [(0,0),(0,1),(0,2),(1,0),(1,1),(1,2)].map fun (row, column) =>
+    Statement.action (.store 1 row column (.f64 0))
+  let input := [Statement.action (.allocate 0 .f64 12), .action (.borrow 1 (.owner 0) view .write)] ++
+    stores ++ [.action (.release 1), .action (.borrow 2 (.owner 0) view.transpose .read),
+      .action (.expect 2 2 1 (.f64 0)), .action (.release 2), .action (.drop 0)]
+  let .ok initialized := compile input | throw (IO.userError "complete cell writes failed native compilation")
+  let instructions := initialized.instructions.filter fun i => match i with
+    | .store _ _ 1 2 _ => false | _ => true
+  if (generate {initialized with instructions}).isOk then
+    throw (IO.userError "forged native omission of one initializing store accepted")
+  let input := initialized.input.filter fun s => match s with
+    | .action (.store _ 1 2 _) => false | _ => true
+  if (generate {initialized with input, instructions}).isOk then
+    throw (IO.userError "matching forged input/native omission bypassed initialization")
+  IO.println s!"native storage: exact lowering and {mutations.length + 7} forged/boundary cases passed"
 
 end VastitasKernel.Storage.Native.Regression

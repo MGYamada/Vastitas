@@ -73,6 +73,88 @@ fn rejected(main: &str, operations: &str, code: &str) {
 }
 
 #[test]
+fn cell_writes_initialize_padded_call_outputs_without_prefill() {
+    let stores: Vec<_> = (0..2)
+        .flat_map(|row| {
+            (0..3).map(move |column| {
+                format!(
+                    "store(output, {row}, {column}, f64_bits({}));",
+                    ((row * 3 + column + 1) as f64).to_bits()
+                )
+            })
+        })
+        .collect();
+    let expected = (0..2)
+        .flat_map(|row| {
+            (0..3).map(move |column| {
+                format!(
+                    "expect(input, {column}, {row}, f64_bits({}));",
+                    ((row * 3 + column + 1) as f64).to_bits()
+                )
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let main = format!(
+        "resource fn initialize(output: Write<F64, 2, 3> initializes) -> Unit {{
+            if false {{ {} }} else {{ {} }}
+            value {{ () }}
+        }}
+        resource fn main() -> Int {{
+            allocate data: F64[12];
+            borrow output = write(data, layout(8, 2, 3, 4, false));
+            call initialize(output) -> ();
+            release(output);
+            borrow input = read(data, layout(8, 2, 3, 4, true));
+            {expected}
+            release(input);
+            drop(data);
+            value {{ 42 }}
+        }}",
+        stores.join("\n"),
+        stores.iter().rev().cloned().collect::<Vec<_>>().join("\n")
+    );
+    let s = fixture(&main, OPERATIONS);
+    success(&check(&s));
+    let raw = request(&s);
+    let response = kernel(&raw, "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    assert!(
+        !response["lean_source"]
+            .as_str()
+            .unwrap()
+            .contains("fill arena")
+    );
+    success(
+        &cli()
+            .args(["build", "--manifest-path"])
+            .arg(s.0.join("app/Vastitas.toml"))
+            .arg("-o")
+            .arg(s.0.join("program"))
+            .output()
+            .unwrap(),
+    );
+    let result = Command::new(s.0.join("program")).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"42\n");
+    rejected(&main.replace(&stores[5], ""), OPERATIONS, "E_RESOURCE_INIT");
+    // The untaken arm also needs a complete initialization guarantee. Tampered
+    // raw IR cannot reuse acceptance of the valid original source.
+    let root = module(&raw, "storage_example", json!([]));
+    let mut changed = raw;
+    changed
+        .pointer_mut(&format!("{root}/resource_functions/0/body/0/yes"))
+        .unwrap()
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    let response = kernel(changed, "emit");
+    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["diagnostics"][0]["code"], "E_RESOURCE_INIT");
+    assert!(response.get("lean_source").is_none());
+}
+
+#[test]
 fn internal_gemm_cannot_supply_public_mathematical_authority() {
     let raw = request(&fixture(MAIN, OPERATIONS));
     let root = module(&raw, "storage_example", json!([]));

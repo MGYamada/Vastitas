@@ -268,7 +268,13 @@ The separate [internal resource IR](storage-ir.md) now has actual-checker
 theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization
 entailment, normalized write/join meaning, and nonoverlap of distinct active
-loans when either writes. Exact decoder/checker certificates start from an
+loans when either writes. Initialization entailment now includes bounded unions
+of contiguous writes, branch intersections and separate padded columns.
+`reach_sound`, `interval_sound` and `columns_sound` feed the actual
+`initialization_bytes` theorem used by read/GEMM safety; `remaining_nodes` and
+`checked_initialization_work_bound` relate the fallback work budget to the actual
+bounded metadata traversal. These are logical-byte and arithmetic bounds, not
+native memory or elapsed-time theorems. Exact decoder/checker certificates start from an
 empty logical environment. `StorageCodegen` proves that successful native-plan
 lowering follows those actual transitions, has unique instructions for the same
 input, and requires the rechecked schedule before returning code. The optional

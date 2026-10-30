@@ -35,11 +35,13 @@ Both examples check every output cell and then double the result by accumulating
 another product. No conjugation is implicit. The initial public operation fixes
 alpha to one and beta to zero (`overwrite`) or one (`accumulate`); arbitrary
 scalar arguments, including the issue's beta=0.5 example, remain pending.
-The examples explicitly zero-fill each input before individual stores because
-current initialization entailment does not combine partial writes into a
-whole-region guarantee. These extra input writes are visible costs, not a
-performance optimization; eliminating them with checked partition/union evidence
-remains part of the storage and C-performance gate.
+The inputs are initialized by their individual stores, with no preliminary
+zero-fill. The actual bounded initialization checker combines those write
+regions before admitting a read or GEMM input. In the shared generated real and
+complex GEMM fixture, removing the four redundant fills reduces recorded written
+bytes from 768 to 480, preserving six allocations, zero copied bytes and 256 peak
+live data bytes. These are operation counters, not elapsed-time measurements or
+evidence of C parity; see [initialization coverage](storage-ir.md#layout-and-initialization).
 
 ```sh
 cargo run --locked -- check --manifest-path examples/packages/numerical/Vastitas.toml

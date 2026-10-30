@@ -79,6 +79,33 @@ The backend build includes the native runtime. `check` needs only the executable
 when explicitly selected; `build` also needs the package and uses its pinned
 `lean-toolchain` for the generated project.
 
+### Internal Lean proof audit (v0.1.0 gate)
+
+The Rust compiler also offers an opt-in, **non-authoritative** cross-check of
+Lean proof exports using the pinned [`nanoda_lib`](https://github.com/ammkrn/nanoda_lib)
+crate. Generate an NDJSON file with `lean4export`, then run:
+
+```sh
+cargo run --locked -- audit-lean path/to/lean4export.ndjson
+```
+
+`audit-lean` uses the checked-in [axiom-name policy](config/nanoda-internal-audit.json):
+only the names `propext`, `Classical.choice`, and `Quot.sound` are allowed, with hard
+rejection of all other exported axiom names. Their statements and dependencies
+are not authenticated against the standard Lean environment. Every result is
+explicitly conditional on the supplied environment and reports its exported
+axiom count; renaming an arbitrary assumption does not validate it as a standard
+Lean axiom. In particular, `sorryAx` and
+`Lean.trustCompiler` are not permitted. The internal checker runs in an
+isolated worker because rejection in upstream nanoda may panic or exit.
+
+This command **rechecks an existing proof term**; it does not elaborate Lean
+source, discover proofs, authorize `.vast` source/IR, or discharge any
+constitutional theorem. The official Lean kernel remains the sole authority
+for CI proofs, kernel compilation, and CS/MS/CF proof obligations. See
+[the exact trust boundary](docs/verification.md#independent-internal-lean-export-audit-v010-gate)
+and [v0.1.0 gate #282](https://github.com/MGYamada/Vastitas/issues/282).
+
 ## Path packages and modules
 
 Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version

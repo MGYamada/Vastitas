@@ -27,4 +27,6 @@ lake -d lean-kernel build \
   VastitasKernel.IndexedWireRegression \
   VastitasKernel.GeometryCompatibilityRegression \
   VastitasKernel.LegacySourceRegression \
+  VastitasKernel.StorageRegression \
+  VastitasStorageTest.Regression \
   VastitasPromotion.Regression

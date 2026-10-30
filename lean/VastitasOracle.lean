@@ -37,6 +37,9 @@ import VastitasOracle.GeometryResults
 import VastitasOracle.LegacySource
 import VastitasOracle.Promotion
 import VastitasOracle.Graph
+import VastitasOracle.StorageLayout
+import VastitasOracle.StorageRegions
+import VastitasOracle.StorageSafety
 
 /-!
 Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this

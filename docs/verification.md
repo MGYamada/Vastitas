@@ -205,6 +205,16 @@ resource safety or authorize native check elimination. The linked document
 states the pending all-access, exact-return and successful-branch soundness
 obligations for the actual Ownership/Borrow Checker.
 
+The separate [internal resource IR](storage-ir.md) now has actual-checker
+theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
+bounds/alignment/byte separation, footprint containment and initialization
+entailment, normalized write/join meaning, and nonoverlap of distinct active
+loans when either writes. Exact decoder/checker certificates start from an
+empty logical environment. These results do not yet compose with public
+protocol 8, source functions or native allocation/execution, and they do not
+extend pure-Core totality to mutable storage. Actual memory initialization,
+allocator liveness, native failure cleanup and C performance remain pending.
+
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in
 `VastitasOracle.Graph`. It does not extend these source/Core evaluation claims

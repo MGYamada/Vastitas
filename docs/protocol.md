@@ -12,6 +12,10 @@ present, including when empty. Protocol 3 uses the separate namespace request
 below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assemblies,
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
+
+The [internal storage component schema](storage-ir.md) is not a public wire
+version. Protocol 8 remains unsupported, and a top-level `resources` extension
+must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:

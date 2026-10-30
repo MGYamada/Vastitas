@@ -1,6 +1,6 @@
 # Storage, ownership and residual retention — revised Chapter 7
 
-Status: accepted design direction, 2026-10-29; implementation and performance
+Status: accepted design direction, 2026-10-29; public implementation and performance
 evidence remain pending under [#183](https://github.com/MGYamada/Vastitas/issues/183)
 and the [Stage 1 completion gate](stage1-completion.md).
 This is the current design contract replacing the storage discussion in
@@ -12,6 +12,11 @@ The [dense layout/preflight reference](storage-layout-preflight.md) supplies an
 executable integer model, regression cases and proposed Lean obligations for
 the first dense/transpose fragment. It is not production resource acceptance,
 completed Lean soundness, native check elimination or performance evidence.
+
+The [internal resource IR](storage-ir.md) now supplies independently checked
+logical transitions, canonical layouts, initialization and branch joins, with
+actual-checker byte-region and active-loan theorems. Its component schema is not
+public protocol 8; source/native integration and performance evidence are pending.
 
 ## 7.1 Fast like C: the primary design goal
 

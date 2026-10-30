@@ -1,0 +1,368 @@
+{
+  "statements": [
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 0,
+        "scalar": "f64",
+        "elements": 8
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 1,
+        "source": {
+          "kind": "owner",
+          "name": 0
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 4,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "fill",
+        "loan": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4613937818241073152
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "transpose",
+        "loan": 1
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 1
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 2,
+        "source": {
+          "kind": "owner",
+          "name": 0
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 4,
+          "transposed": true
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 2,
+        "row": 1,
+        "column": 1,
+        "value": {
+          "kind": "f64",
+          "bits": 4613937818241073152
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 2
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "move",
+        "source": 0,
+        "target": 3
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 3
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 10,
+        "scalar": "complex_f64",
+        "elements": 4
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 11,
+        "source": {
+          "kind": "owner",
+          "name": 10
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "fill",
+        "loan": 11,
+        "value": {
+          "kind": "complex_f64",
+          "real": 18446744073709551615,
+          "imaginary": 9223372036854775808
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "store",
+        "loan": 11,
+        "row": 0,
+        "column": 1,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 11
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 12,
+        "source": {
+          "kind": "owner",
+          "name": 10
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "allocate",
+        "owner": 13,
+        "scalar": "complex_f64",
+        "elements": 4
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 14,
+        "source": {
+          "kind": "owner",
+          "name": 13
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "copy",
+        "source": 12,
+        "target": 14
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 14
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 12
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 15,
+        "source": {
+          "kind": "owner",
+          "name": 13
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 2,
+          "columns": 2,
+          "leading": 2,
+          "transposed": false
+        },
+        "access": "read_write"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "transpose",
+        "loan": 15
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "expect",
+        "loan": 15,
+        "row": 1,
+        "column": 0,
+        "value": {
+          "kind": "complex_f64",
+          "real": 0,
+          "imaginary": 0
+        }
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "borrow",
+        "name": 16,
+        "source": {
+          "kind": "loan",
+          "name": 15
+        },
+        "layout": {
+          "offset": 0,
+          "rows": 1,
+          "columns": 1,
+          "leading": 1,
+          "transposed": false
+        },
+        "access": "read"
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 16
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "release",
+        "loan": 15
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 13
+      }
+    },
+    {
+      "kind": "action",
+      "action": {
+        "op": "drop",
+        "owner": 10
+      }
+    },
+    {
+      "kind": "branch",
+      "condition": false,
+      "yes": [
+        {
+          "kind": "action",
+          "action": {
+            "op": "allocate",
+            "owner": 20,
+            "scalar": "f64",
+            "elements": 0
+          }
+        },
+        {
+          "kind": "action",
+          "action": {
+            "op": "drop",
+            "owner": 20
+          }
+        }
+      ],
+      "no": [
+        {
+          "kind": "action",
+          "action": {
+            "op": "allocate",
+            "owner": 21,
+            "scalar": "f64",
+            "elements": 0
+          }
+        },
+        {
+          "kind": "action",
+          "action": {
+            "op": "drop",
+            "owner": 21
+          }
+        }
+      ]
+    }
+  ]
+}

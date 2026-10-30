@@ -19,7 +19,8 @@ private def process (mode input : String) : Lean.Json := Id.run do
           match ResourceSource.Codegen.generate accepted.input with
           | .error diagnostic => return failureJson diagnostic version
           | .ok generated =>
-            return (successJson (some generated.source) version).setObjVal! "storage_runtime" (Lean.toJson generated.storageRuntime)
+            return ((successJson (some generated.source) version).setObjVal! "storage_runtime" (Lean.toJson generated.storageRuntime)).setObjVal!
+              "numerical_runtime" (Lean.toJson generated.numericalRuntime)
         else return successJson none version
     if version == 7 then
       if mode == "emit" then

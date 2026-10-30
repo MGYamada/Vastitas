@@ -2,7 +2,10 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+static NEXT_EXPORT: AtomicU64 = AtomicU64::new(0);
 
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/lean_audit/id_prop.ndjson")
@@ -22,8 +25,11 @@ fn temporary_path() -> PathBuf {
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "vastitas-nanoda-{}-{nanos}.ndjson",
-        std::process::id()
+        "vastitas-nanoda-{}-{nanos}-{}.ndjson",
+        std::process::id(),
+        // SystemTime resolution can give simultaneous test threads the same
+        // timestamp. Their worker inputs and cleanup must remain independent.
+        NEXT_EXPORT.fetch_add(1, Ordering::Relaxed)
     ))
 }
 

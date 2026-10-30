@@ -104,13 +104,16 @@ jobs:
   numerical-adapter:
     name: Optional GEMM adapter (${{ matrix.os }}, OpenBLAS 0.3.34)
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
       - name: Build pinned sequential LP64 OpenBLAS
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
@@ -134,7 +137,7 @@ jobs:
           lake-package-directory: lean-kernel
           auto-config: false
           build: true
-          build-args: storage-native-fixture
+          build-args: vastitas-kernel storage-native-fixture
           use-mathlib-cache: false
       - name: Exact checked GEMM schedules and generated native cleanup
         run: |
@@ -143,6 +146,15 @@ jobs:
           else
             python3 scripts/check_gemm_checked.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
+      - name: Public typed real and complex GEMM source execution
+        env:
+          OPENBLAS_NUM_THREADS: '1'
+          VASTITAS_TEST_OPENBLAS_PREFIX: ${{ runner.temp }}/vastitas-openblas
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            export VASTITAS_TEST_NATIVE_CC=cc
+          fi
+          cargo test --locked --test numerical_source -- --ignored
 
   oracle:
     name: Lean proofs and axiom audit

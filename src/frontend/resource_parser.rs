@@ -1,8 +1,8 @@
 use super::*;
 use crate::storage::{
-    Access, Layout, Literal, Scalar,
+    Access, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
     functions::OwnedType,
-    source::{Action, Parameter},
+    source::{Action, Numerical, Parameter},
 };
 
 impl Parser {
@@ -274,6 +274,80 @@ impl Parser {
         Ok(action)
     }
 
+    fn numerical_operation(&mut self) -> Result<Numerical, Diagnostic> {
+        if self.consume("space") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("linear")?;
+            self.expect("(")?;
+            let implementation = self.type_path()?;
+            self.expect(",")?;
+            let dimension = self.resource_number()?;
+            self.expect(")")?;
+            return Ok(Numerical::Space {
+                name,
+                implementation,
+                dimension,
+            });
+        }
+        if self.consume("basis") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("basis")?;
+            self.expect("(")?;
+            let space = self.name()?.0;
+            self.expect(")")?;
+            return Ok(Numerical::Basis { name, space });
+        }
+        if self.consume("map") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("view")?;
+            self.expect("(")?;
+            let loan = self.name()?.0;
+            self.expect(",")?;
+            let source = self.name()?.0;
+            self.expect(",")?;
+            let target = self.name()?.0;
+            self.expect(")")?;
+            return Ok(Numerical::Map {
+                name,
+                loan,
+                source,
+                target,
+            });
+        }
+        self.expect("gemm")?;
+        self.expect("(")?;
+        let left = self.name()?.0;
+        self.expect(",")?;
+        let right = self.name()?.0;
+        self.expect(",")?;
+        let output = self.name()?.0;
+        self.expect(",")?;
+        let mode = if self.consume("overwrite") {
+            GemmMode::Overwrite
+        } else if self.consume("accumulate") {
+            GemmMode::Accumulate
+        } else {
+            return Err(diagnostic(
+                "E_NUMERICAL_TYPE",
+                "GEMM requires overwrite or accumulate",
+                self.peek().span,
+            ));
+        };
+        self.expect(",")?;
+        self.expect("NativeFast")?;
+        self.expect(")")?;
+        Ok(Numerical::Gemm {
+            left,
+            right,
+            output,
+            mode,
+            policy: NumericalPolicy::NativeFast,
+        })
+    }
+
     fn resource_statements(
         &mut self,
         depth: usize,
@@ -313,6 +387,16 @@ impl Parser {
                     callee,
                     arguments,
                     results,
+                    span: start.through(self.previous().span),
+                }
+            } else if ["space", "basis", "map", "gemm"]
+                .iter()
+                .any(|word| self.peek().is(word))
+            {
+                let operation = self.numerical_operation()?;
+                self.expect(";")?;
+                crate::storage::source::Statement::Numerical {
+                    operation,
                     span: start.through(self.previous().span),
                 }
             } else {

@@ -185,3 +185,12 @@ or suspended loans, wrong shapes, input/output aliases, uninitialized reads and
 branch-only initialization are rejected. Numerical CI runs the actual generated
 consumer on both supported operating systems; it remains separate from no-BLAS
 compiler/storage jobs. Runtime counters exclude backend workspace and Lean overhead.
+
+
+The [public numerical path](numerical-values.md) now checks local nominal
+spaces/bases and map views before using this adapter. Public `gemm` does not
+accept the raw component flags or resource-only authority above. Use
+`vastitas build --manifest-path ... --openblas-prefix /path/to/prefix -o OUTPUT`,
+with `--native-cc cc` on Linux when OpenBLAS uses the host libc. Ordinary builds
+and public `check` do not need OpenBLAS. Dependent numerical interfaces,
+dual/conjugate/metric operations, networks and native refinement remain pending.

@@ -19,7 +19,8 @@ python3 scripts/build_openblas.py --prefix /tmp/vastitas-openblas --jobs 4
 python3 scripts/check_gemm_native.py --prefix /tmp/vastitas-openblas
 ```
 
-On Linux, install `libgmp-dev`, `libuv1-dev` and `libssl-dev`, then run
+On Linux, install `libc++-dev`, `libc++abi-dev`, `libgmp-dev`, `libuv1-dev`
+and `libssl-dev`, then run
 `python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas --lean-cc cc`.
 On macOS run
 `python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas`.
@@ -41,8 +42,8 @@ override, matching the libc used to build OpenBLAS. The regression script's
 [portable toolchain](https://github.com/leanprover/lean4/blob/v4.35.0/script/prepare-llvm-linux.sh)
 bundles an older libc for linking and only minimal C headers, not a full C SDK.
 A host-built archive can reference newer libc symbols such as `__isoc23_strtol`
-that the bundled linker libraries lack. Linux CI installs the host GMP, libuv
-and OpenSSL development libraries required by Lean's external-compiler mode.
+that the bundled linker libraries lack. Linux CI installs the host libc++/ABI,
+GMP, libuv and OpenSSL development libraries required by Lean's external-compiler mode.
 macOS CI tests the existing bundled Lean linker against its host-built archive.
 These are host-specific linked programs; no broader deployment ABI is claimed.
 

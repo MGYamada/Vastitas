@@ -120,7 +120,7 @@ jobs:
           fi
       - name: Install native checker and host Lean linker dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y valgrind libgmp-dev libuv1-dev libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y valgrind libc++-dev libc++abi-dev libgmp-dev libuv1-dev libssl-dev
       - name: Adapter, sanitizer, ABI and uninitialized-memory tests
         run: |
           if [ "$RUNNER_OS" = Linux ]; then

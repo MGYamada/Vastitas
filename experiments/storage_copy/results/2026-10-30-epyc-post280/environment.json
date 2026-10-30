@@ -1,0 +1,158 @@
+{
+  "started_utc": "2026-10-30T07:29:36.779719+00:00",
+  "argv": [
+    "experiments/storage_copy/run.py",
+    "--output",
+    "/workspace/scratch/6f482abd7151/storage-copy-post280",
+    "--samples",
+    "11",
+    "--target-ms",
+    "5",
+    "--no-leak-sanitizer"
+  ],
+  "python": "3.12.14 (main, Aug 25 2026, 14:00:49) [Clang 22.1.3 ]",
+  "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+  "cpu_affinity_before": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8
+  ],
+  "cpu_affinity": 0,
+  "threads": 1,
+  "flags": [
+    "-std=c11",
+    "-O3",
+    "-Wall",
+    "-Wextra",
+    "-Werror",
+    "-Wpedantic",
+    "-fno-lto"
+  ],
+  "cc": [
+    "cc"
+  ],
+  "source_sha256": {
+    "lean-kernel/native/storage.c": "416af0912bbd222e50300809f2d23383f6784e57ecd7b5970ba0282541a3515f",
+    "lean-kernel/native/storage.h": "b209eb03dd128a31ce3d141f7697f72ebe662abd45da8bbe29644ff149614245",
+    "lean-kernel/native/test_storage.c": "8727dd9e67c67f3dabb03ca14e9b099873081c73c5f4effd1d94bceef4ac30f1",
+    "experiments/storage_copy/bench.h": "91977eebf947fe1a09e53679eb7b2560cb476f003b23103fee8bc919bf880c0f",
+    "experiments/storage_copy/probe.c": "8f1449846b200087f5905966c66faa7a8395907c787dc97e742d363a0fbeb24e",
+    "experiments/storage_copy/driver.c": "69c134d9605bf0579a753faa3db31854e62ee8ee7d80aa475d13a12bf5a7001a",
+    "experiments/storage_copy/run.py": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1"
+  },
+  "scope": "Synchronous C adapter only; no Lean FFI, compiler/protocol-8, GEMM, GPU or native refinement claim.",
+  "sanitizers": "required separate untimed executables",
+  "environment": {
+    "OMP_NUM_THREADS": null,
+    "OPENBLAS_NUM_THREADS": null,
+    "MALLOC_ARENA_MAX": null,
+    "LD_PRELOAD": null,
+    "ASAN_OPTIONS": ":detect_leaks=0",
+    "UBSAN_OPTIONS": null
+  },
+  "host": {
+    "compiler": {
+      "command": [
+        "cc",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "cc (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": ""
+    },
+    "compiler_target": {
+      "command": [
+        "cc",
+        "-dumpmachine"
+      ],
+      "returncode": 0,
+      "stdout": "x86_64-linux-gnu\n",
+      "stderr": ""
+    },
+    "git_head": {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "6af3a3c6064d4cbac732f2cb9f784df1370e580d\n",
+      "stderr": ""
+    },
+    "git_status": {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "returncode": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "followup_commits": {
+      "command": [
+        "git",
+        "log",
+        "--format=%H %s",
+        "63d944ed67d96bfb8ad8183ddb5d7b1303c6c9ab..HEAD"
+      ],
+      "returncode": 0,
+      "stdout": "6af3a3c6064d4cbac732f2cb9f784df1370e580d Merge current main before refreshing copy measurements after PR 280\n75beb6d77c3284f04264497e258434efea758131 Record matched CPU copy measurements and validation evidence\nb66e6b370403cc9eaa860be796140aea5d5ae03a Merge pull request #280 from MGYamada/codex/stage1-gemm-native\n5daee61deb46cf92460b8870bcb62cf592985bed Add optional matched-contract C storage copy benchmark\nfd67221bc672bf823bdc341b45d36bb4e2ae8066 Add pinned OpenBLAS GEMM adapter with physical storage preflight\n2d6a86ce4c8a44bd883d879035aa9c924ed8fc71 Merge pull request #271 from MGYamada/codex/stage1-storage-source\n451d61c3b2e55e26a135019fe82c2306d6080d80 Connect package resource functions to protocol 8 and checked native execution\nd783b5a6e393214a54cb408501963b1e42a7be94 Merge pull request #269 from MGYamada/codex/stage1-resource-functions\nabf843e1a3a7efa27c07d3f4e69e634c6a3bf07c Check affine resource calls against actual caller storage\n",
+      "stderr": ""
+    },
+    "adapter_diff_since_267": {
+      "command": [
+        "git",
+        "diff",
+        "63d944ed67d96bfb8ad8183ddb5d7b1303c6c9ab",
+        "HEAD",
+        "--",
+        "lean-kernel/native"
+      ],
+      "returncode": 0,
+      "stdout": "diff --git a/lean-kernel/native/storage.c b/lean-kernel/native/storage.c\nindex a7da63f..ed27871 100644\n--- a/lean-kernel/native/storage.c\n+++ b/lean-kernel/native/storage.c\n@@ -98,8 +98,11 @@ const char *vstorage_error(VStorageStatus status) {\n     case VS_LAYOUT: return \"E_NATIVE_LAYOUT: invalid layout, bounds, alignment or narrowing\";\n     case VS_OVERFLOW: return \"E_NATIVE_OVERFLOW: native size or accounting overflow\";\n     case VS_BOUNDS: return \"E_NATIVE_BOUNDS: cell index is outside the view\";\n-    case VS_ALIAS: return \"E_NATIVE_ALIAS: copy regions may overlap\";\n+    case VS_ALIAS: return \"E_NATIVE_ALIAS: accessed regions may overlap\";\n     case VS_EXPECT: return \"E_NATIVE_EXPECT: stored bit pattern differs\";\n+    case VS_ABI: return \"E_NATIVE_ABI: unsupported numerical backend version, ABI or threading\";\n+    case VS_SHAPE: return \"E_NATIVE_SHAPE: numerical operand dimensions differ\";\n+    case VS_OPERATION: return \"E_NATIVE_OPERATION: unsupported numerical operation or layout\";\n     }\n     return \"E_NATIVE_STATUS: unknown status\";\n }\n@@ -164,6 +167,32 @@ static VStorageStatus typed(VStorageArena *arena, uint32_t id, VStorageLayout vi\n     return scalar == out->buffer->scalar ? VS_OK : VS_SCALAR;\n }\n \n+VStorageStatus vstorage_prepare_dense(VStorageArena *arena, uint32_t id,\n+                                     VStorageLayout view, VStorageDense *out) {\n+    if (!out) return VS_OPERATION;\n+    Prepared prepared;\n+    VStorageStatus status = prepare(arena, id, view, &prepared);\n+    if (status != VS_OK) return status;\n+    /* Empty views form no pointer, including an aligned or unaligned offset at\n+     * the allocation's end. No backend may dereference that empty descriptor. */\n+    double *data = prepared.bytes ? prepared.buffer->data + prepared.start / 8 : NULL;\n+    *out = (VStorageDense){data, prepared.start, prepared.end,\n+        prepared.rows, prepared.columns, view.leading, prepared.bytes, id,\n+        prepared.buffer->scalar, view.transposed};\n+    return VS_OK;\n+}\n+\n+VStorageStatus vstorage_prepare_write(VStorageArena *arena, uint64_t bytes) {\n+    if (!arena || arena->closed) return VS_HANDLE;\n+    return counter_fits(arena->stats.written_bytes, bytes) ? VS_OK : VS_OVERFLOW;\n+}\n+\n+/* Only after successful preflight and a synchronous infallible kernel return.\n+ * The arena is not shared concurrently between resource operations. */\n+void vstorage_record_write(VStorageArena *arena, uint64_t bytes) {\n+    arena->stats.written_bytes += bytes;\n+}\n+\n static uint64_t cell(const Prepared *view, uint64_t row, uint64_t column) {\n     return view->start / 8 + row * view->row_step + column * view->column_step;\n }\ndiff --git a/lean-kernel/native/storage.h b/lean-kernel/native/storage.h\nindex 737d341..77b326d 100644\n--- a/lean-kernel/native/storage.h\n+++ b/lean-kernel/native/storage.h\n@@ -17,9 +17,24 @@ typedef struct {\n } VStorageStats;\n typedef enum {\n     VS_OK, VS_ALLOCATION, VS_HANDLE, VS_SCALAR, VS_LAYOUT, VS_OVERFLOW,\n-    VS_BOUNDS, VS_ALIAS, VS_EXPECT\n+    VS_BOUNDS, VS_ALIAS, VS_EXPECT, VS_ABI, VS_SHAPE, VS_OPERATION\n } VStorageStatus;\n \n+/* Internal synchronous-backend access. Only the arena creates these ephemeral\n+ * descriptors. They must not outlive this operation or an intervening drop.\n+ * Logical loan rights and initialization remain the checked caller's duty. */\n+typedef struct {\n+    double *data;\n+    uint64_t start, end, rows, columns, leading, bytes;\n+    uint32_t allocation;\n+    uint8_t scalar, transposed;\n+} VStorageDense;\n+\n+VStorageStatus vstorage_prepare_dense(VStorageArena *arena, uint32_t id,\n+                                     VStorageLayout view, VStorageDense *out);\n+VStorageStatus vstorage_prepare_write(VStorageArena *arena, uint64_t bytes);\n+void vstorage_record_write(VStorageArena *arena, uint64_t bytes);\n+\n VStorageArena *vstorage_new(uint64_t byte_budget);\n void vstorage_close(VStorageArena *arena);\n void vstorage_delete(VStorageArena *arena);\n",
+      "stderr": ""
+    },
+    "lscpu": {
+      "command": [
+        "lscpu"
+      ],
+      "returncode": 0,
+      "stdout": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           46 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  9\nOn-line CPU(s) list:                     0-8\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 9V74 80-Core Processor\nBIOS Model name:                           CPU @ 0.0GHz\nBIOS CPU family:                         0\nCPU family:                              25\nModel:                                   17\nThread(s) per core:                      1\nCore(s) per socket:                      9\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                5192.29\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl xtopology nonstop_tsc cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid avx512f avx512dq rdseed adx smap avx512ifma clflushopt clwb avx512cd sha_ni avx512bw avx512vl xsaveopt xsavec xgetbv1 xsaves avx512_bf16 clzero xsaveerptr arat npt nrip_save tsc_scale vmcb_clean flushbyasid pausefilter pfthreshold v_vmsave_vmload avx512vbmi umip avx512_vbmi2 gfni vaes vpclmulqdq avx512_vnni avx512_bitalg avx512_vpopcntdq rdpid fsrm arch_capabilities\nHypervisor vendor:                       KVM\nVirtualization type:                     full\nL1d cache:                               160 KiB (5 instances)\nL1i cache:                               160 KiB (5 instances)\nL2 cache:                                5 MiB (5 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-8\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Vulnerable: __user pointer sanitization and usercopy barriers only; no swapgs barriers\nVulnerability Spectre v2:                Vulnerable; STIBP: disabled; PBRSB-eIBRS: Not affected; BHI: Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+      "stderr": ""
+    },
+    "uname": {
+      "command": [
+        "uname",
+        "-a"
+      ],
+      "returncode": 0,
+      "stdout": "Linux 82b5f933e125 6.18.55 #1 SMP Wed Oct 14 19:45:18 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n",
+      "stderr": ""
+    },
+    "libc": {
+      "command": [
+        "ldd",
+        "--version"
+      ],
+      "returncode": 0,
+      "stdout": "ldd (Ubuntu GLIBC 2.39-0ubuntu8.6) 2.39\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper.\n",
+      "stderr": ""
+    },
+    "/sys/fs/cgroup/cpu.max": "800000 100000\n",
+    "/sys/fs/cgroup/memory.max": "8589934592\n",
+    "/sys/fs/cgroup/cpu.stat": "usage_usec 545697369\nuser_usec 413108771\nsystem_usec 132588598\nnice_usec 0\nnr_periods 37097\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+    "/proc/loadavg": "0.00 0.03 0.11 1/191 16\n",
+    "loadavg_after": "1.00 0.73 0.41 4/191 375\n",
+    "cpu_stat_after": "usage_usec 902169767\nuser_usec 692279987\nsystem_usec 209889780\nnice_usec 0\nnr_periods 40631\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n"
+  },
+  "finished_utc": "2026-10-30T07:35:30.240339+00:00",
+  "case_count": 200,
+  "raw_row_count": 18870
+}

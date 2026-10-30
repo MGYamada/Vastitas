@@ -1,0 +1,9 @@
+{
+  "command": [
+    "/workspace/scratch/6f482abd7151/storage-copy-smoke/build/bench-sanitized",
+    "--contracts"
+  ],
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "==46==Can't open /proc/45/task for reading.\n==45==LeakSanitizer has encountered a fatal error.\n==45==HINT: For debugging, try setting environment variable LSAN_OPTIONS=verbosity=1:log_threads=1\n==45==HINT: LeakSanitizer does not work under ptrace (strace, gdb, etc)\n"
+}

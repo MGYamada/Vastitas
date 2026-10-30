@@ -19,8 +19,7 @@ python3 scripts/build_openblas.py --prefix /tmp/vastitas-openblas --jobs 4
 python3 scripts/check_gemm_native.py --prefix /tmp/vastitas-openblas
 ```
 
-On Linux, install `libc++-dev`, `libc++abi-dev`, `libgmp-dev`, `libuv1-dev`
-and `libssl-dev`, then run
+On Linux run
 `python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas --lean-cc cc`.
 On macOS run
 `python3 scripts/check_gemm_checked.py --prefix /tmp/vastitas-openblas`.
@@ -38,12 +37,14 @@ Redistributing linked binaries requires retaining that notice.
 
 Linux numerical consumers select the host compiler with Lake's `LEAN_CC=cc`
 override, matching the libc used to build OpenBLAS. The regression script's
-`--lean-cc cc` applies this override only to generated consumers. Lean's
+`--lean-cc cc` applies this override only to generated consumers and adds
+`-L <lean-prefix>/lib` to their link arguments. This retains Lean's matching
+C++ ABI and support archives instead of substituting an incompatible host
+libc++ version; it does **not** add `<lean-prefix>/lib/glibc`. Lean's
 [portable toolchain](https://github.com/leanprover/lean4/blob/v4.35.0/script/prepare-llvm-linux.sh)
 bundles an older libc for linking and only minimal C headers, not a full C SDK.
 A host-built archive can reference newer libc symbols such as `__isoc23_strtol`
-that the bundled linker libraries lack. Linux CI installs the host libc++/ABI,
-GMP, libuv and OpenSSL development libraries required by Lean's external-compiler mode.
+that the bundled linker libraries lack.
 macOS CI tests the existing bundled Lean linker against its host-built archive.
 These are host-specific linked programs; no broader deployment ABI is claimed.
 
@@ -164,7 +165,9 @@ explicit pinned OpenBLAS prefix. The archive is a transitive native dependency,
 including downstream generated executables; no system BLAS fallback is selected.
 For a direct package build use
 `lake -d lean-kernel/numerical -Kopenblas=/path/to/prefix build`;
-on Linux set `LEAN_CC=cc` for that build and each downstream executable build.
+on Linux set `LEAN_CC=cc` for that build and each downstream executable build,
+and give the downstream package `moreLinkArgs := #["-L", "<lean-prefix>/lib"]`
+using its actual `lean --print-prefix` output.
 The regression consumer demonstrates a dependency-specific `openblas` Lake option.
 
 `VastitasOracle.StorageGemm` imports the actual checker. It proves the exact

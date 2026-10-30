@@ -59,8 +59,13 @@ def check(prefix, lean_cc=None):
     # bundled linker libraries. Select the matching host compiler/linker for
     # numerical consumers only; the independent kernel retains its own build.
     native_env = os.environ.copy()
+    package_options = ""
     if lean_cc is not None:
         native_env["LEAN_CC"] = lean_cc
+        # Keep Lean's matching C++ ABI/support libraries while using the host
+        # libc. Its portable libc lives in lib/glibc, which is NOT added here.
+        lean_root = Path(run(["lean", "--print-prefix"]).stdout.strip())
+        package_options = f' where\n  moreLinkArgs := #["-L", {json.dumps(str(lean_root / "lib"))}]'
     with tempfile.TemporaryDirectory(prefix="vastitas-checked-gemm-") as directory:
         work = Path(directory)
         for package in ("native", "numerical"):
@@ -68,7 +73,7 @@ def check(prefix, lean_cc=None):
                             ignore=shutil.ignore_patterns(".lake"))
         (work / "lean-toolchain").write_text((ROOT / "lean-kernel/lean-toolchain").read_text())
         (work / "lakefile.lean").write_text(
-            'import Lake\nopen Lake DSL\npackage checked_gemm\n'
+            f'import Lake\nopen Lake DSL\npackage checked_gemm{package_options}\n'
             'require vastitas_gemm_native from "./numerical" with\n'
             f'  NameMap.empty.insert `openblas {json.dumps(str(prefix))}\n'
             'lean_exe fixture where root := `Main\n')

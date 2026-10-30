@@ -118,9 +118,9 @@ jobs:
           else
             python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/vastitas-openblas" --jobs 4
           fi
-      - name: Install native checker and host Lean linker dependencies
+      - name: Install native uninitialized-memory checker
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y valgrind libc++-dev libc++abi-dev libgmp-dev libuv1-dev libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y valgrind
       - name: Adapter, sanitizer, ABI and uninitialized-memory tests
         run: |
           if [ "$RUNNER_OS" = Linux ]; then

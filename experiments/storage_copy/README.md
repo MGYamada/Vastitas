@@ -7,6 +7,8 @@ refinement. It adds no production API, profiler, CI job, package gate, performan
 threshold, or completion claim for [#183](https://github.com/MGYamada/Vastitas/issues/183)
 or [#222](https://github.com/MGYamada/Vastitas/issues/222).
 
+Recorded run: [2026-10-30 EPYC results and limitations](results/2026-10-30-epyc/RESULTS.md).
+
 ## Reproduce
 
 From the repository root, with Python 3 and a C11 compiler on a 64-bit POSIX host:
@@ -124,7 +126,11 @@ symbols and linked-library information. `build/` contains disposable executables
 Source SHA-256 hashes, git base/dirty state, toolchain, flags, CPU, OS, libc,
 affinity, cgroup quota and load are recorded. `live_bytes` in reused scopes is
 the live fixture during timing; `fixture_live_bytes` after cleanup must be zero.
-`peak_bytes` and `metadata_bytes` are high-water/snapshot sizes, not sums.
+`peak_bytes` is a data high-water size, not a sum. `metadata_bytes` is the maximum
+lifecycle metadata snapshot; it is zero in reused scopes because metadata was
+allocated outside their timed intervals (280 runtime metadata bytes on this host).
+Loop setup also allocates one experiment-only prepared descriptor outside timing;
+that descriptor is not part of runtime counters, and is freed on both sides.
 Other `timed_*` counters sum over the whole timed batch. `loop_only` bypasses
 accounting inside the timed loop, so its timed copy counter is zero even though
 each real loop copies `rows * columns * (8 or 16)` bytes. Setup's validating copy

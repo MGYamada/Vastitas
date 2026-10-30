@@ -206,7 +206,7 @@ def main():
     run([exe, "--contracts"])
     if not args.skip_sanitizers:
         sanflags = ["-std=c11", "-O1", "-g", "-Wall", "-Wextra", "-Werror", "-fno-lto",
-                    "-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
+                    "-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer"]
         # Non-PIE avoids Linux ASan shadow-address collisions in some containers.
         if sys.platform.startswith("linux"):
             sanflags += ["-fno-pie", "-no-pie"]

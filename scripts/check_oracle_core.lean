@@ -28,12 +28,27 @@ private def named (name : String) : RawAbstractType :=
 
 -- Sorting preserves duplicate declarations and uses the same String order.
 example : Abstract.canonicalNames [named "β", named "a", named "a"] =
-    Abstract.builtins ++ ["a", "a", "β"] := by decide
+    Abstract.builtins ++ ["a", "a", "β"] := by
+  have sorted : (["a", "a", "β"] : List String).Pairwise
+      (fun a b => decide (a ≤ b) = true) := by decide
+  calc
+    Abstract.canonicalNames [named "β", named "a", named "a"] =
+        Abstract.canonicalNames [named "a", named "β", named "a"] :=
+      canonical_names_permutation _ _ (List.Perm.swap _ _ _)
+    _ = Abstract.canonicalNames [named "a", named "a", named "β"] :=
+      canonical_names_permutation _ _ (List.Perm.cons _ (List.Perm.swap _ _ _))
+    _ = Abstract.builtins ++ ["a", "a", "β"] := by
+      simpa only [Abstract.canonicalNames, named, List.map_cons, List.map_nil] using
+        congrArg (Abstract.builtins ++ ·) (List.mergeSort_of_pairwise sorted)
 
-example : Abstract.canonicalNames [] = Abstract.builtins := rfl
+example : Abstract.canonicalNames [] = Abstract.builtins := by
+  simp [Abstract.canonicalNames]
 
 example : Abstract.canonicalNames [named "a", named "a"] ≠
-    Abstract.canonicalNames [named "a"] := by decide
+    Abstract.canonicalNames [named "a"] := by
+  intro same
+  have lengths := congrArg List.length same
+  simp [Abstract.canonicalNames] at lengths
 
 example : Abstract.canonicalNames [named "β", named "a", named "a"] =
     Abstract.canonicalNames [named "a", named "β", named "a"] :=

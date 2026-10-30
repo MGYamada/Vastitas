@@ -196,6 +196,48 @@ executable specialization pass use separate state; probes never reach codegen.
 Regressions test unused-body checking, static selection and native results
 across the remaining correspondence boundary. No new unproved axiom is used.
 
+## Independent internal Lean export audit (v0.1.0 gate)
+
+The Rust compiler can use the third-party `nanoda_lib` library for an opt-in
+cross-check of an already generated `lean4export` NDJSON proof environment.
+`vastitas audit-lean EXPORT.ndjson` reads the export and invokes the linked
+Rust checker in a separate worker process. A passing receipt reports only
+`internal_only` and the number of declarations checked. It **must not**
+be interpreted as `kernel_verified` or as successful public source/IR
+acceptance, a completed constitutional theorem, or checked native refinement.
+
+The policy in `config/nanoda-internal-audit.json` allows exactly three
+standard axioms: `propext`, `Classical.choice`, and `Quot.sound`.
+`unpermitted_axiom_hard_error` is true, and `unsafe_permit_all_axioms`
+is false. This deliberately rejects even *unused* exported declarations of
+other axioms. `sorryAx` and `Lean.trustCompiler` are not whitelisted;
+any relaxation requires explicit constitutional review. In Lean 4.35.0,
+`Lean.trustCompiler` was removed. An ordinary Lean/Mathlib environment
+containing other declarations of axioms may fail this strict export policy
+even when the intended theorem does not use those axioms; prepare an
+appropriately scoped export instead of silently weakening the policy.
+
+nanoda_lib 0.4.31 is pinned by Git revision in Cargo and accepts the
+`lean4export` 3.1.x format. The included regression fixture was exported
+by Lean 4.27.0-rc1; the compiler and official proof projects remain pinned
+to Lean 4.35.0. Building and invoking `audit-lean` does not require
+the `lean/` Mathlib oracle project. Because nanoda's parser/checker may
+panic or exit on malformed or rejected exports, the driver supervises a
+separate worker and converts such outcomes into audit errors.
+
+**Trust separation:**
+
+- GitHub CI proof/axiom audit, independent `lean-kernel/` compilation,
+  the public `check`/`build` checker and the constitutional CS/MS/CF proof
+  obligations retain the **official Lean kernel** as the sole authority.
+- nanoda checks a *supplied* proof term for independent diagnostic feedback.
+  It does not generate a proof or elaborate Mathlib source itself.
+- A future proof-carrying compilation path must bind the exported theorem,
+  axiom environment and evidence to the exact accepted source/Core and
+  generated artifact, then have the official kernel validate the relevant
+  obligation. Merely passing a separately supplied export to nanoda does
+  not provide that binding (see #159/#184 and release gate #282).
+
 ## What is outside these claims
 
 The [dense layout/preflight reference](storage-layout-preflight.md) separates

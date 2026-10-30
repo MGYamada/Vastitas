@@ -138,8 +138,10 @@ nonwinning and unapplied pure bodies, legacy-version rejection and forged wire
 metadata. The existing forged native-plan, sanitizer, failure-cleanup and allocation
 counter regressions remain required.
 
+Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
+`ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](numerical-values.md#dependent-numerical-inputs).
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-dependent numerical object/basis interfaces, dual/conjugate/metric evidence,
+dependent numerical results, dual/conjugate/metric evidence,
 general owned-result branch joins, scratch/dependency handling, finite networks and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
 broader lifetime interfaces retain their separate scope. Protocol 8's static

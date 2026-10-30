@@ -70,7 +70,8 @@ These forms extend the static body of a package `resource fn`; their prefixes
 are parsed in that context. Existing pure functions and resource statements
 retain their syntax. Dimensions are unsigned static literals, map endpoints are
 explicit local bases, and both the GEMM mode and `NativeFast` policy are required.
-This does not add numerical parameter/return types or an implicit product syntax.
+Dependent input contracts are described below. Numerical return types and an
+implicit product syntax remain separate work.
 
 | Source form | Protocol-8 `operation` fields (besides `op`) |
 | --- | --- |
@@ -99,6 +100,71 @@ remain errors, including fields nested in the profile path. Future incompatible
 changes must use a new protocol version rather than reinterpret these forms;
 additional optional operations must continue to fail closed on older kernels.
 
+## Dependent numerical inputs
+
+Resource functions can receive caller-created spaces, bases and borrowed maps:
+
+```vast
+resource fn multiply_into(
+    u: Space<profiles::RealSmooth, 2>,
+    v: Space<profiles::RealSmooth, 3>,
+    w: Space<profiles::RealSmooth, 2>,
+    bu: Basis<u>, bv: Basis<v>, bw: Basis<w>,
+    left: ReadMap<bv, bw>, right: ReadMap<bu, bv>,
+    destination: WriteMap<bu, bw> initializes
+) -> Unit {
+    gemm(left, right, destination, overwrite, NativeFast);
+    value { () }
+}
+// In the caller, using the values constructed above:
+call multiply_into(u, v, w, bu, bv, bw, left, right, destination) -> ();
+```
+
+`Space<profile, n>` requires that exact independently resolved implementation
+and static dimension. `Basis<u>` requires the actual space passed as `u`;
+it does not construct a new space or basis from a descriptor. Map contracts
+refer to two preceding basis parameters. Forward/self references, wrong-kind
+dependencies, a different basis of the same space, and equal-size distinct
+objects are rejected. Passing one space or basis more than once preserves its
+identity. Object identities and dimensions do not become dispatch keys.
+
+`ReadMap`, `WriteMap` and `ReadWriteMap` create call-scoped child loans of the
+actual views. They retain the caller's physical offset, padding, transpose,
+allocation and endpoints. All input snapshots are checked against the original
+caller state before reborrowing; the actual resource transitions then check
+each new child against existing siblings. Reusing one immutable map for two
+read parameters is allowed; two symbolic parameter names never prove physical
+separation for a writer. A map binding remains distinct from its underlying
+resource handle. The callee cannot use it as a raw storage handle.
+
+`initializes` checks the whole borrowed region on successful return, allowing
+an uninitialized overwrite destination. `ReadWriteMap` requires initialized
+input and is suitable for accumulation. Children return inside out, caller
+loans and numerical bindings are restored, and nested calls keep the same
+nominal endpoints. No numerical value or loan escapes through an owned result.
+
+The wire parameter tags are `space` (`name`, unresolved `implementation`,
+`dimension`, `span`), `basis` (`name`, `space`, `span`) and `map` (`name`,
+`source`, `target`, `access`, `initializes`, `span`). Rust and Lean reject
+unknown fields. Header profile references undergo the same lexical resolution
+and provenance audit as body constructors, including unused definitions.
+Older protocol-8 kernels reject these new parameter tags; there is no fallback.
+The older internal resource-only component wire format remains unchanged.
+
+Separate probes check every body with its declared static contracts. Every
+actual call is independently rechecked with its caller's identities, layout,
+initialization and aliases; probes do not prove universal shape or alias
+polymorphism. `NumericalInputReceipt` retains the actual input check and an
+independent binding audit. Immutable bindings preserve the original identity;
+map bindings preserve both bases and the exact successful borrow transition.
+The public checker also audits each receipt's declaration environment.
+
+The nested real/complex source regressions execute overwrite and accumulation
+through these inputs. Their generated schedule retains six allocations and
+four GEMMs with no copy, matching the direct-call fixture. These are structural
+cost checks, not timings or a claim of C parity. Runtime shape/scalar flow,
+dependent numerical results and escaping-lifetime contracts remain open.
+
 ## Objects, bases and views
 
 A space constructor requires a concrete `linearDescriptor` implementation from
@@ -113,8 +179,8 @@ Two bases of the same space are distinct. Two separately constructed spaces of
 the same implementation and dimension are also distinct, including across
 successive function activations. Numeric values share the compiler's monotone
 fresh-name supply with resource bindings. They remain local to their function
-or branch and cannot be returned as owners. Typed numerical parameters and
-results are still pending.
+or branch unless explicitly passed as numerical inputs, and cannot be returned
+as owners. Dependent numerical results remain pending.
 
 A map view explicitly interprets a buffer in a source and target basis. Its
 logical row count is the target dimension and its column count is the source
@@ -174,7 +240,7 @@ The raw resource-GEMM rejection in `tests/resource_source.rs` preserves a valid
 statement span and checks the action-decoder diagnostic, so rejection cannot be
 satisfied by missing metadata before the GEMM boundary is reached.
 Both OS numerical CI jobs explicitly run the OpenBLAS-dependent
-test for generated real/complex execution, runtime assertion failure and output
+tests for generated real/complex execution, nested numerical inputs, runtime assertion failure and output
 protection. Normal compiler CI runs the remaining tests without OpenBLAS.
 
 `VastitasOracle.StorageNumerical` proves profile validity, nominal endpoint and
@@ -187,6 +253,12 @@ correspondence or native refinement.
 resolution and the actual returned product receipts to the same accepted public
 source and declaration environment.
 
-Dependent numerical function interfaces, dual/conjugate/metric
+`actual_input`, `input_space_identity`, `input_basis_identity` and
+`input_map_reborrow` describe the certificates produced by actual argument
+binding. `ResourceSource.public_numerical_input_origin` connects those receipts
+to the exact environment of the same accepted public request. They do not claim
+universal correctness from synthetic probes or native refinement.
+
+Dependent numerical results, dynamic shape/scalar interfaces, dual/conjugate/metric
 evidence, finite tensor networks, dynamic dimensions, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).

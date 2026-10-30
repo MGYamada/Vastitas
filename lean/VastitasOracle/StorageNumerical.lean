@@ -89,4 +89,49 @@ theorem bilinear_request (product : Product) (mode : GemmMode) (policy : Numeric
     (product.request mode policy).conjugateLeft = false ∧
     (product.request mode policy).conjugateRight = false := ⟨rfl, rfl⟩
 
+/-- Actual input checking uses the caller's exact environment and values,
+including for a nested call. It is not a universal claim from a probe. -/
+theorem actual_input (receipt : Functions.NumericalInputReceipt) :
+    checkInput receipt.environment receipt.callerResources receipt.callerValues receipt.input receipt.actual = .ok receipt.checked ∧
+    Valid receipt.environment receipt.callerValues ∧
+    value? receipt.callerValues receipt.actual = some receipt.checked.value ∧
+    receipt.input.Accepts receipt.callerResources receipt.callerValues receipt.checked.value :=
+  ⟨receipt.accepted, receipt.checked.valuesValid, receipt.checked.fromActual, receipt.checked.accepts⟩
+
+theorem input_basis_identity (receipt : Functions.NumericalInputReceipt) (basis : Basis)
+    (kind : receipt.checked.value = .basis basis) :
+    receipt.bound = receipt.actual ∧ value? receipt.values receipt.bound = some (.basis basis) ∧
+    receipt.after = receipt.before := by
+  simpa [Functions.NumericalBinding, kind] using receipt.binding
+
+theorem input_space_identity (receipt : Functions.NumericalInputReceipt) (space : Space)
+    (kind : receipt.checked.value = .space space) :
+    receipt.bound = receipt.actual ∧ value? receipt.values receipt.bound = some (.space space) ∧
+    receipt.after = receipt.before := by
+  simpa [Functions.NumericalBinding, kind] using receipt.binding
+
+/-- The bound map has the caller's exact endpoints and is backed by the actual
+independently accepted borrow transition, not a newly fabricated allocation. -/
+theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : MapView)
+    (kind : receipt.checked.value = .map view) :
+    ∃ child : MapView, value? receipt.values receipt.bound = some (.map child) ∧
+      child.source = view.source ∧ child.target = view.target ∧
+      receipt.after.loan? child.loan.name = some child.loan ∧
+      checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) = .ok receipt.after := by
+  have binding := receipt.binding
+  simp only [kind, Functions.NumericalBinding] at binding
+  cases found : value? receipt.values receipt.bound with
+  | none => simp [found] at binding
+  | some value =>
+    cases value with
+    | space _ => simp [found] at binding
+    | basis _ => simp [found] at binding
+    | map child =>
+      simp only [found] at binding
+      refine ⟨child, rfl, binding.1, binding.2.1, binding.2.2.1, ?_⟩
+      have accepted := binding.2.2.2
+      cases step : checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) with
+      | error diagnostic => simp [step, Except.toOption] at accepted
+      | ok state => simpa [step, Except.toOption] using accepted
+
 end VastitasOracle.StorageNumerical

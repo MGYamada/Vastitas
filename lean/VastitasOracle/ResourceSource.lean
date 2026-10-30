@@ -107,4 +107,18 @@ theorem public_product_origin {json : Lean.Json}
   ⟨(input.checked.execution entry found).numericalOrigins.2 receipt member,
     receipt.accepted, receipt.emitted, receipt.transitioned⟩
 
+/-- Dependent inputs use the exact declaration environment accepted by the
+same public request. Their certificates are from actual expansion, not probes. -/
+theorem public_numerical_input_origin {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (entry : Nat) (found : input.input.entry = some entry)
+    (receipt : Functions.NumericalInputReceipt)
+    (member : receipt ∈ (input.checked.execution entry found).checked.context.inputs.toList) :
+    receipt.environment = numericalEnvironment input.checked.pureProgram ∧
+    Storage.Numerical.checkInput receipt.environment receipt.callerResources receipt.callerValues
+      receipt.input receipt.actual = .ok receipt.checked ∧
+    Functions.NumericalBinding receipt.checked.value receipt.actual receipt.bound receipt.access
+      receipt.before receipt.after receipt.values :=
+  ⟨(input.checked.execution entry found).inputOrigins receipt member, receipt.accepted, receipt.binding⟩
+
 end VastitasOracle.ResourceSource

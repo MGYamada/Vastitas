@@ -236,6 +236,25 @@ pub mod source {
             initializes: bool,
             span: Span,
         },
+        Space {
+            name: String,
+            implementation: TypePath,
+            dimension: u64,
+            span: Span,
+        },
+        Basis {
+            name: String,
+            space: String,
+            span: Span,
+        },
+        Map {
+            name: String,
+            source: String,
+            target: String,
+            access: Access,
+            initializes: bool,
+            span: Span,
+        },
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

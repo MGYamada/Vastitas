@@ -13,13 +13,17 @@ inductive Parameter where
   | owned (name : String) (type : Functions.OwnedType) (span : Span)
   | borrowed (name : String) (scalar : Scalar) (rows columns : Nat)
       (access : Access) (initializes : Bool) (span : Span)
+  | space (name : String) (implementation : Indexed.Source.Path) (dimension : Nat) (span : Span)
+  | basis (name space : String) (span : Span)
+  | map (name source target : String) (access : Access) (initializes : Bool) (span : Span)
   deriving Repr, Inhabited
 
 def Parameter.name : Parameter → String
-  | .owned name .. | .borrowed name .. => name
+  | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. => name
 
 def Parameter.span : Parameter → Span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
+  | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span => span
 
 inductive Action where
   | allocate (owner : String) (scalar : Scalar) (elements : Nat)
@@ -250,12 +254,28 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
   let mut frame := []
   let mut parameters := []
   for parameter in function.parameters do
-    let kind := match parameter with | .owned .. => BindingKind.owner | .borrowed .. => .loan
+    let kind := match parameter with
+      | .owned .. => BindingKind.owner
+      | .borrowed .. => .loan
+      | _ => .numerical
     let (next, symbol) ← bindName index owner.scope frame parameter.name kind parameter.span
+    let parameter ← match parameter with
+      | .owned _ type _ => pure (Functions.Parameter.owned symbol type)
+      | .borrowed _ scalar rows columns access initializes _ => pure (.borrowed symbol scalar rows columns access initializes)
+      | .space _ implementation dimension _ => do
+        let (resolved, references) ← (Indexed.Source.resolveId index owner.scope implementation).run []
+        let references := references.map (fun reference => NumericalReference.mk id reference)
+        modify fun state => {state with numericalReferences := state.numericalReferences ++ references}
+        pure (.space symbol resolved dimension)
+      | .basis _ space span => do
+        let (space, _) ← lookup frame space span
+        pure (.basis symbol space)
+      | .map _ source target access initializes span => do
+        let (source, _) ← lookup frame source span
+        let (target, _) ← lookup frame target span
+        pure (.map symbol source target access initializes)
+    parameters := parameters ++ [parameter]
     frame := next
-    parameters := parameters ++ [match parameter with
-      | .owned _ type _ => Functions.Parameter.owned symbol type
-      | .borrowed _ scalar rows columns access initializes _ => .borrowed symbol scalar rows columns access initializes]
   let (resultFrame, body) ← lowerStatements index owners id owner.scope 4096 frame function.body
   let results ← function.results.mapM fun (name, type) => do
     let (symbol, _) ← lookup resultFrame name function.span
@@ -346,6 +366,7 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   accepted : Functions.check ⟨functions, entry⟩ environment = .ok checked
   numericalOrigins : checked.context.environment = environment ∧
     ∀ receipt ∈ checked.context.products.toList, receipt.environment = environment
+  inputOrigins : ∀ receipt ∈ checked.context.inputs.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -389,11 +410,14 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                 if origins : executable.context.environment = numericalEnvironment pureProgram ∧
                     ∀ receipt ∈ executable.context.products.toList,
                       receipt.environment = numericalEnvironment pureProgram then
-                  .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                    library, libraryAccepted, fun actual same => by
-                      have : actual = id := Option.some.inj (same.symm.trans entry)
-                      subst actual
-                      exact ⟨executable, accepted, origins⟩⟩
+                  if inputOrigins : ∀ receipt ∈ executable.context.inputs.toList,
+                      receipt.environment = numericalEnvironment pureProgram then
+                    .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                      library, libraryAccepted, fun actual same => by
+                        have : actual = id := Option.some.inj (same.symm.trans entry)
+                        subst actual
+                        exact ⟨executable, accepted, origins, inputOrigins⟩⟩
+                  else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"
                 else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"
         else Namespace.problem {} "E_OWNER" "resource source identity or call provenance audit failed"
 

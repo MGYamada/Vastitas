@@ -8,6 +8,17 @@ open NumericalFixture
 private def check (label : String) (condition : Bool) : IO Unit :=
   unless condition do throw (IO.userError s!"numerical value regression failed: {label}")
 
+private def inputs (implementation : String) (middle := 3) : List Functions.Parameter := [
+  .space 0 (id implementation) 2, .space 1 (id implementation) middle, .space 2 (id implementation) 2,
+  .basis 3 0, .basis 4 1, .basis 5 2,
+  .map 30 4 5 .read false, .map 31 3 4 .read false, .map 32 3 5 .write true]
+
+private def callInputs : Functions.Statement := .call 1 [0, 1, 2, 3, 4, 5, 30, 31, 32] []
+
+private def withInputs (implementation : String) (body : List Functions.Statement)
+    (calleeBody : List Functions.Statement := [multiply]) (middle := 3) : Functions.Program :=
+  ⟨[⟨0, [], [], body⟩, ⟨1, inputs implementation middle, [], calleeBody⟩], 0⟩
+
 #eval show IO Unit from do
   let .ok declarations := Indexed.Source.checkDeclarations source
     | throw (IO.userError "numerical declarations rejected by common checker")
@@ -45,6 +56,44 @@ private def check (label : String) (condition : Bool) : IO Unit :=
       if loan.name == product.left.loan.name then {loan with layout := {loan.layout with transposed := true}} else loan}
     check "forged live layout rejected" (!(Numerical.checkProduct env changed receipt.values
       receipt.left receipt.right receipt.output receipt.mode receipt.policy).isOk)
+    let .ok passed := Functions.check
+        (withInputs implementation (setup scalar implementation ++ [callInputs, multiply] ++ cleanup)) env
+      | throw (IO.userError "dependent numerical inputs rejected")
+    check "actual input receipts exclude probes" (passed.context.inputs.size == 9)
+    let some inner := passed.context.products[0]? | throw (IO.userError "missing callee product")
+    let some outer := passed.context.products[1]? | throw (IO.userError "missing caller product")
+    check "callee retains the caller's exact bases" (inner.checked.product.left.source == outer.checked.product.left.source &&
+      inner.checked.product.left.target == outer.checked.product.left.target)
+    check "callee receives a real scoped child loan" (inner.checked.product.left.loan.parent == some outer.checked.product.left.loan.name)
+    check "input binding creates no copies or allocations" (passed.statements.countP (fun s => match s with
+      | .action (.allocate ..) => true | _ => false) == 3 &&
+      passed.statements.all (fun s => match s with | .action (.copy ..) => false | _ => true))
+    let shared := setup scalar implementation 2 ++ [
+      .numerical (.map 40 22 3 3), .numerical (.map 41 24 3 3),
+      .call 1 [0, 0, 0, 3, 3, 3, 40, 40, 41] []] ++ cleanup
+    check "same immutable map may supply two read parameters"
+      ((Functions.check (withInputs implementation shared [multiply] 2) env).isOk)
+    let aliased := shared.map fun s => match s with
+      | .action (.borrow 22 source layout _) => .action (.borrow 22 source layout .readWrite)
+      | .call 1 _ _ => .call 1 [0, 0, 0, 3, 3, 3, 40, 40, 40] []
+      | other => other
+    check "actual overlapping write rejected despite disjoint probes"
+      (!(Functions.check (withInputs implementation aliased [multiply] 2) env).isOk)
+    for (label, statements) in [
+        ("same dimension distinct actual space", setup scalar implementation ++ [.call 1 [2, 1, 2, 3, 4, 5, 30, 31, 32] []] ++ cleanup),
+        ("same space distinct actual basis", setup scalar implementation ++ [.numerical (.basis 40 0),
+          .call 1 [0, 1, 2, 40, 4, 5, 30, 31, 32] []] ++ cleanup),
+        ("released map argument", setup scalar implementation ++ [.action (.release 22), callInputs] ++ cleanup),
+        ("transposed map argument", setup scalar implementation ++ [.action (.transpose 24), callInputs] ++ cleanup),
+        ("suspended map argument", setup scalar implementation ++ [.action (.borrow 40 (.loan 22) (layout 2 3) .read), callInputs] ++ cleanup)] do
+      check label (!(Functions.check (withInputs implementation statements) env).isOk)
+    check "unused numerical parameter body still checked"
+      (!(Functions.check (withInputs implementation [] [.numerical (.gemm 31 30 32 .overwrite .nativeFast)]) env).isOk)
+    check "initializes postcondition checked even for unused function"
+      (!(Functions.check (withInputs implementation [] []) env).isOk)
+    let forward : Functions.Program := ⟨[⟨0, [], [], []⟩,
+      ⟨1, [.basis 1 0, .space 0 (id implementation) 2], [], []⟩], 0⟩
+    check "forward parameter dependency rejected" (!(Functions.check forward env).isOk)
   let real := setup .f64 "Real"
   let square := setup .f64 "Real" 2
   let cases : List (String × List Functions.Statement) := [

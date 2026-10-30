@@ -141,6 +141,51 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     insert env values name (.map view)
   | .gemm .. => reject "GEMM must pass the composed numerical and resource check"
 
+/-- Resolved dependent input contracts. Symbols refer to earlier arguments,
+not newly generated objects. Dimensions remain explicit static contracts. -/
+inductive Input where
+  | space (implementation : DeclId) (dimension : Nat)
+  | basis (space : Symbol)
+  | map (source target : Symbol)
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def Input.Accepts (resources : Storage.State) (values : Values) : Input → Value → Prop
+  | .space implementation dimension, .space spc =>
+    spc.type.domain = implementation ∧ spc.dimension = dimension
+  | .basis spaceId, .basis bas => value? values spaceId = some (.space bas.space)
+  | .map source target, .map view =>
+    value? values source = some (.basis view.source) ∧
+    value? values target = some (.basis view.target) ∧ view.Live resources
+  | _, _ => False
+
+instance (resources : Storage.State) (values : Values) (input : Input) (value : Value) :
+    Decidable (input.Accepts resources values value) := by
+  cases input <;> cases value <;> unfold Input.Accepts <;> infer_instance
+
+structure CheckedInput (env : Environment) (resources : Storage.State) (values : Values)
+    (input : Input) (actual : Symbol) where
+  valuesValid : Valid env values
+  resourcesValid : auditState resources = true
+  value : Value
+  fromActual : value? values actual = some value
+  accepts : input.Accepts resources values value
+
+/-- Check all actuals against the original caller state. Reborrowing one read
+input must not make a second compatible use of that same caller map stale. The
+resource checker independently checks the subsequently created sibling loans. -/
+def checkInput (env : Environment) (resources : Storage.State) (values : Values)
+    (input : Input) (actual : Symbol) : Except Error (CheckedInput env resources values input actual) := do
+  if resourcesValid : auditState resources then
+    if valuesValid : Valid env values then
+      match fromActual : value? values actual with
+      | none => reject "numerical argument is absent or has a resource-only type"
+      | some value =>
+        if accepts : input.Accepts resources values value then
+          return ⟨valuesValid, resourcesValid, value, fromActual, accepts⟩
+        else reject "numerical argument violates its nominal, shape or live-loan contract"
+    else reject "invalid numerical argument provenance"
+  else reject "invalid numerical argument resource state"
+
 structure Product where
   left : MapView
   right : MapView

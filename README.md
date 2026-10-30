@@ -50,7 +50,10 @@ The [protocol-8 numerical-value compiler](docs/numerical-values.md) checks local
 nominal spaces, bases and loan-backed map products through actual GEMM lowering.
 Public resource functions can use these operations; numerical builds require an
 explicit `--openblas-prefix`, while ordinary compilation and `check` need no BLAS.
-Dependent numerical interfaces, dual/conjugate/metric operations and networks
+Dependent numerical inputs now preserve caller spaces/bases and borrow actual
+map views under explicit static dimension contracts, including nested calls
+and caller-selected output destinations. Numerical results, dynamic shape/scalar
+interfaces, dual/conjugate/metric operations and networks
 remain pending.
 
 ## Build and use

@@ -43,6 +43,15 @@ and extra fields are rejected. The old raw resource `action` schema does not
 acquire a public GEMM operation. Version 8 composes independent path resolution,
 nominal value checking and actual resource checks before native generation.
 
+Resource parameters additionally support `kind: "space"` with unresolved
+`implementation` and static `dimension`, `kind: "basis"` naming an earlier
+`space` parameter, and `kind: "map"` naming earlier `source`/`target` basis
+parameters plus `access` and `initializes`. Every parameter includes `name` and
+`span`. [Dependent input checking](numerical-values.md#dependent-numerical-inputs)
+preserves actual caller identities and creates scoped child loans for maps.
+Unknown tags/fields fail closed on older kernels; these are additive protocol-8
+forms, not numerical return types or a shape-polymorphic signature language.
+
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
 one-based Unicode-scalar columns). Types and indices have their containing

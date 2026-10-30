@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from check_boundaries import MATHLIB_REVISION, check_boundaries, lean_imports, module_allowed
+from check_boundaries import check_boundaries, lean_imports, module_allowed
 
 
 class ImportScannerTests(unittest.TestCase):
@@ -64,6 +64,7 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.write("lean-kernel/lean-toolchain", "leanprover/lean4:v4.35.0\n")
+        self.write("lean-kernel/lakefile.toml", 'name = "vastitas_kernel"\n')
         self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": []}))
         self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Init\n")
 
@@ -133,17 +134,159 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertTrue(any("native storage runtime must have no external" in error for error in errors))
 
     def test_root_and_oracle_toolchains_must_match_kernel(self):
+        self.oracle_package()
         self.write("lean-toolchain", "leanprover/lean4:v4.34.0\n")
         self.write("lean/lean-toolchain", "leanprover/lean4:v4.34.0\n")
-        self.write("lean/lake-manifest.json", json.dumps({"packages": [{"name": "mathlib", "rev": MATHLIB_REVISION}]}))
         errors = check_boundaries(self.root)
         self.assertTrue(any("root and kernel" in error for error in errors))
         self.assertTrue(any("kernel and oracle" in error for error in errors))
 
-    def test_oracle_revision_remains_pinned(self):
+    def oracle_package(self):
         self.write("lean/lean-toolchain", "leanprover/lean4:v4.35.0\n")
-        self.write("lean/lake-manifest.json", json.dumps({"packages": [{"name": "mathlib", "rev": "wrong"}]}))
-        self.assertIn("oracle mathlib must be pinned to the v4.35.0 commit", check_boundaries(self.root))
+        self.write("lean/lakefile.toml", '''name = "vastitas_oracle"
+[[require]]
+name = "vastitas_kernel"
+path = "../lean-kernel"
+''')
+        self.write("lean/lake-manifest.json", json.dumps({"packages": [{
+            "type": "path", "scope": "", "name": "vastitas_kernel",
+            "manifestFile": "lake-manifest.json", "inherited": False,
+            "dir": "../lean-kernel", "copy": False, "configFile": "lakefile.toml",
+        }]}))
+        self.write("lean/VastitasOracle.lean", "import VastitasOracle.Core\n")
+        self.write("lean/VastitasOracle/Core.lean", "import VastitasKernel.Runtime\nimport Init.Data.Rat.Lemmas\n")
+
+    def assert_boundary_error(self, expected):
+        errors = check_boundaries(self.root)
+        self.assertTrue(any(expected in error for error in errors), errors)
+
+    def test_oracle_uses_only_core_and_actual_local_kernel(self):
+        self.oracle_package()
+        self.write("lean/VastitasOracle/Promotion.lean", "import VastitasPromotion.Fixture\nimport Std\nimport Lean\n")
+        self.assertEqual(check_boundaries(self.root), [])
+
+    def test_oracle_imports_use_the_existing_header_scanner(self):
+        self.oracle_package()
+        for source in [
+            "import Mathlib\n",
+            "import Std Mathlib.Data.Rat.Defs\n",
+            "module\npublic /- nested /- comment -/ -/ meta import all «Mathlib».Data.List.Sort\n",
+            "import Std import Mathlib\n",
+            "import VastitasBridge\n",
+            "import VastitasOracleExtra\n",
+        ]:
+            with self.subTest(source=source):
+                self.write("lean/VastitasOracle/Core.lean", source)
+                self.assert_boundary_error("forbidden import")
+
+    def test_oracle_comments_and_strings_are_not_dependencies(self):
+        self.oracle_package()
+        self.write("lean/VastitasOracle/Core.lean", '''/- import Mathlib /- nested -/ -/
+import Init
+-- import Mathlib
+def description := "import Mathlib"
+''')
+        self.assertEqual(check_boundaries(self.root), [])
+
+    def test_oracle_malformed_import_fails_closed(self):
+        self.oracle_package()
+        self.write("lean/VastitasOracle/Core.lean", "import /- unterminated")
+        self.assert_boundary_error("unterminated block comment")
+
+    def test_transitive_import_through_oracle_helper_is_rejected(self):
+        self.oracle_package()
+        self.write("lean/VastitasOracle/Core.lean", "import VastitasOracle.Helper\n")
+        self.write("lean/VastitasOracle/Helper.lean", "import Mathlib.Data.Rat.Defs\n")
+        self.assert_boundary_error("lean/VastitasOracle/Helper.lean: forbidden import Mathlib")
+
+    def test_transitive_import_through_kernel_is_rejected(self):
+        self.oracle_package()
+        self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Mathlib\n")
+        self.assert_boundary_error("lean-kernel/VastitasKernel/Runtime.lean: forbidden import Mathlib")
+
+    def test_direct_and_inherited_lake_dependencies_are_rejected(self):
+        self.oracle_package()
+        path = self.root / "lean/lake-manifest.json"
+        original = path.read_text()
+        for inherited in [False, True]:
+            for name in ["mathlib", "innocent_wrapper", "batteries"]:
+                with self.subTest(inherited=inherited, name=name):
+                    manifest = json.loads(original)
+                    manifest["packages"].append({
+                        "name": name, "type": "git", "inherited": inherited,
+                        "url": "https://github.com/leanprover-community/mathlib4.git",
+                    })
+                    path.write_text(json.dumps(manifest))
+                    self.assert_boundary_error("complete manifest, including transitive dependencies")
+
+    def test_renamed_or_redirected_kernel_dependency_is_rejected(self):
+        self.oracle_package()
+        path = self.root / "lean/lake-manifest.json"
+        original = path.read_text()
+        for changes in [
+            {"type": "git", "url": "https://github.com/leanprover-community/mathlib4.git"},
+            {"dir": "../lean-bridge"}, {"name": "mathlib"},
+            {"configFile": "lakefile.lean"}, {"manifestFile": "unchecked.json"},
+            {"inherited": True},
+        ]:
+            with self.subTest(changes=changes):
+                manifest = json.loads(original)
+                manifest["packages"][0].update(changes)
+                path.write_text(json.dumps(manifest))
+                self.assert_boundary_error("only the local ../lean-kernel")
+
+    def test_stale_lock_does_not_hide_new_direct_or_transitive_require(self):
+        self.oracle_package()
+        for directory in ["lean", "lean-kernel"]:
+            with self.subTest(directory=directory):
+                path = self.root / directory / "lakefile.toml"
+                original = path.read_text()
+                path.write_text(original + '''\n[[require]]
+name = "mathlib"
+git = "https://github.com/leanprover-community/mathlib4.git"
+rev = "v4.35.0"
+''')
+                self.assert_boundary_error("(lakefile.toml)")
+                path.write_text(original)
+
+    def test_kernel_transitive_lock_is_checked_independently_of_oracle_lock(self):
+        self.oracle_package()
+        self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": [
+            {"name": "mathlib", "inherited": True},
+        ]}))
+        self.assert_boundary_error("lean-kernel must have no external Lake")
+
+    def test_executable_lake_config_cannot_bypass_declarative_boundary(self):
+        self.oracle_package()
+        for directory in ["lean", "lean-kernel"]:
+            with self.subTest(directory=directory):
+                self.write(f"{directory}/lakefile.lean", "import Lake\n")
+                self.assert_boundary_error("executable lakefile.lean is not allowed")
+                (self.root / directory / "lakefile.lean").unlink()
+
+    def test_missing_malformed_or_incomplete_locks_fail_closed(self):
+        self.oracle_package()
+        for directory in ["lean", "lean-kernel"]:
+            path = self.root / directory / "lake-manifest.json"
+            original = path.read_text()
+            for text in ["{", "{}", "[]", '{"packages": null}']:
+                with self.subTest(directory=directory, text=text):
+                    path.write_text(text)
+                    self.assertTrue(check_boundaries(self.root))
+            path.unlink()
+            self.assert_boundary_error("cannot check Lake dependencies")
+            path.write_text(original)
+
+    def test_missing_or_malformed_lake_configs_fail_closed(self):
+        self.oracle_package()
+        for directory in ["lean", "lean-kernel"]:
+            path = self.root / directory / "lakefile.toml"
+            original = path.read_text()
+            path.write_text("[[require]")
+            self.assert_boundary_error("cannot check Lake dependencies")
+            path.unlink()
+            self.assert_boundary_error("cannot check Lake dependencies")
+            path.write_text(original)
 
 
 if __name__ == "__main__":

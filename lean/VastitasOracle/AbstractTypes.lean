@@ -1,6 +1,6 @@
 import VastitasKernel.Abstract
 import VastitasOracle.DispatchLowering
-import Mathlib.Data.List.Sort
+import Init.Data.List.Sort.Lemmas
 
 /-! The actual finite hierarchy construction and the evidence retained by its
 validator. No geometry, inhabitants beyond the four scalars, or value coercions
@@ -24,9 +24,20 @@ theorem canonical_names_permutation (left right : List RawAbstractType)
     (permutation : left.Perm right) : canonicalNames left = canonicalNames right := by
   unfold canonicalNames
   congr 1
-  exact ((List.mergeSort_perm _ _).trans ((permutation.map (·.name)).trans
-    (List.mergeSort_perm _ _).symm)).eq_of_pairwise'
-    (List.pairwise_mergeSort' (· ≤ ·) _) (List.pairwise_mergeSort' (· ≤ ·) _)
+  have sorted (names : List String) :
+      (names.mergeSort (· ≤ ·)).Pairwise (fun a b => a ≤ b) := by
+    simpa only [decide_eq_true_eq] using
+      (List.pairwise_mergeSort (le := fun a b : String => decide (a ≤ b))
+        (fun a b c ab bc => by
+          have ab' : a ≤ b := by simpa using ab
+          have bc' : b ≤ c := by simpa using bc
+          simpa using Std.le_trans ab' bc')
+        (fun a b => by simpa using Std.le_total a b) names)
+  apply List.Perm.eq_of_pairwise (le := fun a b : String => a ≤ b)
+    (fun _ _ _ _ ab ba => Std.le_antisymm ab ba)
+    (sorted _) (sorted _)
+  exact (List.mergeSort_perm _ _).trans ((permutation.map (·.name)).trans
+    (List.mergeSort_perm _ _).symm)
 
 theorem hierarchy_edges_permutation (names : List String) (left right : List (Nat × Nat))
     (permutation : left.Perm right) : hierarchy names left = hierarchy names right := by

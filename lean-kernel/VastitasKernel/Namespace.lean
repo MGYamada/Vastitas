@@ -7,7 +7,7 @@ namespace VastitasKernel.Namespace
 
 inductive Kind where
   | module | function | generic | abstractType | grant | contribution | delegation | transfer
-  | indexedDeclaration
+  | indexedDeclaration | resourceFunction
   deriving Repr, Inhabited, DecidableEq, BEq
 
 structure Target where
@@ -25,6 +25,14 @@ structure Import where
 
 structure Function extends Surface.Function where
   isPublic : Bool
+  deriving Repr, Inhabited
+
+/-- A resource declaration contributes a name, never a fabricated pure body.
+The combined source checker must separately accept its actual resource body. -/
+structure ResourceHeader where
+  name : String
+  isPublic : Bool
+  span : Span
   deriving Repr, Inhabited
 
 structure Generic extends RawGeneric where
@@ -100,6 +108,7 @@ structure Module where
   transfers : List Transfer := []
   contributions : List Contribution := []
   assembly : Option Assembly := none
+  resourceFunctions : List ResourceHeader := []
   span : Span
   deriving Repr, Inhabited
 
@@ -130,6 +139,7 @@ def Program.declarations (p : Program) : List Target :=
   p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     let scope : Scope := ⟨pkg.id, m.path⟩
     (m.functions.map fun f => ⟨⟨scope, f.name⟩, .function, f.isPublic⟩) ++
+    (m.resourceFunctions.map fun f => ⟨⟨scope, f.name⟩, .resourceFunction, f.isPublic⟩) ++
     (m.generics.map fun g => ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩) ++
     (m.abstractTypes.map fun t => ⟨⟨scope, t.name⟩, .abstractType, t.isPublic⟩) ++
     (m.grants.map fun g => ⟨⟨scope, g.name⟩, .grant, g.isPublic⟩) ++

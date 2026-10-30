@@ -1,10 +1,11 @@
 # Internal storage resource IR
 
 This is an internal foundation for [#183](https://github.com/MGYamada/Vastitas/issues/183),
-implementing part of the [Chapter 7 contract](storage-ownership.md). It is not
-public protocol 8 or `.vast` storage syntax. The exact checked component can now
+implementing part of the [Chapter 7 contract](storage-ownership.md). Its raw component envelope is not
+a public protocol. [Protocol 8](resource-source.md) composes it with independently
+checked package resource source. The exact checked component can now
 produce standalone native buffer executables through the optional runtime below.
-Public/source composition, numerical consumers and measured C performance remain in the
+General dynamic source composition, numerical consumers and measured C performance remain in the
 [Stage 1 completion gate](stage1-completion.md).
 
 ## Input and acceptance
@@ -26,7 +27,7 @@ closed-resource equations. `Wire.CheckedInput` additionally records the decoder
 and checker equations. Neither certificate is a public wire input. Protocols
 2–7 do not execute this component; protocol 2 explicitly rejects the reserved
 top-level `resources` field while retaining unrelated legacy hint compatibility.
-Protocol 8 remains unsupported.
+Protocol 8 reconstructs named resource source through the combined package checker.
 
 There is a 4096-node global plan budget as well as a 4096 traversal-depth bound.
 Both arms consume the node budget. Every allocation's initialization metadata
@@ -56,8 +57,8 @@ allocations in different branches get different identities and must be dropped
 within the branch under this initial closed-plan profile. The
 [internal function component](storage-functions.md) additionally checks owned
 arguments/results and call-scoped borrowed arguments with caller-owned output
-reuse. Public function composition and escaping-loan lifetime contracts remain
-pending.
+reuse. The public static function profile is described in [resource source](resource-source.md);
+dynamic value flow and escaping-loan lifetime contracts remain pending.
 
 Write-only access never reads, and cannot gain read authority by creating a
 child loan. An initialized region can instead be reborrowed through an owner

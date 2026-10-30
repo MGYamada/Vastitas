@@ -1,5 +1,6 @@
 import VastitasKernel.LegacySource
 import VastitasKernel.IndexedRuntime
+import VastitasKernel.ResourceProtocol
 
 open VastitasKernel
 
@@ -10,6 +11,16 @@ private def process (mode input : String) : Lean.Json := Id.run do
   | .ok json =>
     let requested := (json.getObjValAs? Nat "version").toOption
     let version := requested.getD 2
+    if version == 8 then
+      match ResourceSource.Wire.check json (mode == "emit") with
+      | .error diagnostic => return failureJson diagnostic version
+      | .ok accepted =>
+        if mode == "emit" then
+          match ResourceSource.Codegen.generate accepted.input with
+          | .error diagnostic => return failureJson diagnostic version
+          | .ok generated =>
+            return (successJson (some generated.source) version).setObjVal! "storage_runtime" (Lean.toJson generated.storageRuntime)
+        else return successJson none version
     if version == 7 then
       if mode == "emit" then
         match Indexed.Wire.check json true with

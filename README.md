@@ -38,8 +38,12 @@ loans, initialization and layouts with byte-region proofs. Its exact checked
 schedule can generate native real/complex buffer operations with failure cleanup
 and allocation/copy counters. [Internal resource functions](docs/storage-functions.md)
 check owned arguments/results and borrowed destinations against actual caller
-resources. Public storage syntax, protocol 8, numerical
-consumers and measured C performance are still pending.
+resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
+static storage schedules and pure return expressions to package source and native
+execution. Dynamic shapes/value flow, numerical consumers and measured C
+performance are still pending.
+An [optional internal GEMM adapter](docs/numerical-adapter.md) tests pinned
+OpenBLAS against actual native storage; its typed source integration is pending.
 
 ## Build and use
 

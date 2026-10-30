@@ -137,6 +137,7 @@ def decodeSurfaceModule (j : Json) : Except String Surface.Program := do
     for key in ["grants", "contributions", "assembly", "delegations", "transfers", "packages", "root", "indexed_declarations", "geometry_compat"] do
       if (j.getObjVal? key).isOk then throw "package and authority declarations require their package protocol"
     if (j.getObjVal? "resources").isOk then throw "resource plans are not supported by protocol 2"
+    if (j.getObjVal? "resource_functions").isOk then throw "resource functions require package protocol 8"
   let abstractTypes ← (← optionalArray j "abstract_types").mapM fun t => do
     fields t ["name", "parents", "span"]
     decodeAbstractType t

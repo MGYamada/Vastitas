@@ -16,6 +16,7 @@ pub(crate) const PROTOCOL: u32 = 3;
 pub(crate) const EDIT_PROTOCOL: u32 = 5;
 pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
 pub(crate) const INDEXED_PROTOCOL: u32 = 7;
+pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Grant {
@@ -106,6 +107,8 @@ pub(crate) struct Module {
     pub public: bool,
     pub imports: Vec<Import>,
     pub functions: Vec<Public<Function>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub resource_functions: Vec<Public<crate::storage::source::Function>>,
     pub generics: Vec<Public<Generic>>,
     pub methods: Vec<Method>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -474,7 +477,14 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         .any(|m| m.uses_indexed)
         || loader.packages.iter().any(|p| p.geometry_compat.is_some());
     let program = Program {
-        version: if indexed {
+        version: if loader
+            .packages
+            .iter()
+            .flat_map(|p| &p.modules)
+            .any(|m| !m.resource_functions.is_empty())
+        {
+            RESOURCE_PROTOCOL
+        } else if indexed {
             INDEXED_PROTOCOL
         } else if authority {
             AUTHORITY_PROTOCOL
@@ -485,7 +495,15 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         } else {
             PROTOCOL
         },
-        input: (indexed || extended || editable).then(|| "package".into()),
+        input: (indexed
+            || extended
+            || editable
+            || loader
+                .packages
+                .iter()
+                .flat_map(|p| &p.modules)
+                .any(|m| !m.resource_functions.is_empty()))
+        .then(|| "package".into()),
         file: root.clone(),
         root,
         packages: loader.packages,

@@ -1,4 +1,4 @@
-//! Shared untrusted component schema; public protocol 8 is deliberately pending.
+//! Shared untrusted component schemas are not alternative public envelopes.
 mod common;
 use serde_json::{Value, json};
 use vastitas::storage::{Action, Literal, Plan, Statement};

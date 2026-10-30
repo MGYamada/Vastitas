@@ -140,7 +140,7 @@ def _decision(expectation, result):
         if backend["state"] != "completed" or backend["exit_code"] != 1:
             return "failed", "backend_termination_mismatch"
         version = backend["request_version"]
-        if version not in range(2, 8):
+        if version not in range(2, 9):
             return "failed", "unsupported_protocol"
         response = backend["response"]
         _fields(response, "version ok diagnostics")

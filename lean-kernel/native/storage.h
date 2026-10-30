@@ -17,8 +17,23 @@ typedef struct {
 } VStorageStats;
 typedef enum {
     VS_OK, VS_ALLOCATION, VS_HANDLE, VS_SCALAR, VS_LAYOUT, VS_OVERFLOW,
-    VS_BOUNDS, VS_ALIAS, VS_EXPECT
+    VS_BOUNDS, VS_ALIAS, VS_EXPECT, VS_ABI, VS_SHAPE, VS_OPERATION
 } VStorageStatus;
+
+/* Internal synchronous-backend access. Only the arena creates these ephemeral
+ * descriptors. They must not outlive this operation or an intervening drop.
+ * Logical loan rights and initialization remain the checked caller's duty. */
+typedef struct {
+    double *data;
+    uint64_t start, end, rows, columns, leading, bytes;
+    uint32_t allocation;
+    uint8_t scalar, transposed;
+} VStorageDense;
+
+VStorageStatus vstorage_prepare_dense(VStorageArena *arena, uint32_t id,
+                                     VStorageLayout view, VStorageDense *out);
+VStorageStatus vstorage_prepare_write(VStorageArena *arena, uint64_t bytes);
+void vstorage_record_write(VStorageArena *arena, uint64_t bytes);
 
 VStorageArena *vstorage_new(uint64_t byte_budget);
 void vstorage_close(VStorageArena *arena);

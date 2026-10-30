@@ -1,9 +1,10 @@
 # Internal affine resource functions
 
 This is the function component of [storage ownership](storage-ir.md), advancing
-[#183](https://github.com/MGYamada/Vastitas/issues/183). It is not `.vast` syntax,
-public protocol 8 or a replacement for package/Fn/dispatch/edit checks. Public
-composition remains required by the [Stage 1 gate](stage1-completion.md).
+[#183](https://github.com/MGYamada/Vastitas/issues/183). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
+checks. [Protocol 8 resource source](resource-source.md) composes this component
+with the complete package checker. Dynamic value flow remains required by the
+[Stage 1 gate](stage1-completion.md).
 
 ## Contracts and calls
 
@@ -87,8 +88,8 @@ initialization, escape, capture, recursion and expansion limits.
 Calls currently expand synchronously with static shapes and capacities. Public
 namespace and nominal tensor types, pure-Core/resource interoperation, runtime
 dimensions/conditions, general owned-result branch joins and escaping-loan
-lifetime contracts are not supplied by this component. Public storage composition,
-dynamic numerical operations, general scratch/dependency handling and equivalent-C
+lifetime contracts are not supplied by this component. General dynamic source composition,
+numerical operations, general scratch/dependency handling and equivalent-C
 measurements remain in Stage 1. Independent compilation caching and broader
 lifetime extensions retain their separate scope.
 

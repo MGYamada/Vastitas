@@ -186,3 +186,121 @@ pub mod functions {
         pub entry: u32,
     }
 }
+
+/// Unresolved package resource source. Owners, local symbols and call targets
+/// are assigned independently by Lean, alongside the ordinary package checker.
+pub mod source {
+    use super::{Access, Layout, Literal, Scalar, functions::OwnedType};
+    use crate::ir::{Block, Span, Type};
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Parameter {
+        Owned {
+            name: String,
+            #[serde(rename = "type")]
+            ty: OwnedType,
+            span: Span,
+        },
+        Borrowed {
+            name: String,
+            scalar: Scalar,
+            rows: u64,
+            columns: u64,
+            access: Access,
+            initializes: bool,
+            span: Span,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Result {
+        pub name: String,
+        #[serde(rename = "type")]
+        pub ty: OwnedType,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Action {
+        Allocate {
+            owner: String,
+            scalar: Scalar,
+            elements: u64,
+        },
+        Move {
+            source: String,
+            target: String,
+        },
+        Drop {
+            owner: String,
+        },
+        Borrow {
+            name: String,
+            source: String,
+            layout: Layout,
+            access: Access,
+        },
+        Release {
+            loan: String,
+        },
+        Transpose {
+            loan: String,
+        },
+        Fill {
+            loan: String,
+            value: Literal,
+        },
+        Store {
+            loan: String,
+            row: u64,
+            column: u64,
+            value: Literal,
+        },
+        Expect {
+            loan: String,
+            row: u64,
+            column: u64,
+            value: Literal,
+        },
+        Copy {
+            source: String,
+            target: String,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Statement {
+        Action {
+            action: Action,
+            span: Span,
+        },
+        Call {
+            callee: String,
+            arguments: Vec<String>,
+            results: Vec<String>,
+            span: Span,
+        },
+        Branch {
+            condition: bool,
+            yes: Vec<Statement>,
+            no: Vec<Statement>,
+            span: Span,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Function {
+        pub name: String,
+        pub parameters: Vec<Parameter>,
+        pub results: Vec<Result>,
+        pub body: Vec<Statement>,
+        pub value_type: Type,
+        pub value_body: Block,
+        pub span: Span,
+    }
+}

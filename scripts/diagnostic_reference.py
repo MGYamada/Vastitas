@@ -288,7 +288,7 @@ def from_kernel_response(response, expected_version):
     All diagnostics/notes survive; successful responses cannot become failures.
     """
     _fields(response, "version ok diagnostics")
-    _require(type(expected_version) is int and expected_version in range(2, 8),
+    _require(type(expected_version) is int and expected_version in range(2, 9),
              "unsupported expected wire version")
     _require(type(response["version"]) is int and response["version"] == expected_version,
              "wire version mismatch")

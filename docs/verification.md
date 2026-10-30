@@ -214,16 +214,21 @@ empty logical environment. `StorageCodegen` proves that successful native-plan
 lowering follows those actual transitions, has unique instructions for the same
 input, and requires the rechecked schedule before returning code. The optional
 native runtime has sanitizer and generated-executable regression evidence for
-real/complex buffers, output preservation and failure cleanup. These results do
-not yet compose with public protocol 8 or source functions, and they do not
-extend pure-Core totality to mutable storage. Actual memory initialization,
+real/complex buffers, output preservation and failure cleanup. These results now compose with the initial static protocol-8 source profile;
+they do not extend pure-Core totality to mutable storage. Actual memory initialization,
 allocator liveness, native cleanup and native refinement are not proved; C
 performance comparisons remain pending. The [internal resource function component](storage-functions.md)
 adds actual call-slice replay, restored caller loans, unique live owned results
 with declared initialized bytes, and checked probes for every source body.
 Probes are separate from executable expansion and do not prove a universal
-parametric contract; actual calls are independently checked again. The component
-still does not expose public source functions or change pure-Core semantics.
+parametric contract; actual calls are independently checked again. The raw component does not change pure-Core semantics.
+[Protocol 8 resource source](resource-source.md) composes the actual authority/Fn/dispatch
+checker, independently resolved resource calls, every resource-body probe and exact
+entry schedule. `VastitasOracle.ResourceSource` proves complete resource identities,
+actual call provenance, original authority trace, typed totality of its returned
+pure Core and closed logical entry resources. The public decoder/checker equations
+refer to that same input. Dynamic shapes/value flow and native/source refinement
+remain separate obligations.
 
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in

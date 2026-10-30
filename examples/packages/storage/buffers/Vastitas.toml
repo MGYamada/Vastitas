@@ -1,0 +1,4 @@
+[package]
+name = "storage_buffers"
+version = "0.1.0"
+root = "src/lib.vast"

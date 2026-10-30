@@ -169,6 +169,7 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
   p.packages.flatMap fun pkg => pkg.modules.flatMap fun m =>
     let scope : Scope := ⟨pkg.id, m.path⟩
     (m.functions.map fun f => (⟨scope, f.name⟩, f.span)) ++
+    (m.resourceFunctions.map fun f => (⟨scope, f.name⟩, f.span)) ++
     (m.generics.map fun g => (⟨scope, g.name⟩, g.span)) ++
     (m.abstractTypes.map fun t => (⟨scope, t.name⟩, t.span)) ++
     (m.grants.map fun g => (⟨scope, g.name⟩, g.span)) ++

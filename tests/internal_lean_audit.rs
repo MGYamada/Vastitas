@@ -5,7 +5,7 @@ use std::process::{Command, Output};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn fixture() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/lean_audit/proj_from_prop.ndjson")
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/lean_audit/id_prop.ndjson")
 }
 
 fn run_audit(path: &Path) -> Output {
@@ -56,16 +56,16 @@ fn checked_export_returns_internal_only_receipt() {
 
 #[test]
 fn invalid_proof_term_is_rejected_without_crashing_the_parent() {
-    // Change an actual definition's lambda to a constant of the wrong type.
-    let original = include_str!("fixtures/lean_audit/proj_from_prop.ndjson");
-    let modified = original.replacen(r#""type":37,"value":45}}"#, r#""type":37,"value":38}}"#, 1);
+    // Replace the identity proof lambda with Prop itself (a wrong type).
+    let original = include_str!("fixtures/lean_audit/id_prop.ndjson");
+    let modified = original.replacen(r#""type":4,"value":6}}"#, r#""type":4,"value":0}}"#, 1);
     assert_ne!(original, modified);
     rejected(&temporary_export(&modified).1);
 }
 
 #[test]
 fn undeclared_axiom_is_a_hard_error_even_if_unused() {
-    let original = include_str!("fixtures/lean_audit/proj_from_prop.ndjson");
+    let original = include_str!("fixtures/lean_audit/id_prop.ndjson");
     let header = original.lines().next().unwrap();
     let input = [
         header,
@@ -81,7 +81,7 @@ fn undeclared_axiom_is_a_hard_error_even_if_unused() {
 #[test]
 fn malformed_and_empty_exports_are_rejected() {
     rejected(&temporary_export("not-json\n").1);
-    let original = include_str!("fixtures/lean_audit/proj_from_prop.ndjson");
+    let original = include_str!("fixtures/lean_audit/id_prop.ndjson");
     rejected(&temporary_export(original.lines().next().unwrap()).1);
 }
 

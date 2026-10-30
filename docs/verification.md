@@ -218,9 +218,9 @@ even when the intended theorem does not use those axioms; prepare an
 appropriately scoped export instead of silently weakening the policy.
 
 nanoda_lib 0.4.31 is pinned by Git revision in Cargo and accepts the
-`lean4export` 3.1.x format. The included regression fixture was exported
-by Lean 4.27.0-rc1; the compiler and official proof projects remain pinned
-to Lean 4.35.0. Building and invoking `audit-lean` does not require
+`lean4export` 3.1.x format. The included minimal theorem fixture is hand-assembled from documented
+format 3.1.0 nodes (with illustrative historical metadata); the compiler
+and official proof projects remain pinned to Lean 4.35.0. Building and invoking `audit-lean` does not require
 the `lean/` Mathlib oracle project. Because nanoda's parser/checker may
 panic or exit on malformed or rejected exports, the driver supervises a
 separate worker and converts such outcomes into audit errors.

@@ -208,6 +208,13 @@ fn immutable_repeated_occurrences_and_empty_rank_two_trees_are_supported() {
         assert_eq!(code.matches("VastitasGemmNative.gemm arena").count(), 4);
         assert!(!code.contains("pack3 arena") && !code.contains("regroup3 arena"));
     }
+    let s = fixture(&balanced_chain(false), &balanced_chain(true));
+    success(&command(&s, "check").output().unwrap());
+    let emitted = kernel(captured(&s), "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    let code = emitted["lean_source"].as_str().unwrap();
+    assert_eq!(code.matches("VastitasGemmNative.gemm arena").count(), 6);
+    assert_eq!(code.matches("allocate arena").count(), 8);
 }
 
 #[test]
@@ -234,6 +241,33 @@ fn unused_tree_bodies_are_audited_without_linking_the_numerical_runtime() {
         &REAL.replace("(ew, ta, b, c)", "(ev, ta, b, c)"),
     );
     assert!(!command(&s, "check").output().unwrap().status.success());
+}
+
+// Both intermediates are independently produced before their final join.
+fn balanced_chain(complex: bool) -> String {
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let width = if complex { 16 } else { 8 };
+    let source=repeated_chain(complex,2)
+        .replace(&format!("allocate result: {scalar}[8];"),&format!("allocate result: {scalar}[8]; allocate second: {scalar}[8];"))
+        .replace("occurrence c = t;","occurrence c = t; occurrence d = t;")
+        .replace("boundary(a[0],c[1]);","edge cd = (c[1],d[0]); boundary(a[0],d[1]);")
+        .replace("rebind(ab,read_middle);",&format!("rebind(ab,read_middle);
+            borrow second_write = write(second,layout({width},2,2,3,false)); tensor second_view = view2(second_write,bv,bvd);
+            join cd = (cd,c,d,second_view); release(second_write);
+            borrow second_read = read(second,layout({width},2,2,3,false)); tensor second_input = view2(second_read,bv,bvd); rebind(cd,second_input);"))
+        .replace("join done = (bc,ab,c,c);","join done = (bc,ab,cd,c); release(second_read);")
+        .replace("drop(result);","drop(second); drop(result);");
+    if complex {
+        source.replace(
+            &format!("complex_bits(0, {})", (-4.0_f64).to_bits()),
+            &format!("complex_bits({}, 0)", 8.0_f64.to_bits()),
+        )
+    } else {
+        source.replace(
+            &format!("f64_bits({})", 4.0_f64.to_bits()),
+            &format!("f64_bits({})", 8.0_f64.to_bits()),
+        )
+    }
 }
 
 fn oriented_pair(
@@ -785,6 +819,7 @@ fn tree_native_executes_multiedge_branching_and_written_operand_order() {
         (repeated_chain(false, 2), repeated_chain(true, 2)),
         (repeated_chain(false, 3), repeated_chain(true, 3)),
     ];
+    cases.push((balanced_chain(false), balanced_chain(true)));
     for tensor_axis in 0..3 {
         for matrix_axis in 0..2 {
             for tensor_left in [false, true] {

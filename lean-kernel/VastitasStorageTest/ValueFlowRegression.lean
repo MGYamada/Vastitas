@@ -55,6 +55,14 @@ private def fixture : ResourceSource.Program := changeMain fun f => {f with
   let .ok generated := ResourceSource.Codegen.generate fixture
     | throw (IO.userError "mixed code generation rejected")
   require "runtime condition rendered from actual slot" ((generated.source.splitOn "if resourceValue_").length > 1)
+  require "terminal checked Core call displayed once"
+    ((generated.source.splitOn "    IO.println (VastitasGenerated.").length == 2 &&
+     !(generated.source.splitOn "    IO.println resourceValue_").length > 1)
+  let .ok staticGenerated := ResourceSource.Codegen.generate ResourceSource.Regression.fixture
+    | throw (IO.userError "legacy static resource code generation rejected")
+  require "legacy static resource envelope has no scalar lets"
+    ((staticGenerated.source.splitOn "let resourceValue_").length == 1 &&
+     (staticGenerated.source.splitOn "    IO.println (VastitasGenerated.").length == 2)
   let raw : Functions.Program := ⟨source.lowered.functions, entry⟩
   for (name, mutate) in [
     ("forged return fragment", fun (f : Functions.Function) => {f with valueResult := some (999999, arguments, .int)}),

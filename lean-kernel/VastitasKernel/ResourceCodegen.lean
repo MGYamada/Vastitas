@@ -68,7 +68,7 @@ def generate (program : Program) : Except Diagnostic Generated := do
     let source ← (Core.Codegen.generate core).mapError fun message => {code := "E_CODEGEN", message}
     return ⟨source, false, false⟩
   | some id =>
-    let _ ← entryValue checked id
+    let entryTarget ← entryValue checked id
     let execution := checked.execution id entry
     let _ ← (ValueFlow.check checked.targets.signatures [] execution.checked.context.flow.toList).mapError fun problem =>
       {code := problem.code, message := problem.message}
@@ -80,17 +80,30 @@ def generate (program : Program) : Except Diagnostic Generated := do
       {code := "E_CODEGEN", message}
     let plan ← (Native.compile execution.checked.statements).mapError fun problem =>
       {code := problem.code, message := problem.message}
-    let (finalState, instructions, operations) ← mixed checked.targets.entries 4096 4 {} execution.checked.context.flow.toList
-    unless finalState == execution.checked.resources.finalState && instructions == plan.instructions do
-      error "mixed emission differs from the independently checked resource plan"
     let some (result, type) := execution.checked.context.returnedValue | error "entry result slot is absent"
     unless type == .int && ValueFlow.type? execution.checked.values.finalState.slots result == some .int do
       error "entry result slot is not an available Int"
+    -- Inline only the last checked value call into printing. This keeps the
+    -- established straight-line resource envelope while evaluating the exact
+    -- entry result once, after all resource operations have completed.
+    let flow := execution.checked.context.flow.toList
+    let some (.value terminal fragment arguments) := flow.getLast?
+      | error "entry result is not the terminal mixed operation"
+    let some function := checked.lowered.functions[id]? | error "missing resource entry"
+    let some (entryFragment, _, _) := function.valueResult | error "missing entry return fragment"
+    let some target := checked.targets.entries[fragment]? | error "missing terminal Core target"
+    unless terminal == result && fragment == entryFragment && target.function == entryTarget do
+      error "terminal mixed call differs from the checked entry result"
+    let (finalState, instructions, operations) ← mixed checked.targets.entries 4096 4 {} flow.dropLast
+    unless finalState == execution.checked.resources.finalState && instructions == plan.instructions do
+      error "mixed emission differs from the independently checked resource plan"
+    let resultCall := Core.Codegen.functionReference target.function ++
+      String.join (arguments.map fun argument => " " ++ slotName argument)
     let numericalImport := if plan.needsNumerical then "import VastitasGemmNative\n" else ""
     let source := "import VastitasStorageNative\n" ++ numericalImport ++ pureSource ++
       "\nopen VastitasStorageNative\n\ndef main : IO Unit := do\n" ++
       s!"  let arena ← newArena {Storage.byteLimit}\n  try\n" ++ operations ++
-      s!"    IO.println {slotName result}\n  finally\n    close arena\n"
+      s!"    IO.println ({resultCall})\n  finally\n    close arena\n"
     return ⟨source, true, plan.needsNumerical⟩
 
 end VastitasKernel.ResourceSource.Codegen

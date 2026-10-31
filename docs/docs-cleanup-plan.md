@@ -6,7 +6,7 @@ Status: plan, with English-language preparation completed before Stage 1 at the
 user's request. Book reorganization, mdBook installation, and site publication remain
 after the Stage 1 completion record; none is claimed complete here.
 
-Created: 27 October 2026 (JST). Updated: 29 October 2026 (JST). The inventory now uses
+Created: 27 October 2026 (JST). Updated: 31 October 2026 (JST). The inventory uses
 PR #234's merge `4de22b4` and the documentation in this revision as its baseline.
 The [README](../README.md), [Stage 1 completion ledger](stage1-completion.md), tests,
 and validation records remain the implementation sources of truth. Repeat the
@@ -20,8 +20,11 @@ scope or formal-verification claims.
 
 The public implementation includes Stage 1b, path packages / call-only module
 imports, finite abstract selectors/contracts, edit assemblies, protocol-6
-reborrowing and authority transfer, and protocol-7 indexed declarations with the
-finite geometry stdlib. This is not completion of the entire historical Stage 1.
+reborrowing and authority transfer, protocol-7 indexed declarations with the
+finite geometry stdlib, and protocol-8 static resource functions and numerical
+operations. The [numerical guide](numerical-values.md) records the implemented
+GEMM, typed transform, vector evaluation and finite two-map network profiles.
+This is not completion of the entire historical Stage 1.
 [Stage 1 in v0.3](design/roadmap-acceptance.md#14-initial-implementation-sequence)
 includes independent lambdas and finite dispatch, function edit authority,
 composition of declarative differences, footprints, obligation transfer and repair,
@@ -105,8 +108,9 @@ Pay particular attention to:
 - Reconciling “future” / “unimplemented” wording and roadmap tense with the
   implementation at the completion baseline.
 - Cross-checking all public protocols at completion, `--lib` / `--manifest-path`,
-  defining modules, and call authority. Do not confuse current protocols 2–7 with
-  planned protocol 8.
+  defining modules, and call authority. Distinguish implemented protocols 2–8,
+  protocol 8's static resource/numerical profile, and its remaining dynamic,
+  generative and higher-rank interfaces.
 - Preserving Rust acceptance versus Lean semantic acceptance, and the dependency
   boundary between the ordinary compiler and proof oracle.
 

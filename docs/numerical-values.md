@@ -6,6 +6,9 @@ exposes local space/basis/map constructors and bilinear GEMM inside resource
 functions. Rust sends unresolved profile paths and local names; Lean independently
 resolves them in the same namespace as the complete authority/Fn/dispatch checker.
 No checked declaration ID, allocation ID or numerical certificate is accepted.
+The [adapter responsibility map](numerical-adapter.md#responsibilities-along-the-implemented-path)
+distinguishes this public entry, actual Lean checks, checked native lowering and
+physical OpenBLAS execution.
 
 ## Public source and build
 
@@ -329,10 +332,12 @@ typing; no retained payload-dependent mathematical evidence is introduced.
 
 For `A : V → W` and `B : U → V`, the destination must represent `U → W`.
 The common middle object **and basis**, and both destination endpoints, must
-match exactly. The initial product is bilinear: no conjugation or metric is
-inserted. Explicit [dual/conjugate/adjoint operations](linear-transforms.md) are available;
-general metric realization remains separate work. The [two-map network profile](finite-networks.md)
-adds independent occurrence/port/edge/boundary checks before this same product path.
+match exactly. GEMM inserts no implicit conjugation or metric.
+[Explicit typed transforms](linear-transforms.md) can supply dual or conjugate
+maps, or adjoints for declared orthonormal metrics. Their checked views retain
+the resulting endpoints, bases and flags through GEMM. General metric realization
+remains separate work. The [two-map network profile](finite-networks.md) adds
+independent occurrence/port/edge/boundary checks before this same product path.
 
 `checkProduct` reconstructs the three actual views and validates their complete
 value provenance, declaration environment and live resource state. It then
@@ -371,7 +376,8 @@ The raw resource-GEMM rejection in `tests/resource_source.rs` preserves a valid
 statement span and checks the action-decoder diagnostic, so rejection cannot be
 satisfied by missing metadata before the GEMM boundary is reached.
 Both OS numerical CI jobs explicitly run the OpenBLAS-dependent
-tests for generated real/complex execution, nested numerical inputs, runtime assertion failure and output
+tests for generated real/complex execution, computed coefficients, nested numerical
+inputs, owned results, typed transforms, runtime assertion failure and output
 protection. Normal compiler CI runs the remaining tests without OpenBLAS.
 
 `VastitasOracle.StorageNumerical` proves profile validity, nominal endpoint and
@@ -394,7 +400,8 @@ The [typed transform compiler](linear-transforms.md) now retains dual/conjugate
 origins, corresponding bases and declared metric evidence through actual
 read reborrows and nested calls. [Vector evaluation](vector-evaluation.md) now
 connects bilinear dual and explicit orthonormal Hermitian pairing to scalar
-destinations through the same checked GEMM. General metric realization,
-generative numerical result packages, dynamic shape/scalar interfaces,
-finite tensor networks, dynamic dimensions, packing and end-to-end C
+destinations through the same checked GEMM. [Finite two-map networks](finite-networks.md)
+add checked occurrences and ports, an explicit bilinear edge and ordered boundaries.
+General metric realization, generative numerical result packages, dynamic
+shape/scalar interfaces, higher-rank or multi-edge networks, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).

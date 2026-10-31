@@ -387,6 +387,19 @@ native floating-point refinement. `TransformRegression` adds independent
 provenance/metric/loan/flag mutations; public source tests execute scalar and
 rectangular real/complex transforms, nested calls and owned materialized results.
 
+For [vector evaluation](vector-evaluation.md), `vector_space` and
+`vector_input_reborrow` retain actual profile/basis identity and the exact child
+borrow, including conjugation. `actual_vector_conjugation` connects the selected
+derived space/involution to the real resource transition. `actual_evaluation`
+connects the exact accepted dual or Hermitian request to its emitted schedule
+and successful replay; `dual_evaluation_types` and `hermitian_evaluation_form`
+recover the actual corresponding bases and explicit identity Gram form.
+`evaluation_preserves_interpretation` shows that the request inserts no extra
+conjugation, and `evaluation_returns_inputs_and_scalar` states restored input
+loans and initialized scalar output. The public origin theorems bind these
+receipts to the same accepted declaration environment. Native bit examples and
+forged-IR regressions are separate evidence, not ideal-module or float laws.
+
 Generative numerical result packages, dynamic shape/scalar interfaces, dual/metric laws
 and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native

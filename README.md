@@ -31,7 +31,7 @@ records primitive result compatibility and the broader source/native proof limit
 lambdas, function values and higher-order specialization. This is not completion
 of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.
-[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. Storage ownership and linear algebra remain pending in the [Stage 1 completion gate](docs/stage1-completion.md).
+[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. Storage ownership and linear algebra are in progress in the [Stage 1 completion gate](docs/stage1-completion.md).
 
 The [internal storage resource IR](docs/storage-ir.md) checks logical ownership,
 loans, initialization and layouts with byte-region proofs. Its exact checked
@@ -42,14 +42,16 @@ resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
 static storage schedules and pure return expressions to package source and native
 execution. Dynamic shapes/value flow and end-to-end C performance comparisons
 are still pending.
-An [optional internal GEMM path](docs/numerical-adapter.md) checks resource access,
-initialization and exact native lowering, then executes through pinned OpenBLAS.
+Public real/complex GEMM executes through an
+[optional internal adapter](docs/numerical-adapter.md), with checked resource access,
+initialization and exact native lowering before pinned OpenBLAS execution.
 [Numerical declaration profiles](docs/numerical-declarations.md) now independently
 check ideal real/complex coefficients and nominal scalar bases through protocol 8.
 The [protocol-8 numerical-value compiler](docs/numerical-values.md) checks local
 nominal spaces, bases and loan-backed map products through actual GEMM lowering.
-Public resource functions can use these operations; numerical builds require an
-explicit `--openblas-prefix`, while ordinary compilation and `check` need no BLAS.
+Public resource functions can use these operations. A native build requires an
+explicit `--openblas-prefix` only when its checked entry emits GEMM; `check` and
+entries without GEMM need no BLAS. Unused numerical bodies are still checked.
 Dependent numerical inputs now preserve caller spaces/bases and borrow actual
 map views under explicit static dimension contracts, including nested calls
 and caller-selected output destinations. Initialized `OwnedMap` inputs/results preserve
@@ -62,6 +64,9 @@ interfaces and networks remain pending.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.
 This does not add general floating values to pure Core or dynamic shape contracts.
+The actual-checker proofs and native regressions do not establish floating-point
+field laws, certified error bounds, source/native refinement or C/C++ performance
+parity; see the [layer responsibilities and proof boundary](docs/numerical-adapter.md#responsibilities-along-the-implemented-path).
 
 ## Build and use
 

@@ -339,3 +339,9 @@ Third-party dependencies and toolchain components retain their own licenses
 and notices. Redistributing them requires preserving their applicable license
 texts and attribution notices; this repository's license does not replace
 those terms.
+
+The [finite rank-three tensor profile](docs/tensor-packing.md) adds explicit
+caller-destination packing and one typed rank-three/rank-two contraction to
+protocol 8. It retains actual ordered bases/dual origins and emits one checked
+GEMM without implicit packing or product-basis fabrication. General networks
+and equivalent-C performance remain unfinished.

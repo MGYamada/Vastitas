@@ -79,6 +79,7 @@ inductive NumericalOperation where
 inductive Statement where
   | action (operation : Action) (span : Span)
   | numerical (operation : NumericalOperation) (span : Span)
+  | tensor (operation : Tensor.Operation String) (span : Span)
   | network (graph : TensorNetwork.Graph String) (output : String) (policy : NumericalPolicy) (span : Span)
   | call (callee : Indexed.Source.Path) (arguments results : List String) (span : Span)
   | branch (condition : Bool) (yes no : List Statement) (span : Span)
@@ -147,6 +148,7 @@ def Function.resourceNames (function : Function) : List String :=
     | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _
     | .numerical (.ownedMap name ..) _ | .numerical (.ownedView name ..) _
     | .numerical (.borrowOwned name ..) _ => [name]
+    | .tensor (.view name ..) _ => [name]
     | .call _ _ results _ => results
     | _ => []
 
@@ -321,6 +323,17 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     | .action action span => do
       let (frame, action) ← lowerAction index scope frame span action
       pure (frame, .action action)
+    | .tensor operation span => do
+      let name value := Prod.fst <$> lookup frame value span
+      let (frame, operation) ← match operation with
+        | .view output loan axes grouping => do
+          let loan ← name loan
+          let axes ← (axes.mapM name : Namespace.Result (List Symbol))
+          let (frame, output) ← bindName index scope frame output .numerical span
+          pure (frame, Tensor.Operation.view output loan axes grouping)
+        | .pack source target => pure (frame, .pack (← name source) (← name target))
+        | .contract3 left right output policy => pure (frame, .contract3 (← name left) (← name right) (← name output) policy)
+      pure (frame, .tensor operation)
     | .network graph output policy span => do
       unless graph.Bounded do throw {code := "E_NETWORK", message := "unsupported two-map network profile", span}
       let graph ← graph.mapM (fun value => Prod.fst <$> lookup frame value span)
@@ -509,6 +522,9 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   outputOrigins : ∀ receipt ∈ checked.context.outputs.toList, receipt.environment = environment
   transformOrigins : ∀ receipt ∈ checked.context.transforms.toList, receipt.environment = environment
   networkOrigins : ∀ receipt ∈ checked.context.networks.toList, receipt.environment = environment
+  tensorViewOrigins : ∀ receipt ∈ checked.context.tensorViews.toList, receipt.environment = environment
+  tensorPackOrigins : ∀ receipt ∈ checked.context.tensorPacks.toList, receipt.environment = environment
+  tensorContractionOrigins : ∀ receipt ∈ checked.context.tensorContractions.toList, receipt.environment = environment
   vectorOrigins : ∀ receipt ∈ checked.context.vectorConjugates.toList, receipt.environment = environment
   evaluationOrigins : ∀ receipt ∈ checked.context.evaluations.toList, receipt.environment = environment
 
@@ -562,18 +578,27 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                           receipt.environment = numericalEnvironment pureProgram then
                         if networkOrigins : ∀ receipt ∈ executable.context.networks.toList,
                             receipt.environment = numericalEnvironment pureProgram then
-                          if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
+                          if tensorViewOrigins : ∀ receipt ∈ executable.context.tensorViews.toList,
                               receipt.environment = numericalEnvironment pureProgram then
-                            if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                            if tensorPackOrigins : ∀ receipt ∈ executable.context.tensorPacks.toList,
                                 receipt.environment = numericalEnvironment pureProgram then
-                              .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                                library, libraryAccepted, fun actual same => by
-                                  have : actual = id := Option.some.inj (same.symm.trans entry)
-                                  subst actual
-                                  exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                    networkOrigins, vectorOrigins, evaluationOrigins⟩⟩
-                            else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
-                          else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                              if tensorContractionOrigins : ∀ receipt ∈ executable.context.tensorContractions.toList,
+                                  receipt.environment = numericalEnvironment pureProgram then
+                                if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
+                                    receipt.environment = numericalEnvironment pureProgram then
+                                  if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                                      receipt.environment = numericalEnvironment pureProgram then
+                                    .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                      library, libraryAccepted, fun actual same => by
+                                        have : actual = id := Option.some.inj (same.symm.trans entry)
+                                        subst actual
+                                        exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                          networkOrigins, tensorViewOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins⟩⟩
+                                  else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
+                                else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                              else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"
+                            else Namespace.problem {} "E_OWNER" "tensor packing lost its declaration environment"
+                          else Namespace.problem {} "E_OWNER" "tensor views lost their declaration environment"
                         else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
                       else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
                     else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"

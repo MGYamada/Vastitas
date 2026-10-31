@@ -30,5 +30,9 @@ opaque expect (arena : @& Arena) (id : UInt32) (offset rows columns leading : UI
 opaque copy (arena : @& Arena) (source : UInt32) (sourceOffset sourceRows sourceColumns sourceLeading : UInt64)
   (sourceTransposed : Bool) (target : UInt32) (targetOffset targetRows targetColumns targetLeading : UInt64)
   (targetTransposed : Bool) : IO Unit
+@[extern "vastitas_storage_pack3"]
+opaque pack3 (arena : @& Arena) (source : UInt32) (sourceOffset sourceRows sourceColumns sourceLeading : UInt64)
+  (sourceTransposed : Bool) (target : UInt32) (targetOffset targetRows targetColumns targetLeading : UInt64)
+  (targetTransposed : Bool) (i k j : UInt64) : IO Unit
 
 end VastitasStorageNative

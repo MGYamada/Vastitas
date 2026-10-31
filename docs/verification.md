@@ -1179,3 +1179,11 @@ finite result compatibility, not whole-source equivalence or native compilation
 correctness. [The migration map](geometry-migration.md) records how the separate
 proofs and actual-source regressions fulfill #49/#58–63 without expanding their
 claims to arbitrary geometry or the complete native toolchain.
+
+The finite [rank-three tensor/packing profile](tensor-packing.md) adds actual
+ordered-axis and corresponding-dual certificates. `VastitasOracle.TensorNumerical`
+connects accepted physical groupings, coordinate bounds and initialized packing
+outputs to exact emitted transitions and public declaration origins. The finite
+coordinate-reference equality retains summation order without field axioms.
+Native/C/FFI refinement, floating laws, general tensor-category laws and C parity
+are separate obligations; the tensor source and native tests do not prove them.

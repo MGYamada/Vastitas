@@ -52,4 +52,9 @@ VStorageStatus vstorage_expect(VStorageArena *arena, uint32_t id, VStorageLayout
                               uint64_t real, uint64_t imaginary);
 VStorageStatus vstorage_copy(VStorageArena *arena, uint32_t source, VStorageLayout input,
                             uint32_t target, VStorageLayout output);
+/* Pack the nontransposed i-by-(k*j) view into (i*j)-by-k without allocation:
+ * output(x+i*y,z) := input(x,z+k*y). Nonempty envelopes must be disjoint. */
+VStorageStatus vstorage_pack3(VStorageArena *arena, uint32_t source, VStorageLayout input,
+                             uint32_t target, VStorageLayout output,
+                             uint64_t i, uint64_t k, uint64_t j);
 #endif

@@ -1,6 +1,7 @@
 import VastitasKernel.StorageCodegen
 import VastitasKernel.TensorNetwork
 import VastitasKernel.StorageEvaluation
+import VastitasKernel.TensorNumerical
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
 bounded child loans for borrowed arguments, return those loans, and transfer
@@ -53,6 +54,7 @@ inductive ResultType (Name : Type := Symbol) where
 inductive Statement where
   | action (operation : Action)
   | numerical (operation : Numerical.Operation)
+  | tensor (operation : Tensor.Operation)
   | network (graph : TensorNetwork.Graph) (output : Symbol) (policy : NumericalPolicy)
   | call (callee : Nat) (arguments results : List Symbol)
   | branch (condition : Bool) (yes no : List Statement)
@@ -373,9 +375,59 @@ structure OwnedMapTransfer where
   moved : checkAction before (.move view.owner target) = .ok after
   bound : Numerical.value? values target = some (.ownedMap {view with owner := target})
 
+structure TensorViewReceipt where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  resources : State
+  axes : List Symbol
+  grouping : Tensor.Grouping
+  loan : Symbol
+  checked : Tensor.CheckedView environment numerical resources axes grouping loan
+  accepted : Tensor.checkView environment numerical resources axes grouping loan = .ok checked
+  name : Symbol
+  values : Tensor.Values
+  bound : Tensor.lookup values name = some checked.view
+  valid : Tensor.Valid environment numerical values
+
+structure TensorPackReceipt where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  resources : State
+  values : Tensor.Values
+  source : Symbol
+  target : Symbol
+  checked : Tensor.CheckedPack environment numerical resources values source target
+  accepted : Tensor.checkPack environment numerical resources values source target = .ok checked
+  after : State
+  transitioned : after = checked.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (Tensor.packAction checked.input checked.output)] = code
+
+structure TensorContractionReceipt where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  resources : State
+  values : Tensor.Values
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  policy : NumericalPolicy
+  checked : Tensor.CheckedContraction environment numerical resources values left right output policy
+  accepted : Tensor.checkContraction environment numerical resources values left right output policy = .ok checked
+  after : State
+  transitioned : after = checked.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.gemm (Tensor.contractionRequest checked.left checked.right checked.output policy))] = code
+
 structure Context where
   environment : Indexed.Environment := []
   numerical : Numerical.Values := []
+  tensors : Tensor.Values := []
+  tensorViews : Array TensorViewReceipt := #[]
+  tensorPacks : Array TensorPackReceipt := #[]
+  tensorContractions : Array TensorContractionReceipt := #[]
   products : Array NumericalReceipt := #[]
   networks : Array NetworkReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
@@ -476,6 +528,9 @@ def operation (frame : Frame) : Action → M Frame
   | .store name row column value => do step (.store (← resolve frame name) row column value); return frame
   | .expect name row column value => do step (.expect (← resolve frame name) row column value); return frame
   | .copy source target => do step (.copy (← resolve frame source) (← resolve frame target)); return frame
+  | .pack3 source target i k j => do
+    step (.pack3 (← resolve frame source) (← resolve frame target) i k j)
+    return frame
   | .gemm request => do
     let left ← resolve frame request.left
     let right ← resolve frame request.right
@@ -814,6 +869,64 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
     throw ⟨"E_RESOURCE_ESCAPE", "local owner was neither dropped nor returned"⟩
   return returned
 
+def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := do
+  match operation with
+  | .view name loan axes grouping =>
+    let loan ← resolve frame loan
+    let axes ← (axes.mapM (resolve frame) : Except Error (List Symbol))
+    let (frame, name) ← bindName frame name
+    let before ← get
+    match accepted : Tensor.checkView before.environment before.numerical before.resources axes grouping loan with
+    | .error error => throw error
+    | .ok checked =>
+      let values := (name, checked.view) :: before.tensors
+      if valid : Tensor.Valid before.environment before.numerical values then
+        if bound : Tensor.lookup values name = some checked.view then
+          let receipt : TensorViewReceipt := ⟨before.environment, before.numerical, before.resources,
+            axes, grouping, loan, checked, accepted, name, values, bound, valid⟩
+          set {before with tensors := values, tensorViews := before.tensorViews.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR", "tensor constructor lost its actual value"⟩
+      else throw ⟨"E_TENSOR", "invalid tensor constructor identity"⟩
+  | .pack source target =>
+    let source ← resolve frame source
+    let target ← resolve frame target
+    let before ← get
+    match accepted : Tensor.checkPack before.environment before.numerical before.resources before.tensors source target with
+    | .error error => throw error
+    | .ok checked =>
+      step (Tensor.packAction checked.input checked.output)
+      let after ← get
+      if transitioned : after.resources = checked.after then
+        if emitted : before.code.toList ++ [.action (Tensor.packAction checked.input checked.output)] = after.code.toList then
+          let receipt : TensorPackReceipt := ⟨before.environment, before.numerical, before.resources,
+            before.tensors, source, target, checked, accepted, after.resources, transitioned,
+            before.code.toList, after.code.toList, emitted⟩
+          set {after with tensorPacks := after.tensorPacks.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR", "packing differs from its emitted schedule"⟩
+      else throw ⟨"E_TENSOR", "packing differs from its actual resource transition"⟩
+  | .contract3 left right output policy =>
+    let left ← resolve frame left
+    let right ← resolve frame right
+    let output ← resolve frame output
+    let before ← get
+    match accepted : Tensor.checkContraction before.environment before.numerical before.resources before.tensors left right output policy with
+    | .error error => throw error
+    | .ok checked =>
+      let request := Tensor.contractionRequest checked.left checked.right checked.output policy
+      step (.gemm request)
+      let after ← get
+      if transitioned : after.resources = checked.after then
+        if emitted : before.code.toList ++ [.action (.gemm request)] = after.code.toList then
+          let receipt : TensorContractionReceipt := ⟨before.environment, before.numerical, before.resources,
+            before.tensors, left, right, output, policy, checked, accepted, after.resources, transitioned,
+            before.code.toList, after.code.toList, emitted⟩
+          set {after with tensorContractions := after.tensorContractions.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR", "contraction differs from its emitted schedule"⟩
+      else throw ⟨"E_TENSOR", "contraction differs from its actual resource transition"⟩
+
 def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
     (policy : NumericalPolicy) : M Frame := do
   unless graph.Bounded do throw ⟨"E_NETWORK", "unsupported network profile"⟩
@@ -840,6 +953,7 @@ mutual
         | .action action => operation frame action
         | .numerical op => numericalOperation frame op
         | .network graph output policy => networkOperation frame graph output policy
+        | .tensor operation => tensorOperation frame operation
         | .call callee actuals outputs => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
           let returned ← invoke fuel functions stack callee actuals
@@ -859,6 +973,9 @@ mutual
             calls := #[]
             products := #[]
             networks := #[]
+            tensorViews := #[]
+            tensorPacks := #[]
+            tensorContractions := #[]
             inputs := #[]
             outputs := #[]
             transfers := #[]
@@ -874,6 +991,9 @@ mutual
             calls := #[]
             products := #[]
             networks := #[]
+            tensorViews := #[]
+            tensorPacks := #[]
+            tensorContractions := #[]
             inputs := #[]
             outputs := #[]
             transfers := #[]
@@ -889,8 +1009,12 @@ mutual
             code := before.code.push (.branch condition left.code.toList right.code.toList)
             calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
+            tensors := before.tensors
             products := before.products ++ left.products ++ right.products
             networks := before.networks ++ left.networks ++ right.networks
+            tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
+            tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
+            tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
             transfers := before.transfers ++ left.transfers ++ right.transfers
@@ -921,7 +1045,7 @@ mutual
             if valid : ExitValid before.resources after.resources results then
               let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
                 before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
-              set {after with calls := after.calls.push receipt, numerical := before.numerical}
+              set {after with calls := after.calls.push receipt, numerical := before.numerical, tensors := before.tensors}
               return returned
             else throw ⟨"E_RESOURCE_ESCAPE", "call exit failed the independent resource audit"⟩
           else throw ⟨"E_RESOURCE_STATE", "call expansion differs from replayed resource transitions"⟩

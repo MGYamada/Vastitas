@@ -542,3 +542,7 @@ receipts, doctest execution, or official package admission.
 The additive protocol-8 `network` resource statement and its strict finite graph
 schema are specified in [finite-networks.md](finite-networks.md). It is checked
 independently before lowering to the existing numerical/storage path.
+
+The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) and their
+bounded ordered-axis/grouping schema are specified in [tensor-packing.md](tensor-packing.md).
+Packing is explicit and checked independently from nominal contraction authority.

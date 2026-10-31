@@ -162,6 +162,7 @@ inductive Action where
   | store (loan row column : Nat) (value : Literal)
   | expect (loan row column : Nat) (value : Literal)
   | copy (source target : Symbol)
+  | pack3 (source target : Symbol) (i k j : Nat)
   | gemm (request : Gemm)
   deriving Repr, BEq, DecidableEq, Inhabited
 
@@ -357,6 +358,20 @@ def executeAction (state : State) : Action → Except Error State
       reject "E_RESOURCE_TYPE" "copy requires equal logical shapes and scalar representations"
     if !sourceAllocation.initialization.covers sourceAllocation.scalar input.layout then
       reject "E_RESOURCE_INIT" "copy source is not fully initialized"
+    return state.markWritten targetAllocation.identity output.layout
+  | .pack3 source target i k j => do
+    let (input, sourceAllocation) ← usable state source false
+    let (output, targetAllocation) ← usable state target true
+    if i > dimensionLimit || k > dimensionLimit || j > dimensionLimit ||
+        input.layout.transposed || output.layout.transposed ||
+        sourceAllocation.scalar != targetAllocation.scalar ||
+        input.layout.rows != i || input.layout.columns != k * j ||
+        output.layout.rows != i * j || output.layout.columns != k then
+      reject "E_RESOURCE_PACK" "pack3 requires [i | k,j] to [i,j | k] with matching scalar and bounded dimensions"
+    if !sourceAllocation.initialization.covers sourceAllocation.scalar input.layout then
+      reject "E_RESOURCE_INIT" "packing source is not fully initialized"
+    if input.allocation == output.allocation && !input.layout.disjoint output.layout sourceAllocation.scalar then
+      reject "E_RESOURCE_ALIAS" "packing requires disjoint input and destination bytes"
     return state.markWritten targetAllocation.identity output.layout
   | .gemm request => do
     let checked ← checkGemm state request

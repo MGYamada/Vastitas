@@ -16,12 +16,18 @@ perform exactly this written order:
 
 There are six caller allocations: T, A, B, scratch, middle, C. Source releases and
 reborrows explicitly separate scratch uses. The C baseline performs the first
-contiguous x-block copy, a coordinate loop for the second regroup, and direct
+contiguous x-block copy, contiguous x-block copies for the second regroup, and direct
 CBLAS calls with matching layouts, coefficients, arithmetic order and physical
 preflight. It calls neither the production packing nor GEMM adapter for these
 operations. Both sides use the same arena allocation/setup primitives, so this
 comparison does not isolate allocator choice. Generic network planning, rank-2
 regrouping and larger trees are outside this benchmark.
+
+The original coordinate-copy baseline and its measurements are retained with
+their own source revision. The current C baseline copies each common contiguous
+x block in one `memcpy`, so a missed block-copy opportunity in the comparator
+cannot establish a performance advantage. The tensor coordinates, explicit
+contraction order, preflight, counted bytes and output oracle are unchanged.
 
 ## Reproduce
 
@@ -128,6 +134,10 @@ under host variation. No noisy hosted or laptop result establishes the controlle
 host performance gate.
 
 ## Recorded evidence and limitations
+
+The [original full Linux record](results/2026-10-31-linux-full/RESULTS.md) retains
+the coordinate-copy comparator, all raw pairs and its discovered baseline
+limitation. The stronger block-copy baseline requires its own measured revision.
 
 `cases.json`, generated packages, captured wire, kernel response, exact generated
 source, wrapper, private instrumented runtime, commands and compile times are kept.

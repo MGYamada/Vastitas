@@ -210,9 +210,10 @@ static void c_regroup(VStorageArena *arena) {
     uint64_t width = scalar ? 16 : 8;
     for (uint64_t a = 0; a < dim_a; ++a)
         for (uint64_t y = 0; y < dim_j; ++y)
-            for (uint64_t x = 0; x < dim_i; ++x)
-                memcpy((char *)output.data+(x+dim_i*a+output.leading*y)*width,
-                       (const char *)input.data+(x+dim_i*y+input.leading*a)*width,width);
+            /* The complete x block is contiguous in both layouts. Charge the
+             * same bytes/order while giving C the natural block-copy path. */
+            memcpy((char *)output.data+(dim_i*a+output.leading*y)*width,
+                   (const char *)input.data+(dim_i*y+input.leading*a)*width,dim_i*width);
     vstorage_record_write(arena,output.bytes); arena->stats.copied_bytes += output.bytes;
     if (scope == 3) { pack_ns += now_ns()-start; ++pack_calls; }
 }

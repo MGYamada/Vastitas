@@ -1,0 +1,3880 @@
+[
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33627831,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 582701825,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 838844434,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33682543,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 577855648,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 630957840,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33574225,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 588574704,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 639714974,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33829001,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 603109869,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 636302460,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33680544,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 578818272,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 626868830,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33544453,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 618128775,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 617657033,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34713430,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 627394095,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 639544542,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34417686,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 595209586,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 629266218,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34271102,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 610917146,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 622769526,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34379626,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 598884650,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 632926483,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34431362,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 586932817,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 643017323,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33694906,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 614465541,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 696538435,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33744949,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 592460578,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 643776744,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33664158,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 615748051,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 625688727,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34530208,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 618215403,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 635636508,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33894388,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 601597900,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 649213231,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33799400,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 579333693,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 634277585,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33528954,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 592836026,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 627198571,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34077941,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 614127633,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 631704639,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34348777,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 599758707,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 627643788,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33595299,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 612298676,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 623841418,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33607352,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 605404294,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 631042848,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34266663,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 591189274,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 634664777,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33775064,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/native-test/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 627678656,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/gemm-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/public_gemm/probe.c",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/sanitized/gemm.c",
+      "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 627972675,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "lake",
+      "-d",
+      "lean-kernel",
+      "build"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "Build completed successfully (155 jobs).\n",
+    "stderr": "",
+    "wall_ns": 161097436,
+    "phase": "kernel_build"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 53972042,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 4449829377,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39206999,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 98304\\n    fill arena 0 0 98304 1 98304 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 384 256 384 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 384 256 384 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 384 256 384 false 383 255 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 81920\\n    fill arena 1 0 81920 1 81920 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 256 320 256 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 256 320 256 false 0 319 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 256 320 256 false 255 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 122880\\n    fill arena 2 0 122880 1 122880 false 1 13842939354630062080 4613937818241073152\\n    fill arena 2 0 384 320 384 false 1 4604930618986332160 13817043656772681728\\n    VastitasGemmNative.gemmScaled arena 0 0 384 256 384 false false 1 0 256 320 256 false false 2 0 384 320 384 false 1 1 1 4604930618986332160 13826050856027422720 0 0 1 1 4602678819172646912 4598175219545276416 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42226455,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (315ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (447ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (379ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (51ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (855ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (399ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (37ms)\n\u2714 [30/36] Built VastitasStorageNative (525ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (107ms)\n\u2714 [32/36] Built VastitasGemmNative (284ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (236ms)\n\u2714 [34/36] Built Main (448ms)\n\u2714 [35/36] Built Main:c.o (498ms)\n\u2714 [36/36] Built bench:exe (501ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4892898163,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43833686,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2785374749,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39837449,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 98820\\n    fill arena 0 0 98820 1 98820 false 0 13842939354630062080 0\\n    fill arena 0 8 384 256 386 false 0 4593671619917905920 0\\n    store arena 0 8 384 256 386 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 384 256 386 false 383 255 0 13826050856027422720 0\\n    allocate arena 1 0 82885\\n    fill arena 1 0 82885 1 82885 false 0 13842939354630062080 0\\n    fill arena 1 16 256 320 259 false 0 13821547256400052224 0\\n    store arena 1 16 256 320 259 false 0 319 0 4602678819172646912 0\\n    store arena 1 16 256 320 259 false 255 0 0 13828302655841107968 0\\n    allocate arena 2 0 124166\\n    fill arena 2 0 124166 1 124166 false 0 13842939354630062080 0\\n    fill arena 2 24 384 320 388 false 0 4604930618986332160 0\\n    VastitasGemmNative.gemmScaled arena 0 8 384 256 386 false false 1 16 256 320 259 false false 2 24 384 320 388 false 1 1 0 4609434218613702656 0 0 0 1 0 4602678819172646912 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41059755,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (304ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (432ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (389ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (54ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (867ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (396ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (31ms)\n\u2714 [30/36] Built VastitasStorageNative (506ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (103ms)\n\u2714 [32/36] Built VastitasGemmNative (280ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (236ms)\n\u2714 [34/36] Built Main (452ms)\n\u2714 [35/36] Built Main:c.o (496ms)\n\u2714 [36/36] Built bench:exe (500ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4891844325,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 55711219,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2768259608,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42706779,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 8\\n    fill arena 0 0 8 1 8 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 2 4 2 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 2 4 2 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 2 4 2 false 1 3 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 12\\n    fill arena 1 0 12 1 12 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 4 3 4 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 4 3 4 false 0 2 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 4 3 4 false 3 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 6\\n    fill arena 2 0 6 1 6 false 1 13842939354630062080 4613937818241073152\\n    fill arena 2 0 2 3 2 false 1 4604930618986332160 13817043656772681728\\n    VastitasGemmNative.gemmScaled arena 0 0 2 4 2 false false 1 0 4 3 4 false false 2 0 2 3 2 false 1 1 1 4604930618986332160 13826050856027422720 0 0 1 1 4602678819172646912 4598175219545276416 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 54770078,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (293ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (428ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (375ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (44ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (839ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (395ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (31ms)\n\u2714 [30/36] Built VastitasStorageNative (512ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (104ms)\n\u2714 [32/36] Built VastitasGemmNative (284ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (242ms)\n\u2714 [34/36] Built Main (452ms)\n\u2714 [35/36] Built Main:c.o (498ms)\n\u2714 [36/36] Built bench:exe (494ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 5060224513,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 55723157,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2788394410,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51893282,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 365\\n    fill arena 0 0 365 1 365 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 17 19 19 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 17 19 19 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 17 19 19 false 16 18 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 291\\n    fill arena 1 0 291 1 291 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 19 13 22 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 19 13 22 false 0 12 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 19 13 22 false 18 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 279\\n    fill arena 2 0 279 1 279 false 1 13842939354630062080 4613937818241073152\\n    VastitasGemmNative.gemmScaled arena 0 16 17 19 19 false false 1 32 19 13 22 false false 2 48 17 13 21 false 0 1 1 4604930618986332160 13826050856027422720 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 40668381,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (300ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (446ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (386ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (50ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (868ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (400ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (37ms)\n\u2714 [30/36] Built VastitasStorageNative (499ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (104ms)\n\u2714 [32/36] Built VastitasGemmNative (282ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (238ms)\n\u2714 [34/36] Built Main (456ms)\n\u2714 [35/36] Built Main:c.o (499ms)\n\u2714 [36/36] Built bench:exe (513ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4890648109,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 53819163,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2750454248,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51253162,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 98304\\n    fill arena 0 0 98304 1 98304 false 0 13842939354630062080 0\\n    fill arena 0 0 384 256 384 false 0 4593671619917905920 0\\n    store arena 0 0 384 256 384 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 384 256 384 false 383 255 0 13826050856027422720 0\\n    allocate arena 1 0 81920\\n    fill arena 1 0 81920 1 81920 false 0 13842939354630062080 0\\n    fill arena 1 0 256 320 256 false 0 13821547256400052224 0\\n    store arena 1 0 256 320 256 false 0 319 0 4602678819172646912 0\\n    store arena 1 0 256 320 256 false 255 0 0 13828302655841107968 0\\n    allocate arena 2 0 122880\\n    fill arena 2 0 122880 1 122880 false 0 13842939354630062080 0\\n    fill arena 2 0 384 320 384 false 0 4604930618986332160 0\\n    VastitasGemmNative.gemmScaled arena 0 0 384 256 384 false false 1 0 256 320 256 false false 2 0 384 320 384 false 1 1 0 4609434218613702656 0 0 0 1 0 4602678819172646912 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 54010781,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (316ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (455ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (376ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (48ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (858ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (404ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (32ms)\n\u2714 [30/36] Built VastitasStorageNative (519ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (119ms)\n\u2714 [32/36] Built VastitasGemmNative (290ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (244ms)\n\u2714 [34/36] Built Main (459ms)\n\u2714 [35/36] Built Main:c.o (495ms)\n\u2714 [36/36] Built bench:exe (495ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4898057942,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43777709,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2757697426,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 38841960,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 323\\n    fill arena 0 0 323 1 323 false 0 13842939354630062080 0\\n    fill arena 0 0 17 19 17 false 0 4593671619917905920 0\\n    store arena 0 0 17 19 17 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 17 19 17 false 16 18 0 13826050856027422720 0\\n    allocate arena 1 0 247\\n    fill arena 1 0 247 1 247 false 0 13842939354630062080 0\\n    fill arena 1 0 19 13 19 false 0 13821547256400052224 0\\n    store arena 1 0 19 13 19 false 0 12 0 4602678819172646912 0\\n    store arena 1 0 19 13 19 false 18 0 0 13828302655841107968 0\\n    allocate arena 2 0 221\\n    fill arena 2 0 221 1 221 false 0 13842939354630062080 0\\n    VastitasGemmNative.gemmScaled arena 0 0 17 19 17 false false 1 0 19 13 19 false false 2 0 17 13 17 false 0 1 0 4609434218613702656 0 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41965283,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_storage_native/ffiObject (432ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (471ms)\n\u2714 [22/36] Built vastitas_gemm_native/ffiObject (237ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (49ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (868ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (403ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [30/36] Built VastitasStorageNative (545ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (114ms)\n\u2714 [32/36] Built VastitasGemmNative (297ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (244ms)\n\u2714 [34/36] Built Main (445ms)\n\u2714 [35/36] Built Main:c.o (494ms)\n\u2714 [36/36] Built bench:exe (497ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4891913749,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 53741523,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2808095521,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39568838,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 365\\n    fill arena 0 0 365 1 365 false 0 13842939354630062080 0\\n    fill arena 0 8 17 19 19 false 0 4593671619917905920 0\\n    store arena 0 8 17 19 19 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 17 19 19 false 16 18 0 13826050856027422720 0\\n    allocate arena 1 0 291\\n    fill arena 1 0 291 1 291 false 0 13842939354630062080 0\\n    fill arena 1 16 19 13 22 false 0 13821547256400052224 0\\n    store arena 1 16 19 13 22 false 0 12 0 4602678819172646912 0\\n    store arena 1 16 19 13 22 false 18 0 0 13828302655841107968 0\\n    allocate arena 2 0 279\\n    fill arena 2 0 279 1 279 false 0 13842939354630062080 0\\n    fill arena 2 24 17 13 21 false 0 4604930618986332160 0\\n    VastitasGemmNative.gemmScaled arena 0 8 17 19 19 false false 1 16 19 13 22 false false 2 24 17 13 21 false 1 1 0 4609434218613702656 0 0 0 1 0 4602678819172646912 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41089793,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (312ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (440ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (375ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (48ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (845ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (406ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (39ms)\n\u2714 [30/36] Built VastitasStorageNative (508ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (103ms)\n\u2714 [32/36] Built VastitasGemmNative (285ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (239ms)\n\u2714 [34/36] Built Main (457ms)\n\u2714 [35/36] Built Main:c.o (498ms)\n\u2714 [36/36] Built bench:exe (500ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4872895645,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 64306306,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 3600641103,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 40200919,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 8\\n    fill arena 0 0 8 1 8 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 2 4 2 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 2 4 2 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 2 4 2 false 1 3 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 12\\n    fill arena 1 0 12 1 12 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 4 3 4 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 4 3 4 false 0 2 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 4 3 4 false 3 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 6\\n    fill arena 2 0 6 1 6 false 1 13842939354630062080 4613937818241073152\\n    VastitasGemmNative.gemmScaled arena 0 0 2 4 2 false false 1 0 4 3 4 false false 2 0 2 3 2 false 0 1 1 4604930618986332160 13826050856027422720 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 53561685,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p0-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (333ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (429ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (377ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (50ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (841ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (403ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (33ms)\n\u2714 [30/36] Built VastitasStorageNative (522ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (112ms)\n\u2714 [32/36] Built VastitasGemmNative (296ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (250ms)\n\u2714 [34/36] Built Main (468ms)\n\u2714 [35/36] Built Main:c.o (497ms)\n\u2714 [36/36] Built bench:exe (501ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4890773848,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 64754512,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2837387848,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 38778769,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 8\\n    fill arena 0 0 8 1 8 false 0 13842939354630062080 0\\n    fill arena 0 0 2 4 2 false 0 4593671619917905920 0\\n    store arena 0 0 2 4 2 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 2 4 2 false 1 3 0 13826050856027422720 0\\n    allocate arena 1 0 12\\n    fill arena 1 0 12 1 12 false 0 13842939354630062080 0\\n    fill arena 1 0 4 3 4 false 0 13821547256400052224 0\\n    store arena 1 0 4 3 4 false 0 2 0 4602678819172646912 0\\n    store arena 1 0 4 3 4 false 3 0 0 13828302655841107968 0\\n    allocate arena 2 0 6\\n    fill arena 2 0 6 1 6 false 0 13842939354630062080 0\\n    VastitasGemmNative.gemmScaled arena 0 0 2 4 2 false false 1 0 4 3 4 false false 2 0 2 3 2 false 0 1 0 4609434218613702656 0 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41386547,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (313ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (447ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (389ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (56ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (836ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (405ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built VastitasStorageNative (534ms)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (34ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (102ms)\n\u2714 [32/36] Built VastitasGemmNative (274ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (238ms)\n\u2714 [34/36] Built Main (439ms)\n\u2714 [35/36] Built Main:c.o (489ms)\n\u2714 [36/36] Built bench:exe (490ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4808361381,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 54423357,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2795961809,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51498235,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 323\\n    fill arena 0 0 323 1 323 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 17 19 17 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 17 19 17 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 17 19 17 false 16 18 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 247\\n    fill arena 1 0 247 1 247 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 19 13 19 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 19 13 19 false 0 12 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 19 13 19 false 18 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 221\\n    fill arena 2 0 221 1 221 false 1 13842939354630062080 4613937818241073152\\n    fill arena 2 0 17 13 17 false 1 4604930618986332160 13817043656772681728\\n    VastitasGemmNative.gemmScaled arena 0 0 17 19 17 false false 1 0 19 13 19 false false 2 0 17 13 17 false 1 1 1 4604930618986332160 13826050856027422720 0 0 1 1 4602678819172646912 4598175219545276416 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46342409,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_storage_native/ffiObject (447ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (470ms)\n\u2714 [22/36] Built vastitas_gemm_native/ffiObject (231ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (52ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (858ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (405ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built VastitasStorageNative (539ms)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (36ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (108ms)\n\u2714 [32/36] Built VastitasGemmNative (283ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (241ms)\n\u2714 [34/36] Built Main (458ms)\n\u2714 [35/36] Built Main:c.o (494ms)\n\u2714 [36/36] Built bench:exe (498ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4906646623,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 44307720,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2776798492,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51079829,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 98820\\n    fill arena 0 0 98820 1 98820 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 384 256 386 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 384 256 386 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 384 256 386 false 383 255 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 82885\\n    fill arena 1 0 82885 1 82885 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 256 320 259 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 256 320 259 false 0 319 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 256 320 259 false 255 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 124166\\n    fill arena 2 0 124166 1 124166 false 1 13842939354630062080 4613937818241073152\\n    fill arena 2 48 384 320 388 false 1 4604930618986332160 13817043656772681728\\n    VastitasGemmNative.gemmScaled arena 0 16 384 256 386 false false 1 32 256 320 259 false false 2 48 384 320 388 false 1 1 1 4604930618986332160 13826050856027422720 0 0 1 1 4602678819172646912 4598175219545276416 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46003432,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (305ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (456ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (387ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (52ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (861ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (410ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [30/36] Built VastitasStorageNative (526ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (118ms)\n\u2714 [32/36] Built VastitasGemmNative (300ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (236ms)\n\u2714 [34/36] Built Main (450ms)\n\u2714 [35/36] Built Main:c.o (498ms)\n\u2714 [36/36] Built bench:exe (505ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4902067317,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43877680,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2774859982,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39600629,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 98820\\n    fill arena 0 0 98820 1 98820 false 0 13842939354630062080 0\\n    fill arena 0 8 384 256 386 false 0 4593671619917905920 0\\n    store arena 0 8 384 256 386 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 384 256 386 false 383 255 0 13826050856027422720 0\\n    allocate arena 1 0 82885\\n    fill arena 1 0 82885 1 82885 false 0 13842939354630062080 0\\n    fill arena 1 16 256 320 259 false 0 13821547256400052224 0\\n    store arena 1 16 256 320 259 false 0 319 0 4602678819172646912 0\\n    store arena 1 16 256 320 259 false 255 0 0 13828302655841107968 0\\n    allocate arena 2 0 124166\\n    fill arena 2 0 124166 1 124166 false 0 13842939354630062080 0\\n    VastitasGemmNative.gemmScaled arena 0 8 384 256 386 false false 1 16 256 320 259 false false 2 24 384 320 388 false 0 1 0 4609434218613702656 0 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41810823,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p1-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_storage_native/ffiObject (444ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (473ms)\n\u2714 [22/36] Built vastitas_gemm_native/ffiObject (240ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (47ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (873ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (406ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (32ms)\n\u2714 [30/36] Built VastitasStorageNative (536ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (102ms)\n\u2714 [32/36] Built VastitasGemmNative (284ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (236ms)\n\u2714 [34/36] Built Main (445ms)\n\u2714 [35/36] Built Main:c.o (493ms)\n\u2714 [36/36] Built bench:exe (502ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4889941607,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 53885132,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2800606970,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 50877857,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 98304\\n    fill arena 0 0 98304 1 98304 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 384 256 384 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 384 256 384 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 384 256 384 false 383 255 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 81920\\n    fill arena 1 0 81920 1 81920 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 256 320 256 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 256 320 256 false 0 319 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 256 320 256 false 255 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 122880\\n    fill arena 2 0 122880 1 122880 false 1 13842939354630062080 4613937818241073152\\n    VastitasGemmNative.gemmScaled arena 0 0 384 256 384 false false 1 0 256 320 256 false false 2 0 384 320 384 false 0 1 1 4604930618986332160 13826050856027422720 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51448584,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p0-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (312ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (450ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (395ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (56ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (858ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (405ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (32ms)\n\u2714 [30/36] Built VastitasStorageNative (515ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (105ms)\n\u2714 [32/36] Built VastitasGemmNative (280ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (241ms)\n\u2714 [34/36] Built Main (451ms)\n\u2714 [35/36] Built Main:c.o (499ms)\n\u2714 [36/36] Built bench:exe (510ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4926236815,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 44010369,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2754377919,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51450150,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 365\\n    fill arena 0 0 365 1 365 false 0 13842939354630062080 0\\n    fill arena 0 8 17 19 19 false 0 4593671619917905920 0\\n    store arena 0 8 17 19 19 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 17 19 19 false 16 18 0 13826050856027422720 0\\n    allocate arena 1 0 291\\n    fill arena 1 0 291 1 291 false 0 13842939354630062080 0\\n    fill arena 1 16 19 13 22 false 0 13821547256400052224 0\\n    store arena 1 16 19 13 22 false 0 12 0 4602678819172646912 0\\n    store arena 1 16 19 13 22 false 18 0 0 13828302655841107968 0\\n    allocate arena 2 0 279\\n    fill arena 2 0 279 1 279 false 0 13842939354630062080 0\\n    VastitasGemmNative.gemmScaled arena 0 8 17 19 19 false false 1 16 19 13 22 false false 2 24 17 13 21 false 0 1 0 4609434218613702656 0 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 54461703,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p1-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (305ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (446ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (389ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (47ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (853ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (396ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (34ms)\n\u2714 [30/36] Built VastitasStorageNative (552ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (107ms)\n\u2714 [32/36] Built VastitasGemmNative (283ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (240ms)\n\u2714 [34/36] Built Main (458ms)\n\u2714 [35/36] Built Main:c.o (497ms)\n\u2714 [36/36] Built bench:exe (498ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 5230955689,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43930446,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2880029359,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 49270981,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 20\\n    fill arena 0 0 20 1 20 false 0 13842939354630062080 0\\n    fill arena 0 8 2 4 4 false 0 4593671619917905920 0\\n    store arena 0 8 2 4 4 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 2 4 4 false 1 3 0 13826050856027422720 0\\n    allocate arena 1 0 26\\n    fill arena 1 0 26 1 26 false 0 13842939354630062080 0\\n    fill arena 1 16 4 3 7 false 0 13821547256400052224 0\\n    store arena 1 16 4 3 7 false 0 2 0 4602678819172646912 0\\n    store arena 1 16 4 3 7 false 3 0 0 13828302655841107968 0\\n    allocate arena 2 0 24\\n    fill arena 2 0 24 1 24 false 0 13842939354630062080 0\\n    fill arena 2 24 2 3 6 false 0 4604930618986332160 0\\n    VastitasGemmNative.gemmScaled arena 0 8 2 4 4 false false 1 16 4 3 7 false false 2 24 2 3 6 false 1 1 0 4609434218613702656 0 0 0 1 0 4602678819172646912 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 54595677,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (304ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (482ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmNative.static (67ms)\n\u2714 [24/36] Built vastitas_storage_native/ffiObject (394ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (861ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (409ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (37ms)\n\u2714 [30/36] Built VastitasStorageNative (511ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (101ms)\n\u2714 [32/36] Built VastitasGemmNative (281ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (242ms)\n\u2714 [34/36] Built Main (455ms)\n\u2714 [35/36] Built Main:c.o (497ms)\n\u2714 [36/36] Built bench:exe (496ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4897585563,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43964715,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2809075960,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 40436592,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 365\\n    fill arena 0 0 365 1 365 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 17 19 19 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 17 19 19 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 17 19 19 false 16 18 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 291\\n    fill arena 1 0 291 1 291 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 19 13 22 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 19 13 22 false 0 12 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 19 13 22 false 18 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 279\\n    fill arena 2 0 279 1 279 false 1 13842939354630062080 4613937818241073152\\n    fill arena 2 48 17 13 21 false 1 4604930618986332160 13817043656772681728\\n    VastitasGemmNative.gemmScaled arena 0 16 17 19 19 false false 1 32 19 13 22 false false 2 48 17 13 21 false 1 1 1 4604930618986332160 13826050856027422720 0 0 1 1 4602678819172646912 4598175219545276416 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42282565,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p1-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_storage_native/ffiObject (430ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (488ms)\n\u2714 [22/36] Built vastitas_gemm_native/ffiObject (241ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (49ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (857ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (399ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [30/36] Built VastitasStorageNative (513ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (103ms)\n\u2714 [32/36] Built VastitasGemmNative (281ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (237ms)\n\u2714 [34/36] Built Main (454ms)\n\u2714 [35/36] Built Main:c.o (502ms)\n\u2714 [36/36] Built bench:exe (496ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4885885240,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43851989,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2751569948,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 40787592,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 98820\\n    fill arena 0 0 98820 1 98820 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 384 256 386 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 384 256 386 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 384 256 386 false 383 255 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 82885\\n    fill arena 1 0 82885 1 82885 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 256 320 259 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 256 320 259 false 0 319 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 256 320 259 false 255 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 124166\\n    fill arena 2 0 124166 1 124166 false 1 13842939354630062080 4613937818241073152\\n    VastitasGemmNative.gemmScaled arena 0 16 384 256 386 false false 1 32 256 320 259 false false 2 48 384 320 388 false 0 1 1 4604930618986332160 13826050856027422720 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42776876,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-complex-p1-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (307ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (434ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (383ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (52ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (883ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (398ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (44ms)\n\u2714 [30/36] Built VastitasStorageNative (498ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (104ms)\n\u2714 [32/36] Built VastitasGemmNative (283ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (236ms)\n\u2714 [34/36] Built Main (446ms)\n\u2714 [35/36] Built Main:c.o (491ms)\n\u2714 [36/36] Built bench:exe (499ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4885995335,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43920445,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2865293807,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39359227,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 20\\n    fill arena 0 0 20 1 20 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 2 4 4 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 2 4 4 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 2 4 4 false 1 3 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 26\\n    fill arena 1 0 26 1 26 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 4 3 7 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 4 3 7 false 0 2 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 4 3 7 false 3 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 24\\n    fill arena 2 0 24 1 24 false 1 13842939354630062080 4613937818241073152\\n    VastitasGemmNative.gemmScaled arena 0 16 2 4 4 false false 1 32 4 3 7 false false 2 48 2 3 6 false 0 1 1 4604930618986332160 13826050856027422720 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 43757020,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (291ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (430ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (387ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (54ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (851ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (395ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [30/36] Built VastitasStorageNative (503ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (104ms)\n\u2714 [32/36] Built VastitasGemmNative (280ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (237ms)\n\u2714 [34/36] Built Main (451ms)\n\u2714 [35/36] Built Main:c.o (495ms)\n\u2714 [36/36] Built bench:exe (501ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4795712036,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 53986602,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2889760327,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39214660,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 8\\n    fill arena 0 0 8 1 8 false 0 13842939354630062080 0\\n    fill arena 0 0 2 4 2 false 0 4593671619917905920 0\\n    store arena 0 0 2 4 2 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 2 4 2 false 1 3 0 13826050856027422720 0\\n    allocate arena 1 0 12\\n    fill arena 1 0 12 1 12 false 0 13842939354630062080 0\\n    fill arena 1 0 4 3 4 false 0 13821547256400052224 0\\n    store arena 1 0 4 3 4 false 0 2 0 4602678819172646912 0\\n    store arena 1 0 4 3 4 false 3 0 0 13828302655841107968 0\\n    allocate arena 2 0 6\\n    fill arena 2 0 6 1 6 false 0 13842939354630062080 0\\n    fill arena 2 0 2 3 2 false 0 4604930618986332160 0\\n    VastitasGemmNative.gemmScaled arena 0 0 2 4 2 false false 1 0 4 3 4 false false 2 0 2 3 2 false 1 1 0 4609434218613702656 0 0 0 1 0 4602678819172646912 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42472313,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p0-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (291ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (437ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (384ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (49ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (856ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (416ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (36ms)\n\u2714 [30/36] Built VastitasStorageNative (534ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (118ms)\n\u2714 [32/36] Built VastitasGemmNative (308ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (251ms)\n\u2714 [34/36] Built Main (481ms)\n\u2714 [35/36] Built Main:c.o (705ms)\n\u2714 [36/36] Built bench:exe (610ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 5195220447,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43843824,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2785983056,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 40184990,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 98304\\n    fill arena 0 0 98304 1 98304 false 0 13842939354630062080 0\\n    fill arena 0 0 384 256 384 false 0 4593671619917905920 0\\n    store arena 0 0 384 256 384 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 384 256 384 false 383 255 0 13826050856027422720 0\\n    allocate arena 1 0 81920\\n    fill arena 1 0 81920 1 81920 false 0 13842939354630062080 0\\n    fill arena 1 0 256 320 256 false 0 13821547256400052224 0\\n    store arena 1 0 256 320 256 false 0 319 0 4602678819172646912 0\\n    store arena 1 0 256 320 256 false 255 0 0 13828302655841107968 0\\n    allocate arena 2 0 122880\\n    fill arena 2 0 122880 1 122880 false 0 13842939354630062080 0\\n    VastitasGemmNative.gemmScaled arena 0 0 384 256 384 false false 1 0 256 320 256 false false 2 0 384 320 384 false 0 1 0 4609434218613702656 0 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41454335,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/bulk-f64-p0-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_storage_native/ffiObject (437ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (471ms)\n\u2714 [22/36] Built vastitas_gemm_native/ffiObject (236ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (52ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (860ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (400ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built VastitasStorageNative (534ms)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (37ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (102ms)\n\u2714 [32/36] Built VastitasGemmNative (281ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (237ms)\n\u2714 [34/36] Built Main (444ms)\n\u2714 [35/36] Built Main:c.o (493ms)\n\u2714 [36/36] Built bench:exe (499ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4903481676,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43901866,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2759102056,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51980437,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 20\\n    fill arena 0 0 20 1 20 false 0 13842939354630062080 0\\n    fill arena 0 8 2 4 4 false 0 4593671619917905920 0\\n    store arena 0 8 2 4 4 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 2 4 4 false 1 3 0 13826050856027422720 0\\n    allocate arena 1 0 26\\n    fill arena 1 0 26 1 26 false 0 13842939354630062080 0\\n    fill arena 1 16 4 3 7 false 0 13821547256400052224 0\\n    store arena 1 16 4 3 7 false 0 2 0 4602678819172646912 0\\n    store arena 1 16 4 3 7 false 3 0 0 13828302655841107968 0\\n    allocate arena 2 0 24\\n    fill arena 2 0 24 1 24 false 0 13842939354630062080 0\\n    VastitasGemmNative.gemmScaled arena 0 8 2 4 4 false false 1 16 4 3 7 false false 2 24 2 3 6 false 0 1 0 4609434218613702656 0 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 53603663,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-f64-p1-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (315ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (445ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (378ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (47ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (848ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (407ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built VastitasStorageNative (543ms)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (104ms)\n\u2714 [32/36] Built VastitasGemmNative (280ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (231ms)\n\u2714 [34/36] Built Main (449ms)\n\u2714 [35/36] Built Main:c.o (491ms)\n\u2714 [36/36] Built bench:exe (502ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4913593429,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43974291,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2865347886,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39513358,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 323\\n    fill arena 0 0 323 1 323 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 17 19 17 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 17 19 17 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 17 19 17 false 16 18 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 247\\n    fill arena 1 0 247 1 247 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 19 13 19 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 19 13 19 false 0 12 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 19 13 19 false 18 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 221\\n    fill arena 2 0 221 1 221 false 1 13842939354630062080 4613937818241073152\\n    VastitasGemmNative.gemmScaled arena 0 0 17 19 17 false false 1 0 19 13 19 false false 2 0 17 13 17 false 0 1 1 4604930618986332160 13826050856027422720 0 0 0 0 0 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41761623,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-complex-p0-overwrite",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (292ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (430ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (383ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (57ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (849ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (394ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [30/36] Built VastitasStorageNative (517ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (106ms)\n\u2714 [32/36] Built VastitasGemmNative (282ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (239ms)\n\u2714 [34/36] Built Main (451ms)\n\u2714 [35/36] Built Main:c.o (496ms)\n\u2714 [36/36] Built bench:exe (506ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4793305516,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43852812,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2773954964,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41966478,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 20\\n    fill arena 0 0 20 1 20 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 2 4 4 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 2 4 4 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 2 4 4 false 1 3 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 26\\n    fill arena 1 0 26 1 26 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 4 3 7 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 4 3 7 false 0 2 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 4 3 7 false 3 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 24\\n    fill arena 2 0 24 1 24 false 1 13842939354630062080 4613937818241073152\\n    fill arena 2 48 2 3 6 false 1 4604930618986332160 13817043656772681728\\n    VastitasGemmNative.gemmScaled arena 0 16 2 4 4 false false 1 32 4 3 7 false false 2 48 2 3 6 false 1 1 1 4604930618986332160 13826050856027422720 0 0 1 1 4602678819172646912 4598175219545276416 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 43121158,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/tiny-complex-p1-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_storage_native/ffiObject (444ms)\n\u2714 [21/36] Built vastitas_gemm_native/gemmObject (480ms)\n\u2714 [22/36] Built vastitas_gemm_native/ffiObject (235ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (47ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (858ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (398ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.3s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (35ms)\n\u2714 [30/36] Built VastitasStorageNative (516ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (108ms)\n\u2714 [32/36] Built VastitasGemmNative (289ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (241ms)\n\u2714 [34/36] Built Main (473ms)\n\u2714 [35/36] Built Main:c.o (500ms)\n\u2714 [36/36] Built bench:exe (500ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4898148112,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43987549,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/gemm-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2882545958,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 51608966,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 323\\n    fill arena 0 0 323 1 323 false 0 13842939354630062080 0\\n    fill arena 0 0 17 19 17 false 0 4593671619917905920 0\\n    store arena 0 0 17 19 17 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 17 19 17 false 16 18 0 13826050856027422720 0\\n    allocate arena 1 0 247\\n    fill arena 1 0 247 1 247 false 0 13842939354630062080 0\\n    fill arena 1 0 19 13 19 false 0 13821547256400052224 0\\n    store arena 1 0 19 13 19 false 0 12 0 4602678819172646912 0\\n    store arena 1 0 19 13 19 false 18 0 0 13828302655841107968 0\\n    allocate arena 2 0 221\\n    fill arena 2 0 221 1 221 false 0 13842939354630062080 0\\n    fill arena 2 0 17 13 17 false 0 4604930618986332160 0\\n    VastitasGemmNative.gemmScaled arena 0 0 17 19 17 false false 1 0 19 13 19 false false 2 0 17 13 17 false 1 1 0 4609434218613702656 0 0 0 1 0 4602678819172646912 0 0 0\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 54042617,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/public-gemm-results/cases/small-f64-p0-accumulate",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (297ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (437ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (384ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (49ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (856ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (395ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.2s)\n\u2714 [28/36] Built vastitas_storage_native/storageNative.static (32ms)\n\u2714 [30/36] Built VastitasStorageNative (511ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (101ms)\n\u2714 [32/36] Built VastitasGemmNative (278ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (236ms)\n\u2714 [34/36] Built Main (450ms)\n\u2714 [35/36] Built Main:c.o (496ms)\n\u2714 [36/36] Built bench:exe (494ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: gemm_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4797777523,
+    "phase": "generated_native_compile"
+  }
+]

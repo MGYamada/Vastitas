@@ -8,6 +8,7 @@ pull_request, and can also be dispatched manually. It does not close #222,
 establish Stage 1 completion, prove native
 refinement, or establish general C/C++ performance equivalence.
 
+Recorded measurements: [full Linux run with raw pairs and remaining overhead](results/2026-10-31-linux-full/RESULTS.md).
 Recorded validation: [Linux generated-path smoke passed](results/2026-10-31-linux-smoke/RESULTS.md);
 [original unavailable-toolchain attempt](results/2026-10-31-linux-unmeasured/RESULTS.md).
 The smoke validates execution and output/cost contracts, without a performance

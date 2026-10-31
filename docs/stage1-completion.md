@@ -101,6 +101,14 @@ algorithm, scalar semantics, layout, backend and numerical policy against C,
 including full-operation and prepared-kernel costs. Record allocation/copy counts
 and peak live memory as well as runtime. Performance gaps cannot be silently
 deferred while claiming the corresponding Stage 1 acceptance condition complete.
+The [full public GEMM measurement](../experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md)
+preserves 24 cases and 1,256 generated/C pairs from a shared Linux host, including
+bulk dimensions. Output and arena costs agree; tiny lifecycle calls retain
+329–400 ns overhead and small-case lifecycle paired ratios are 1.19–1.31.
+Bulk ratios vary by paired versus separate-median statistics, with intervals
+that cross the provisional budget in some cases. This is exploratory evidence;
+controlled-host acceptance, a declared tiny-call budget and total allocation /
+backend packing measurements remain open.
 Residual retention is specified now to constrain storage design; AD implementation
 and its performance gates remain in the later AD stage.
 

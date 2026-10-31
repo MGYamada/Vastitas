@@ -1220,3 +1220,28 @@ Closed plans require all dependency handles forgotten. These are logical
 resource/history and actual-checker facts; they do not prove copied heap contents,
 BLAS arithmetic, whole-source/native refinement or AD residual correctness.
 See [the bounded packing cache](cached-packing.md).
+
+
+## Explicit diagonal metric certificates and ideal laws
+
+[Diagonal metrics](diagonal-metrics.md) use the actual `StorageMetric` acceptance
+certificates. `VastitasOracle.StorageMetric` links declared form/basis identity,
+exact bounded-Int realization, live original inputs, initialized output and
+precise emitted actions. Pairing includes acceptance of its full eight-action
+scratch-write/release/read/GEMM/release expansion and restores caller loans and
+allocation owners. Public receipt origins refer to the same accepted declaration
+environment; arbitrary supplied coefficient tables are not metric witnesses.
+The existing dependency-history proofs cover the new writes, including the
+compound scratch/output invalidation and fresh temporary-name ledger.
+
+`StorageMetricLaws` imports these definitions and Lean core's `Grind.Field`,
+with an explicit additive/multiplicative involution. `IsCharP K 0` embeds the
+actual metric's nonzero Int entries without introducing a fresh nondegeneracy
+assumption. The finite-coordinate laws include linearity, semilinearity,
+Hermitian symmetry, the defining adjoint pairing equation, and contravariance
+under equality of the entire intermediate form. Actual-certificate corollaries
+specialize exactly those selected metric fields. They do not assert that an
+unrelated buffer contains a matrix product or that NativeFast arithmetic refines
+the ideal formulas. No mathlib, custom axiom, numerical error bound, or native
+refinement claim is added. Native bit/cost and failure-preservation tests are
+separate evidence.

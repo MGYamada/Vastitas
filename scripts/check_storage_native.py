@@ -36,6 +36,11 @@ def main():
              "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
              NATIVE / "storage.c", NATIVE / "test_storage.c", "-o", sanitizer])
         print(run([sanitizer]).stdout.strip())
+        diagonal = work / "diagonal-sanitizer"
+        run([*shlex.split(os.environ.get("CC", "cc")), "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror",
+             "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+             NATIVE / "storage.c", NATIVE / "diagonal.c", NATIVE / "test_diagonal.c", "-o", diagonal])
+        print(run([diagonal]).stdout.strip())
         # A standalone consumer depends only on this optional runtime package.
         # Lake builds and links the real generated FFI declarations and C adapter.
         runtime = work / "runtime"
@@ -71,6 +76,21 @@ def main():
             assert counters[6] == 2 and counters[7] > 0, (name, counters)
             print(f"{name}: allocations/frees/live/peak/written/copied = {counters[:6]}; "
                   f"metadata allocations/bytes = {counters[6:]}")
+
+        (work / "Metadata.lean").write_text('''import VastitasStorageNative
+def main : IO Unit := do
+  for malformed in ["0", "gg", "00xz"] do
+    unless (VastitasStorageNative.diagonalData malformed).isEmpty do
+      throw (IO.userError "malformed diagonal metadata admitted")
+  let encoded := String.join (List.replicate 4096 "0000000000000040")
+  let decoded := VastitasStorageNative.diagonalData encoded
+  unless decoded.size == 32768 do throw (IO.userError "large diagonal metadata truncated")
+  for index in [:decoded.size] do
+    unless decoded[index]! == (if index % 8 == 7 then 64 else 0) do
+      throw (IO.userError "diagonal metadata byte changed")
+  IO.println "diagonal metadata: malformed inputs and full 4096-entry linear decoding passed"
+''')
+        print(run(["lake", "env", "lean", "--run", "Metadata.lean"], cwd=work).stdout.strip())
 
         functions = json.loads((ROOT / "tests/fixtures/storage-functions.json").read_text())
         for name, budget, failure, expected in [

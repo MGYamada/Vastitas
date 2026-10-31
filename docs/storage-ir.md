@@ -207,3 +207,12 @@ dynamic shapes, general scratch reuse, dependency retention and equivalent-C
 measurements remain required. Native liveness, writes and cleanup have the tests
 above but no native refinement theorem. Pure indexed Core theorems do not imply
 these mutable-resource guarantees, and this increment does not close #183.
+
+
+The [diagonal metric path](diagonal-metrics.md) adds independently checked raw
+`diagonal_adjoint`, `diagonal_scale` and compound `diagonal_pair` transitions.
+Raw coefficient metadata establishes only representation/resource safety, not
+nominal metric authority. The public path additionally reconstructs coefficients
+from actual selected `Metric` values. The compound action checks the exact
+scratch write/release/read/GEMM/release execution and invalidates both written
+allocation versions. Native preflight covers both destinations before any write.

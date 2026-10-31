@@ -1,4 +1,4 @@
-import VastitasKernel.StorageLayout
+import VastitasKernel.StorageDiagonalData
 
 /-! Explicit resource transitions, separate from pure indexed Core. All handles
 are lexical symbols, not addresses. Allocation identities are reconstructed by
@@ -197,6 +197,40 @@ structure Gemm where
   beta : Option Coefficient := none
   deriving Repr, BEq, DecidableEq, Inhabited
 
+structure DiagonalAdjoint where
+  input : Symbol
+  output : Symbol
+  source : Diagonal
+  target : Diagonal
+  conjugate : Bool
+  policy : NumericalPolicy
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure DiagonalScale where
+  input : Symbol
+  output : Symbol
+  diagonal : Diagonal
+  conjugate : Bool
+  policy : NumericalPolicy
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- One synchronous operation with caller-owned scratch. The temporary handles
+are reconstructed resource transitions, not an upgrade of a write-only loan. -/
+structure DiagonalPair where
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  scratch : Symbol
+  layout : Layout
+  writeLoan : Symbol
+  readLoan : Symbol
+  leftChild : Symbol
+  diagonal : Diagonal
+  conjugateLeft : Bool
+  conjugateRight : Bool
+  policy : NumericalPolicy
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 inductive Action where
   | allocate (owner : Symbol) (scalar : Scalar) (elements : Nat)
   | move (source target : Symbol)
@@ -210,6 +244,9 @@ inductive Action where
   | copy (source target : Symbol)
   | pack3 (source target : Symbol) (i k j : Nat)
   | gemm (request : Gemm)
+  | diagonalAdjoint (request : DiagonalAdjoint)
+  | diagonalScale (request : DiagonalScale)
+  | diagonalPair (request : DiagonalPair)
   | captureDependency (name source target : Symbol)
   | requireDependency (name : Symbol)
   | forgetDependency (name : Symbol)
@@ -334,6 +371,114 @@ def checkGemm (state : State) (request : Gemm) : Except Error (CheckedGemm state
     else reject "E_RESOURCE_COEFFICIENT" "overwrite fixes beta to zero and does not accept a beta operand"
   else reject "E_RESOURCE_GEMM" "GEMM requires initialized readable inputs, a compatible exclusive output, supported views and disjoint input/output bytes; accumulate also reads initialized output"
 
+def borrowTransition (state : State) (name : Symbol) (source : Source) (layout : Layout)
+    (access : Access) : Except Error State := do
+  freshName state name
+  let sourceResult : Except Error (Allocation × Option Symbol) := match source with
+    | .owner owner => do pure (← owned state owner, none)
+    | .loan parent => do
+      let some loan := state.loan? parent | reject "E_RESOURCE_LOAN" "reborrow parent is not live"
+      let some allocation := state.allocation? loan.allocation | reject "E_RESOURCE_PROVENANCE" "parent allocation is not live"
+      if access.writes && !loan.access.writes then reject "E_RESOURCE_ACCESS" "read authority cannot be upgraded"
+      if access.reads && !loan.access.reads then reject "E_RESOURCE_ACCESS" "write-only authority cannot grant reads"
+      if !loan.layout.covers layout allocation.scalar then reject "E_RESOURCE_REGION" "child region is not contained in its parent"
+      pure (allocation, some parent)
+  let (allocation, parent) ← sourceResult
+  if !checkLayout allocation.scalar allocation.capacity layout then reject "E_RESOURCE_LAYOUT" "invalid layout, bounds, alignment or native narrowing"
+  if access.reads && !allocation.initialization.covers allocation.scalar layout then
+    reject "E_RESOURCE_INIT" "requested read region is not initialized"
+  let loan := { name, allocation := allocation.identity, layout, access, parent : Loan }
+  let after := { state with loans := loan :: state.loans, used := name :: state.used }
+  if !state.loans.all (loansCompatible after loan) then reject "E_RESOURCE_ALIAS" "incompatible live loans may overlap"
+  return after
+
+def releaseTransition (state : State) (name : Symbol) : Except Error State := do
+  if (state.loan? name).isNone then reject "E_RESOURCE_LOAN" "loan is absent or already returned"
+  if state.suspended name then reject "E_RESOURCE_LOAN" "return child loans before their parent"
+  return { state with loans := state.loans.filter (·.name != name) }
+
+
+structure DiagonalOperands where
+  input : Loan
+  output : Loan
+  inputAllocation : Allocation
+  outputAllocation : Allocation
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def checkDiagonalOperands (state : State) (input output : Symbol) : Except Error DiagonalOperands := do
+  let (input, inputAllocation) ← usable state input false
+  let (output, outputAllocation) ← usable state output true
+  if inputAllocation.scalar != outputAllocation.scalar then
+    reject "E_RESOURCE_DIAGONAL" "diagonal operation requires matching scalar representations"
+  if !inputAllocation.initialization.covers inputAllocation.scalar input.layout then
+    reject "E_RESOURCE_INIT" "diagonal input is not fully initialized"
+  if output.layout.transposed then
+    reject "E_RESOURCE_DIAGONAL" "diagonal destination must have an ordinary column-major layout"
+  if input.allocation == output.allocation && !input.layout.disjoint output.layout inputAllocation.scalar then
+    reject "E_RESOURCE_ALIAS" "diagonal input and destination must be disjoint"
+  return ⟨input, output, inputAllocation, outputAllocation⟩
+
+def checkDiagonalAdjoint (state : State) (request : DiagonalAdjoint) : Except Error DiagonalOperands := do
+  let operands ← checkDiagonalOperands state request.input request.output
+  if operands.output.layout.logicalRows != operands.input.layout.logicalColumns ||
+      operands.output.layout.logicalColumns != operands.input.layout.logicalRows ||
+      !request.source.valid operands.input.layout.logicalColumns ||
+      !request.target.valid operands.input.layout.logicalRows then
+    reject "E_RESOURCE_DIAGONAL" "adjoint requires reversed shapes and exact bounded nonzero integer diagonals"
+  return operands
+
+def checkDiagonalScale (state : State) (request : DiagonalScale) : Except Error DiagonalOperands := do
+  let operands ← checkDiagonalOperands state request.input request.output
+  if operands.output.layout.logicalRows != operands.input.layout.logicalRows ||
+      operands.output.layout.logicalColumns != 1 || operands.input.layout.logicalColumns != 1 ||
+      !request.diagonal.valid operands.input.layout.logicalRows then
+    reject "E_RESOURCE_DIAGONAL" "diagonal weighting requires matching columns and exact bounded nonzero entries"
+  return operands
+
+/-- Every intermediate state is audited, including the release separating
+write-only scratch access from the newly initialized read loan. -/
+def auditedTransition (result : Except Error State) : Except Error State := do
+  let state ← result
+  if auditState state then pure state
+  else reject "E_RESOURCE_STATE" "invalid intermediate diagonal resource state"
+
+def diagonalPairExpansion (state : State) (request : DiagonalPair) : Except Error State := do
+  let _ ← checkDiagonalOperands state request.right request.output
+  let scratch ← owned state request.scratch
+  if state.loans.any (·.allocation == scratch.identity) then
+    reject "E_RESOURCE_LOAN" "diagonal pairing scratch must be an owner with no outstanding loans"
+  let written ← auditedTransition (borrowTransition state request.writeLoan (.owner request.scratch) request.layout .write)
+  let scale : DiagonalScale := ⟨request.right, request.writeLoan, request.diagonal, request.conjugateRight, request.policy⟩
+  let operands ← checkDiagonalScale written scale
+  let weighted ← auditedTransition (.ok (written.markWritten operands.outputAllocation.identity operands.output.layout))
+  let released ← auditedTransition (releaseTransition weighted request.writeLoan)
+  let readable ← auditedTransition (borrowTransition released request.readLoan (.owner request.scratch) request.layout .read)
+  let (left, _) ← usable readable request.left false
+  if left.layout.logicalColumns != 1 then
+    reject "E_RESOURCE_DIAGONAL" "diagonal pairing left input must be a column"
+  let transposed ← auditedTransition (borrowTransition readable request.leftChild (.loan request.left) left.layout.transpose .read)
+  let product : Gemm := ⟨request.leftChild, request.readLoan, request.output,
+    request.conjugateLeft, false, .overwrite, request.policy, none, none⟩
+  let checked ← checkGemm transposed product
+  let output ← auditedTransition (.ok (transposed.markWritten checked.operands.outputAllocation.identity checked.operands.output.layout))
+  let returned ← auditedTransition (releaseTransition output request.leftChild)
+  auditedTransition (releaseTransition returned request.readLoan)
+
+/-- Audit the exact two-write dependency effect and the temporary-name ledger
+again at the compound boundary. This also exposes its actual history contract
+without treating a fresh scope or opaque subtransition as a provenance axiom. -/
+def diagonalPairTransition (state : State) (request : DiagonalPair) : Except Error State := do
+  let some scratch := state.owner? request.scratch
+    | reject "E_RESOURCE_DIAGONAL" "missing diagonal scratch owner"
+  let some output := state.loan? request.output
+    | reject "E_RESOURCE_DIAGONAL" "missing diagonal scalar output"
+  let after ← diagonalPairExpansion state request
+  if _exact : after.dependencies = invalidateDependencies
+      (invalidateDependencies state.dependencies scratch.identity) output.allocation ∧
+      after.used = request.leftChild :: request.readLoan :: request.writeLoan :: state.used then
+    pure after
+  else reject "E_RESOURCE_DIAGONAL" "compound diagonal dependency or temporary-name history changed"
+
 def executeAction (state : State) : Action → Except Error State
   | .allocate owner scalar elements => do
     freshName state owner
@@ -357,29 +502,8 @@ def executeAction (state : State) : Action → Except Error State
     return { state with
       allocations := state.allocations.filter (·.identity != allocation.identity)
       dependencies := invalidateDependencies state.dependencies allocation.identity }
-  | .borrow name source layout access => do
-    freshName state name
-    let sourceResult : Except Error (Allocation × Option Symbol) := match source with
-      | .owner owner => do pure (← owned state owner, none)
-      | .loan parent => do
-        let some loan := state.loan? parent | reject "E_RESOURCE_LOAN" "reborrow parent is not live"
-        let some allocation := state.allocation? loan.allocation | reject "E_RESOURCE_PROVENANCE" "parent allocation is not live"
-        if access.writes && !loan.access.writes then reject "E_RESOURCE_ACCESS" "read authority cannot be upgraded"
-        if access.reads && !loan.access.reads then reject "E_RESOURCE_ACCESS" "write-only authority cannot grant reads"
-        if !loan.layout.covers layout allocation.scalar then reject "E_RESOURCE_REGION" "child region is not contained in its parent"
-        pure (allocation, some parent)
-    let (allocation, parent) ← sourceResult
-    if !checkLayout allocation.scalar allocation.capacity layout then reject "E_RESOURCE_LAYOUT" "invalid layout, bounds, alignment or native narrowing"
-    if access.reads && !allocation.initialization.covers allocation.scalar layout then
-      reject "E_RESOURCE_INIT" "requested read region is not initialized"
-    let loan := { name, allocation := allocation.identity, layout, access, parent : Loan }
-    let after := { state with loans := loan :: state.loans, used := name :: state.used }
-    if !state.loans.all (loansCompatible after loan) then reject "E_RESOURCE_ALIAS" "incompatible live loans may overlap"
-    return after
-  | .release name => do
-    if (state.loan? name).isNone then reject "E_RESOURCE_LOAN" "loan is absent or already returned"
-    if state.suspended name then reject "E_RESOURCE_LOAN" "return child loans before their parent"
-    return { state with loans := state.loans.filter (·.name != name) }
+  | .borrow name source layout access => borrowTransition state name source layout access
+  | .release name => releaseTransition state name
   | .transpose name => do
     let some loan := state.loan? name | reject "E_RESOURCE_LOAN" "loan is not live"
     if state.suspended name then reject "E_RESOURCE_LOAN" "cannot change a suspended parent view"
@@ -428,6 +552,14 @@ def executeAction (state : State) : Action → Except Error State
   | .gemm request => do
     let checked ← checkGemm state request
     return state.markWritten checked.operands.outputAllocation.identity checked.operands.output.layout
+
+  | .diagonalAdjoint request => do
+    let checked ← checkDiagonalAdjoint state request
+    return state.markWritten checked.outputAllocation.identity checked.output.layout
+  | .diagonalScale request => do
+    let checked ← checkDiagonalScale state request
+    return state.markWritten checked.outputAllocation.identity checked.output.layout
+  | .diagonalPair request => diagonalPairTransition state request
 
   | .captureDependency name source target => do
     freshName state name

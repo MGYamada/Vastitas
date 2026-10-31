@@ -64,8 +64,28 @@ def numericalPolicy (value : String) : Except String NumericalPolicy := match va
   | "native_fast" => pure .nativeFast
   | _ => throw "unsupported numerical policy"
 
+def diagonal (j : Json) : Except String Diagonal := do
+  fields j ["uniform", "entries"]
+  let entries ← j.getObjValAs? (Array Nat) "entries"
+  if entries.size > 4096 || entries.any (· ≥ 2^64) then throw "invalid bounded diagonal representation"
+  return ⟨← j.getObjValAs? Bool "uniform", entries.toList.map UInt64.ofNat⟩
+
 def action (j : Json) : Except String Action := do
   match ← str j "op" with
+  | "diagonal_adjoint" =>
+    fields j ["op", "input", "output", "source", "target", "conjugate", "policy"]
+    return .diagonalAdjoint ⟨← symbol j "input", ← symbol j "output", ← diagonal (← field j "source"),
+      ← diagonal (← field j "target"), ← j.getObjValAs? Bool "conjugate", ← numericalPolicy (← str j "policy")⟩
+  | "diagonal_scale" =>
+    fields j ["op", "input", "output", "diagonal", "conjugate", "policy"]
+    return .diagonalScale ⟨← symbol j "input", ← symbol j "output", ← diagonal (← field j "diagonal"),
+      ← j.getObjValAs? Bool "conjugate", ← numericalPolicy (← str j "policy")⟩
+  | "diagonal_pair" =>
+    fields j ["op", "left", "right", "output", "scratch", "layout", "write_loan", "read_loan", "left_child", "diagonal", "conjugate_left", "conjugate_right", "policy"]
+    return .diagonalPair ⟨← symbol j "left", ← symbol j "right", ← symbol j "output", ← symbol j "scratch",
+      ← layout (← field j "layout"), ← symbol j "write_loan", ← symbol j "read_loan", ← symbol j "left_child",
+      ← diagonal (← field j "diagonal"), ← j.getObjValAs? Bool "conjugate_left",
+      ← j.getObjValAs? Bool "conjugate_right", ← numericalPolicy (← str j "policy")⟩
   | "allocate" =>
     fields j ["op", "owner", "scalar", "elements"]
     return .allocate (← symbol j "owner") (← scalar (← str j "scalar")) (← size j "elements")

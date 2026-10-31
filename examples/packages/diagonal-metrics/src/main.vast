@@ -1,0 +1,8 @@
+mod profiles;
+mod real;
+mod complex;
+resource fn main() -> Int {
+    call real::exercise() -> ();
+    call complex::exercise() -> ();
+    value { 42 }
+}

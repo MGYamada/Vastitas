@@ -64,8 +64,44 @@ pub enum NumericalPolicy {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Diagonal {
+    pub uniform: bool,
+    pub entries: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
+    DiagonalAdjoint {
+        input: u32,
+        output: u32,
+        source: Diagonal,
+        target: Diagonal,
+        conjugate: bool,
+        policy: NumericalPolicy,
+    },
+    DiagonalScale {
+        input: u32,
+        output: u32,
+        diagonal: Diagonal,
+        conjugate: bool,
+        policy: NumericalPolicy,
+    },
+    DiagonalPair {
+        left: u32,
+        right: u32,
+        output: u32,
+        scratch: u32,
+        layout: Layout,
+        write_loan: u32,
+        read_loan: u32,
+        left_child: u32,
+        diagonal: Diagonal,
+        conjugate_left: bool,
+        conjugate_right: bool,
+        policy: NumericalPolicy,
+    },
     CaptureDependency {
         name: u32,
         source: u32,
@@ -476,6 +512,22 @@ pub mod source {
             basis: String,
             involution: String,
             gram: Gram,
+        },
+        AdjointInto {
+            input: String,
+            output: String,
+            source_metric: String,
+            target_metric: String,
+            policy: NumericalPolicy,
+        },
+        HermitianDiagonal {
+            left: String,
+            right: String,
+            output: String,
+            metric: String,
+            scratch: String,
+            layout: Layout,
+            policy: NumericalPolicy,
         },
         Transform {
             name: String,

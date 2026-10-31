@@ -28,4 +28,12 @@ opaque gemmScaled (arena : @& VastitasStorageNative.Arena)
   (betaKind betaScalar : UInt8) (betaReal betaImaginary : UInt64)
   (betaAllocation : UInt32) (betaOffset : UInt64) : IO Unit
 
+@[extern "vastitas_diagonal_pair"]
+opaque diagonalPair (arena : @& VastitasStorageNative.Arena)
+  (left : UInt32) (leftOffset leftRows leftColumns leftLeading : UInt64) (leftTransposed : Bool)
+  (right : UInt32) (rightOffset rightRows rightColumns rightLeading : UInt64) (rightTransposed : Bool)
+  (output : UInt32) (outputOffset outputRows outputColumns outputLeading : UInt64) (outputTransposed : Bool)
+  (scratch : UInt32) (scratchOffset scratchRows scratchColumns scratchLeading : UInt64) (scratchTransposed : Bool)
+  (uniform : Bool) (diagonal : @& ByteArray) (conjugateLeft conjugateRight : Bool) : IO Unit
+
 end VastitasGemmNative

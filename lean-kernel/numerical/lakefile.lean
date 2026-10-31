@@ -12,6 +12,7 @@ input_file gemmHeader where path := "gemm.h"
 input_file gemmSource where path := "gemm.c"
 input_file ffiSource where path := "ffi.c"
 input_file storageHeader where path := "../native/storage.h"
+input_file diagonalHeader where path := "../native/diagonal.h"
 input_file cblasHeader where path := openblasPrefix / "include/cblas.h"
 input_file configHeader where path := openblasPrefix / "include/openblas_config.h"
 input_file blasArchive where path := openblasPrefix / "lib/libopenblas.a"
@@ -20,7 +21,7 @@ target gemmObject pkg : FilePath := do
   if openblasPrefix.toString.isEmpty then
     error "explicit pinned OpenBLAS prefix required: lake -Kopenblas=/path/to/prefix build"
   let source ← gemmSource.fetch
-  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch, ← cblasHeader.fetch,
+  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch, ← diagonalHeader.fetch, ← cblasHeader.fetch,
     ← configHeader.fetch, ← blasArchive.fetch]
   let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
   buildO (pkg.buildDir / "gemm.o") source #[]
@@ -29,7 +30,7 @@ target gemmObject pkg : FilePath := do
 
 target ffiObject pkg : FilePath := do
   let source ← ffiSource.fetch
-  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch]
+  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch, ← diagonalHeader.fetch]
   let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
   buildLeanO (pkg.buildDir / "ffi.o") source #[]
     #["-std=c11", "-O3", "-fPIC", "-Wall", "-Wextra", "-Werror", s!"-I{pkg.dir / "../native"}"]

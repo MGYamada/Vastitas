@@ -139,6 +139,11 @@ The program checks both distinct complex results and prints `42`. Empty
 evaluation uses the adapter's documented zero-inner convention; it supplies
 no separate exact-field theorem.
 
+[Explicit diagonal metrics](diagonal-metrics.md) extend Hermitian evaluation to
+non-orthonormal declared diagonal forms through caller scratch and a compound
+preflight, with conditional ideal pairing/adjoint laws. Dense forms and basis
+transport remain outside that increment.
+
 Higher-rank occurrence/port/edge/boundary validation, deterministic contraction
 schedules, explicit packing/scratch/dependencies, generative numerical packages,
 dynamic interfaces and equivalent-C acceptance remain Stage 1 requirements.

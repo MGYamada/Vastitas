@@ -275,7 +275,7 @@ public action decoder. Both OS numerical CI jobs explicitly run the
 OpenBLAS-dependent tests; normal compiler checks remain BLAS-free.
 
 General generative numerical result packages, scalar expressions and dynamic
-shape interfaces, general metric realization/transport, higher-rank or multi-edge
+shape interfaces, dense metric realization/transport, higher-rank or multi-edge
 networks, explicit packing and broader scratch/dependency handling remain work.
 Equivalent-C runtime, allocation/copy and peak-memory
 comparisons are still required. The [optional public GEMM experiment](../experiments/public_gemm/README.md)
@@ -284,3 +284,11 @@ small hosted run is not performance acceptance. Public GEMM execution does not c
 [#91](https://github.com/MGYamada/Vastitas/issues/91),
 [#92](https://github.com/MGYamada/Vastitas/issues/92) or the full
 [Stage 1 gate](stage1-completion.md), or establish **Fast like C**.
+
+
+[Explicit diagonal metrics](diagonal-metrics.md) add a no-BLAS adjoint pass to the
+optional storage runtime and a scratch-weighting/GEMM compound operation to this
+adapter. All backend/layout/alias/coefficient/counter checks precede either
+scratch or scalar-output writes. Coefficient tables are immutable borrowed Lean
+metadata for the complete synchronous call; their bytes and object overhead are
+separate from arena data counters. No dense Gram or inverse allocation is made.

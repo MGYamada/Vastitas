@@ -298,10 +298,55 @@ static void coefficients(void) {
     }
 }
 
+static void diagonal_pairing(void) {
+    for (uint8_t scalar=0;scalar<2;++scalar) for (int tx=0;tx<2;++tx) for (int ty=0;ty<2;++ty)
+        for(uint8_t cl=0;cl<2;++cl) for(uint8_t cr=0;cr<2;++cr) {
+        VStorageArena *arena=vstorage_new(4096); assert(arena);
+        VStorageLayout x=layout(2,1,tx,1), y=layout(2,1,ty,1);
+        VStorageLayout scratch=layout(2,1,0,1), output=layout(1,1,0,1);
+        allocate(arena,0,scalar,x); allocate(arena,1,scalar,y);
+        allocate(arena,2,scalar,scratch); allocate(arena,3,scalar,output);
+        put(arena,0,x,0,0,scalar,1,1); put(arena,0,x,1,0,scalar,2,-1);
+        put(arena,1,y,0,0,scalar,3,-2); put(arena,1,y,1,0,scalar,1,4);
+        uint8_t weights[16]; uint64_t values[2]={bits(2),bits(-4)};
+        for(unsigned i=0;i<2;++i) for(unsigned j=0;j<8;++j) weights[8*i+j]=(uint8_t)(values[i]>>(8*j));
+        VDiagonal diagonal={weights,sizeof(weights),0};
+        double expected_real=scalar?(cl==cr?-14:10):-2;
+        double expected_imaginary=cr?(cl?26:46):(cl?-46:-26);
+        VStorageStats before=vstorage_stats(arena); VGemmReport report;
+        for(unsigned repeat=0;repeat<2;++repeat) {
+            assert(vgemm_diagonal_pair(arena,0,x,1,y,3,output,2,scratch,diagonal,cl,cr,&report)==VS_OK);
+            assert(report.kernel_calls==1 && report.written_bytes==(scalar?16:8));
+            expect(arena,3,output,0,0,expected_real,expected_imaginary);
+            expect(arena,2,scratch,0,0,6,cr?4:-4); expect(arena,2,scratch,1,0,-4,cr?16:-16);
+        }
+        VStorageStats after=vstorage_stats(arena);
+        assert(after.data_allocations==before.data_allocations && after.copied_bytes==before.copied_bytes);
+        assert(after.written_bytes-before.written_bytes==6*(scalar?16:8));
+        /* Invalid last coefficient, bounds and aliases leave both caller
+         * destinations unchanged, including the earlier scratch elements. */
+        memset(weights+8,0,8); before=vstorage_stats(arena); report=(VGemmReport){83,84};
+        assert(vgemm_diagonal_pair(arena,0,x,1,y,3,output,2,scratch,diagonal,cl,cr,&report)==VS_OPERATION);
+        expect(arena,2,scratch,0,0,6,cr?4:-4); expect(arena,3,output,0,0,expected_real,expected_imaginary);
+        assert(report.kernel_calls==83 && report.written_bytes==84);
+        assert(vstorage_stats(arena).written_bytes==before.written_bytes);
+        for(unsigned j=0;j<8;++j) weights[8+j]=(uint8_t)(values[1]>>(8*j));
+        assert(vgemm_diagonal_pair(arena,0,x,1,y,1,output,2,scratch,diagonal,cl,cr,NULL)==VS_ALIAS);
+        assert(vgemm_diagonal_pair(arena,0,x,1,y,3,output,0,scratch,diagonal,cl,cr,NULL)==VS_ALIAS);
+        VStorageLayout bad=output; bad.offset=4096;
+        assert(vgemm_diagonal_pair(arena,0,x,1,y,3,bad,2,scratch,diagonal,cl,cr,NULL)==VS_LAYOUT);
+        VStorageLayout other={0,1,1,1,0};
+        assert(vstorage_allocate(arena,4,!scalar,1)==VS_OK);
+        assert(vgemm_diagonal_pair(arena,0,x,1,y,4,other,2,scratch,diagonal,cl,cr,NULL)==VS_SCALAR);
+        assert(vstorage_stats(arena).written_bytes==before.written_bytes);
+        cleanup(arena);
+    }
+}
+
 int main(void) {
     assert(vgemm_backend_check()==VS_OK);
     real_orientations(); complex_product(); conjugation_and_nonfinite();
-    degenerate(); nonfinite_inputs(); failures_preserve_output(); coefficients();
+    degenerate(); nonfinite_inputs(); failures_preserve_output(); coefficients(); diagonal_pairing();
     puts(vgemm_configuration());
     puts("GEMM: real/complex N/T/R/C layouts, reuse, empty dimensions and failure-before-write passed");
 }

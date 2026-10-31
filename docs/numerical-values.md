@@ -402,7 +402,9 @@ read reborrows and nested calls. [Vector evaluation](vector-evaluation.md) now
 connects bilinear dual and explicit orthonormal Hermitian pairing to scalar
 destinations through the same checked GEMM. [Finite two-map networks](finite-networks.md)
 add checked occurrences and ports, an explicit bilinear edge and ordered boundaries.
-General metric realization, general generative numerical result packages, dynamic
+[Explicit diagonal metrics](diagonal-metrics.md) add materialized adjoints and
+weighted pairing with caller-owned scratch and exact declared Int coefficients.
+Dense metric realization, general generative numerical result packages, dynamic
 shape/scalar interfaces, higher-rank or multi-edge networks, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).
 

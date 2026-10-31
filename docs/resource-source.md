@@ -156,7 +156,7 @@ Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 `OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
 storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-general generative numerical result packages and general metric realization,
+general generative numerical result packages and dense metric realization,
 general owned-result branch joins, scratch/dependency handling, higher-rank or
 multi-edge networks, explicit packing and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and

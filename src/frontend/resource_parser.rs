@@ -713,6 +713,57 @@ impl Parser {
                 target,
             });
         }
+        if self.consume("adjoint_into") {
+            self.expect("(")?;
+            let input = self.name()?.0;
+            self.expect(",")?;
+            let output = self.name()?.0;
+            self.expect(",")?;
+            let source_metric = self.name()?.0;
+            self.expect(",")?;
+            let target_metric = self.name()?.0;
+            self.expect(",")?;
+            self.expect("NativeFast")?;
+            self.expect(")")?;
+            return Ok(Numerical::AdjointInto {
+                input,
+                output,
+                source_metric,
+                target_metric,
+                policy: NumericalPolicy::NativeFast,
+            });
+        }
+        if self.consume("hermitian_diagonal") {
+            self.expect("(")?;
+            let left = self.name()?.0;
+            self.expect(",")?;
+            let right = self.name()?.0;
+            self.expect(",")?;
+            let output = self.name()?.0;
+            self.expect(",")?;
+            let metric = self.name()?.0;
+            self.expect(",")?;
+            self.expect("scratch")?;
+            self.expect("(")?;
+            let scratch = self.name()?.0;
+            self.expect(",")?;
+            let layout = self.resource_layout()?;
+            self.expect(")")?;
+            self.expect(",")?;
+            self.expect("overwrite")?;
+            self.expect(",")?;
+            self.expect("NativeFast")?;
+            self.expect(")")?;
+            return Ok(Numerical::HermitianDiagonal {
+                left,
+                right,
+                output,
+                metric,
+                scratch,
+                layout,
+                policy: NumericalPolicy::NativeFast,
+            });
+        }
         let evaluation = if self.consume("evaluate") {
             Some(false)
         } else if self.consume("hermitian") {
@@ -1064,6 +1115,8 @@ impl Parser {
                 "vector",
                 "evaluate",
                 "hermitian",
+                "adjoint_into",
+                "hermitian_diagonal",
                 "unpack",
             ]
             .iter()

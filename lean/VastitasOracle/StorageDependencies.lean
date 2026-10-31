@@ -39,6 +39,47 @@ private theorem written_backwards {state : State} {allocation : Nat} {layout : L
     LiveEntry state name dependency :=
   invalidation_backwards live
 
+private theorem borrow_metadata {before after : State} {name source layout access}
+    (accepted : borrowTransition before name source layout access = .ok after) :
+    after.dependencies = before.dependencies ∧ after.used = name :: before.used := by
+  unfold borrowTransition at accepted
+  simp only [Bind.bind, Except.bind] at accepted
+  repeat' (split at accepted <;> try simp_all only [reduceCtorEq])
+  all_goals try contradiction
+  all_goals have same := Except.ok.inj accepted
+  all_goals subst after
+  all_goals exact ⟨rfl, rfl⟩
+
+private theorem release_metadata {before after : State} {name}
+    (accepted : releaseTransition before name = .ok after) :
+    after.dependencies = before.dependencies ∧ after.used = before.used := by
+  unfold releaseTransition at accepted
+  simp only [Bind.bind, Except.bind] at accepted
+  repeat' (split at accepted <;> try simp_all only [reduceCtorEq])
+  all_goals try contradiction
+  all_goals have same := Except.ok.inj accepted
+  all_goals subst after
+  all_goals exact ⟨rfl, rfl⟩
+
+private theorem pair_metadata {before after : State} {request : DiagonalPair}
+    (accepted : diagonalPairTransition before request = .ok after) :
+    (∀ name dependency, LiveEntry after name dependency → LiveEntry before name dependency) ∧
+      after.used = request.leftChild :: request.readLoan :: request.writeLoan :: before.used := by
+  unfold diagonalPairTransition at accepted
+  simp only [Bind.bind, Except.bind] at accepted
+  repeat' (split at accepted <;> try simp_all only [reduceCtorEq])
+  all_goals try contradiction
+  all_goals have same := Except.ok.inj accepted
+  all_goals subst after
+  all_goals rename_i exact
+  all_goals constructor
+  all_goals first
+    | exact exact.2
+    | intro name dependency live
+      unfold LiveEntry at live ⊢
+      rw [exact.1] at live
+      exact invalidation_backwards (invalidation_backwards live)
+
 theorem action_live_origin {before after : State} {action : Action}
     {name : Symbol} {dependency : Dependency}
     (accepted : checkAction before action = .ok after)
@@ -54,7 +95,11 @@ theorem action_live_origin {before after : State} {action : Action}
     | exact Or.inl live
     | exact Or.inl (written_backwards live)
     | exact Or.inl (invalidation_backwards live)
+    | exact Or.inl (invalidation_backwards (invalidation_backwards live))
     | exact Or.inl (List.mem_filter.mp live).1
+    | exact Or.inl (by simpa only [LiveEntry, (borrow_metadata executed).1] using live)
+    | exact Or.inl (by simpa only [LiveEntry, (release_metadata executed).1] using live)
+    | exact Or.inl ((pair_metadata executed).1 name dependency live)
     | grind [LiveEntry]
 
 
@@ -169,6 +214,9 @@ theorem action_used_mono {before after : State} {action : Action} {name : Symbol
   all_goals first
     | exact used
     | exact List.mem_cons_of_mem _ used
+    | simpa only [(borrow_metadata executed).2] using List.mem_cons_of_mem _ used
+    | simpa only [(release_metadata executed).2] using used
+    | simpa only [(pair_metadata executed).2] using List.mem_cons_of_mem _ (List.mem_cons_of_mem _ (List.mem_cons_of_mem _ used))
 
 theorem capture_used {before after : State} {name source target : Symbol}
     (accepted : checkAction before (.captureDependency name source target) = .ok after) :

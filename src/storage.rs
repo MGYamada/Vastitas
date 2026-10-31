@@ -64,8 +64,44 @@ pub enum NumericalPolicy {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Diagonal {
+    pub uniform: bool,
+    pub entries: Vec<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
+    DiagonalAdjoint {
+        input: u32,
+        output: u32,
+        source: Diagonal,
+        target: Diagonal,
+        conjugate: bool,
+        policy: NumericalPolicy,
+    },
+    DiagonalScale {
+        input: u32,
+        output: u32,
+        diagonal: Diagonal,
+        conjugate: bool,
+        policy: NumericalPolicy,
+    },
+    DiagonalPair {
+        left: u32,
+        right: u32,
+        output: u32,
+        scratch: u32,
+        layout: Layout,
+        write_loan: u32,
+        read_loan: u32,
+        left_child: u32,
+        diagonal: Diagonal,
+        conjugate_left: bool,
+        conjugate_right: bool,
+        policy: NumericalPolicy,
+    },
     CaptureDependency {
         name: u32,
         source: u32,
@@ -127,6 +163,13 @@ pub enum Action {
         i: u64,
         k: u64,
         j: u64,
+    },
+    Regroup3 {
+        source: u32,
+        target: u32,
+        dimensions: Vec<u64>,
+        input: source::TensorGrouping,
+        output: source::TensorGrouping,
     },
     // Internal resource operation only. Public source additionally needs
     // nominal endpoint/frame/metric validation before selecting this backend.
@@ -483,6 +526,22 @@ pub mod source {
             involution: String,
             gram: Gram,
         },
+        AdjointInto {
+            input: String,
+            output: String,
+            source_metric: String,
+            target_metric: String,
+            policy: NumericalPolicy,
+        },
+        HermitianDiagonal {
+            left: String,
+            right: String,
+            output: String,
+            metric: String,
+            scratch: String,
+            layout: Layout,
+            policy: NumericalPolicy,
+        },
         Transform {
             name: String,
             parent: String,
@@ -635,6 +694,58 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TreePort {
+        pub occurrence: String,
+        pub axis: u64,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TreeEdge {
+        pub name: String,
+        pub dual: TreePort,
+        pub primal: TreePort,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TreeGraph {
+        pub occurrences: Vec<Occurrence>,
+        pub edges: Vec<TreeEdge>,
+        pub boundary: Vec<TreePort>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum TreeStep {
+        Action {
+            action: Action,
+        },
+        View {
+            name: String,
+            loan: String,
+            axes: Vec<String>,
+            grouping: TensorGrouping,
+        },
+        Regroup {
+            component: String,
+            target: String,
+        },
+        Rebind {
+            component: String,
+            view: String,
+        },
+        Join {
+            name: String,
+            edge: String,
+            left: String,
+            right: String,
+            output: String,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
         Value {
@@ -657,6 +768,13 @@ pub mod source {
             condition: String,
             yes: Vec<Statement>,
             no: Vec<Statement>,
+            span: Span,
+        },
+        Tree {
+            graph: TreeGraph,
+            output: String,
+            policy: NumericalPolicy,
+            plan: Vec<TreeStep>,
             span: Span,
         },
         Tensor {

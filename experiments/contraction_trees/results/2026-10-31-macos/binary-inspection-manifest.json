@@ -1,0 +1,202 @@
+[
+  {
+    "path": "cases/tiny-complex-p0/.lake/build/bin/bench",
+    "bytes": 2565400,
+    "sha256": "dd942cf9d7d203e6e9f675d2d5fa8dbca9ee70943e0db5102319d07967f23f0a"
+  },
+  {
+    "path": "cases/tiny-complex-p0/canonical-program",
+    "bytes": 2527288,
+    "sha256": "8535ad6a788c96d04ad159fb77323ca0dc56a9837bc01dba06361e6d55660288"
+  },
+  {
+    "path": "cases/tiny-complex-p0/disassembly.txt",
+    "bytes": 20424514,
+    "sha256": "16adfe6d322ce6bfcd7eb829fcb9f8617fbc25cee798adac76a8f35d4086977c"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native-test/test",
+    "bytes": 201896,
+    "sha256": "b40d511ce06533735d615f9a31ec43e60e1cc0634da7a2c6c9f620d840d10d7a"
+  },
+  {
+    "path": "cases/tiny-complex-p0/sanitized/test",
+    "bytes": 261976,
+    "sha256": "b6874f7b499e7a8969ef1079e02e3b3257f927d2c1ed6a12626d5010dd9dc6ea"
+  },
+  {
+    "path": "cases/tiny-complex-p0/sanitized/test.dSYM/Contents/Resources/DWARF/test",
+    "bytes": 115728,
+    "sha256": "07be00a13ccd90a3c5130d7e94726b39291dd9823fb4e75323cc36268f229ff5"
+  },
+  {
+    "path": "cases/tiny-complex-p0/symbols.txt",
+    "bytes": 1025284,
+    "sha256": "b5d6a85d47e3a3147b2dd6eb5359f928575e91d0b6431e9073f3e2439ae1fa47"
+  },
+  {
+    "path": "cases/tiny-complex-p1/.lake/build/bin/bench",
+    "bytes": 2565400,
+    "sha256": "4caf35bef9c687b86d18998e987f003e434f700c2158144f9b86a6c1752f2697"
+  },
+  {
+    "path": "cases/tiny-complex-p1/canonical-program",
+    "bytes": 2527288,
+    "sha256": "32447770004588a235094839ffe4af18785206dd1d96599772dfee3440ce1854"
+  },
+  {
+    "path": "cases/tiny-complex-p1/disassembly.txt",
+    "bytes": 20424935,
+    "sha256": "a47939cece6e7ad2868a5e0d87036f6f45bbabb982d3f8846ffd58fb7279d39c"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native-test/test",
+    "bytes": 218440,
+    "sha256": "7805baae561246d0f872cd82803e85a34b4a9f9f737cb833d69aac0c0605c4c1"
+  },
+  {
+    "path": "cases/tiny-complex-p1/sanitized/test",
+    "bytes": 261976,
+    "sha256": "58dab736c7b9ba10ac8f96425ce8120eb896e990c39044698b1d63468b088573"
+  },
+  {
+    "path": "cases/tiny-complex-p1/sanitized/test.dSYM/Contents/Resources/DWARF/test",
+    "bytes": 115728,
+    "sha256": "5580def6e50b572fa2e2f2f5a8a79cc426c540eb4952661fbcae2f89e2b7ac23"
+  },
+  {
+    "path": "cases/tiny-complex-p1/symbols.txt",
+    "bytes": 1025284,
+    "sha256": "6e7f1192e8450a2935b981ff940a5de29a285868abcd7198311d6a3c1f5bf722"
+  },
+  {
+    "path": "cases/tiny-f64-p0/.lake/build/bin/bench",
+    "bytes": 2548840,
+    "sha256": "db072d61cfd50b87dc54d299385904657b45c6df0d3e4f3ccad3b613dd1fedca"
+  },
+  {
+    "path": "cases/tiny-f64-p0/canonical-program",
+    "bytes": 2527288,
+    "sha256": "090dc93b25fdbe3765d47b31d5646ca79ad18bdf598c385a2af96eeb734ad17a"
+  },
+  {
+    "path": "cases/tiny-f64-p0/disassembly.txt",
+    "bytes": 20407003,
+    "sha256": "d1b4d8b9878df68a2d073f745c960809a44ed1c69e122a2be6b4abf06233d84a"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native-test/test",
+    "bytes": 201864,
+    "sha256": "f52903827a67f2823fed12cbd9f16c1deecc160c6ffaf227bb5188dd937c3967"
+  },
+  {
+    "path": "cases/tiny-f64-p0/sanitized/test",
+    "bytes": 261832,
+    "sha256": "de755828fc9bcbb89006c93438a0b6fe25f5296c2a652e9b89e87e1b69ed3af3"
+  },
+  {
+    "path": "cases/tiny-f64-p0/sanitized/test.dSYM/Contents/Resources/DWARF/test",
+    "bytes": 115236,
+    "sha256": "f7a2d2112b4099f28f6ea524c1bd65e1bf85257a7f41ab24834cb2dcba5338d3"
+  },
+  {
+    "path": "cases/tiny-f64-p0/symbols.txt",
+    "bytes": 1025199,
+    "sha256": "fb7a2476baf7cbae2220113d5ac8e632129c0ebb4b8c343c22aa9c7de414a232"
+  },
+  {
+    "path": "cases/tiny-f64-p1/.lake/build/bin/bench",
+    "bytes": 2548840,
+    "sha256": "188c189389fbd991809481d323cf82e7bbc86c07ebe203dd9bddbe4bdf4d45fa"
+  },
+  {
+    "path": "cases/tiny-f64-p1/canonical-program",
+    "bytes": 2527288,
+    "sha256": "4b17855b6283902d6ca3ebc454fdaf9ef197caebbf5ea9754925bc571d82614e"
+  },
+  {
+    "path": "cases/tiny-f64-p1/disassembly.txt",
+    "bytes": 20399131,
+    "sha256": "607a2343d6abe3c758976a833a8412b752f295d7f6c4a016ca91174786cf21e0"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native-test/test",
+    "bytes": 201880,
+    "sha256": "2c092c073303eaf431e7ef2e1d0637acd5f66670760347d0fbada31bb3d299f2"
+  },
+  {
+    "path": "cases/tiny-f64-p1/sanitized/test",
+    "bytes": 261832,
+    "sha256": "d2a7cb70539902d93046486c2ef5a70862a4d63aff0abdf01173306f6f2b3163"
+  },
+  {
+    "path": "cases/tiny-f64-p1/sanitized/test.dSYM/Contents/Resources/DWARF/test",
+    "bytes": 115236,
+    "sha256": "f84f09cb9da9a31dd89a5b3cb95ceda8556becf937e634b2ca113dc1706ac7ef"
+  },
+  {
+    "path": "cases/tiny-f64-p1/symbols.txt",
+    "bytes": 1025199,
+    "sha256": "1e11405ad327120bb5605aea1fbedb77b2830b499c424126ffffc5dafa2e92bc"
+  },
+  {
+    "path": "additional-native/bulk-complex-p0/test",
+    "bytes": 218408,
+    "sha256": "d7dbafbed16aa885090c9c7b4a026593f61a0dd58b9963f30f4116070913c41e"
+  },
+  {
+    "path": "additional-native/bulk-complex-p1/test",
+    "bytes": 218440,
+    "sha256": "d8eef54cc88b7679632b30e514155dd9fc51ec4c6ebfbed1634cdbb868baf3ef"
+  },
+  {
+    "path": "additional-native/bulk-f64-p0/test",
+    "bytes": 201864,
+    "sha256": "035ff9c860dcbe3ef917002ebf737fe00531c5860b6e7743e30d99e7c12c8629"
+  },
+  {
+    "path": "additional-native/bulk-f64-p1/test",
+    "bytes": 201880,
+    "sha256": "a1498db22aae249c51c5c30842f732cf52b7ec1c664b1d4d94f99d2dffd16eac"
+  },
+  {
+    "path": "additional-native/small-complex-p0/test",
+    "bytes": 218408,
+    "sha256": "35bd4196144bc3ccda0a49833e09200be85e8e2092c3a7ee731d57e59e794685"
+  },
+  {
+    "path": "additional-native/small-complex-p1/test",
+    "bytes": 218440,
+    "sha256": "47cf488ab1469f13390346d126bb714907c44592672255908142cebc37cfd5f7"
+  },
+  {
+    "path": "additional-native/small-f64-p0/test",
+    "bytes": 201864,
+    "sha256": "50af279446d7e602c51dd24307e714bb3cb9b2053a6d3f5cfa15573677a83ba0"
+  },
+  {
+    "path": "additional-native/small-f64-p1/test",
+    "bytes": 218392,
+    "sha256": "306944d77af073d20f00a8ae542a9e15dea6fee712d10024d931ba9b45bef35f"
+  },
+  {
+    "path": "additional-native/tiny-complex-p0/test",
+    "bytes": 201896,
+    "sha256": "b40d511ce06533735d615f9a31ec43e60e1cc0634da7a2c6c9f620d840d10d7a"
+  },
+  {
+    "path": "additional-native/tiny-complex-p1/test",
+    "bytes": 218440,
+    "sha256": "7805baae561246d0f872cd82803e85a34b4a9f9f737cb833d69aac0c0605c4c1"
+  },
+  {
+    "path": "additional-native/tiny-f64-p0/test",
+    "bytes": 201864,
+    "sha256": "f52903827a67f2823fed12cbd9f16c1deecc160c6ffaf227bb5188dd937c3967"
+  },
+  {
+    "path": "additional-native/tiny-f64-p1/test",
+    "bytes": 201880,
+    "sha256": "2c092c073303eaf431e7ef2e1d0637acd5f66670760347d0fbada31bb3d299f2"
+  }
+]

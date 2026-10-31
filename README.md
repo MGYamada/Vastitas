@@ -69,8 +69,13 @@ metrics, preserving views through nested calls. [Vector evaluation](docs/vector-
 adds bilinear dual evaluation and explicit Hermitian pairing through actual
 borrowed vector arguments and scalar destinations. [Finite two-map networks](docs/finite-networks.md)
 check occurrences, ports, a bilinear edge and ordered boundaries before the same
-typed GEMM path. General metric realization, general generative numerical packages,
-dynamic shape/scalar interfaces, higher-rank networks and packing remain pending.
+typed GEMM path. [Explicit diagonal metrics](docs/diagonal-metrics.md) materialize
+real/complex adjoints and evaluate weighted Hermitian forms using actual declared
+coefficients and caller scratch. Conditional ideal laws remain separate from
+NativeFast arithmetic. [Bounded contraction trees](docs/contraction-trees.md)
+add explicit finite multi-edge plans with rank-two/three intermediates and
+caller-owned regrouping. Dense metric realization, general generative numerical
+packages, dynamic shape/scalar interfaces and general-rank networks remain open.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.
 This does not add general floating values to pure Core or dynamic shape contracts.

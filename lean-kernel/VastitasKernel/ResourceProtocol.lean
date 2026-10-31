@@ -156,6 +156,14 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
   | "metric" =>
     fields j ["op", "name", "basis", "involution", "gram"]
     return .metric (← str j "name") (← str j "basis") (← str j "involution") (← gram (← field j "gram"))
+  | "adjoint_into" =>
+    fields j ["op", "input", "output", "source_metric", "target_metric", "policy"]
+    return .adjointInto (← str j "input") (← str j "output") (← str j "source_metric")
+      (← str j "target_metric") (← Storage.Wire.numericalPolicy (← str j "policy"))
+  | "hermitian_diagonal" =>
+    fields j ["op", "left", "right", "output", "metric", "scratch", "layout", "policy"]
+    return .hermitianDiagonal (← str j "left") (← str j "right") (← str j "output") (← str j "metric")
+      (← str j "scratch") (← Storage.Wire.layout (← field j "layout")) (← Storage.Wire.numericalPolicy (← str j "policy"))
   | "transform" =>
     fields j ["op", "name", "parent", "operation"]
     return .transform (← str j "name") (← str j "parent") (← transform (← field j "operation"))
@@ -251,6 +259,46 @@ private def networkGraph (j : Json) : Except String (Storage.TensorNetwork.Graph
     return Storage.TensorNetwork.Edge.mk (← networkPort (← field edge "dual")) (← networkPort (← field edge "primal"))
   return ⟨occurrences, edges, ← inputs.mapM networkPort, ← outputs.mapM networkPort⟩
 
+private def without (j : Json) (key : String) : Except String Json := do
+  return Json.mkObj ((← j.getObj?).toArray.toList.filter (·.1 != key))
+
+private def treePort (j : Json) : Except String Storage.TensorTree.Port := do
+  fields j ["occurrence", "axis"]
+  let axis ← size j "axis"
+  if axis ≥ 3 then throw "tree port axis exceeds rank-three bound"
+  return ⟨← str j "occurrence", axis⟩
+
+private def treeGraph (j : Json) : Except String (Storage.TensorTree.Graph String) := do
+  fields j ["occurrences", "edges", "boundary"]
+  let occurrences ← array j "occurrences"
+  let edges ← array j "edges"
+  let boundary ← array j "boundary"
+  unless 2 ≤ occurrences.length && occurrences.length ≤ 64 && edges.length + 1 == occurrences.length &&
+      (boundary.length == 2 || boundary.length == 3) do throw "tree exceeds bounded occurrence/edge/boundary profile"
+  let occurrences ← occurrences.mapM fun node => do
+    fields node ["name", "value"]
+    return Storage.TensorTree.Occurrence.mk (← str node "name") (← str node "value")
+  let edges ← edges.mapM fun edge => do
+    fields edge ["name", "dual", "primal"]
+    return Storage.TensorTree.Edge.mk (← str edge "name") (← treePort (← field edge "dual")) (← treePort (← field edge "primal"))
+  return ⟨occurrences, edges, ← boundary.mapM treePort⟩
+
+private def treeStep (j : Json) : Except String (Storage.TensorTree.PlanStep String Action) := do
+  match ← str j "kind" with
+  | "action" => fields j ["kind", "action"]; return .action (← action (← field j "action"))
+  | "view" =>
+    fields j ["kind", "name", "loan", "axes", "grouping"]
+    let operation ← tensorOperation ((← without j "kind").setObjVal! "op" (.str "view"))
+    match operation with
+    | .view name loan axes grouping => return .view name loan axes grouping
+    | _ => throw "tree tensor construction must be a view"
+  | "regroup" => fields j ["kind", "component", "target"]; return .regroup (← str j "component") (← str j "target")
+  | "rebind" => fields j ["kind", "component", "view"]; return .rebind (← str j "component") (← str j "view")
+  | "join" =>
+    fields j ["kind", "name", "edge", "left", "right", "output"]
+    return .join (← str j "name") (← str j "edge") (← str j "left") (← str j "right") (← str j "output")
+  | _ => throw "unknown explicit tree plan step"
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
@@ -260,6 +308,12 @@ private def statements : Nat → List Json → Except String (List Statement)
       | "action" =>
         fields first ["kind", "action", "span"]
         pure (.action (← action (← field first "action")) span)
+      | "tree" =>
+        fields first ["kind", "graph", "output", "policy", "plan", "span"]
+        let plan ← array first "plan"
+        unless plan.length ≤ 1024 do throw "tree plan exceeds 1024 explicit steps"
+        pure (.tree (← treeGraph (← field first "graph")) (← str first "output")
+          (← Storage.Wire.numericalPolicy (← str first "policy")) (← plan.mapM treeStep) span)
       | "tensor" =>
         fields first ["kind", "operation", "span"]
         pure (.tensor (← tensorOperation (← field first "operation")) span)
@@ -318,9 +372,6 @@ def function (j : Json) : Except String Function := do
     body := ← statements 4096 (← array j "body"), valueType := ← Indexed.Wire.pureType (← field j "value_type"),
     valueBody := ← Indexed.Wire.block Limits.sourceNesting (← field j "value_body"),
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
-
-private def without (j : Json) (key : String) : Except String Json := do
-  return Json.mkObj ((← j.getObj?).toArray.toList.filter (·.1 != key))
 
 def module (j : Json) : Except String Module := do
   let pureModule ← Indexed.Wire.module (← without j "resource_functions") true

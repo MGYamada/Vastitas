@@ -35,7 +35,7 @@ text = true
 
 [[lean_lib]]
 name = "VastitasStorageTest"
-roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression", "VastitasStorageTest.ValueFlowRegression", "VastitasStorageTest.GemmRegression", "VastitasStorageTest.NumericalRegression", "VastitasStorageTest.TransformRegression", "VastitasStorageTest.NetworkRegression", "VastitasStorageTest.EvaluationRegression", "VastitasStorageTest.TensorRegression", "VastitasStorageTest.DependencyRegression", "VastitasStorageTest.OwnedPackageRegression", "VastitasStorageTest.NumericalFixture"]
+roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression", "VastitasStorageTest.ValueFlowRegression", "VastitasStorageTest.GemmRegression", "VastitasStorageTest.NumericalRegression", "VastitasStorageTest.TransformRegression", "VastitasStorageTest.NetworkRegression", "VastitasStorageTest.EvaluationRegression", "VastitasStorageTest.TensorRegression", "VastitasStorageTest.TreeRegression", "VastitasStorageTest.DependencyRegression", "VastitasStorageTest.MetricRegression", "VastitasStorageTest.OwnedPackageRegression", "VastitasStorageTest.NumericalFixture"]
 needs = ["storageFixture", "storageFunctionFixture", "storageGemmFixture"]
 
 [[input_file]]

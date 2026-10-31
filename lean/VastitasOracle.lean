@@ -48,8 +48,12 @@ import VastitasOracle.ResourceSource
 import VastitasOracle.ResourceValueFlow
 import VastitasOracle.TensorNetwork
 import VastitasOracle.TensorNumerical
+import VastitasOracle.TensorContraction
+import VastitasOracle.TensorTree
 import VastitasOracle.StorageOwnedPackages
 import VastitasOracle.StorageDependencies
+import VastitasOracle.StorageMetric
+import VastitasOracle.StorageMetricLaws
 import VastitasOracle.StorageCachedPacking
 
 /-!

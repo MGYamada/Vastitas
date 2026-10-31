@@ -38,13 +38,34 @@ LSan. Linux should retain the default ASan/UBSan/LSan validation. No unavailable
 toolchain fallback can turn a failed generated run into a successful result.
 
 A reproducible exploratory full run uses twelve cases and eleven paired
-samples of at least a 5 ms target batch:
+samples with a 5 ms calibration target per batch:
 
 ```sh
 python3 experiments/tensor_packing/run.py \
   --prefix /path/to/pinned-openblas --output /tmp/tensor-full \
   --samples 11 --target-ms 5
 ```
+
+The dedicated Linux workflow runs four-case smoke validation on both `push`
+and `pull_request` for changes to the harness and its selected native/checker
+dependencies. Manual dispatch accepts `profile=smoke` (default) or `profile=full`;
+the latter uses all twelve cases, eleven paired samples and the 5 ms target.
+Both retain ASan/UBSan/LSan, one backend thread and a 45-minute job limit.
+The target applies during calibration, not as a guarantee that later batches
+remain above 5 ms; retain all samples when interpreting variability.
+
+```sh
+gh workflow run tensor-packing-experiment.yml --ref REVIEWED_REF -f profile=full
+```
+
+The workflow uploads two artifacts for 14 days: `tensor-packing-records-*`
+contains raw rows, summaries, environment, commands, native validation, exact
+source/wire/emission and wrappers; `tensor-packing-inspection-*` contains the
+large symbol/disassembly listings whose hashes are in the command records.
+The small record archive supports review without downloading disassemblies.
+Preserve selected raw evidence in this repository before hosted retention ends.
+Shared hosted runs remain exploratory and do not accept the controlled-host
+performance gate or establish native refinement.
 
 Cases cover `F64` and `Complex<F64>`, contiguous and offset/padded layouts,
 and `(i,k,j,l)` equal to `(2,3,4,5)`, `(7,11,5,13)`, `(32,48,24,40)`.
@@ -136,3 +157,6 @@ unless collected and assessed under the controlled-host completion gate.
 
 The first strengthened all-size validation is recorded in
 [the macOS validation record](results/2026-10-31-macos/RESULTS.md).
+The [full Linux run](results/2026-10-31-linux-full/RESULTS.md) retains all twelve
+cases, native LSan validation, raw paired measurements and the remaining
+tiny/small overhead and bulk uncertainty. It does not accept the performance gate.

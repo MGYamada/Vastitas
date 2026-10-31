@@ -10,7 +10,9 @@ The two inputs have ranks three and two; the output has rank three. The
 contracted axes are exactly `T[1]` and `B[0]`, and the ordered output boundary is
 `[T[0], T[2], B[1]]`. This is a fixed-axis operation, not general `einsum`, a graph
 optimizer, or a tensor-category implementation. General networks, structural
-nodes, additional contraction axes and rewrite laws remain open in #69.
+nodes and rewrite laws remain open in #69. The separate
+[bounded contraction-tree profile](contraction-trees.md) adds explicit multi-edge
+plans and selected-axis regrouping while retaining these fixed operations.
 
 ## Actual axis types and representation
 
@@ -31,7 +33,8 @@ conjugate space cannot replace it. The destination axes must be exactly
 `[bu, bw, bxd]` in that order. Axes may reuse a basis; their positions remain
 distinct. Axis labels grant no storage ownership or disjointness evidence.
 
-`view2` uses physical groups `[0 | 1]`. `view3` specifies a complete permutation
+`view2` defaults to physical groups `[0 | 1]`; the tree increment also accepts an
+explicit rank-two grouping. `view3` specifies a complete permutation
 and its row-group length. The first axis within each group is fastest:
 
 | Axes / groups | Rectangular coordinate |

@@ -2,6 +2,7 @@
 #define VASTITAS_GEMM_H
 
 #include "storage.h"
+#include "diagonal.h"
 
 /* Internal numerical adapter, not public source/wire authority. Callers must
  * supply independently checked mathematical types and read/write/init rights.
@@ -33,5 +34,12 @@ VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
     uint32_t right, VStorageLayout right_view, uint8_t right_conjugate,
     uint32_t output, VStorageLayout output_view, VGemmMode mode,
     VGemmCoefficient alpha, VGemmCoefficient beta, VGemmReport *report);
+
+/* Compound preflight covers both scratch weighting and the following GEMM.
+ * No data is changed on a returned error; scratch belongs to the caller. */
+VStorageStatus vgemm_diagonal_pair(VStorageArena *arena,
+    uint32_t left, VStorageLayout left_view, uint32_t right, VStorageLayout right_view,
+    uint32_t output, VStorageLayout output_view, uint32_t scratch, VStorageLayout scratch_view,
+    VDiagonal diagonal, uint8_t conjugate_left, uint8_t conjugate_right, VGemmReport *report);
 
 #endif

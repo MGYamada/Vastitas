@@ -1,8 +1,9 @@
 import VastitasKernel.StorageCodegen
 import VastitasKernel.StorageValueFlow
 import VastitasKernel.TensorNetwork
-import VastitasKernel.StorageEvaluation
+import VastitasKernel.StorageMetric
 import VastitasKernel.TensorNumerical
+import VastitasKernel.TensorTree
 import VastitasKernel.StorageOwnedPackages
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
@@ -63,6 +64,7 @@ inductive Statement where
   | numerical (operation : Numerical.Operation)
   | tensor (operation : Tensor.Operation)
   | network (graph : TensorNetwork.Graph) (output : Symbol) (policy : NumericalPolicy)
+  | tree (graph : TensorTree.Graph) (output : Symbol) (policy : NumericalPolicy) (plan : List TensorTree.Event)
   | call (callee : Nat) (arguments results : List Symbol)
   | callValue (callee : Nat) (arguments results : List Symbol) (value : Symbol) (type : Indexed.Core.PureType)
   | branch (condition : ValueFlow.Condition) (yes no : List Statement)
@@ -70,6 +72,8 @@ inductive Statement where
 
 deriving instance DecidableEq for Numerical.Operation
 deriving instance DecidableEq for Tensor.Operation
+deriving instance DecidableEq for TensorTree.Occurrence
+deriving instance DecidableEq for TensorTree.Graph
 
 mutual
   def Statement.decEq (left right : Statement) : Decidable (left = right) :=
@@ -84,6 +88,8 @@ mutual
       decidable_of_iff (a0 = b0) (by simp only [Statement.tensor.injEq])
     | .network a0 a1 a2, .network b0 b1 b2 =>
       decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp only [Statement.network.injEq])
+    | .tree a0 a1 a2 a3, .tree b0 b1 b2 b3 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp only [Statement.tree.injEq])
     | .call a0 a1 a2, .call b0 b1 b2 =>
       decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp only [Statement.call.injEq])
     | .callValue a0 a1 a2 a3 a4, .callValue b0 b1 b2 b3 b4 =>
@@ -94,14 +100,15 @@ mutual
       | isFalse h, _, _ => isFalse (fun e => h (Statement.branch.inj e).1)
       | _, isFalse h, _ => isFalse (fun e => h (Statement.branch.inj e).2.1)
       | _, _, isFalse h => isFalse (fun e => h (Statement.branch.inj e).2.2)
-    | .value .., .action .. | .value .., .numerical .. | .value .., .tensor .. | .value .., .network .. | .value .., .call .. | .value .., .callValue .. | .value .., .branch .. => isFalse (by intro h; cases h)
-    | .action .., .value .. | .action .., .numerical .. | .action .., .tensor .. | .action .., .network .. | .action .., .call .. | .action .., .callValue .. | .action .., .branch .. => isFalse (by intro h; cases h)
-    | .numerical .., .value .. | .numerical .., .action .. | .numerical .., .tensor .. | .numerical .., .network .. | .numerical .., .call .. | .numerical .., .callValue .. | .numerical .., .branch .. => isFalse (by intro h; cases h)
-    | .tensor .., .value .. | .tensor .., .action .. | .tensor .., .numerical .. | .tensor .., .network .. | .tensor .., .call .. | .tensor .., .callValue .. | .tensor .., .branch .. => isFalse (by intro h; cases h)
-    | .network .., .value .. | .network .., .action .. | .network .., .numerical .. | .network .., .tensor .. | .network .., .call .. | .network .., .callValue .. | .network .., .branch .. => isFalse (by intro h; cases h)
-    | .call .., .value .. | .call .., .action .. | .call .., .numerical .. | .call .., .tensor .. | .call .., .network .. | .call .., .callValue .. | .call .., .branch .. => isFalse (by intro h; cases h)
-    | .callValue .., .value .. | .callValue .., .action .. | .callValue .., .numerical .. | .callValue .., .tensor .. | .callValue .., .network .. | .callValue .., .call .. | .callValue .., .branch .. => isFalse (by intro h; cases h)
-    | .branch .., .value .. | .branch .., .action .. | .branch .., .numerical .. | .branch .., .tensor .. | .branch .., .network .. | .branch .., .call .. | .branch .., .callValue .. => isFalse (by intro h; cases h)
+    | .value .., .action .. | .value .., .numerical .. | .value .., .tensor .. | .value .., .network .. | .value .., .tree .. | .value .., .call .. | .value .., .callValue .. | .value .., .branch .. => isFalse (by intro h; cases h)
+    | .action .., .value .. | .action .., .numerical .. | .action .., .tensor .. | .action .., .network .. | .action .., .tree .. | .action .., .call .. | .action .., .callValue .. | .action .., .branch .. => isFalse (by intro h; cases h)
+    | .numerical .., .value .. | .numerical .., .action .. | .numerical .., .tensor .. | .numerical .., .network .. | .numerical .., .tree .. | .numerical .., .call .. | .numerical .., .callValue .. | .numerical .., .branch .. => isFalse (by intro h; cases h)
+    | .tensor .., .value .. | .tensor .., .action .. | .tensor .., .numerical .. | .tensor .., .network .. | .tensor .., .tree .. | .tensor .., .call .. | .tensor .., .callValue .. | .tensor .., .branch .. => isFalse (by intro h; cases h)
+    | .network .., .value .. | .network .., .action .. | .network .., .numerical .. | .network .., .tensor .. | .network .., .tree .. | .network .., .call .. | .network .., .callValue .. | .network .., .branch .. => isFalse (by intro h; cases h)
+    | .tree .., .value .. | .tree .., .action .. | .tree .., .numerical .. | .tree .., .tensor .. | .tree .., .network .. | .tree .., .call .. | .tree .., .callValue .. | .tree .., .branch .. => isFalse (by intro h; cases h)
+    | .call .., .value .. | .call .., .action .. | .call .., .numerical .. | .call .., .tensor .. | .call .., .network .. | .call .., .tree .. | .call .., .callValue .. | .call .., .branch .. => isFalse (by intro h; cases h)
+    | .callValue .., .value .. | .callValue .., .action .. | .callValue .., .numerical .. | .callValue .., .tensor .. | .callValue .., .network .. | .callValue .., .tree .. | .callValue .., .call .. | .callValue .., .branch .. => isFalse (by intro h; cases h)
+    | .branch .., .value .. | .branch .., .action .. | .branch .., .numerical .. | .branch .., .tensor .. | .branch .., .network .. | .branch .., .tree .. | .branch .., .call .. | .branch .., .callValue .. => isFalse (by intro h; cases h)
   termination_by sizeOf left + sizeOf right
   def Statements.decEq (left right : List Statement) : Decidable (left = right) :=
     match left, right with
@@ -525,6 +532,21 @@ structure TensorContractionReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (Tensor.contractionRequest checked.left checked.right checked.output policy))] = code
 
+structure TreeReceipt where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  resources : State
+  values : Tensor.Values
+  graph : TensorTree.Graph
+  output : Symbol
+  plan : List TensorTree.Event
+  checked : TensorTree.Checked environment numerical resources values graph output plan
+  accepted : TensorTree.check environment numerical resources values graph output plan = .ok checked
+  after : State
+  transitioned : after = checked.finalState.resources
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ checked.finalState.code.map Storage.Statement.action = code
 structure CacheCaptureReceipt where
   cache : Tensor.Cache
   after : State
@@ -576,6 +598,49 @@ structure ValueReturnReceipt where
   completed : ValueFlow.project priorFlow = call.code
   emitted : priorFlow ++ [.value slot fragment arguments] = flow
 
+structure AdjointIntoReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  input : Symbol
+  output : Symbol
+  source : Symbol
+  target : Symbol
+  policy : NumericalPolicy
+  checked : Numerical.CheckedAdjointInto environment resources values input output source target policy
+  accepted : Numerical.checkAdjointInto environment resources values input output source target policy = .ok checked
+  after : State
+  transitioned : after = checked.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.diagonalAdjoint (Numerical.adjointIntoRequest checked.input checked.output
+    checked.sourceRealization.diagonal checked.targetRealization.diagonal policy))] = code
+
+structure DiagonalPairingReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  metric : Symbol
+  scratch : Symbol
+  writeLoan : Symbol
+  readLoan : Symbol
+  leftChild : Symbol
+  layout : Layout
+  policy : NumericalPolicy
+  checked : Numerical.CheckedDiagonalPairing environment resources values left right output metric scratch
+    writeLoan readLoan leftChild layout policy
+  accepted : Numerical.checkDiagonalPairing environment resources values left right output metric scratch
+    writeLoan readLoan leftChild layout policy = .ok checked
+  after : State
+  transitioned : after = checked.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.diagonalPair (Numerical.diagonalPairRequest checked.left checked.right
+    output scratch writeLoan readLoan leftChild layout checked.realization.diagonal policy))] = code
+
 structure Context where
   signatures : List ValueFlow.Signature := []
   scalarSlots : ValueFlow.Slots := []
@@ -592,6 +657,7 @@ structure Context where
   tensorViews : Array TensorViewReceipt := #[]
   tensorPacks : Array TensorPackReceipt := #[]
   tensorContractions : Array TensorContractionReceipt := #[]
+  trees : Array TreeReceipt := #[]
   products : Array NumericalReceipt := #[]
   networks : Array NetworkReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
@@ -602,6 +668,8 @@ structure Context where
   transforms : Array TransformReceipt := #[]
   vectorConjugates : Array VectorConjugateReceipt := #[]
   evaluations : Array EvaluationReceipt := #[]
+  adjoints : Array AdjointIntoReceipt := #[]
+  diagonalPairings : Array DiagonalPairingReceipt := #[]
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
@@ -757,6 +825,9 @@ def operation (frame : Frame) : Action → M Frame
   | .pack3 source target i k j => do
     step (.pack3 (← resolve frame source) (← resolve frame target) i k j)
     return frame
+  | .regroup3 source target dimensions input output => do
+    step (.regroup3 (← resolve frame source) (← resolve frame target) dimensions input output)
+    return frame
   | .captureDependency name source target => do
     let source ← resolve frame source
     let target ← resolve frame target
@@ -768,6 +839,23 @@ def operation (frame : Frame) : Action → M Frame
     return frame
   | .forgetDependency name => do
     step (.forgetDependency (← resolve frame name))
+    return frame
+  | .diagonalAdjoint request => do
+    step (.diagonalAdjoint {request with input := ← resolve frame request.input, output := ← resolve frame request.output})
+    return frame
+  | .diagonalScale request => do
+    step (.diagonalScale {request with input := ← resolve frame request.input, output := ← resolve frame request.output})
+    return frame
+  | .diagonalPair request => do
+    let left ← resolve frame request.left
+    let right ← resolve frame request.right
+    let output ← resolve frame request.output
+    let scratch ← resolve frame request.scratch
+    rejectOpaque scratch
+    let (frame, writeLoan) ← bindName frame request.writeLoan
+    let (frame, readLoan) ← bindName frame request.readLoan
+    let (frame, leftChild) ← bindName frame request.leftChild
+    step (.diagonalPair {request with left, right, output, scratch, writeLoan, readLoan, leftChild})
     return frame
   | .gemm request => do
     let left ← resolve frame request.left
@@ -810,6 +898,54 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
+  | .adjointInto input output source target policy =>
+    let input ← resolve frame input
+    let output ← resolve frame output
+    let source ← resolve frame source
+    let target ← resolve frame target
+    match accepted : Numerical.checkAdjointInto context.environment context.resources context.numerical input output source target policy with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let action := Action.diagonalAdjoint (Numerical.adjointIntoRequest checked.input checked.output
+        checked.sourceRealization.diagonal checked.targetRealization.diagonal policy)
+      step action
+      let after ← get
+      if transitioned : after.resources = checked.after then
+        if emitted : context.code.toList ++ [.action action] = after.code.toList then
+          let receipt : AdjointIntoReceipt := ⟨context.environment, context.resources, context.numerical,
+            input, output, source, target, policy, checked, accepted, after.resources, transitioned,
+            context.code.toList, after.code.toList, emitted⟩
+          set {after with adjoints := after.adjoints.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_METRIC", "materialized adjoint differs from its emitted operation"⟩
+      else throw ⟨"E_NUMERICAL_METRIC", "materialized adjoint differs from its resource transition"⟩
+  | .hermitianDiagonal left right output metric scratch layout policy =>
+    let left ← resolve frame left
+    let right ← resolve frame right
+    let output ← resolve frame output
+    let metric ← resolve frame metric
+    let scratch ← resolve frame scratch
+    rejectOpaque scratch
+    let writeLoan ← fresh
+    let readLoan ← fresh
+    let leftChild ← fresh
+    match accepted : Numerical.checkDiagonalPairing context.environment context.resources context.numerical
+        left right output metric scratch writeLoan readLoan leftChild layout policy with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let action := Action.diagonalPair (Numerical.diagonalPairRequest checked.left checked.right
+        output scratch writeLoan readLoan leftChild layout checked.realization.diagonal policy)
+      step action
+      let after ← get
+      if transitioned : after.resources = checked.after then
+        if emitted : context.code.toList ++ [.action action] = after.code.toList then
+          let receipt : DiagonalPairingReceipt := ⟨context.environment, context.resources, context.numerical,
+            left, right, output, metric, scratch, writeLoan, readLoan, leftChild, layout, policy,
+            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
+          set {after with diagonalPairings := after.diagonalPairings.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_METRIC", "diagonal pairing differs from its emitted operation"⟩
+      else throw ⟨"E_NUMERICAL_METRIC", "diagonal pairing differs from its resource transition"⟩
   | .conjugateVector name parent basis selected =>
     let parent ← resolve frame parent
     let basis ← resolve frame basis
@@ -978,7 +1114,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let owner ← resolve frame owner
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
-      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. =>
+      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
         throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
@@ -1251,6 +1387,60 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
         else throw ⟨"E_TENSOR", "contraction differs from its emitted schedule"⟩
       else throw ⟨"E_TENSOR", "contraction differs from its actual resource transition"⟩
 
+private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (List TensorTree.Event) := do
+  unless plan.length ≤ 1024 do throw ⟨"E_TENSOR_TREE", "tree plan exceeds 1024 explicit steps"⟩
+  let mut localFrame := frame
+  let mut resolved := []
+  for event in plan do
+    spend
+    let (next, event) ← match event with
+      | .action (.borrow name source layout access) => do
+        let source ← lowerSource localFrame source
+        let (next, name) ← bindName localFrame name
+        pure (next, TensorTree.PlanStep.action (.borrow name source layout access))
+      | .action (.release name) => do
+        let name ← resolve localFrame name
+        let loan := match Numerical.value? (← get).numerical name with
+          | some (.map view) => view.loan.name
+          | some (.vector view) => view.loan.name
+          | _ => name
+        pure (localFrame, .action (.release loan))
+      | .action _ => throw ⟨"E_TENSOR_TREE", "tree preparation permits only explicit borrow/release"⟩
+      | .view name loan axes grouping => do
+        let loan ← resolve localFrame loan
+        let axes ← (axes.mapM (resolve localFrame) : Except Error (List Symbol))
+        let (next, name) ← bindName localFrame name
+        pure (next, .view name loan axes grouping)
+      | .regroup component target => pure (localFrame, .regroup component (← resolve localFrame target))
+      | .rebind component view => pure (localFrame, .rebind component (← resolve localFrame view))
+      | .join name edge left right output => pure (localFrame, .join name edge left right (← resolve localFrame output))
+    localFrame := next
+    resolved := resolved ++ [event]
+  return resolved
+
+def treeOperation (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
+    (policy : NumericalPolicy) (plan : List TensorTree.Event) : M Frame := do
+  unless graph.Bounded do throw ⟨"E_TENSOR_TREE", "tree exceeds bounded occurrence/edge/boundary profile"⟩
+  let graph ← (graph.mapM (resolve frame) : Except Error TensorTree.Graph)
+  let output ← resolve frame output
+  let before ← get
+  let plan ← resolveTreePlan frame plan
+  match policy with
+  | .nativeFast =>
+    match accepted : TensorTree.check before.environment before.numerical before.resources before.tensors graph output plan with
+    | .error error => throw error
+    | .ok checked =>
+      for action in checked.finalState.code do step action
+      let after ← get
+      if transitioned : after.resources = checked.finalState.resources then
+        if emitted : before.code.toList ++ checked.finalState.code.map Storage.Statement.action = after.code.toList then
+          let receipt : TreeReceipt := ⟨before.environment, before.numerical, before.resources, before.tensors,
+            graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
+          set {after with trees := after.trees.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR_TREE", "tree emission changed an earlier resource operation"⟩
+      else throw ⟨"E_TENSOR_TREE", "tree differs from its actual resource expansion"⟩
+
 def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
     (policy : NumericalPolicy) : M Frame := do
   unless graph.Bounded do throw ⟨"E_NETWORK", "unsupported network profile"⟩
@@ -1282,6 +1472,7 @@ mutual
         | .action action => operation frame action
         | .numerical op => numericalOperation frame op
         | .network graph output policy => networkOperation frame graph output policy
+        | .tree graph output policy plan => treeOperation frame graph output policy plan
         | .tensor operation => tensorOperation frame operation
         | .call callee actuals outputs | .callValue callee actuals outputs .. => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
@@ -1325,6 +1516,7 @@ mutual
             cacheCaptures := #[]
             cachedContractions := #[]
             tensorContractions := #[]
+            trees := #[]
             inputs := #[]
             outputs := #[]
             packageResults := #[]
@@ -1332,6 +1524,8 @@ mutual
             transfers := #[]
             transforms := #[]
             vectorConjugates := #[]
+            adjoints := #[]
+            diagonalPairings := #[]
             evaluations := #[]}
           let _ ← expand fuel functions stack frame yes
           cleanupDependencies before.resources
@@ -1351,6 +1545,7 @@ mutual
             cacheCaptures := #[]
             cachedContractions := #[]
             tensorContractions := #[]
+            trees := #[]
             inputs := #[]
             outputs := #[]
             packageResults := #[]
@@ -1358,6 +1553,8 @@ mutual
             transfers := #[]
             transforms := #[]
             vectorConjugates := #[]
+            adjoints := #[]
+            diagonalPairings := #[]
             evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
@@ -1382,6 +1579,7 @@ mutual
             tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
             tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
             tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
+            trees := before.trees ++ left.trees ++ right.trees
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
             packageResults := before.packageResults ++ left.packageResults ++ right.packageResults
@@ -1389,7 +1587,9 @@ mutual
             transfers := before.transfers ++ left.transfers ++ right.transfers
             transforms := before.transforms ++ left.transforms ++ right.transforms
             vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
-            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations}
+            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations
+            adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
+            diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
           pure frame
       expand fuel functions stack after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → Bool → M (List Returned)

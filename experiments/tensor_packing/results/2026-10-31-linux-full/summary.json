@@ -1,0 +1,3938 @@
+[
+  {
+    "case": "bulk-complex-p1",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1088244.6,
+          "q25": 1075320.6,
+          "q75": 1108266.2000000002,
+          "min": 1054157.2,
+          "max": 1372601.4,
+          "mad": 17615.199999999953
+        },
+        "sample_count": 11,
+        "repetitions": 5,
+        "minimum_batch_ns": 5270786,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1149108.4,
+          "q25": 1125552.4,
+          "q75": 1236203.9,
+          "min": 1081848.8,
+          "max": 1362418.4,
+          "mad": 37981.0
+        },
+        "sample_count": 11,
+        "repetitions": 5,
+        "minimum_batch_ns": 5409244,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0486531770474308,
+      "q25": 1.0081887066479336,
+      "q75": 1.064889932959689,
+      "min": 0.9808822867294176,
+      "max": 1.2767973885610095,
+      "mad": 0.03890949530977306
+    },
+    "paired_delta_ns": {
+      "median": 54742.19999999995,
+      "q25": 8925.70000000007,
+      "q75": 70770.0,
+      "min": -26241.0,
+      "max": 295359.19999999995,
+      "mad": 44020.19999999995
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.0066337315582097,
+      1.0661522704502238
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0559284190337355
+  },
+  {
+    "case": "bulk-complex-p1",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 324663.86666666664,
+          "q25": 315841.06666666665,
+          "q75": 339474.1333333333,
+          "min": 310313.73333333334,
+          "max": 396631.5333333333,
+          "mad": 12205.466666666616
+        },
+        "sample_count": 11,
+        "repetitions": 15,
+        "minimum_batch_ns": 4654706,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 324709.93333333335,
+          "q25": 312697.9,
+          "q75": 391824.4666666667,
+          "min": 304504.93333333335,
+          "max": 400845.4,
+          "mad": 20205.0
+        },
+        "sample_count": 11,
+        "repetitions": 15,
+        "minimum_batch_ns": 4567574,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0069346831450203,
+      "q25": 0.9795330741999901,
+      "q75": 1.0882517453820597,
+      "min": 0.9501358298613456,
+      "max": 1.2284960412459855,
+      "mad": 0.02914941478343558
+    },
+    "paired_delta_ns": {
+      "median": 2166.7999999999884,
+      "q25": -6434.666666666686,
+      "q75": 29423.600000000006,
+      "min": -17041.133333333302,
+      "max": 74555.8666666667,
+      "mad": 9227.333333333372
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9777852683615847,
+      1.1478357471532978
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0001418903407382
+  },
+  {
+    "case": "bulk-complex-p1",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 20000.75965665236,
+          "q25": 19688.74892703863,
+          "q75": 20419.083690987125,
+          "min": 19311.150214592275,
+          "max": 21914.16738197425,
+          "mad": 481.48068669527856
+        },
+        "sample_count": 11,
+        "repetitions": 233,
+        "minimum_batch_ns": 4499498,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 20072.278969957082,
+          "q25": 19555.725321888414,
+          "q75": 21214.66738197425,
+          "min": 19224.70815450644,
+          "max": 21700.79399141631,
+          "mad": 847.5708154506428
+        },
+        "sample_count": 11,
+        "repetitions": 233,
+        "minimum_batch_ns": 4479357,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0358887749429102,
+      "q25": 1.000236628538012,
+      "q75": 1.042881459500221,
+      "min": 0.8826237989377596,
+      "max": 1.062447628062196,
+      "mad": 0.02558774538964803
+    },
+    "paired_delta_ns": {
+      "median": 695.4120171673821,
+      "q25": 3.566523605149996,
+      "q75": 881.9527896995714,
+      "min": -2572.2017167382,
+      "max": 1249.0,
+      "mad": 494.3433476394857
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9963330174315128,
+      1.0446807240204554
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0035758298450896
+  },
+  {
+    "case": "bulk-complex-p1",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 362806.1904761905,
+          "q25": 301374.8095238095,
+          "q75": 367329.7857142857,
+          "min": 288856.6666666667,
+          "max": 372161.71428571426,
+          "mad": 9355.523809523787
+        },
+        "sample_count": 11,
+        "repetitions": 21,
+        "minimum_batch_ns": 6065990,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 294764.7619047619,
+          "q25": 285882.2142857143,
+          "q75": 341879.1904761905,
+          "min": 285018.4285714286,
+          "max": 372636.85714285716,
+          "mad": 9746.333333333314
+        },
+        "sample_count": 11,
+        "repetitions": 21,
+        "minimum_batch_ns": 5985387,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1747296
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9623941977013166,
+      "q25": 0.9057502431887032,
+      "q75": 0.9840283185051869,
+      "min": 0.7750536153236592,
+      "max": 1.1150555803751736,
+      "mad": 0.02995428807156364
+    },
+    "paired_delta_ns": {
+      "median": -11229.619047619053,
+      "q25": -32288.309523809527,
+      "q75": -5087.333333333343,
+      "min": -82957.23809523805,
+      "max": 33234.57142857142,
+      "mad": 9469.42857142858
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.8790605767476536,
+      0.9885049841670213
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.8124579173190986
+  },
+  {
+    "case": "small-complex-p1",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 2945.9795490298898,
+          "q25": 2642.8683796539067,
+          "q75": 3807.821709491348,
+          "min": 2612.84111169376,
+          "max": 4176.524908232826,
+          "mad": 333.13843733612975
+        },
+        "sample_count": 11,
+        "repetitions": 1907,
+        "minimum_batch_ns": 4982688,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 3317.4022024121655,
+          "q25": 3245.857891976927,
+          "q75": 3449.347142108023,
+          "min": 3143.7587834294704,
+          "max": 4802.785002621919,
+          "mad": 90.03723125327724
+        },
+        "sample_count": 11,
+        "repetitions": 1907,
+        "minimum_batch_ns": 5995148,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.1895447292555512,
+      "q25": 0.9750960908060557,
+      "q75": 1.2364931002957484,
+      "min": 0.8165251128700869,
+      "max": 1.3363701299564774,
+      "mad": 0.08010851814825948
+    },
+    "paired_delta_ns": {
+      "median": 546.467750393288,
+      "q25": -114.81017304667012,
+      "q75": 687.1845831148398,
+      "min": -747.2627163083375,
+      "max": 888.7320398531724,
+      "mad": 177.77818563188248
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.8830568770018979,
+      1.253368580387026
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.1260778112002119
+  },
+  {
+    "case": "small-complex-p1",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 2634.2148102815177,
+          "q25": 1949.0501835985312,
+          "q75": 2659.6647796817624,
+          "min": 1844.908506731946,
+          "max": 2701.890452876377,
+          "mad": 67.63861689106488
+        },
+        "sample_count": 11,
+        "repetitions": 3268,
+        "minimum_batch_ns": 6029161,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 2405.6643206854346,
+          "q25": 2099.1161260709914,
+          "q75": 2990.301713586291,
+          "min": 2067.453488372093,
+          "max": 3065.3776009791923,
+          "mad": 338.2108323133416
+        },
+        "sample_count": 11,
+        "repetitions": 3268,
+        "minimum_batch_ns": 6756438,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.1345306756296705,
+      "q25": 0.94996711805764,
+      "q75": 1.1518574874254184,
+      "min": 0.7792909188632478,
+      "max": 1.5765893840858973,
+      "mad": 0.027379807429364966
+    },
+    "paired_delta_ns": {
+      "median": 298.87790697674427,
+      "q25": -140.44553243574046,
+      "q75": 363.45960832313335,
+      "min": -587.8102815177476,
+      "max": 1119.8191554467564,
+      "mad": 64.60924112607108
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.7927833679149745,
+      1.1600969822312996
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9132377174769365
+  },
+  {
+    "case": "small-complex-p1",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 199.09835035349568,
+          "q25": 193.936861743912,
+          "q75": 269.12486252945797,
+          "min": 191.83114689709348,
+          "max": 321.13558523173606,
+          "mad": 7.2672034564022
+        },
+        "sample_count": 11,
+        "repetitions": 25460,
+        "minimum_batch_ns": 4884021,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 274.46194029850744,
+          "q25": 272.27064021995284,
+          "q75": 279.21510212097405,
+          "min": 268.16838177533384,
+          "max": 310.1263943440691,
+          "mad": 2.7491751767478263
+        },
+        "sample_count": 11,
+        "repetitions": 25460,
+        "minimum_batch_ns": 6827567,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.3778087849978864,
+      "q25": 1.0940389476422516,
+      "q75": 1.3934828483240167,
+      "min": 0.8588711847391522,
+      "max": 1.434567951284403,
+      "mad": 0.05675916628651656
+    },
+    "paired_delta_ns": {
+      "median": 73.54116260801257,
+      "q25": 21.7947172034564,
+      "q75": 76.64420659858602,
+      "min": -45.32148468185392,
+      "max": 83.36366849960726,
+      "mad": 9.791751767478388
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9336301112883592,
+      1.3990880360247497
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.3785244318258039
+  },
+  {
+    "case": "small-complex-p1",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1832.1895321173672,
+          "q25": 1681.2334126354745,
+          "q75": 2154.899682791435,
+          "min": 1558.7042030134814,
+          "max": 2173.886862278615,
+          "mad": 273.48532910388576
+        },
+        "sample_count": 11,
+        "repetitions": 3783,
+        "minimum_batch_ns": 5896578,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1771.7927570711076,
+          "q25": 1698.6891356066612,
+          "q75": 2047.6821305841925,
+          "min": 1593.7443827650013,
+          "max": 2208.012159661644,
+          "mad": 93.28575204863864
+        },
+        "sample_count": 11,
+        "repetitions": 3783,
+        "minimum_batch_ns": 6029135,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          26368
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.003839661014216,
+      "q25": 0.922832088418114,
+      "q75": 1.0197103157151268,
+      "min": 0.7410356543367929,
+      "max": 1.4165690676863767,
+      "mad": 0.036803922618997675
+    },
+    "paired_delta_ns": {
+      "median": 8.307956648162872,
+      "q25": -158.36518636003188,
+      "q75": 34.793814432989734,
+      "min": -556.9542690985991,
+      "max": 649.3079566481626,
+      "mad": 68.70473169442243
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.8908037069113911,
+      1.0305414090331007
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9670357383952183
+  },
+  {
+    "case": "tiny-complex-p0",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 898.355413105413,
+          "q25": 735.3393874643875,
+          "q75": 1219.9225427350427,
+          "min": 663.6404914529915,
+          "max": 1247.3990384615386,
+          "mad": 185.2207977207977
+        },
+        "sample_count": 11,
+        "repetitions": 5616,
+        "minimum_batch_ns": 3727005,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1525.9245014245014,
+          "q25": 1167.5304487179487,
+          "q75": 1955.44577991453,
+          "min": 1080.4563746438746,
+          "max": 1984.258368945869,
+          "mad": 434.41470797720785
+        },
+        "sample_count": 11,
+        "repetitions": 5616,
+        "minimum_batch_ns": 6067843,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.6033975980760868,
+      "q25": 1.5016165607205014,
+      "q75": 1.8704149543739308,
+      "min": 0.8923061983343369,
+      "max": 2.616083111114512,
+      "mad": 0.2532829977931075
+    },
+    "paired_delta_ns": {
+      "median": 721.3246082621081,
+      "q25": 401.49269943019954,
+      "q75": 778.3293269230769,
+      "min": -130.9245014245014,
+      "max": 1203.4478276353277,
+      "mad": 152.3035968660971
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.4726528215931138,
+      1.8738324740642955
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.6985755071589348
+  },
+  {
+    "case": "tiny-complex-p0",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 311.9096868635438,
+          "q25": 310.8767184317719,
+          "q75": 502.0787296334013,
+          "min": 308.12207230142565,
+          "max": 577.2463721995927,
+          "mad": 2.1488671079429764
+        },
+        "sample_count": 11,
+        "repetitions": 15712,
+        "minimum_batch_ns": 4841214,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 476.19030040733196,
+          "q25": 452.2514638492871,
+          "q75": 626.0173752545825,
+          "min": 422.2939154786151,
+          "max": 779.1193991853361,
+          "mad": 53.896384928716884
+        },
+        "sample_count": 11,
+        "repetitions": 15712,
+        "minimum_batch_ns": 6635082,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.3664543511419227,
+      "q25": 1.268159008368078,
+      "q75": 1.4923818664373258,
+      "min": 0.8061174630660798,
+      "max": 2.528606254546897,
+      "mad": 0.12015375264209416
+    },
+    "paired_delta_ns": {
+      "median": 135.78863289205702,
+      "q25": 110.47632382892056,
+      "q75": 162.78567337067207,
+      "min": -110.96766802443989,
+      "max": 470.99732688391043,
+      "mad": 27.26699338085541
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.2463005984998285,
+      1.5162468730291774
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.5266928872768823
+  },
+  {
+    "case": "tiny-complex-p0",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 69.85872456371776,
+          "q25": 64.74217719438619,
+          "q75": 74.97798585731894,
+          "min": 63.21834656056052,
+          "max": 76.21681119304543,
+          "mad": 5.50603334558744
+        },
+        "sample_count": 11,
+        "repetitions": 92486,
+        "minimum_batch_ns": 5846812,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 90.32090262309971,
+          "q25": 84.9987295374435,
+          "q75": 102.2660889215665,
+          "min": 80.68473066193802,
+          "max": 106.18290335834612,
+          "mad": 6.748751162338081
+        },
+        "sample_count": 11,
+        "repetitions": 92486,
+        "minimum_batch_ns": 7462208,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.4035295325404087,
+      "q25": 1.2988348960200344,
+      "q75": 1.425206284056117,
+      "min": 1.0586211807992865,
+      "max": 1.4957610146006552,
+      "mad": 0.057599581416376555
+    },
+    "paired_delta_ns": {
+      "median": 25.968211404969395,
+      "q25": 19.556857254070884,
+      "q75": 30.946527041930672,
+      "min": 4.467919468892589,
+      "max": 33.16199208528859,
+      "mad": 5.791644140734817
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.2970871881332728,
+      1.4267475799386613
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.2929079823196388
+  },
+  {
+    "case": "tiny-complex-p0",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 206.27689717607447,
+          "q25": 191.0934214287983,
+          "q75": 244.32491026333344,
+          "min": 188.28315491883993,
+          "max": 337.2859184905181,
+          "mad": 17.301832851561272
+        },
+        "sample_count": 11,
+        "repetitions": 31481,
+        "minimum_batch_ns": 5927342,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 216.5321622565992,
+          "q25": 208.74394078968265,
+          "q75": 305.094310854166,
+          "min": 195.35383247037896,
+          "max": 356.5930878942854,
+          "mad": 21.07398113147613
+        },
+        "sample_count": 11,
+        "repetitions": 31481,
+        "minimum_batch_ns": 6149934,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0994167807348132,
+      "q25": 0.9791372100901584,
+      "q75": 1.3117981334635278,
+      "min": 0.7781021054165005,
+      "max": 1.6216947360738068,
+      "mad": 0.1535548097772399
+    },
+    "paired_delta_ns": {
+      "median": 19.580318287220848,
+      "q25": -4.3105047488961645,
+      "q75": 70.94863568501637,
+      "min": -55.74044661859537,
+      "max": 118.50843365839711,
+      "mad": 30.761729297036283
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9458619709575733,
+      1.4696965152246733
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0497160138673747
+  },
+  {
+    "case": "small-f64-p1",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1677.208192896033,
+          "q25": 1589.2231008555873,
+          "q75": 1776.445683173451,
+          "min": 1521.7223230490017,
+          "max": 2596.213637542131,
+          "mad": 88.87477313974591
+        },
+        "sample_count": 11,
+        "repetitions": 3857,
+        "minimum_batch_ns": 5869283,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 2289.790251490796,
+          "q25": 2233.0146486906924,
+          "q75": 2949.5514648690696,
+          "min": 2011.7759917033964,
+          "max": 3580.791547835105,
+          "mad": 95.54524241638592
+        },
+        "sample_count": 11,
+        "repetitions": 3857,
+        "minimum_batch_ns": 7759420,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.4344104226403245,
+      "q25": 1.3673571001625877,
+      "q75": 1.5831706286683849,
+      "min": 0.774888461647544,
+      "max": 2.121931474972291,
+      "mad": 0.13311307213748758
+    },
+    "paired_delta_ns": {
+      "median": 689.9885921700807,
+      "q25": 615.6354679802955,
+      "q75": 1089.8260305937258,
+      "min": -584.4376458387346,
+      "max": 1893.2763806066891,
+      "mad": 173.62457868809952
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.3671750495640862,
+      1.5988177625589577
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.365239128445359
+  },
+  {
+    "case": "small-f64-p1",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 995.8183373246665,
+          "q25": 887.1875641464248,
+          "q75": 1423.688333903524,
+          "min": 869.0646595963052,
+          "max": 1463.021040027369,
+          "mad": 126.3390352377694
+        },
+        "sample_count": 11,
+        "repetitions": 5846,
+        "minimum_batch_ns": 5080552,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1102.896339377352,
+          "q25": 1086.9906773862472,
+          "q75": 1416.7150188162846,
+          "min": 1050.251111871365,
+          "max": 1748.4579199452617,
+          "mad": 16.239822100581478
+        },
+        "sample_count": 11,
+        "repetitions": 5846,
+        "minimum_batch_ns": 6139768,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.2178771454840644,
+      "q25": 1.1259059920827248,
+      "q75": 1.2326645758993715,
+      "min": 0.7538485839935152,
+      "max": 1.2497784762312472,
+      "mad": 0.020726511191861974
+    },
+    "paired_delta_ns": {
+      "median": 206.7971262401643,
+      "q25": 120.77779678412594,
+      "q75": 250.83150872391383,
+      "min": -360.1247006500171,
+      "max": 332.52257954156676,
+      "mad": 77.68867601778993
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.054661349873247,
+      1.234843053953835
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.1075276463981953
+  },
+  {
+    "case": "small-f64-p1",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 133.40193014076794,
+          "q25": 132.84127672195478,
+          "q75": 137.26142456252424,
+          "min": 130.91576737925212,
+          "max": 151.23437749538,
+          "mad": 2.4861627615158284
+        },
+        "sample_count": 11,
+        "repetitions": 43831,
+        "minimum_batch_ns": 5738169,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 239.03296753439346,
+          "q25": 228.6879035385914,
+          "q75": 241.1773402386439,
+          "min": 216.0799434190413,
+          "max": 246.4402819921973,
+          "mad": 2.6741575597179974
+        },
+        "sample_count": 11,
+        "repetitions": 43831,
+        "minimum_batch_ns": 9471000,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.7411677733392121,
+      "q25": 1.6431503279950594,
+      "q75": 1.7980552314787919,
+      "min": 1.550333773130298,
+      "max": 1.8281381357940176,
+      "mad": 0.08439266619281227
+    },
+    "paired_delta_ns": {
+      "median": 102.51942688964434,
+      "q25": 91.41048572927836,
+      "q75": 106.07053227167985,
+      "min": 77.40615089776642,
+      "max": 109.4046222992859,
+      "mad": 5.791791198010543
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.6295255488437193,
+      1.7999259555131788
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.7918254052408529
+  },
+  {
+    "case": "small-f64-p1",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1053.119556428324,
+          "q25": 672.398925724847,
+          "q75": 1060.5566593508142,
+          "min": 638.4373339494051,
+          "max": 1075.9631512071155,
+          "mad": 22.843594778791612
+        },
+        "sample_count": 11,
+        "repetitions": 8657,
+        "minimum_batch_ns": 5526952,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 798.7060182511262,
+          "q25": 713.2829502136999,
+          "q75": 1090.556197296985,
+          "min": 683.79715836895,
+          "max": 1112.2286011320318,
+          "mad": 102.24754533903194
+        },
+        "sample_count": 11,
+        "repetitions": 8657,
+        "minimum_batch_ns": 5919632,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          13184
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.033095345871661,
+      "q25": 1.024242141284629,
+      "q75": 1.0559307754768505,
+      "min": 0.6559701779959254,
+      "max": 1.3653648543783474,
+      "mad": 0.01537677612467947
+    },
+    "paired_delta_ns": {
+      "median": 29.961534018713337,
+      "q25": 21.391879403950554,
+      "q75": 47.74032574794961,
+      "min": -365.264294790343,
+      "max": 235.87709368141395,
+      "mad": 14.8780177890726
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.0219014022613568,
+      1.0633894289573607
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.7584191304546216
+  },
+  {
+    "case": "bulk-complex-p0",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1332995.4,
+          "q25": 1218118.1,
+          "q75": 1337736.5,
+          "min": 1056756.0,
+          "max": 1382029.0,
+          "mad": 7497.799999999814
+        },
+        "sample_count": 11,
+        "repetitions": 5,
+        "minimum_batch_ns": 5283780,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1327212.6,
+          "q25": 1060098.2999999998,
+          "q75": 1335144.6,
+          "min": 1053139.4,
+          "max": 1351870.8,
+          "mad": 24658.199999999953
+        },
+        "sample_count": 11,
+        "repetitions": 5,
+        "minimum_batch_ns": 5265697,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9993035295609022,
+      "q25": 0.8796128096677642,
+      "q75": 1.0098921157525775,
+      "min": 0.79005478938637,
+      "max": 1.1948919394716273,
+      "mad": 0.02608757302096143
+    },
+    "paired_delta_ns": {
+      "median": -931.8000000000466,
+      "q25": -161832.09999999998,
+      "q75": 13166.599999999977,
+      "min": -279856.0,
+      "max": 216474.0,
+      "mad": 27764.0
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.7954096646775582,
+      1.0138735455861463
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9956618004833326
+  },
+  {
+    "case": "bulk-complex-p0",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 344493.94444444444,
+          "q25": 336442.27777777775,
+          "q75": 412942.8055555555,
+          "min": 316540.1666666667,
+          "max": 597114.8888888889,
+          "mad": 20100.833333333314
+        },
+        "sample_count": 11,
+        "repetitions": 18,
+        "minimum_batch_ns": 5697723,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 409039.44444444444,
+          "q25": 336889.22222222225,
+          "q75": 414463.97222222225,
+          "min": 315773.1666666667,
+          "max": 503610.8888888889,
+          "mad": 59924.611111111124
+        },
+        "sample_count": 11,
+        "repetitions": 18,
+        "minimum_batch_ns": 5683917,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.002414136071902,
+      "q25": 0.9250851948118961,
+      "q75": 1.1470417042591943,
+      "min": 0.6461834399149334,
+      "max": 1.3055550436551584,
+      "mad": 0.091801142312672
+    },
+    "paired_delta_ns": {
+      "median": 828.2222222222481,
+      "q25": -25909.416666666657,
+      "q75": 48948.861111111095,
+      "min": -180624.2777777778,
+      "max": 96720.44444444444,
+      "mad": 31824.944444444438
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9106129937592301,
+      1.217874261728725
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.187363235380206
+  },
+  {
+    "case": "bulk-complex-p0",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 19085.926910299004,
+          "q25": 18778.617940199336,
+          "q75": 19133.980066445183,
+          "min": 18361.302325581397,
+          "max": 19742.611295681065,
+          "mad": 231.09302325581302
+        },
+        "sample_count": 11,
+        "repetitions": 301,
+        "minimum_batch_ns": 5526752,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 19009.408637873756,
+          "q25": 18851.818936877076,
+          "q75": 19410.058139534885,
+          "min": 18731.242524916943,
+          "max": 20565.913621262458,
+          "mad": 278.16611295681287
+        },
+        "sample_count": 11,
+        "repetitions": 301,
+        "minimum_batch_ns": 5638104,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.001948058179445,
+      "q25": 0.9915486930933028,
+      "q75": 1.0213817342102363,
+      "min": 0.9789146904868401,
+      "max": 1.0996402295581627,
+      "mad": 0.014841525736287609
+    },
+    "paired_delta_ns": {
+      "median": 36.41860465116042,
+      "q25": -161.35382059800577,
+      "q75": 398.53322259136075,
+      "min": -416.2790697674427,
+      "max": 1863.511627906977,
+      "mad": 282.6079734219238
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9871065324431575,
+      1.0269243128694754
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9959908537434481
+  },
+  {
+    "case": "bulk-complex-p0",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 314061.55,
+          "q25": 305063.275,
+          "q75": 324709.5,
+          "min": 292725.95,
+          "max": 391691.4,
+          "mad": 14510.549999999988
+        },
+        "sample_count": 11,
+        "repetitions": 20,
+        "minimum_batch_ns": 5854519,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 313367.8,
+          "q25": 303783.15,
+          "q75": 316372.6,
+          "min": 294999.9,
+          "max": 386552.25,
+          "mad": 3967.5
+        },
+        "sample_count": 11,
+        "repetitions": 20,
+        "minimum_batch_ns": 5899998,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1701888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0004586172554062,
+      "q25": 0.9330361950651707,
+      "q75": 1.0359164234849305,
+      "min": 0.8052510215950618,
+      "max": 1.0754034386505513,
+      "mad": 0.060866680579299115
+    },
+    "paired_delta_ns": {
+      "median": 143.64999999996508,
+      "q25": -21190.574999999983,
+      "q75": 10827.5,
+      "min": -76281.5,
+      "max": 22263.04999999999,
+      "mad": 18845.5
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9264804534542344,
+      1.0593698568858056
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9977910380942844
+  },
+  {
+    "case": "bulk-f64-p1",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 448032.23076923075,
+          "q25": 444468.26923076925,
+          "q75": 455080.80769230775,
+          "min": 437565.76923076925,
+          "max": 571933.4615384615,
+          "mad": 4714.9230769230635
+        },
+        "sample_count": 11,
+        "repetitions": 13,
+        "minimum_batch_ns": 5688355,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 448281.92307692306,
+          "q25": 446070.1153846154,
+          "q75": 451628.1538461539,
+          "min": 433320.92307692306,
+          "max": 571992.7692307692,
+          "mad": 2913.0769230769365
+        },
+        "sample_count": 11,
+        "repetitions": 13,
+        "minimum_batch_ns": 5633172,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0017373406686572,
+      "q25": 0.978357825992478,
+      "q75": 1.0187404077630071,
+      "min": 0.7787074478136577,
+      "max": 1.2889944381509733,
+      "mad": 0.019628942667765714
+    },
+    "paired_delta_ns": {
+      "median": 778.3846153846243,
+      "q25": -9849.576923076937,
+      "q75": 8662.73076923078,
+      "min": -126564.61538461538,
+      "max": 128241.61538461538,
+      "mad": 8917.46153846156
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9746072539840646,
+      1.0199515580516
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0005573088062518
+  },
+  {
+    "case": "bulk-f64-p1",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 120924.3606557377,
+          "q25": 107452.0,
+          "q75": 122345.27868852459,
+          "min": 92001.3606557377,
+          "max": 123314.2131147541,
+          "mad": 1511.3278688524588
+        },
+        "sample_count": 11,
+        "repetitions": 61,
+        "minimum_batch_ns": 5612083,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 100492.95081967213,
+          "q25": 94018.81147540984,
+          "q75": 121617.69672131148,
+          "min": 91574.98360655738,
+          "max": 124588.22950819672,
+          "mad": 7648.213114754093
+        },
+        "sample_count": 11,
+        "repetitions": 61,
+        "minimum_batch_ns": 5586074,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9912603463847278,
+      "q25": 0.8026711719461739,
+      "q75": 1.0144473410749604,
+      "min": 0.7583143348458482,
+      "max": 1.0912452649043145,
+      "mad": 0.08877852749761295
+    },
+    "paired_delta_ns": {
+      "median": -1070.4918032786954,
+      "q25": -23960.942622950824,
+      "q75": 1744.0737704918065,
+      "min": -29590.95081967213,
+      "max": 8394.688524590165,
+      "mad": 8525.868852459025
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.7819430816120523,
+      1.0173377528588943
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.8310397530714906
+  },
+  {
+    "case": "bulk-f64-p1",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 10144.980263157895,
+          "q25": 9857.284539473683,
+          "q75": 10221.072368421053,
+          "min": 9145.197368421053,
+          "max": 10393.261513157895,
+          "mad": 115.25
+        },
+        "sample_count": 11,
+        "repetitions": 608,
+        "minimum_batch_ns": 5560280,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 10155.57072368421,
+          "q25": 9815.61677631579,
+          "q75": 10234.519736842105,
+          "min": 9478.763157894737,
+          "max": 10647.911184210527,
+          "mad": 253.01809210526335
+        },
+        "sample_count": 11,
+        "repetitions": 608,
+        "minimum_batch_ns": 5763088,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9943682450350497,
+      "q25": 0.9831995702210662,
+      "q75": 1.0250931042317506,
+      "min": 0.933697928463273,
+      "max": 1.0638212464120511,
+      "mad": 0.012990871131617454
+    },
+    "paired_delta_ns": {
+      "median": -57.9473684210534,
+      "q25": -167.78782894736833,
+      "q75": 240.6875,
+      "min": -673.0888157894733,
+      "max": 593.792763157895,
+      "mad": 130.65296052631675
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9813773739034323,
+      1.0430455481983638
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.001043911397716
+  },
+  {
+    "case": "bulk-f64-p1",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 88009.67123287672,
+          "q25": 84680.0,
+          "q75": 108846.93835616438,
+          "min": 81787.56164383562,
+          "max": 109257.86301369863,
+          "mad": 6222.109589041094
+        },
+        "sample_count": 11,
+        "repetitions": 73,
+        "minimum_batch_ns": 5970492,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 84496.61643835617,
+          "q25": 81239.65753424658,
+          "q75": 107861.82876712328,
+          "min": 79408.69863013699,
+          "max": 109368.97260273973,
+          "mad": 4677.246575342477
+        },
+        "sample_count": 11,
+        "repetitions": 73,
+        "minimum_batch_ns": 5796835,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          873648
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9931060134088985,
+      "q25": 0.9377245591036165,
+      "q75": 0.9972748035016475,
+      "min": 0.7367581937357955,
+      "max": 1.0439565114566773,
+      "mad": 0.017100521354560083
+    },
+    "paired_delta_ns": {
+      "median": -569.5068493150611,
+      "q25": -5427.568493150684,
+      "q75": -267.5547945205399,
+      "min": -28740.863013698618,
+      "max": 3595.0958904109575,
+      "mad": 1674.5068493150611
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9153658085585112,
+      0.9977620019101259
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9600833096487217
+  },
+  {
+    "case": "bulk-f64-p0",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 556120.0769230769,
+          "q25": 451217.0,
+          "q75": 559975.3461538461,
+          "min": 432043.92307692306,
+          "max": 563401.3846153846,
+          "mad": 7066.307692307746
+        },
+        "sample_count": 11,
+        "repetitions": 13,
+        "minimum_batch_ns": 5616571,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 561030.8461538461,
+          "q25": 475187.92307692306,
+          "q75": 562223.0,
+          "min": 433629.92307692306,
+          "max": 567808.8461538461,
+          "mad": 2691.153846153873
+        },
+        "sample_count": 11,
+        "repetitions": 13,
+        "minimum_batch_ns": 5637189,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.008207694050733,
+      "q25": 0.9995662207494479,
+      "q75": 1.0545509883195887,
+      "min": 0.8385315794258071,
+      "max": 1.2877082004487765,
+      "mad": 0.012594510499942979
+    },
+    "paired_delta_ns": {
+      "median": 4622.461538461503,
+      "q25": -442.7692307692487,
+      "q75": 24252.576923076937,
+      "min": -90316.23076923075,
+      "max": 125950.46153846156,
+      "mad": 7094.0
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.99561318355079,
+      1.0987709205764369
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0088304116944307
+  },
+  {
+    "case": "bulk-f64-p0",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 98576.49152542373,
+          "q25": 97504.41525423729,
+          "q75": 100343.6186440678,
+          "min": 92279.49152542373,
+          "max": 100942.61016949153,
+          "mad": 1407.8813559322007
+        },
+        "sample_count": 11,
+        "repetitions": 59,
+        "minimum_batch_ns": 5444490,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 98842.93220338984,
+          "q25": 98178.47457627118,
+          "q75": 99887.40677966102,
+          "min": 93993.20338983051,
+          "max": 100781.28813559322,
+          "mad": 792.152542372889
+        },
+        "sample_count": 11,
+        "repetitions": 59,
+        "minimum_batch_ns": 5545599,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0020290952424633,
+      "q25": 0.9968329990454219,
+      "q75": 1.013033166769248,
+      "min": 0.9363308103814955,
+      "max": 1.0625413950617963,
+      "mad": 0.00967797065103504
+    },
+    "paired_delta_ns": {
+      "median": 203.57627118643722,
+      "q25": -313.97457627119,
+      "q75": 1268.389830508473,
+      "min": -6391.406779661018,
+      "max": 5771.288135593219,
+      "mad": 933.9830508474552
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9966183385212345,
+      1.0143592676449977
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0027028825417
+  },
+  {
+    "case": "bulk-f64-p0",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 9356.354231974921,
+          "q25": 9192.529780564262,
+          "q75": 9457.326802507836,
+          "min": 9020.575235109718,
+          "max": 10151.17868338558,
+          "mad": 149.2351097178689
+        },
+        "sample_count": 11,
+        "repetitions": 638,
+        "minimum_batch_ns": 5755127,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 9077.293103448275,
+          "q25": 8919.667711598746,
+          "q75": 9633.860501567398,
+          "min": 8747.841692789969,
+          "max": 9746.103448275862,
+          "mad": 302.932601880877
+        },
+        "sample_count": 11,
+        "repetitions": 638,
+        "minimum_batch_ns": 5581123,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9869927807768373,
+      "q25": 0.9536801276253476,
+      "q75": 1.013433891448651,
+      "min": 0.8942107499600089,
+      "max": 1.0444688892275817,
+      "mad": 0.0320233618820005
+    },
+    "paired_delta_ns": {
+      "median": -120.53918495297876,
+      "q25": -430.2264890282131,
+      "q75": 128.44435736677133,
+      "min": -1073.885579937305,
+      "max": 410.21316614420175,
+      "mad": 291.95611285266386
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9523908363558584,
+      1.013486611021194
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9701741595489227
+  },
+  {
+    "case": "bulk-f64-p0",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 84016.77966101695,
+          "q25": 81959.34745762713,
+          "q75": 87133.21186440678,
+          "min": 80623.22033898305,
+          "max": 88654.08474576271,
+          "mad": 2765.271186440674
+        },
+        "sample_count": 11,
+        "repetitions": 59,
+        "minimum_batch_ns": 4756770,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 86684.1186440678,
+          "q25": 83345.20338983051,
+          "q75": 87470.14406779662,
+          "min": 81204.16949152542,
+          "max": 108812.22033898305,
+          "mad": 2486.389830508473
+        },
+        "sample_count": 11,
+        "repetitions": 59,
+        "minimum_batch_ns": 4791046,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          850944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0032878349135181,
+      "q25": 0.9820273323137867,
+      "q75": 1.068306953976562,
+      "min": 0.9580195154781871,
+      "max": 1.227379659392218,
+      "mad": 0.03739444692550553
+    },
+    "paired_delta_ns": {
+      "median": 286.35593220339797,
+      "q25": -1555.5,
+      "q75": 5598.067796610172,
+      "min": -3643.1525423728744,
+      "max": 20158.135593220344,
+      "mad": 3259.4576271186525
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9796397273369999,
+      1.0728393763148125
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.031747693660871
+  },
+  {
+    "case": "tiny-f64-p0",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1041.867111713779,
+          "q25": 614.4902472097632,
+          "q75": 1045.3188171482216,
+          "min": 581.8723271096276,
+          "max": 1062.8125586732033,
+          "mad": 20.945446959424316
+        },
+        "sample_count": 11,
+        "repetitions": 9587,
+        "minimum_batch_ns": 5578410,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1155.232815270679,
+          "q25": 1038.9707416292897,
+          "q75": 1769.2858558464586,
+          "min": 1010.7199332429332,
+          "max": 1777.9522269740273,
+          "mad": 144.51288202774595
+        },
+        "sample_count": 11,
+        "repetitions": 9587,
+        "minimum_batch_ns": 9689772,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.698581670889729,
+      "q25": 1.6285408694376875,
+      "q75": 1.7602558225595792,
+      "min": 0.9690945573508952,
+      "max": 3.019781622753172,
+      "mad": 0.062256877415103995
+    },
+    "paired_delta_ns": {
+      "median": 570.7624908730573,
+      "q25": 405.9171273599667,
+      "q75": 725.9740273286743,
+      "min": -32.23291957859601,
+      "max": 1181.5280066757066,
+      "mad": 160.0870971106707
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.570953279510782,
+      1.760838548304833
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.1088101373796353
+  },
+  {
+    "case": "tiny-f64-p0",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 230.4976659851086,
+          "q25": 228.58095752478687,
+          "q75": 239.7504918791713,
+          "min": 225.23301570155473,
+          "max": 425.1300104162648,
+          "mad": 3.07661741445159
+        },
+        "sample_count": 11,
+        "repetitions": 25921,
+        "minimum_batch_ns": 5838265,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 377.0305157980016,
+          "q25": 361.9352069750396,
+          "q75": 633.9483237529416,
+          "min": 355.9572547355426,
+          "max": 652.8103468230393,
+          "mad": 20.03935033370624
+        },
+        "sample_count": 11,
+        "repetitions": 25921,
+        "minimum_batch_ns": 9226768,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.6331965061537974,
+      "q25": 1.5564259317894416,
+      "q75": 1.7093955667898726,
+      "min": 1.4906941553812936,
+      "max": 2.7762778128044836,
+      "mad": 0.08889776796813886
+    },
+    "paired_delta_ns": {
+      "median": 148.28876200763858,
+      "q25": 130.6751475637514,
+      "q75": 245.19054048840712,
+      "min": 125.45958875043402,
+      "max": 405.73766444195826,
+      "mad": 22.57366613942358
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.5442987381856585,
+      1.7594160461599984
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.6357237900290054
+  },
+  {
+    "case": "tiny-f64-p0",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 56.666845570687855,
+          "q25": 55.718020107534095,
+          "q75": 57.03010858835143,
+          "min": 54.138625058702885,
+          "max": 72.81194951072945,
+          "mad": 0.8427817019522905
+        },
+        "sample_count": 11,
+        "repetitions": 104339,
+        "minimum_batch_ns": 5648770,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 85.86840011884338,
+          "q25": 85.177694821687,
+          "q75": 87.1912947220119,
+          "min": 83.5878722241923,
+          "max": 88.23721714795043,
+          "mad": 1.0054725462195364
+        },
+        "sample_count": 11,
+        "repetitions": 104339,
+        "minimum_batch_ns": 8721475,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.5116213459971803,
+      "q25": 1.4787270734929527,
+      "q75": 1.5558688333743604,
+      "min": 1.2084856826120824,
+      "max": 1.6298385312200707,
+      "mad": 0.03654590492780985
+    },
+    "paired_delta_ns": {
+      "median": 28.921323761968196,
+      "q25": 27.224503780944808,
+      "q75": 30.854522278342706,
+      "min": 15.18024899606091,
+      "max": 34.098592089247546,
+      "mad": 2.000297108463755
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.4750754410693705,
+      1.573540800236925
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.5153199239179225
+  },
+  {
+    "case": "tiny-f64-p0",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 128.88190714994104,
+          "q25": 120.38031661084186,
+          "q75": 156.64462678467842,
+          "min": 115.56546471810033,
+          "max": 200.14428996463388,
+          "mad": 11.019647835931195
+        },
+        "sample_count": 11,
+        "repetitions": 53441,
+        "minimum_batch_ns": 6175934,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 137.23399636982842,
+          "q25": 135.68023614827567,
+          "q75": 141.96747815347766,
+          "min": 130.82131696637413,
+          "max": 200.41595404277615,
+          "mad": 3.30418592466458
+        },
+        "sample_count": 11,
+        "repetitions": 53441,
+        "minimum_batch_ns": 6991222,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          824
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.055280342084582,
+      "q25": 0.959828877404327,
+      "q75": 1.201023422974094,
+      "min": 0.6893427177931174,
+      "max": 1.7004251845268459,
+      "mad": 0.1506705475313328
+    },
+    "paired_delta_ns": {
+      "median": 7.09060459197994,
+      "q25": -6.201016073801,
+      "q75": 24.284631649856863,
+      "min": -61.845493160681855,
+      "max": 82.5536947287663,
+      "mad": 17.536554330944412
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9046097945532492,
+      1.207173522255905
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0648042025803557
+  },
+  {
+    "case": "tiny-f64-p1",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 653.8504775900074,
+          "q25": 601.3479977957384,
+          "q75": 920.5844966936077,
+          "min": 584.0306759735489,
+          "max": 1093.2799412196914,
+          "mad": 67.86921381337254
+        },
+        "sample_count": 11,
+        "repetitions": 5444,
+        "minimum_batch_ns": 3179463,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1044.8833578251285,
+          "q25": 1039.88510286554,
+          "q75": 1051.834221160911,
+          "min": 1031.892542248347,
+          "max": 1139.111315209405,
+          "mad": 6.271675238795069
+        },
+        "sample_count": 11,
+        "repetitions": 5444,
+        "minimum_batch_ns": 5617623,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.6535602043744795,
+      "q25": 1.2054159298950657,
+      "q75": 1.7479587813896194,
+      "min": 0.952325643131441,
+      "max": 1.7852983089462904,
+      "mad": 0.12862657433493796
+    },
+    "paired_delta_ns": {
+      "median": 408.27296105804555,
+      "q25": 162.07319985304935,
+      "q75": 457.0202975753122,
+      "min": -52.12141807494481,
+      "max": 460.5306759735488,
+      "mad": 51.89713445995585
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.0423787929876982,
+      1.7783512498808758
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.5980463326667718
+  },
+  {
+    "case": "tiny-f64-p1",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 242.9772606852702,
+          "q25": 237.4388466972801,
+          "q75": 259.50803602967153,
+          "min": 233.4682091133875,
+          "max": 436.54137230660547,
+          "mad": 9.509051571882708
+        },
+        "sample_count": 11,
+        "repetitions": 22648,
+        "minimum_batch_ns": 5287588,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 357.83000706464145,
+          "q25": 353.0517264217591,
+          "q75": 377.5940038855528,
+          "min": 349.16712292476154,
+          "max": 639.8950900741787,
+          "mad": 8.662884139879907
+        },
+        "sample_count": 11,
+        "repetitions": 22648,
+        "minimum_batch_ns": 7907937,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.4528640651555542,
+      "q25": 1.4093044470547778,
+      "q75": 1.4932107821318752,
+      "min": 0.8142079293894104,
+      "max": 2.74082322601534,
+      "mad": 0.06282296836652868
+    },
+    "paired_delta_ns": {
+      "median": 110.6971034969975,
+      "q25": 102.57197103496998,
+      "q75": 120.8700105969622,
+      "min": -81.10592546803252,
+      "max": 406.4268809607912,
+      "mad": 10.517308371600166
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.3792897217894047,
+      1.515687033522083
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.4726892798752087
+  },
+  {
+    "case": "tiny-f64-p1",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 56.40460136015049,
+          "q25": 55.98168137751411,
+          "q75": 57.231023006800754,
+          "min": 55.07855110210775,
+          "max": 71.86564414218878,
+          "mad": 0.686200742777217
+        },
+        "sample_count": 11,
+        "repetitions": 103665,
+        "minimum_batch_ns": 5709718,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 88.66301065933536,
+          "q25": 87.4842569816235,
+          "q75": 89.5564896541745,
+          "min": 86.63701345680799,
+          "max": 108.2882264988183,
+          "mad": 1.1584720011575769
+        },
+        "sample_count": 11,
+        "repetitions": 103665,
+        "minimum_batch_ns": 8981226,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.5462204620583961,
+      "q25": 1.5235692034270816,
+      "q75": 1.5882801080055564,
+      "min": 1.3983699321851877,
+      "max": 1.630788771004102,
+      "mad": 0.03906990993479997
+    },
+    "paired_delta_ns": {
+      "median": 31.634736892876084,
+      "q25": 30.32680268171514,
+      "q75": 33.54895094776444,
+      "min": 27.96117300921236,
+      "max": 36.42258235662952,
+      "mad": 1.4356725992379253
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.5224437412626117,
+      1.5912698440179167
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.571910952675844
+  },
+  {
+    "case": "tiny-f64-p1",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 138.2804497737954,
+          "q25": 134.90389598980983,
+          "q75": 140.024970351825,
+          "min": 131.429744806079,
+          "max": 147.37598278209688,
+          "mad": 3.155444283392626
+        },
+        "sample_count": 11,
+        "repetitions": 45534,
+        "minimum_batch_ns": 5984522,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 143.34969473360565,
+          "q25": 139.52279615232572,
+          "q75": 143.83819783019283,
+          "min": 133.58415689374974,
+          "max": 155.75653357930338,
+          "mad": 3.2742785610752208
+        },
+        "sample_count": 11,
+        "repetitions": 45534,
+        "minimum_batch_ns": 6082621,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          1608
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0403264700604022,
+      "q25": 1.0029738978991074,
+      "q75": 1.0627711830905082,
+      "min": 0.9444254157097095,
+      "max": 1.1850934794792298,
+      "mad": 0.027345846973976684
+    },
+    "paired_delta_ns": {
+      "median": 5.556704879869983,
+      "q25": 0.40534545614266904,
+      "q75": 8.62553256906925,
+      "min": -7.860741423990845,
+      "max": 24.326788773224393,
+      "mad": 3.7617384811349552
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.992967172711789,
+      1.0633083810463781
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0366591587466103
+  },
+  {
+    "case": "small-complex-p0",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 2672.6362862010224,
+          "q25": 2543.375,
+          "q75": 3831.690374787053,
+          "min": 2519.22402044293,
+          "max": 4016.387563884157,
+          "mad": 153.41226575809242
+        },
+        "sample_count": 11,
+        "repetitions": 2348,
+        "minimum_batch_ns": 5915138,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 4438.580919931857,
+          "q25": 3094.1064735945483,
+          "q75": 4658.567930153322,
+          "min": 3042.8718057921637,
+          "max": 4777.73594548552,
+          "mad": 339.1550255536622
+        },
+        "sample_count": 11,
+        "repetitions": 2348,
+        "minimum_batch_ns": 7144663,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.2084639714555403,
+      "q25": 1.1878619225550957,
+      "q75": 1.2291619136893823,
+      "min": 0.8046240216293377,
+      "max": 1.821214495395388,
+      "mad": 0.026611693727588204
+    },
+    "paired_delta_ns": {
+      "median": 653.7670357751281,
+      "q25": 516.4512350936968,
+      "q75": 826.877555366269,
+      "min": -742.637989778535,
+      "max": 2154.3568994889265,
+      "mad": 158.9339863713799
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.1815223055287751,
+      1.2350756651831285
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.66075007768491
+  },
+  {
+    "case": "small-complex-p0",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1955.6831804281346,
+          "q25": 1831.1556574923547,
+          "q75": 2522.287920489297,
+          "min": 1808.4816513761468,
+          "max": 2651.3727828746178,
+          "mad": 137.85351681957195
+        },
+        "sample_count": 11,
+        "repetitions": 3270,
+        "minimum_batch_ns": 5913735,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 2046.8103975535169,
+          "q25": 2028.724617737003,
+          "q75": 2177.6892966360856,
+          "min": 1997.2501529051988,
+          "max": 2910.848012232416,
+          "mad": 27.038226299694315
+        },
+        "sample_count": 11,
+        "repetitions": 3270,
+        "minimum_batch_ns": 6531008,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.1027449682649986,
+      "q25": 0.9013635058481901,
+      "q75": 1.158553365385603,
+      "min": 0.7602087376290176,
+      "max": 1.6012765500009,
+      "mad": 0.08257787296770092
+    },
+    "paired_delta_ns": {
+      "median": 188.1862385321101,
+      "q25": -270.57981651376144,
+      "q75": 288.80198776758414,
+      "min": -629.9889908256882,
+      "max": 1093.0183486238532,
+      "mad": 151.08899082568814
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.7706706399349449,
+      1.1853228412326995
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0465961041324867
+  },
+  {
+    "case": "small-complex-p0",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 181.97480266105958,
+          "q25": 180.59922098514357,
+          "q75": 184.74463134673056,
+          "min": 178.7491296404812,
+          "max": 200.19558098652234,
+          "mad": 2.450243011271567
+        },
+        "sample_count": 11,
+        "repetitions": 29011,
+        "minimum_batch_ns": 5185691,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 255.4070869670125,
+          "q25": 255.259108613974,
+          "q75": 257.6551825169763,
+          "min": 254.42101271931335,
+          "max": 259.2309124125332,
+          "mad": 0.9860742476991504
+        },
+        "sample_count": 11,
+        "repetitions": 29011,
+        "minimum_batch_ns": 7381008,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.4030680764195034,
+      "q25": 1.3883410392134345,
+      "q75": 1.4246698118771892,
+      "min": 1.2708622811032058,
+      "max": 1.4315631339963477,
+      "mad": 0.021978808356543533
+    },
+    "paired_delta_ns": {
+      "median": 74.23849574299405,
+      "q25": 71.74287339285101,
+      "q75": 76.072903381476,
+      "min": 54.22543173279101,
+      "max": 78.14849539829723,
+      "mad": 2.1811037192788945
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.3810892680629598,
+      1.4275243164315037
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.4035299570717246
+  },
+  {
+    "case": "small-complex-p0",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1668.6012188659247,
+          "q25": 1643.5524642289347,
+          "q75": 2161.1983306836246,
+          "min": 1575.3553259141495,
+          "max": 2202.9544250132485,
+          "mad": 78.29385267620546
+        },
+        "sample_count": 11,
+        "repetitions": 3774,
+        "minimum_batch_ns": 5945391,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1609.028351881293,
+          "q25": 1593.8302861685215,
+          "q75": 1652.6997880233175,
+          "min": 1575.0074191838899,
+          "max": 1689.8370429252782,
+          "mad": 29.75039745627987
+        },
+        "sample_count": 11,
+        "repetitions": 3774,
+        "minimum_batch_ns": 5944078,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          21888
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9626944940380014,
+      "q25": 0.7709808360853567,
+      "q75": 0.9968036441336978,
+      "min": 0.7296184833819878,
+      "max": 1.0117719291814815,
+      "mad": 0.04674181856816639
+    },
+    "paired_delta_ns": {
+      "median": -62.248012718600876,
+      "q25": -494.95641229464763,
+      "q75": -5.23118706942239,
+      "min": -587.6459989401167,
+      "max": 18.720985691573787,
+      "mad": 78.04478007419175
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.7708348095386175,
+      0.9997791566610169
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9642977205631429
+  },
+  {
+    "case": "tiny-complex-p1",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 785.0448167824547,
+          "q25": 722.0537392725787,
+          "q75": 964.7945102847023,
+          "min": 703.0706988148754,
+          "max": 1292.4662852472416,
+          "mad": 68.13417790491758
+        },
+        "sample_count": 11,
+        "repetitions": 7341,
+        "minimum_batch_ns": 5161242,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1200.8908868001636,
+          "q25": 1151.450619806566,
+          "q75": 1512.7043999455113,
+          "min": 1125.0171638741315,
+          "max": 2019.790083094946,
+          "mad": 52.672660400490486
+        },
+        "sample_count": 11,
+        "repetitions": 7341,
+        "minimum_batch_ns": 8258751,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.59925639600684,
+      "q25": 1.5322605696723273,
+      "q75": 1.678459411389798,
+      "min": 0.8704421745584814,
+      "max": 2.8173526428026228,
+      "mad": 0.08949885487432385
+    },
+    "paired_delta_ns": {
+      "median": 436.3257049448305,
+      "q25": 407.586568587386,
+      "q75": 599.6478681378559,
+      "min": -167.44912137311007,
+      "max": 1302.879444217409,
+      "mad": 83.31181038005707
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.5097575411325161,
+      1.714576146346288
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.5297099746764453
+  },
+  {
+    "case": "tiny-complex-p1",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 516.6744277202885,
+          "q25": 345.3728833490122,
+          "q75": 534.5633819379116,
+          "min": 322.71817184070244,
+          "max": 621.8990279084353,
+          "mad": 101.56302916274689
+        },
+        "sample_count": 11,
+        "repetitions": 12756,
+        "minimum_batch_ns": 4116593,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 488.4483380370022,
+          "q25": 482.44857322044527,
+          "q75": 690.6330354343054,
+          "min": 440.4323455628724,
+          "max": 781.5548761367199,
+          "mad": 48.0159924741298
+        },
+        "sample_count": 11,
+        "repetitions": 12756,
+        "minimum_batch_ns": 5618155,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.2797681121841626,
+      "q25": 0.9963059434579913,
+      "q75": 1.4697562655239755,
+      "min": 0.8302994609740281,
+      "max": 2.159894573066258,
+      "mad": 0.21877015574808834
+    },
+    "paired_delta_ns": {
+      "median": 146.83952649733465,
+      "q25": -5.006193164001246,
+      "q75": 194.65216368767642,
+      "min": -98.51089683286295,
+      "max": 381.046644716212,
+      "mad": 88.52602696770145
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.9316139304799081,
+      1.4963818380879528
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.9453696793010878
+  },
+  {
+    "case": "tiny-complex-p1",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 69.60593608014018,
+          "q25": 62.38961341045482,
+          "q75": 79.9624032750787,
+          "min": 60.315117775675716,
+          "max": 81.879417557027,
+          "mad": 8.840091801448352
+        },
+        "sample_count": 11,
+        "repetitions": 64487,
+        "minimum_batch_ns": 3889541,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 111.80177400096143,
+          "q25": 88.29636981096965,
+          "q75": 115.16732829872689,
+          "min": 85.72265727976182,
+          "max": 115.96343449067254,
+          "mad": 3.9857490657031747
+        },
+        "sample_count": 11,
+        "repetitions": 64487,
+        "minimum_batch_ns": 5527997,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.415676450404625,
+      "q25": 1.3884445917879842,
+      "q75": 1.469830156876402,
+      "min": 1.3539149775442325,
+      "max": 1.839108473395675,
+      "mad": 0.0450669214299424
+    },
+    "paired_delta_ns": {
+      "median": 31.760556391210628,
+      "q25": 26.938995456448584,
+      "q75": 36.95917006528448,
+      "min": 23.71870299440198,
+      "max": 52.343247476235526,
+      "mad": 5.5809387938654424
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.3825353280734607,
+      1.476015117571558
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.6062103363172853
+  },
+  {
+    "case": "tiny-complex-p1",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 281.2698020576003,
+          "q25": 211.66762562931922,
+          "q75": 331.96847931455017,
+          "min": 200.01028800150098,
+          "max": 335.44791894680884,
+          "mad": 54.178116889208525
+        },
+        "sample_count": 11,
+        "repetitions": 31979,
+        "minimum_batch_ns": 6396129,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 219.22671127927703,
+          "q25": 212.57900497201288,
+          "q75": 309.8889583789362,
+          "min": 205.83664279683543,
+          "max": 349.8188811407486,
+          "mad": 13.390068482441592
+        },
+        "sample_count": 11,
+        "repetitions": 31979,
+        "minimum_batch_ns": 6582450,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          3216
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 0.9794451113004795,
+      "q25": 0.8531776612074927,
+      "q75": 1.0300571288561826,
+      "min": 0.6377460343880055,
+      "max": 1.5582001566640007,
+      "mad": 0.07792026924557904
+    },
+    "paired_delta_ns": {
+      "median": -4.319741080083787,
+      "q25": -48.53900997529627,
+      "q75": 8.951358704149584,
+      "min": -120.1904374745927,
+      "max": 120.93323743706804,
+      "mad": 23.536164357859832
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.804830480360085,
+      1.0428880693843068
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 0.77941787449469
+  },
+  {
+    "case": "small-f64-p0",
+    "scope": "lifecycle",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 1495.133519128452,
+          "q25": 1453.0891816569547,
+          "q75": 1591.3354446414999,
+          "min": 1404.749683303775,
+          "max": 2489.2715986825438,
+          "mad": 48.24803648340503
+        },
+        "sample_count": 11,
+        "repetitions": 3947,
+        "minimum_batch_ns": 5544547,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 2075.570813275906,
+          "q25": 2008.6912845198885,
+          "q75": 3299.474790980492,
+          "min": 1955.9379275399037,
+          "max": 3321.386876108437,
+          "mad": 101.19229794780858
+        },
+        "sample_count": 11,
+        "repetitions": 3947,
+        "minimum_batch_ns": 7720087,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.3533530293168208,
+      "q25": 1.3245301342749727,
+      "q75": 1.7532789541806528,
+      "min": 1.23521530344114,
+      "max": 2.3438778677500616,
+      "mad": 0.08115636218081268
+    },
+    "paired_delta_ns": {
+      "median": 628.685330630859,
+      "q25": 492.1635419305802,
+      "q75": 1253.7647580440841,
+      "min": 372.45857613377257,
+      "max": 1887.8120091208514,
+      "mad": 156.37268811755757
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.324315590552035,
+      2.0328223620673542
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.3882176987683377
+  },
+  {
+    "case": "small-f64-p0",
+    "scope": "reused_buffers",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 954.5916171511161,
+          "q25": 946.1208447085273,
+          "q75": 1402.6471816283924,
+          "min": 920.6502328569135,
+          "max": 1415.2314115946683,
+          "mad": 33.941384294202635
+        },
+        "sample_count": 11,
+        "repetitions": 6227,
+        "minimum_batch_ns": 5732889,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 1145.3828488838926,
+          "q25": 1110.1687811145014,
+          "q75": 1408.0869600128472,
+          "min": 1009.7597559017183,
+          "max": 1692.532198490445,
+          "mad": 44.64075798940098
+        },
+        "sample_count": 11,
+        "repetitions": 6227,
+        "minimum_batch_ns": 6287774,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.191937560937217,
+      "q25": 0.9949668505469559,
+      "q75": 1.2081035417189736,
+      "min": 0.7200943669028703,
+      "max": 1.8140957508641202,
+      "mad": 0.01950459939461413
+    },
+    "paired_delta_ns": {
+      "median": 181.71687811145011,
+      "q25": -45.70595792516457,
+      "q75": 231.2828007066003,
+      "min": -392.5005620684117,
+      "max": 753.5211177131846,
+      "mad": 70.39168138750597
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      0.8170808798258677,
+      1.211442160331831
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.1998668627555875
+  },
+  {
+    "case": "small-f64-p0",
+    "scope": "pack_adapter",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 138.98480235384417,
+          "q25": 137.27268773186643,
+          "q75": 140.06411666879876,
+          "min": 134.24052705641552,
+          "max": 164.9229883587054,
+          "mad": 1.3384418574900963
+        },
+        "sample_count": 11,
+        "repetitions": 39085,
+        "minimum_batch_ns": 5246791,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 236.0234872713317,
+          "q25": 234.409991045158,
+          "q75": 239.36324676986055,
+          "min": 211.93040808494308,
+          "max": 253.98398362543176,
+          "mad": 2.5022642957656274
+        },
+        "sample_count": 11,
+        "repetitions": 39085,
+        "minimum_batch_ns": 8283300,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.7020348821118936,
+      "q25": 1.6113634061544422,
+      "q75": 1.7386714728048622,
+      "min": 1.510301513309973,
+      "max": 1.7779828119413865,
+      "mad": 0.03753831605818769
+    },
+    "paired_delta_ns": {
+      "median": 97.35212997313548,
+      "q25": 92.01188435461174,
+      "q75": 100.87245746450046,
+      "min": 71.60716387360881,
+      "max": 104.44822822054499,
+      "mad": 3.6861455801458476
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.5400156530817877,
+      1.7395731981700813
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.6981963730857048
+  },
+  {
+    "case": "small-f64-p0",
+    "scope": "blas_kernel",
+    "implementations": {
+      "c": {
+        "ns_per_operation": {
+          "median": 667.8030176026823,
+          "q25": 649.4168363070291,
+          "q75": 673.5574182732607,
+          "min": 618.9560531672854,
+          "max": 1016.558256496228,
+          "mad": 11.387977487726062
+        },
+        "sample_count": 11,
+        "repetitions": 8351,
+        "minimum_batch_ns": 5168902,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      },
+      "generated": {
+        "ns_per_operation": {
+          "median": 678.8565441264519,
+          "q25": 670.2129086336965,
+          "q75": 859.3087055442461,
+          "min": 628.2839180936414,
+          "max": 1047.0544844928752,
+          "mad": 10.825529876661449
+        },
+        "sample_count": 11,
+        "repetitions": 8351,
+        "minimum_batch_ns": 5246799,
+        "process_maxrss_kib": {
+          "median": 146512,
+          "q25": 146512.0,
+          "q75": 146512.0,
+          "min": 146512,
+          "max": 146512,
+          "mad": 0
+        },
+        "peak_data_bytes": [
+          10944
+        ],
+        "peak_metadata_bytes": [
+          280
+        ]
+      }
+    },
+    "paired_ratio": {
+      "median": 1.0160749229444794,
+      "q25": 1.0044560744159186,
+      "q75": 1.0634487039529938,
+      "min": 0.9424186546768171,
+      "max": 1.6128130989230245,
+      "mad": 0.0181130566721448
+    },
+    "paired_delta_ns": {
+      "median": 12.377080589150978,
+      "q25": 3.0151478864806336,
+      "q75": 39.30852592503885,
+      "min": -38.387857741587936,
+      "max": 393.6825529876662,
+      "mad": 11.437193150520898
+    },
+    "paired_ratio_bootstrap_95_interval": [
+      1.0018102030998048,
+      1.0843434447006346
+    ],
+    "bootstrap_note": "Paired within-run percentile bootstrap; not host/process uncertainty or an acceptance test.",
+    "ratio_of_separate_medians": 1.0165520763345008
+  }
+]

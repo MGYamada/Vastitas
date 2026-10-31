@@ -64,8 +64,37 @@ def numericalPolicy (value : String) : Except String NumericalPolicy := match va
   | "native_fast" => pure .nativeFast
   | _ => throw "unsupported numerical policy"
 
+def diagonal (j : Json) : Except String Diagonal := do
+  fields j ["uniform", "entries"]
+  let entries ← j.getObjValAs? (Array Nat) "entries"
+  if entries.size > 4096 || entries.any (· ≥ 2^64) then throw "invalid bounded diagonal representation"
+  return ⟨← j.getObjValAs? Bool "uniform", entries.toList.map UInt64.ofNat⟩
+def grouping3 (j : Json) : Except String Tensor.Grouping := do
+  fields j ["order", "split"]
+  let order ← array j "order"
+  unless order.length == 3 do throw "regrouping requires exactly three axes"
+  let order ← order.mapM fun value => do
+    let axis ← value.getNat?
+    if axis ≥ 3 then throw "regrouping axis exceeds rank bound"
+    pure axis
+  return ⟨order, ← size j "split"⟩
+
 def action (j : Json) : Except String Action := do
   match ← str j "op" with
+  | "diagonal_adjoint" =>
+    fields j ["op", "input", "output", "source", "target", "conjugate", "policy"]
+    return .diagonalAdjoint ⟨← symbol j "input", ← symbol j "output", ← diagonal (← field j "source"),
+      ← diagonal (← field j "target"), ← j.getObjValAs? Bool "conjugate", ← numericalPolicy (← str j "policy")⟩
+  | "diagonal_scale" =>
+    fields j ["op", "input", "output", "diagonal", "conjugate", "policy"]
+    return .diagonalScale ⟨← symbol j "input", ← symbol j "output", ← diagonal (← field j "diagonal"),
+      ← j.getObjValAs? Bool "conjugate", ← numericalPolicy (← str j "policy")⟩
+  | "diagonal_pair" =>
+    fields j ["op", "left", "right", "output", "scratch", "layout", "write_loan", "read_loan", "left_child", "diagonal", "conjugate_left", "conjugate_right", "policy"]
+    return .diagonalPair ⟨← symbol j "left", ← symbol j "right", ← symbol j "output", ← symbol j "scratch",
+      ← layout (← field j "layout"), ← symbol j "write_loan", ← symbol j "read_loan", ← symbol j "left_child",
+      ← diagonal (← field j "diagonal"), ← j.getObjValAs? Bool "conjugate_left",
+      ← j.getObjValAs? Bool "conjugate_right", ← numericalPolicy (← str j "policy")⟩
   | "allocate" =>
     fields j ["op", "owner", "scalar", "elements"]
     return .allocate (← symbol j "owner") (← scalar (← str j "scalar")) (← size j "elements")
@@ -115,6 +144,16 @@ def action (j : Json) : Except String Action := do
       ← j.getObjValAs? Bool "conjugate_left", ← j.getObjValAs? Bool "conjugate_right",
       ← gemmMode (← str j "mode"), ← numericalPolicy (← str j "policy"),
       ← optionalCoefficient j "alpha", ← optionalCoefficient j "beta"⟩
+  | "regroup3" =>
+    fields j ["op", "source", "target", "dimensions", "input", "output"]
+    let dimensions ← array j "dimensions"
+    unless dimensions.length == 3 do throw "regrouping requires exactly three extents"
+    let dimensions ← dimensions.mapM fun value => do
+      let dimension ← value.getNat?
+      if dimension ≥ 2^64 then throw "regrouping extent exceeds 64 bits"
+      pure dimension
+    return .regroup3 (← symbol j "source") (← symbol j "target") dimensions
+      (← grouping3 (← field j "input")) (← grouping3 (← field j "output"))
   | _ => throw "unknown resource operation"
 
 def statements : Nat → List Json → Except String (List Statement)

@@ -1,0 +1,22 @@
+{
+  "timestamp": "2026-10-31T15:08:35.052569+00:00",
+  "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "head": "0a1062845dc58f030bc946cf52598db81a5bc9f2",
+  "dirty": " M .github/workflows/ci.yml\n M experiments/public_gemm/run.py\n M experiments/tensor_packing/run.py\n M lean-kernel/VastitasKernel/ResourceProtocol.lean\n M lean-kernel/VastitasKernel/ResourceSource.lean\n M lean-kernel/VastitasKernel/Storage.lean\n M lean-kernel/VastitasKernel/StorageCodegen.lean\n M lean-kernel/VastitasKernel/StorageFunctions.lean\n M lean-kernel/VastitasKernel/StorageNumerical.lean\n M lean-kernel/VastitasKernel/StorageProtocol.lean\n M lean-kernel/lakefile.toml\n M lean-kernel/native/VastitasStorageNative/Runtime.lean\n M lean-kernel/native/ffi.c\n M lean-kernel/native/lakefile.lean\n M lean-kernel/numerical/VastitasGemmNative.lean\n M lean-kernel/numerical/ffi.c\n M lean-kernel/numerical/gemm.c\n M lean-kernel/numerical/gemm.h\n M lean-kernel/numerical/lakefile.lean\n M lean-kernel/numerical/test_backend.c\n M lean-kernel/numerical/test_gemm.c\n M lean/VastitasOracle.lean\n M lean/VastitasOracle/StorageDependencies.lean\n M scripts/check_gemm_checked.py\n M scripts/check_gemm_native.py\n M scripts/check_kernel_regressions.sh\n M scripts/check_storage_native.py\n M src/frontend/resource_parser.rs\n M src/storage.rs\n?? examples/packages/diagonal-metrics/\n?? experiments/diagonal_metrics/\n?? lean-kernel/VastitasKernel/StorageDiagonalData.lean\n?? lean-kernel/VastitasKernel/StorageMetric.lean\n?? lean-kernel/VastitasStorageTest/MetricRegression.lean\n?? lean-kernel/native/diagonal.c\n?? lean-kernel/native/diagonal.h\n?? lean-kernel/native/test_diagonal.c\n?? lean/VastitasOracle/StorageMetric.lean\n?? lean/VastitasOracle/StorageMetricLaws.lean\n?? tests/diagonal_metrics.rs\n",
+  "sources": {
+    "experiments/diagonal_metrics/probe.c": "694842847a119672c7713d30a6572d8d05af59a09bafe3fba465a8d0340c201c",
+    "experiments/diagonal_metrics/direct.c": "83f4e44761453cb9d6baa97e5ec4e48025e9fea3540a904d2dedb81aeda38bc6",
+    "experiments/diagonal_metrics/direct.h": "9147a0d5caa637dce4b5d4aa0715733371f7af25bf20c32f9d1effc0aa45758e",
+    "experiments/diagonal_metrics/run.py": "cbce5806aba4a01252149bc986caf3fa5ce6ac2f7c1983a91c905f46cb50dcfa",
+    "lean-kernel/native/storage.c": "3a0503d7ceac6e8a791db0d331cc651e96096ac4be28de89824c1f2d5150e983",
+    "lean-kernel/native/storage.h": "06829654b1d3de480b7d5d95e341f2be4cbde9b226e801c167b59c324c2ea799",
+    "lean-kernel/native/diagonal.c": "6f74f943874d593f362fa854901110d7bbf03f7caed35450ff2107c151c71687",
+    "lean-kernel/native/diagonal.h": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f",
+    "lean-kernel/numerical/gemm.c": "c39eab9c9bdeacac086ee74737ad5789c97005a61172849905c3af188971d33d",
+    "lean-kernel/numerical/gemm.h": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+  },
+  "openblas_archive_sha256": "104ac34c33302dbd7981eb47b5f5c04e4a46ca73c48ae20d60978190c666d41f",
+  "compiler": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+  "scope": "prepared C adapter versus prepared equivalent C; excludes public source, Lean FFI, lifecycle, metadata construction, and backend allocations"
+}

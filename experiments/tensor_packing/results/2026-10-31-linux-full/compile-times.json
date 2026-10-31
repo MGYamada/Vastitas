@@ -1,0 +1,1934 @@
+[
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33381707,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 749501059,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 777085416,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33572182,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 756606395,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 674117083,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34098945,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 746197675,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 676858372,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34097593,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 773924606,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 675583095,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33597000,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 751437150,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 674806968,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33482556,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 769368081,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 668344919,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33542538,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 770168762,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 673224332,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 33690474,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 765395132,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 671291909,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34299640,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 768951292,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 673865868,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 35806419,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 758215669,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 676437802,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34813598,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 747665321,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 677405107,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/package/Vastitas.toml:1:1: E_CAPTURED: capture only\n",
+    "wall_ns": 34122185,
+    "phase": "frontend_capture"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O3",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/native-test",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/native-test/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/native-test/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 770955591,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "cc",
+      "-std=c11",
+      "-O1",
+      "-g",
+      "-fno-lto",
+      "-Wall",
+      "-Wextra",
+      "-Werror",
+      "-fsanitize=address,undefined",
+      "-fno-sanitize-recover=all",
+      "-fno-omit-frame-pointer",
+      "-fno-pie",
+      "-no-pie",
+      "-DBENCH_STANDALONE",
+      "-I",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/sanitized",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/native",
+      "-I",
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/numerical",
+      "-I",
+      "/home/runner/work/_temp/tensor-openblas/include",
+      "/home/runner/work/Vastitas/Vastitas/experiments/tensor_packing/probe.c",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/sanitized/gemm.c",
+      "/home/runner/work/_temp/tensor-openblas/lib/libopenblas.a",
+      "-lm",
+      "-lpthread",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/sanitized/test"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_ns": 671752993,
+    "phase": "native_correctness_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 64663005,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 4523127277,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42276733,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 39172\\n    fill arena 0 0 39172 1 39172 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 32 1152 34 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 32 1152 34 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 32 1152 34 false 31 1 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 2045\\n    fill arena 1 0 2045 1 2045 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 48 40 51 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 48 40 51 false 0 39 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 48 40 51 false 47 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 37062\\n    fill arena 2 0 37062 1 37062 false 1 13842939354630062080 4613937818241073152\\n    allocate arena 3 1 30927\\n    fill arena 3 0 30927 1 30927 false 1 13842939354630062080 4613937818241073152\\n    pack3 arena 0 16 32 1152 34 false 2 48 768 48 772 false 32 48 24\\n    VastitasGemmNative.gemm arena 2 48 768 48 772 false false 1 32 48 40 51 false false 3 64 768 40 773 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 47694641,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p1",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (301ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (466ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (392ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (51ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (865ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (467ms)\n\u2714 [27/36] Built VastitasStorageNative (594ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.4s)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (33ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (107ms)\n\u2714 [32/36] Built VastitasGemmNative (278ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (249ms)\n\u2714 [34/36] Built Main (467ms)\n\u2714 [35/36] Built Main:c.o (519ms)\n\u2714 [36/36] Built bench:exe (487ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4988217337,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43815566,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2884240839,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 43004888,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 499\\n    fill arena 0 0 499 1 499 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 7 55 9 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 7 55 9 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 7 55 9 false 6 1 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 187\\n    fill arena 1 0 187 1 187 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 11 13 14 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 11 13 14 false 0 12 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 11 13 14 false 10 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 435\\n    fill arena 2 0 435 1 435 false 1 13842939354630062080 4613937818241073152\\n    allocate arena 3 1 527\\n    fill arena 3 0 527 1 527 false 1 13842939354630062080 4613937818241073152\\n    pack3 arena 0 16 7 55 9 false 2 48 35 11 39 false 7 11 5\\n    VastitasGemmNative.gemm arena 2 48 35 11 39 false false 1 32 11 13 14 false false 3 64 35 13 40 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 57924598,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p1",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (331ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (466ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (386ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (53ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (855ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (467ms)\n\u2714 [27/36] Built VastitasStorageNative (611ms)\n\u2714 [28/36] Built VastitasStorageNative:c.o (142ms)\n\u2714 [29/36] Built vastitas_storage_native/storageObject (1.5s)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (46ms)\n\u2714 [32/36] Built VastitasGemmNative (312ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (239ms)\n\u2714 [34/36] Built Main (457ms)\n\u2714 [35/36] Built Main:c.o (521ms)\n\u2714 [36/36] Built bench:exe (488ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4981392462,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 46167148,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2733936768,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 41251452,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 24\\n    fill arena 0 0 24 1 24 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 2 12 2 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 2 12 2 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 2 12 2 false 1 1 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 15\\n    fill arena 1 0 15 1 15 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 3 5 3 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 3 5 3 false 0 4 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 3 5 3 false 2 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 24\\n    fill arena 2 0 24 1 24 false 1 13842939354630062080 4613937818241073152\\n    allocate arena 3 1 40\\n    fill arena 3 0 40 1 40 false 1 13842939354630062080 4613937818241073152\\n    pack3 arena 0 0 2 12 2 false 2 0 8 3 8 false 2 3 4\\n    VastitasGemmNative.gemm arena 2 0 8 3 8 false false 1 0 3 5 3 false false 3 0 8 5 8 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46507331,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p0",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (308ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (447ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (380ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (51ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (844ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (465ms)\n\u2714 [27/36] Built VastitasStorageNative (605ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.5s)\n\u2714 [29/36] Built VastitasStorageNative:c.o (131ms)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (49ms)\n\u2714 [32/36] Built VastitasGemmNative (303ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (240ms)\n\u2714 [34/36] Built Main (452ms)\n\u2714 [35/36] Built Main:c.o (519ms)\n\u2714 [36/36] Built bench:exe (488ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4980940765,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43779905,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2814867649,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 39608638,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 499\\n    fill arena 0 0 499 1 499 false 0 13842939354630062080 0\\n    fill arena 0 8 7 55 9 false 0 4593671619917905920 0\\n    store arena 0 8 7 55 9 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 7 55 9 false 6 1 0 13826050856027422720 0\\n    allocate arena 1 0 187\\n    fill arena 1 0 187 1 187 false 0 13842939354630062080 0\\n    fill arena 1 16 11 13 14 false 0 13821547256400052224 0\\n    store arena 1 16 11 13 14 false 0 12 0 4602678819172646912 0\\n    store arena 1 16 11 13 14 false 10 0 0 13828302655841107968 0\\n    allocate arena 2 0 435\\n    fill arena 2 0 435 1 435 false 0 13842939354630062080 0\\n    allocate arena 3 0 527\\n    fill arena 3 0 527 1 527 false 0 13842939354630062080 0\\n    pack3 arena 0 8 7 55 9 false 2 24 35 11 39 false 7 11 5\\n    VastitasGemmNative.gemm arena 2 24 35 11 39 false false 1 16 11 13 14 false false 3 32 35 13 40 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46817070,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p1",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (301ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (452ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (390ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (48ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (837ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (461ms)\n\u2714 [27/36] Built VastitasStorageNative (608ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.4s)\n\u2714 [29/36] Built VastitasStorageNative:c.o (131ms)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (53ms)\n\u2714 [32/36] Built VastitasGemmNative (309ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (240ms)\n\u2714 [34/36] Built Main (460ms)\n\u2714 [35/36] Built Main:c.o (522ms)\n\u2714 [36/36] Built bench:exe (489ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4981689806,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43870274,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2752747310,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 52143180,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 36864\\n    fill arena 0 0 36864 1 36864 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 32 1152 32 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 32 1152 32 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 32 1152 32 false 31 1 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 1920\\n    fill arena 1 0 1920 1 1920 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 48 40 48 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 48 40 48 false 0 39 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 48 40 48 false 47 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 36864\\n    fill arena 2 0 36864 1 36864 false 1 13842939354630062080 4613937818241073152\\n    allocate arena 3 1 30720\\n    fill arena 3 0 30720 1 30720 false 1 13842939354630062080 4613937818241073152\\n    pack3 arena 0 0 32 1152 32 false 2 0 768 48 768 false 32 48 24\\n    VastitasGemmNative.gemm arena 2 0 768 48 768 false false 1 0 48 40 48 false false 3 0 768 40 768 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 60453264,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-complex-p0",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (306ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (453ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (384ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (53ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (859ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (480ms)\n\u2714 [27/36] Built VastitasStorageNative (611ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.4s)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (33ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (113ms)\n\u2714 [32/36] Built VastitasGemmNative (281ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (245ms)\n\u2714 [34/36] Built Main (459ms)\n\u2714 [35/36] Built Main:c.o (519ms)\n\u2714 [36/36] Built bench:exe (487ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4983515753,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 65070807,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2746831386,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 54121767,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 39172\\n    fill arena 0 0 39172 1 39172 false 0 13842939354630062080 0\\n    fill arena 0 8 32 1152 34 false 0 4593671619917905920 0\\n    store arena 0 8 32 1152 34 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 32 1152 34 false 31 1 0 13826050856027422720 0\\n    allocate arena 1 0 2045\\n    fill arena 1 0 2045 1 2045 false 0 13842939354630062080 0\\n    fill arena 1 16 48 40 51 false 0 13821547256400052224 0\\n    store arena 1 16 48 40 51 false 0 39 0 4602678819172646912 0\\n    store arena 1 16 48 40 51 false 47 0 0 13828302655841107968 0\\n    allocate arena 2 0 37062\\n    fill arena 2 0 37062 1 37062 false 0 13842939354630062080 0\\n    allocate arena 3 0 30927\\n    fill arena 3 0 30927 1 30927 false 0 13842939354630062080 0\\n    pack3 arena 0 8 32 1152 34 false 2 24 768 48 772 false 32 48 24\\n    VastitasGemmNative.gemm arena 2 24 768 48 772 false false 1 16 48 40 51 false false 3 32 768 40 773 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 57067773,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p1",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (299ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (450ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (390ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (57ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (851ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (468ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.4s)\n\u2714 [28/36] Built VastitasStorageNative (604ms)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (30ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (103ms)\n\u2714 [32/36] Built VastitasGemmNative (278ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (237ms)\n\u2714 [34/36] Built Main (455ms)\n\u2714 [35/36] Built Main:c.o (519ms)\n\u2714 [36/36] Built bench:exe (488ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4905571562,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 66434462,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 3129429723,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42529753,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 36864\\n    fill arena 0 0 36864 1 36864 false 0 13842939354630062080 0\\n    fill arena 0 0 32 1152 32 false 0 4593671619917905920 0\\n    store arena 0 0 32 1152 32 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 32 1152 32 false 31 1 0 13826050856027422720 0\\n    allocate arena 1 0 1920\\n    fill arena 1 0 1920 1 1920 false 0 13842939354630062080 0\\n    fill arena 1 0 48 40 48 false 0 13821547256400052224 0\\n    store arena 1 0 48 40 48 false 0 39 0 4602678819172646912 0\\n    store arena 1 0 48 40 48 false 47 0 0 13828302655841107968 0\\n    allocate arena 2 0 36864\\n    fill arena 2 0 36864 1 36864 false 0 13842939354630062080 0\\n    allocate arena 3 0 30720\\n    fill arena 3 0 30720 1 30720 false 0 13842939354630062080 0\\n    pack3 arena 0 0 32 1152 32 false 2 0 768 48 768 false 32 48 24\\n    VastitasGemmNative.gemm arena 2 0 768 48 768 false false 1 0 48 40 48 false false 3 0 768 40 768 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46309121,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/bulk-f64-p0",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (329ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (455ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (380ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (50ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (847ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (468ms)\n\u2714 [27/36] Built vastitas_storage_native/storageObject (1.4s)\n\u2714 [28/36] Built VastitasStorageNative (596ms)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (33ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (103ms)\n\u2714 [32/36] Built VastitasGemmNative (274ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (238ms)\n\u2714 [34/36] Built Main (456ms)\n\u2714 [35/36] Built Main:c.o (517ms)\n\u2714 [36/36] Built bench:exe (489ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4887610235,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 54051545,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2745550088,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 45045381,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 24\\n    fill arena 0 0 24 1 24 false 0 13842939354630062080 0\\n    fill arena 0 0 2 12 2 false 0 4593671619917905920 0\\n    store arena 0 0 2 12 2 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 2 12 2 false 1 1 0 13826050856027422720 0\\n    allocate arena 1 0 15\\n    fill arena 1 0 15 1 15 false 0 13842939354630062080 0\\n    fill arena 1 0 3 5 3 false 0 13821547256400052224 0\\n    store arena 1 0 3 5 3 false 0 4 0 4602678819172646912 0\\n    store arena 1 0 3 5 3 false 2 0 0 13828302655841107968 0\\n    allocate arena 2 0 24\\n    fill arena 2 0 24 1 24 false 0 13842939354630062080 0\\n    allocate arena 3 0 40\\n    fill arena 3 0 40 1 40 false 0 13842939354630062080 0\\n    pack3 arena 0 0 2 12 2 false 2 0 8 3 8 false 2 3 4\\n    VastitasGemmNative.gemm arena 2 0 8 3 8 false false 1 0 3 5 3 false false 3 0 8 5 8 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 47153727,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p0",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (299ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (443ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (381ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (50ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (834ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (460ms)\n\u2714 [27/36] Built VastitasStorageNative (605ms)\n\u2714 [28/36] Built VastitasStorageNative:c.o (159ms)\n\u2714 [29/36] Built vastitas_storage_native/storageObject (1.6s)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (39ms)\n\u2714 [32/36] Built VastitasGemmNative (337ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (238ms)\n\u2714 [34/36] Built Main (452ms)\n\u2714 [35/36] Built Main:c.o (519ms)\n\u2714 [36/36] Built bench:exe (487ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4974046132,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 54928127,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2745911062,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 43255202,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 52\\n    fill arena 0 0 52 1 52 false 0 13842939354630062080 0\\n    fill arena 0 8 2 12 4 false 0 4593671619917905920 0\\n    store arena 0 8 2 12 4 false 0 0 0 4607182418800017408 0\\n    store arena 0 8 2 12 4 false 1 1 0 13826050856027422720 0\\n    allocate arena 1 0 35\\n    fill arena 1 0 35 1 35 false 0 13842939354630062080 0\\n    fill arena 1 16 3 5 6 false 0 13821547256400052224 0\\n    store arena 1 16 3 5 6 false 0 4 0 4602678819172646912 0\\n    store arena 1 16 3 5 6 false 2 0 0 13828302655841107968 0\\n    allocate arena 2 0 42\\n    fill arena 2 0 42 1 42 false 0 13842939354630062080 0\\n    allocate arena 3 0 72\\n    fill arena 3 0 72 1 72 false 0 13842939354630062080 0\\n    pack3 arena 0 8 2 12 4 false 2 24 8 3 12 false 2 3 4\\n    VastitasGemmNative.gemm arena 2 24 8 3 12 false false 1 16 3 5 6 false false 3 32 8 5 13 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46292169,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-f64-p1",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (305ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (468ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (382ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (49ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (846ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (473ms)\n\u2714 [27/36] Built VastitasStorageNative (620ms)\n\u2714 [28/36] Built VastitasStorageNative:c.o (170ms)\n\u2714 [29/36] Built vastitas_storage_native/storageObject (1.6s)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (32ms)\n\u2714 [32/36] Built VastitasGemmNative (346ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (237ms)\n\u2714 [34/36] Built Main (450ms)\n\u2714 [35/36] Built Main:c.o (518ms)\n\u2714 [36/36] Built bench:exe (494ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4977301511,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 54706345,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2751808962,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 43615474,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 385\\n    fill arena 0 0 385 1 385 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 0 7 55 7 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 0 7 55 7 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 0 7 55 7 false 6 1 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 143\\n    fill arena 1 0 143 1 143 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 0 11 13 11 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 0 11 13 11 false 0 12 1 4602678819172646912 4598175219545276416\\n    store arena 1 0 11 13 11 false 10 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 385\\n    fill arena 2 0 385 1 385 false 1 13842939354630062080 4613937818241073152\\n    allocate arena 3 1 455\\n    fill arena 3 0 455 1 455 false 1 13842939354630062080 4613937818241073152\\n    pack3 arena 0 0 7 55 7 false 2 0 35 11 35 false 7 11 5\\n    VastitasGemmNative.gemm arena 2 0 35 11 35 false false 1 0 11 13 11 false false 3 0 35 13 35 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46901235,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/small-complex-p0",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (311ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (461ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (391ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (46ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (848ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (463ms)\n\u2714 [27/36] Built VastitasStorageNative (620ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.5s)\n\u2714 [29/36] Built VastitasStorageNative:c.o (136ms)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (49ms)\n\u2714 [32/36] Built VastitasGemmNative (305ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (233ms)\n\u2714 [34/36] Built Main (452ms)\n\u2714 [35/36] Built Main:c.o (519ms)\n\u2714 [36/36] Built bench:exe (487ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 5002996733,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 55403075,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2778097291,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 42098759,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 1 52\\n    fill arena 0 0 52 1 52 false 1 13842939354630062080 4613937818241073152\\n    fill arena 0 16 2 12 4 false 1 4593671619917905920 4598175219545276416\\n    store arena 0 16 2 12 4 false 0 0 1 4607182418800017408 13826050856027422720\\n    store arena 0 16 2 12 4 false 1 1 1 13826050856027422720 4604930618986332160\\n    allocate arena 1 1 35\\n    fill arena 1 0 35 1 35 false 1 13842939354630062080 4613937818241073152\\n    fill arena 1 32 3 5 6 false 1 13821547256400052224 4593671619917905920\\n    store arena 1 32 3 5 6 false 0 4 1 4602678819172646912 4598175219545276416\\n    store arena 1 32 3 5 6 false 2 0 1 13828302655841107968 13826050856027422720\\n    allocate arena 2 1 42\\n    fill arena 2 0 42 1 42 false 1 13842939354630062080 4613937818241073152\\n    allocate arena 3 1 72\\n    fill arena 3 0 72 1 72 false 1 13842939354630062080 4613937818241073152\\n    pack3 arena 0 16 2 12 4 false 2 48 8 3 12 false 2 3 4\\n    VastitasGemmNative.gemm arena 2 48 8 3 12 false false 1 32 3 5 6 false false 3 64 8 5 13 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 46189150,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/tiny-complex-p1",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (311ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (461ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (384ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (54ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (847ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (467ms)\n\u2714 [27/36] Built VastitasStorageNative (611ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.5s)\n\u2714 [29/36] Built VastitasStorageNative:c.o (134ms)\n\u2714 [30/36] Built vastitas_storage_native/storageNative.static (50ms)\n\u2714 [32/36] Built VastitasGemmNative (306ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (240ms)\n\u2714 [34/36] Built Main (454ms)\n\u2714 [35/36] Built Main:c.o (521ms)\n\u2714 [36/36] Built bench:exe (480ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4994115758,
+    "phase": "generated_native_compile"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "check",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/package/Vastitas.toml"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "checked /home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/package/Vastitas.toml\n",
+    "stderr": "",
+    "wall_ns": 43853831,
+    "phase": "public_check_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/target/release/vastitas",
+      "build",
+      "--manifest-path",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/package/Vastitas.toml",
+      "--openblas-prefix",
+      "/home/runner/work/_temp/tensor-openblas",
+      "--native-cc",
+      "cc",
+      "-o",
+      "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/canonical-program"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "built /home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0/canonical-program\n",
+    "stderr": "",
+    "wall_ns": 2755267673,
+    "phase": "public_build_total"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "check"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"ok\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 43497061,
+    "phase": "independent_lean_check"
+  },
+  {
+    "command": [
+      "/home/runner/work/Vastitas/Vastitas/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "emit"
+    ],
+    "cwd": "/home/runner/work/Vastitas/Vastitas",
+    "returncode": 0,
+    "stdout": "{\"lean_source\":\"import VastitasStorageNative\\nimport VastitasGemmNative\\nimport VastitasKernel.IndexedRuntime\\n\\nset_option maxRecDepth 32768\\nset_option maxHeartbeats 2000000\\nset_option linter.unusedVariables false\\n\\nnamespace VastitasGenerated\\n\\ndef f_0 : Int :=\\n  (0 : Int)\\n\\nend VastitasGenerated\\n\\nopen VastitasStorageNative\\n\\ndef main : IO Unit := do\\n  let arena \u2190 newArena 9223372036854775807\\n  try\\n    allocate arena 0 0 385\\n    fill arena 0 0 385 1 385 false 0 13842939354630062080 0\\n    fill arena 0 0 7 55 7 false 0 4593671619917905920 0\\n    store arena 0 0 7 55 7 false 0 0 0 4607182418800017408 0\\n    store arena 0 0 7 55 7 false 6 1 0 13826050856027422720 0\\n    allocate arena 1 0 143\\n    fill arena 1 0 143 1 143 false 0 13842939354630062080 0\\n    fill arena 1 0 11 13 11 false 0 13821547256400052224 0\\n    store arena 1 0 11 13 11 false 0 12 0 4602678819172646912 0\\n    store arena 1 0 11 13 11 false 10 0 0 13828302655841107968 0\\n    allocate arena 2 0 385\\n    fill arena 2 0 385 1 385 false 0 13842939354630062080 0\\n    allocate arena 3 0 455\\n    fill arena 3 0 455 1 455 false 0 13842939354630062080 0\\n    pack3 arena 0 0 7 55 7 false 2 0 35 11 35 false 7 11 5\\n    VastitasGemmNative.gemm arena 2 0 35 11 35 false false 1 0 11 13 11 false false 3 0 35 13 35 false 0\\n    drop arena 3\\n    drop arena 2\\n    drop arena 1\\n    drop arena 0\\n    IO.println (VastitasGenerated.f_0)\\n  finally\\n    close arena\\n\",\"numerical_runtime\":true,\"ok\":true,\"storage_runtime\":true,\"version\":8}\n",
+    "stderr": "",
+    "wall_ns": 45769697,
+    "phase": "independent_lean_emit"
+  },
+  {
+    "command": [
+      "lake",
+      "build",
+      "bench"
+    ],
+    "cwd": "/home/runner/work/_temp/tensor-packing-results/cases/small-f64-p0",
+    "returncode": 0,
+    "stdout": "\u2714 [20/36] Built vastitas_gemm_native/ffiObject (300ms)\n\u2714 [21/36] Built vastitas_storage_native/ffiObject (466ms)\n\u2714 [22/36] Built vastitas_gemm_native/gemmObject (384ms)\n\u2714 [23/36] Built vastitas_gemm_native/gemmNative.static (50ms)\n\u2714 [25/36] Built VastitasStorageNative.Runtime (837ms)\n\u2714 [26/36] Built VastitasStorageNative.Runtime:c.o (467ms)\n\u2714 [27/36] Built VastitasStorageNative (609ms)\n\u2714 [28/36] Built vastitas_storage_native/storageObject (1.5s)\n\u2714 [29/36] Built vastitas_storage_native/storageNative.static (39ms)\n\u2714 [31/36] Built VastitasStorageNative:c.o (120ms)\n\u2714 [32/36] Built VastitasGemmNative (291ms)\n\u2714 [33/36] Built VastitasGemmNative:c.o (235ms)\n\u2714 [34/36] Built Main (451ms)\n\u2714 [35/36] Built Main:c.o (522ms)\n\u2714 [36/36] Built bench:exe (483ms)\nBuild completed successfully (36 jobs).\n",
+    "stderr": "info: tensor_benchmark: no previous manifest, creating one from scratch\ninfo: toolchain not updated; already up-to-date\n",
+    "wall_ns": 4883945049,
+    "phase": "generated_native_compile"
+  }
+]

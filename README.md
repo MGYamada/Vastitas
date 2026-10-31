@@ -69,7 +69,9 @@ adds bilinear dual evaluation and explicit Hermitian pairing through actual
 borrowed vector arguments and scalar destinations. [Finite two-map networks](docs/finite-networks.md)
 check occurrences, ports, a bilinear edge and ordered boundaries before the same
 typed GEMM path. General metric realization, general generative numerical packages,
-dynamic shape/scalar interfaces, higher-rank networks and packing remain pending.
+dynamic shape/scalar interfaces and general-rank networks remain pending.
+[Bounded contraction trees](docs/contraction-trees.md) add explicit finite multi-edge
+plans with rank-two/three intermediates and caller-owned regrouping.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.
 This does not add general floating values to pure Core or dynamic shape contracts.
@@ -357,3 +359,8 @@ caller-destination packing and one typed rank-three/rank-two contraction to
 protocol 8. It retains actual ordered bases/dual origins and emits one checked
 GEMM without implicit packing or product-basis fabrication. General networks
 and equivalent-C performance remain unfinished.
+
+The [bounded contraction-tree profile](docs/contraction-trees.md) independently
+reconstructs finite graph connectivity and exact producers, then executes the
+written explicit regroup/GEMM schedule. No contraction-order search or implicit
+allocation is added.

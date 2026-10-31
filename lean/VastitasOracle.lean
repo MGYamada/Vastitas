@@ -47,6 +47,8 @@ import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
 import VastitasOracle.TensorNetwork
 import VastitasOracle.TensorNumerical
+import VastitasOracle.TensorContraction
+import VastitasOracle.TensorTree
 import VastitasOracle.StorageOwnedPackages
 
 /-!

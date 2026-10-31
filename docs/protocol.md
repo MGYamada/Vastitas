@@ -552,3 +552,10 @@ independently before lowering to the existing numerical/storage path.
 The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) and their
 bounded ordered-axis/grouping schema are specified in [tensor-packing.md](tensor-packing.md).
 Packing is explicit and checked independently from nominal contraction authority.
+
+The additive protocol-8 `tree` statement carries a bounded unresolved finite graph
+and explicit borrow/view/regroup/rebind/join plan. Lean reconstructs producer
+connectivity, nominal ports and actual resource transitions; see
+[contraction trees](contraction-trees.md). The raw internal `regroup3` action
+contains source/target loans, three physical dimensions and explicit input/output
+groupings; it is not a public nominal-authority certificate.

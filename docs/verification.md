@@ -1200,3 +1200,11 @@ connect receipts to the declaration environment of the same protocol-8 checker
 result. Both branch receipts and independent unused-body probes are retained.
 See [the bounded package contract](owned-map-packages.md) for rejection/native
 coverage and remaining general-package, dynamic-shape and refinement boundaries.
+
+The [bounded contraction-tree profile](contraction-trees.md) adds
+`TensorContraction` and `TensorTree` oracle modules over actual checker receipts.
+They prove generic grouping bounds/injectivity, rank-two neutral physical
+embedding, selected-axis finite coordinate references, reconstructed connected
+producer coverage, ordered nominal boundaries, exact resource replay and public
+origins. Native permutation tests and matched C evidence remain separate from
+C/FFI/BLAS refinement and floating or categorical laws.

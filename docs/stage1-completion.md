@@ -24,8 +24,9 @@ The latest numerical increments have separate acceptance records:
 | --- | --- | --- |
 | Bilinear vector evaluation and explicit orthonormal Hermitian pairing, PR #332 | `881270df5413b86063d9dab508c074b89222bddc`; [validation](https://github.com/MGYamada/Vastitas/pull/332#issuecomment-6542785520): 301 Rust tests, six optional numerical tests, 36 kernel regression targets, 19,450-declaration axiom audit and all 17 final-head hosted checks | General metric realization and ideal identities remain open; no floating-point field-law or native refinement claim |
 | Executable finite two-map networks, PR #331 | `604d0310c997f7b35dd0e83968865116f7322d89`; [integrated validation](https://github.com/MGYamada/Vastitas/pull/331#issuecomment-6542885966): 306 Rust tests, seven optional numerical tests, 37 kernel regression targets, 19,757-declaration axiom audit and all 17 final-head hosted checks | Exactly two rank-two occurrences and one bilinear edge; higher-rank/multi-edge networks, explicit packing/scratch and categorical laws remain open |
+| Optional public GEMM experiment, PR #333 | `5664639143d50288d72bfd35c7ab8a15b33b14e3`; [validation](https://github.com/MGYamada/Vastitas/pull/333#issuecomment-6543004832): all 19 final-head hosted checks, including both Linux smoke jobs; [preserved run](../experiments/public_gemm/results/2026-10-31-linux-smoke/RESULTS.md) covers 16 public check/build/executions, 32 native/sanitizer validations and 454 generated/C output/cost pairs | Smoke validates execution and arena costs, not speed or controlled-host acceptance; full-size workloads, total allocation/packing measurements and declared budgets remain open |
 
-Both final heads passed review without findings. The network integration also
+All three final heads passed review without findings. The network integration also
 checks and executes combined network/vector operations across both branch arms.
 These merged increments do not close #67/#69/#91/#183/#179 or #201's wider scope.
 

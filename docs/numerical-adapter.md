@@ -276,7 +276,9 @@ Generative numerical result packages, general scalar expressions and dynamic
 shape interfaces, general metric realization/transport, higher-rank or multi-edge
 networks, explicit packing and broader scratch/dependency handling remain work.
 Equivalent-C runtime, allocation/copy and peak-memory
-comparisons are still required. Public GEMM execution does not complete
+comparisons are still required. The [optional public GEMM experiment](../experiments/public_gemm/README.md)
+has passed generated execution and paired output/arena-cost smoke checks; its
+small hosted run is not performance acceptance. Public GEMM execution does not complete
 [#91](https://github.com/MGYamada/Vastitas/issues/91),
 [#92](https://github.com/MGYamada/Vastitas/issues/92) or the full
 [Stage 1 gate](stage1-completion.md), or establish **Fast like C**.

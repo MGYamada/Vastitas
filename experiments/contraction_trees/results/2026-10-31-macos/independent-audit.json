@@ -1,0 +1,54 @@
+{
+  "raw_rows": 482,
+  "raw_pairs": 241,
+  "measurement_rows": 144,
+  "summary_groups": 24,
+  "native_validation_records": 8,
+  "additional_native_records": 12,
+  "runtime_verification_records": 96,
+  "emission_and_wrapper_matches": 4,
+  "source_hashes": 45,
+  "below_target_measurement_batches": 0,
+  "costs": {
+    "tiny-complex-p0": {
+      "peak": 3248,
+      "init": 4352,
+      "write": 2624,
+      "copy": 1024,
+      "pack3": 384,
+      "regroup3": 640,
+      "first_gemm": 640,
+      "second_gemm": 960
+    },
+    "tiny-f64-p1": {
+      "peak": 3296,
+      "init": 3848,
+      "write": 1312,
+      "copy": 512,
+      "pack3": 192,
+      "regroup3": 320,
+      "first_gemm": 320,
+      "second_gemm": 480
+    },
+    "tiny-complex-p1": {
+      "peak": 6592,
+      "init": 7696,
+      "write": 2624,
+      "copy": 1024,
+      "pack3": 384,
+      "regroup3": 640,
+      "first_gemm": 640,
+      "second_gemm": 960
+    },
+    "tiny-f64-p0": {
+      "peak": 1624,
+      "init": 2176,
+      "write": 1312,
+      "copy": 512,
+      "pack3": 192,
+      "regroup3": 320,
+      "first_gemm": 320,
+      "second_gemm": 480
+    }
+  }
+}

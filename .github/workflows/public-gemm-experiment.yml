@@ -72,5 +72,8 @@ jobs:
             ${{ runner.temp }}/public-gemm-smoke/cases/**/Generated.lean
             ${{ runner.temp }}/public-gemm-smoke/cases/**/Main.lean
             ${{ runner.temp }}/public-gemm-smoke/cases/**/response.json
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/symbols.txt
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/disassembly.txt
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/linked-libraries.txt
             ${{ runner.temp }}/public-gemm-smoke/cases/**/package/**
             ${{ runner.temp }}/public-gemm-smoke/source/**

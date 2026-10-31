@@ -184,6 +184,9 @@ unmodified emitted Lean and benchmark wrappers, private runtime sources,
 source/binary/BLAS hashes, flags, toolchain/CPU/OS/libc/affinity/cgroup/load
 information, raw warmup/calibration/measurement rows, checksums and counters,
 native validation/sanitizer logs, command logs, disassembly/symbols and summaries.
+Large inspection outputs are retained once in per-case text files; command logs
+record their paths, byte counts and SHA-256 hashes. JSON snapshots are replaced
+atomically so an interrupted run preserves the last complete diagnostic record.
 `compile-times.json` reports frontend capture, Lean checking, checking+emission,
 normal CLI check/build, harness native compilation and dependency builds
 **separately from all runtime clocks**. These are wall times including process

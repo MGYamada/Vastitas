@@ -28,7 +28,10 @@ SCOPES = ["lifecycle", "prepared_call", "blas_kernel"]
 
 
 def dump(path, data):
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    # Keep the last complete diagnostic snapshot if a job is interrupted.
+    pending = path.with_name(path.name + ".tmp")
+    pending.write_text(json.dumps(data, indent=2) + "\n")
+    pending.replace(path)
 
 
 def sha(path):
@@ -39,15 +42,26 @@ class Runner:
     def __init__(self, out, env):
         self.out, self.env, self.commands = out, env, []
 
-    def run(self, args, *, cwd=ROOT, input=None, env=None, required=True, phase="setup"):
+    def run(self, args, *, cwd=ROOT, input=None, env=None, required=True, phase="setup",
+            stdout_path=None):
         start = time.perf_counter_ns()
+        output = stdout_path.open("w") if stdout_path is not None else None
         try:
             p = subprocess.run(list(map(str,args)), cwd=cwd, input=input, text=True,
-                               capture_output=True, env=env or self.env, timeout=1200)
+                               stdout=output or subprocess.PIPE, stderr=subprocess.PIPE,
+                               env=env or self.env, timeout=1200)
             entry = dict(command=list(map(str,args)), cwd=str(cwd), returncode=p.returncode,
-                         stdout=p.stdout, stderr=p.stderr)
+                         stdout=p.stdout or "", stderr=p.stderr)
         except (OSError, subprocess.TimeoutExpired) as error:
             entry = dict(command=list(map(str,args)), cwd=str(cwd), returncode=-1, stdout="", stderr=str(error))
+        finally:
+            if output is not None:
+                output.close()
+        if stdout_path is not None:
+            # Disassembly can be tens of MB per case. Retain it once, rather
+            # than copying it into every subsequent command-log snapshot.
+            entry.update(stdout_file=str(stdout_path.relative_to(self.out)),
+                         stdout_bytes=stdout_path.stat().st_size, stdout_sha256=sha(stdout_path))
         entry.update(wall_ns=time.perf_counter_ns()-start, phase=phase)
         self.commands.append(entry)
         dump(self.out / "commands.json",self.commands)
@@ -176,8 +190,7 @@ lean_exe bench where
     exe = work / ".lake/build/bin/bench"
     for name,command in {"symbols.txt":["nm", "-S",exe], "disassembly.txt":["objdump","-d",exe],
                         "linked-libraries.txt":["ldd",exe]}.items():
-        r = runner.run(command,required=False,phase="inspection")
-        (work / name).write_text(r["stdout"]+r["stderr"])
+        runner.run(command,required=False,phase="inspection",stdout_path=work / name)
     return exe
 
 
@@ -328,8 +341,13 @@ def main():
             for i,c in enumerate(all_cases):
                 work = out / "cases" / c["case"]
                 wire = (work / "package/wire.json").read_text()
+                started = time.perf_counter()
+                print(f"[{i+1}/{len(all_cases)}] {c['case']}: public check/build and wrapper compilation",flush=True)
                 exe = build_case(runner,c,work,wire,prefix,cc,kernel,lean_root,frontend)
+                built = time.perf_counter()
+                print(f"[{i+1}/{len(all_cases)}] {c['case']}: generated validation/compilation passed in {built-started:.1f}s; paired scopes",flush=True)
                 measure(runner,c,exe,args.samples,args.target_ms,rows,raw,i)
+                print(f"[{i+1}/{len(all_cases)}] {c['case']}: all paired scopes passed in {time.perf_counter()-built:.1f}s",flush=True)
         summarize(rows,out)
         environment["performance"] = "smoke only" if args.smoke else "measured on this host"
         dump(out / "status.json",dict(status="passed",performance=environment["performance"],rows=len(rows)))

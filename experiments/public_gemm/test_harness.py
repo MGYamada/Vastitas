@@ -1,9 +1,14 @@
-"""Optional harness regressions: no mandatory CI registration."""
+"""Harness regressions, also run by the dedicated optional-experiment workflow."""
 import copy
+import json
+import os
+from pathlib import Path
+import sys
+import tempfile
 import unittest
 
 from cases import cases, driver, source, split_generated
-from run import compare_pair
+from run import Runner, compare_pair
 
 # Codegen-envelope fixture, deliberately not represented as Lean acceptance.
 EMITTED = '''import VastitasStorageNative
@@ -31,6 +36,25 @@ def main : IO Unit := do
 
 
 class HarnessTests(unittest.TestCase):
+    def test_large_inspection_output_is_retained_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            runner = Runner(out,dict(os.environ))
+            listing = out / "disassembly.txt"
+            size = 3 * 1024 * 1024
+            runner.run([sys.executable,"-c",f"import sys; sys.stdout.write('x'*{size}); sys.stderr.write('diagnostic')"],
+                       phase="inspection",stdout_path=listing)
+            runner.run([sys.executable,"-c","print('next command')"])
+            self.assertEqual(listing.read_bytes(),b"x"*size)
+            log = out / "commands.json"
+            self.assertLess(log.stat().st_size,4096)
+            entries = json.loads(log.read_text())
+            self.assertEqual(entries[0]["stdout"],"")
+            self.assertEqual(entries[0]["stdout_file"],"disassembly.txt")
+            self.assertEqual(entries[0]["stdout_bytes"],size)
+            self.assertEqual(entries[0]["stderr"],"diagnostic")
+            self.assertEqual(entries[1]["stdout"],"next command\n")
+
     def test_unfamiliar_codegen_must_not_be_benchmarked(self):
         for text in [EMITTED.replace("gemmScaled","gemm"),
                      EMITTED.replace("9223372036854775807","1024"),

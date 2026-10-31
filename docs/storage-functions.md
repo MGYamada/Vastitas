@@ -100,7 +100,7 @@ See [owned numerical results](numerical-values.md#owned-numerical-results).
 General tensor types, general pure-Core/resource interoperation, runtime
 dimensions/conditions, general owned-result branch joins and escaping-loan
 lifetime contracts are not supplied by this component. General dynamic source
-composition, generative numerical result packages, general scratch/dependency handling and equivalent-C
+composition, general generative numerical result packages, general scratch/dependency handling and equivalent-C
 measurements remain in Stage 1. Independent compilation caching and broader
 lifetime extensions retain their separate scope.
 
@@ -108,3 +108,11 @@ Function bodies are not transactions. Initialization postconditions describe
 successful return; native failure after earlier writes does not roll those writes
 back, and publishes no initialized success value. Mathematical meaning, physical
 writes and native failure behavior remain distinct from logical resource proofs.
+
+[Owned-map packages](owned-map-packages.md) now add the bounded
+`OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
+direct basis, initialized affine storage, fresh consuming unpack and explicit
+repack. The source basis remains an actual caller dependency. Pack/open/transfer
+preserve the exact allocation/layout and emit no additional native instructions.
+Dynamic dimensions, general resource packages/closures, borrowed results and
+full source/native refinement remain pending.

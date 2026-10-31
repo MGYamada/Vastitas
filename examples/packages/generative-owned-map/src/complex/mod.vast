@@ -1,0 +1,56 @@
+pub resource fn run() -> Unit {
+    space u = linear(super::profiles::ComplexSmooth, 2);
+    basis bu = basis(u);
+    call create(u, bu) -> (created);
+    call relay(u, bu, created) -> (updated);
+    move updated -> moved;
+    unpack moved as (w, bw, result);
+    call inspect(u, bu, w, bw, result) -> (final);
+    borrow coordinates = read(final);
+    expect(coordinates, 0, 0, complex_bits(4616189618054758400, 4617315517961601024));
+    expect(coordinates, 2, 1, complex_bits(4616189618054758400, 4617315517961601024));
+    release(coordinates);
+    drop(final);
+    value { () }
+}
+
+resource fn create(u: Space<super::profiles::ComplexSmooth, 2>, bu: Basis<u>) returns (boxed: OwnedMapTo<bu, 3>) -> Unit {
+    space w = linear(super::profiles::ComplexSmooth, 3);
+    basis bw = basis(w);
+    allocate buffer: Complex<F64>[10];
+    borrow initialize = write(buffer, layout(16, 3, 2, 4, false));
+    fill(initialize, complex_bits(4611686018427387904, 4613937818241073152));
+    release(initialize);
+    map result = owned(buffer, layout(16, 3, 2, 4, false), bu, bw);
+    map boxed = pack(result);
+    value { () }
+}
+
+resource fn relay(u: Space<super::profiles::ComplexSmooth, 2>, bu: Basis<u>, input: OwnedMapTo<bu, 3>)
+    returns (boxed: OwnedMapTo<bu, 3>) -> Unit {
+    unpack input as (w, bw, result);
+    call update(u, bu, w, bw, result) -> (changed);
+    map boxed = pack(changed);
+    value { () }
+}
+
+resource fn update(u: Space<super::profiles::ComplexSmooth, 2>, bu: Basis<u>, w: Space<super::profiles::ComplexSmooth, 3>, bw: Basis<w>, input: OwnedMap<bu, bw>)
+    returns (input: OwnedMap<bu, bw>) -> Unit {
+    borrow coordinates = read_write(input);
+    fill(coordinates, complex_bits(4616189618054758400, 4617315517961601024));
+    release(coordinates);
+    value { () }
+}
+
+resource fn inspect(u: Space<super::profiles::ComplexSmooth, 2>, bu: Basis<u>, w: Space<super::profiles::ComplexSmooth, 3>, bw: Basis<w>, input: OwnedMap<bu, bw>)
+    returns (input: OwnedMap<bu, bw>) -> Unit {
+    borrow coordinates = read(input);
+    map view = view(coordinates, input);
+    call inspect_view(u, bu, w, bw, view) -> ();
+    release(coordinates);
+    value { () }
+}
+
+resource fn inspect_view(u: Space<super::profiles::ComplexSmooth, 2>, bu: Basis<u>, w: Space<super::profiles::ComplexSmooth, 3>, bw: Basis<w>, input: ReadMap<bu, bw>) -> Unit {
+    value { () }
+}

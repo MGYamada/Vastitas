@@ -75,6 +75,13 @@ trace/copy/pairing nodes, rewrites and order search remain outside this incremen
 change together. Protocols 2–5 and explicit `--lib` stay supported; new fields
 must not be silently ignored in an old envelope.
 
+The [checked packing cache](cached-packing.md) adds a bounded implemented
+source/scratch version dependency with an actual repeated-contraction consumer.
+It preserves explicit allocation/packing costs and ordinary snapshot use, and
+rejects stale writes/drop/join reuse through the replayed resource schedule.
+General pooling, retained evidence, runtime dimensions, AD and equivalent-C
+performance acceptance remain open; this does not close #183 or Stage 1.
+
 Storage ownership is Core Safety, separate from the eight domain checkers in
 #180. Mutable resource transitions do not inherit pure-Core semantic theorems.
 Mathematical linearity, graph wiring, coherence, and ownership are distinct

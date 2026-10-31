@@ -182,3 +182,9 @@ repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
 Dynamic dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
+
+`cache saved = pack3(source, scratch);` and
+`contract3_cached(saved, packed, right, output, NativeFast);` expose the bounded
+[packing dependency contract](cached-packing.md). Cache names are lexical metadata
+with no parameter/result or escaping package form. All-body and both-branch checks
+include their capture, consumer and cleanup schedules.

@@ -208,6 +208,13 @@ private def tensorOperation (j : Json) : Except String (Storage.Tensor.Operation
       if index ≥ 3 then throw "tensor grouping axis exceeds rank bound"
       return index
     return .view (← str j "name") (← str j "loan") (← axes.mapM Json.getStr?) ⟨order, ← size grouping "split"⟩
+  | "cached_pack" =>
+    fields j ["op", "name", "source", "target"]
+    return .cachedPack (← str j "name") (← str j "source") (← str j "target")
+  | "cached_contract3" =>
+    fields j ["op", "cache", "left", "right", "output", "policy"]
+    return .cachedContract3 (← str j "cache") (← str j "left") (← str j "right") (← str j "output")
+      (← Storage.Wire.numericalPolicy (← str j "policy"))
   | "pack" =>
     fields j ["op", "source", "target"]
     return .pack (← str j "source") (← str j "target")

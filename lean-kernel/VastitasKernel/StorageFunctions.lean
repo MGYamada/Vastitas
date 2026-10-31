@@ -468,10 +468,41 @@ structure TensorContractionReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (Tensor.contractionRequest checked.left checked.right checked.output policy))] = code
 
+structure CacheCaptureReceipt where
+  cache : Tensor.Cache
+  after : State
+  transitioned : after = cache.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (Tensor.packAction cache.checked.input cache.checked.output),
+    .action (.captureDependency cache.name cache.checked.input.loan.name cache.checked.output.loan.name)] = code
+
+structure CachedContractionReceipt where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  before : State
+  values : Tensor.Values
+  cache : Tensor.Cache
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  policy : NumericalPolicy
+  checked : Tensor.CheckedCachedContraction environment numerical before values cache left right output policy
+  accepted : Tensor.checkCachedContraction environment numerical before values cache left right output policy = .ok checked
+  after : State
+  transitioned : after = checked.contraction.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.requireDependency cache.name),
+    .action (.gemm (Tensor.contractionRequest checked.contraction.left checked.contraction.right checked.contraction.output policy))] = code
+
 structure Context where
   environment : Indexed.Environment := []
   numerical : Numerical.Values := []
   tensors : Tensor.Values := []
+  packCaches : List Tensor.Cache := []
+  cacheCaptures : Array CacheCaptureReceipt := #[]
+  cachedContractions : Array CachedContractionReceipt := #[]
   tensorViews : Array TensorViewReceipt := #[]
   tensorPacks : Array TensorPackReceipt := #[]
   tensorContractions : Array TensorContractionReceipt := #[]
@@ -516,6 +547,13 @@ def step (operation : Action) : M Unit := do
   let context ← get
   let resources ← checkAction context.resources operation
   set {context with resources, code := context.code.push (.action operation)}
+
+/-- Dependency witnesses are lexical compiler metadata, never escaping results.
+Invalidated tombstones are forgotten too; caller witnesses remain in place. -/
+def cleanupDependencies (before : State) : M Unit := do
+  let entries := (← get).resources.dependencies
+  for entry in entries do
+    if (before.dependency? entry.name).isNone then step (.forgetDependency entry.name)
 
 def transferMap (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
   let before ← get
@@ -614,6 +652,18 @@ def operation (frame : Frame) : Action → M Frame
   | .copy source target => do step (.copy (← resolve frame source) (← resolve frame target)); return frame
   | .pack3 source target i k j => do
     step (.pack3 (← resolve frame source) (← resolve frame target) i k j)
+    return frame
+  | .captureDependency name source target => do
+    let source ← resolve frame source
+    let target ← resolve frame target
+    let (frame, name) ← bindName frame name
+    step (.captureDependency name source target)
+    return frame
+  | .requireDependency name => do
+    step (.requireDependency (← resolve frame name))
+    return frame
+  | .forgetDependency name => do
+    step (.forgetDependency (← resolve frame name))
     return frame
   | .gemm request => do
     let left ← resolve frame request.left
@@ -1028,6 +1078,50 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
           return frame
         else throw ⟨"E_TENSOR", "packing differs from its emitted schedule"⟩
       else throw ⟨"E_TENSOR", "packing differs from its actual resource transition"⟩
+  | .cachedPack name source target =>
+    let source ← resolve frame source
+    let target ← resolve frame target
+    let (frame, name) ← bindName frame name
+    let before ← get
+    match accepted : Tensor.checkPack before.environment before.numerical before.resources before.tensors source target with
+    | .error error => throw error
+    | .ok checked =>
+      let cache ← Tensor.captureCache checked accepted name
+      step (Tensor.packAction checked.input checked.output)
+      step (.captureDependency name checked.input.loan.name checked.output.loan.name)
+      let after ← get
+      if transitioned : after.resources = cache.after then
+        if emitted : before.code.toList ++ [.action (Tensor.packAction cache.checked.input cache.checked.output),
+            .action (.captureDependency cache.name cache.checked.input.loan.name cache.checked.output.loan.name)] = after.code.toList then
+          let receipt : CacheCaptureReceipt := ⟨cache, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
+          set {after with packCaches := cache :: after.packCaches, cacheCaptures := after.cacheCaptures.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR_CACHE", "cached packing differs from its emitted schedule"⟩
+      else throw ⟨"E_TENSOR_CACHE", "cached packing differs from its actual post-pack capture"⟩
+  | .cachedContract3 cache left right output policy =>
+    let cacheName ← resolve frame cache
+    let left ← resolve frame left
+    let right ← resolve frame right
+    let output ← resolve frame output
+    let before ← get
+    let some cache := before.packCaches.find? (·.name == cacheName)
+      | throw ⟨"E_TENSOR_CACHE", "cached contraction requires a local actual packing certificate"⟩
+    match accepted : Tensor.checkCachedContraction before.environment before.numerical before.resources before.tensors cache left right output policy with
+    | .error error => throw error
+    | .ok checked =>
+      let request := Tensor.contractionRequest checked.contraction.left checked.contraction.right checked.contraction.output policy
+      step (.requireDependency cache.name)
+      step (.gemm request)
+      let after ← get
+      if transitioned : after.resources = checked.contraction.after then
+        if emitted : before.code.toList ++ [.action (.requireDependency cache.name), .action (.gemm request)] = after.code.toList then
+          let receipt : CachedContractionReceipt := ⟨before.environment, before.numerical, before.resources,
+            before.tensors, cache, left, right, output, policy, checked, accepted, after.resources,
+            transitioned, before.code.toList, after.code.toList, emitted⟩
+          set {after with cachedContractions := after.cachedContractions.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR_CACHE", "cached contraction differs from emitted dependency/GEMM schedule"⟩
+      else throw ⟨"E_TENSOR_CACHE", "cached contraction differs from its actual resource transition"⟩
   | .contract3 left right output policy =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1098,6 +1192,8 @@ mutual
             networks := #[]
             tensorViews := #[]
             tensorPacks := #[]
+            cacheCaptures := #[]
+            cachedContractions := #[]
             tensorContractions := #[]
             inputs := #[]
             outputs := #[]
@@ -1108,6 +1204,7 @@ mutual
             vectorConjugates := #[]
             evaluations := #[]}
           let _ ← expand fuel functions stack frame yes
+          cleanupDependencies before.resources
           let left ← get
           set {before with
             nextSymbol := left.nextSymbol
@@ -1118,6 +1215,8 @@ mutual
             networks := #[]
             tensorViews := #[]
             tensorPacks := #[]
+            cacheCaptures := #[]
+            cachedContractions := #[]
             tensorContractions := #[]
             inputs := #[]
             outputs := #[]
@@ -1129,6 +1228,7 @@ mutual
             evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
+          cleanupDependencies before.resources
           let right ← get
           let resources ← join left.resources right.resources
           set {right with
@@ -1137,6 +1237,9 @@ mutual
             calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             tensors := before.tensors
+            packCaches := before.packCaches
+            cacheCaptures := before.cacheCaptures ++ left.cacheCaptures ++ right.cacheCaptures
+            cachedContractions := before.cachedContractions ++ left.cachedContractions ++ right.cachedContractions
             products := before.products ++ left.products ++ right.products
             networks := before.networks ++ left.networks ++ right.networks
             tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
@@ -1162,6 +1265,7 @@ mutual
       let before ← get
       let (frame, borrowed) ← arguments function.parameters actuals
       let frame ← expand fuel functions (callee :: stack) frame function.body
+      cleanupDependencies before.resources
       let returned ← finish before.resources frame borrowed function.results
       let after ← get
       let results := returned.map fun value => (value.owner, value.type)
@@ -1174,7 +1278,7 @@ mutual
             if valid : ExitValid before.resources after.resources results then
               let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
                 before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
-              set {after with calls := after.calls.push receipt, numerical := before.numerical, tensors := before.tensors}
+              set {after with calls := after.calls.push receipt, numerical := before.numerical, tensors := before.tensors, packCaches := before.packCaches}
               return returned
             else throw ⟨"E_RESOURCE_ESCAPE", "call exit failed the independent resource audit"⟩
           else throw ⟨"E_RESOURCE_STATE", "call expansion differs from replayed resource transitions"⟩

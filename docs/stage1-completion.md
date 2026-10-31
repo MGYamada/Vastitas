@@ -122,6 +122,12 @@ Bulk ratios vary by paired versus separate-median statistics, with intervals
 that cross the provisional budget in some cases. This is exploratory evidence;
 controlled-host acceptance, a declared tiny-call budget and total allocation /
 backend packing measurements remain open.
+The [full Linux tensor packing record](../experiments/tensor_packing/results/2026-10-31-linux-full/RESULTS.md)
+adds twelve actual generated programs, native LSan validation and 877 matched
+output/cost pairs, with explicit packing on every repeated operation. Tiny
+lifecycle overhead is 408–721 ns and some bulk intervals cross the provisional
+budget. Cached packing, generic regrouping and multi-edge tree measurements are
+separate; this shared-host record does not complete controlled-host acceptance.
 Residual retention is specified now to constrain storage design; AD implementation
 and its performance gates remain in the later AD stage.
 

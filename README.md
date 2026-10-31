@@ -47,6 +47,12 @@ Public real/complex GEMM executes through an
 initialization and exact native lowering before pinned OpenBLAS execution.
 [Numerical declaration profiles](docs/numerical-declarations.md) now independently
 check ideal real/complex coefficients and nominal scalar bases through protocol 8.
+[Generative owned-map packages](docs/owned-map-packages.md) now return one hidden
+primal target and direct basis while preserving a caller-dependent source basis.
+Consuming unpack creates fresh scoped identities; pack/open/move adds no data
+allocation or copy. Static real/complex padded, transposed and zero-size examples
+run without OpenBLAS when their checked schedule contains no GEMM.
+
 The [protocol-8 numerical-value compiler](docs/numerical-values.md) checks local
 nominal spaces, bases and loan-backed map products through actual GEMM lowering.
 Public resource functions can use these operations. A native build requires an
@@ -62,7 +68,7 @@ metrics, preserving views through nested calls. [Vector evaluation](docs/vector-
 adds bilinear dual evaluation and explicit Hermitian pairing through actual
 borrowed vector arguments and scalar destinations. [Finite two-map networks](docs/finite-networks.md)
 check occurrences, ports, a bilinear edge and ordered boundaries before the same
-typed GEMM path. General metric realization, generative numerical packages,
+typed GEMM path. General metric realization, general generative numerical packages,
 dynamic shape/scalar interfaces, higher-rank networks and packing remain pending.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.

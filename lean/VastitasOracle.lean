@@ -46,6 +46,7 @@ import VastitasOracle.StorageFunctions
 import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
 import VastitasOracle.TensorNetwork
+import VastitasOracle.StorageOwnedPackages
 
 /-!
 Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this

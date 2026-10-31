@@ -209,7 +209,7 @@ theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : M
     cases value with
     | space _ => simp [found] at binding
     | basis _ => simp [found] at binding
-    | ownedMap _ => simp [found] at binding
+    | ownedMap _ | ownedPackage _ => simp [found] at binding
     | involution _ => simp [found] at binding
     | metric _ => simp [found] at binding
     | vector _ => simp [found] at binding

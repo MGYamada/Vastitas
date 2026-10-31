@@ -1,0 +1,4 @@
+[package]
+name = "generative-owned-map"
+version = "0.1.0"
+root = "src/main.vast"

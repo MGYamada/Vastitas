@@ -62,6 +62,12 @@ initialized storage into the interpretation. `borrow_owned` supplies `name`,
 `loan` and `owner`, retaining exact allocation/layout/bases. These forms are
 independently checked, contain no allocation IDs or trusted metadata, and are
 rejected by older decoders. See [owned results](numerical-values.md#owned-numerical-results).
+The bounded generative form uses parameter `kind:"owned_map_to"` with `name`,
+`source`, `dimension`, `span`, and result `type:{kind:"owned_map_to",source,dimension}`.
+Numerical `pack_map` takes `name,owner`; `unpack_map` takes
+`package,space,basis,owner`. These are unresolved names; no allocation/brand or
+success metadata is accepted. See [owned-map packages](owned-map-packages.md).
+
 
 Resource parameters additionally support `kind: "space"` with unresolved
 `implementation` and static `dimension`, `kind: "basis"` naming an earlier

@@ -110,7 +110,8 @@ Pay particular attention to:
 - Cross-checking all public protocols at completion, `--lib` / `--manifest-path`,
   defining modules, and call authority. Distinguish implemented protocols 2–8,
   protocol 8's static resource/numerical profile, and its remaining dynamic,
-  generative and higher-rank interfaces.
+  general generative and higher-rank interfaces. The bounded
+  [owned-map package profile](owned-map-packages.md) is already implemented.
 - Preserving Rust acceptance versus Lean semantic acceptance, and the dependency
   boundary between the ordinary compiler and proof oracle.
 

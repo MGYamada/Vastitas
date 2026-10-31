@@ -1,0 +1,218 @@
+[
+  {
+    "case": "bulk-complex-p0-accumulate",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 1,
+    "pad": 0,
+    "accumulate": 1
+  },
+  {
+    "case": "bulk-f64-p1-accumulate",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 0,
+    "pad": 1,
+    "accumulate": 1
+  },
+  {
+    "case": "tiny-complex-p0-accumulate",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 1,
+    "pad": 0,
+    "accumulate": 1
+  },
+  {
+    "case": "small-complex-p1-overwrite",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 1,
+    "pad": 1,
+    "accumulate": 0
+  },
+  {
+    "case": "bulk-f64-p0-accumulate",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 0,
+    "pad": 0,
+    "accumulate": 1
+  },
+  {
+    "case": "small-f64-p0-overwrite",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 0,
+    "pad": 0,
+    "accumulate": 0
+  },
+  {
+    "case": "small-f64-p1-accumulate",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 0,
+    "pad": 1,
+    "accumulate": 1
+  },
+  {
+    "case": "tiny-complex-p0-overwrite",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 1,
+    "pad": 0,
+    "accumulate": 0
+  },
+  {
+    "case": "tiny-f64-p0-overwrite",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 0,
+    "pad": 0,
+    "accumulate": 0
+  },
+  {
+    "case": "small-complex-p0-accumulate",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 1,
+    "pad": 0,
+    "accumulate": 1
+  },
+  {
+    "case": "bulk-complex-p1-accumulate",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 1,
+    "pad": 1,
+    "accumulate": 1
+  },
+  {
+    "case": "bulk-f64-p1-overwrite",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 0,
+    "pad": 1,
+    "accumulate": 0
+  },
+  {
+    "case": "bulk-complex-p0-overwrite",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 1,
+    "pad": 0,
+    "accumulate": 0
+  },
+  {
+    "case": "small-f64-p1-overwrite",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 0,
+    "pad": 1,
+    "accumulate": 0
+  },
+  {
+    "case": "tiny-f64-p1-accumulate",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 0,
+    "pad": 1,
+    "accumulate": 1
+  },
+  {
+    "case": "small-complex-p1-accumulate",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 1,
+    "pad": 1,
+    "accumulate": 1
+  },
+  {
+    "case": "bulk-complex-p1-overwrite",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 1,
+    "pad": 1,
+    "accumulate": 0
+  },
+  {
+    "case": "tiny-complex-p1-overwrite",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 1,
+    "pad": 1,
+    "accumulate": 0
+  },
+  {
+    "case": "tiny-f64-p0-accumulate",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 0,
+    "pad": 0,
+    "accumulate": 1
+  },
+  {
+    "case": "bulk-f64-p0-overwrite",
+    "m": 384,
+    "n": 320,
+    "k": 256,
+    "scalar": 0,
+    "pad": 0,
+    "accumulate": 0
+  },
+  {
+    "case": "tiny-f64-p1-overwrite",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 0,
+    "pad": 1,
+    "accumulate": 0
+  },
+  {
+    "case": "small-complex-p0-overwrite",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 1,
+    "pad": 0,
+    "accumulate": 0
+  },
+  {
+    "case": "tiny-complex-p1-accumulate",
+    "m": 2,
+    "n": 3,
+    "k": 4,
+    "scalar": 1,
+    "pad": 1,
+    "accumulate": 1
+  },
+  {
+    "case": "small-f64-p0-accumulate",
+    "m": 17,
+    "n": 13,
+    "k": 19,
+    "scalar": 0,
+    "pad": 0,
+    "accumulate": 1
+  }
+]

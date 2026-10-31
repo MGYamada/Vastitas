@@ -1,0 +1,1961 @@
+{
+  "measured_commit": "38b96ae5a6b0610ec71babf199e7635867cca023",
+  "run_url": "https://github.com/MGYamada/Vastitas/actions/runs/41198941654",
+  "artifact_id": 13041259847,
+  "original_zip_bytes": 120455882,
+  "original_zip_sha256": "cf4c3ec94207f988637668ecac3f8a58560b8d882995a649506795be549d0865",
+  "retained_archive_bytes": 183666,
+  "retained_archive_sha256": "4b2d144fb238ac31c0aca85fd53ef64f4846d85aea4eb68d336ab65a7b11b45f",
+  "files": [
+    {
+      "path": "cases.json",
+      "bytes": 3335,
+      "sha256": "30e0f3335a9d97094c129bbb69d5573e70b8870c659d094581ee36add2761524",
+      "retained_in": "cases.json"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/Generated.lean",
+      "bytes": 1638,
+      "sha256": "516fd6bc2b3266869827e172593684e1d7b444305f171323c43607c23d9db362",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/Main.lean",
+      "bytes": 3968,
+      "sha256": "fdf6e2cf7f1484416b8cc02d7eaa40907dcb7113fbded901f7ad5b5308608eb6",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/disassembly.txt",
+      "bytes": 35754416,
+      "sha256": "49f7305d57367d0e211072764e9bba7628ac52c9616e97713614ae6e853b189d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "c04cf0fe47a5817a8992ed4f0867c87058c3f38c1227f17b325149197d4ca899",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/package/capture.py",
+      "bytes": 304,
+      "sha256": "9138fa5e30ab13aa80cca0983dee602c6824a2125f4005a43173b6129748da08",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/package/src/product/mod.vast",
+      "bytes": 2124,
+      "sha256": "ccdc7a6500e92096157d0b22573277d24fe8a87e3e638a8fea278d5eeeef9faf",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/package/wire.json",
+      "bytes": 12866,
+      "sha256": "5eaaa9609146f8c4450912b466e608234027ac150ede1fb54ff8af5d149edc96",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/response.json",
+      "bytes": 1791,
+      "sha256": "80d1c0d1e0e73f022c84edfa9f3ad261c5dddbe208ebbe0dfba1ff30afe63c52",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-accumulate/symbols.txt",
+      "bytes": 1823323,
+      "sha256": "cd45d5cc64f534fb09f1dc152853beee936943e3712483078d61e48c9132c74d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/Generated.lean",
+      "bytes": 1522,
+      "sha256": "eacbcdbefc904175988d48ba90b7710efc88c4612f74d448e01bfb22e2a836e3",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/Main.lean",
+      "bytes": 3734,
+      "sha256": "68857ae481e9c4d3a9fa80704e21be2484e66a788f166baf46bc1c869229b092",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/disassembly.txt",
+      "bytes": 35747218,
+      "sha256": "cac7c88fd8bdfedd709e3b12f84b183916c150ca2a73721ce010d7b5f4c3f263",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "e1f9f6df38bdb7a0a5c0ed22ef8d5f9324553ede2c0cdef1fc6c33713621e718",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/package/capture.py",
+      "bytes": 303,
+      "sha256": "c22c92f545e894c2f34d52d2886e0a951e34b227c3680732147f51343e7ef7ea",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/package/src/product/mod.vast",
+      "bytes": 1910,
+      "sha256": "0e6bfcc8612cc091a5ebe20620852881db70d649636320e3173100f1f71dd925",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/package/wire.json",
+      "bytes": 12202,
+      "sha256": "66c9ae394d6868fef69b7e49552233be35186e9af613f5b3ca040215d38318d2",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/response.json",
+      "bytes": 1674,
+      "sha256": "6ef0cabc57113fd9104a5cffc035af2360b52a73b333803c45e8acdb473f0dbe",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p0-overwrite/symbols.txt",
+      "bytes": 1823330,
+      "sha256": "5557224f714b815115a01d4186336599061dd9f1374daf3bd33b6ee03b9a3c82",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/Generated.lean",
+      "bytes": 1648,
+      "sha256": "320476e3768d3e4b0f592303d852430c575fa730d8f8810449bf18b2ab1b170a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/Main.lean",
+      "bytes": 3988,
+      "sha256": "129b69b6c1d30535bcb46f2431c4f4d74d2d3e52520074d585057da0a26380f3",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/disassembly.txt",
+      "bytes": 35754014,
+      "sha256": "d1982a117845647c63ea747e560729b1e934f2c4ea0939d4e2f9c5c71ffcd7ef",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "5f739b2fbe85bde8f81f99ecf20711e958fd43836d480adedbad4ed291eed7e1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/package/capture.py",
+      "bytes": 304,
+      "sha256": "0cc99412c33ebfd2a0db8c8095048390c1facb47030d12715b97d424896f98a1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/package/src/product/mod.vast",
+      "bytes": 2130,
+      "sha256": "c0682ebb532efa17739bf52be427d536fed26807e21565f6fc8ed6206c959417",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/package/wire.json",
+      "bytes": 12872,
+      "sha256": "8153a1c1dbab4c3cec5095de2a19ae2502f2cebb0b9bdd906b0e3e121a95fe72",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/response.json",
+      "bytes": 1801,
+      "sha256": "76db384a2a5e27f4c8fa0531bef356ee8a555afba52d4004a945894bce5a0742",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-accumulate/symbols.txt",
+      "bytes": 1823323,
+      "sha256": "3047317635a3d2e708f5077c7cc74860504d68e9b31e2ef7945013089415ef4e",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/Generated.lean",
+      "bytes": 1531,
+      "sha256": "ca17c963fe0dadc9f1fe672660b5cd56474f678338a6d0e2e35230e5e1f35a6e",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/Main.lean",
+      "bytes": 3752,
+      "sha256": "9e0c2b8f0ccd7a532d88e962d497c286307c808019c15cca61f4b8cee1c763d7",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/disassembly.txt",
+      "bytes": 35746843,
+      "sha256": "a1740ff9c422d8b2c08bd39456b0e1cf80d61d851bd60fa856b8807a468aa132",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "25ad4accbc1aea3263360db9347428a595905eb2a033d839f0ab733dca51b4c2",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/package/capture.py",
+      "bytes": 303,
+      "sha256": "3982346f04afef36d486cf4e5a6dff7294eb2d0910aed03b4556f1a6931fafbb",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/package/src/product/mod.vast",
+      "bytes": 1915,
+      "sha256": "3db746c8f95f32a555a23e1dd858499a1ac917736c3dc9625e99fb39f64a8180",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/package/wire.json",
+      "bytes": 12207,
+      "sha256": "3f810e384ce34ec37fb55626c1859a15483c7c489cbe8e8552cc0cc2a8006e62",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/response.json",
+      "bytes": 1683,
+      "sha256": "6d4c6e03f7f28ca277565186f1a04119f3bb9d533d41d24dc58907e629efd47a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-complex-p1-overwrite/symbols.txt",
+      "bytes": 1823330,
+      "sha256": "1ffc988eb20dab5c7c13328819f6028ea5e35093694c3bd08272ef2732aad41b",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/Generated.lean",
+      "bytes": 1418,
+      "sha256": "31d2570af8565188fee28c11b526eab2d460b79395dcecae068bb361cf7085e7",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/Main.lean",
+      "bytes": 3528,
+      "sha256": "8085154fbcb79fe96aa4fabc3b7faf79ab905cef2f90aa94a87cde0f61b98d54",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/disassembly.txt",
+      "bytes": 35744146,
+      "sha256": "5dee3965dd3a7dddcec11d0c94b10080c3354fdc997b426737e2aff275de77c5",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "b20d942ce5194fdeefb1f8579c7644e9603fc8053bf766cac55f40e91097e65c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/package/capture.py",
+      "bytes": 300,
+      "sha256": "304d06cab2c17351efbdf72cf1ddb22dc0c7384d0d24ddd48ec33fa8b08037b3",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/package/src/product/mod.vast",
+      "bytes": 1784,
+      "sha256": "3c1ecff15fcde040dfcaf36902a6a3fdb6679fcce740e6dc19e2565dac4d01cf",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/package/wire.json",
+      "bytes": 12337,
+      "sha256": "407f5e10a1fdf832eb8eaa6bc276e227e08c890dcfee93c071734759eca55d70",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/response.json",
+      "bytes": 1571,
+      "sha256": "936bc7457b1cb335dfc7958c32e87b68d4ed8aa893aa43954436127af2ceb18a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-accumulate/symbols.txt",
+      "bytes": 1823240,
+      "sha256": "654a1748842586d93cc485fb05608ae1e193eb45bf8e5c3ae38a07e61cb9e65a",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/Generated.lean",
+      "bytes": 1339,
+      "sha256": "5b152f24fded5456ffef88e0f13ba023d9a5d048675c93d64cca7cfd25f76c7b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/Main.lean",
+      "bytes": 3368,
+      "sha256": "212ce1574263f9a75793e633f12de53772a931fa38f2d0af048609b57697a812",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/disassembly.txt",
+      "bytes": 35750265,
+      "sha256": "45b3352e0ae0f5e3a4ec1f93173279c5e8e5d250a8f500407876caa880623ddc",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "ec6403cf5d84573e3aa3aefcd3dbd67da79ab8959a5b1f21ad3d402d2d26de04",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/package/capture.py",
+      "bytes": 299,
+      "sha256": "81c87aba8ffeb85fba9e48cc018db1eb74d32830d3d8aad91269d746c3868866",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/package/src/product/mod.vast",
+      "bytes": 1621,
+      "sha256": "6942b024094ff759d5463572087c38fc9e37f1efd80c3d200bf30e1a3f7bad09",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/package/wire.json",
+      "bytes": 11754,
+      "sha256": "2fb77b7e8f4db6053bac0c5cb4430e477e6fa54af0d52c00e440c1c6cc26c1b7",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/response.json",
+      "bytes": 1491,
+      "sha256": "7b69bc06dcefc1cfa3c92583f51b539610813dbae5edb7cbe5327b1608eee0ad",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p0-overwrite/symbols.txt",
+      "bytes": 1823142,
+      "sha256": "288601ac13585666a58ac4ae04a93ecb7e53f803b1b6b4258dfb055dbf21df4f",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/Generated.lean",
+      "bytes": 1424,
+      "sha256": "09671ea996daee105f4dab3acceedfc54104685a730c2f20bd8ecd6b3b188658",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/Main.lean",
+      "bytes": 3540,
+      "sha256": "189c270efe1486b0119dd2da2488687fca33a78d641e3b6f598fd6104f082736",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/disassembly.txt",
+      "bytes": 35743813,
+      "sha256": "1732935ebf83141bdda2c7e9d996bdcdd427139e68d8a650bc757add794ac4e0",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "ad35e4a7fc84f65a443c4c61e328fef940960c3421cfde484b50c78679cb3d82",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/package/capture.py",
+      "bytes": 300,
+      "sha256": "3d3ac6c1c614d0000c87a3525cae43173f42302dbbb0a4f7587bf6d482ba6ebe",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/package/src/product/mod.vast",
+      "bytes": 1788,
+      "sha256": "974276489d91673786a49240ce2aa499971529fc9eccf912f3c24f94566213f0",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/package/wire.json",
+      "bytes": 12341,
+      "sha256": "916e2182cd1fd028ff5c1b54b4bb0dfd2a4543ee8b11733ad0c8d815c5dd8716",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/response.json",
+      "bytes": 1577,
+      "sha256": "4eb9f40b71cc3d1d82764f71bcedfad0c8ed22f4c5e8990abf680a4b111bc6b2",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-accumulate/symbols.txt",
+      "bytes": 1823240,
+      "sha256": "06c5aadba8d95d311ee4973734bf93720a695a0c3999f86a430d9e1b3a700cc1",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/Generated.lean",
+      "bytes": 1344,
+      "sha256": "1956f0e9ebe5f4a3e5abbe8c6d570de644f3db00abf65a3fb82234fdfd046552",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/Main.lean",
+      "bytes": 3378,
+      "sha256": "c39e908227d814d3f6189f2f32b72ae03e017243b34ff772e3b830ad0004c624",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/disassembly.txt",
+      "bytes": 35749865,
+      "sha256": "208facff1595ba43a929239c0aaa32fe4e12cf4120fafeba1d5057615a863fef",
+      "retained_in": null
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "52fbe56ee2040bb0a4ae2f0aed5bb0d937ae5eec87bcb731b3e93a8c64a2eeeb",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/package/capture.py",
+      "bytes": 299,
+      "sha256": "063652960d751e3cff33170c40d836c5d2c901f4cb79448cc5152b2b7732ea7a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/package/src/product/mod.vast",
+      "bytes": 1624,
+      "sha256": "7ea03891234e53187ebf7a4cacff072125f086001874199f464b1c3667852949",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/package/wire.json",
+      "bytes": 11757,
+      "sha256": "3df28410b8ddbaab93e333c24700bbf4d531f8968d6bedb4c2bff2e857a5a1d9",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/response.json",
+      "bytes": 1496,
+      "sha256": "a74810e093ca7f646afb1b4427756619cd7acead980bf10bb4fea3fb5d41b423",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/bulk-f64-p1-overwrite/symbols.txt",
+      "bytes": 1823142,
+      "sha256": "706b5dd3d50b8be525d7cb2f4561d0738b6e4302b9939ca37a2049eaddf7916a",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/Generated.lean",
+      "bytes": 1583,
+      "sha256": "66653aa9212c61b92611e6930120fdfe9eef7cfc35e3c5ea55bd5cde77ad9a03",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/Main.lean",
+      "bytes": 3858,
+      "sha256": "a0078b5d86f03035802a5144911ee3b0d7f396f2fc59891cf880d203c9f860ce",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/disassembly.txt",
+      "bytes": 35750802,
+      "sha256": "a66309acba4d2ed6396ecaf90408d9316986bd8f99813ee601631a931787c054",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "a1b841dead81ae39b5333e949fdee0cd9fab4080ca88138a965df9c6536c52a4",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/package/capture.py",
+      "bytes": 305,
+      "sha256": "3f08f7eb8bb62387288f35aeca5db9a7d5c812227980365ca4dc0c9fd5af6c9b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/package/src/product/mod.vast",
+      "bytes": 2078,
+      "sha256": "338edfa4efbab1eea05e80efafa875d28c516b06de1f5d82e7902679bb222193",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/package/wire.json",
+      "bytes": 12823,
+      "sha256": "b84a22cc616c495ca24957ba12c8d465782315ae5746ff9facc45bcf17b419e9",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/response.json",
+      "bytes": 1736,
+      "sha256": "0a3ef2226dba47453ff000a7af232d5f65c46eede9781e4be3767587f561b980",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-accumulate/symbols.txt",
+      "bytes": 1823323,
+      "sha256": "5e18fbd4ce5a5a79ca2c2b964f09673306ac6fe59084aea32a1b798ff5ba7f25",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/Generated.lean",
+      "bytes": 1470,
+      "sha256": "bef8ef430cdc6e906cf2ae6f75841a24951a84ddb5b6c7d293eb20ceea1b716e",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/Main.lean",
+      "bytes": 3630,
+      "sha256": "c9267acfb08eed2688d0f951464198fd9ef8ec8e19eccf76fedc8423ef25d343",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/disassembly.txt",
+      "bytes": 35743614,
+      "sha256": "f590750704b3051f03647913767b419c7c540f617907c63043941e88a60ca228",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "d47968a20fda8a790620127eea379192f815b988d92d0c054cf22e9f5d1dcadd",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/package/capture.py",
+      "bytes": 304,
+      "sha256": "0cd00c2c9bb55993d603bd48f03fc9ade5a026bc3997bf459132c70e3e4d6556",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/package/src/product/mod.vast",
+      "bytes": 1867,
+      "sha256": "64367b65e1ad9e185b9e2e7f5f97a86ce950bf83adafda5717cdd50c82d6bb29",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/package/wire.json",
+      "bytes": 12162,
+      "sha256": "84d43539b28e358dff4873beee7770b78ad7664ed493c220685e0456e388cf4b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/response.json",
+      "bytes": 1622,
+      "sha256": "a6601812c1d608c9adecde4c7862ef379dac0e3e345bd17a527b5c9acb94371f",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p0-overwrite/symbols.txt",
+      "bytes": 1823330,
+      "sha256": "a67a0cd30016eb054175c05a6adc884f6ff8d7fdc48d1b9167f64ee8d507c2b7",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/Generated.lean",
+      "bytes": 1593,
+      "sha256": "a8fce255ac762de421b57299fe4533ce677882d7969844c507fc9e91e9a5dcda",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/Main.lean",
+      "bytes": 3878,
+      "sha256": "66faaced80477e81dc3a6ac6e755aea8a2e3e9af3fcbf19fe388607c22c29770",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/disassembly.txt",
+      "bytes": 35754470,
+      "sha256": "829076416a039c03c611b5af406882c7f37e223532a6c4c2503beda10175d1bd",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "150bd16e3b77ced622a2e1df9b7ad9e845ee981f254b01f525cdbe1a4dfccf6c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/package/capture.py",
+      "bytes": 305,
+      "sha256": "afa22dd765c2935c87c85bfe507a2a72affdf379651c7db7df4268a396e11ae1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/package/src/product/mod.vast",
+      "bytes": 2084,
+      "sha256": "a94144c590106f01018a15ffb52f4e3dd2884acfd2099194921932fda72a946a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/package/wire.json",
+      "bytes": 12829,
+      "sha256": "1c7298e8a4f3f7bbe41dd1379c5d5c328e7679d19b78b64c04ae353cf7c855ff",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/response.json",
+      "bytes": 1746,
+      "sha256": "7e0cac97fd05fb56fd9fff4b7f40b09f5fc0ce0ad707253cfbf9db7498d2f9ef",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-accumulate/symbols.txt",
+      "bytes": 1823323,
+      "sha256": "fd234bfd81652615ea1af1d24f962a40358a7a87c3a79f76f7afb5bcc30d6d40",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/Generated.lean",
+      "bytes": 1479,
+      "sha256": "3d1a49a83df7771a269d770d94404f3d3d7484874024098065a66472e56c3633",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/Main.lean",
+      "bytes": 3648,
+      "sha256": "2c29999a12c8e547dad93cfc3fa3441de41ca98a9a5a569138b5683f95091104",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/disassembly.txt",
+      "bytes": 35743390,
+      "sha256": "891c12ac6ed79858ffc6e9afa0f6857b6c721f0e5b7c6522c04041a15bc94c0d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "5e6e754166e128716f952e6c44792b5c7d050666c0830d51a3c76de9f106da53",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/package/capture.py",
+      "bytes": 304,
+      "sha256": "e1d5647947d129bb03da898011a36924f80a787be587dd7d7a1368c7385f296c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/package/src/product/mod.vast",
+      "bytes": 1872,
+      "sha256": "a5bc31325ee97254befe00bd218a30755b332418baad2a91cd4f10769783d50e",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/package/wire.json",
+      "bytes": 12167,
+      "sha256": "698de1e219eac74537242d9f25220a9ad92fb648dddc8de2022b6acd9f6638dd",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/response.json",
+      "bytes": 1631,
+      "sha256": "b26816a41300a3e498d68646d29c3a68759eff9e3a388a9da0e53e8084deeda2",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-complex-p1-overwrite/symbols.txt",
+      "bytes": 1823330,
+      "sha256": "3383e8d52bb2a4d7204b29c3a240afa53c0c2c9422eac86e10a6104369b3bf2d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/Generated.lean",
+      "bytes": 1363,
+      "sha256": "910ab91e0b35ef39e9fed894bacab6a1876613965563016ea6c01eed6f2e894b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/Main.lean",
+      "bytes": 3418,
+      "sha256": "6969f6887cfd4145a6b2dac974189bdc519b17163b44bac59fee6c5350d0f2b3",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/disassembly.txt",
+      "bytes": 35744640,
+      "sha256": "3b94be5cf73fef37495e3177cf08b2c6789af84e5b7e539df3650044461ee172",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "8d5f700089337100816d755e4f22ae8623a3fb916b946dda131f6c468e8f98cc",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/package/capture.py",
+      "bytes": 301,
+      "sha256": "f1210387d33d4d38cbdf44e14d250d6b14456516399e09c16922e16c57f7dcba",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/package/src/product/mod.vast",
+      "bytes": 1738,
+      "sha256": "69a1ab0d9a28ad8beacfe6c49e9414105ffff16b35251272a358ed175f4ccfd8",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/package/wire.json",
+      "bytes": 12294,
+      "sha256": "a475f4f3c54464f4d0ecb4fb7182ab8574e1a02c0bac2a0e7e2fb970e8baf454",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/response.json",
+      "bytes": 1516,
+      "sha256": "a8976fc8a56f54f1e18e50489493fb257eafe474e8edb5bc9a002287c9e68383",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-accumulate/symbols.txt",
+      "bytes": 1823240,
+      "sha256": "fe2251c3612e8fafc49b53afbc511ed28e416fb7988be46f4f8b28367a28272d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/Generated.lean",
+      "bytes": 1287,
+      "sha256": "9d69cdfb4659fc61c0f747255011e821ae3a53e546faffcd3f5727af2faf1bdc",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/Main.lean",
+      "bytes": 3264,
+      "sha256": "bdd14e821c75f5580ec73507cdccbd77b4b8874bf4eb00d032eabf8803edf02b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/disassembly.txt",
+      "bytes": 35750742,
+      "sha256": "82ddff820d43b334b84983510848d455ccdaa20af4a45f6b852543de65feb477",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "9f2a1d65ca2d775d1786a5a2b4363ca34496deaacb033988aa38777be50a8cab",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/package/capture.py",
+      "bytes": 300,
+      "sha256": "9f6fedc172c8275373abb36c89fa7020fc84f09bd0816891fa20bfea5fae912c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/package/src/product/mod.vast",
+      "bytes": 1578,
+      "sha256": "8b88739ea60c8db5c1344b649a921414cfaa04463926c6a5eb524b326bb6c0fa",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/package/wire.json",
+      "bytes": 11714,
+      "sha256": "a692188ae594f06a433724511d9b58c820e826b91567d3de084228cdd1794dfb",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/response.json",
+      "bytes": 1439,
+      "sha256": "2af921174279e11b901005e3f2bdbc9ee5d90ebf411762cdeb8912240306b838",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p0-overwrite/symbols.txt",
+      "bytes": 1823142,
+      "sha256": "e09bf094462f2e41e28ddd84a2d5fa8152a90e99607590d5c60c489fdba15b0e",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/Generated.lean",
+      "bytes": 1369,
+      "sha256": "39ac1b03a9db226562d81a693ccdfccb3185f8e403c725193543b0add020c815",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/Main.lean",
+      "bytes": 3430,
+      "sha256": "7d39abdd4f0d5a3cdd482d0f70977d5a04b2f14511e616f79beaec49729afa61",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/disassembly.txt",
+      "bytes": 35744272,
+      "sha256": "08c4b28d420d5f3c18cc087a056e8a8b61fa9aeed5ea5abbd0bce99a1e90fa90",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "9017230a376e96399d7565fc47321ab66b77c63da860ba4d34478512cffb77ea",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/package/capture.py",
+      "bytes": 301,
+      "sha256": "a98ad4b84d482598f8bd1f1488ca014f9ba51096bdf426f75726ca2390c9ad9c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/package/src/product/mod.vast",
+      "bytes": 1742,
+      "sha256": "a121d3ae4ff6732e9e190d9ce4cc4c4caaa7507e3a78e2370d989e9c7f84f0b2",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/package/wire.json",
+      "bytes": 12298,
+      "sha256": "eff7fe2e8dca44517fb6997194942a2dc94dd73eb556665060718936b6bc9d4f",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/response.json",
+      "bytes": 1522,
+      "sha256": "aa8f35bcf573b1996e499968fe5c3b3503ffc69d89d134b9174189cd233830b0",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-accumulate/symbols.txt",
+      "bytes": 1823240,
+      "sha256": "946cd04e3b427d1cd389cd2e394c27afd8701794bc3c4dbc6f13ebddfdcfbc91",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/Generated.lean",
+      "bytes": 1292,
+      "sha256": "0c29cb8c7c7430ca56bc929c100e85adee5407b005b814d65f3678191af27dfe",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/Main.lean",
+      "bytes": 3274,
+      "sha256": "1fd5c6ab63053ef460b7647021cfb0a028fbd3628668b26827a31b7d59ca5501",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/disassembly.txt",
+      "bytes": 35750430,
+      "sha256": "a4f00e2bd778ebd76a955b581f17739abb03a804f9f7a7d0d873271975bc71d9",
+      "retained_in": null
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "b362f51a36661a1fdd15422140f1a63ecc27460478e9973b3058980d86fb8e26",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/package/capture.py",
+      "bytes": 300,
+      "sha256": "305a67748885018d5acda95ed9cff7d2feacc0cb2d0d0d8c139a378416062d69",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/package/src/product/mod.vast",
+      "bytes": 1581,
+      "sha256": "8ddb0de8500a31ae985d2cfe8669cb22f642805e2e6858d5d8766cc2db9ec95b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/package/wire.json",
+      "bytes": 11717,
+      "sha256": "6c2a4d175847e3cf7bc022936640b5452a128b2f41bb1070f9b784868b6ff83c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/response.json",
+      "bytes": 1444,
+      "sha256": "8d4257b9acf041f008ef86f5c2663f2e517b64fe7b8969d93afbdbd15e269b6f",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/small-f64-p1-overwrite/symbols.txt",
+      "bytes": 1823142,
+      "sha256": "d5d36f44d93e72807919fa9ee2870849ff21e01ec28a67704db0f8a5b53c7812",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/Generated.lean",
+      "bytes": 1534,
+      "sha256": "e11643f6281a6cde3e689076010a0f9d5c0254d7c29c36bed922982990b62d4e",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/Main.lean",
+      "bytes": 3760,
+      "sha256": "5bafee2c8792959677e96a1924e537e07fc71a0b64257fd8f528d72c85245eaf",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/disassembly.txt",
+      "bytes": 35750754,
+      "sha256": "40cbee7a6c929e434a3ae52e49ed383ecdac0e5e2b05fee7b00e59f9a8fa8378",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "ae1d65bef568057661b478f77a2f970ed32b1086175f17338abde7c258381883",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/package/capture.py",
+      "bytes": 304,
+      "sha256": "aafb816827eb8e1ac31f39628ce3163e7ebe6867ee9653bb40243f4603c56c34",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/package/src/product/mod.vast",
+      "bytes": 2038,
+      "sha256": "4362ae8fd53e94c195cf79925bbd7978655307dc94cda894d30a47fa2b430261",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/package/wire.json",
+      "bytes": 12780,
+      "sha256": "717be47463326300917e71bd3ab9b46734aa791f850fab2ce6ade80146b8a7ce",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/response.json",
+      "bytes": 1687,
+      "sha256": "359044c7b95dcc6c25904dead9170a7100575269de4c4e036e478974e86044f8",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-accumulate/symbols.txt",
+      "bytes": 1823323,
+      "sha256": "5e18fbd4ce5a5a79ca2c2b964f09673306ac6fe59084aea32a1b798ff5ba7f25",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/Generated.lean",
+      "bytes": 1424,
+      "sha256": "4bcf9d8cb8818e90ec17deef4c30d9f42c9c67a816eec9895c1abc03db5ca071",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/Main.lean",
+      "bytes": 3538,
+      "sha256": "30a261c3a0623353ff158d8cf97dedc17d8f93c604f6b88136bed705ac67a100",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/disassembly.txt",
+      "bytes": 35743570,
+      "sha256": "f9fd3ab2826c104c3a743eab00e03c2d82619ab4a411f62ccb179b3734f0d527",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "4985bc58143fbd0620f053aa728dbab1e8201dbdffbec7dc53a1cef7728d0a06",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/package/capture.py",
+      "bytes": 303,
+      "sha256": "2b72c4d3a4c8e4e096e84dff2aa7dc5ae2aa8e7d2e6b11788acd9aeb6e8176fb",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/package/src/product/mod.vast",
+      "bytes": 1830,
+      "sha256": "a6bfcac3463535cdbdd3d9905f3d03fc4017fbef1726fc7a49ece9e7b3630490",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/package/wire.json",
+      "bytes": 12122,
+      "sha256": "ee638ca5381006a13205d929952390e47f47cd0d2a15374fca1aad19e83a76ba",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/response.json",
+      "bytes": 1576,
+      "sha256": "acf66d6e0a3621696d2ba72ccd0619b3e49ed0e65a813f9781af2c1079072a24",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p0-overwrite/symbols.txt",
+      "bytes": 1823330,
+      "sha256": "a67a0cd30016eb054175c05a6adc884f6ff8d7fdc48d1b9167f64ee8d507c2b7",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/Generated.lean",
+      "bytes": 1550,
+      "sha256": "17afc9f9b8846f623fa188238c82a1cbbf28bc49005d70e76cd6916dd081b193",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/Main.lean",
+      "bytes": 3792,
+      "sha256": "c39829484df274cede3f9ff525822ae3bd2463168544bba358981ec7e7d4a765",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/disassembly.txt",
+      "bytes": 35754428,
+      "sha256": "9610b75891ded05e476780fc2c5d0c0c99e2d547179d07ef724e0c739fb8712c",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "a403917c7e76660164e7fe11a77f17dd56a9faafb6a5829ce09b0b68077879f5",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/package/capture.py",
+      "bytes": 304,
+      "sha256": "3f4744de2a3ac8cdc901c974518e5ac0a5afb6ce6b1aa818c48ac2e2b63f0347",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/package/src/product/mod.vast",
+      "bytes": 2050,
+      "sha256": "7ab7d6b5bcda72c6825c91c92744bcafff960935ec6374212473cbafb0cf9146",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/package/wire.json",
+      "bytes": 12792,
+      "sha256": "32ba34f9b803f9ba673c075d8a79ec732d87bb190d119676d6a5af3d063b43df",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/response.json",
+      "bytes": 1703,
+      "sha256": "224df128ba3bbf714da51f26452afd7e1d67b4ec0a7cf98721078c85226d8f0c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-accumulate/symbols.txt",
+      "bytes": 1823323,
+      "sha256": "fd234bfd81652615ea1af1d24f962a40358a7a87c3a79f76f7afb5bcc30d6d40",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/Generated.lean",
+      "bytes": 1439,
+      "sha256": "078891cbff65c521ae3bc8776c813e13e8d06f6a41dda7b411349a0dd0ef3c77",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/Main.lean",
+      "bytes": 3568,
+      "sha256": "2696f41640738669fca70b6818a99a2db5d059f57a631316f25e9549f4962fd5",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/disassembly.txt",
+      "bytes": 35743352,
+      "sha256": "68d1627897059b08db515fa8f4b8bbe72b7dbc89f0c3ea7b664358b010982d4a",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "5dc09ac831a9f618b416d1b51e4a949fea370eff5dea3ee8d073ed1c9e975e9a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/package/capture.py",
+      "bytes": 303,
+      "sha256": "dd41ec580fcdf2112b88cbc275966e4d2a00978af2ad8f9de440912c03e0d677",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/package/src/product/mod.vast",
+      "bytes": 1841,
+      "sha256": "7f3ecbf4378787f0eecb8c508b0ebe26840a162a8e36ffd7bd54cd80e9325073",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/package/wire.json",
+      "bytes": 12133,
+      "sha256": "0b0f70dd1461e603f946e0c1025026e8652ad76d71e9a4942e3977a1c7fea644",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/response.json",
+      "bytes": 1591,
+      "sha256": "c9ccfe5f3e263ded53ef08f40d8c871c8ae6a82ca4f22ce755786770ccd43d16",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-complex-p1-overwrite/symbols.txt",
+      "bytes": 1823330,
+      "sha256": "3383e8d52bb2a4d7204b29c3a240afa53c0c2c9422eac86e10a6104369b3bf2d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/Generated.lean",
+      "bytes": 1314,
+      "sha256": "6aee78bf64de06eaf1c78574d59d61ff070e9a663bb7f7361b8e1ad322147a94",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/Main.lean",
+      "bytes": 3320,
+      "sha256": "a296f4f1f3eed141df2c569d8b643784962b07e59a6ef088860bc77e98d855f1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/disassembly.txt",
+      "bytes": 35744590,
+      "sha256": "121fe202bd822449303b6f0a80c161272a4d3a77bb259259a4dcd68191732301",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "3769cccde756740110f2c8958f73e06463520007ae5368abed3eaf7b029555b1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/package/capture.py",
+      "bytes": 300,
+      "sha256": "8a85f72001f010b42856ae933b239b474b520baa1d791046b3e109dc832e0c06",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/package/src/product/mod.vast",
+      "bytes": 1698,
+      "sha256": "36fd89ad868826f8819b1142a0218700255e8618cf63bf7ee47010dde1517c4a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/package/wire.json",
+      "bytes": 12251,
+      "sha256": "7fcad1b463820059e16309ae6c5850e1503469605ec84dbed33f3623177c57b0",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/response.json",
+      "bytes": 1467,
+      "sha256": "735125418be1a5feb3e8c92a023713a0152032cf2d082b14801bcd6f8569947d",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-accumulate/symbols.txt",
+      "bytes": 1823240,
+      "sha256": "fe2251c3612e8fafc49b53afbc511ed28e416fb7988be46f4f8b28367a28272d",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/Generated.lean",
+      "bytes": 1241,
+      "sha256": "9ad7420fcf9df15ba56ed2f52857a7669533cb0020992385245b22808648ffc8",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/Main.lean",
+      "bytes": 3172,
+      "sha256": "9d76876b6116c6517892c8e8a6f0ed8ec15496ee9bb1577124ec8a1d903603f3",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/disassembly.txt",
+      "bytes": 35750695,
+      "sha256": "74eb6d0bef426db0618c263951373abb52783c716b753dc1ec842fc607ceb54e",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "4bc3ec48878322308c3da152aca2b8e52e04ad44d1d6401010aa5d00cafb8fa1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/package/capture.py",
+      "bytes": 299,
+      "sha256": "4c48e34797b0d6c2014e8c0f67a798af10708007d8fe35a9dbeb720ea434161e",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/package/src/product/mod.vast",
+      "bytes": 1541,
+      "sha256": "3606d485a46e3e78b961c29453e70bcfa82e0bd9c6ee72463ae4062acb031c9c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/package/wire.json",
+      "bytes": 11674,
+      "sha256": "a9825166b5a47779358c79091fd9e88eb7d21c841bc81e6ef19d7e8336fa6e38",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/response.json",
+      "bytes": 1393,
+      "sha256": "6a34c0e9111e9f7a06dd68b2f61703ecbe674734ccd4732d93087e5dc0f69ddf",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p0-overwrite/symbols.txt",
+      "bytes": 1823142,
+      "sha256": "e09bf094462f2e41e28ddd84a2d5fa8152a90e99607590d5c60c489fdba15b0e",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/Generated.lean",
+      "bytes": 1326,
+      "sha256": "d68a0e8be36067425099f74823d034d1bbf71a6b6362c2c58a68bd679e5cf8dc",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/Main.lean",
+      "bytes": 3344,
+      "sha256": "680e0eb592bda255a49a997eeb835e5b998a85401689d0e4d27eda5483184992",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/disassembly.txt",
+      "bytes": 35744230,
+      "sha256": "812d8bb532e5ec680218a25e57b1025daf5188673601cd17d6be4f5c87114581",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "f33b0236188ca00ff4b959ecf74811c001d32487ca1edde5252f4adf108ea097",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/package/capture.py",
+      "bytes": 300,
+      "sha256": "4911eda3591c48b169afb01d81b54f4363cd0c82d8b35a39ada675b390481966",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/package/src/product/mod.vast",
+      "bytes": 1708,
+      "sha256": "a5ac17677d9f0f3cdc8021901a8b1b6be8745afefa16ab34d2b6b0934ac107e5",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/package/wire.json",
+      "bytes": 12261,
+      "sha256": "9f842898cd437436d240e380a61b009463614273d158e049563923d6c6a408bf",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/response.json",
+      "bytes": 1479,
+      "sha256": "0ea706257fa427a02fa2e51922431a9b69046722c215555df976f608214a7e24",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-accumulate/symbols.txt",
+      "bytes": 1823240,
+      "sha256": "946cd04e3b427d1cd389cd2e394c27afd8701794bc3c4dbc6f13ebddfdcfbc91",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/Generated.lean",
+      "bytes": 1252,
+      "sha256": "4d8a4b4f3328db67ef01bba8fcf714524c5f6dedefab6d71f05ac33ba6790bdf",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/Main.lean",
+      "bytes": 3194,
+      "sha256": "3e7d6d4849fa383168d1258412dc77c7cd6b55be4a885acf337295f7f65556ca",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/disassembly.txt",
+      "bytes": 35750391,
+      "sha256": "8ae8ab839eb6ab6baf77b8d25719fa3245d95c874f06eb5d8e7f9d390dc015fa",
+      "retained_in": null
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "52b5944e1d7b99017579fc0391591ea4390875b2e1c24352acf7c37652207474",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "3e8c228286fbaff4a7a2335dc03ee5920dd2864e0644fcc9995ada8e44572e76",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/package/capture.py",
+      "bytes": 299,
+      "sha256": "3e3354a437a1d3edf0ff00efc1b2b20b5241239f942bc8d212bb99ddecd6cb1d",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "b54d0861a60e2bcef019726f55ba814c53329816944972dc99a8813950b3b77a",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/package/src/product/mod.vast",
+      "bytes": 1550,
+      "sha256": "63774769445ce9052519d3e7b8056689cdda5f2cd98abc9bc99da73928948246",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/package/wire.json",
+      "bytes": 11683,
+      "sha256": "b24c8c8d1344dd3a00617795f27ca1b0bbe883d4f4056535b110237c5be123ab",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/response.json",
+      "bytes": 1404,
+      "sha256": "8ffbf02fcfe6fcac8e3161d72d15c9bca6734e3c8ed795d698ad4f68bde85e91",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "cases/tiny-f64-p1-overwrite/symbols.txt",
+      "bytes": 1823142,
+      "sha256": "d5d36f44d93e72807919fa9ee2870849ff21e01ec28a67704db0f8a5b53c7812",
+      "retained_in": null
+    },
+    {
+      "path": "commands.json",
+      "bytes": 2769318,
+      "sha256": "c11fae06b8934b5e06be82b497df4d82c5026fd4f9a80ca5847122a4e268b39b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "compile-times.json",
+      "bytes": 187024,
+      "sha256": "7d774656cbb5de9da1794a2cffbfd5cb0d9bf9b8280e2188d11c0ac85319d980",
+      "retained_in": "compile-times.json"
+    },
+    {
+      "path": "environment.json",
+      "bytes": 11252,
+      "sha256": "8bce64b8382369b431040f157fd49e597899a0242889b90122cba356f332ee1b",
+      "retained_in": "environment.json"
+    },
+    {
+      "path": "native-validation.json",
+      "bytes": 193848,
+      "sha256": "01b326f53979c2cf64b8f774ded1a4085bf8fc3143393584fa2a0fd1ae921e67",
+      "retained_in": "native-validation.json"
+    },
+    {
+      "path": "openblas-build.json",
+      "bytes": 600,
+      "sha256": "e7f7ec7ee8480f2a7d5a3bd6541b467606be2f5e84bb691d7fb89376a6f90946",
+      "retained_in": "openblas-build.json"
+    },
+    {
+      "path": "raw.csv",
+      "bytes": 403661,
+      "sha256": "4cffff65229ce4b6f570606f23aa78a1e8478ed82152782bc3d5c0dfc46dd917",
+      "retained_in": "raw.csv"
+    },
+    {
+      "path": "source/experiments/public_gemm/README.md",
+      "bytes": 13890,
+      "sha256": "eccec5ecf948fab1555ed55761cb0f3ef0611f05bf7493069355d003eaac11c9",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/public_gemm/calls.h",
+      "bytes": 492,
+      "sha256": "d36efc88bc1dd9d918d0a954f651107cd446347e10d8afcade4f9e9accfaf15b",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/public_gemm/cases.py",
+      "bytes": 8881,
+      "sha256": "b158b85d041cf4a3d3408135b0e749e371586e0a8c01d6992a7c85b4689a97f4",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/public_gemm/ffi.c",
+      "bytes": 957,
+      "sha256": "ab969b242f3effa1936f41dff309e53d39381788c589f51206d7bf29ffd36fce",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/public_gemm/probe.c",
+      "bytes": 15250,
+      "sha256": "3f2f71826d5e040a3fa8de2fde2f3cf881dc5860fc67bdf87f13f722a0d10368",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/public_gemm/run.py",
+      "bytes": 21283,
+      "sha256": "89b5785e699f026fd3a64ad0aeac65d594fadfc0029beaf060e5168ffdb1d192",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/public_gemm/test_harness.py",
+      "bytes": 4381,
+      "sha256": "4f06c148ceb7810a460f22d107738f6fa9a749f9a03510702b47d04684c7ed52",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/experiments/storage_copy/run.py",
+      "bytes": 13955,
+      "sha256": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 1814,
+      "sha256": "97df58f825908a329e94c2eb4d9401c81d49ed077772206b33512577cc5fca27",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/ffi.c",
+      "bytes": 4358,
+      "sha256": "c84c77af9a324ecba80a2fec4f21cabb69f2e087fc7a8db8c452b59ec995dad1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/lakefile.lean",
+      "bytes": 1051,
+      "sha256": "7d9273a71235731732731dc42e38fa41f2ca1555055c6864cdcee4ec50161914",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/storage.c",
+      "bytes": 13449,
+      "sha256": "416af0912bbd222e50300809f2d23383f6784e57ecd7b5970ba0282541a3515f",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/storage.h",
+      "bytes": 2722,
+      "sha256": "b209eb03dd128a31ce3d141f7697f72ebe662abd45da8bbe29644ff149614245",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/native/test_storage.c",
+      "bytes": 6540,
+      "sha256": "8727dd9e67c67f3dabb03ca14e9b099873081c73c5f4effd1d94bceef4ac30f1",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/LICENSE.OpenBLAS",
+      "bytes": 1545,
+      "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/VastitasGemmNative.lean",
+      "bytes": 1550,
+      "sha256": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/ffi.c",
+      "bytes": 3249,
+      "sha256": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/gemm.c",
+      "bytes": 7514,
+      "sha256": "c136c8355a03c07f1be1f4f759a64369d0bfc380b4a154a55339fd8bc9564bb8",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/gemm.h",
+      "bytes": 1682,
+      "sha256": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lakefile.lean",
+      "bytes": 2037,
+      "sha256": "053c092fe9cc7210a3d410f81c3671fbc017d4c68230192062afb73ccb1ae098",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/test_backend.c",
+      "bytes": 1376,
+      "sha256": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "source/lean-kernel/numerical/test_gemm.c",
+      "bytes": 17804,
+      "sha256": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037",
+      "retained_in": "source-and-commands.tar.gz"
+    },
+    {
+      "path": "status.json",
+      "bytes": 83,
+      "sha256": "693bec12e188167b660a5d602f1673de2b86cc626220cabc70b7d1542f4547f9",
+      "retained_in": "status.json"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 154884,
+      "sha256": "1d89da30de86f8942dcc353140e7e3d03df9dc250cad7955fbed58c62266341a",
+      "retained_in": "summary.json"
+    },
+    {
+      "path": "summary.md",
+      "bytes": 9119,
+      "sha256": "0182013646cd90cf940419efe33e99f7bfff5b2b66ed02e4ed6fd066f304b425",
+      "retained_in": "summary.md"
+    }
+  ]
+}

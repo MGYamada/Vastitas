@@ -57,7 +57,8 @@ def action (state : State) : Action → Except Error (List Instruction)
     pure [.gemm args.left.allocation args.left.layout request.conjugateLeft
       args.right.allocation args.right.layout request.conjugateRight
       args.output.allocation args.output.layout request.mode request.policy checked.alpha.value checked.beta.value]
-  | .move .. | .borrow .. | .release .. | .transpose .. => pure []
+  | .move .. | .borrow .. | .release .. | .transpose .. |
+      .captureDependency .. | .requireDependency .. | .forgetDependency .. => pure []
 
 def lower : Nat → State → List Statement → Except Error (State × List Instruction)
   | _, state, [] => pure (state, [])

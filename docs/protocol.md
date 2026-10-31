@@ -559,3 +559,7 @@ connectivity, nominal ports and actual resource transitions; see
 [contraction trees](contraction-trees.md). The raw internal `regroup3` action
 contains source/target loans, three physical dimensions and explicit input/output
 groupings; it is not a public nominal-authority certificate.
+Protocol-8 tensor operations also include strict `cached_pack`
+(`name`, `source`, `target`) and `cached_contract3`
+(`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
+local names, never stamps or certificates. See [cached packing](cached-packing.md).

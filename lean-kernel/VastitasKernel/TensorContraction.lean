@@ -31,6 +31,7 @@ structure CheckedRegroup (environment : Indexed.Environment) (numerical : Numeri
   axes : output.axes = input.axes
   after : State
   accepted : checkAction resources (regroupAction input output) = .ok after
+  written : after = resources.markWritten output.loan.allocation output.loan.layout
   inputRestored : input.Live after
   outputInitialized : output.Initialized after = true
 
@@ -49,12 +50,14 @@ def checkRegroup (environment : Indexed.Environment) (numerical : Numerical.Valu
                 match accepted : checkAction resources (regroupAction input output) with
                 | .error error => .error error
                 | .ok after =>
-                  if restored : input.Live after then
-                    if initialized : output.Initialized after = true then
-                      return ⟨numericalValid, inputValid, outputValid, inputLive, outputLive,
-                        rank, axes, after, accepted, restored, initialized⟩
-                    else reject "regrouping failed to initialize its exact destination"
-                  else reject "regrouping changed its input loan"
+                  if written : after = resources.markWritten output.loan.allocation output.loan.layout then
+                    if restored : input.Live after then
+                      if initialized : output.Initialized after = true then
+                        return ⟨numericalValid, inputValid, outputValid, inputLive, outputLive,
+                          rank, axes, after, accepted, written, restored, initialized⟩
+                      else reject "regrouping failed to initialize its exact destination"
+                    else reject "regrouping changed its input loan"
+                  else reject "regrouping differs from its exact destination write and dependency invalidation"
               else reject "regrouping cannot change ordered nominal axes"
             else reject "regroup requires exactly two or three logical axes"
           else reject "regrouping destination is stale or suspended"

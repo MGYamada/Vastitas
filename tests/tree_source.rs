@@ -441,6 +441,152 @@ fn explicit_regroup_supports_every_rank_two_three_selected_axis_orientation() {
     }
 }
 
+fn with_cache(source: &str, complex: bool, condition: bool, overwrite: bool) -> String {
+    let width = if complex { 16 } else { 8 };
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let source = source.replace(
+        "    contract_tree(c, NativeFast) {",
+        &format!(
+            "allocate cache_buffer: {scalar}[48]; allocate cache_result: {scalar}[48];
+        borrow cache_write = write(cache_buffer,layout({width},8,3,9,false));
+        tensor cache_destination = view3(cache_write,bu,bvd,bwd,axes(0,2,1),2);
+        cache saved = pack3(t,cache_destination); release(cache_write);
+    contract_tree(c, NativeFast) {{"
+        ),
+    );
+    let source = if overwrite {
+        source
+            .replace(
+                &format!("write(scratch, layout({width}, 10, 4, 11, false))"),
+                &format!("write(cache_buffer, layout({width}, 10, 4, 11, false))"),
+            )
+            .replace(
+                &format!("read(scratch, layout({width}, 10, 4, 11, false))"),
+                &format!("read(cache_buffer, layout({width}, 10, 4, 11, false))"),
+            )
+    } else {
+        source
+    };
+    let mut consume=format!("borrow cache_read = read(cache_buffer,layout({width},8,3,9,false));
+        tensor cache_input = view3(cache_read,bu,bvd,bwd,axes(0,2,1),2);
+        borrow cache_output = write(cache_result,layout({width},8,5,9,false));
+        tensor cache_c = view3(cache_output,bu,bwd,bad,axes(0,1,2),2);
+        contract3_cached(saved,cache_input,right_a,cache_c,NativeFast); release(cache_output); release(cache_read);
+        borrow check_cache = read(cache_result,layout({width},8,5,9,false));");
+    for a in 0..5 {
+        for w in 0..4 {
+            for u in 0..2 {
+                let mut expected: (f64, f64) = (0.0, 0.0);
+                for v in 0..3 {
+                    let t = if u == 1 && v == 1 && w == 0 {
+                        (3.0, if complex { 2.0 } else { 0.0 })
+                    } else {
+                        (1.0, if complex { 1.0 } else { 0.0 })
+                    };
+                    let m = if v == 0 && a == 4 {
+                        (2.0, if complex { -1.0 } else { 0.0 })
+                    } else {
+                        (1.0, if complex { 1.0 } else { 0.0 })
+                    };
+                    expected.0 += t.0 * m.0 - t.1 * m.1;
+                    expected.1 += t.0 * m.1 + t.1 * m.0;
+                }
+                let literal = if complex {
+                    format!(
+                        "complex_bits({},{})",
+                        expected.0.to_bits(),
+                        expected.1.to_bits()
+                    )
+                } else {
+                    format!("f64_bits({})", expected.0.to_bits())
+                };
+                consume.push_str(&format!("expect(check_cache,{},{a},{literal});", u + 2 * w));
+            }
+        }
+    }
+    consume.push_str("release(check_cache); drop(cache_result); drop(cache_buffer);");
+    let source = source.replace(
+        "    release(output);",
+        &format!("{consume}\n    release(output);"),
+    );
+    let header = "pub resource fn product() -> Unit {";
+    let body = source.strip_prefix(header).unwrap();
+    let (body, _) = body.rsplit_once("    value { () }").unwrap();
+    format!("{header} if {condition} {{ {body} }} else {{ {body} }} value {{ () }} }}")
+}
+
+#[test]
+fn trees_preserve_unrelated_cache_and_invalidate_generic_regroup_destinations() {
+    for condition in [false, true] {
+        let real = with_cache(REAL, false, condition, false);
+        let complex = with_cache(COMPLEX, true, condition, false);
+        let s = fixture(&real, &complex);
+        success(&command(&s, "check").output().unwrap());
+        let emission = kernel(captured(&s), "emit");
+        assert_eq!(emission["ok"], true, "{emission}");
+        let code = emission["lean_source"].as_str().unwrap();
+        assert_eq!(code.matches("pack3 arena").count(), 8);
+        assert_eq!(code.matches("regroup3 arena").count(), 4);
+        assert_eq!(code.matches("VastitasGemmNative.gemm arena").count(), 12);
+        assert_eq!(code.matches("allocate arena").count(), 32);
+        assert!(!code.contains("requireDependency") && !code.contains("captureDependency"));
+        rejection(&with_cache(REAL, false, condition, true), "E_TENSOR");
+    }
+}
+
+fn long_chain(count: usize) -> String {
+    let mut source=String::from("pub resource fn product() -> Unit {
+        space v = linear(super::profiles::RealSmooth,1); basis bv = basis(v);
+        space vd = dual(v); basis bvd = derived(bv,vd);
+        allocate input: F64[1]; allocate s0: F64[1]; allocate s1: F64[1]; allocate result: F64[1];
+        borrow init = write(input,layout(0,1,1,1,false)); fill(init,f64_bits(4607182418800017408)); release(init);
+        borrow input_read = read(input,layout(0,1,1,1,false)); tensor t = view2(input_read,bv,bvd);
+        borrow output = write(result,layout(0,1,1,1,false)); tensor c = view2(output,bv,bvd);
+        contract_tree(c,NativeFast) {");
+    for index in 0..count {
+        source.push_str(&format!("occurrence n{index}=t;"));
+    }
+    for index in 0..count - 1 {
+        source.push_str(&format!("edge e{index}=(n{index}[1],n{}[0]);", index + 1));
+    }
+    source.push_str(&format!("boundary(n0[0],n{}[1]); plan {{", count - 1));
+    for index in 0..count - 1 {
+        let last = index == count - 2;
+        let target = if last {
+            "c".to_owned()
+        } else {
+            format!("o{index}")
+        };
+        let left = if index == 0 {
+            "n0".to_owned()
+        } else {
+            format!("p{}", index - 1)
+        };
+        if !last {
+            source.push_str(&format!("borrow w{index}=write(s{},layout(0,1,1,1,false)); tensor o{index}=view2(w{index},bv,bvd);",index%2));
+        }
+        source.push_str(&format!(
+            "join p{index}=(e{index},{left},n{},{target});",
+            index + 1
+        ));
+        if index > 0 {
+            source.push_str(&format!("release(r{});", index - 1));
+        }
+        if !last {
+            source.push_str(&format!("release(w{index}); borrow r{index}=read(s{},layout(0,1,1,1,false)); tensor v{index}=view2(r{index},bv,bvd); rebind(p{index},v{index});",index%2));
+        }
+    }
+    source.push_str("} } release(output); borrow checked=read(result,layout(0,1,1,1,false)); expect(checked,0,0,f64_bits(4607182418800017408)); release(checked); release(input_read); drop(result); drop(s1); drop(s0); drop(input); value { () } }");
+    source
+}
+
+#[test]
+fn finite_tree_bound_accepts_all_sixty_four_nodes_and_rejects_sixty_five() {
+    let s = fixture(&long_chain(64), COMPLEX);
+    success(&command(&s, "check").output().unwrap());
+    rejection(&long_chain(65), "E_TENSOR_TREE");
+}
+
 #[test]
 fn explicit_trees_preserve_order_reuse_scratch_and_audit_both_branches() {
     for (real, complex, count) in [
@@ -544,6 +690,11 @@ fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
 #[test]
 fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     let original = captured(&fixture(REAL, COMPLEX));
+    for version in 2..8 {
+        let mut changed = original.clone();
+        changed["version"] = json!(version);
+        wire_rejected(changed);
+    }
     for extra in ["checked", "proof", "allocation", "flags"] {
         let mut raw = original.clone();
         tree(&mut raw)[extra] = json!(true);
@@ -629,6 +780,12 @@ fn tree_native_executes_multiedge_branching_and_written_operand_order() {
         cases.push((
             oriented_pair(false, 1, 0, true, dims),
             oriented_pair(true, 1, 0, true, dims),
+        ));
+    }
+    for condition in [false, true] {
+        cases.push((
+            with_cache(REAL, false, condition, false),
+            with_cache(COMPLEX, true, condition, false),
         ));
     }
     for (real, complex) in cases {

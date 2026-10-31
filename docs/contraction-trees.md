@@ -159,13 +159,15 @@ summation and multiplication order. `VastitasOracle.TensorTree` proves actual
 single-use ports, corresponding dual origins, the reconstructed connected
 producer tree's full node/edge coverage, exact ordered boundary bases,
 submitted event order, actual numerical/resource transitions and public
-checker origins. No field laws, custom axioms, categorical equalities or
+checker origins. `regroup_invalidates_dependencies` connects the actual
+destination-write certificate to invalidation of every mentioned cache entry. No field laws, custom axioms, categorical equalities or
 floating reassociations are used.
 
 Regression coverage includes more than two edges, rank-two chains, repeated
 immutable occurrences, every selected-axis/operand orientation of a rank-three
 and rank-two pair, padded real/complex execution, zero extents, scratch reuse,
-both branches, unused bodies, stale/foreign producers, invalid ports,
+both branches, 64-node acceptance and 65-node rejection, unrelated cache
+survival and generic-regroup cache invalidation, unused bodies, stale/foreign producers, invalid ports,
 disconnected cycles, opaque packages and forged wire/native metadata. Native
 C tests independently cover all 144 rank-three grouping pairs, raw special
 bits, padding, same-allocation separation, invalid codes, overflow and failure

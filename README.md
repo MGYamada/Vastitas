@@ -79,6 +79,16 @@ The actual-checker proofs and native regressions do not establish floating-point
 field laws, certified error bounds, source/native refinement or C/C++ performance
 parity; see the [layer responsibilities and proof boundary](docs/numerical-adapter.md#responsibilities-along-the-implemented-path).
 
+The [finite rank-three tensor profile](docs/tensor-packing.md) adds explicit
+caller-destination packing and one typed rank-three/rank-two contraction to
+protocol 8. It retains actual ordered bases/dual origins and emits one checked
+GEMM without implicit packing or product-basis fabrication. General networks
+and equivalent-C performance remain unfinished.
+
+The bounded [packing-cache contract](docs/cached-packing.md) reuses caller-owned
+packed scratch in repeated checked contractions, with actual source/scratch
+version validation and no runtime cache allocation or hidden repacking.
+
 ## Build and use
 
 Requirements: Rust 1.99.1, Lean 4.35.0 via Elan/Lake, and a host C toolchain
@@ -353,14 +363,3 @@ Third-party dependencies and toolchain components retain their own licenses
 and notices. Redistributing them requires preserving their applicable license
 texts and attribution notices; this repository's license does not replace
 those terms.
-
-The [finite rank-three tensor profile](docs/tensor-packing.md) adds explicit
-caller-destination packing and one typed rank-three/rank-two contraction to
-protocol 8. It retains actual ordered bases/dual origins and emits one checked
-GEMM without implicit packing or product-basis fabrication. General networks
-and equivalent-C performance remain unfinished.
-
-The [bounded contraction-tree profile](docs/contraction-trees.md) independently
-reconstructs finite graph connectivity and exact producers, then executes the
-written explicit regroup/GEMM schedule. No contraction-order search or implicit
-allocation is added.

@@ -1,0 +1,187 @@
+{
+  "started_utc": "2026-10-31T12:00:10.449151+00:00",
+  "argv": [
+    "experiments/public_gemm/run.py",
+    "--prefix",
+    "/home/runner/work/_temp/gemm-openblas",
+    "--output",
+    "/home/runner/work/_temp/public-gemm-results",
+    "--samples",
+    "11",
+    "--target-ms",
+    "5"
+  ],
+  "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.43",
+  "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+  "cpu_affinity_before": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "cpu": 0,
+  "flags": [
+    "-std=c11",
+    "-O3",
+    "-fno-lto",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "policy": "NativeFast",
+  "threads": 1,
+  "source_sha256": {
+    "experiments/public_gemm/probe.c": "3f2f71826d5e040a3fa8de2fde2f3cf881dc5860fc67bdf87f13f722a0d10368",
+    "experiments/public_gemm/calls.h": "d36efc88bc1dd9d918d0a954f651107cd446347e10d8afcade4f9e9accfaf15b",
+    "experiments/public_gemm/run.py": "89b5785e699f026fd3a64ad0aeac65d594fadfc0029beaf060e5168ffdb1d192",
+    "experiments/public_gemm/README.md": "eccec5ecf948fab1555ed55761cb0f3ef0611f05bf7493069355d003eaac11c9",
+    "experiments/public_gemm/ffi.c": "ab969b242f3effa1936f41dff309e53d39381788c589f51206d7bf29ffd36fce",
+    "experiments/public_gemm/test_harness.py": "4f06c148ceb7810a460f22d107738f6fa9a749f9a03510702b47d04684c7ed52",
+    "experiments/public_gemm/cases.py": "b158b85d041cf4a3d3408135b0e749e371586e0a8c01d6992a7c85b4689a97f4",
+    "experiments/storage_copy/run.py": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1",
+    "lean-kernel/native/test_storage.c": "8727dd9e67c67f3dabb03ca14e9b099873081c73c5f4effd1d94bceef4ac30f1",
+    "lean-kernel/native/lake-manifest.json": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6",
+    "lean-kernel/native/lakefile.lean": "7d9273a71235731732731dc42e38fa41f2ca1555055c6864cdcee4ec50161914",
+    "lean-kernel/native/storage.c": "416af0912bbd222e50300809f2d23383f6784e57ecd7b5970ba0282541a3515f",
+    "lean-kernel/native/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean-kernel/native/ffi.c": "c84c77af9a324ecba80a2fec4f21cabb69f2e087fc7a8db8c452b59ec995dad1",
+    "lean-kernel/native/storage.h": "b209eb03dd128a31ce3d141f7697f72ebe662abd45da8bbe29644ff149614245",
+    "lean-kernel/native/VastitasStorageNative.lean": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9",
+    "lean-kernel/native/VastitasStorageNative/Runtime.lean": "97df58f825908a329e94c2eb4d9401c81d49ed077772206b33512577cc5fca27",
+    "lean-kernel/numerical/lake-manifest.json": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557",
+    "lean-kernel/numerical/test_backend.c": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9",
+    "lean-kernel/numerical/lakefile.lean": "053c092fe9cc7210a3d410f81c3671fbc017d4c68230192062afb73ccb1ae098",
+    "lean-kernel/numerical/VastitasGemmNative.lean": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab",
+    "lean-kernel/numerical/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean-kernel/numerical/gemm.c": "c136c8355a03c07f1be1f4f759a64369d0bfc380b4a154a55339fd8bc9564bb8",
+    "lean-kernel/numerical/gemm.h": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e",
+    "lean-kernel/numerical/ffi.c": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8",
+    "lean-kernel/numerical/LICENSE.OpenBLAS": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9",
+    "lean-kernel/numerical/test_gemm.c": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037",
+    "/home/runner/work/_temp/gemm-openblas/lib/libopenblas.a": "1ca3e930bb5e5ec46000ea7978e019abb3076d31eb56bc382b030ac46051fcaa",
+    "/home/runner/work/_temp/gemm-openblas/include/cblas.h": "3955158bd0971b1ce0b5a9324c301bdcf4ddeb18baf2e0ca5e1dbe1387c2d28f",
+    "/home/runner/work/_temp/gemm-openblas/include/openblas_config.h": "cc254d12cc278c54986146b47d84f65c1542f0ed8f82557385820b5163fab0ab",
+    "/home/runner/work/Vastitas/Vastitas/target/release/vastitas": "73c6b59a82823fa4b24eea3427e84ef2c0abdc6fc11817ee0748ed80e070a59e"
+  },
+  "toolchains": {
+    "cc": {
+      "command": [
+        "cc",
+        "--version"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "cc (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": "",
+      "wall_ns": 2814595,
+      "phase": "environment"
+    },
+    "rustc": {
+      "command": [
+        "rustc",
+        "--version"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\n",
+      "stderr": "",
+      "wall_ns": 36338862,
+      "phase": "environment"
+    },
+    "cargo": {
+      "command": [
+        "cargo",
+        "--version"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "cargo 1.99.1 (5f94df478 2026-08-27)\n",
+      "stderr": "",
+      "wall_ns": 32937510,
+      "phase": "environment"
+    },
+    "lean": {
+      "command": [
+        "lean",
+        "--version"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)\n",
+      "stderr": "",
+      "wall_ns": 55441680,
+      "phase": "environment"
+    },
+    "lake": {
+      "command": [
+        "lake",
+        "--version"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)\n",
+      "stderr": "",
+      "wall_ns": 58708732,
+      "phase": "environment"
+    },
+    "git": {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "38b96ae5a6b0610ec71babf199e7635867cca023\n",
+      "stderr": "",
+      "wall_ns": 3013498,
+      "phase": "environment"
+    },
+    "git_status": {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "",
+      "wall_ns": 27748141,
+      "phase": "environment"
+    },
+    "cpu": {
+      "command": [
+        "lscpu"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           48 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  4\nOn-line CPU(s) list:                     0-3\nVendor ID:                               AuthenticAMD\nModel name:                              AMD EPYC 7763 64-Core Processor\nCPU family:                              25\nModel:                                   1\nThread(s) per core:                      2\nCore(s) per socket:                      2\nSocket(s):                               1\nStepping:                                1\nBogoMIPS:                                4890.87\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy svm cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext vmmcall fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves user_shstk clzero xsaveerptr rdpru arat npt nrip_save tsc_scale vmcb_clean flushbyasid decodeassists pausefilter pfthreshold v_vmsave_vmload umip vaes vpclmulqdq rdpid fsrm\nVirtualization:                          AMD-V\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               64 KiB (2 instances)\nL1i cache:                               64 KiB (2 instances)\nL2 cache:                                1 MiB (2 instances)\nL3 cache:                                32 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-3\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode\nVulnerability Spec store bypass:         Vulnerable\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Vulnerable: No microcode\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected\n",
+      "stderr": "",
+      "wall_ns": 9711468,
+      "phase": "environment"
+    },
+    "libc": {
+      "command": [
+        "ldd",
+        "--version"
+      ],
+      "cwd": "/home/runner/work/Vastitas/Vastitas",
+      "returncode": 0,
+      "stdout": "ldd (Ubuntu GLIBC 2.43-2ubuntu2.4) 2.43\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\nWritten by Roland McGrath and Ulrich Drepper.\n",
+      "stderr": "",
+      "wall_ns": 3172385,
+      "phase": "environment"
+    }
+  },
+  "host": {
+    "/proc/loadavg": "4.61 2.40 0.97 1/261 15684\n",
+    "/sys/fs/cgroup/cpu.stat": "usage_usec 615787000\nuser_usec 494625000\nsystem_usec 121162000\nnice_usec 0\ncore_sched.force_idle_usec 0\nnr_periods 0\nnr_throttled 0\nthrottled_usec 0\nnr_bursts 0\nburst_usec 0\n",
+    "loadavg_after": "2.14 2.12 1.25 1/260 30971\n"
+  },
+  "performance": "measured on this host",
+  "leak_sanitizer": "enabled",
+  "memory_scope": "exact arena data counters; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented",
+  "expected_lean_toolchain": "leanprover/lean4:v4.35.0",
+  "finished_utc": "2026-10-31T12:05:24.163999+00:00"
+}

@@ -213,6 +213,12 @@ this refinement. Keep explicit resource transitions distinct from the existing
 pure Core; prove the connection to logical evaluation for each supported lowering.
 The initial schedule is deterministic; optimization search is not a prerequisite.
 
+The implemented [packing cache](cached-packing.md) supplies one bounded reuse
+contract: actual post-pack source/scratch versions, explicit invalidation and
+lexical cleanup, followed by the checked tensor contraction. Whole-allocation
+versions and all-join invalidation are conservative; general pooling and retained
+evidence remain open. Its dependency metadata erases before native execution.
+
 ## 7.9 The first GEMM contract
 
 Stage 1 uses `F64` and `Complex<F64>`, column-major LP64, synchronous CPU and

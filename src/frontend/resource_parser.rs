@@ -845,6 +845,39 @@ impl Parser {
                 axes,
                 grouping,
             })
+        } else if self.consume("cache") {
+            let name = self.name()?.0;
+            self.expect("=")?;
+            self.expect("pack3")?;
+            self.expect("(")?;
+            let source = self.name()?.0;
+            self.expect(",")?;
+            let target = self.name()?.0;
+            self.expect(")")?;
+            Ok(Tensor::CachedPack {
+                name,
+                source,
+                target,
+            })
+        } else if self.consume("contract3_cached") {
+            self.expect("(")?;
+            let cache = self.name()?.0;
+            self.expect(",")?;
+            let left = self.name()?.0;
+            self.expect(",")?;
+            let right = self.name()?.0;
+            self.expect(",")?;
+            let output = self.name()?.0;
+            self.expect(",")?;
+            self.expect("NativeFast")?;
+            self.expect(")")?;
+            Ok(Tensor::CachedContract3 {
+                cache,
+                left,
+                right,
+                output,
+                policy: NumericalPolicy::NativeFast,
+            })
         } else if self.consume("pack3") {
             self.expect("(")?;
             let source = self.name()?.0;
@@ -1153,7 +1186,7 @@ impl Parser {
             let start = self.peek().span;
             let statement = if self.peek().is("contract_tree") {
                 self.tree_statement()?
-            } else if ["tensor", "pack3", "contract3"]
+            } else if ["tensor", "pack3", "contract3", "cache", "contract3_cached"]
                 .iter()
                 .any(|word| self.peek().is(word))
             {

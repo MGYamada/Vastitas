@@ -1,4 +1,5 @@
 import VastitasOracle.TensorNumerical
+import VastitasOracle.StorageDependencies
 
 /-! Actual bounded regrouping and one-axis contraction certificates. Coordinate
 references use the written multiplication and finite summation order. They do
@@ -87,6 +88,16 @@ theorem regroup_cell_bytes {env numerical resources input output}
   have initialized : allocation.initialization.covers allocation.scalar output.loan.layout = true := by
     simpa [View.Initialized, found] using checked.outputInitialized
   exact StorageRegions.initialization_bytes initialized inside
+
+/-- Generic and optimized regrouping both invalidate every dependency that
+mentions the actual written allocation, even through a disjoint subregion. -/
+theorem regroup_invalidates_dependencies {env numerical resources input output}
+    (checked : CheckedRegroup env numerical resources input output)
+    (name : Symbol) (dependency : Dependency)
+    (mentioned : dependency.mentions output.loan.allocation = true) :
+    ¬ StorageDependencies.LiveEntry checked.after name dependency := by
+  rw [checked.written]
+  exact StorageDependencies.written_kills mentioned
 
 /-- Exact native mixed-radix descriptors use the dimensions of these actual
 axes, not an independently invented grouped basis. -/

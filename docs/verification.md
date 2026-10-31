@@ -1208,3 +1208,22 @@ embedding, selected-axis finite coordinate references, reconstructed connected
 producer coverage, ordered nominal boundaries, exact resource replay and public
 origins. Native permutation tests and matched C evidence remain separate from
 C/FFI/BLAS refinement and floating or categorical laws.
+
+`VastitasOracle.StorageDependencies` imports the actual dependency table and
+resource runner. An accepted raw prefix ending with a live dependency decomposes
+into an actual earlier capture and an accepted action suffix preserving that
+entry throughout. Freshness and used-name monotonicity exclude recapture after
+invalidation or forgetting; writes and joins invalidate the dependency. The
+actual checked-cache/consumer and receipt corollaries require an explicit accepted
+intervening replay. The right-arm theorem includes the accepted left run and
+exact allocator reseed; it does not treat branch-local receipt code as a root
+prefix. Automatic extraction from arbitrary nested source receipts remains a
+separate source-correspondence obligation.
+
+`VastitasOracle.StorageCachedPacking` extracts accepted pack/capture transitions,
+current source/scratch versions, exact nominal packed operands, emitted
+capture/require/GEMM schedules, public environment origins and metadata erasure.
+Closed plans require all dependency handles forgotten. These are logical
+resource/history and actual-checker facts; they do not prove copied heap contents,
+BLAS arithmetic, whole-source/native refinement or AD residual correctness.
+See [the bounded packing cache](cached-packing.md).

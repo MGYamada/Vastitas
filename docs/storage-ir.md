@@ -72,8 +72,10 @@ siblings still undergo compatibility checks. Mathematical tensor factors confer
 no allocation or alias rights.
 
 Logical versions advance on writes; a branch join creates a version after both
-branches. This is preparation for dependency tracking, not an implementation of
-residual retention, stale-dependency rejection, snapshots or AD.
+branches. The bounded [packing cache](cached-packing.md) reconstructs post-pack
+source/scratch stamps and rejects stale reuse in actual contraction. Its erased
+capture/require/forget operations participate in schedule replay and final audits.
+This does not implement residual retention, snapshots, recomputation or AD.
 
 ## Layout and initialization
 
@@ -205,3 +207,11 @@ dynamic shapes, general scratch reuse, dependency retention and equivalent-C
 measurements remain required. Native liveness, writes and cleanup have the tests
 above but no native refinement theorem. Pure indexed Core theorems do not imply
 these mutable-resource guarantees, and this increment does not close #183.
+
+The internal `regroup3` action carries three physical extents and explicit
+input/output axis groupings. It checks complete nontransposed rectangles,
+initialization, scalar agreement and byte separation, then performs exactly one
+`markWritten` transition on the destination, including cache invalidation.
+Public nominal axes and connected producer authority come from the separate
+[contraction-tree checker](contraction-trees.md). Rank-two regrouping uses a
+proved neutral physical extent and creates no nominal third axis.

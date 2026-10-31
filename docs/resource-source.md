@@ -182,3 +182,15 @@ repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
 Dynamic dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
+
+`cache saved = pack3(source, scratch);` and
+`contract3_cached(saved, packed, right, output, NativeFast);` expose the bounded
+[packing dependency contract](cached-packing.md). Cache names are lexical metadata
+with no parameter/result or escaping package form. All-body and both-branch checks
+include their capture, consumer and cleanup schedules.
+
+[Bounded contraction trees](contraction-trees.md) add explicit unresolved finite
+graphs, ordered ports and caller-supplied regroup/GEMM plans. The full public
+checker independently resolves their nominal axes and resource names, retains
+actual producer/event receipts from both branches and audits their declaration
+environment alongside package and packing-cache receipts.

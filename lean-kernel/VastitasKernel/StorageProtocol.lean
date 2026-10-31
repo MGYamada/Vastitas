@@ -79,6 +79,15 @@ def action (j : Json) : Except String Action := do
   | "allocate" =>
     fields j ["op", "owner", "scalar", "elements"]
     return .allocate (← symbol j "owner") (← scalar (← str j "scalar")) (← size j "elements")
+  | "capture_dependency" =>
+    fields j ["op", "name", "source", "target"]
+    return .captureDependency (← symbol j "name") (← symbol j "source") (← symbol j "target")
+  | "require_dependency" =>
+    fields j ["op", "name"]
+    return .requireDependency (← symbol j "name")
+  | "forget_dependency" =>
+    fields j ["op", "name"]
+    return .forgetDependency (← symbol j "name")
   | "move" =>
     fields j ["op", "source", "target"]
     return .move (← symbol j "source") (← symbol j "target")

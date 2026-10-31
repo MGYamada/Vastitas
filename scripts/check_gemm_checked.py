@@ -104,6 +104,44 @@ def orientation_fixture():
     return {"statements": steps}
 
 
+def cached_packing_fixture(complex_scalar):
+    """One explicit pack, two consumers; dependency bookkeeping fully erases."""
+    scalar = "complex_f64" if complex_scalar else "f64"
+    width = 16 if complex_scalar else 8
+    bits = lambda x: struct.unpack("<Q", struct.pack("<d", x))[0]
+    value = dict(kind="complex_f64", real=bits(2.0), imaginary=bits(1.0)) if complex_scalar else dict(kind="f64", bits=bits(2.0))
+    expected = dict(kind="complex_f64", real=bits(3.0), imaginary=bits(4.0)) if complex_scalar else dict(kind="f64", bits=bits(4.0))
+    layout = dict(offset=0, rows=1, columns=1, leading=1, transposed=False)
+    steps = []
+    def action(op, **fields):
+        steps.append({"kind": "action", "action": {"op": op, **fields}})
+    for owner in range(3):
+        action("allocate", owner=owner, scalar=scalar, elements=1)
+    action("borrow", name=3, source=dict(kind="owner", name=0), layout=layout, access="write")
+    action("fill", loan=3, value=value)
+    action("release", loan=3)
+    action("borrow", name=4, source=dict(kind="owner", name=0), layout=layout, access="read")
+    action("borrow", name=5, source=dict(kind="owner", name=1), layout=layout, access="write")
+    action("pack3", source=4, target=5, i=1, k=1, j=1)
+    action("capture_dependency", name=6, source=4, target=5)
+    action("release", loan=5)
+    action("borrow", name=7, source=dict(kind="owner", name=1), layout=layout, access="read")
+    action("borrow", name=8, source=dict(kind="owner", name=2), layout=layout, access="write")
+    for _ in range(2):
+        action("require_dependency", name=6)
+        action("gemm", left=7, right=4, output=8, conjugate_left=False,
+               conjugate_right=False, mode="overwrite", policy="native_fast")
+    action("release", loan=8)
+    action("borrow", name=9, source=dict(kind="owner", name=2), layout=layout, access="read")
+    action("expect", loan=9, row=0, column=0, value=expected)
+    for loan in [9, 7, 4]:
+        action("release", loan=loan)
+    for owner in range(3):
+        action("drop", owner=owner)
+    action("forget_dependency", name=6)
+    return {"statements": steps}, [3, 3, 0, 3 * width, 4 * width, width]
+
+
 def run(command, *, cwd=ROOT, success=True, env=None):
     result = subprocess.run([str(x) for x in command], cwd=cwd, env=env, capture_output=True, text=True)
     if (result.returncode == 0) != success:
@@ -202,6 +240,21 @@ def check(prefix, lean_cc=None):
             counters = [int(x) for x in match[1].split(",")]
             assert counters[:6] == [3, 3, 0, peak, peak, 0], counters
             print(f"nominal {kind} product: checked objects/bases, exact bits and destination reuse passed")
+        for complex_scalar in [False, True]:
+            source, expected_counters = cached_packing_fixture(complex_scalar)
+            path.write_text(json.dumps(source))
+            run([emitter, path, work / "Main.lean", 256])
+            generated = (work / "Main.lean").read_text()
+            assert generated.count("pack3 arena") == 1
+            assert generated.count("VastitasGemmNative.gemm arena") == 2
+            assert not any(name in generated for name in ["captureDependency", "requireDependency", "forgetDependency"])
+            run(["lake", "build", "fixture"], cwd=work, env=native_env)
+            result = run([work / ".lake/build/bin/fixture"], cwd=work)
+            match = re.search(r"#\[([\d, ]+)\]", result.stdout)
+            assert match, result
+            counters = [int(x) for x in match[1].split(",")]
+            assert counters[:6] == expected_counters, counters
+            print(f"cached packing {'complex' if complex_scalar else 'real'}: allocations/frees/live/peak/written/copied={counters[:6]}")
         # Each raw action is rejected before code generation; no native output
         # file may be produced on an initialization/mode/policy/alias failure.
         first_gemm = next(i for i, s in enumerate(fixture["statements"]) if s["action"]["op"] == "gemm")

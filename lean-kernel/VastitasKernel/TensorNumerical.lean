@@ -76,6 +76,8 @@ instance (environment : Indexed.Environment) (numerical : Numerical.Values) (val
 
 inductive Operation (Name : Type := Symbol) where
   | view (name loan : Name) (axes : List Name) (grouping : Grouping)
+  | cachedPack (name source target : Name)
+  | cachedContract3 (cache left right output : Name) (policy : NumericalPolicy)
   | pack (source target : Name)
   | contract3 (left right output : Name) (policy : NumericalPolicy)
   deriving Repr, BEq, Inhabited
@@ -164,6 +166,38 @@ def checkPack (environment : Indexed.Environment) (numerical : Numerical.Values)
     | _, _ => reject "packing requires actual tensor views"
   else reject "invalid tensor value provenance"
 
+/-- Only an actual accepted packing followed by reconstructed dependency
+capture creates this nominal cache. Raw dependency capture proves no packing. -/
+structure Cache where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  before : State
+  values : Values
+  source : Symbol
+  target : Symbol
+  checked : CheckedPack environment numerical before values source target
+  accepted : checkPack environment numerical before values source target = .ok checked
+  name : Symbol
+  after : State
+  captured : checkAction checked.after (.captureDependency name checked.input.loan.name checked.output.loan.name) = .ok after
+  dependency : Dependency
+  selected : after.dependency? name = some ⟨name, some dependency⟩
+
+def captureCache {environment numerical before values source target}
+    (checked : CheckedPack environment numerical before values source target)
+    (accepted : checkPack environment numerical before values source target = .ok checked)
+    (name : Symbol) : Except Error Cache := do
+  match captured : checkAction checked.after (.captureDependency name checked.input.loan.name checked.output.loan.name) with
+  | .error error => .error error
+  | .ok after =>
+    match selected : after.dependency? name with
+    | some ⟨actual, some dependency⟩ =>
+      if equal : actual = name then
+        return ⟨environment, numerical, before, values, source, target, checked, accepted,
+          name, after, captured, dependency, equal ▸ selected⟩
+      else reject "packing dependency lost its fresh identity"
+    | _ => reject "packing did not capture its actual post-write dependency"
+
 /-- This is corresponding algebraic dual evaluation, never a dimension-only
 match or a conjugate-space/metric conversion. -/
 def DualPair (dual primal : Basis) : Prop :=
@@ -225,5 +259,44 @@ def checkContraction (environment : Indexed.Environment) (numerical : Numerical.
       else reject "contract3 requires corresponding dual axes left[1]/right[0] and exact ordered boundary [left[0],left[2],right[1]]"
     | _, _, _ => reject "contract3 requires actual tensor views"
   else reject "invalid tensor value provenance"
+
+structure CheckedCachedContraction (environment : Indexed.Environment) (numerical : Numerical.Values)
+    (resources : State) (values : Values) (cache : Cache)
+    (left right output : Symbol) (policy : NumericalPolicy) where
+  environmentFrom : cache.environment = environment
+  dependency : resources.dependency? cache.name = some ⟨cache.name, some cache.dependency⟩
+  required : checkAction resources (.requireDependency cache.name) = .ok resources
+  contraction : CheckedContraction environment numerical resources values left right output policy
+  accepted : checkContraction environment numerical resources values left right output policy = .ok contraction
+  axes : contraction.left.axes = cache.checked.output.axes
+  grouping : contraction.left.grouping = cache.checked.output.grouping
+  allocation : contraction.left.loan.allocation = cache.checked.output.loan.allocation
+  layout : contraction.left.loan.layout = cache.checked.output.loan.layout
+
+def checkCachedContraction (environment : Indexed.Environment) (numerical : Numerical.Values)
+    (resources : State) (values : Values) (cache : Cache)
+    (left right output : Symbol) (policy : NumericalPolicy) :
+    Except Error (CheckedCachedContraction environment numerical resources values cache left right output policy) := do
+  if environmentFrom : cache.environment = environment then
+    if dependency : resources.dependency? cache.name = some ⟨cache.name, some cache.dependency⟩ then
+      match required : checkAction resources (.requireDependency cache.name) with
+      | .error error => .error error
+      | .ok requiredState =>
+        if sameState : requiredState = resources then
+          match accepted : checkContraction environment numerical resources values left right output policy with
+          | .error error => .error error
+          | .ok contraction =>
+            if axes : contraction.left.axes = cache.checked.output.axes then
+              if grouping : contraction.left.grouping = cache.checked.output.grouping then
+                if allocation : contraction.left.loan.allocation = cache.checked.output.loan.allocation then
+                  if layout : contraction.left.loan.layout = cache.checked.output.loan.layout then
+                    return ⟨environmentFrom, dependency, sameState ▸ required, contraction, accepted, axes, grouping, allocation, layout⟩
+                  else reject "cached packed operand has a different physical layout"
+                else reject "cached packed operand has a different allocation"
+              else reject "cached packed operand has a different axis grouping"
+            else reject "cached packed operand has different nominal axes"
+        else reject "cached dependency changed resource state"
+    else reject "cached source or scratch was changed, dropped or invalidated at a branch join"
+  else reject "cache has a different declaration environment"
 
 end VastitasKernel.Storage.Tensor

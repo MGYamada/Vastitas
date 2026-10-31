@@ -153,7 +153,7 @@ def Function.resourceNames (function : Function) : List String :=
     | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _
     | .numerical (.ownedMap name ..) _ | .numerical (.ownedView name ..) _
     | .numerical (.borrowOwned name ..) _ => [name]
-    | .tensor (.view name ..) _ => [name]
+    | .tensor (.view name ..) _ | .tensor (.cachedPack name ..) _ => [name]
     | .call _ _ results _ => results
     | _ => []
 
@@ -373,6 +373,13 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
           let axes ← (axes.mapM name : Namespace.Result (List Symbol))
           let (frame, output) ← bindName index scope frame output .numerical span
           pure (frame, Tensor.Operation.view output loan axes grouping)
+        | .cachedPack output source target => do
+          let source ← name source
+          let target ← name target
+          let (frame, output) ← bindName index scope frame output .numerical span
+          pure (frame, .cachedPack output source target)
+        | .cachedContract3 cache left right output policy =>
+          pure (frame, .cachedContract3 (← name cache) (← name left) (← name right) (← name output) policy)
         | .pack source target => pure (frame, .pack (← name source) (← name target))
         | .contract3 left right output policy => pure (frame, .contract3 (← name left) (← name right) (← name output) policy)
       pure (frame, .tensor operation)
@@ -577,6 +584,8 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   transformOrigins : ∀ receipt ∈ checked.context.transforms.toList, receipt.environment = environment
   networkOrigins : ∀ receipt ∈ checked.context.networks.toList, receipt.environment = environment
   tensorViewOrigins : ∀ receipt ∈ checked.context.tensorViews.toList, receipt.environment = environment
+  cacheCaptureOrigins : ∀ receipt ∈ checked.context.cacheCaptures.toList, receipt.cache.environment = environment
+  cachedContractionOrigins : ∀ receipt ∈ checked.context.cachedContractions.toList, receipt.environment = environment
   tensorPackOrigins : ∀ receipt ∈ checked.context.tensorPacks.toList, receipt.environment = environment
   tensorContractionOrigins : ∀ receipt ∈ checked.context.tensorContractions.toList, receipt.environment = environment
   vectorOrigins : ∀ receipt ∈ checked.context.vectorConjugates.toList, receipt.environment = environment
@@ -637,33 +646,39 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                             receipt.environment = numericalEnvironment pureProgram then
                           if tensorViewOrigins : ∀ receipt ∈ executable.context.tensorViews.toList,
                               receipt.environment = numericalEnvironment pureProgram then
-                            if tensorPackOrigins : ∀ receipt ∈ executable.context.tensorPacks.toList,
-                                receipt.environment = numericalEnvironment pureProgram then
-                              if tensorContractionOrigins : ∀ receipt ∈ executable.context.tensorContractions.toList,
+                            if cacheCaptureOrigins : ∀ receipt ∈ executable.context.cacheCaptures.toList,
+                                receipt.cache.environment = numericalEnvironment pureProgram then
+                              if cachedContractionOrigins : ∀ receipt ∈ executable.context.cachedContractions.toList,
                                   receipt.environment = numericalEnvironment pureProgram then
-                                if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
+                                if tensorPackOrigins : ∀ receipt ∈ executable.context.tensorPacks.toList,
                                     receipt.environment = numericalEnvironment pureProgram then
-                                  if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                                  if tensorContractionOrigins : ∀ receipt ∈ executable.context.tensorContractions.toList,
                                       receipt.environment = numericalEnvironment pureProgram then
-                                    if packageOrigins : ∀ receipt ∈ executable.context.packages.toList,
+                                    if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
                                         receipt.environment = numericalEnvironment pureProgram then
-                                      if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
+                                      if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
                                           receipt.environment = numericalEnvironment pureProgram then
-                                        if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                        if packageOrigins : ∀ receipt ∈ executable.context.packages.toList,
                                             receipt.environment = numericalEnvironment pureProgram then
-                                          .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                                            library, libraryAccepted, fun actual same => by
-                                              have : actual = id := Option.some.inj (same.symm.trans entry)
-                                              subst actual
-                                              exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                                networkOrigins, tensorViewOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, treeOrigins⟩⟩
-                                        else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
-                                      else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
-                                    else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
-                                  else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
-                                else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
-                              else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"
-                            else Namespace.problem {} "E_OWNER" "tensor packing lost its declaration environment"
+                                          if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
+                                              receipt.environment = numericalEnvironment pureProgram then
+                                            if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                                receipt.environment = numericalEnvironment pureProgram then
+                                              .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                                library, libraryAccepted, fun actual same => by
+                                                  have : actual = id := Option.some.inj (same.symm.trans entry)
+                                                  subst actual
+                                                  exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                                    networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, treeOrigins⟩⟩
+                                            else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
+                                          else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
+                                        else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
+                                      else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
+                                    else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                                  else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"
+                                else Namespace.problem {} "E_OWNER" "tensor packing lost its declaration environment"
+                              else Namespace.problem {} "E_OWNER" "cached contraction lost its declaration environment"
+                            else Namespace.problem {} "E_OWNER" "packing cache lost its declaration environment"
                           else Namespace.problem {} "E_OWNER" "tensor views lost their declaration environment"
                         else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
                       else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"

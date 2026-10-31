@@ -78,6 +78,13 @@ cells, padding holes and exhausted coverage budgets remain unreadable.
 | `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
 | `if true { ... } else { ... }` | Check both resource branches and join their states; current conditions are literal booleans. |
 
+Public `gemm` is a numerical statement over typed map views. Lean resolves its
+nominal endpoints/bases before composing the actual resource checks and exact
+native lowering. Protocol 8 rejects a raw resource `action` containing `gemm`;
+the internal action cannot bypass nominal checking. See
+[numerical source and wire compatibility](numerical-values.md#source-and-wire-compatibility)
+and [adapter responsibilities](numerical-adapter.md#responsibilities-along-the-implemented-path).
+
 `layout(offset, rows, columns, leading, transposed)` uses a byte offset and an
 element leading dimension. Bounds, LP64 dimensions, capacity, alignment and
 initialization are checked independently in Lean. Native preflight checks physical
@@ -86,7 +93,9 @@ handles and arithmetic again. See [the layout contract](storage-ir.md).
 `f64_bits` and `complex_bits(real, imaginary)` are explicit unsigned 64-bit IEEE
 payload constructors. The example payload is binary64 `3.0`. They do not introduce
 floating-point literals or scalar arithmetic into the existing Nat/Int dispatcher.
-Scalar and layout arguments in this profile are static metadata.
+Allocation sizes and layout arguments are static metadata. An explicit
+`coefficient(loan)` operand instead reads an initialized scalar at GEMM execution;
+it does not introduce general scalar expression flow between resource statements.
 
 ## Pure values and executable boundaries
 
@@ -148,7 +157,8 @@ Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
 general generative numerical result packages and general metric realization,
-general owned-result branch joins, scratch/dependency handling, finite networks and
+general owned-result branch joins, scratch/dependency handling, higher-rank or
+multi-edge networks, explicit packing and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
 broader lifetime interfaces retain their separate scope. Protocol 8's static
 profile and native compilation alone do not establish **Fast like C**.
@@ -158,6 +168,12 @@ corresponding bases, canonical involutions, declared coordinate metrics and
 read-only dual/conjugate/orthonormal-adjoint operations. Dependent parameter
 contracts and actual reborrows preserve their evidence and conjugation through
 nested calls. The public checker also audits the exact transform receipt origins.
+
+[Vector evaluation](vector-evaluation.md) adds bilinear dual evaluation and explicit
+orthonormal Hermitian pairing with scoped vector loans. [Finite two-map networks](finite-networks.md)
+check occurrence identity, exact port usage, the bilinear edge and ordered boundaries.
+Both features reach the same resource/native path and retain their public origin
+audits through both branch arms; their broader metric and network contracts remain open.
 
 [Owned-map packages](owned-map-packages.md) now add the bounded
 `OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and

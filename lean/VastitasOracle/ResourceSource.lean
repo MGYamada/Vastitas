@@ -133,4 +133,14 @@ theorem public_numerical_result_origin {json : Lean.Json}
   ⟨(input.checked.execution entry found).outputOrigins receipt member,
     receipt.accepted, receipt.selected, receipt.mapping⟩
 
+theorem public_numerical_transform_origin {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (entry : Nat) (found : input.input.entry = some entry)
+    (receipt : Functions.TransformReceipt)
+    (member : receipt ∈ (input.checked.execution entry found).checked.context.transforms.toList) :
+    receipt.environment = numericalEnvironment input.checked.pureProgram ∧
+    Storage.Numerical.checkTransform receipt.environment receipt.resources receipt.values receipt.name receipt.parent
+      receipt.child receipt.operation = .ok receipt.checked ∧ receipt.checked.after = receipt.after :=
+  ⟨(input.checked.execution entry found).transformOrigins receipt member, receipt.accepted, receipt.transitioned⟩
+
 end VastitasOracle.ResourceSource

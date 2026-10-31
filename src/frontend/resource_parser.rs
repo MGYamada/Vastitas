@@ -2,7 +2,7 @@ use super::*;
 use crate::storage::{
     Access, Coefficient, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
     functions::OwnedType,
-    source::{Action, Numerical, NumericalResult, Parameter, ResultType},
+    source::{Action, Gram, Numerical, NumericalResult, Parameter, ResultType, Transform},
 };
 
 impl Parser {
@@ -20,6 +20,23 @@ impl Parser {
         Err(diagnostic(
             "E_PARSE",
             "expected a nonnegative resource integer",
+            token.span,
+        ))
+    }
+
+    fn gram_integer(&mut self) -> Result<String, Diagnostic> {
+        let negative = self.consume("-");
+        let token = self.advance();
+        if let TokenKind::Number(number) = token.kind {
+            return Ok(if negative {
+                format!("-{number}")
+            } else {
+                number
+            });
+        }
+        Err(diagnostic(
+            "E_PARSE",
+            "Gram entries require exact integer literals",
             token.span,
         ))
     }
@@ -130,6 +147,62 @@ impl Parser {
                 span: start.through(self.previous().span),
             });
         }
+        if self.peek().is("DualSpace") || self.peek().is("Involution") {
+            let kind = self.advance();
+            self.expect("<")?;
+            let parent = self.binding_name()?.0;
+            self.expect(">")?;
+            let span = start.through(self.previous().span);
+            return Ok(if kind.is("DualSpace") {
+                Parameter::DualSpace { name, parent, span }
+            } else {
+                Parameter::Involution {
+                    name,
+                    space: parent,
+                    span,
+                }
+            });
+        }
+        if [
+            "ConjugateSpace",
+            "DerivedBasis",
+            "Metric",
+            "OrthonormalMetric",
+        ]
+        .iter()
+        .any(|kind| self.peek().is(kind))
+        {
+            let kind = self.advance();
+            self.expect("<")?;
+            let first = self.binding_name()?.0;
+            self.expect(",")?;
+            let second = self.binding_name()?.0;
+            self.expect(">")?;
+            let span = start.through(self.previous().span);
+            return Ok(if kind.is("ConjugateSpace") {
+                Parameter::ConjugateSpace {
+                    name,
+                    parent: first,
+                    involution: second,
+                    span,
+                }
+            } else if kind.is("DerivedBasis") {
+                Parameter::DerivedBasis {
+                    name,
+                    parent: first,
+                    space: second,
+                    span,
+                }
+            } else {
+                Parameter::Metric {
+                    name,
+                    basis: first,
+                    involution: second,
+                    orthonormal: kind.is("OrthonormalMetric"),
+                    span,
+                }
+            });
+        }
         if self.consume("OwnedMap") {
             self.expect("<")?;
             let source = self.name()?.0;
@@ -177,7 +250,7 @@ impl Parser {
         } else {
             return Err(diagnostic(
                 "E_TYPE",
-                "resource parameters require Owned, Read/Write/ReadWrite, Space, Basis, OwnedMap or ReadMap/WriteMap/ReadWriteMap",
+                "resource parameters require storage, numerical space/basis/map, involution or metric contracts",
                 self.peek().span,
             ));
         };
@@ -373,6 +446,23 @@ impl Parser {
         if self.consume("space") {
             let name = self.binding_name()?.0;
             self.expect("=")?;
+            if self.peek().is("dual") || self.peek().is("conjugate") {
+                let kind = self.advance();
+                self.expect("(")?;
+                let parent = self.name()?.0;
+                let operation = if kind.is("dual") {
+                    Numerical::DualSpace { name, parent }
+                } else {
+                    self.expect(",")?;
+                    Numerical::ConjugateSpace {
+                        name,
+                        parent,
+                        involution: self.name()?.0,
+                    }
+                };
+                self.expect(")")?;
+                return Ok(operation);
+            }
             self.expect("linear")?;
             self.expect("(")?;
             let implementation = self.type_path()?;
@@ -388,15 +478,112 @@ impl Parser {
         if self.consume("basis") {
             let name = self.binding_name()?.0;
             self.expect("=")?;
+            if self.consume("derived") {
+                self.expect("(")?;
+                let parent = self.name()?.0;
+                self.expect(",")?;
+                let space = self.name()?.0;
+                self.expect(")")?;
+                return Ok(Numerical::DerivedBasis {
+                    name,
+                    parent,
+                    space,
+                });
+            }
             self.expect("basis")?;
             self.expect("(")?;
             let space = self.name()?.0;
             self.expect(")")?;
             return Ok(Numerical::Basis { name, space });
         }
+        if self.consume("involution") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("canonical")?;
+            self.expect("(")?;
+            let space = self.name()?.0;
+            self.expect(")")?;
+            return Ok(Numerical::Involution { name, space });
+        }
+        if self.consume("metric") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            let kind = self.advance();
+            if !["orthonormal", "scaled_identity", "diagonal"]
+                .iter()
+                .any(|s| kind.is(s))
+            {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "metric requires orthonormal, scaled_identity or diagonal data",
+                    kind.span,
+                ));
+            }
+            self.expect("(")?;
+            let basis = self.name()?.0;
+            self.expect(",")?;
+            let involution = self.name()?.0;
+            let gram = if kind.is("orthonormal") {
+                Gram::Identity
+            } else {
+                self.expect(",")?;
+                if kind.is("scaled_identity") {
+                    Gram::ScaledIdentity {
+                        entry: self.gram_integer()?,
+                    }
+                } else {
+                    Gram::Diagonal {
+                        entries: self.indexed_list("[", "]", Self::gram_integer)?,
+                    }
+                }
+            };
+            self.expect(")")?;
+            return Ok(Numerical::Metric {
+                name,
+                basis,
+                involution,
+                gram,
+            });
+        }
         if self.consume("map") {
             let name = self.binding_name()?.0;
             self.expect("=")?;
+            if ["dual", "conjugate", "adjoint"]
+                .iter()
+                .any(|s| self.peek().is(s))
+            {
+                let kind = self.advance();
+                self.expect("(")?;
+                let parent = self.name()?.0;
+                self.expect(",")?;
+                let first = self.name()?.0;
+                self.expect(",")?;
+                let second = self.name()?.0;
+                let operation = if kind.is("dual") {
+                    Transform::Dual {
+                        source: first,
+                        target: second,
+                    }
+                } else if kind.is("adjoint") {
+                    Transform::Adjoint {
+                        source_metric: first,
+                        target_metric: second,
+                    }
+                } else {
+                    self.expect(",")?;
+                    Transform::Conjugate {
+                        source: first,
+                        target: second,
+                        involution: self.name()?.0,
+                    }
+                };
+                self.expect(")")?;
+                return Ok(Numerical::Transform {
+                    name,
+                    parent,
+                    operation,
+                });
+            }
             if self.consume("owned") {
                 self.expect("(")?;
                 let owner = self.name()?.0;
@@ -537,7 +724,7 @@ impl Parser {
                 }
             } else if self.peek().is("borrow") {
                 self.resource_borrow()?
-            } else if ["space", "basis", "map", "gemm"]
+            } else if ["space", "basis", "map", "gemm", "involution", "metric"]
                 .iter()
                 .any(|word| self.peek().is(word))
             {

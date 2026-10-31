@@ -23,13 +23,13 @@ theorem basis_space {env : Environment} {values : Values} (valid : Valid env val
     {name : Symbol} {basis : Basis} (found : value? values name = some (.basis basis)) :
     basis.space.Valid env := by
   have basisValid := selected_valid valid found
-  exact (selected_valid valid basisValid.2).2
+  exact (selected_valid valid basisValid.2.1).2.1
 
 theorem map_spaces {env : Environment} {values : Values} (valid : Valid env values)
     {name : Symbol} {view : MapView} (found : value? values name = some (.map view)) :
     view.source.space.Valid env ∧ view.target.space.Valid env ∧ view.Compatible := by
   have mapValid := selected_valid valid found
-  exact ⟨basis_space valid mapValid.2.1, basis_space valid mapValid.2.2, mapValid.1⟩
+  exact ⟨basis_space valid mapValid.2.1, basis_space valid mapValid.2.2.1, mapValid.1⟩
 
 theorem accepted_profiles {env resources values left right output mode policy alpha beta}
     (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
@@ -85,9 +85,86 @@ theorem actual_emission (receipt : Functions.NumericalReceipt) :
     checkAction receipt.resources (.gemm (receipt.checked.product.request receipt.mode receipt.policy)) = .ok receipt.after :=
   ⟨receipt.accepted, receipt.emitted, receipt.transitioned⟩
 
-theorem bilinear_request (product : Product) (mode : GemmMode) (policy : NumericalPolicy) :
+theorem bilinear_request (product : Product) (mode : GemmMode) (policy : NumericalPolicy)
+    (left : product.left.conjugate = false) (right : product.right.conjugate = false) :
     (product.request mode policy).conjugateLeft = false ∧
-    (product.request mode policy).conjugateRight = false := ⟨rfl, rfl⟩
+    (product.request mode policy).conjugateRight = false := ⟨left, right⟩
+
+/-- Composition uses only the explicitly validated operand interpretations;
+it never adds conjugation or changes the selected coefficient operands. -/
+theorem explicit_conjugation (product : Product) (mode : GemmMode) (policy : NumericalPolicy) :
+    (product.request mode policy).conjugateLeft = product.left.conjugate ∧
+    (product.request mode policy).conjugateRight = product.right.conjugate := ⟨rfl, rfl⟩
+
+/-- These are certificates of the actual operation and child loan, including
+the full origin audit. They do not assert a law for arbitrary float payloads. -/
+theorem actual_transform (receipt : Functions.TransformReceipt) :
+    checkTransform receipt.environment receipt.resources receipt.values receipt.name receipt.parent
+      receipt.child receipt.operation = .ok receipt.checked ∧
+    checkAction receipt.resources (.borrow receipt.child (.loan receipt.checked.original.loan.name)
+      (if receipt.operation.transpose then receipt.checked.original.loan.layout.transpose
+       else receipt.checked.original.loan.layout) .read) = .ok receipt.after ∧
+    receipt.priorCode ++ [.action (.borrow receipt.child (.loan receipt.checked.original.loan.name)
+      (if receipt.operation.transpose then receipt.checked.original.loan.layout.transpose
+       else receipt.checked.original.loan.layout) .read)] = receipt.code ∧
+    mapOriginValid receipt.checked.output receipt.name receipt.checked.result = true :=
+  ⟨receipt.accepted, receipt.transitioned ▸ receipt.checked.borrowed, receipt.emitted,
+    (selected_valid receipt.checked.outputValid receipt.checked.fromOutput).2.2.2⟩
+
+theorem transform_storage {env resources values name parent child operation}
+    (checked : CheckedTransform env resources values name parent child operation) :
+    checked.result.loan.allocation = checked.original.loan.allocation ∧
+    checked.result.loan.parent = some checked.original.loan.name ∧ checked.result.loan.access = .read ∧
+    checked.result.loan.layout = (if operation.transpose then checked.original.loan.layout.transpose
+      else checked.original.loan.layout) :=
+  ⟨checked.coordinates.2.1, checked.coordinates.2.2.1, checked.coordinates.2.2.2, checked.coordinates.1⟩
+
+theorem dual_flags {env resources values name parent child source target}
+    (checked : CheckedTransform env resources values name parent child (.dual source target)) :
+    checked.result.conjugate = checked.original.conjugate ∧
+    checked.result.loan.layout = checked.original.loan.layout.transpose :=
+  ⟨checked.resultFlags, checked.coordinates.1⟩
+
+theorem conjugate_flags {env resources values name parent child source target selected}
+    (checked : CheckedTransform env resources values name parent child (.conjugate source target selected)) :
+    checked.result.conjugate = !checked.original.conjugate ∧
+    checked.result.loan.layout = checked.original.loan.layout :=
+  ⟨checked.resultFlags, checked.coordinates.1⟩
+
+theorem adjoint_flags {env resources values name parent child source target}
+    (checked : CheckedTransform env resources values name parent child (.adjoint source target)) :
+    checked.result.conjugate = !checked.original.conjugate ∧
+    checked.result.loan.layout = checked.original.loan.layout.transpose :=
+  ⟨checked.resultFlags, checked.coordinates.1⟩
+
+/-- Direct adjunction has actual declared forms for the exact used bases and
+selected involution. This does not infer orthonormality from numeric tolerance. -/
+theorem adjoint_forms {env resources values name parent child source target}
+    (checked : CheckedTransform env resources values name parent child (.adjoint source target)) :
+    ∃ sourceForm targetForm,
+      value? values source = some (.metric sourceForm) ∧ value? values target = some (.metric targetForm) ∧
+      sourceForm.basis = checked.original.source ∧ targetForm.basis = checked.original.target ∧
+      sourceForm.involution = targetForm.involution ∧ sourceForm.orthonormal = true ∧ targetForm.orthonormal = true := by
+  have evidence := checked.metricEvidence
+  simp only [Transform.metricContract, adjointContract] at evidence
+  cases sourceFound : value? values source with
+  | none => simp [sourceFound] at evidence
+  | some sourceValue =>
+    cases sourceValue <;> try simp [sourceFound] at evidence
+    rename_i sourceForm
+    cases targetFound : value? values target with
+    | none => simp [targetFound] at evidence
+    | some targetValue =>
+      cases targetValue <;> try simp [targetFound] at evidence
+      rename_i targetForm
+      exact ⟨sourceForm, targetForm, rfl, rfl, evidence⟩
+
+theorem declared_metric {env : Environment} {values : Values} (valid : Valid env values)
+    {name : Symbol} {form : Metric} (found : value? values name = some (.metric form)) :
+    value? values form.basis.brand = some (.basis form.basis) ∧
+    value? values form.selected = some (.involution form.involution) ∧
+    form.involution = Involution.ofSpace form.basis.space ∧ form.nondegenerate = true :=
+  selected_valid valid found
 
 theorem coefficient_emission {env resources values left right output mode policy alpha beta}
     (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
@@ -121,6 +198,7 @@ theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : M
     (kind : receipt.checked.value = .map view) :
     ∃ child : MapView, value? receipt.values receipt.bound = some (.map child) ∧
       child.source = view.source ∧ child.target = view.target ∧
+      child.conjugate = view.conjugate ∧ child.origin = .reborrow receipt.actual ∧
       receipt.after.loan? child.loan.name = some child.loan ∧
       checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) = .ok receipt.after := by
   have binding := receipt.binding
@@ -132,10 +210,12 @@ theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : M
     | space _ => simp [found] at binding
     | basis _ => simp [found] at binding
     | ownedMap _ => simp [found] at binding
+    | involution _ => simp [found] at binding
+    | metric _ => simp [found] at binding
     | map child =>
       simp only [found] at binding
-      refine ⟨child, rfl, binding.1, binding.2.1, binding.2.2.1, ?_⟩
-      have accepted := binding.2.2.2
+      refine ⟨child, rfl, binding.1, binding.2.1, binding.2.2.1, binding.2.2.2.1, binding.2.2.2.2.1, ?_⟩
+      have accepted := binding.2.2.2.2.2
       cases step : checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) with
       | error diagnostic => simp [step, Except.toOption] at accepted
       | ok state => simpa [step, Except.toOption] using accepted

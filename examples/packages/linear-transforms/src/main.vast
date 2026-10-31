@@ -1,0 +1,103 @@
+mod profiles;
+
+// Three actual allocations; all mathematical transforms and nested calls are
+// views/reborrows. The padded source and destination layouts are retained.
+resource fn main() -> Int {
+    space v = linear(profiles::ComplexSmooth, 1);
+    space w = linear(profiles::ComplexSmooth, 1);
+    basis bv = basis(v);
+    basis bw = basis(w);
+    involution sigma = canonical(v);
+    space vd = dual(v);
+    space wd = dual(w);
+    basis bvd = derived(bv, vd);
+    basis bwd = derived(bw, wd);
+    space vc = conjugate(v, sigma);
+    space wc = conjugate(w, sigma);
+    basis bvc = derived(bv, vc);
+    basis bwc = derived(bw, wc);
+    metric hv = orthonormal(bv, sigma);
+    metric hw = diagonal(bw, sigma, [1]);
+
+    allocate a: Complex<F64>[4];
+    allocate identity: Complex<F64>[4];
+    allocate out: Complex<F64>[4];
+    borrow wa = write(a, layout(16, 1, 1, 3, false));
+    fill(wa, complex_bits(0, 4607182418800017408));
+    release(wa);
+    borrow wi = write(identity, layout(16, 1, 1, 3, false));
+    fill(wi, complex_bits(4607182418800017408, 0));
+    release(wi);
+    borrow ra = read(a, layout(16, 1, 1, 3, false));
+    borrow ri = read(identity, layout(16, 1, 1, 3, false));
+    map original = view(ra, bv, bw);
+
+    map id_dual = view(ri, bwd, bwd);
+    borrow od = write(out, layout(16, 1, 1, 3, false));
+    map dest_dual = view(od, bwd, bvd);
+    call dual_into(v, w, bv, bw, vd, wd, bvd, bwd, original, id_dual, dest_dual) -> ();
+    release(od);
+    borrow rd = read(out, layout(16, 1, 1, 3, false));
+    expect(rd, 0, 0, complex_bits(0, 4607182418800017408));
+    release(rd);
+
+    map id_conj = view(ri, bvc, bvc);
+    borrow oc = write(out, layout(16, 1, 1, 3, false));
+    map dest_conj = view(oc, bvc, bwc);
+    call conjugate_into(v, w, bv, bw, sigma, vc, wc, bvc, bwc, original, id_conj, dest_conj) -> ();
+    release(oc);
+    borrow rc = read(out, layout(16, 1, 1, 3, false));
+    expect(rc, 0, 0, complex_bits(0, 13830554455654793216));
+    release(rc);
+
+    map id_adjoint = view(ri, bw, bw);
+    borrow oh = write(out, layout(16, 1, 1, 3, false));
+    map dest_adjoint = view(oh, bw, bv);
+    call adjoint_into(v, w, bv, bw, sigma, hv, hw, original, id_adjoint, dest_adjoint) -> ();
+    release(oh);
+    borrow rh = read(out, layout(16, 1, 1, 3, false));
+    expect(rh, 0, 0, complex_bits(0, 13830554455654793216));
+    release(rh);
+    release(ra);
+    release(ri);
+    drop(a);
+    drop(identity);
+    drop(out);
+    value { 42 }
+}
+
+resource fn dual_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::ComplexSmooth, 1>,
+    bv: Basis<v>, bw: Basis<w>, vd: DualSpace<v>, wd: DualSpace<w>,
+    bvd: DerivedBasis<bv, vd>, bwd: DerivedBasis<bw, wd>,
+    input: ReadMap<bv, bw>, identity: ReadMap<bwd, bwd>, output: WriteMap<bwd, bvd> initializes) -> Unit {
+    map transformed = dual(input, bwd, bvd);
+    call multiply(wd, vd, bwd, bvd, transformed, identity, output) -> ();
+    release(transformed);
+    value { () }
+}
+
+resource fn conjugate_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::ComplexSmooth, 1>,
+    bv: Basis<v>, bw: Basis<w>, sigma: Involution<v>, vc: ConjugateSpace<v, sigma>, wc: ConjugateSpace<w, sigma>,
+    bvc: DerivedBasis<bv, vc>, bwc: DerivedBasis<bw, wc>,
+    input: ReadMap<bv, bw>, identity: ReadMap<bvc, bvc>, output: WriteMap<bvc, bwc> initializes) -> Unit {
+    map transformed = conjugate(input, bvc, bwc, sigma);
+    call multiply(vc, wc, bvc, bwc, transformed, identity, output) -> ();
+    release(transformed);
+    value { () }
+}
+
+resource fn adjoint_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::ComplexSmooth, 1>,
+    bv: Basis<v>, bw: Basis<w>, sigma: Involution<v>, hv: OrthonormalMetric<bv, sigma>, hw: OrthonormalMetric<bw, sigma>,
+    input: ReadMap<bv, bw>, identity: ReadMap<bw, bw>, output: WriteMap<bw, bv> initializes) -> Unit {
+    map transformed = adjoint(input, hv, hw);
+    call multiply(w, v, bw, bv, transformed, identity, output) -> ();
+    release(transformed);
+    value { () }
+}
+
+resource fn multiply(u: Space<profiles::ComplexSmooth, 1>, z: Space<profiles::ComplexSmooth, 1>,
+    bu: Basis<u>, bz: Basis<z>, left: ReadMap<bu, bz>, right: ReadMap<bu, bu>,
+    output: WriteMap<bu, bz> initializes) -> Unit {
+    gemm(left, right, output, overwrite, NativeFast);
+    value { () }
+}

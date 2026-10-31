@@ -23,10 +23,24 @@ inductive Parameter where
   | basis (name space : Symbol)
   | map (name source target : Symbol) (access : Access) (initializes : Bool)
   | ownedMap (name source target : Symbol)
+  | involution (name space : Symbol)
+  | dualSpace (name parent : Symbol)
+  | conjugateSpace (name parent involution : Symbol)
+  | derivedBasis (name parent space : Symbol)
+  | metric (name basis involution : Symbol) (orthonormal : Bool)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Parameter.name : Parameter → Symbol
   | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
+  | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
+
+def Parameter.isSpace : Parameter → Bool
+  | .space .. | .dualSpace .. | .conjugateSpace .. => true
+  | _ => false
+
+def Parameter.isBasis : Parameter → Bool
+  | .basis .. | .derivedBasis .. => true
+  | _ => false
 
 inductive ResultType (Name : Type := Symbol) where
   | owned (type : OwnedType)
@@ -63,7 +77,8 @@ def Parameter.valid : Parameter → Bool
   | .borrowed _ scalar rows columns _ _ =>
     checkLayout scalar (rows * columns * scalar.width) ⟨0, rows, columns, max 1 rows, false⟩
   | .space _ _ dimension => dimension ≤ byteLimit
-  | .basis .. | .map .. | .ownedMap .. => true
+  | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
+      .conjugateSpace .. | .derivedBasis .. | .metric .. => true
 
 def ResultType.valid : ResultType Name → Bool
   | .owned type => type.valid
@@ -74,10 +89,15 @@ The actual caller, not a probe's fresh identities, supplies their equality. -/
 def parameterDependencies (parameters : List Parameter) : Bool := Id.run do
   let mut prior : List Parameter := []
   for parameter in parameters do
+    let space (id : Symbol) := prior.any fun p => p.name == id && p.isSpace
+    let basis (id : Symbol) := prior.any fun p => p.name == id && p.isBasis
+    let involution (id : Symbol) := prior.any fun p => match p with | .involution name _ => name == id | _ => false
     let valid := match parameter with
-      | .basis _ space => prior.any fun p => match p with | .space name .. => name == space | _ => false
-      | .map _ source target .. | .ownedMap _ source target => [source, target].all fun basis =>
-        prior.any fun p => match p with | .basis name .. => name == basis | _ => false
+      | .basis _ parent | .dualSpace _ parent | .involution _ parent => space parent
+      | .conjugateSpace _ parent selected => space parent && involution selected
+      | .derivedBasis _ parent target => basis parent && space target
+      | .metric _ parent selected _ => basis parent && involution selected
+      | .map _ source target .. | .ownedMap _ source target => basis source && basis target
       | _ => true
     if !valid then return false
     prior := parameter :: prior
@@ -87,7 +107,7 @@ def resultDependencies (parameters : List Parameter) (results : List (Symbol × 
   results.all fun (_, type) => match type with
   | .owned _ => true
   | .ownedMap source target => [source, target].all fun basis =>
-      parameters.any fun p => match p with | .basis name .. => name == basis | _ => false
+      parameters.any fun p => p.name == basis && p.isBasis
 
 /-- Bound source traversal before expanding calls, including unused branches. -/
 def remaining : Nat → Nat → List Statement → Option Nat
@@ -185,15 +205,34 @@ structure NumericalReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (checked.product.request mode policy))] = code
 
+structure TransformReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  name : Symbol
+  parent : Symbol
+  child : Symbol
+  operation : Numerical.Transform
+  checked : Numerical.CheckedTransform environment resources values name parent child operation
+  accepted : Numerical.checkTransform environment resources values name parent child operation = .ok checked
+  after : State
+  transitioned : checked.after = after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.borrow child (.loan checked.original.loan.name)
+    (if operation.transpose then checked.original.loan.layout.transpose else checked.original.loan.layout) .read)] = code
+
 /-- Alias immutable identities; a map instead receives a real child loan with
 exactly the original endpoints. This is audited on the actual binding state. -/
 def NumericalBinding (value : Numerical.Value) (actual bound : Symbol) (access : Access)
     (before after : State) (values : Numerical.Values) : Prop :=
   match value with
-  | .space .. | .basis .. => bound = actual ∧ Numerical.value? values bound = some value ∧ after = before
+  | .space .. | .basis .. | .involution .. | .metric .. =>
+      bound = actual ∧ Numerical.value? values bound = some value ∧ after = before
   | .map view => match Numerical.value? values bound with
     | some (.map child) =>
       child.source = view.source ∧ child.target = view.target ∧
+      child.conjugate = view.conjugate ∧ child.origin = .reborrow actual ∧
       after.loan? child.loan.name = some child.loan ∧
       (checkAction before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout access)).toOption = some after
     | _ => False
@@ -207,6 +246,8 @@ instance (value : Numerical.Value) (actual bound : Symbol) (access : Access)
   cases value with
   | space _ => unfold NumericalBinding; infer_instance
   | basis _ => unfold NumericalBinding; infer_instance
+  | involution _ => unfold NumericalBinding; infer_instance
+  | metric _ => unfold NumericalBinding; infer_instance
   | map view =>
     unfold NumericalBinding
     cases Numerical.value? values bound with
@@ -270,6 +311,7 @@ structure Context where
   inputs : Array NumericalInputReceipt := #[]
   outputs : Array NumericalResultReceipt := #[]
   transfers : Array OwnedMapTransfer := #[]
+  transforms : Array TransformReceipt := #[]
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
@@ -349,7 +391,13 @@ def operation (frame : Frame) : Action → M Frame
     step (.borrow name source layout access)
     return frame
   | .drop name => do step (.drop (← resolve frame name)); return frame
-  | .release name => do step (.release (← resolve frame name)); return frame
+  | .release name => do
+    let name ← resolve frame name
+    let loan := match Numerical.value? (← get).numerical name with
+      | some (.map view) => view.loan.name
+      | _ => name
+    step (.release loan)
+    return frame
   | .transpose name => do step (.transpose (← resolve frame name)); return frame
   | .fill name value => do step (.fill (← resolve frame name) value); return frame
   | .store name row column value => do step (.store (← resolve frame name) row column value); return frame
@@ -369,6 +417,30 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
+  | .transform name parent operation =>
+    let parent ← resolve frame parent
+    let operation ← match operation with
+      | .dual source target => pure (Numerical.Transform.dual (← resolve frame source) (← resolve frame target))
+      | .conjugate source target selected => pure (.conjugate (← resolve frame source) (← resolve frame target) (← resolve frame selected))
+      | .adjoint source target => pure (.adjoint (← resolve frame source) (← resolve frame target))
+    let (frame, name) ← bindName frame name
+    let child ← fresh
+    match accepted : Numerical.checkTransform context.environment context.resources context.numerical name parent child operation with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let action := Action.borrow child (.loan checked.original.loan.name)
+        (if operation.transpose then checked.original.loan.layout.transpose else checked.original.loan.layout) .read
+      step action
+      let after ← get
+      if transitioned : checked.after = after.resources then
+        if emitted : context.code.toList ++ [.action action] = after.code.toList then
+          let receipt : TransformReceipt := ⟨context.environment, context.resources, context.numerical,
+            name, parent, child, operation, checked, accepted, after.resources, transitioned,
+            context.code.toList, after.code.toList, emitted⟩
+          set {after with numerical := checked.output, transforms := after.transforms.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_TYPE", "transformed map differs from its emitted borrow"⟩
+      else throw ⟨"E_NUMERICAL_TYPE", "transformed map differs from its actual resource transition"⟩
   | .borrowOwned name owner access =>
     let owner ← resolve frame owner
     let some (.ownedMap view) := Numerical.value? context.numerical owner
@@ -422,6 +494,29 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let space ← resolve frame space
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.basis name space)
+      | .involution name space => do
+        let space ← resolve frame space
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.involution name space)
+      | .dualSpace name parent => do
+        let parent ← resolve frame parent
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.dualSpace name parent)
+      | .conjugateSpace name parent selected => do
+        let parent ← resolve frame parent
+        let selected ← resolve frame selected
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.conjugateSpace name parent selected)
+      | .derivedBasis name parent space => do
+        let parent ← resolve frame parent
+        let space ← resolve frame space
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.derivedBasis name parent space)
+      | .metric name basis selected gram => do
+        let basis ← resolve frame basis
+        let selected ← resolve frame selected
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.metric name basis selected gram)
       | .map name loan source target => do
         let loan ← resolve frame loan
         let source ← resolve frame source
@@ -433,7 +528,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let owner ← resolve frame owner
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
-      | .gemm .. | .ownedMap .. | .borrowOwned .. => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
+      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
     return frame
@@ -468,10 +563,16 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         throw ⟨"E_RESOURCE_TYPE", "borrowed argument scalar or logical shape differs"⟩
       step (.borrow global (.loan actual) loan.layout access)
       borrowed := borrowed ++ [⟨global, loan.allocation, loan.layout, initializes⟩]
-    | .space .. | .basis .. | .map .. | .ownedMap .. =>
+    | .space .. | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
+        .conjugateSpace .. | .derivedBasis .. | .metric .. =>
       let (input, access) ← match parameter with
         | .space _ implementation dimension => pure (Numerical.Input.space implementation dimension, Access.read)
         | .basis _ space => pure (.basis (← resolve dependencies space), .read)
+        | .involution _ space => pure (.involution (← resolve dependencies space), .read)
+        | .dualSpace _ parent => pure (.dualSpace (← resolve dependencies parent), .read)
+        | .conjugateSpace _ parent selected => pure (.conjugateSpace (← resolve dependencies parent) (← resolve dependencies selected), .read)
+        | .derivedBasis _ parent space => pure (.derivedBasis (← resolve dependencies parent) (← resolve dependencies space), .read)
+        | .metric _ basis selected orthonormal => pure (.metric (← resolve dependencies basis) (← resolve dependencies selected) orthonormal, .read)
         | .map _ source target access _ => pure (.map (← resolve dependencies source) (← resolve dependencies target), access)
         | .ownedMap _ source target => pure (.ownedMap (← resolve dependencies source) (← resolve dependencies target), .readWrite)
         | _ => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical parameter"⟩
@@ -479,15 +580,17 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
       | .error diagnostic => throw diagnostic
       | .ok checked =>
         let bound ← match checked.value with
-          | .space .. | .basis .. =>
+          | .space .. | .basis .. | .involution .. | .metric .. =>
             frame := (parameter.name, actual) :: dependencies
             pure actual
           | .map view =>
             let child ← fresh
             step (.borrow child (.loan view.loan.name) view.loan.layout access)
             let context ← get
-            let values ← Numerical.construct context.environment context.resources context.numerical
-              (.map global child view.source.brand view.target.brand)
+            let some loan := context.resources.loan? child
+              | throw ⟨"E_NUMERICAL_TYPE", "map input lost its checked child loan"⟩
+            let values ← Numerical.insert context.environment context.numerical global
+              (.map {view with loan, origin := .reborrow actual})
             modify fun context => {context with numerical := values}
             let initializes := match parameter with | .map _ _ _ _ initializes => initializes | _ => false
             borrowed := borrowed ++ [⟨child, view.loan.allocation, view.loan.layout, initializes⟩]
@@ -576,7 +679,7 @@ mutual
           pure frame
         | .branch condition yes no => do
           let before ← get
-          set {before with code := #[], calls := #[], products := #[], inputs := #[], outputs := #[], transfers := #[]}
+          set {before with code := #[], calls := #[], products := #[], inputs := #[], outputs := #[], transfers := #[], transforms := #[]}
           let _ ← expand fuel functions stack frame yes
           let left ← get
           set {before with
@@ -588,6 +691,7 @@ mutual
             inputs := #[]
             outputs := #[]
             transfers := #[]
+            transforms := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
           let right ← get
@@ -600,7 +704,8 @@ mutual
             products := before.products ++ left.products ++ right.products
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
-            transfers := before.transfers ++ left.transfers ++ right.transfers}
+            transfers := before.transfers ++ left.transfers ++ right.transfers
+            transforms := before.transforms ++ left.transforms ++ right.transforms}
           pure frame
       expand fuel functions stack after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Returned)
@@ -677,6 +782,40 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let space ← resolve frame space
       let context ← get
       let numerical ← Numerical.construct context.environment context.resources context.numerical (.basis owner space)
+      set {context with numerical}
+      pure owner
+    | .involution _ space =>
+      let space ← resolve frame space
+      let context ← get
+      let numerical ← Numerical.construct context.environment context.resources context.numerical (.involution owner space)
+      set {context with numerical}
+      pure owner
+    | .dualSpace _ parent =>
+      let parent ← resolve frame parent
+      let context ← get
+      let numerical ← Numerical.construct context.environment context.resources context.numerical (.dualSpace owner parent)
+      set {context with numerical}
+      pure owner
+    | .conjugateSpace _ parent selected =>
+      let parent ← resolve frame parent
+      let selected ← resolve frame selected
+      let context ← get
+      let numerical ← Numerical.construct context.environment context.resources context.numerical (.conjugateSpace owner parent selected)
+      set {context with numerical}
+      pure owner
+    | .derivedBasis _ parent space =>
+      let parent ← resolve frame parent
+      let space ← resolve frame space
+      let context ← get
+      let numerical ← Numerical.construct context.environment context.resources context.numerical (.derivedBasis owner parent space)
+      set {context with numerical}
+      pure owner
+    | .metric _ basis selected orthonormal =>
+      let basis ← resolve frame basis
+      let selected ← resolve frame selected
+      let context ← get
+      let gram := if orthonormal then Numerical.Gram.identity else .scaledIdentity 2
+      let numerical ← Numerical.construct context.environment context.resources context.numerical (.metric owner basis selected gram)
       set {context with numerical}
       pure owner
     | .map _ source target access _ =>

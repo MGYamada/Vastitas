@@ -359,7 +359,7 @@ output requirement. These facts do not evaluate floating payloads or prove FFI
 loads, BLAS results or native refinement.
 For numerical inputs, `actual_input` records the actual accepted contract,
 `input_space_identity` and `input_basis_identity` preserve caller identities,
-and `input_map_reborrow` extracts unchanged endpoints and the exact successful
+and `input_map_reborrow` extracts unchanged endpoints/conjugation and the exact successful
 borrow transition. `public_numerical_input_origin` ties these receipts to the
 same accepted public declaration environment. These contracts have explicit
 static dimensions; no universal claim is derived from synthetic probes.
@@ -372,6 +372,21 @@ owner. `ResourceSource.public_numerical_result_origin` connects those result
 checks to the public request's accepted declaration environment. Callee-local
 identities and outstanding loans cannot become owned results. These are logical
 checker/transfer facts, not native heap or floating arithmetic proofs.
+
+For [typed map transforms](linear-transforms.md), `actual_transform` ties the
+accepted operation to its original map, independently checked read reborrow,
+full provenance audit and exact emitted schedule. `transform_storage` retains
+the allocation, parent and physical layout; `dual_flags`, `conjugate_flags` and
+`adjoint_flags` distinguish their coordinate operations. `adjoint_forms` recovers
+the actual declared metrics, exact used bases, selected involution and identity
+Gram requirements from the same certificate. `declared_metric` states the
+checked nondegenerate-data contract. `public_numerical_transform_origin` connects
+actual transform receipts to the declaration environment of the public request.
+These are structural/source-checker facts, not ideal Hermitian-module laws or
+native floating-point refinement. `TransformRegression` adds independent
+provenance/metric/loan/flag mutations; public source tests execute scalar and
+rectangular real/complex transforms, nested calls and owned materialized results.
+
 Generative numerical result packages, dynamic shape/scalar interfaces, dual/metric laws
 and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native

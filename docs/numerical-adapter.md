@@ -5,9 +5,10 @@ typed numerical path. It uses the actual native storage arena and its independen
 physical layout validation. The internal resource checker now checks GEMM access,
 initialization and separation, and lowers that exact schedule through a separate
 optional Lean FFI package. The [public numerical path](numerical-values.md) now
-supplies nominal endpoint/basis checks through protocol 8; dual/conjugate/metric
-operations and the broader contract of [#91](https://github.com/MGYamada/Vastitas/issues/91)
-remain incomplete.
+supplies nominal endpoint/basis checks through protocol 8, including
+[typed dual/conjugate/orthonormal-adjoint operations](linear-transforms.md).
+General metric realization and the broader contract of
+[#91](https://github.com/MGYamada/Vastitas/issues/91) remain incomplete.
 Neither [#92](https://github.com/MGYamada/Vastitas/issues/92) nor Stage 1 is complete.
 
 ## Build and dependency boundary
@@ -109,10 +110,10 @@ so its two orientations remain N and T. Transposed output is still rejected.
 Conjugation never swaps dimensions, changes physical byte regions, or conjugates
 the explicit alpha/beta coefficients.
 
-These raw flags do not confer mathematical dual/adjoint authority: public typed
-dual/conjugate/adjoint operations remain pending, and direct adjoints still need
-checked endpoint, basis and orthonormal metric evidence before a future typed
-caller can select C. Complex scalars and arrays use two adjacent binary64
+These raw flags do not confer mathematical dual/adjoint authority: the
+[public typed caller](linear-transforms.md) independently checks derived
+endpoints/bases or declared orthonormal metric evidence before selecting flags.
+Complex scalars and arrays use two adjacent binary64
 components; alpha/beta use the CBLAS pointer convention.
 
 An empty output performs no matrix element access and no kernel call; explicit
@@ -229,4 +230,4 @@ accept the raw component flags or resource-only authority above. Use
 `vastitas build --manifest-path ... --openblas-prefix /path/to/prefix -o OUTPUT`,
 with `--native-cc cc` on Linux when OpenBLAS uses the host libc. Ordinary builds
 and public `check` do not need OpenBLAS. Generative numerical result packages, general dynamic shape/scalar interfaces,
-dual/conjugate/metric operations, networks and native refinement remain pending.
+bilinear evaluation, general metric realization, networks and native refinement remain pending.

@@ -1,0 +1,6 @@
+pub indexed marker RealCoefficients;
+pub indexed marker ComplexCoefficients;
+pub indexed implementation SmoothScalar(RealCoefficients, scalar_base(smooth, real)) capabilities();
+pub indexed global SmoothBase(SmoothScalar);
+pub indexed implementation RealSmooth(RealCoefficients, linear_descriptor(SmoothBase, real)) capabilities();
+pub indexed implementation ComplexSmooth(ComplexCoefficients, linear_descriptor(SmoothBase, complex)) capabilities();

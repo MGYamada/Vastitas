@@ -24,10 +24,11 @@ The latest numerical increments have separate acceptance records:
 | --- | --- | --- |
 | Bilinear vector evaluation and explicit orthonormal Hermitian pairing, PR #332 | `881270df5413b86063d9dab508c074b89222bddc`; [validation](https://github.com/MGYamada/Vastitas/pull/332#issuecomment-6542785520): 301 Rust tests, six optional numerical tests, 36 kernel regression targets, 19,450-declaration axiom audit and all 17 final-head hosted checks | General metric realization and ideal identities remain open; no floating-point field-law or native refinement claim |
 | Executable finite two-map networks, PR #331 | `604d0310c997f7b35dd0e83968865116f7322d89`; [integrated validation](https://github.com/MGYamada/Vastitas/pull/331#issuecomment-6542885966): 306 Rust tests, seven optional numerical tests, 37 kernel regression targets, 19,757-declaration axiom audit and all 17 final-head hosted checks | Exactly two rank-two occurrences and one bilinear edge; higher-rank/multi-edge networks, explicit packing/scratch and categorical laws remain open |
-| Optional public GEMM experiment, PR #333 | `5664639143d50288d72bfd35c7ab8a15b33b14e3`; [validation](https://github.com/MGYamada/Vastitas/pull/333#issuecomment-6543004832): all 19 final-head hosted checks, including both Linux smoke jobs; [preserved run](../experiments/public_gemm/results/2026-10-31-linux-smoke/RESULTS.md) covers 16 public check/build/executions, 32 native/sanitizer validations and 454 generated/C output/cost pairs | Smoke validates execution and arena costs, not speed or controlled-host acceptance; full-size workloads, total allocation/packing measurements and declared budgets remain open |
+| Optional public GEMM experiment, PR #333 | `5664639143d50288d72bfd35c7ab8a15b33b14e3`; [validation](https://github.com/MGYamada/Vastitas/pull/333#issuecomment-6543004832): all 19 final-head hosted checks, including both Linux smoke jobs; [preserved run](../experiments/public_gemm/results/2026-10-31-linux-smoke/RESULTS.md) covers 16 public check/build/executions, 32 native/sanitizer validations and 454 generated/C output/cost pairs | Smoke validates execution and arena costs, not speed or controlled-host acceptance. Subsequent full-size measurements are recorded below; controlled-host, total allocation/packing and budget acceptance remain open |
 | Generative affine owned-map packages, PR #336 | `5681610745d11af6e376924e64e0a70dfe595a16`; [validation](https://github.com/MGYamada/Vastitas/pull/336#issuecomment-6543326912): 309 Rust tests, eight optional numerical tests, 38 kernel regression targets, 20,066-declaration axiom audit and all 18 final-head hosted checks | `OwnedMapTo` closes one primal target and direct basis with static dimensions; general existential resources, dynamic shapes and native refinement remain open |
+| Explicit rank-three packing and contraction, PR #340 | `c105811d12034c347f905f94a4a916e40c597631`; [validation](https://github.com/MGYamada/Vastitas/pull/340#issuecomment-6543541549): 313 Rust tests, nine optional numerical tests, 39 kernel regression targets, 20,489-declaration axiom audit and all 18 final-head hosted checks | One explicit rank-three permutation and rank-three/rank-two contraction; general networks, native refinement and equivalent-C performance acceptance remain open |
 
-All four final heads passed review without findings. The network integration also
+All five final heads passed review without findings. The network integration also
 checks and executes combined network/vector operations across both branch arms.
 These merged increments do not close #67/#69/#91/#183/#179 or #201's wider scope.
 
@@ -109,6 +110,17 @@ algorithm, scalar semantics, layout, backend and numerical policy against C,
 including full-operation and prepared-kernel costs. Record allocation/copy counts
 and peak live memory as well as runtime. Performance gaps cannot be silently
 deferred while claiming the corresponding Stage 1 acceptance condition complete.
+The [full public GEMM measurement](../experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md)
+preserves 24 cases and 1,256 generated/C pairs from a shared Linux host, including
+bulk dimensions. [PR #335](https://github.com/MGYamada/Vastitas/pull/335), merged as
+`91e30a08bc657b9291c7a9f22ce0616151b5bb3b`, publishes measurements of
+`38b96ae5a6b0610ec71babf199e7635867cca023`; these are not measurements of later
+tensor or cached-packing revisions. Output and arena costs agree; tiny lifecycle calls retain
+329–400 ns overhead and small-case lifecycle paired ratios are 1.19–1.31.
+Bulk ratios vary by paired versus separate-median statistics, with intervals
+that cross the provisional budget in some cases. This is exploratory evidence;
+controlled-host acceptance, a declared tiny-call budget and total allocation /
+backend packing measurements remain open.
 Residual retention is specified now to constrain storage design; AD implementation
 and its performance gates remain in the later AD stage.
 

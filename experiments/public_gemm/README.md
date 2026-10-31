@@ -8,6 +8,7 @@ pull_request, and can also be dispatched manually. It does not close #222,
 establish Stage 1 completion, prove native
 refinement, or establish general C/C++ performance equivalence.
 
+Recorded measurements: [full Linux run with raw pairs and remaining overhead](results/2026-10-31-linux-full/RESULTS.md).
 Recorded validation: [Linux generated-path smoke passed](results/2026-10-31-linux-smoke/RESULTS.md);
 [original unavailable-toolchain attempt](results/2026-10-31-linux-unmeasured/RESULTS.md).
 The smoke validates execution and output/cost contracts, without a performance
@@ -44,6 +45,21 @@ the runner does not control frequency, turbo, other processes or virtualization.
 All thread environment variables are set to one and the adapter rejects a
 non-sequential/incorrect-version/ILP64 backend. Actual backend configuration,
 parallel mode and thread count are also printed by native validation.
+
+The dedicated workflow keeps push and pull-request runs on `smoke`. Manual
+dispatch accepts `profile=full` to execute all 24 cases with 11 alternating pairs
+per scope and a 5 ms calibration target, including the bulk dimensions. For
+example, select the reviewed revision explicitly:
+
+```sh
+gh workflow run public-gemm-experiment.yml --ref REVIEWED_REF -f profile=full
+```
+
+Both profiles retain sanitizer checks, the 45-minute job cap and diagnostic
+artifacts for 14 days. Full hosted measurements are exploratory: shared-runner
+noise, launcher-inclusive RSS and uninstrumented backend workspace still prevent
+controlled-host performance acceptance. Preserve selected raw pairs and exact
+revision/environment records before the temporary artifacts expire.
 
 ASan/UBSan validation runs separately for every case before timing, with fatal
 diagnostics. `--no-leak-sanitizer` explicitly disables LSan when the host cannot

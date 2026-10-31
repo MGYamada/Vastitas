@@ -45,6 +45,21 @@ All thread environment variables are set to one and the adapter rejects a
 non-sequential/incorrect-version/ILP64 backend. Actual backend configuration,
 parallel mode and thread count are also printed by native validation.
 
+The dedicated workflow keeps push and pull-request runs on `smoke`. Manual
+dispatch accepts `profile=full` to execute all 24 cases with 11 alternating pairs
+per scope and a 5 ms calibration target, including the bulk dimensions. For
+example, select the reviewed revision explicitly:
+
+```sh
+gh workflow run public-gemm-experiment.yml --ref REVIEWED_REF -f profile=full
+```
+
+Both profiles retain sanitizer checks, the 45-minute job cap and diagnostic
+artifacts for 14 days. Full hosted measurements are exploratory: shared-runner
+noise, launcher-inclusive RSS and uninstrumented backend workspace still prevent
+controlled-host performance acceptance. Preserve selected raw pairs and exact
+revision/environment records before the temporary artifacts expire.
+
 ASan/UBSan validation runs separately for every case before timing, with fatal
 diagnostics. `--no-leak-sanitizer` explicitly disables LSan when the host cannot
 inspect processes; it does not disable ASan/UBSan. The pinned BLAS archive itself

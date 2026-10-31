@@ -10,12 +10,21 @@ on:
       - 'experiments/public_gemm/**'
       - '.github/workflows/public-gemm-experiment.yml'
   workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Smoke validation or full exploratory measurement (not performance acceptance)'
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.profile || 'smoke' }}
   cancel-in-progress: true
 
 defaults:
@@ -26,10 +35,11 @@ env:
   OPENBLAS_NUM_THREADS: '1'
   OMP_NUM_THREADS: '1'
   GOTO_NUM_THREADS: '1'
+  GEMM_PROFILE: ${{ github.event_name == 'workflow_dispatch' && inputs.profile || 'smoke' }}
 
 jobs:
-  smoke:
-    name: Public GEMM generated-path smoke (Linux)
+  experiment:
+    name: Public GEMM experiment (Linux, ${{ inputs.profile || 'smoke' }})
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -53,27 +63,32 @@ jobs:
           python3 experiments/public_gemm/test_harness.py
       - name: Validate generated execution and paired output/costs
         run: |
+          case "$GEMM_PROFILE" in
+            smoke) profile_args=(--smoke --samples 3 --target-ms 0.1) ;;
+            full) profile_args=(--samples 11 --target-ms 5) ;;
+            *) echo "Unsupported GEMM profile: $GEMM_PROFILE" >&2; exit 2 ;;
+          esac
           python3 experiments/public_gemm/run.py \
             --prefix "$RUNNER_TEMP/gemm-openblas" \
-            --output "$RUNNER_TEMP/public-gemm-smoke" \
-            --smoke --samples 3 --target-ms 0.1
-          cat "$RUNNER_TEMP/public-gemm-smoke/status.json"
-      - name: Retain smoke diagnostics (not performance acceptance)
+            --output "$RUNNER_TEMP/public-gemm-results" \
+            "${profile_args[@]}"
+          cat "$RUNNER_TEMP/public-gemm-results/status.json"
+      - name: Retain experiment diagnostics (not performance acceptance)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: public-gemm-smoke-${{ github.event_name }}-${{ github.run_id }}
+          name: public-gemm-${{ env.GEMM_PROFILE }}-${{ github.event_name }}-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 14
           path: |
-            ${{ runner.temp }}/public-gemm-smoke/*.json
-            ${{ runner.temp }}/public-gemm-smoke/*.md
-            ${{ runner.temp }}/public-gemm-smoke/*.csv
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/Generated.lean
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/Main.lean
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/response.json
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/symbols.txt
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/disassembly.txt
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/linked-libraries.txt
-            ${{ runner.temp }}/public-gemm-smoke/cases/**/package/**
-            ${{ runner.temp }}/public-gemm-smoke/source/**
+            ${{ runner.temp }}/public-gemm-results/*.json
+            ${{ runner.temp }}/public-gemm-results/*.md
+            ${{ runner.temp }}/public-gemm-results/*.csv
+            ${{ runner.temp }}/public-gemm-results/cases/**/Generated.lean
+            ${{ runner.temp }}/public-gemm-results/cases/**/Main.lean
+            ${{ runner.temp }}/public-gemm-results/cases/**/response.json
+            ${{ runner.temp }}/public-gemm-results/cases/**/symbols.txt
+            ${{ runner.temp }}/public-gemm-results/cases/**/disassembly.txt
+            ${{ runner.temp }}/public-gemm-results/cases/**/linked-libraries.txt
+            ${{ runner.temp }}/public-gemm-results/cases/**/package/**
+            ${{ runner.temp }}/public-gemm-results/source/**

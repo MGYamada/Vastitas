@@ -110,6 +110,13 @@ pub enum Action {
         source: u32,
         target: u32,
     },
+    Pack3 {
+        source: u32,
+        target: u32,
+        i: u64,
+        k: u64,
+        j: u64,
+    },
     // Internal resource operation only. Public source additionally needs
     // nominal endpoint/frame/metric validation before selecting this backend.
     Gemm {
@@ -534,6 +541,34 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TensorGrouping {
+        pub order: Vec<u64>,
+        pub split: u64,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Tensor {
+        View {
+            name: String,
+            loan: String,
+            axes: Vec<String>,
+            grouping: TensorGrouping,
+        },
+        Pack {
+            source: String,
+            target: String,
+        },
+        Contract3 {
+            left: String,
+            right: String,
+            output: String,
+            policy: NumericalPolicy,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(rename_all = "snake_case")]
     pub enum PortRole {
         Input,
@@ -573,6 +608,10 @@ pub mod source {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        Tensor {
+            operation: Tensor,
+            span: Span,
+        },
         Network {
             graph: NetworkGraph,
             output: String,

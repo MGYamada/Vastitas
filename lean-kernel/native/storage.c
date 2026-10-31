@@ -302,3 +302,46 @@ VStorageStatus vstorage_copy(VStorageArena *arena, uint32_t source, VStorageLayo
     arena->stats.copied_bytes += b.bytes;
     return VS_OK;
 }
+
+/* Each x-block is contiguous in both nontransposed layouts. Copy bytes rather
+ * than evaluating double values, preserving every real/complex payload bit. */
+static void pack3_kernel(const double *restrict source, double *restrict target,
+                         const Prepared *input, const Prepared *output,
+                         uint64_t i, uint64_t k, uint64_t j) {
+    size_t block_bytes = (size_t)(i * input->components * 8);
+    for (uint64_t z = 0; z < k; ++z)
+        for (uint64_t y = 0; y < j; ++y)
+            memcpy(target + cell(output, i * y, z),
+                   source + cell(input, 0, z + k * y), block_bytes);
+}
+
+VStorageStatus vstorage_pack3(VStorageArena *arena, uint32_t source, VStorageLayout input,
+                             uint32_t target, VStorageLayout output,
+                             uint64_t i, uint64_t k, uint64_t j) {
+    Prepared a, b;
+    VStorageStatus status = prepare(arena, source, input, &a);
+    if (status != VS_OK) return status;
+    status = prepare(arena, target, output, &b);
+    if (status != VS_OK) return status;
+    if (input.transposed || output.transposed) return VS_OPERATION;
+    if (i > INT32_MAX || k > INT32_MAX || j > INT32_MAX) return VS_LAYOUT;
+    uint64_t kj, ij;
+    if (!multiply(k, j, &kj) || !multiply(i, j, &ij)) return VS_OVERFLOW;
+    if (input.rows != i || input.columns != kj || output.rows != ij || output.columns != k)
+        return VS_SHAPE;
+    if (a.buffer->scalar != b.buffer->scalar) return VS_SCALAR;
+    /* Even empty views passed all metadata and shape checks above. No data
+     * pointer is formed and no counter is changed for any zero axis. */
+    if (!a.bytes) return VS_OK;
+    if (source == target && !(a.end <= b.start || b.end <= a.start)) return VS_ALIAS;
+    if (!counter_fits(arena->stats.written_bytes, b.bytes) ||
+        !counter_fits(arena->stats.copied_bytes, b.bytes)) return VS_OVERFLOW;
+    const double *source_data = a.buffer->data + a.start / 8;
+    double *target_data = b.buffer->data + b.start / 8;
+    a.start = 0;
+    b.start = 0;
+    pack3_kernel(source_data, target_data, &a, &b, i, k, j);
+    arena->stats.written_bytes += b.bytes;
+    arena->stats.copied_bytes += b.bytes;
+    return VS_OK;
+}

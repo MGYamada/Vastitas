@@ -12,6 +12,7 @@ inductive Instruction where
   | store (allocation : Nat) (layout : Layout) (row column : Nat) (value : Literal)
   | expect (allocation : Nat) (layout : Layout) (row column : Nat) (value : Literal)
   | copy (source : Nat) (input : Layout) (target : Nat) (output : Layout)
+  | pack3 (source : Nat) (input : Layout) (target : Nat) (output : Layout) (i k j : Nat)
   | gemm (left : Nat) (leftView : Layout) (conjugateLeft : Bool)
       (right : Nat) (rightView : Layout) (conjugateRight : Bool)
       (output : Nat) (outputView : Layout) (mode : GemmMode) (policy : NumericalPolicy)
@@ -40,6 +41,10 @@ def action (state : State) : Action → Except Error (List Instruction)
     let some input := state.loan? source | reject "missing copy source during native lowering"
     let some output := state.loan? target | reject "missing copy target during native lowering"
     pure [.copy input.allocation input.layout output.allocation output.layout]
+  | .pack3 source target i k j => do
+    let some input := state.loan? source | reject "missing packing source during native lowering"
+    let some output := state.loan? target | reject "missing packing target during native lowering"
+    pure [.pack3 input.allocation input.layout output.allocation output.layout i k j]
   | .gemm request => do
     let checked ← checkGemm state request
     let args := checked.operands
@@ -126,6 +131,7 @@ private def render (instructions : List Instruction) : Except Error String := do
         | .store id view row column value => s!"store arena {id} {layout view} {row} {column} {literal value}"
         | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {literal value}"
         | .copy source input target output => s!"copy arena {source} {layout input} {target} {layout output}"
+        | .pack3 source input target output i k j => s!"pack3 arena {source} {layout input} {target} {layout output} {i} {k} {j}"
         | .gemm left leftView conjugateLeft right rightView conjugateRight output outputView mode _ alpha beta =>
           let mode := match mode with | .overwrite => 0 | .accumulate => 1
           let operands := s!"arena {left} {layout leftView} {conjugateLeft} {right} {layout rightView} {conjugateRight} {output} {layout outputView} {mode}"

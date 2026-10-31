@@ -36,6 +36,17 @@ python3 scripts/check_boundaries.py
 - [Regressions](../scripts/test_symplectic_reference.py): mathematical examples,
   identity/revision mutations, malformed evidence, and CLI exit codes.
 
+Polynomial arithmetic is shared with the [SOS cover reference](sos-reference.md)
+through [rational_polynomial_reference.py](../scripts/rational_polynomial_reference.py).
+Its explicit arity generalizes the arithmetic while preserving the four-variable
+default API here. The symplectic matrix, domain and derivative-witness audits
+still require four variables, including for zero polynomials; the JSON schema
+and supported symplectic fragment are unchanged.
+The metric-free plane consumer also retains its four-variable ambient ring
+(restricted to its first two variables), even when a polynomial is zero.
+Shared compatibility regressions live in
+[test_rational_polynomial_reference.py](../scripts/test_rational_polynomial_reference.py).
+
 CLI exit codes: `0` accepted **reference** input, `1` rejected reference claim,
 `2` malformed/unsupported input or file/JSON error. The JSON report includes the
 complete expected subject and separate check outcomes. `not_checked` is never

@@ -1,6 +1,6 @@
 use super::*;
 use crate::storage::{
-    Access, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
+    Access, Coefficient, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
     functions::OwnedType,
     source::{Action, Numerical, Parameter},
 };
@@ -322,6 +322,19 @@ impl Parser {
         Ok(action)
     }
 
+    fn numerical_coefficient(&mut self) -> Result<Coefficient<String>, Diagnostic> {
+        if self.consume("coefficient") {
+            self.expect("(")?;
+            let loan = self.name()?.0;
+            self.expect(")")?;
+            Ok(Coefficient::Loan { loan })
+        } else {
+            Ok(Coefficient::Literal {
+                value: self.resource_literal()?,
+            })
+        }
+    }
+
     fn numerical_operation(&mut self) -> Result<Numerical, Diagnostic> {
         if self.consume("space") {
             let name = self.binding_name()?.0;
@@ -386,6 +399,30 @@ impl Parser {
         };
         self.expect(",")?;
         self.expect("NativeFast")?;
+        let mut alpha = None;
+        let mut beta = None;
+        while self.consume(",") {
+            let target = if self.consume("alpha") {
+                &mut alpha
+            } else if self.consume("beta") {
+                &mut beta
+            } else {
+                return Err(diagnostic(
+                    "E_NUMERICAL_TYPE",
+                    "expected alpha or beta coefficient",
+                    self.peek().span,
+                ));
+            };
+            if target.is_some() {
+                return Err(diagnostic(
+                    "E_DUPLICATE",
+                    "GEMM coefficient is specified twice",
+                    self.previous().span,
+                ));
+            }
+            self.expect("=")?;
+            *target = Some(self.numerical_coefficient()?);
+        }
         self.expect(")")?;
         Ok(Numerical::Gemm {
             left,
@@ -393,6 +430,8 @@ impl Parser {
             output,
             mode,
             policy: NumericalPolicy::NativeFast,
+            alpha,
+            beta,
         })
     }
 

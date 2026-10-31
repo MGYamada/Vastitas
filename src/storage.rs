@@ -43,6 +43,13 @@ pub enum Literal {
     ComplexF64 { real: u64, imaginary: u64 },
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Coefficient<Name> {
+    Literal { value: Literal },
+    Loan { loan: Name },
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum GemmMode {
@@ -113,6 +120,10 @@ pub enum Action {
         conjugate_right: bool,
         mode: GemmMode,
         policy: NumericalPolicy,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        alpha: Option<Coefficient<u32>>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        beta: Option<Coefficient<u32>>,
     },
 }
 
@@ -214,7 +225,10 @@ pub mod functions {
 /// Unresolved package resource source. Owners, local symbols and call targets
 /// are assigned independently by Lean, alongside the ordinary package checker.
 pub mod source {
-    use super::{Access, GemmMode, Layout, Literal, NumericalPolicy, Scalar, functions::OwnedType};
+    use super::{
+        Access, Coefficient, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
+        functions::OwnedType,
+    };
     use crate::ir::{Block, Span, Type, TypePath};
     use serde::{Deserialize, Serialize};
 
@@ -338,6 +352,10 @@ pub mod source {
             output: String,
             mode: GemmMode,
             policy: NumericalPolicy,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            alpha: Option<Coefficient<String>>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            beta: Option<Coefficient<String>>,
         },
     }
 

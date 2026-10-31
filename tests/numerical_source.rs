@@ -102,6 +102,162 @@ fn with_interfaces(source: &str, profile: &str) -> String {
     )
 }
 
+fn coefficient_source(complex: bool) -> String {
+    let profile = if complex {
+        "ComplexSmooth"
+    } else {
+        "RealSmooth"
+    };
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let literal = |real: f64, imaginary: f64| {
+        if complex {
+            format!("complex_bits({}, {})", real.to_bits(), imaginary.to_bits())
+        } else {
+            format!("f64_bits({})", real.to_bits())
+        }
+    };
+    let a = literal(if complex { 1.0 } else { 2.0 }, 1.0);
+    let b = literal(if complex { 2.0 } else { 0.25 }, 0.0);
+    let two = literal(2.0, 0.0);
+    let half = literal(0.5, 0.0);
+    let changed = literal(if complex { 0.0 } else { 2.0 }, 1.0);
+    let first = literal(if complex { 2.0 } else { 0.75 }, 10.0);
+    let second = literal(if complex { -1.0 } else { 1.375 }, 7.0);
+    format!(
+        "pub resource fn product() -> Unit {{
+            space u = linear(super::profiles::{profile}, 1); basis bu = basis(u);
+            allocate a: {scalar}[1]; allocate b: {scalar}[1];
+            allocate c: {scalar}[1]; allocate factor: {scalar}[1];
+            borrow wa = write(a, layout(0, 1, 1, 1, false)); fill(wa, {a}); release(wa);
+            borrow wb = write(b, layout(0, 1, 1, 1, false)); fill(wb, {b}); release(wb);
+            borrow ra = read(a, layout(0, 1, 1, 1, false));
+            borrow rb = read(b, layout(0, 1, 1, 1, false));
+            map left = view(ra, bu, bu); map right = view(rb, bu, bu);
+            borrow wf = write(factor, layout(0, 1, 1, 1, false));
+            map computed = view(wf, bu, bu);
+            gemm(left, right, computed, overwrite, NativeFast); release(wf);
+            borrow wc = write(c, layout(0, 1, 1, 1, false));
+            map destination = view(wc, bu, bu);
+            gemm(left, right, destination, overwrite, NativeFast, alpha={two}); release(wc);
+            borrow rf = read(factor, layout(0, 1, 1, 1, false));
+            borrow updated = read_write(c, layout(0, 1, 1, 1, false));
+            map accumulator = view(updated, bu, bu);
+            call update(u, bu, left, right, accumulator, rf) -> ();
+            expect(updated, 0, 0, {first}); release(rf);
+            borrow change = write(factor, layout(0, 1, 1, 1, false));
+            fill(change, {changed}); release(change);
+            borrow rf_again = read(factor, layout(0, 1, 1, 1, false));
+            call update(u, bu, left, right, accumulator, rf_again) -> ();
+            expect(updated, 0, 0, {second});
+            release(rf_again); release(updated); release(rb); release(ra);
+            drop(factor); drop(c); drop(b); drop(a); value {{ () }}
+        }}
+        resource fn update(u: Space<super::profiles::{profile}, 1>, bu: Basis<u>,
+            left: ReadMap<bu, bu>, right: ReadMap<bu, bu>, output: ReadWriteMap<bu, bu>,
+            factor: Read<{scalar}, 1, 1>) -> Unit {{
+            gemm(left, right, output, accumulate, NativeFast, alpha=coefficient(factor), beta={half});
+            value {{ () }}
+        }}"
+    )
+}
+
+fn half_accumulated(source: &str, complex: bool) -> String {
+    let literal = |real: f64, imaginary: f64| {
+        if complex {
+            format!("complex_bits({}, {})", real.to_bits(), imaginary.to_bits())
+        } else {
+            format!("f64_bits({})", real.to_bits())
+        }
+    };
+    let mut result = source.replace(
+        "gemm(left, right, accumulated, accumulate, NativeFast);",
+        &format!(
+            "gemm(left, right, accumulated, accumulate, NativeFast, beta={});",
+            literal(0.5, 0.0)
+        ),
+    );
+    let products = if complex {
+        [[(1.0, 2.0), (0.0, 3.0)], [(2.0, 0.0), (2.0, 0.0)]]
+    } else {
+        [[(58.0, 0.0), (64.0, 0.0)], [(139.0, 0.0), (154.0, 0.0)]]
+    };
+    for (i, row) in products.iter().enumerate() {
+        for (j, &(real, imaginary)) in row.iter().enumerate() {
+            let old = format!(
+                "expect(updated, {i}, {j}, {});",
+                literal(2.0 * real, 2.0 * imaginary)
+            );
+            assert!(result.contains(&old));
+            result = result.replace(
+                &old,
+                &format!(
+                    "expect(updated, {i}, {j}, {});",
+                    literal(1.5 * real, 1.5 * imaginary)
+                ),
+            );
+        }
+    }
+    result
+}
+
+#[test]
+fn numerical_coefficients_check_actual_computed_scalar_loans_and_strict_wire() {
+    let s = fixture(&coefficient_source(false));
+    s.write("src/complex/mod.vast", &coefficient_source(true));
+    success(&command(&s, "check").output().unwrap());
+    let raw = captured(&s);
+    let response = kernel(&raw, "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    let generated = response["lean_source"].as_str().unwrap();
+    assert_eq!(generated.matches("gemmScaled arena").count(), 6);
+    assert_eq!(generated.matches("allocate arena").count(), 8);
+    assert!(!generated.contains("copy arena"));
+    for value in [
+        json!(null),
+        json!({"kind":"loan", "loan":"output"}),
+        json!({"kind":"literal", "value":{"kind":"complex_f64", "real":0, "imaginary":0}}),
+        json!({"kind":"loan", "loan":"factor", "checked":true}),
+    ] {
+        let mut altered = raw.clone();
+        module(&mut altered, "real")["resource_functions"][1]["body"][0]["operation"]["alpha"] =
+            value;
+        let response = kernel(altered, "emit");
+        assert_eq!(response["ok"], false, "{response}");
+        assert!(response.get("lean_source").is_none());
+    }
+    let source = coefficient_source(false);
+    for (before, after, code) in [
+        (
+            "alpha=coefficient(factor)",
+            "alpha=coefficient(output)",
+            "E_RESOURCE_LOAN",
+        ),
+        (
+            "alpha=coefficient(factor)",
+            "alpha=complex_bits(0, 0)",
+            "E_RESOURCE_COEFFICIENT",
+        ),
+        (
+            "NativeFast, alpha=f64_bits",
+            "NativeFast, beta=f64_bits",
+            "E_RESOURCE_COEFFICIENT",
+        ),
+        (
+            "alpha=coefficient(factor)",
+            "alpha=f64_bits(0), alpha=f64_bits(0)",
+            "E_DUPLICATE",
+        ),
+        (
+            "call update(u, bu, left, right, accumulator, rf)",
+            "gemm(left, right, accumulator, accumulate, NativeFast, alpha=coefficient(updated)); call update(u, bu, left, right, accumulator, rf)",
+            "E_RESOURCE_COEFFICIENT",
+        ),
+    ] {
+        assert!(source.contains(before));
+        rejection(&fixture(&source.replace(before, after)), code);
+    }
+}
+
 #[test]
 fn numerical_inputs_preserve_nominal_contracts_and_emit_without_extra_storage() {
     let s = fixture(&with_interfaces(REAL, "RealSmooth"));
@@ -616,6 +772,34 @@ fn numerical_build_flags_are_explicit_and_failure_preserves_existing_output() {
             std::fs::read(s.0.join("program")).unwrap(),
             b"existing artifact"
         );
+    }
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    for (real, complex) in [
+        (coefficient_source(false), coefficient_source(true)),
+        (
+            half_accumulated(REAL, false),
+            half_accumulated(COMPLEX, true),
+        ),
+    ] {
+        let s = fixture(&real);
+        s.write("src/complex/mod.vast", &complex);
+        let mut build = command(&s, "build");
+        build
+            .args(["-o", "program", "--openblas-prefix"])
+            .arg(&prefix);
+        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+            build.arg("--native-cc").arg(cc);
+        }
+        success(&build.output().unwrap());
+        let output = Command::new(s.0.join("program")).output().unwrap();
+        success(&output);
+        assert_eq!(output.stdout, b"42\n");
     }
 }
 

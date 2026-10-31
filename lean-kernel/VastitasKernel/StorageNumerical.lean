@@ -107,6 +107,7 @@ inductive Operation where
   | basis (name space : Symbol)
   | map (name loan source target : Symbol)
   | gemm (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy)
+      (alpha beta : Option Coefficient := none)
   deriving Repr, BEq, Inhabited
 
 private def reject (message : String) : Except Error α :=
@@ -190,6 +191,8 @@ structure Product where
   left : MapView
   right : MapView
   output : MapView
+  alpha : Option Coefficient := none
+  beta : Option Coefficient := none
   deriving Repr, BEq, DecidableEq, Inhabited
 
 /-- A : V → W, B : U → V, output : U → W. Equality includes the nominal
@@ -203,10 +206,12 @@ instance (product : Product) : Decidable product.Composable :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _))
 
 def Product.request (product : Product) (mode : GemmMode) (policy : NumericalPolicy) : Gemm :=
-  ⟨product.left.loan.name, product.right.loan.name, product.output.loan.name, false, false, mode, policy⟩
+  ⟨product.left.loan.name, product.right.loan.name, product.output.loan.name, false, false, mode, policy,
+    product.alpha, product.beta⟩
 
 structure CheckedProduct (env : Environment) (resources : Storage.State) (values : Values)
-    (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy) where
+    (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy)
+    (alpha beta : Option Coefficient := none) where
   valuesValid : Valid env values
   resourcesValid : auditState resources = true
   product : Product
@@ -219,15 +224,17 @@ structure CheckedProduct (env : Environment) (resources : Storage.State) (values
   outputLive : product.output.Live resources
   storage : CheckedGemm resources (product.request mode policy)
   storageAccepted : checkGemm resources (product.request mode policy) = .ok storage
+  coefficients : product.alpha = alpha ∧ product.beta = beta
 
 def checkProduct (env : Environment) (resources : Storage.State) (values : Values)
-    (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy) :
-    Except Error (CheckedProduct env resources values left right output mode policy) := do
+    (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy)
+    (alpha beta : Option Coefficient := none) :
+    Except Error (CheckedProduct env resources values left right output mode policy alpha beta) := do
   if resourcesValid : auditState resources then
     if valid : Valid env values then
       match leftFrom : value? values left, rightFrom : value? values right, outputFrom : value? values output with
       | some (.map a), some (.map b), some (.map c) =>
-        let product : Product := ⟨a, b, c⟩
+        let product : Product := ⟨a, b, c, alpha, beta⟩
         if composable : product.Composable then
           if leftLive : a.Live resources then
             if rightLive : b.Live resources then
@@ -235,7 +242,7 @@ def checkProduct (env : Environment) (resources : Storage.State) (values : Value
                 match storageAccepted : checkGemm resources (product.request mode policy) with
                 | .error diagnostic => .error diagnostic
                 | .ok storage => return ⟨valid, resourcesValid, product, leftFrom, rightFrom, outputFrom,
-                    composable, leftLive, rightLive, outputLive, storage, storageAccepted⟩
+                    composable, leftLive, rightLive, outputLive, storage, storageAccepted, ⟨rfl, rfl⟩⟩
               else reject "output map no longer matches its resource loan"
             else reject "right map no longer matches its resource loan"
           else reject "left map no longer matches its resource loan"

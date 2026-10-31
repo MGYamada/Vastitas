@@ -15,4 +15,17 @@ opaque gemm (arena : @& VastitasStorageNative.Arena)
   (output : UInt32) (outputOffset outputRows outputColumns outputLeading : UInt64)
   (outputTransposed : Bool) (mode : UInt8) : IO Unit
 
+@[extern "vastitas_gemm_execute_scaled"]
+opaque gemmScaled (arena : @& VastitasStorageNative.Arena)
+  (left : UInt32) (leftOffset leftRows leftColumns leftLeading : UInt64)
+  (leftTransposed conjugateLeft : Bool)
+  (right : UInt32) (rightOffset rightRows rightColumns rightLeading : UInt64)
+  (rightTransposed conjugateRight : Bool)
+  (output : UInt32) (outputOffset outputRows outputColumns outputLeading : UInt64)
+  (outputTransposed : Bool) (mode : UInt8)
+  (alphaKind alphaScalar : UInt8) (alphaReal alphaImaginary : UInt64)
+  (alphaAllocation : UInt32) (alphaOffset : UInt64)
+  (betaKind betaScalar : UInt8) (betaReal betaImaginary : UInt64)
+  (betaAllocation : UInt32) (betaOffset : UInt64) : IO Unit
+
 end VastitasGemmNative

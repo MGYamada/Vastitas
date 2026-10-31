@@ -126,6 +126,19 @@ inductive GemmMode where
   | overwrite | accumulate
   deriving Repr, BEq, ReflBEq, LawfulBEq, DecidableEq, Inhabited
 
+/-- A coefficient is either explicit machine bits or a synchronous read of a
+live one-element loan. It is never evaluated by the compiler. -/
+inductive Coefficient where
+  | literal (value : Literal)
+  | loan (name : Symbol)
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+inductive ResolvedCoefficient where
+  | default
+  | literal (value : Literal)
+  | view (allocation offset : Nat)
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 structure Gemm where
   left : Symbol
   right : Symbol
@@ -134,6 +147,8 @@ structure Gemm where
   conjugateRight : Bool
   mode : GemmMode
   policy : NumericalPolicy
+  alpha : Option Coefficient := none
+  beta : Option Coefficient := none
   deriving Repr, BEq, DecidableEq, Inhabited
 
 inductive Action where
@@ -216,16 +231,58 @@ def GemmOperands.valid (state : State) (request : Gemm) (args : GemmOperands) : 
   (args.right.allocation != args.output.allocation ||
     args.right.layout.disjoint args.output.layout args.rightAllocation.scalar)
 
+/-- Coefficient reads carry real storage dependencies. Even a read/write loan
+reused as output must prove separation; scalar arguments do not bypass aliases. -/
+def coefficientValid (state : State) (scalar : Scalar) (output : Loan) :
+    Option Coefficient → ResolvedCoefficient → Bool
+  | none, .default => true
+  | some (.literal expected), .literal value => expected == value && value.scalar == scalar
+  | some (.loan name), .view identity offset =>
+    match state.loan? name with
+    | none => false
+    | some loan => match state.allocation? loan.allocation with
+      | none => false
+      | some allocation =>
+        identity == loan.allocation && offset == loan.layout.offset && !state.suspended name &&
+        loan.access.reads && allocation.scalar == scalar &&
+        loan.layout.logicalRows == 1 && loan.layout.logicalColumns == 1 &&
+        allocation.initialization.covers scalar loan.layout &&
+        (loan.allocation != output.allocation || loan.layout.disjoint output.layout scalar)
+  | _, _ => false
+
+structure CheckedCoefficient (state : State) (scalar : Scalar) (output : Loan)
+    (input : Option Coefficient) where
+  value : ResolvedCoefficient
+  valid : coefficientValid state scalar output input value = true
+
+def checkCoefficient (state : State) (scalar : Scalar) (output : Loan)
+    (input : Option Coefficient) : Except Error (CheckedCoefficient state scalar output input) := do
+  let value ← match input with
+    | none => pure ResolvedCoefficient.default
+    | some (.literal value) => pure (.literal value)
+    | some (.loan name) => do
+      let (loan, _) ← usable state name false
+      pure (.view loan.allocation loan.layout.offset)
+  if valid : coefficientValid state scalar output input value then return ⟨value, valid⟩
+  else reject "E_RESOURCE_COEFFICIENT" "coefficient requires matching scalar bits or an initialized readable one-element loan disjoint from the output"
+
 structure CheckedGemm (state : State) (request : Gemm) where
   operands : GemmOperands
   valid : operands.valid state request = true
+  alpha : CheckedCoefficient state operands.leftAllocation.scalar operands.output request.alpha
+  beta : CheckedCoefficient state operands.leftAllocation.scalar operands.output request.beta
+  overwrite : request.mode = .overwrite → request.beta = none
 
 def checkGemm (state : State) (request : Gemm) : Except Error (CheckedGemm state request) := do
   let (left, leftAllocation) ← usable state request.left false
   let (right, rightAllocation) ← usable state request.right false
   let (output, outputAllocation) ← usable state request.output true
   let operands := {left, right, output, leftAllocation, rightAllocation, outputAllocation : GemmOperands}
-  if valid : operands.valid state request then return ⟨operands, valid⟩
+  if valid : operands.valid state request then
+    if overwrite : request.mode = .overwrite → request.beta = none then
+      return ⟨operands, valid, ← checkCoefficient state leftAllocation.scalar output request.alpha,
+        ← checkCoefficient state leftAllocation.scalar output request.beta, overwrite⟩
+    else reject "E_RESOURCE_COEFFICIENT" "overwrite fixes beta to zero and does not accept a beta operand"
   else reject "E_RESOURCE_GEMM" "GEMM requires initialized readable inputs, a compatible exclusive output, supported views and disjoint input/output bytes; accumulate also reads initialized output"
 
 def executeAction (state : State) : Action → Except Error State

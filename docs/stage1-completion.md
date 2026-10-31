@@ -29,6 +29,12 @@ map loans, including nested calls and destination reuse under explicit static
 dimension contracts. Their actual input/binding certificates share the public
 checker’s accepted declaration environment. This does not finish the broader
 dynamic numerical interface gate.
+GEMM coefficients now include explicit real/complex values and initialized 1x1
+read loans. Generated source regressions pass earlier GEMM results through calls
+as coefficients and execute the rectangular beta=0.5 examples. Actual coefficient
+read/init/separation certificates reach the exact native instruction; this is a
+specific numerical data-flow path, not general floating Core values or dynamic
+shape completion.
 Public source now independently resolves profile paths and composes those
 certificates through the actual checker and native generation. Dependent numerical results and dynamic shape/scalar
 interfaces, dual/conjugate/metric operations and public network composition

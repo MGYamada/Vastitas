@@ -43,6 +43,15 @@ and extra fields are rejected. The old raw resource `action` schema does not
 acquire a public GEMM operation. Version 8 composes independent path resolution,
 nominal value checking and actual resource checks before native generation.
 
+Numerical GEMM optionally carries `alpha`/`beta` operands, each either
+`{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
+Absent fields retain alpha one and beta zero/one. Explicit null and unknown
+fields reject. Overwrite accepts no beta operand; accumulate requires initialized
+output even for beta zero. A coefficient loan must be a matching initialized
+readable 1x1 region disjoint from output. The checked allocation/offset reaches
+native execution, where the current scalar is read before output writes.
+See [coefficient semantics](numerical-values.md#explicit-and-computed-coefficients).
+
 Resource parameters additionally support `kind: "space"` with unresolved
 `implementation` and static `dimension`, `kind: "basis"` naming an earlier
 `space` parameter, and `kind: "map"` naming earlier `source`/`target` basis

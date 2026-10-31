@@ -71,6 +71,7 @@ cells, padding holes and exhausted coverage budgets remain unreadable.
 | `basis bv = basis(v);` | Introduce a distinct basis tied to that space. |
 | `map a = view(input, bv, bw);` | Interpret a live loan as a map from `v` to `w` in those bases. |
 | `gemm(a, b, c, overwrite, NativeFast);` | Check exact endpoints/bases and resources, then multiply into `c`; also `accumulate`. |
+| `gemm(a, b, c, accumulate, NativeFast, alpha=coefficient(s), beta=f64_bits(bits));` | Read the checked 1x1 scalar loan at execution and apply explicit coefficients; complex maps require complex coefficient bits. |
 | `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
 | `if true { ... } else { ... }` | Check both resource branches and join their states; current conditions are literal booleans. |
 

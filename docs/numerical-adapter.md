@@ -1,12 +1,13 @@
 # Optional native GEMM adapter
 
-`lean-kernel/numerical` is the initial **internal C backend** for the planned
+`lean-kernel/numerical` is the optional **internal C backend** for the
 typed numerical path. It uses the actual native storage arena and its independent
 physical layout validation. The internal resource checker now checks GEMM access,
 initialization and separation, and lowers that exact schedule through a separate
-optional Lean FFI package. It is not yet callable from `.vast` or protocol 8:
-endpoint/frame/metric checking and public numerical source composition are still
-required by [#91](https://github.com/MGYamada/Vastitas/issues/91).
+optional Lean FFI package. The [public numerical path](numerical-values.md) now
+supplies nominal endpoint/basis checks through protocol 8; dual/conjugate/metric
+operations and the broader contract of [#91](https://github.com/MGYamada/Vastitas/issues/91)
+remain incomplete.
 Neither [#92](https://github.com/MGYamada/Vastitas/issues/92) nor Stage 1 is complete.
 
 ## Build and dependency boundary
@@ -69,12 +70,24 @@ live allocation; no supplied pointer or claimed capacity is accepted. The
 descriptor must not survive an intervening drop or concurrent arena mutation.
 An arena is used synchronously by one resource operation at a time.
 
-The initial `NativeFast` operation fixes alpha to one:
+`vgemm_execute` preserves the original alpha-one/beta-zero-or-one entry.
+`vgemm_execute_scaled` adds explicit binary64 coefficients and actual scalar-view
+reads. Default alpha is one; default beta is zero for overwrite and one for
+accumulate. Both entries use the same preflight and execution path.
 
 | Mode | Numerical action | Required logical resource authority |
 | --- | --- | --- |
-| `VGEMM_OVERWRITE` | `C := A B`, beta zero, no old-C dependency | Exclusive write; output may be uninitialized |
-| `VGEMM_ACCUMULATE` | `C := C + A B`, beta one | Exclusive read/write; all logical output cells initialized |
+| `VGEMM_OVERWRITE` | `C := alpha A B`, beta zero, no old-C dependency; an explicit beta is rejected | Exclusive write; output may be uninitialized |
+| `VGEMM_ACCUMULATE` | `C := alpha A B + beta C` | Exclusive read/write; all logical output cells initialized even for beta zero |
+
+`VGemmCoefficient` selects default, explicit scalar bits, or one scalar at a
+live allocation/byte offset. Views undergo bounds/alignment/scalar and output
+separation checks, then their values are read before any output mutation. They
+may alias input reads and each other. Logical read rights and initialization
+come from `Storage.checkCoefficient`; physical preflight does not manufacture
+them. Coefficients use stack scalars, with no additional data allocation or
+implicit packing/copy. The Lean FFI retains the original `gemm` entry and adds
+`gemmScaled`; exact native lowering chooses the latter for explicit coefficients.
 
 The C adapter checks live handles, scalar representation, stored and logical
 dimensions, offsets/alignment, leading dimensions, bounds, overflow, LP64
@@ -93,9 +106,11 @@ basis and orthonormal metric evidence before the future caller can select C.
 Real conjugate-transpose uses T. Complex scalars and arrays use two adjacent
 binary64 components; alpha/beta use the CBLAS pointer convention.
 
-An empty output performs no element access and no kernel call. For nonempty
-output and zero inner dimension, overwrite explicitly fills zero and accumulate
-preserves the output without a kernel call. Any preflight failure leaves output
+An empty output performs no matrix element access and no kernel call; explicit
+coefficient views are still checked and read. For nonempty output and zero inner
+dimension, the defined operation is beta*C independently of alpha, including
+nonfinite alpha. Zero beta fills zero without reading C, one beta preserves C,
+and other beta values scale C in place, without a BLAS call. Any preflight failure leaves output
 bytes, write counters and the returned operation report unchanged. The native
 BLAS routine has no recoverable partial-write result; crashes and violations of
 its contract are outside this guarantee.
@@ -121,13 +136,14 @@ never read uninitialized memory or always compute the ideal mathematical product
 The selected kernel may use FMA, blocking and its own reduction order. It does
 not promise cross-backend bitwise equality, finite results, exact field laws or
 a certified error bound. Mathematical smoothness concerns the ideal operation,
-not the discrete bit-pattern function. Broader alpha/beta scaling and LAPACK
+not the discrete bit-pattern function. General scalar expressions and LAPACK
 operations need separate typed contracts.
 
 The C API trusts its caller's logical initialization and read/write rights, as
 the existing native storage layer does. The checked internal path below supplies
-those rights. Nominal numerical types, public source integration, finite networks
-and equivalent-C GEMM performance measurements remain work.
+those rights. The public path separately supplies nominal numerical types and
+source integration. Finite networks, dual/metric operations and equivalent-C
+GEMM performance measurements remain work.
 This increment does not establish **Fast like C**; use the
 [storage performance gate](storage-ownership.md#713-performance-evidence-and-acceptance).
 
@@ -137,8 +153,9 @@ This increment does not establish **Fast like C**; use the
 `overwrite`/`accumulate` mode and explicit input conjugation flags. The strict
 Rust/Lean component decoders reject missing/unknown policy and mode fields.
 This component is not a public wire envelope or a mathematical map constructor.
-Public resource source still rejects this operation until nominal types and
-transformed endpoint/basis/metric checks can supply its mathematical authority.
+Public resource source rejects the raw action and uses the independently checked
+numerical operation instead. Raw flags cannot provide transformed endpoint,
+basis or metric authority.
 
 `Storage.checkGemm` reconstructs each loan and its allocation from the actual
 state, rejects suspended parents, requires initialized readable inputs and a
@@ -151,7 +168,7 @@ No allocation, packing, copy or metric selection is inserted.
 
 A successful resource transition records exactly the output rectangle and
 advances its logical version. Zero-inner overwrite initializes zeros in native
-execution; zero-inner accumulate retains previously initialized output. Empty
+execution; zero-inner accumulate scales previously initialized output by beta. Empty
 regions contain no bytes. These logical guarantees apply to successful completion;
 a failed native call throws and the generated `finally` closes the arena. Earlier
 completed writes are not rolled back. Native backend faults remain trusted-boundary
@@ -192,5 +209,5 @@ spaces/bases and map views before using this adapter. Public `gemm` does not
 accept the raw component flags or resource-only authority above. Use
 `vastitas build --manifest-path ... --openblas-prefix /path/to/prefix -o OUTPUT`,
 with `--native-cc cc` on Linux when OpenBLAS uses the host libc. Ordinary builds
-and public `check` do not need OpenBLAS. Dependent numerical interfaces,
+and public `check` do not need OpenBLAS. Dependent numerical results, general dynamic shape/scalar interfaces,
 dual/conjugate/metric operations, networks and native refinement remain pending.

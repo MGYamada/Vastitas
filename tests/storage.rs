@@ -39,6 +39,8 @@ fn internal_gemm_schema_retains_explicit_policy_flags_and_output_mode() {
         ("left", json!(1_u64 << 32)),
         ("checked_metric", json!(true)),
         ("disjoint", json!(true)),
+        ("alpha", json!({"kind":"loan", "loan":1_u64 << 32})),
+        ("beta", json!({"kind":"loan", "loan":0, "checked":true})),
     ] {
         let mut bad = action.clone();
         bad.as_object_mut().unwrap().insert(name.into(), value);

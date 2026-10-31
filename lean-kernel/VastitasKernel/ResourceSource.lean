@@ -38,11 +38,17 @@ inductive Action where
   | copy (source target : String)
   deriving Repr, Inhabited
 
+inductive Coefficient where
+  | literal (value : Literal)
+  | loan (name : String)
+  deriving Repr, Inhabited
+
 inductive NumericalOperation where
   | space (name : String) (implementation : Indexed.Source.Path) (dimension : Nat)
   | basis (name space : String)
   | map (name loan source target : String)
   | gemm (left right output : String) (mode : GemmMode) (policy : NumericalPolicy)
+      (alpha beta : Option Coefficient := none)
   deriving Repr, Inhabited
 
 inductive Statement where
@@ -187,6 +193,10 @@ private def lowerAction (index : Namespace.Indexed) (scope : Namespace.Scope) (f
 private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : Namespace.Scope)
     (frame : Frame) (span : Span) (operation : NumericalOperation) : M (Frame × Numerical.Operation) := do
   let name (value : String) := Prod.fst <$> lookup frame value span
+  let coefficient (value : Option Coefficient) : M (Option Storage.Coefficient) := match value with
+    | none => pure none
+    | some (.literal value) => pure (some (.literal value))
+    | some (.loan loan) => do pure (some (.loan (← name loan)))
   match operation with
   | .space output implementation dimension =>
     let (resolved, references) ← (Indexed.Source.resolveId index scope implementation).run []
@@ -204,8 +214,9 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     let target ← name target
     let (frame, output) ← bindName index scope frame output .numerical span
     return (frame, .map output loan source target)
-  | .gemm left right output mode policy =>
-    return (frame, .gemm (← name left) (← name right) (← name output) mode policy)
+  | .gemm left right output mode policy alpha beta =>
+    return (frame, .gemm (← name left) (← name right) (← name output) mode policy
+      (← coefficient alpha) (← coefficient beta))
 
 private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.DeclId)
     (caller : Nat) (scope : Namespace.Scope) : Nat → Frame → List Statement → M (Frame × List Functions.Statement)

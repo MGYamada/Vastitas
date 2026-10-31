@@ -55,6 +55,9 @@ map views under explicit static dimension contracts, including nested calls
 and caller-selected output destinations. Numerical results, dynamic shape/scalar
 interfaces, dual/conjugate/metric operations and networks
 remain pending.
+GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
+initialized scalar loans, including coefficients computed by earlier operations.
+This does not add general floating values to pure Core or dynamic shape contracts.
 
 ## Build and use
 

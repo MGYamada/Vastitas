@@ -181,10 +181,88 @@ static void failures_preserve_output(void) {
     cleanup(arena);
 }
 
+static VGemmCoefficient literal(uint8_t scalar, double real, double imaginary) {
+    return (VGemmCoefficient){VGEMM_LITERAL,scalar,bits(real),bits(imaginary),0,0};
+}
+
+static void coefficients(void) {
+    VGemmCoefficient defaults = {VGEMM_DEFAULT,0,0,0,0,0};
+    for (uint8_t scalar=0; scalar<2; ++scalar) {
+        VStorageArena *arena=vstorage_new(4096); assert(arena);
+        VStorageLayout one=layout(1,1,0,1);
+        for (uint32_t id=0; id<4; ++id) allocate(arena,id,scalar,one);
+        put(arena,0,one,0,0,scalar,1,scalar?1:0);
+        put(arena,1,one,0,0,scalar,2,0);
+        VGemmCoefficient half=literal(scalar,0.5,0);
+        VGemmCoefficient alpha=literal(scalar,scalar?0:2,scalar?1:0);
+        VGemmReport report;
+        /* Nontrivial alpha still overwrites without reading malloc-backed C. */
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_OVERWRITE,alpha,defaults,&report)==VS_OK);
+        expect(arena,2,one,0,0,scalar?-2:4,scalar?2:0);
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,defaults,half,&report)==VS_OK);
+        expect(arena,2,one,0,0,scalar?1:4,scalar?3:0);
+        put(arena,3,one,0,0,scalar,scalar?0:3,scalar?-1:0);
+        VGemmCoefficient view={VGEMM_VIEW,0,0,0,3,one.offset};
+        VStorageStats before=vstorage_stats(arena);
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,view,half,&report)==VS_OK);
+        expect(arena,2,one,0,0,scalar?2.5:8,scalar?-0.5:0);
+        assert(vstorage_stats(arena).data_allocations==before.data_allocations);
+        assert(vstorage_stats(arena).copied_bytes==before.copied_bytes);
+        /* A later write supplies the next call's actual coefficient value. */
+        put(arena,3,one,0,0,scalar,2,0);
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,defaults,view,&report)==VS_OK);
+        expect(arena,2,one,0,0,scalar?7:18,scalar?1:0);
+        before=vstorage_stats(arena); report=(VGemmReport){71,72};
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_OVERWRITE,defaults,half,&report)==VS_OPERATION);
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,literal(!scalar,1,0),defaults,&report)==VS_SCALAR);
+        VGemmCoefficient bad=view; bad.allocation=2;
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,bad,defaults,&report)==VS_ALIAS);
+        bad=view; bad.offset=UINT64_MAX;
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,bad,defaults,&report)==VS_LAYOUT);
+        bad=view; bad.allocation=999;
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,bad,defaults,&report)==VS_HANDLE);
+        bad=view; bad.kind=(VGemmCoefficientKind)9;
+        assert(vgemm_execute_scaled(arena,0,one,0,1,one,0,2,one,VGEMM_ACCUMULATE,bad,defaults,&report)==VS_OPERATION);
+        assert(vstorage_stats(arena).written_bytes==before.written_bytes);
+        assert(report.kernel_calls==71 && report.written_bytes==72);
+        expect(arena,2,one,0,0,scalar?7:18,scalar?1:0);
+        cleanup(arena);
+
+        arena=vstorage_new(4096); assert(arena);
+        VStorageLayout a=layout(2,0,0,0), b=layout(0,3,0,0), c=layout(2,3,0,1);
+        allocate(arena,0,scalar,a); allocate(arena,1,scalar,b); allocate(arena,2,scalar,c);
+        assert(vstorage_fill(arena,2,c,scalar,bits(6),bits(scalar?2:0))==VS_OK);
+        assert(vgemm_execute_scaled(arena,0,a,0,1,b,0,2,c,VGEMM_ACCUMULATE,literal(scalar,NAN,NAN),half,&report)==VS_OK);
+        assert(report.kernel_calls==0 && report.written_bytes==6*(scalar?16:8));
+        for (int i=0;i<2;++i) for(int j=0;j<3;++j) expect(arena,2,c,i,j,3,scalar?1:0);
+        if (scalar) {
+            assert(vgemm_execute_scaled(arena,0,a,0,1,b,0,2,c,VGEMM_ACCUMULATE,defaults,literal(1,0,1),&report)==VS_OK);
+            for (int i=0;i<2;++i) for(int j=0;j<3;++j) expect(arena,2,c,i,j,-1,3);
+        }
+        assert(vstorage_fill(arena,2,c,scalar,bits(NAN),bits(NAN))==VS_OK);
+        assert(vgemm_execute_scaled(arena,0,a,0,1,b,0,2,c,VGEMM_OVERWRITE,alpha,defaults,&report)==VS_OK);
+        for (int i=0;i<2;++i) for(int j=0;j<3;++j) expect(arena,2,c,i,j,0,0);
+        cleanup(arena);
+
+        arena=vstorage_new(64); assert(arena);
+        a=layout(0,1,0,0); b=layout(1,0,0,0); c=layout(0,0,0,0);
+        one=layout(1,1,0,0);
+        allocate(arena,0,scalar,a); allocate(arena,1,scalar,b); allocate(arena,2,scalar,c);
+        allocate(arena,3,scalar,one); put(arena,3,one,0,0,scalar,2,0);
+        view=(VGemmCoefficient){VGEMM_VIEW,0,0,0,3,0};
+        assert(vgemm_execute_scaled(arena,0,a,0,1,b,0,2,c,VGEMM_OVERWRITE,view,defaults,&report)==VS_OK);
+        assert(report.kernel_calls==0 && report.written_bytes==0);
+        view.allocation=99; report=(VGemmReport){83,84};
+        assert(vgemm_execute_scaled(arena,0,a,0,1,b,0,2,c,VGEMM_OVERWRITE,view,defaults,&report)==VS_HANDLE);
+        assert(report.kernel_calls==83 && report.written_bytes==84);
+        cleanup(arena);
+    }
+}
+
 int main(void) {
     assert(vgemm_backend_check()==VS_OK);
     real_orientations(); complex_product(); conjugation_and_nonfinite();
-    degenerate(); nonfinite_inputs(); failures_preserve_output();
+    degenerate(); nonfinite_inputs(); failures_preserve_output(); coefficients();
     puts(vgemm_configuration());
     puts("GEMM: real/complex layouts, T/C, reuse, empty dimensions and failure-before-write passed");
 }

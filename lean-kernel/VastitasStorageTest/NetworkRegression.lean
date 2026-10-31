@@ -50,6 +50,22 @@ private def graph : Graph :=
       | .gemm l lv lc r rv rc o ov mode policy alpha beta => .gemm l lv (!lc) r rv rc o ov mode policy alpha beta
       | other => other
     ensure "changed native conjugation cannot reuse graph acceptance" (!(Native.generate {native with instructions := bad}).isOk)
+  for condition in [false, true] do
+    let network : Functions.Statement := .network graph 32 .nativeFast
+    for (yes, no) in [([network], [multiply]), ([multiply], [network])] do
+      let .ok branched := Functions.check (program (setup .complexF64 "Complex" ++ [network,
+          .branch condition yes no, network] ++ cleanup)) env
+        | throw (IO.userError "valid mixed network/GEMM branch rejected")
+      ensure "branch receipts retain prefix, either arm and suffix exactly once"
+        (branched.context.networks.size == 3 && branched.context.products.size == 4)
+      ensure "branch network origins retain the actual environment"
+        (branched.context.networks.all fun receipt => receipt.environment == env)
+    let nested : Functions.Statement := .branch condition [network] [network]
+    let .ok branched := Functions.check (program (setup .complexF64 "Complex" ++ [network,
+        .branch condition [nested] [nested], network] ++ cleanup)) env
+      | throw (IO.userError "valid nested network branch rejected")
+    ensure "both nested arms retain all six actual receipts, excluding probes"
+      (branched.context.networks.size == 6 && branched.context.products.size == 6)
   let reused : Graph := {graph with occurrences := [⟨"a", 30⟩, ⟨"b", 30⟩]}
   let square := (setup .complexF64 "Complex" 2).map fun statement => match statement with
     | .numerical (.map 30 loan _ _) => .numerical (.map 30 loan 3 3)

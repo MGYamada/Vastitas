@@ -86,8 +86,10 @@ to `TensorNetwork.check`. It validates occurrence identity, exact port coverage,
 edge variance, nominal edge type and ordered boundaries. It then calls the
 existing `Storage.Numerical.checkProduct` for the actual three maps. Storage and
 GEMM checking are shared with direct products, including stale views, initialization,
-output aliases and exact scalar/layout checks. All-body probes and both branch
-arms remain checked independently of executable expansion.
+output aliases and exact scalar/layout checks. All-body probes remain separate from executable expansion. Both branch arms
+are checked, and each arm's receipts are retained exactly once together with
+receipts before and after the branch, including nested branches. A branch receipt
+records its local schedule segment; it does not claim that both arms execute.
 
 The sole edge determines the left and right operands. Declaration order does not
 select a different schedule. Lowering emits exactly one overwrite GEMM with

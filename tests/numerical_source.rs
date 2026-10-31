@@ -1717,8 +1717,15 @@ fn finite_network_build_execute_rectangular_complex_reuse_and_calls() {
         with_interfaces(source, profile)
         .replace("gemm(left, right, destination, overwrite, NativeFast);", "contract(destination, NativeFast) { occurrence a = left; occurrence b = right; edge(a.input, b.output); input(b.input); output(a.output); }")
     };
+    let branched_real = NETWORK_REAL
+        .replace("    contract(destination, NativeFast) {", "    if true { contract(destination, NativeFast) {")
+        .replace("output(a.output);\n    }", "output(a.output);\n    } } else { gemm(left, right, destination, overwrite, NativeFast); }");
+    let branched_complex = NETWORK_COMPLEX
+        .replace("    contract(destination, NativeFast) {", "    if false { gemm(left, right, destination, overwrite, NativeFast); } else { contract(destination, NativeFast) {")
+        .replace("output(a.output);\n    }", "output(a.output);\n    } }");
     for (real, complex) in [
         (NETWORK_REAL.to_owned(), NETWORK_COMPLEX.to_owned()),
+        (branched_real, branched_complex),
         (network_reuse(false), network_reuse(true)),
         (nested(REAL, "RealSmooth"), nested(COMPLEX, "ComplexSmooth")),
     ] {

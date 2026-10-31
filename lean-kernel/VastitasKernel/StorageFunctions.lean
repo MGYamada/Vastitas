@@ -728,7 +728,7 @@ mutual
           pure frame
         | .branch condition yes no => do
           let before ← get
-          set {before with code := #[], calls := #[], products := #[], inputs := #[], outputs := #[], transfers := #[], transforms := #[]}
+          set {before with code := #[], calls := #[], products := #[], networks := #[], inputs := #[], outputs := #[], transfers := #[], transforms := #[]}
           let _ ← expand fuel functions stack frame yes
           let left ← get
           set {before with
@@ -737,6 +737,7 @@ mutual
             code := #[]
             calls := #[]
             products := #[]
+            networks := #[]
             inputs := #[]
             outputs := #[]
             transfers := #[]
@@ -751,6 +752,7 @@ mutual
             calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             products := before.products ++ left.products ++ right.products
+            networks := before.networks ++ left.networks ++ right.networks
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
             transfers := before.transfers ++ left.transfers ++ right.transfers

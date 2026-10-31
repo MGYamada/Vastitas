@@ -2091,3 +2091,60 @@ fn vector_evaluation_builds_executes_real_complex_empty_and_transposed() {
         assert_eq!(result.stdout, b"42\n");
     }
 }
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let source = |complex: bool| {
+        let (source, scalar, zero, one, result) = if complex {
+            (
+                include_str!("../examples/packages/generative-owned-map/src/complex/mod.vast"),
+                "Complex<F64>",
+                "complex_bits(0, 0)",
+                "complex_bits(4607182418800017408, 0)",
+                "complex_bits(4616189618054758400, 4617315517961601024)",
+            )
+        } else {
+            (
+                include_str!("../examples/packages/generative-owned-map/src/real/mod.vast"),
+                "F64",
+                "f64_bits(0)",
+                "f64_bits(4607182418800017408)",
+                "f64_bits(4616189618054758400)",
+            )
+        };
+        source.replace("pub resource fn run()", "pub resource fn product()")
+            .replace("drop(final);", &format!(
+                "borrow left_data = read(final); map left = view(left_data, final);
+                 allocate identity: {scalar}[4];
+                 borrow initialize = write(identity, layout(0, 2, 2, 2, false));
+                 fill(initialize, {zero}); store(initialize, 0, 0, {one}); store(initialize, 1, 1, {one}); release(initialize);
+                 borrow right_data = read(identity, layout(0, 2, 2, 2, false)); map right = view(right_data, bu, bu);
+                 allocate output: {scalar}[6]; borrow output_data = write(output, layout(0, 3, 2, 3, false));
+                 map destination = view(output_data, bu, bw); gemm(left, right, destination, overwrite, NativeFast);
+                 release(output_data); release(right_data); release(left_data); drop(final); drop(identity);
+                 borrow answer = read(output, layout(0, 3, 2, 3, false));
+                 expect(answer, 0, 0, {result}); expect(answer, 2, 1, {result}); release(answer); drop(output);"))
+    };
+    let s = fixture(&source(false));
+    s.write("src/complex/mod.vast", &source(true));
+    success(&command(&s, "check").output().unwrap());
+    let response = kernel(captured(&s), "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    let generated = response["lean_source"].as_str().unwrap();
+    assert_eq!(generated.matches("allocate arena").count(), 6);
+    assert!(!generated.contains("copy arena"));
+    let mut build = command(&s, "build");
+    build
+        .args(["-o", "program", "--openblas-prefix"])
+        .arg(prefix);
+    if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+        build.arg("--native-cc").arg(cc);
+    }
+    success(&build.output().unwrap());
+    let output = Command::new(s.0.join("program")).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
+}

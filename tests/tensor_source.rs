@@ -102,6 +102,89 @@ fn through_calls(source: &str, complex: bool) -> String {
       }}")
 }
 
+// The actual contracted space/basis and B's backing bytes come from an opened
+// rank-two map package. Its dual is also used as T's contracted axis.
+fn through_owned_package(source: &str, complex: bool, condition: bool) -> String {
+    let profile = if complex {
+        "ComplexSmooth"
+    } else {
+        "RealSmooth"
+    };
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let width = if complex { 16 } else { 8 };
+    let initialize_start = source.find("    borrow init_b = write(right,").unwrap();
+    let initialize_end =
+        source.find("    release(init_b);\n").unwrap() + "    release(init_b);\n".len();
+    let initialize = &source[initialize_start..initialize_end];
+    let source = source
+        .replace(initialize, "")
+        .replace(&format!("allocate right: {scalar}[10];"), "")
+        .replace(
+            &format!("space v = linear(super::profiles::{profile}, 3); basis bv = basis(v);"),
+            "",
+        )
+        .replace(
+            "basis bx = basis(x);",
+            "basis bx = basis(x);
+    call create_right(x, bx) -> (closed);
+    unpack closed as (v, bv, right);",
+        )
+        .replace(
+            &format!("read(right, layout({width}, 3, 2, 4, false))"),
+            "read(right)",
+        );
+    let header = "pub resource fn product() -> Unit {";
+    let (_, body) = source.split_once(header).unwrap();
+    let (body, _) = body.rsplit_once("    value { () }").unwrap();
+    format!(
+        "{header}
+      if {condition} {{ {body} }} else {{ {body} }}
+      value {{ () }}
+    }}
+    resource fn create_right(x: Space<super::profiles::{profile}, 2>, bx: Basis<x>)
+      returns (boxed: OwnedMapTo<bx, 3>) -> Unit {{
+      space hidden = linear(super::profiles::{profile}, 3); basis hidden_basis = basis(hidden);
+      allocate buffer: {scalar}[10];
+      {}
+      map matrix = owned(buffer, layout({width}, 3, 2, 4, false), bx, hidden_basis);
+      map boxed = pack(matrix);
+      value {{ () }}
+    }}",
+        initialize.replace("right", "buffer")
+    )
+}
+
+#[test]
+fn generative_package_targets_supply_actual_contracted_axes_in_both_branches() {
+    for condition in [false, true] {
+        let real = through_owned_package(REAL, false, condition);
+        let complex = through_owned_package(COMPLEX, true, condition);
+        let s = fixture(&real, &complex);
+        success(&command(&s, "check").output().unwrap());
+        let emission = kernel(captured(&s), "emit");
+        assert_eq!(emission["ok"], true, "{emission}");
+        let native = emission["lean_source"].as_str().unwrap();
+        // Both branches are checked/lowered; package transfer adds no storage.
+        assert_eq!(native.matches("pack3 arena").count(), 4);
+        assert_eq!(native.matches("VastitasGemmNative.gemm arena").count(), 4);
+        assert_eq!(native.matches("allocate arena").count(), 16);
+        assert!(!native.contains("copy arena"));
+        for (bad, code) in [
+            (real.replace("unpack closed as (v, bv, right);",
+                "borrow illicit = read(closed, layout(8, 3, 2, 4, false)); release(illicit); unpack closed as (v, bv, right);"),
+                "E_NUMERICAL_PACKAGE"),
+            (real.replace("unpack closed as (v, bv, right);",
+                "unpack closed as (v, bv, right); call create_right(x, bx) -> (other); unpack other as (other_v, other_bv, other_right); drop(other_right);")
+                .replace("view2(input_b, bv, bxd)", "view2(input_b, other_bv, bxd)"),
+                "E_TENSOR"),
+        ] {
+            let output = command(&fixture(&bad, &complex), "check").output().unwrap();
+            assert!(!output.status.success(), "invalid package/tensor combination accepted");
+            assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{output:?}");
+        }
+    }
+}
+
 #[test]
 fn tensor_source_checks_real_axes_explicit_packing_and_ordered_boundaries() {
     let s = fixture(REAL, COMPLEX);
@@ -327,6 +410,10 @@ fn tensor_native_executes_rank_three_permutation_bilinear_products_and_empty_axe
     ));
     for condition in [false, true] {
         cases.push((branched(REAL, condition), branched(COMPLEX, condition)));
+        cases.push((
+            through_owned_package(REAL, false, condition),
+            through_owned_package(COMPLEX, true, condition),
+        ));
     }
     for dimensions in [
         [2, 3, 2, 2],

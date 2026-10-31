@@ -52,6 +52,9 @@ private def parameter (j : Json) : Except String Parameter := do
     fields j ["kind", "name", "basis", "access", "initializes", "span"]
     return .vector (← str j "name") (← str j "basis") (← Storage.Wire.access (← str j "access"))
       (← j.getObjValAs? Bool "initializes") span
+  | "owned_map_to" =>
+    fields j ["kind", "name", "source", "dimension", "span"]
+    return .ownedMapTo (← str j "name") (← str j "source") (← size j "dimension") span
   | "owned_map" =>
     fields j ["kind", "name", "source", "target", "span"]
     return .ownedMap (← str j "name") (← str j "source") (← str j "target") span
@@ -171,6 +174,12 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
     fields j ["op", "name", "owner", "layout", "source", "target"]
     return .ownedMap (← str j "name") (← str j "owner") (← Storage.Wire.layout (← field j "layout"))
       (← str j "source") (← str j "target")
+  | "pack_map" =>
+    fields j ["op", "name", "owner"]
+    return .packMap (← str j "name") (← str j "owner")
+  | "unpack_map" =>
+    fields j ["op", "package", "space", "basis", "owner"]
+    return .unpackMap (← str j "package") (← str j "space") (← str j "basis") (← str j "owner")
   | "owned_view" =>
     fields j ["op", "name", "loan", "owner"]
     return .ownedView (← str j "name") (← str j "loan") (← str j "owner")
@@ -267,9 +276,14 @@ private def resultType (j : Json) : Except String (Storage.Functions.ResultType 
   match j.getObjVal? "kind" with
   | .error _ => return .owned (← Storage.Functions.Wire.ownedType j)
   | .ok _ =>
-    fields j ["kind", "source", "target"]
-    if (← str j "kind") != "owned_map" then throw "unknown resource result type"
-    return .ownedMap (← str j "source") (← str j "target")
+    match ← str j "kind" with
+    | "owned_map" =>
+      fields j ["kind", "source", "target"]
+      return .ownedMap (← str j "source") (← str j "target")
+    | "owned_map_to" =>
+      fields j ["kind", "source", "dimension"]
+      return .ownedMapTo (← str j "source") (← size j "dimension")
+    | _ => throw "unknown resource result type"
 
 def function (j : Json) : Except String Function := do
   fields j ["name", "parameters", "results", "body", "value_type", "value_body", "span", "public"]

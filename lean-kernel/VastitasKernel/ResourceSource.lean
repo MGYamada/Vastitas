@@ -17,6 +17,7 @@ inductive Parameter where
   | basis (name space : String) (span : Span)
   | map (name source target : String) (access : Access) (initializes : Bool) (span : Span)
   | ownedMap (name source target : String) (span : Span)
+  | ownedMapTo (name source : String) (dimension : Nat) (span : Span)
   | involution (name space : String) (span : Span)
   | dualSpace (name parent : String) (span : Span)
   | conjugateSpace (name parent involution : String) (span : Span)
@@ -28,14 +29,14 @@ inductive Parameter where
 def Parameter.name : Parameter → String
   | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
-  | .vector name .. => name
+  | .vector name .. | .ownedMapTo name .. => name
 
 def Parameter.span : Parameter → Span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
   | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span | .ownedMap _ _ _ span => span
   | .involution _ _ span | .dualSpace _ _ span | .conjugateSpace _ _ _ span |
       .derivedBasis _ _ _ span | .metric _ _ _ _ span => span
-  | .vector _ _ _ _ span => span
+  | .vector _ _ _ _ span | .ownedMapTo _ _ _ span => span
 
 inductive Action where
   | allocate (owner : String) (scalar : Scalar) (elements : Nat)
@@ -70,6 +71,8 @@ inductive NumericalOperation where
       (mode : GemmMode) (policy : NumericalPolicy) (alpha beta : Option Coefficient)
   | map (name loan source target : String)
   | ownedMap (name owner : String) (layout : Layout) (source target : String)
+  | packMap (name owner : String)
+  | unpackMap (package space basis owner : String)
   | ownedView (name loan owner : String)
   | borrowOwned (name owner : String) (access : Access)
   | gemm (left right output : String) (mode : GemmMode) (policy : NumericalPolicy)
@@ -298,6 +301,16 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     let target ← name target
     let (frame, output) ← bindName index scope frame output .owner span
     return (frame, .ownedMap output owner layout source target)
+  | .packMap output owner =>
+    let owner ← name owner
+    let (frame, output) ← bindName index scope frame output .owner span
+    return (frame, .packMap output owner)
+  | .unpackMap package space basis owner =>
+    let package ← name package
+    let (frame, space) ← bindName index scope frame space .numerical span
+    let (frame, basis) ← bindName index scope frame basis .numerical span
+    let (frame, owner) ← bindName index scope frame owner .owner span
+    return (frame, .unpackMap package space basis owner)
   | .ownedView output loan owner =>
     let loan ← name loan
     let owner ← name owner
@@ -375,7 +388,7 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
   let mut parameters := []
   for parameter in function.parameters do
     let kind := match parameter with
-      | .owned .. | .ownedMap .. => BindingKind.owner
+      | .owned .. | .ownedMap .. | .ownedMapTo .. => BindingKind.owner
       | .borrowed .. => .loan
       | _ => .numerical
     let (next, symbol) ← bindName index owner.scope frame parameter.name kind parameter.span
@@ -419,6 +432,9 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
         let (source, _) ← lookup frame source span
         let (target, _) ← lookup frame target span
         pure (.ownedMap symbol source target)
+      | .ownedMapTo _ source dimension span => do
+        let (source, _) ← lookup frame source span
+        pure (.ownedMapTo symbol source dimension)
     parameters := parameters ++ [parameter]
     frame := next
   let (resultFrame, body) ← lowerStatements index owners id owner.scope 4096 frame function.body
@@ -431,6 +447,9 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
         let (source, _) ← lookup frame source function.span
         let (target, _) ← lookup frame target function.span
         pure (.ownedMap source target)
+      | .ownedMapTo source dimension => do
+        let (source, _) ← lookup frame source function.span
+        pure (.ownedMapTo source dimension)
     return (symbol, type)
   return ⟨id, parameters, results, body⟩
 
@@ -527,6 +546,8 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   tensorContractionOrigins : ∀ receipt ∈ checked.context.tensorContractions.toList, receipt.environment = environment
   vectorOrigins : ∀ receipt ∈ checked.context.vectorConjugates.toList, receipt.environment = environment
   evaluationOrigins : ∀ receipt ∈ checked.context.evaluations.toList, receipt.environment = environment
+  packageOrigins : ∀ receipt ∈ checked.context.packages.toList, receipt.environment = environment
+  packageResultOrigins : ∀ receipt ∈ checked.context.packageResults.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -588,12 +609,18 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                                     receipt.environment = numericalEnvironment pureProgram then
                                   if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
                                       receipt.environment = numericalEnvironment pureProgram then
-                                    .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                                      library, libraryAccepted, fun actual same => by
-                                        have : actual = id := Option.some.inj (same.symm.trans entry)
-                                        subst actual
-                                        exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                          networkOrigins, tensorViewOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins⟩⟩
+                                    if packageOrigins : ∀ receipt ∈ executable.context.packages.toList,
+                                        receipt.environment = numericalEnvironment pureProgram then
+                                      if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
+                                          receipt.environment = numericalEnvironment pureProgram then
+                                        .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                          library, libraryAccepted, fun actual same => by
+                                            have : actual = id := Option.some.inj (same.symm.trans entry)
+                                            subst actual
+                                            exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                              networkOrigins, tensorViewOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins⟩⟩
+                                      else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
+                                    else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
                                   else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
                                 else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
                               else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"

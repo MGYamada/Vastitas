@@ -2,6 +2,7 @@ import VastitasKernel.StorageCodegen
 import VastitasKernel.TensorNetwork
 import VastitasKernel.StorageEvaluation
 import VastitasKernel.TensorNumerical
+import VastitasKernel.StorageOwnedPackages
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
 bounded child loans for borrowed arguments, return those loans, and transfer
@@ -25,6 +26,7 @@ inductive Parameter where
   | basis (name space : Symbol)
   | map (name source target : Symbol) (access : Access) (initializes : Bool)
   | ownedMap (name source target : Symbol)
+  | ownedMapTo (name source : Symbol) (dimension : Nat)
   | involution (name space : Symbol)
   | dualSpace (name parent : Symbol)
   | conjugateSpace (name parent involution : Symbol)
@@ -36,7 +38,7 @@ inductive Parameter where
 def Parameter.name : Parameter → Symbol
   | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
-  | .vector name .. => name
+  | .vector name .. | .ownedMapTo name .. => name
 
 def Parameter.isSpace : Parameter → Bool
   | .space .. | .dualSpace .. | .conjugateSpace .. => true
@@ -49,6 +51,7 @@ def Parameter.isBasis : Parameter → Bool
 inductive ResultType (Name : Type := Symbol) where
   | owned (type : OwnedType)
   | ownedMap (source target : Name)
+  | ownedMapTo (source : Name) (dimension : Nat)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 inductive Statement where
@@ -82,13 +85,14 @@ def Parameter.valid : Parameter → Bool
   | .owned _ type => type.valid
   | .borrowed _ scalar rows columns _ _ =>
     checkLayout scalar (rows * columns * scalar.width) ⟨0, rows, columns, max 1 rows, false⟩
-  | .space _ _ dimension => dimension ≤ byteLimit
+  | .space _ _ dimension | .ownedMapTo _ _ dimension => dimension ≤ byteLimit
   | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
       .conjugateSpace .. | .derivedBasis .. | .metric .. | .vector .. => true
 
 def ResultType.valid : ResultType Name → Bool
   | .owned type => type.valid
   | .ownedMap .. => true
+  | .ownedMapTo _ dimension => dimension ≤ byteLimit
 
 /-- Dependent headers refer only to preceding parameters of the exact kind.
 The actual caller, not a probe's fresh identities, supplies their equality. -/
@@ -104,7 +108,7 @@ def parameterDependencies (parameters : List Parameter) : Bool := Id.run do
       | .derivedBasis _ parent target => basis parent && space target
       | .metric _ parent selected _ => basis parent && involution selected
       | .map _ source target .. | .ownedMap _ source target => basis source && basis target
-      | .vector _ parent .. => basis parent
+      | .vector _ parent .. | .ownedMapTo _ parent .. => basis parent
       | _ => true
     if !valid then return false
     prior := parameter :: prior
@@ -115,6 +119,7 @@ def resultDependencies (parameters : List Parameter) (results : List (Symbol × 
   | .owned _ => true
   | .ownedMap source target => [source, target].all fun basis =>
       parameters.any fun p => p.name == basis && p.isBasis
+  | .ownedMapTo source _ => parameters.any fun p => p.name == source && p.isBasis
 
 /-- Bound source traversal before expanding calls, including unused branches. -/
 def remaining : Nat → Nat → List Statement → Option Nat
@@ -300,6 +305,9 @@ def NumericalBinding (value : Numerical.Value) (actual bound : Symbol) (access :
   | .ownedMap view =>
     Numerical.value? values bound = some (.ownedMap {view with owner := bound}) ∧
     (checkAction before (.move view.owner bound)).toOption = some after
+  | .ownedPackage view =>
+    Numerical.value? values bound = some (.ownedPackage {view with owner := bound}) ∧
+    (checkAction before (.move view.owner bound)).toOption = some after
   | .vector view => match Numerical.value? values bound with
     | some (.vector child) => child.basis = view.basis ∧ child.conjugate = view.conjugate ∧
         child.origin = .reborrow actual ∧ after.loan? child.loan.name = some child.loan ∧
@@ -319,7 +327,7 @@ instance (value : Numerical.Value) (actual bound : Symbol) (access : Access)
     cases Numerical.value? values bound with
     | none => infer_instance
     | some value => cases value <;> infer_instance
-  | ownedMap _ => unfold NumericalBinding; infer_instance
+  | ownedMap _ | ownedPackage _ => unfold NumericalBinding; infer_instance
   | vector view =>
     unfold NumericalBinding
     cases Numerical.value? values bound with
@@ -341,11 +349,20 @@ structure NumericalInputReceipt where
   values : Numerical.Values
   binding : NumericalBinding checked.value actual bound access before after values
 
+inductive ReturnedPayload where
+  | raw
+  | map (view : Numerical.OwnedMap)
+  | package (view : Numerical.OwnedMap)
+  deriving Inhabited
+
 structure Returned where
   owner : Symbol
   type : OwnedType
-  map : Option Numerical.OwnedMap := none
+  payload : ReturnedPayload := .raw
   deriving Inhabited
+
+def Returned.map (value : Returned) : Option Numerical.OwnedMap :=
+  match value.payload with | .map view => some view | _ => none
 
 /-- The result contract is checked against the real post-body state, after
 returning the call's temporary loans, not a synthetic probe state. -/
@@ -363,6 +380,36 @@ structure NumericalResultReceipt where
   selected : checked.value = .ownedMap view
   owner : returned.owner = view.owner
   mapping : returned.map = some view
+
+structure PackageResultReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  source : Symbol
+  dimension : Nat
+  actual : Symbol
+  checked : Numerical.CheckedInput environment resources values (.ownedMapTo source dimension) actual
+  accepted : Numerical.checkInput environment resources values (.ownedMapTo source dimension) actual = .ok checked
+  view : Numerical.OwnedMap
+  selected : checked.value = .ownedPackage view
+  returned : Returned
+  owner : returned.owner = view.owner
+  mapping : returned.payload = .package view
+
+structure PackageReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  operation : Numerical.PackageOperation
+  source : Symbol
+  output : Symbol
+  checked : Numerical.CheckedPackage environment resources values operation source output
+  accepted : Numerical.checkPackage environment resources values operation source output = .ok checked
+  after : State
+  transitioned : checked.after = after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.move checked.original.owner output)] = code
 
 structure OwnedMapTransfer where
   view : Numerical.OwnedMap
@@ -432,6 +479,8 @@ structure Context where
   networks : Array NetworkReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
   outputs : Array NumericalResultReceipt := #[]
+  packageResults : Array PackageResultReceipt := #[]
+  packages : Array PackageReceipt := #[]
   transfers : Array OwnedMapTransfer := #[]
   transforms : Array TransformReceipt := #[]
   vectorConjugates : Array VectorConjugateReceipt := #[]
@@ -488,6 +537,39 @@ def transferMap (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
     else throw ⟨"E_RESOURCE_INIT", "owned map transfer requires initialized coordinates"⟩
   else throw ⟨"E_RESOURCE_MOVE", "owned map allocation or owner is no longer live"⟩
 
+def packageStep (operation : Numerical.PackageOperation) (source output : Symbol) : M Unit := do
+  let before ← get
+  match accepted : Numerical.checkPackage before.environment before.resources before.numerical operation source output with
+  | .error diagnostic => throw diagnostic
+  | .ok checked =>
+    step (.move checked.original.owner output)
+    let after ← get
+    if transitioned : checked.after = after.resources then
+      if emitted : before.code.toList ++ [.action (.move checked.original.owner output)] = after.code.toList then
+        let receipt : PackageReceipt := ⟨before.environment, before.resources, before.numerical,
+          operation, source, output, checked, accepted, after.resources, transitioned,
+          before.code.toList, after.code.toList, emitted⟩
+        set {after with numerical := checked.values, packages := after.packages.push receipt}
+      else throw ⟨"E_NUMERICAL_PACKAGE", "package operation differs from emitted ownership move"⟩
+    else throw ⟨"E_NUMERICAL_PACKAGE", "package operation differs from checked resource transition"⟩
+
+def transferPackage (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
+  let before ← get
+  let values ← match Numerical.value? before.numerical view.owner with
+    | none => Numerical.insert before.environment before.numerical view.owner (.ownedPackage view)
+    | some (.ownedPackage original) =>
+      if original == view then pure before.numerical
+      else throw ⟨"E_NUMERICAL_PACKAGE", "package transfer changed its closed payload"⟩
+    | _ => throw ⟨"E_NUMERICAL_PACKAGE", "package transfer source has a different kind"⟩
+  set {before with numerical := values}
+  packageStep .transfer view.owner target
+
+private def rejectOpaque (name : Symbol) : M Unit := do
+  if (← get).numerical.any (fun (key, value) => match value with
+      | .ownedPackage view => key == name || view.owner == name
+      | _ => false) then
+    throw ⟨"E_NUMERICAL_PACKAGE", "opaque owned package must be unpacked before accessing or erasing its storage"⟩
+
 private def lowerSource (frame : Frame) : Source → Except Error Source
   | .owner name => return .owner (← resolve frame name)
   | .loan name => return .loan (← resolve frame name)
@@ -507,10 +589,12 @@ def operation (frame : Frame) : Action → M Frame
     let (frame, target) ← bindName frame target
     match Numerical.value? (← get).numerical source with
     | some (.ownedMap view) => transferMap view target
+    | some (.ownedPackage view) => transferPackage view target
     | _ => step (.move source target)
     return frame
   | .borrow name source layout access => do
     let source ← lowerSource frame source
+    if let .owner name := source then rejectOpaque name
     let (frame, name) ← bindName frame name
     step (.borrow name source layout access)
     return frame
@@ -647,6 +731,18 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
           return frame
         else throw ⟨"E_NUMERICAL_TYPE", "transformed map differs from its emitted borrow"⟩
       else throw ⟨"E_NUMERICAL_TYPE", "transformed map differs from its actual resource transition"⟩
+  | .packMap name owner =>
+    let owner ← resolve frame owner
+    let (frame, name) ← bindName frame name
+    packageStep .pack owner name
+    return frame
+  | .unpackMap package space basis owner =>
+    let package ← resolve frame package
+    let (frame, space) ← bindName frame space
+    let (frame, basis) ← bindName frame basis
+    let (frame, owner) ← bindName frame owner
+    packageStep (.open space basis) package owner
+    return frame
   | .borrowOwned name owner access =>
     let owner ← resolve frame owner
     let some (.ownedMap view) := Numerical.value? context.numerical owner
@@ -658,6 +754,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
     return frame
   | .ownedMap name owner layout source target =>
     let owner ← resolve frame owner
+    rejectOpaque owner
     let source ← resolve frame source
     let target ← resolve frame target
     let (frame, name) ← bindName frame name
@@ -727,7 +824,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let owner ← resolve frame owner
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
-      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. =>
+      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. =>
         throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
@@ -754,6 +851,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
     let state := (← get).resources
     match parameter with
     | .owned _ type =>
+      rejectOpaque actual
       if !ownedMatches state actual type then throw ⟨"E_RESOURCE_TYPE", "owned argument violates its contract"⟩
       step (.move actual global)
     | .borrowed _ scalar rows columns access initializes =>
@@ -764,7 +862,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
       step (.borrow global (.loan actual) loan.layout access)
       borrowed := borrowed ++ [⟨global, loan.allocation, loan.layout, initializes⟩]
     | .space .. | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
-        .conjugateSpace .. | .derivedBasis .. | .metric .. | .vector .. =>
+        .conjugateSpace .. | .derivedBasis .. | .metric .. | .vector .. | .ownedMapTo .. =>
       let (input, access) ← match parameter with
         | .space _ implementation dimension => pure (Numerical.Input.space implementation dimension, Access.read)
         | .basis _ space => pure (.basis (← resolve dependencies space), .read)
@@ -776,6 +874,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         | .map _ source target access _ => pure (.map (← resolve dependencies source) (← resolve dependencies target), access)
         | .vector _ basis access _ => pure (.vector (← resolve dependencies basis), access)
         | .ownedMap _ source target => pure (.ownedMap (← resolve dependencies source) (← resolve dependencies target), .readWrite)
+        | .ownedMapTo _ source dimension => pure (.ownedMapTo (← resolve dependencies source) dimension, .readWrite)
         | _ => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical parameter"⟩
       match accepted : Numerical.checkInput caller.environment caller.resources caller.numerical input actual with
       | .error diagnostic => throw diagnostic
@@ -798,6 +897,9 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
             pure global
           | .ownedMap view =>
             transferMap view global
+            pure global
+          | .ownedPackage view =>
+            transferPackage view global
             pure global
           | .vector view =>
             let child ← fresh
@@ -835,7 +937,9 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
   for (name, type) in results do
     let global ← resolve frame name
     let result ← match type with
-      | .owned type => pure (Returned.mk global type none)
+      | .owned type => do
+        rejectOpaque global
+        pure (Returned.mk global type .raw)
       | .ownedMap source target => do
         let source ← resolve frame source
         let target ← resolve frame target
@@ -849,12 +953,30 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
             let some allocation := context.resources.owner? view.owner
               | throw ⟨"E_RESOURCE_MOVE", "owned numerical result has no live allocation"⟩
             let result : Returned := ⟨view.owner,
-              ⟨allocation.scalar, allocation.capacity / allocation.scalar.width, [view.layout]⟩, some view⟩
+              ⟨allocation.scalar, allocation.capacity / allocation.scalar.width, [view.layout]⟩, .map view⟩
             let receipt : NumericalResultReceipt := ⟨context.environment, context.resources, context.numerical,
               source, target, global, checked, accepted, result, view, selected, rfl, rfl⟩
             set {context with outputs := context.outputs.push receipt}
             pure result
           | _ => throw ⟨"E_NUMERICAL_TYPE", "owned numerical result must preserve its map interpretation"⟩
+      | .ownedMapTo source dimension => do
+        let source ← resolve frame source
+        let context ← get
+        match accepted : Numerical.checkInput context.environment context.resources context.numerical
+            (.ownedMapTo source dimension) global with
+        | .error diagnostic => throw diagnostic
+        | .ok checked =>
+          match selected : checked.value with
+          | .ownedPackage view =>
+            let some allocation := context.resources.owner? view.owner
+              | throw ⟨"E_RESOURCE_MOVE", "owned package result has no live allocation"⟩
+            let result : Returned := ⟨view.owner,
+              ⟨allocation.scalar, allocation.capacity / allocation.scalar.width, [view.layout]⟩, .package view⟩
+            let receipt : PackageResultReceipt := ⟨context.environment, context.resources, context.numerical,
+              source, dimension, global, checked, accepted, view, selected, result, rfl, rfl⟩
+            set {context with packageResults := context.packageResults.push receipt}
+            pure result
+          | _ => throw ⟨"E_NUMERICAL_PACKAGE", "package result must preserve its closed interpretation"⟩
     let state := (← get).resources
     if returned.any (·.owner == result.owner) || !ownedMatches state result.owner result.type then
       throw ⟨"E_RESOURCE_TYPE", "owned result is duplicated, borrowed, absent or violates its contract"⟩
@@ -961,9 +1083,10 @@ mutual
           let mut frame := frame
           for (localName, value) in outputs.zip returned do
             let (next, target) ← bindName frame localName
-            match value.map with
-            | none => step (.move value.owner target)
-            | some view => transferMap view target
+            match value.payload with
+            | .raw => step (.move value.owner target)
+            | .map view => transferMap view target
+            | .package view => transferPackage view target
             frame := next
           pure frame
         | .branch condition yes no => do
@@ -978,6 +1101,8 @@ mutual
             tensorContractions := #[]
             inputs := #[]
             outputs := #[]
+            packageResults := #[]
+            packages := #[]
             transfers := #[]
             transforms := #[]
             vectorConjugates := #[]
@@ -996,6 +1121,8 @@ mutual
             tensorContractions := #[]
             inputs := #[]
             outputs := #[]
+            packageResults := #[]
+            packages := #[]
             transfers := #[]
             transforms := #[]
             vectorConjugates := #[]
@@ -1017,6 +1144,8 @@ mutual
             tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
+            packageResults := before.packageResults ++ left.packageResults ++ right.packageResults
+            packages := before.packages ++ left.packages ++ right.packages
             transfers := before.transfers ++ left.transfers ++ right.transfers
             transforms := before.transforms ++ left.transforms ++ right.transforms
             vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
@@ -1193,6 +1322,32 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
         (.ownedMap name owner layout source target)
       set {context with numerical}
       pure name
+    | .ownedMapTo _ source dimension =>
+      let source ← resolve frame source
+      let context ← get
+      let some (.basis sourceBasis) := Numerical.value? context.numerical source
+        | throw ⟨"E_NUMERICAL_PACKAGE", "package probe requires an earlier source basis"⟩
+      let space ← fresh
+      let basis ← fresh
+      let viewName ← fresh
+      let package ← fresh
+      let context ← get
+      let values ← Numerical.construct context.environment context.resources context.numerical
+        (.space space sourceBasis.space.type.domain dimension)
+      let values ← Numerical.construct context.environment context.resources values (.basis basis space)
+      set {context with numerical := values}
+      let scalar := sourceBasis.space.scalar
+      let layout : Layout := ⟨0, dimension, sourceBasis.space.dimension, max 1 dimension, false⟩
+      step (.allocate owner scalar (dimension * sourceBasis.space.dimension))
+      initializeRegion owner scalar layout
+      let context ← get
+      let values ← Numerical.construct context.environment context.resources context.numerical
+        (.ownedMap viewName owner layout source basis)
+      let some (.ownedMap view) := Numerical.value? values viewName
+        | throw ⟨"E_NUMERICAL_PACKAGE", "package probe lost its owned map"⟩
+      transferMap view viewName
+      packageStep .pack viewName package
+      pure package
     actuals := actuals ++ [actual]
     frame := (parameter.name, actual) :: frame
   let returned ← invoke 4096 functions [] function.id actuals

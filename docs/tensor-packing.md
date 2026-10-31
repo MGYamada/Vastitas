@@ -89,6 +89,11 @@ Tensor descriptors are local metadata. Existing dependent space/basis and
 borrowed rectangular parameters allow helpers to construct local tensor views,
 pack or contract, and return initialized caller destinations. Tensor-valued
 parameters/results and generative tensor packages are not added here.
+An existing `OwnedMapTo<bx, 3>` result can supply the rank-two operand: unpacking
+introduces its actual target `v` and basis `bv`; deriving `bvd` from that opening
+then supplies the corresponding contracted axis of the rank-three operand.
+Combined tests execute this path in both branch directions and reject replacing
+`bv` with a same-sized basis from a different opening.
 
 ## Independent checking and native execution
 

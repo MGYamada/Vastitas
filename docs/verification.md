@@ -1187,3 +1187,16 @@ outputs to exact emitted transitions and public declaration origins. The finite
 coordinate-reference equality retains summation order without field axioms.
 Native/C/FFI refinement, floating laws, general tensor-category laws and C parity
 are separate obligations; the tensor source and native tests do not prove them.
+
+### Generative owned-map packages
+
+`VastitasOracle.StorageOwnedPackages` imports the actual resource/source checker.
+`actual_transition`, `preserves_storage`, `opening_fresh`, `opening_witnesses`,
+`closed_target`, `opening_target_profile` and `actual_result` expose accepted pack/open/move and dependent
+return contracts; `result_initialized_bytes` derives actual byte initialization.
+`move_has_no_native_instruction` states exact erasure by the
+existing native lowerer. `public_operation_origin` and `public_result_origin`
+connect receipts to the declaration environment of the same protocol-8 checker
+result. Both branch receipts and independent unused-body probes are retained.
+See [the bounded package contract](owned-map-packages.md) for rejection/native
+coverage and remaining general-package, dynamic-shape and refinement boundaries.

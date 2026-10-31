@@ -1,17 +1,35 @@
 # Optional native GEMM adapter
 
-`lean-kernel/numerical` is the optional **internal C backend** for the
-typed numerical path. It uses the actual native storage arena and its independent
-physical layout validation. The internal resource checker now checks GEMM access,
-initialization and separation, and lowers that exact schedule through a separate
-optional Lean FFI package. The [public numerical path](numerical-values.md) now
-supplies nominal endpoint/basis checks through protocol 8, including
-[typed dual/conjugate/orthonormal-adjoint operations](linear-transforms.md).
-General metric realization and the broader contract of
-[#91](https://github.com/MGYamada/Vastitas/issues/91) remain incomplete.
-Neither [#92](https://github.com/MGYamada/Vastitas/issues/92) nor Stage 1 is complete.
+Public protocol 8 can execute real and complex GEMM from `.vast` package
+`resource fn` bodies. The [public numerical path](numerical-values.md) connects
+unresolved source names to independently checked nominal spaces, bases and live
+map views, then to the checked resource/native schedule and OpenBLAS execution.
+`lean-kernel/numerical` is its optional **internal C backend and Lean FFI package**;
+the internal API is distinct from the already implemented public source entry.
+
+## Responsibilities along the implemented path
+
+| Layer | Responsibility | Boundary |
+| --- | --- | --- |
+| Public syntax and protocol 8 | The Rust frontend parses numerical statements; `ResourceProtocol` independently decodes unresolved paths, local names, modes and coefficients in Lean. | Frontend acceptance is not semantic acceptance. Public input cannot supply checked IDs, product receipts or raw resource GEMM actions. |
+| Actual Lean checking | `ResourceSource` supplies the same declaration environment accepted by the full authority/Fn/dispatch checker. `StorageNumerical` checks nominal endpoints, bases and live map views; `StorageFunctions` checks every body and each actual call. `Storage.checkGemm` checks access, initialization, scalar/shape compatibility, coefficients and output separation. | Raw resource access or matching dimensions alone cannot authorize a mathematical map or metric. All-body probes remain separate from executable call checks. |
+| Checked native lowering | `ResourceCodegen` and `StorageCodegen` recheck the source components, exact resource schedule and native instructions, retaining actual allocation/layout, mode, coefficients and explicit transform flags. | Only a checked entry whose schedule contains GEMM requests the optional numerical runtime. |
+| Native execution | The C adapter reconstructs physical views from the live storage arena, checks layout/alias/ABI conditions before writes, and calls pinned OpenBLAS `dgemm` or `zgemm` for nondegenerate products. | It relies on the checked caller for logical initialization, permissions and nominal authority. Empty and zero-inner operations use the explicit conventions below. |
+
+The separate `lean/` proof oracle imports the actual checker definitions and
+proves structural acceptance, provenance and exact-lowering facts. Ordinary
+compilation and generated programs do not invoke it. Those facts and native
+regression results do not prove floating-point field laws, ideal matrix results,
+certified numerical error bounds or source/native refinement; see the
+[proof boundary](verification.md#what-is-outside-these-claims).
 
 ## Build and dependency boundary
+
+For public package syntax and `vastitas check`/`build`, use
+[the numerical source guide](numerical-values.md#public-source-and-build).
+Checking and kernel source emission need no OpenBLAS. A native build requires
+`--openblas-prefix` only when its checked entry emits GEMM; unused numerical
+bodies are still checked but do not force a numerical runtime dependency.
 
 Build this optional dependency explicitly with Python 3.12+, Make and a host C
 toolchain. The checked executable tests also require the pinned Lean toolchain:
@@ -155,8 +173,9 @@ operations need separate typed contracts.
 The C API trusts its caller's logical initialization and read/write rights, as
 the existing native storage layer does. The checked internal path below supplies
 those rights. The public path separately supplies nominal numerical types and
-source integration. Finite networks, dual/metric operations and equivalent-C
-GEMM performance measurements remain work.
+source integration, including explicit typed dual/conjugate operations and
+adjoints for declared orthonormal metrics. The remaining public scope is listed
+below.
 This increment does not establish **Fast like C**; use the
 [storage performance gate](storage-ownership.md#713-performance-evidence-and-acceptance).
 
@@ -223,13 +242,45 @@ branch-only initialization are rejected. Numerical CI runs the actual generated
 consumer on both supported operating systems; it remains separate from no-BLAS
 compiler/storage jobs. Runtime counters exclude backend workspace and Lean overhead.
 
+## Public coverage and remaining work
 
-The [public numerical path](numerical-values.md) now checks local nominal
-spaces/bases and map views before using this adapter. Public `gemm` does not
-accept the raw component flags or resource-only authority above. Use
-`vastitas build --manifest-path ... --openblas-prefix /path/to/prefix -o OUTPUT`,
-with `--native-cc cc` on Linux when OpenBLAS uses the host libc. Ordinary builds
-and public `check` do not need OpenBLAS. Generative numerical result packages, general dynamic shape/scalar interfaces,
-general metric realization, networks and native refinement remain pending.
-[Vector evaluation](vector-evaluation.md) now supplies actual dual/explicit
-Hermitian contracts for scalar products through the same adapter.
+[PR #298](https://github.com/MGYamada/Vastitas/pull/298) connected public numerical
+syntax to this checked native path.
+[PR #309](https://github.com/MGYamada/Vastitas/pull/309) strengthened direct-wire
+rejection regressions, including unused bodies and the raw resource-GEMM bypass.
+The public checker rejects forged IDs/flags/receipts, wrong nominal objects or
+bases, and stale or suspended map loans before native generation.
+
+The implemented public scope also includes dependent numerical inputs with static
+dimension contracts, initialized `OwnedMap` inputs/results preserving allocation
+and layout, and explicit real/complex alpha/beta or coefficients read from
+initialized scalar loans. See [the numerical contracts](numerical-values.md).
+[Owned-map packages](owned-map-packages.md) additionally transfer one hidden
+primal target and its basis, with consuming fresh unpack and no runtime copy.
+[Typed transforms](linear-transforms.md) supply explicit dual/conjugate origins,
+corresponding bases and declared orthonormal metric evidence for direct adjoints;
+raw component flags do not supply that authority.
+[Vector evaluation](vector-evaluation.md) supplies bilinear dual evaluation and
+explicit orthonormal Hermitian pairing through actual vector loans and scalar
+destinations. The [two-map network profile](finite-networks.md) checks finite
+occurrences, ports, the bilinear edge and ordered boundaries before invoking
+the same product/resource path.
+
+`tests/numerical_source.rs` covers public source/wire checking and optional
+generated execution for real/complex products, coefficients, nested inputs,
+owned results, typed transforms, vector evaluation and two-map networks,
+including their composition across both branch arms. `tests/resource_source.rs` checks that a
+raw resource GEMM with otherwise valid statement metadata is rejected by the
+public action decoder. Both OS numerical CI jobs explicitly run the
+OpenBLAS-dependent tests; normal compiler checks remain BLAS-free.
+
+General generative numerical result packages, scalar expressions and dynamic
+shape interfaces, general metric realization/transport, higher-rank or multi-edge
+networks, explicit packing and broader scratch/dependency handling remain work.
+Equivalent-C runtime, allocation/copy and peak-memory
+comparisons are still required. The [optional public GEMM experiment](../experiments/public_gemm/README.md)
+has passed generated execution and paired output/arena-cost smoke checks; its
+small hosted run is not performance acceptance. Public GEMM execution does not complete
+[#91](https://github.com/MGYamada/Vastitas/issues/91),
+[#92](https://github.com/MGYamada/Vastitas/issues/92) or the full
+[Stage 1 gate](stage1-completion.md), or establish **Fast like C**.

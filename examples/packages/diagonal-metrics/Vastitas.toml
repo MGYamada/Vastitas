@@ -1,0 +1,4 @@
+[package]
+name = "diagonal_metrics"
+version = "0.1.0"
+root = "src/main.vast"

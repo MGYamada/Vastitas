@@ -203,11 +203,20 @@ audited states are not trusted execution histories.
 Public/source integration must preserve all existing function, dispatch,
 authority and all-body checks, then compose with this exact resource schedule
 and its pre-codegen audit. Public owned arguments/results, caller-owned buffers,
-dynamic shapes, general scratch reuse, dependency retention and equivalent-C
-measurements remain required. Native liveness, writes and cleanup have the tests
+dynamic shapes, broader pooling/retained-evidence contracts and controlled-host
+performance acceptance remain open. Explicit packing/regrouping and bounded
+source/scratch dependency reuse are implemented by the linked numerical checkers. Native liveness, writes and cleanup have the tests
 above but no native refinement theorem. Pure indexed Core theorems do not imply
 these mutable-resource guarantees, and this increment does not close #183.
 
+
+The [diagonal metric path](diagonal-metrics.md) adds independently checked raw
+`diagonal_adjoint`, `diagonal_scale` and compound `diagonal_pair` transitions.
+Raw coefficient metadata establishes only representation/resource safety, not
+nominal metric authority. The public path additionally reconstructs coefficients
+from actual selected `Metric` values. The compound action checks the exact
+scratch write/release/read/GEMM/release execution and invalidates both written
+allocation versions. Native preflight covers both destinations before any write.
 The internal `regroup3` action carries three physical extents and explicit
 input/output axis groupings. It checks complete nontransposed rectangles,
 initialization, scalar agreement and byte separation, then performs exactly one

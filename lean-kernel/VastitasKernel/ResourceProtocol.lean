@@ -153,6 +153,14 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
   | "metric" =>
     fields j ["op", "name", "basis", "involution", "gram"]
     return .metric (← str j "name") (← str j "basis") (← str j "involution") (← gram (← field j "gram"))
+  | "adjoint_into" =>
+    fields j ["op", "input", "output", "source_metric", "target_metric", "policy"]
+    return .adjointInto (← str j "input") (← str j "output") (← str j "source_metric")
+      (← str j "target_metric") (← Storage.Wire.numericalPolicy (← str j "policy"))
+  | "hermitian_diagonal" =>
+    fields j ["op", "left", "right", "output", "metric", "scratch", "layout", "policy"]
+    return .hermitianDiagonal (← str j "left") (← str j "right") (← str j "output") (← str j "metric")
+      (← str j "scratch") (← Storage.Wire.layout (← field j "layout")) (← Storage.Wire.numericalPolicy (← str j "policy"))
   | "transform" =>
     fields j ["op", "name", "parent", "operation"]
     return .transform (← str j "name") (← str j "parent") (← transform (← field j "operation"))

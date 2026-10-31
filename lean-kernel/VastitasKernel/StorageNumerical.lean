@@ -358,6 +358,8 @@ inductive Operation where
   | derivedBasis (name parent space : Symbol)
   | metric (name basis involution : Symbol) (gram : Gram)
   | transform (name parent : Symbol) (operation : Transform)
+  | adjointInto (input output sourceMetric targetMetric : Symbol) (policy : NumericalPolicy)
+  | hermitianDiagonal (left right output metric scratch : Symbol) (layout : Layout) (policy : NumericalPolicy)
   | vector (name loan basis : Symbol)
   | conjugateVector (name parent basis involution : Symbol)
   | evaluate (left right output : Symbol) (operation : Evaluation) (mode : GemmMode) (policy : NumericalPolicy)
@@ -439,7 +441,7 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     let view : MapView := ⟨owned.source, owned.target, loan, false, .direct⟩
     unless view.Live resources do reject "owned view requires an active compatible loan"
     insert env values name (.map view)
-  | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. =>
+  | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
     reject "numerical resource operations must pass the composed check"
 
 structure CheckedTransform (env : Environment) (resources : Storage.State) (values : Values)

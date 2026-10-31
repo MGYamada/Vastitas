@@ -28,7 +28,7 @@ def check(prefix: Path, valgrind: bool) -> None:
     # Neither normal compiler tests nor the storage-only suite call this script.
     with tempfile.TemporaryDirectory(prefix="vastitas-gemm-") as temporary:
         directory = Path(temporary)
-        sources = [str(native / "storage.c"), str(numerical / "gemm.c"), str(numerical / "test_gemm.c")]
+        sources = [str(native / "storage.c"), str(native / "diagonal.c"), str(numerical / "gemm.c"), str(numerical / "test_gemm.c")]
         libraries = [str(archive), "-lm", "-lpthread"]
         executable = directory / "test-gemm"
         run(flags + ["-O2", "-g", *sources, *libraries, "-o", str(executable)])
@@ -41,7 +41,7 @@ def check(prefix: Path, valgrind: bool) -> None:
         # GEMM symbols or numerical implementation exercised by positive tests.
         backend = directory / "test-backend"
         run(flags + ["-O2", "-Dopenblas_get_config=vgemm_test_config",
-                     "-Dopenblas_get_parallel=vgemm_test_parallel", str(native / "storage.c"),
+                     "-Dopenblas_get_parallel=vgemm_test_parallel", str(native / "storage.c"), str(native / "diagonal.c"),
                      str(numerical / "gemm.c"), str(numerical / "test_backend.c"),
                      *libraries, "-o", str(backend)])
         run([str(backend)])

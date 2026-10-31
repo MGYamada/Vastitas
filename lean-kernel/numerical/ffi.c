@@ -41,3 +41,23 @@ LEAN_EXPORT lean_obj_res vastitas_gemm_execute_scaled(b_lean_obj_arg arena,
     if (status == VS_OK) return lean_io_result_mk_ok(lean_box(0));
     return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(vstorage_error(status))));
 }
+
+LEAN_EXPORT lean_obj_res vastitas_diagonal_pair(b_lean_obj_arg arena,
+        uint32_t left, uint64_t left_offset, uint64_t left_rows, uint64_t left_columns,
+        uint64_t left_leading, uint8_t left_transposed,
+        uint32_t right, uint64_t right_offset, uint64_t right_rows, uint64_t right_columns,
+        uint64_t right_leading, uint8_t right_transposed,
+        uint32_t output, uint64_t output_offset, uint64_t output_rows, uint64_t output_columns,
+        uint64_t output_leading, uint8_t output_transposed,
+        uint32_t scratch, uint64_t scratch_offset, uint64_t scratch_rows, uint64_t scratch_columns,
+        uint64_t scratch_leading, uint8_t scratch_transposed,
+        uint8_t uniform, b_lean_obj_arg diagonal, uint8_t conjugate_left, uint8_t conjugate_right) {
+    VStorageStatus status = vgemm_diagonal_pair(lean_get_external_data(arena),
+        left, (VStorageLayout){left_offset,left_rows,left_columns,left_leading,left_transposed},
+        right, (VStorageLayout){right_offset,right_rows,right_columns,right_leading,right_transposed},
+        output, (VStorageLayout){output_offset,output_rows,output_columns,output_leading,output_transposed},
+        scratch, (VStorageLayout){scratch_offset,scratch_rows,scratch_columns,scratch_leading,scratch_transposed},
+        (VDiagonal){lean_sarray_cptr(diagonal),lean_sarray_size(diagonal),uniform}, conjugate_left, conjugate_right, NULL);
+    if (status == VS_OK) return lean_io_result_mk_ok(lean_box(0));
+    return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(vstorage_error(status))));
+}

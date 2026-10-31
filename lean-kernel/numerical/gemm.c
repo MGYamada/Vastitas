@@ -146,3 +146,53 @@ VStorageStatus vgemm_execute(VStorageArena *arena,
     return vgemm_execute_scaled(arena, left, left_view, left_conjugate,
         right, right_view, right_conjugate, output, output_view, mode, defaults, defaults, report);
 }
+
+VStorageStatus vgemm_diagonal_pair(VStorageArena *arena,
+    uint32_t left, VStorageLayout left_view, uint32_t right, VStorageLayout right_view,
+    uint32_t output, VStorageLayout output_view, uint32_t scratch, VStorageLayout scratch_view,
+    VDiagonal diagonal, uint8_t conjugate_left, uint8_t conjugate_right, VGemmReport *report) {
+    if (conjugate_left > 1 || conjugate_right > 1 || left_view.transposed > 1 ||
+        output_view.transposed || scratch_view.transposed) return VS_OPERATION;
+    VStorageStatus status = vgemm_backend_check();
+    if (status != VS_OK) return status;
+    VStorageDense a, original_right, b, c;
+    left_view.transposed = !left_view.transposed;
+    if ((status = vstorage_prepare_dense(arena, left, left_view, &a)) != VS_OK ||
+        (status = vstorage_prepare_dense(arena, right, right_view, &original_right)) != VS_OK ||
+        (status = vstorage_prepare_dense(arena, output, output_view, &c)) != VS_OK ||
+        (status = vstorage_prepare_dense(arena, scratch, scratch_view, &b)) != VS_OK) return status;
+    if (a.scalar != b.scalar || a.scalar != c.scalar || a.scalar != original_right.scalar) return VS_SCALAR;
+    if (a.rows != 1 || b.columns != 1 || original_right.columns != 1 ||
+        a.columns != b.rows || original_right.rows != b.rows || c.rows != 1 || c.columns != 1) return VS_SHAPE;
+    /* The owner-only scratch contract is stricter than a disjoint loan. */
+    if (scratch == left || scratch == right || scratch == output ||
+        overlaps(&a, &c) || overlaps(&original_right, &c)) return VS_ALIAS;
+    if ((status = vdiagonal_validate(diagonal, b.rows)) != VS_OK) return status;
+    if (b.bytes > UINT64_MAX - c.bytes) return VS_OVERFLOW;
+    if ((status = vstorage_prepare_write(arena, b.bytes + c.bytes)) != VS_OK) return status;
+    /* Everything that can return failure has completed. The arena is used
+     * synchronously; no allocation, alias repair, packing or second preflight
+     * occurs between the first scratch write and final output initialization. */
+    vdiagonal_weight_prepared(&original_right, &b, diagonal, conjugate_right);
+    vstorage_record_write(arena, b.bytes);
+    VGemmReport result = {0, c.bytes};
+    if (!b.rows) {
+        c.data[0] = 0.0;
+        if (c.scalar) c.data[1] = 0.0;
+    } else {
+        enum CBLAS_TRANSPOSE ta = operation(&a, conjugate_left);
+        if (!a.scalar) cblas_dgemm(CblasColMajor, ta, CblasNoTrans, 1, 1,
+            (blasint)b.rows, 1.0, a.data, (blasint)a.leading, b.data, (blasint)b.leading,
+            0.0, c.data, (blasint)c.leading);
+        else {
+            const double alpha[2] = {1.0, 0.0}, beta[2] = {0.0, 0.0};
+            cblas_zgemm(CblasColMajor, ta, CblasNoTrans, 1, 1, (blasint)b.rows,
+                alpha, a.data, (blasint)a.leading, b.data, (blasint)b.leading,
+                beta, c.data, (blasint)c.leading);
+        }
+        result.kernel_calls = 1;
+    }
+    vstorage_record_write(arena, c.bytes);
+    if (report) *report = result;
+    return VS_OK;
+}

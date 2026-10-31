@@ -155,11 +155,14 @@ Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 `ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](numerical-values.md#dependent-numerical-inputs).
 `OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
 storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
-Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-general generative numerical result packages and general metric realization,
-general owned-result branch joins, scratch/dependency handling, higher-rank or
-multi-edge networks, explicit packing and
-equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
+Bounded generative owned-map packages, explicit rank-three packing/regrouping,
+versioned scratch reuse and connected rank-two/three contraction trees are
+implemented below. [Diagonal metrics](diagonal-metrics.md) add explicit declared
+coefficient realization and scratch-backed pairing. Runtime dimensions/conditions,
+scalar value flow throughout resource bodies, general resource packages, dense
+metric realization, general owned-result joins and retained-evidence interfaces
+remain open. Equivalent-C measurements exist for bounded paths; controlled-host
+performance and total allocation acceptance remain unfinished. Escaping borrowed lifetimes and
 broader lifetime interfaces retain their separate scope. Protocol 8's static
 profile and native compilation alone do not establish **Fast like C**.
 

@@ -212,6 +212,7 @@ theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : M
     | ownedMap _ => simp [found] at binding
     | involution _ => simp [found] at binding
     | metric _ => simp [found] at binding
+    | vector _ => simp [found] at binding
     | map child =>
       simp only [found] at binding
       refine ⟨child, rfl, binding.1, binding.2.1, binding.2.2.1, binding.2.2.2.1, binding.2.2.2.2.1, ?_⟩
@@ -263,5 +264,78 @@ theorem owned_input_transfer (receipt : Functions.NumericalInputReceipt) (view :
   cases step : checkAction receipt.before (.move view.owner receipt.bound) with
   | error diagnostic => simp [step, Except.toOption] at moved
   | ok state => simpa [step, Except.toOption] using moved
+
+theorem vector_space {env : Environment} {values : Values} (valid : Valid env values)
+    {name : Symbol} {view : VectorView} (found : value? values name = some (.vector view)) :
+    view.basis.space.Valid env :=
+  basis_space valid (selected_valid valid found).1
+
+theorem vector_input_reborrow (receipt : Functions.NumericalInputReceipt) (view : VectorView)
+    (kind : receipt.checked.value = .vector view) :
+    ∃ child : VectorView, value? receipt.values receipt.bound = some (.vector child) ∧
+      child.basis = view.basis ∧ child.conjugate = view.conjugate ∧ child.origin = .reborrow receipt.actual ∧
+      receipt.after.loan? child.loan.name = some child.loan ∧
+      checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) = .ok receipt.after := by
+  have binding := receipt.binding
+  simp only [kind, Functions.NumericalBinding] at binding
+  cases found : value? receipt.values receipt.bound with
+  | none => simp [found] at binding
+  | some value =>
+    cases value <;> try simp [found] at binding
+    rename_i child
+    refine ⟨child, rfl, binding.1, binding.2.1, binding.2.2.1, binding.2.2.2.1, ?_⟩
+    have accepted := binding.2.2.2.2
+    cases step : checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) with
+    | error diagnostic => simp [step, Except.toOption] at accepted
+    | ok state => simpa [step, Except.toOption] using accepted
+
+theorem actual_vector_conjugation (receipt : Functions.VectorConjugateReceipt) :
+    checkVectorConjugate receipt.environment receipt.resources receipt.values receipt.name receipt.parent receipt.child
+      receipt.basis receipt.selected = .ok receipt.checked ∧
+    checkAction receipt.resources (.borrow receipt.child (.loan receipt.checked.original.loan.name)
+      receipt.checked.original.loan.layout .read) = .ok receipt.after ∧
+    receipt.checked.result.conjugate = !receipt.checked.original.conjugate ∧
+    vectorOriginValid receipt.checked.output receipt.name receipt.checked.result = true :=
+  ⟨receipt.accepted, receipt.transitioned ▸ receipt.checked.borrowed, receipt.checked.resultFlags,
+    (selected_valid receipt.checked.outputValid receipt.checked.fromOutput).2⟩
+
+theorem actual_evaluation (receipt : Functions.EvaluationReceipt) :
+    checkEvaluation receipt.environment receipt.resources receipt.values receipt.left receipt.right receipt.output
+      receipt.leftChild receipt.rightChild receipt.operation receipt.mode receipt.policy receipt.alpha receipt.beta = .ok receipt.checked ∧
+    receipt.priorCode ++ evaluationCode receipt.checked.left receipt.checked.right receipt.leftChild receipt.rightChild
+      receipt.output receipt.mode receipt.policy receipt.alpha receipt.beta = receipt.code ∧
+    run 4096 receipt.resources (evaluationCode receipt.checked.left receipt.checked.right receipt.leftChild receipt.rightChild
+      receipt.output receipt.mode receipt.policy receipt.alpha receipt.beta) = .ok receipt.after :=
+  ⟨receipt.accepted, receipt.emitted, receipt.transitioned ▸ receipt.checked.replayed⟩
+
+theorem dual_evaluation_types {env resources values left right output leftChild rightChild mode policy alpha beta}
+    (checked : CheckedEvaluation env resources values left right output leftChild rightChild .dual mode policy alpha beta) :
+    checked.left.basis.parent = some checked.right.basis.brand ∧
+    checked.left.basis.space.origin = .dual checked.right.basis.space.brand := checked.accepts
+
+theorem hermitian_evaluation_form {env resources values left right output leftChild rightChild metric mode policy alpha beta}
+    (checked : CheckedEvaluation env resources values left right output leftChild rightChild (.hermitian metric) mode policy alpha beta) :
+    ∃ form, value? values metric = some (.metric form) ∧ form.basis = checked.right.basis ∧
+      form.orthonormal = true ∧ checked.left.basis.parent = some checked.right.basis.brand ∧
+      checked.left.basis.space.origin = .conjugate checked.right.basis.space.brand form.selected := by
+  have accepts := checked.accepts
+  simp only [Evaluation.Accepts] at accepts
+  cases found : value? values metric with
+  | none => simp [found] at accepts
+  | some value =>
+    cases value <;> try simp [found] at accepts
+    rename_i form
+    exact ⟨form, rfl, accepts⟩
+
+theorem evaluation_preserves_interpretation (left right : VectorView) (leftChild rightChild output : Symbol)
+    (mode : GemmMode) (policy : NumericalPolicy) (alpha beta : Option Coefficient) :
+    (evaluationRequest left right leftChild rightChild output mode policy alpha beta).conjugateLeft = left.conjugate ∧
+    (evaluationRequest left right leftChild rightChild output mode policy alpha beta).conjugateRight = right.conjugate := ⟨rfl, rfl⟩
+
+theorem evaluation_returns_inputs_and_scalar {env resources values left right output leftChild rightChild operation mode policy alpha beta}
+    (checked : CheckedEvaluation env resources values left right output leftChild rightChild operation mode policy alpha beta) :
+    checked.left.Live checked.after ∧ checked.right.Live checked.after ∧
+    scalarOutputReady checked.after output checked.right.basis.space.scalar = true :=
+  ⟨checked.leftRestored, checked.rightRestored, checked.outputInitialized⟩
 
 end VastitasOracle.StorageNumerical

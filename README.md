@@ -58,9 +58,12 @@ and caller-selected output destinations. Initialized `OwnedMap` inputs/results p
 those bases and their allocation/layout through ownership transfer.
 [Typed transforms](docs/linear-transforms.md) add explicit dual/conjugate spaces,
 corresponding bases, canonical involutions and adjoints for declared orthonormal
-metrics, preserving views through nested calls. Bilinear evaluation, general
-metric realization, generative numerical packages, dynamic shape/scalar
-interfaces and networks remain pending.
+metrics, preserving views through nested calls. [Vector evaluation](docs/vector-evaluation.md)
+adds bilinear dual evaluation and explicit Hermitian pairing through actual
+borrowed vector arguments and scalar destinations. [Finite two-map networks](docs/finite-networks.md)
+check occurrences, ports, a bilinear edge and ordered boundaries before the same
+typed GEMM path. General metric realization, generative numerical packages,
+dynamic shape/scalar interfaces, higher-rank networks and packing remain pending.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.
 This does not add general floating values to pure Core or dynamic shape contracts.
@@ -324,6 +327,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Finite random-supply, exact-law, and logical-address reference](docs/rand-reference.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)
+- [Exact SOS real-cover reference and pending proof obligations](docs/sos-reference.md)
+- [Finite polynomial integral enclosure reference and pending proof obligations](docs/integral-reference.md)
 - [Design v0.3, reorganized by topic](docs/design.md)
 - [Contributor guidance](AGENTS.md)
 

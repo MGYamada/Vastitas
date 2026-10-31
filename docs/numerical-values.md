@@ -78,6 +78,9 @@ Dependent input contracts and initialized owned results are described below.
 Generative numerical result packages and implicit product syntax remain separate
 work. [Typed dual/conjugate/adjoint operations](linear-transforms.md) add explicit
 derived-space, basis, involution and metric contracts.
+[Vector evaluation](vector-evaluation.md) additionally uses single-basis
+coordinate vectors, explicit conjugation, dual evaluation and declared-form
+pairing with actual scalar output loans.
 
 | Source form | Protocol-8 `operation` fields (besides `op`) |
 | --- | --- |
@@ -332,8 +335,9 @@ The common middle object **and basis**, and both destination endpoints, must
 match exactly. GEMM inserts no implicit conjugation or metric.
 [Explicit typed transforms](linear-transforms.md) can supply dual or conjugate
 maps, or adjoints for declared orthonormal metrics. Their checked views retain
-the resulting endpoints, bases and flags through GEMM. Bilinear dual evaluation, Hermitian
-pairing execution and general metric realization remain separate work.
+the resulting endpoints, bases and flags through GEMM. General metric realization
+remains separate work. The [two-map network profile](finite-networks.md) adds
+independent occurrence/port/edge/boundary checks before this same product path.
 
 `checkProduct` reconstructs the three actual views and validates their complete
 value provenance, declaration environment and live resource state. It then
@@ -394,7 +398,10 @@ universal correctness from synthetic probes or native refinement.
 
 The [typed transform compiler](linear-transforms.md) now retains dual/conjugate
 origins, corresponding bases and declared metric evidence through actual
-read reborrows and nested calls. Bilinear evaluation, general metric realization,
-generative numerical result packages, dynamic shape/scalar interfaces,
-finite tensor networks, dynamic dimensions, packing and end-to-end C
+read reborrows and nested calls. [Vector evaluation](vector-evaluation.md) now
+connects bilinear dual and explicit orthonormal Hermitian pairing to scalar
+destinations through the same checked GEMM. [Finite two-map networks](finite-networks.md)
+add checked occurrences and ports, an explicit bilinear edge and ordered boundaries.
+General metric realization, generative numerical result packages, dynamic
+shape/scalar interfaces, higher-rank or multi-edge networks, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).

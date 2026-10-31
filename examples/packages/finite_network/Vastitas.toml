@@ -1,0 +1,4 @@
+[package]
+name = "finite_network_example"
+version = "0.1.0"
+root = "src/main.vast"

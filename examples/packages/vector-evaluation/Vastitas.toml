@@ -1,0 +1,4 @@
+[package]
+name = "vector_evaluation"
+version = "0.1.0"
+root = "src/main.vast"

@@ -258,18 +258,24 @@ initialized scalar loans. See [the numerical contracts](numerical-values.md).
 [Typed transforms](linear-transforms.md) supply explicit dual/conjugate origins,
 corresponding bases and declared orthonormal metric evidence for direct adjoints;
 raw component flags do not supply that authority.
+[Vector evaluation](vector-evaluation.md) supplies bilinear dual evaluation and
+explicit orthonormal Hermitian pairing through actual vector loans and scalar
+destinations. The [two-map network profile](finite-networks.md) checks finite
+occurrences, ports, the bilinear edge and ordered boundaries before invoking
+the same product/resource path.
 
 `tests/numerical_source.rs` covers public source/wire checking and optional
 generated execution for real/complex products, coefficients, nested inputs,
-owned results and typed transforms. `tests/resource_source.rs` checks that a
+owned results, typed transforms, vector evaluation and two-map networks,
+including their composition across both branch arms. `tests/resource_source.rs` checks that a
 raw resource GEMM with otherwise valid statement metadata is rejected by the
 public action decoder. Both OS numerical CI jobs explicitly run the
 OpenBLAS-dependent tests; normal compiler checks remain BLAS-free.
 
 Generative numerical result packages, general scalar expressions and dynamic
-shape interfaces, bilinear dual evaluation, Hermitian pairing execution, general
-metric realization/transport, finite networks and broader scratch/dependency
-handling remain work. Equivalent-C runtime, allocation/copy and peak-memory
+shape interfaces, general metric realization/transport, higher-rank or multi-edge
+networks, explicit packing and broader scratch/dependency handling remain work.
+Equivalent-C runtime, allocation/copy and peak-memory
 comparisons are still required. Public GEMM execution does not complete
 [#91](https://github.com/MGYamada/Vastitas/issues/91),
 [#92](https://github.com/MGYamada/Vastitas/issues/92) or the full

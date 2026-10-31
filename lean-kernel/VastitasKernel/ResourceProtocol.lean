@@ -32,6 +32,9 @@ private def parameter (j : Json) : Except String Parameter := do
     fields j ["kind", "name", "source", "target", "access", "initializes", "span"]
     return .map (← str j "name") (← str j "source") (← str j "target")
       (← Storage.Wire.access (← str j "access")) (← j.getObjValAs? Bool "initializes") span
+  | "owned_map" =>
+    fields j ["kind", "name", "source", "target", "span"]
+    return .ownedMap (← str j "name") (← str j "source") (← str j "target") span
   | _ => throw "unknown resource source parameter kind"
 
 private def action (j : Json) : Except String Action := do
@@ -80,6 +83,16 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
   | "map" =>
     fields j ["op", "name", "loan", "source", "target"]
     return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")
+  | "owned_map" =>
+    fields j ["op", "name", "owner", "layout", "source", "target"]
+    return .ownedMap (← str j "name") (← str j "owner") (← Storage.Wire.layout (← field j "layout"))
+      (← str j "source") (← str j "target")
+  | "owned_view" =>
+    fields j ["op", "name", "loan", "owner"]
+    return .ownedView (← str j "name") (← str j "loan") (← str j "owner")
+  | "borrow_owned" =>
+    fields j ["op", "name", "owner", "access"]
+    return .borrowOwned (← str j "name") (← str j "owner") (← Storage.Wire.access (← str j "access"))
   | "gemm" =>
     fields j ["op", "left", "right", "output", "mode", "policy", "alpha", "beta"]
     return .gemm (← str j "left") (← str j "right") (← str j "output")
@@ -111,11 +124,19 @@ private def statements : Nat → List Json → Except String (List Statement)
       | _ => throw "unknown resource source statement"
     return statement :: (← statements fuel rest)
 
+private def resultType (j : Json) : Except String (Storage.Functions.ResultType String) := do
+  match j.getObjVal? "kind" with
+  | .error _ => return .owned (← Storage.Functions.Wire.ownedType j)
+  | .ok _ =>
+    fields j ["kind", "source", "target"]
+    if (← str j "kind") != "owned_map" then throw "unknown resource result type"
+    return .ownedMap (← str j "source") (← str j "target")
+
 def function (j : Json) : Except String Function := do
   fields j ["name", "parameters", "results", "body", "value_type", "value_body", "span", "public"]
   let results ← (← array j "results").mapM fun result => do
     fields result ["name", "type"]
-    return (← str result "name", ← Storage.Functions.Wire.ownedType (← field result "type"))
+    return (← str result "name", ← resultType (← field result "type"))
   return {
     name := ← str j "name", parameters := ← (← array j "parameters").mapM parameter, results,
     body := ← statements 4096 (← array j "body"), valueType := ← Indexed.Wire.pureType (← field j "value_type"),

@@ -102,6 +102,222 @@ fn with_interfaces(source: &str, profile: &str) -> String {
     )
 }
 
+fn owned_result_source(complex: bool) -> String {
+    let profile = if complex {
+        "ComplexSmooth"
+    } else {
+        "RealSmooth"
+    };
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let width = if complex { 16 } else { 8 };
+    let literal = |real: f64, imaginary: f64| {
+        if complex {
+            format!("complex_bits({}, {})", real.to_bits(), imaginary.to_bits())
+        } else {
+            format!("f64_bits({})", real.to_bits())
+        }
+    };
+    let initial = literal(2.0, 3.0);
+    let changed = literal(4.0, 5.0);
+    let one = literal(1.0, 0.0);
+    let header = format!(
+        "u: Space<super::profiles::{profile}, 1>, bu: Basis<u>, w: Space<super::profiles::{profile}, 1>, bw: Basis<w>"
+    );
+    format!(
+        "pub resource fn product() -> Unit {{
+            space u = linear(super::profiles::{profile}, 1); basis bu = basis(u);
+            space w = linear(super::profiles::{profile}, 1); basis bw = basis(w);
+            call create(u, bu, w, bw) -> (created);
+            call relay(u, bu, w, bw, created) -> (updated);
+            move updated -> moved;
+            borrow result = read(moved, layout({width}, 1, 1, 3, false));
+            expect(result, 0, 0, {changed}); map left = view(result, moved);
+            allocate identity: {scalar}[1];
+            borrow initialize = write(identity, layout(0, 1, 1, 1, false));
+            fill(initialize, {one}); release(initialize);
+            borrow input = read(identity, layout(0, 1, 1, 1, false));
+            map right = view(input, bu, bu);
+            allocate output: {scalar}[1]; borrow destination = write(output, layout(0, 1, 1, 1, false));
+            map target = view(destination, bu, bw);
+            gemm(left, right, target, overwrite, NativeFast);
+            release(destination); release(input); release(result); drop(moved); drop(identity);
+            borrow final = read(output, layout(0, 1, 1, 1, false));
+            expect(final, 0, 0, {changed}); release(final); drop(output); value {{ () }}
+        }}
+        resource fn create({header}) returns (result: OwnedMap<bu, bw>) -> Unit {{
+            allocate buffer: {scalar}[5];
+            borrow write = write(buffer, layout({width}, 1, 1, 3, false));
+            fill(write, {initial}); release(write);
+            map result = owned(buffer, layout({width}, 1, 1, 3, false), bu, bw);
+            value {{ () }}
+        }}
+        resource fn relay({header}, input: OwnedMap<bu, bw>) returns (result: OwnedMap<bu, bw>) -> Unit {{
+            call update(u, bu, w, bw, input) -> (result); value {{ () }}
+        }}
+        resource fn update({header}, input: OwnedMap<bu, bw>) returns (input: OwnedMap<bu, bw>) -> Unit {{
+            borrow change = read_write(input);
+            map coordinates = view(change, input);
+            fill(change, {changed}); release(change); value {{ () }}
+        }}"
+    )
+}
+
+#[test]
+fn owned_numerical_results_preserve_identity_storage_and_reject_forged_contracts() {
+    let source = owned_result_source(false);
+    let s = fixture(&source);
+    s.write("src/complex/mod.vast", &owned_result_source(true));
+    success(&command(&s, "check").output().unwrap());
+    let raw = captured(&s);
+    let response = kernel(&raw, "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    let generated = response["lean_source"].as_str().unwrap();
+    assert_eq!(generated.matches("allocate arena").count(), 6);
+    assert_eq!(
+        generated.matches("VastitasGemmNative.gemm arena").count(),
+        2
+    );
+    assert!(!generated.contains("copy arena"));
+    for (before, after, code) in [
+        (
+            "returns (result: OwnedMap<bu, bw>)",
+            "returns (result: OwnedMap<bw, bu>)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "fill(write, f64_bits(4611686018427387904));",
+            "",
+            "E_RESOURCE_INIT",
+        ),
+        (
+            "fill(write, f64_bits(4611686018427387904)); release(write);",
+            "fill(write, f64_bits(4611686018427387904));",
+            "E_RESOURCE_LOAN",
+        ),
+        (
+            "call relay(u, bu, w, bw, created)",
+            "call relay(w, bw, u, bu, created)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "move updated -> moved;",
+            "drop(created); move updated -> moved;",
+            "E_RESOURCE_MOVE",
+        ),
+        (
+            "layout(8, 1, 1, 3, false));\n            expect(result",
+            "layout(0, 1, 1, 3, false));\n            expect(result",
+            "E_RESOURCE_INIT",
+        ),
+        (
+            "map left = view(result, moved);",
+            "transpose(result); map left = view(result, moved);",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "value { () }\n        }\n        resource fn relay",
+            "drop(buffer); value { () }\n        }\n        resource fn relay",
+            "E_RESOURCE_MOVE",
+        ),
+        (
+            "returns (input: OwnedMap<bu, bw>)",
+            "returns (input: OwnedMap<bu, bw>, input: OwnedMap<bu, bw>)",
+            "E_RESOURCE_TYPE",
+        ),
+        (
+            "fill(change, f64_bits(4616189618054758400)); release(change);",
+            "fill(change, f64_bits(4616189618054758400));",
+            "E_RESOURCE_ESCAPE",
+        ),
+    ] {
+        assert!(source.contains(before), "ineffective mutation: {before}");
+        rejection(&fixture(&source.replace(before, after)), code);
+    }
+    for replacement in [
+        json!({"kind":"owned_map", "source":"bu", "target":"bw", "checked":true}),
+        json!({"kind":"owned_map", "source":"bu", "target":"input"}),
+        json!({"kind":"owned_map", "source":"bu", "target":"missing"}),
+        json!({"kind":"owned_map", "source":"bu", "target":"bw", "allocation":0}),
+    ] {
+        let mut altered = raw.clone();
+        module(&mut altered, "real")["resource_functions"][3]["results"][0]["type"] = replacement;
+        let response = kernel(&altered, "emit");
+        assert_eq!(response["ok"], false, "{response}");
+        assert!(response.get("lean_source").is_none());
+    }
+    let local_basis = source.replace(
+        "map result = owned(buffer, layout(8, 1, 1, 3, false), bu, bw);",
+        "basis local = basis(w); map result = owned(buffer, layout(8, 1, 1, 3, false), bu, local);",
+    );
+    rejection(&fixture(&local_basis), "E_NUMERICAL_TYPE");
+    rejection(
+        &fixture(&local_basis.replace(
+            "returns (result: OwnedMap<bu, bw>)",
+            "returns (result: OwnedMap<bu, local>)",
+        )),
+        "E_RESOURCE_NAME",
+    );
+    let duplicate_input = source.replace(
+        "call relay(u, bu, w, bw, created)",
+        "call duplicated(u, bu, w, bw, created, created)",
+    )
+        + "\nresource fn duplicated(u: Space<super::profiles::RealSmooth, 1>, bu: Basis<u>,
+         w: Space<super::profiles::RealSmooth, 1>, bw: Basis<w>,
+         input: OwnedMap<bu, bw>, other: OwnedMap<bu, bw>) -> Unit {
+            drop(input); drop(other); value { () }
+         }";
+    rejection(&fixture(&duplicate_input), "E_RESOURCE_MOVE");
+}
+
+#[test]
+fn owned_numerical_results_build_without_openblas() {
+    let without_gemm = |complex| {
+        owned_result_source(complex).replace(
+            "gemm(left, right, target, overwrite, NativeFast);",
+            "copy(result, destination);",
+        )
+    };
+    let s = fixture(&without_gemm(false));
+    s.write("src/complex/mod.vast", &without_gemm(true));
+    let response = kernel(captured(&s), "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    assert!(
+        !response["lean_source"]
+            .as_str()
+            .unwrap()
+            .contains("VastitasGemmNative")
+    );
+    success(
+        &command(&s, "build")
+            .args(["-o", "program"])
+            .output()
+            .unwrap(),
+    );
+    let output = Command::new(s.0.join("program")).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn owned_numerical_results_build_execute_real_complex_transfers() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let s = fixture(&owned_result_source(false));
+    s.write("src/complex/mod.vast", &owned_result_source(true));
+    let mut build = command(&s, "build");
+    build
+        .args(["-o", "program", "--openblas-prefix"])
+        .arg(prefix);
+    if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+        build.arg("--native-cc").arg(cc);
+    }
+    success(&build.output().unwrap());
+    let output = Command::new(s.0.join("program")).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
+}
+
 fn coefficient_source(complex: bool) -> String {
     let profile = if complex {
         "ComplexSmooth"

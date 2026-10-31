@@ -22,10 +22,16 @@ inductive Parameter where
   | space (name : Symbol) (implementation : Indexed.DeclId) (dimension : Nat)
   | basis (name space : Symbol)
   | map (name source target : Symbol) (access : Access) (initializes : Bool)
+  | ownedMap (name source target : Symbol)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Parameter.name : Parameter → Symbol
-  | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. => name
+  | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
+
+inductive ResultType (Name : Type := Symbol) where
+  | owned (type : OwnedType)
+  | ownedMap (source target : Name)
+  deriving Repr, BEq, DecidableEq, Inhabited
 
 inductive Statement where
   | action (operation : Action)
@@ -37,7 +43,7 @@ inductive Statement where
 structure Function where
   id : Nat
   parameters : List Parameter
-  results : List (Symbol × OwnedType)
+  results : List (Symbol × ResultType)
   body : List Statement
   deriving Repr, Inhabited
 
@@ -57,7 +63,11 @@ def Parameter.valid : Parameter → Bool
   | .borrowed _ scalar rows columns _ _ =>
     checkLayout scalar (rows * columns * scalar.width) ⟨0, rows, columns, max 1 rows, false⟩
   | .space _ _ dimension => dimension ≤ byteLimit
-  | .basis .. | .map .. => true
+  | .basis .. | .map .. | .ownedMap .. => true
+
+def ResultType.valid : ResultType Name → Bool
+  | .owned type => type.valid
+  | .ownedMap .. => true
 
 /-- Dependent headers refer only to preceding parameters of the exact kind.
 The actual caller, not a probe's fresh identities, supplies their equality. -/
@@ -66,12 +76,18 @@ def parameterDependencies (parameters : List Parameter) : Bool := Id.run do
   for parameter in parameters do
     let valid := match parameter with
       | .basis _ space => prior.any fun p => match p with | .space name .. => name == space | _ => false
-      | .map _ source target .. => [source, target].all fun basis =>
+      | .map _ source target .. | .ownedMap _ source target => [source, target].all fun basis =>
         prior.any fun p => match p with | .basis name .. => name == basis | _ => false
       | _ => true
     if !valid then return false
     prior := parameter :: prior
   return true
+
+def resultDependencies (parameters : List Parameter) (results : List (Symbol × ResultType)) : Bool :=
+  results.all fun (_, type) => match type with
+  | .owned _ => true
+  | .ownedMap source target => [source, target].all fun basis =>
+      parameters.any fun p => match p with | .basis name .. => name == basis | _ => false
 
 /-- Bound source traversal before expanding calls, including unused branches. -/
 def remaining : Nat → Nat → List Statement → Option Nat
@@ -97,7 +113,7 @@ def definitions (functions : List Function) : Except Error Unit := do
       reject "E_RESOURCE_NAME" "resource parameter names must be unique"
     if !function.parameters.all Parameter.valid || !function.results.all (·.2.valid) then
       reject "E_RESOURCE_TYPE" "invalid resource parameter/result contract"
-    if !parameterDependencies function.parameters then
+    if !parameterDependencies function.parameters || !resultDependencies function.parameters function.results then
       reject "E_NUMERICAL_TYPE" "numerical parameter dependencies must name earlier spaces or bases"
     let some after := remaining 4096 unused function.body
       | reject "E_RESOURCE_LIMIT" "resource source exceeds the global statement budget"
@@ -181,6 +197,9 @@ def NumericalBinding (value : Numerical.Value) (actual bound : Symbol) (access :
       after.loan? child.loan.name = some child.loan ∧
       (checkAction before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout access)).toOption = some after
     | _ => False
+  | .ownedMap view =>
+    Numerical.value? values bound = some (.ownedMap {view with owner := bound}) ∧
+    (checkAction before (.move view.owner bound)).toOption = some after
 
 instance (value : Numerical.Value) (actual bound : Symbol) (access : Access)
     (before after : State) (values : Numerical.Values) :
@@ -193,6 +212,7 @@ instance (value : Numerical.Value) (actual bound : Symbol) (access : Access)
     cases Numerical.value? values bound with
     | none => infer_instance
     | some value => cases value <;> infer_instance
+  | ownedMap _ => unfold NumericalBinding; infer_instance
 
 structure NumericalInputReceipt where
   environment : Indexed.Environment
@@ -209,11 +229,47 @@ structure NumericalInputReceipt where
   values : Numerical.Values
   binding : NumericalBinding checked.value actual bound access before after values
 
+structure Returned where
+  owner : Symbol
+  type : OwnedType
+  map : Option Numerical.OwnedMap := none
+  deriving Inhabited
+
+/-- The result contract is checked against the real post-body state, after
+returning the call's temporary loans, not a synthetic probe state. -/
+structure NumericalResultReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  source : Symbol
+  target : Symbol
+  actual : Symbol
+  checked : Numerical.CheckedInput environment resources values (.ownedMap source target) actual
+  accepted : Numerical.checkInput environment resources values (.ownedMap source target) actual = .ok checked
+  returned : Returned
+  view : Numerical.OwnedMap
+  selected : checked.value = .ownedMap view
+  owner : returned.owner = view.owner
+  mapping : returned.map = some view
+
+structure OwnedMapTransfer where
+  view : Numerical.OwnedMap
+  target : Symbol
+  before : State
+  after : State
+  values : Numerical.Values
+  live : view.Live before
+  initialized : view.Initialized before
+  moved : checkAction before (.move view.owner target) = .ok after
+  bound : Numerical.value? values target = some (.ownedMap {view with owner := target})
+
 structure Context where
   environment : Indexed.Environment := []
   numerical : Numerical.Values := []
   products : Array NumericalReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
+  outputs : Array NumericalResultReceipt := #[]
+  transfers : Array OwnedMapTransfer := #[]
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
@@ -246,6 +302,26 @@ def step (operation : Action) : M Unit := do
   let resources ← checkAction context.resources operation
   set {context with resources, code := context.code.push (.action operation)}
 
+def transferMap (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
+  let before ← get
+  if live : view.Live before.resources then
+    if initialized : view.Initialized before.resources then
+      match moved : checkAction before.resources (.move view.owner target) with
+      | .error diagnostic => throw diagnostic
+      | .ok expected =>
+        step (.move view.owner target)
+        let after ← get
+        if same : expected = after.resources then
+          let values ← Numerical.insert after.environment after.numerical target (.ownedMap {view with owner := target})
+          if bound : Numerical.value? values target = some (.ownedMap {view with owner := target}) then
+            let receipt : OwnedMapTransfer := ⟨view, target, before.resources, after.resources, values,
+              live, initialized, same ▸ moved, bound⟩
+            set {after with numerical := values, transfers := after.transfers.push receipt}
+          else throw ⟨"E_NUMERICAL_TYPE", "owned map transfer lost its coordinate interpretation"⟩
+        else throw ⟨"E_RESOURCE_STATE", "owned map transfer differs from checked move"⟩
+    else throw ⟨"E_RESOURCE_INIT", "owned map transfer requires initialized coordinates"⟩
+  else throw ⟨"E_RESOURCE_MOVE", "owned map allocation or owner is no longer live"⟩
+
 private def lowerSource (frame : Frame) : Source → Except Error Source
   | .owner name => return .owner (← resolve frame name)
   | .loan name => return .loan (← resolve frame name)
@@ -263,7 +339,9 @@ def operation (frame : Frame) : Action → M Frame
   | .move source target => do
     let source ← resolve frame source
     let (frame, target) ← bindName frame target
-    step (.move source target)
+    match Numerical.value? (← get).numerical source with
+    | some (.ownedMap view) => transferMap view target
+    | _ => step (.move source target)
     return frame
   | .borrow name source layout access => do
     let source ← lowerSource frame source
@@ -291,6 +369,26 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
+  | .borrowOwned name owner access =>
+    let owner ← resolve frame owner
+    let some (.ownedMap view) := Numerical.value? context.numerical owner
+      | throw ⟨"E_NUMERICAL_TYPE", "implicit coordinate layout requires an owned map"⟩
+    unless view.Live context.resources do
+      throw ⟨"E_RESOURCE_MOVE", "owned map is no longer live"⟩
+    let (frame, name) ← bindName frame name
+    step (.borrow name (.owner view.owner) view.layout access)
+    return frame
+  | .ownedMap name owner layout source target =>
+    let owner ← resolve frame owner
+    let source ← resolve frame source
+    let target ← resolve frame target
+    let (frame, name) ← bindName frame name
+    let values ← Numerical.construct context.environment context.resources context.numerical
+      (.ownedMap name owner layout source target)
+    let some (.ownedMap view) := Numerical.value? values name
+      | throw ⟨"E_NUMERICAL_TYPE", "owned map constructor lost its interpretation"⟩
+    transferMap view name
+    return frame
   | .gemm left right output mode policy alpha beta =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -330,7 +428,12 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let target ← resolve frame target
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.map name loan source target)
-      | .gemm .. => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
+      | .ownedView name loan owner => do
+        let loan ← resolve frame loan
+        let owner ← resolve frame owner
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.ownedView name loan owner)
+      | .gemm .. | .ownedMap .. | .borrowOwned .. => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
     return frame
@@ -365,11 +468,12 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         throw ⟨"E_RESOURCE_TYPE", "borrowed argument scalar or logical shape differs"⟩
       step (.borrow global (.loan actual) loan.layout access)
       borrowed := borrowed ++ [⟨global, loan.allocation, loan.layout, initializes⟩]
-    | .space .. | .basis .. | .map .. =>
+    | .space .. | .basis .. | .map .. | .ownedMap .. =>
       let (input, access) ← match parameter with
         | .space _ implementation dimension => pure (Numerical.Input.space implementation dimension, Access.read)
         | .basis _ space => pure (.basis (← resolve dependencies space), .read)
         | .map _ source target access _ => pure (.map (← resolve dependencies source) (← resolve dependencies target), access)
+        | .ownedMap _ source target => pure (.ownedMap (← resolve dependencies source) (← resolve dependencies target), .readWrite)
         | _ => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical parameter"⟩
       match accepted : Numerical.checkInput caller.environment caller.resources caller.numerical input actual with
       | .error diagnostic => throw diagnostic
@@ -388,6 +492,9 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
             let initializes := match parameter with | .map _ _ _ _ initializes => initializes | _ => false
             borrowed := borrowed ++ [⟨child, view.loan.allocation, view.loan.layout, initializes⟩]
             pure global
+          | .ownedMap view =>
+            transferMap view global
+            pure global
         let after ← get
         if binding : NumericalBinding checked.value actual bound access state after.resources after.numerical then
           let receipt : NumericalInputReceipt := ⟨caller.environment, caller.resources, caller.numerical,
@@ -399,7 +506,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
 /-- No loan escapes this initial contract. Caller loans retain their own layout
 and lifetime; the callee's temporary child permissions end inside out. -/
 def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
-    (results : List (Symbol × OwnedType)) : M (List Symbol) := do
+    (results : List (Symbol × ResultType)) : M (List Returned) := do
   for argument in borrowed.reverse do
     let state := (← get).resources
     let some loan := state.loan? argument.child | throw ⟨"E_RESOURCE_LOAN", "borrowed parameter must be returned at function exit"⟩
@@ -408,20 +515,41 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
         (argument.initializes && !allocation.initialization.covers allocation.scalar argument.layout) then
       throw ⟨"E_RESOURCE_INIT", "borrowed output is not completely initialized"⟩
     step (.release argument.child)
-  let mut returned := []
+  let mut returned : List Returned := []
   for (name, type) in results do
     let global ← resolve frame name
+    let result ← match type with
+      | .owned type => pure (Returned.mk global type none)
+      | .ownedMap source target => do
+        let source ← resolve frame source
+        let target ← resolve frame target
+        let context ← get
+        match accepted : Numerical.checkInput context.environment context.resources context.numerical
+            (.ownedMap source target) global with
+        | .error diagnostic => throw diagnostic
+        | .ok checked =>
+          match selected : checked.value with
+          | .ownedMap view =>
+            let some allocation := context.resources.owner? view.owner
+              | throw ⟨"E_RESOURCE_MOVE", "owned numerical result has no live allocation"⟩
+            let result : Returned := ⟨view.owner,
+              ⟨allocation.scalar, allocation.capacity / allocation.scalar.width, [view.layout]⟩, some view⟩
+            let receipt : NumericalResultReceipt := ⟨context.environment, context.resources, context.numerical,
+              source, target, global, checked, accepted, result, view, selected, rfl, rfl⟩
+            set {context with outputs := context.outputs.push receipt}
+            pure result
+          | _ => throw ⟨"E_NUMERICAL_TYPE", "owned numerical result must preserve its map interpretation"⟩
     let state := (← get).resources
-    if returned.contains global || !ownedMatches state global type then
+    if returned.any (·.owner == result.owner) || !ownedMatches state result.owner result.type then
       throw ⟨"E_RESOURCE_TYPE", "owned result is duplicated, borrowed, absent or violates its contract"⟩
-    let some allocation := state.owner? global | throw ⟨"E_RESOURCE_MOVE", "owned result is absent"⟩
+    let some allocation := state.owner? result.owner | throw ⟨"E_RESOURCE_MOVE", "owned result is absent"⟩
     if state.loans.any (·.allocation == allocation.identity) then
       throw ⟨"E_RESOURCE_ESCAPE", "owned result cannot carry outstanding loans"⟩
-    returned := returned ++ [global]
+    returned := returned ++ [result]
   let state := (← get).resources
   if state.loans != before.loans then throw ⟨"E_RESOURCE_ESCAPE", "local loans escape the resource function"⟩
   if state.allocations.any (fun allocation =>
-      !(before.owner? allocation.owner).isSome && !returned.contains allocation.owner) then
+      !(before.owner? allocation.owner).isSome && !returned.any (·.owner == allocation.owner)) then
     throw ⟨"E_RESOURCE_ESCAPE", "local owner was neither dropped nor returned"⟩
   return returned
 
@@ -441,12 +569,14 @@ mutual
           let mut frame := frame
           for (localName, value) in outputs.zip returned do
             let (next, target) ← bindName frame localName
-            step (.move value target)
+            match value.map with
+            | none => step (.move value.owner target)
+            | some view => transferMap view target
             frame := next
           pure frame
         | .branch condition yes no => do
           let before ← get
-          set {before with code := #[], calls := #[], products := #[], inputs := #[]}
+          set {before with code := #[], calls := #[], products := #[], inputs := #[], outputs := #[], transfers := #[]}
           let _ ← expand fuel functions stack frame yes
           let left ← get
           set {before with
@@ -456,6 +586,8 @@ mutual
             calls := #[]
             products := #[]
             inputs := #[]
+            outputs := #[]
+            transfers := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
           let right ← get
@@ -466,10 +598,12 @@ mutual
             calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             products := before.products ++ left.products ++ right.products
-            inputs := before.inputs ++ left.inputs ++ right.inputs}
+            inputs := before.inputs ++ left.inputs ++ right.inputs
+            outputs := before.outputs ++ left.outputs ++ right.outputs
+            transfers := before.transfers ++ left.transfers ++ right.transfers}
           pure frame
       expand fuel functions stack after rest
-  def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Symbol)
+  def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Returned)
     | 0, _, _, _, _ => throw ⟨"E_RESOURCE_LIMIT", "resource call exceeds the depth bound"⟩
     | fuel + 1, functions, stack, callee, actuals => do
       spend
@@ -479,10 +613,9 @@ mutual
       let before ← get
       let (frame, borrowed) ← arguments function.parameters actuals
       let frame ← expand fuel functions (callee :: stack) frame function.body
-      let _ ← finish before.resources frame borrowed function.results
+      let returned ← finish before.resources frame borrowed function.results
       let after ← get
-      let results ← (function.results.mapM (fun (name, type) => do
-        return (← resolve frame name, type)) : Except Error (List (Symbol × OwnedType)))
+      let results := returned.map fun value => (value.owner, value.type)
       let statements := after.code.toList.drop before.code.size
       if slice : before.code.toList ++ statements = after.code.toList then
         match replayed : run 4096 before.resources statements with
@@ -493,7 +626,7 @@ mutual
               let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
                 before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
               set {after with calls := after.calls.push receipt, numerical := before.numerical}
-              return results.map Prod.fst
+              return returned
             else throw ⟨"E_RESOURCE_ESCAPE", "call exit failed the independent resource audit"⟩
           else throw ⟨"E_RESOURCE_STATE", "call expansion differs from replayed resource transitions"⟩
       else throw ⟨"E_RESOURCE_STATE", "call expansion changed earlier resource operations"⟩
@@ -568,10 +701,30 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       set {context with numerical}
       borrowed := borrowed ++ [(loan, owner)]
       pure name
+    | .ownedMap _ source target =>
+      let source ← resolve frame source
+      let target ← resolve frame target
+      let context ← get
+      let some (.basis sourceBasis) := Numerical.value? context.numerical source
+        | throw ⟨"E_NUMERICAL_TYPE", "owned map input requires an earlier source basis"⟩
+      let some (.basis targetBasis) := Numerical.value? context.numerical target
+        | throw ⟨"E_NUMERICAL_TYPE", "owned map input requires an earlier target basis"⟩
+      let rows := targetBasis.space.dimension
+      let columns := sourceBasis.space.dimension
+      let scalar := sourceBasis.space.scalar
+      let layout : Layout := ⟨0, rows, columns, max 1 rows, false⟩
+      step (.allocate owner scalar (rows * columns))
+      initializeRegion owner scalar layout
+      let name ← fresh
+      let context ← get
+      let numerical ← Numerical.construct context.environment context.resources context.numerical
+        (.ownedMap name owner layout source target)
+      set {context with numerical}
+      pure name
     actuals := actuals ++ [actual]
     frame := (parameter.name, actual) :: frame
   let returned ← invoke 4096 functions [] function.id actuals
-  for owner in returned do step (.drop owner)
+  for value in returned do step (.drop value.owner)
   for (loan, owner) in borrowed.reverse do
     step (.release loan)
     step (.drop owner)

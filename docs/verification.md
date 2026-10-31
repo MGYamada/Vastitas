@@ -363,7 +363,16 @@ and `input_map_reborrow` extracts unchanged endpoints and the exact successful
 borrow transition. `public_numerical_input_origin` ties these receipts to the
 same accepted public declaration environment. These contracts have explicit
 static dimensions; no universal claim is derived from synthetic probes.
-Dependent numerical results, dynamic shape/scalar interfaces, dual/metric laws
+`actual_owned_result` derives actual dependent result acceptance, exact endpoints,
+initialized coordinates and the returned owned interpretation.
+`owned_result_initialized_bytes` derives byte initialization from that same
+post-body certificate. `owned_transfer` and `owned_input_transfer` retain the
+exact accepted move and unchanged allocation/layout/endpoints under a fresh
+owner. `ResourceSource.public_numerical_result_origin` connects those result
+checks to the public request's accepted declaration environment. Callee-local
+identities and outstanding loans cannot become owned results. These are logical
+checker/transfer facts, not native heap or floating arithmetic proofs.
+Generative numerical result packages, dynamic shape/scalar interfaces, dual/metric laws
 and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native
 execution evidence. Raw internal GEMM operations retain only their resource

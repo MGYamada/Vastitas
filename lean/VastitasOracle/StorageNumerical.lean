@@ -5,7 +5,7 @@ import VastitasKernel.StorageFunctions
 typing, identity, layout and emitted-schedule facts, not field laws, floating
 point accuracy, or a refinement proof for the native implementation. -/
 namespace VastitasOracle.StorageNumerical
-open VastitasKernel Storage Numerical Indexed
+open VastitasKernel Storage Numerical Indexed StorageRegions StorageSafety
 
 theorem selected_valid {env : Environment} {values : Values} (valid : Valid env values)
     {name : Symbol} {value : Value} (found : value? values name = some value) :
@@ -131,6 +131,7 @@ theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : M
     cases value with
     | space _ => simp [found] at binding
     | basis _ => simp [found] at binding
+    | ownedMap _ => simp [found] at binding
     | map child =>
       simp only [found] at binding
       refine ⟨child, rfl, binding.1, binding.2.1, binding.2.2.1, ?_⟩
@@ -138,5 +139,49 @@ theorem input_map_reborrow (receipt : Functions.NumericalInputReceipt) (view : M
       cases step : checkAction receipt.before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout receipt.access) with
       | error diagnostic => simp [step, Except.toOption] at accepted
       | ok state => simpa [step, Except.toOption] using accepted
+
+theorem actual_owned_result (receipt : Functions.NumericalResultReceipt) :
+    checkInput receipt.environment receipt.resources receipt.values
+      (.ownedMap receipt.source receipt.target) receipt.actual = .ok receipt.checked ∧
+    value? receipt.values receipt.actual = some (.ownedMap receipt.view) ∧
+    value? receipt.values receipt.source = some (.basis receipt.view.source) ∧
+    value? receipt.values receipt.target = some (.basis receipt.view.target) ∧
+    receipt.view.Live receipt.resources ∧ receipt.view.Initialized receipt.resources ∧
+    receipt.returned.owner = receipt.view.owner ∧ receipt.returned.map = some receipt.view := by
+  have accepts := receipt.checked.accepts
+  simp only [receipt.selected, Input.Accepts] at accepts
+  exact ⟨receipt.accepted, receipt.selected ▸ receipt.checked.fromActual,
+    accepts.1, accepts.2.1, accepts.2.2.1, accepts.2.2.2, receipt.owner, receipt.mapping⟩
+
+theorem owned_result_initialized_bytes (receipt : Functions.NumericalResultReceipt) :
+    ∃ allocation, receipt.resources.owner? receipt.returned.owner = some allocation ∧
+      ∀ byte, ContainsByte receipt.view.layout allocation.scalar byte →
+        Initialized allocation.scalar byte allocation.initialization := by
+  have initialized := (actual_owned_result receipt).2.2.2.2.2.1
+  rw [receipt.owner]
+  cases found : receipt.resources.owner? receipt.view.owner with
+  | none => simp [OwnedMap.Initialized, found] at initialized
+  | some allocation =>
+    simp only [OwnedMap.Initialized, found, Option.any_some] at initialized
+    exact ⟨allocation, rfl, fun _ inside => initialization_bytes initialized inside⟩
+
+/-- An ownership transfer changes only the owner symbol. Endpoints, basis
+brands, allocation identity and layout are the exact returned metadata. -/
+theorem owned_transfer (receipt : Functions.OwnedMapTransfer) :
+    checkAction receipt.before (.move receipt.view.owner receipt.target) = .ok receipt.after ∧
+    value? receipt.values receipt.target = some (.ownedMap {receipt.view with owner := receipt.target}) :=
+  ⟨receipt.moved, receipt.bound⟩
+
+theorem owned_input_transfer (receipt : Functions.NumericalInputReceipt) (view : OwnedMap)
+    (kind : receipt.checked.value = .ownedMap view) :
+    value? receipt.values receipt.bound = some (.ownedMap {view with owner := receipt.bound}) ∧
+    checkAction receipt.before (.move view.owner receipt.bound) = .ok receipt.after := by
+  have binding := receipt.binding
+  simp only [Functions.NumericalBinding, kind] at binding
+  refine ⟨binding.1, ?_⟩
+  have moved := binding.2
+  cases step : checkAction receipt.before (.move view.owner receipt.bound) with
+  | error diagnostic => simp [step, Except.toOption] at moved
+  | ok state => simpa [step, Except.toOption] using moved
 
 end VastitasOracle.StorageNumerical

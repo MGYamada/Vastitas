@@ -121,4 +121,16 @@ theorem public_numerical_input_origin {json : Lean.Json}
       receipt.before receipt.after receipt.values :=
   ⟨(input.checked.execution entry found).inputOrigins receipt member, receipt.accepted, receipt.binding⟩
 
+theorem public_numerical_result_origin {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (entry : Nat) (found : input.input.entry = some entry)
+    (receipt : Functions.NumericalResultReceipt)
+    (member : receipt ∈ (input.checked.execution entry found).checked.context.outputs.toList) :
+    receipt.environment = numericalEnvironment input.checked.pureProgram ∧
+    Storage.Numerical.checkInput receipt.environment receipt.resources receipt.values
+      (.ownedMap receipt.source receipt.target) receipt.actual = .ok receipt.checked ∧
+    receipt.checked.value = .ownedMap receipt.view ∧ receipt.returned.map = some receipt.view :=
+  ⟨(input.checked.execution entry found).outputOrigins receipt member,
+    receipt.accepted, receipt.selected, receipt.mapping⟩
+
 end VastitasOracle.ResourceSource

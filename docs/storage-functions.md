@@ -91,10 +91,16 @@ Calls currently expand synchronously with static shapes and capacities. Public
 dependent numerical inputs compose through [protocol 8](numerical-values.md#dependent-numerical-inputs);
 the older resource-only internal wire schema remains unchanged. Numerical
 input receipts supplement the existing exact call replay and loan-return checks.
+Initialized owned-map inputs/results additionally preserve input-dependent bases,
+allocation identity and the actual coordinate layout. Their transfer emits only
+the existing checked move; temporary loans cannot escape. Result contracts are
+checked in the post-body state, and actual-layout loans permit padded/subregion
+results to be used inside a generic helper without guessing its physical layout.
+See [owned numerical results](numerical-values.md#owned-numerical-results).
 General tensor types, general pure-Core/resource interoperation, runtime
 dimensions/conditions, general owned-result branch joins and escaping-loan
 lifetime contracts are not supplied by this component. General dynamic source
-composition, dependent numerical results, general scratch/dependency handling and equivalent-C
+composition, generative numerical result packages, general scratch/dependency handling and equivalent-C
 measurements remain in Stage 1. Independent compilation caching and broader
 lifetime extensions retain their separate scope.
 

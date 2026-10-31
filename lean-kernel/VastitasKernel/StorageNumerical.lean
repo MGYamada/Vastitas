@@ -70,10 +70,47 @@ def MapView.Live (resources : Storage.State) (view : MapView) : Prop :=
 instance (resources : Storage.State) (view : MapView) : Decidable (view.Live resources) :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _ ∧ _))
 
+/-- An owned coordinate interpretation retains the allocation and its exact
+layout. It is metadata, not a second owner or an outstanding loan. -/
+structure OwnedMap where
+  source : Basis
+  target : Basis
+  owner : Symbol
+  allocation : Nat
+  layout : Layout
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def OwnedMap.Compatible (view : OwnedMap) : Prop :=
+  view.source.space.type = view.target.space.type ∧
+  view.source.space.base = view.target.space.base ∧
+  view.source.space.coefficient = view.target.space.coefficient ∧
+  view.source.space.setting = view.target.space.setting
+
+instance (view : OwnedMap) : Decidable view.Compatible :=
+  inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _))
+
+def OwnedMap.Live (resources : Storage.State) (view : OwnedMap) : Prop :=
+  ∃ allocation ∈ resources.owner? view.owner,
+    allocation.identity = view.allocation ∧ allocation.scalar = view.source.space.scalar ∧
+    checkLayout allocation.scalar allocation.capacity view.layout = true ∧
+    view.layout.logicalRows = view.target.space.dimension ∧
+    view.layout.logicalColumns = view.source.space.dimension
+
+instance (resources : Storage.State) (view : OwnedMap) : Decidable (view.Live resources) :=
+  inferInstanceAs (Decidable (∃ allocation ∈ resources.owner? view.owner, _))
+
+def OwnedMap.Initialized (resources : Storage.State) (view : OwnedMap) : Prop :=
+  (resources.owner? view.owner).any (fun allocation =>
+    allocation.initialization.covers allocation.scalar view.layout) = true
+
+instance (resources : Storage.State) (view : OwnedMap) : Decidable (view.Initialized resources) :=
+  inferInstanceAs (Decidable (_ = _))
+
 inductive Value where
   | space (value : Space)
   | basis (value : Basis)
   | map (value : MapView)
+  | ownedMap (value : OwnedMap)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 abbrev Values := List (Symbol × Value)
@@ -88,6 +125,9 @@ def Value.Valid (env : Environment) (values : Values) (name : Symbol) : Value �
   | .basis bas => bas.brand = name ∧
       value? values bas.space.brand = some (.space bas.space)
   | .map view => view.Compatible ∧
+      value? values view.source.brand = some (.basis view.source) ∧
+      value? values view.target.brand = some (.basis view.target)
+  | .ownedMap view => view.Compatible ∧
       value? values view.source.brand = some (.basis view.source) ∧
       value? values view.target.brand = some (.basis view.target)
 
@@ -106,6 +146,9 @@ inductive Operation where
   | space (name : Symbol) (implementation : DeclId) (dimension : Nat)
   | basis (name space : Symbol)
   | map (name loan source target : Symbol)
+  | ownedMap (name owner : Symbol) (layout : Layout) (source target : Symbol)
+  | ownedView (name loan owner : Symbol)
+  | borrowOwned (name owner : Symbol) (access : Access)
   | gemm (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy)
       (alpha beta : Option Coefficient := none)
   deriving Repr, BEq, Inhabited
@@ -113,7 +156,7 @@ inductive Operation where
 private def reject (message : String) : Except Error α :=
   .error ⟨"E_NUMERICAL_TYPE", message⟩
 
-private def insert (env : Environment) (values : Values) (name : Symbol) (value : Value) : Except Error Values := do
+def insert (env : Environment) (values : Values) (name : Symbol) (value : Value) : Except Error Values := do
   if (value? values name).isSome then reject "numerical value identity is already bound"
   let result := (name, value) :: values
   if Valid env result then return result
@@ -140,7 +183,22 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     let view : MapView := ⟨source, target, loan⟩
     unless view.Live resources do reject "map scalar, dimensions or loan state differs from its bases"
     insert env values name (.map view)
-  | .gemm .. => reject "GEMM must pass the composed numerical and resource check"
+  | .ownedMap name owner layout source target => do
+    let some (.basis source) := value? values source | reject "owned map source requires an explicit basis"
+    let some (.basis target) := value? values target | reject "owned map target requires an explicit basis"
+    let some allocation := resources.owner? owner | reject "owned map requires a live owner"
+    let view : OwnedMap := ⟨source, target, owner, allocation.identity, layout⟩
+    unless view.Live resources do reject "owned map scalar, dimensions or layout differs from its allocation and bases"
+    insert env values name (.ownedMap view)
+  | .ownedView name loan owner => do
+    let some (.ownedMap owned) := value? values owner | reject "owned view requires an owned map"
+    let some loan := resources.loan? loan | reject "owned view requires a live loan"
+    unless owned.Live resources && loan.allocation == owned.allocation && loan.layout == owned.layout do
+      reject "owned view must retain its live allocation and exact coordinate layout"
+    let view : MapView := ⟨owned.source, owned.target, loan⟩
+    unless view.Live resources do reject "owned view requires an active compatible loan"
+    insert env values name (.map view)
+  | .gemm .. | .borrowOwned .. => reject "numerical resource operations must pass the composed check"
 
 /-- Resolved dependent input contracts. Symbols refer to earlier arguments,
 not newly generated objects. Dimensions remain explicit static contracts. -/
@@ -148,6 +206,7 @@ inductive Input where
   | space (implementation : DeclId) (dimension : Nat)
   | basis (space : Symbol)
   | map (source target : Symbol)
+  | ownedMap (source target : Symbol)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Input.Accepts (resources : Storage.State) (values : Values) : Input → Value → Prop
@@ -157,6 +216,9 @@ def Input.Accepts (resources : Storage.State) (values : Values) : Input → Valu
   | .map source target, .map view =>
     value? values source = some (.basis view.source) ∧
     value? values target = some (.basis view.target) ∧ view.Live resources
+  | .ownedMap source target, .ownedMap view =>
+    value? values source = some (.basis view.source) ∧
+    value? values target = some (.basis view.target) ∧ view.Live resources ∧ view.Initialized resources
   | _, _ => False
 
 instance (resources : Storage.State) (values : Values) (input : Input) (value : Value) :

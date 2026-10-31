@@ -209,5 +209,5 @@ spaces/bases and map views before using this adapter. Public `gemm` does not
 accept the raw component flags or resource-only authority above. Use
 `vastitas build --manifest-path ... --openblas-prefix /path/to/prefix -o OUTPUT`,
 with `--native-cc cc` on Linux when OpenBLAS uses the host libc. Ordinary builds
-and public `check` do not need OpenBLAS. Dependent numerical results, general dynamic shape/scalar interfaces,
+and public `check` do not need OpenBLAS. Generative numerical result packages, general dynamic shape/scalar interfaces,
 dual/conjugate/metric operations, networks and native refinement remain pending.

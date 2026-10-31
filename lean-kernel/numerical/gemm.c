@@ -33,7 +33,9 @@ static int overlaps(const VStorageDense *a, const VStorageDense *b) {
 }
 
 static enum CBLAS_TRANSPOSE operation(const VStorageDense *view, uint8_t conjugate) {
-    return conjugate && view->scalar ? CblasConjTrans : view->transposed ? CblasTrans : CblasNoTrans;
+    if (conjugate && view->scalar)
+        return view->transposed ? CblasConjTrans : CblasConjNoTrans;
+    return view->transposed ? CblasTrans : CblasNoTrans;
 }
 
 static VStorageStatus coefficient(VStorageArena *arena, VGemmCoefficient input,
@@ -65,8 +67,7 @@ VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
     VGemmCoefficient alpha_input, VGemmCoefficient beta_input, VGemmReport *report) {
     if ((mode != VGEMM_OVERWRITE && mode != VGEMM_ACCUMULATE) ||
         left_conjugate > 1 || right_conjugate > 1 ||
-        (left_conjugate && !left_view.transposed) ||
-        (right_conjugate && !right_view.transposed) || output_view.transposed ||
+        output_view.transposed ||
         (mode == VGEMM_OVERWRITE && beta_input.kind != VGEMM_DEFAULT))
         return VS_OPERATION;
     VStorageStatus status = vgemm_backend_check();

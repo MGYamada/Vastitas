@@ -20,7 +20,6 @@ private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .native
     throw (IO.userError "overwrite failed to initialize/version output")
   let rejected := [
     {operation with mode := .accumulate}, -- write-only output cannot read
-    {operation with conjugateLeft := true}, -- conjugation alone is not C
     {operation with left := 12}, -- write-only/uninitialized input
     {operation with output := 11}, -- read-only output
     {operation with right := 99}]
@@ -122,5 +121,58 @@ private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .native
     if (Native.generate {plan with instructions}).isOk then
       throw (IO.userError "forged GEMM operands/flags/mode accepted")
   IO.println "GEMM resource checks: initialization, permissions, aliases, views and forged lowering passed"
+
+#eval show IO Unit from do
+  -- N/T/R/C share physical obligations. Non-square inputs distinguish a
+  -- transpose from conjugation; neither flag can alter layout or access rights.
+  for scalar in [Scalar.f64, .complexF64] do
+    for ta in [false, true] do
+      for tb in [false, true] do
+        let a : Layout := if ta then ⟨scalar.width, 3, 2, 5, true⟩ else ⟨scalar.width, 2, 3, 4, false⟩
+        let b : Layout := if tb then ⟨scalar.width, 2, 3, 4, true⟩ else ⟨scalar.width, 3, 2, 5, false⟩
+        let c : Layout := ⟨scalar.width, 2, 2, 4, false⟩
+        let zero : Literal := if scalar == .f64 then .f64 0 else .complexF64 0 0
+        let preparation : List Statement := [
+          .action (.allocate 0 scalar 16), .action (.allocate 1 scalar 16), .action (.allocate 2 scalar 16),
+          .action (.borrow 10 (.owner 0) a .write), .action (.fill 10 zero), .action (.release 10),
+          .action (.borrow 11 (.owner 1) b .write), .action (.fill 11 zero), .action (.release 11),
+          .action (.borrow 20 (.owner 0) a .read), .action (.borrow 21 (.owner 1) b .read),
+          .action (.borrow 22 (.owner 2) c .write)]
+        let .ok state := run 4096 {} preparation | throw (IO.userError "orientation setup rejected")
+        for ca in [false, true] do
+          for cb in [false, true] do
+            let request : Gemm := ⟨20, 21, 22, ca, cb, .overwrite, .nativeFast, none, none⟩
+            let .ok written := checkAction state (.gemm request)
+              | throw (IO.userError "valid N/T/R/C operation rejected")
+            let some output := written.owner? 2 | throw (IO.userError "orientation lost output")
+            unless output.initialization.covers scalar c && output.version == 1 do
+              throw (IO.userError "orientation lost exact output initialization")
+            let .ok code := Native.action state (.gemm request)
+              | throw (IO.userError "orientation lowering rejected")
+            unless code == [.gemm 0 a ca 1 b cb 2 c .overwrite .nativeFast] do
+              throw (IO.userError "orientation lowering changed layouts or flags")
+            for bad in [{request with output := 20}, {request with left := 22},
+                {request with mode := .accumulate}] do
+              if (checkAction state (.gemm bad)).isOk then
+                throw (IO.userError "orientation bypassed access or initialization")
+            let .ok suspended := checkAction state (.borrow 23 (.loan 20) a .read)
+              | throw (IO.userError "orientation reborrow rejected")
+            if (checkAction suspended (.gemm request)).isOk then
+              throw (IO.userError "orientation used suspended input")
+            let .ok transposed := checkAction state (.transpose 20)
+              | throw (IO.userError "orientation transpose rejected")
+            if (checkAction transposed (.gemm request)).isOk then
+              throw (IO.userError "conjugation concealed a shape mismatch")
+            let input := preparation ++ [.action (.gemm request), .action (.release 20),
+              .action (.release 21), .action (.release 22), .action (.drop 0),
+              .action (.drop 1), .action (.drop 2)]
+            let .ok plan := Native.compile input | throw (IO.userError "orientation plan rejected")
+            let forged := plan.instructions.map fun instruction => match instruction with
+              | .gemm l lv lc r rv rc o ov mode policy alpha beta =>
+                .gemm l lv (!lc) r rv (!rc) o ov mode policy alpha beta
+              | other => other
+            if (Native.generate {plan with instructions := forged}).isOk then
+              throw (IO.userError "numerically different but resource-valid flags were trusted")
+  IO.println "GEMM N/T/R/C: exact flags, physical layouts and resource obligations passed"
 
 end VastitasKernel.Storage.GemmRegression

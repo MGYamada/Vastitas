@@ -96,6 +96,15 @@ with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
 provenance, child loans, scalar output and emitted flags are reconstructed by
 the independent checker; no supplied origin or native flag grants authority.
 
+[Diagonal metrics](diagonal-metrics.md) add strict numerical operations
+`adjoint_into` (`input`, `output`, `source_metric`, `target_metric`, `policy`) and
+`hermitian_diagonal` (`left`, `right`, `output`, `metric`, `scratch`, `layout`,
+`policy`). Source syntax also requires the explicit `overwrite` keyword for the
+latter. Metric operands remain unresolved names; no raw realization coefficients,
+prechecked Gram tags, inverse matrix or native flags are admitted at this public
+boundary. The independent checker reconstructs exact coefficients and the full
+scratch write/release/read transition. Protocols 2–7 reject the new operations.
+
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
 one-based Unicode-scalar columns). Types and indices have their containing

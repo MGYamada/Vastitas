@@ -1,6 +1,6 @@
 import VastitasKernel.StorageCodegen
 import VastitasKernel.TensorNetwork
-import VastitasKernel.StorageEvaluation
+import VastitasKernel.StorageMetric
 import VastitasKernel.TensorNumerical
 import VastitasKernel.TensorTree
 import VastitasKernel.StorageOwnedPackages
@@ -513,6 +513,49 @@ structure CachedContractionReceipt where
   emitted : priorCode ++ [.action (.requireDependency cache.name),
     .action (.gemm (Tensor.contractionRequest checked.contraction.left checked.contraction.right checked.contraction.output policy))] = code
 
+structure AdjointIntoReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  input : Symbol
+  output : Symbol
+  source : Symbol
+  target : Symbol
+  policy : NumericalPolicy
+  checked : Numerical.CheckedAdjointInto environment resources values input output source target policy
+  accepted : Numerical.checkAdjointInto environment resources values input output source target policy = .ok checked
+  after : State
+  transitioned : after = checked.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.diagonalAdjoint (Numerical.adjointIntoRequest checked.input checked.output
+    checked.sourceRealization.diagonal checked.targetRealization.diagonal policy))] = code
+
+structure DiagonalPairingReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  metric : Symbol
+  scratch : Symbol
+  writeLoan : Symbol
+  readLoan : Symbol
+  leftChild : Symbol
+  layout : Layout
+  policy : NumericalPolicy
+  checked : Numerical.CheckedDiagonalPairing environment resources values left right output metric scratch
+    writeLoan readLoan leftChild layout policy
+  accepted : Numerical.checkDiagonalPairing environment resources values left right output metric scratch
+    writeLoan readLoan leftChild layout policy = .ok checked
+  after : State
+  transitioned : after = checked.after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.diagonalPair (Numerical.diagonalPairRequest checked.left checked.right
+    output scratch writeLoan readLoan leftChild layout checked.realization.diagonal policy))] = code
+
 structure Context where
   environment : Indexed.Environment := []
   numerical : Numerical.Values := []
@@ -534,6 +577,8 @@ structure Context where
   transforms : Array TransformReceipt := #[]
   vectorConjugates : Array VectorConjugateReceipt := #[]
   evaluations : Array EvaluationReceipt := #[]
+  adjoints : Array AdjointIntoReceipt := #[]
+  diagonalPairings : Array DiagonalPairingReceipt := #[]
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
@@ -686,6 +731,23 @@ def operation (frame : Frame) : Action → M Frame
   | .forgetDependency name => do
     step (.forgetDependency (← resolve frame name))
     return frame
+  | .diagonalAdjoint request => do
+    step (.diagonalAdjoint {request with input := ← resolve frame request.input, output := ← resolve frame request.output})
+    return frame
+  | .diagonalScale request => do
+    step (.diagonalScale {request with input := ← resolve frame request.input, output := ← resolve frame request.output})
+    return frame
+  | .diagonalPair request => do
+    let left ← resolve frame request.left
+    let right ← resolve frame request.right
+    let output ← resolve frame request.output
+    let scratch ← resolve frame request.scratch
+    rejectOpaque scratch
+    let (frame, writeLoan) ← bindName frame request.writeLoan
+    let (frame, readLoan) ← bindName frame request.readLoan
+    let (frame, leftChild) ← bindName frame request.leftChild
+    step (.diagonalPair {request with left, right, output, scratch, writeLoan, readLoan, leftChild})
+    return frame
   | .gemm request => do
     let left ← resolve frame request.left
     let right ← resolve frame request.right
@@ -727,6 +789,54 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
+  | .adjointInto input output source target policy =>
+    let input ← resolve frame input
+    let output ← resolve frame output
+    let source ← resolve frame source
+    let target ← resolve frame target
+    match accepted : Numerical.checkAdjointInto context.environment context.resources context.numerical input output source target policy with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let action := Action.diagonalAdjoint (Numerical.adjointIntoRequest checked.input checked.output
+        checked.sourceRealization.diagonal checked.targetRealization.diagonal policy)
+      step action
+      let after ← get
+      if transitioned : after.resources = checked.after then
+        if emitted : context.code.toList ++ [.action action] = after.code.toList then
+          let receipt : AdjointIntoReceipt := ⟨context.environment, context.resources, context.numerical,
+            input, output, source, target, policy, checked, accepted, after.resources, transitioned,
+            context.code.toList, after.code.toList, emitted⟩
+          set {after with adjoints := after.adjoints.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_METRIC", "materialized adjoint differs from its emitted operation"⟩
+      else throw ⟨"E_NUMERICAL_METRIC", "materialized adjoint differs from its resource transition"⟩
+  | .hermitianDiagonal left right output metric scratch layout policy =>
+    let left ← resolve frame left
+    let right ← resolve frame right
+    let output ← resolve frame output
+    let metric ← resolve frame metric
+    let scratch ← resolve frame scratch
+    rejectOpaque scratch
+    let writeLoan ← fresh
+    let readLoan ← fresh
+    let leftChild ← fresh
+    match accepted : Numerical.checkDiagonalPairing context.environment context.resources context.numerical
+        left right output metric scratch writeLoan readLoan leftChild layout policy with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let action := Action.diagonalPair (Numerical.diagonalPairRequest checked.left checked.right
+        output scratch writeLoan readLoan leftChild layout checked.realization.diagonal policy)
+      step action
+      let after ← get
+      if transitioned : after.resources = checked.after then
+        if emitted : context.code.toList ++ [.action action] = after.code.toList then
+          let receipt : DiagonalPairingReceipt := ⟨context.environment, context.resources, context.numerical,
+            left, right, output, metric, scratch, writeLoan, readLoan, leftChild, layout, policy,
+            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
+          set {after with diagonalPairings := after.diagonalPairings.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_METRIC", "diagonal pairing differs from its emitted operation"⟩
+      else throw ⟨"E_NUMERICAL_METRIC", "diagonal pairing differs from its resource transition"⟩
   | .conjugateVector name parent basis selected =>
     let parent ← resolve frame parent
     let basis ← resolve frame basis
@@ -895,7 +1005,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let owner ← resolve frame owner
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
-      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. =>
+      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
         throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
@@ -1279,6 +1389,8 @@ mutual
             transfers := #[]
             transforms := #[]
             vectorConjugates := #[]
+            adjoints := #[]
+            diagonalPairings := #[]
             evaluations := #[]}
           let _ ← expand fuel functions stack frame yes
           cleanupDependencies before.resources
@@ -1303,6 +1415,8 @@ mutual
             transfers := #[]
             transforms := #[]
             vectorConjugates := #[]
+            adjoints := #[]
+            diagonalPairings := #[]
             evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
@@ -1331,7 +1445,9 @@ mutual
             transfers := before.transfers ++ left.transfers ++ right.transfers
             transforms := before.transforms ++ left.transforms ++ right.transforms
             vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
-            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations}
+            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations
+            adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
+            diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
           pure frame
       expand fuel functions stack after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Returned)

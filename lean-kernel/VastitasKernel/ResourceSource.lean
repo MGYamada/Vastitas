@@ -64,6 +64,8 @@ inductive NumericalOperation where
   | conjugateSpace (name parent involution : String)
   | derivedBasis (name parent space : String)
   | metric (name basis involution : String) (gram : Numerical.Gram)
+  | adjointInto (input output sourceMetric targetMetric : String) (policy : NumericalPolicy)
+  | hermitianDiagonal (left right output metric scratch : String) (layout : Layout) (policy : NumericalPolicy)
   | transform (name parent : String) (operation : Numerical.Transform String)
   | vector (name loan basis : String)
   | conjugateVector (name parent basis involution : String)
@@ -291,6 +293,11 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     let selected ← name selected
     let (frame, output) ← bindName index scope frame output .numerical span
     return (frame, .conjugateVector output parent basis selected)
+  | .adjointInto input output source target policy =>
+    return (frame, .adjointInto (← name input) (← name output) (← name source) (← name target) policy)
+  | .hermitianDiagonal left right output metric scratch layout policy =>
+    return (frame, .hermitianDiagonal (← name left) (← name right) (← name output)
+      (← name metric) (← name scratch) layout policy)
   | .evaluate left right output operation mode policy alpha beta =>
     let operation ← match operation with
       | .dual => pure Numerical.Evaluation.dual
@@ -592,6 +599,8 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   evaluationOrigins : ∀ receipt ∈ checked.context.evaluations.toList, receipt.environment = environment
   packageOrigins : ∀ receipt ∈ checked.context.packages.toList, receipt.environment = environment
   packageResultOrigins : ∀ receipt ∈ checked.context.packageResults.toList, receipt.environment = environment
+  adjointOrigins : ∀ receipt ∈ checked.context.adjoints.toList, receipt.environment = environment
+  diagonalPairingOrigins : ∀ receipt ∈ checked.context.diagonalPairings.toList, receipt.environment = environment
   treeOrigins : ∀ receipt ∈ checked.context.trees.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
@@ -662,15 +671,21 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                                             receipt.environment = numericalEnvironment pureProgram then
                                           if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
                                               receipt.environment = numericalEnvironment pureProgram then
-                                            if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                            if adjointOrigins : ∀ receipt ∈ executable.context.adjoints.toList,
                                                 receipt.environment = numericalEnvironment pureProgram then
-                                              .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                                                library, libraryAccepted, fun actual same => by
-                                                  have : actual = id := Option.some.inj (same.symm.trans entry)
-                                                  subst actual
-                                                  exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                                    networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, treeOrigins⟩⟩
-                                            else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
+                                              if diagonalPairingOrigins : ∀ receipt ∈ executable.context.diagonalPairings.toList,
+                                                  receipt.environment = numericalEnvironment pureProgram then
+                                                if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                                    receipt.environment = numericalEnvironment pureProgram then
+                                                  .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                                    library, libraryAccepted, fun actual same => by
+                                                      have : actual = id := Option.some.inj (same.symm.trans entry)
+                                                      subst actual
+                                                      exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                                        networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins⟩⟩
+                                                else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
+                                              else Namespace.problem {} "E_OWNER" "diagonal pairing lost its accepted declaration environment"
+                                            else Namespace.problem {} "E_OWNER" "materialized adjoint lost its accepted declaration environment"
                                           else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
                                         else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
                                       else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"

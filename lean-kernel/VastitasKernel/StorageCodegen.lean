@@ -19,6 +19,13 @@ inductive Instruction where
       (right : Nat) (rightView : Layout) (conjugateRight : Bool)
       (output : Nat) (outputView : Layout) (mode : GemmMode) (policy : NumericalPolicy)
       (alpha beta : ResolvedCoefficient := .default)
+  | diagonalAdjoint (input : Nat) (inputView : Layout) (output : Nat) (outputView : Layout)
+      (source target : Diagonal) (conjugate : Bool) (policy : NumericalPolicy)
+  | diagonalScale (input : Nat) (inputView : Layout) (output : Nat) (outputView : Layout)
+      (diagonal : Diagonal) (conjugate : Bool) (policy : NumericalPolicy)
+  | diagonalPair (left : Nat) (leftView : Layout) (right : Nat) (rightView : Layout)
+      (output : Nat) (outputView : Layout) (scratch : Nat) (scratchView : Layout)
+      (diagonal : Diagonal) (conjugateLeft conjugateRight : Bool) (policy : NumericalPolicy)
   | branch (condition : Bool)
   | otherwise | finish | skip
   deriving Repr, BEq, DecidableEq, Inhabited
@@ -57,6 +64,23 @@ def action (state : State) : Action → Except Error (List Instruction)
     pure [.gemm args.left.allocation args.left.layout request.conjugateLeft
       args.right.allocation args.right.layout request.conjugateRight
       args.output.allocation args.output.layout request.mode request.policy checked.alpha.value checked.beta.value]
+  | .diagonalAdjoint request => do
+    let operands ← checkDiagonalAdjoint state request
+    pure [.diagonalAdjoint operands.input.allocation operands.input.layout operands.output.allocation
+      operands.output.layout request.source request.target request.conjugate request.policy]
+  | .diagonalScale request => do
+    let operands ← checkDiagonalScale state request
+    pure [.diagonalScale operands.input.allocation operands.input.layout operands.output.allocation
+      operands.output.layout request.diagonal request.conjugate request.policy]
+  | .diagonalPair request => do
+    let _ ← diagonalPairTransition state request
+    let some left := state.loan? request.left | reject "missing diagonal pairing left input"
+    let some right := state.loan? request.right | reject "missing diagonal pairing right input"
+    let some output := state.loan? request.output | reject "missing diagonal pairing output"
+    let some scratch := state.owner? request.scratch | reject "missing diagonal pairing scratch owner"
+    pure [.diagonalPair left.allocation left.layout right.allocation right.layout
+      output.allocation output.layout scratch.identity request.layout request.diagonal
+      request.conjugateLeft request.conjugateRight request.policy]
   | .move .. | .borrow .. | .release .. | .transpose .. |
       .captureDependency .. | .requireDependency .. | .forgetDependency .. => pure []
 
@@ -115,6 +139,13 @@ private def coefficient : ResolvedCoefficient → String
   | .literal value => s!"1 {literal value} 0 0"
   | .view allocation offset => s!"2 0 0 0 {allocation} {offset}"
 
+private def diagonal (value : Diagonal) : String :=
+  let digits := #["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"]
+  let bytes := value.entries.flatMap fun bits => (List.range 8).map fun index =>
+    let byte := bits.toNat / 2^(8 * index) % 256
+    digits[byte / 16]! ++ digits[byte % 16]!
+  s!"{value.uniform} (VastitasStorageNative.diagonalData \"{String.join bytes}\")"
+
 private def render (instructions : List Instruction) : Except Error String := do
   let mut indent := 4
   let mut result := ""
@@ -139,6 +170,12 @@ private def render (instructions : List Instruction) : Except Error String := do
         | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {literal value}"
         | .copy source input target output => s!"copy arena {source} {layout input} {target} {layout output}"
         | .pack3 source input target output i k j => s!"pack3 arena {source} {layout input} {target} {layout output} {i} {k} {j}"
+        | .diagonalAdjoint input inputView output outputView source target conjugate _ =>
+          s!"VastitasStorageNative.diagonalAdjoint arena {input} {layout inputView} {output} {layout outputView} {diagonal source} {diagonal target} {conjugate}"
+        | .diagonalScale input inputView output outputView weights conjugate _ =>
+          s!"VastitasStorageNative.diagonalScale arena {input} {layout inputView} {output} {layout outputView} {diagonal weights} {conjugate}"
+        | .diagonalPair left leftView right rightView output outputView scratch scratchView weights conjugateLeft conjugateRight _ =>
+          s!"VastitasGemmNative.diagonalPair arena {left} {layout leftView} {right} {layout rightView} {output} {layout outputView} {scratch} {layout scratchView} {diagonal weights} {conjugateLeft} {conjugateRight}"
         | .regroup3 source input target output dimensions inputGrouping outputGrouping =>
           s!"regroup3 arena {source} {layout input} {target} {layout output} {(dimensions[0]?).getD 0} {(dimensions[1]?).getD 0} {(dimensions[2]?).getD 0} {inputGrouping.code} {outputGrouping.code}"
         | .gemm left leftView conjugateLeft right rightView conjugateRight output outputView mode _ alpha beta =>
@@ -158,7 +195,7 @@ def generateBody (plan : Plan) : Except Error String := do
   render plan.instructions
 
 def Plan.needsNumerical (plan : Plan) : Bool :=
-  plan.instructions.any fun instruction => match instruction with | .gemm .. => true | _ => false
+  plan.instructions.any fun instruction => match instruction with | .gemm .. | .diagonalPair .. => true | _ => false
 
 /-- Generation accepts a raw plan only after independently auditing it again.
 Cleanup is structured IO, including runtime assertion/allocation failures.

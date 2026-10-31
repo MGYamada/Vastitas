@@ -94,7 +94,7 @@ def native_test(runner, c, work, prefix, cc, sanitize, no_lsan):
     exe = work / "test"
     runner.run(cc + flags + ["-DBENCH_STANDALONE", "-I", work, "-I", HERE,
         "-I", ROOT / "lean-kernel/native", "-I", ROOT / "lean-kernel/numerical", "-I", prefix / "include",
-        HERE / "probe.c", work / "gemm.c", prefix / "lib/libopenblas.a", "-lm", "-lpthread", "-o", exe],
+        HERE / "probe.c", ROOT / "lean-kernel/native/diagonal.c", work / "gemm.c", prefix / "lib/libopenblas.a", "-lm", "-lpthread", "-o", exe],
         phase="native_correctness_compile")
     env = dict(runner.env)
     if no_lsan:

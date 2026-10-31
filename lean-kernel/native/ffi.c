@@ -1,4 +1,5 @@
 #include "storage.h"
+#include "diagonal.h"
 #include <lean/lean.h>
 #include <stdatomic.h>
 
@@ -74,6 +75,31 @@ LEAN_EXPORT lean_obj_res vastitas_storage_pack3(b_lean_obj_arg arena, uint32_t s
     return result(vstorage_pack3(arena_data(arena), source,
         (VStorageLayout){source_offset,source_rows,source_columns,source_leading,source_transposed}, target,
         (VStorageLayout){target_offset,target_rows,target_columns,target_leading,target_transposed}, i, k, j));
+}
+
+LEAN_EXPORT lean_obj_res vastitas_diagonal_adjoint(b_lean_obj_arg arena,
+        uint32_t input, uint64_t input_offset, uint64_t input_rows, uint64_t input_columns,
+        uint64_t input_leading, uint8_t input_transposed,
+        uint32_t output, uint64_t output_offset, uint64_t output_rows, uint64_t output_columns,
+        uint64_t output_leading, uint8_t output_transposed,
+        uint8_t source_uniform, b_lean_obj_arg source, uint8_t target_uniform, b_lean_obj_arg target,
+        uint8_t conjugate) {
+    return result(vdiagonal_adjoint(arena_data(arena),
+        input, (VStorageLayout){input_offset,input_rows,input_columns,input_leading,input_transposed},
+        output, (VStorageLayout){output_offset,output_rows,output_columns,output_leading,output_transposed},
+        (VDiagonal){lean_sarray_cptr(source),lean_sarray_size(source),source_uniform},
+        (VDiagonal){lean_sarray_cptr(target),lean_sarray_size(target),target_uniform}, conjugate));
+}
+LEAN_EXPORT lean_obj_res vastitas_diagonal_scale(b_lean_obj_arg arena,
+        uint32_t input, uint64_t input_offset, uint64_t input_rows, uint64_t input_columns,
+        uint64_t input_leading, uint8_t input_transposed,
+        uint32_t output, uint64_t output_offset, uint64_t output_rows, uint64_t output_columns,
+        uint64_t output_leading, uint8_t output_transposed,
+        uint8_t uniform, b_lean_obj_arg diagonal, uint8_t conjugate) {
+    return result(vdiagonal_scale(arena_data(arena),
+        input, (VStorageLayout){input_offset,input_rows,input_columns,input_leading,input_transposed},
+        output, (VStorageLayout){output_offset,output_rows,output_columns,output_leading,output_transposed},
+        (VDiagonal){lean_sarray_cptr(diagonal),lean_sarray_size(diagonal),uniform}, conjugate));
 }
 LEAN_EXPORT lean_obj_res vastitas_storage_regroup3(b_lean_obj_arg arena, uint32_t source,
         uint64_t source_offset, uint64_t source_rows, uint64_t source_columns, uint64_t source_leading, uint8_t source_transposed,

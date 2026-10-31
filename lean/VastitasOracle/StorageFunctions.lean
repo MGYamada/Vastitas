@@ -75,26 +75,33 @@ private theorem mapM_member {α β ε : Type} (f : α → Except ε β) {source 
 
 /-- Every source body, including an unused definition, has a separately checked
 probe schedule. Actual calls still recheck the caller's layout and alias state. -/
-theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {functions : List Function} {function : Function} {result : Probe}
-    (accepted : probe functions function environment = .ok result) : result.function = function.id := by
-  cases setup : (probeSetup functions function).run {environment} with
+theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {signatures : List ValueFlow.Signature}
+    {functions : List Function} {function : Function} {result : Probe}
+    (accepted : probe functions function environment signatures = .ok result) : result.function = function.id := by
+  cases setup : (probeSetup functions function).run {environment, signatures} with
   | error diagnostic => simp [probe, setup] at accepted
   | ok pair =>
     simp only [probe, setup, bind, Except.bind] at accepted
-    split at accepted
-    · contradiction
-    · exact congrArg Probe.function (Except.ok.inj accepted).symm
+    cases values : ValueFlow.check signatures pair.2.scalarInputs pair.2.flow.toList with
+    | error diagnostic => simp [values] at accepted
+    | ok values =>
+      simp only [values] at accepted
+      split at accepted
+      · split at accepted
+        · contradiction
+        · exact congrArg Probe.function (Except.ok.inj accepted).symm
+      · contradiction
 
-theorem every_body {program : Program} {environment} (checked : Checked program environment) {function : Function}
+theorem every_body {program : Program} {environment signatures} (checked : Checked program environment signatures) {function : Function}
     (member : function ∈ program.functions) :
-    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe program.functions function environment = .ok result ∧
+    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe program.functions function environment signatures = .ok result ∧
       checkPlan result.statements = .ok result.resources := by
   obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩
 
-theorem every_library_body {functions : List Function} {environment} (checked : CheckedLibrary functions environment) {function : Function}
+theorem every_library_body {functions : List Function} {environment signatures} (checked : CheckedLibrary functions environment signatures) {function : Function}
     (member : function ∈ functions) :
-    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe functions function environment = .ok result ∧
+    ∃ result ∈ checked.bodies, result.function = function.id ∧ probe functions function environment signatures = .ok result ∧
       checkPlan result.statements = .ok result.resources := by
   obtain ⟨result, belongs, accepted⟩ := mapM_member _ checked.bodiesFrom member
   exact ⟨result, belongs, probe_identity accepted, accepted, result.accepted⟩

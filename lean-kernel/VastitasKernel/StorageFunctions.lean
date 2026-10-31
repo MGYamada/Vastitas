@@ -1,4 +1,5 @@
 import VastitasKernel.StorageCodegen
+import VastitasKernel.StorageValueFlow
 import VastitasKernel.TensorNetwork
 import VastitasKernel.StorageEvaluation
 import VastitasKernel.TensorNumerical
@@ -19,6 +20,7 @@ structure OwnedType where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 inductive Parameter where
+  | value (name : Symbol) (type : Indexed.Core.PureType)
   | owned (name : Symbol) (type : OwnedType)
   | borrowed (name : Symbol) (scalar : Scalar) (rows columns : Nat)
       (access : Access) (initializes : Bool)
@@ -36,6 +38,7 @@ inductive Parameter where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Parameter.name : Parameter → Symbol
+  | .value name _ => name
   | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
   | .vector name .. | .ownedMapTo name .. => name
@@ -55,20 +58,73 @@ inductive ResultType (Name : Type := Symbol) where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 inductive Statement where
+  | value (name fragment : Nat) (arguments : List Symbol) (type : Indexed.Core.PureType)
   | action (operation : Action)
   | numerical (operation : Numerical.Operation)
   | tensor (operation : Tensor.Operation)
   | network (graph : TensorNetwork.Graph) (output : Symbol) (policy : NumericalPolicy)
   | call (callee : Nat) (arguments results : List Symbol)
-  | branch (condition : Bool) (yes no : List Statement)
+  | callValue (callee : Nat) (arguments results : List Symbol) (value : Symbol) (type : Indexed.Core.PureType)
+  | branch (condition : ValueFlow.Condition) (yes no : List Statement)
   deriving Repr, BEq, Inhabited
+
+deriving instance DecidableEq for Numerical.Operation
+deriving instance DecidableEq for Tensor.Operation
+
+mutual
+  def Statement.decEq (left right : Statement) : Decidable (left = right) :=
+    match left, right with
+    | .value a0 a1 a2 a3, .value b0 b1 b2 b3 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp only [Statement.value.injEq])
+    | .action a0, .action b0 =>
+      decidable_of_iff (a0 = b0) (by simp only [Statement.action.injEq])
+    | .numerical a0, .numerical b0 =>
+      decidable_of_iff (a0 = b0) (by simp only [Statement.numerical.injEq])
+    | .tensor a0, .tensor b0 =>
+      decidable_of_iff (a0 = b0) (by simp only [Statement.tensor.injEq])
+    | .network a0 a1 a2, .network b0 b1 b2 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp only [Statement.network.injEq])
+    | .call a0 a1 a2, .call b0 b1 b2 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2) (by simp only [Statement.call.injEq])
+    | .callValue a0 a1 a2 a3 a4, .callValue b0 b1 b2 b3 b4 =>
+      decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3 ∧ a4 = b4) (by simp only [Statement.callValue.injEq])
+    | .branch c y n, .branch d z m =>
+      match decEq c d, Statements.decEq y z, Statements.decEq n m with
+      | isTrue h, isTrue j, isTrue k => isTrue (h ▸ j ▸ k ▸ rfl)
+      | isFalse h, _, _ => isFalse (fun e => h (Statement.branch.inj e).1)
+      | _, isFalse h, _ => isFalse (fun e => h (Statement.branch.inj e).2.1)
+      | _, _, isFalse h => isFalse (fun e => h (Statement.branch.inj e).2.2)
+    | .value .., .action .. | .value .., .numerical .. | .value .., .tensor .. | .value .., .network .. | .value .., .call .. | .value .., .callValue .. | .value .., .branch .. => isFalse (by intro h; cases h)
+    | .action .., .value .. | .action .., .numerical .. | .action .., .tensor .. | .action .., .network .. | .action .., .call .. | .action .., .callValue .. | .action .., .branch .. => isFalse (by intro h; cases h)
+    | .numerical .., .value .. | .numerical .., .action .. | .numerical .., .tensor .. | .numerical .., .network .. | .numerical .., .call .. | .numerical .., .callValue .. | .numerical .., .branch .. => isFalse (by intro h; cases h)
+    | .tensor .., .value .. | .tensor .., .action .. | .tensor .., .numerical .. | .tensor .., .network .. | .tensor .., .call .. | .tensor .., .callValue .. | .tensor .., .branch .. => isFalse (by intro h; cases h)
+    | .network .., .value .. | .network .., .action .. | .network .., .numerical .. | .network .., .tensor .. | .network .., .call .. | .network .., .callValue .. | .network .., .branch .. => isFalse (by intro h; cases h)
+    | .call .., .value .. | .call .., .action .. | .call .., .numerical .. | .call .., .tensor .. | .call .., .network .. | .call .., .callValue .. | .call .., .branch .. => isFalse (by intro h; cases h)
+    | .callValue .., .value .. | .callValue .., .action .. | .callValue .., .numerical .. | .callValue .., .tensor .. | .callValue .., .network .. | .callValue .., .call .. | .callValue .., .branch .. => isFalse (by intro h; cases h)
+    | .branch .., .value .. | .branch .., .action .. | .branch .., .numerical .. | .branch .., .tensor .. | .branch .., .network .. | .branch .., .call .. | .branch .., .callValue .. => isFalse (by intro h; cases h)
+  termination_by sizeOf left + sizeOf right
+  def Statements.decEq (left right : List Statement) : Decidable (left = right) :=
+    match left, right with
+    | [], [] => isTrue rfl
+    | [], _ :: _ => isFalse (by intro h; cases h)
+    | _ :: _, [] => isFalse (by intro h; cases h)
+    | a :: rest, b :: tail =>
+      match Statement.decEq a b, Statements.decEq rest tail with
+      | isTrue h, isTrue j => isTrue (h ▸ j ▸ rfl)
+      | isFalse h, _ => isFalse (fun e => h (List.cons.inj e).1)
+      | _, isFalse h => isFalse (fun e => h (List.cons.inj e).2)
+  termination_by sizeOf left + sizeOf right
+end
+
+instance : DecidableEq Statement := Statement.decEq
 
 structure Function where
   id : Nat
   parameters : List Parameter
   results : List (Symbol × ResultType)
   body : List Statement
-  deriving Repr, Inhabited
+  valueResult : Option (Nat × List Symbol × Indexed.Core.PureType) := none
+  deriving Repr, BEq, DecidableEq, Inhabited
 
 structure Program where
   functions : List Function
@@ -82,6 +138,7 @@ def OwnedType.valid (type : OwnedType) : Bool :=
     type.initialized.all (checkLayout type.scalar (type.elements * type.scalar.width))
 
 def Parameter.valid : Parameter → Bool
+  | .value _ type => ValueFlow.scalar type
   | .owned _ type => type.valid
   | .borrowed _ scalar rows columns _ _ =>
     checkLayout scalar (rows * columns * scalar.width) ⟨0, rows, columns, max 1 rows, false⟩
@@ -496,7 +553,36 @@ structure CachedContractionReceipt where
   emitted : priorCode ++ [.action (.requireDependency cache.name),
     .action (.gemm (Tensor.contractionRequest checked.contraction.left checked.contraction.right checked.contraction.output policy))] = code
 
+/-- A demanded scalar result follows a fully completed actual resource call.
+The return's arguments come from that call's final lexical frame, and the pure
+step is appended after the entire audited resource projection. -/
+structure ValueReturnReceipt where
+  call : CallReceipt
+  function : Function
+  sameCallee : function.id = call.callee
+  frame : Frame
+  fragment : Nat
+  locals : List Symbol
+  type : Indexed.Core.PureType
+  contract : function.valueResult = some (fragment, locals, type)
+  arguments : List Symbol
+  resolved : locals.mapM (resolve frame) = .ok arguments
+  signatures : List ValueFlow.Signature
+  slots : ValueFlow.Slots
+  typed : ValueFlow.checkCall signatures slots fragment arguments = .ok type
+  slot : Symbol
+  priorFlow : List ValueFlow.Statement
+  flow : List ValueFlow.Statement
+  completed : ValueFlow.project priorFlow = call.code
+  emitted : priorFlow ++ [.value slot fragment arguments] = flow
+
 structure Context where
+  signatures : List ValueFlow.Signature := []
+  scalarSlots : ValueFlow.Slots := []
+  scalarInputs : ValueFlow.Slots := []
+  flow : Array ValueFlow.Statement := #[]
+  returnedValue : Option (Symbol × Indexed.Core.PureType) := none
+  valueReturns : Array ValueReturnReceipt := #[]
   environment : Indexed.Environment := []
   numerical : Numerical.Values := []
   tensors : Tensor.Values := []
@@ -546,7 +632,25 @@ def step (operation : Action) : M Unit := do
   spend
   let context ← get
   let resources ← checkAction context.resources operation
-  set {context with resources, code := context.code.push (.action operation)}
+  set {context with
+    resources
+    code := context.code.push (.action operation)
+    flow := context.flow.push (.action operation)}
+
+/-- A pure fragment is selected by its reconstructed source index. Its signature
+is supplied by the independently checked Core target table, never inferred from
+the caller's expected result. This step emits no storage instruction. -/
+def scalarCall (name fragment : Nat) (arguments : List Symbol)
+    (expected : Indexed.Core.PureType) : M Unit := do
+  spend
+  let context ← get
+  let actual ← ValueFlow.checkCall context.signatures context.scalarSlots fragment arguments
+  unless actual == expected do throw ⟨"E_RESOURCE_VALUE", "pure fragment result type differs"⟩
+  if (ValueFlow.type? context.scalarSlots name).isSome then
+    throw ⟨"E_RESOURCE_VALUE", "scalar slot is already bound"⟩
+  set {context with
+    scalarSlots := (name, actual) :: context.scalarSlots
+    flow := context.flow.push (.value name fragment arguments)}
 
 /-- Dependency witnesses are lexical compiler metadata, never escaping results.
 Invalidated tombstones are forgotten too; caller witnesses remain in place. -/
@@ -900,6 +1004,10 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
     frame := next
     let state := (← get).resources
     match parameter with
+    | .value _ type =>
+      unless ValueFlow.type? caller.scalarSlots actual == some type do
+        throw ⟨"E_RESOURCE_VALUE", "scalar argument differs from its declared type"⟩
+      frame := (parameter.name, actual) :: dependencies
     | .owned _ type =>
       rejectOpaque actual
       if !ownedMatches state actual type then throw ⟨"E_RESOURCE_TYPE", "owned argument violates its contract"⟩
@@ -1166,13 +1274,19 @@ mutual
     | fuel + 1, functions, stack, frame, first :: rest => do
       spend
       let after ← match first with
+        | .value name fragment arguments type => do
+          let arguments ← (arguments.mapM (resolve frame) : Except Error (List Symbol))
+          let (frame, global) ← bindName frame name
+          scalarCall global fragment arguments type
+          pure frame
         | .action action => operation frame action
         | .numerical op => numericalOperation frame op
         | .network graph output policy => networkOperation frame graph output policy
         | .tensor operation => tensorOperation frame operation
-        | .call callee actuals outputs => do
+        | .call callee actuals outputs | .callValue callee actuals outputs .. => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
-          let returned ← invoke fuel functions stack callee actuals
+          let demand := match first with | .callValue .. => true | _ => false
+          let returned ← invoke fuel functions stack callee actuals demand
           if returned.length != outputs.length then throw ⟨"E_RESOURCE_ARITY", "resource result count differs"⟩
           let mut frame := frame
           for (localName, value) in outputs.zip returned do
@@ -1182,11 +1296,27 @@ mutual
             | .map view => transferMap view target
             | .package view => transferPackage view target
             frame := next
+          if let .callValue _ _ _ localName expected := first then
+            let some (slot, actual) := (← get).returnedValue
+              | throw ⟨"E_RESOURCE_VALUE", "resource callee has no scalar result"⟩
+            unless actual == expected do throw ⟨"E_RESOURCE_VALUE", "resource scalar result type differs"⟩
+            if frame.any (·.1 == localName) then throw ⟨"E_RESOURCE_NAME", "scalar result shadows a binding"⟩
+            frame := (localName, slot) :: frame
           pure frame
         | .branch condition yes no => do
+          let condition ← match condition with
+            | .literal value => pure (ValueFlow.Condition.literal value)
+            | .slot localName => do
+              let slot ← resolve frame localName
+              unless ValueFlow.type? (← get).scalarSlots slot == some .bool do
+                throw ⟨"E_RESOURCE_VALUE", "resource branch requires a live Bool value"⟩
+              pure (.slot slot)
           let before ← get
           set {before with
             code := #[]
+            flow := #[]
+            returnedValue := none
+            valueReturns := #[]
             calls := #[]
             products := #[]
             networks := #[]
@@ -1210,6 +1340,9 @@ mutual
             nextSymbol := left.nextSymbol
             unused := left.unused
             code := #[]
+            flow := #[]
+            returnedValue := none
+            valueReturns := #[]
             calls := #[]
             products := #[]
             networks := #[]
@@ -1233,7 +1366,11 @@ mutual
           let resources ← join left.resources right.resources
           set {right with
             resources
-            code := before.code.push (.branch condition left.code.toList right.code.toList)
+            code := before.code.push (.branch condition.projection left.code.toList right.code.toList)
+            flow := before.flow.push (.branch condition left.flow.toList right.flow.toList)
+            scalarSlots := before.scalarSlots
+            returnedValue := none
+            valueReturns := before.valueReturns ++ left.valueReturns ++ right.valueReturns
             calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             tensors := before.tensors
@@ -1255,9 +1392,9 @@ mutual
             evaluations := before.evaluations ++ left.evaluations ++ right.evaluations}
           pure frame
       expand fuel functions stack after rest
-  def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Returned)
-    | 0, _, _, _, _ => throw ⟨"E_RESOURCE_LIMIT", "resource call exceeds the depth bound"⟩
-    | fuel + 1, functions, stack, callee, actuals => do
+  def invoke : Nat → List Function → List Nat → Nat → List Symbol → Bool → M (List Returned)
+    | 0, _, _, _, _, _ => throw ⟨"E_RESOURCE_LIMIT", "resource call exceeds the depth bound"⟩
+    | fuel + 1, functions, stack, callee, actuals, demand => do
       spend
       if stack.contains callee then throw ⟨"E_RESOURCE_RECURSION", "resource functions cannot recurse"⟩
       let some function := functions.find? (·.id == callee)
@@ -1267,6 +1404,16 @@ mutual
       let frame ← expand fuel functions (callee :: stack) frame function.body
       cleanupDependencies before.resources
       let returned ← finish before.resources frame borrowed function.results
+      -- Discarding a result avoids native evaluation, not its signature audit.
+      -- Pair terminals remain compatible without becoming scalar flow slots.
+      if let some (fragment, locals, expected) := function.valueResult then
+        let arguments ← (locals.mapM (resolve frame) : Except Error (List Symbol))
+        let context ← get
+        let some signature := context.signatures[fragment]?
+          | throw ⟨"E_RESOURCE_VALUE", "callee return fragment is absent"⟩
+        unless signature.result == expected && signature.parameters.all ValueFlow.scalar &&
+            arguments.map (ValueFlow.type? context.scalarSlots) == signature.parameters.map some do
+          throw ⟨"E_RESOURCE_VALUE", "callee return arguments or signature differ"⟩
       let after ← get
       let results := returned.map fun value => (value.owner, value.type)
       let statements := after.code.toList.drop before.code.size
@@ -1278,7 +1425,42 @@ mutual
             if valid : ExitValid before.resources after.resources results then
               let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
                 before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
-              set {after with calls := after.calls.push receipt, numerical := before.numerical, tensors := before.tensors, packCaches := before.packCaches}
+              set {after with
+                calls := after.calls.push receipt
+                numerical := before.numerical
+                tensors := before.tensors
+                packCaches := before.packCaches
+                returnedValue := none}
+              if demand then
+                match contract : function.valueResult with
+                | none => pure ()
+                | some (fragment, locals, type) =>
+                  match resolved : locals.mapM (resolve frame) with
+                  | .error diagnostic => throw diagnostic
+                  | .ok arguments =>
+                    let valueBefore ← get
+                    match typed : ValueFlow.checkCall valueBefore.signatures valueBefore.scalarSlots fragment arguments with
+                    | .error diagnostic => throw diagnostic
+                    | .ok actual =>
+                      unless actual == type do throw ⟨"E_RESOURCE_VALUE", "callee result signature differs"⟩
+                      let slot ← fresh
+                      scalarCall slot fragment arguments type
+                      let valueAfter ← get
+                      if sameCallee : function.id = receipt.callee then
+                        if exactType : actual = type then
+                          if completed : ValueFlow.project valueBefore.flow.toList = receipt.code then
+                            if emitted : valueBefore.flow.toList ++ [.value slot fragment arguments] = valueAfter.flow.toList then
+                              let resultReceipt : ValueReturnReceipt := ⟨receipt, function, sameCallee, frame,
+                                fragment, locals, type, contract, arguments, resolved, valueBefore.signatures,
+                                valueBefore.scalarSlots, exactType ▸ typed, slot, valueBefore.flow.toList,
+                                valueAfter.flow.toList, completed, emitted⟩
+                              set {valueAfter with
+                                returnedValue := some (slot, type)
+                                valueReturns := valueAfter.valueReturns.push resultReceipt}
+                            else throw ⟨"E_RESOURCE_VALUE", "scalar result changed earlier mixed operations"⟩
+                          else throw ⟨"E_RESOURCE_VALUE", "scalar result precedes resource call completion"⟩
+                        else throw ⟨"E_RESOURCE_VALUE", "scalar result signature differs"⟩
+                      else throw ⟨"E_RESOURCE_VALUE", "scalar result belongs to another callee"⟩
               return returned
             else throw ⟨"E_RESOURCE_ESCAPE", "call exit failed the independent resource audit"⟩
           else throw ⟨"E_RESOURCE_STATE", "call expansion differs from replayed resource transitions"⟩
@@ -1296,10 +1478,15 @@ private def initializeRegion (owner : Symbol) (scalar : Scalar) (layout : Layout
 /-- Probes start with only the declared initialization. They audit unused
 bodies, but their fabricated buffers/payloads are never reused by execution. -/
 structure Probe where
+  signatures : List ValueFlow.Signature
+  inputs : ValueFlow.Slots
+  flow : List ValueFlow.Statement
+  values : ValueFlow.Checked signatures inputs flow
   function : Nat
   statements : List Storage.Statement
   resources : CheckedPlan statements
   accepted : checkPlan statements = .ok resources
+  projected : ValueFlow.project flow = statements
 
 def probeSetup (functions : List Function) (function : Function) : M Unit := do
   let mut actuals := []
@@ -1308,6 +1495,11 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
   for parameter in function.parameters do
     let owner ← fresh
     let actual ← match parameter with
+    | .value _ type =>
+      modify fun context => {context with
+        scalarSlots := (owner, type) :: context.scalarSlots
+        scalarInputs := context.scalarInputs ++ [(owner, type)]}
+      pure owner
     | .owned _ type =>
       step (.allocate owner type.scalar type.elements)
       for layout in type.initialized do initializeRegion owner type.scalar layout
@@ -1454,57 +1646,75 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       pure package
     actuals := actuals ++ [actual]
     frame := (parameter.name, actual) :: frame
-  let returned ← invoke 4096 functions [] function.id actuals
+  let demand := function.valueResult.any (fun result => ValueFlow.scalar result.2.2)
+  let returned ← invoke 4096 functions [] function.id actuals demand
   for value in returned do step (.drop value.owner)
   for (loan, owner) in borrowed.reverse do
     step (.release loan)
     step (.drop owner)
 
-def probe (functions : List Function) (function : Function) (environment : Indexed.Environment := []) : Except Error Probe := do
-  let (_, context) ← (probeSetup functions function).run {environment}
-  match accepted : checkPlan context.code.toList with
-  | .error diagnostic => .error diagnostic
-  | .ok resources => return ⟨function.id, context.code.toList, resources, accepted⟩
+def probe (functions : List Function) (function : Function) (environment : Indexed.Environment := [])
+    (signatures : List ValueFlow.Signature := []) : Except Error Probe := do
+  let (_, context) ← (probeSetup functions function).run {environment, signatures}
+  let values ← ValueFlow.check signatures context.scalarInputs context.flow.toList
+  if projected : ValueFlow.project context.flow.toList = context.code.toList then
+    match accepted : checkPlan context.code.toList with
+    | .error diagnostic => .error diagnostic
+    | .ok resources => return ⟨signatures, context.scalarInputs, context.flow.toList, values,
+        function.id, context.code.toList, resources, accepted, projected⟩
+  else reject "E_RESOURCE_VALUE" "mixed probe differs from its resource projection"
 
-def executable (program : Program) (environment : Indexed.Environment := []) : Except Error Context := do
-  let (_, context) ← (invoke 4096 program.functions [] program.entry []).run {environment}
+def executable (program : Program) (environment : Indexed.Environment := [])
+    (signatures : List ValueFlow.Signature := []) : Except Error Context := do
+  let (_, context) ← (invoke 4096 program.functions [] program.entry [] true).run {environment, signatures}
   return context
 
 /-- Check-only packages do not need a fabricated executable entry. Every
 original resource definition still has its actual independently checked probe. -/
-structure CheckedLibrary (functions : List Function) (environment : Indexed.Environment := []) where
+structure CheckedLibrary (functions : List Function) (environment : Indexed.Environment := [])
+    (signatures : List ValueFlow.Signature := []) where
   headers : definitions functions = .ok ()
   bodies : List Probe
-  bodiesFrom : functions.mapM (fun function => probe functions function environment) = .ok bodies
+  bodiesFrom : functions.mapM (fun function => probe functions function environment signatures) = .ok bodies
 
-def checkLibrary (functions : List Function) (environment : Indexed.Environment := []) : Except Error (CheckedLibrary functions environment) :=
+def checkLibrary (functions : List Function) (environment : Indexed.Environment := [])
+    (signatures : List ValueFlow.Signature := []) : Except Error (CheckedLibrary functions environment signatures) :=
   match headers : definitions functions with
   | .error diagnostic => .error diagnostic
-  | .ok () => match bodiesFrom : functions.mapM (fun function => probe functions function environment) with
+  | .ok () => match bodiesFrom : functions.mapM (fun function => probe functions function environment signatures) with
     | .error diagnostic => .error diagnostic
     | .ok bodies => .ok ⟨headers, bodies, bodiesFrom⟩
 
-structure Checked (program : Program) (environment : Indexed.Environment := []) where
+structure Checked (program : Program) (environment : Indexed.Environment := [])
+    (signatures : List ValueFlow.Signature := []) where
   headerAccepted : headers program = .ok ()
   bodies : List Probe
-  bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment) = .ok bodies
+  bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment signatures) = .ok bodies
   context : Context
-  expanded : executable program environment = .ok context
+  expanded : executable program environment signatures = .ok context
   resources : CheckedPlan context.code.toList
   accepted : checkPlan context.code.toList = .ok resources
+  values : ValueFlow.Checked signatures [] context.flow.toList
+  projected : ValueFlow.project context.flow.toList = context.code.toList
 
-def Checked.statements {program environment} (checked : Checked program environment) : List Storage.Statement := checked.context.code.toList
+def Checked.statements {program environment signatures} (checked : Checked program environment signatures) : List Storage.Statement := checked.context.code.toList
 
-def check (program : Program) (environment : Indexed.Environment := []) : Except Error (Checked program environment) :=
+def check (program : Program) (environment : Indexed.Environment := [])
+    (signatures : List ValueFlow.Signature := []) : Except Error (Checked program environment signatures) :=
   match headerAccepted : headers program with
   | .error diagnostic => .error diagnostic
-  | .ok () => match bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment) with
+  | .ok () => match bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment signatures) with
     | .error diagnostic => .error diagnostic
-    | .ok bodies => match expanded : executable program environment with
+    | .ok bodies => match expanded : executable program environment signatures with
       | .error diagnostic => .error diagnostic
-      | .ok context => match accepted : checkPlan context.code.toList with
-        | .error diagnostic => .error diagnostic
-        | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded, resources, accepted⟩
+      | .ok context => do
+        let values ← ValueFlow.check signatures [] context.flow.toList
+        if projected : ValueFlow.project context.flow.toList = context.code.toList then
+          match accepted : checkPlan context.code.toList with
+          | .error diagnostic => .error diagnostic
+          | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded,
+              resources, accepted, values, projected⟩
+        else reject "E_RESOURCE_VALUE" "mixed execution differs from its resource projection"
 
 def generate (program : Program) (report : Bool := false) (budget : Nat := byteLimit)
     (environment : Indexed.Environment := []) : Except Error String := do

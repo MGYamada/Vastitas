@@ -14,7 +14,7 @@ open VastitasKernel.Storage VastitasKernel.Indexed
 theorem exact_components {program : Program} (checked : Checked program requireMain) :
     Indexed.AuthoritySource.checkProgram program.pureProgram (requireMain && program.entry.isNone) = .ok checked.pureProgram ∧
     lower program = .ok checked.lowered ∧
-    Functions.checkLibrary checked.lowered.functions (numericalEnvironment checked.pureProgram) = .ok checked.library :=
+    Functions.checkLibrary checked.lowered.functions (numericalEnvironment checked.pureProgram) checked.targets.signatures = .ok checked.library :=
   ⟨checked.pureAccepted, checked.reconstructed, checked.libraryAccepted⟩
 
 theorem complete_resource_identity {program : Program} (checked : Checked program requireMain) :
@@ -42,7 +42,7 @@ theorem numerical_provenance {program : Program} (checked : Checked program requ
 theorem every_resource_body {program : Program} (checked : Checked program requireMain)
     (function : Functions.Function) (member : function ∈ checked.lowered.functions) :
     ∃ result ∈ checked.library.bodies, result.function = function.id ∧
-      Functions.probe checked.lowered.functions function (numericalEnvironment checked.pureProgram) = .ok result ∧
+      Functions.probe checked.lowered.functions function (numericalEnvironment checked.pureProgram) checked.targets.signatures = .ok result ∧
       Storage.checkPlan result.statements = .ok result.resources :=
   StorageFunctions.every_library_body checked.library member
 
@@ -68,7 +68,7 @@ theorem pure_value_functions_total {program : Program} (checked : Checked progra
 theorem actual_entry_closed {program : Program} (checked : Checked program requireMain)
     (entry : Nat) (found : program.entry = some entry) :
     let execution := checked.execution entry found
-    Functions.check ⟨checked.lowered.functions, entry⟩ (numericalEnvironment checked.pureProgram) = .ok execution.checked ∧
+    Functions.check ⟨checked.lowered.functions, entry⟩ (numericalEnvironment checked.pureProgram) checked.targets.signatures = .ok execution.checked ∧
     Storage.run 4096 {} execution.checked.statements = .ok execution.checked.resources.finalState ∧
     execution.checked.resources.finalState.allocations = [] ∧ execution.checked.resources.finalState.loans = [] :=
   ⟨(checked.execution entry found).accepted, (checked.execution entry found).checked.resources.accepted,

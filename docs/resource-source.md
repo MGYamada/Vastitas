@@ -5,8 +5,9 @@ compiler. Names, imports, visibility, canonical module owners, indexed declarati
 finite dispatch and edit assemblies share the same namespace. The existing
 `Indexed.AuthoritySource` checks every ordinary, applicable, nonwinning and
 unapplied pure body. Resource bodies then pass independent ownership, layout,
-initialization and actual-call checks. This is the initial **static resource
-profile**, not completion of [Stage 1](stage1-completion.md).
+initialization and actual-call checks. Shapes remain static; scalar values can
+flow between checked pure computations, resource calls and runtime branches.
+This bounded profile does not complete [Stage 1](stage1-completion.md).
 
 The [complete example](../examples/packages/storage/app/src/main.vast) imports
 resource functions from a separate directory-aligned package, receives an owned
@@ -76,7 +77,9 @@ cells, padding holes and exhausted coverage budgets remain unreadable.
 | `gemm(a, b, c, overwrite, NativeFast);` | Check exact endpoints/bases and resources, then multiply into `c`; also `accumulate`. |
 | `gemm(a, b, c, accumulate, NativeFast, alpha=coefficient(s), beta=f64_bits(bits));` | Read the checked 1x1 scalar loan at execution and apply explicit coefficients; complex maps require complex coefficient bits. |
 | `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
-| `if true { ... } else { ... }` | Check both resource branches and join their states; current conditions are literal booleans. |
+| `let n: Nat = value { expression };` | Compute a checked pure scalar at this point in the resource body. |
+| `let answer: Int = call helper(n) -> (owners);` | Receive a pure result after the callee completes its resource operations and returns its loans. |
+| `if flag { ... } else { ... }` | Execute the arm selected by a checked Bool binding; independently check and join both resource states. Literal conditions remain supported. |
 
 Public `gemm` is a numerical statement over typed map views. Lean resolves its
 nominal endpoints/bases before composing the actual resource checks and exact
@@ -99,19 +102,43 @@ it does not introduce general scalar expression flow between resource statements
 
 ## Pure values and executable boundaries
 
-The terminal `value` block can call ordinary functions, finite generic families
-and independent lambdas, and use indexed geometry under its existing declaration
-contracts. It cannot read resource handles or perform resource operations. Its
-bindings and lambdas cannot capture or shadow surrounding resource bindings.
-Resource functions are not `Fn` values, dispatch keys or editable generic families.
-Ordinary pure calls cannot invoke them.
+Resource parameters, typed `let` bindings and captured call results support
+`Nat`, `Int`, `Bool` and `Unit`. A `value { ... }` block can use earlier scalar
+bindings, ordinary functions, finite generic families, independent lambdas and
+indexed geometry under the existing declaration contracts. For example:
 
-The current `call` statement transfers owners and discards the callee's pure
-result. There is no scalar result binding or scalar argument flow between resource
-statements yet. The entry's pure `Int` result is evaluated after its resource
-schedule succeeds. Discarded pure results need no native execution; their complete
-bodies still pass the common all-body/type/independence checks. This limited flow
-must not be presented as general interleaving of scalar computation and mutation.
+```vast
+resource fn finish(data: Owned<F64, 1>, seed: Int) -> Int {
+    drop(data);
+    let answer: Int = value { seed + 1 };
+    value { answer }
+}
+```
+
+The [scalar-flow example](../examples/packages/resource-values/src/main.vast)
+passes a computed Bool through a resource helper, chooses different fills at
+runtime, returns the Bool together with an initialized owner, and inspects the
+selected output before computing `42`. Nat remains arbitrary precision with
+saturating subtraction; Nat-to-Int conversion remains explicit.
+
+Each pure block receives only its earlier scalar bindings. Resource handles,
+loans, numerical metadata and packing caches cannot enter pure Core. Pure locals
+cannot shadow enclosing bindings, and lambdas retain the independent capture
+audit. Resource functions remain unavailable as `Fn` values, pure callees,
+dispatch keys or editable generic families. Every branch is checked even when a
+condition originates from a literal. Branch-local scalar bindings are unavailable
+in the sibling or after the join; there are no scalar phi values or branch result
+bindings in this increment.
+
+An ordinary `call` still transfers owners and discards the pure result. Discarded
+results, including previously supported terminal Pair results, remain fully
+checked without native evaluation. A `let ... = call` computes its result only
+after the callee's resource schedule succeeds and its borrowed inputs have been
+restored. The entry's final Int is printed after successful resource completion.
+No scalar result is published after a resource failure; previous writes are not
+rolled back. Shapes, allocation capacities, layouts and numerical profile
+parameters are still static metadata. This does not add floating Core arithmetic,
+resource reads in pure expressions, dynamic extents or escaping resource closures.
 
 Every resource definition is checked, including unused dependencies. Check-only
 libraries use actual all-body probes without a fabricated main. Source owners,
@@ -119,8 +146,12 @@ local symbols and call IDs are reconstructed; the public input cannot provide
 allocation IDs, checked Core, alias assertions or trusted initialization flags.
 Versions 2–7 reject resource declarations rather than discarding them.
 
-Generation rechecks the original resource schedule and native instructions, and
-rechecks the actual pure Core module, entry target and dependency order. The same
+Generation rechecks the original mixed schedule, its resource projection and
+every native instruction, plus the actual pure Core module, exact fragment
+targets and dependency order. A fragment is keyed by its canonical resource
+owner and structural source position. Its ordered scalar argument slots must
+match the actual checked Core signature. Runtime conditions are emitted from
+those checked Bool slots; neither arm is selected during resource checking. The same
 resource main supplies both the schedule and its pure return block. Native IO uses
 structured cleanup, including failure paths; a failed resource operation does not
 publish the pure return value. Earlier completed writes are not rolled back.
@@ -138,7 +169,7 @@ in the checked schedule.
 
 `ResourceSource.Checked` retains the original decoder/source mapping, canonical
 owners, independently re-resolved calls, actual authority acceptance, complete
-resource probes, pure return compilation and exact executable plan. The oracle
+resource probes, pure fragment compilation and the exact mixed executable plan. The oracle
 imports those definitions: source identity and call provenance, all resource-body
 coverage, the original authority trace, typed total evaluation of the returned
 pure Core, and closed logical resources at successful entry exit are connected to
@@ -155,7 +186,7 @@ Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 `ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](numerical-values.md#dependent-numerical-inputs).
 `OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
 storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
-Runtime dimensions/conditions, scalar value flow throughout resource bodies,
+Runtime dimensions, floating scalar expression interfaces,
 general generative numerical result packages and general metric realization,
 general owned-result branch joins, scratch/dependency handling, higher-rank or
 multi-edge networks, explicit packing and

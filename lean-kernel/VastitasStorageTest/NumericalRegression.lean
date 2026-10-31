@@ -17,7 +17,7 @@ private def callInputs : Functions.Statement := .call 1 [0, 1, 2, 3, 4, 5, 30, 3
 
 private def withInputs (implementation : String) (body : List Functions.Statement)
     (calleeBody : List Functions.Statement := [multiply]) (middle := 3) : Functions.Program :=
-  ⟨[⟨0, [], [], body⟩, ⟨1, inputs implementation middle, [], calleeBody⟩], 0⟩
+  ⟨[⟨0, [], [], body, none⟩, ⟨1, inputs implementation middle, [], calleeBody, none⟩], 0⟩
 
 #eval show IO Unit from do
   let .ok declarations := Indexed.Source.checkDeclarations source
@@ -40,8 +40,8 @@ private def withInputs (implementation : String) (body : List Functions.Statemen
     let .ok native := Native.compile checked.statements | throw (IO.userError "typed native lowering rejected")
     check "typed product reaches the existing native GEMM lowering" native.needsNumerical
     -- The actual source program is replayed; stale certificates are not reused.
-    let twice : Functions.Program := ⟨[⟨0, [], [], [.call 1 [] [], .call 1 [] []]⟩,
-      ⟨1, [], [], body⟩], 0⟩
+    let twice : Functions.Program := ⟨[⟨0, [], [], [.call 1 [] [], .call 1 [] []], none⟩,
+      ⟨1, [], [], body, none⟩], 0⟩
     let .ok repeated := Functions.check twice env | throw (IO.userError "repeated activation rejected")
     let some first := repeated.context.products[0]? | throw (IO.userError "missing first activation")
     let some second := repeated.context.products[1]? | throw (IO.userError "missing second activation")
@@ -91,8 +91,8 @@ private def withInputs (implementation : String) (body : List Functions.Statemen
       (!(Functions.check (withInputs implementation [] [.numerical (.gemm 31 30 32 .overwrite .nativeFast)]) env).isOk)
     check "initializes postcondition checked even for unused function"
       (!(Functions.check (withInputs implementation [] []) env).isOk)
-    let forward : Functions.Program := ⟨[⟨0, [], [], []⟩,
-      ⟨1, [.basis 1 0, .space 0 (id implementation) 2], [], []⟩], 0⟩
+    let forward : Functions.Program := ⟨[⟨0, [], [], [], none⟩,
+      ⟨1, [.basis 1 0, .space 0 (id implementation) 2], [], [], none⟩], 0⟩
     check "forward parameter dependency rejected" (!(Functions.check forward env).isOk)
   let real := setup .f64 "Real"
   let square := setup .f64 "Real" 2
@@ -119,22 +119,22 @@ private def withInputs (implementation : String) (body : List Functions.Statemen
     ("resource handle is not a map", real ++ [.numerical (.gemm 22 31 32 .overwrite .nativeFast)] ++ cleanup),
     ("space cannot shadow resource name", real ++ [.numerical (.space 10 (id "Real") 2)] ++ cleanup)]
   for (label, body) in cases do check label (!(Functions.check (program body) env).isOk)
-  let unused : Functions.Program := ⟨[⟨0, [], [], []⟩,
-    ⟨1, [], [], [.numerical (.space 0 (id "Affine") 2)]⟩], 0⟩
+  let unused : Functions.Program := ⟨[⟨0, [], [], [], none⟩,
+    ⟨1, [], [], [.numerical (.space 0 (id "Affine") 2)], none⟩], 0⟩
   check "unused numerical body checked" (!(Functions.check unused env).isOk)
-  let escape : Functions.Program := ⟨[⟨0, [], [], [.call 1 [] [10]]⟩,
-    ⟨1, [], [(0, .owned ⟨.f64, 2, []⟩)], [.numerical (.space 0 (id "Real") 2)]⟩], 0⟩
+  let escape : Functions.Program := ⟨[⟨0, [], [], [.call 1 [] [10]], none⟩,
+    ⟨1, [], [(0, .owned ⟨.f64, 2, []⟩)], [.numerical (.space 0 (id "Real") 2)], none⟩], 0⟩
   check "numerical object cannot escape as owner" (!(Functions.check escape env).isOk)
   let padded : Layout := ⟨8, 2, 2, 3, false⟩
   let producer : Functions.Function := ⟨1, [.space 0 (id "Real") 2, .basis 1 0],
     [(10, .ownedMap 1 1)], [
       .action (.allocate 2 .f64 7), .action (.borrow 3 (.owner 2) padded .write),
       .action (.fill 3 (.f64 0)), .action (.release 3),
-      .numerical (.ownedMap 10 2 padded 1 1)]⟩
+      .numerical (.ownedMap 10 2 padded 1 1)], none⟩
   let consumer : Functions.Function := ⟨0, [], [], [
     .numerical (.space 0 (id "Real") 2), .numerical (.basis 1 0),
     .call 1 [0, 1] [20], .numerical (.borrowOwned 21 20 .read),
-    .numerical (.ownedView 22 21 20), .action (.release 21), .action (.drop 20)]⟩
+    .numerical (.ownedView 22 21 20), .action (.release 21), .action (.drop 20)], none⟩
   let .ok returned := Functions.check ⟨[consumer, producer], 0⟩ env
     | throw (IO.userError "owned numerical return rejected")
   check "result certificates exclude probes" (returned.context.outputs.size == 1 && returned.context.transfers.size == 2)
@@ -158,7 +158,7 @@ private def withInputs (implementation : String) (body : List Functions.Statemen
       {producer with body := producer.body.filter (fun s => match s with | .action (.fill ..) => false | _ => true)},
       {producer with body := producer.body.filter (fun s => match s with | .action (.release ..) => false | _ => true)}] do
     check "invalid owned numerical result rejected even when unused"
-      (!(Functions.check ⟨[⟨0, [], [], []⟩, changed], 0⟩ env).isOk)
+      (!(Functions.check ⟨[⟨0, [], [], [], none⟩, changed], 0⟩ env).isOk)
   let invalidEnv := env ++ [⟨id "Conflict", .implementation (id "R") (.scalarBase .scheme .complex) []⟩]
   check "unused conflicting declaration rejected" (!(Functions.check (program (real ++ [multiply] ++ cleanup)) invalidEnv).isOk)
   IO.println "numerical values: real/complex typed products, exact lowering, nominal objects/bases, activation freshness and stale/forged view rejection passed"

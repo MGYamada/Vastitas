@@ -323,8 +323,13 @@ checker, independently resolved resource calls, every resource-body probe and ex
 entry schedule. `VastitasOracle.ResourceSource` proves complete resource identities,
 actual call provenance, original authority trace, typed totality of its returned
 pure Core and closed logical entry resources. The public decoder/checker equations
-refer to that same input. Dynamic shapes/value flow and native/source refinement
-remain separate obligations.
+refer to that same input. `VastitasOracle.ResourceValueFlow` additionally connects
+actual mixed-run slot typing and branch scope, exact source fragment/Core target
+reconstruction, and demanded scalar returns after completed resource calls.
+Both-arm resource acceptance and scalar typing are separate certificates; the
+resource projection alone does not establish their operational equivalence.
+Dynamic extents, floating scalar expression interfaces and native/source
+refinement remain separate obligations.
 
 The [numerical declaration profiles](numerical-declarations.md) use the same
 complete declaration certificate. `IndexedSource.checked_implementation_contract`,

@@ -253,6 +253,12 @@ pub mod source {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Parameter {
+        Value {
+            name: String,
+            #[serde(rename = "type")]
+            ty: Type,
+            span: Span,
+        },
         Owned {
             name: String,
             #[serde(rename = "type")]
@@ -631,6 +637,28 @@ pub mod source {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        Value {
+            name: String,
+            #[serde(rename = "type")]
+            ty: Type,
+            body: Block,
+            span: Span,
+        },
+        CallValue {
+            callee: String,
+            arguments: Vec<String>,
+            results: Vec<String>,
+            value: String,
+            #[serde(rename = "type")]
+            ty: Type,
+            span: Span,
+        },
+        BranchValue {
+            condition: String,
+            yes: Vec<Statement>,
+            no: Vec<Statement>,
+            span: Span,
+        },
         Tensor {
             operation: Tensor,
             span: Span,

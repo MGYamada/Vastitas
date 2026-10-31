@@ -109,8 +109,8 @@ private def coefficient : ResolvedCoefficient → String
   | .literal value => s!"1 {literal value} 0 0"
   | .view allocation offset => s!"2 0 0 0 {allocation} {offset}"
 
-private def render (instructions : List Instruction) : Except Error String := do
-  let mut indent := 4
+private def render (instructions : List Instruction) (baseIndent : Nat := 4) : Except Error String := do
+  let mut indent := baseIndent
   let mut result := ""
   for instruction in instructions do
     let spaces := String.ofList (List.replicate indent ' ')
@@ -119,10 +119,10 @@ private def render (instructions : List Instruction) : Except Error String := do
       result := result ++ spaces ++ s!"if {condition} then\n"
       indent := indent + 2
     | .otherwise =>
-      if indent < 6 then reject "unbalanced native branch"
+      if indent < baseIndent + 2 then reject "unbalanced native branch"
       result := result ++ String.ofList (List.replicate (indent - 2) ' ') ++ "else\n"
     | .finish =>
-      if indent < 6 then reject "unbalanced native branch"
+      if indent < baseIndent + 2 then reject "unbalanced native branch"
       indent := indent - 2
     | other =>
       let line := match other with
@@ -140,8 +140,17 @@ private def render (instructions : List Instruction) : Except Error String := do
           else s!"VastitasGemmNative.gemmScaled {operands} {coefficient alpha} {coefficient beta}"
         | _ => "pure ()"
       result := result ++ spaces ++ line ++ "\n"
-  if indent != 4 then reject "unclosed native branch"
+  if indent != baseIndent then reject "unclosed native branch"
   return result
+
+/-- One operation for a mixed checked schedule. Reconstruct both the logical
+transition and every native operand before rendering; the caller must additionally
+check the full mixed program and its closed resource projection. -/
+def generateAction (state : State) (operation : Action) (indent : Nat) :
+    Except Error (State × List Instruction × String) := do
+  let after ← checkAction state operation
+  let instructions ← action state operation
+  return (after, instructions, ← render instructions indent)
 
 /-- Checked operations for composition with another independently checked
 executable body. This repeats the same full original-plan/instruction audit. -/

@@ -118,6 +118,17 @@ impl Parser {
     fn resource_parameter(&mut self) -> Result<Parameter, Diagnostic> {
         let (name, start) = self.binding_name()?;
         self.expect(":")?;
+        if ["Nat", "Int", "Bool", "Unit"]
+            .iter()
+            .any(|kind| self.peek().is(kind))
+        {
+            let ty = self.ty()?;
+            return Ok(Parameter::Value {
+                name,
+                ty,
+                span: start.through(self.previous().span),
+            });
+        }
         if self.peek().is("Owned") {
             let ty = self.resource_owned()?;
             return Ok(Parameter::Owned {
@@ -287,7 +298,7 @@ impl Parser {
         } else {
             return Err(diagnostic(
                 "E_TYPE",
-                "resource parameters require storage, numerical space/basis/map, involution or metric contracts",
+                "resource parameters require Nat/Int/Bool/Unit values, storage, numerical space/basis/map, involution or metric contracts",
                 self.peek().span,
             ));
         };
@@ -1003,6 +1014,7 @@ impl Parser {
         &mut self,
         depth: usize,
     ) -> Result<Vec<crate::storage::source::Statement>, Diagnostic> {
+        use crate::storage::source::Statement;
         if depth > MAX_PARSE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
@@ -1013,7 +1025,37 @@ impl Parser {
         let mut body = Vec::new();
         while !self.peek().is("}") && !self.peek().is("value") {
             let start = self.peek().span;
-            let statement = if ["tensor", "pack3", "contract3", "cache", "contract3_cached"]
+            let statement = if self.consume("let") {
+                let name = self.binding_name()?.0;
+                self.expect(":")?;
+                let ty = self.ty()?;
+                self.expect("=")?;
+                if self.consume("value") {
+                    let body = self.block()?;
+                    self.expect(";")?;
+                    Statement::Value {
+                        name,
+                        ty,
+                        body,
+                        span: start.through(self.previous().span),
+                    }
+                } else {
+                    self.expect("call")?;
+                    let callee = self.reference_path()?.0;
+                    let arguments = self.resource_names()?;
+                    self.expect("->")?;
+                    let results = self.resource_names()?;
+                    self.expect(";")?;
+                    Statement::CallValue {
+                        callee,
+                        arguments,
+                        results,
+                        value: name,
+                        ty,
+                        span: start.through(self.previous().span),
+                    }
+                }
+            } else if ["tensor", "pack3", "contract3", "cache", "contract3_cached"]
                 .iter()
                 .any(|word| self.peek().is(word))
             {
@@ -1026,7 +1068,16 @@ impl Parser {
             } else if self.peek().is("contract") {
                 self.network_statement()?
             } else if self.consume("if") {
-                let condition = self.resource_boolean()?;
+                let literal = if self.peek().is("true") || self.peek().is("false") {
+                    Some(self.resource_boolean()?)
+                } else {
+                    None
+                };
+                let condition = if literal.is_none() {
+                    Some(self.name()?.0)
+                } else {
+                    None
+                };
                 self.expect("{")?;
                 let yes = self.resource_statements(depth + 1)?;
                 self.expect("}")?;
@@ -1034,11 +1085,21 @@ impl Parser {
                 self.expect("{")?;
                 let no = self.resource_statements(depth + 1)?;
                 self.expect("}")?;
-                crate::storage::source::Statement::Branch {
-                    condition,
-                    yes,
-                    no,
-                    span: start.through(self.previous().span),
+                let span = start.through(self.previous().span);
+                if let Some(condition) = condition {
+                    Statement::BranchValue {
+                        condition,
+                        yes,
+                        no,
+                        span,
+                    }
+                } else {
+                    Statement::Branch {
+                        condition: literal.expect("literal or named resource condition"),
+                        yes,
+                        no,
+                        span,
+                    }
                 }
             } else if self.consume("call") {
                 let callee = self.reference_path()?.0;

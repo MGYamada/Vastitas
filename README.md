@@ -39,9 +39,10 @@ schedule can generate native real/complex buffer operations with failure cleanup
 and allocation/copy counters. [Internal resource functions](docs/storage-functions.md)
 check owned arguments/results and borrowed destinations against actual caller
 resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
-static storage schedules and pure return expressions to package source and native
-execution. Dynamic shapes/value flow and end-to-end C performance comparisons
-are still pending.
+static storage shapes, interleaved Nat/Int/Bool/Unit computations, captured
+resource-call results and runtime Bool branches to package source and native
+execution. Dynamic extents, floating scalar interfaces and end-to-end C
+performance acceptance are still pending.
 Public real/complex GEMM executes through an
 [optional internal adapter](docs/numerical-adapter.md), with checked resource access,
 initialization and exact native lowering before pinned OpenBLAS execution.

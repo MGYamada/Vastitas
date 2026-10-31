@@ -33,6 +33,7 @@ lake -d lean-kernel build \
   VastitasStorageTest.NativeRegression \
   VastitasStorageTest.FunctionRegression \
   VastitasStorageTest.SourceRegression \
+  VastitasStorageTest.ValueFlowRegression \
   VastitasStorageTest.GemmRegression \
   VastitasStorageTest.NumericalRegression \
   VastitasStorageTest.TransformRegression \

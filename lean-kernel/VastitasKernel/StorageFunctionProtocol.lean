@@ -57,7 +57,7 @@ def statements : Nat → List Json → Except String (List Statement)
 def function (j : Json) : Except String Function := do
   fields j ["id", "parameters", "results", "body"]
   return ⟨← symbol j "id", ← (← array j "parameters").mapM parameter,
-    ← (← array j "results").mapM result, ← statements 4096 (← array j "body")⟩
+    ← (← array j "results").mapM result, ← statements 4096 (← array j "body"), none⟩
 
 def program (j : Json) : Except String Program := do
   fields j ["functions", "entry"]

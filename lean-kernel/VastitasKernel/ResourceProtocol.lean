@@ -13,6 +13,9 @@ private def size (j : Json) (key : String) : Except String Nat := do
 private def parameter (j : Json) : Except String Parameter := do
   let span ← decodeSpan j
   match ← str j "kind" with
+  | "value" =>
+    fields j ["kind", "name", "type", "span"]
+    return .value (← str j "name") (← Indexed.Wire.pureType (← field j "type")) span
   | "owned" =>
     fields j ["kind", "name", "type", "span"]
     return .owned (← str j "name") (← Storage.Functions.Wire.ownedType (← field j "type")) span
@@ -267,6 +270,19 @@ private def statements : Nat → List Json → Except String (List Statement)
       | "numerical" =>
         fields first ["kind", "operation", "span"]
         pure (.numerical (← numericalOperation (← field first "operation")) span)
+      | "value" =>
+        fields first ["kind", "name", "type", "body", "span"]
+        pure (.value (← str first "name") (← Indexed.Wire.pureType (← field first "type"))
+          (← Indexed.Wire.block Limits.sourceNesting (← field first "body")) span)
+      | "call_value" =>
+        fields first ["kind", "callee", "arguments", "results", "value", "type", "span"]
+        pure (.callValue (← Indexed.Wire.namedPath (← str first "callee") span)
+          (← (← array first "arguments").mapM Json.getStr?) (← (← array first "results").mapM Json.getStr?)
+          (← str first "value") (← Indexed.Wire.pureType (← field first "type")) span)
+      | "branch_value" =>
+        fields first ["kind", "condition", "yes", "no", "span"]
+        pure (.branchValue (← str first "condition")
+          (← statements fuel (← array first "yes")) (← statements fuel (← array first "no")) span)
       | "call" =>
         fields first ["kind", "callee", "arguments", "results", "span"]
         pure (.call (← Indexed.Wire.namedPath (← str first "callee") span)

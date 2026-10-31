@@ -26,6 +26,17 @@ is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
+Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
+statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),
+`kind: "call_value"` (`callee`, named `arguments`, owned `results`, scalar `value`,
+`type`, `span`), and `kind: "branch_value"` (named `condition`, `yes`, `no`, `span`).
+The existing Bool-valued `kind: "branch"` remains unchanged. New scalar bindings
+accept only Nat/Int/Bool/Unit; the kernel independently reconstructs the pure Core
+fragments and their exact source positions, owners, types and runtime slots.
+No checked target, slot ID, trusted condition or resource handle is accepted in a
+pure block. Protocols 2–7 and the internal resource component retain their strict
+old schemas.
+
 Protocol 8 also admits [numerical declaration profiles](numerical-declarations.md)
 in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and

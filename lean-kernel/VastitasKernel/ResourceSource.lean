@@ -17,14 +17,22 @@ inductive Parameter where
   | basis (name space : String) (span : Span)
   | map (name source target : String) (access : Access) (initializes : Bool) (span : Span)
   | ownedMap (name source target : String) (span : Span)
+  | involution (name space : String) (span : Span)
+  | dualSpace (name parent : String) (span : Span)
+  | conjugateSpace (name parent involution : String) (span : Span)
+  | derivedBasis (name parent space : String) (span : Span)
+  | metric (name basis involution : String) (orthonormal : Bool) (span : Span)
   deriving Repr, Inhabited
 
 def Parameter.name : Parameter → String
   | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
+  | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
 
 def Parameter.span : Parameter → Span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
   | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span | .ownedMap _ _ _ span => span
+  | .involution _ _ span | .dualSpace _ _ span | .conjugateSpace _ _ _ span |
+      .derivedBasis _ _ _ span | .metric _ _ _ _ span => span
 
 inductive Action where
   | allocate (owner : String) (scalar : Scalar) (elements : Nat)
@@ -47,6 +55,12 @@ inductive Coefficient where
 inductive NumericalOperation where
   | space (name : String) (implementation : Indexed.Source.Path) (dimension : Nat)
   | basis (name space : String)
+  | involution (name space : String)
+  | dualSpace (name parent : String)
+  | conjugateSpace (name parent involution : String)
+  | derivedBasis (name parent space : String)
+  | metric (name basis involution : String) (gram : Numerical.Gram)
+  | transform (name parent : String) (operation : Numerical.Transform String)
   | map (name loan source target : String)
   | ownedMap (name owner : String) (layout : Layout) (source target : String)
   | ownedView (name loan owner : String)
@@ -214,6 +228,37 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     let space ← name space
     let (frame, output) ← bindName index scope frame output .numerical span
     return (frame, .basis output space)
+  | .involution output space =>
+    let space ← name space
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .involution output space)
+  | .dualSpace output parent =>
+    let parent ← name parent
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .dualSpace output parent)
+  | .conjugateSpace output parent selected =>
+    let parent ← name parent
+    let selected ← name selected
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .conjugateSpace output parent selected)
+  | .derivedBasis output parent space =>
+    let parent ← name parent
+    let space ← name space
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .derivedBasis output parent space)
+  | .metric output basis selected gram =>
+    let basis ← name basis
+    let selected ← name selected
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .metric output basis selected gram)
+  | .transform output parent operation =>
+    let parent ← name parent
+    let operation ← match operation with
+      | .dual source target => pure (Numerical.Transform.dual (← name source) (← name target))
+      | .conjugate source target selected => pure (.conjugate (← name source) (← name target) (← name selected))
+      | .adjoint source target => pure (.adjoint (← name source) (← name target))
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .transform output parent operation)
   | .map output loan source target =>
     let loan ← name loan
     let source ← name source
@@ -302,6 +347,24 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
       | .basis _ space span => do
         let (space, _) ← lookup frame space span
         pure (.basis symbol space)
+      | .involution _ space span => do
+        let (space, _) ← lookup frame space span
+        pure (.involution symbol space)
+      | .dualSpace _ parent span => do
+        let (parent, _) ← lookup frame parent span
+        pure (.dualSpace symbol parent)
+      | .conjugateSpace _ parent selected span => do
+        let (parent, _) ← lookup frame parent span
+        let (selected, _) ← lookup frame selected span
+        pure (.conjugateSpace symbol parent selected)
+      | .derivedBasis _ parent space span => do
+        let (parent, _) ← lookup frame parent span
+        let (space, _) ← lookup frame space span
+        pure (.derivedBasis symbol parent space)
+      | .metric _ basis selected orthonormal span => do
+        let (basis, _) ← lookup frame basis span
+        let (selected, _) ← lookup frame selected span
+        pure (.metric symbol basis selected orthonormal)
       | .map _ source target access initializes span => do
         let (source, _) ← lookup frame source span
         let (target, _) ← lookup frame target span
@@ -411,6 +474,7 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
     ∀ receipt ∈ checked.context.products.toList, receipt.environment = environment
   inputOrigins : ∀ receipt ∈ checked.context.inputs.toList, receipt.environment = environment
   outputOrigins : ∀ receipt ∈ checked.context.outputs.toList, receipt.environment = environment
+  transformOrigins : ∀ receipt ∈ checked.context.transforms.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -458,11 +522,14 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                       receipt.environment = numericalEnvironment pureProgram then
                     if outputOrigins : ∀ receipt ∈ executable.context.outputs.toList,
                         receipt.environment = numericalEnvironment pureProgram then
-                      .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                        library, libraryAccepted, fun actual same => by
-                          have : actual = id := Option.some.inj (same.symm.trans entry)
-                          subst actual
-                          exact ⟨executable, accepted, origins, inputOrigins, outputOrigins⟩⟩
+                      if transformOrigins : ∀ receipt ∈ executable.context.transforms.toList,
+                          receipt.environment = numericalEnvironment pureProgram then
+                        .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                          library, libraryAccepted, fun actual same => by
+                            have : actual = id := Option.some.inj (same.symm.trans entry)
+                            subst actual
+                            exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins⟩⟩
+                      else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
                     else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
                   else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"
                 else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"

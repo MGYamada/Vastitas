@@ -53,9 +53,12 @@ explicit `--openblas-prefix`, while ordinary compilation and `check` need no BLA
 Dependent numerical inputs now preserve caller spaces/bases and borrow actual
 map views under explicit static dimension contracts, including nested calls
 and caller-selected output destinations. Initialized `OwnedMap` inputs/results preserve
-those bases and their allocation/layout through ownership transfer. Generative
-numerical packages, dynamic shape/scalar interfaces, dual/conjugate/metric operations and networks
-remain pending.
+those bases and their allocation/layout through ownership transfer.
+[Typed transforms](docs/linear-transforms.md) add explicit dual/conjugate spaces,
+corresponding bases, canonical involutions and adjoints for declared orthonormal
+metrics, preserving views through nested calls. Bilinear evaluation, general
+metric realization, generative numerical packages, dynamic shape/scalar
+interfaces and networks remain pending.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.
 This does not add general floating values to pure Core or dynamic shape contracts.

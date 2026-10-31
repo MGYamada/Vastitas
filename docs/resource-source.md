@@ -147,8 +147,14 @@ Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 `OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
 storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-generative numerical result packages, dual/conjugate/metric evidence,
+generative numerical result packages, bilinear evaluation and general metric realization,
 general owned-result branch joins, scratch/dependency handling, finite networks and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
 broader lifetime interfaces retain their separate scope. Protocol 8's static
 profile and native compilation alone do not establish **Fast like C**.
+
+[Typed transforms](linear-transforms.md) now add explicit dual/conjugate spaces,
+corresponding bases, canonical involutions, declared coordinate metrics and
+read-only dual/conjugate/orthonormal-adjoint operations. Dependent parameter
+contracts and actual reborrows preserve their evidence and conjugation through
+nested calls. The public checker also audits the exact transform receipt origins.

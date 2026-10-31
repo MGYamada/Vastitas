@@ -1093,3 +1093,411 @@ fn public_real_complex_products_build_execute_and_keep_output_protection() {
     assert!(!result.status.success());
     assert_eq!(std::fs::read(s.0.join("program")).unwrap(), existing);
 }
+
+const TRANSFORMS: &str = include_str!("../examples/packages/linear-transforms/src/main.vast");
+
+fn transform_fixture(source: &str) -> Scratch {
+    let s = Scratch::empty("typed linear transforms");
+    s.write(
+        "Vastitas.toml",
+        include_str!("../examples/packages/linear-transforms/Vastitas.toml"),
+    );
+    s.write("src/main.vast", source);
+    s.write(
+        "src/profiles/mod.vast",
+        include_str!("../examples/packages/linear-transforms/src/profiles/mod.vast"),
+    );
+    s
+}
+
+fn transform_body(raw: &mut Value) -> &mut Vec<Value> {
+    raw["packages"][0]["modules"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|module| module["path"] == json!([]))
+        .unwrap()["resource_functions"][0]["body"]
+        .as_array_mut()
+        .unwrap()
+}
+
+fn real_transforms() -> String {
+    TRANSFORMS
+        .replace("ComplexSmooth", "RealSmooth")
+        .replace("Complex<F64>", "F64")
+        .replace(
+            "complex_bits(0, 4607182418800017408)",
+            "f64_bits(4611686018427387904)",
+        )
+        .replace(
+            "complex_bits(0, 13830554455654793216)",
+            "f64_bits(4611686018427387904)",
+        )
+        .replace(
+            "complex_bits(4607182418800017408, 0)",
+            "f64_bits(4607182418800017408)",
+        )
+}
+
+#[test]
+fn typed_linear_transforms_check_preserve_views_and_reject_bad_authority() {
+    for source in [TRANSFORMS.to_owned(), real_transforms()] {
+        let s = transform_fixture(&source);
+        success(&command(&s, "check").output().unwrap());
+        let response = kernel(captured(&s), "emit");
+        assert_eq!(response["ok"], true, "{response}");
+        let generated = response["lean_source"].as_str().unwrap();
+        assert_eq!(generated.matches("allocate arena").count(), 3);
+        assert_eq!(
+            generated.matches("VastitasGemmNative.gemm arena").count(),
+            3
+        );
+        assert!(!generated.contains("copy arena"));
+    }
+    for (old, new, code) in [
+        (
+            "space vd = dual(v);",
+            "space vd = conjugate(v, sigma);",
+            "E_NUMERICAL_TYPE",
+        ),
+        ("derived(bv, vd)", "basis(vd)", "E_NUMERICAL_TYPE"),
+        ("derived(bv, vd)", "derived(bw, vd)", "E_NUMERICAL_TYPE"),
+        (
+            "dual(input, bwd, bvd)",
+            "dual(input, bvd, bwd)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "conjugate(input, bvc, bwc, sigma)",
+            "dual(input, bvc, bwc)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "adjoint(input, hv, hw)",
+            "adjoint(input, hv, input)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "adjoint(input, hv, hw)",
+            "adjoint(input, hw, hv)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "orthonormal(bv, sigma)",
+            "scaled_identity(bv, sigma, 2)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "orthonormal(bv, sigma)",
+            "scaled_identity(bv, sigma, 0)",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "diagonal(bw, sigma, [1])",
+            "diagonal(bw, sigma, [1, 1])",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "diagonal(bw, sigma, [1])",
+            "diagonal(bw, sigma, [0])",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "hv: OrthonormalMetric<bv, sigma>",
+            "hv: Metric<bv, sigma>",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "involution sigma = canonical(v);",
+            "space real_base = linear(profiles::RealSmooth, 1); involution sigma = canonical(real_base);",
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "map transformed = dual(input, bwd, bvd);",
+            "map transformed = dual(input, bwd, bvd); release(input);",
+            "E_RESOURCE_LOAN",
+        ),
+        (
+            "release(transformed);",
+            "release(transformed); release(transformed);",
+            "E_RESOURCE_LOAN",
+        ),
+        ("release(transformed);", "", "E_RESOURCE_LOAN"),
+    ] {
+        let changed = TRANSFORMS.replace(old, new);
+        assert_ne!(changed, TRANSFORMS, "ineffective source mutation: {old}");
+        rejection(&transform_fixture(&changed), code);
+    }
+}
+
+#[test]
+fn typed_linear_transform_wire_rejects_forged_evidence_and_old_protocols() {
+    let raw = captured(&transform_fixture(TRANSFORMS));
+    for version in 2..8 {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{response}");
+        assert!(response.get("lean_source").is_none());
+    }
+    for (name, key, value, expected) in [
+        ("vd", "parent", json!("w"), "E_NUMERICAL_TYPE"),
+        ("bvd", "parent", json!("bw"), "E_NUMERICAL_TYPE"),
+        ("vc", "involution", json!("v"), "E_NUMERICAL_TYPE"),
+        (
+            "hv",
+            "gram",
+            json!({"kind":"scaled_identity", "entry":"2"}),
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            "hv",
+            "gram",
+            json!({"kind":"scaled_identity", "entry":"NaN"}),
+            "E_PROTOCOL",
+        ),
+        (
+            "hv",
+            "gram",
+            json!({"kind":"identity", "orthonormal":true}),
+            "E_PROTOCOL",
+        ),
+        ("hv", "checked", json!(true), "E_PROTOCOL"),
+        ("sigma", "coefficient", json!("complex"), "E_PROTOCOL"),
+    ] {
+        let mut changed = raw.clone();
+        local_operation(transform_body(&mut changed), name)[key] = value;
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{name}/{key}: {response}");
+        assert_eq!(response["diagnostics"][0]["code"], expected, "{response}");
+        assert!(response.get("lean_source").is_none());
+    }
+    for field in ["conjugate", "allocation", "origin", "checked"] {
+        let mut changed = raw.clone();
+        let functions = changed["packages"][0]["modules"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|m| m["path"] == json!([]))
+            .unwrap()["resource_functions"]
+            .as_array_mut()
+            .unwrap();
+        let helper = functions
+            .iter_mut()
+            .find(|f| f["name"] == "adjoint_into")
+            .unwrap();
+        helper["body"][0]["operation"]["operation"][field] = json!(true);
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{response}");
+        assert_eq!(
+            response["diagnostics"][0]["code"], "E_PROTOCOL",
+            "{response}"
+        );
+        assert!(response.get("lean_source").is_none());
+    }
+}
+
+#[test]
+fn typed_transform_metadata_builds_without_openblas_and_checks_unused_helpers() {
+    let start = TRANSFORMS.find("    allocate a:").unwrap();
+    let end = TRANSFORMS.find("\nresource fn dual_into").unwrap();
+    let source = format!(
+        "{}    value {{ 42 }}\n}}\n{}",
+        &TRANSFORMS[..start],
+        &TRANSFORMS[end..]
+    );
+    let s = transform_fixture(&source);
+    success(
+        &command(&s, "build")
+            .args(["-o", "program"])
+            .output()
+            .unwrap(),
+    );
+    let output = Command::new(s.0.join("program")).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
+    // Removing calls does not bypass independent checking of invalid bodies.
+    s.write(
+        "src/main.vast",
+        &source.replace("dual(input, bwd, bvd)", "dual(input, bvd, bwd)"),
+    );
+    let original = std::fs::read(s.0.join("program")).unwrap();
+    let failed = command(&s, "build")
+        .args(["-o", "program"])
+        .output()
+        .unwrap();
+    assert!(!failed.status.success());
+    assert_eq!(std::fs::read(s.0.join("program")).unwrap(), original);
+}
+
+fn rectangular_transform_source(complex: bool, kind: &str) -> String {
+    let profile = if complex {
+        "ComplexSmooth"
+    } else {
+        "RealSmooth"
+    };
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let width = if complex { 16 } else { 8 };
+    let literal = |re: f64, im: f64| {
+        if complex {
+            format!("complex_bits({}, {})", re.to_bits(), im.to_bits())
+        } else {
+            format!("f64_bits({})", re.to_bits())
+        }
+    };
+    let transpose = kind != "conjugate";
+    let conjugate = kind != "dual";
+    let (input_space, output_space, input_basis, output_basis, operation) = match kind {
+        "dual" => ("wd", "vd", "bwd", "bvd", "dual(original, bwd, bvd)"),
+        "conjugate" => (
+            "vc",
+            "wc",
+            "bvc",
+            "bwc",
+            "conjugate(original, bvc, bwc, sigma)",
+        ),
+        "adjoint" => ("w", "v", "bw", "bv", "adjoint(original, hv, hw)"),
+        _ => panic!("unknown transform"),
+    };
+    let (rows, columns) = if transpose { (3, 2) } else { (2, 3) };
+    let input = format!("layout({width}, 2, 3, 4, false)");
+    let identity = format!(
+        "layout({width}, {columns}, {columns}, {}, false)",
+        columns + 2
+    );
+    let output = format!("layout({width}, {rows}, {columns}, {}, false)", rows + 2);
+    let mut source = format!("mod profiles; resource fn main() -> Int {{
+        space v = linear(profiles::{profile}, 3); space w = linear(profiles::{profile}, 2);
+        basis bv = basis(v); basis bw = basis(w); involution sigma = canonical(v);
+        space vd = dual(v); space wd = dual(w); basis bvd = derived(bv, vd); basis bwd = derived(bw, wd);
+        space vc = conjugate(v, sigma); space wc = conjugate(w, sigma);
+        basis bvc = derived(bv, vc); basis bwc = derived(bw, wc);
+        metric hv = orthonormal(bv, sigma); metric hw = orthonormal(bw, sigma);
+        allocate a: {scalar}[13]; allocate b: {scalar}[{}]; allocate c: {scalar}[{}];
+        borrow wa = write(a, {input});", 1+(columns+2)*columns, 1+(rows+2)*columns);
+    for i in 0..2 {
+        for j in 0..3 {
+            let re = (i * 3 + j + 1) as f64;
+            source += &format!("store(wa, {i}, {j}, {});", literal(re, re + 6.0));
+        }
+    }
+    source += &format!("release(wa); borrow wb = write(b, {identity});");
+    for i in 0..columns {
+        for j in 0..columns {
+            source += &format!(
+                "store(wb, {i}, {j}, {});",
+                literal(if i == j { 1.0 } else { 0.0 }, 0.0)
+            );
+        }
+    }
+    source += &format!("release(wb); borrow ra = read(a, {input}); borrow rb = read(b, {identity});
+        borrow wc_out = write(c, {output}); map original = view(ra, bv, bw); map transformed = {operation};
+        map unit = view(rb, {input_basis}, {input_basis}); map destination = view(wc_out, {input_basis}, {output_basis});
+        call multiply({input_space}, {output_space}, {input_basis}, {output_basis}, transformed, unit, destination) -> ();
+        release(transformed); release(wc_out); borrow result = read(c, {output});");
+    for i in 0..rows {
+        for j in 0..columns {
+            let (r, c) = if transpose { (j, i) } else { (i, j) };
+            let re = (r * 3 + c + 1) as f64;
+            source += &format!(
+                "expect(result, {i}, {j}, {});",
+                literal(re, (re + 6.0) * if conjugate { -1.0 } else { 1.0 })
+            );
+        }
+    }
+    source += &format!("release(result); release(ra); release(rb); drop(a); drop(b); drop(c); value {{ 42 }} }}
+        resource fn multiply(u: Space<profiles::{profile}, {columns}>, z: Space<profiles::{profile}, {rows}>,
+            bu: Basis<u>, bz: Basis<z>, left: ReadMap<bu, bz>, right: ReadMap<bu, bu>,
+            output: WriteMap<bu, bz> initializes) -> Unit {{
+            gemm(left, right, output, overwrite, NativeFast); value {{ () }} }}");
+    source
+}
+
+#[test]
+fn typed_rectangular_transforms_check_all_endpoint_directions() {
+    for complex in [false, true] {
+        for kind in ["dual", "conjugate", "adjoint"] {
+            let source = rectangular_transform_source(complex, kind);
+            success(
+                &command(&transform_fixture(&source), "check")
+                    .output()
+                    .unwrap(),
+            );
+        }
+    }
+    let owned = owned_transform_source();
+    success(
+        &command(&transform_fixture(&owned), "check")
+            .output()
+            .unwrap(),
+    );
+    rejection(
+        &transform_fixture(&owned.replace("made: OwnedMap<bu, bz>", "made: OwnedMap<bz, bu>")),
+        "E_NUMERICAL_TYPE",
+    );
+}
+
+fn owned_transform_source() -> String {
+    // Materialize the transformed map in a callee-owned padded destination,
+    // then return its exact caller-selected dual bases and allocation.
+    let mut source = rectangular_transform_source(true, "dual");
+    for (old, new) in [
+        ("allocate c: Complex<F64>[11];", ""),
+        ("borrow wc_out = write(c, layout(16, 3, 2, 5, false));", ""),
+        ("map destination = view(wc_out, bwd, bvd);", ""),
+        (
+            "call multiply(wd, vd, bwd, bvd, transformed, unit, destination) -> ();",
+            "call multiply(wd, vd, bwd, bvd, transformed, unit) -> (made);",
+        ),
+        (
+            "release(wc_out); borrow result = read(c, layout(16, 3, 2, 5, false));",
+            "borrow result = read(made);",
+        ),
+        ("drop(c);", "drop(made);"),
+        (
+            "right: ReadMap<bu, bu>,\n            output: WriteMap<bu, bz> initializes) -> Unit",
+            "right: ReadMap<bu, bu>) returns(made: OwnedMap<bu, bz>) -> Unit",
+        ),
+        (
+            "gemm(left, right, output, overwrite, NativeFast);",
+            "allocate c: Complex<F64>[11]; borrow wc_out = write(c, layout(16, 3, 2, 5, false));
+          map output = view(wc_out, bu, bz); gemm(left, right, output, overwrite, NativeFast);
+          release(wc_out); map made = owned(c, layout(16, 3, 2, 5, false), bu, bz);",
+        ),
+    ] {
+        assert!(
+            source.contains(old),
+            "ineffective owned transform source edit: {old}"
+        );
+        source = source.replace(old, new);
+    }
+    source
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn typed_linear_transforms_build_execute_real_complex_and_rectangular_calls() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let mut sources = vec![TRANSFORMS.to_owned(), real_transforms()];
+    sources.push(owned_transform_source());
+    for complex in [false, true] {
+        for kind in ["dual", "conjugate", "adjoint"] {
+            sources.push(rectangular_transform_source(complex, kind));
+        }
+    }
+    for source in sources {
+        let s = transform_fixture(&source);
+        let mut build = command(&s, "build");
+        build
+            .args(["-o", "program", "--openblas-prefix"])
+            .arg(&prefix);
+        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+            build.arg("--native-cc").arg(cc);
+        }
+        success(&build.output().unwrap());
+        let result = Command::new(s.0.join("program")).output().unwrap();
+        success(&result);
+        assert_eq!(result.stdout, b"42\n");
+    }
+}

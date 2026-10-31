@@ -261,6 +261,35 @@ pub mod source {
             space: String,
             span: Span,
         },
+        Involution {
+            name: String,
+            space: String,
+            span: Span,
+        },
+        DualSpace {
+            name: String,
+            parent: String,
+            span: Span,
+        },
+        ConjugateSpace {
+            name: String,
+            parent: String,
+            involution: String,
+            span: Span,
+        },
+        DerivedBasis {
+            name: String,
+            parent: String,
+            space: String,
+            span: Span,
+        },
+        Metric {
+            name: String,
+            basis: String,
+            involution: String,
+            orthonormal: bool,
+            span: Span,
+        },
         Map {
             name: String,
             source: String,
@@ -348,6 +377,32 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Gram {
+        Identity,
+        ScaledIdentity { entry: String },
+        Diagonal { entries: Vec<String> },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Transform {
+        Dual {
+            source: String,
+            target: String,
+        },
+        Conjugate {
+            source: String,
+            target: String,
+            involution: String,
+        },
+        Adjoint {
+            source_metric: String,
+            target_metric: String,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Numerical {
         Space {
@@ -358,6 +413,35 @@ pub mod source {
         Basis {
             name: String,
             space: String,
+        },
+        Involution {
+            name: String,
+            space: String,
+        },
+        DualSpace {
+            name: String,
+            parent: String,
+        },
+        ConjugateSpace {
+            name: String,
+            parent: String,
+            involution: String,
+        },
+        DerivedBasis {
+            name: String,
+            parent: String,
+            space: String,
+        },
+        Metric {
+            name: String,
+            basis: String,
+            involution: String,
+            gram: Gram,
+        },
+        Transform {
+            name: String,
+            parent: String,
+            operation: Transform,
         },
         Map {
             name: String,

@@ -71,8 +71,10 @@ These forms extend the static body of a package `resource fn`; their prefixes
 are parsed in that context. Existing pure functions and resource statements
 retain their syntax. Dimensions are unsigned static literals, map endpoints are
 explicit local bases, and both the GEMM mode and `NativeFast` policy are required.
-Dependent input contracts are described below. Numerical return types and an
-implicit product syntax remain separate work.
+Dependent input contracts and initialized owned results are described below.
+Generative numerical result packages and implicit product syntax remain separate
+work. [Typed dual/conjugate/adjoint operations](linear-transforms.md) add explicit
+derived-space, basis, involution and metric contracts.
 
 | Source form | Protocol-8 `operation` fields (besides `op`) |
 | --- | --- |
@@ -384,6 +386,9 @@ binding. `ResourceSource.public_numerical_input_origin` connects those receipts
 to the exact environment of the same accepted public request. They do not claim
 universal correctness from synthetic probes or native refinement.
 
-Generative numerical result packages, dynamic shape/scalar interfaces, dual/conjugate/metric
-evidence, finite tensor networks, dynamic dimensions, packing and end-to-end C
+The [typed transform compiler](linear-transforms.md) now retains dual/conjugate
+origins, corresponding bases and declared metric evidence through actual
+read reborrows and nested calls. Bilinear evaluation, general metric realization,
+generative numerical result packages, dynamic shape/scalar interfaces,
+finite tensor networks, dynamic dimensions, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).

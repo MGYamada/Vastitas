@@ -70,7 +70,16 @@ parameters plus `access` and `initializes`. Every parameter includes `name` and
 `span`. [Dependent input checking](numerical-values.md#dependent-numerical-inputs)
 preserves actual caller identities and creates scoped child loans for maps.
 Unknown tags/fields fail closed on older kernels; these are additive protocol-8
-forms, not numerical return types or a shape-polymorphic signature language.
+forms. They do not add a shape-polymorphic signature language.
+
+[Typed transforms](linear-transforms.md#wire-and-proof-boundary) add numerical
+operations `involution`, `dual_space`, `conjugate_space`, `derived_basis`, `metric`
+and `transform`. Their operands remain unresolved local names; `transform`
+contains a strict operation naming derived bases or explicit metrics, never raw
+native flags. Exact Gram entries are decimal strings. Corresponding dependent
+parameter tags retain earlier space/basis/involution relationships and an explicit
+orthonormal requirement for direct adjunction. Rust and Lean decode these forms
+together; old envelopes and unknown nested metadata fail closed.
 
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,

@@ -28,6 +28,22 @@ private def parameter (j : Json) : Except String Parameter := do
   | "basis" =>
     fields j ["kind", "name", "space", "span"]
     return .basis (← str j "name") (← str j "space") span
+  | "involution" =>
+    fields j ["kind", "name", "space", "span"]
+    return .involution (← str j "name") (← str j "space") span
+  | "dual_space" =>
+    fields j ["kind", "name", "parent", "span"]
+    return .dualSpace (← str j "name") (← str j "parent") span
+  | "conjugate_space" =>
+    fields j ["kind", "name", "parent", "involution", "span"]
+    return .conjugateSpace (← str j "name") (← str j "parent") (← str j "involution") span
+  | "derived_basis" =>
+    fields j ["kind", "name", "parent", "space", "span"]
+    return .derivedBasis (← str j "name") (← str j "parent") (← str j "space") span
+  | "metric" =>
+    fields j ["kind", "name", "basis", "involution", "orthonormal", "span"]
+    return .metric (← str j "name") (← str j "basis") (← str j "involution")
+      (← j.getObjValAs? Bool "orthonormal") span
   | "map" =>
     fields j ["kind", "name", "source", "target", "access", "initializes", "span"]
     return .map (← str j "name") (← str j "source") (← str j "target")
@@ -72,6 +88,35 @@ private def optionalCoefficient (j : Json) (name : String) : Except String (Opti
   | .error _ => pure none
   | .ok value => some <$> coefficient value
 
+private def exactInteger (value : String) : Except String Int :=
+  match value.toInt? with | some integer => pure integer | none => throw "Gram entries require exact decimal integers"
+
+private def gram (j : Json) : Except String Storage.Numerical.Gram := do
+  match ← str j "kind" with
+  | "identity" => fields j ["kind"]; return .identity
+  | "scaled_identity" =>
+    fields j ["kind", "entry"]
+    return .scaledIdentity (← exactInteger (← str j "entry"))
+  | "diagonal" =>
+    fields j ["kind", "entries"]
+    let entries ← array j "entries"
+    if entries.length > 4096 then throw "diagonal Gram data exceeds the 4096-entry bound"
+    return .diagonal (← entries.mapM fun entry => do exactInteger (← entry.getStr?))
+  | _ => throw "unknown declared Gram representation"
+
+private def transform (j : Json) : Except String (Storage.Numerical.Transform String) := do
+  match ← str j "kind" with
+  | "dual" =>
+    fields j ["kind", "source", "target"]
+    return .dual (← str j "source") (← str j "target")
+  | "conjugate" =>
+    fields j ["kind", "source", "target", "involution"]
+    return .conjugate (← str j "source") (← str j "target") (← str j "involution")
+  | "adjoint" =>
+    fields j ["kind", "source_metric", "target_metric"]
+    return .adjoint (← str j "source_metric") (← str j "target_metric")
+  | _ => throw "unknown typed map transform"
+
 private def numericalOperation (j : Json) : Except String NumericalOperation := do
   match ← str j "op" with
   | "space" =>
@@ -80,6 +125,24 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
   | "basis" =>
     fields j ["op", "name", "space"]
     return .basis (← str j "name") (← str j "space")
+  | "involution" =>
+    fields j ["op", "name", "space"]
+    return .involution (← str j "name") (← str j "space")
+  | "dual_space" =>
+    fields j ["op", "name", "parent"]
+    return .dualSpace (← str j "name") (← str j "parent")
+  | "conjugate_space" =>
+    fields j ["op", "name", "parent", "involution"]
+    return .conjugateSpace (← str j "name") (← str j "parent") (← str j "involution")
+  | "derived_basis" =>
+    fields j ["op", "name", "parent", "space"]
+    return .derivedBasis (← str j "name") (← str j "parent") (← str j "space")
+  | "metric" =>
+    fields j ["op", "name", "basis", "involution", "gram"]
+    return .metric (← str j "name") (← str j "basis") (← str j "involution") (← gram (← field j "gram"))
+  | "transform" =>
+    fields j ["op", "name", "parent", "operation"]
+    return .transform (← str j "name") (← str j "parent") (← transform (← field j "operation"))
   | "map" =>
     fields j ["op", "name", "loan", "source", "target"]
     return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")

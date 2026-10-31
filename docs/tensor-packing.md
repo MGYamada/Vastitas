@@ -165,3 +165,7 @@ each zero extent, nested dependent calls, both branch directions, forged raw and
 native metadata, wrong bases/dual origins, stale loans and explicit permission
 transitions. Source checking and unused-body auditing need no OpenBLAS; numerical
 CI executes the optional public tensor tests on both operating systems.
+
+The optional [checked packing cache](cached-packing.md) binds an actual packing
+to source/scratch versions and rejects stale use in `contract3_cached`. Ordinary
+`pack3` and `contract3` continue to permit independently stored snapshots.

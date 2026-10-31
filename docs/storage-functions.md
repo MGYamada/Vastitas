@@ -116,3 +116,10 @@ repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
 Dynamic dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
+
+
+The [bounded packing cache](cached-packing.md) adds lexical dependency witnesses
+for actual rank-three packing and repeated contraction. Capture/require/forget
+remain in the exact replayed call schedule; local witnesses are forgotten before
+function and branch exits. Mutations through real dependent calls invalidate the
+caller witness, and returned owners do not carry a cache lifetime contract.

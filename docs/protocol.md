@@ -552,3 +552,8 @@ independently before lowering to the existing numerical/storage path.
 The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) and their
 bounded ordered-axis/grouping schema are specified in [tensor-packing.md](tensor-packing.md).
 Packing is explicit and checked independently from nominal contraction authority.
+
+Protocol-8 tensor operations also include strict `cached_pack`
+(`name`, `source`, `target`) and `cached_contract3`
+(`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
+local names, never stamps or certificates. See [cached packing](cached-packing.md).

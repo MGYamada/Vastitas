@@ -15,6 +15,7 @@ inductive Instruction where
   | gemm (left : Nat) (leftView : Layout) (conjugateLeft : Bool)
       (right : Nat) (rightView : Layout) (conjugateRight : Bool)
       (output : Nat) (outputView : Layout) (mode : GemmMode) (policy : NumericalPolicy)
+      (alpha beta : ResolvedCoefficient := .default)
   | branch (condition : Bool)
   | otherwise | finish | skip
   deriving Repr, BEq, DecidableEq, Inhabited
@@ -44,7 +45,7 @@ def action (state : State) : Action → Except Error (List Instruction)
     let args := checked.operands
     pure [.gemm args.left.allocation args.left.layout request.conjugateLeft
       args.right.allocation args.right.layout request.conjugateRight
-      args.output.allocation args.output.layout request.mode request.policy]
+      args.output.allocation args.output.layout request.mode request.policy checked.alpha.value checked.beta.value]
   | .move .. | .borrow .. | .release .. | .transpose .. => pure []
 
 def lower : Nat → State → List Statement → Except Error (State × List Instruction)
@@ -97,6 +98,11 @@ private def literal : Literal → String
   | .f64 bits => s!"0 {bits.toNat} 0"
   | .complexF64 real imaginary => s!"1 {real.toNat} {imaginary.toNat}"
 
+private def coefficient : ResolvedCoefficient → String
+  | .default => "0 0 0 0 0 0"
+  | .literal value => s!"1 {literal value} 0 0"
+  | .view allocation offset => s!"2 0 0 0 {allocation} {offset}"
+
 private def render (instructions : List Instruction) : Except Error String := do
   let mut indent := 4
   let mut result := ""
@@ -120,9 +126,11 @@ private def render (instructions : List Instruction) : Except Error String := do
         | .store id view row column value => s!"store arena {id} {layout view} {row} {column} {literal value}"
         | .expect id view row column value => s!"expect arena {id} {layout view} {row} {column} {literal value}"
         | .copy source input target output => s!"copy arena {source} {layout input} {target} {layout output}"
-        | .gemm left leftView conjugateLeft right rightView conjugateRight output outputView mode _ =>
+        | .gemm left leftView conjugateLeft right rightView conjugateRight output outputView mode _ alpha beta =>
           let mode := match mode with | .overwrite => 0 | .accumulate => 1
-          s!"VastitasGemmNative.gemm arena {left} {layout leftView} {conjugateLeft} {right} {layout rightView} {conjugateRight} {output} {layout outputView} {mode}"
+          let operands := s!"arena {left} {layout leftView} {conjugateLeft} {right} {layout rightView} {conjugateRight} {output} {layout outputView} {mode}"
+          if alpha == .default && beta == .default then s!"VastitasGemmNative.gemm {operands}"
+          else s!"VastitasGemmNative.gemmScaled {operands} {coefficient alpha} {coefficient beta}"
         | _ => "pure ()"
       result := result ++ spaces ++ line ++ "\n"
   if indent != 4 then reject "unclosed native branch"

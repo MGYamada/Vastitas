@@ -31,8 +31,8 @@ theorem map_spaces {env : Environment} {values : Values} (valid : Valid env valu
   have mapValid := selected_valid valid found
   exact ⟨basis_space valid mapValid.2.1, basis_space valid mapValid.2.2, mapValid.1⟩
 
-theorem accepted_profiles {env resources values left right output mode policy}
-    (checked : CheckedProduct env resources values left right output mode policy) :
+theorem accepted_profiles {env resources values left right output mode policy alpha beta}
+    (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
     env.Valid ∧ checked.product.left.source.space.Valid env ∧
       checked.product.left.target.space.Valid env ∧
       checked.product.right.source.space.Valid env ∧
@@ -51,8 +51,8 @@ theorem space_object {env : Environment} {space : Space} (valid : space.Valid en
     space.object.Valid env :=
   ⟨space.type, rfl, valid.2.1⟩
 
-theorem nominal_endpoints {env resources values left right output mode policy}
-    (checked : CheckedProduct env resources values left right output mode policy) :
+theorem nominal_endpoints {env resources values left right output mode policy alpha beta}
+    (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
     checked.product.left.source.space.object = checked.product.right.target.space.object ∧
     checked.product.output.source.space.object = checked.product.right.source.space.object ∧
     checked.product.output.target.space.object = checked.product.left.target.space.object ∧
@@ -62,16 +62,16 @@ theorem nominal_endpoints {env resources values left right output mode policy}
     congrArg (fun basis => basis.space.object) checked.composable.2.2,
     congrArg Basis.brand checked.composable.1⟩
 
-theorem actual_loan_layout {env resources values left right output mode policy}
-    (checked : CheckedProduct env resources values left right output mode policy) :
+theorem actual_loan_layout {env resources values left right output mode policy alpha beta}
+    (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
     resources.loan? checked.product.left.loan.name = some checked.product.left.loan ∧
     resources.suspended checked.product.left.loan.name = false ∧
     checked.product.left.loan.layout.logicalRows = checked.product.left.target.space.dimension ∧
     checked.product.left.loan.layout.logicalColumns = checked.product.left.source.space.dimension :=
   ⟨checked.leftLive.1, checked.leftLive.2.1, checked.leftLive.2.2.2⟩
 
-theorem exact_storage_check {env resources values left right output mode policy}
-    (checked : CheckedProduct env resources values left right output mode policy) :
+theorem exact_storage_check {env resources values left right output mode policy alpha beta}
+    (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
     auditState resources = true ∧
     checkGemm resources (checked.product.request mode policy) = .ok checked.storage :=
   ⟨checked.resourcesValid, checked.storageAccepted⟩
@@ -80,7 +80,7 @@ theorem exact_storage_check {env resources values left right output mode policy}
 it cannot certify a different raw GEMM with only matching dimensions. -/
 theorem actual_emission (receipt : Functions.NumericalReceipt) :
     checkProduct receipt.environment receipt.resources receipt.values
-      receipt.left receipt.right receipt.output receipt.mode receipt.policy = .ok receipt.checked ∧
+      receipt.left receipt.right receipt.output receipt.mode receipt.policy receipt.alpha receipt.beta = .ok receipt.checked ∧
     receipt.priorCode ++ [.action (.gemm (receipt.checked.product.request receipt.mode receipt.policy))] = receipt.code ∧
     checkAction receipt.resources (.gemm (receipt.checked.product.request receipt.mode receipt.policy)) = .ok receipt.after :=
   ⟨receipt.accepted, receipt.emitted, receipt.transitioned⟩
@@ -88,6 +88,11 @@ theorem actual_emission (receipt : Functions.NumericalReceipt) :
 theorem bilinear_request (product : Product) (mode : GemmMode) (policy : NumericalPolicy) :
     (product.request mode policy).conjugateLeft = false ∧
     (product.request mode policy).conjugateRight = false := ⟨rfl, rfl⟩
+
+theorem coefficient_emission {env resources values left right output mode policy alpha beta}
+    (checked : CheckedProduct env resources values left right output mode policy alpha beta) :
+    (checked.product.request mode policy).alpha = alpha ∧
+    (checked.product.request mode policy).beta = beta := checked.coefficients
 
 /-- Actual input checking uses the caller's exact environment and values,
 including for a nested call. It is not a universal claim from a probe. -/

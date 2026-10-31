@@ -347,6 +347,16 @@ declaration environment to resource probes and actual expansion.
 `numerical_provenance` checks original caller scopes and independently resolved
 profile references; `public_product_origin` binds each returned product receipt
 to that same public input and accepted declaration environment.
+`StorageGemm.coefficient_read_contract` and `coefficient_initialized_bytes`
+recover live one-element read provenance, matching representation, initialized
+bytes and output separation for an actual checked scalar loan.
+`coefficient_output_bytes_disjoint` derives byte-level output separation from
+that same checked loan.
+`overwrite_has_no_beta_read` fixes overwrite's beta operand to absent;
+`StorageNumerical.coefficient_emission` preserves requested alpha/beta in the
+exact emitted GEMM. Explicit coefficients do not weaken accumulate's initialized
+output requirement. These facts do not evaluate floating payloads or prove FFI
+loads, BLAS results or native refinement.
 For numerical inputs, `actual_input` records the actual accepted contract,
 `input_space_identity` and `input_basis_identity` preserve caller identities,
 and `input_map_reborrow` extracts unchanged endpoints and the exact successful

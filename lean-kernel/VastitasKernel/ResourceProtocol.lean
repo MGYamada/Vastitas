@@ -58,6 +58,17 @@ private def action (j : Json) : Except String Action := do
   | "copy" => fields j ["op", "source", "target"]; return .copy (← str j "source") (← str j "target")
   | _ => throw "unknown resource source operation"
 
+private def coefficient (j : Json) : Except String Coefficient := do
+  match ← str j "kind" with
+  | "literal" => fields j ["kind", "value"]; return .literal (← Storage.Wire.literal (← field j "value"))
+  | "loan" => fields j ["kind", "loan"]; return .loan (← str j "loan")
+  | _ => throw "unknown numerical coefficient kind"
+
+private def optionalCoefficient (j : Json) (name : String) : Except String (Option Coefficient) :=
+  match j.getObjVal? name with
+  | .error _ => pure none
+  | .ok value => some <$> coefficient value
+
 private def numericalOperation (j : Json) : Except String NumericalOperation := do
   match ← str j "op" with
   | "space" =>
@@ -70,9 +81,10 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
     fields j ["op", "name", "loan", "source", "target"]
     return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")
   | "gemm" =>
-    fields j ["op", "left", "right", "output", "mode", "policy"]
+    fields j ["op", "left", "right", "output", "mode", "policy", "alpha", "beta"]
     return .gemm (← str j "left") (← str j "right") (← str j "output")
       (← Storage.Wire.gemmMode (← str j "mode")) (← Storage.Wire.numericalPolicy (← str j "policy"))
+      (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
   | _ => throw "unknown numerical source operation"
 
 private def statements : Nat → List Json → Except String (List Statement)

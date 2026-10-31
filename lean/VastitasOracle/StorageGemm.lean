@@ -102,4 +102,57 @@ theorem accepted_output_bytes {state after : State} {request : Gemm}
   · intro byte inside
     exact (record_bytes old.initialization checked.operands.output.layout old.scalar byte).mpr (Or.inl inside)
 
+/-- A runtime coefficient read retains its actual live one-element loan,
+initialization and output separation, including when a handle is reused. -/
+theorem coefficient_read_contract {state : State} {scalar : Scalar} {output : Loan}
+    {name identity offset : Nat} (checked : CheckedCoefficient state scalar output (some (.loan name)))
+    (kind : checked.value = .view identity offset) :
+    ∃ loan allocation, state.loan? name = some loan ∧ state.allocation? loan.allocation = some allocation ∧
+      identity = loan.allocation ∧ offset = loan.layout.offset ∧
+      state.suspended name = false ∧ loan.access.reads = true ∧ allocation.scalar = scalar ∧
+      loan.layout.logicalRows = 1 ∧ loan.layout.logicalColumns = 1 ∧
+      allocation.initialization.covers scalar loan.layout = true ∧
+      (loan.allocation ≠ output.allocation ∨ loan.layout.disjoint output.layout scalar = true) := by
+  have valid := checked.valid
+  cases found : state.loan? name with
+  | none => simp [coefficientValid, kind, found] at valid
+  | some loan =>
+    cases allocated : state.allocation? loan.allocation with
+    | none => simp [coefficientValid, kind, found, allocated] at valid
+    | some allocation =>
+      simp only [coefficientValid, kind, found, allocated, Bool.and_eq_true] at valid
+      rcases valid with ⟨⟨⟨⟨⟨⟨⟨⟨sameId, sameOffset⟩, active⟩, reads⟩, sameScalar⟩, rows⟩, columns⟩, initialized⟩, separated⟩
+      have scalarEq : allocation.scalar = scalar := by
+        cases a : allocation.scalar <;> cases b : scalar <;>
+          simp_all [BEq.beq, instBEqScalar.beq, Scalar.ctorIdx]
+      exact ⟨loan, allocation, rfl, by simp [allocated], by simpa using sameId, by simpa using sameOffset,
+        by simpa using active, reads, scalarEq, by simpa using rows, by simpa using columns,
+        initialized, by simpa using separated⟩
+
+theorem coefficient_initialized_bytes {state : State} {scalar : Scalar} {output : Loan}
+    {name identity offset : Nat} (checked : CheckedCoefficient state scalar output (some (.loan name)))
+    (kind : checked.value = .view identity offset) :
+    ∃ loan allocation, state.loan? name = some loan ∧ state.allocation? loan.allocation = some allocation ∧
+      ∀ byte, ContainsByte loan.layout scalar byte → Initialized scalar byte allocation.initialization := by
+  obtain ⟨loan, allocation, found, allocated, _, _, _, _, _, _, _, initialized, _⟩ :=
+    coefficient_read_contract checked kind
+  exact ⟨loan, allocation, found, allocated, fun _ inside => initialization_bytes initialized inside⟩
+
+theorem overwrite_has_no_beta_read {state : State} {request : Gemm}
+    (checked : CheckedGemm state request) (mode : request.mode = .overwrite) : request.beta = none :=
+  checked.overwrite mode
+
+theorem coefficient_output_bytes_disjoint {state : State} {scalar : Scalar} {output : Loan}
+    {name identity offset : Nat} (checked : CheckedCoefficient state scalar output (some (.loan name)))
+    (kind : checked.value = .view identity offset) :
+    ∃ loan, state.loan? name = some loan ∧
+      (loan.allocation = output.allocation → ∀ byte,
+        ContainsByte loan.layout scalar byte → ¬ ContainsByte output.layout scalar byte) := by
+  obtain ⟨loan, _, found, _, _, _, _, _, _, _, _, _, separated⟩ := coefficient_read_contract checked kind
+  refine ⟨loan, found, ?_⟩
+  intro same byte inside
+  rcases separated with different | disjoint
+  · exact False.elim (different same)
+  · exact disjoint_bytes disjoint inside
+
 end VastitasOracle.StorageGemm

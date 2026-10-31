@@ -49,6 +49,17 @@ def gemmMode (value : String) : Except String GemmMode := match value with
   | "overwrite" => pure .overwrite | "accumulate" => pure .accumulate
   | _ => throw "unsupported GEMM output mode"
 
+def coefficient (j : Json) : Except String Coefficient := do
+  match ← str j "kind" with
+  | "literal" => fields j ["kind", "value"]; return .literal (← literal (← field j "value"))
+  | "loan" => fields j ["kind", "loan"]; return .loan (← symbol j "loan")
+  | _ => throw "unknown coefficient operand kind"
+
+def optionalCoefficient (j : Json) (name : String) : Except String (Option Coefficient) :=
+  match j.getObjVal? name with
+  | .error _ => pure none
+  | .ok value => some <$> coefficient value
+
 def numericalPolicy (value : String) : Except String NumericalPolicy := match value with
   | "native_fast" => pure .nativeFast
   | _ => throw "unsupported numerical policy"
@@ -87,10 +98,11 @@ def action (j : Json) : Except String Action := do
     fields j ["op", "source", "target"]
     return .copy (← symbol j "source") (← symbol j "target")
   | "gemm" =>
-    fields j ["op", "left", "right", "output", "conjugate_left", "conjugate_right", "mode", "policy"]
+    fields j ["op", "left", "right", "output", "conjugate_left", "conjugate_right", "mode", "policy", "alpha", "beta"]
     return .gemm ⟨← symbol j "left", ← symbol j "right", ← symbol j "output",
       ← j.getObjValAs? Bool "conjugate_left", ← j.getObjValAs? Bool "conjugate_right",
-      ← gemmMode (← str j "mode"), ← numericalPolicy (← str j "policy")⟩
+      ← gemmMode (← str j "mode"), ← numericalPolicy (← str j "policy"),
+      ← optionalCoefficient j "alpha", ← optionalCoefficient j "beta"⟩
   | _ => throw "unknown resource operation"
 
 def statements : Nat → List Json → Except String (List Statement)

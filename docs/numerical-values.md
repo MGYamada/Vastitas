@@ -32,9 +32,10 @@ The real product is `[[1,2,3],[4,5,6]] * [[7,8],[9,10],[11,12]]`, giving
 uses `[[1,i,2],[0,1,-i]] * [[1,0],[2,1],[0,i]]`, giving
 `[[1+2i,3i],[2,2]]`. These are general matrices, not rank-one factor pairs.
 Both examples check every output cell and then double the result by accumulating
-another product. No conjugation is implicit. The initial public operation fixes
-alpha to one and beta to zero (`overwrite`) or one (`accumulate`); arbitrary
-scalar arguments, including the issue's beta=0.5 example, remain pending.
+another product. No conjugation is implicit. Omitted coefficients retain
+alpha one and beta zero (`overwrite`) or one (`accumulate`). Explicit machine
+coefficients and synchronous scalar-loan reads are supported below; the source
+regressions also execute the worked examples with beta=0.5.
 The inputs are initialized by their individual stores, with no preliminary
 zero-fill. The actual bounded initialization checker combines those write
 regions before admitting a read or GEMM input. In the shared generated real and
@@ -99,6 +100,59 @@ resource GEMM or fallback after rejection is permitted. Unknown semantic fields
 remain errors, including fields nested in the profile path. Future incompatible
 changes must use a new protocol version rather than reinterpret these forms;
 additional optional operations must continue to fail closed on older kernels.
+
+## Explicit and computed coefficients
+
+GEMM accepts optional named coefficients after `NativeFast`:
+
+```vast
+// Real beta = 0.5. Accumulate still requires initialized output.
+gemm(left, right, accumulated, accumulate, NativeFast,
+    beta=f64_bits(4602678819172646912));
+// alpha is read at execution time from an initialized 1x1 scalar loan.
+gemm(left, right, destination, overwrite, NativeFast,
+    alpha=coefficient(scale));
+```
+
+Complex coefficients use `complex_bits(real_bits, imaginary_bits)`, with two
+binary64 components. Their representation must match the maps; real-to-complex
+coercion is not implicit. `alpha` and `beta` may each appear once, in either
+order. Overwrite rejects any beta operand and fixes beta to zero. Accumulate
+computes `alpha*A*B + beta*C_old` and requires initialized readable output even
+for an explicit zero beta. The numerical policy remains `NativeFast`.
+
+`coefficient(loan)` requires a live, unsuspended, readable and initialized 1x1
+loan with the matching scalar representation, physically disjoint from output.
+It can share read storage with inputs or the other coefficient. The compiler
+retains its allocation/byte offset; it does not read or predict the payload.
+The native adapter reads its current value synchronously before output writes.
+A previous GEMM can produce this scalar, and a later checked update changes the
+value read by the next call. The source regression exercises both across actual
+resource-function calls for real and complex scalars. No scalar-buffer allocation,
+packing or tensor copy is inserted for a coefficient read.
+
+Optional wire fields `alpha` and `beta` contain either
+`{kind: "literal", value: <resource literal>}` or
+`{kind: "loan", loan: <local name>}`. Omitted fields retain previous behavior;
+explicit null and unknown fields are rejected by the kernel. Older kernels
+reject these additional fields. Scope resolution and actual read/init/alias
+checks remain mandatory; no frontend certificate can substitute for them.
+
+For an empty output there is no matrix element access or BLAS call; explicit
+coefficient loans are still validated and read. For zero inner dimension and
+nonempty output, the defined degenerate operation is `beta*C`, independent of
+alpha (including NaN/Inf alpha). Zero beta fills zero without reading old C;
+one beta leaves C untouched; other beta values scale C in place. This is an
+explicit numerical execution convention, not an exact-field theorem. Bounds,
+representation and alias failures occur before any output write. The existing
+native trust boundary and no-rollback behavior of earlier completed calls remain.
+
+`CheckedCoefficient` records the actual scalar/read/init/separation check;
+`CheckedProduct.coefficients` retains the requested operands and the exact
+emitted GEMM carries them through the independent native-plan audit. The Oracle
+proves the coefficient loan contract, initialized bytes, absence of a beta read
+in overwrite, and coefficient emission. General scalar expressions, pure-Core
+floating values and dynamic shape interfaces remain separate work.
 
 ## Dependent numerical inputs
 

@@ -51,6 +51,7 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 | `expect` | Readable active loan, valid index and initialized cell; native execution asserts the supplied bit pattern |
 | `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source |
 | Internal `gemm` | Initialized readable inputs, exclusive compatible output, explicit NativeFast policy/mode/orientation, independent input/output byte separation; accumulate also requires initialized readable output |
+| GEMM coefficients | Matching explicit scalar bits or live initialized readable 1x1 loans disjoint from output; overwrite rejects beta operands, and beta zero does not relax accumulate initialization |
 | Branch join | Same owners, allocations and loan structure; intersect initialization guarantees and merge logical versions |
 
 Symbols cannot be reused or shadowed, including after move or release. Fresh

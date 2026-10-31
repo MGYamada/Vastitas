@@ -101,7 +101,7 @@ theorem public_product_origin {json : Lean.Json}
     (member : receipt ∈ (input.checked.execution entry found).checked.context.products.toList) :
     receipt.environment = numericalEnvironment input.checked.pureProgram ∧
     Storage.Numerical.checkProduct receipt.environment receipt.resources receipt.values
-      receipt.left receipt.right receipt.output receipt.mode receipt.policy = .ok receipt.checked ∧
+      receipt.left receipt.right receipt.output receipt.mode receipt.policy receipt.alpha receipt.beta = .ok receipt.checked ∧
     receipt.priorCode ++ [.action (.gemm (receipt.checked.product.request receipt.mode receipt.policy))] = receipt.code ∧
     Storage.checkAction receipt.resources (.gemm (receipt.checked.product.request receipt.mode receipt.policy)) = .ok receipt.after :=
   ⟨(input.checked.execution entry found).numericalOrigins.2 receipt member,

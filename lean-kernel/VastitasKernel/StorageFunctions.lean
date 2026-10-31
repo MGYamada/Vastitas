@@ -159,8 +159,10 @@ structure NumericalReceipt where
   output : Symbol
   mode : GemmMode
   policy : NumericalPolicy
-  checked : Numerical.CheckedProduct environment resources values left right output mode policy
-  accepted : Numerical.checkProduct environment resources values left right output mode policy = .ok checked
+  alpha : Option Coefficient
+  beta : Option Coefficient
+  checked : Numerical.CheckedProduct environment resources values left right output mode policy alpha beta
+  accepted : Numerical.checkProduct environment resources values left right output mode policy alpha beta = .ok checked
   after : State
   transitioned : checkAction resources (.gemm (checked.product.request mode policy)) = .ok after
   priorCode : List Storage.Statement
@@ -248,6 +250,11 @@ private def lowerSource (frame : Frame) : Source → Except Error Source
   | .owner name => return .owner (← resolve frame name)
   | .loan name => return .loan (← resolve frame name)
 
+private def lowerCoefficient (frame : Frame) : Option Coefficient → Except Error (Option Coefficient)
+  | none => pure none
+  | some (.literal value) => pure (some (.literal value))
+  | some (.loan name) => return some (.loan (← resolve frame name))
+
 def operation (frame : Frame) : Action → M Frame
   | .allocate name scalar elements => do
     let (frame, global) ← bindName frame name
@@ -274,7 +281,9 @@ def operation (frame : Frame) : Action → M Frame
     let left ← resolve frame request.left
     let right ← resolve frame request.right
     let output ← resolve frame request.output
-    step (.gemm {request with left, right, output})
+    let alpha ← lowerCoefficient frame request.alpha
+    let beta ← lowerCoefficient frame request.beta
+    step (.gemm {request with left, right, output, alpha, beta})
     return frame
 
 /-- Values share the activation's fresh-name supply, but never enter the native
@@ -282,12 +291,14 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
-  | .gemm left right output mode policy =>
+  | .gemm left right output mode policy alpha beta =>
     let left ← resolve frame left
     let right ← resolve frame right
     let output ← resolve frame output
+    let alpha ← lowerCoefficient frame alpha
+    let beta ← lowerCoefficient frame beta
     match accepted : Numerical.checkProduct context.environment context.resources context.numerical
-        left right output mode policy with
+        left right output mode policy alpha beta with
     | .error diagnostic => throw diagnostic
     | .ok checked =>
       step (.gemm (checked.product.request mode policy))
@@ -298,7 +309,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         if same : resources = after.resources then
           if emitted : context.code.toList ++ [.action (.gemm (checked.product.request mode policy))] = after.code.toList then
             let receipt : NumericalReceipt :=
-              ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy,
+              ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy, alpha, beta,
                 checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted⟩
             set {after with products := after.products.push receipt}
             return frame

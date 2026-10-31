@@ -10,7 +10,7 @@ private def setup : List Statement := [
   .action (.borrow 10 (.owner 0) view .write), .action (.fill 10 (.f64 0)),
   .action (.release 10), .action (.borrow 11 (.owner 0) view .read),
   .action (.borrow 12 (.owner 1) view .write)]
-private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .nativeFast⟩
+private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .nativeFast, none, none⟩
 
 #eval show IO Unit from do
   let .ok state := run 4096 {} setup | throw (IO.userError "invalid GEMM setup")
@@ -26,6 +26,33 @@ private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .native
     {operation with right := 99}]
   for request in rejected do
     if (checkAction state (.gemm request)).isOk then throw (IO.userError "invalid GEMM accepted")
+  let one : Layout := ⟨0, 1, 1, 1, false⟩
+  let .ok coefficients := run 4096 state [
+    .action (.allocate 20 .f64 1), .action (.borrow 21 (.owner 20) one .write),
+    .action (.fill 21 (.f64 0x3fe0000000000000)), .action (.release 21),
+    .action (.borrow 22 (.owner 20) one .read)]
+    | throw (IO.userError "coefficient setup rejected")
+  let scaled := {operation with alpha := some (.loan 22)}
+  unless (checkAction coefficients (.gemm scaled)).isOk do
+    throw (IO.userError "runtime coefficient loan rejected")
+  unless (checkAction state (.gemm {operation with alpha := some (.literal (.f64 0x4000000000000000))})).isOk do
+    throw (IO.userError "explicit real coefficient rejected")
+  for request in [
+      {operation with alpha := some (.literal (.complexF64 0 0))},
+      {operation with alpha := some (.loan 11)}, -- a matrix is not one coefficient
+      {operation with alpha := some (.loan 12)}, -- write-only coefficient
+      {operation with beta := some (.literal (.f64 0))}, -- overwrite has no beta operand
+      {operation with mode := .accumulate, beta := some (.literal (.f64 0))}] do
+    if (checkAction coefficients (.gemm request)).isOk then throw (IO.userError "invalid coefficient contract accepted")
+  let .ok suspendedCoefficient := checkAction coefficients (.borrow 23 (.loan 22) one .read)
+    | throw (IO.userError "coefficient reborrow rejected")
+  if (checkAction suspendedCoefficient (.gemm scaled)).isOk then throw (IO.userError "suspended coefficient read accepted")
+  let .ok releasedCoefficient := checkAction coefficients (.release 22)
+    | throw (IO.userError "coefficient release rejected")
+  if (checkAction releasedCoefficient (.gemm scaled)).isOk then throw (IO.userError "released coefficient read accepted")
+  let uninitialized := {coefficients with allocations := coefficients.allocations.map fun allocation =>
+    if allocation.owner == 20 then {allocation with initialization := .none} else allocation}
+  if (checkGemm uninitialized scaled).isOk then throw (IO.userError "forged uninitialized coefficient accepted")
   -- Same read/write loan cannot bypass GEMM's explicit physical separation.
   let .ok alias := run 4096 {} [
     .action (.allocate 0 .f64 4), .action (.borrow 1 (.owner 0) view .write),
@@ -79,14 +106,16 @@ private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .native
   let .ok checked := Wire.check json | throw (IO.userError "shared GEMM fixture rejected")
   let .ok plan := Native.compile checked.input | throw (IO.userError "GEMM lowering rejected")
   unless plan.needsNumerical do throw (IO.userError "GEMM runtime dependency omitted")
-  for mutation in [0, 1, 2, 3, 4, 5] do
+  for mutation in [0, 1, 2, 3, 4, 5, 6, 7] do
     let instructions := plan.instructions.map fun instruction => match instruction with
-      | .gemm l lv lc r rv rc o ov mode policy => match mutation with
-        | 0 => .gemm o lv lc r rv rc o ov mode policy
-        | 1 => .gemm l lv (!lc) r rv rc o ov mode policy
-        | 2 => .gemm l lv lc r rv (!rc) o ov mode policy
-        | 3 => .gemm l lv lc r rv rc o {ov with offset := ov.offset + 8} mode policy
-        | 4 => .gemm l lv lc r rv rc o ov (if mode == .overwrite then .accumulate else .overwrite) policy
+      | .gemm l lv lc r rv rc o ov mode policy alpha beta => match mutation with
+        | 0 => .gemm o lv lc r rv rc o ov mode policy alpha beta
+        | 1 => .gemm l lv (!lc) r rv rc o ov mode policy alpha beta
+        | 2 => .gemm l lv lc r rv (!rc) o ov mode policy alpha beta
+        | 3 => .gemm l lv lc r rv rc o {ov with offset := ov.offset + 8} mode policy alpha beta
+        | 4 => .gemm l lv lc r rv rc o ov (if mode == .overwrite then .accumulate else .overwrite) policy alpha beta
+        | 5 => .gemm l lv lc r rv rc o ov mode policy (.literal (.f64 0x3ff0000000000000)) beta
+        | 6 => .gemm l lv lc r rv rc o ov mode policy alpha (.view o ov.offset)
         | _ => .skip
       | other => other
     if instructions == plan.instructions then throw (IO.userError "ineffective native GEMM mutation")

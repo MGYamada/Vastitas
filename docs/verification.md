@@ -387,11 +387,37 @@ native floating-point refinement. `TransformRegression` adds independent
 provenance/metric/loan/flag mutations; public source tests execute scalar and
 rectangular real/complex transforms, nested calls and owned materialized results.
 
+For [vector evaluation](vector-evaluation.md), `vector_space` and
+`vector_input_reborrow` retain actual profile/basis identity and the exact child
+borrow, including conjugation. `actual_vector_conjugation` connects the selected
+derived space/involution to the real resource transition. `actual_evaluation`
+connects the exact accepted dual or Hermitian request to its emitted schedule
+and successful replay; `dual_evaluation_types` and `hermitian_evaluation_form`
+recover the actual corresponding bases and explicit identity Gram form.
+`evaluation_preserves_interpretation` shows that the request inserts no extra
+conjugation, and `evaluation_returns_inputs_and_scalar` states restored input
+loans and initialized scalar output. The public origin theorems bind these
+receipts to the same accepted declaration environment. Native bit examples and
+forged-IR regressions are separate evidence, not ideal-module or float laws.
+
 Generative numerical result packages, dynamic shape/scalar interfaces, dual/metric laws
 and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native
 execution evidence. Raw internal GEMM operations retain only their resource
 certificate and do not acquire nominal authority from this optional typed path.
+
+The [finite two-map network profile](finite-networks.md) is independently checked
+by `Storage.TensorNetwork` before reusing the existing typed product and exact
+GEMM emitter. `VastitasOracle.TensorNetwork.ports_used_once` derives exact single
+consumption of every occurrence port. `admitted_bilinear_edge`, `output_boundary`
+and `no_implicit_conjugation` retain exact bases, variance and ordered boundaries.
+`same_input_plan`, `actual_lowering` and `public_network_origin` connect the actual
+accepted graph to its deterministic emitted GEMM, resource transition and the
+public checker's declaration environment. These do not prove tensor-category
+laws, floating arithmetic or native refinement. `NetworkRegression` and public
+source/wire/native tests cover nominal mismatches, duplicate/unconnected ports,
+forged transforms, immutable reuse and nested calls. General networks and
+structural nodes remain outside this two-occurrence profile.
 
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in
@@ -413,6 +439,15 @@ distinct, and evidence retains the object/base/frame/basepoint/metric identity.
 Its coordinate-change regressions and nominal-evidence audits are Python
 reference results only; the document lists separate future Lean soundness and
 same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
+
+The [polynomial first-variation reference](variational-reference.md) compares the
+linear epsilon coefficient of the expanded action with a separately computed
+Euler–Lagrange integral plus oriented boundary terms. It checks actual variation
+endpoint values and binds evidence to the complete independent polynomial
+subject. These are finite Python calculations and mutation regressions; general
+function-space differentiation, Lean soundness and the actual returned-Core
+connection remain separate obligations. No implicit metric or gradient, new
+AD engine, integral-enclosure verifier or variational compiler feature is added.
 
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy

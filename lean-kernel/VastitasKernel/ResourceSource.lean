@@ -22,17 +22,20 @@ inductive Parameter where
   | conjugateSpace (name parent involution : String) (span : Span)
   | derivedBasis (name parent space : String) (span : Span)
   | metric (name basis involution : String) (orthonormal : Bool) (span : Span)
+  | vector (name basis : String) (access : Access) (initializes : Bool) (span : Span)
   deriving Repr, Inhabited
 
 def Parameter.name : Parameter → String
   | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
+  | .vector name .. => name
 
 def Parameter.span : Parameter → Span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
   | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span | .ownedMap _ _ _ span => span
   | .involution _ _ span | .dualSpace _ _ span | .conjugateSpace _ _ _ span |
       .derivedBasis _ _ _ span | .metric _ _ _ _ span => span
+  | .vector _ _ _ _ span => span
 
 inductive Action where
   | allocate (owner : String) (scalar : Scalar) (elements : Nat)
@@ -61,6 +64,10 @@ inductive NumericalOperation where
   | derivedBasis (name parent space : String)
   | metric (name basis involution : String) (gram : Numerical.Gram)
   | transform (name parent : String) (operation : Numerical.Transform String)
+  | vector (name loan basis : String)
+  | conjugateVector (name parent basis involution : String)
+  | evaluate (left right output : String) (operation : Numerical.Evaluation String)
+      (mode : GemmMode) (policy : NumericalPolicy) (alpha beta : Option Coefficient)
   | map (name loan source target : String)
   | ownedMap (name owner : String) (layout : Layout) (source target : String)
   | ownedView (name loan owner : String)
@@ -72,6 +79,7 @@ inductive NumericalOperation where
 inductive Statement where
   | action (operation : Action) (span : Span)
   | numerical (operation : NumericalOperation) (span : Span)
+  | network (graph : TensorNetwork.Graph String) (output : String) (policy : NumericalPolicy) (span : Span)
   | call (callee : Indexed.Source.Path) (arguments results : List String) (span : Span)
   | branch (condition : Bool) (yes no : List Statement) (span : Span)
   deriving Repr, Inhabited
@@ -265,6 +273,23 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     let target ← name target
     let (frame, output) ← bindName index scope frame output .numerical span
     return (frame, .map output loan source target)
+  | .vector output loan basis =>
+    let loan ← name loan
+    let basis ← name basis
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .vector output loan basis)
+  | .conjugateVector output parent basis selected =>
+    let parent ← name parent
+    let basis ← name basis
+    let selected ← name selected
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .conjugateVector output parent basis selected)
+  | .evaluate left right output operation mode policy alpha beta =>
+    let operation ← match operation with
+      | .dual => pure Numerical.Evaluation.dual
+      | .hermitian selected => pure (.hermitian (← name selected))
+    return (frame, .evaluate (← name left) (← name right) (← name output) operation mode policy
+      (← coefficient alpha) (← coefficient beta))
   | .ownedMap output owner layout source target =>
     let owner ← name owner
     let source ← name source
@@ -296,6 +321,11 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     | .action action span => do
       let (frame, action) ← lowerAction index scope frame span action
       pure (frame, .action action)
+    | .network graph output policy span => do
+      unless graph.Bounded do throw {code := "E_NETWORK", message := "unsupported two-map network profile", span}
+      let graph ← graph.mapM (fun value => Prod.fst <$> lookup frame value span)
+      let output := (← lookup frame output span).1
+      pure (frame, .network graph output policy)
     | .numerical operation span => do
       let (frame, operation) ← lowerNumerical index caller scope frame span operation
       pure (frame, .numerical operation)
@@ -369,6 +399,9 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
         let (source, _) ← lookup frame source span
         let (target, _) ← lookup frame target span
         pure (.map symbol source target access initializes)
+      | .vector _ basis access initializes span => do
+        let (basis, _) ← lookup frame basis span
+        pure (.vector symbol basis access initializes)
       | .ownedMap _ source target span => do
         let (source, _) ← lookup frame source span
         let (target, _) ← lookup frame target span
@@ -475,6 +508,9 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   inputOrigins : ∀ receipt ∈ checked.context.inputs.toList, receipt.environment = environment
   outputOrigins : ∀ receipt ∈ checked.context.outputs.toList, receipt.environment = environment
   transformOrigins : ∀ receipt ∈ checked.context.transforms.toList, receipt.environment = environment
+  networkOrigins : ∀ receipt ∈ checked.context.networks.toList, receipt.environment = environment
+  vectorOrigins : ∀ receipt ∈ checked.context.vectorConjugates.toList, receipt.environment = environment
+  evaluationOrigins : ∀ receipt ∈ checked.context.evaluations.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -524,11 +560,21 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                         receipt.environment = numericalEnvironment pureProgram then
                       if transformOrigins : ∀ receipt ∈ executable.context.transforms.toList,
                           receipt.environment = numericalEnvironment pureProgram then
-                        .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                          library, libraryAccepted, fun actual same => by
-                            have : actual = id := Option.some.inj (same.symm.trans entry)
-                            subst actual
-                            exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins⟩⟩
+                        if networkOrigins : ∀ receipt ∈ executable.context.networks.toList,
+                            receipt.environment = numericalEnvironment pureProgram then
+                          if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
+                              receipt.environment = numericalEnvironment pureProgram then
+                            if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                                receipt.environment = numericalEnvironment pureProgram then
+                              .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                library, libraryAccepted, fun actual same => by
+                                  have : actual = id := Option.some.inj (same.symm.trans entry)
+                                  subst actual
+                                  exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                    networkOrigins, vectorOrigins, evaluationOrigins⟩⟩
+                            else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
+                          else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                        else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
                       else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
                     else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
                   else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"

@@ -2,7 +2,9 @@ use super::*;
 use crate::storage::{
     Access, Coefficient, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
     functions::OwnedType,
-    source::{Action, Gram, Numerical, NumericalResult, Parameter, ResultType, Transform},
+    source::{
+        Action, Evaluation, Gram, Numerical, NumericalResult, Parameter, ResultType, Transform,
+    },
 };
 
 impl Parser {
@@ -213,6 +215,28 @@ impl Parser {
                 name,
                 source,
                 target,
+                span: start.through(self.previous().span),
+            });
+        }
+        let vector_access = if self.consume("ReadVector") {
+            Some(Access::Read)
+        } else if self.consume("WriteVector") {
+            Some(Access::Write)
+        } else if self.consume("ReadWriteVector") {
+            Some(Access::ReadWrite)
+        } else {
+            None
+        };
+        if let Some(access) = vector_access {
+            self.expect("<")?;
+            let basis = self.binding_name()?.0;
+            self.expect(">")?;
+            let initializes = self.consume("initializes");
+            return Ok(Parameter::Vector {
+                name,
+                basis,
+                access,
+                initializes,
                 span: start.through(self.previous().span),
             });
         }
@@ -545,6 +569,35 @@ impl Parser {
                 gram,
             });
         }
+        if self.consume("vector") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            let conjugate = self.consume("conjugate");
+            if !conjugate {
+                self.expect("view")?;
+            }
+            self.expect("(")?;
+            let parent = self.name()?.0;
+            self.expect(",")?;
+            let basis = self.name()?.0;
+            let operation = if conjugate {
+                self.expect(",")?;
+                Numerical::ConjugateVector {
+                    name,
+                    parent,
+                    basis,
+                    involution: self.name()?.0,
+                }
+            } else {
+                Numerical::Vector {
+                    name,
+                    loan: parent,
+                    basis,
+                }
+            };
+            self.expect(")")?;
+            return Ok(operation);
+        }
         if self.consume("map") {
             let name = self.binding_name()?.0;
             self.expect("=")?;
@@ -624,7 +677,14 @@ impl Parser {
                 target,
             });
         }
-        self.expect("gemm")?;
+        let evaluation = if self.consume("evaluate") {
+            Some(false)
+        } else if self.consume("hermitian") {
+            Some(true)
+        } else {
+            self.expect("gemm")?;
+            None
+        };
         self.expect("(")?;
         let left = self.name()?.0;
         self.expect(",")?;
@@ -632,6 +692,15 @@ impl Parser {
         self.expect(",")?;
         let output = self.name()?.0;
         self.expect(",")?;
+        let operation = match evaluation {
+            Some(true) => {
+                let metric = self.name()?.0;
+                self.expect(",")?;
+                Some(Evaluation::Hermitian { metric })
+            }
+            Some(false) => Some(Evaluation::Dual),
+            None => None,
+        };
         let mode = if self.consume("overwrite") {
             GemmMode::Overwrite
         } else if self.consume("accumulate") {
@@ -670,6 +739,18 @@ impl Parser {
             *target = Some(self.numerical_coefficient()?);
         }
         self.expect(")")?;
+        if let Some(operation) = operation {
+            return Ok(Numerical::Evaluate {
+                left,
+                right,
+                output,
+                operation,
+                mode,
+                policy: NumericalPolicy::NativeFast,
+                alpha,
+                beta,
+            });
+        }
         Ok(Numerical::Gemm {
             left,
             right,
@@ -678,6 +759,100 @@ impl Parser {
             policy: NumericalPolicy::NativeFast,
             alpha,
             beta,
+        })
+    }
+
+    fn network_port(&mut self) -> Result<crate::storage::source::NetworkPort, Diagnostic> {
+        use crate::storage::source::{NetworkPort, PortRole};
+        let occurrence = self.binding_name()?.0;
+        self.expect(".")?;
+        let role = if self.consume("input") {
+            PortRole::Input
+        } else if self.consume("output") {
+            PortRole::Output
+        } else {
+            return Err(diagnostic(
+                "E_NETWORK",
+                "expected input (dual) or output (vector) port",
+                self.peek().span,
+            ));
+        };
+        Ok(NetworkPort { occurrence, role })
+    }
+
+    fn network_statement(&mut self) -> Result<crate::storage::source::Statement, Diagnostic> {
+        use crate::storage::source::{NetworkEdge, NetworkGraph, Occurrence, Statement};
+        let start = self.expect("contract")?.span;
+        self.expect("(")?;
+        let output = self.name()?.0;
+        self.expect(",")?;
+        self.expect("NativeFast")?;
+        self.expect(")")?;
+        self.expect("{")?;
+        let mut graph = NetworkGraph {
+            occurrences: vec![],
+            edges: vec![],
+            inputs: vec![],
+            outputs: vec![],
+        };
+        let mut count = 0;
+        while !self.consume("}") {
+            // Fixed profile: at most two occurrences, one edge, two boundaries.
+            count += 1;
+            if count > 5 {
+                return Err(diagnostic(
+                    "E_NETWORK",
+                    "two-map network exceeds five declarations",
+                    self.peek().span,
+                ));
+            }
+            if self.consume("occurrence") {
+                let name = self.binding_name()?.0;
+                self.expect("=")?;
+                let value = self.name()?.0;
+                graph.occurrences.push(Occurrence { name, value });
+            } else if self.consume("edge") {
+                self.expect("(")?;
+                let dual = self.network_port()?;
+                self.expect(",")?;
+                let primal = self.network_port()?;
+                self.expect(")")?;
+                graph.edges.push(NetworkEdge { dual, primal });
+            } else if self.peek().is("input") || self.peek().is("output") {
+                let input = self.advance().is("input");
+                self.expect("(")?;
+                let port = self.network_port()?;
+                self.expect(")")?;
+                if input {
+                    graph.inputs.push(port);
+                } else {
+                    graph.outputs.push(port);
+                }
+            } else {
+                return Err(diagnostic(
+                    "E_NETWORK",
+                    "expected occurrence, edge, input or output boundary",
+                    self.peek().span,
+                ));
+            }
+            self.expect(";")?;
+        }
+        if graph.occurrences.len() != 2
+            || graph.edges.len() != 1
+            || graph.inputs.len() != 1
+            || graph.outputs.len() != 1
+        {
+            return Err(diagnostic(
+                "E_NETWORK",
+                "two-map network requires two occurrences, one edge and explicit input/output boundaries",
+                start.through(self.previous().span),
+            ));
+        }
+        Ok(Statement::Network {
+            graph,
+            output,
+            policy: NumericalPolicy::NativeFast,
+            span: start.through(self.previous().span),
         })
     }
 
@@ -695,7 +870,9 @@ impl Parser {
         let mut body = Vec::new();
         while !self.peek().is("}") && !self.peek().is("value") {
             let start = self.peek().span;
-            let statement = if self.consume("if") {
+            let statement = if self.peek().is("contract") {
+                self.network_statement()?
+            } else if self.consume("if") {
                 let condition = self.resource_boolean()?;
                 self.expect("{")?;
                 let yes = self.resource_statements(depth + 1)?;
@@ -724,9 +901,19 @@ impl Parser {
                 }
             } else if self.peek().is("borrow") {
                 self.resource_borrow()?
-            } else if ["space", "basis", "map", "gemm", "involution", "metric"]
-                .iter()
-                .any(|word| self.peek().is(word))
+            } else if [
+                "space",
+                "basis",
+                "map",
+                "gemm",
+                "involution",
+                "metric",
+                "vector",
+                "evaluate",
+                "hermitian",
+            ]
+            .iter()
+            .any(|word| self.peek().is(word))
             {
                 let operation = self.numerical_operation()?;
                 self.expect(";")?;

@@ -143,4 +143,24 @@ theorem public_numerical_transform_origin {json : Lean.Json}
       receipt.child receipt.operation = .ok receipt.checked ∧ receipt.checked.after = receipt.after :=
   ⟨(input.checked.execution entry found).transformOrigins receipt member, receipt.accepted, receipt.transitioned⟩
 
+theorem public_vector_conjugation_origin {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (entry : Nat) (found : input.input.entry = some entry)
+    (receipt : Functions.VectorConjugateReceipt)
+    (member : receipt ∈ (input.checked.execution entry found).checked.context.vectorConjugates.toList) :
+    receipt.environment = numericalEnvironment input.checked.pureProgram ∧
+    Storage.Numerical.checkVectorConjugate receipt.environment receipt.resources receipt.values receipt.name receipt.parent
+      receipt.child receipt.basis receipt.selected = .ok receipt.checked :=
+  ⟨(input.checked.execution entry found).vectorOrigins receipt member, receipt.accepted⟩
+
+theorem public_evaluation_origin {json : Lean.Json}
+    (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain)
+    (entry : Nat) (found : input.input.entry = some entry)
+    (receipt : Functions.EvaluationReceipt)
+    (member : receipt ∈ (input.checked.execution entry found).checked.context.evaluations.toList) :
+    receipt.environment = numericalEnvironment input.checked.pureProgram ∧
+    Storage.Numerical.checkEvaluation receipt.environment receipt.resources receipt.values receipt.left receipt.right
+      receipt.output receipt.leftChild receipt.rightChild receipt.operation receipt.mode receipt.policy receipt.alpha receipt.beta = .ok receipt.checked :=
+  ⟨(input.checked.execution entry found).evaluationOrigins receipt member, receipt.accepted⟩
+
 end VastitasOracle.ResourceSource

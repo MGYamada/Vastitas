@@ -81,6 +81,15 @@ parameter tags retain earlier space/basis/involution relationships and an explic
 orthonormal requirement for direct adjunction. Rust and Lean decode these forms
 together; old envelopes and unknown nested metadata fail closed.
 
+[Vector evaluation](vector-evaluation.md) adds `vector` (`name`, `loan`, `basis`),
+`conjugate_vector` (`name`, `parent`, `basis`, `involution`) and `evaluate`
+(`left`, `right`, `output`, `operation`, `mode`, `policy`, optional `alpha`/`beta`).
+The nested operation is strictly `{kind: "dual"}` or
+`{kind: "hermitian", metric: <local name>}`. Vector parameters use `kind: "vector"`
+with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
+provenance, child loans, scalar output and emitted flags are reconstructed by
+the independent checker; no supplied origin or native flag grants authority.
+
 Every function, generic, method, parameter, block, statement and expression has `span`:
 `{ "start": 0, "end": 1, "line": 1, "column": 1 }` (UTF-8 byte offsets,
 one-based Unicode-scalar columns). Types and indices have their containing
@@ -529,3 +538,7 @@ It reuses the diagnostic payload above without changing this wire protocol or
 the driver's preservation of diagnostics on incompatible failure responses.
 The Python reference and fixture regressions do not implement production driver
 receipts, doctest execution, or official package admission.
+
+The additive protocol-8 `network` resource statement and its strict finite graph
+schema are specified in [finite-networks.md](finite-networks.md). It is checked
+independently before lowering to the existing numerical/storage path.

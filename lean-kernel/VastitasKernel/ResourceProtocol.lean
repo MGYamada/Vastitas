@@ -48,6 +48,10 @@ private def parameter (j : Json) : Except String Parameter := do
     fields j ["kind", "name", "source", "target", "access", "initializes", "span"]
     return .map (← str j "name") (← str j "source") (← str j "target")
       (← Storage.Wire.access (← str j "access")) (← j.getObjValAs? Bool "initializes") span
+  | "vector" =>
+    fields j ["kind", "name", "basis", "access", "initializes", "span"]
+    return .vector (← str j "name") (← str j "basis") (← Storage.Wire.access (← str j "access"))
+      (← j.getObjValAs? Bool "initializes") span
   | "owned_map" =>
     fields j ["kind", "name", "source", "target", "span"]
     return .ownedMap (← str j "name") (← str j "source") (← str j "target") span
@@ -117,6 +121,12 @@ private def transform (j : Json) : Except String (Storage.Numerical.Transform St
     return .adjoint (← str j "source_metric") (← str j "target_metric")
   | _ => throw "unknown typed map transform"
 
+private def evaluation (j : Json) : Except String (Storage.Numerical.Evaluation String) := do
+  match ← str j "kind" with
+  | "dual" => fields j ["kind"]; return .dual
+  | "hermitian" => fields j ["kind", "metric"]; return .hermitian (← str j "metric")
+  | _ => throw "unknown vector evaluation"
+
 private def numericalOperation (j : Json) : Except String NumericalOperation := do
   match ← str j "op" with
   | "space" =>
@@ -146,6 +156,17 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
   | "map" =>
     fields j ["op", "name", "loan", "source", "target"]
     return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")
+  | "vector" =>
+    fields j ["op", "name", "loan", "basis"]
+    return .vector (← str j "name") (← str j "loan") (← str j "basis")
+  | "conjugate_vector" =>
+    fields j ["op", "name", "parent", "basis", "involution"]
+    return .conjugateVector (← str j "name") (← str j "parent") (← str j "basis") (← str j "involution")
+  | "evaluate" =>
+    fields j ["op", "left", "right", "output", "operation", "mode", "policy", "alpha", "beta"]
+    return .evaluate (← str j "left") (← str j "right") (← str j "output") (← evaluation (← field j "operation"))
+      (← Storage.Wire.gemmMode (← str j "mode")) (← Storage.Wire.numericalPolicy (← str j "policy"))
+      (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
   | "owned_map" =>
     fields j ["op", "name", "owner", "layout", "source", "target"]
     return .ownedMap (← str j "name") (← str j "owner") (← Storage.Wire.layout (← field j "layout"))
@@ -163,6 +184,30 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
       (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
   | _ => throw "unknown numerical source operation"
 
+private def networkPort (j : Json) : Except String Storage.TensorNetwork.Port := do
+  fields j ["occurrence", "role"]
+  let role ← match ← str j "role" with
+    | "input" => pure Storage.TensorNetwork.Role.input
+    | "output" => pure .output
+    | _ => throw "network port role must be input (algebraic dual) or output (vector)"
+  return ⟨← str j "occurrence", role⟩
+
+private def networkGraph (j : Json) : Except String (Storage.TensorNetwork.Graph String) := do
+  fields j ["occurrences", "edges", "inputs", "outputs"]
+  let occurrences ← array j "occurrences"
+  let edges ← array j "edges"
+  let inputs ← array j "inputs"
+  let outputs ← array j "outputs"
+  unless occurrences.length == 2 && edges.length == 1 && inputs.length == 1 && outputs.length == 1 do
+    throw "two-map network requires two occurrences, one edge and explicit input/output boundaries"
+  let occurrences ← occurrences.mapM fun node => do
+    fields node ["name", "value"]
+    return Storage.TensorNetwork.Occurrence.mk (← str node "name") (← str node "value")
+  let edges ← edges.mapM fun edge => do
+    fields edge ["dual", "primal"]
+    return Storage.TensorNetwork.Edge.mk (← networkPort (← field edge "dual")) (← networkPort (← field edge "primal"))
+  return ⟨occurrences, edges, ← inputs.mapM networkPort, ← outputs.mapM networkPort⟩
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
@@ -172,6 +217,10 @@ private def statements : Nat → List Json → Except String (List Statement)
       | "action" =>
         fields first ["kind", "action", "span"]
         pure (.action (← action (← field first "action")) span)
+      | "network" =>
+        fields first ["kind", "graph", "output", "policy", "span"]
+        pure (.network (← networkGraph (← field first "graph")) (← str first "output")
+          (← Storage.Wire.numericalPolicy (← str first "policy")) span)
       | "numerical" =>
         fields first ["kind", "operation", "span"]
         pure (.numerical (← numericalOperation (← field first "operation")) span)

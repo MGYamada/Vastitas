@@ -290,6 +290,13 @@ pub mod source {
             orthonormal: bool,
             span: Span,
         },
+        Vector {
+            name: String,
+            basis: String,
+            access: Access,
+            initializes: bool,
+            span: Span,
+        },
         Map {
             name: String,
             source: String,
@@ -403,6 +410,13 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Evaluation {
+        Dual,
+        Hermitian { metric: String },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Numerical {
         Space {
@@ -443,6 +457,29 @@ pub mod source {
             parent: String,
             operation: Transform,
         },
+        Vector {
+            name: String,
+            loan: String,
+            basis: String,
+        },
+        ConjugateVector {
+            name: String,
+            parent: String,
+            basis: String,
+            involution: String,
+        },
+        Evaluate {
+            left: String,
+            right: String,
+            output: String,
+            operation: Evaluation,
+            mode: GemmMode,
+            policy: NumericalPolicy,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            alpha: Option<Coefficient<String>>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            beta: Option<Coefficient<String>>,
+        },
         Map {
             name: String,
             loan: String,
@@ -480,8 +517,51 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum PortRole {
+        Input,
+        Output,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct NetworkPort {
+        pub occurrence: String,
+        pub role: PortRole,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Occurrence {
+        pub name: String,
+        pub value: String,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct NetworkEdge {
+        pub dual: NetworkPort,
+        pub primal: NetworkPort,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct NetworkGraph {
+        pub occurrences: Vec<Occurrence>,
+        pub edges: Vec<NetworkEdge>,
+        pub inputs: Vec<NetworkPort>,
+        pub outputs: Vec<NetworkPort>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        Network {
+            graph: NetworkGraph,
+            output: String,
+            policy: NumericalPolicy,
+            span: Span,
+        },
         Action {
             action: Action,
             span: Span,

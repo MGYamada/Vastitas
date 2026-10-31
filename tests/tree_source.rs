@@ -630,6 +630,25 @@ fn explicit_trees_preserve_order_reuse_scratch_and_audit_both_branches() {
 
 #[test]
 fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
+    // This graph passes local port coverage and n-1 counts. One legal join
+    // contracts the cycle's two nodes; its remaining edge then has both ends
+    // in that component and cannot connect the unrelated boundary occurrence.
+    let disconnected = repeated_chain(false, 2)
+        .replace(
+            "edge ab = (a[1],b[0]); edge bc = (b[1],c[0]); boundary(a[0],c[1]);",
+            "edge ab = (b[1],c[0]); edge bc = (c[1],b[0]); boundary(a[0],a[1]);",
+        )
+        .replace("join ab = (ab,a,b,middle);", "join ab = (ab,b,c,middle);")
+        .replace("join done = (bc,ab,c,c);", "join done = (bc,ab,a,c);");
+    let rejected = command(&fixture(&disconnected, COMPLEX), "check")
+        .output()
+        .unwrap();
+    assert!(!rejected.status.success());
+    assert!(
+        String::from_utf8_lossy(&rejected.stderr)
+            .contains("does not connect the selected active component legs"),
+        "{rejected:?}"
+    );
     for (from, to) in [
         ("t[1], a[0]", "t[1], a[1]"),
         ("t[2], b[0]", "t[1], b[0]"),

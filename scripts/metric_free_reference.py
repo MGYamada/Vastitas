@@ -67,7 +67,8 @@ def inverse(value):
 
 
 def audit_polynomial(value):
-    if type(value) is not Poly or any(p[2:] != (0, 0) for p, _ in value.terms):
+    if (type(value) is not Poly or value.arity != 4
+            or any(p[2:] != (0, 0) for p, _ in value.terms)):
         raise Invalid("UNSUPPORTED_POLYNOMIAL", "only Q[x0,x1] interpreted over R^2")
 
 

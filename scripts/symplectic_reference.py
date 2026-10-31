@@ -14,6 +14,8 @@ from fractions import Fraction
 from itertools import combinations
 from pathlib import Path
 
+from rational_polynomial_reference import Invalid, Poly, natural
+
 
 DIM = 4
 COORDINATES = ("q1", "p1", "q2", "p2")
@@ -21,114 +23,9 @@ TRIPLES = tuple(combinations(range(DIM), 3))
 SCALAR_PROFILE = "Q-to-R-polynomial/v1"
 
 
-class Invalid(ValueError):
-    """Malformed or unsupported input, never a mathematical acceptance."""
-
-    def __init__(self, code, message):
-        self.code = code
-        super().__init__(message)
-
-
-def natural(value, name):
-    if type(value) is not int or value < 0:
-        raise Invalid("INVALID_SCHEMA", f"{name} must be a nonnegative integer")
-
-
 def identifier(value, name):
     if type(value) is not str or not value:
         raise Invalid("INVALID_SCHEMA", f"{name} must be a nonempty identifier")
-
-
-@dataclass(frozen=True)
-class Poly:
-    """Canonical sparse polynomial: sorted (exponents, nonzero Fraction) pairs."""
-
-    terms: tuple
-
-    def __post_init__(self):
-        if type(self.terms) is not tuple:
-            raise Invalid("INVALID_SCHEMA", "polynomial terms must be immutable")
-        previous = None
-        for term in self.terms:
-            if type(term) is not tuple or len(term) != 2:
-                raise Invalid("INVALID_SCHEMA", "expected exponent/coefficient pair")
-            powers, coefficient = term
-            if type(powers) is not tuple or len(powers) != DIM:
-                raise Invalid("INVALID_SCHEMA", "expected four exponents")
-            for power in powers:
-                natural(power, "exponent")
-            if type(coefficient) is not Fraction or coefficient == 0:
-                raise Invalid("INVALID_SCHEMA", "expected nonzero exact rational")
-            if previous is not None and powers <= previous:
-                raise Invalid("INVALID_SCHEMA", "terms must be sorted and unique")
-            previous = powers
-
-    @staticmethod
-    def from_terms(terms):
-        """Trusted arithmetic constructor; merge like monomials exactly."""
-        result = {}
-        for powers, coefficient in terms:
-            if type(coefficient) not in (int, Fraction):
-                raise Invalid("INVALID_SCHEMA", "no floating point coefficients")
-            result[powers] = result.get(powers, Fraction(0)) + coefficient
-        return Poly(tuple((p, Fraction(c)) for p, c in sorted(result.items()) if c))
-
-    @staticmethod
-    def constant(value):
-        return Poly.from_terms([((0,) * DIM, value)])
-
-    @staticmethod
-    def variable(index):
-        natural(index, "variable index")
-        if index >= DIM:
-            raise Invalid("INVALID_SCHEMA", "variable index out of range")
-        return Poly.from_terms([(tuple(int(i == index) for i in range(DIM)), 1)])
-
-    def __add__(self, other):
-        if type(other) is int:
-            other = Poly.constant(other)
-        if type(other) is not Poly:
-            return NotImplemented
-        return Poly.from_terms(self.terms + other.terms)
-
-    __radd__ = __add__
-
-    def __neg__(self):
-        return Poly.from_terms((p, -c) for p, c in self.terms)
-
-    def __sub__(self, other):
-        return self + (-other)
-
-    def __mul__(self, other):
-        if type(other) in (int, Fraction):
-            other = Poly.constant(other)
-        if type(other) is not Poly:
-            return NotImplemented
-        return Poly.from_terms(
-            (tuple(a + b for a, b in zip(p, q)), c * d)
-            for p, c in self.terms for q, d in other.terms
-        )
-
-    __rmul__ = __mul__
-
-    def __pow__(self, exponent):
-        natural(exponent, "power")
-        result, base = Poly.constant(1), self
-        while exponent:
-            if exponent % 2:
-                result = result * base
-            base = base * base
-            exponent //= 2
-        return result
-
-    def derivative(self, index):
-        natural(index, "derivative index")
-        if index >= DIM:
-            raise Invalid("INVALID_SCHEMA", "derivative index out of range")
-        return Poly.from_terms(
-            (tuple(n - int(i == index) for i, n in enumerate(p)), c * p[index])
-            for p, c in self.terms if p[index]
-        )
 
 
 ZERO, ONE = Poly.constant(0), Poly.constant(1)
@@ -144,7 +41,7 @@ def matrix(rows):
 def audit_matrix(value):
     if (type(value) is not tuple or len(value) != DIM
             or any(type(row) is not tuple or len(row) != DIM for row in value)
-            or any(type(p) is not Poly for row in value for p in row)):
+            or any(type(p) is not Poly or p.arity != DIM for row in value for p in row)):
         raise Invalid("INVALID_SCHEMA", "expected an immutable 4 by 4 polynomial matrix")
 
 
@@ -199,7 +96,8 @@ class Domain:
     def __post_init__(self):
         if self.kind == "all" and self.generator is None:
             return
-        if self.kind == "principal_open" and type(self.generator) is Poly:
+        if (self.kind == "principal_open" and type(self.generator) is Poly
+                and self.generator.arity == DIM):
             return
         raise Invalid("UNSUPPORTED_DOMAIN", "use all or a polynomial principal_open")
 
@@ -244,7 +142,7 @@ class Certificate:
             raise Invalid("INVALID_SCHEMA", "expected Subject and InverseWitness")
         if (type(self.claimed_derivative) is not tuple
                 or len(self.claimed_derivative) != len(TRIPLES)
-                or any(type(p) is not Poly for p in self.claimed_derivative)):
+                or any(type(p) is not Poly or p.arity != DIM for p in self.claimed_derivative)):
             raise Invalid("INVALID_SCHEMA", "expected four polynomial 3-form coefficients")
 
 

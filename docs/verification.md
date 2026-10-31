@@ -767,6 +767,18 @@ Lean soundness proof or connection to the actual accepted Core. Its S1–S6 proo
 obligations and production bridge preserve Lawvere-first implementation and the
 existing 8+1 division. It does not extend the finite acceptance theorem above.
 
+### Rational SOS cover reference (#244 / #237)
+
+The [SOS cover reference](sos-reference.md) independently checks exact rational
+polynomial identities, permutation-qualified LDL^T factors with zero pivots, and
+a strictly positive rational lower bound for real-polynomial cozero covers.
+It shares arity-aware sparse polynomial arithmetic with the symplectic reference
+while preserving that consumer's four-variable contract. Tiny rational mutations,
+false covers with PSD residuals, wrong orders/domains and floating-point evidence
+have executable rejection regressions. SOS1–SOS4 and Core1–Core3 are **pending**
+Lean soundness and actual-returned-Core obligations. This Python-only experiment
+does not extend any public acceptance theorem or complete #244 / #237.
+
 ## Edit authority acceptance (protocol 6)
 
 `VastitasKernel.Authority` is the actual implementation used by public wire

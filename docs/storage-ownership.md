@@ -1,7 +1,7 @@
 # Storage, ownership and residual retention — revised Chapter 7
 
-Status: accepted design direction, 2026-10-29; public implementation and performance
-evidence remain pending under [#183](https://github.com/MGYamada/Vastitas/issues/183)
+Status: accepted design direction, 2026-10-29; public implementation is in progress
+and performance acceptance remains pending under [#183](https://github.com/MGYamada/Vastitas/issues/183)
 and the [Stage 1 completion gate](stage1-completion.md).
 This is the current design contract replacing the storage discussion in
 [historical Chapter 7](design/tensor-resources-units.md#7-ownership-and-tensor-network-ports).

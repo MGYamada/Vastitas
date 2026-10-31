@@ -75,7 +75,7 @@ are parsed in that context. Existing pure functions and resource statements
 retain their syntax. Dimensions are unsigned static literals, map endpoints are
 explicit local bases, and both the GEMM mode and `NativeFast` policy are required.
 Dependent input contracts and initialized owned results are described below.
-Generative numerical result packages and implicit product syntax remain separate
+General generative numerical result packages and implicit product syntax remain separate
 work. [Typed dual/conjugate/adjoint operations](linear-transforms.md) add explicit
 derived-space, basis, involution and metric contracts.
 [Vector evaluation](vector-evaluation.md) additionally uses single-basis
@@ -226,7 +226,7 @@ The nested real/complex source regressions execute overwrite and accumulation
 through these inputs. Their generated schedule retains six allocations and
 four GEMMs with no copy, matching the direct-call fixture. These are structural
 cost checks, not timings or a claim of C parity. Runtime shape/scalar flow,
-generative numerical packages and escaping-lifetime contracts remain open.
+general generative numerical packages and escaping-lifetime contracts remain open.
 
 ## Owned numerical results
 
@@ -312,8 +312,8 @@ successive function activations. Numerical values share the compiler's monotone
 fresh-name supply with resource bindings. Spaces and bases remain local to their
 function or branch unless explicitly passed as numerical inputs, and cannot be
 returned as raw owners. Initialized owned maps retain input-dependent bases under
-the [owned-result contract](#owned-numerical-results); locally generated object/basis
-packages remain pending.
+the [owned-result contract](#owned-numerical-results). [Owned-map packages](owned-map-packages.md)
+can hide one generated primal target and direct basis; general closures remain pending.
 
 A map view explicitly interprets a buffer in a source and target basis. Its
 logical row count is the target dimension and its column count is the source
@@ -402,6 +402,14 @@ read reborrows and nested calls. [Vector evaluation](vector-evaluation.md) now
 connects bilinear dual and explicit orthonormal Hermitian pairing to scalar
 destinations through the same checked GEMM. [Finite two-map networks](finite-networks.md)
 add checked occurrences and ports, an explicit bilinear edge and ordered boundaries.
-General metric realization, generative numerical result packages, dynamic
+General metric realization, general generative numerical result packages, dynamic
 shape/scalar interfaces, higher-rank or multi-edge networks, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).
+
+[Owned-map packages](owned-map-packages.md) now add the bounded
+`OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
+direct basis, initialized affine storage, fresh consuming unpack and explicit
+repack. The source basis remains an actual caller dependency. Pack/open/transfer
+preserve the exact allocation/layout and emit no additional native instructions.
+Dynamic dimensions, general resource packages/closures, borrowed results and
+full source/native refinement remain pending.

@@ -311,12 +311,19 @@ pub mod source {
             target: String,
             span: Span,
         },
+        OwnedMapTo {
+            name: String,
+            source: String,
+            dimension: u64,
+            span: Span,
+        },
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum NumericalResult {
         OwnedMap { source: String, target: String },
+        OwnedMapTo { source: String, dimension: u64 },
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -492,6 +499,16 @@ pub mod source {
             layout: Layout,
             source: String,
             target: String,
+        },
+        PackMap {
+            name: String,
+            owner: String,
+        },
+        UnpackMap {
+            package: String,
+            space: String,
+            basis: String,
+            owner: String,
         },
         OwnedView {
             name: String,

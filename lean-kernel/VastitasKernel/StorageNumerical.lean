@@ -191,6 +191,7 @@ inductive Value where
   | basis (value : Basis)
   | map (value : MapView)
   | ownedMap (value : OwnedMap)
+  | ownedPackage (value : OwnedMap)
   | involution (value : Involution)
   | metric (value : Metric)
   | vector (value : VectorView)
@@ -294,6 +295,9 @@ def Value.Valid (env : Environment) (values : Values) (name : Symbol) : Value �
   | .ownedMap view => view.Compatible ∧
       value? values view.source.brand = some (.basis view.source) ∧
       value? values view.target.brand = some (.basis view.target)
+  | .ownedPackage view => name = view.owner ∧ view.Compatible ∧
+      value? values view.source.brand = some (.basis view.source) ∧
+      view.target.space.Valid env ∧ view.target.space.origin = .primal ∧ view.target.parent = none
   | .involution sigma => values.any (fun entry => entry.1 < name && match entry.2 with
       | .space original => sigma == Involution.ofSpace original | _ => false) = true
   | .metric form => value? values form.basis.brand = some (.basis form.basis) ∧
@@ -360,6 +364,8 @@ inductive Operation where
       (alpha beta : Option Coefficient := none)
   | map (name loan source target : Symbol)
   | ownedMap (name owner : Symbol) (layout : Layout) (source target : Symbol)
+  | packMap (name owner : Symbol)
+  | unpackMap (package space basis owner : Symbol)
   | ownedView (name loan owner : Symbol)
   | borrowOwned (name owner : Symbol) (access : Access)
   | gemm (left right output : Symbol) (mode : GemmMode) (policy : NumericalPolicy)
@@ -433,7 +439,7 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     let view : MapView := ⟨owned.source, owned.target, loan, false, .direct⟩
     unless view.Live resources do reject "owned view requires an active compatible loan"
     insert env values name (.map view)
-  | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. =>
+  | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. =>
     reject "numerical resource operations must pass the composed check"
 
 structure CheckedTransform (env : Environment) (resources : Storage.State) (values : Values)
@@ -516,6 +522,7 @@ inductive Input where
   | basis (space : Symbol)
   | map (source target : Symbol)
   | ownedMap (source target : Symbol)
+  | ownedMapTo (source : Symbol) (dimension : Nat)
   | involution (space : Symbol)
   | dualSpace (parent : Symbol)
   | conjugateSpace (parent involution : Symbol)
@@ -535,6 +542,9 @@ def Input.Accepts (resources : Storage.State) (values : Values) : Input → Valu
   | .ownedMap source target, .ownedMap view =>
     value? values source = some (.basis view.source) ∧
     value? values target = some (.basis view.target) ∧ view.Live resources ∧ view.Initialized resources
+  | .ownedMapTo source dimension, .ownedPackage view =>
+    value? values source = some (.basis view.source) ∧ view.target.space.dimension = dimension ∧
+      view.Live resources ∧ view.Initialized resources
   | .involution spaceId, .involution sigma =>
     (value? values spaceId).any (fun value => match value with
       | .space spc => sigma == Involution.ofSpace spc | _ => false) = true

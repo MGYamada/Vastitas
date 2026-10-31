@@ -156,7 +156,7 @@ Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 `OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
 storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-generative numerical result packages and general metric realization,
+general generative numerical result packages and general metric realization,
 general owned-result branch joins, scratch/dependency handling, higher-rank or
 multi-edge networks, explicit packing and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
@@ -174,3 +174,11 @@ orthonormal Hermitian pairing with scoped vector loans. [Finite two-map networks
 check occurrence identity, exact port usage, the bilinear edge and ordered boundaries.
 Both features reach the same resource/native path and retain their public origin
 audits through both branch arms; their broader metric and network contracts remain open.
+
+[Owned-map packages](owned-map-packages.md) now add the bounded
+`OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
+direct basis, initialized affine storage, fresh consuming unpack and explicit
+repack. The source basis remains an actual caller dependency. Pack/open/transfer
+preserve the exact allocation/layout and emit no additional native instructions.
+Dynamic dimensions, general resource packages/closures, borrowed results and
+full source/native refinement remain pending.

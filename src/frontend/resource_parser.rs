@@ -205,6 +205,19 @@ impl Parser {
                 }
             });
         }
+        if self.consume("OwnedMapTo") {
+            self.expect("<")?;
+            let source = self.name()?.0;
+            self.expect(",")?;
+            let dimension = self.resource_number()?;
+            self.expect(">")?;
+            return Ok(Parameter::OwnedMapTo {
+                name,
+                source,
+                dimension,
+                span: start.through(self.previous().span),
+            });
+        }
         if self.consume("OwnedMap") {
             self.expect("<")?;
             let source = self.name()?.0;
@@ -467,6 +480,23 @@ impl Parser {
     }
 
     fn numerical_operation(&mut self) -> Result<Numerical, Diagnostic> {
+        if self.consume("unpack") {
+            let package = self.name()?.0;
+            self.expect("as")?;
+            self.expect("(")?;
+            let space = self.binding_name()?.0;
+            self.expect(",")?;
+            let basis = self.binding_name()?.0;
+            self.expect(",")?;
+            let owner = self.binding_name()?.0;
+            self.expect(")")?;
+            return Ok(Numerical::UnpackMap {
+                package,
+                space,
+                basis,
+                owner,
+            });
+        }
         if self.consume("space") {
             let name = self.binding_name()?.0;
             self.expect("=")?;
@@ -636,6 +666,12 @@ impl Parser {
                     parent,
                     operation,
                 });
+            }
+            if self.consume("pack") {
+                self.expect("(")?;
+                let owner = self.name()?.0;
+                self.expect(")")?;
+                return Ok(Numerical::PackMap { name, owner });
             }
             if self.consume("owned") {
                 self.expect("(")?;
@@ -911,6 +947,7 @@ impl Parser {
                 "vector",
                 "evaluate",
                 "hermitian",
+                "unpack",
             ]
             .iter()
             .any(|word| self.peek().is(word))
@@ -945,7 +982,14 @@ impl Parser {
             self.indexed_list("(", ")", |p| {
                 let name = p.name()?.0;
                 p.expect(":")?;
-                let ty = if p.consume("OwnedMap") {
+                let ty = if p.consume("OwnedMapTo") {
+                    p.expect("<")?;
+                    let source = p.name()?.0;
+                    p.expect(",")?;
+                    let dimension = p.resource_number()?;
+                    p.expect(">")?;
+                    ResultType::Numerical(NumericalResult::OwnedMapTo { source, dimension })
+                } else if p.consume("OwnedMap") {
                     p.expect("<")?;
                     let source = p.name()?.0;
                     p.expect(",")?;

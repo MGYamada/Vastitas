@@ -255,6 +255,8 @@ The implemented public scope also includes dependent numerical inputs with stati
 dimension contracts, initialized `OwnedMap` inputs/results preserving allocation
 and layout, and explicit real/complex alpha/beta or coefficients read from
 initialized scalar loans. See [the numerical contracts](numerical-values.md).
+[Owned-map packages](owned-map-packages.md) additionally transfer one hidden
+primal target and its basis, with consuming fresh unpack and no runtime copy.
 [Typed transforms](linear-transforms.md) supply explicit dual/conjugate origins,
 corresponding bases and declared orthonormal metric evidence for direct adjoints;
 raw component flags do not supply that authority.
@@ -272,7 +274,7 @@ raw resource GEMM with otherwise valid statement metadata is rejected by the
 public action decoder. Both OS numerical CI jobs explicitly run the
 OpenBLAS-dependent tests; normal compiler checks remain BLAS-free.
 
-Generative numerical result packages, general scalar expressions and dynamic
+General generative numerical result packages, scalar expressions and dynamic
 shape interfaces, general metric realization/transport, higher-rank or multi-edge
 networks, explicit packing and broader scratch/dependency handling remain work.
 Equivalent-C runtime, allocation/copy and peak-memory

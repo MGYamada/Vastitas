@@ -2,8 +2,10 @@
 
 This experiment extends the measurement conventions of
 [`storage_copy`](../storage_copy/README.md) to **public protocol 8** after #321.
-It adds no production API, mandatory CI job, performance threshold or package
-gate. It does not close #222, establish Stage 1 completion, prove native
+It adds no production API, performance threshold or package gate. A separate
+Linux smoke workflow validates changes to this experiment on both push and
+pull_request, and can also be dispatched manually. It does not close #222,
+establish Stage 1 completion, prove native
 refinement, or establish general C/C++ performance equivalence.
 
 Recorded validation summary: [2026-10-31 — performance unmeasured](results/2026-10-31-linux-unmeasured/RESULTS.md).

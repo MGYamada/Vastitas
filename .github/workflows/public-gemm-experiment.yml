@@ -1,0 +1,76 @@
+name: Public GEMM experiment
+
+on:
+  push:
+    paths:
+      - 'experiments/public_gemm/**'
+      - '.github/workflows/public-gemm-experiment.yml'
+  pull_request:
+    paths:
+      - 'experiments/public_gemm/**'
+      - '.github/workflows/public-gemm-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '1'
+  GOTO_NUM_THREADS: '1'
+
+jobs:
+  smoke:
+    name: Public GEMM generated-path smoke (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
+      - name: Build the independent kernel
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-kernel
+          auto-config: false
+          build: true
+          build-args: vastitas-kernel
+          use-mathlib-cache: false
+      - name: Build pinned sequential LP64 OpenBLAS
+        run: python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/gemm-openblas" --jobs 4 --target HASWELL
+      - name: Build frontend and check the harness
+        run: |
+          cargo build --release --locked
+          python3 experiments/public_gemm/test_harness.py
+      - name: Validate generated execution and paired output/costs
+        run: |
+          python3 experiments/public_gemm/run.py \
+            --prefix "$RUNNER_TEMP/gemm-openblas" \
+            --output "$RUNNER_TEMP/public-gemm-smoke" \
+            --smoke --samples 3 --target-ms 0.1
+          cat "$RUNNER_TEMP/public-gemm-smoke/status.json"
+      - name: Retain smoke diagnostics (not performance acceptance)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: public-gemm-smoke-${{ github.event_name }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/public-gemm-smoke/*.json
+            ${{ runner.temp }}/public-gemm-smoke/*.md
+            ${{ runner.temp }}/public-gemm-smoke/*.csv
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/Generated.lean
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/Main.lean
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/response.json
+            ${{ runner.temp }}/public-gemm-smoke/cases/**/package/**
+            ${{ runner.temp }}/public-gemm-smoke/source/**

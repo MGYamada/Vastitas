@@ -98,13 +98,22 @@ overlap. Unsupported layouts are rejected; no implicit packing or alias-repair
 copy is introduced. CBLAS receives column-major buffers through one direct
 `dgemm` or `zgemm` call for nondegenerate compatible operands.
 
-Transposed layouts select T without conjugation. An explicit conjugation request
-with a transposed complex view selects C. Conjugation without transpose and
-transposed output are rejected by this initial adapter. These flags do not confer
-mathematical dual/adjoint authority: direct adjoints still need checked endpoint,
-basis and orthonormal metric evidence before the future caller can select C.
-Real conjugate-transpose uses T. Complex scalars and arrays use two adjacent
-binary64 components; alpha/beta use the CBLAS pointer convention.
+Transpose and conjugation are independent input operations. Complex inputs use
+N (neither), T (transpose), R (conjugation without transpose), or C (both).
+The pinned OpenBLAS [CBLAS interface](https://github.com/OpenMathLib/OpenBLAS/blob/v0.3.34/cblas.h)
+and [GEMM implementation](https://github.com/OpenMathLib/OpenBLAS/blob/v0.3.34/interface/gemm.c)
+provide `CblasConjNoTrans` for R; the adapter passes it directly without adding a
+packing buffer or copy. This is a contract with the pinned backend, not a claim
+of portability to every BLAS implementation. Real conjugation is the identity,
+so its two orientations remain N and T. Transposed output is still rejected.
+Conjugation never swaps dimensions, changes physical byte regions, or conjugates
+the explicit alpha/beta coefficients.
+
+These raw flags do not confer mathematical dual/adjoint authority: public typed
+dual/conjugate/adjoint operations remain pending, and direct adjoints still need
+checked endpoint, basis and orthonormal metric evidence before a future typed
+caller can select C. Complex scalars and arrays use two adjacent binary64
+components; alpha/beta use the CBLAS pointer convention.
 
 An empty output performs no matrix element access and no kernel call; explicit
 coefficient views are still checked and read. For nonempty output and zero inner
@@ -117,8 +126,11 @@ its contract are outside this guarantee.
 
 ## Evidence and remaining obligations
 
-Tests cover the real and complex 2×3 by 3×2 examples, transpose combinations,
-padded/shifted views, T versus C on `[i]`, read aliases, output reuse, empty shapes,
+Tests cover real and complex 2×3 by 3×2 products for all 16 pairs of independent
+transpose/conjugation flags, with compact and padded/shifted views. An independent
+small-integer reference loop checks complex results; input values and output
+padding guards remain unchanged. Tests also cover T versus C on `[i]`, read
+aliases, output reuse, empty shapes,
 input/output alias rejection, scalar mismatch, bounds and narrowing failures.
 Overwrite is exercised with genuinely uninitialized malloc-backed output and
 with old NaNs. NaN/Inf inputs are accepted; no implicit finite scan occurs.
@@ -190,13 +202,20 @@ The regression consumer demonstrates a dependency-specific `openblas` Lake optio
 `VastitasOracle.StorageGemm` imports the actual checker. It proves the exact
 accepted transition, input initialization, accumulate's old-output requirement,
 input/output byte separation and initialized output bytes in the actual logical
-post-state. Existing exact-lowering and closed-exit theorems cover these actions.
+post-state. `conjugation_preserves_resource_obligations` proves that changing
+either explicit conjugation flag preserves the entire physical resource
+predicate. `emitted_operation` connects the actual accepted request, reconstructed
+views, flags and coefficients to the exact native instruction. Existing
+exact-lowering and closed-exit theorems cover these actions.
 It does not prove nominal map typing, ideal matrix multiplication, floating-point
 results, native no-read behavior or source/native refinement.
 
 The shared Rust/Lean fixture executes real and complex rectangular products,
 overwrite into uninitialized output and accumulate in reused output. Native tests
-also cover T versus C on `[i]`, empty output, zero inner dimension, failure cleanup,
+also cover all 16 complex N/T/R/C pairs on rectangular padded views through the
+actual checker, generated Lean FFI and native execution, with non-real alpha/beta
+and destination reuse. They cover T versus C on `[i]`, empty output, zero inner
+dimension, failure cleanup,
 and header dependency rebuilding. Forged native IDs/layouts/flags/modes, unavailable
 or suspended loans, wrong shapes, input/output aliases, uninitialized reads and
 branch-only initialization are rejected. Numerical CI runs the actual generated

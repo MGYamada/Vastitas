@@ -7,6 +7,26 @@ namespace VastitasOracle.StorageGemm
 open VastitasKernel.Storage StorageRegions StorageSafety
 attribute [local simp] Except.bind Except.map Except.pure bind pure Functor.map
 
+/-- Conjugation changes numerical interpretation, not logical dimensions,
+allocation provenance or access obligations. Both flags preserve the entire
+resource predicate; they do not grant nominal dual or metric authority. -/
+theorem conjugation_preserves_resource_obligations (state : State) (request : Gemm)
+    (operands : GemmOperands) (left right : Bool) :
+    operands.valid state {request with conjugateLeft := left, conjugateRight := right} =
+      operands.valid state request := rfl
+
+/-- The exact accepted raw request supplies both flags unchanged to native
+lowering, together with its reconstructed physical views and coefficients.
+This is not a floating-point or native-refinement theorem. -/
+theorem emitted_operation {state : State} {request : Gemm} {checked : CheckedGemm state request}
+    (accepted : checkGemm state request = .ok checked) :
+    Native.action state (.gemm request) = .ok [
+      .gemm checked.operands.left.allocation checked.operands.left.layout request.conjugateLeft
+        checked.operands.right.allocation checked.operands.right.layout request.conjugateRight
+        checked.operands.output.allocation checked.operands.output.layout request.mode request.policy
+        checked.alpha.value checked.beta.value] := by
+  simp [Native.action, accepted]
+
 theorem accepted_transition {state after : State} {request : Gemm}
     (accepted : checkAction state (.gemm request) = .ok after) :
     ∃ checked : CheckedGemm state request, checkGemm state request = .ok checked ∧
@@ -34,7 +54,7 @@ theorem output_subject {state : State} {request : Gemm} (checked : CheckedGemm s
     state.allocation? checked.operands.output.allocation = some checked.operands.outputAllocation := by
   have valid := checked.valid
   simp only [GemmOperands.valid, Bool.and_eq_true, decide_eq_true_eq] at valid
-  exact valid.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.2
+  exact valid.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.1.2
 
 theorem input_bytes {state : State} {request : Gemm} (checked : CheckedGemm state request)
     {byte : Nat} (inside : ContainsByte checked.operands.left.layout checked.operands.leftAllocation.scalar byte) :
@@ -48,7 +68,7 @@ theorem accumulate_initialization {state : State} {request : Gemm}
   have valid := checked.valid
   simp only [GemmOperands.valid, Bool.and_eq_true] at valid
   constructor
-  · simpa [mode] using valid.1.1.1.1.1.1.1.1.1.1.1.1.1.2
+  · simpa [mode] using valid.1.1.1.1.1.1.1.1.1.1.1.2
   · simpa [mode] using valid.1.1.2
 
 theorem output_separation {state : State} {request : Gemm} (checked : CheckedGemm state request) :

@@ -43,7 +43,8 @@ static void real_orientations(void) {
     const double left[2][3] = {{1,2,3},{4,5,6}};
     const double right[3][2] = {{7,8},{9,10},{11,12}};
     const double product[2][2] = {{58,64},{139,154}};
-    for (int ta=0; ta<2; ++ta) for (int tb=0; tb<2; ++tb) for (int pad=0;pad<2;++pad) {
+    for (int ta=0; ta<2; ++ta) for (int tb=0; tb<2; ++tb) for (int pad=0;pad<2;++pad)
+    for (int ca=0; ca<2; ++ca) for (int cb=0; cb<2; ++cb) {
         VStorageArena *arena = vstorage_new(4096);
         assert(arena);
         VStorageLayout a=layout(2,3,ta,pad), b=layout(3,2,tb,pad), c=layout(2,2,0,pad);
@@ -53,10 +54,10 @@ static void real_orientations(void) {
         VStorageStats before=vstorage_stats(arena);
         VGemmReport report={99,99};
         /* Output is malloc-backed and deliberately uninitialized. */
-        assert(vgemm_execute(arena,0,a,0,1,b,0,2,c,VGEMM_OVERWRITE,&report)==VS_OK);
+        assert(vgemm_execute(arena,0,a,ca,1,b,cb,2,c,VGEMM_OVERWRITE,&report)==VS_OK);
         assert(report.kernel_calls==1 && report.written_bytes==32);
         for(int i=0;i<2;++i) for(int j=0;j<2;++j) expect(arena,2,c,i,j,product[i][j],0);
-        assert(vgemm_execute(arena,0,a,0,1,b,0,2,c,VGEMM_ACCUMULATE,&report)==VS_OK);
+        assert(vgemm_execute(arena,0,a,ca,1,b,cb,2,c,VGEMM_ACCUMULATE,&report)==VS_OK);
         for(int i=0;i<2;++i) for(int j=0;j<2;++j) expect(arena,2,c,i,j,2*product[i][j],0);
         for(int i=0;i<2;++i) for(int j=0;j<3;++j) expect(arena,0,a,i,j,left[i][j],0);
         for(int i=0;i<3;++i) for(int j=0;j<2;++j) expect(arena,1,b,i,j,right[i][j],0);
@@ -68,19 +69,49 @@ static void real_orientations(void) {
 }
 
 static void complex_product(void) {
-    const double left[2][3][2]={{{1,0},{0,1},{2,0}},{{0,0},{1,0},{0,-1}}};
-    const double right[3][2][2]={{{1,0},{0,0}},{{2,0},{1,0}},{{0,0},{0,1}}};
-    const double product[2][2][2]={{{1,2},{0,3}},{{2,0},{2,0}}};
-    for(int ta=0;ta<2;++ta) for(int tb=0;tb<2;++tb) {
+    const double left[2][3][2]={{{1,2},{3,5},{7,11}},{{13,17},{19,23},{29,31}}};
+    const double right[3][2][2]={{{37,41},{43,47}},{{53,59},{61,67}},{{71,73},{79,83}}};
+    /* N, T, R (conjugation only), C on both operands, independently of padding.
+     * All arithmetic is exact for these small integers; the reference loop
+     * uses logical entries rather than the adapter's storage/CBLAS mapping. */
+    for(int ta=0;ta<2;++ta) for(int tb=0;tb<2;++tb) for(int pad=0;pad<2;++pad)
+    for(int ca=0;ca<2;++ca) for(int cb=0;cb<2;++cb) {
         VStorageArena *arena=vstorage_new(4096); assert(arena);
-        VStorageLayout a=layout(2,3,ta,1),b=layout(3,2,tb,1),c=layout(2,2,0,1);
+        VStorageLayout a=layout(2,3,ta,pad),b=layout(3,2,tb,pad),c=layout(2,2,0,pad);
         allocate(arena,0,1,a); allocate(arena,1,1,b); allocate(arena,2,1,c);
         for(int i=0;i<2;++i) for(int j=0;j<3;++j) put(arena,0,a,i,j,1,left[i][j][0],left[i][j][1]);
         for(int i=0;i<3;++i) for(int j=0;j<2;++j) put(arena,1,b,i,j,1,right[i][j][0],right[i][j][1]);
+        double product[2][2][2]={0};
+        for(int i=0;i<2;++i) for(int j=0;j<2;++j) for(int k=0;k<3;++k) {
+            double ar=left[i][k][0], ai=(ca?-1:1)*left[i][k][1];
+            double br=right[k][j][0], bi=(cb?-1:1)*right[k][j][1];
+            product[i][j][0]+=ar*br-ai*bi;
+            product[i][j][1]+=ar*bi+ai*br;
+        }
+        /* Initialize only non-output cells as guards; C itself remains malloc
+         * backed and uninitialized for the first overwrite. */
+        uint64_t count=c.offset/16+c.leading*c.columns;
+        VStorageLayout whole=layout(count,1,0,0);
+        for(uint64_t index=0;index<count;++index) {
+            int in_output=index>=c.offset/16 && (index-c.offset/16)%c.leading<c.rows;
+            if(!in_output) put(arena,2,whole,index,0,1,123,-456);
+        }
+        VStorageStats before=vstorage_stats(arena);
         VGemmReport report;
-        assert(vgemm_execute(arena,0,a,0,1,b,0,2,c,VGEMM_OVERWRITE,&report)==VS_OK);
+        assert(vgemm_execute(arena,0,a,ca,1,b,cb,2,c,VGEMM_OVERWRITE,&report)==VS_OK);
         assert(report.kernel_calls==1 && report.written_bytes==64);
         for(int i=0;i<2;++i) for(int j=0;j<2;++j) expect(arena,2,c,i,j,product[i][j][0],product[i][j][1]);
+        assert(vgemm_execute(arena,0,a,ca,1,b,cb,2,c,VGEMM_ACCUMULATE,&report)==VS_OK);
+        for(int i=0;i<2;++i) for(int j=0;j<2;++j) expect(arena,2,c,i,j,2*product[i][j][0],2*product[i][j][1]);
+        for(uint64_t index=0;index<count;++index) {
+            int in_output=index>=c.offset/16 && (index-c.offset/16)%c.leading<c.rows;
+            if(!in_output) expect(arena,2,whole,index,0,123,-456);
+        }
+        for(int i=0;i<2;++i) for(int j=0;j<3;++j) expect(arena,0,a,i,j,left[i][j][0],left[i][j][1]);
+        for(int i=0;i<3;++i) for(int j=0;j<2;++j) expect(arena,1,b,i,j,right[i][j][0],right[i][j][1]);
+        VStorageStats after=vstorage_stats(arena);
+        assert(after.data_allocations==before.data_allocations && after.copied_bytes==before.copied_bytes);
+        assert(after.written_bytes==before.written_bytes+128 && after.peak_bytes==before.peak_bytes);
         cleanup(arena);
     }
 }
@@ -99,6 +130,10 @@ static void conjugation_and_nonfinite(void) {
     expect(arena,2,one,0,0,0,-1);
     /* Read/read aliases are allowed; ordinary multiplication stays bilinear. */
     assert(vgemm_execute(arena,0,one,0,0,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_OK);
+    expect(arena,2,one,0,0,-1,0);
+    assert(vgemm_execute(arena,0,one,1,0,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_OK);
+    expect(arena,2,one,0,0,1,0);
+    assert(vgemm_execute(arena,0,one,1,0,one,1,2,one,VGEMM_OVERWRITE,&report)==VS_OK);
     expect(arena,2,one,0,0,-1,0);
     /* Overwrite is independent of old output NaNs as well as uninitialized bytes. */
     put(arena,2,one,0,0,1,NAN,NAN);
@@ -163,7 +198,11 @@ static void failures_preserve_output(void) {
     assert(vgemm_execute(arena,0,wrong,0,1,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_SHAPE);
     assert(vgemm_execute(arena,0,one,0,1,one,0,0,one,VGEMM_OVERWRITE,&report)==VS_ALIAS);
     assert(vgemm_execute(arena,0,one,0,1,one,0,1,one,VGEMM_OVERWRITE,&report)==VS_ALIAS);
-    assert(vgemm_execute(arena,0,one,1,1,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_OPERATION);
+    assert(vgemm_execute(arena,0,one,1,1,one,1,0,one,VGEMM_OVERWRITE,&report)==VS_ALIAS);
+    assert(vgemm_execute(arena,0,one,2,1,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_OPERATION);
+    assert(vgemm_execute(arena,0,one,0,1,one,2,2,one,VGEMM_OVERWRITE,&report)==VS_OPERATION);
+    wrong=one; wrong.transposed=1;
+    assert(vgemm_execute(arena,0,one,1,1,one,1,2,wrong,VGEMM_OVERWRITE,&report)==VS_OPERATION);
     assert(vgemm_execute(arena,0,one,0,1,one,0,2,one,(VGemmMode)2,&report)==VS_OPERATION);
     assert(vgemm_execute(arena,0,one,0,3,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_SCALAR);
     assert(vgemm_execute(arena,0,one,0,99,one,0,2,one,VGEMM_OVERWRITE,&report)==VS_HANDLE);
@@ -264,5 +303,5 @@ int main(void) {
     real_orientations(); complex_product(); conjugation_and_nonfinite();
     degenerate(); nonfinite_inputs(); failures_preserve_output(); coefficients();
     puts(vgemm_configuration());
-    puts("GEMM: real/complex layouts, T/C, reuse, empty dimensions and failure-before-write passed");
+    puts("GEMM: real/complex N/T/R/C layouts, reuse, empty dimensions and failure-before-write passed");
 }

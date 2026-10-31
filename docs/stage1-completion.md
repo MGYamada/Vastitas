@@ -60,6 +60,13 @@ output. Preflight failure must preserve output. Non-numerical compilation and
 execution must work without OpenBLAS. Numerical CI uses one thread. Floating
 point results and the native implementation remain explicit trust boundaries.
 
+The internal GEMM path supports independent transpose and conjugation flags
+(N/T/R/C) without an adapter-created packing buffer. Checker, exact-lowering and
+generated-native regressions cover all operand pairs, physical layout and access
+obligations, complex coefficients and destination reuse. This is execution support
+for the upcoming typed transforms; raw flags do not supply dual, conjugate-space
+or metric evidence, and #67/#91 remain open.
+
 Fast like C is the primary performance and architecture goal. Measure the same
 algorithm, scalar semantics, layout, backend and numerical policy against C,
 including full-operation and prepared-kernel costs. Record allocation/copy counts

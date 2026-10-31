@@ -220,8 +220,6 @@ def GemmOperands.valid (state : State) (request : Gemm) (args : GemmOperands) : 
   args.output.layout.logicalRows == args.left.layout.logicalRows &&
   args.output.layout.logicalColumns == args.right.layout.logicalColumns &&
   !args.output.layout.transposed &&
-  (!request.conjugateLeft || args.left.layout.transposed) &&
-  (!request.conjugateRight || args.right.layout.transposed) &&
   args.leftAllocation.initialization.covers args.leftAllocation.scalar args.left.layout &&
   args.rightAllocation.initialization.covers args.rightAllocation.scalar args.right.layout &&
   (request.mode != .accumulate ||

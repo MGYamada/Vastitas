@@ -1,4 +1,5 @@
 import VastitasKernel.StorageCodegen
+import VastitasKernel.TensorNetwork
 import VastitasKernel.StorageEvaluation
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
@@ -52,6 +53,7 @@ inductive ResultType (Name : Type := Symbol) where
 inductive Statement where
   | action (operation : Action)
   | numerical (operation : Numerical.Operation)
+  | network (graph : TensorNetwork.Graph) (output : Symbol) (policy : NumericalPolicy)
   | call (callee : Nat) (arguments results : List Symbol)
   | branch (condition : Bool) (yes no : List Statement)
   deriving Repr, BEq, Inhabited
@@ -208,6 +210,21 @@ structure NumericalReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (checked.product.request mode policy))] = code
 
+structure NetworkReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  graph : TensorNetwork.Graph
+  output : Symbol
+  policy : NumericalPolicy
+  checked : TensorNetwork.Checked environment resources values graph output policy
+  accepted : TensorNetwork.check environment resources values graph output policy = .ok checked
+  after : State
+  transitioned : checkAction resources (.gemm checked.request) = .ok after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.gemm checked.request)] = code
+
 structure TransformReceipt where
   environment : Indexed.Environment
   resources : State
@@ -360,6 +377,7 @@ structure Context where
   environment : Indexed.Environment := []
   numerical : Numerical.Values := []
   products : Array NumericalReceipt := #[]
+  networks : Array NetworkReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
   outputs : Array NumericalResultReceipt := #[]
   transfers : Array OwnedMapTransfer := #[]
@@ -466,6 +484,33 @@ def operation (frame : Frame) : Action → M Frame
     let beta ← lowerCoefficient frame request.beta
     step (.gemm {request with left, right, output, alpha, beta})
     return frame
+
+private structure ProductEmission (resources : State) (request : Gemm) (priorCode : List Storage.Statement) where
+  after : State
+  transitioned : checkAction resources (.gemm request) = .ok after
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.gemm request)] = code
+
+private def emitProduct (context : Context) {left right output mode policy alpha beta}
+    (checked : Numerical.CheckedProduct context.environment context.resources context.numerical
+      left right output mode policy alpha beta)
+    (accepted : Numerical.checkProduct context.environment context.resources context.numerical
+      left right output mode policy alpha beta = .ok checked) :
+    M (ProductEmission context.resources (checked.product.request mode policy) context.code.toList) := do
+  step (.gemm (checked.product.request mode policy))
+  let after ← get
+  match transitioned : checkAction context.resources (.gemm (checked.product.request mode policy)) with
+  | .error diagnostic => throw diagnostic
+  | .ok resources =>
+    if same : resources = after.resources then
+      if emitted : context.code.toList ++ [.action (.gemm (checked.product.request mode policy))] = after.code.toList then
+        let receipt : NumericalReceipt :=
+          ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy, alpha, beta,
+            checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted⟩
+        set {after with products := after.products.push receipt}
+        return ⟨after.resources, same ▸ transitioned, after.code.toList, emitted⟩
+      else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its emitted schedule"⟩
+    else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its resource transition"⟩
 
 /-- Values share the activation's fresh-name supply, but never enter the native
 heap. Only the checked product's exact physical request enters the schedule. -/
@@ -577,20 +622,8 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         left right output mode policy alpha beta with
     | .error diagnostic => throw diagnostic
     | .ok checked =>
-      step (.gemm (checked.product.request mode policy))
-      let after ← get
-      match transitioned : checkAction context.resources (.gemm (checked.product.request mode policy)) with
-      | .error diagnostic => throw diagnostic
-      | .ok resources =>
-        if same : resources = after.resources then
-          if emitted : context.code.toList ++ [.action (.gemm (checked.product.request mode policy))] = after.code.toList then
-            let receipt : NumericalReceipt :=
-              ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy, alpha, beta,
-                checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted⟩
-            set {after with products := after.products.push receipt}
-            return frame
-          else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its emitted schedule"⟩
-        else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its resource transition"⟩
+      let _ ← emitProduct context checked accepted
+      return frame
   | other =>
     let (frame, operation) ← match other with
       | .space name implementation dimension => do
@@ -781,6 +814,22 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
     throw ⟨"E_RESOURCE_ESCAPE", "local owner was neither dropped nor returned"⟩
   return returned
 
+def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
+    (policy : NumericalPolicy) : M Frame := do
+  unless graph.Bounded do throw ⟨"E_NETWORK", "unsupported network profile"⟩
+  let graph ← (graph.mapM (resolve frame) : Except Error TensorNetwork.Graph)
+  let output ← resolve frame output
+  let context ← get
+  match accepted : TensorNetwork.check context.environment context.resources context.numerical graph output policy with
+  | .error diagnostic => throw diagnostic
+  | .ok checked =>
+    let receipt ← emitProduct context checked.product checked.acceptedProduct
+    let network : NetworkReceipt := ⟨context.environment, context.resources, context.numerical,
+      graph, output, policy, checked, accepted, receipt.after, receipt.transitioned,
+      context.code.toList, receipt.code, receipt.emitted⟩
+    modify fun after => {after with networks := after.networks.push network}
+    return frame
+
 mutual
   def expand : Nat → List Function → List Nat → Frame → List Statement → M Frame
     | _, _, _, frame, [] => pure frame
@@ -790,6 +839,7 @@ mutual
       let after ← match first with
         | .action action => operation frame action
         | .numerical op => numericalOperation frame op
+        | .network graph output policy => networkOperation frame graph output policy
         | .call callee actuals outputs => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
           let returned ← invoke fuel functions stack callee actuals
@@ -808,6 +858,7 @@ mutual
             code := #[]
             calls := #[]
             products := #[]
+            networks := #[]
             inputs := #[]
             outputs := #[]
             transfers := #[]
@@ -822,6 +873,7 @@ mutual
             code := #[]
             calls := #[]
             products := #[]
+            networks := #[]
             inputs := #[]
             outputs := #[]
             transfers := #[]
@@ -838,6 +890,7 @@ mutual
             calls := before.calls ++ left.calls ++ right.calls
             numerical := before.numerical
             products := before.products ++ left.products ++ right.products
+            networks := before.networks ++ left.networks ++ right.networks
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
             transfers := before.transfers ++ left.transfers ++ right.transfers

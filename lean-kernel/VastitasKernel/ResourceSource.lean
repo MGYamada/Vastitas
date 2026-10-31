@@ -79,6 +79,7 @@ inductive NumericalOperation where
 inductive Statement where
   | action (operation : Action) (span : Span)
   | numerical (operation : NumericalOperation) (span : Span)
+  | network (graph : TensorNetwork.Graph String) (output : String) (policy : NumericalPolicy) (span : Span)
   | call (callee : Indexed.Source.Path) (arguments results : List String) (span : Span)
   | branch (condition : Bool) (yes no : List Statement) (span : Span)
   deriving Repr, Inhabited
@@ -320,6 +321,11 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     | .action action span => do
       let (frame, action) ← lowerAction index scope frame span action
       pure (frame, .action action)
+    | .network graph output policy span => do
+      unless graph.Bounded do throw {code := "E_NETWORK", message := "unsupported two-map network profile", span}
+      let graph ← graph.mapM (fun value => Prod.fst <$> lookup frame value span)
+      let output := (← lookup frame output span).1
+      pure (frame, .network graph output policy)
     | .numerical operation span => do
       let (frame, operation) ← lowerNumerical index caller scope frame span operation
       pure (frame, .numerical operation)
@@ -502,6 +508,7 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   inputOrigins : ∀ receipt ∈ checked.context.inputs.toList, receipt.environment = environment
   outputOrigins : ∀ receipt ∈ checked.context.outputs.toList, receipt.environment = environment
   transformOrigins : ∀ receipt ∈ checked.context.transforms.toList, receipt.environment = environment
+  networkOrigins : ∀ receipt ∈ checked.context.networks.toList, receipt.environment = environment
   vectorOrigins : ∀ receipt ∈ checked.context.vectorConjugates.toList, receipt.environment = environment
   evaluationOrigins : ∀ receipt ∈ checked.context.evaluations.toList, receipt.environment = environment
 
@@ -553,18 +560,21 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                         receipt.environment = numericalEnvironment pureProgram then
                       if transformOrigins : ∀ receipt ∈ executable.context.transforms.toList,
                           receipt.environment = numericalEnvironment pureProgram then
-                        if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
+                        if networkOrigins : ∀ receipt ∈ executable.context.networks.toList,
                             receipt.environment = numericalEnvironment pureProgram then
-                          if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                          if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
                               receipt.environment = numericalEnvironment pureProgram then
-                            .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                              library, libraryAccepted, fun actual same => by
-                                have : actual = id := Option.some.inj (same.symm.trans entry)
-                                subst actual
-                                exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                  vectorOrigins, evaluationOrigins⟩⟩
-                          else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
-                        else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                            if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                                receipt.environment = numericalEnvironment pureProgram then
+                              .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                library, libraryAccepted, fun actual same => by
+                                  have : actual = id := Option.some.inj (same.symm.trans entry)
+                                  subst actual
+                                  exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                    networkOrigins, vectorOrigins, evaluationOrigins⟩⟩
+                            else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
+                          else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                        else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
                       else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
                     else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
                   else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"

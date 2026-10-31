@@ -330,8 +330,9 @@ typing; no retained payload-dependent mathematical evidence is introduced.
 For `A : V → W` and `B : U → V`, the destination must represent `U → W`.
 The common middle object **and basis**, and both destination endpoints, must
 match exactly. The initial product is bilinear: no conjugation or metric is
-inserted. Dual, conjugate, adjoint and general metric operations are separate
-remaining work.
+inserted. Explicit [dual/conjugate/adjoint operations](linear-transforms.md) are available;
+general metric realization remains separate work. The [two-map network profile](finite-networks.md)
+adds independent occurrence/port/edge/boundary checks before this same product path.
 
 `checkProduct` reconstructs the three actual views and validates their complete
 value provenance, declaration environment and live resource state. It then

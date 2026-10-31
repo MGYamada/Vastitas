@@ -517,8 +517,51 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum PortRole {
+        Input,
+        Output,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct NetworkPort {
+        pub occurrence: String,
+        pub role: PortRole,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct Occurrence {
+        pub name: String,
+        pub value: String,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct NetworkEdge {
+        pub dual: NetworkPort,
+        pub primal: NetworkPort,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct NetworkGraph {
+        pub occurrences: Vec<Occurrence>,
+        pub edges: Vec<NetworkEdge>,
+        pub inputs: Vec<NetworkPort>,
+        pub outputs: Vec<NetworkPort>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        Network {
+            graph: NetworkGraph,
+            output: String,
+            policy: NumericalPolicy,
+            span: Span,
+        },
         Action {
             action: Action,
             span: Span,

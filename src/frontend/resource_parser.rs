@@ -762,6 +762,100 @@ impl Parser {
         })
     }
 
+    fn network_port(&mut self) -> Result<crate::storage::source::NetworkPort, Diagnostic> {
+        use crate::storage::source::{NetworkPort, PortRole};
+        let occurrence = self.binding_name()?.0;
+        self.expect(".")?;
+        let role = if self.consume("input") {
+            PortRole::Input
+        } else if self.consume("output") {
+            PortRole::Output
+        } else {
+            return Err(diagnostic(
+                "E_NETWORK",
+                "expected input (dual) or output (vector) port",
+                self.peek().span,
+            ));
+        };
+        Ok(NetworkPort { occurrence, role })
+    }
+
+    fn network_statement(&mut self) -> Result<crate::storage::source::Statement, Diagnostic> {
+        use crate::storage::source::{NetworkEdge, NetworkGraph, Occurrence, Statement};
+        let start = self.expect("contract")?.span;
+        self.expect("(")?;
+        let output = self.name()?.0;
+        self.expect(",")?;
+        self.expect("NativeFast")?;
+        self.expect(")")?;
+        self.expect("{")?;
+        let mut graph = NetworkGraph {
+            occurrences: vec![],
+            edges: vec![],
+            inputs: vec![],
+            outputs: vec![],
+        };
+        let mut count = 0;
+        while !self.consume("}") {
+            // Fixed profile: at most two occurrences, one edge, two boundaries.
+            count += 1;
+            if count > 5 {
+                return Err(diagnostic(
+                    "E_NETWORK",
+                    "two-map network exceeds five declarations",
+                    self.peek().span,
+                ));
+            }
+            if self.consume("occurrence") {
+                let name = self.binding_name()?.0;
+                self.expect("=")?;
+                let value = self.name()?.0;
+                graph.occurrences.push(Occurrence { name, value });
+            } else if self.consume("edge") {
+                self.expect("(")?;
+                let dual = self.network_port()?;
+                self.expect(",")?;
+                let primal = self.network_port()?;
+                self.expect(")")?;
+                graph.edges.push(NetworkEdge { dual, primal });
+            } else if self.peek().is("input") || self.peek().is("output") {
+                let input = self.advance().is("input");
+                self.expect("(")?;
+                let port = self.network_port()?;
+                self.expect(")")?;
+                if input {
+                    graph.inputs.push(port);
+                } else {
+                    graph.outputs.push(port);
+                }
+            } else {
+                return Err(diagnostic(
+                    "E_NETWORK",
+                    "expected occurrence, edge, input or output boundary",
+                    self.peek().span,
+                ));
+            }
+            self.expect(";")?;
+        }
+        if graph.occurrences.len() != 2
+            || graph.edges.len() != 1
+            || graph.inputs.len() != 1
+            || graph.outputs.len() != 1
+        {
+            return Err(diagnostic(
+                "E_NETWORK",
+                "two-map network requires two occurrences, one edge and explicit input/output boundaries",
+                start.through(self.previous().span),
+            ));
+        }
+        Ok(Statement::Network {
+            graph,
+            output,
+            policy: NumericalPolicy::NativeFast,
+            span: start.through(self.previous().span),
+        })
+    }
+
     fn resource_statements(
         &mut self,
         depth: usize,
@@ -776,7 +870,9 @@ impl Parser {
         let mut body = Vec::new();
         while !self.peek().is("}") && !self.peek().is("value") {
             let start = self.peek().span;
-            let statement = if self.consume("if") {
+            let statement = if self.peek().is("contract") {
+                self.network_statement()?
+            } else if self.consume("if") {
                 let condition = self.resource_boolean()?;
                 self.expect("{")?;
                 let yes = self.resource_statements(depth + 1)?;

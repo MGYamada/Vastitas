@@ -184,6 +184,30 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
       (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
   | _ => throw "unknown numerical source operation"
 
+private def networkPort (j : Json) : Except String Storage.TensorNetwork.Port := do
+  fields j ["occurrence", "role"]
+  let role ← match ← str j "role" with
+    | "input" => pure Storage.TensorNetwork.Role.input
+    | "output" => pure .output
+    | _ => throw "network port role must be input (algebraic dual) or output (vector)"
+  return ⟨← str j "occurrence", role⟩
+
+private def networkGraph (j : Json) : Except String (Storage.TensorNetwork.Graph String) := do
+  fields j ["occurrences", "edges", "inputs", "outputs"]
+  let occurrences ← array j "occurrences"
+  let edges ← array j "edges"
+  let inputs ← array j "inputs"
+  let outputs ← array j "outputs"
+  unless occurrences.length == 2 && edges.length == 1 && inputs.length == 1 && outputs.length == 1 do
+    throw "two-map network requires two occurrences, one edge and explicit input/output boundaries"
+  let occurrences ← occurrences.mapM fun node => do
+    fields node ["name", "value"]
+    return Storage.TensorNetwork.Occurrence.mk (← str node "name") (← str node "value")
+  let edges ← edges.mapM fun edge => do
+    fields edge ["dual", "primal"]
+    return Storage.TensorNetwork.Edge.mk (← networkPort (← field edge "dual")) (← networkPort (← field edge "primal"))
+  return ⟨occurrences, edges, ← inputs.mapM networkPort, ← outputs.mapM networkPort⟩
+
 private def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []
   | 0, _ :: _ => throw "resource source exceeds decoding depth bound"
@@ -193,6 +217,10 @@ private def statements : Nat → List Json → Except String (List Statement)
       | "action" =>
         fields first ["kind", "action", "span"]
         pure (.action (← action (← field first "action")) span)
+      | "network" =>
+        fields first ["kind", "graph", "output", "policy", "span"]
+        pure (.network (← networkGraph (← field first "graph")) (← str first "output")
+          (← Storage.Wire.numericalPolicy (← str first "policy")) span)
       | "numerical" =>
         fields first ["kind", "operation", "span"]
         pure (.numerical (← numericalOperation (← field first "operation")) span)

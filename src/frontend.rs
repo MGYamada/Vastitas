@@ -283,7 +283,7 @@ impl<'a> Lexer<'a> {
                     self.advance();
                     self.advance();
                     TokenKind::Symbol(op.into())
-                } else if "(){}[]<>,:;=+-*!".contains(ch) {
+                } else if "(){}[]<>,:;=+-*!.".contains(ch) {
                     self.advance();
                     TokenKind::Symbol(ch.to_string())
                 } else {

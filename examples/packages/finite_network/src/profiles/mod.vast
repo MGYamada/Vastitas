@@ -1,0 +1,16 @@
+pub indexed marker RealCoefficients;
+pub indexed marker ComplexCoefficients;
+
+// The geometric smooth base is real even for complex linear fibers.
+pub indexed implementation SmoothScalar(RealCoefficients, scalar_base(smooth, real)) capabilities();
+pub indexed global SmoothBase(SmoothScalar);
+pub indexed implementation RealSmooth(RealCoefficients, linear_descriptor(SmoothBase, real)) capabilities();
+pub indexed implementation ComplexSmooth(ComplexCoefficients, linear_descriptor(SmoothBase, complex)) capabilities();
+
+pub indexed implementation RealScalar(RealCoefficients, scalar_base(scheme, real)) capabilities();
+pub indexed global RealBase(RealScalar);
+pub indexed implementation RealLinear(RealCoefficients, linear_descriptor(RealBase, real)) capabilities();
+
+pub indexed implementation ComplexScalar(ComplexCoefficients, scalar_base(scheme, complex)) capabilities();
+pub indexed global ComplexBase(ComplexScalar);
+pub indexed implementation ComplexLinear(ComplexCoefficients, linear_descriptor(ComplexBase, complex)) capabilities();

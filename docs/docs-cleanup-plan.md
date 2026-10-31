@@ -6,7 +6,7 @@ Status: plan, with English-language preparation completed before Stage 1 at the
 user's request. Book reorganization, mdBook installation, and site publication remain
 after the Stage 1 completion record; none is claimed complete here.
 
-Created: 27 October 2026 (JST). Updated: 29 October 2026 (JST). The inventory now uses
+Created: 27 October 2026 (JST). Updated: 31 October 2026 (JST). The inventory uses
 PR #234's merge `4de22b4` and the documentation in this revision as its baseline.
 The [README](../README.md), [Stage 1 completion ledger](stage1-completion.md), tests,
 and validation records remain the implementation sources of truth. Repeat the

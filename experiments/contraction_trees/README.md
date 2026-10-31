@@ -40,7 +40,7 @@ On macOS add `--no-leak-sanitizer` explicitly because Apple ASan lacks LSan. Lin
 uses ASan/UBSan/LSan by default. `--frontend` and `--kernel` accept already-built
 binaries; no build or acceptance fallback is allowed. `--cc` selects the C compiler
 for both the canonical build and private instrumented build. Output directories
-must not exist. No workflow is installed by this directory.
+must not exist.
 
 The default full mode omits `--smoke`, uses 11 paired samples and targets 5 ms per
 batch. It includes tiny `(2,3,4,5,6)`, small `(7,17,5,11,13)` and bulk
@@ -49,6 +49,24 @@ storage: 12 cases. The small case needs a larger first scratch footprint than th
 second; the others need a larger second footprint. Source size remains bounded:
 three fills and six sparse patches initialize the inputs, plus six full-allocation
 sentinel fills. Three coordinate assertions also execute in the canonical program.
+
+The [Linux workflow](../../.github/workflows/contraction-tree-experiment.yml) runs
+four-case smoke validation on both push and pull-request events affecting the
+harness or its compiler/runtime dependencies. Manual dispatch also offers the full
+twelve-case profile with eleven pairs per scope and a 5 ms calibration target:
+
+```sh
+gh workflow run contraction-tree-experiment.yml --ref REVIEWED_REF -f profile=full
+```
+
+Both profiles require actual public check/build/execution, native ASan/UBSan/LSan
+validation and identical output/cost pairs, with one BLAS thread and a 45-minute
+job cap. Compact source/command/validation/measurement records and large
+disassembly/symbol files are retained as separate artifacts for fourteen days.
+Preserve selected evidence and its exact measured revision before artifact expiry.
+Shared-runner timings remain exploratory; they do not satisfy controlled-host
+performance acceptance, and a calibration target does not guarantee the duration
+of later samples.
 
 ## What is timed
 

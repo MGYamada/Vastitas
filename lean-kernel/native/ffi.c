@@ -75,3 +75,12 @@ LEAN_EXPORT lean_obj_res vastitas_storage_pack3(b_lean_obj_arg arena, uint32_t s
         (VStorageLayout){source_offset,source_rows,source_columns,source_leading,source_transposed}, target,
         (VStorageLayout){target_offset,target_rows,target_columns,target_leading,target_transposed}, i, k, j));
 }
+LEAN_EXPORT lean_obj_res vastitas_storage_regroup3(b_lean_obj_arg arena, uint32_t source,
+        uint64_t source_offset, uint64_t source_rows, uint64_t source_columns, uint64_t source_leading, uint8_t source_transposed,
+        uint32_t target, uint64_t target_offset, uint64_t target_rows, uint64_t target_columns, uint64_t target_leading, uint8_t target_transposed,
+        uint64_t d0, uint64_t d1, uint64_t d2, uint64_t input_grouping, uint64_t output_grouping) {
+    return result(vstorage_regroup3(arena_data(arena), source,
+        (VStorageLayout){source_offset,source_rows,source_columns,source_leading,source_transposed}, target,
+        (VStorageLayout){target_offset,target_rows,target_columns,target_leading,target_transposed},
+        d0, d1, d2, input_grouping, output_grouping));
+}

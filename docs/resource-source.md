@@ -188,3 +188,9 @@ full source/native refinement remain pending.
 [packing dependency contract](cached-packing.md). Cache names are lexical metadata
 with no parameter/result or escaping package form. All-body and both-branch checks
 include their capture, consumer and cleanup schedules.
+
+[Bounded contraction trees](contraction-trees.md) add explicit unresolved finite
+graphs, ordered ports and caller-supplied regroup/GEMM plans. The full public
+checker independently resolves their nominal axes and resource names, retains
+actual producer/event receipts from both branches and audits their declaration
+environment alongside package and packing-cache receipts.

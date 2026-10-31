@@ -207,3 +207,11 @@ dynamic shapes, general scratch reuse, dependency retention and equivalent-C
 measurements remain required. Native liveness, writes and cleanup have the tests
 above but no native refinement theorem. Pure indexed Core theorems do not imply
 these mutable-resource guarantees, and this increment does not close #183.
+
+The internal `regroup3` action carries three physical extents and explicit
+input/output axis groupings. It checks complete nontransposed rectangles,
+initialization, scalar agreement and byte separation, then performs exactly one
+`markWritten` transition on the destination, including cache invalidation.
+Public nominal axes and connected producer authority come from the separate
+[contraction-tree checker](contraction-trees.md). Rank-two regrouping uses a
+proved neutral physical extent and creates no nominal third axis.

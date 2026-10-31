@@ -345,3 +345,86 @@ VStorageStatus vstorage_pack3(VStorageArena *arena, uint32_t source, VStorageLay
     arena->stats.copied_bytes += b.bytes;
     return VS_OK;
 }
+
+typedef struct {
+    unsigned order[3], split;
+    uint64_t rows, columns;
+} Grouping3;
+
+static int grouping3(uint64_t code, const uint64_t dimensions[3], Grouping3 *out) {
+    if (code >= 54) return 0;
+    out->split = (unsigned)(code / 27) + 1;
+    code %= 27;
+    for (unsigned axis = 0; axis < 3; ++axis) {
+        out->order[axis] = (unsigned)(code % 3);
+        code /= 3;
+    }
+    if (out->order[0] == out->order[1] || out->order[0] == out->order[2] ||
+        out->order[1] == out->order[2]) return 0;
+    out->rows = dimensions[out->order[0]];
+    out->columns = dimensions[out->order[2]];
+    /* Each axis is bounded by INT32_MAX; a pair product fits INT64_MAX. */
+    if (out->split == 1) out->columns *= dimensions[out->order[1]];
+    else out->rows *= dimensions[out->order[1]];
+    return 1;
+}
+
+/* Called only for nonempty, fully prepared rectangles. These physical strides
+ * are bounded by their already checked envelopes; no coordinate can overflow. */
+static void grouping3_strides(const Grouping3 *grouping, const uint64_t dimensions[3],
+                              const Prepared *view, uint64_t strides[3]) {
+    strides[grouping->order[0]] = view->row_step;
+    if (grouping->split == 1) {
+        strides[grouping->order[1]] = view->column_step;
+        strides[grouping->order[2]] = dimensions[grouping->order[1]] * view->column_step;
+    } else {
+        strides[grouping->order[1]] = dimensions[grouping->order[0]] * view->row_step;
+        strides[grouping->order[2]] = view->column_step;
+    }
+}
+
+VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorageLayout input,
+                                uint32_t target, VStorageLayout output,
+                                uint64_t d0, uint64_t d1, uint64_t d2,
+                                uint64_t input_grouping, uint64_t output_grouping) {
+    Prepared a, b;
+    VStorageStatus status = prepare(arena, source, input, &a);
+    if (status != VS_OK) return status;
+    status = prepare(arena, target, output, &b);
+    if (status != VS_OK) return status;
+    if (input.transposed || output.transposed) return VS_OPERATION;
+    if (d0 > INT32_MAX || d1 > INT32_MAX || d2 > INT32_MAX) return VS_LAYOUT;
+    const uint64_t dimensions[3] = {d0,d1,d2};
+    Grouping3 from, to;
+    if (!grouping3(input_grouping, dimensions, &from) ||
+        !grouping3(output_grouping, dimensions, &to)) return VS_OPERATION;
+    uint64_t volume, bytes;
+    if (!multiply(d0, d1, &volume) || !multiply(volume, d2, &volume) ||
+        !multiply(volume, a.components * 8, &bytes)) return VS_OVERFLOW;
+    if (input.rows != from.rows || input.columns != from.columns ||
+        output.rows != to.rows || output.columns != to.columns) return VS_SHAPE;
+    if (a.buffer->scalar != b.buffer->scalar) return VS_SCALAR;
+    /* Empty descriptors still pass handles, grouping, scalar, shape and bounds
+     * checks. No data pointer, write or counter change occurs for any zero axis. */
+    if (!bytes) return VS_OK;
+    if (source == target && !(a.end <= b.start || b.end <= a.start)) return VS_ALIAS;
+    if (!counter_fits(arena->stats.written_bytes, bytes) ||
+        !counter_fits(arena->stats.copied_bytes, bytes)) return VS_OVERFLOW;
+    uint64_t source_stride[3], target_stride[3];
+    grouping3_strides(&from, dimensions, &a, source_stride);
+    grouping3_strides(&to, dimensions, &b, target_stride);
+    const double *source_data = a.buffer->data + a.start / 8;
+    double *target_data = b.buffer->data + b.start / 8;
+    for (uint64_t x2 = 0; x2 < d2; ++x2)
+        for (uint64_t x1 = 0; x1 < d1; ++x1)
+            for (uint64_t x0 = 0; x0 < d0; ++x0) {
+                uint64_t src = x0 * source_stride[0] + x1 * source_stride[1] + x2 * source_stride[2];
+                uint64_t dst = x0 * target_stride[0] + x1 * target_stride[1] + x2 * target_stride[2];
+                /* memcpy never evaluates signaling NaNs or changes zero bits. */
+                if (a.components == 1) memcpy(target_data + dst, source_data + src, 8);
+                else memcpy(target_data + dst, source_data + src, 16);
+            }
+    arena->stats.written_bytes += bytes;
+    arena->stats.copied_bytes += bytes;
+    return VS_OK;
+}

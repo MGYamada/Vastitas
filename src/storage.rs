@@ -128,6 +128,13 @@ pub enum Action {
         k: u64,
         j: u64,
     },
+    Regroup3 {
+        source: u32,
+        target: u32,
+        dimensions: Vec<u64>,
+        input: source::TensorGrouping,
+        output: source::TensorGrouping,
+    },
     // Internal resource operation only. Public source additionally needs
     // nominal endpoint/frame/metric validation before selecting this backend.
     Gemm {
@@ -629,8 +636,67 @@ pub mod source {
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TreePort {
+        pub occurrence: String,
+        pub axis: u64,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TreeEdge {
+        pub name: String,
+        pub dual: TreePort,
+        pub primal: TreePort,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct TreeGraph {
+        pub occurrences: Vec<Occurrence>,
+        pub edges: Vec<TreeEdge>,
+        pub boundary: Vec<TreePort>,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum TreeStep {
+        Action {
+            action: Action,
+        },
+        View {
+            name: String,
+            loan: String,
+            axes: Vec<String>,
+            grouping: TensorGrouping,
+        },
+        Regroup {
+            component: String,
+            target: String,
+        },
+        Rebind {
+            component: String,
+            view: String,
+        },
+        Join {
+            name: String,
+            edge: String,
+            left: String,
+            right: String,
+            output: String,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Statement {
+        Tree {
+            graph: TreeGraph,
+            output: String,
+            policy: NumericalPolicy,
+            plan: Vec<TreeStep>,
+            span: Span,
+        },
         Tensor {
             operation: Tensor,
             span: Span,

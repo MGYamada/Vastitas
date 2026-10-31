@@ -34,5 +34,9 @@ opaque copy (arena : @& Arena) (source : UInt32) (sourceOffset sourceRows source
 opaque pack3 (arena : @& Arena) (source : UInt32) (sourceOffset sourceRows sourceColumns sourceLeading : UInt64)
   (sourceTransposed : Bool) (target : UInt32) (targetOffset targetRows targetColumns targetLeading : UInt64)
   (targetTransposed : Bool) (i k j : UInt64) : IO Unit
+@[extern "vastitas_storage_regroup3"]
+opaque regroup3 (arena : @& Arena) (source : UInt32) (sourceOffset sourceRows sourceColumns sourceLeading : UInt64)
+  (sourceTransposed : Bool) (target : UInt32) (targetOffset targetRows targetColumns targetLeading : UInt64)
+  (targetTransposed : Bool) (d0 d1 d2 inputGrouping outputGrouping : UInt64) : IO Unit
 
 end VastitasStorageNative

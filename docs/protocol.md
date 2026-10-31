@@ -529,3 +529,7 @@ It reuses the diagnostic payload above without changing this wire protocol or
 the driver's preservation of diagnostics on incompatible failure responses.
 The Python reference and fixture regressions do not implement production driver
 receipts, doctest execution, or official package admission.
+
+The additive protocol-8 `network` resource statement and its strict finite graph
+schema are specified in [finite-networks.md](finite-networks.md). It is checked
+independently before lowering to the existing numerical/storage path.

@@ -393,6 +393,19 @@ by `NumericalRegression`; generated real/complex fixtures provide separate nativ
 execution evidence. Raw internal GEMM operations retain only their resource
 certificate and do not acquire nominal authority from this optional typed path.
 
+The [finite two-map network profile](finite-networks.md) is independently checked
+by `Storage.TensorNetwork` before reusing the existing typed product and exact
+GEMM emitter. `VastitasOracle.TensorNetwork.ports_used_once` derives exact single
+consumption of every occurrence port. `admitted_bilinear_edge`, `output_boundary`
+and `no_implicit_conjugation` retain exact bases, variance and ordered boundaries.
+`same_input_plan`, `actual_lowering` and `public_network_origin` connect the actual
+accepted graph to its deterministic emitted GEMM, resource transition and the
+public checker's declaration environment. These do not prove tensor-category
+laws, floating arithmetic or native refinement. `NetworkRegression` and public
+source/wire/native tests cover nominal mismatches, duplicate/unconnected ports,
+forged transforms, immutable reuse and nested calls. General networks and
+structural nodes remain outside this two-occurrence profile.
+
 The internal [Graph crossing checker](graph-crossings.md) has separate
 profile/port/return audits and conditional structural rewrite theorems in
 `VastitasOracle.Graph`. It does not extend these source/Core evaluation claims

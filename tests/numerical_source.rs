@@ -1501,3 +1501,278 @@ fn typed_linear_transforms_build_execute_real_complex_and_rectangular_calls() {
         assert_eq!(result.stdout, b"42\n");
     }
 }
+
+const NETWORK_REAL: &str = include_str!("../examples/packages/finite_network/src/real/mod.vast");
+const NETWORK_COMPLEX: &str =
+    include_str!("../examples/packages/finite_network/src/complex/mod.vast");
+
+fn network_statement<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
+    numerical_body(raw, name)
+        .iter_mut()
+        .find(|s| s["kind"] == "network")
+        .unwrap()
+}
+
+fn network_reuse(complex: bool) -> String {
+    let profile = if complex {
+        "ComplexSmooth"
+    } else {
+        "RealSmooth"
+    };
+    let scalar = if complex { "Complex<F64>" } else { "F64" };
+    let input = if complex {
+        format!("complex_bits({}, {})", 2.0_f64.to_bits(), 3.0_f64.to_bits())
+    } else {
+        format!("f64_bits({})", 2.0_f64.to_bits())
+    };
+    // (2+3i)^2 = -5+12i, not the Hermitian result 13.
+    let expected = if complex {
+        format!(
+            "complex_bits({}, {})",
+            (-5.0_f64).to_bits(),
+            12.0_f64.to_bits()
+        )
+    } else {
+        format!("f64_bits({})", 4.0_f64.to_bits())
+    };
+    format!(
+        "pub resource fn product() -> Unit {{
+        space v = linear(super::profiles::{profile}, 1); basis bv = basis(v);
+        allocate a: {scalar}[1]; allocate c: {scalar}[1];
+        borrow init = write(a, layout(0, 1, 1, 1, false)); fill(init, {input}); release(init);
+        borrow read = read(a, layout(0, 1, 1, 1, false)); map same = view(read, bv, bv);
+        borrow write = write(c, layout(0, 1, 1, 1, false)); map destination = view(write, bv, bv);
+        contract(destination, NativeFast) {{
+            occurrence a = same; occurrence b = same;
+            edge(a.input, b.output); input(b.input); output(a.output);
+        }}
+        release(write); release(read);
+        borrow result = read(c, layout(0, 1, 1, 1, false)); expect(result, 0, 0, {expected});
+        release(result); drop(a); drop(c); value {{ () }}
+    }}"
+    )
+}
+
+#[test]
+fn finite_network_public_source_has_deterministic_gemm_and_no_port_allocations() {
+    let s = fixture(NETWORK_REAL);
+    s.write("src/complex/mod.vast", NETWORK_COMPLEX);
+    success(&command(&s, "check").output().unwrap());
+    let raw = captured(&s);
+    let response = kernel(&raw, "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    let generated = response["lean_source"].as_str().unwrap();
+    assert_eq!(generated.matches("allocate arena").count(), 6);
+    assert_eq!(
+        generated.matches("VastitasGemmNative.gemm arena").count(),
+        2
+    );
+    assert!(!generated.contains("copy arena"));
+    let mut reordered = raw.clone();
+    network_statement(&mut reordered, "real")["graph"]["occurrences"]
+        .as_array_mut()
+        .unwrap()
+        .reverse();
+    assert_eq!(
+        kernel(&reordered, "emit")["lean_source"],
+        response["lean_source"]
+    );
+    {
+        let (real, complex) = (network_reuse(false), network_reuse(true));
+        let reuse = fixture(&real);
+        reuse.write("src/complex/mod.vast", &complex);
+        success(&command(&reuse, "check").output().unwrap());
+        let emission = kernel(captured(&reuse), "emit");
+        assert_eq!(emission["ok"], true, "{emission}");
+        let code = emission["lean_source"].as_str().unwrap();
+        assert_eq!(code.matches("allocate arena").count(), 4);
+        assert!(!code.contains("copy arena"));
+    }
+}
+
+#[test]
+fn finite_network_source_rejects_invalid_ports_and_unlicensed_identifications() {
+    for (before, after) in [
+        ("occurrence b = right;", "occurrence a = right;"),
+        ("input(b.input);", "input(a.input);"),
+        ("output(a.output);", ""),
+        ("output(a.output);", "output(unknown.output);"),
+        ("edge(a.input, b.output);", "edge(a.output, b.output);"),
+        ("edge(a.input, b.output);", "edge(a.input, b.input);"),
+        (
+            "input(b.input);\n        output(a.output);",
+            "input(a.output); output(b.input);",
+        ),
+        (
+            "map right = view(input_b, bu, bv);",
+            "space other = linear(super::profiles::RealSmooth, 3); basis bo = basis(other); map right = view(input_b, bu, bo);",
+        ),
+        (
+            "map right = view(input_b, bu, bv);",
+            "basis bo = basis(v); map right = view(input_b, bu, bo);",
+        ),
+        (
+            "map right = view(input_b, bu, bv);",
+            "space dv = dual(v); basis bdv = derived(bv, dv); map right = view(input_b, bu, bdv);",
+        ),
+        (
+            "map right = view(input_b, bu, bv);",
+            "involution sigma = canonical(v); space cv = conjugate(v, sigma); basis bcv = derived(bv, cv); map right = view(input_b, bu, bcv);",
+        ),
+    ] {
+        assert!(NETWORK_REAL.contains(before));
+        rejection(&fixture(&NETWORK_REAL.replace(before, after)), "E_NETWORK");
+    }
+    // Exact destination endpoints and live storage still use existing checkers.
+    rejection(
+        &fixture(&NETWORK_REAL.replace(
+            "map destination = view(output, bu, bw);",
+            "map destination = view(output, bw, bu);",
+        )),
+        "E_NUMERICAL_TYPE",
+    );
+    rejection(
+        &fixture(&NETWORK_REAL.replace(
+            "contract(destination",
+            "release(input_a); contract(destination",
+        )),
+        "E_NUMERICAL_TYPE",
+    );
+    rejection(
+        &fixture(&network_reuse(false).replace("contract(destination", "contract(same")),
+        "E_RESOURCE_ACCESS",
+    );
+    let unused = fixture(&NETWORK_REAL.replace("input(b.input);", "input(a.input);"));
+    unused.write(
+        "src/main.vast",
+        "mod real; mod complex; mod profiles; fn main() -> Int { 42 }",
+    );
+    rejection(&unused, "E_NETWORK");
+    let branch = NETWORK_REAL.replace("    contract(destination, NativeFast) {", "    if true { gemm(left, right, destination, overwrite, NativeFast); } else { contract(destination, NativeFast) {")
+        .replace("output(a.output);\n    }", "output(a.output);\n    } }")
+        .replace("input(b.input);", "input(a.input);");
+    rejection(&fixture(&branch), "E_NETWORK");
+}
+
+#[test]
+fn finite_network_wire_is_independently_checked_and_fails_closed() {
+    let s = fixture(NETWORK_REAL);
+    let raw = captured(&s);
+    for field in [
+        "conjugate",
+        "metric",
+        "dual_conversion",
+        "certificate",
+        "schedule",
+    ] {
+        let mut changed = raw.clone();
+        network_statement(&mut changed, "real")[field] = json!(true);
+        assert_rejected(changed, "E_PROTOCOL");
+    }
+    for path in ["graph", "occurrence", "edge", "port"] {
+        let mut changed = raw.clone();
+        let graph = &mut network_statement(&mut changed, "real")["graph"];
+        let target = match path {
+            "graph" => graph,
+            "occurrence" => &mut graph["occurrences"][0],
+            "edge" => &mut graph["edges"][0],
+            _ => &mut graph["edges"][0]["dual"],
+        };
+        target["conjugate"] = json!(true);
+        assert_rejected(changed, "E_PROTOCOL");
+    }
+    for (field, value) in [
+        ("inputs", json!([])),
+        ("occurrences", json!([])),
+        ("edges", json!([])),
+    ] {
+        let mut changed = raw.clone();
+        network_statement(&mut changed, "real")["graph"][field] = value;
+        assert_rejected(changed, "E_PROTOCOL");
+    }
+    for role in ["dual", "conjugate", "adjoint"] {
+        let mut changed = raw.clone();
+        network_statement(&mut changed, "real")["graph"]["edges"][0]["dual"]["role"] = json!(role);
+        assert_rejected(changed, "E_PROTOCOL");
+    }
+    let mut changed = raw.clone();
+    network_statement(&mut changed, "real")["graph"]["inputs"][0]["occurrence"] = json!("a");
+    assert_rejected(changed, "E_NETWORK");
+    let mut changed = raw.clone();
+    local_operation(numerical_body(&mut changed, "real"), "right")["target"] = json!("bw");
+    assert_rejected(changed, "E_NUMERICAL_TYPE");
+    for version in [2, 3, 4, 5, 6, 7] {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        assert_eq!(kernel(&changed, "check")["ok"], false);
+    }
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn finite_network_build_execute_rectangular_complex_reuse_and_calls() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let nested = |source: &str, profile: &str| {
+        with_interfaces(source, profile)
+        .replace("gemm(left, right, destination, overwrite, NativeFast);", "contract(destination, NativeFast) { occurrence a = left; occurrence b = right; edge(a.input, b.output); input(b.input); output(a.output); }")
+    };
+    for (real, complex) in [
+        (NETWORK_REAL.to_owned(), NETWORK_COMPLEX.to_owned()),
+        (network_reuse(false), network_reuse(true)),
+        (nested(REAL, "RealSmooth"), nested(COMPLEX, "ComplexSmooth")),
+    ] {
+        let s = fixture(&real);
+        s.write("src/complex/mod.vast", &complex);
+        success(&command(&s, "check").output().unwrap());
+        let mut build = command(&s, "build");
+        build
+            .args(["-o", "program", "--openblas-prefix"])
+            .arg(&prefix);
+        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+            build.arg("--native-cc").arg(cc);
+        }
+        success(&build.output().unwrap());
+        let output = Command::new(s.0.join("program")).output().unwrap();
+        success(&output);
+        assert_eq!(output.stdout, b"42\n");
+    }
+}
+
+#[test]
+fn finite_network_unused_bodies_keep_ordinary_build_independent_of_blas() {
+    let s = fixture(NETWORK_REAL);
+    s.write("src/complex/mod.vast", NETWORK_COMPLEX);
+    s.write(
+        "src/main.vast",
+        "mod real; mod complex; mod profiles; fn main() -> Int { 42 }",
+    );
+    success(&command(&s, "check").output().unwrap());
+    let emission = kernel(captured(&s), "emit");
+    assert_eq!(emission["ok"], true, "{emission}");
+    assert_eq!(emission["numerical_runtime"], false);
+    success(
+        &command(&s, "build")
+            .args(["-o", "ordinary"])
+            .output()
+            .unwrap(),
+    );
+    let output = Command::new(s.0.join("ordinary")).output().unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
+}
+
+#[test]
+fn finite_network_preserves_explicit_transformed_map_authority() {
+    for kind in ["dual", "conjugate", "adjoint"] {
+        let source = rectangular_transform_source(true, kind).replace(
+            "gemm(left, right, output, overwrite, NativeFast);",
+            "contract(output, NativeFast) { occurrence a = left; occurrence b = right; edge(a.input, b.output); input(b.input); output(a.output); }",
+        );
+        success(
+            &command(&transform_fixture(&source), "check")
+                .output()
+                .unwrap(),
+        );
+    }
+}

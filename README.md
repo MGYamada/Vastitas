@@ -321,6 +321,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)
 - [Exact SOS real-cover reference and pending proof obligations](docs/sos-reference.md)
+- [Finite polynomial integral enclosure reference and pending proof obligations](docs/integral-reference.md)
 - [Design v0.3, reorganized by topic](docs/design.md)
 - [Contributor guidance](AGENTS.md)
 

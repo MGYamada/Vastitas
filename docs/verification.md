@@ -427,6 +427,15 @@ Its coordinate-change regressions and nominal-evidence audits are Python
 reference results only; the document lists separate future Lean soundness and
 same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
 
+The [polynomial first-variation reference](variational-reference.md) compares the
+linear epsilon coefficient of the expanded action with a separately computed
+Euler–Lagrange integral plus oriented boundary terms. It checks actual variation
+endpoint values and binds evidence to the complete independent polynomial
+subject. These are finite Python calculations and mutation regressions; general
+function-space differentiation, Lean soundness and the actual returned-Core
+connection remain separate obligations. No implicit metric or gradient, new
+AD engine, integral-enclosure verifier or variational compiler feature is added.
+
 The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
 `RawProgram`) to that core does

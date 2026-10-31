@@ -137,7 +137,14 @@ host performance gate.
 
 The [original full Linux record](results/2026-10-31-linux-full/RESULTS.md) retains
 the coordinate-copy comparator, all raw pairs and its discovered baseline
-limitation. The stronger block-copy baseline requires its own measured revision.
+limitation. The [block-copy Linux record](results/2026-10-31-linux-block-copy/RESULTS.md)
+measures the stronger C baseline at its own clean revision. It retains twelve
+actual public programs, 24 native/sanitizer validations and 1,325 matched pairs.
+Tiny lifecycle paired ratios are 2.0860–2.2248 and small ratios are
+1.2584–1.5559. Bulk lifecycle ratios are 0.9879–1.0320, but the complex contiguous
+interval extends to 1.1282. These shared-host results do not establish the
+performance gate. The two runs used different CPU models, so their ratios do not
+isolate the effect of changing the C loop.
 
 `cases.json`, generated packages, captured wire, kernel response, exact generated
 source, wrapper, private instrumented runtime, commands and compile times are kept.

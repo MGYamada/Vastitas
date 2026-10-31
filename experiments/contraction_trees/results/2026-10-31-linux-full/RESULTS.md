@@ -3,8 +3,8 @@
 Status: actual generated execution, native validation and paired cost records
 passed. These are exploratory shared-host measurements, not performance acceptance.
 The comparator's second regroup copies individual cells. Review found that its
-common contiguous x axis permits a block copy, so the C baseline is being
-strengthened and measured separately. The favorable bulk ratios below cannot
+common contiguous x axis permits a block copy. The stronger comparator now has a
+[separate measured record](../2026-10-31-linux-block-copy/RESULTS.md). The favorable bulk ratios below cannot
 establish performance against that stronger C implementation. This original run
 is retained, including its unfavorable tiny/small results; it is not replaced or
 attributed to later source.
@@ -145,6 +145,7 @@ prevents treating this as an isolated executable-heap measurement. Zero timed
 arena allocations does not establish zero total allocation or backend packing.
 
 A dedicated controlled host is currently unavailable. Its performance gate is
-not waived. The stronger C comparison, runtime/backend allocation attribution,
-tiny-call budget, uncertainty and unmeasured profiles remain open. #69/#183/#222
+not waived. The stronger C comparison has its own linked record; runtime/backend
+allocation attribution, tiny-call budget, uncertainty and unmeasured profiles
+remain open. #69/#183/#222
 and historical Stage 1 are not completed by this record.

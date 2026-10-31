@@ -342,6 +342,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Identifier ASCII round-trip reference and integration contract](docs/identifier-ascii-reference.md)
 - [Finite random-supply, exact-law, and logical-address reference](docs/rand-reference.md)
 - [Exact polynomial first variations and explicit boundary terms](docs/variational-reference.md)
+- [Exact finite spectral schemes and operator-associated modules](docs/finite-spectral-reference.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)
 - [Exact SOS real-cover reference and pending proof obligations](docs/sos-reference.md)

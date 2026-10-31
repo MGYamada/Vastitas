@@ -182,7 +182,8 @@ real/complex rectangular examples through actual source check/build and native
 GEMM. A metadata-only entry with unused valid numerical helpers builds and runs
 without OpenBLAS.
 
-Bilinear dual evaluation, Hermitian pairing execution, general metric
-realization/transport and corresponding ideal identities remain work, as do
+[Vector evaluation](vector-evaluation.md) now executes bilinear dual evaluation
+and explicitly conjugated Hermitian pairing for declared orthonormal forms.
+General metric realization/transport and corresponding ideal identities remain work, as do
 generative numerical packages, dynamic scalar/shape interfaces, finite networks
 and equivalent-C performance acceptance. This increment does not close Stage 1.

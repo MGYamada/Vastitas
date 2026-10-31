@@ -1,0 +1,6 @@
+pub indexed marker R;
+pub indexed marker C;
+pub indexed implementation Scalars(R, scalar_base(smooth, real)) capabilities();
+pub indexed global Base(Scalars);
+pub indexed implementation RealSmooth(R, linear_descriptor(Base, real)) capabilities();
+pub indexed implementation ComplexSmooth(C, linear_descriptor(Base, complex)) capabilities();

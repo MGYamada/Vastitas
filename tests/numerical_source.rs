@@ -1783,3 +1783,311 @@ fn finite_network_preserves_explicit_transformed_map_authority() {
         );
     }
 }
+
+const EVALUATION: &str = include_str!("../examples/packages/vector-evaluation/src/main.vast");
+
+fn evaluation_fixture(source: &str) -> Scratch {
+    let s = Scratch::empty("bilinear vector evaluation");
+    s.write(
+        "Vastitas.toml",
+        include_str!("../examples/packages/vector-evaluation/Vastitas.toml"),
+    );
+    s.write("src/main.vast", source);
+    s.write(
+        "src/profiles/mod.vast",
+        include_str!("../examples/packages/vector-evaluation/src/profiles/mod.vast"),
+    );
+    s
+}
+
+fn evaluation_source(complex: bool, dimension: usize, transposed: bool) -> String {
+    let layout = if transposed {
+        format!("layout(16, 1, {dimension}, 2, true)")
+    } else {
+        format!("layout(16, {dimension}, 1, {}, false)", dimension + 2)
+    };
+    let mut source = EVALUATION
+        .replace("ComplexSmooth, 1)", &format!("ComplexSmooth, {dimension})"))
+        .replace("ComplexSmooth, 1>", &format!("ComplexSmooth, {dimension}>"))
+        .replace(
+            "input: Complex<F64>[4]",
+            &format!("input: Complex<F64>[{}]", 2 * dimension + 2),
+        )
+        .replace(
+            "write(input, layout(16, 1, 1, 3, false))",
+            &format!("write(input, {layout})"),
+        )
+        .replace(
+            "read(input, layout(16, 1, 1, 3, false))",
+            &format!("read(input, {layout})"),
+        );
+    let literal = |n: f64| {
+        if complex {
+            format!("complex_bits({}, 0)", n.to_bits())
+        } else {
+            format!("f64_bits({})", n.to_bits())
+        }
+    };
+    // The zero-inner convention writes positive zero, including for an empty dual evaluation.
+    let dual = if complex && dimension != 0 {
+        -(dimension as f64)
+    } else {
+        4.0 * dimension as f64
+    };
+    let hermitian = if complex {
+        dimension as f64
+    } else {
+        4.0 * dimension as f64
+    };
+    source = source
+        .replace("complex_bits(13830554455654793216, 0)", &literal(dual))
+        .replace("complex_bits(4607182418800017408, 0)", &literal(hermitian));
+    if !complex {
+        source = source
+            .replace("ComplexSmooth", "RealSmooth")
+            .replace("Complex<F64>", "F64")
+            .replace(
+                "complex_bits(0, 4607182418800017408)",
+                "f64_bits(4611686018427387904)",
+            );
+    }
+    source
+}
+
+fn evaluation_extra_sources() -> [String; 4] {
+    let mixed = EVALUATION
+        .replace(
+            "complex_bits(0, 4607182418800017408)",
+            "complex_bits(4607182418800017408, 4611686018427387904)",
+        )
+        .replace(
+            "complex_bits(13830554455654793216, 0)",
+            "complex_bits(13837309855095848960, 4616189618054758400)",
+        )
+        .replace(
+            "complex_bits(4607182418800017408, 0)",
+            "complex_bits(4617315517961601024, 0)",
+        );
+    let accumulated = EVALUATION.replace("    call hermitian_value(v, bv", "    evaluate(phi, x, checked_out, accumulate, NativeFast, alpha=complex_bits(0, 4607182418800017408), beta=complex_bits(4611686018427387904, 0));\n    expect(checked_out, 0, 0, complex_bits(13835058055282163712, 13830554455654793216));\n    call hermitian_value(v, bv");
+    let combined = |condition| {
+        EVALUATION.replace(
+            "    call algebraic(v, bv, vd, bvd, phi, x, out) -> ();",
+            &format!(
+                r#"    map tensor = view(read_input, bv, bv);
+    map destination = view(out, bv, bv);
+    if {condition} {{
+        contract(destination, NativeFast) {{
+            occurrence a = tensor; occurrence b = tensor;
+            edge(a.input, b.output); input(b.input); output(a.output);
+        }}
+        call algebraic(v, bv, vd, bvd, phi, x, out) -> ();
+    }} else {{
+        call algebraic(v, bv, vd, bvd, phi, x, out) -> ();
+        contract(destination, NativeFast) {{
+            occurrence a = tensor; occurrence b = tensor;
+            edge(a.input, b.output); input(b.input); output(a.output);
+        }}
+    }}"#
+            ),
+        )
+    };
+    [mixed, accumulated, combined(true), combined(false)]
+}
+
+#[test]
+fn vector_evaluation_checks_nominal_roles_loans_and_all_shapes() {
+    for complex in [false, true] {
+        for dimension in [0, 1, 3] {
+            for transposed in [false, true] {
+                let s = evaluation_fixture(&evaluation_source(complex, dimension, transposed));
+                success(&command(&s, "check").output().unwrap());
+                let response = kernel(captured(&s), "emit");
+                assert_eq!(response["ok"], true, "{response}");
+                let generated = response["lean_source"].as_str().unwrap();
+                assert_eq!(generated.matches("allocate arena").count(), 2);
+                assert_eq!(
+                    generated.matches("VastitasGemmNative.gemm arena").count(),
+                    2
+                );
+                assert!(!generated.contains("copy arena"));
+            }
+        }
+    }
+    for (old, new) in [
+        (
+            "evaluate(phi, x, output, overwrite",
+            "evaluate(x, x, output, overwrite",
+        ),
+        (
+            "space vd = dual(v)",
+            "space vd = linear(profiles::ComplexSmooth, 1)",
+        ),
+        ("basis bvd = derived(bv, vd)", "basis bvd = basis(vd)"),
+        (
+            "vector phi = view(read_input, bvd)",
+            "vector phi = view(read_input, bv)",
+        ),
+        (
+            "vector phi = view(read_input, bvd)",
+            "vector phi = view(read_input, bvc)",
+        ),
+        ("conjugate(x, bvc, sigma)", "conjugate(x, bv, sigma)"),
+        (
+            "hermitian(x, y, output, h, overwrite",
+            "evaluate(x, y, output, overwrite",
+        ),
+        ("h: OrthonormalMetric<bv, sigma>", "h: Metric<bv, sigma>"),
+        (
+            "metric h = orthonormal(bv, sigma)",
+            "metric h = scaled_identity(bv, sigma, 2)",
+        ),
+        (
+            "hermitian(x, y, output, h, overwrite",
+            "hermitian(x, y, output, x, overwrite",
+        ),
+        (
+            "evaluate(phi, x, output, overwrite",
+            "evaluate(phi, x, output, accumulate",
+        ),
+        ("release(conjugated);", ""),
+        ("release(conjugated);", "release(x); release(conjugated);"),
+        ("fill(init, complex_bits(0, 4607182418800017408));", ""),
+        ("phi, x, out) -> ()", "phi, x, read_input) -> ()"),
+    ] {
+        let changed = EVALUATION.replace(old, new);
+        assert_ne!(changed, EVALUATION, "ineffective mutation: {old}");
+        let result = command(&evaluation_fixture(&changed), "check")
+            .output()
+            .unwrap();
+        assert!(
+            !result.status.success(),
+            "accepted invalid evaluation: {old} -> {new}"
+        );
+    }
+    for source in evaluation_extra_sources() {
+        success(
+            &command(&evaluation_fixture(&source), "check")
+                .output()
+                .unwrap(),
+        );
+    }
+    let aliased_coefficient = evaluation_extra_sources()[1].replace(
+        "alpha=complex_bits(0, 4607182418800017408)",
+        "alpha=coefficient(checked_out)",
+    );
+    rejection(
+        &evaluation_fixture(&aliased_coefficient),
+        "E_RESOURCE_COEFFICIENT",
+    );
+}
+
+#[test]
+fn vector_evaluation_wire_rejects_injected_authority_and_downgrades() {
+    let raw = captured(&evaluation_fixture(EVALUATION));
+    for version in 2..8 {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{response}");
+        assert!(response.get("lean_source").is_none());
+    }
+    for (name, key, value) in [
+        ("phi", "basis", json!("bv")),
+        ("x", "conjugate", json!(true)),
+        ("x", "origin", json!({"kind":"dual"})),
+        ("x", "allocation", json!(0)),
+        ("x", "checked", json!(true)),
+    ] {
+        let mut changed = raw.clone();
+        local_operation(transform_body(&mut changed), name)[key] = value;
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{name}/{key}: {response}");
+        assert!(response.get("lean_source").is_none());
+    }
+    for field in ["conjugate_left", "loan", "checked", "metric"] {
+        let mut changed = raw.clone();
+        let root = changed["packages"][0]["modules"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|m| m["path"] == json!([]))
+            .unwrap();
+        let function = root["resource_functions"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|f| f["name"] == "algebraic")
+            .unwrap();
+        function["body"][0]["operation"]["operation"][field] = json!(true);
+        let response = kernel(changed, "emit");
+        assert_eq!(response["ok"], false, "{response}");
+        assert_eq!(
+            response["diagnostics"][0]["code"], "E_PROTOCOL",
+            "{response}"
+        );
+    }
+}
+
+#[test]
+fn vector_evaluation_unused_helpers_need_no_blas_but_remain_checked() {
+    let start = EVALUATION.find("    allocate input:").unwrap();
+    let end = EVALUATION.find("\nresource fn algebraic").unwrap();
+    let source = format!(
+        "{}    value {{ 42 }}\n}}\n{}",
+        &EVALUATION[..start],
+        &EVALUATION[end..]
+    );
+    let s = evaluation_fixture(&source);
+    success(
+        &command(&s, "build")
+            .args(["-o", "program"])
+            .output()
+            .unwrap(),
+    );
+    let result = Command::new(s.0.join("program")).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"42\n");
+    let binary = std::fs::read(s.0.join("program")).unwrap();
+    s.write(
+        "src/main.vast",
+        &source.replace("evaluate(phi, x, output", "evaluate(x, x, output"),
+    );
+    assert!(
+        !command(&s, "build")
+            .args(["-o", "program"])
+            .output()
+            .unwrap()
+            .status
+            .success()
+    );
+    assert_eq!(std::fs::read(s.0.join("program")).unwrap(), binary);
+}
+
+#[test]
+#[ignore = "requires the explicit pinned OpenBLAS prefix; both numerical CI jobs run this test"]
+fn vector_evaluation_builds_executes_real_complex_empty_and_transposed() {
+    let prefix =
+        std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
+    let mut sources = evaluation_extra_sources().to_vec();
+    for complex in [false, true] {
+        for dimension in [0, 1, 3] {
+            for transposed in [false, true] {
+                sources.push(evaluation_source(complex, dimension, transposed));
+            }
+        }
+    }
+    for source in sources {
+        let s = evaluation_fixture(&source);
+        let mut build = command(&s, "build");
+        build
+            .args(["-o", "program", "--openblas-prefix"])
+            .arg(&prefix);
+        if let Some(cc) = std::env::var_os("VASTITAS_TEST_NATIVE_CC") {
+            build.arg("--native-cc").arg(cc);
+        }
+        success(&build.output().unwrap());
+        let result = Command::new(s.0.join("program")).output().unwrap();
+        success(&result);
+        assert_eq!(result.stdout, b"42\n");
+    }
+}

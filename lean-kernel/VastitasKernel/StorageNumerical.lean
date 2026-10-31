@@ -104,6 +104,30 @@ structure MapView where
   origin : MapOrigin := .direct
   deriving Repr, BEq, DecidableEq, Inhabited
 
+inductive VectorOrigin where
+  | direct
+  | reborrow (parent : Symbol)
+  | conjugate (parent involution : Symbol)
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- A vector is a column of coordinates in one actual basis. A covector uses
+an explicitly selected dual space and its corresponding basis. -/
+structure VectorView where
+  basis : Basis
+  loan : Loan
+  conjugate : Bool := false
+  origin : VectorOrigin := .direct
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def VectorView.Live (resources : Storage.State) (view : VectorView) : Prop :=
+  resources.loan? view.loan.name = some view.loan ∧
+  resources.suspended view.loan.name = false ∧
+  (resources.allocation? view.loan.allocation).map Allocation.scalar = some view.basis.space.scalar ∧
+  view.loan.layout.logicalRows = view.basis.space.dimension ∧ view.loan.layout.logicalColumns = 1
+
+instance (resources : Storage.State) (view : VectorView) : Decidable (view.Live resources) :=
+  inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _ ∧ _))
+
 def MapView.Compatible (view : MapView) : Prop :=
   view.source.space.type = view.target.space.type ∧
   view.source.space.base = view.target.space.base ∧
@@ -169,6 +193,7 @@ inductive Value where
   | ownedMap (value : OwnedMap)
   | involution (value : Involution)
   | metric (value : Metric)
+  | vector (value : VectorView)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 abbrev Values := List (Symbol × Value)
@@ -240,6 +265,23 @@ def mapOriginValid (values : Values) (name : Symbol) (view : MapView) : Bool :=
       view.source == original.target && view.target == original.source && view.conjugate == !original.conjugate &&
       decide (adjointContract values original sourceMetric targetMetric)
 
+def vectorOriginValid (values : Values) (name : Symbol) (view : VectorView) : Bool :=
+  let parent (id : Symbol) (test : VectorView → Bool) :=
+    id < name && match value? values id with
+      | some (.vector original) =>
+        view.loan.allocation == original.loan.allocation && view.loan.parent == some original.loan.name &&
+        view.loan.layout == original.loan.layout && test original
+      | _ => false
+  match view.origin with
+  | .direct => !view.conjugate
+  | .reborrow id => parent id fun original => view.basis == original.basis && view.conjugate == original.conjugate
+  | .conjugate id selected => parent id fun original => selected < name && view.loan.access == .read &&
+      view.basis.parent == some original.basis.brand &&
+      view.basis.space.origin == .conjugate original.basis.space.brand selected &&
+      view.conjugate == !original.conjugate && (match value? values selected with
+        | some (.involution sigma) => sigma == Involution.ofSpace original.basis.space
+        | _ => false)
+
 /-- A forged basis cannot invent a space, and a forged map cannot invent bases.
 Stored maps may outlive a loan, but every use rechecks Live against real state. -/
 def Value.Valid (env : Environment) (values : Values) (name : Symbol) : Value → Prop
@@ -257,6 +299,8 @@ def Value.Valid (env : Environment) (values : Values) (name : Symbol) : Value �
   | .metric form => value? values form.basis.brand = some (.basis form.basis) ∧
       value? values form.selected = some (.involution form.involution) ∧
       form.involution = Involution.ofSpace form.basis.space ∧ form.nondegenerate = true
+  | .vector view => value? values view.basis.brand = some (.basis view.basis) ∧
+      vectorOriginValid values name view = true
 
 instance (env : Environment) (values : Values) (name : Symbol) (value : Value) :
     Decidable (value.Valid env values name) := by
@@ -296,6 +340,11 @@ instance (values : Values) (original : MapView) (operation : Transform) :
     Decidable (operation.metricContract values original) := by
   cases operation <;> unfold Transform.metricContract <;> infer_instance
 
+inductive Evaluation (Name : Type := Symbol) where
+  | dual
+  | hermitian (metric : Name)
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 inductive Operation where
   | space (name : Symbol) (implementation : DeclId) (dimension : Nat)
   | basis (name space : Symbol)
@@ -305,6 +354,10 @@ inductive Operation where
   | derivedBasis (name parent space : Symbol)
   | metric (name basis involution : Symbol) (gram : Gram)
   | transform (name parent : Symbol) (operation : Transform)
+  | vector (name loan basis : Symbol)
+  | conjugateVector (name parent basis involution : Symbol)
+  | evaluate (left right output : Symbol) (operation : Evaluation) (mode : GemmMode) (policy : NumericalPolicy)
+      (alpha beta : Option Coefficient := none)
   | map (name loan source target : Symbol)
   | ownedMap (name owner : Symbol) (layout : Layout) (source target : Symbol)
   | ownedView (name loan owner : Symbol)
@@ -352,6 +405,12 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     let some (.basis basis) := value? values basis | reject "metric requires an explicit coordinate basis"
     let some (.involution involution) := value? values selected | reject "metric requires an explicit admitted involution"
     insert env values name (.metric ⟨basis, involution, selected, gram⟩)
+  | .vector name loan basis => do
+    let some (.basis basis) := value? values basis | reject "vector requires an explicit basis"
+    let some loan := resources.loan? loan | reject "vector requires a live resource loan"
+    let view : VectorView := ⟨basis, loan, false, .direct⟩
+    unless view.Live resources do reject "vector requires a live column with the basis dimension and scalar"
+    insert env values name (.vector view)
   | .map name loan source target => do
     let some (.basis source) := value? values source | reject "map source requires an explicit basis"
     let some (.basis target) := value? values target | reject "map target requires an explicit basis"
@@ -374,7 +433,8 @@ def construct (env : Environment) (resources : Storage.State) (values : Values) 
     let view : MapView := ⟨owned.source, owned.target, loan, false, .direct⟩
     unless view.Live resources do reject "owned view requires an active compatible loan"
     insert env values name (.map view)
-  | .gemm .. | .borrowOwned .. | .transform .. => reject "numerical resource operations must pass the composed check"
+  | .gemm .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. =>
+    reject "numerical resource operations must pass the composed check"
 
 structure CheckedTransform (env : Environment) (resources : Storage.State) (values : Values)
     (name parent child : Symbol) (operation : Transform) where
@@ -461,9 +521,11 @@ inductive Input where
   | conjugateSpace (parent involution : Symbol)
   | derivedBasis (parent space : Symbol)
   | metric (basis involution : Symbol) (orthonormal : Bool)
+  | vector (basis : Symbol)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Input.Accepts (resources : Storage.State) (values : Values) : Input → Value → Prop
+  | .vector basisId, .vector view => value? values basisId = some (.basis view.basis) ∧ view.Live resources
   | .space implementation dimension, .space spc =>
     spc.type.domain = implementation ∧ spc.dimension = dimension
   | .basis spaceId, .basis bas => value? values spaceId = some (.space bas.space)

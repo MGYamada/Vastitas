@@ -1,5 +1,6 @@
 import VastitasKernel.StorageCodegen
 import VastitasKernel.TensorNetwork
+import VastitasKernel.StorageEvaluation
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
 bounded child loans for borrowed arguments, return those loans, and transfer
@@ -28,11 +29,13 @@ inductive Parameter where
   | conjugateSpace (name parent involution : Symbol)
   | derivedBasis (name parent space : Symbol)
   | metric (name basis involution : Symbol) (orthonormal : Bool)
+  | vector (name basis : Symbol) (access : Access) (initializes : Bool)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Parameter.name : Parameter → Symbol
   | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
+  | .vector name .. => name
 
 def Parameter.isSpace : Parameter → Bool
   | .space .. | .dualSpace .. | .conjugateSpace .. => true
@@ -79,7 +82,7 @@ def Parameter.valid : Parameter → Bool
     checkLayout scalar (rows * columns * scalar.width) ⟨0, rows, columns, max 1 rows, false⟩
   | .space _ _ dimension => dimension ≤ byteLimit
   | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
-      .conjugateSpace .. | .derivedBasis .. | .metric .. => true
+      .conjugateSpace .. | .derivedBasis .. | .metric .. | .vector .. => true
 
 def ResultType.valid : ResultType Name → Bool
   | .owned type => type.valid
@@ -99,6 +102,7 @@ def parameterDependencies (parameters : List Parameter) : Bool := Id.run do
       | .derivedBasis _ parent target => basis parent && space target
       | .metric _ parent selected _ => basis parent && involution selected
       | .map _ source target .. | .ownedMap _ source target => basis source && basis target
+      | .vector _ parent .. => basis parent
       | _ => true
     if !valid then return false
     prior := parameter :: prior
@@ -238,6 +242,45 @@ structure TransformReceipt where
   emitted : priorCode ++ [.action (.borrow child (.loan checked.original.loan.name)
     (if operation.transpose then checked.original.loan.layout.transpose else checked.original.loan.layout) .read)] = code
 
+structure VectorConjugateReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  name : Symbol
+  parent : Symbol
+  child : Symbol
+  basis : Symbol
+  selected : Symbol
+  checked : Numerical.CheckedVectorConjugate environment resources values name parent child basis selected
+  accepted : Numerical.checkVectorConjugate environment resources values name parent child basis selected = .ok checked
+  after : State
+  transitioned : checked.after = after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ [.action (.borrow child (.loan checked.original.loan.name) checked.original.loan.layout .read)] = code
+
+structure EvaluationReceipt where
+  environment : Indexed.Environment
+  resources : State
+  values : Numerical.Values
+  left : Symbol
+  right : Symbol
+  output : Symbol
+  leftChild : Symbol
+  rightChild : Symbol
+  operation : Numerical.Evaluation
+  mode : GemmMode
+  policy : NumericalPolicy
+  alpha : Option Coefficient
+  beta : Option Coefficient
+  checked : Numerical.CheckedEvaluation environment resources values left right output leftChild rightChild operation mode policy alpha beta
+  accepted : Numerical.checkEvaluation environment resources values left right output leftChild rightChild operation mode policy alpha beta = .ok checked
+  after : State
+  transitioned : checked.after = after
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ Numerical.evaluationCode checked.left checked.right leftChild rightChild output mode policy alpha beta = code
+
 /-- Alias immutable identities; a map instead receives a real child loan with
 exactly the original endpoints. This is audited on the actual binding state. -/
 def NumericalBinding (value : Numerical.Value) (actual bound : Symbol) (access : Access)
@@ -255,6 +298,11 @@ def NumericalBinding (value : Numerical.Value) (actual bound : Symbol) (access :
   | .ownedMap view =>
     Numerical.value? values bound = some (.ownedMap {view with owner := bound}) ∧
     (checkAction before (.move view.owner bound)).toOption = some after
+  | .vector view => match Numerical.value? values bound with
+    | some (.vector child) => child.basis = view.basis ∧ child.conjugate = view.conjugate ∧
+        child.origin = .reborrow actual ∧ after.loan? child.loan.name = some child.loan ∧
+        (checkAction before (.borrow child.loan.name (.loan view.loan.name) view.loan.layout access)).toOption = some after
+    | _ => False
 
 instance (value : Numerical.Value) (actual bound : Symbol) (access : Access)
     (before after : State) (values : Numerical.Values) :
@@ -270,6 +318,11 @@ instance (value : Numerical.Value) (actual bound : Symbol) (access : Access)
     | none => infer_instance
     | some value => cases value <;> infer_instance
   | ownedMap _ => unfold NumericalBinding; infer_instance
+  | vector view =>
+    unfold NumericalBinding
+    cases Numerical.value? values bound with
+    | none => infer_instance
+    | some value => cases value <;> infer_instance
 
 structure NumericalInputReceipt where
   environment : Indexed.Environment
@@ -329,6 +382,8 @@ structure Context where
   outputs : Array NumericalResultReceipt := #[]
   transfers : Array OwnedMapTransfer := #[]
   transforms : Array TransformReceipt := #[]
+  vectorConjugates : Array VectorConjugateReceipt := #[]
+  evaluations : Array EvaluationReceipt := #[]
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
@@ -412,6 +467,7 @@ def operation (frame : Frame) : Action → M Frame
     let name ← resolve frame name
     let loan := match Numerical.value? (← get).numerical name with
       | some (.map view) => view.loan.name
+      | some (.vector view) => view.loan.name
       | _ => name
     step (.release loan)
     return frame
@@ -461,6 +517,57 @@ heap. Only the checked product's exact physical request enters the schedule. -/
 def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
+  | .conjugateVector name parent basis selected =>
+    let parent ← resolve frame parent
+    let basis ← resolve frame basis
+    let selected ← resolve frame selected
+    let (frame, name) ← bindName frame name
+    let child ← fresh
+    match accepted : Numerical.checkVectorConjugate context.environment context.resources context.numerical name parent child basis selected with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let action := Action.borrow child (.loan checked.original.loan.name) checked.original.loan.layout .read
+      step action
+      let after ← get
+      if transitioned : checked.after = after.resources then
+        if emitted : context.code.toList ++ [.action action] = after.code.toList then
+          let receipt : VectorConjugateReceipt := ⟨context.environment, context.resources, context.numerical,
+            name, parent, child, basis, selected, checked, accepted, after.resources, transitioned,
+            context.code.toList, after.code.toList, emitted⟩
+          set {after with numerical := checked.output, vectorConjugates := after.vectorConjugates.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_TYPE", "vector conjugation differs from its emitted borrow"⟩
+      else throw ⟨"E_NUMERICAL_TYPE", "vector conjugation differs from its actual resource transition"⟩
+  | .evaluate left right output operation mode policy alpha beta =>
+    let left ← resolve frame left
+    let right ← resolve frame right
+    let output ← resolve frame output
+    let operation ← match operation with
+      | .dual => pure Numerical.Evaluation.dual
+      | .hermitian selected => pure (.hermitian (← resolve frame selected))
+    let alpha ← lowerCoefficient frame alpha
+    let beta ← lowerCoefficient frame beta
+    let leftChild ← fresh
+    let rightChild ← fresh
+    match accepted : Numerical.checkEvaluation context.environment context.resources context.numerical
+        left right output leftChild rightChild operation mode policy alpha beta with
+    | .error diagnostic => throw diagnostic
+    | .ok checked =>
+      let code := Numerical.evaluationCode checked.left checked.right leftChild rightChild output mode policy alpha beta
+      for statement in code do
+        match statement with
+        | .action action => step action
+        | _ => throw ⟨"E_NUMERICAL_TYPE", "evaluation contains an unexpected branch"⟩
+      let after ← get
+      if transitioned : checked.after = after.resources then
+        if emitted : context.code.toList ++ code = after.code.toList then
+          let receipt : EvaluationReceipt := ⟨context.environment, context.resources, context.numerical,
+            left, right, output, leftChild, rightChild, operation, mode, policy, alpha, beta,
+            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
+          set {after with evaluations := after.evaluations.push receipt}
+          return frame
+        else throw ⟨"E_NUMERICAL_TYPE", "evaluation differs from its emitted resource schedule"⟩
+      else throw ⟨"E_NUMERICAL_TYPE", "evaluation differs from its actual resource transition"⟩
   | .transform name parent operation =>
     let parent ← resolve frame parent
     let operation ← match operation with
@@ -555,12 +662,18 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let target ← resolve frame target
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.map name loan source target)
+      | .vector name loan basis => do
+        let loan ← resolve frame loan
+        let basis ← resolve frame basis
+        let (frame, name) ← bindName frame name
+        pure (frame, Numerical.Operation.vector name loan basis)
       | .ownedView name loan owner => do
         let loan ← resolve frame loan
         let owner ← resolve frame owner
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
-      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
+      | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. =>
+        throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
     return frame
@@ -596,7 +709,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
       step (.borrow global (.loan actual) loan.layout access)
       borrowed := borrowed ++ [⟨global, loan.allocation, loan.layout, initializes⟩]
     | .space .. | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
-        .conjugateSpace .. | .derivedBasis .. | .metric .. =>
+        .conjugateSpace .. | .derivedBasis .. | .metric .. | .vector .. =>
       let (input, access) ← match parameter with
         | .space _ implementation dimension => pure (Numerical.Input.space implementation dimension, Access.read)
         | .basis _ space => pure (.basis (← resolve dependencies space), .read)
@@ -606,6 +719,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         | .derivedBasis _ parent space => pure (.derivedBasis (← resolve dependencies parent) (← resolve dependencies space), .read)
         | .metric _ basis selected orthonormal => pure (.metric (← resolve dependencies basis) (← resolve dependencies selected) orthonormal, .read)
         | .map _ source target access _ => pure (.map (← resolve dependencies source) (← resolve dependencies target), access)
+        | .vector _ basis access _ => pure (.vector (← resolve dependencies basis), access)
         | .ownedMap _ source target => pure (.ownedMap (← resolve dependencies source) (← resolve dependencies target), .readWrite)
         | _ => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical parameter"⟩
       match accepted : Numerical.checkInput caller.environment caller.resources caller.numerical input actual with
@@ -629,6 +743,18 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
             pure global
           | .ownedMap view =>
             transferMap view global
+            pure global
+          | .vector view =>
+            let child ← fresh
+            step (.borrow child (.loan view.loan.name) view.loan.layout access)
+            let context ← get
+            let some loan := context.resources.loan? child
+              | throw ⟨"E_NUMERICAL_TYPE", "vector input lost its checked child loan"⟩
+            let values ← Numerical.insert context.environment context.numerical global
+              (.vector {view with loan, origin := .reborrow actual})
+            modify fun context => {context with numerical := values}
+            let initializes := match parameter with | .vector _ _ _ initializes => initializes | _ => false
+            borrowed := borrowed ++ [⟨child, view.loan.allocation, view.loan.layout, initializes⟩]
             pure global
         let after ← get
         if binding : NumericalBinding checked.value actual bound access state after.resources after.numerical then
@@ -728,7 +854,17 @@ mutual
           pure frame
         | .branch condition yes no => do
           let before ← get
-          set {before with code := #[], calls := #[], products := #[], networks := #[], inputs := #[], outputs := #[], transfers := #[], transforms := #[]}
+          set {before with
+            code := #[]
+            calls := #[]
+            products := #[]
+            networks := #[]
+            inputs := #[]
+            outputs := #[]
+            transfers := #[]
+            transforms := #[]
+            vectorConjugates := #[]
+            evaluations := #[]}
           let _ ← expand fuel functions stack frame yes
           let left ← get
           set {before with
@@ -742,6 +878,8 @@ mutual
             outputs := #[]
             transfers := #[]
             transforms := #[]
+            vectorConjugates := #[]
+            evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
           let _ ← expand fuel functions stack frame no
           let right ← get
@@ -756,7 +894,9 @@ mutual
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
             transfers := before.transfers ++ left.transfers ++ right.transfers
-            transforms := before.transforms ++ left.transforms ++ right.transforms}
+            transforms := before.transforms ++ left.transforms ++ right.transforms
+            vectorConjugates := before.vectorConjugates ++ left.vectorConjugates ++ right.vectorConjugates
+            evaluations := before.evaluations ++ left.evaluations ++ right.evaluations}
           pure frame
       expand fuel functions stack after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → M (List Returned)
@@ -888,6 +1028,24 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let name ← fresh
       let context ← get
       let numerical ← Numerical.construct context.environment context.resources context.numerical (.map name loan source target)
+      set {context with numerical}
+      borrowed := borrowed ++ [(loan, owner)]
+      pure name
+    | .vector _ basis access _ =>
+      let basis ← resolve frame basis
+      let context ← get
+      let some (.basis vectorBasis) := Numerical.value? context.numerical basis
+        | throw ⟨"E_NUMERICAL_TYPE", "vector input requires an earlier basis"⟩
+      let rows := vectorBasis.space.dimension
+      let scalar := vectorBasis.space.scalar
+      let layout : Layout := ⟨0, rows, 1, max 1 rows, false⟩
+      step (.allocate owner scalar rows)
+      if access.reads then initializeRegion owner scalar layout
+      let loan ← fresh
+      step (.borrow loan (.owner owner) layout access)
+      let name ← fresh
+      let context ← get
+      let numerical ← Numerical.construct context.environment context.resources context.numerical (.vector name loan basis)
       set {context with numerical}
       borrowed := borrowed ++ [(loan, owner)]
       pure name

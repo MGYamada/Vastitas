@@ -48,6 +48,10 @@ private def parameter (j : Json) : Except String Parameter := do
     fields j ["kind", "name", "source", "target", "access", "initializes", "span"]
     return .map (← str j "name") (← str j "source") (← str j "target")
       (← Storage.Wire.access (← str j "access")) (← j.getObjValAs? Bool "initializes") span
+  | "vector" =>
+    fields j ["kind", "name", "basis", "access", "initializes", "span"]
+    return .vector (← str j "name") (← str j "basis") (← Storage.Wire.access (← str j "access"))
+      (← j.getObjValAs? Bool "initializes") span
   | "owned_map" =>
     fields j ["kind", "name", "source", "target", "span"]
     return .ownedMap (← str j "name") (← str j "source") (← str j "target") span
@@ -117,6 +121,12 @@ private def transform (j : Json) : Except String (Storage.Numerical.Transform St
     return .adjoint (← str j "source_metric") (← str j "target_metric")
   | _ => throw "unknown typed map transform"
 
+private def evaluation (j : Json) : Except String (Storage.Numerical.Evaluation String) := do
+  match ← str j "kind" with
+  | "dual" => fields j ["kind"]; return .dual
+  | "hermitian" => fields j ["kind", "metric"]; return .hermitian (← str j "metric")
+  | _ => throw "unknown vector evaluation"
+
 private def numericalOperation (j : Json) : Except String NumericalOperation := do
   match ← str j "op" with
   | "space" =>
@@ -146,6 +156,17 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
   | "map" =>
     fields j ["op", "name", "loan", "source", "target"]
     return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")
+  | "vector" =>
+    fields j ["op", "name", "loan", "basis"]
+    return .vector (← str j "name") (← str j "loan") (← str j "basis")
+  | "conjugate_vector" =>
+    fields j ["op", "name", "parent", "basis", "involution"]
+    return .conjugateVector (← str j "name") (← str j "parent") (← str j "basis") (← str j "involution")
+  | "evaluate" =>
+    fields j ["op", "left", "right", "output", "operation", "mode", "policy", "alpha", "beta"]
+    return .evaluate (← str j "left") (← str j "right") (← str j "output") (← evaluation (← field j "operation"))
+      (← Storage.Wire.gemmMode (← str j "mode")) (← Storage.Wire.numericalPolicy (← str j "policy"))
+      (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
   | "owned_map" =>
     fields j ["op", "name", "owner", "layout", "source", "target"]
     return .ownedMap (← str j "name") (← str j "owner") (← Storage.Wire.layout (← field j "layout"))

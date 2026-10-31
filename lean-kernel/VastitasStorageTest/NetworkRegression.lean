@@ -66,6 +66,37 @@ private def graph : Graph :=
       | throw (IO.userError "valid nested network branch rejected")
     ensure "both nested arms retain all six actual receipts, excluding probes"
       (branched.context.networks.size == 6 && branched.context.products.size == 6)
+  let vectors : List Functions.Statement := [
+    .numerical (.dualSpace 40 0), .numerical (.derivedBasis 41 3 40),
+    .numerical (.involution 42 0), .numerical (.conjugateSpace 43 0 42),
+    .numerical (.derivedBasis 44 3 43), .numerical (.metric 45 3 42 .identity),
+    .action (.allocate 50 .complexF64 2), .action (.allocate 51 .complexF64 1),
+    .action (.borrow 52 (.owner 50) (layout 2 1) .write),
+    .action (.fill 52 (payload .complexF64)), .action (.release 52),
+    .action (.borrow 53 (.owner 50) (layout 2 1) .read),
+    .action (.borrow 54 (.owner 50) (layout 2 1) .read),
+    .action (.borrow 55 (.owner 51) (layout 1 1) .write),
+    .numerical (.vector 56 53 3), .numerical (.vector 57 53 41), .numerical (.vector 58 54 3)]
+  let network : Functions.Statement := .network graph 32 .nativeFast
+  let evaluate : Functions.Statement := .numerical (.evaluate 57 56 55 .dual .overwrite .nativeFast)
+  let hermitian : List Functions.Statement := [.numerical (.conjugateVector 59 56 44 42),
+    .numerical (.evaluate 59 58 55 (.hermitian 45) .overwrite .nativeFast), .action (.release 59)]
+  let releaseVectors : List Functions.Statement := [.action (.release 55),
+    .action (.release 53), .action (.release 54), .action (.drop 50), .action (.drop 51)]
+  for condition in [false, true] do
+    for (yes, no) in [([network] ++ hermitian, [evaluate, network]),
+        ([evaluate, network], [network] ++ hermitian)] do
+      let body := setup .complexF64 "Complex" ++ vectors ++ [network, evaluate,
+        .branch condition yes no, network, evaluate] ++ releaseVectors ++ cleanup
+      let .ok combined := Functions.check (program body) env
+        | throw (IO.userError "combined network/vector evaluation branch rejected")
+      ensure "combined branches retain every receipt family exactly once"
+        (combined.context.networks.size == 4 && combined.context.products.size == 4 &&
+          combined.context.evaluations.size == 4 && combined.context.vectorConjugates.size == 1)
+      ensure "combined receipt origins retain the actual environment"
+        (combined.context.networks.all (fun receipt => receipt.environment == env) &&
+          combined.context.evaluations.all (fun receipt => receipt.environment == env) &&
+          combined.context.vectorConjugates.all (fun receipt => receipt.environment == env))
   let reused : Graph := {graph with occurrences := [⟨"a", 30⟩, ⟨"b", 30⟩]}
   let square := (setup .complexF64 "Complex" 2).map fun statement => match statement with
     | .numerical (.map 30 loan _ _) => .numerical (.map 30 loan 3 3)

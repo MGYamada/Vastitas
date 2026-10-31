@@ -75,6 +75,9 @@ Dependent input contracts and initialized owned results are described below.
 Generative numerical result packages and implicit product syntax remain separate
 work. [Typed dual/conjugate/adjoint operations](linear-transforms.md) add explicit
 derived-space, basis, involution and metric contracts.
+[Vector evaluation](vector-evaluation.md) additionally uses single-basis
+coordinate vectors, explicit conjugation, dual evaluation and declared-form
+pairing with actual scalar output loans.
 
 | Source form | Protocol-8 `operation` fields (besides `op`) |
 | --- | --- |
@@ -389,7 +392,9 @@ universal correctness from synthetic probes or native refinement.
 
 The [typed transform compiler](linear-transforms.md) now retains dual/conjugate
 origins, corresponding bases and declared metric evidence through actual
-read reborrows and nested calls. Bilinear evaluation, general metric realization,
+read reborrows and nested calls. [Vector evaluation](vector-evaluation.md) now
+connects bilinear dual and explicit orthonormal Hermitian pairing to scalar
+destinations through the same checked GEMM. General metric realization,
 generative numerical result packages, dynamic shape/scalar interfaces,
 finite tensor networks, dynamic dimensions, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).

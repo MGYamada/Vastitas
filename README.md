@@ -321,6 +321,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Finite random-supply, exact-law, and logical-address reference](docs/rand-reference.md)
 - [Arithmetic library](stdlib/README.md)
 - [Proof scope and trust boundary](docs/verification.md)
+- [Exact SOS real-cover reference and pending proof obligations](docs/sos-reference.md)
 - [Design v0.3, reorganized by topic](docs/design.md)
 - [Contributor guidance](AGENTS.md)
 

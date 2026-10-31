@@ -31,11 +31,31 @@ structure Loan where
   parent : Option Symbol := none
   deriving Repr, BEq, DecidableEq, Inhabited
 
+/-- A non-owning logical-value dependency, reconstructed from an initialized
+loan. It grants no memory access and carries no nominal packing assertion. -/
+structure DependencyStamp where
+  allocation : Nat
+  version : Nat
+  scalar : Scalar
+  layout : Layout
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure Dependency where
+  source : DependencyStamp
+  target : DependencyStamp
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure DependencyEntry where
+  name : Symbol
+  value : Option Dependency
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 structure State where
   allocations : List Allocation := []
   loans : List Loan := []
   used : List Symbol := []
   nextAllocation : Nat := 0
+  dependencies : List DependencyEntry := []
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def State.owner? (state : State) (name : Symbol) : Option Allocation :=
@@ -46,6 +66,31 @@ def State.loan? (state : State) (name : Symbol) : Option Loan := state.loans.fin
 def State.children (state : State) (name : Symbol) : List Loan := state.loans.filter (·.parent == some name)
 def State.suspended (state : State) (name : Symbol) : Bool := !(state.children name).isEmpty
 def State.fresh (state : State) (name : Symbol) : Bool := !state.used.contains name
+
+def State.dependency? (state : State) (name : Symbol) : Option DependencyEntry :=
+  state.dependencies.find? (·.name == name)
+
+def DependencyStamp.valid (state : State) (stamp : DependencyStamp) : Bool :=
+  (state.allocation? stamp.allocation).any fun allocation =>
+    allocation.version == stamp.version && allocation.scalar == stamp.scalar &&
+    checkLayout allocation.scalar allocation.capacity stamp.layout &&
+    allocation.initialization.covers allocation.scalar stamp.layout
+
+def Dependency.valid (state : State) (dependency : Dependency) : Bool :=
+  dependency.source.valid state && dependency.target.valid state
+
+def Dependency.mentions (dependency : Dependency) (allocation : Nat) : Bool :=
+  dependency.source.allocation == allocation || dependency.target.allocation == allocation
+
+def invalidateDependencies (entries : List DependencyEntry) (allocation : Nat) : List DependencyEntry :=
+  entries.map fun entry =>
+    if entry.value.any (·.mentions allocation) then {entry with value := none} else entry
+
+def auditDependencies (state : State) : Bool :=
+  state.dependencies.length ≤ 4096 && state.dependencies.all fun entry =>
+    state.used.contains entry.name && state.dependencies.countP (·.name == entry.name) == 1 &&
+    (state.owner? entry.name).isNone && (state.loan? entry.name).isNone &&
+    (entry.value.map (·.valid state)).getD true
 
 /-- A bounded ancestry walk also rejects cycles or absent parent links. -/
 def ancestor (loans : List Loan) : Nat → Symbol → Loan → Bool
@@ -84,6 +129,7 @@ def loansCompatible (state : State) (left right : Loan) : Bool :=
 /-- Reconstruct the entire live environment; no serialized `valid` flag enters
 this audit. An exclusive ancestor is inactive while descendants hold rights. -/
 def auditState (state : State) : Bool :=
+  auditDependencies state &&
   state.used.all (fun name => state.used.count name == 1) &&
   state.allocations.all (fun allocation =>
     allocation.identity < state.nextAllocation && allocation.capacity ≤ byteLimit &&
@@ -164,10 +210,14 @@ inductive Action where
   | copy (source target : Symbol)
   | pack3 (source target : Symbol) (i k j : Nat)
   | gemm (request : Gemm)
+  | captureDependency (name source target : Symbol)
+  | requireDependency (name : Symbol)
+  | forgetDependency (name : Symbol)
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def State.markWritten (state : State) (allocation : Nat) (layout : Layout) : State :=
-  { state with allocations := state.allocations.map fun current =>
+  { state with dependencies := invalidateDependencies state.dependencies allocation
+               allocations := state.allocations.map fun current =>
       if current.identity == allocation then
         { current with
           initialization := current.initialization.record current.scalar layout
@@ -304,7 +354,9 @@ def executeAction (state : State) : Action → Except Error State
     let allocation ← owned state owner
     if state.loans.any (·.allocation == allocation.identity) then
       reject "E_RESOURCE_LOAN" "cannot drop an allocation with live loans"
-    return { state with allocations := state.allocations.filter (·.identity != allocation.identity) }
+    return { state with
+      allocations := state.allocations.filter (·.identity != allocation.identity)
+      dependencies := invalidateDependencies state.dependencies allocation.identity }
   | .borrow name source layout access => do
     freshName state name
     let sourceResult : Except Error (Allocation × Option Symbol) := match source with
@@ -377,6 +429,32 @@ def executeAction (state : State) : Action → Except Error State
     let checked ← checkGemm state request
     return state.markWritten checked.operands.outputAllocation.identity checked.operands.output.layout
 
+  | .captureDependency name source target => do
+    freshName state name
+    let capture (name : Symbol) : Except Error DependencyStamp := do
+      let some loan := state.loan? name | reject "E_RESOURCE_DEPENDENCY" "dependency requires a live loan"
+      if state.suspended name then reject "E_RESOURCE_DEPENDENCY" "dependency loan is suspended"
+      let some allocation := state.allocation? loan.allocation
+        | reject "E_RESOURCE_DEPENDENCY" "dependency allocation is absent"
+      if !allocation.initialization.covers allocation.scalar loan.layout then
+        reject "E_RESOURCE_DEPENDENCY" "dependency requires initialized coordinates"
+      return ⟨allocation.identity, allocation.version, allocation.scalar, loan.layout⟩
+    let dependency := Dependency.mk (← capture source) (← capture target)
+    return {state with
+      used := name :: state.used
+      dependencies := ⟨name, some dependency⟩ :: state.dependencies}
+  | .requireDependency name => do
+    let some entry := state.dependency? name
+      | reject "E_RESOURCE_DEPENDENCY" "dependency is absent or outside its scope"
+    let some dependency := entry.value
+      | reject "E_RESOURCE_DEPENDENCY" "cached value dependency was invalidated by mutation or a branch join"
+    if !dependency.valid state then reject "E_RESOURCE_DEPENDENCY" "cached allocation version or layout is stale"
+    return state
+  | .forgetDependency name => do
+    if (state.dependency? name).isNone then
+      reject "E_RESOURCE_DEPENDENCY" "dependency is absent or already forgotten"
+    return {state with dependencies := state.dependencies.filter (·.name != name)}
+
 /-- Input and reconstructed output undergo separate whole-state audits. -/
 def checkAction (state : State) (action : Action) : Except Error State :=
   if auditState state then
@@ -440,6 +518,8 @@ dropped inside each branch unless a future explicit owned-result join is used. -
 def join (left right : State) : Except Error State := do
   if !auditState left || !auditState right then
     reject "E_RESOURCE_STATE" "invalid branch resource environment"
+  if left.dependencies.map DependencyEntry.name != right.dependencies.map DependencyEntry.name then
+    reject "E_RESOURCE_JOIN" "branch dependency scopes differ"
   if left.allocations.length != right.allocations.length || left.loans.length != right.loans.length ||
       !left.loans.all (fun loan => right.loan? loan.name == some loan) then
     reject "E_RESOURCE_JOIN" "branch ownership or outstanding loans differ"
@@ -454,7 +534,8 @@ def join (left right : State) : Except Error State := do
     allocations
     loans := left.loans
     used := left.used ++ right.used.filter (!left.used.contains ·)
-    nextAllocation := max left.nextAllocation right.nextAllocation }
+    nextAllocation := max left.nextAllocation right.nextAllocation
+    dependencies := left.dependencies.map fun entry => {entry with value := none} }
   if !auditState after then reject "E_RESOURCE_JOIN" "joined state failed the independent audit"
   return after
 
@@ -479,6 +560,7 @@ structure CheckedPlan (input : List Statement) where
   accepted : run 4096 {} input = .ok finalState
   valid : auditState finalState = true
   closed : finalState.allocations = [] ∧ finalState.loans = []
+  dependenciesClosed : finalState.dependencies = []
 
 def checkPlan (input : List Statement) : Except Error (CheckedPlan input) :=
   if bounded : (remaining 4096 4096 input).isSome = true then
@@ -487,7 +569,9 @@ def checkPlan (input : List Statement) : Except Error (CheckedPlan input) :=
     | .ok finalState =>
       if valid : auditState finalState = true then
         if closed : finalState.allocations = [] ∧ finalState.loans = [] then
-          .ok ⟨bounded, finalState, accepted, valid, closed⟩
+          if dependenciesClosed : finalState.dependencies = [] then
+            .ok ⟨bounded, finalState, accepted, valid, closed, dependenciesClosed⟩
+          else reject "E_RESOURCE_ESCAPE" "resource plan exits with local dependency handles"
         else reject "E_RESOURCE_ESCAPE" "resource plan exits with live owners or loans"
       else reject "E_RESOURCE_STATE" "invalid final resource environment"
   else reject "E_RESOURCE_LIMIT" "resource plan exceeds the global statement budget"

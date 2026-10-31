@@ -1,0 +1,4 @@
+[package]
+name = "cached_tensor_packing"
+version = "0.1.0"
+root = "src/main.vast"

@@ -66,6 +66,17 @@ pub enum NumericalPolicy {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
+    CaptureDependency {
+        name: u32,
+        source: u32,
+        target: u32,
+    },
+    RequireDependency {
+        name: u32,
+    },
+    ForgetDependency {
+        name: u32,
+    },
     Allocate {
         owner: u32,
         scalar: Scalar,
@@ -550,6 +561,18 @@ pub mod source {
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
     #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
     pub enum Tensor {
+        CachedPack {
+            name: String,
+            source: String,
+            target: String,
+        },
+        CachedContract3 {
+            cache: String,
+            left: String,
+            right: String,
+            output: String,
+            policy: NumericalPolicy,
+        },
         View {
             name: String,
             loan: String,

@@ -8,9 +8,11 @@ pull_request, and can also be dispatched manually. It does not close #222,
 establish Stage 1 completion, prove native
 refinement, or establish general C/C++ performance equivalence.
 
-Recorded validation summary: [2026-10-31 — performance unmeasured](results/2026-10-31-linux-unmeasured/RESULTS.md).
-The diagnostic archive is retained separately; this repository addition publishes
-only source and the aggregate validation summary.
+Recorded validation: [Linux generated-path smoke passed](results/2026-10-31-linux-smoke/RESULTS.md);
+[original unavailable-toolchain attempt](results/2026-10-31-linux-unmeasured/RESULTS.md).
+The smoke validates execution and output/cost contracts, without a performance
+acceptance claim. Diagnostic archives are retained separately; this repository
+addition publishes source and aggregate validation records.
 Native C correctness is distinct from successful public Lean acceptance and
 generated execution. A failed toolchain never produces substitute performance
 numbers from the C adapter tests.
@@ -156,13 +158,17 @@ must allocate/copy zero matrix bytes in that window. Initialization writes,
 GEMM writes and copies are distinguished: writes are not reported as copies.
 
 These exact arena counters **do not count Lean object allocations, libc allocator
-overhead or BLAS-private packing/workspace**. Fresh-process `process_maxrss_kib`
-is retained separately for every sample, includes those costs plus process
-startup/warmup/code/shared pages, and is not treated as an exact heap counter or
-required to match across the pair. It cannot localize BLAS-private allocation
-counts or packing traffic. Those remain unmeasured; zero arena copies is not a
-claim of zero backend packing. The same statically linked BLAS archive/hash
-controls the backend on both sides.
+overhead or BLAS-private packing/workspace**. `process_maxrss_kib` retains
+`getrusage(RUSAGE_SELF).ru_maxrss` separately for every sample. Linux preserves
+resource usage across `execve`, so this diagnostic can include the launcher's
+pre-exec memory footprint as well as executable startup/warmup/code/shared
+pages. A fresh subprocess does not isolate the executable's memory high-water
+mark ([Linux getrusage(2)](https://man7.org/linux/man-pages/man2/getrusage.2.html)).
+The value is neither an exact heap counter nor an isolated Lean/BLAS allocation
+measurement, and is not required to match across the pair. It cannot localize
+BLAS-private allocation counts or packing traffic. Those remain unmeasured;
+zero arena copies is not a claim of zero backend packing. The same statically
+linked BLAS archive/hash controls the backend on both sides.
 
 ## Sampling, latency and retained evidence
 

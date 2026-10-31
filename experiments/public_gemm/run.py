@@ -279,7 +279,7 @@ def main():
         platform=platform.platform(),python=sys.version,cpu_affinity_before=allowed,cpu=cpu,flags=FLAGS,
         policy="NativeFast",threads=1,source_sha256={},toolchains={},host={},
         performance="unmeasured",leak_sanitizer="disabled explicitly" if args.no_leak_sanitizer else "enabled",
-        memory_scope="exact arena data counters; separate process peak RSS includes Lean/BLAS/allocator; BLAS private packing/allocations not instrumented")
+        memory_scope="exact arena data counters; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented")
     environment["expected_lean_toolchain"] = (ROOT / "lean-kernel/lean-toolchain").read_text().strip()
     for rel in ["experiments/public_gemm", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
         path = ROOT / rel

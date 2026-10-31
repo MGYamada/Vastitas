@@ -193,6 +193,30 @@ private def numericalOperation (j : Json) : Except String NumericalOperation := 
       (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
   | _ => throw "unknown numerical source operation"
 
+private def tensorOperation (j : Json) : Except String (Storage.Tensor.Operation String) := do
+  match ← str j "op" with
+  | "view" =>
+    fields j ["op", "name", "loan", "axes", "grouping"]
+    let axes ← array j "axes"
+    unless axes.length == 2 || axes.length == 3 do throw "tensor requires two or three axes"
+    let grouping ← field j "grouping"
+    fields grouping ["order", "split"]
+    let order ← array grouping "order"
+    unless order.length == axes.length do throw "tensor grouping rank differs from axes"
+    let order ← order.mapM fun value => do
+      let index ← value.getNat?
+      if index ≥ 3 then throw "tensor grouping axis exceeds rank bound"
+      return index
+    return .view (← str j "name") (← str j "loan") (← axes.mapM Json.getStr?) ⟨order, ← size grouping "split"⟩
+  | "pack" =>
+    fields j ["op", "source", "target"]
+    return .pack (← str j "source") (← str j "target")
+  | "contract3" =>
+    fields j ["op", "left", "right", "output", "policy"]
+    return .contract3 (← str j "left") (← str j "right") (← str j "output")
+      (← Storage.Wire.numericalPolicy (← str j "policy"))
+  | _ => throw "unknown tensor operation"
+
 private def networkPort (j : Json) : Except String Storage.TensorNetwork.Port := do
   fields j ["occurrence", "role"]
   let role ← match ← str j "role" with
@@ -226,6 +250,9 @@ private def statements : Nat → List Json → Except String (List Statement)
       | "action" =>
         fields first ["kind", "action", "span"]
         pure (.action (← action (← field first "action")) span)
+      | "tensor" =>
+        fields first ["kind", "operation", "span"]
+        pure (.tensor (← tensorOperation (← field first "operation")) span)
       | "network" =>
         fields first ["kind", "graph", "output", "policy", "span"]
         pure (.network (← networkGraph (← field first "graph")) (← str first "output")

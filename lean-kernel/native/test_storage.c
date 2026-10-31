@@ -119,10 +119,196 @@ static void alias_and_failure(void) {
     vstorage_delete(a);
 }
 
+static void assert_stats(VStorageStats actual, VStorageStats expected) {
+    assert(actual.data_allocations == expected.data_allocations && actual.data_frees == expected.data_frees);
+    assert(actual.live_bytes == expected.live_bytes && actual.peak_bytes == expected.peak_bytes);
+    assert(actual.written_bytes == expected.written_bytes && actual.copied_bytes == expected.copied_bytes);
+    assert(actual.metadata_allocations == expected.metadata_allocations && actual.metadata_bytes == expected.metadata_bytes);
+}
+
+static uint64_t pack_payload(uint64_t index) {
+    const uint64_t special[] = {0,UINT64_C(0x8000000000000000),
+        UINT64_C(0x7ff0000000000000),UINT64_C(0xfff0000000000000),
+        UINT64_C(0x7ff8000000000042),UINT64_C(0x7ff0000000000001)};
+    return index < 6 ? special[index] : one + index;
+}
+
+static void pack_layouts(uint8_t scalar, int same_allocation) {
+    const uint64_t i = 2, k = 3, j = 4, count = 128, width = scalar ? 16 : 8;
+    const uint64_t target_offset = same_allocation ? 56 : 2;
+    const uint32_t target = same_allocation ? 0 : 1;
+    VStorageLayout whole = {0,count,1,count,0};
+    VStorageLayout input = {width,i,k*j,4,0}, output = {target_offset*width,i*j,k,11,0};
+    VStorageArena *a = vstorage_new(8192);
+    assert(a && vstorage_allocate(a,0,scalar,count) == VS_OK);
+    assert(vstorage_fill(a,0,whole,scalar,two,two) == VS_OK);
+    if (!same_allocation) {
+        assert(vstorage_allocate(a,1,scalar,count) == VS_OK);
+        assert(vstorage_fill(a,1,whole,scalar,two,two) == VS_OK);
+    }
+    for (uint64_t column = 0; column < k*j; ++column)
+        for (uint64_t x = 0; x < i; ++x) {
+            uint64_t index = x+i*column;
+            assert(vstorage_store(a,0,input,x,column,scalar,
+                pack_payload(index),pack_payload(23-index)) == VS_OK);
+        }
+    VStorageStats before = vstorage_stats(a);
+    /* Reusing the exact destination adds no allocation or implicit reset. */
+    for (uint64_t repetition = 1; repetition <= 2; ++repetition) {
+        assert(vstorage_pack3(a,0,input,target,output,i,k,j) == VS_OK);
+        VStorageStats expected = before;
+        expected.written_bytes += repetition*i*k*j*width;
+        expected.copied_bytes += repetition*i*k*j*width;
+        assert_stats(vstorage_stats(a),expected);
+        for (uint64_t physical = 0; physical < count; ++physical) {
+            uint64_t rel = physical >= target_offset ? physical-target_offset : UINT64_MAX;
+            uint64_t row = rel % output.leading, z = rel / output.leading;
+            int destination_cell = physical >= target_offset && row < i*j && z < k;
+            uint64_t source_rel = physical >= 1 ? physical-1 : UINT64_MAX;
+            int source_cell = physical >= 1 && source_rel % input.leading < i &&
+                source_rel / input.leading < k*j;
+            uint64_t re = two, im = two;
+            if (destination_cell) {
+                uint64_t index = row%i + i*(z + k*(row/i));
+                re = pack_payload(index); im = pack_payload(23-index);
+            } else if (same_allocation && source_cell) {
+                uint64_t index = source_rel%input.leading + i*(source_rel/input.leading);
+                re = pack_payload(index); im = pack_payload(23-index);
+            }
+            assert_value(a,target,whole,scalar,physical,0,re,im);
+            if (!same_allocation) {
+                uint64_t index = source_rel%input.leading + i*(source_rel/input.leading);
+                assert_value(a,0,whole,scalar,physical,0,
+                    source_cell ? pack_payload(index) : two,
+                    source_cell ? pack_payload(23-index) : two);
+            }
+        }
+    }
+    vstorage_close(a);
+    VStorageStats after = vstorage_stats(a);
+    assert(after.live_bytes == 0 && after.data_allocations == after.data_frees);
+    vstorage_delete(a);
+}
+
+static void pack_failures(void) {
+    VStorageArena *a = vstorage_new(8192);
+    VStorageLayout whole = {0,128,1,128,0};
+    VStorageLayout input = {8,2,12,4,0}, output = {16,8,3,11,0};
+    assert(a && vstorage_allocate(a,0,0,128) == VS_OK);
+    assert(vstorage_allocate(a,1,0,128) == VS_OK);
+    assert(vstorage_allocate(a,2,1,128) == VS_OK);
+    assert(vstorage_fill(a,0,whole,0,one,0) == VS_OK);
+    assert(vstorage_fill(a,1,whole,0,two,0) == VS_OK);
+    assert(vstorage_fill(a,2,whole,1,two,two) == VS_OK);
+    VStorageStats before = vstorage_stats(a);
+    struct Failure {
+        uint32_t source; VStorageLayout input;
+        uint32_t target; VStorageLayout output;
+        uint64_t i, k, j; VStorageStatus status;
+    } failures[] = {
+        {0,input,1,output,1,3,4,VS_SHAPE},
+        {0,input,1,output,2,2,6,VS_SHAPE},
+        {0,input,1,output,2,3,0,VS_SHAPE},
+        {0,input,1,output,(uint64_t)INT32_MAX+1,3,4,VS_LAYOUT},
+        {0,input,1,output,2,UINT64_MAX,4,VS_LAYOUT},
+        {0,input,1,output,2,3,UINT64_MAX,VS_LAYOUT},
+        {0,{8,2,12,4,1},1,output,2,3,4,VS_OPERATION},
+        {0,input,1,{16,8,3,11,1},2,3,4,VS_OPERATION},
+        {0,{8,2,12,4,2},1,output,2,3,4,VS_LAYOUT},
+        {0,{8,2,12,1,0},1,output,2,3,4,VS_LAYOUT},
+        {0,input,1,{16,8,3,7,0},2,3,4,VS_LAYOUT},
+        {0,{UINT64_MAX,2,12,4,0},1,output,2,3,4,VS_LAYOUT},
+        {0,input,1,{1024,8,3,11,0},2,3,4,VS_LAYOUT},
+        {0,{1,2,12,4,0},1,output,2,3,4,VS_LAYOUT},
+        {0,input,1,{1,8,3,11,0},2,3,4,VS_LAYOUT},
+        {0,input,2,output,2,3,4,VS_SCALAR},
+        {4095,input,1,output,2,3,4,VS_HANDLE},
+        {0,input,4095,output,2,3,4,VS_HANDLE},
+        {0,input,0,output,2,3,4,VS_ALIAS},
+        /* Even an exact identity and disjoint logical cells in overlapping
+         * padding envelopes must be rejected before any write. */
+        {0,{0,2,3,2,0},0,{0,2,3,2,0},2,3,1,VS_ALIAS},
+        {0,{0,1,2,4,0},0,{8,2,1,2,0},1,1,2,VS_ALIAS},
+        {0,{0,INT32_MAX,INT32_MAX,INT32_MAX,0},1,output,
+            INT32_MAX,INT32_MAX,1,VS_OVERFLOW}
+    };
+    for (unsigned n = 0; n < sizeof(failures)/sizeof(failures[0]); ++n) {
+        struct Failure f = failures[n];
+        assert(vstorage_pack3(a,f.source,f.input,f.target,f.output,f.i,f.k,f.j) == f.status);
+        assert_stats(vstorage_stats(a),before);
+        for (uint64_t row = 0; row < 128; ++row) {
+            assert_value(a,0,whole,0,row,0,one,0);
+            assert_value(a,1,whole,0,row,0,two,0);
+            assert_value(a,2,whole,1,row,0,two,two);
+        }
+    }
+    /* Saturate the existing write-accounting seam to verify failure before
+     * the first packed byte, without impossible-size physical allocations. */
+    uint64_t remaining = UINT64_MAX-before.written_bytes;
+    assert(vstorage_prepare_write(a,remaining) == VS_OK);
+    vstorage_record_write(a,remaining);
+    before = vstorage_stats(a);
+    assert(vstorage_pack3(a,0,input,1,output,2,3,4) == VS_OVERFLOW);
+    assert_stats(vstorage_stats(a),before);
+    for (uint64_t row = 0; row < 128; ++row) assert_value(a,1,whole,0,row,0,two,0);
+    vstorage_close(a);
+    assert(vstorage_stats(a).live_bytes == 0 && vstorage_stats(a).data_frees == 3);
+    assert(vstorage_pack3(a,0,input,1,output,2,3,4) == VS_HANDLE);
+    assert(vstorage_pack3(NULL,0,input,1,output,2,3,4) == VS_HANDLE);
+    vstorage_delete(a);
+}
+
+static void pack_empty(uint8_t scalar) {
+    VStorageArena *a = vstorage_new(64);
+    assert(a && vstorage_allocate(a,0,scalar,0) == VS_OK);
+    assert(vstorage_allocate(a,1,scalar,0) == VS_OK);
+    assert(vstorage_allocate(a,2,!scalar,0) == VS_OK);
+    const uint64_t axes[][3] = {{0,3,4},{2,0,4},{2,3,0}};
+    VStorageStats before = vstorage_stats(a);
+    for (unsigned n = 0; n < 3; ++n) {
+        uint64_t i = axes[n][0], k = axes[n][1], j = axes[n][2];
+        uint64_t output_rows = i*j;
+        VStorageLayout input = {0,i,k*j,i ? i : 1,0};
+        VStorageLayout output = {0,output_rows,k,output_rows ? output_rows : 1,0};
+        assert(vstorage_pack3(a,0,input,1,output,i,k,j) == VS_OK);
+        assert(vstorage_pack3(a,0,input,0,output,i,k,j) == VS_OK);
+        assert(vstorage_pack3(a,0,input,2,output,i,k,j) == VS_SCALAR);
+        assert(vstorage_pack3(a,0,input,1,output,i+1,k,j) == VS_SHAPE);
+        assert(vstorage_pack3(a,0,input,1,output,UINT64_MAX,k,j) == VS_LAYOUT);
+        assert(vstorage_pack3(a,0,input,4095,output,i,k,j) == VS_HANDLE);
+        VStorageLayout bad = input; bad.leading = 0;
+        assert(vstorage_pack3(a,0,bad,1,output,i,k,j) == VS_LAYOUT);
+        bad = output; bad.offset = 1;
+        assert(vstorage_pack3(a,0,input,1,bad,i,k,j) == VS_LAYOUT);
+        bad = input; bad.transposed = 1;
+        assert(vstorage_pack3(a,0,bad,1,output,i,k,j) == VS_OPERATION);
+        bad = output; bad.leading = (uint64_t)INT32_MAX+1;
+        assert(vstorage_pack3(a,0,input,1,bad,i,k,j) == VS_LAYOUT);
+        assert_stats(vstorage_stats(a),before);
+    }
+    /* An empty descriptor need not align its in-capacity offset. */
+    assert(vstorage_allocate(a,3,scalar,1) == VS_OK);
+    assert(vstorage_allocate(a,4,scalar,1) == VS_OK);
+    VStorageLayout input = {1,0,12,1,0}, output = {1,0,3,1,0};
+    before = vstorage_stats(a);
+    assert(vstorage_pack3(a,3,input,4,output,0,3,4) == VS_OK);
+    assert_stats(vstorage_stats(a),before);
+    vstorage_close(a);
+    assert(vstorage_stats(a).live_bytes == 0 && vstorage_stats(a).data_frees == 2);
+    vstorage_delete(a);
+}
+
 int main(void) {
     layouts(0);
     layouts(1);
     alias_and_failure();
-    puts("native storage preflight, layout, alias, payload, failure and cleanup checks passed");
+    pack_layouts(0,0);
+    pack_layouts(1,0);
+    pack_layouts(0,1);
+    pack_layouts(1,1);
+    pack_failures();
+    pack_empty(0);
+    pack_empty(1);
+    puts("native storage preflight, layout, alias, payload, pack3, failure and cleanup checks passed");
     return 0;
 }

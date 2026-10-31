@@ -50,6 +50,7 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 | `fill`, `store` | Writable active loan, exact scalar representation; record the whole view or the one addressed cell |
 | `expect` | Readable active loan, valid index and initialized cell; native execution asserts the supplied bit pattern |
 | `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source |
+| Internal `pack3` | Explicit `[i | k,j]` to `[i,j | k]` permutation into an existing writable rectangle; initialized readable input, matching scalar, bounded dimensions and byte separation; no allocation |
 | Internal `gemm` | Initialized readable inputs, exclusive compatible output, explicit NativeFast policy/mode/orientation, independent input/output byte separation; accumulate also requires initialized readable output |
 | GEMM coefficients | Matching explicit scalar bits or live initialized readable 1x1 loans disjoint from output; overwrite rejects beta operands, and beta zero does not relax accumulate initialization |
 | Branch join | Same owners, allocations and loan structure; intersect initialization guarantees and merge logical versions |
@@ -111,8 +112,9 @@ to handle large padded rectangles directly.
 
 Interleaved views with overlapping envelopes are rejected
 when either writes, even if a stronger partition proof could separate them.
-Arbitrary strides, read-only broadcast, general partitions and packing remain
-pending.
+Arbitrary strides, read-only broadcast, general partitions and general packing remain
+pending. The finite [rank-three packing profile](tensor-packing.md) preserves these
+rectangular footprints while explicitly permuting the coordinate grouping.
 
 ## Native lowering and execution
 

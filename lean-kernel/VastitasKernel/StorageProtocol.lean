@@ -97,6 +97,9 @@ def action (j : Json) : Except String Action := do
   | "copy" =>
     fields j ["op", "source", "target"]
     return .copy (← symbol j "source") (← symbol j "target")
+  | "pack3" =>
+    fields j ["op", "source", "target", "i", "k", "j"]
+    return .pack3 (← symbol j "source") (← symbol j "target") (← size j "i") (← size j "k") (← size j "j")
   | "gemm" =>
     fields j ["op", "left", "right", "output", "conjugate_left", "conjugate_right", "mode", "policy", "alpha", "beta"]
     return .gemm ⟨← symbol j "left", ← symbol j "right", ← symbol j "output",

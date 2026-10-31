@@ -143,3 +143,7 @@ listed in [stage1-completion.md](stage1-completion.md), including general dynami
 shape/scalar flow, scratch/dependency handling and equivalent-C runtime,
 allocation/copy and peak-live-memory measurements. This increment supplies the
 first executable occurrence/port connection, not the integrated completion record.
+
+The separate [rank-three contraction and packing profile](tensor-packing.md)
+now supplies one fixed higher-rank coordinate contraction with explicit scratch.
+It does not extend this two-map graph schema or implement general graph rewriting.

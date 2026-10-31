@@ -405,8 +405,8 @@ add checked occurrences and ports, an explicit bilinear edge and ordered boundar
 [Explicit diagonal metrics](diagonal-metrics.md) add materialized adjoints and
 weighted pairing with caller-owned scratch and exact declared Int coefficients.
 Dense metric realization, general generative numerical result packages, dynamic
-shape/scalar interfaces, higher-rank or multi-edge networks, packing and end-to-end C
-performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).
+shape/scalar interfaces, general-rank/cyclic networks and controlled-host C
+performance acceptance remain open in the [Stage 1 gate](stage1-completion.md).
 
 [Owned-map packages](owned-map-packages.md) now add the bounded
 `OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
@@ -415,3 +415,11 @@ repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
 Dynamic dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
+
+
+[Bounded contraction trees](contraction-trees.md) now extend the two-map network
+path with explicit finite multi-edge plans and rank-two/three intermediates.
+Caller-owned regrouping and versioned producer rebinds preserve axes, resource
+provenance and cache invalidation. [Packing caches](cached-packing.md) separately
+permit checked reuse of unchanged packed scratch. These finite paths do not add
+general dynamic tensor-valued interfaces or complete native refinement.

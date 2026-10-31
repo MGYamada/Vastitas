@@ -867,7 +867,7 @@ impl Parser {
                 self.expect(",")?;
                 axes.push(self.name()?.0);
             }
-            let grouping = if rank == 2 {
+            let grouping = if rank == 2 && self.peek().is(")") {
                 TensorGrouping {
                     order: vec![0, 1],
                     split: 1,
@@ -876,10 +876,10 @@ impl Parser {
                 self.expect(",")?;
                 self.expect("axes")?;
                 let order = self.indexed_list("(", ")", Self::resource_number)?;
-                if order.len() != 3 {
+                if order.len() != rank {
                     return Err(diagnostic(
                         "E_TENSOR",
-                        "rank-three grouping requires exactly three axes",
+                        "grouping order must contain exactly the declared number of axes",
                         self.previous().span,
                     ));
                 }
@@ -1050,6 +1050,177 @@ impl Parser {
         })
     }
 
+    fn tree_port(&mut self) -> Result<crate::storage::source::TreePort, Diagnostic> {
+        let occurrence = self.name()?.0;
+        self.expect("[")?;
+        let axis = self.resource_number()?;
+        self.expect("]")?;
+        Ok(crate::storage::source::TreePort { occurrence, axis })
+    }
+
+    fn tree_statement(&mut self) -> Result<crate::storage::source::Statement, Diagnostic> {
+        use crate::storage::source::{
+            Occurrence, Statement, Tensor, TreeEdge, TreeGraph, TreeStep,
+        };
+        let start = self.expect("contract_tree")?.span;
+        self.expect("(")?;
+        let output = self.name()?.0;
+        self.expect(",")?;
+        self.expect("NativeFast")?;
+        self.expect(")")?;
+        self.expect("{")?;
+        let mut graph = TreeGraph {
+            occurrences: vec![],
+            edges: vec![],
+            boundary: vec![],
+        };
+        let mut count = 0;
+        while !self.peek().is("plan") {
+            count += 1;
+            if count > 128 {
+                return Err(diagnostic(
+                    "E_TENSOR_TREE",
+                    "tree exceeds its finite declaration bound",
+                    self.peek().span,
+                ));
+            }
+            if self.consume("occurrence") {
+                let name = self.binding_name()?.0;
+                self.expect("=")?;
+                graph.occurrences.push(Occurrence {
+                    name,
+                    value: self.name()?.0,
+                });
+            } else if self.consume("edge") {
+                let name = self.binding_name()?.0;
+                self.expect("=")?;
+                self.expect("(")?;
+                let dual = self.tree_port()?;
+                self.expect(",")?;
+                let primal = self.tree_port()?;
+                self.expect(")")?;
+                graph.edges.push(TreeEdge { name, dual, primal });
+            } else if self.consume("boundary") {
+                graph
+                    .boundary
+                    .extend(self.indexed_list("(", ")", Self::tree_port)?);
+            } else {
+                return Err(diagnostic(
+                    "E_TENSOR_TREE",
+                    "expected occurrence, named edge, ordered boundary or explicit plan",
+                    self.peek().span,
+                ));
+            }
+            self.expect(";")?;
+        }
+        if !(2..=64).contains(&graph.occurrences.len())
+            || graph.edges.len() + 1 != graph.occurrences.len()
+            || !(2..=3).contains(&graph.boundary.len())
+        {
+            return Err(diagnostic(
+                "E_TENSOR_TREE",
+                "tree requires two to sixty-four occurrences, n-1 edges and rank-two/three boundary",
+                start,
+            ));
+        }
+        self.expect("plan")?;
+        self.expect("{")?;
+        let mut plan = vec![];
+        while !self.consume("}") {
+            if plan.len() >= 1024 {
+                return Err(diagnostic(
+                    "E_TENSOR_TREE",
+                    "tree plan exceeds 1024 explicit steps",
+                    self.peek().span,
+                ));
+            }
+            let step = if self.peek().is("borrow") {
+                let statement = self.resource_borrow()?;
+                match statement {
+                    Statement::Action { action, .. } => {
+                        plan.push(TreeStep::Action { action });
+                        continue;
+                    }
+                    _ => {
+                        return Err(diagnostic(
+                            "E_TENSOR_TREE",
+                            "tree loans use explicit raw storage sources and layouts",
+                            self.previous().span,
+                        ));
+                    }
+                }
+            } else if self.peek().is("release") {
+                TreeStep::Action {
+                    action: self.resource_action()?,
+                }
+            } else if self.peek().is("tensor") {
+                match self.tensor_operation()? {
+                    Tensor::View {
+                        name,
+                        loan,
+                        axes,
+                        grouping,
+                    } => TreeStep::View {
+                        name,
+                        loan,
+                        axes,
+                        grouping,
+                    },
+                    _ => unreachable!("tensor keyword introduces a view"),
+                }
+            } else if self.consume("regroup") {
+                self.expect("(")?;
+                let component = self.name()?.0;
+                self.expect(",")?;
+                let target = self.name()?.0;
+                self.expect(")")?;
+                TreeStep::Regroup { component, target }
+            } else if self.consume("rebind") {
+                self.expect("(")?;
+                let component = self.name()?.0;
+                self.expect(",")?;
+                let view = self.name()?.0;
+                self.expect(")")?;
+                TreeStep::Rebind { component, view }
+            } else if self.consume("join") {
+                let name = self.binding_name()?.0;
+                self.expect("=")?;
+                self.expect("(")?;
+                let edge = self.name()?.0;
+                self.expect(",")?;
+                let left = self.name()?.0;
+                self.expect(",")?;
+                let right = self.name()?.0;
+                self.expect(",")?;
+                let output = self.name()?.0;
+                self.expect(")")?;
+                TreeStep::Join {
+                    name,
+                    edge,
+                    left,
+                    right,
+                    output,
+                }
+            } else {
+                return Err(diagnostic(
+                    "E_TENSOR_TREE",
+                    "expected explicit borrow/release/view/regroup/rebind/join tree step",
+                    self.peek().span,
+                ));
+            };
+            self.expect(";")?;
+            plan.push(step);
+        }
+        self.expect("}")?;
+        Ok(Statement::Tree {
+            graph,
+            output,
+            policy: NumericalPolicy::NativeFast,
+            plan,
+            span: start.through(self.previous().span),
+        })
+    }
+
     fn resource_statements(
         &mut self,
         depth: usize,
@@ -1064,7 +1235,9 @@ impl Parser {
         let mut body = Vec::new();
         while !self.peek().is("}") && !self.peek().is("value") {
             let start = self.peek().span;
-            let statement = if ["tensor", "pack3", "contract3", "cache", "contract3_cached"]
+            let statement = if self.peek().is("contract_tree") {
+                self.tree_statement()?
+            } else if ["tensor", "pack3", "contract3", "cache", "contract3_cached"]
                 .iter()
                 .any(|word| self.peek().is(word))
             {

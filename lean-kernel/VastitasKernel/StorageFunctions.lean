@@ -2,6 +2,7 @@ import VastitasKernel.StorageCodegen
 import VastitasKernel.TensorNetwork
 import VastitasKernel.StorageMetric
 import VastitasKernel.TensorNumerical
+import VastitasKernel.TensorTree
 import VastitasKernel.StorageOwnedPackages
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
@@ -59,6 +60,7 @@ inductive Statement where
   | numerical (operation : Numerical.Operation)
   | tensor (operation : Tensor.Operation)
   | network (graph : TensorNetwork.Graph) (output : Symbol) (policy : NumericalPolicy)
+  | tree (graph : TensorTree.Graph) (output : Symbol) (policy : NumericalPolicy) (plan : List TensorTree.Event)
   | call (callee : Nat) (arguments results : List Symbol)
   | branch (condition : Bool) (yes no : List Statement)
   deriving Repr, BEq, Inhabited
@@ -468,6 +470,21 @@ structure TensorContractionReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (Tensor.contractionRequest checked.left checked.right checked.output policy))] = code
 
+structure TreeReceipt where
+  environment : Indexed.Environment
+  numerical : Numerical.Values
+  resources : State
+  values : Tensor.Values
+  graph : TensorTree.Graph
+  output : Symbol
+  plan : List TensorTree.Event
+  checked : TensorTree.Checked environment numerical resources values graph output plan
+  accepted : TensorTree.check environment numerical resources values graph output plan = .ok checked
+  after : State
+  transitioned : after = checked.finalState.resources
+  priorCode : List Storage.Statement
+  code : List Storage.Statement
+  emitted : priorCode ++ checked.finalState.code.map Storage.Statement.action = code
 structure CacheCaptureReceipt where
   cache : Tensor.Cache
   after : State
@@ -549,6 +566,7 @@ structure Context where
   tensorViews : Array TensorViewReceipt := #[]
   tensorPacks : Array TensorPackReceipt := #[]
   tensorContractions : Array TensorContractionReceipt := #[]
+  trees : Array TreeReceipt := #[]
   products : Array NumericalReceipt := #[]
   networks : Array NetworkReceipt := #[]
   inputs : Array NumericalInputReceipt := #[]
@@ -697,6 +715,9 @@ def operation (frame : Frame) : Action → M Frame
   | .copy source target => do step (.copy (← resolve frame source) (← resolve frame target)); return frame
   | .pack3 source target i k j => do
     step (.pack3 (← resolve frame source) (← resolve frame target) i k j)
+    return frame
+  | .regroup3 source target dimensions input output => do
+    step (.regroup3 (← resolve frame source) (← resolve frame target) dimensions input output)
     return frame
   | .captureDependency name source target => do
     let source ← resolve frame source
@@ -1253,6 +1274,60 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
         else throw ⟨"E_TENSOR", "contraction differs from its emitted schedule"⟩
       else throw ⟨"E_TENSOR", "contraction differs from its actual resource transition"⟩
 
+private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (List TensorTree.Event) := do
+  unless plan.length ≤ 1024 do throw ⟨"E_TENSOR_TREE", "tree plan exceeds 1024 explicit steps"⟩
+  let mut localFrame := frame
+  let mut resolved := []
+  for event in plan do
+    spend
+    let (next, event) ← match event with
+      | .action (.borrow name source layout access) => do
+        let source ← lowerSource localFrame source
+        let (next, name) ← bindName localFrame name
+        pure (next, TensorTree.PlanStep.action (.borrow name source layout access))
+      | .action (.release name) => do
+        let name ← resolve localFrame name
+        let loan := match Numerical.value? (← get).numerical name with
+          | some (.map view) => view.loan.name
+          | some (.vector view) => view.loan.name
+          | _ => name
+        pure (localFrame, .action (.release loan))
+      | .action _ => throw ⟨"E_TENSOR_TREE", "tree preparation permits only explicit borrow/release"⟩
+      | .view name loan axes grouping => do
+        let loan ← resolve localFrame loan
+        let axes ← (axes.mapM (resolve localFrame) : Except Error (List Symbol))
+        let (next, name) ← bindName localFrame name
+        pure (next, .view name loan axes grouping)
+      | .regroup component target => pure (localFrame, .regroup component (← resolve localFrame target))
+      | .rebind component view => pure (localFrame, .rebind component (← resolve localFrame view))
+      | .join name edge left right output => pure (localFrame, .join name edge left right (← resolve localFrame output))
+    localFrame := next
+    resolved := resolved ++ [event]
+  return resolved
+
+def treeOperation (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
+    (policy : NumericalPolicy) (plan : List TensorTree.Event) : M Frame := do
+  unless graph.Bounded do throw ⟨"E_TENSOR_TREE", "tree exceeds bounded occurrence/edge/boundary profile"⟩
+  let graph ← (graph.mapM (resolve frame) : Except Error TensorTree.Graph)
+  let output ← resolve frame output
+  let before ← get
+  let plan ← resolveTreePlan frame plan
+  match policy with
+  | .nativeFast =>
+    match accepted : TensorTree.check before.environment before.numerical before.resources before.tensors graph output plan with
+    | .error error => throw error
+    | .ok checked =>
+      for action in checked.finalState.code do step action
+      let after ← get
+      if transitioned : after.resources = checked.finalState.resources then
+        if emitted : before.code.toList ++ checked.finalState.code.map Storage.Statement.action = after.code.toList then
+          let receipt : TreeReceipt := ⟨before.environment, before.numerical, before.resources, before.tensors,
+            graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
+          set {after with trees := after.trees.push receipt}
+          return frame
+        else throw ⟨"E_TENSOR_TREE", "tree emission changed an earlier resource operation"⟩
+      else throw ⟨"E_TENSOR_TREE", "tree differs from its actual resource expansion"⟩
+
 def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
     (policy : NumericalPolicy) : M Frame := do
   unless graph.Bounded do throw ⟨"E_NETWORK", "unsupported network profile"⟩
@@ -1279,6 +1354,7 @@ mutual
         | .action action => operation frame action
         | .numerical op => numericalOperation frame op
         | .network graph output policy => networkOperation frame graph output policy
+        | .tree graph output policy plan => treeOperation frame graph output policy plan
         | .tensor operation => tensorOperation frame operation
         | .call callee actuals outputs => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
@@ -1305,6 +1381,7 @@ mutual
             cacheCaptures := #[]
             cachedContractions := #[]
             tensorContractions := #[]
+            trees := #[]
             inputs := #[]
             outputs := #[]
             packageResults := #[]
@@ -1330,6 +1407,7 @@ mutual
             cacheCaptures := #[]
             cachedContractions := #[]
             tensorContractions := #[]
+            trees := #[]
             inputs := #[]
             outputs := #[]
             packageResults := #[]
@@ -1359,6 +1437,7 @@ mutual
             tensorViews := before.tensorViews ++ left.tensorViews ++ right.tensorViews
             tensorPacks := before.tensorPacks ++ left.tensorPacks ++ right.tensorPacks
             tensorContractions := before.tensorContractions ++ left.tensorContractions ++ right.tensorContractions
+            trees := before.trees ++ left.trees ++ right.trees
             inputs := before.inputs ++ left.inputs ++ right.inputs
             outputs := before.outputs ++ left.outputs ++ right.outputs
             packageResults := before.packageResults ++ left.packageResults ++ right.packageResults

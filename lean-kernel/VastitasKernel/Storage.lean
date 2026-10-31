@@ -1,4 +1,5 @@
 import VastitasKernel.StorageDiagonalData
+import VastitasKernel.StorageTensorLayout
 
 /-! Explicit resource transitions, separate from pure indexed Core. All handles
 are lexical symbols, not addresses. Allocation identities are reconstructed by
@@ -243,6 +244,7 @@ inductive Action where
   | expect (loan row column : Nat) (value : Literal)
   | copy (source target : Symbol)
   | pack3 (source target : Symbol) (i k j : Nat)
+  | regroup3 (source target : Symbol) (dimensions : List Nat) (input output : Tensor.Grouping)
   | gemm (request : Gemm)
   | diagonalAdjoint (request : DiagonalAdjoint)
   | diagonalScale (request : DiagonalScale)
@@ -548,6 +550,23 @@ def executeAction (state : State) : Action → Except Error State
       reject "E_RESOURCE_INIT" "packing source is not fully initialized"
     if input.allocation == output.allocation && !input.layout.disjoint output.layout sourceAllocation.scalar then
       reject "E_RESOURCE_ALIAS" "packing requires disjoint input and destination bytes"
+    return state.markWritten targetAllocation.identity output.layout
+  | .regroup3 source target dimensions inputGrouping outputGrouping => do
+    let (input, sourceAllocation) ← usable state source false
+    let (output, targetAllocation) ← usable state target true
+    if dimensions.length != 3 || !dimensions.all (· ≤ dimensionLimit) ||
+        !decide (inputGrouping.Valid 3) || !decide (outputGrouping.Valid 3) ||
+        input.layout.transposed || output.layout.transposed ||
+        sourceAllocation.scalar != targetAllocation.scalar ||
+        input.layout.rows != inputGrouping.rows dimensions ||
+        input.layout.columns != inputGrouping.columns dimensions ||
+        output.layout.rows != outputGrouping.rows dimensions ||
+        output.layout.columns != outputGrouping.columns dimensions then
+      reject "E_RESOURCE_PACK" "regroup3 requires exact bounded rank-three permutations and matching actual rectangles"
+    if !sourceAllocation.initialization.covers sourceAllocation.scalar input.layout then
+      reject "E_RESOURCE_INIT" "regrouping source is not fully initialized"
+    if input.allocation == output.allocation && !input.layout.disjoint output.layout sourceAllocation.scalar then
+      reject "E_RESOURCE_ALIAS" "regrouping requires disjoint input and destination bytes"
     return state.markWritten targetAllocation.identity output.layout
   | .gemm request => do
     let checked ← checkGemm state request

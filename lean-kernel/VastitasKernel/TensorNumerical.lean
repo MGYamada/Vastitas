@@ -7,16 +7,6 @@ profile has explicit rank-three packing and rank-three/rank-two contraction. -/
 namespace VastitasKernel.Storage.Tensor
 open Numerical
 
-structure Grouping where
-  order : List Nat
-  split : Nat
-  deriving Repr, BEq, DecidableEq, Inhabited
-
-def Grouping.Valid (grouping : Grouping) (rank : Nat) : Prop :=
-  grouping.order.Perm (List.range rank) ∧ 0 < grouping.split ∧ grouping.split < rank
-instance (grouping : Grouping) (rank : Nat) : Decidable (grouping.Valid rank) :=
-  inferInstanceAs (Decidable (_ ∧ _ ∧ _))
-
 def unpacked : Grouping := ⟨[0, 1, 2], 1⟩
 def packed : Grouping := ⟨[0, 2, 1], 2⟩
 def boundary : Grouping := ⟨[0, 1, 2], 2⟩

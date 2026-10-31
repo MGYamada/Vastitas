@@ -188,6 +188,47 @@ fn diagonal_metrics_check_actual_real_complex_operations_and_branches() {
     );
 }
 
+fn with_tree(source: &str, tree: &str) -> String {
+    let source = source.replace(
+        "pub resource fn exercise() -> Unit {\n",
+        "pub resource fn exercise() -> Unit {\n    call product() -> ();\n",
+    );
+    branched(&source) + tree
+}
+
+#[test]
+fn diagonal_metrics_and_trees_keep_actual_receipts_in_both_branches() {
+    let real = with_tree(
+        REAL,
+        include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+    );
+    let complex = with_tree(
+        COMPLEX,
+        include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+    );
+    let s = fixture(&real, &complex);
+    success(&command(&s, "check").output().unwrap());
+    let emitted = kernel(captured(&s), "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    let code = emitted["lean_source"].as_str().unwrap();
+    assert_eq!(
+        code.matches("VastitasStorageNative.diagonalAdjoint arena")
+            .count(),
+        4
+    );
+    assert_eq!(
+        code.matches("VastitasGemmNative.diagonalPair arena")
+            .count(),
+        8
+    );
+    assert_eq!(code.matches("VastitasGemmNative.gemm arena").count(), 8);
+    assert!(code.contains("regroup3 arena"));
+    rejection(
+        &real.replace("input,output,hv,hw", "input,output,hw,hv"),
+        "E_NUMERICAL_METRIC",
+    );
+}
+
 #[test]
 fn diagonal_metrics_reject_wrong_forms_access_and_unrealizable_entries() {
     for (from, to, code) in [
@@ -304,6 +345,16 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
     for (real, complex) in [
         (REAL.to_owned(), COMPLEX.to_owned()),
         (empty(false, "0"), empty(true, "9007199254740993")),
+        (
+            with_tree(
+                REAL,
+                include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+            ),
+            with_tree(
+                COMPLEX,
+                include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+            ),
+        ),
     ] {
         let s = fixture(&real, &complex);
         let output = s.0.join("program");

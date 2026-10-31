@@ -86,6 +86,8 @@ inductive Statement where
   | numerical (operation : NumericalOperation) (span : Span)
   | tensor (operation : Tensor.Operation String) (span : Span)
   | network (graph : TensorNetwork.Graph String) (output : String) (policy : NumericalPolicy) (span : Span)
+  | tree (graph : TensorTree.Graph String) (output : String) (policy : NumericalPolicy)
+      (plan : List (TensorTree.PlanStep String Action)) (span : Span)
   | call (callee : Indexed.Source.Path) (arguments results : List String) (span : Span)
   | branch (condition : Bool) (yes no : List Statement) (span : Span)
   deriving Repr, Inhabited
@@ -331,6 +333,33 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     return (frame, .gemm (← name left) (← name right) (← name output) mode policy
       (← coefficient alpha) (← coefficient beta))
 
+private def lowerTreePlan (index : Namespace.Indexed) (scope : Namespace.Scope)
+    (frame : Frame) (span : Span) (plan : List (TensorTree.PlanStep String Action)) :
+    M (List TensorTree.Event) := do
+  unless plan.length ≤ 1024 do throw {code := "E_TENSOR_TREE", message := "tree plan exceeds 1024 explicit steps", span}
+  let mut localFrame := frame
+  let mut lowered := []
+  for event in plan do
+    let state ← get
+    if state.unused == 0 then throw {code := "E_LIMIT", message := "resource tree exceeds the global statement budget", span}
+    set {state with unused := state.unused - 1}
+    let name value := Prod.fst <$> lookup localFrame value span
+    let (next, event) ← match event with
+      | .action action => do
+        let (next, action) ← lowerAction index scope localFrame span action
+        pure (next, TensorTree.PlanStep.action action)
+      | .view output loan axes grouping => do
+        let loan ← name loan
+        let axes ← (axes.mapM name : Namespace.Result (List Symbol))
+        let (next, output) ← bindName index scope localFrame output .numerical span
+        pure (next, .view output loan axes grouping)
+      | .regroup component target => pure (localFrame, .regroup component (← name target))
+      | .rebind component view => pure (localFrame, .rebind component (← name view))
+      | .join output edge left right target => pure (localFrame, .join output edge left right (← name target))
+    localFrame := next
+    lowered := lowered ++ [event]
+  return lowered
+
 private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.DeclId)
     (caller : Nat) (scope : Namespace.Scope) : Nat → Frame → List Statement → M (Frame × List Functions.Statement)
   | _, frame, [] => pure (frame, [])
@@ -361,6 +390,12 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
         | .pack source target => pure (frame, .pack (← name source) (← name target))
         | .contract3 left right output policy => pure (frame, .contract3 (← name left) (← name right) (← name output) policy)
       pure (frame, .tensor operation)
+    | .tree graph output policy plan span => do
+      unless graph.Bounded do throw {code := "E_TENSOR_TREE", message := "unsupported bounded tree profile", span}
+      let graph ← graph.mapM (fun value => Prod.fst <$> lookup frame value span)
+      let output ← Prod.fst <$> lookup frame output span
+      let plan ← lowerTreePlan index scope frame span plan
+      pure (frame, .tree graph output policy plan)
     | .network graph output policy span => do
       unless graph.Bounded do throw {code := "E_NETWORK", message := "unsupported two-map network profile", span}
       let graph ← graph.mapM (fun value => Prod.fst <$> lookup frame value span)
@@ -566,6 +601,7 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   packageResultOrigins : ∀ receipt ∈ checked.context.packageResults.toList, receipt.environment = environment
   adjointOrigins : ∀ receipt ∈ checked.context.adjoints.toList, receipt.environment = environment
   diagonalPairingOrigins : ∀ receipt ∈ checked.context.diagonalPairings.toList, receipt.environment = environment
+  treeOrigins : ∀ receipt ∈ checked.context.trees.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -639,12 +675,15 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                                                 receipt.environment = numericalEnvironment pureProgram then
                                               if diagonalPairingOrigins : ∀ receipt ∈ executable.context.diagonalPairings.toList,
                                                   receipt.environment = numericalEnvironment pureProgram then
-                                                .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                                                  library, libraryAccepted, fun actual same => by
-                                                    have : actual = id := Option.some.inj (same.symm.trans entry)
-                                                    subst actual
-                                                    exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                                      networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins⟩⟩
+                                                if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                                    receipt.environment = numericalEnvironment pureProgram then
+                                                  .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                                                    library, libraryAccepted, fun actual same => by
+                                                      have : actual = id := Option.some.inj (same.symm.trans entry)
+                                                      subst actual
+                                                      exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
+                                                        networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins⟩⟩
+                                                else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
                                               else Namespace.problem {} "E_OWNER" "diagonal pairing lost its accepted declaration environment"
                                             else Namespace.problem {} "E_OWNER" "materialized adjoint lost its accepted declaration environment"
                                           else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"

@@ -36,6 +36,8 @@ jobs:
         run: cargo clippy --locked --all-targets -- -D warnings
       - name: Dependency-boundary checker tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Contraction-tree harness tests
+        run: python3 -m unittest discover -s experiments/contraction_trees -p 'test_*.py'
       - name: Dependency boundaries
         run: python3 scripts/check_boundaries.py
       - name: Generate and check the standard-library package
@@ -154,7 +156,7 @@ jobs:
           if [ "$RUNNER_OS" = Linux ]; then
             export VASTITAS_TEST_NATIVE_CC=cc
           fi
-          cargo test --locked --test numerical_source --test tensor_source --test cached_packing --test diagonal_metrics -- --ignored
+          cargo test --locked --test numerical_source --test tensor_source --test tree_source --test cached_packing --test diagonal_metrics -- --ignored
 
   oracle:
     # Preserve the repository's required-check name; this job is Mathlib-free.

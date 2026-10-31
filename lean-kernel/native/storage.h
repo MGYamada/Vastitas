@@ -57,4 +57,12 @@ VStorageStatus vstorage_copy(VStorageArena *arena, uint32_t source, VStorageLayo
 VStorageStatus vstorage_pack3(VStorageArena *arena, uint32_t source, VStorageLayout input,
                              uint32_t target, VStorageLayout output,
                              uint64_t i, uint64_t k, uint64_t j);
+/* Regroup the same rank-three coordinates between explicit rectangles.
+ * A code is axis0 + 3*axis1 + 9*axis2 + 27*(split-1), where the axes form
+ * a permutation of 0,1,2 and split is 1 or 2. First axes vary fastest.
+ * Nonempty envelopes must be disjoint, including identical mappings. */
+VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorageLayout input,
+                                uint32_t target, VStorageLayout output,
+                                uint64_t d0, uint64_t d1, uint64_t d2,
+                                uint64_t input_grouping, uint64_t output_grouping);
 #endif

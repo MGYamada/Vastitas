@@ -144,6 +144,8 @@ non-orthonormal declared diagonal forms through caller scratch and a compound
 preflight, with conditional ideal pairing/adjoint laws. Dense forms and basis
 transport remain outside that increment.
 
-Higher-rank occurrence/port/edge/boundary validation, deterministic contraction
-schedules, explicit packing/scratch/dependencies, generative numerical packages,
-dynamic interfaces and equivalent-C acceptance remain Stage 1 requirements.
+[Bounded contraction trees](contraction-trees.md) now validate rank-two/three
+occurrences, ports, edges and boundaries with explicit schedules and regrouping;
+[packing caches](cached-packing.md) check retained scratch dependencies.
+General-rank networks, broader generative numerical packages, dynamic interfaces
+and equivalent-C acceptance remain open Stage 1 work.

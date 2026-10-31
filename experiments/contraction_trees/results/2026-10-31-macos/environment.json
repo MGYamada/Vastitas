@@ -1,0 +1,198 @@
+{
+  "started_utc": "2026-10-31T14:47:41.767788+00:00",
+  "argv": [
+    "experiments/contraction_trees/run.py",
+    "--prefix",
+    "/private/tmp/vastitas-openblas-verified",
+    "--output",
+    "/private/tmp/vastitas-tree-smoke-stable-20261031",
+    "--frontend",
+    "target/debug/vastitas",
+    "--smoke",
+    "--samples",
+    "3",
+    "--target-ms",
+    "0.1",
+    "--no-leak-sanitizer"
+  ],
+  "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "python": "3.15.2 (main, Oct 25 2026, 16:57:51) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "cpu_affinity_before": [],
+  "cpu": null,
+  "flags": [
+    "-std=c11",
+    "-O3",
+    "-fno-lto",
+    "-Wall",
+    "-Wextra",
+    "-Werror"
+  ],
+  "policy": "NativeFast",
+  "threads": 1,
+  "source_sha256": {
+    "experiments/contraction_trees/run.py": "3d9f5584535738e66c72d0894f3388c933d75a701d92a8b327852a25815515b9",
+    "experiments/contraction_trees/test_harness.py": "96d8c8fcce1f3f0e10910a9e5792d4981014be465ad6fa8f41db9d6c31e0d4cd",
+    "experiments/contraction_trees/ffi.c": "ab969b242f3effa1936f41dff309e53d39381788c589f51206d7bf29ffd36fce",
+    "experiments/contraction_trees/cases.py": "52f44d9c93b0ed73c0e604949f7c88b3a28b935a9b68f8576227c1980ac31650",
+    "experiments/contraction_trees/README.md": "c5120c67609fdc54e3545b36e1ace43e493cb24162ee1c26b93c6214de2b18fe",
+    "experiments/contraction_trees/calls.h": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5",
+    "experiments/contraction_trees/probe.c": "ed1f579f0efdcdb014b64ca0864dd71433039e530309fd2bb8100b69edce911c",
+    "experiments/storage_copy/run.py": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1",
+    "lean-kernel/native/storage.c": "6a3f3bcd9b1e37a5d41e3807c86a89f00b072a34559308aa8e53b09557b14578",
+    "lean-kernel/native/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean-kernel/native/ffi.c": "cb4a41617130c87a6f187dca10f894fdeba53fc426f1d9bf3ef3d918f1b6cf35",
+    "lean-kernel/native/lake-manifest.json": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6",
+    "lean-kernel/native/storage.h": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13",
+    "lean-kernel/native/lakefile.lean": "7d9273a71235731732731dc42e38fa41f2ca1555055c6864cdcee4ec50161914",
+    "lean-kernel/native/test_storage.c": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691",
+    "lean-kernel/native/VastitasStorageNative.lean": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9",
+    "lean-kernel/native/VastitasStorageNative/Runtime.lean": "09262f9a77127c23d16bddfc5994b7f5f45305e73c732785e20bbfe3c22249b5",
+    "lean-kernel/numerical/gemm.h": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e",
+    "lean-kernel/numerical/test_backend.c": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9",
+    "lean-kernel/numerical/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean-kernel/numerical/ffi.c": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8",
+    "lean-kernel/numerical/VastitasGemmNative.lean": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab",
+    "lean-kernel/numerical/lake-manifest.json": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557",
+    "lean-kernel/numerical/lakefile.lean": "053c092fe9cc7210a3d410f81c3671fbc017d4c68230192062afb73ccb1ae098",
+    "lean-kernel/numerical/gemm.c": "c136c8355a03c07f1be1f4f759a64369d0bfc380b4a154a55339fd8bc9564bb8",
+    "lean-kernel/numerical/LICENSE.OpenBLAS": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9",
+    "lean-kernel/numerical/test_gemm.c": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037",
+    "lean-kernel/VastitasKernel/TensorNumerical.lean": "09ebd0c7387f3bba88f890a5bbd202c4cefa5de52febd75214fbe9379feeeacc",
+    "lean-kernel/VastitasKernel/TensorContraction.lean": "031abd73d4a92fff1e28dd631ca203faade6f73e03b4b235aa678d22c8e2c16a",
+    "lean-kernel/VastitasKernel/TensorTree.lean": "f30679f3043b62f4b935bcb1a586b045ac4210aef97d70e3aa98c87f7ec3215b",
+    "lean-kernel/VastitasKernel/StorageTensorLayout.lean": "f57296dc439b339e2aa4473794979ca8932f3657052c2a2d130698fa4bd10153",
+    "lean-kernel/VastitasKernel/StorageFunctions.lean": "17bfeb10276f8f39c3bdfe677388007da89f1a97a8bd9f72408d7622f16c2db3",
+    "lean-kernel/VastitasKernel/Storage.lean": "f0d78e80bbbd8737341ca38b557baba78d31971a1bd181cc8d582dfb5779c357",
+    "lean-kernel/VastitasKernel/StorageProtocol.lean": "3cf1cfcc3596f2d9c964baf4d8f06016b5089967993f114144961cb9f60429de",
+    "lean-kernel/VastitasKernel/ResourceSource.lean": "eb671974811bf1a7d939d82f16877addc133f111f0da536dc412cec0ea9a1b02",
+    "lean-kernel/VastitasKernel/ResourceProtocol.lean": "80946376f739c2a62e57a709e807fd786c24559190178455fb9698d4f21dc236",
+    "lean-kernel/VastitasKernel/ResourceCodegen.lean": "bcd5facb6cd3c72abb647b1671fd19031eaf5a1a244c88433c18e694797d9a36",
+    "src/frontend/resource_parser.rs": "5008d229fada32474f3acfc5c2a249eb1c56fa09cfeda073fbd6f0b03238196a",
+    "src/storage.rs": "ee2f510f7cc9ee6cabbe8c6e685b13aa48bd8ae33bf5136183ca4e5489b65244",
+    "lean-kernel/VastitasKernel/StorageCodegen.lean": "48021ce03b17c23f10e7b3fa70479efb3992031ac307d890de43225faf970243",
+    "/private/tmp/vastitas-openblas-verified/lib/libopenblas.a": "104ac34c33302dbd7981eb47b5f5c04e4a46ca73c48ae20d60978190c666d41f",
+    "/private/tmp/vastitas-openblas-verified/include/cblas.h": "3955158bd0971b1ce0b5a9324c301bdcf4ddeb18baf2e0ca5e1dbe1387c2d28f",
+    "/private/tmp/vastitas-openblas-verified/include/openblas_config.h": "0ee25635c57f0a480badf75fe35eca7bff9748793f2675c595bf45a5dbc9b6a1",
+    "/private/tmp/vastitas-contraction-trees/target/debug/vastitas": "68a1228b70ab02fdb7444802155f7b32f3ee9fa7aebebf4dc1054d0f07b8027a",
+    "/private/tmp/vastitas-contraction-trees/lean-kernel/.lake/build/bin/vastitas-kernel": "67dd46abb1697e015dbf2d417cce3d67602411085627cc1853c35ba4652fd170"
+  },
+  "toolchains": {
+    "cc": {
+      "command": [
+        "cc",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+      "stderr": "",
+      "wall_ns": 11482041,
+      "phase": "environment"
+    },
+    "rustc": {
+      "command": [
+        "rustc",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "rustc 1.99.1 (58cf8f9c3 2026-10-13) (Homebrew)\n",
+      "stderr": "",
+      "wall_ns": 218628417,
+      "phase": "environment"
+    },
+    "cargo": {
+      "command": [
+        "cargo",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "cargo 1.99.1 (5f94df478 2026-08-27) (Homebrew)\n",
+      "stderr": "",
+      "wall_ns": 177632417,
+      "phase": "environment"
+    },
+    "lean": {
+      "command": [
+        "lean",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "Lean (version 4.35.0, arm64-apple-darwin24.6.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)\n",
+      "stderr": "",
+      "wall_ns": 46276667,
+      "phase": "environment"
+    },
+    "lake": {
+      "command": [
+        "lake",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "Lake version 5.0.0-src+eb6cafb (Lean version 4.35.0)\n",
+      "stderr": "",
+      "wall_ns": 48959375,
+      "phase": "environment"
+    },
+    "git": {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "57810c6ea64ce461c77eca762cee6138f3a629d3\n",
+      "stderr": "",
+      "wall_ns": 11538667,
+      "phase": "environment"
+    },
+    "git_status": {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "UU .github/workflows/ci.yml\nM  .github/workflows/public-gemm-experiment.yml\nUU AGENTS.md\nUU README.md\nA  docs/cached-packing.md\n M docs/contraction-trees.md\nUU docs/protocol.md\nMM docs/resource-source.md\nMM docs/stage1-completion.md\nM  docs/storage-functions.md\nMM docs/storage-ir.md\nM  docs/storage-ownership.md\nM  docs/tensor-packing.md\nUU docs/verification.md\nA  examples/packages/cached-tensor-packing/Vastitas.toml\nA  examples/packages/cached-tensor-packing/src/complex/mod.vast\nA  examples/packages/cached-tensor-packing/src/main.vast\nA  examples/packages/cached-tensor-packing/src/profiles/mod.vast\nA  examples/packages/cached-tensor-packing/src/real/mod.vast\nM  experiments/public_gemm/README.md\nA  experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md\nA  experiments/public_gemm/results/2026-10-31-linux-full/artifact-manifest.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/cases.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/compile-times.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/environment.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/native-validation.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/openblas-build.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/raw.csv\nA  experiments/public_gemm/results/2026-10-31-linux-full/source-and-commands.tar.gz\nA  experiments/public_gemm/results/2026-10-31-linux-full/status.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/summary.json\nA  experiments/public_gemm/results/2026-10-31-linux-full/summary.md\nM  lean-kernel/VastitasKernel/ResourceProtocol.lean\nUU lean-kernel/VastitasKernel/ResourceSource.lean\nM  lean-kernel/VastitasKernel/Storage.lean\nM  lean-kernel/VastitasKernel/StorageCodegen.lean\nUU lean-kernel/VastitasKernel/StorageFunctions.lean\nM  lean-kernel/VastitasKernel/StorageProtocol.lean\n M lean-kernel/VastitasKernel/TensorContraction.lean\nM  lean-kernel/VastitasKernel/TensorNumerical.lean\nA  lean-kernel/VastitasStorageTest/DependencyRegression.lean\nUU lean-kernel/lakefile.toml\nM  lean/VastitasOracle.lean\nA  lean/VastitasOracle/StorageCachedPacking.lean\nA  lean/VastitasOracle/StorageDependencies.lean\n M lean/VastitasOracle/TensorContraction.lean\nM  scripts/check_gemm_checked.py\nUU scripts/check_kernel_regressions.sh\nUU src/frontend/resource_parser.rs\nM  src/storage.rs\nA  tests/cached_packing.rs\n M tests/tree_source.rs\n?? experiments/contraction_trees/\n",
+      "stderr": "",
+      "wall_ns": 47543417,
+      "phase": "environment"
+    },
+    "cpu": {
+      "command": [
+        "sysctl",
+        "-n",
+        "machdep.cpu.brand_string"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 1,
+      "stdout": "",
+      "stderr": "sysctl: sysctl fmt -1 1024 1: Operation not permitted\n",
+      "wall_ns": 4106833,
+      "phase": "environment"
+    },
+    "libc": {
+      "command": [
+        "sw_vers"
+      ],
+      "cwd": "/private/tmp/vastitas-contraction-trees",
+      "returncode": 0,
+      "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123\n",
+      "stderr": "",
+      "wall_ns": 13730500,
+      "phase": "environment"
+    }
+  },
+  "host": {},
+  "performance": "smoke only",
+  "leak_sanitizer": "disabled explicitly",
+  "memory_scope": "exact arena data counters; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented",
+  "expected_lean_toolchain": "leanprover/lean4:v4.35.0",
+  "recorded_inputs_unchanged": true,
+  "finished_utc": "2026-10-31T14:48:13.832188+00:00"
+}

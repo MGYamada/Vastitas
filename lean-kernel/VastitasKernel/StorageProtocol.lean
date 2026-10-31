@@ -69,6 +69,15 @@ def diagonal (j : Json) : Except String Diagonal := do
   let entries ← j.getObjValAs? (Array Nat) "entries"
   if entries.size > 4096 || entries.any (· ≥ 2^64) then throw "invalid bounded diagonal representation"
   return ⟨← j.getObjValAs? Bool "uniform", entries.toList.map UInt64.ofNat⟩
+def grouping3 (j : Json) : Except String Tensor.Grouping := do
+  fields j ["order", "split"]
+  let order ← array j "order"
+  unless order.length == 3 do throw "regrouping requires exactly three axes"
+  let order ← order.mapM fun value => do
+    let axis ← value.getNat?
+    if axis ≥ 3 then throw "regrouping axis exceeds rank bound"
+    pure axis
+  return ⟨order, ← size j "split"⟩
 
 def action (j : Json) : Except String Action := do
   match ← str j "op" with
@@ -135,6 +144,16 @@ def action (j : Json) : Except String Action := do
       ← j.getObjValAs? Bool "conjugate_left", ← j.getObjValAs? Bool "conjugate_right",
       ← gemmMode (← str j "mode"), ← numericalPolicy (← str j "policy"),
       ← optionalCoefficient j "alpha", ← optionalCoefficient j "beta"⟩
+  | "regroup3" =>
+    fields j ["op", "source", "target", "dimensions", "input", "output"]
+    let dimensions ← array j "dimensions"
+    unless dimensions.length == 3 do throw "regrouping requires exactly three extents"
+    let dimensions ← dimensions.mapM fun value => do
+      let dimension ← value.getNat?
+      if dimension ≥ 2^64 then throw "regrouping extent exceeds 64 bits"
+      pure dimension
+    return .regroup3 (← symbol j "source") (← symbol j "target") dimensions
+      (← grouping3 (← field j "input")) (← grouping3 (← field j "output"))
   | _ => throw "unknown resource operation"
 
 def statements : Nat → List Json → Except String (List Statement)

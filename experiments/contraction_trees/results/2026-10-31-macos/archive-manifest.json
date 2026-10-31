@@ -1,0 +1,1207 @@
+[
+  {
+    "path": "cases/tiny-complex-p0/Generated.lean",
+    "bytes": 2424,
+    "sha256": "0881120633a9b993da0101f355728b4c2d6676629ea5cf6fe7656d88a6784d3d"
+  },
+  {
+    "path": "cases/tiny-complex-p0/Main.lean",
+    "bytes": 5498,
+    "sha256": "03f138eef39152e8890499135b7804b835258d43fac1cce68e4e4f4efba9d920"
+  },
+  {
+    "path": "cases/tiny-complex-p0/lake-manifest.json",
+    "bytes": 826,
+    "sha256": "2359430d801e59a4c8559d3ff8876a6137ef72c61ef60b4b14b8d43a51b4264c"
+  },
+  {
+    "path": "cases/tiny-complex-p0/lakefile.lean",
+    "bytes": 445,
+    "sha256": "ccedc4a034c78f8c9035d59661ba5184f56055513018cbc9b7c0cb362519c756"
+  },
+  {
+    "path": "cases/tiny-complex-p0/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-complex-p0/linked-libraries.txt",
+    "bytes": 261,
+    "sha256": "a77dfaa111837f7ddb4ea69debb049b0d03a29368d21ed564b547a7867e60ca4"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/VastitasStorageNative/Runtime.lean",
+    "bytes": 2476,
+    "sha256": "09262f9a77127c23d16bddfc5994b7f5f45305e73c732785e20bbfe3c22249b5"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/VastitasStorageNative.lean",
+    "bytes": 37,
+    "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/case.h",
+    "bytes": 1253,
+    "sha256": "dcb8f447e7d9a75803c77fa6a03a5db4d5e0877effc0ac0cd1b9f4101b0b3b69"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/ffi.c",
+    "bytes": 6810,
+    "sha256": "e972d30129313b6df0f14a17623cd5aba91893fdcb10f6d626cce92bbd295d54"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/lake-manifest.json",
+    "bytes": 155,
+    "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/lakefile.lean",
+    "bytes": 1749,
+    "sha256": "41b1303c0ce8ddb65865f85dd05ee2edab93e65e980bbc407c4e632859b4ad95"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/storage.c",
+    "bytes": 89,
+    "sha256": "438ed91a9f9b85c166ea476f70f3855adb9d480ea05759968265d19d8a5b543e"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/storage.h",
+    "bytes": 3717,
+    "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native/test_storage.c",
+    "bytes": 28201,
+    "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native-test/case.h",
+    "bytes": 1253,
+    "sha256": "dcb8f447e7d9a75803c77fa6a03a5db4d5e0877effc0ac0cd1b9f4101b0b3b69"
+  },
+  {
+    "path": "cases/tiny-complex-p0/native-test/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/LICENSE.OpenBLAS",
+    "bytes": 1545,
+    "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/VastitasGemmNative.lean",
+    "bytes": 1550,
+    "sha256": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/ffi.c",
+    "bytes": 3249,
+    "sha256": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/gemm.h",
+    "bytes": 1682,
+    "sha256": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/lake-manifest.json",
+    "bytes": 362,
+    "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/lakefile.lean",
+    "bytes": 2735,
+    "sha256": "0d0a9df1b87d89685e5c15df4d5dc39d934a09e993e71069228f01e2bc9b05e5"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/test_backend.c",
+    "bytes": 1376,
+    "sha256": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9"
+  },
+  {
+    "path": "cases/tiny-complex-p0/numerical/test_gemm.c",
+    "bytes": 17804,
+    "sha256": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037"
+  },
+  {
+    "path": "cases/tiny-complex-p0/package/Vastitas.toml",
+    "bytes": 71,
+    "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+  },
+  {
+    "path": "cases/tiny-complex-p0/package/capture.py",
+    "bytes": 326,
+    "sha256": "58185d555f530cf82cbf74984546b32ad895e45f2c5bb34a794a4664edee2b53"
+  },
+  {
+    "path": "cases/tiny-complex-p0/package/src/main.vast",
+    "bytes": 100,
+    "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+  },
+  {
+    "path": "cases/tiny-complex-p0/package/src/product/mod.vast",
+    "bytes": 5158,
+    "sha256": "61bf751809f3204b7efaf82a8e2d24831416f31cff2823d03da60637d229f702"
+  },
+  {
+    "path": "cases/tiny-complex-p0/package/src/profiles/mod.vast",
+    "bytes": 1043,
+    "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+  },
+  {
+    "path": "cases/tiny-complex-p0/package/wire.json",
+    "bytes": 22232,
+    "sha256": "a92fc06af1da2473e77d5c8c0a2477715c6c8cacf1f89044cc6030f49733a743"
+  },
+  {
+    "path": "cases/tiny-complex-p0/response.json",
+    "bytes": 2594,
+    "sha256": "e89abb9253bb64c9ec125e505f41c0a8689b3d508ce31906e7b06b5c988d8b3e"
+  },
+  {
+    "path": "cases/tiny-complex-p0/sanitized/case.h",
+    "bytes": 1253,
+    "sha256": "dcb8f447e7d9a75803c77fa6a03a5db4d5e0877effc0ac0cd1b9f4101b0b3b69"
+  },
+  {
+    "path": "cases/tiny-complex-p0/sanitized/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-complex-p0/sanitized/test.dSYM/Contents/Info.plist",
+    "bytes": 633,
+    "sha256": "ba820782da2c966e230b338c1aa38733a2d9ca556e581aef1df842fbe38ea313"
+  },
+  {
+    "path": "cases/tiny-complex-p0/sanitized/test.dSYM/Contents/Resources/Relocations/aarch64/test.yml",
+    "bytes": 171,
+    "sha256": "44b3ada3d82557b0414931467b0b31ae6c2636cd331743bdff331d7e1b288e30"
+  },
+  {
+    "path": "cases/tiny-complex-p1/Generated.lean",
+    "bytes": 2455,
+    "sha256": "2397ca4fbf92e88dea2f531d7903c9e99b41f1ab09be0b7d6dea876da4e609e9"
+  },
+  {
+    "path": "cases/tiny-complex-p1/Main.lean",
+    "bytes": 5560,
+    "sha256": "3b2cbfc9ed4399ad33ee795b2664139f12c1511b2873bbea2745fd15264ed969"
+  },
+  {
+    "path": "cases/tiny-complex-p1/lake-manifest.json",
+    "bytes": 826,
+    "sha256": "2359430d801e59a4c8559d3ff8876a6137ef72c61ef60b4b14b8d43a51b4264c"
+  },
+  {
+    "path": "cases/tiny-complex-p1/lakefile.lean",
+    "bytes": 445,
+    "sha256": "ccedc4a034c78f8c9035d59661ba5184f56055513018cbc9b7c0cb362519c756"
+  },
+  {
+    "path": "cases/tiny-complex-p1/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-complex-p1/linked-libraries.txt",
+    "bytes": 261,
+    "sha256": "eacb9cf7458e59b411ef6c40344bf6c368a1365804d3334e19312e81e30956bf"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/VastitasStorageNative/Runtime.lean",
+    "bytes": 2476,
+    "sha256": "09262f9a77127c23d16bddfc5994b7f5f45305e73c732785e20bbfe3c22249b5"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/VastitasStorageNative.lean",
+    "bytes": 37,
+    "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/case.h",
+    "bytes": 1264,
+    "sha256": "eb1c4399406261f928121ffd3c935580bdf02a5dd1a526a55f5f30889cf9992a"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/ffi.c",
+    "bytes": 6810,
+    "sha256": "e972d30129313b6df0f14a17623cd5aba91893fdcb10f6d626cce92bbd295d54"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/lake-manifest.json",
+    "bytes": 155,
+    "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/lakefile.lean",
+    "bytes": 1749,
+    "sha256": "b25fae7ef58fedaa447e9c60c382b9914b8e02327e3c824245244f2452bd1e79"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/storage.c",
+    "bytes": 89,
+    "sha256": "438ed91a9f9b85c166ea476f70f3855adb9d480ea05759968265d19d8a5b543e"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/storage.h",
+    "bytes": 3717,
+    "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native/test_storage.c",
+    "bytes": 28201,
+    "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native-test/case.h",
+    "bytes": 1264,
+    "sha256": "eb1c4399406261f928121ffd3c935580bdf02a5dd1a526a55f5f30889cf9992a"
+  },
+  {
+    "path": "cases/tiny-complex-p1/native-test/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/LICENSE.OpenBLAS",
+    "bytes": 1545,
+    "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/VastitasGemmNative.lean",
+    "bytes": 1550,
+    "sha256": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/ffi.c",
+    "bytes": 3249,
+    "sha256": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/gemm.h",
+    "bytes": 1682,
+    "sha256": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/lake-manifest.json",
+    "bytes": 362,
+    "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/lakefile.lean",
+    "bytes": 2735,
+    "sha256": "c6f56a56420ea288484786e470544130b726ad1f97828eacf56f0bed3719895f"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/test_backend.c",
+    "bytes": 1376,
+    "sha256": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9"
+  },
+  {
+    "path": "cases/tiny-complex-p1/numerical/test_gemm.c",
+    "bytes": 17804,
+    "sha256": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037"
+  },
+  {
+    "path": "cases/tiny-complex-p1/package/Vastitas.toml",
+    "bytes": 71,
+    "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+  },
+  {
+    "path": "cases/tiny-complex-p1/package/capture.py",
+    "bytes": 326,
+    "sha256": "1491120e29e087436daf5dd853d0f0481497a246bd38db7952b978cc49f2a54d"
+  },
+  {
+    "path": "cases/tiny-complex-p1/package/src/main.vast",
+    "bytes": 100,
+    "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+  },
+  {
+    "path": "cases/tiny-complex-p1/package/src/product/mod.vast",
+    "bytes": 5181,
+    "sha256": "a4dfb829ac09b71cebb4715330e11c8e7523ab31baa01bdb47b6114837d9cadd"
+  },
+  {
+    "path": "cases/tiny-complex-p1/package/src/profiles/mod.vast",
+    "bytes": 1043,
+    "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+  },
+  {
+    "path": "cases/tiny-complex-p1/package/wire.json",
+    "bytes": 22255,
+    "sha256": "b9f71c0f9c1deafab8a161144dfa8419c6fa3d2cffe9e347453d5dd18aaa04c3"
+  },
+  {
+    "path": "cases/tiny-complex-p1/response.json",
+    "bytes": 2625,
+    "sha256": "f7dbdb77c1d684c27032015e1c619e629c2a4baf265d3f75d05250f64f53a3d3"
+  },
+  {
+    "path": "cases/tiny-complex-p1/sanitized/case.h",
+    "bytes": 1264,
+    "sha256": "eb1c4399406261f928121ffd3c935580bdf02a5dd1a526a55f5f30889cf9992a"
+  },
+  {
+    "path": "cases/tiny-complex-p1/sanitized/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-complex-p1/sanitized/test.dSYM/Contents/Info.plist",
+    "bytes": 633,
+    "sha256": "ba820782da2c966e230b338c1aa38733a2d9ca556e581aef1df842fbe38ea313"
+  },
+  {
+    "path": "cases/tiny-complex-p1/sanitized/test.dSYM/Contents/Resources/Relocations/aarch64/test.yml",
+    "bytes": 171,
+    "sha256": "6548a64701a46bd98ad158f1e7181b74865f1bdeb8f4df4f8d11d38daa7a34e9"
+  },
+  {
+    "path": "cases/tiny-f64-p0/Generated.lean",
+    "bytes": 2092,
+    "sha256": "ab500fc5212aba4ce29f43307d1cf6f418b42928c5eed22198eb38d9ace0fb5b"
+  },
+  {
+    "path": "cases/tiny-f64-p0/Main.lean",
+    "bytes": 4834,
+    "sha256": "7ca52f422adb7288d7b98e5700c6819dfa755e8b6769f96607cd555643e57f33"
+  },
+  {
+    "path": "cases/tiny-f64-p0/lake-manifest.json",
+    "bytes": 826,
+    "sha256": "2359430d801e59a4c8559d3ff8876a6137ef72c61ef60b4b14b8d43a51b4264c"
+  },
+  {
+    "path": "cases/tiny-f64-p0/lakefile.lean",
+    "bytes": 445,
+    "sha256": "ccedc4a034c78f8c9035d59661ba5184f56055513018cbc9b7c0cb362519c756"
+  },
+  {
+    "path": "cases/tiny-f64-p0/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-f64-p0/linked-libraries.txt",
+    "bytes": 257,
+    "sha256": "819429ec7d5d7b8b047842d3d284fb2154bd04064b417076dae882b85c5c13be"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/VastitasStorageNative/Runtime.lean",
+    "bytes": 2476,
+    "sha256": "09262f9a77127c23d16bddfc5994b7f5f45305e73c732785e20bbfe3c22249b5"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/VastitasStorageNative.lean",
+    "bytes": 37,
+    "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/case.h",
+    "bytes": 1093,
+    "sha256": "61ee60366402eac3ce468971b76f4db8cc7426e099360ea980cf185e58c98292"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/ffi.c",
+    "bytes": 6810,
+    "sha256": "e972d30129313b6df0f14a17623cd5aba91893fdcb10f6d626cce92bbd295d54"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/lake-manifest.json",
+    "bytes": 155,
+    "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/lakefile.lean",
+    "bytes": 1725,
+    "sha256": "fd166f43c9e673f22bafda918f3a3e7615d160b95e9a6838a9df0ec55f2ed712"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/storage.c",
+    "bytes": 89,
+    "sha256": "438ed91a9f9b85c166ea476f70f3855adb9d480ea05759968265d19d8a5b543e"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/storage.h",
+    "bytes": 3717,
+    "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native/test_storage.c",
+    "bytes": 28201,
+    "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native-test/case.h",
+    "bytes": 1093,
+    "sha256": "61ee60366402eac3ce468971b76f4db8cc7426e099360ea980cf185e58c98292"
+  },
+  {
+    "path": "cases/tiny-f64-p0/native-test/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/LICENSE.OpenBLAS",
+    "bytes": 1545,
+    "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/VastitasGemmNative.lean",
+    "bytes": 1550,
+    "sha256": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/ffi.c",
+    "bytes": 3249,
+    "sha256": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/gemm.h",
+    "bytes": 1682,
+    "sha256": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/lake-manifest.json",
+    "bytes": 362,
+    "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/lakefile.lean",
+    "bytes": 2711,
+    "sha256": "9963e6174f7f32a3a1cff7108f57ed0dc2722c76af2d4fed55320d2c01754078"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/test_backend.c",
+    "bytes": 1376,
+    "sha256": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9"
+  },
+  {
+    "path": "cases/tiny-f64-p0/numerical/test_gemm.c",
+    "bytes": 17804,
+    "sha256": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037"
+  },
+  {
+    "path": "cases/tiny-f64-p0/package/Vastitas.toml",
+    "bytes": 71,
+    "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+  },
+  {
+    "path": "cases/tiny-f64-p0/package/capture.py",
+    "bytes": 322,
+    "sha256": "d72400a0d79a0ccdb6e03b065a9a7bc7562cf5d5163f8ecd78da6d86ae29381d"
+  },
+  {
+    "path": "cases/tiny-f64-p0/package/src/main.vast",
+    "bytes": 100,
+    "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+  },
+  {
+    "path": "cases/tiny-f64-p0/package/src/product/mod.vast",
+    "bytes": 4631,
+    "sha256": "3ae992370c72fc46286f37a5d9894c93062050d37591f097d60b7c75739aaa33"
+  },
+  {
+    "path": "cases/tiny-f64-p0/package/src/profiles/mod.vast",
+    "bytes": 1043,
+    "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+  },
+  {
+    "path": "cases/tiny-f64-p0/package/wire.json",
+    "bytes": 21429,
+    "sha256": "a13491edf51e46c2b244669f76dcff32e7291ec7cf36c03ab26161e8ae733c08"
+  },
+  {
+    "path": "cases/tiny-f64-p0/response.json",
+    "bytes": 2262,
+    "sha256": "789d91c0d14b29cf6a3035704566fd4898f738540b3548bbf3b52b033bd2406d"
+  },
+  {
+    "path": "cases/tiny-f64-p0/sanitized/case.h",
+    "bytes": 1093,
+    "sha256": "61ee60366402eac3ce468971b76f4db8cc7426e099360ea980cf185e58c98292"
+  },
+  {
+    "path": "cases/tiny-f64-p0/sanitized/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-f64-p0/sanitized/test.dSYM/Contents/Info.plist",
+    "bytes": 633,
+    "sha256": "ba820782da2c966e230b338c1aa38733a2d9ca556e581aef1df842fbe38ea313"
+  },
+  {
+    "path": "cases/tiny-f64-p0/sanitized/test.dSYM/Contents/Resources/Relocations/aarch64/test.yml",
+    "bytes": 167,
+    "sha256": "870c6c9aa1651f3666f77007a15160f4a1fffaa4f31230a09f8f8441f3442e39"
+  },
+  {
+    "path": "cases/tiny-f64-p1/Generated.lean",
+    "bytes": 2117,
+    "sha256": "c6ff83418d96dbbd7b520677ed32d7748ef2cf9bd50874d102de3d46bcb5c925"
+  },
+  {
+    "path": "cases/tiny-f64-p1/Main.lean",
+    "bytes": 4884,
+    "sha256": "d65cc454e52a9b4c6724c54ef20172364eec9fac39ee64cbc4a299871abd1771"
+  },
+  {
+    "path": "cases/tiny-f64-p1/lake-manifest.json",
+    "bytes": 826,
+    "sha256": "2359430d801e59a4c8559d3ff8876a6137ef72c61ef60b4b14b8d43a51b4264c"
+  },
+  {
+    "path": "cases/tiny-f64-p1/lakefile.lean",
+    "bytes": 445,
+    "sha256": "ccedc4a034c78f8c9035d59661ba5184f56055513018cbc9b7c0cb362519c756"
+  },
+  {
+    "path": "cases/tiny-f64-p1/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-f64-p1/linked-libraries.txt",
+    "bytes": 257,
+    "sha256": "dcc9f8428039b41358b08ae250b744cf3b7a92bcc3abd69212c859bc73aa377e"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/VastitasStorageNative/Runtime.lean",
+    "bytes": 2476,
+    "sha256": "09262f9a77127c23d16bddfc5994b7f5f45305e73c732785e20bbfe3c22249b5"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/VastitasStorageNative.lean",
+    "bytes": 37,
+    "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/case.h",
+    "bytes": 1102,
+    "sha256": "ae53e768aaea12f6a3314cc8ffced7daa20df6e67dd02a59777fe97f3d18f1f9"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/ffi.c",
+    "bytes": 6810,
+    "sha256": "e972d30129313b6df0f14a17623cd5aba91893fdcb10f6d626cce92bbd295d54"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/lake-manifest.json",
+    "bytes": 155,
+    "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/lakefile.lean",
+    "bytes": 1725,
+    "sha256": "1b50bbf292e01cf120ec5bbe022f6b15021404b56ec6ac2e432db8ea2f7c2730"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/storage.c",
+    "bytes": 89,
+    "sha256": "438ed91a9f9b85c166ea476f70f3855adb9d480ea05759968265d19d8a5b543e"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/storage.h",
+    "bytes": 3717,
+    "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native/test_storage.c",
+    "bytes": 28201,
+    "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native-test/case.h",
+    "bytes": 1102,
+    "sha256": "ae53e768aaea12f6a3314cc8ffced7daa20df6e67dd02a59777fe97f3d18f1f9"
+  },
+  {
+    "path": "cases/tiny-f64-p1/native-test/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/LICENSE.OpenBLAS",
+    "bytes": 1545,
+    "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/VastitasGemmNative.lean",
+    "bytes": 1550,
+    "sha256": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/ffi.c",
+    "bytes": 3249,
+    "sha256": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/gemm.h",
+    "bytes": 1682,
+    "sha256": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/lake-manifest.json",
+    "bytes": 362,
+    "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/lakefile.lean",
+    "bytes": 2711,
+    "sha256": "52edb4480e22525af2b14f04ebbf915b52dba2ee134422ba31b2d2a8cde6b1fc"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/test_backend.c",
+    "bytes": 1376,
+    "sha256": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9"
+  },
+  {
+    "path": "cases/tiny-f64-p1/numerical/test_gemm.c",
+    "bytes": 17804,
+    "sha256": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037"
+  },
+  {
+    "path": "cases/tiny-f64-p1/package/Vastitas.toml",
+    "bytes": 71,
+    "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+  },
+  {
+    "path": "cases/tiny-f64-p1/package/capture.py",
+    "bytes": 322,
+    "sha256": "feff790a07f8fbbffe038c37ae9988a06793d6215f724f57d36d001fd17a2235"
+  },
+  {
+    "path": "cases/tiny-f64-p1/package/src/main.vast",
+    "bytes": 100,
+    "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+  },
+  {
+    "path": "cases/tiny-f64-p1/package/src/product/mod.vast",
+    "bytes": 4650,
+    "sha256": "2f7b0779c9b6951e8ce1960f9f5f62dbe6e47f8116b483d0936e305d64413327"
+  },
+  {
+    "path": "cases/tiny-f64-p1/package/src/profiles/mod.vast",
+    "bytes": 1043,
+    "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+  },
+  {
+    "path": "cases/tiny-f64-p1/package/wire.json",
+    "bytes": 21448,
+    "sha256": "a4388f71e7b99af778affcaa03190212a260f6215b7b633746d527c8eb91e2f8"
+  },
+  {
+    "path": "cases/tiny-f64-p1/response.json",
+    "bytes": 2287,
+    "sha256": "ca79624f34a106d7677f038d5f61762633a2c66a1611a0f675430f0c6e4c3a00"
+  },
+  {
+    "path": "cases/tiny-f64-p1/sanitized/case.h",
+    "bytes": 1102,
+    "sha256": "ae53e768aaea12f6a3314cc8ffced7daa20df6e67dd02a59777fe97f3d18f1f9"
+  },
+  {
+    "path": "cases/tiny-f64-p1/sanitized/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "cases/tiny-f64-p1/sanitized/test.dSYM/Contents/Info.plist",
+    "bytes": 633,
+    "sha256": "ba820782da2c966e230b338c1aa38733a2d9ca556e581aef1df842fbe38ea313"
+  },
+  {
+    "path": "cases/tiny-f64-p1/sanitized/test.dSYM/Contents/Resources/Relocations/aarch64/test.yml",
+    "bytes": 167,
+    "sha256": "50990bf932ded8502fc8cdf0c4513d9879ac856ceee76dbd48afcee8d37953fa"
+  },
+  {
+    "path": "cases.json",
+    "bytes": 515,
+    "sha256": "003829f75d65f98108c003580650e5917f50bf2e05c5352f113a0682632a76e2"
+  },
+  {
+    "path": "commands.json",
+    "bytes": 608263,
+    "sha256": "306209f32911a902546445b589728aa68a192e84740daf2a6810d842e29d7e75"
+  },
+  {
+    "path": "compile-times.json",
+    "bytes": 34571,
+    "sha256": "efa583dff7499a4e70c037975ebd07e581ec884dafa2d9693896f5a169a6a77b"
+  },
+  {
+    "path": "environment.json",
+    "bytes": 11929,
+    "sha256": "712cd0676465c2d234377999de7b6cfa4311a436cb64d1399f65cb1458704133"
+  },
+  {
+    "path": "independent-audit.json",
+    "bytes": 1132,
+    "sha256": "9acc13533ad0458a59c513601b3a8a06a29e3dda92e81b028887ba746b501402"
+  },
+  {
+    "path": "native-validation.json",
+    "bytes": 67443,
+    "sha256": "f1af7d03f444d4a6d0268ff37838e27575b6cc4c85995ba4aa039780ab7ddfe3"
+  },
+  {
+    "path": "openblas-build.json",
+    "bytes": 596,
+    "sha256": "28158d9a853e428b5cfa92edbd4fa0d867fe0ffec05c307d70fb0034e123ae4a"
+  },
+  {
+    "path": "raw.csv",
+    "bytes": 73944,
+    "sha256": "cbdc398f72e2306be7fc12c23da33d374ebba5578dec5892c4280b5c7b939a05"
+  },
+  {
+    "path": "source/experiments/contraction_trees/README.md",
+    "bytes": 7679,
+    "sha256": "c5120c67609fdc54e3545b36e1ace43e493cb24162ee1c26b93c6214de2b18fe"
+  },
+  {
+    "path": "source/experiments/contraction_trees/calls.h",
+    "bytes": 498,
+    "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+  },
+  {
+    "path": "source/experiments/contraction_trees/cases.py",
+    "bytes": 11029,
+    "sha256": "52f44d9c93b0ed73c0e604949f7c88b3a28b935a9b68f8576227c1980ac31650"
+  },
+  {
+    "path": "source/experiments/contraction_trees/ffi.c",
+    "bytes": 957,
+    "sha256": "ab969b242f3effa1936f41dff309e53d39381788c589f51206d7bf29ffd36fce"
+  },
+  {
+    "path": "source/experiments/contraction_trees/probe.c",
+    "bytes": 21216,
+    "sha256": "ed1f579f0efdcdb014b64ca0864dd71433039e530309fd2bb8100b69edce911c"
+  },
+  {
+    "path": "source/experiments/contraction_trees/run.py",
+    "bytes": 21588,
+    "sha256": "3d9f5584535738e66c72d0894f3388c933d75a701d92a8b327852a25815515b9"
+  },
+  {
+    "path": "source/experiments/contraction_trees/test_harness.py",
+    "bytes": 5859,
+    "sha256": "96d8c8fcce1f3f0e10910a9e5792d4981014be465ad6fa8f41db9d6c31e0d4cd"
+  },
+  {
+    "path": "source/experiments/storage_copy/run.py",
+    "bytes": 13955,
+    "sha256": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/ResourceCodegen.lean",
+    "bytes": 3122,
+    "sha256": "bcd5facb6cd3c72abb647b1671fd19031eaf5a1a244c88433c18e694797d9a36"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/ResourceProtocol.lean",
+    "bytes": 20791,
+    "sha256": "80946376f739c2a62e57a709e807fd786c24559190178455fb9698d4f21dc236"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/ResourceSource.lean",
+    "bytes": 41668,
+    "sha256": "eb671974811bf1a7d939d82f16877addc133f111f0da536dc412cec0ea9a1b02"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/Storage.lean",
+    "bytes": 32300,
+    "sha256": "f0d78e80bbbd8737341ca38b557baba78d31971a1bd181cc8d582dfb5779c357"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/StorageCodegen.lean",
+    "bytes": 10097,
+    "sha256": "48021ce03b17c23f10e7b3fa70479efb3992031ac307d890de43225faf970243"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/StorageFunctions.lean",
+    "bytes": 83424,
+    "sha256": "17bfeb10276f8f39c3bdfe677388007da89f1a97a8bd9f72408d7622f16c2db3"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/StorageProtocol.lean",
+    "bytes": 7915,
+    "sha256": "3cf1cfcc3596f2d9c964baf4d8f06016b5089967993f114144961cb9f60429de"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/StorageTensorLayout.lean",
+    "bytes": 1723,
+    "sha256": "f57296dc439b339e2aa4473794979ca8932f3657052c2a2d130698fa4bd10153"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/TensorContraction.lean",
+    "bytes": 8769,
+    "sha256": "031abd73d4a92fff1e28dd631ca203faade6f73e03b4b235aa678d22c8e2c16a"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/TensorNumerical.lean",
+    "bytes": 17512,
+    "sha256": "09ebd0c7387f3bba88f890a5bbd202c4cefa5de52febd75214fbe9379feeeacc"
+  },
+  {
+    "path": "source/lean-kernel/VastitasKernel/TensorTree.lean",
+    "bytes": 24413,
+    "sha256": "f30679f3043b62f4b935bcb1a586b045ac4210aef97d70e3aa98c87f7ec3215b"
+  },
+  {
+    "path": "source/lean-kernel/native/VastitasStorageNative/Runtime.lean",
+    "bytes": 2476,
+    "sha256": "09262f9a77127c23d16bddfc5994b7f5f45305e73c732785e20bbfe3c22249b5"
+  },
+  {
+    "path": "source/lean-kernel/native/VastitasStorageNative.lean",
+    "bytes": 37,
+    "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+  },
+  {
+    "path": "source/lean-kernel/native/ffi.c",
+    "bytes": 5852,
+    "sha256": "cb4a41617130c87a6f187dca10f894fdeba53fc426f1d9bf3ef3d918f1b6cf35"
+  },
+  {
+    "path": "source/lean-kernel/native/lake-manifest.json",
+    "bytes": 155,
+    "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+  },
+  {
+    "path": "source/lean-kernel/native/lakefile.lean",
+    "bytes": 1051,
+    "sha256": "7d9273a71235731732731dc42e38fa41f2ca1555055c6864cdcee4ec50161914"
+  },
+  {
+    "path": "source/lean-kernel/native/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "source/lean-kernel/native/storage.c",
+    "bytes": 19871,
+    "sha256": "6a3f3bcd9b1e37a5d41e3807c86a89f00b072a34559308aa8e53b09557b14578"
+  },
+  {
+    "path": "source/lean-kernel/native/storage.h",
+    "bytes": 3717,
+    "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+  },
+  {
+    "path": "source/lean-kernel/native/test_storage.c",
+    "bytes": 28201,
+    "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+  },
+  {
+    "path": "source/lean-kernel/numerical/LICENSE.OpenBLAS",
+    "bytes": 1545,
+    "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+  },
+  {
+    "path": "source/lean-kernel/numerical/VastitasGemmNative.lean",
+    "bytes": 1550,
+    "sha256": "343237d54974aaf136a751be0d8541f5ec24514400569a018f4eaa5da47b97ab"
+  },
+  {
+    "path": "source/lean-kernel/numerical/ffi.c",
+    "bytes": 3249,
+    "sha256": "4336d89b51d0818fc2bb76f4a30dca4c422e4ec580b5f199e00ab63f6ce358d8"
+  },
+  {
+    "path": "source/lean-kernel/numerical/gemm.c",
+    "bytes": 7514,
+    "sha256": "c136c8355a03c07f1be1f4f759a64369d0bfc380b4a154a55339fd8bc9564bb8"
+  },
+  {
+    "path": "source/lean-kernel/numerical/gemm.h",
+    "bytes": 1682,
+    "sha256": "386a422c37dea7dd60c300fd19439a8119755916e7937af091f1793de273271e"
+  },
+  {
+    "path": "source/lean-kernel/numerical/lake-manifest.json",
+    "bytes": 362,
+    "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+  },
+  {
+    "path": "source/lean-kernel/numerical/lakefile.lean",
+    "bytes": 2037,
+    "sha256": "053c092fe9cc7210a3d410f81c3671fbc017d4c68230192062afb73ccb1ae098"
+  },
+  {
+    "path": "source/lean-kernel/numerical/lean-toolchain",
+    "bytes": 25,
+    "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+  },
+  {
+    "path": "source/lean-kernel/numerical/test_backend.c",
+    "bytes": 1376,
+    "sha256": "bd4dbc4266c56deb424b3a19bf374cedbb3f9b6fab6b0e3f07c617388bf60bf9"
+  },
+  {
+    "path": "source/lean-kernel/numerical/test_gemm.c",
+    "bytes": 17804,
+    "sha256": "f3c96c04520e0229f5694b7cab50dadb062c87967ddc751adc0b920ed9909037"
+  },
+  {
+    "path": "source/src/frontend/resource_parser.rs",
+    "bytes": 44321,
+    "sha256": "5008d229fada32474f3acfc5c2a249eb1c56fa09cfeda073fbd6f0b03238196a"
+  },
+  {
+    "path": "source/src/storage.rs",
+    "bytes": 19306,
+    "sha256": "ee2f510f7cc9ee6cabbe8c6e685b13aa48bd8ae33bf5136183ca4e5489b65244"
+  },
+  {
+    "path": "status.json",
+    "bytes": 71,
+    "sha256": "d05151d102b7547570a4a8fda0580877e860374413126e5b738879a9aa0768f3"
+  },
+  {
+    "path": "summary.json",
+    "bytes": 52282,
+    "sha256": "6188fd2b8165840da3436a3faa06511ff5022c0630f658160b6f07ebf737a0b4"
+  },
+  {
+    "path": "summary.md",
+    "bytes": 2882,
+    "sha256": "751f3152a5ba64205007225f3e78970c85abaa3145b084255efed08254762eb6"
+  },
+  {
+    "path": "additional-native/bulk-complex-p0/case.h",
+    "bytes": 1313,
+    "sha256": "7a706ae2fd3abe09222c3774dc6099afc4c2f126c3d28549d5dbeab623a2229b"
+  },
+  {
+    "path": "additional-native/bulk-complex-p0/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/bulk-complex-p1/case.h",
+    "bytes": 1321,
+    "sha256": "32580b4a3a36949a4728f44383347c3c9b9bf4247bddd92dcfa3d771ee8c0f3a"
+  },
+  {
+    "path": "additional-native/bulk-complex-p1/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/bulk-f64-p0/case.h",
+    "bytes": 1154,
+    "sha256": "28989101def64b7ea46584dbc0dfe79ade63f4ea68d48df1a3836ddbef8c4958"
+  },
+  {
+    "path": "additional-native/bulk-f64-p0/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/bulk-f64-p1/case.h",
+    "bytes": 1160,
+    "sha256": "7bff6aa886b62457cff114726c4cb0b8f3bb9734d6b0c9dcad40d83faaa55644"
+  },
+  {
+    "path": "additional-native/bulk-f64-p1/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/commands.json",
+    "bytes": 97359,
+    "sha256": "06a009cca900d273bc4650b24a8dff3aa67a57203b33b81318722fb3de7c7d8d"
+  },
+  {
+    "path": "additional-native/native-validation.json",
+    "bytes": 102259,
+    "sha256": "02c0bd6abc90b5c32d2706bbeae6a94f70356a2124c196fadc68ea11bf3753bb"
+  },
+  {
+    "path": "additional-native/small-complex-p0/case.h",
+    "bytes": 1277,
+    "sha256": "6c49ab7486fbceea4690a68bbb85eb2c8b2239b006d708f6454f5a824e980086"
+  },
+  {
+    "path": "additional-native/small-complex-p0/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/small-complex-p1/case.h",
+    "bytes": 1286,
+    "sha256": "9f4f7dbf14cd916483becaa4d7c43e1219f016f87a3477583ee111f87b4acaed"
+  },
+  {
+    "path": "additional-native/small-complex-p1/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/small-f64-p0/case.h",
+    "bytes": 1118,
+    "sha256": "b90b0156247063bc03cbec3e3f43e85e742f86c59424a9370cad9ee608e7422a"
+  },
+  {
+    "path": "additional-native/small-f64-p0/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/small-f64-p1/case.h",
+    "bytes": 1125,
+    "sha256": "4369a77a1c33197800ddabbe05bb09f49d0ff83cd97449cc5734a5c674b46e0e"
+  },
+  {
+    "path": "additional-native/small-f64-p1/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/tiny-complex-p0/case.h",
+    "bytes": 1253,
+    "sha256": "dcb8f447e7d9a75803c77fa6a03a5db4d5e0877effc0ac0cd1b9f4101b0b3b69"
+  },
+  {
+    "path": "additional-native/tiny-complex-p0/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/tiny-complex-p1/case.h",
+    "bytes": 1264,
+    "sha256": "eb1c4399406261f928121ffd3c935580bdf02a5dd1a526a55f5f30889cf9992a"
+  },
+  {
+    "path": "additional-native/tiny-complex-p1/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/tiny-f64-p0/case.h",
+    "bytes": 1093,
+    "sha256": "61ee60366402eac3ce468971b76f4db8cc7426e099360ea980cf185e58c98292"
+  },
+  {
+    "path": "additional-native/tiny-f64-p0/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  },
+  {
+    "path": "additional-native/tiny-f64-p1/case.h",
+    "bytes": 1102,
+    "sha256": "ae53e768aaea12f6a3314cc8ffced7daa20df6e67dd02a59777fe97f3d18f1f9"
+  },
+  {
+    "path": "additional-native/tiny-f64-p1/gemm.c",
+    "bytes": 7597,
+    "sha256": "052c642bd4517e8a856f453a997d59da3bd5d80c1292a53c07e57e355f7b96d0"
+  }
+]

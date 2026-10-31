@@ -275,8 +275,10 @@ public action decoder. Both OS numerical CI jobs explicitly run the
 OpenBLAS-dependent tests; normal compiler checks remain BLAS-free.
 
 General generative numerical result packages, scalar expressions and dynamic
-shape interfaces, dense metric realization/transport, higher-rank or multi-edge
-networks, explicit packing and broader scratch/dependency handling remain work.
+shape interfaces, dense metric realization/transport, general-rank/cyclic networks
+and broader retained-evidence handling remain work. Bounded multi-edge
+[contraction trees](contraction-trees.md), explicit regrouping and versioned
+[packing caches](cached-packing.md) are implemented separately.
 Equivalent-C runtime, allocation/copy and peak-memory
 comparisons are still required. The [optional public GEMM experiment](../experiments/public_gemm/README.md)
 has passed generated execution and paired output/arena-cost smoke checks; its

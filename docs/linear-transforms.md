@@ -187,5 +187,6 @@ and explicitly conjugated Hermitian pairing for declared orthonormal forms.
 [Explicit diagonal metrics](diagonal-metrics.md) additionally support materialized
 adjoints and scratch-backed Hermitian pairing, with actual declared coefficient
 realization and conditional ideal laws. Dense metric realization/transport remains work, as do
-generative numerical packages, dynamic scalar/shape interfaces, finite networks
-and equivalent-C performance acceptance. This increment does not close Stage 1.
+general generative numerical packages, dynamic scalar/shape interfaces, general
+networks and equivalent-C performance acceptance. Bounded [contraction trees](contraction-trees.md)
+and [packing caches](cached-packing.md) have their own implemented contracts. This increment does not close Stage 1.

@@ -52,6 +52,17 @@ readable 1x1 region disjoint from output. The checked allocation/offset reaches
 native execution, where the current scalar is read before output writes.
 See [coefficient semantics](numerical-values.md#explicit-and-computed-coefficients).
 
+Owned numerical inputs use parameter `kind:"owned_map"` with `name`, `source`,
+`target` and `span`. Result `type` may be `{kind:"owned_map",source,target}`;
+the original `{scalar,elements,initialized}` raw owned-result form is unchanged.
+Both refer only to preceding input basis contracts. Numerical operation
+`owned_map` supplies `name`, raw `owner`, `layout`, `source` and `target` and moves
+initialized storage into the interpretation. `borrow_owned` supplies `name`,
+`owner` and `access`, using the actual stored layout; `owned_view` supplies `name`,
+`loan` and `owner`, retaining exact allocation/layout/bases. These forms are
+independently checked, contain no allocation IDs or trusted metadata, and are
+rejected by older decoders. See [owned results](numerical-values.md#owned-numerical-results).
+
 Resource parameters additionally support `kind: "space"` with unresolved
 `implementation` and static `dimension`, `kind: "basis"` naming an earlier
 `space` parameter, and `kind: "map"` naming earlier `source`/`target` basis

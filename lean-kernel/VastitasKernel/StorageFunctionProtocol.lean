@@ -30,9 +30,9 @@ def parameter (j : Json) : Except String Parameter := do
       (← j.getObjValAs? Bool "initializes")
   | _ => throw "resource parameters must be owned or borrowed"
 
-def result (j : Json) : Except String (Symbol × OwnedType) := do
+def result (j : Json) : Except String (Symbol × ResultType) := do
   fields j ["name", "type"]
-  return (← symbol j "name", ← ownedType (← field j "type"))
+  return (← symbol j "name", .owned (← ownedType (← field j "type")))
 
 def statements : Nat → List Json → Except String (List Statement)
   | _, [] => pure []

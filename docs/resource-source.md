@@ -70,6 +70,9 @@ cells, padding holes and exhausted coverage budgets remain unreadable.
 | `space v = linear(Profile, 3);` | Construct a fresh nominal linear space from an independently resolved profile. |
 | `basis bv = basis(v);` | Introduce a distinct basis tied to that space. |
 | `map a = view(input, bv, bw);` | Interpret a live loan as a map from `v` to `w` in those bases. |
+| `map a = owned(buffer, layout(...), bv, bw);` | Move initialized coordinate storage into an owned map with exact bases and layout. |
+| `borrow coordinates = read(a);` | Borrow an owned map using its actual stored layout; also `write` and `read_write`. |
+| `map view = view(coordinates, a);` | Recover the owned map's exact interpretation for a matching live loan. |
 | `gemm(a, b, c, overwrite, NativeFast);` | Check exact endpoints/bases and resources, then multiply into `c`; also `accumulate`. |
 | `gemm(a, b, c, accumulate, NativeFast, alpha=coefficient(s), beta=f64_bits(bits));` | Read the checked 1x1 scalar loan at execution and apply explicit coefficients; complex maps require complex coefficient bits. |
 | `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
@@ -141,8 +144,10 @@ counter regressions remain required.
 
 Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
 `ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](numerical-values.md#dependent-numerical-inputs).
+`OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
+storage and input-dependent mathematical identities; see [owned results](numerical-values.md#owned-numerical-results).
 Runtime dimensions/conditions, scalar value flow throughout resource bodies,
-dependent numerical results, dual/conjugate/metric evidence,
+generative numerical result packages, dual/conjugate/metric evidence,
 general owned-result branch joins, scratch/dependency handling, finite networks and
 equivalent-C measurements remain Stage 1 work. Escaping borrowed lifetimes and
 broader lifetime interfaces retain their separate scope. Protocol 8's static

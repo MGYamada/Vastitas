@@ -269,6 +269,25 @@ pub mod source {
             initializes: bool,
             span: Span,
         },
+        OwnedMap {
+            name: String,
+            source: String,
+            target: String,
+            span: Span,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum NumericalResult {
+        OwnedMap { source: String, target: String },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(untagged)]
+    pub enum ResultType {
+        Owned(OwnedType),
+        Numerical(NumericalResult),
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -276,7 +295,7 @@ pub mod source {
     pub struct Result {
         pub name: String,
         #[serde(rename = "type")]
-        pub ty: OwnedType,
+        pub ty: ResultType,
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -345,6 +364,23 @@ pub mod source {
             loan: String,
             source: String,
             target: String,
+        },
+        OwnedMap {
+            name: String,
+            owner: String,
+            layout: Layout,
+            source: String,
+            target: String,
+        },
+        OwnedView {
+            name: String,
+            loan: String,
+            owner: String,
+        },
+        BorrowOwned {
+            name: String,
+            owner: String,
+            access: Access,
         },
         Gemm {
             left: String,

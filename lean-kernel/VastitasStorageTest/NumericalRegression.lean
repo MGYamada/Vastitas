@@ -123,8 +123,42 @@ private def withInputs (implementation : String) (body : List Functions.Statemen
     ⟨1, [], [], [.numerical (.space 0 (id "Affine") 2)]⟩], 0⟩
   check "unused numerical body checked" (!(Functions.check unused env).isOk)
   let escape : Functions.Program := ⟨[⟨0, [], [], [.call 1 [] [10]]⟩,
-    ⟨1, [], [(0, ⟨.f64, 2, []⟩)], [.numerical (.space 0 (id "Real") 2)]⟩], 0⟩
+    ⟨1, [], [(0, .owned ⟨.f64, 2, []⟩)], [.numerical (.space 0 (id "Real") 2)]⟩], 0⟩
   check "numerical object cannot escape as owner" (!(Functions.check escape env).isOk)
+  let padded : Layout := ⟨8, 2, 2, 3, false⟩
+  let producer : Functions.Function := ⟨1, [.space 0 (id "Real") 2, .basis 1 0],
+    [(10, .ownedMap 1 1)], [
+      .action (.allocate 2 .f64 7), .action (.borrow 3 (.owner 2) padded .write),
+      .action (.fill 3 (.f64 0)), .action (.release 3),
+      .numerical (.ownedMap 10 2 padded 1 1)]⟩
+  let consumer : Functions.Function := ⟨0, [], [], [
+    .numerical (.space 0 (id "Real") 2), .numerical (.basis 1 0),
+    .call 1 [0, 1] [20], .numerical (.borrowOwned 21 20 .read),
+    .numerical (.ownedView 22 21 20), .action (.release 21), .action (.drop 20)]⟩
+  let .ok returned := Functions.check ⟨[consumer, producer], 0⟩ env
+    | throw (IO.userError "owned numerical return rejected")
+  check "result certificates exclude probes" (returned.context.outputs.size == 1 && returned.context.transfers.size == 2)
+  check "ownership transfer adds no allocation or copy" (returned.statements.countP (fun s => match s with
+    | .action (.allocate ..) => true | _ => false) == 1 &&
+    returned.statements.all (fun s => match s with | .action (.copy ..) => false | _ => true))
+  let some output := returned.context.outputs[0]? | throw (IO.userError "missing result certificate")
+  let some transfer := returned.context.transfers[1]? | throw (IO.userError "missing caller transfer")
+  check "output endpoints and padded allocation survive transfer" (transfer.view == output.view && transfer.view.layout == padded)
+  for changed in [
+      {output.view with owner := 999999}, {output.view with allocation := output.view.allocation + 1},
+      {output.view with layout := {padded with offset := 0}},
+      {output.view with source := {output.view.source with brand := 999999}}] do
+    let forged := output.values.map fun (name, value) =>
+      (name, if name == output.actual then Numerical.Value.ownedMap changed else value)
+    check "forged owned result cannot invent provenance or initialization"
+      (!(Numerical.checkInput env output.resources forged (.ownedMap output.source output.target) output.actual).isOk)
+  for changed in [
+      {producer with results := [(10, .ownedMap 0 1)]},
+      {producer with results := producer.results ++ producer.results},
+      {producer with body := producer.body.filter (fun s => match s with | .action (.fill ..) => false | _ => true)},
+      {producer with body := producer.body.filter (fun s => match s with | .action (.release ..) => false | _ => true)}] do
+    check "invalid owned numerical result rejected even when unused"
+      (!(Functions.check ⟨[⟨0, [], [], []⟩, changed], 0⟩ env).isOk)
   let invalidEnv := env ++ [⟨id "Conflict", .implementation (id "R") (.scalarBase .scheme .complex) []⟩]
   check "unused conflicting declaration rejected" (!(Functions.check (program (real ++ [multiply] ++ cleanup)) invalidEnv).isOk)
   IO.println "numerical values: real/complex typed products, exact lowering, nominal objects/bases, activation freshness and stale/forged view rejection passed"

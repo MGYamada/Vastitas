@@ -195,7 +195,8 @@ resource handle. The callee cannot use it as a raw storage handle.
 an uninitialized overwrite destination. `ReadWriteMap` requires initialized
 input and is suitable for accumulation. Children return inside out, caller
 loans and numerical bindings are restored, and nested calls keep the same
-nominal endpoints. No numerical value or loan escapes through an owned result.
+nominal endpoints. Borrowed map values and temporary child loans cannot escape as owned results.
+Initialized owned-map results use the separate transfer contract below.
 
 The wire parameter tags are `space` (`name`, unresolved `implementation`,
 `dimension`, `span`), `basis` (`name`, `space`, `span`) and `map` (`name`,
@@ -217,7 +218,75 @@ The nested real/complex source regressions execute overwrite and accumulation
 through these inputs. Their generated schedule retains six allocations and
 four GEMMs with no copy, matching the direct-call fixture. These are structural
 cost checks, not timings or a claim of C parity. Runtime shape/scalar flow,
-dependent numerical results and escaping-lifetime contracts remain open.
+generative numerical packages and escaping-lifetime contracts remain open.
+
+## Owned numerical results
+
+`OwnedMap<source_basis, target_basis>` consumes and returns initialized coordinate
+storage while preserving the exact input-dependent endpoints and bases:
+
+```vast
+resource fn create(u: Space<profiles::RealSmooth, 1>, bu: Basis<u>,
+                   w: Space<profiles::RealSmooth, 1>, bw: Basis<w>)
+    returns (result: OwnedMap<bu, bw>) -> Unit {
+    allocate buffer: F64[5];
+    borrow write = write(buffer, layout(8, 1, 1, 3, false));
+    fill(write, f64_bits(4611686018427387904));
+    release(write);
+    map result = owned(buffer, layout(8, 1, 1, 3, false), bu, bw);
+    value { () }
+}
+// In a caller with these spaces/bases:
+call create(u, bu, w, bw) -> (result);
+borrow coordinates = read(result);
+map a = view(coordinates, result);
+release(coordinates);
+drop(result);
+```
+
+The `owned` constructor is an explicit interpretation of initialized raw storage.
+It checks scalar/profile compatibility, bounds, logical dimensions and complete
+initialization of the specified view, then moves the original owner into the
+new name. Padding outside the view need not be initialized. The old owner is
+unusable, and an outstanding loan prevents the move. The owned map retains
+allocation identity and the exact offset/leading dimension/transpose layout;
+its metadata does not allocate or copy a buffer.
+
+`borrow coordinates = read(result)` (also `write` and `read_write`) uses that
+actual stored layout. It is supported only for owned maps. The explicit-layout
+borrow form remains available. `view(coordinates, result)` requires the same live
+allocation and exact layout and retains the stored bases; a changed transpose,
+offset or stale owner cannot silently reuse the interpretation. `move result ->
+next` preserves this metadata while revoking the previous owner.
+
+An owned-map parameter requires initialized coordinates and consumes the actual
+owner. A result type refers only to basis parameters, whose space dependencies
+are also explicit inputs. Returning a different nominal endpoint or basis is an
+error even with identical dimensions. On exit, the actual post-body state must
+have initialized coordinates, no outstanding loans and no duplicated returned
+owner. Call-scoped child loans must have been returned. The caller receives the
+same allocation and coordinate metadata under a fresh owner name; later updates
+and nested ownership transfers use that exact state.
+
+Raw owned results keep their existing `type: {scalar,elements,initialized}` wire
+form. A numerical result uses `type: {kind:"owned_map",source,target}`; the
+parameter tag is also `owned_map`. New operation tags are `owned_map`,
+`borrow_owned` and `owned_view`. The independent decoder rejects additional
+allocation IDs, checked flags and unknown fields. Old kernels reject these forms.
+Result dependencies cannot refer to callee-local objects or bases. General
+generative numerical packages and borrowed escaping results remain separate work;
+the existing all-body probes do not prove universal shape/layout polymorphism.
+
+`NumericalResultReceipt` retains the actual accepted dependent result contract
+and returned interpretation. `OwnedMapTransfer` records the exact accepted move
+and unchanged allocation/layout/endpoints. The public checker ties result
+receipts to its same accepted declaration environment. Oracle results derive
+initialized bytes and input/result/transfer identity facts. They do not prove
+floating arithmetic, native heap execution or full source correspondence.
+Source/native regressions exercise real/complex padded results through nested
+calls, update them and use them in later GEMM; six allocations and no copies are
+emitted for the two three-buffer programs. This is a structural cost check,
+not equivalent-C performance evidence.
 
 ## Objects, bases and views
 
@@ -231,10 +300,12 @@ a marker or a dimension alone cannot provide linear structure.
 Each basis constructor introduces a fresh identity tied to an existing space.
 Two bases of the same space are distinct. Two separately constructed spaces of
 the same implementation and dimension are also distinct, including across
-successive function activations. Numeric values share the compiler's monotone
-fresh-name supply with resource bindings. They remain local to their function
-or branch unless explicitly passed as numerical inputs, and cannot be returned
-as owners. Dependent numerical results remain pending.
+successive function activations. Numerical values share the compiler's monotone
+fresh-name supply with resource bindings. Spaces and bases remain local to their
+function or branch unless explicitly passed as numerical inputs, and cannot be
+returned as raw owners. Initialized owned maps retain input-dependent bases under
+the [owned-result contract](#owned-numerical-results); locally generated object/basis
+packages remain pending.
 
 A map view explicitly interprets a buffer in a source and target basis. Its
 logical row count is the target dimension and its column count is the source
@@ -313,6 +384,6 @@ binding. `ResourceSource.public_numerical_input_origin` connects those receipts
 to the exact environment of the same accepted public request. They do not claim
 universal correctness from synthetic probes or native refinement.
 
-Dependent numerical results, dynamic shape/scalar interfaces, dual/conjugate/metric
+Generative numerical result packages, dynamic shape/scalar interfaces, dual/conjugate/metric
 evidence, finite tensor networks, dynamic dimensions, packing and end-to-end C
 performance comparisons remain open in the [Stage 1 gate](stage1-completion.md).

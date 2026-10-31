@@ -16,14 +16,15 @@ inductive Parameter where
   | space (name : String) (implementation : Indexed.Source.Path) (dimension : Nat) (span : Span)
   | basis (name space : String) (span : Span)
   | map (name source target : String) (access : Access) (initializes : Bool) (span : Span)
+  | ownedMap (name source target : String) (span : Span)
   deriving Repr, Inhabited
 
 def Parameter.name : Parameter → String
-  | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. => name
+  | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
 
 def Parameter.span : Parameter → Span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
-  | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span => span
+  | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span | .ownedMap _ _ _ span => span
 
 inductive Action where
   | allocate (owner : String) (scalar : Scalar) (elements : Nat)
@@ -47,6 +48,9 @@ inductive NumericalOperation where
   | space (name : String) (implementation : Indexed.Source.Path) (dimension : Nat)
   | basis (name space : String)
   | map (name loan source target : String)
+  | ownedMap (name owner : String) (layout : Layout) (source target : String)
+  | ownedView (name loan owner : String)
+  | borrowOwned (name owner : String) (access : Access)
   | gemm (left right output : String) (mode : GemmMode) (policy : NumericalPolicy)
       (alpha beta : Option Coefficient := none)
   deriving Repr, Inhabited
@@ -61,7 +65,7 @@ inductive Statement where
 structure Function where
   name : String
   parameters : List Parameter
-  results : List (String × Functions.OwnedType)
+  results : List (String × Functions.ResultType String)
   body : List Statement
   isPublic : Bool := false
   span : Span := {}
@@ -118,7 +122,9 @@ def Function.resourceNames (function : Function) : List String :=
   function.parameters.map Parameter.name ++ function.body.flatMap fun statement =>
     match statement with
     | .action (.allocate name ..) _ | .action (.move _ name) _ | .action (.borrow name ..) _ => [name]
-    | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _ => [name]
+    | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _
+    | .numerical (.ownedMap name ..) _ | .numerical (.ownedView name ..) _
+    | .numerical (.borrowOwned name ..) _ => [name]
     | .call _ _ results _ => results
     | _ => []
 
@@ -214,6 +220,21 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     let target ← name target
     let (frame, output) ← bindName index scope frame output .numerical span
     return (frame, .map output loan source target)
+  | .ownedMap output owner layout source target =>
+    let owner ← name owner
+    let source ← name source
+    let target ← name target
+    let (frame, output) ← bindName index scope frame output .owner span
+    return (frame, .ownedMap output owner layout source target)
+  | .ownedView output loan owner =>
+    let loan ← name loan
+    let owner ← name owner
+    let (frame, output) ← bindName index scope frame output .numerical span
+    return (frame, .ownedView output loan owner)
+  | .borrowOwned output owner access =>
+    let owner ← name owner
+    let (frame, output) ← bindName index scope frame output .loan span
+    return (frame, .borrowOwned output owner access)
   | .gemm left right output mode policy alpha beta =>
     return (frame, .gemm (← name left) (← name right) (← name output) mode policy
       (← coefficient alpha) (← coefficient beta))
@@ -266,7 +287,7 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
   let mut parameters := []
   for parameter in function.parameters do
     let kind := match parameter with
-      | .owned .. => BindingKind.owner
+      | .owned .. | .ownedMap .. => BindingKind.owner
       | .borrowed .. => .loan
       | _ => .numerical
     let (next, symbol) ← bindName index owner.scope frame parameter.name kind parameter.span
@@ -285,11 +306,22 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
         let (source, _) ← lookup frame source span
         let (target, _) ← lookup frame target span
         pure (.map symbol source target access initializes)
+      | .ownedMap _ source target span => do
+        let (source, _) ← lookup frame source span
+        let (target, _) ← lookup frame target span
+        pure (.ownedMap symbol source target)
     parameters := parameters ++ [parameter]
     frame := next
   let (resultFrame, body) ← lowerStatements index owners id owner.scope 4096 frame function.body
   let results ← function.results.mapM fun (name, type) => do
     let (symbol, _) ← lookup resultFrame name function.span
+    let type ← match type with
+      | .owned type => pure (Functions.ResultType.owned type)
+      | .ownedMap source target => do
+        -- Result dependencies are public inputs, never callee-local identities.
+        let (source, _) ← lookup frame source function.span
+        let (target, _) ← lookup frame target function.span
+        pure (.ownedMap source target)
     return (symbol, type)
   return ⟨id, parameters, results, body⟩
 
@@ -378,6 +410,7 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   numericalOrigins : checked.context.environment = environment ∧
     ∀ receipt ∈ checked.context.products.toList, receipt.environment = environment
   inputOrigins : ∀ receipt ∈ checked.context.inputs.toList, receipt.environment = environment
+  outputOrigins : ∀ receipt ∈ checked.context.outputs.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -423,11 +456,14 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                       receipt.environment = numericalEnvironment pureProgram then
                   if inputOrigins : ∀ receipt ∈ executable.context.inputs.toList,
                       receipt.environment = numericalEnvironment pureProgram then
-                    .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                      library, libraryAccepted, fun actual same => by
-                        have : actual = id := Option.some.inj (same.symm.trans entry)
-                        subst actual
-                        exact ⟨executable, accepted, origins, inputOrigins⟩⟩
+                    if outputOrigins : ∀ receipt ∈ executable.context.outputs.toList,
+                        receipt.environment = numericalEnvironment pureProgram then
+                      .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+                        library, libraryAccepted, fun actual same => by
+                          have : actual = id := Option.some.inj (same.symm.trans entry)
+                          subst actual
+                          exact ⟨executable, accepted, origins, inputOrigins, outputOrigins⟩⟩
+                    else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
                   else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"
                 else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"
         else Namespace.problem {} "E_OWNER" "resource source identity or call provenance audit failed"

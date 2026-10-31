@@ -12,7 +12,7 @@ private def rectangle : Layout := ⟨8,2,2,4,false⟩
 private def buffer : Functions.OwnedType := ⟨.f64,8,[rectangle]⟩
 private def value := Literal.f64 0x4008000000000000
 private def makeBuffer : Function := {
-  name := "makeBuffer", parameters := [], results := [("data", buffer)], isPublic := true,
+  name := "makeBuffer", parameters := [], results := [("data", .owned buffer)], isPublic := true,
   body := [.action (.allocate "data" .f64 8) {},
     .action (.borrow "output" "data" rectangle .write) {},
     .action (.fill "output" value) {}, .action (.release "output") {}] }

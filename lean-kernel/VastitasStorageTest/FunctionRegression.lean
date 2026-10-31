@@ -38,12 +38,12 @@ private def value : Literal := .f64 0x4008000000000000
     ("partial initialized-output guarantee", changed program 2 (fun f => {f with body := [.action (.store 1 0 0 value)]}), "E_RESOURCE_INIT"),
     ("early parameter release", changed program 2 (fun f => {f with body := [.action (.copy 0 1), .action (.release 0)]}), "E_RESOURCE_LOAN"),
     ("local child escape", changed program 3 (fun f => {f with body := [.action (.borrow 9 (.loan 0) ⟨0,1,1,1,false⟩ .read)]}), "E_RESOURCE_LOAN"),
-    ("borrowed result escape", changed program 4 (fun f => {f with results := [(0, owned)]}), "E_RESOURCE_TYPE"),
+    ("borrowed result escape", changed program 4 (fun f => {f with results := [(0, .owned owned)]}), "E_RESOURCE_TYPE"),
     ("unreturned owner", changed program 6 (fun f => {f with body := [.action (.allocate 0 .f64 8)]}), "E_RESOURCE_ESCAPE"),
     ("owner result with live loan", changed program 1 (fun f => {f with body := f.body.take 3}), "E_RESOURCE_ESCAPE"),
     ("duplicated owned result", changed program 1 (fun f => {f with results := f.results ++ f.results}), "E_RESOURCE_TYPE"),
     ("uninitialized padding in result contract", changed program 1 (fun f =>
-      {f with results := [(0, ⟨.f64,8,[⟨0,8,1,8,false⟩]⟩)]}), "E_RESOURCE_TYPE"),
+      {f with results := [(0, .owned ⟨.f64,8,[⟨0,8,1,8,false⟩]⟩)]}), "E_RESOURCE_TYPE"),
     ("wrong result arity", changed program 0 (fun f => {f with body := [.call 1 [] []]}), "E_RESOURCE_ARITY"),
     ("wrong argument arity", changed program 0 (fun f => {f with body := [.call 5 [] [10]]}), "E_RESOURCE_ARITY"),
     ("moved caller owner is unusable", changed program 0 (fun f =>

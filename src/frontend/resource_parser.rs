@@ -2,7 +2,7 @@ use super::*;
 use crate::storage::{
     Access, Coefficient, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
     functions::OwnedType,
-    source::{Action, Numerical, Parameter},
+    source::{Action, Numerical, NumericalResult, Parameter, ResultType},
 };
 
 impl Parser {
@@ -130,6 +130,19 @@ impl Parser {
                 span: start.through(self.previous().span),
             });
         }
+        if self.consume("OwnedMap") {
+            self.expect("<")?;
+            let source = self.name()?.0;
+            self.expect(",")?;
+            let target = self.name()?.0;
+            self.expect(">")?;
+            return Ok(Parameter::OwnedMap {
+                name,
+                source,
+                target,
+                span: start.through(self.previous().span),
+            });
+        }
         let map_access = if self.consume("ReadMap") {
             Some(Access::Read)
         } else if self.consume("WriteMap") {
@@ -164,7 +177,7 @@ impl Parser {
         } else {
             return Err(diagnostic(
                 "E_TYPE",
-                "resource parameters require Owned, Read/Write/ReadWrite, Space, Basis or ReadMap/WriteMap/ReadWriteMap",
+                "resource parameters require Owned, Read/Write/ReadWrite, Space, Basis, OwnedMap or ReadMap/WriteMap/ReadWriteMap",
                 self.peek().span,
             ));
         };
@@ -238,34 +251,6 @@ impl Parser {
             let target = self.binding_name()?.0;
             return Ok(Action::Move { source, target });
         }
-        if self.consume("borrow") {
-            let name = self.binding_name()?.0;
-            self.expect("=")?;
-            let access = if self.consume("read") {
-                Access::Read
-            } else if self.consume("write") {
-                Access::Write
-            } else if self.consume("read_write") {
-                Access::ReadWrite
-            } else {
-                return Err(diagnostic(
-                    "E_TYPE",
-                    "borrow requires read, write or read_write",
-                    self.peek().span,
-                ));
-            };
-            self.expect("(")?;
-            let source = self.name()?.0;
-            self.expect(",")?;
-            let layout = self.resource_layout()?;
-            self.expect(")")?;
-            return Ok(Action::Borrow {
-                name,
-                source,
-                layout,
-                access,
-            });
-        }
         let operation = self.name()?.0;
         self.expect("(")?;
         let loan = self.name()?.0;
@@ -322,6 +307,55 @@ impl Parser {
         Ok(action)
     }
 
+    fn resource_borrow(&mut self) -> Result<crate::storage::source::Statement, Diagnostic> {
+        use crate::storage::source::Statement;
+        let start = self.expect("borrow")?.span;
+        let name = self.binding_name()?.0;
+        self.expect("=")?;
+        let access = if self.consume("read") {
+            Access::Read
+        } else if self.consume("write") {
+            Access::Write
+        } else if self.consume("read_write") {
+            Access::ReadWrite
+        } else {
+            return Err(diagnostic(
+                "E_TYPE",
+                "borrow requires read, write or read_write",
+                self.peek().span,
+            ));
+        };
+        self.expect("(")?;
+        let source = self.name()?.0;
+        let layout = if self.consume(",") {
+            Some(self.resource_layout()?)
+        } else {
+            None
+        };
+        self.expect(")")?;
+        self.expect(";")?;
+        let span = start.through(self.previous().span);
+        Ok(match layout {
+            Some(layout) => Statement::Action {
+                action: Action::Borrow {
+                    name,
+                    source,
+                    layout,
+                    access,
+                },
+                span,
+            },
+            None => Statement::Numerical {
+                operation: Numerical::BorrowOwned {
+                    name,
+                    owner: source,
+                    access,
+                },
+                span,
+            },
+        })
+    }
+
     fn numerical_coefficient(&mut self) -> Result<Coefficient<String>, Diagnostic> {
         if self.consume("coefficient") {
             self.expect("(")?;
@@ -363,11 +397,36 @@ impl Parser {
         if self.consume("map") {
             let name = self.binding_name()?.0;
             self.expect("=")?;
+            if self.consume("owned") {
+                self.expect("(")?;
+                let owner = self.name()?.0;
+                self.expect(",")?;
+                let layout = self.resource_layout()?;
+                self.expect(",")?;
+                let source = self.name()?.0;
+                self.expect(",")?;
+                let target = self.name()?.0;
+                self.expect(")")?;
+                return Ok(Numerical::OwnedMap {
+                    name,
+                    owner,
+                    layout,
+                    source,
+                    target,
+                });
+            }
             self.expect("view")?;
             self.expect("(")?;
             let loan = self.name()?.0;
             self.expect(",")?;
             let source = self.name()?.0;
+            if self.consume(")") {
+                return Ok(Numerical::OwnedView {
+                    name,
+                    loan,
+                    owner: source,
+                });
+            }
             self.expect(",")?;
             let target = self.name()?.0;
             self.expect(")")?;
@@ -476,6 +535,8 @@ impl Parser {
                     results,
                     span: start.through(self.previous().span),
                 }
+            } else if self.peek().is("borrow") {
+                self.resource_borrow()?
             } else if ["space", "basis", "map", "gemm"]
                 .iter()
                 .any(|word| self.peek().is(word))
@@ -510,10 +571,17 @@ impl Parser {
             self.indexed_list("(", ")", |p| {
                 let name = p.name()?.0;
                 p.expect(":")?;
-                Ok(crate::storage::source::Result {
-                    name,
-                    ty: p.resource_owned()?,
-                })
+                let ty = if p.consume("OwnedMap") {
+                    p.expect("<")?;
+                    let source = p.name()?.0;
+                    p.expect(",")?;
+                    let target = p.name()?.0;
+                    p.expect(">")?;
+                    ResultType::Numerical(NumericalResult::OwnedMap { source, target })
+                } else {
+                    ResultType::Owned(p.resource_owned()?)
+                };
+                Ok(crate::storage::source::Result { name, ty })
             })?
         } else {
             Vec::new()

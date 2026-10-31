@@ -1,0 +1,110 @@
+[
+  {
+    "case": "bulk-complex-p1",
+    "i": 32,
+    "k": 48,
+    "j": 24,
+    "l": 40,
+    "scalar": 1,
+    "pad": 1
+  },
+  {
+    "case": "small-complex-p1",
+    "i": 7,
+    "k": 11,
+    "j": 5,
+    "l": 13,
+    "scalar": 1,
+    "pad": 1
+  },
+  {
+    "case": "tiny-complex-p0",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "l": 5,
+    "scalar": 1,
+    "pad": 0
+  },
+  {
+    "case": "small-f64-p1",
+    "i": 7,
+    "k": 11,
+    "j": 5,
+    "l": 13,
+    "scalar": 0,
+    "pad": 1
+  },
+  {
+    "case": "bulk-complex-p0",
+    "i": 32,
+    "k": 48,
+    "j": 24,
+    "l": 40,
+    "scalar": 1,
+    "pad": 0
+  },
+  {
+    "case": "bulk-f64-p1",
+    "i": 32,
+    "k": 48,
+    "j": 24,
+    "l": 40,
+    "scalar": 0,
+    "pad": 1
+  },
+  {
+    "case": "bulk-f64-p0",
+    "i": 32,
+    "k": 48,
+    "j": 24,
+    "l": 40,
+    "scalar": 0,
+    "pad": 0
+  },
+  {
+    "case": "tiny-f64-p0",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "l": 5,
+    "scalar": 0,
+    "pad": 0
+  },
+  {
+    "case": "tiny-f64-p1",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "l": 5,
+    "scalar": 0,
+    "pad": 1
+  },
+  {
+    "case": "small-complex-p0",
+    "i": 7,
+    "k": 11,
+    "j": 5,
+    "l": 13,
+    "scalar": 1,
+    "pad": 0
+  },
+  {
+    "case": "tiny-complex-p1",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "l": 5,
+    "scalar": 1,
+    "pad": 1
+  },
+  {
+    "case": "small-f64-p0",
+    "i": 7,
+    "k": 11,
+    "j": 5,
+    "l": 13,
+    "scalar": 0,
+    "pad": 0
+  }
+]

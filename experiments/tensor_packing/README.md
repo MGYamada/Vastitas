@@ -157,3 +157,6 @@ unless collected and assessed under the controlled-host completion gate.
 
 The first strengthened all-size validation is recorded in
 [the macOS validation record](results/2026-10-31-macos/RESULTS.md).
+The [full Linux run](results/2026-10-31-linux-full/RESULTS.md) retains all twelve
+cases, native LSan validation, raw paired measurements and the remaining
+tiny/small overhead and bulk uncertainty. It does not accept the performance gate.

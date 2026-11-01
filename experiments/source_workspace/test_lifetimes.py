@@ -135,6 +135,8 @@ class SourceHeapProvenance(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.reader = record_reader()
+        cls.prefix = min(name.removesuffix('link.map') for name in cls.reader.names
+                         if '/stock-lifetimes/link.map' in name)
 
     def check(self, reader):
         return verify_reader(reader, allow_build_tree=self.reader.zip is None)
@@ -143,9 +145,7 @@ class SourceHeapProvenance(unittest.TestCase):
         return lifetimes.check_calibration(reader, reader.json('record.json'), Prefixed)
 
     def program(self, reader):
-        prefix = next(name.removesuffix('link.map') for name in reader.names
-                      if '/stock-lifetimes/link.map' in name)
-        lifetimes.check_program(reader, reader.json('record.json'), prefix,
+        lifetimes.check_program(reader, reader.json('record.json'), self.prefix,
                                 dict(backend='stock',runtime='lifetimes'))
 
     def replace_bytes(self, reader, name, data):
@@ -205,7 +205,7 @@ class SourceHeapProvenance(unittest.TestCase):
 
     def test_foreign_observer_cannot_use_valid_runtime_receipts(self):
         reader = Overlay(self.reader)
-        name = next(n for n in reader.names if '/stock-lifetimes/link.map' in n)
+        name = self.prefix+'link.map'
         observer = reader.json('record.json')['lean_lifetimes']['observer_object'].encode()
         self.replace_bytes(reader,name,reader.read(name).replace(observer,b'/foreign/lifetime.o'))
         with self.assertRaisesRegex(ValueError,'calibrated observer'):
@@ -213,8 +213,9 @@ class SourceHeapProvenance(unittest.TestCase):
 
     def test_phase_hooks_must_bracket_the_existing_observer(self):
         reader = Overlay(self.reader)
-        name = next(n for n in reader.names if '/stock-lifetimes/native/allocator.c' in n)
+        name = self.prefix+'native/allocator.c'
         data = reader.read(name).replace(b'source_heap_before(index);',b'source_heap_after(index);',1)
+        self.assertNotEqual(data, reader.read(name))
         self.replace_bytes(reader,name,data)
         with self.assertRaisesRegex(ValueError,'allocator observer source|hook coverage'):
             self.program(reader)

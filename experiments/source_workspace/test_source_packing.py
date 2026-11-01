@@ -181,6 +181,8 @@ class FullSourcePacking(unittest.TestCase):
     def test_complete_execution_and_actual_footprint_replay(self):
         summary=self.check(self.reader)
         expected={'full':(12,864,72),'streaming':(4,192,24)}
+        if self.reader.json('record.json')['schema']==4:
+            expected={'full':(12,1152,96),'streaming':(4,256,32)}
         self.assertIn(summary['selection'],expected)
         self.assertEqual((summary['cases'],summary['records'],summary['failure_cleanups']),
                          expected[summary['selection']])

@@ -22,7 +22,8 @@ jobs:
   workspace:
     name: OpenBLAS workspace lifetimes (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 70
+    # Eight backend/runtime configurations plus complete retained-record replay.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
@@ -60,6 +61,10 @@ jobs:
             sudo apt-get install -y libc++-dev libc++abi-dev
           fi
           python3 experiments/lean_allocation_diagnostic/run.py --out "$RUNNER_TEMP/lean-allocator-record"
+      - name: Calibrate private Lean block lifetimes and peaks
+        run: |
+          python3 experiments/lean_allocation_lifetimes/run.py --out "$RUNNER_TEMP/lean-heap-record" --mimalloc-archive "$RUNNER_TEMP/lean-allocator-record/inputs/mimalloc-v3.4.5.tar.gz"
+          VASTITAS_HEAP_LIFETIME_RECORD="$RUNNER_TEMP/lean-heap-record" python3 -m unittest discover -s experiments/lean_allocation_lifetimes -p 'test_*.py'
       - name: Observe source allocator, arenas, actual packing and call spans
         env:
           SOURCE_PROFILE: ${{ inputs.profile || 'standard' }}
@@ -71,9 +76,9 @@ jobs:
             streaming) profile_args=(--streaming) ;;
             *) exit 2 ;;
           esac
-          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --lean-record "$RUNNER_TEMP/lean-allocator-record" --lean-runtime-dir "$RUNNER_TEMP/lean-allocator-record/build" --output "$RUNNER_TEMP/source-workspace-record" "${profile_args[@]}"
+          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --lean-record "$RUNNER_TEMP/lean-allocator-record" --lean-runtime-dir "$RUNNER_TEMP/lean-allocator-record/build" --heap-record "$RUNNER_TEMP/lean-heap-record" --heap-build-dir "$RUNNER_TEMP/lean-heap-record/build" --output "$RUNNER_TEMP/source-workspace-record" "${profile_args[@]}"
           python3 experiments/source_workspace/archive.py "$RUNNER_TEMP/source-workspace-record" "$RUNNER_TEMP/source-workspace-compact/evidence.zip"
-          VASTITAS_SOURCE_ALLOCATOR_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" VASTITAS_SOURCE_PACKING_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
+          VASTITAS_SOURCE_ALLOCATOR_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" VASTITAS_SOURCE_PACKING_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" VASTITAS_SOURCE_HEAP_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
       - name: Retain compact source workspace observation (no timings)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

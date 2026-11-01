@@ -23,6 +23,7 @@ backend = module('source_cost_backend',ROOT/'experiments/openblas_workspace/veri
 objects = module('source_cost_objects',ROOT/'experiments/allocation_audit/verify.py')
 allocator = module('source_cost_allocator',HERE/'allocator.py')
 packing = module('source_cost_packing',HERE/'packing.py')
+lifetimes = module('source_cost_lifetimes',HERE/'lifetimes.py')
 require = backend.require
 CLAIMS = {'operation_timings':False,'total_heap':False,'backend_packing_bytes':False,
           'native_refinement':False,'controlled_host':False,'source_execution_observed':True}
@@ -230,12 +231,14 @@ def verify(path):
 def verify_reader(r,*,allow_build_tree=False):
     if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
     record = r.json('record.json')
-    require(type(record['schema']) is int and record['schema'] in (1,2,3) and
+    require(type(record['schema']) is int and record['schema'] in (1,2,3,4) and
             record['kind']=='source-workspace-costs', 'record schema')
-    with_packing = record['schema']==3
-    with_allocator = record['schema']==2 or (with_packing and 'lean_allocator' in record)
-    require(('packing' in record)==with_packing, 'packing needs schema 3')
-    configurations = allocator.configurations(with_allocator)
+    with_lifetimes = record['schema']==4
+    with_packing = record['schema'] in (3,4)
+    with_allocator = record['schema'] in (2,4) or (with_packing and 'lean_allocator' in record)
+    require(('packing' in record)==with_packing, 'packing needs schema 3 or 4')
+    require(('lean_lifetimes' in record)==with_lifetimes, 'heap lifetimes need schema 4')
+    configurations = allocator.configurations(with_allocator,with_lifetimes)
     backends = tuple(configurations)
     diagnostic = tuple(b for b in backends if configurations[b]['backend']=='diagnostic')
     if with_allocator:
@@ -278,6 +281,7 @@ def verify_reader(r,*,allow_build_tree=False):
             require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'],
                     'changed packing source')
     if with_allocator: allocator.check_calibration(r,record,Prefixed)
+    if with_lifetimes: lifetimes.check_calibration(r,record,Prefixed)
     cases,repetitions = check_cases(r.json('cases.json'),record['selection'])
     expected_binaries = {f'programs/{name}/{b}/{file}' for name,b,file in
         itertools.product(cases,backends,('canonical','.lake/build/bin/audit'))}
@@ -294,7 +298,7 @@ def verify_reader(r,*,allow_build_tree=False):
     required |= {(name,b,'failure',0,1) for name,b in itertools.product(cases,backends)}
     require(len(keys)==len(set(keys)) and set(keys)==required, 'observation coverage')
     require(all(type(x[k]) is int for x in all_rows for k in ('scope','repetitions')), 'observation numeric domain')
-    signatures,allocator_summaries,packing_summaries = {},{},{}
+    signatures,allocator_summaries,packing_summaries,heap_summaries = {},{},{},{}
     styles = {(name,b):objects.cleanup_style(r.read,'programs/'+name+'/'+b+'/')
               for name,b in itertools.product(cases,backends)}
     if 'unit-catch' in styles.values():
@@ -303,6 +307,7 @@ def verify_reader(r,*,allow_build_tree=False):
         require((row['workspace'] is not None)==(row['backend'] in diagnostic), 'stock/diagnostic distinction')
         require(('lean_allocator' in row)==with_allocator, 'allocator observation domain')
         require(('packing' in row)==with_packing, 'packing observation domain')
+        require(('heap_lifetimes' in row)==with_lifetimes, 'heap observation domain')
         check_allocation(row,cases[row['case']],styles[row['case'],row['backend']])
         signatures[key] = check_calls(row['calls'],row['workspace'],cases[row['case']],row['repetitions'],
                                       with_packing=with_packing)
@@ -313,6 +318,11 @@ def verify_reader(r,*,allow_build_tree=False):
         if with_allocator:
             allocator_summaries[key] = allocator.replay(row['lean_allocator'],row['allocation'],
                                                        configurations[row['backend']]['runtime'])
+        if with_lifetimes:
+            observed = configurations[row['backend']]['runtime']=='lifetimes'
+            require((row['heap_lifetimes'] is not None)==observed, 'unsupported runtime has no lifetime authority')
+            if observed:
+                heap_summaries[key] = lifetimes.replay(row['heap_lifetimes'],row['allocation'],row['lean_allocator'])
     lookup = dict(zip(keys,all_rows))
     for name in cases:
         reference = lookup[(name,backends[0],'failure',0,1)]
@@ -351,6 +361,13 @@ def verify_reader(r,*,allow_build_tree=False):
                 if impl=='generated':
                     require(packing_summaries[(name,b,'c',scope,reps)]==reference,
                             'generated/C packing cost mismatch')
+    if with_lifetimes:
+        for name,impl,scope,reps in ((n,i,s,r) for n in cases for i,s,r in
+                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),repetitions))):
+            left = heap_summaries[(name,'stock-lifetimes',impl,scope,reps)]
+            right = heap_summaries[(name,'diagnostic-lifetimes',impl,scope,reps)]
+            require(lifetimes.phase_signature(left)==lifetimes.phase_signature(right),
+                    'backend changed source heap phase traffic or transient peak')
     commands = r.json('commands.json')
     samples = [c for c in commands if c['phase']=='source_workspace']
     require(len(samples)==len(all_rows), 'raw sample command coverage')
@@ -369,6 +386,7 @@ def verify_reader(r,*,allow_build_tree=False):
         want = [row['costs'],row['allocation'],row['calls']]+([row['workspace']] if row['workspace'] is not None else [])
         if with_packing and row['packing'] is not None: want.append(row['packing'])
         if with_allocator: want.append(row['lean_allocator'])
+        if with_lifetimes and row['heap_lifetimes'] is not None: want.append(row['heap_lifetimes'])
         require(parsed==want, 'raw/parsed correspondence')
     require(all(c['returncode']==0 or (c['phase']=='frontend_capture' and c['returncode']==1 and 'E_CAPTURED' in c['stderr']) for c in commands), 'unexpected command failure')
     for name,b in itertools.product(cases,backends):
@@ -397,6 +415,10 @@ def verify_reader(r,*,allow_build_tree=False):
                 if with_allocator:
                     require('mi_stats_get' in command['stdout'],
                             'linked source allocator observer')
+                if with_lifetimes:
+                    observed = configurations[b]['runtime']=='lifetimes'
+                    require(('vastitas_heap_checkpoint' in command['stdout'])==observed,
+                            'linked source heap observer domain')
             if phase in ('kernel_emit','kernel_failure_emit'):
                 file = prefix+('response.json' if phase=='kernel_emit' else 'failure-response.json')
                 require(json.loads(match[0]['stdout'])==r.json(file), 'exact kernel response')
@@ -424,7 +446,13 @@ def verify_reader(r,*,allow_build_tree=False):
             for arguments in (b'0,o,ta,tb,m,n,k,lx,ly,lz,a,0.0,b,0.0,x,y,z',
                               b'1,o,ta,tb,m,n,k,lx,ly,lz,av[0],av[1],bv[0],bv[1],x,y,z'):
                 require(native.count(b'source_workspace_begin('+arguments+b');')==1, 'actual CBLAS address capture')
-        if with_allocator: allocator.check_program(r,record,prefix,configurations[b])
+        if with_lifetimes and configurations[b]['runtime']=='lifetimes':
+            lifetimes.check_program(r,record,prefix,configurations[b])
+        elif with_allocator:
+            allocator.check_program(r,record,prefix,configurations[b])
+            if with_lifetimes:
+                require(b'-DSOURCE_HEAP_LIFETIMES=1' not in r.read(prefix+'native/lakefile.lean'),
+                        'control runtime compiles unsupported heap hooks')
     summaries = []
     counts = Counter()
     for row in all_rows:
@@ -441,9 +469,14 @@ def verify_reader(r,*,allow_build_tree=False):
             'diagnostic_processes':len(all_rows)//2,'actual_cblas_calls':sum(len(row['calls']['calls']) for row in all_rows),
             'diagnostic_event_counts':dict(counts),f'reuse_{repetitions[-1]}_generated_workspace':summaries,'claims':CLAIMS}
     if with_allocator:
-        summary['lean_allocator'] = dict(claims=allocator.CLAIMS,variants=list(allocator.VARIANTS),
+        summary['lean_allocator'] = dict(claims=allocator.CLAIMS,variants=list(allocator.VARIANTS)+(['lifetimes'] if with_lifetimes else []),
             snapshots=10*len(all_rows),observations=[dict(case=key[0],backend=key[1],implementation=key[2],
             scope=key[3],repetitions=key[4],**value) for key,value in allocator_summaries.items()])
+    if with_lifetimes:
+        summary['heap_lifetimes'] = dict(claims=lifetimes.CLAIMS,boundary_pairs=5*len(heap_summaries),
+            observer_static_bytes=lifetimes.observation.OBSERVER_BYTES,phase_storage_bytes=1208,
+            observations=[dict(case=key[0],backend=key[1],implementation=key[2],scope=key[3],
+                               repetitions=key[4],**value) for key,value in heap_summaries.items()])
     if with_packing:
         footprints = packing.check_footprints(r,record,all_rows,calibrated,kernels,commands)
         summary['packing'] = {'claims':packing.CLAIMS,'observed_footprints':footprints,

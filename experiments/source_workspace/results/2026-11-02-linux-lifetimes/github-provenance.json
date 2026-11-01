@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "repository": "MGYamada/Vastitas",
+  "workflow_run": {
+    "id": 41328770423,
+    "url": "https://github.com/MGYamada/Vastitas/actions/runs/41328770423",
+    "event": "push",
+    "head_sha": "8212d7d0a6720e37913b6d44d5932e8ff263ead8",
+    "head_branch": "codex/source-heap-lifetimes-20261102",
+    "conclusion": "failure"
+  },
+  "job": {
+    "id": 124914221870,
+    "url": "https://github.com/MGYamada/Vastitas/actions/runs/41328770423/job/124914221870",
+    "conclusion": "failure",
+    "measurement_and_export": "completed; independently replayed",
+    "test_failure": "Only test_phase_hooks_must_bracket_the_existing_observer failed in the 90-test suite; it selected a different program from the mutated file.",
+    "test_fix_commit": "a4e50ee4d695b005514c359f58d6e3e0f601892e"
+  },
+  "artifact": {
+    "id": 13093344313,
+    "name": "source-workspace-ubuntu-latest-push",
+    "size_in_bytes": 92065912,
+    "url": "https://api.github.com/repos/MGYamada/Vastitas/actions/artifacts/13093344313",
+    "archive_download_url": "https://api.github.com/repos/MGYamada/Vastitas/actions/artifacts/13093344313/zip",
+    "expired": false,
+    "created_at": "2026-11-01T17:51:19Z",
+    "expires_at": "2026-12-01T17:51:15Z",
+    "updated_at": "2026-11-01T17:51:19Z",
+    "digest": "sha256:a4281e54a1c1ff2811ffabf1c3e84d674a2bde6ba90da5bdb610b3b642b625c3",
+    "workflow_run": {
+      "id": 41328770423,
+      "repository_id": 1434212364,
+      "head_repository_id": 1434212364,
+      "head_branch": "codex/source-heap-lifetimes-20261102",
+      "head_sha": "8212d7d0a6720e37913b6d44d5932e8ff263ead8"
+    }
+  },
+  "download": {
+    "bytes": 92065912,
+    "sha256": "a4281e54a1c1ff2811ffabf1c3e84d674a2bde6ba90da5bdb610b3b642b625c3",
+    "members": [
+      "artifact-manifest.json",
+      "evidence.zip"
+    ],
+    "retained": "The two exact members of the original GitHub ZIP are retained; neither was regenerated."
+  },
+  "evidence": {
+    "bytes": 97879951,
+    "members": 12813,
+    "sha256": "5e0b78a1a8e18b8624846e46dad3649a1748e820c4d63988392388925c36c7be",
+    "measured_head": "8212d7d0a6720e37913b6d44d5932e8ff263ead8",
+    "measured_status": "",
+    "source_inputs": 86,
+    "source_inputs_match_git_and_macos": true
+  }
+}

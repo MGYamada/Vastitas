@@ -17,9 +17,11 @@ CLAIMS = dict(calling_thread_phase_deltas=True, startup_accounted=False,
               diagnostic_counts_are_stock_counts=False, timings=False)
 
 
-def configurations(enabled):
+def configurations(enabled, lifetimes=False):
+    require(not lifetimes or enabled, 'lifetime profile requires calibrated controls')
+    variants = VARIANTS + (('lifetimes',) if lifetimes else ())
     return ({f'{b}-{v}': dict(backend=b, runtime=v)
-             for b in ('stock', 'diagnostic') for v in VARIANTS} if enabled else
+             for b in ('stock', 'diagnostic') for v in variants} if enabled else
             {b: dict(backend=b, runtime=None) for b in ('stock', 'diagnostic')})
 
 
@@ -65,7 +67,7 @@ def replay(trace, selected, variant):
         known_bytes = sum(x['bytes'] for x in kinds.values())
         # These selected objects have exact 8-byte-aligned 16/24/32-byte sizes.
         # The total observer is a superset, not an additional allocation cost.
-        if variant == 'diagnostic2':
+        if variant in ('diagnostic2', 'lifetimes'):
             require(counts['normal_count'] >= known_count and changes['normal']['total'] >= known_bytes,
                     'allocator misses selected source allocations')
             require(all(changes[n]['total'] >= changes[n]['current'] for n in ('normal', 'huge')),
@@ -87,7 +89,7 @@ def replay(trace, selected, variant):
                     'allocator misses actual error objects')
         else:
             phases[phase] = None  # Unsupported stock channel is not zero allocation.
-    return dict(capability='calibrated_phase_deltas' if variant == 'diagnostic2' else 'unsupported_normal_counts',
+    return dict(capability='calibrated_phase_deltas' if variant in ('diagnostic2', 'lifetimes') else 'unsupported_normal_counts',
                 phases=phases)
 
 
@@ -119,9 +121,14 @@ def check_calibration(reader, record, prefixed):
                 'source headers differ from calibrated toolchain')
 
 
-def check_program(reader, record, prefix, config):
+def check_program(reader, record, prefix, config, *, lifetime_binding=None):
     binding = record['lean_allocator']
-    directory = binding['prefixes'][config['runtime']]
+    if lifetime_binding is not None:
+        require(config['runtime'] == 'lifetimes', 'lifetime runtime selection')
+        directory = lifetime_binding['runtime_dir']
+    else:
+        require(config['runtime'] in VARIANTS, 'unsupported source runtime')
+        directory = binding['prefixes'][config['runtime']]
     mapping = reader.read(prefix + 'link.map').decode()
     paths = set(re.findall(r'(/[^\s()]+/libleanrt\.a)\(', mapping))
     require(paths == {directory + '/libleanrt.a'} and 'mimalloc.cpp.o' in mapping and

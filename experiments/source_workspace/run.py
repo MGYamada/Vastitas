@@ -26,6 +26,7 @@ audit = module('source_workspace_allocation',ROOT/'experiments/allocation_audit/
 backend_verify = module('source_workspace_backend_verify',ROOT/'experiments/openblas_workspace/verify.py')
 allocator = module('source_workspace_allocator',HERE/'allocator.py')
 packing = module('source_workspace_packing',HERE/'packing.py')
+lifetimes = module('source_workspace_heap_lifetimes',HERE/'lifetimes.py')
 tree,fixtures = audit.tree,audit.fixtures
 
 
@@ -73,7 +74,8 @@ CLOCK = '''static uint64_t now_ns(void) {
 }'''
 
 
-def decorate(work,backend,*,observe_allocator=False,lean_prefix=None,observe_packing=False):
+def decorate(work,backend,*,observe_allocator=False,lean_prefix=None,observe_packing=False,
+             observe_lifetimes=False):
     """Strict additions to a private runtime; ordinary source/runtime unchanged."""
     native = work/'native'
     for name in ('bridge.c','bridge.h'):
@@ -154,6 +156,28 @@ target allocatorObject pkg : FilePath := do
 '''.replace('ALLOCATOR_INCLUDE',json.dumps(str(native)))
         text = audit.replace_once(text,'extern_lib storageNative pkg := do',target+'extern_lib storageNative pkg := do')
         text = audit.replace_once(text,'← bridgeObject.fetch]','← bridgeObject.fetch, ← allocatorObject.fetch]')
+        if observe_lifetimes:
+            for name in ('heap.c','heap.h'):
+                shutil.copyfile(HERE/name,native/name)
+            shutil.copyfile(ROOT/'experiments/lean_allocation_lifetimes/lifetime.h',native/'lifetime.h')
+            text = audit.replace_once(text,'"-I", '+json.dumps(str(native))+']',
+                '"-I", '+json.dumps(str(native))+', "-DSOURCE_HEAP_LIFETIMES=1"]')
+            heap_declarations = '''input_file heapSource where path := "heap.c"
+input_file heapHeader where path := "heap.h"
+input_file lifetimeHeader where path := "lifetime.h"
+'''
+            text = audit.replace_once(text,'input_file allocatorSource',heap_declarations+'input_file allocatorSource')
+            text = audit.replace_once(text,'← allocatorStatsHeader.fetch, ← allocatorApiHeader.fetch]',
+                                      '← allocatorStatsHeader.fetch, ← allocatorApiHeader.fetch, ← heapHeader.fetch]')
+            heap_target = '''target heapObject pkg : FilePath := do
+  let source ← heapSource.fetch
+  let headers := #[← heapHeader.fetch, ← lifetimeHeader.fetch, ← allocatorApiHeader.fetch]
+  let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
+  buildLeanO (pkg.buildDir / "heap.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", "-I", HEAP_INCLUDE]
+
+'''.replace('HEAP_INCLUDE',json.dumps(str(native)))
+            text = audit.replace_once(text,'extern_lib storageNative pkg := do',heap_target+'extern_lib storageNative pkg := do')
+            text = audit.replace_once(text,'← allocatorObject.fetch]','← allocatorObject.fetch, ← heapObject.fetch]')
         lake.write_text(text)
 
 
@@ -192,6 +216,8 @@ def main():
     parser.add_argument('--backend-record',required=True,type=Path,help='completed workspace or schema-2 packing calibration directory or ZIP')
     parser.add_argument('--lean-record',type=Path,help='completed Lean allocator calibration directory or ZIP')
     parser.add_argument('--lean-runtime-dir',type=Path,help='calibrated build directory containing stock/rebuilt0/diagnostic2')
+    parser.add_argument('--heap-record',type=Path,help='completed private block lifetime calibration directory or ZIP')
+    parser.add_argument('--heap-build-dir',type=Path,help='calibrated build directory containing runtime/libleanrt.a and lifetime.o')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--frontend',type=Path,default=ROOT/'target/debug/vastitas')
     parser.add_argument('--kernel',type=Path,default=ROOT/'lean-kernel/.lake/build/bin/vastitas-kernel')
@@ -203,6 +229,10 @@ def main():
     args = parser.parse_args()
     if bool(args.lean_record) != bool(args.lean_runtime_dir):
         raise ValueError('--lean-record and --lean-runtime-dir must be supplied together')
+    if bool(args.heap_record) != bool(args.heap_build_dir):
+        raise ValueError('--heap-record and --heap-build-dir must be supplied together')
+    if args.heap_record and not args.lean_record:
+        raise ValueError('heap lifetimes require the calibrated stock/rebuilt0/diagnostic2 controls')
     out,stock,diagnostic = args.output.resolve(),args.prefix.resolve(),args.diagnostic_prefix.resolve()
     if out.is_relative_to(ROOT): raise ValueError('output must be outside the checkout')
     out.mkdir(parents=True,exist_ok=False)
@@ -210,6 +240,8 @@ def main():
     if not cc: raise ValueError('Compiler executable not found')
     reader,calibration = check_backend(args.backend_record,stock,diagnostic)
     with_packing = calibration['kind'] == 'diagnostic-openblas-packing'
+    if args.heap_record and not with_packing:
+        raise ValueError('heap lifetime composition requires actual backend packing calibration')
     # Preserve the full successful calibration as a nested record; no archived
     # code is executed. The prefixes remain external, pinned by their hashes.
     calibration_dir = out/'backend-calibration'
@@ -239,7 +271,31 @@ def main():
             path.parent.mkdir(parents=True,exist_ok=True)
             path.write_bytes(lean_reader.read(name))
         lean_binding = dict(record='lean-calibration',prefixes=prefixes,archives=archives,claims=allocator.CLAIMS)
-    configurations = allocator.configurations(lean_binding is not None)
+    heap_binding = None
+    if args.heap_record:
+        lifetimes.calibration.verify(args.heap_record)
+        heap_reader = backend_verify.Reader(args.heap_record)
+        calibrated = heap_reader.json('record.json')
+        directory = args.heap_build_dir.resolve()
+        runtime,observer = directory/'runtime/libleanrt.a',directory/'lifetime.o'
+        archive_sha = lifetimes.digest(heap_reader.read(calibrated['runtime']['path']))
+        observer_sha = lifetimes.digest(heap_reader.read('build/lifetime.o'))
+        if tree.sha(runtime) != archive_sha or tree.sha(observer) != observer_sha:
+            raise ValueError('uncalibrated heap runtime or observer object')
+        header = 'experiments/lean_allocation_lifetimes/lifetime.h'
+        if tree.sha(ROOT/header) != calibrated['repository']['inputs'][header]['sha256']:
+            raise ValueError('source lifetime ABI differs from calibration')
+        lean_external[str(runtime)],lean_external[str(observer)] = archive_sha,observer_sha
+        for item in calibrated['toolchain']['inputs'].values():
+            if tree.sha(Path(item['path'])) != item['sha256'] or lean_external.get(item['path']) != item['sha256']:
+                raise ValueError('source toolchain differs between the two allocator calibrations')
+        for name in sorted(heap_reader.names):
+            path = out/'heap-calibration'/name
+            path.parent.mkdir(parents=True,exist_ok=True)
+            path.write_bytes(heap_reader.read(name))
+        heap_binding = dict(record='heap-calibration',runtime_dir=str(runtime.parent),archive_sha256=archive_sha,
+                            observer_object=str(observer),observer_sha256=observer_sha,claims=lifetimes.CLAIMS)
+    configurations = allocator.configurations(lean_binding is not None,heap_binding is not None)
     env = {k:os.environ[k] for k in ('PATH','HOME','TMPDIR','SDKROOT','DEVELOPER_DIR','LANG') if k in os.environ}
     env.update(OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',GOTO_NUM_THREADS='1',LEAN_NUM_THREADS='1',LC_ALL='C')
     runner = Runner(out,env)
@@ -265,7 +321,8 @@ def main():
                      'lean-kernel/VastitasKernel/ResourceCodegen.lean',
                      'experiments/stock_allocation_capabilities/vendor/mimalloc-stats.h',
                      'experiments/stock_allocation_capabilities/vendor/LICENSE.mimalloc',
-                     'lean-toolchain','lean-kernel/lean-toolchain'):
+                     'lean-toolchain','lean-kernel/lean-toolchain') + (
+                         ('experiments/lean_allocation_lifetimes/lifetime.h',) if heap_binding else ()):
         path = ROOT/relative
         target = out/'source'/relative
         target.parent.mkdir(parents=True,exist_ok=True)
@@ -290,14 +347,18 @@ def main():
             prefix = stock if config['backend']=='stock' else diagnostic
             runner.context = {'case':case['case'],'backend':backend}
             work = out/'programs'/case['case']/backend
+            observe_heap = config['runtime']=='lifetimes'
             link_args = []
             if lean_binding:
-                link_args = ['-L'+lean_binding['prefixes'][config['runtime']],
+                runtime_dir = heap_binding['runtime_dir'] if observe_heap else lean_binding['prefixes'][config['runtime']]
+                link_args = ['-L'+runtime_dir,
                              ('-Wl,-map,' if platform.system()=='Darwin' else '-Wl,-Map,')+str(work/'link.map')]
+                if observe_heap: link_args.append(heap_binding['observer_object'])
             exe = audit.build(runner,case,work,stock,args.frontend.resolve(),args.kernel.resolve(),cc,
                 'production_shared',link_prefix=prefix,
                 runtime_hook=lambda w:decorate(w,config['backend'],observe_allocator=lean_binding is not None,
-                                               lean_prefix=lean_prefix,observe_packing=with_packing),
+                                               lean_prefix=lean_prefix,observe_packing=with_packing,
+                                               observe_lifetimes=observe_heap),
                 extra_link_args=link_args)
             cleanup, _ = fixtures.cleanup_envelope.split((work/'Generated.lean').read_text().splitlines(), 'arena')
             runner.run(['nm','-g',exe],phase='linked_symbols')
@@ -307,14 +368,16 @@ def main():
                 execution = runner.run([exe,impl,scope,reps,1],phase='source_workspace')
                 parsed = [json.loads(line) for line in execution['stdout'].splitlines()]
                 diagnostic_backend = config['backend']=='diagnostic'
-                if len(parsed) != 3+int(diagnostic_backend)*(1+int(with_packing))+int(lean_binding is not None):
+                if len(parsed) != 3+int(diagnostic_backend)*(1+int(with_packing))+int(lean_binding is not None)+int(observe_heap):
                     raise ValueError('Missing or unexpected observation stream')
                 row = dict(case=case['case'],backend=backend,implementation=impl,scope=scope,repetitions=reps,
                            costs=parsed[0],allocation=parsed[1],calls=parsed[2],
                            workspace=parsed[3] if diagnostic_backend else None)
                 if with_packing: row['packing'] = parsed[4] if diagnostic_backend else None
                 if lean_binding:
-                    row['lean_allocator'] = parsed[-1]
+                    row['lean_allocator'] = parsed[-2] if observe_heap else parsed[-1]
+                if heap_binding:
+                    row['heap_lifetimes'] = parsed[-1] if observe_heap else None
                 if impl != 'failure': audit.validate(parsed[1],scope,reps,'production_shared',impl,cleanup)
                 (failures if impl == 'failure' else rows).append(row)
                 tree.dump(out/'observations.json',dict(rows=rows,failures=failures))
@@ -339,7 +402,7 @@ def main():
              for p in sorted(out.rglob('*')) if p.is_file() and not '.lake' in p.relative_to(out).parts
              and not 'openblas_include' in p.relative_to(out).parts
              and p.relative_to(out).as_posix() not in binaries}
-    record = {'schema':3 if with_packing else 2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
+    record = {'schema':4 if heap_binding else 3 if with_packing else 2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
               'selection':('debug-streaming-one' if args.one_case else 'streaming') if args.streaming else
                           'debug-one' if args.one_case else 'smoke' if args.smoke else 'full',
               'host':{'platform':platform.platform(),'cc':cc},'environment':env,
@@ -354,11 +417,14 @@ def main():
         record['lean_allocator'] = lean_binding
         record['configurations'] = configurations
     if with_packing: record['packing'] = packing_binding
+    if heap_binding: record['lean_lifetimes'] = heap_binding
     tree.dump(out/'record.json',record)
     verifier = module('source_workspace_verify',HERE/'verify.py')
     summary = verifier.verify(out)
     if lean_binding:
         summary['lean_allocator'] = {k:v for k,v in summary['lean_allocator'].items() if k!='observations'}
+    if heap_binding:
+        summary['heap_lifetimes'] = {k:v for k,v in summary['heap_lifetimes'].items() if k!='observations'}
     print(json.dumps(summary,indent=2))
 
 

@@ -76,9 +76,10 @@ Operation clocks are disabled. Inherited fields named `timed_*` denote the selec
 run scope only; they carry no timing claim. `process_maxrss_kib` is retained as an
 unisolated process diagnostic (including possible inherited high-water state),
 excluded from cost equality and not used as meaningful per-operation peak memory.
-General Lean heap/allocator traffic, backend static metadata and other files,
-actual backend packing/copy bytes and residency remain unmeasured. These records
-do not close total-cost, tiny-call budget or controlled-host acceptance gates.
+In schema 1, general Lean heap/allocator traffic, backend static metadata and other
+files, actual backend packing/copy bytes and residency remain unmeasured. These
+records do not close total-cost, tiny-call budget or controlled-host acceptance
+gates. Schemas 2 and 3 add the scoped channels described below.
 
 The compact ZIP retains all source, command and raw observation evidence including
 the nested backend calibration. Large Lean executables and Lake caches are omitted;
@@ -152,12 +153,22 @@ and raw peaks are not interpreted as per-operation or whole-process peaks.
 Current-byte **changes** may include release of command arguments that were live
 before the baseline. A negative change is not a negative allocation or a leak.
 Lean's waiting initialization thread has unmerged startup statistics, so its
-allocations are outside this channel. Other allocators, backend packing and static
-metadata, residency, general peaks, other source profiles and controlled-host
-timing remain separate gates. This experiment establishes no native refinement
-or transfer of diagnostic counts to a stock runtime performance claim.
+allocations are outside this channel. In schema 2, other allocators, backend
+packing and static metadata, residency, general peaks, other source profiles and
+controlled-host timing remain separate gates. This experiment establishes no
+native refinement or transfer of diagnostic counts to a stock runtime performance
+claim.
 
 ## Actual source GEMM packing composition (schema 3)
+
+The retained [macOS](results/2026-11-01-macos-packing/RESULTS.md) and
+[Linux](results/2026-11-01-linux-packing/RESULTS.md) records both measure clean
+`6abeee14b708e9bc1752c420949043971dc48a28`: each has 72 canonical executions,
+936 observation processes and 13,536 actual CBLAS calls. All 70 / 66 source-observed
+packing contracts receive separate plain/sanitized stock/diagnostic footprint
+checks. Logical payload agrees for the retained cases while actual copy-call
+counts differ. Both preserve the allocator channel and add no operation timing
+or completion claim.
 
 A completed schema-2 [packing calibration](../openblas_packing/README.md) can now
 replace the workspace-only backend calibration. The runner detects its record

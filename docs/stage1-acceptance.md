@@ -198,13 +198,25 @@ The optional [backend packing calibration](../experiments/openblas_packing/READM
 records actual D/Z packing invocations and their source/active-pool spans while
 requiring unchanged compute/copy kernels. It separately names static pool metadata
 and preserves GEMV/small-matrix shortcuts with unavailable payload measurements.
-Generated-source composition, shortcut internals and complete backend/peak costs
-remain required; this calibration adds no timing or completion claim.
+Shortcut internals and complete backend/peak costs remain required; this
+calibration adds no timing or completion claim. The later source composition is
+recorded separately below.
 Its complete [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
 and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
 records each retain 1,828 executions at clean feature `db62d22`, plus exact direct
 checks of all 136 / 133 observed kernel/shape/stride contracts. The actual packing
 kernels retain stock object hashes. The initial grid-only records remain linked.
+
+The schema-3 [source composition](../experiments/source_workspace/README.md#actual-source-gemm-packing-composition-schema-3)
+preserves the calibrated allocator/arena channels and binds backend packing to
+actual CBLAS addresses, arguments and event intervals. Its clean `6abeee1`
+[macOS](../experiments/source_workspace/results/2026-11-01-macos-packing/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux-packing/RESULTS.md)
+records each retain 72 canonical executions, 936 observations and 13,536 actual calls.
+All 70 / 66 source-observed packing contracts receive separate plain/sanitized checks
+on both backends. Matched logical payload is not physical traffic, elapsed time,
+whole-process peak memory, shortcut coverage or controlled-host acceptance; the
+four performance gates remain open.
 
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.

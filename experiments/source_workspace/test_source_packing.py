@@ -204,3 +204,32 @@ class FullSourcePacking(unittest.TestCase):
         record=reader.json('record.json');record['packing']['footprints'].pop()
         reader.replace('record.json',record)
         with self.assertRaisesRegex(ValueError,'footprint coverage'):self.check(reader)
+
+
+class RetainedPackingExports(unittest.TestCase):
+    def test_both_full_exports_replay_actual_source_packing(self):
+        root=Path(__file__).resolve().parent/'results'
+        inputs=[]
+        for platform in ('macos','linux'):
+            with self.subTest(platform=platform):
+                directory=root/('2026-11-01-'+platform+'-packing')
+                manifest=json.loads((directory/'artifact-manifest.json').read_text())
+                archive=directory/'evidence.zip'
+                with archive.open('rb') as stream:
+                    self.assertEqual(hashlib.file_digest(stream,'sha256').hexdigest(),manifest['sha256'])
+                self.assertEqual(archive.stat().st_size,manifest['bytes'])
+                reader=backend.Reader(archive)
+                self.assertEqual(len(reader.names),manifest['members'])
+                summary=verify_reader(reader)
+                self.assertEqual(summary,manifest['summary'])
+                self.assertEqual((summary['cases'],summary['records'],summary['failure_cleanups']), (12,864,72))
+                self.assertEqual(summary['canonical_executions'],72)
+                self.assertEqual(summary['lean_allocator']['snapshots'],9360)
+                self.assertGreater(summary['packing']['observed_footprints']['contracts'],0)
+                record=reader.json('record.json')
+                self.assertEqual(record['schema'],3)
+                self.assertEqual(record['head'],manifest['measured_head'])
+                self.assertEqual(record['status'],manifest['measured_status'])
+                self.assertEqual(record['status'],'')
+                inputs.append(record['inputs'])
+        self.assertEqual(inputs[0],inputs[1])

@@ -59,6 +59,7 @@ import VastitasOracle.StorageDependencies
 import VastitasOracle.StorageMetric
 import VastitasOracle.StorageMetricLaws
 import VastitasOracle.StorageCachedPacking
+import VastitasOracle.PolynomialCotangent
 
 /-!
 Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this

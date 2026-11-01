@@ -3,9 +3,14 @@
 This experiment calibrates what the **unchanged installed, pinned Lean runtime**
 can observe. It adds no production hooks and rebuilds neither Lean nor OpenBLAS.
 It compiles a small observer and collects three fresh-process records. There are
-no timings and no claim of whole-process allocation coverage or Fast like C
+no operation timing measurements and no claim of whole-process allocation coverage or Fast like C
 acceptance. The earlier `/private/tmp` probe was preliminary; retained repository
 records must identify their own measured source revision and hashes.
+
+The [retained macOS record](results/2026-11-01-macos/RESULTS.md) measures clean
+`8e516d500e234e6a61a0910fd915f862ea7e7773` in three fresh processes. Its 24 snapshots
+and 18 regression tests retain unsupported small-object churn and the distinction
+between huge cumulative counters and actual sampled live bytes.
 
 ```sh
 python3 experiments/stock_allocation_capabilities/run.py \

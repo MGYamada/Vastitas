@@ -1,0 +1,83 @@
+{
+  "baseline": [
+    [
+      2985,
+      124728
+    ],
+    [
+      2985,
+      124728
+    ],
+    [
+      2985,
+      124728
+    ]
+  ],
+  "bytes": 724123,
+  "classification": [
+    {
+      "backing": "separate_nonadditive_diagnostic",
+      "huge_current": "not_live_bytes",
+      "large_churn": "calibrated_tested_count",
+      "large_transient_count_delta": 128,
+      "live_snapshots": "calibrated_known_main_heap_objects_only",
+      "small_churn": "unsupported_no_signal",
+      "small_transient_count_delta": 0
+    },
+    {
+      "backing": "separate_nonadditive_diagnostic",
+      "huge_current": "not_live_bytes",
+      "large_churn": "calibrated_tested_count",
+      "large_transient_count_delta": 128,
+      "live_snapshots": "calibrated_known_main_heap_objects_only",
+      "small_churn": "unsupported_no_signal",
+      "small_transient_count_delta": 0
+    },
+    {
+      "backing": "separate_nonadditive_diagnostic",
+      "huge_current": "not_live_bytes",
+      "large_churn": "calibrated_tested_count",
+      "large_transient_count_delta": 128,
+      "live_snapshots": "calibrated_known_main_heap_objects_only",
+      "small_churn": "unsupported_no_signal",
+      "small_transient_count_delta": 0
+    }
+  ],
+  "configuration": {
+    "checksum": 78664,
+    "kind": "configuration",
+    "known_object_table_bytes": 16512,
+    "large_held_count": 8,
+    "large_held_usable_bytes": 18874368,
+    "large_object_bytes": 2097176,
+    "large_payload_bytes": 2097152,
+    "large_transient_count": 128,
+    "mimalloc_header_version": 30405,
+    "observer_snapshot_bytes": 1220328,
+    "small_held_count": 1024,
+    "small_held_usable_bytes": 40960,
+    "small_object_bytes": 40,
+    "small_scalar_bytes": 32,
+    "small_transient_count": 10000,
+    "stats_header_version": 5
+  },
+  "head": "8e516d500e234e6a61a0910fd915f862ea7e7773",
+  "host": {
+    "cc": "/usr/bin/cc",
+    "cc_version": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin",
+    "machine": "arm64",
+    "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+    "system": "Darwin"
+  },
+  "members": 57,
+  "sha256": "eb8959816763b84328dd55ae69e1d487ed4fe6a4bd415d976febf4a7f038b2dd",
+  "source_inputs": 11,
+  "status": "",
+  "toolchain": {
+    "mimalloc_stats_header_blob": "b4e19c09aaa2b18bae1b1d5f0e4591967a99452f",
+    "pin": "leanprover/lean4:v4.35.0",
+    "prefix": "/Users/masa/.elan/toolchains/leanprover--lean4---v4.35.0",
+    "version": "Lean (version 4.35.0, arm64-apple-darwin24.6.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)"
+  },
+  "toolchain_inputs": 9
+}

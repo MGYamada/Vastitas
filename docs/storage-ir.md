@@ -178,6 +178,15 @@ The latter includes each fresh arena result, external wrapper and generated
 arena data/metadata and unobserved Lean/backend allocations. The private fresh-result
 comparator uses the same current callers and is labeled as an experiment.
 
+The separate [stock Lean allocation capability experiment](../experiments/stock_allocation_capabilities/README.md)
+calibrates observations from the unchanged installed runtime. It detects known
+retained/released main-heap objects, but the observed small-allocation counter
+has no signal and the huge-byte `current` field remains cumulative after release.
+These are measurement limits, not zero-allocation or memory-leak results. Keep
+selected FFI events, sampled live blocks, allocator/process backing and backend
+workspace channels separate; neither this calibration nor the result-object
+optimization completes total-cost or controlled-host performance acceptance.
+
 The adapter reports data allocation/free counts, live and peak data bytes,
 written/copied bytes, successful metadata allocations, and the retained
 metadata size. Explicit copy reuses its existing destination and allocates no

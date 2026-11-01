@@ -1,0 +1,21 @@
+{
+  "measured_head": "7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c",
+  "launcher_commit": "ab015081534035ad34bea7c4dfac469b8fac79cf",
+  "launcher_branch": "codex/measure-regroup3-linux-20261101",
+  "run_id": 41290985225,
+  "job_id": 124802014404,
+  "trigger": "push",
+  "profile": "full",
+  "reason": "The GitHub connector has no workflow-dispatch operation. A measurement-only branch pins checkout to the exact clean main commit and selects the existing full profile. The launcher is not part of the measured source tree or the publication PR.",
+  "measured_workflow_sha256": "787bcfb7b134c77f80eec44cf6117c227402f60ae6cef72d75be9ab474c80c54",
+  "local_attempt": {
+    "result": "blocked before public check/build/execution",
+    "reason": "Pinned Lean 4.35.0 cannot locate its application because numeric /proc/<PID>/exe access is denied in the local execution environment. No local public timing result is claimed.",
+    "completed": [
+      "Pinned sequential LP64 OpenBLAS 0.3.34 HASWELL build",
+      "Rust 1.99.1 release frontend build",
+      "8 contraction-tree harness tests"
+    ]
+  },
+  "launcher_workflow_sha256": "3bb145a677b7bf018c74dc2d31f90c41511624b3cd6056821fb02a0ecfb6f6ac"
+}

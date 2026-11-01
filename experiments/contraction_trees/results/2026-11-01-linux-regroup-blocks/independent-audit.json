@@ -1,0 +1,34 @@
+{
+  "measured_head": "7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c",
+  "archive_members": 177,
+  "plain_copies_verified": 9,
+  "archived_sources_exact_measured_git": 47,
+  "raw_rows": 2622,
+  "pairs": 1311,
+  "phase_rows": {
+    "warmup": 288,
+    "calibration": 750,
+    "measurement": 1584
+  },
+  "groups": 72,
+  "native_records": 24,
+  "verification_commands": 288,
+  "final_calibrations_reaching_5ms": 72,
+  "minimum_final_calibration_batch_ns": 5168474,
+  "measurement_batches_below_5ms": {
+    "reused_buffers": 19,
+    "regroup3_adapter": 17,
+    "lifecycle": 8,
+    "first_blas": 24,
+    "pack3_adapter": 48
+  },
+  "minimum_measurement_batch_ns": 3948092,
+  "rss_kib_values": [
+    148164
+  ],
+  "peak_arena_bytes": 2825248,
+  "peak_metadata_bytes": [
+    280
+  ],
+  "unexpected_command_failures": 0
+}

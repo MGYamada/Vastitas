@@ -194,6 +194,13 @@ unattributed in those observed diagnostic phases after the actual two-object /
 96-byte error payload is included. This does not accept startup, general peaks,
 stock allocation counts, other unmeasured source paths or any of the four gates.
 
+The optional [backend packing calibration](../experiments/openblas_packing/README.md)
+records actual D/Z packing invocations and their source/active-pool spans while
+requiring unchanged compute/copy kernels. It separately names static pool metadata
+and preserves GEMV/small-matrix shortcuts with unavailable payload measurements.
+Generated-source composition, shortcut internals and complete backend/peak costs
+remain required; this calibration adds no timing or completion claim.
+
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.
 Runtime and allocation records keep their original clean/dirty inputs even when

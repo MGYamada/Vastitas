@@ -1,10 +1,11 @@
 """Audit the preserved post-regroup/full Linux run; never rebuild or modify project files.
 
-Uses Python's standard library and Git. The measured commit must be available
-in this repository. Consistency checks are not native refinement or a controlled
-performance acceptance test.
+Uses Python's standard library and Git. Only the measured main commit must be
+available locally; the temporary launcher's Git object path is preserved here.
+Consistency checks are not native refinement or controlled performance acceptance.
 """
 from collections import Counter, defaultdict
+import base64
 import csv
 import hashlib
 import io
@@ -62,14 +63,60 @@ assert provenance["measured_head"] == HEAD
 assert provenance["launcher_commit"] == manifest["launcher_commit"]
 assert (provenance["run_id"], provenance["job_id"]) == (manifest["run"], manifest["job"])
 assert provenance["profile"] == "full" and provenance["trigger"] == "push"
-for name, revision, hash_key in (
-    ("measured-workflow.yml", HEAD, "measured_workflow_sha256"),
-    ("launcher-workflow.yml", manifest["launcher_commit"], "launcher_workflow_sha256"),
-):
-    snapshot = (SAVED / name).read_bytes()
-    original = subprocess.run(["git", "show", revision + ":.github/workflows/contraction-tree-experiment.yml"],
-                              cwd=REPOSITORY, check=True, stdout=subprocess.PIPE).stdout
-    assert snapshot == original and digest(snapshot) == provenance[hash_key]
+measured_workflow = (SAVED / "measured-workflow.yml").read_bytes()
+original = subprocess.run(["git", "show", HEAD + ":.github/workflows/contraction-tree-experiment.yml"],
+                          cwd=REPOSITORY, check=True, stdout=subprocess.PIPE).stdout
+assert measured_workflow == original
+assert digest(measured_workflow) == provenance["measured_workflow_sha256"]
+
+# The launcher branch is temporary. Verify its workflow through the pinned Git
+# commit and three raw tree objects instead of requiring an unmerged Git ref.
+launcher = json.loads((SAVED / "launcher-git-objects.json").read_text())
+assert launcher["format"] == 1 and launcher["commit"] == manifest["launcher_commit"]
+assert launcher["path"] == ".github/workflows/contraction-tree-experiment.yml"
+used_objects = set()
+
+
+def git_digest(kind, data):
+    # Git's existing SHA-1 object format, not a new cryptographic signature.
+    return hashlib.sha1(f"{kind} {len(data)}\0".encode() + data).hexdigest()
+
+
+def git_object(kind, sha):
+    entry = launcher["objects"][sha]
+    assert entry["type"] == kind
+    data = base64.b64decode(entry["data_base64"], validate=True)
+    assert git_digest(kind, data) == sha
+    used_objects.add(sha)
+    return data
+
+
+def tree_child(tree, name, mode):
+    entries = {}
+    offset = 0
+    while offset < len(tree):
+        end = tree.index(b"\0", offset)
+        item_mode, item_name = tree[offset:end].split(b" ", 1)
+        assert item_name not in entries and end + 21 <= len(tree)
+        entries[item_name] = (item_mode, tree[end+1:end+21].hex())
+        offset = end + 21
+    actual_mode, sha = entries[name]
+    assert actual_mode == mode
+    return sha
+
+
+commit = git_object("commit", launcher["commit"])
+tree_line = commit.split(b"\n", 1)[0]
+assert re.fullmatch(rb"tree [0-9a-f]{40}", tree_line)
+tree_sha = tree_line[5:].decode("ascii")
+for component in (b".github", b"workflows"):
+    tree_sha = tree_child(git_object("tree", tree_sha), component, b"40000")
+workflow_sha = tree_child(git_object("tree", tree_sha),
+                          b"contraction-tree-experiment.yml", b"100644")
+launcher_workflow = (SAVED / "launcher-workflow.yml").read_bytes()
+assert git_digest("blob", launcher_workflow) == workflow_sha
+assert digest(launcher_workflow) == provenance["launcher_workflow_sha256"]
+assert used_objects == set(launcher["objects"]) and len(used_objects) == 4
 assert ("ref: " + HEAD) in (SAVED / "launcher-workflow.yml").read_text()
 assert "TREE_PROFILE: full" in (SAVED / "launcher-workflow.yml").read_text()
 
@@ -288,6 +335,7 @@ assert load("compile-times.json") == [command for command in commands if any(wor
 
 report = {
     "measured_head": HEAD, "archive_members": len(files), "plain_copies_verified": len(PLAIN),
+    "launcher_git_objects_verified": len(used_objects),
     "archived_sources_exact_measured_git": source_count, "raw_rows": len(rows), "pairs": len(pairs),
     "phase_rows": dict(Counter(row["phase"] for row in rows)), "groups": len(summaries),
     "native_records": len(native), "verification_commands": len(verifications),

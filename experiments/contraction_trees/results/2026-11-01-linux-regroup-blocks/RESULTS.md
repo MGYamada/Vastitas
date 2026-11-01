@@ -27,6 +27,10 @@ No cross-run ratio is used to estimate the effect of #357.
   [launcher-workflow.yml](launcher-workflow.yml), and
   [measured-workflow.yml](measured-workflow.yml) preserve that distinction and
   the local toolchain blocker that led to hosted execution.
+- [launcher-git-objects.json](launcher-git-objects.json) retains the exact launcher
+  commit and its three workflow-path tree objects. The verifier checks their Git
+  object hashes from the pinned commit through to the workflow blob. Reproduction
+  therefore does not require retaining or fetching the temporary launcher branch.
 - Harness interval: `2026-11-01T09:00:45.329136+00:00` through `2026-11-01T09:06:26.071193+00:00`.
 - Twelve canonical public check/build/executions; twelve independent kernel
   check/emit paths and exact-instruction wrappers; 24 optimized/sanitized native
@@ -160,7 +164,7 @@ retention is fourteen days; the compact original ZIP is preserved here.
 [verify.py](verify.py) independently checks archive digest/CRC/inventory, nine
 plain copies, 47 source snapshots
 against the exact measured Git tree, both workflow snapshots against their own
-Git commits, every raw pair and dimension-derived cost, command/CSV agreement,
+Git commits (using the preserved launcher objects), every raw pair and dimension-derived cost, command/CSV agreement,
 all native/verification results and every generated-wrapper/canonical result.
 It recomputes all 72 statistical groups and 5,000-resample bootstrap intervals
 without importing the producing harness. [independent-audit.json](independent-audit.json)
@@ -168,7 +172,7 @@ is the retained audit output. The only nonzero command results are the twelve
 intentional rejecting wire-capture invocations; they grant no acceptance.
 
 ```sh
-# Both the measured and launcher commits must be available in this clone.
+# The measured main commit must be available; no launcher ref is needed.
 python3 experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/verify.py
 ```
 

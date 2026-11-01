@@ -16,6 +16,15 @@ runtime variant retain 162 snapshots, including repeated empty observations and
 an explicitly separate forced collection. Known retained addresses, block counts,
 `mi_usable_size`, checksums and independent counter arithmetic must agree.
 
+The [retained macOS record](results/2026-11-01-macos/RESULTS.md) measures clean
+`54531c11b2843a0d3d7565b71e7463e4387b8c03`: all five diagnostic transient counts
+and known releases agree, with 34 unchanged runtime objects. Stock/rebuilt-zero
+normal counters have no signal. These are calibration results, not total heap or
+stock-production allocation evidence.
+The separately [retained Linux record](results/2026-11-01-linux/RESULTS.md) measures
+the corresponding clean CI test merge `5425c1a`, independently matched to the same
+source tree. Both records pass the 15 focused verifier/provenance tests.
+
 ```sh
 python3 experiments/lean_allocation_diagnostic/run.py \
   --out /tmp/vastitas-lean-diagnostic-new --cc cc --cxx clang++

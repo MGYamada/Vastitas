@@ -176,6 +176,11 @@ It audits the single replaced runtime archive member and independently checks
 known count/retention/release arithmetic. Diagnostic counts are not stock runtime
 measurements; startup, general peaks and connection to real generated source are
 not accepted by this calibration. The four gates remain open.
+The retained macOS/Linux records cover nine processes / 162 snapshots each from
+clean `54531c1` / identical-tree CI merge `5425c1a`, with all 34 other runtime
+objects unchanged. Both reproduce the five known transient counts/releases and
+the incomplete cumulative requested-byte channel; see
+[the calibration records](../experiments/lean_allocation_diagnostic/README.md).
 
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.

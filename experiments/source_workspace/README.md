@@ -4,7 +4,8 @@ This optional diagnostic connects the actual public two-edge contraction-tree
 source to distinct observations in the same process: selected Lean
 FFI/emitted-constructor objects, native arena data/metadata traffic, and the
 pinned OpenBLAS `memory.c` pool/backing events around each actual CBLAS call.
-Optional calibrated allocator and actual GEMM packing channels are described below.
+Optional calibrated allocator, block lifetime and actual GEMM packing channels
+are described below.
 It does not change the compiler, public protocol, production runtime or numerical
 backend. The older allocation schema-2 records remain separate and unchanged.
 
@@ -110,7 +111,7 @@ excluded from cost equality and not used as meaningful per-operation peak memory
 In schema 1, general Lean heap/allocator traffic, backend static metadata and other
 files, actual backend packing/copy bytes and residency remain unmeasured. These
 records do not close total-cost, tiny-call budget or controlled-host acceptance
-gates. Schemas 2 and 3 add the scoped channels described below.
+gates. Schemas 2 through 4 add the scoped channels described below.
 
 The compact ZIP retains all source, command and raw observation evidence including
 the nested backend calibration. Large Lean executables and Lake caches are omitted;
@@ -259,10 +260,68 @@ calls, not shortcut internals or all backend traffic. There are no operation
 timings, hardware-traffic measurements, whole-process peaks or controlled-host
 acceptance claims.
 
-The source-cost CI uses this combined profile on macOS and Linux for both push
+The source-cost CI uses the schema-4 extension below on macOS and Linux for both push
 and pull_request. Superseded runs are cancelled within each event/branch; the
 two current event runs remain independent. Retained schema-1/2 replay and mutation
 tests continue to run alongside the new address/route/footprint regressions.
+
+## Source block lifetimes and transient peaks (schema 4)
+
+Supply the separate [block lifetime calibration](../lean_allocation_lifetimes/README.md)
+and its exact runtime archive and observer object to add the private `lifetimes`
+variant. This requires the three existing Lean controls and actual packing
+calibration. It extends the private source-cost record, not public protocol 8.
+
+```sh
+python3 experiments/lean_allocation_lifetimes/run.py --out /tmp/lean-heap-record --mimalloc-archive /tmp/lean-allocator-record/inputs/mimalloc-v3.4.5.tar.gz
+python3 experiments/source_workspace/run.py --prefix /tmp/packing-build/stock --diagnostic-prefix /tmp/packing-build/diagnostic --backend-record /tmp/packing-record --lean-record /tmp/lean-allocator-record --lean-runtime-dir /tmp/lean-allocator-record/build --heap-record /tmp/lean-heap-record --heap-build-dir /tmp/lean-heap-record/build --output /tmp/source-heap-record
+python3 experiments/source_workspace/archive.py /tmp/source-heap-record /tmp/source-heap-compact/evidence.zip
+VASTITAS_SOURCE_ALLOCATOR_RECORD=/tmp/source-heap-compact/evidence.zip VASTITAS_SOURCE_PACKING_RECORD=/tmp/source-heap-compact/evidence.zip VASTITAS_SOURCE_HEAP_RECORD=/tmp/source-heap-compact/evidence.zip python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
+```
+
+Both backends now cross four runtime variants: stock, rebuilt zero-statistic,
+diagnostic statistics, and calibrated lifetimes. A full standard record requires
+96 canonical public executions, 1,152 normal observations and 96 failure cleanups.
+The separate streaming profile requires 32 / 256 / 32 respectively. Canonical
+executables still use the unchanged stock backend and installed Lean runtime.
+Schemas 1 through 3 and their retained records keep their original coverage.
+
+Only the fourth variant exposes process-global logical mimalloc block traffic,
+live usable bytes and simultaneous usable-byte peaks. Five before/after pairs
+bracket the existing statistics observer and an independent main-heap walk.
+The pair must match exactly; live block counts and usable bytes must equal the
+walk. Each checkpoint closes one interval and resets only its peak to current
+live bytes under the same observer lock. Allocations, frees, live state and the
+global peak are never reset. Cold/setup/run/cleanup traffic must agree with the
+independent calling-thread `MI_STAT=2` channel. Repeated backend runs compare
+traffic and peaks above the interval's entry live set, preserving each process's
+distinct startup state.
+
+The first snapshot includes module initialization and argument parsing before
+cold execution. It is retained as an absolute state, not subtracted away and
+called zero allocation. Phase entry and exit live bytes, acquired/released usable
+bytes, low-level allocation request bytes and the interval peak remain distinct.
+For example, releasing preexisting command arguments can decrease live bytes
+while the phase still allocates. Selected objects and actual error payloads are
+contained in the global channel; any remaining allocations or releases are
+explicit. Overlapping allocation channels must not be added together, nor may
+independent subsystem peaks be summed as a simultaneous whole-process peak.
+
+The complete nested calibration binds both the rebuilt `libleanrt.a` and the
+separate `lifetime.o` through exact hashes, toolchain inputs, linker maps and
+source/header receipts. Only that variant builds the phase hooks. Its observer
+adds 4,194,417 bytes of static calibration storage and 1,208 bytes of phase
+snapshots/guards, in addition to the existing 43,732-byte statistics observer.
+These are declared object sizes, excluding padding, stack, code and report costs.
+All reporting follows the final snapshot; there is no forced collection or
+observer allocation within a measured interval. Capacity exhaustion is fatal.
+
+These are private allocator observations, not stock-runtime counts or timings.
+They cover logical blocks, not physical allocator backing, libc/GMP or all
+process allocations. Report generation and process teardown are outside the
+final boundary. The C comparator is still Lean-hosted, not a standalone C
+startup comparison. Full cost attribution, controlled-host bulk measurements,
+the predeclared tiny-call budget and native refinement remain separate gates.
 
 Cleanup cost expectations follow each actual returned source. Replay rebuilds
 the complete allocation wrapper with trusted code, preserving either the older

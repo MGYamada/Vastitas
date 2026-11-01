@@ -45,4 +45,5 @@ lake -d lean-kernel build \
   VastitasStorageTest.DependencyRegression \
   VastitasStorageTest.MetricRegression \
   VastitasStorageTest.OwnedPackageRegression \
+  VastitasStorageTest.UniverseRegression \
   VastitasPromotion.Regression

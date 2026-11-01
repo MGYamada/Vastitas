@@ -236,9 +236,28 @@ def check_patch(reader):
 def verify(path): return verify_reader(workspace.Reader(path))
 
 
+def check_footprints(reader,record,contracts,kernels,commands):
+    expected={(v,s,c) for v in ('stock','diagnostic') for s in (False,True) for c in contracts}
+    seen=set(); definitions={k['name']:k for k in kernels}
+    for receipt in record['footprints']:
+        contract=tuple(receipt['contract']); key=(receipt['variant'],receipt['sanitized'],contract)
+        require(type(receipt['sanitized']) is bool and key in expected and key not in seen,'footprint coverage/duplicate')
+        seen.add(key); kernel,m,n,lda=contract; definition=definitions[kernel]
+        raw=json.loads(reader.read(receipt['stdout']))
+        require(raw==receipt['result']=={'kind':'observed_kernel_footprint','kernel':kernel,'m':m,'n':n,'lda':lda,
+                'checked_input_words':lda*(m if definition['transpose'] else n)*definition['components'],
+                'checked_output_words':m*n*definition['components']},'observed kernel footprint')
+        calls=[c for c in commands if c['stdout']==receipt['stdout']]
+        name=receipt['variant']+'-calibration'+('-sanitized' if receipt['sanitized'] else '')
+        require(len(calls)==1 and Path(calls[0]['argv'][0]).name==name and
+                calls[0]['argv'][1:]==list(map(str,contract)),'observed footprint command')
+    require(seen==expected,'missing observed footprint calibration')
+    return {'contracts':len(contracts),'executions':len(seen)}
+
+
 def verify_reader(reader):
     record=reader.json('record.json')
-    require(record['schema']==1 and record['kind']=='diagnostic-openblas-packing','record schema')
+    require(type(record['schema']) is int and record['schema'] in (1,2) and record['kind']=='diagnostic-openblas-packing','record schema')
     require(record['upstream']['version']=='0.3.34' and record['upstream']['sha256']==workspace.PIN,'release pin')
     require(set(record['files'])|{'record.json'}==reader.names,'record inventory')
     for name,entry in record['files'].items():
@@ -289,6 +308,7 @@ def verify_reader(reader):
         ('rectangle',tuple(map(str,(s,*shape,ta,tb,b)))) for s in range(2) for shape in SHAPES for ta in range(3) for tb in range(3) for b in range(2)}
     expected={(v,r,f,c) for v in ('stock','diagnostic') for r in (1,2) for f,c in expected_cases}
     seen=set(); pairs={}; count=0; payload=[0,0]; route_counts=Counter(); metadata=set(); configs=set(); shortcuts=0
+    actual_contracts=set()
     for run in record['runs']:
         key=(run['variant'],run['repeat'],run['family'],tuple(run['case']))
         require(key in expected and key not in seen,'run coverage/duplicate'); seen.add(key)
@@ -332,17 +352,23 @@ def verify_reader(reader):
                 tr=(0,1,3) if s else (0,1,1)
                 require(all([r[x] for x in ('components','m','n','k','ta','tb','lda','ldb','ldc')]==[s+1,n,n,n,tr[t],0,n+1,n+1,n+1] for r in routes),'adapter CBLAS contract')
             metadata.add(json.dumps(rows[2]['metadata'],sort_keys=True)); count+=len(rows[2]['calls'])
+            actual_contracts.update(tuple(c[key] for key in ('kernel','m','n','lda')) for c in rows[2]['calls'])
             for r in summary['routes']:
                 route_counts[r['path']]+=1
                 if r['logical_payload_bytes'] is None: shortcuts+=1
                 else:
                     for i in (0,1): payload[i]+=r['logical_payload_bytes'][i]
     require(seen==expected and len(configs)==1 and len(metadata)==1,'incomplete run/configuration coverage')
-    return {'schema':1,'head':record['repository']['head'],'executions':len(seen),'pairs':len(pairs),
+    result={'schema':record['schema'],'head':record['repository']['head'],'executions':len(seen),'pairs':len(pairs),
             'calibration_cases_per_binary':wanted['cases'],'unchanged_kernel_objects':len([p for p in old if p.startswith('kernel/')]),
             'packing_calls':count,'logical_packed_payload_bytes':payload,'routes':dict(route_counts),
             'shortcut_routes_without_payload_measurement':shortcuts,'metadata':json.loads(next(iter(metadata))),
             'timing':False,'hardware_traffic':False,'whole_process_memory':False,'controlled_host':False}
+    if record['schema']==2:
+        result['observed_footprints']=check_footprints(reader,record,actual_contracts,wanted['kernels'],commands)
+    else:
+        require('footprints' not in record,'footprints need schema 2')
+    return result
 
 
 if __name__=='__main__':

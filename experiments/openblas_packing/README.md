@@ -12,6 +12,14 @@ repeated copies of the same input. These bytes describe the calibrated packing
 kernel's contiguous output and corresponding logical reads. They do **not**
 measure bus traffic, cache misses, prefetching, elapsed time or whole-process cost.
 
+The retained [macOS](results/2026-11-01-macos/RESULTS.md) and
+[Linux](results/2026-11-01-linux/RESULTS.md) records measure clean feature `8422c35`
+and its identical-tree CI merge `05bf94d`. Each retains all 1,828 executions.
+They observe 308,750 / 385,254 packing calls and 4,508 / 4,484 bytes in the named
+static metadata set. Backend configurations differ; these are not timing comparisons.
+These initial schema-1 records use the broad grid calibration; they predate the
+additional actual-shape/stride checks required by the current schema-2 runner.
+
 ## Reproduce
 
 ```sh
@@ -49,7 +57,12 @@ stock allocation or timing measurements.
 Direct calls to every selected packing symbol check exact coordinate permutation,
 unchanged input/padding and guarded output borders for 23 positive dimensions
 from 1 through 257, all pairs of dimensions, and two leading-dimension paddings.
-Both backends run plain and ASan/UBSan harnesses. Upstream kernel objects themselves
+Both backends run plain and ASan/UBSan harnesses. Schema 2 additionally reconstructs
+every distinct `(kernel,m,n,lda)` from the actual diagnostic records, then checks
+that exact shape/stride on both plain/sanitized stock/diagnostic kernels. This
+covers actual blocks outside the initial grid, such as extent 512 and large
+leading dimensions. Missing or duplicate footprint receipts are rejected.
+Upstream kernel objects themselves
 are not sanitizer-instrumented. This is a finite calibration, not a theorem about
 arbitrary dimensions or out-of-contract zero-size direct kernel calls. Zero-size
 GEMM is tested through CBLAS and the actual adapter instead.

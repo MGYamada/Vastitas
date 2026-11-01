@@ -82,7 +82,23 @@ static size_t check(const Kernel *k, size_t m, size_t n, size_t pad) {
     return output_words;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+    if (argc != 1) {
+        assert(argc == 5);
+        size_t m=strtoul(argv[2],NULL,10), n=strtoul(argv[3],NULL,10), lda=strtoul(argv[4],NULL,10);
+        assert(m>0 && n>0 && m<=50000 && n<=50000 && lda<=50003);
+        const Kernel *kernel=NULL;
+        for(size_t i=0;i<sizeof(kernels)/sizeof(kernels[0]);++i)
+            if(strcmp(argv[1],kernels[i].name)==0) kernel=&kernels[i];
+        assert(kernel);
+        const size_t rows=kernel->transpose ? n : m, cols=kernel->transpose ? m : n;
+        assert(lda>=rows && lda*cols*kernel->components<=16*1024*1024);
+        size_t words=check(kernel,m,n,lda-rows);
+        printf("{\"kind\":\"observed_kernel_footprint\",\"kernel\":\"%s\",\"m\":%zu,\"n\":%zu,"
+               "\"lda\":%zu,\"checked_input_words\":%zu,\"checked_output_words\":%zu}\n",
+               kernel->name,m,n,lda,lda*cols*kernel->components,words);
+        return 0;
+    }
     const size_t sizes[] = {1,2,3,4,5,7,8,9,15,16,17,31,32,33,63,64,65,127,128,129,255,256,257};
     uint64_t cases = 0, words = 0;
     for (size_t k = 0; k < sizeof(kernels) / sizeof(kernels[0]); ++k)

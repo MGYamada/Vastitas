@@ -200,6 +200,10 @@ requiring unchanged compute/copy kernels. It separately names static pool metada
 and preserves GEMV/small-matrix shortcuts with unavailable payload measurements.
 Generated-source composition, shortcut internals and complete backend/peak costs
 remain required; this calibration adds no timing or completion claim.
+Its complete [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
+and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
+records each retain 1,828 executions at clean feature `8422c35` / identical-tree
+test merge `05bf94d`. The actual packing kernels retain stock object hashes.
 
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.

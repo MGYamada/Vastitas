@@ -157,16 +157,33 @@ def main():
                 raw,stdout=run.run([out/'binaries'/f'{variant}-{family}',*case],label)
                 parsed=label+'.json'; dump(out/parsed,[json.loads(line) for line in raw.splitlines()])
                 runs.append({'variant':variant,'repeat':repeat,'family':family,'case':case,'stdout':stdout,'parsed':parsed})
+    # The broad grid is not sufficient evidence for every observed block/lda.
+    # Replay the actual distinct copy contracts against each unchanged kernel,
+    # with complete input/output canaries and both plain/sanitized harnesses.
+    contracts=set()
+    for observed in runs:
+        if observed['variant']=='diagnostic':
+            for call in json.loads((out/observed['parsed']).read_text())[2]['calls']:
+                contracts.add(tuple(call[key] for key in ('kernel','m','n','lda')))
+    footprints=[]
+    for index,contract in enumerate(sorted(contracts)):
+        for variant in ('stock','diagnostic'):
+            for sanitized in (False,True):
+                binary=out/'binaries'/(variant+'-calibration'+('-sanitized' if sanitized else ''))
+                raw,stdout=run.run([binary,*contract],f'footprint-{index:03d}-{variant}-{int(sanitized)}')
+                footprints.append({'variant':variant,'sanitized':sanitized,'contract':contract,
+                                   'stdout':stdout,'result':json.loads(raw)})
     for p,entry in inputs.items():
         if digest(ROOT/p)!=entry['sha256']: raise ValueError('input changed during observation: '+p)
     if run.run(['git','rev-parse','HEAD'],'git-head-after')[0].strip()!=head or run.run(['git','status','--porcelain'],'git-status-after')[0]!=status:
         raise ValueError('repository changed during observation')
     files={p.relative_to(out).as_posix():{'sha256':digest(p),'bytes':p.stat().st_size} for p in sorted(out.rglob('*')) if p.is_file()}
-    record={'schema':1,'kind':'diagnostic-openblas-packing','created_utc':datetime.now(timezone.utc).isoformat(),
+    record={'schema':2,'kind':'diagnostic-openblas-packing','created_utc':datetime.now(timezone.utc).isoformat(),
         'repository':{'head':head,'status':status,'inputs':inputs},'upstream':{'version':VERSION,'url':URL,
             'sha256':SHA256,'options':options,'changed_objects':changed},'host':{'system':platform.system(),
             'platform':platform.platform(),'machine':platform.machine(),'cc':cc,'cc_version':compiler},
-        'environment':env,'builds':builds,'calibrations':calibrations,'runs':runs,'commands':'commands.json','files':files}
+        'environment':env,'builds':builds,'calibrations':calibrations,'footprints':footprints,
+        'runs':runs,'commands':'commands.json','files':files}
     dump(out/'record.json',record)
     from experiments.openblas_packing.verify import verify
     print(json.dumps(verify(out),indent=2))

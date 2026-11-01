@@ -180,6 +180,11 @@ It counts repeated logical payload and a named set of static pool metadata.
 GEMV/small-matrix shortcuts remain explicit unmeasured payload paths. Joining the
 calibration to generated-source lifecycles, full backend metadata/peak accounting
 and timing acceptance remain outstanding; the Stage 1 gate is unchanged.
+The retained [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
+and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
+records each contain 1,828 executions at clean feature `8422c35` and identical-tree
+CI merge `05bf94d`. They observe 308,750 / 385,254 actual copy calls, with all
+535 / 769 kernel objects unchanged. Different backends retain distinct costs.
 
 ## Implemented proof boundary and broader future scope
 

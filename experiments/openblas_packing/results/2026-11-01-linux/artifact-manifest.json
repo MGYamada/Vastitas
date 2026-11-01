@@ -1,0 +1,159 @@
+{
+  "schema": 1,
+  "archive": "evidence.zip",
+  "sha256": "76befbf3874d64877446ad36fa3aaae1be9deae085cecd30c910608e0ad88a66",
+  "bytes": 6428896,
+  "members": 5602,
+  "repository": {
+    "head": "05bf94d752d9fda841f8f4068d40efd49fef30e1",
+    "inputs": {
+      "experiments/openblas_packing/README.md": {
+        "sha256": "d3d3b1527e93d10b65fc6f6715966b8972576383355beecefb9e59f20387c922",
+        "snapshot": "inputs/repository/experiments/openblas_packing/README.md"
+      },
+      "experiments/openblas_packing/archive.py": {
+        "sha256": "a76bf0e40873dc917cf99e8632d8e3658e014d5bdbfe705f954fa868b06e1081",
+        "snapshot": "inputs/repository/experiments/openblas_packing/archive.py"
+      },
+      "experiments/openblas_packing/calibrate.c": {
+        "sha256": "bbc1a1092bc6d70ae6caf8f662b9c21314243dd834e720d635c0e9114364a7c4",
+        "snapshot": "inputs/repository/experiments/openblas_packing/calibrate.c"
+      },
+      "experiments/openblas_packing/observer.c": {
+        "sha256": "8ba90abb957b9ad54979cb78fee1a2739906da0a08f0fdc077897bc508cddf73",
+        "snapshot": "inputs/repository/experiments/openblas_packing/observer.c"
+      },
+      "experiments/openblas_packing/observer.h": {
+        "sha256": "6a0382ba393dda98bdf4a933ec1a82a549c01ce99af91e257f498707aba2bd4f",
+        "snapshot": "inputs/repository/experiments/openblas_packing/observer.h"
+      },
+      "experiments/openblas_packing/patch.py": {
+        "sha256": "4b1499da0cc54ce13edf87edb82a71cdfd6b48a5166aae2b652d78526ed2cbf4",
+        "snapshot": "inputs/repository/experiments/openblas_packing/patch.py"
+      },
+      "experiments/openblas_packing/probe.c": {
+        "sha256": "325c9f226d2bc64fe5b569fd7700eea75ff891029f33907d0e3a554c1ca5c2c1",
+        "snapshot": "inputs/repository/experiments/openblas_packing/probe.c"
+      },
+      "experiments/openblas_packing/run.py": {
+        "sha256": "53099301ed2952e316ae568deab15c8c18702e2f016681cceb17cd448ebf6596",
+        "snapshot": "inputs/repository/experiments/openblas_packing/run.py"
+      },
+      "experiments/openblas_packing/test_packing.py": {
+        "sha256": "5fd8848f83ead8b895d11cfd6e9d2050697f7e662a4a617e0012c3a1fd8bf979",
+        "snapshot": "inputs/repository/experiments/openblas_packing/test_packing.py"
+      },
+      "experiments/openblas_packing/verify.py": {
+        "sha256": "d1d8ee18ed087e1173df161282b4278583fcfd2e8d45eeaaaaf6cc9b31a24e64",
+        "snapshot": "inputs/repository/experiments/openblas_packing/verify.py"
+      },
+      "experiments/openblas_workspace/README.md": {
+        "sha256": "5d02f8fff1facf7db01e5f4fcbb8d1cea25843e923be72fda32ccd3ebe583a38",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/README.md"
+      },
+      "experiments/openblas_workspace/observer.c": {
+        "sha256": "1a77e3a25f40dc9d198a52bf245f9f5abf3fe5cefa3f48638c43483377105835",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/observer.c"
+      },
+      "experiments/openblas_workspace/observer.h": {
+        "sha256": "c95927b9969dfc7c0b9fd7b70b3bc6975ae3596cd62c31b50f0a4cacc98034f6",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/observer.h"
+      },
+      "experiments/openblas_workspace/patch.py": {
+        "sha256": "61553876c68f5f5026d3f0407c18f7239f1d3bfab323dd3791b10acb7afb4e7f",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/patch.py"
+      },
+      "experiments/openblas_workspace/probe.c": {
+        "sha256": "755fca149f201f8f29a8b01d15d568a79065b37d98512bc8c25c5b8a1b11ae4b",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/probe.c"
+      },
+      "experiments/openblas_workspace/run.py": {
+        "sha256": "567de5d84fa880ae950d27453e853cd33b72fc3aafe71f2e9252149afe9c2408",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/run.py"
+      },
+      "experiments/openblas_workspace/test_workspace.py": {
+        "sha256": "27ee81a859544f9363da6c0d34951ea3d12452ea0fac468bc2e768024eb54370",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/test_workspace.py"
+      },
+      "experiments/openblas_workspace/verify.py": {
+        "sha256": "5e9315d70d17dc98457e7723c9ed4480738b9aff61b1c9ce40a7d46653ee19a8",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/verify.py"
+      },
+      "experiments/openblas_workspace/wrappers.c": {
+        "sha256": "5f28096ef26efbeacf73afc423f4d4051d47e11c6361accd708fb17beab643ae",
+        "snapshot": "inputs/repository/experiments/openblas_workspace/wrappers.c"
+      },
+      "lean-kernel/native/diagonal.c": {
+        "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83",
+        "snapshot": "inputs/repository/lean-kernel/native/diagonal.c"
+      },
+      "lean-kernel/native/diagonal.h": {
+        "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f",
+        "snapshot": "inputs/repository/lean-kernel/native/diagonal.h"
+      },
+      "lean-kernel/native/storage.c": {
+        "sha256": "c7cbf89a6d2f364f76f8027d9546a11c475c1a4166c7c4431be388321da6688f",
+        "snapshot": "inputs/repository/lean-kernel/native/storage.c"
+      },
+      "lean-kernel/native/storage.h": {
+        "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13",
+        "snapshot": "inputs/repository/lean-kernel/native/storage.h"
+      },
+      "lean-kernel/numerical/gemm.c": {
+        "sha256": "c39eab9c9bdeacac086ee74737ad5789c97005a61172849905c3af188971d33d",
+        "snapshot": "inputs/repository/lean-kernel/numerical/gemm.c"
+      },
+      "lean-kernel/numerical/gemm.h": {
+        "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124",
+        "snapshot": "inputs/repository/lean-kernel/numerical/gemm.h"
+      },
+      "scripts/build_openblas.py": {
+        "sha256": "f9f077e207145ead6f73d88bf75a71616ca6952555172d4c113bbeee541aa172",
+        "snapshot": "inputs/repository/scripts/build_openblas.py"
+      }
+    },
+    "status": ""
+  },
+  "summary": {
+    "schema": 1,
+    "head": "05bf94d752d9fda841f8f4068d40efd49fef30e1",
+    "executions": 1828,
+    "pairs": 914,
+    "calibration_cases_per_binary": 8464,
+    "unchanged_kernel_objects": 769,
+    "packing_calls": 385254,
+    "logical_packed_payload_bytes": [
+      103836672,
+      397414080
+    ],
+    "routes": {
+      "packed": 828,
+      "empty": 144
+    },
+    "shortcut_routes_without_payload_measurement": 0,
+    "metadata": {
+      "declared_bytes": {
+        "alloc_lock": 40,
+        "base_address": 8,
+        "gotoblas_initialized": 4,
+        "hugetlb_allocated": 4,
+        "memory": 3200,
+        "memory_initialized": 4,
+        "memory_overflowed": 4,
+        "new_release_info": 8,
+        "newmemory": 8,
+        "release_info": 1200,
+        "release_pos": 4
+      },
+      "memory_array_bytes": 3200,
+      "memory_entry_bytes": 64,
+      "pool_entries": 50,
+      "release_array_bytes": 1200,
+      "release_entry_bytes": 24
+    },
+    "timing": false,
+    "hardware_traffic": false,
+    "whole_process_memory": false,
+    "controlled_host": false
+  }
+}

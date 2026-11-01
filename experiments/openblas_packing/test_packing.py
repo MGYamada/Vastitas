@@ -1,11 +1,13 @@
 import copy
+import hashlib
+import json
 import os
 from pathlib import Path
 import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from experiments.openblas_packing.verify import calibration, check_patch, replay, union_area, verify, workspace
+from experiments.openblas_packing.verify import calibration, check_footprints, check_patch, replay, union_area, verify, workspace
 
 
 def fixture():
@@ -112,6 +114,43 @@ class PackingReplay(unittest.TestCase):
         self.assertEqual(union_area([(0,0,2,1),(0,2,2,1)]),4)
 
 
+class ActualFootprints(unittest.TestCase):
+    def fixture(self):
+        contract=('dgemm_itcopy',2,2,5)
+        raw={'kind':'observed_kernel_footprint','kernel':contract[0],'m':2,'n':2,'lda':5,
+             'checked_input_words':10,'checked_output_words':4}
+        files={}; commands=[]; receipts=[]
+        for variant in ('stock','diagnostic'):
+            for sanitized in (False,True):
+                name=variant+'-calibration'+('-sanitized' if sanitized else '')
+                stdout=name+'.stdout'; files[stdout]=json.dumps(raw).encode()
+                commands.append({'argv':[name,*map(str,contract)],'stdout':stdout})
+                receipts.append({'variant':variant,'sanitized':sanitized,'contract':contract,
+                                 'stdout':stdout,'result':dict(raw)})
+        class Reader:
+            def read(self,name): return files[name]
+        return Reader(),{'footprints':receipts},{contract},fixture()[2],commands
+
+    def test_all_actual_contracts_need_four_executions(self):
+        self.assertEqual(check_footprints(*self.fixture()),{'contracts':1,'executions':4})
+
+    def test_missing_actual_shape_is_not_covered_by_grid(self):
+        r,record,c,k,commands=self.fixture(); record['footprints'].pop()
+        with self.assertRaisesRegex(ValueError,'missing observed footprint'): check_footprints(r,record,c,k,commands)
+
+    def test_duplicate_plain_result_cannot_replace_sanitizer(self):
+        r,record,c,k,commands=self.fixture(); record['footprints'][-1]=record['footprints'][0]
+        with self.assertRaisesRegex(ValueError,'coverage/duplicate'): check_footprints(r,record,c,k,commands)
+
+    def test_recorded_stride_requires_matching_execution(self):
+        r,record,c,k,commands=self.fixture(); commands[0]['argv'][-1]='2'
+        with self.assertRaisesRegex(ValueError,'observed footprint command'): check_footprints(r,record,c,k,commands)
+
+    def test_output_footprint_cannot_include_unreported_padding(self):
+        r,record,c,k,commands=self.fixture(); record['footprints'][0]['result']['checked_output_words']=8
+        with self.assertRaisesRegex(ValueError,'observed kernel footprint'): check_footprints(r,record,c,k,commands)
+
+
 class FullRecord(unittest.TestCase):
     @unittest.skipUnless(os.environ.get('VASTITAS_PACKING_RECORD'),'requires a freshly retained record')
     def test_exact_record(self):
@@ -141,6 +180,19 @@ class FullRecord(unittest.TestCase):
                     return data.replace(b'VPACK_CALL(0,',b'VPACK_CALL(1,',1)
                 return data
         with self.assertRaisesRegex(ValueError,'copy role hook coverage'): check_patch(Changed())
+
+
+class RetainedRecords(unittest.TestCase):
+    def test_both_complete_published_archives(self):
+        root=Path(__file__).resolve().parent/'results'
+        for host in ('macos','linux'):
+            with self.subTest(host=host):
+                folder=root/('2026-11-01-'+host)
+                manifest=json.loads((folder/'artifact-manifest.json').read_text())
+                archive=folder/'evidence.zip'
+                self.assertEqual(archive.stat().st_size,manifest['bytes'])
+                self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(),manifest['sha256'])
+                self.assertEqual(verify(archive),manifest['summary'])
 
 
 if __name__=='__main__': unittest.main()

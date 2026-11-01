@@ -325,8 +325,9 @@ static uint64_t grouped_cell(TestGrouping g, const uint64_t d[3], const uint64_t
     return view.offset/width + row + view.leading*column;
 }
 
-static void regroup_layouts(uint8_t scalar, int same_allocation) {
-    const uint64_t d[3] = {2,3,4}, count = 256, width = scalar ? 16 : 8;
+static void regroup_layouts(uint8_t scalar, int same_allocation, const uint64_t d[3],
+                            uint64_t padding) {
+    const uint64_t count = 256, width = scalar ? 16 : 8, volume = d[0]*d[1]*d[2];
     const uint32_t target = same_allocation ? 0 : 1;
     VStorageLayout whole = {0,count,1,count,0};
     for (unsigned from = 0; from < 12; ++from)
@@ -338,8 +339,8 @@ static void regroup_layouts(uint8_t scalar, int same_allocation) {
                 assert(vstorage_allocate(a,1,scalar,count) == VS_OK);
                 assert(vstorage_fill(a,1,whole,scalar,two,two) == VS_OK);
             }
-            VStorageLayout input = grouped_layout(groupings[from],d,width,2);
-            VStorageLayout output = grouped_layout(groupings[to],d,(same_allocation ? 128 : 3)*width,3);
+            VStorageLayout input = grouped_layout(groupings[from],d,width,2*padding);
+            VStorageLayout output = grouped_layout(groupings[to],d,(same_allocation ? 128 : 3)*width,3*padding);
             uint64_t expected_source[256][2], expected_target[256][2];
             for (unsigned cell = 0; cell < count; ++cell) {
                 expected_source[cell][0] = expected_source[cell][1] = two;
@@ -352,7 +353,7 @@ static void regroup_layouts(uint8_t scalar, int same_allocation) {
                         uint64_t src = grouped_cell(groupings[from],d,x,input,width);
                         uint64_t dst = grouped_cell(groupings[to],d,x,output,width);
                         assert(src < count && dst < count);
-                        uint64_t re = pack_payload(index), im = pack_payload(23-index);
+                        uint64_t re = pack_payload(index), im = pack_payload(volume-1-index);
                         assert(vstorage_store(a,0,whole,src,0,scalar,re,im) == VS_OK);
                         expected_source[src][0] = re; expected_source[src][1] = im;
                         expected_target[dst][0] = re; expected_target[dst][1] = im;
@@ -365,8 +366,8 @@ static void regroup_layouts(uint8_t scalar, int same_allocation) {
                 assert(vstorage_regroup3(a,0,input,target,output,d[0],d[1],d[2],
                     groupings[from].code,groupings[to].code) == VS_OK);
                 VStorageStats expected = before;
-                expected.written_bytes += repetition*24*width;
-                expected.copied_bytes += repetition*24*width;
+                expected.written_bytes += repetition*volume*width;
+                expected.copied_bytes += repetition*volume*width;
                 assert_stats(vstorage_stats(a),expected);
                 for (uint64_t cell = 0; cell < count; ++cell) {
                     assert_value(a,target,whole,scalar,cell,0,expected_target[cell][0],expected_target[cell][1]);
@@ -522,10 +523,18 @@ int main(void) {
     pack_failures();
     pack_empty(0);
     pack_empty(1);
-    regroup_layouts(0,0);
-    regroup_layouts(1,0);
-    regroup_layouts(0,1);
-    regroup_layouts(1,1);
+    /* All common contiguous axes, unequal groupings, padded and unpadded views,
+     * and singleton axes (including the neutral physical rank-two extent).
+     * The coordinate oracle checks every source, destination and padding cell. */
+    const uint64_t regroup_shapes[][3] = {
+        {2,3,4}, {3,5,2}, {1,3,4}, {2,1,4}, {2,3,1},
+        {1,1,4}, {2,1,1}, {1,3,1}, {1,1,1}, {7,2,1}, {8,2,1}, {24,1,1}
+    };
+    for (unsigned shape = 0; shape < sizeof(regroup_shapes)/sizeof(regroup_shapes[0]); ++shape)
+        for (uint64_t padding = 0; padding <= 1; ++padding)
+            for (uint8_t scalar = 0; scalar <= 1; ++scalar)
+                for (int same_allocation = 0; same_allocation <= 1; ++same_allocation)
+                    regroup_layouts(scalar,same_allocation,regroup_shapes[shape],padding);
     regroup_failures(0);
     regroup_failures(1);
     regroup_empty(0);

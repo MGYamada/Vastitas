@@ -1,0 +1,124 @@
+name: Contraction tree experiment
+
+on:
+  push:
+    branches: ['codex/measure-regroup3-linux-20261101']
+    paths:
+      - 'experiments/contraction_trees/**'
+      - 'experiments/storage_copy/run.py'
+      - 'src/**'
+      - 'lean-kernel/native/**'
+      - 'lean-kernel/numerical/**'
+      - 'lean-kernel/VastitasKernel/Resource*.lean'
+      - 'lean-kernel/VastitasKernel/Storage*.lean'
+      - 'lean-kernel/VastitasKernel/Tensor*.lean'
+      - 'lean-kernel/lean-toolchain'
+      - 'scripts/build_openblas.py'
+      - '.github/workflows/contraction-tree-experiment.yml'
+  pull_request:
+    paths:
+      - 'experiments/contraction_trees/**'
+      - 'experiments/storage_copy/run.py'
+      - 'src/**'
+      - 'lean-kernel/native/**'
+      - 'lean-kernel/numerical/**'
+      - 'lean-kernel/VastitasKernel/Resource*.lean'
+      - 'lean-kernel/VastitasKernel/Storage*.lean'
+      - 'lean-kernel/VastitasKernel/Tensor*.lean'
+      - 'lean-kernel/lean-toolchain'
+      - 'scripts/build_openblas.py'
+      - '.github/workflows/contraction-tree-experiment.yml'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Smoke validation or full exploratory measurement (not performance acceptance)'
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}-${{ inputs.profile || 'smoke' }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  OPENBLAS_NUM_THREADS: '1'
+  OMP_NUM_THREADS: '1'
+  GOTO_NUM_THREADS: '1'
+  TREE_PROFILE: full
+
+jobs:
+  experiment:
+    name: Contraction tree experiment (Linux, full post-regroup main)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # Isolate launcher configuration from the exact measured main tree.
+          ref: 7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
+      - name: Build the independent kernel
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-kernel
+          auto-config: false
+          build: true
+          build-args: vastitas-kernel
+          use-mathlib-cache: false
+      - name: Build pinned sequential LP64 OpenBLAS
+        run: python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/tree-openblas" --jobs 4 --target HASWELL
+      - name: Build frontend and check the harness
+        run: |
+          cargo build --release --locked
+          python3 -m unittest discover -s experiments/contraction_trees -p 'test_*.py'
+      - name: Validate generated execution and paired output/costs
+        run: |
+          case "$TREE_PROFILE" in
+            smoke) profile_args=(--smoke --samples 3 --target-ms 0.1) ;;
+            full) profile_args=(--samples 11 --target-ms 5) ;;
+            *) echo "Unsupported contraction-tree profile: $TREE_PROFILE" >&2; exit 2 ;;
+          esac
+          python3 experiments/contraction_trees/run.py \
+            --prefix "$RUNNER_TEMP/tree-openblas" \
+            --output "$RUNNER_TEMP/contraction-tree-results" \
+            "${profile_args[@]}"
+          cat "$RUNNER_TEMP/contraction-tree-results/status.json"
+      - name: Retain compact source, validation and measurement records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: contraction-tree-records-${{ env.TREE_PROFILE }}-${{ github.event_name }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/contraction-tree-results/*.json
+            ${{ runner.temp }}/contraction-tree-results/*.md
+            ${{ runner.temp }}/contraction-tree-results/*.csv
+            ${{ runner.temp }}/contraction-tree-results/cases/**/Generated.lean
+            ${{ runner.temp }}/contraction-tree-results/cases/**/Main.lean
+            ${{ runner.temp }}/contraction-tree-results/cases/**/response.json
+            ${{ runner.temp }}/contraction-tree-results/cases/**/linked-libraries.txt
+            ${{ runner.temp }}/contraction-tree-results/cases/**/package/**
+            ${{ runner.temp }}/contraction-tree-results/source/**
+      - name: Retain large generated-code inspection files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: contraction-tree-inspection-${{ env.TREE_PROFILE }}-${{ github.event_name }}-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/contraction-tree-results/cases/**/symbols.txt
+            ${{ runner.temp }}/contraction-tree-results/cases/**/disassembly.txt

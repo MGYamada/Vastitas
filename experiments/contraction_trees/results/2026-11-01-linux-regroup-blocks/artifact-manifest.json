@@ -1,0 +1,902 @@
+{
+  "run": 41290985225,
+  "job": 124802014404,
+  "measured_head": "7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c",
+  "launcher_commit": "ab015081534035ad34bea7c4dfac469b8fac79cf",
+  "artifact_id": 13076823726,
+  "archive_bytes": 445202,
+  "archive_sha256": "c7005be138e3e096ed9564fcd526d5ba7ceeebc3c7f0765941e674f66e7b476d",
+  "inspection_artifact": {
+    "id": 13076589328,
+    "bytes": 60622521,
+    "sha256": "8c0f4bde1568ec741fc16db80c541f0b1325a833f97b55cfc2a61ee38da40022",
+    "downloaded": false
+  },
+  "files": [
+    {
+      "path": "cases/bulk-complex-p0/Generated.lean",
+      "bytes": 2578,
+      "sha256": "9f37b56225c3cacec313663e5945030393b03ac8b7eef8740eb9dd55f2327355"
+    },
+    {
+      "path": "cases/bulk-complex-p0/Main.lean",
+      "bytes": 5806,
+      "sha256": "32fffe41ed2fdf50814e2c8f7ec09f91c8c0f229751e5cab5b922d466aef46d0"
+    },
+    {
+      "path": "cases/bulk-complex-p0/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "c88238a367196fa2e86923bba4799f93931ab9daa9f67a8b2d3faf776e823dc0"
+    },
+    {
+      "path": "cases/bulk-complex-p0/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/bulk-complex-p0/package/capture.py",
+      "bytes": 298,
+      "sha256": "bed030cfdf9154d1eb6a82e89d732540e1cfa6845e8bbc4d4fd9beaa3f04252c"
+    },
+    {
+      "path": "cases/bulk-complex-p0/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/bulk-complex-p0/package/src/product/mod.vast",
+      "bytes": 5281,
+      "sha256": "34820d07cbbdea7aa55eb8e243a46beb33fea060d02c0096fa3c39e7795923ce"
+    },
+    {
+      "path": "cases/bulk-complex-p0/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/bulk-complex-p0/package/wire.json",
+      "bytes": 22355,
+      "sha256": "7aabc384a25c610048a998f872c048541a009337488c6039c18853d1c7d7ffd7"
+    },
+    {
+      "path": "cases/bulk-complex-p0/response.json",
+      "bytes": 2748,
+      "sha256": "82f38249961d91b4a256ad5f3253c210ce982929848f17f7df0b2389ad892fa0"
+    },
+    {
+      "path": "cases/bulk-complex-p1/Generated.lean",
+      "bytes": 2602,
+      "sha256": "c1cde8435e8f2b6a4f8395388b7991e3b75d4fba07517a790775f9ed47880e23"
+    },
+    {
+      "path": "cases/bulk-complex-p1/Main.lean",
+      "bytes": 5854,
+      "sha256": "baa21e63eadd4559cf5beaa34384668ee9c392f6b15a5c2b81217bd37bee6e5d"
+    },
+    {
+      "path": "cases/bulk-complex-p1/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "11a6f2230ca64f932a1e186101f7c7a91a8bb12324815a3ae1d60b5b57090e25"
+    },
+    {
+      "path": "cases/bulk-complex-p1/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/bulk-complex-p1/package/capture.py",
+      "bytes": 298,
+      "sha256": "b095a17388a336f4f6090a7ef9058d4d27c4a8bac465349e951ad53e870ece9c"
+    },
+    {
+      "path": "cases/bulk-complex-p1/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/bulk-complex-p1/package/src/product/mod.vast",
+      "bytes": 5297,
+      "sha256": "5e465c765f62a66442ee2fd828316446418b8a6300aad6dff74a0aee784075c1"
+    },
+    {
+      "path": "cases/bulk-complex-p1/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/bulk-complex-p1/response.json",
+      "bytes": 2772,
+      "sha256": "57cf9631d7d3e0f465c1b99f6e52159a14e73cd192a67a79cb6598e8cf4f1065"
+    },
+    {
+      "path": "cases/bulk-f64-p0/Generated.lean",
+      "bytes": 2247,
+      "sha256": "cce3815998f0174cd6b2b87a2a2ddd642ed48986de731a12cd0571c009e8fcc6"
+    },
+    {
+      "path": "cases/bulk-complex-p1/package/wire.json",
+      "bytes": 22371,
+      "sha256": "83c95cb8bd0b9aca93c08626384d4d5f9967aade6afe805e72a42d723c0fba4f"
+    },
+    {
+      "path": "cases/bulk-f64-p0/Main.lean",
+      "bytes": 5144,
+      "sha256": "d87a71204a92c48a96d082544ce22904ee5dacd781f6719409eac473e236422d"
+    },
+    {
+      "path": "cases/bulk-f64-p0/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "aaeaf85ff97189861073e42e9e7a14d7b00018f3a2db93150ec5448b760cce63"
+    },
+    {
+      "path": "cases/bulk-f64-p0/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/bulk-f64-p0/package/capture.py",
+      "bytes": 294,
+      "sha256": "d9eaa721c9cb9500af7c47f90c6d3fd7f09cae08b091b38312c4013ddd31352b"
+    },
+    {
+      "path": "cases/bulk-f64-p0/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/bulk-f64-p0/package/src/product/mod.vast",
+      "bytes": 4755,
+      "sha256": "cb2c6196937750fcff45f03558475266620f09a42c8cb6b7c277af9df435a990"
+    },
+    {
+      "path": "cases/bulk-f64-p0/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/bulk-f64-p0/package/wire.json",
+      "bytes": 21553,
+      "sha256": "e2d1757762ca5331cacb065eddefca476a82fa1bc7103039d2df5844b30f4418"
+    },
+    {
+      "path": "cases/bulk-f64-p0/response.json",
+      "bytes": 2417,
+      "sha256": "7c59badd96c632bc6dd1e16c9ce392f528a256a714d32516ba313b10eb5d0643"
+    },
+    {
+      "path": "cases/bulk-f64-p1/Generated.lean",
+      "bytes": 2265,
+      "sha256": "9125188be73bef4276d6f40bcd67bfbac04d0d32f321d062f784a42d3a92817f"
+    },
+    {
+      "path": "cases/bulk-f64-p1/Main.lean",
+      "bytes": 5180,
+      "sha256": "3eeca00fc2e7fa2e80b76b90630f7b3fd297cdb136f524a517f7bba25700a46d"
+    },
+    {
+      "path": "cases/bulk-f64-p1/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "7370b06b95bd5a172d3f80625eb7f82c5917d08cb3edbb07daadea432662da55"
+    },
+    {
+      "path": "cases/bulk-f64-p1/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/bulk-f64-p1/package/capture.py",
+      "bytes": 294,
+      "sha256": "f2a0d8efb5bb293a996afe265d2f1fe42d93343f792ca3b82bea86790b3c67be"
+    },
+    {
+      "path": "cases/bulk-f64-p1/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/bulk-f64-p1/package/src/product/mod.vast",
+      "bytes": 4767,
+      "sha256": "a30c2d23384ead13733ba89213d359bed56fd6e72a2cc2178ac880e148aae485"
+    },
+    {
+      "path": "cases/bulk-f64-p1/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/bulk-f64-p1/package/wire.json",
+      "bytes": 21565,
+      "sha256": "e80369d478dd7de7ec6996ffe81f44166437ea07631cf6c6f71d1a3ee2988868"
+    },
+    {
+      "path": "cases/bulk-f64-p1/response.json",
+      "bytes": 2435,
+      "sha256": "8ebbe5d3222ec0b0b12ba981fef71d68eb3ca3d51e19a54c60447266ddc4fd9f"
+    },
+    {
+      "path": "cases/small-complex-p0/Generated.lean",
+      "bytes": 2481,
+      "sha256": "d63de0d854eeb151d2e87b92586d2d165894d0276d29811abb8fd0987f0a00ed"
+    },
+    {
+      "path": "cases/small-complex-p0/Main.lean",
+      "bytes": 5612,
+      "sha256": "a2888b68ff9a2392c81c802480c3139e7c2a7cb7ca93edf4f37452068ae110c6"
+    },
+    {
+      "path": "cases/small-complex-p0/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "9bcced892c0a7c0df94fe03b777dea501ec4217801dc551fa1e79eab2d066d23"
+    },
+    {
+      "path": "cases/small-complex-p0/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/small-complex-p0/package/capture.py",
+      "bytes": 299,
+      "sha256": "4059a49fcf56e721c5ac2d709cc4deaea828fd0e7688c4eed81a9527d39e4e6b"
+    },
+    {
+      "path": "cases/small-complex-p0/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/small-complex-p0/package/src/product/mod.vast",
+      "bytes": 5206,
+      "sha256": "38a7f460d183c22e0b49d666ba425ebf01bd1ea9634323b0fd1b18350f178952"
+    },
+    {
+      "path": "cases/small-complex-p0/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/small-complex-p0/package/wire.json",
+      "bytes": 22283,
+      "sha256": "356001d5378fec300afb4fc57891b027142e34d64b8d0ebe34bb37d77d4086b8"
+    },
+    {
+      "path": "cases/small-complex-p0/response.json",
+      "bytes": 2651,
+      "sha256": "fed1c46a83a7655c63f4ef793e015e8dfb56193ae6fd41d243f516cb3e15a533"
+    },
+    {
+      "path": "cases/small-complex-p1/Generated.lean",
+      "bytes": 2508,
+      "sha256": "7f467e86055cc97ef8b7693dd92981813c1b95d2096b9488fe02595b5a0d9a1d"
+    },
+    {
+      "path": "cases/small-complex-p1/Main.lean",
+      "bytes": 5666,
+      "sha256": "71049038f8080cdd42df9bc3eda688d943177aa1f7113471170791ecf195cc1a"
+    },
+    {
+      "path": "cases/small-complex-p1/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "1947fddf037a2f9e4168c0e73b89c5cdc49dc1e065bca07462cd3fe0dae2c7e7"
+    },
+    {
+      "path": "cases/small-complex-p1/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/small-complex-p1/package/capture.py",
+      "bytes": 299,
+      "sha256": "9fce897b938009699e915f4d92cceac0b5d3f561c0f42f768e0804fa6935342d"
+    },
+    {
+      "path": "cases/small-complex-p1/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/small-complex-p1/package/src/product/mod.vast",
+      "bytes": 5225,
+      "sha256": "114e73ce6dcb960c0279ebb09f29fd9d5a713d0db2261d40cbfe06dcc6a7e013"
+    },
+    {
+      "path": "cases/small-complex-p1/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/small-complex-p1/package/wire.json",
+      "bytes": 22302,
+      "sha256": "73d13af788fca2a4dd19a77ba8553ef312fb82b3252b3e1c0cab0312f586261b"
+    },
+    {
+      "path": "cases/small-complex-p1/response.json",
+      "bytes": 2678,
+      "sha256": "c5642229cfeb633a41d22a8af81ded795322811031b162e03d6160d84850898e"
+    },
+    {
+      "path": "cases/small-f64-p0/Generated.lean",
+      "bytes": 2150,
+      "sha256": "0165d182957107bc8d7b812915aa8652d6152e79b8f916b4a6a176f31fefeeab"
+    },
+    {
+      "path": "cases/small-f64-p0/Main.lean",
+      "bytes": 4950,
+      "sha256": "98dea10780599860b5dc3aaa08e8465377723312d86bdac80ec7d786e30ef19f"
+    },
+    {
+      "path": "cases/small-f64-p0/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "93344c419a022b83aa9eefc844c72ea5160ccd77783ce3b843eccb6bdefaff56"
+    },
+    {
+      "path": "cases/small-f64-p0/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/small-f64-p0/package/capture.py",
+      "bytes": 295,
+      "sha256": "2c7b71aa332c5a27aad1525fce3f469029ed579a95e838b7f3a6aa79fa2c9dc7"
+    },
+    {
+      "path": "cases/small-f64-p0/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/small-f64-p0/package/src/product/mod.vast",
+      "bytes": 4680,
+      "sha256": "1df8ede064588b9ac85b4e860e3374292531e7f9b01c724bf82a7ec17810f218"
+    },
+    {
+      "path": "cases/small-f64-p0/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/small-f64-p0/package/wire.json",
+      "bytes": 21481,
+      "sha256": "5458aa72fcacfb8532f06b1ea2e2b739f3d1bb5bd3437ba48299e3ca208393c1"
+    },
+    {
+      "path": "cases/small-f64-p0/response.json",
+      "bytes": 2320,
+      "sha256": "4a9a0d40c39420d615c0ea73840a2aa2bf474baad74d92feada3f11a92eeb68f"
+    },
+    {
+      "path": "cases/small-f64-p1/Generated.lean",
+      "bytes": 2171,
+      "sha256": "2f50e62513884c8397e02409988b183ed327cb913c2d6332d133c0950e3b79f2"
+    },
+    {
+      "path": "cases/small-f64-p1/Main.lean",
+      "bytes": 4992,
+      "sha256": "d833e28817b863270a68873ce821445a0506408aae5ef10d6d60fa6b11d2d131"
+    },
+    {
+      "path": "cases/small-f64-p1/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "6532fb9cacb2205fde08d78b9648254e0b748b140dafa4635a29a5b60b24dfce"
+    },
+    {
+      "path": "cases/small-f64-p1/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/small-f64-p1/package/capture.py",
+      "bytes": 295,
+      "sha256": "03ff42a0c30f5a6de8ff0c742398a984510d78ea66e175661428761787d7e989"
+    },
+    {
+      "path": "cases/small-f64-p1/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/small-f64-p1/package/src/product/mod.vast",
+      "bytes": 4695,
+      "sha256": "deab37f1afecb9a03ad6620e3fdc29682029e4d22d0a8c7ad43c6c1d6fc1ade0"
+    },
+    {
+      "path": "cases/small-f64-p1/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/small-f64-p1/package/wire.json",
+      "bytes": 21496,
+      "sha256": "973441b4a25222543f1d683acd7388c158ce68767e014897912f4bec4efcf4d6"
+    },
+    {
+      "path": "cases/small-f64-p1/response.json",
+      "bytes": 2341,
+      "sha256": "0c3f50d46ac094ee7eb182d0989ce8da9e1b9763977b25531b4dd1e2b67a3dd7"
+    },
+    {
+      "path": "cases/tiny-complex-p0/Generated.lean",
+      "bytes": 2424,
+      "sha256": "0881120633a9b993da0101f355728b4c2d6676629ea5cf6fe7656d88a6784d3d"
+    },
+    {
+      "path": "cases/tiny-complex-p0/Main.lean",
+      "bytes": 5498,
+      "sha256": "03f138eef39152e8890499135b7804b835258d43fac1cce68e4e4f4efba9d920"
+    },
+    {
+      "path": "cases/tiny-complex-p0/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "2cb7996e1216f4027513d493ee83b1affe60c704cdde5e71a081e7f9d888b3e4"
+    },
+    {
+      "path": "cases/tiny-complex-p0/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/tiny-complex-p0/package/capture.py",
+      "bytes": 298,
+      "sha256": "6bc2eb50d2849415c0c321a4eb1617dc5ecfd8ac0af460fc4476446715915ebb"
+    },
+    {
+      "path": "cases/tiny-complex-p0/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/tiny-complex-p0/package/src/product/mod.vast",
+      "bytes": 5158,
+      "sha256": "61bf751809f3204b7efaf82a8e2d24831416f31cff2823d03da60637d229f702"
+    },
+    {
+      "path": "cases/tiny-complex-p0/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/tiny-complex-p0/package/wire.json",
+      "bytes": 22232,
+      "sha256": "477c95f04d12eedfc72770228b829ad28f30982afbc923ac4a5dfa36954c36f4"
+    },
+    {
+      "path": "cases/tiny-complex-p0/response.json",
+      "bytes": 2594,
+      "sha256": "e89abb9253bb64c9ec125e505f41c0a8689b3d508ce31906e7b06b5c988d8b3e"
+    },
+    {
+      "path": "cases/tiny-complex-p1/Generated.lean",
+      "bytes": 2455,
+      "sha256": "2397ca4fbf92e88dea2f531d7903c9e99b41f1ab09be0b7d6dea876da4e609e9"
+    },
+    {
+      "path": "cases/tiny-complex-p1/Main.lean",
+      "bytes": 5560,
+      "sha256": "3b2cbfc9ed4399ad33ee795b2664139f12c1511b2873bbea2745fd15264ed969"
+    },
+    {
+      "path": "cases/tiny-complex-p1/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "c3d384512b6afd75b23b1017a0472de5120f8e8d6592a4419634a4314327bfd0"
+    },
+    {
+      "path": "cases/tiny-complex-p1/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/tiny-complex-p1/package/capture.py",
+      "bytes": 298,
+      "sha256": "49564e9dea5852825eafee0ded8aa5a4c6fac412a2f86373b311c9d483c94471"
+    },
+    {
+      "path": "cases/tiny-complex-p1/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/tiny-complex-p1/package/src/product/mod.vast",
+      "bytes": 5181,
+      "sha256": "a4dfb829ac09b71cebb4715330e11c8e7523ab31baa01bdb47b6114837d9cadd"
+    },
+    {
+      "path": "cases/tiny-complex-p1/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/tiny-complex-p1/package/wire.json",
+      "bytes": 22255,
+      "sha256": "b036cef0b93c7ba3f0b27b833a1baf24d189e6cd6c23becce93dc48d535f3582"
+    },
+    {
+      "path": "cases/tiny-complex-p1/response.json",
+      "bytes": 2625,
+      "sha256": "f7dbdb77c1d684c27032015e1c619e629c2a4baf265d3f75d05250f64f53a3d3"
+    },
+    {
+      "path": "cases/tiny-f64-p0/Generated.lean",
+      "bytes": 2092,
+      "sha256": "ab500fc5212aba4ce29f43307d1cf6f418b42928c5eed22198eb38d9ace0fb5b"
+    },
+    {
+      "path": "cases/tiny-f64-p0/Main.lean",
+      "bytes": 4834,
+      "sha256": "7ca52f422adb7288d7b98e5700c6819dfa755e8b6769f96607cd555643e57f33"
+    },
+    {
+      "path": "cases/tiny-f64-p0/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "3866bb68b2d91bf9938942443b0d1c3898529f6b652820847b458a133855c613"
+    },
+    {
+      "path": "cases/tiny-f64-p0/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/tiny-f64-p0/package/capture.py",
+      "bytes": 294,
+      "sha256": "9cd50992c8200cad2a665fe08439d30ccb1643a880910e349c3e7f11f4e9c9c1"
+    },
+    {
+      "path": "cases/tiny-f64-p0/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/tiny-f64-p0/package/src/product/mod.vast",
+      "bytes": 4631,
+      "sha256": "3ae992370c72fc46286f37a5d9894c93062050d37591f097d60b7c75739aaa33"
+    },
+    {
+      "path": "cases/tiny-f64-p0/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/tiny-f64-p0/package/wire.json",
+      "bytes": 21429,
+      "sha256": "584ffdf29c51bfe4a38156a3f8da1e11a1a233479f8f903c02f6ef5d3623f4b2"
+    },
+    {
+      "path": "cases/tiny-f64-p0/response.json",
+      "bytes": 2262,
+      "sha256": "789d91c0d14b29cf6a3035704566fd4898f738540b3548bbf3b52b033bd2406d"
+    },
+    {
+      "path": "cases/tiny-f64-p1/Generated.lean",
+      "bytes": 2117,
+      "sha256": "c6ff83418d96dbbd7b520677ed32d7748ef2cf9bd50874d102de3d46bcb5c925"
+    },
+    {
+      "path": "cases/tiny-f64-p1/Main.lean",
+      "bytes": 4884,
+      "sha256": "d65cc454e52a9b4c6724c54ef20172364eec9fac39ee64cbc4a299871abd1771"
+    },
+    {
+      "path": "cases/tiny-f64-p1/linked-libraries.txt",
+      "bytes": 309,
+      "sha256": "1afafd8a4e28d80a3836db93d2e4a6a0d4e3ad1d43cbd977f536d8f9cfaabda9"
+    },
+    {
+      "path": "cases/tiny-f64-p1/package/Vastitas.toml",
+      "bytes": 71,
+      "sha256": "9a579d8f356be59152b5230beb4a5ad6da68b6ec6ec6e241ffe2609820befc96"
+    },
+    {
+      "path": "cases/tiny-f64-p1/package/capture.py",
+      "bytes": 294,
+      "sha256": "3588269750d99699695d9e80febcaa9f179c98227a63719a4d3425a0a34db2cc"
+    },
+    {
+      "path": "cases/tiny-f64-p1/package/src/main.vast",
+      "bytes": 100,
+      "sha256": "a6c37e12fc797a5df3606e2122a451b88154a0c1d67e3e72687fb82bf22ca2a7"
+    },
+    {
+      "path": "cases/tiny-f64-p1/package/src/product/mod.vast",
+      "bytes": 4650,
+      "sha256": "2f7b0779c9b6951e8ce1960f9f5f62dbe6e47f8116b483d0936e305d64413327"
+    },
+    {
+      "path": "cases/tiny-f64-p1/package/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "cases/tiny-f64-p1/package/wire.json",
+      "bytes": 21448,
+      "sha256": "ad99863d6609a3c196bf3b417caaed89b751c30cc3357e8966808b95eea47b3d"
+    },
+    {
+      "path": "cases/tiny-f64-p1/response.json",
+      "bytes": 2287,
+      "sha256": "ca79624f34a106d7677f038d5f61762633a2c66a1611a0f675430f0c6e4c3a00"
+    },
+    {
+      "path": "cases.json",
+      "bytes": 1575,
+      "sha256": "1db7e32dbfe4505a3a93713c89bf5d6c620e469b7b884012528bcb6ccb009818"
+    },
+    {
+      "path": "commands.json",
+      "bytes": 2884150,
+      "sha256": "812ba93dd7710a33e334369a2255fc7d84f36865c8fff14a3faaec8e790a7a8d"
+    },
+    {
+      "path": "compile-times.json",
+      "bytes": 106677,
+      "sha256": "a136e185fb5679cf980395a2702822bcdf7361dabdc7b91cc59bf3390bb34678"
+    },
+    {
+      "path": "environment.json",
+      "bytes": 13863,
+      "sha256": "6b0869c2db7f8f469a24d8c7a93eddd8fa36ee3212dbe066e42eb680f601d453"
+    },
+    {
+      "path": "native-validation.json",
+      "bytes": 205282,
+      "sha256": "014bd35bba0749fef525d4717699bf3cd061c339849f198e48789187d00aa710"
+    },
+    {
+      "path": "openblas-build.json",
+      "bytes": 600,
+      "sha256": "e7f7ec7ee8480f2a7d5a3bd6541b467606be2f5e84bb691d7fb89376a6f90946"
+    },
+    {
+      "path": "raw.csv",
+      "bytes": 441890,
+      "sha256": "30bcf43a4d5fee7579577ef51ed0d6f6afe3524245f014c79058016dab0ae836"
+    },
+    {
+      "path": "source/experiments/contraction_trees/README.md",
+      "bytes": 10479,
+      "sha256": "b45b4b9c43f35bdb90c116bef4b6a0ac300b6be33fc2e17a54a450b545a86bca"
+    },
+    {
+      "path": "source/experiments/contraction_trees/calls.h",
+      "bytes": 498,
+      "sha256": "88b58e01defff0473889a738dc9bbd55f55730dd0baaf7856d0a54aabf2875d5"
+    },
+    {
+      "path": "source/experiments/contraction_trees/cases.py",
+      "bytes": 11029,
+      "sha256": "52f44d9c93b0ed73c0e604949f7c88b3a28b935a9b68f8576227c1980ac31650"
+    },
+    {
+      "path": "source/experiments/contraction_trees/ffi.c",
+      "bytes": 957,
+      "sha256": "ab969b242f3effa1936f41dff309e53d39381788c589f51206d7bf29ffd36fce"
+    },
+    {
+      "path": "source/experiments/contraction_trees/probe.c",
+      "bytes": 21318,
+      "sha256": "6ed18cd6184c0bebcf18f4b0c047d98dfbee993c07a20d12d3ff45e8817e232b"
+    },
+    {
+      "path": "source/experiments/contraction_trees/run.py",
+      "bytes": 21628,
+      "sha256": "e54f5ec2ff0b0916d8e23949acad1c5db27d0e9fe0f1dd5d309b0d5244936577"
+    },
+    {
+      "path": "source/experiments/contraction_trees/test_harness.py",
+      "bytes": 5859,
+      "sha256": "96d8c8fcce1f3f0e10910a9e5792d4981014be465ad6fa8f41db9d6c31e0d4cd"
+    },
+    {
+      "path": "source/experiments/storage_copy/run.py",
+      "bytes": 13955,
+      "sha256": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/ResourceCodegen.lean",
+      "bytes": 8705,
+      "sha256": "b775ca97d5e19eb5579081b9cd160fe68c4a7a723ab2300ffb46064dced2305a"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/ResourceProtocol.lean",
+      "bytes": 26306,
+      "sha256": "cca58e218943e5f6e3cc5127e74ec90618c123f1587a24a24970a57b6d4d0603"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/ResourceSource.lean",
+      "bytes": 57022,
+      "sha256": "74e64a7b4557f8ba8005894525f54b74e62c6559f468e3a419ff6cc86e7f4a8c"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/Storage.lean",
+      "bytes": 39404,
+      "sha256": "37e6c8392aec8185bd5cc9263444c2560e49348999593525a488e3f70566968d"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageCodegen.lean",
+      "bytes": 13788,
+      "sha256": "e7c6300544af36b0091e1038591637411b6b551c2c4cc6840de622432a0d244b"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageFunctions.lean",
+      "bytes": 118643,
+      "sha256": "7e5bdc7bd8a3405f420ce8afe2ca014d390109d46cb900adcb539390600e70d1"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageProtocol.lean",
+      "bytes": 9501,
+      "sha256": "fad9843cc3dccdb77f67e4ad562f3cf4df5385cce6f6cbcc2baceb99364aae6d"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageTensorLayout.lean",
+      "bytes": 1723,
+      "sha256": "f57296dc439b339e2aa4473794979ca8932f3657052c2a2d130698fa4bd10153"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/TensorNumerical.lean",
+      "bytes": 17512,
+      "sha256": "09ebd0c7387f3bba88f890a5bbd202c4cefa5de52febd75214fbe9379feeeacc"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/TensorContraction.lean",
+      "bytes": 8769,
+      "sha256": "031abd73d4a92fff1e28dd631ca203faade6f73e03b4b235aa678d22c8e2c16a"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/TensorTree.lean",
+      "bytes": 24413,
+      "sha256": "f30679f3043b62f4b935bcb1a586b045ac4210aef97d70e3aa98c87f7ec3215b"
+    },
+    {
+      "path": "source/lean-kernel/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 5559,
+      "sha256": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071"
+    },
+    {
+      "path": "source/lean-kernel/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+    },
+    {
+      "path": "source/lean-kernel/native/diagonal.c",
+      "bytes": 7136,
+      "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83"
+    },
+    {
+      "path": "source/lean-kernel/native/diagonal.h",
+      "bytes": 1114,
+      "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+    },
+    {
+      "path": "source/lean-kernel/native/ffi.c",
+      "bytes": 8429,
+      "sha256": "4f5475404d9e0956f07415f0c39eb7d6e0260ebc344b38461c1f6f9218680bd3"
+    },
+    {
+      "path": "source/lean-kernel/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+    },
+    {
+      "path": "source/lean-kernel/native/lakefile.lean",
+      "bytes": 1675,
+      "sha256": "9c0261b0ce57d554ad9aa96ce7741650e10b1c28746a911642dbb4059bf6d348"
+    },
+    {
+      "path": "source/lean-kernel/native/ffi_result.h",
+      "bytes": 307,
+      "sha256": "a9f9e62860a0625fe6897024e22ab7f13dc32280bb0f4b3b1314867865e34733"
+    },
+    {
+      "path": "source/lean-kernel/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "source/lean-kernel/native/storage.c",
+      "bytes": 21971,
+      "sha256": "c7cbf89a6d2f364f76f8027d9546a11c475c1a4166c7c4431be388321da6688f"
+    },
+    {
+      "path": "source/lean-kernel/native/storage.h",
+      "bytes": 3717,
+      "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+    },
+    {
+      "path": "source/lean-kernel/native/test_diagonal.c",
+      "bytes": 3844,
+      "sha256": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f"
+    },
+    {
+      "path": "source/lean-kernel/native/test_ffi_result.c",
+      "bytes": 1837,
+      "sha256": "6e5ecea9178ff63316a8af1cec47cd001961568d0c59956285fc957efe8165b4"
+    },
+    {
+      "path": "source/lean-kernel/native/test_ffi_result.lean",
+      "bytes": 2393,
+      "sha256": "5427cb88667eb3f9b3900dd3d782f84e8d07a4eb0e8b9ece97bb90c685756eca"
+    },
+    {
+      "path": "source/lean-kernel/native/test_regroup_blocks.c",
+      "bytes": 3738,
+      "sha256": "f25f3806e062e830565ffba3ea67c257343df11b463d6f15fc13bb2f1cf42415"
+    },
+    {
+      "path": "source/lean-kernel/native/test_storage.c",
+      "bytes": 29011,
+      "sha256": "0086b82c64b75525cb921c799c6438d1a3c65c8f682f92966cdccb6ae5071d46"
+    },
+    {
+      "path": "source/lean-kernel/numerical/LICENSE.OpenBLAS",
+      "bytes": 1545,
+      "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+    },
+    {
+      "path": "source/lean-kernel/numerical/VastitasGemmNative.lean",
+      "bytes": 2164,
+      "sha256": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3"
+    },
+    {
+      "path": "source/lean-kernel/numerical/ffi.c",
+      "bytes": 4808,
+      "sha256": "411a27e85b8d5570b455842c41d7eca5cf5a002ba44d0f10c9d8814bf73c08d2"
+    },
+    {
+      "path": "source/lean-kernel/numerical/gemm.c",
+      "bytes": 10519,
+      "sha256": "c39eab9c9bdeacac086ee74737ad5789c97005a61172849905c3af188971d33d"
+    },
+    {
+      "path": "source/lean-kernel/numerical/gemm.h",
+      "bytes": 2194,
+      "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lakefile.lean",
+      "bytes": 2249,
+      "sha256": "fd618110c0d2a3a69986954b7fafb983940480e244368460748f696bb08f4bdd"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "source/lean-kernel/numerical/test_backend.c",
+      "bytes": 1883,
+      "sha256": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1"
+    },
+    {
+      "path": "source/lean-kernel/numerical/test_gemm.c",
+      "bytes": 20912,
+      "sha256": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b"
+    },
+    {
+      "path": "source/src/frontend/resource_parser.rs",
+      "bytes": 58036,
+      "sha256": "823f968d57c3f1ecf5b772cfcd5f88308fa8e1cd15cbc4071665f2a0e6249ae3"
+    },
+    {
+      "path": "source/src/storage.rs",
+      "bytes": 24162,
+      "sha256": "6f5ed04e3ec0e9478620e546239c5d8d3e25d4748a4a192b6032a8dbcce7f960"
+    },
+    {
+      "path": "status.json",
+      "bytes": 131,
+      "sha256": "3be7a6ccf519af22423c34b6de5549a083b8180517d7f1ba432d2e2bd6f7bfaf"
+    },
+    {
+      "path": "summary.json",
+      "bytes": 157961,
+      "sha256": "515972c94554b578a30fc59cfc10d0e146232d1fa0174a5673a97883b64fb602"
+    },
+    {
+      "path": "summary.md",
+      "bytes": 8312,
+      "sha256": "2c059ae31b1354a6f0063cd255472d3ab79584a62a070475ad0e841d46a1ca5f"
+    }
+  ]
+}

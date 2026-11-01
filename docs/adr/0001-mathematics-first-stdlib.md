@@ -118,6 +118,8 @@ The checked source-to-IR/Core-to-codegen boundary cannot accept forged evidence,
 
 ### 8. Admission and amendment procedure
 
+The shared [issue/PR review checklist](../std-issue-governance.md) is a non-normative shorthand for documenting this procedure without duplicating all governance boilerplate in every tracker. It does not alter the admissions or proof gates below.
+
 A frozen charter and a growing mathematics-first standard library are compatible **only if admission is reviewable**. Adding a new `std` family or an operation with materially new semantics **MUST** come through an ADR/amendment proposal containing:
 
 1. **Contract and jurisdiction.** Proposed name/ownership, mathematical target, exact domain and hypotheses, input/output and basepoint identities, structural laws, intended other-`std` interactions, and an explicit Core/`std`/backend split.

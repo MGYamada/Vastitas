@@ -29,8 +29,9 @@ The latest numerical increments have separate acceptance records:
 | Explicit rank-three packing and contraction, PR #340 | `c105811d12034c347f905f94a4a916e40c597631`; [validation](https://github.com/MGYamada/Vastitas/pull/340#issuecomment-6543541549): 313 Rust tests, nine optional numerical tests, 39 kernel regression targets, 20,489-declaration axiom audit and all 18 final-head hosted checks | One explicit rank-three permutation and rank-three/rank-two contraction; general networks, native refinement and equivalent-C performance acceptance remain open |
 | Explicit versioned packing caches, PR #342 | `0a1062845dc58f030bc946cf52598db81a5bc9f2`; [validation](https://github.com/MGYamada/Vastitas/pull/342#issuecomment-6544701678): 317 Rust tests, ten optional numerical tests, 40 kernel regression targets, 20,832-declaration axiom audit and all 18 final-head hosted checks | Explicit source/scratch dependency stamps and invalidation; general value retention, AD residuals and implicit reuse remain open |
 | Bounded contraction trees, PR #343 | `52bf744d9f73b757cef48d074deff74ca7c5e9c6`; [validation](https://github.com/MGYamada/Vastitas/pull/343#issuecomment-6545469463): all 19 final-head hosted checks and review of `54bdeefd146fde38ab6c2ff27f03ce0196eef7fb` passed | Explicit connected finite trees with rank-two/three intermediates, exact producer/version checks and caller regrouping; general ranks, cycles, structural nodes and controlled-host performance remain open |
+| Explicit diagonal metrics, PR #348 | `c394716a08f82b7f320c642fd14c5b55a6a3a8e9`; [validation](https://github.com/MGYamada/Vastitas/pull/348#issuecomment-6545720881): 330 Rust tests, twelve optional numerical tests, 42 kernel regression targets, 22,193-declaration axiom audit and all 21 final-head hosted checks | Exact bounded-Int diagonal realization, caller-destination adjoints, scratch-backed weighted pairing and conditional ideal laws tied to actual certificates; dense forms, dynamic interfaces, native refinement and controlled-host performance remain open |
 
-All seven final heads passed review without findings. The network integration also
+All eight final heads passed review without findings. The network integration also
 checks and executes combined network/vector operations across both branch arms.
 These merged increments do not close #67/#69/#91/#183/#179 or #201's wider scope.
 
@@ -74,8 +75,9 @@ Dynamic dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
 
 Public source now independently resolves profile paths and composes those
-certificates through the actual checker and native generation. General generative numerical result packages and dynamic shape/scalar
-interfaces and general metric realization remain pending.
+certificates through the actual checker and native generation. General generative
+numerical result packages, dynamic shape/scalar interfaces and dense metric
+realization remain pending.
 The [finite two-map network profile](finite-networks.md) now connects public
 occurrences, exact port coverage, bilinear edge typing and ordered boundaries to
 independent Lean acceptance and one existing overwrite GEMM. Same immutable map
@@ -141,6 +143,15 @@ output/cost pairs, with explicit packing on every repeated operation. Tiny
 lifecycle overhead is 408–721 ns and some bulk intervals cross the provisional
 budget. Cached packing, generic regrouping and multi-edge tree measurements are
 separate; this shared-host record does not complete controlled-host acceptance.
+The [full block-copy contraction-tree record](../experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md)
+adds twelve public programs, 24 native/sanitizer validations and 1,325 matched
+pairs against a C comparator that copies the common contiguous axis in blocks.
+Tiny lifecycle paired ratios are 2.0860–2.2248 and small ratios are
+1.2584–1.5559. Bulk lifecycle ratios are 0.9879–1.0320, with one interval extending
+to 1.1282. The original weaker coordinate-copy comparison is also retained;
+different CPU models prevent attributing differences between runs to that
+comparator change. Controlled-host, tiny-call budget and total-allocation gates
+remain open.
 Residual retention is specified now to constrain storage design; AD implementation
 and its performance gates remain in the later AD stage.
 
@@ -159,8 +170,8 @@ compilation caches and convenience warnings. mdBook follows the recorded
 Stage 1 completion, in a separate change.
 
 
-The diagonal metric increment is implemented on its feature branch and awaits a
-merged acceptance record. It covers real/complex exact bounded-Int diagonal
+The diagonal metric increment is merged in PR #348 with its acceptance record
+above. It covers real/complex exact bounded-Int diagonal
 realization, explicit materialized adjoints, weighted Hermitian pairing with
 caller scratch, and ideal laws specialized to actual-checker certificates.
 Native source/counter/sanitizer evidence is distinct from those ideal laws.

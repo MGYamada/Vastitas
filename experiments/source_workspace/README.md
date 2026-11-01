@@ -1,9 +1,10 @@
 # Checked source and backend workspace costs
 
 This optional diagnostic connects the actual public two-edge contraction-tree
-source to three distinct observations in the same process: selected Lean
+source to distinct observations in the same process: selected Lean
 FFI/emitted-constructor objects, native arena data/metadata traffic, and the
 pinned OpenBLAS `memory.c` pool/backing events around each actual CBLAS call.
+Optional calibrated allocator and actual GEMM packing channels are described below.
 It does not change the compiler, public protocol, production runtime or numerical
 backend. The older allocation schema-2 records remain separate and unchanged.
 
@@ -155,3 +156,56 @@ allocations are outside this channel. Other allocators, backend packing and stat
 metadata, residency, general peaks, other source profiles and controlled-host
 timing remain separate gates. This experiment establishes no native refinement
 or transfer of diagnostic counts to a stock runtime performance claim.
+
+## Actual source GEMM packing composition (schema 3)
+
+A completed schema-2 [packing calibration](../openblas_packing/README.md) can now
+replace the workspace-only backend calibration. The runner detects its record
+kind and emits source schema 3. It preserves schemas 1 and 2 and their archived
+measurements. This private diagnostic schema does not change a public wire version.
+
+```sh
+python3 experiments/openblas_packing/run.py --out /tmp/packing-record --build-dir /tmp/packing-build --jobs 4
+python3 experiments/source_workspace/run.py --prefix /tmp/packing-build/stock --diagnostic-prefix /tmp/packing-build/diagnostic --backend-record /tmp/packing-record --lean-record /tmp/lean-allocator-record --lean-runtime-dir /tmp/lean-allocator-record/build --output /tmp/source-packing-record
+python3 experiments/source_workspace/archive.py /tmp/source-packing-record /tmp/source-packing-compact/evidence.zip
+VASTITAS_SOURCE_ALLOCATOR_RECORD=/tmp/source-packing-compact/evidence.zip VASTITAS_SOURCE_PACKING_RECORD=/tmp/source-packing-compact/evidence.zip python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
+```
+
+The two Lean-calibration arguments remain optional. With them, the same twelve
+cases and six backend/runtime configurations include the calibrated allocator
+channel. Without them, schema 3 observes the two backend configurations. Every
+canonical public executable continues to use the stock backend and installed
+Lean runtime. Linux requires the explicit supported HASWELL backend target.
+
+Each actual CBLAS wrapper captures its three matrix addresses as well as its
+existing shape, stride, transform, coefficient and event interval. Replay requires
+one corresponding backend route with those exact addresses and arguments. It
+checks every actual copy's source rectangle, live destination pool loan and
+complete input coverage, charging repeated packing again. Addresses are compared
+inside the same execution; generated/C and runtime-variant comparisons use
+logical cost and route records, not process addresses.
+
+The source can exercise shapes or leading dimensions absent from the backend's
+calibration fixtures. The runner therefore reconstructs every distinct observed
+`(kernel, m, n, lda)` contract and checks it separately against both calibrated
+archives, using plain and ASan/UBSan harnesses. It compiles the current trusted,
+fingerprinted calibrator, never archived binaries. Exact source, compile/link,
+execution and output-footprint receipts remain in the record; the four executable
+hashes/sizes remain under `packing.binaries`, while their files are omitted from
+compact exports. Upstream kernel objects themselves are not sanitizer-instrumented.
+
+The bridge and packing observers use fixed storage and report after the allocator's
+final snapshot. Stock packing observations are null. GEMV/small shortcuts retain
+unavailable payload measurements; no shortcut is disabled. The reported logical
+packing payload, named backend static pool metadata, and each observer's own bytes
+remain separate from arena traffic, Lean allocation and workspace capacities.
+The original broad `backend_packing_bytes` claim remains false: the additional
+`packing.claims.logical_packing_payload` identifies only the observed D/Z copy
+calls, not shortcut internals or all backend traffic. There are no operation
+timings, hardware-traffic measurements, whole-process peaks or controlled-host
+acceptance claims.
+
+The source-cost CI uses this combined profile on macOS and Linux for both push
+and pull_request. Superseded runs are cancelled within each event/branch; the
+two current event runs remain independent. Retained schema-1/2 replay and mutation
+tests continue to run alongside the new address/route/footprint regressions.

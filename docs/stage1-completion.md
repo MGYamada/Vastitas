@@ -182,9 +182,10 @@ calibration to generated-source lifecycles, full backend metadata/peak accountin
 and timing acceptance remain outstanding; the Stage 1 gate is unchanged.
 The retained [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
 and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
-records each contain 1,828 executions at clean feature `8422c35` and identical-tree
-CI merge `05bf94d`. They observe 308,750 / 385,254 actual copy calls, with all
-535 / 769 kernel objects unchanged. Different backends retain distinct costs.
+records each contain 1,828 executions at clean feature `db62d22`, plus direct
+checks of all 136 / 133 actual kernel/shape/stride contracts. They observe
+308,750 / 385,254 actual copy calls, with all 535 / 769 kernel objects unchanged.
+Different backends retain distinct costs; initial grid-only records remain linked.
 
 ## Implemented proof boundary and broader future scope
 

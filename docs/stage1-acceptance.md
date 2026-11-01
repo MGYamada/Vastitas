@@ -202,8 +202,9 @@ Generated-source composition, shortcut internals and complete backend/peak costs
 remain required; this calibration adds no timing or completion claim.
 Its complete [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
 and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
-records each retain 1,828 executions at clean feature `8422c35` / identical-tree
-test merge `05bf94d`. The actual packing kernels retain stock object hashes.
+records each retain 1,828 executions at clean feature `db62d22`, plus exact direct
+checks of all 136 / 133 observed kernel/shape/stride contracts. The actual packing
+kernels retain stock object hashes. The initial grid-only records remain linked.
 
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.

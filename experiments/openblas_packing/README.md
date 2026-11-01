@@ -13,12 +13,13 @@ kernel's contiguous output and corresponding logical reads. They do **not**
 measure bus traffic, cache misses, prefetching, elapsed time or whole-process cost.
 
 The retained [macOS](results/2026-11-01-macos/RESULTS.md) and
-[Linux](results/2026-11-01-linux/RESULTS.md) records measure clean feature `8422c35`
-and its identical-tree CI merge `05bf94d`. Each retains all 1,828 executions.
+[Linux](results/2026-11-01-linux/RESULTS.md) records measure clean feature `db62d22`.
+Each retains all 1,828 executions and the actual shape/stride footprint checks:
+136 contracts / 544 direct executions on macOS, 133 / 532 on Linux.
 They observe 308,750 / 385,254 packing calls and 4,508 / 4,484 bytes in the named
 static metadata set. Backend configurations differ; these are not timing comparisons.
-These initial schema-1 records use the broad grid calibration; they predate the
-additional actual-shape/stride checks required by the current schema-2 runner.
+The reports link the initial schema-1 records with their original grid limitation;
+their measured revisions and claims remain distinct from these schema-2 records.
 
 ## Reproduce
 
@@ -74,7 +75,8 @@ writes), plus 432 direct CBLAS cases. The latter cross real/complex, both operan
 N/T/C modes, overwrite/accumulate, padded column-major layouts and twelve shapes:
 empty outputs, zero inner dimension, vector-shaped and tiny products, a 256-square
 product, `(2,50000,7)`, `(3,5,2051)`, `(2051,5,7)` and `(17,19,23)`.
-Coordinate-varying integral values and an independent periodic integer oracle
+Fixtures use alpha one and beta zero/one; other coefficient choices are outside
+this calibration. Coordinate-varying integral values and an independent periodic integer oracle
 check every output and unchanged input/padding word; T and C remain distinct.
 
 Each actual route is classified as empty, GEMV, small-matrix or packed GEMM.

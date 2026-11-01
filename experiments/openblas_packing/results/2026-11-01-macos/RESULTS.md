@@ -1,16 +1,17 @@
 # macOS actual GEMM packing calibration
 
-Measured clean commit `8422c35dbe90c383451b4065a8b584bb4661e5cf` on
+Measured clean commit `db62d224837031f1a8b3e05e6ca4756325716a04` on
 2026-11-01. The full [evidence archive](evidence.zip) and
-[manifest](artifact-manifest.json) retain all 5,602 members. The ZIP is
-5,744,369 bytes, SHA-256
-`3466111f9fed4822a8bcc1de63d10d39729aa34100ff2c5961eb8e758bb17488`.
+[manifest](artifact-manifest.json) retain all 6,690 members. The ZIP is
+6,010,656 bytes, SHA-256
+`6e01e5e08bbb905a99517663e214b0ece4eb2bf2afc11cbc851640e995116ce9`.
 All 26 repository input hashes match the actual Git blobs at that revision.
 Later publication/verifier changes do not relabel this measurement.
-This initial schema-1 record uses the broad direct-kernel grid. Its 136 distinct
-observed `(kernel,m,n,lda)` contracts include blocks up to 512 and strides outside
-that grid. The current schema-2 runner adds direct checks of every actual contract;
-those additional checks are not retroactively claimed by this record.
+This schema-2 record directly checks all 136 distinct observed `(kernel,m,n,lda)`
+contracts, including actual blocks up to 512 and strides outside the initial grid.
+The [initial schema-1 record](https://github.com/MGYamada/Vastitas/blob/db62d224837031f1a8b3e05e6ca4756325716a04/experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
+remains available at its publication commit with its original grid limitation;
+the later footprint checks are not retroactively attributed to it.
 
 The machine uses macOS 27.2 / arm64 and Apple Clang 21. The paired OpenBLAS
 0.3.34 backend is sequential LP64 VORTEXM4 with upstream-selected `NO_WARMUP`.
@@ -26,6 +27,10 @@ does not include generated Vastitas source execution.
   passed 6,348 coordinate/guard cases and checked 37,307,664 output words. The
   six actual copy symbols use D unroll 8/4 and Z unroll 4/4. Upstream objects
   themselves are not sanitizer-instrumented; these are finite calibration cases.
+- All 136 observed shape/stride contracts additionally passed the same complete
+  coordinate/input/guard checks on plain/sanitized stock/diagnostic binaries:
+  544 direct footprint executions. The independent verifier reconstructs this
+  set from the actual packing calls and rejects missing/duplicate receipts.
 - Exactly 23 observer/CBLAS/GEMM-driver objects differ. All 535 kernel objects,
   including compute, copy and shortcut kernels, retain their stock hashes.
 - Diagnostic records contain 972 actual CBLAS routes: 780 packed GEMM, 144 empty,
@@ -53,7 +58,7 @@ backing, RSS or a general peak. Do not sum overlapping channels into total heap
 cost. The full [experiment contract](../../README.md) lists exclusions and exact
 reproduction commands.
 
-The directory and exported ZIP both passed independent replay. All 23 unit,
+The directory and exported ZIP both passed independent replay. All 29 unit,
 mutation and full-record tests passed using this record; local dependency-boundary
 and documentation-link checks passed. Hosted Linux/macOS validation remains
 recorded on [PR #369](https://github.com/MGYamada/Vastitas/pull/369).

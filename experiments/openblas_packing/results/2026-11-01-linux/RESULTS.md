@@ -1,21 +1,18 @@
 # Linux actual GEMM packing calibration
 
-Measured clean CI test merge `05bf94d752d9fda841f8f4068d40efd49fef30e1` on
-2026-11-01. GitHub's actual commit has parents `6ac794c` and feature
-`8422c35dbe90c383451b4065a8b584bb4661e5cf`; its tree
-`a0e38c5d689098be7959a1b3dc68f58bf5d1923b` is identical to the feature tree.
-All 26 repository inputs match that feature's Git blobs. The measured test-merge
-identity is retained rather than replaced with a later publication commit.
-This initial schema-1 record uses the broad direct-kernel grid. Its 133 distinct
-observed `(kernel,m,n,lda)` contracts include blocks up to 512 and strides outside
-that grid. The current schema-2 runner adds direct checks of each actual contract;
-this record does not claim those later checks.
+Measured clean feature commit `db62d224837031f1a8b3e05e6ca4756325716a04` in push
+CI on 2026-11-01. All 26 repository inputs match that commit's actual Git blobs.
+The measured identity is retained rather than replaced with a later publication
+commit. This schema-2 record checks all 133 actual `(kernel,m,n,lda)` contracts,
+including blocks up to 512 and strides outside the initial grid.
+The [initial schema-1 record](https://github.com/MGYamada/Vastitas/blob/db62d224837031f1a8b3e05e6ca4756325716a04/experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
+remains available with its original measured test-merge identity and grid limitation.
 
 The full [evidence archive](evidence.zip) and [manifest](artifact-manifest.json)
-retain all 5,602 members. The ZIP is 6,428,896 bytes, SHA-256
-`76befbf3874d64877446ad36fa3aaae1be9deae085cecd30c910608e0ad88a66`.
-It was downloaded from [successful job 124807757796](https://github.com/MGYamada/Vastitas/actions/runs/41292933323/job/124807757796),
-[artifact 13077818882](https://github.com/MGYamada/Vastitas/actions/runs/41292933323/artifacts/13077818882).
+retain all 6,666 members. The ZIP is 6,685,652 bytes, SHA-256
+`d6c6d8037ab8ef34b136def29e6894d5d61d159dd02b75e75782824c9a773072`.
+It was downloaded from [successful job 124810850962](https://github.com/MGYamada/Vastitas/actions/runs/41293980212/job/124810850962),
+[artifact 13078721542](https://github.com/MGYamada/Vastitas/actions/runs/41293980212/artifacts/13078721542).
 The outer artifact ZIP was also checked against GitHub's recorded byte count
 and digest before reading its two named evidence members.
 
@@ -32,6 +29,10 @@ host. No operation timings or generated-source execution are claimed here.
   passed 8,464 cases and checked 55,961,496 output words. This configuration
   selects eight copy symbols, with D unroll 4/8 and Z unroll 4/2. Upstream
   kernel objects themselves are unchanged, not sanitizer-instrumented.
+- All 133 observed shape/stride contracts additionally passed complete
+  coordinate/input/guard checks on plain/sanitized stock/diagnostic binaries:
+  532 direct footprint executions. The independent verifier reconstructs their
+  exact coverage from the actual packing records and raw command receipts.
 - Exactly 23 observer/CBLAS/GEMM-driver objects differ. All 769 kernel objects
   retain their stock hashes, including actual compute/copy and shortcut kernels.
 - Diagnostic records contain 972 actual CBLAS routes: 828 packed GEMM and 144
@@ -53,7 +54,7 @@ host. No operation timings or generated-source execution are claimed here.
   The packing observer declares 1,339,420 mutable bytes, separately from the
   163,869-byte workspace observer. These are diagnostic overhead, not stock costs.
 
-All 23 unit/mutation/full-record tests passed in CI, and all 23 passed again
+All 29 unit/mutation/full-record tests passed in CI, and all 29 passed again
 locally against the downloaded archive. The actual raw output and manifest were
 independently replayed. Logical payload is not bus/cache traffic, RSS, peak memory
 or a value to add to overlapping backing/capacity channels.

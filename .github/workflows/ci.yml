@@ -44,6 +44,8 @@ jobs:
         run: python3 -m unittest discover -s experiments/stock_allocation_capabilities -p 'test_*.py'
       - name: Diagnostic Lean allocator verifier tests
         run: python3 -m unittest discover -s experiments/lean_allocation_diagnostic -p 'test_*.py'
+      - name: Private heap lifetime verifier boundary tests
+        run: python3 -m unittest discover -s experiments/lean_allocation_lifetimes -p 'test_*.py'
       - name: Verify retained production allocation record
         run: python3 experiments/allocation_audit/verify.py experiments/allocation_audit/results/2026-11-01-macos-production/evidence.zip
       - name: Dependency boundaries
@@ -177,6 +179,20 @@ jobs:
         with:
           name: lean-allocation-diagnostic-${{ matrix.os }}-${{ github.event_name }}
           path: ${{ runner.temp }}/vastitas-lean-diagnostic/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Calibrate private block lifetimes and interval peaks (no timing)
+        run: |
+          python3 experiments/lean_allocation_lifetimes/run.py --out "$RUNNER_TEMP/vastitas-heap-lifetimes" --mimalloc-archive "$RUNNER_TEMP/vastitas-lean-diagnostic/inputs/mimalloc-v3.4.5.tar.gz"
+          python3 experiments/lean_allocation_lifetimes/verify.py "$RUNNER_TEMP/vastitas-heap-lifetimes"
+          VASTITAS_HEAP_LIFETIME_RECORD="$RUNNER_TEMP/vastitas-heap-lifetimes" python3 -m unittest discover -s experiments/lean_allocation_lifetimes -p 'test_*.py'
+      - name: Retain private block lifetime calibration
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lean-heap-lifetimes-${{ matrix.os }}-${{ github.event_name }}
+          path: ${{ runner.temp }}/vastitas-heap-lifetimes/
+          include-hidden-files: true # Complete checksum-pinned upstream source tree.
           if-no-files-found: ignore
           retention-days: 30
       - name: Exact checked GEMM schedules and generated native cleanup

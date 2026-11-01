@@ -96,7 +96,10 @@ SDKs and libc are external toolchain dependencies. Hash inventories detect
 corruption, not forged measurement evidence or native correctness. Retained ZIPs
 can be checked without extraction or executing their contents.
 
-Connecting this calibrated channel to actual generated source/FFI calls remains
-separate work, alongside the [source/backend observation](../source_workspace/README.md).
-General allocation, representative memory-bound work and controlled-host
-performance remain open in [the completion gate](../../docs/stage1-completion.md).
+The [source/backend composition](../source_workspace/README.md) now binds these
+archives to actual generated source/FFI phases. The separate
+[block lifetime calibration](../lean_allocation_lifetimes/README.md) addresses the
+startup/live-peak blind spots with a private global observer; it does not change
+the meaning of these older records. Full allocation/peak attribution and
+controlled-host performance remain open in
+[the completion gate](../../docs/stage1-completion.md).

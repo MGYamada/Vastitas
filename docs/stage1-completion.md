@@ -189,6 +189,25 @@ diagnostic counts every tested transient allocation and release; stock/rebuilt-z
 normal counters have no signal. Waiting-thread startup counters and general peaks
 remain outside the calibrated changes. See [PR #365](https://github.com/MGYamada/Vastitas/pull/365).
 
+The separate [block lifetime calibration](../experiments/lean_allocation_lifetimes/README.md)
+adds a fixed-capacity process-global observer to a checksum-pinned private
+allocator rebuild. Its actual Lean API fixtures retain initialization traffic and
+compare live blocks/usable bytes to independent heap walking. Mixed-size and
+eight-worker native fixtures check simultaneous usable-byte peaks, cross-thread
+free, reallocation and heap provenance. The offline audit reconstructs every
+allocator source byte, checks the one-object runtime replacement and replays
+the complete observations; observer/probe ASan/UBSan and capacity-failure controls
+are separate native evidence. This calibrates a private logical-block channel.
+It does not yet bind that channel to public `.vast` source, account for other
+allocators or physical backing/RSS, or establish stock-runtime timing or the
+Fast like C acceptance gate.
+The retained [macOS](../experiments/lean_allocation_lifetimes/results/2026-11-02-macos/RESULTS.md)
+and [Linux](../experiments/lean_allocation_lifetimes/results/2026-11-02-linux/RESULTS.md)
+records use clean `a6ff4d0` and its identical-tree test merge `e732f25`. Each
+passes seven normal executions, two expected capacity controls, 54 Lean and
+44 native snapshots and 26 record/observation regressions. All 27 source inputs
+match the measured feature revision. See [PR #403](https://github.com/MGYamada/Vastitas/pull/403).
+
 The optional schema-2 [source composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
 connects these calibrated archives to actual generated source across both
 backends. It records cold/setup/run/cleanup deltas and actual error payload sizes,

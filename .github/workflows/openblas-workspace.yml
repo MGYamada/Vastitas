@@ -1,0 +1,39 @@
+name: OpenBLAS workspace observation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  workspace:
+    name: OpenBLAS workspace lifetimes (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Replay and mutation regressions
+        run: python3 -m unittest discover -s experiments/openblas_workspace -p 'test_*.py'
+      - name: Build paired backends and observe native adapter workspaces
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 experiments/openblas_workspace/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4 --target HASWELL
+          else
+            python3 experiments/openblas_workspace/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4
+          fi
+          python3 experiments/openblas_workspace/verify.py "$RUNNER_TEMP/workspace-record"
+      - name: Retain workspace observation (no timings)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openblas-workspace-${{ matrix.os }}-${{ github.event_name }}
+          path: ${{ runner.temp }}/workspace-record/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -4,12 +4,13 @@ import VastitasKernel.ResourcePure
 /-! Unresolved resource functions in the same package namespace as pure indexed
 functions, dispatch and edit authority. No owner, local symbol or callee ID is
 accepted from source. Public protocol 8 supplies the strict decoder and native
-entry boundary. Dynamic dimensions and general mixed value flow remain separate
-from this initial static profile and terminal pure return block. -/
+entry boundary. Static dimensions remain separate from runtime scalar value
+flow; every pure fragment is reconstructed with its actual owner and position. -/
 namespace VastitasKernel.ResourceSource
 open Storage
 
 inductive Parameter where
+  | value (name : String) (type : Indexed.Core.PureType) (span : Span)
   | owned (name : String) (type : Functions.OwnedType) (span : Span)
   | borrowed (name : String) (scalar : Scalar) (rows columns : Nat)
       (access : Access) (initializes : Bool) (span : Span)
@@ -27,11 +28,13 @@ inductive Parameter where
   deriving Repr, Inhabited
 
 def Parameter.name : Parameter → String
+  | .value name .. => name
   | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
   | .vector name .. | .ownedMapTo name .. => name
 
 def Parameter.span : Parameter → Span
+  | .value _ _ span => span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
   | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span | .ownedMap _ _ _ span => span
   | .involution _ _ span | .dualSpace _ _ span | .conjugateSpace _ _ _ span |
@@ -82,6 +85,10 @@ inductive NumericalOperation where
   deriving Repr, Inhabited
 
 inductive Statement where
+  | value (name : String) (type : Indexed.Core.PureType) (body : Indexed.FunctionSource.Block) (span : Span)
+  | callValue (callee : Indexed.Source.Path) (arguments results : List String)
+      (value : String) (type : Indexed.Core.PureType) (span : Span)
+  | branchValue (condition : String) (yes no : List Statement) (span : Span)
   | action (operation : Action) (span : Span)
   | numerical (operation : NumericalOperation) (span : Span)
   | tensor (operation : Tensor.Operation String) (span : Span)
@@ -141,13 +148,6 @@ def Program.entry (program : Program) : Option Nat :=
   ((program.owned.zipIdx).find? fun ((owner, _), _) => owner.name == "main" &&
     owner.scope.package.source == program.root && owner.scope.path.isEmpty).map Prod.snd
 
-/-- These are the original pure return blocks, owned by their resource
-functions. They never become callable pure namespace declarations. -/
-def Program.pureFragments (program : Program) : ResourcePure.Fragments :=
-  program.owned.map fun (owner, function) => (owner, {
-    name := function.name, params := [], result := .data (.pure function.valueType),
-    body := function.valueBody, span := function.span })
-
 def Function.resourceNames (function : Function) : List String :=
   function.parameters.map Parameter.name ++ function.body.flatMap fun statement =>
     match statement with
@@ -159,7 +159,7 @@ def Function.resourceNames (function : Function) : List String :=
     | .call _ _ results _ => results
     | _ => []
 
-inductive BindingKind where | owner | loan | numerical
+inductive BindingKind where | owner | loan | numerical | scalar (type : Indexed.Core.PureType)
   deriving Repr, Inhabited
 
 abbrev Frame := List (String × Symbol × BindingKind)
@@ -177,7 +177,14 @@ structure NumericalReference where
   reference : Indexed.Source.Reference
   deriving Repr, Inhabited
 
+structure FragmentSite where
+  owner : Indexed.DeclId
+  position : List Nat
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 structure State where
+  fragments : ResourcePure.Fragments := []
+  sites : List FragmentSite := []
   next : Nat := 0
   references : List Reference := []
   numericalReferences : List NumericalReference := []
@@ -218,7 +225,7 @@ private def lowerAction (index : Namespace.Indexed) (scope : Namespace.Scope) (f
     let source ← match kind with
       | .owner => pure (Storage.Source.owner source)
       | .loan => pure (.loan source)
-      | .numerical => throw {code := "E_RESOURCE_TYPE", message := "numerical values cannot be borrowed as storage", span}
+      | .numerical | .scalar _ => throw {code := "E_RESOURCE_TYPE", message := "non-storage values cannot be borrowed as storage", span}
     return (frame, .borrow loan source layout access)
   | .release loan => return (frame, .release (← name loan))
   | .transpose loan => return (frame, .transpose (← name loan))
@@ -333,6 +340,34 @@ private def lowerNumerical (index : Namespace.Indexed) (caller : Nat) (scope : N
     return (frame, .gemm (← name left) (← name right) (← name output) mode policy
       (← coefficient alpha) (← coefficient beta))
 
+/-- Reconstruct the pure function and its argument symbols together, at the
+exact enclosing owner and structural source position. Only live scalar bindings
+enter this pure context; resource handles and nominal metadata never do. -/
+private def fragment (index : Namespace.Indexed) (owner : Indexed.DeclId) (position : List Nat)
+    (frame : Frame) (type : Indexed.Core.PureType) (body : Indexed.FunctionSource.Block)
+    (span : Span) (terminal : Bool := false) : M (Nat × List Symbol) := do
+  unless terminal || ValueFlow.scalar type do
+    throw {code := "E_RESOURCE_VALUE", message := "resource values require Nat, Int, Bool or Unit", span}
+  if (Indexed.FunctionSource.blockBindings body).any (fun binding => frame.any (·.1 == binding.1)) then
+    throw {code := "E_SHADOW", message := "pure bindings cannot shadow enclosing resource or scalar bindings", span}
+  unless (Indexed.FunctionSource.blockScopes (frame.map Prod.fst) body).all (fun lambda =>
+      decide (Indexed.FunctionSource.ScopeSafe index owner.scope lambda)) do
+    throw {code := "E_CAPTURE", message := "resource value lambdas must be independent of enclosing bindings", span}
+  let scalarBindings := frame.reverse.filterMap fun (name, symbol, kind) => match kind with
+    | .scalar type => some (name, symbol, type)
+    | _ => none
+  let params := scalarBindings.map fun (name, _, type) =>
+    Indexed.FunctionSource.Param.mk name (.data (.pure type)) span
+  let state ← get
+  let site : FragmentSite := ⟨owner, position⟩
+  if state.sites.contains site then
+    throw {code := "E_OWNER", message := "pure fragment source position is duplicated", span}
+  let id := state.fragments.length
+  set {state with
+    fragments := state.fragments ++ [(owner, ({name := owner.name, params, result := .data (.pure type), body, span} : Indexed.FunctionSource.Function))]
+    sites := state.sites ++ [site]}
+  return (id, scalarBindings.map (·.2.1))
+
 private def lowerTreePlan (index : Namespace.Indexed) (scope : Namespace.Scope)
     (frame : Frame) (span : Span) (plan : List (TensorTree.PlanStep String Action)) :
     M (List TensorTree.Event) := do
@@ -361,14 +396,19 @@ private def lowerTreePlan (index : Namespace.Indexed) (scope : Namespace.Scope)
   return lowered
 
 private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.DeclId)
-    (caller : Nat) (scope : Namespace.Scope) : Nat → Frame → List Statement → M (Frame × List Functions.Statement)
-  | _, frame, [] => pure (frame, [])
-  | 0, _, _ :: _ => throw {code := "E_LIMIT", message := "resource source exceeds traversal bound"}
-  | fuel + 1, frame, first :: rest => do
+    (caller : Nat) (scope : Namespace.Scope) (owner : Indexed.DeclId) (path : List Nat) :
+    Nat → Nat → Frame → List Statement → M (Frame × List Functions.Statement)
+  | _, _, frame, [] => pure (frame, [])
+  | 0, _, _, _ :: _ => throw {code := "E_LIMIT", message := "resource source exceeds traversal bound"}
+  | fuel + 1, position, frame, first :: rest => do
     let state ← get
     if state.unused == 0 then throw {code := "E_LIMIT", message := "resource source exceeds the global statement budget"}
     set {state with unused := state.unused - 1}
-    let (frame, statement) ← match first with
+    let (frame, statement) ← (match first with
+    | .value name type body span => do
+      let (fragment, arguments) ← fragment index owner (path ++ [position]) frame type body span
+      let (frame, symbol) ← bindName index scope frame name (.scalar type) span
+      pure (frame, .value symbol fragment arguments type)
     | .action action span => do
       let (frame, action) ← lowerAction index scope frame span action
       pure (frame, .action action)
@@ -404,7 +444,7 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
     | .numerical operation span => do
       let (frame, operation) ← lowerNumerical index caller scope frame span operation
       pure (frame, .numerical operation)
-    | .call path arguments outputs span => do
+    | .call path arguments outputs span | .callValue path arguments outputs _ _ span => do
       if arguments.length > 64 || outputs.length > 64 then
         throw {code := "E_RESOURCE_LIMIT", message := "resource call exceeds 64 arguments or owned results", span}
       let target ← Namespace.resolve index scope path.path path.span
@@ -420,12 +460,26 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
         frame := next
         results := results ++ [symbol]
       modify fun state => {state with references := state.references ++ [⟨caller, scope, path, target, callee⟩]}
-      pure (frame, .call callee arguments results)
-    | .branch condition yes no _ => do
-      let (_, yes) ← lowerStatements index owners caller scope fuel frame yes
-      let (_, no) ← lowerStatements index owners caller scope fuel frame no
+      if let .callValue _ _ _ name type _ := first then
+        unless ValueFlow.scalar type do
+          throw {code := "E_RESOURCE_VALUE", message := "resource result must be a scalar value", span}
+        let (next, symbol) ← bindName index scope frame name (.scalar type) span
+        pure (next, .callValue callee arguments results symbol type)
+      else pure (frame, .call callee arguments results)
+    | .branch _ yes no span | .branchValue _ yes no span => do
+      let condition ← match first with
+        | .branch condition .. => pure (ValueFlow.Condition.literal condition)
+        | .branchValue condition .. => do
+          let (symbol, kind) ← lookup frame condition span
+          unless (match kind with | .scalar .bool => true | _ => false) do
+            throw {code := "E_RESOURCE_VALUE", message := "resource branch requires a Bool scalar binding", span}
+          pure (.slot symbol)
+        | _ => throw {code := "E_RESOURCE_VALUE", message := "invalid branch", span}
+      let (_, yes) ← lowerStatements index owners caller scope owner (path ++ [position, 0]) fuel 0 frame yes
+      let (_, no) ← lowerStatements index owners caller scope owner (path ++ [position, 1]) fuel 0 frame no
       pure (frame, .branch condition yes no)
-    let (frame, rest) ← lowerStatements index owners caller scope fuel frame rest
+    : M (Frame × Functions.Statement))
+    let (frame, rest) ← lowerStatements index owners caller scope owner path fuel (position + 1) frame rest
     return (frame, statement :: rest)
 
 private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.DeclId)
@@ -437,11 +491,13 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
   let mut parameters := []
   for parameter in function.parameters do
     let kind := match parameter with
+      | .value _ type _ => .scalar type
       | .owned .. | .ownedMap .. | .ownedMapTo .. => BindingKind.owner
       | .borrowed .. => .loan
       | _ => .numerical
     let (next, symbol) ← bindName index owner.scope frame parameter.name kind parameter.span
     let parameter ← match parameter with
+      | .value _ type _ => pure (Functions.Parameter.value symbol type)
       | .owned _ type _ => pure (Functions.Parameter.owned symbol type)
       | .borrowed _ scalar rows columns access initializes _ => pure (.borrowed symbol scalar rows columns access initializes)
       | .space _ implementation dimension _ => do
@@ -486,7 +542,7 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
         pure (.ownedMapTo symbol source dimension)
     parameters := parameters ++ [parameter]
     frame := next
-  let (resultFrame, body) ← lowerStatements index owners id owner.scope 4096 frame function.body
+  let (resultFrame, body) ← lowerStatements index owners id owner.scope owner [] 4096 0 frame function.body
   let results ← function.results.mapM fun (name, type) => do
     let (symbol, _) ← lookup resultFrame name function.span
     let type ← match type with
@@ -500,9 +556,12 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
         let (source, _) ← lookup frame source function.span
         pure (.ownedMapTo source dimension)
     return (symbol, type)
-  return ⟨id, parameters, results, body⟩
+  let (fragment, arguments) ← fragment index owner [function.body.length] resultFrame function.valueType function.valueBody function.span true
+  return ⟨id, parameters, results, body, some (fragment, arguments, function.valueType)⟩
 
 structure Lowered where
+  fragments : ResourcePure.Fragments
+  sites : List FragmentSite
   functions : List Functions.Function
   owners : List Indexed.DeclId
   references : List Reference
@@ -515,7 +574,12 @@ def lower (program : Program) : Namespace.Result Lowered := do
   let index := program.pureProgram.source.headers.indexed
   let (functions, state) ← (program.owned.zipIdx.mapM fun ((owner, function), id) =>
     lowerFunction index owners owner function id).run {}
-  return ⟨functions, owners, state.references, state.numericalReferences⟩
+  return ⟨state.fragments, state.sites, functions, owners, state.references, state.numericalReferences⟩
+
+/-- All pure fragments, including terminal results, come from the exact source
+lowering that produces their resource call sites. Invalid source yields no table. -/
+def Program.pureFragments (program : Program) : ResourcePure.Fragments :=
+  ((lower program).toOption.map Lowered.fragments).getD []
 
 def Reference.Valid (program : Program) (reference : Reference) : Prop :=
   (program.owned[reference.caller]?).map (fun entry => entry.1.scope) = some reference.scope ∧
@@ -550,8 +614,8 @@ private def sourceRemaining : Nat → Nat → List Statement → Option Nat
   | 0, _, _ :: _ | _ + 1, 0, _ :: _ => none
   | depth + 1, unused + 1, first :: rest => do
     let after ← match first with
-      | .branch _ yes no _ => sourceRemaining depth (← sourceRemaining depth unused yes) no
-      | .call _ arguments results _ =>
+      | .branch _ yes no _ | .branchValue _ yes no _ => sourceRemaining depth (← sourceRemaining depth unused yes) no
+      | .call _ arguments results _ | .callValue _ arguments results _ _ _ =>
         if arguments.length ≤ 64 && results.length ≤ 64 then some unused else none
       | _ => some unused
     sourceRemaining depth after rest
@@ -565,12 +629,6 @@ def envelope (program : Program) : Namespace.Result Unit := do
     unused := after
   if program.packages.any (fun pkg => pkg.modules.any fun m => !m.pureModule.module.resourceFunctions.isEmpty) then
     Namespace.problem {} "E_OWNER" "resource headers must be reconstructed from original bodies"
-  for (owner, function) in program.owned do
-    if (Indexed.FunctionSource.blockBindings function.valueBody).any (fun binding => function.resourceNames.contains binding.1) then
-      Namespace.problem function.span "E_SHADOW" "pure return bindings cannot shadow resource bindings"
-    unless (Indexed.FunctionSource.blockScopes function.resourceNames function.valueBody).all (fun lambda =>
-        decide (Indexed.FunctionSource.ScopeSafe program.pureProgram.source.headers.indexed owner.scope lambda)) do
-      Namespace.problem function.span "E_CAPTURE" "resource return lambdas must be independent of resource bindings"
   if let some entry := program.entry then
     let some (_, function) := program.owned[entry]? | Namespace.problem {} "E_MAIN" "missing resource main"
     unless function.valueType == .int do Namespace.problem function.span "E_MAIN" "resource main must return Int"
@@ -581,9 +639,13 @@ def numericalEnvironment {source requireMain}
     (checked : Indexed.AuthoritySource.CheckedProgram source requireMain) : Indexed.Environment :=
   checked.authority.headers.declarations.resolved.declarations.indexed
 
-structure Execution (functions : List Functions.Function) (entry : Nat) (environment : Indexed.Environment) where
-  checked : Functions.Checked ⟨functions, entry⟩ environment
-  accepted : Functions.check ⟨functions, entry⟩ environment = .ok checked
+structure Execution (functions : List Functions.Function) (entry : Nat) (environment : Indexed.Environment)
+    (signatures : List ValueFlow.Signature := []) where
+  checked : Functions.Checked ⟨functions, entry⟩ environment signatures
+  accepted : Functions.check ⟨functions, entry⟩ environment signatures = .ok checked
+  valueReturnOrigins : checked.context.signatures = signatures ∧
+    ∀ receipt ∈ checked.context.valueReturns.toList, receipt.signatures = signatures ∧
+      functions.find? (·.id == receipt.call.callee) = some receipt.function
   numericalOrigins : checked.context.environment = environment ∧
     ∀ receipt ∈ checked.context.products.toList, receipt.environment = environment
   inputOrigins : ∀ receipt ∈ checked.context.inputs.toList, receipt.environment = environment
@@ -608,18 +670,19 @@ structure Checked (program : Program) (requireMain : Bool) where
   pureProgram : Indexed.AuthoritySource.CheckedProgram program.pureProgram (requireMain && program.entry.isNone)
   pureAccepted : Indexed.AuthoritySource.checkProgram program.pureProgram (requireMain && program.entry.isNone) = .ok pureProgram
   values : ResourcePure.Checked program.pureProgram pureProgram program.pureFragments
+  targets : ResourcePure.Targets values
   lowered : Lowered
   reconstructed : lower program = .ok lowered
   provenance : lowered.Valid program
-  library : Functions.CheckedLibrary lowered.functions (numericalEnvironment pureProgram)
-  libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) = .ok library
-  execution : (entry : Nat) → program.entry = some entry → Execution lowered.functions entry (numericalEnvironment pureProgram)
+  library : Functions.CheckedLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures
+  libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures = .ok library
+  execution : (entry : Nat) → program.entry = some entry → Execution lowered.functions entry (numericalEnvironment pureProgram) targets.signatures
 
-private def resourceError (program : Program) (lowered : Lowered) (environment : Indexed.Environment) (error : Storage.Error) : Diagnostic := Id.run do
+private def resourceError (program : Program) (lowered : Lowered) (environment : Indexed.Environment) (signatures : List ValueFlow.Signature) (error : Storage.Error) : Diagnostic := Id.run do
   -- On rejection only, locate the first actual invalid contract/probe rather
   -- than attributing every resource diagnostic to a synthetic zero span.
   for (function, (_, source)) in lowered.functions.zip program.owned do
-    if !(Functions.definitions [function]).isOk || !(Functions.probe lowered.functions function environment).isOk then
+    if !(Functions.definitions [function]).isOk || !(Functions.probe lowered.functions function environment signatures).isOk then
       return ⟨error.code, error.message, source.span, []⟩
   return ⟨error.code, error.message, (program.owned.head?).map (·.2.span) |>.getD {}, []⟩
 
@@ -630,76 +693,81 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
     | .error diagnostic => .error diagnostic
     | .ok pureProgram => do
       let values ← ResourcePure.check program.pureProgram pureProgram program.pureFragments
+      let targets ← ResourcePure.checkTargets values
       match reconstructed : lower program with
       | .error diagnostic => .error diagnostic
       | .ok lowered =>
         if provenance : lowered.Valid program then
-          match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) with
-          | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) diagnostic)
+          match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures with
+          | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) targets.signatures diagnostic)
           | .ok library => match entry : program.entry with
-            | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
+            | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
-            | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) with
-              | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) diagnostic)
+            | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) targets.signatures with
+              | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) targets.signatures diagnostic)
               | .ok executable =>
-                if origins : executable.context.environment = numericalEnvironment pureProgram ∧
-                    ∀ receipt ∈ executable.context.products.toList,
-                      receipt.environment = numericalEnvironment pureProgram then
-                  if inputOrigins : ∀ receipt ∈ executable.context.inputs.toList,
-                      receipt.environment = numericalEnvironment pureProgram then
-                    if outputOrigins : ∀ receipt ∈ executable.context.outputs.toList,
+                if valueReturnOrigins : executable.context.signatures = targets.signatures ∧
+                    ∀ receipt ∈ executable.context.valueReturns.toList, receipt.signatures = targets.signatures ∧
+                      lowered.functions.find? (·.id == receipt.call.callee) = some receipt.function then
+                  if origins : executable.context.environment = numericalEnvironment pureProgram ∧
+                      ∀ receipt ∈ executable.context.products.toList,
                         receipt.environment = numericalEnvironment pureProgram then
-                      if transformOrigins : ∀ receipt ∈ executable.context.transforms.toList,
+                    if inputOrigins : ∀ receipt ∈ executable.context.inputs.toList,
+                        receipt.environment = numericalEnvironment pureProgram then
+                      if outputOrigins : ∀ receipt ∈ executable.context.outputs.toList,
                           receipt.environment = numericalEnvironment pureProgram then
-                        if networkOrigins : ∀ receipt ∈ executable.context.networks.toList,
+                        if transformOrigins : ∀ receipt ∈ executable.context.transforms.toList,
                             receipt.environment = numericalEnvironment pureProgram then
-                          if tensorViewOrigins : ∀ receipt ∈ executable.context.tensorViews.toList,
+                          if networkOrigins : ∀ receipt ∈ executable.context.networks.toList,
                               receipt.environment = numericalEnvironment pureProgram then
-                            if cacheCaptureOrigins : ∀ receipt ∈ executable.context.cacheCaptures.toList,
-                                receipt.cache.environment = numericalEnvironment pureProgram then
-                              if cachedContractionOrigins : ∀ receipt ∈ executable.context.cachedContractions.toList,
-                                  receipt.environment = numericalEnvironment pureProgram then
-                                if tensorPackOrigins : ∀ receipt ∈ executable.context.tensorPacks.toList,
+                            if tensorViewOrigins : ∀ receipt ∈ executable.context.tensorViews.toList,
+                                receipt.environment = numericalEnvironment pureProgram then
+                              if cacheCaptureOrigins : ∀ receipt ∈ executable.context.cacheCaptures.toList,
+                                  receipt.cache.environment = numericalEnvironment pureProgram then
+                                if cachedContractionOrigins : ∀ receipt ∈ executable.context.cachedContractions.toList,
                                     receipt.environment = numericalEnvironment pureProgram then
-                                  if tensorContractionOrigins : ∀ receipt ∈ executable.context.tensorContractions.toList,
+                                  if tensorPackOrigins : ∀ receipt ∈ executable.context.tensorPacks.toList,
                                       receipt.environment = numericalEnvironment pureProgram then
-                                    if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
+                                    if tensorContractionOrigins : ∀ receipt ∈ executable.context.tensorContractions.toList,
                                         receipt.environment = numericalEnvironment pureProgram then
-                                      if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
+                                      if vectorOrigins : ∀ receipt ∈ executable.context.vectorConjugates.toList,
                                           receipt.environment = numericalEnvironment pureProgram then
-                                        if packageOrigins : ∀ receipt ∈ executable.context.packages.toList,
+                                        if evaluationOrigins : ∀ receipt ∈ executable.context.evaluations.toList,
                                             receipt.environment = numericalEnvironment pureProgram then
-                                          if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
+                                          if packageOrigins : ∀ receipt ∈ executable.context.packages.toList,
                                               receipt.environment = numericalEnvironment pureProgram then
-                                            if adjointOrigins : ∀ receipt ∈ executable.context.adjoints.toList,
+                                            if packageResultOrigins : ∀ receipt ∈ executable.context.packageResults.toList,
                                                 receipt.environment = numericalEnvironment pureProgram then
-                                              if diagonalPairingOrigins : ∀ receipt ∈ executable.context.diagonalPairings.toList,
+                                              if adjointOrigins : ∀ receipt ∈ executable.context.adjoints.toList,
                                                   receipt.environment = numericalEnvironment pureProgram then
-                                                if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                                if diagonalPairingOrigins : ∀ receipt ∈ executable.context.diagonalPairings.toList,
                                                     receipt.environment = numericalEnvironment pureProgram then
-                                                  .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, lowered, reconstructed, provenance,
-                                                    library, libraryAccepted, fun actual same => by
-                                                      have : actual = id := Option.some.inj (same.symm.trans entry)
-                                                      subst actual
-                                                      exact ⟨executable, accepted, origins, inputOrigins, outputOrigins, transformOrigins,
-                                                        networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins⟩⟩
-                                                else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
-                                              else Namespace.problem {} "E_OWNER" "diagonal pairing lost its accepted declaration environment"
-                                            else Namespace.problem {} "E_OWNER" "materialized adjoint lost its accepted declaration environment"
-                                          else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
-                                        else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
-                                      else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
-                                    else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
-                                  else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"
-                                else Namespace.problem {} "E_OWNER" "tensor packing lost its declaration environment"
-                              else Namespace.problem {} "E_OWNER" "cached contraction lost its declaration environment"
-                            else Namespace.problem {} "E_OWNER" "packing cache lost its declaration environment"
-                          else Namespace.problem {} "E_OWNER" "tensor views lost their declaration environment"
-                        else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
-                      else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
-                    else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
-                  else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"
-                else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"
+                                                  if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
+                                                      receipt.environment = numericalEnvironment pureProgram then
+                                                    .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
+                                                      library, libraryAccepted, fun actual same => by
+                                                        have : actual = id := Option.some.inj (same.symm.trans entry)
+                                                        subst actual
+                                                        exact ⟨executable, accepted, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
+                                                          networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins⟩⟩
+                                                  else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
+                                                else Namespace.problem {} "E_OWNER" "diagonal pairing lost its accepted declaration environment"
+                                              else Namespace.problem {} "E_OWNER" "materialized adjoint lost its accepted declaration environment"
+                                            else Namespace.problem {} "E_OWNER" "package results lost their accepted declaration environment"
+                                          else Namespace.problem {} "E_OWNER" "package operations lost their accepted declaration environment"
+                                        else Namespace.problem {} "E_OWNER" "evaluation lost its accepted declaration environment"
+                                      else Namespace.problem {} "E_OWNER" "vector conjugation lost its accepted declaration environment"
+                                    else Namespace.problem {} "E_OWNER" "tensor contraction lost its declaration environment"
+                                  else Namespace.problem {} "E_OWNER" "tensor packing lost its declaration environment"
+                                else Namespace.problem {} "E_OWNER" "cached contraction lost its declaration environment"
+                              else Namespace.problem {} "E_OWNER" "packing cache lost its declaration environment"
+                            else Namespace.problem {} "E_OWNER" "tensor views lost their declaration environment"
+                          else Namespace.problem {} "E_OWNER" "networks lost their accepted declaration environment"
+                        else Namespace.problem {} "E_OWNER" "numerical transforms lost their accepted declaration environment"
+                      else Namespace.problem {} "E_OWNER" "numerical results lost their accepted declaration environment"
+                    else Namespace.problem {} "E_OWNER" "numerical inputs lost their accepted declaration environment"
+                  else Namespace.problem {} "E_OWNER" "numerical execution lost its accepted declaration environment"
+                else Namespace.problem {} "E_OWNER" "scalar return lost its exact source function or checked Core signature table"
         else Namespace.problem {} "E_OWNER" "resource source identity or call provenance audit failed"
 
 end VastitasKernel.ResourceSource

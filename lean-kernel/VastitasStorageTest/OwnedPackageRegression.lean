@@ -14,16 +14,16 @@ private def producer (scalar : Scalar) (implementation : String) (rows := 3) : F
     .action (.allocate 4 scalar (2 * rows + 4)),
     .action (.borrow 5 (.owner 4) (padded scalar rows) .write),
     .action (.fill 5 (payload scalar)), .action (.release 5),
-    .numerical (.ownedMap 6 4 (padded scalar rows) 1 3), .numerical (.packMap 9 6)]⟩
+    .numerical (.ownedMap 6 4 (padded scalar rows) 1 3), .numerical (.packMap 9 6)], none⟩
 
 private def relay (implementation : String) (rows := 3) : Functions.Function :=
   ⟨2, [.space 0 (id implementation) 2, .basis 1 0, .ownedMapTo 2 1 rows], [(7, .ownedMapTo 1 rows)], [
-    .numerical (.unpackMap 2 3 4 5), .call 3 [0, 1, 3, 4, 5] [6], .numerical (.packMap 7 6)]⟩
+    .numerical (.unpackMap 2 3 4 5), .call 3 [0, 1, 3, 4, 5] [6], .numerical (.packMap 7 6)], none⟩
 
 private def helper (implementation : String) (rows := 3) : Functions.Function :=
   ⟨3, [.space 0 (id implementation) 2, .basis 1 0,
     .space 2 (id implementation) rows, .basis 3 2, .ownedMap 4 1 3], [(4, .ownedMap 1 3)], [
-    .numerical (.borrowOwned 5 4 .read), .numerical (.ownedView 6 5 4), .action (.release 5)]⟩
+    .numerical (.borrowOwned 5 4 .read), .numerical (.ownedView 6 5 4), .action (.release 5)], none⟩
 
 private def body (implementation : String) : List Functions.Statement := [
   .numerical (.space 0 (id implementation) 2), .numerical (.basis 1 0),
@@ -33,7 +33,7 @@ private def body (implementation : String) : List Functions.Statement := [
 
 private def program (scalar : Scalar) (implementation : String)
     (statements : List Functions.Statement) (rows := 3) : Functions.Program :=
-  ⟨[⟨0, [], [], statements⟩, producer scalar implementation rows, relay implementation rows, helper implementation rows], 0⟩
+  ⟨[⟨0, [], [], statements, none⟩, producer scalar implementation rows, relay implementation rows, helper implementation rows], 0⟩
 
 #eval show IO Unit from do
   let .ok declarations := Indexed.Source.checkDeclarations source
@@ -103,18 +103,18 @@ private def program (scalar : Scalar) (implementation : String)
       body := (producer scalar implementation).body.filter fun statement => match statement with
         | .action (.fill ..) => false | _ => true}
     check "unused uninitialized package producer rejected"
-      (!(Functions.check ⟨[⟨0, [], [], []⟩, bad], 0⟩ env).isOk)
+      (!(Functions.check ⟨[⟨0, [], [], [], none⟩, bad], 0⟩ env).isOk)
     let borrowed : Functions.Function := {producer scalar implementation with
       body := (producer scalar implementation).body.filter fun statement => match statement with
         | .action (.release ..) => false | _ => true}
     check "outstanding loans cannot be packaged"
-      (!(Functions.check ⟨[⟨0, [], [], []⟩, borrowed], 0⟩ env).isOk)
+      (!(Functions.check ⟨[⟨0, [], [], [], none⟩, borrowed], 0⟩ env).isOk)
     let rawResult : Functions.Function := {producer scalar implementation with
       results := [(9, .owned ⟨scalar, 10, [padded scalar]⟩)]}
     check "package cannot escape through raw result"
-      (!(Functions.check ⟨[⟨0, [], [], []⟩, rawResult], 0⟩ env).isOk)
+      (!(Functions.check ⟨[⟨0, [], [], [], none⟩, rawResult], 0⟩ env).isOk)
     let escape : Functions.Function := {producer scalar implementation with results := [(6, .ownedMap 1 3)]}
     check "hidden local basis cannot escape unboxed"
-      (!(Functions.check ⟨[⟨0, [], [], []⟩, escape], 0⟩ env).isOk)
+      (!(Functions.check ⟨[⟨0, [], [], [], none⟩, escape], 0⟩ env).isOk)
 
 end VastitasKernel.Storage.OwnedPackageRegression

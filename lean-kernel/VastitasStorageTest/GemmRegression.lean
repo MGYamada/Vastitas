@@ -90,14 +90,14 @@ private def operation : Gemm := ⟨11, 11, 12, false, false, .overwrite, .native
   let multiply : Functions.Function := ⟨1,
     [.borrowed 0 .f64 2 2 .read false, .borrowed 1 .f64 2 2 .read false,
       .borrowed 2 .f64 2 2 .write true], [],
-    [.action (.gemm {operation with left := 0, right := 1, output := 2})]⟩
+    [.action (.gemm {operation with left := 0, right := 1, output := 2})], none⟩
   let body : List Functions.Statement := setup.map fun statement => match statement with
     | .action action => .action action
     | _ => .branch false [] []
   let main : Functions.Function := ⟨0, [], [], body ++ [.call 1 [11, 11, 12] [],
     .action (.release 11), .action (.release 12),
     .action (.borrow 14 (.owner 1) view .read), .action (.release 14),
-    .action (.drop 0), .action (.drop 1)]⟩
+    .action (.drop 0), .action (.drop 1)], none⟩
   unless (Functions.check ⟨[main, multiply], 0⟩).isOk do
     throw (IO.userError "checked affine GEMM call rejected")
   let .ok json := Lean.Json.parse (include_str "../../tests/fixtures/storage-gemm.json")

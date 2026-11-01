@@ -61,7 +61,7 @@ private def value : Literal := .f64 0x4008000000000000
       {f with body := [.action (.borrow 9 (.loan 0) full .read), .action (.release 9), .action (.copy 0 1)]}), "E_RESOURCE_REGION")]
   for (name, input, expected) in cases do checkError name input expected
   let duplicate : Function := ⟨7, [.owned 0 owned, .owned 1 owned], [],
-    [.action (.drop 0), .action (.drop 1)]⟩
+    [.action (.drop 0), .action (.drop 1)], none⟩
   let duplicateCall := changed {program with functions := duplicate :: program.functions} 0 fun f =>
     {f with body := [.call 1 [] [10], .call 7 [10,10] []]}
   checkError "one owner cannot be consumed twice" duplicateCall "E_RESOURCE_TYPE"
@@ -70,7 +70,7 @@ private def value : Literal := .f64 0x4008000000000000
     .action (.release 11), .action (.drop 10)]}
   checkError "actual view shape must match" badShape "E_RESOURCE_TYPE"
   let explosion : Program := ⟨(List.range 16).map (fun id =>
-    ⟨id, [], [], if id == 0 then [] else [.call (id-1) [] [], .call (id-1) [] []]⟩), 15⟩
+    ⟨id, [], [], if id == 0 then [] else [.call (id-1) [] [], .call (id-1) [] []], none⟩), 15⟩
   checkError "exponential call DAG has a global budget" explosion "E_RESOURCE_LIMIT"
   let injected := json.setObjVal! "checked" (Lean.toJson true)
   if (Wire.check injected).isOk then throw (IO.userError "forged function certificate accepted")

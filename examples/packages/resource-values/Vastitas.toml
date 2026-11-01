@@ -1,0 +1,4 @@
+[package]
+name = "resource_values"
+version = "0.1.0"
+root = "src/main.vast"

@@ -3,7 +3,8 @@
 This is the function component of [storage ownership](storage-ir.md), advancing
 [#183](https://github.com/MGYamada/Vastitas/issues/183). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
 checks. [Protocol 8 resource source](resource-source.md) composes this component
-with the complete package checker. Dynamic value flow remains required by the
+with the complete package checker, including bounded Nat/Int/Bool/Unit value
+flow. Dynamic shapes and wider numerical interfaces remain required by the
 [Stage 1 gate](stage1-completion.md).
 
 ## Contracts and calls
@@ -16,6 +17,7 @@ integer narrowing are independently rejected.
 
 | Contract | Actual-call behavior |
 | --- | --- |
+| Scalar value parameter | Preserve its actual typed scalar slot; no resource instruction or buffer copy is introduced. |
 | Owned parameter | Check scalar, capacity and required initialized regions; move into a fresh callee binding and revoke the caller binding. |
 | Borrowed parameter | Check scalar and logical shape; create a child of the actual caller loan with the declared rights, preserving its real offset, padding, transpose and allocation. |
 | Numerical space/basis parameter | Preserve the exact caller identity; check explicit static profile/dimension and preceding parameter dependencies. |
@@ -45,8 +47,13 @@ acceptance for every layout/alias configuration: a hardcoded subview may fit the
 probe yet fail for a shifted/padded caller. Actual calls must pass again. Probe
 buffers and zero payloads never enter the executable schedule.
 
-Local symbols are renamed freshly per activation. Expanded calls use the same
-`Storage.Statement` operations, including explicit moves, loans and returns.
+Local symbols are renamed freshly per activation. The mixed `StorageValueFlow`
+schedule interleaves checked Core calls with the same resource operations,
+including explicit moves, loans and returns. Its projection preserves both branch
+bodies for the static resource audit; erasing the decision is not a proof of
+source or native equivalence. Independent slot typing and the actual Core target
+table justify the runtime Bool expression. Scalar probes use typed input slots,
+not fabricated literal values.
 Branch-local bindings cannot escape; both arms receive distinct fresh allocation
 and symbol identities. Definition order is irrelevant. Disconnected recursive
 cycles and invalid unused bodies are rejected.
@@ -98,7 +105,7 @@ checked in the post-body state, and actual-layout loans permit padded/subregion
 results to be used inside a generic helper without guessing its physical layout.
 See [owned numerical results](numerical-values.md#owned-numerical-results).
 General tensor types, general pure-Core/resource interoperation, runtime
-dimensions/conditions, general owned-result branch joins and escaping-loan
+dimensions, floating scalar expression interfaces, general owned-result branch joins and escaping-loan
 lifetime contracts are not supplied by this component. General dynamic source
 composition, general generative numerical result packages, general scratch/dependency handling and equivalent-C
 measurements remain in Stage 1. Independent compilation caching and broader
@@ -123,3 +130,10 @@ for actual rank-three packing and repeated contraction. Capture/require/forget
 remain in the exact replayed call schedule; local witnesses are forgotten before
 function and branch exits. Mutations through real dependent calls invalidate the
 caller witness, and returned owners do not carry a cache lifetime contract.
+
+Demanded scalar returns retain a `ValueReturnReceipt`: the exact source function
+return fragment, final lexical argument resolution, accepted scalar signature,
+completed actual resource call replay, and the appended pure call. Public
+acceptance independently checks the source function and signature-table origins.
+The older internal resource-only JSON decoder does not acquire these new public
+source forms and still rejects extra fields.

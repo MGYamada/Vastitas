@@ -120,15 +120,17 @@ def generate (program : Program) : Except Diagnostic Generated := do
     let numericalImport := if needsNumerical then "import VastitasGemmNative\n" else ""
     let envelope := if hasShapes then
       if hasStatic then
-        s!"  let arena ← newArena {Storage.byteLimit}\n  try\n" ++
-        s!"    let shapeArena ← newArena {Storage.byteLimit}\n    try\n" ++ operations ++
-        s!"      IO.println ({resultCall})\n    finally\n      close shapeArena\n  finally\n    close arena\n"
+        s!"  let arena ← newArena {Storage.byteLimit}\n" ++
+        Native.withUnitCleanup 2
+          (s!"    let shapeArena ← newArena {Storage.byteLimit}\n" ++
+            Native.withUnitCleanup 4 (operations ++ s!"      IO.println ({resultCall})\n")
+              ["close shapeArena"]) ["close arena"]
       else
-        s!"  let shapeArena ← newArena {Storage.byteLimit}\n  try\n" ++ operations ++
-        s!"    IO.println ({resultCall})\n  finally\n    close shapeArena\n"
+        s!"  let shapeArena ← newArena {Storage.byteLimit}\n" ++
+        Native.withUnitCleanup 2 (operations ++ s!"    IO.println ({resultCall})\n") ["close shapeArena"]
       else
-        s!"  let arena ← newArena {Storage.byteLimit}\n  try\n" ++ operations ++
-        s!"    IO.println ({resultCall})\n  finally\n    close arena\n"
+        s!"  let arena ← newArena {Storage.byteLimit}\n" ++
+        Native.withUnitCleanup 2 (operations ++ s!"    IO.println ({resultCall})\n") ["close arena"]
     let source := "import VastitasStorageNative\n" ++ numericalImport ++ pureSource ++
       "\nopen VastitasStorageNative\n\ndef main : IO Unit := do\n" ++
       envelope

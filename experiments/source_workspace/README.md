@@ -220,3 +220,11 @@ The source-cost CI uses this combined profile on macOS and Linux for both push
 and pull_request. Superseded runs are cancelled within each event/branch; the
 two current event runs remain independent. Retained schema-1/2 replay and mutation
 tests continue to run alongside the new address/route/footprint regressions.
+
+Cleanup cost expectations follow each actual returned source. Replay rebuilds
+the complete allocation wrapper with trusted code, preserving either the older
+`finally` envelope or current Unit-only close/rethrow cleanup. It checks both
+normal and failure bodies and requires the common cleanup helper among the new
+record's fingerprinted inputs. The retained schema-1/2/3 records keep their
+measured code and counts; support for a new envelope is not new measurement or
+performance evidence.

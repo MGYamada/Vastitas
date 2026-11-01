@@ -158,6 +158,10 @@ those checked Bool slots; neither arm is selected during resource checking. The 
 resource main supplies both the schedule and its pure return block. Native IO uses
 structured cleanup, including failure paths; a failed resource operation does not
 publish the pure return value. Earlier completed writes are not rolled back.
+The Unit-returning main closes its arenas on success and closes/rethrows on
+failure; a cleanup error overrides the body error. When both static and dynamic
+arenas exist, the inner arena closes first. See the
+[native cleanup contract and fault-injection checks](storage-ir.md).
 
 The optional `lean-kernel/native` package is linked only for a resource entry.
 A protocol-8 program with only an ordinary pure entry still builds without that

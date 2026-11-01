@@ -59,6 +59,23 @@ class HarnessTests(unittest.TestCase):
             with self.assertRaises(ValueError): compare_pair(base,other)
         compare_pair(base,{**base,"elapsed_ns":84,"process_maxrss_kib":2})
 
+    def test_unit_cleanup_keeps_operations_and_rejects_lost_rethrow(self):
+        emitted = EMITTED.replace("  finally\n    close arena\n",
+            "  catch cleanupError =>\n    close arena\n    throw cleanupError\n  close arena\n")
+        self.assertEqual(split_generated(emitted), split_generated(EMITTED))
+        wrapped = driver(emitted)
+        self.assertNotIn("finally", wrapped)
+        self.assertEqual(wrapped.count("catch cleanupError =>"), 2)
+        self.assertEqual(wrapped.count("throw cleanupError"), 2)
+        self.assertEqual(wrapped.count("close arena"), 4)
+        for instructions in split_generated(emitted)[2:]:
+            for instruction in instructions:
+                self.assertEqual(wrapped.count(instruction.strip()), 2)
+        for bad in (emitted.replace("    throw cleanupError\n", ""),
+                    emitted.replace("  close arena\n", ""),
+                    emitted.replace("throw cleanupError", "pure ()")):
+            with self.assertRaises(ValueError): driver(bad)
+
     def test_both_flat_copy_mutations_change_final_product(self):
         for c in cases():
             s = spec(c); i,k,j,a = (c[x] for x in ("i","k","j","a"))

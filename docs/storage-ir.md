@@ -126,8 +126,20 @@ compares the complete lowering, including allocation IDs, layouts, scalar
 payloads and both branch arms. `generate` repeats this audit before returning
 code. Moves, loans, releases and view transposes are resolved at compilation;
 they do not introduce runtime loan objects or per-element reference counts.
-The generated program uses structured `IO` with `finally` cleanup. This mutable
+The generated program uses structured `IO` with cleanup on success and failure. This mutable
 execution remains separate from pure indexed Core and its totality proofs.
+
+The complete generated body returns `IO Unit`. Its success path returns the
+cleanup result directly; its error handler runs cleanup once and rethrows the
+body error. A cleanup error takes precedence over that body error, as with the
+previous `finally` envelope. Nested static/runtime-shape arenas close inside out,
+including failure to construct the inner arena. This is a Unit-only codegen
+choice, not an implementation of cleanup for arbitrary result types. The actual
+public source/build and 23 fault-injection executions in
+[`check_resource_cleanup.py`](../scripts/check_resource_cleanup.py) check all three
+arena envelopes, original error propagation, cleanup-error precedence, single
+close/finalization and zero remaining arena data. The injected runtime is a
+test-only copy; the returned source is unchanged.
 
 `lean-kernel/native/` is an optional, separately locked Lake package with no
 compiler, oracle, mathlib or BLAS dependency. Its C adapter uses binary64 doubles
@@ -176,7 +188,10 @@ complete lifecycles allocate `56N + 64` fresh object bytes for `N` iterations.
 The latter includes each fresh arena result, external wrapper and generated
 `finally` fallback. These counts exclude the separately retained 16-byte singleton,
 arena data/metadata and unobserved Lean/backend allocations. The private fresh-result
-comparator uses the same current callers and is labeled as an experiment.
+comparator uses the same measured callers and is labeled as an experiment.
+Those retained results predate Unit-only cleanup and are not relabeled as current
+counts. The allocation and source-cost verifiers reconstruct each complete
+wrapper from its actual returned source before selecting the cleanup cost model.
 
 The separate [stock Lean allocation capability experiment](../experiments/stock_allocation_capabilities/README.md)
 calibrates observations from the unchanged installed runtime. It detects known

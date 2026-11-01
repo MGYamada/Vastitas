@@ -95,6 +95,7 @@ def wrapper(generated, failure):
     _, arena, setup, operation, cleanup = fixtures.split_generated(failure)
     function = '@[noinline] def generatedFailure : IO Unit := do\n' + arena + '\n  try\n'
     function += '\n'.join(setup + operation + cleanup) + '\n    pure ()\n  finally\n    close arena\n\n'
+    function = fixtures.cleanup_envelope.preserve(failure, function, expected=1)
     text = replace_once(text, 'def main (args : List String)',
         function + '@[extern "audit_mark_lean"] opaque auditMark (phase : UInt32) : IO Unit\n\ndef main (args : List String)')
     text = replace_once(text, '  generatedOnce\n', '  auditMark 1\n  generatedOnce\n  auditMark 2\n')
@@ -205,7 +206,8 @@ lean_exe audit where
     return work / '.lake/build/bin/audit'
 
 
-def validate(row, scope, reps, variant, impl):
+def validate(row, scope, reps, variant, impl, cleanup='finally'):
+    assert cleanup in ('finally', 'unit-catch')
     persistent = variant == 'production_shared'
     assert row['schema'] == 2 and row['variant'] == variant and row['shared_result'] == persistent
     counts = row['phases']['run']['kinds']
@@ -216,9 +218,9 @@ def validate(row, scope, reps, variant, impl):
         assert counts['ffi_ok']['bytes'] == 16*expected
         assert counts['arena_external']['allocations'] == (reps if scope == 0 else 0)
         assert counts['arena_external']['bytes'] == (24*reps if scope == 0 else 0)
-        # The range object and terminal loop result are per batch. A persistent
-        # close result is nonexclusive, so emitted finally allocates its own result.
-        assert counts['generated_ctor']['allocations'] == 2 + (reps if scope == 0 and persistent else 0)
+        # The range object and terminal loop result are per batch. Only the
+        # legacy finally envelope rebuilds a shared cleanup's Unit result.
+        assert counts['generated_ctor']['allocations'] == 2 + (reps if scope == 0 and persistent and cleanup == 'finally' else 0)
     else:
         assert all(counts[k]['allocations'] == 0 for k in ('ffi_ok','arena_external','generated_ctor'))
     assert row['phases']['cold']['kinds']['ffi_ok']['allocations'] == (1 if persistent else 36)
@@ -317,6 +319,13 @@ def main():
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(path, target)
                 inputs[str(path)] = tree.sha(path)
+    for relative in ('experiments/native_cleanup.py', 'lean-kernel/VastitasKernel/StorageCodegen.lean',
+                     'lean-kernel/VastitasKernel/ResourceCodegen.lean'):
+        path = ROOT / relative
+        target = out / 'source' / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(path, target)
+        inputs[str(path)] = tree.sha(path)
     lean_root = Path(runner.run(['lean', '--print-prefix'])['stdout'].strip())
     for name in ('lean.h', 'config.h'):
         path = lean_root / 'include/lean' / name
@@ -338,6 +347,7 @@ def main():
             persistent = variant == 'production_shared'
             work = out / case['case'] / variant
             exe = build(runner, case, work, prefix, args.frontend.resolve(), args.kernel.resolve(), args.cc, variant)
+            cleanup, _ = fixtures.cleanup_envelope.split((work / 'Generated.lean').read_text().splitlines(), 'arena')
             failed = runner.run([exe, 'failure', 0, 1, 1], phase='failure_cleanup')
             failure_cost, failure_audit = map(json.loads, failed['stdout'].splitlines())
             assert failure_cost['data_allocations'] == failure_cost['data_frees'] == 6
@@ -353,7 +363,7 @@ def main():
                         outputs = [json.loads(line) for line in result['stdout'].splitlines()]
                         assert len(outputs) == 2
                         costs, audit = outputs
-                        validate(audit, scope, reps, variant, impl)
+                        validate(audit, scope, reps, variant, impl, cleanup)
                         pair.append(costs)
                         rows.append(dict(case=case['case'], variant=variant, scope=scope, repetitions=reps,
                                          implementation=impl, costs=costs, audit=audit))

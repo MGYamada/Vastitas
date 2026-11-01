@@ -206,6 +206,17 @@ def generateBody (plan : Plan) : Except Error String := do
 def Plan.needsNumerical (plan : Plan) : Bool :=
   plan.instructions.any fun instruction => match instruction with | .gemm .. | .diagonalPair .. => true | _ => false
 
+/-- Structured cleanup for a body whose result is `IO Unit`. On success return
+the cleanup's Unit result directly, rather than rebuilding the body's result
+from a potentially shared cleanup constructor. On failure run cleanup once and
+rethrow; a cleanup failure keeps the same precedence as `finally`.
+The body already has `indent + 2` spaces; cleanup lines are unindented. -/
+def withUnitCleanup (indent : Nat) (body : String) (cleanup : List String) : String :=
+  let spaces := String.ofList (List.replicate indent ' ')
+  let finish (extra : String) := String.join (cleanup.map fun line => spaces ++ extra ++ line ++ "\n")
+  spaces ++ "try\n" ++ body ++ spaces ++ "catch cleanupError =>\n" ++
+    finish "  " ++ spaces ++ "  throw cleanupError\n" ++ finish ""
+
 /-- Generation accepts a raw plan only after independently auditing it again.
 Cleanup is structured IO, including runtime assertion/allocation failures.
 The optional reporting entry point is for native regression/cost fixtures. -/
@@ -213,11 +224,11 @@ def generate (plan : Plan) (report : Bool := false) (byteBudget : Nat := byteLim
   let _ ← audit plan
   if byteBudget > byteLimit then reject "native live-byte budget exceeds profile"
   let operations ← generateBody plan
-  let reporting := if report then
-    "    let counters ← stats arena\n    IO.println counters\n" else ""
+  let cleanup := ["close arena"] ++ if report then
+    ["let counters ← stats arena", "IO.println counters"] else []
   let numericalImport := if plan.needsNumerical then "import VastitasGemmNative\n" else ""
   return "import VastitasStorageNative\n" ++ numericalImport ++ "\nopen VastitasStorageNative\n\n" ++
-    "def main : IO Unit := do\n" ++ s!"  let arena ← newArena {byteBudget}\n  try\n" ++
-    operations ++ "    pure ()\n  finally\n    close arena\n" ++ reporting
+    "def main : IO Unit := do\n" ++ s!"  let arena ← newArena {byteBudget}\n" ++
+    withUnitCleanup 2 (operations ++ "    pure ()\n") cleanup
 
 end VastitasKernel.Storage.Native

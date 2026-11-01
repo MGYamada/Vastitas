@@ -101,9 +101,17 @@ as historical prototype source and is not compiled by the current default run.
 
 All storage/GEMM operations and their error checks still execute. New-arena results
 remain fresh because they carry an external object; errors remain fresh. The
-shared result is nonexclusive. Consequently, the emitted `finally` cannot reset
+shared result is nonexclusive. In the retained production record, `finally` cannot reset
 and reuse `close`'s result constructor: it allocates its own result. This is
 retained in the counts and emitted C, not subtracted as an incidental cost.
+
+Current Unit-only code generation returns the successful cleanup result directly.
+The fixture preserves either exact emitted envelope, including the failure
+wrapper. Independent replay reconstructs the complete wrapper using current
+trusted code and derives the cost model from the returned source, without
+executing archived Python or accepting an unchecked style label. New envelopes
+must retain the common `experiments/native_cleanup.py` input. Earlier records keep
+their original `finally` counts; current counts require new actual observations.
 
 A separate executable compiles the actual production FFI with only an atomic
 observation added after the initializer's `lean_mark_persistent`. Eight dedicated
@@ -118,7 +126,7 @@ tests call the real helper; they do not compile or count the pthread prototype.
 The native failure fixture changes one expected output bit in the captured wire,
 then passes that wire through the actual kernel checker/emitter again. The
 instrumented wrapper must receive the exact `E_NATIVE_EXPECT` error, complete
-`finally`, finalize the arena, free all six data allocations, and leave no
+the emitted cleanup, finalize the arena, free all six data allocations, and leave no
 unexpected tracked object. It is a runtime-error test, not a source typing
 rejection or an alternative semantic checker.
 

@@ -170,6 +170,13 @@ narrows the attribution gap for the admitted tree fixture without measuring tota
 Lean heap, backend packing/static metadata, residency or operation timings. The
 four completion gates above remain unchanged.
 
+The [private Lean allocator calibration](../experiments/lean_allocation_diagnostic/README.md)
+adds stock/rebuilt-zero/diagnostic comparisons for five known object workloads.
+It audits the single replaced runtime archive member and independently checks
+known count/retention/release arithmetic. Diagnostic counts are not stock runtime
+measurements; startup, general peaks and connection to real generated source are
+not accepted by this calibration. The four gates remain open.
+
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.
 Runtime and allocation records keep their original clean/dirty inputs even when

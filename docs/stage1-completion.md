@@ -143,6 +143,15 @@ calls. Their 156 diagnostic processes each retain one 32 MiB/128 MiB mapping
 after cold source execution and release it at quit; generated/C backend costs
 agree in the measured lifecycle/reuse scopes. No speedup or total-heap claim follows.
 
+The optional [Lean allocator diagnostic](../experiments/lean_allocation_diagnostic/README.md)
+calibrates the previously unsupported normal-allocation channel with a private
+`MI_STAT=2` rebuild. It compares stock, rebuilt-zero and diagnostic runtimes while
+requiring every other runtime archive member to remain unchanged. Five known
+object workloads distinguish binned allocation/live bytes from the incomplete,
+cumulative requested-byte counter. This is instrumentation calibration; joining
+it to actual generated-source calls, startup/general peak coverage and the full
+cost/performance gates remain separate obligations.
+
 ## Implemented proof boundary and broader future scope
 
 The [geometry migration](geometry-migration.md) retains exact returned-Core typed

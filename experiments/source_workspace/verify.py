@@ -1,0 +1,310 @@
+#!/usr/bin/env python3
+"""Replay the source/object/arena/backend composition; never execute archived code."""
+import argparse
+from collections import Counter
+import hashlib
+import importlib.util
+import itertools
+import json
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parents[1]
+
+
+def module(name,path):
+    spec = importlib.util.spec_from_file_location(name,path)
+    loaded = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(loaded)
+    return loaded
+
+
+backend = module('source_cost_backend',ROOT/'experiments/openblas_workspace/verify.py')
+objects = module('source_cost_objects',ROOT/'experiments/allocation_audit/verify.py')
+require = backend.require
+CLAIMS = {'operation_timings':False,'total_heap':False,'backend_packing_bytes':False,
+          'native_refinement':False,'controlled_host':False,'source_execution_observed':True}
+
+
+class Prefixed:
+    def __init__(self,parent,prefix):
+        self.parent,self.prefix = parent,prefix+'/'
+        self.names = {n[len(self.prefix):] for n in parent.names if n.startswith(self.prefix)}
+
+    def read(self,name): return self.parent.read(self.prefix+name)
+    def json(self,name): return json.loads(self.read(name))
+
+
+def check_calls(trace,events,case,reps):
+    require(set(trace) == {'kind','schema','backend_events_observed','observer_static_bytes','capacity','calls'}, 'call envelope')
+    require(trace['kind']=='source_cblas_calls' and trace['schema']==1 and trace['capacity']==256, 'call schema')
+    require(type(trace['backend_events_observed']) is bool and trace['backend_events_observed']==(events is not None), 'backend observation domain')
+    backend.natural(trace['observer_static_bytes'],'bridge bytes',positive=True)
+    calls = trace['calls']
+    require(len(calls)==2*(1+reps) and len(calls)<=256, 'missing/extra actual CBLAS calls')
+    i,k,j,a,b,p = (case[x] for x in ('i','k','j','a','b','pad'))
+    leading = ((i*j+5*p,k+3*p,i*j+6*p),(i*a+8*p,j+4*p,i*a+7*p))
+    shapes = ((i*j,a,k),(i*a,b,j))
+    signatures,covered = [],set()
+    for index,call in enumerate(calls):
+        require(set(call)=={'sequence','phase','scalar','order','transforms','shape','leading','alpha','beta','begin','end'}, 'call fields')
+        for name in ('sequence','phase','scalar','order'): backend.natural(call[name],name)
+        phase = 1 if index < 2 else 3
+        stage = index%2
+        require(call['sequence']==index and call['phase']==phase and call['scalar']==case['scalar'], 'call identity')
+        require(call['order']==102 and call['transforms']==[111,111], 'unexpected order/transform')
+        require(tuple(call['shape'])==shapes[stage] and tuple(call['leading'])==leading[stage], 'actual call shape/layout')
+        require(all(type(v) is int for name in ('shape','leading','transforms') for v in call[name]), 'call numeric domain')
+        require(call['alpha']==['3ff0000000000000','0000000000000000'] and
+                call['beta']==['0000000000000000','0000000000000000'], 'actual coefficients')
+        signatures.append({key:value for key,value in call.items() if key not in ('begin','end')})
+        if events is None:
+            require(call['begin'] is None and call['end'] is None, 'unobserved is not zero events')
+            continue
+        lo,hi = call['begin'],call['end']
+        backend.natural(lo,'event start');backend.natural(hi,'event end')
+        require(lo<=hi<=len(events['events']), 'event interval bounds')
+        require(index==0 or calls[index-1]['end']<=lo, 'overlapping/reordered call intervals')
+        loans = {}
+        for cursor in range(lo,hi):
+            require(cursor not in covered, 'event reused by two calls')
+            covered.add(cursor)
+            event = events['events'][cursor]
+            require(event['phase']==10+phase and event['operation'] not in ('mark','shutdown_begin','shutdown_end'), 'wrong event attribution')
+            op = event['operation']
+            if event['ok'] and op in ('borrow','direct_borrow'):
+                require(event['address'] not in loans,'duplicate call loan')
+                loans[event['address']]=op
+            if op in ('return','direct_return'):
+                want = 'borrow' if op=='return' else 'direct_borrow'
+                require(loans.pop(event['address'],None)==want, 'call returned an unrelated loan')
+        require(not loans, 'loan escaped a CBLAS call')
+    if events is not None:
+        observed = backend.replay(events)
+        require(observed['markers']==[11,12,13,14,18,19], 'source phase markers')
+        for phase in (11,12,13,14):
+            require(observed['phases'][phase]['end']['borrowed_capacity_bytes']==0, 'borrow escaped source phase')
+        required = {index for index,event in enumerate(events['events'])
+                    if event['phase'] in (11,12,13,14) and event['operation']!='mark'}
+        require(required==covered, 'backend event has no actual CBLAS call')
+    return signatures
+
+
+def check_allocation(row,case):
+    allocation,cost = row['allocation'],row['costs']
+    objects.balanced(allocation)
+    require(allocation['variant']=='production_shared', 'different Unit implementation')
+    objects.nonnegative_counts(cost,set(cost)-{'checksum','observed'})
+    require(cost['elapsed_ns']==0, 'operation clocks must be disabled')
+    require(cost['repetitions']==row['repetitions'], 'cost repetition domain')
+    require(row['implementation'] in ('generated','c','failure'), 'implementation')
+    expected,d = objects.costs(case,row['scope'],row['repetitions'])
+    require(all(cost[name]==value for name,value in expected.items()), 'arena/copy/write cost')
+    cold = allocation['phases']['cold']
+    require(cold['closed_arena_cycles']==cold['arena_finalizers']==1 and cold['arena_allocations']==cold['arena_frees']==6,
+            'missing complete cold source operation')
+    require(cold['arena_metadata_allocations']==2 and cold['arena_peak_bytes']==d['peak'] and
+            cold['arena_written_bytes']==d['init']+d['writes'] and cold['arena_copied_bytes']==d['packed'], 'cold data cost')
+    require(cold['kinds']['persistent_unit']['allocations']==1 and cold['kinds']['persistent_unit']['retained_returns']==35 and
+            cold['kinds']['ffi_ok']['allocations']==1 and cold['kinds']['arena_external']['allocations']==1, 'cold object cost')
+    if row['implementation']=='failure':
+        require(row['scope']==0 and row['repetitions']==1, 'failure domain')
+        require(allocation['tracked_peak_bytes']==56 and cost['data_allocations']==cost['data_frees']==6 and cost['live_bytes_after']==0,
+                'failed operation cleanup')
+        run=allocation['phases']['run']
+        require(run['arena_finalizers']==run['closed_arena_cycles']==1 and
+                run['arena_allocations']==run['arena_frees']==6 and run['arena_metadata_allocations']==2 and
+                run['arena_written_bytes']==cost['written_bytes'] and run['arena_copied_bytes']==cost['copied_bytes'],
+                'missing propagated failure/finalizer')
+        for kind in objects.KINDS:
+            item=run['kinds'][kind]
+            count=int(kind!='persistent_unit')
+            size=24 if kind=='arena_external' else 16*count
+            require(item['allocations']==item['final_releases']==count and
+                    item['bytes']==item['released_bytes']==size, 'failure selected object cost')
+        require(run['kinds']['persistent_unit']['retained_returns']==26 and
+                cost['checksum']==cost['observed']=='0000000000000000', 'failure observation boundary')
+        return
+    scope,reps = row['scope'],row['repetitions']
+    require(cost['checksum']!='0000000000000000', 'missing output checksum')
+    kinds = allocation['phases']['run']['kinds']
+    if row['implementation']=='generated':
+        ffi = reps if scope==0 else 0
+        external = reps if scope==0 else 0
+        fallback = reps if scope==0 else 0
+        expected_kinds = {'ffi_ok':(ffi,16*ffi),'arena_external':(external,24*external),
+                          'generated_ctor':(2+fallback,48+16*fallback),'control':(1,16),
+                          'ffi_error':(0,0),'persistent_unit':(0,0)}
+        require(allocation['tracked_peak_bytes']==88, 'generated object peak')
+        require(kinds['persistent_unit']['retained_returns']==(35*reps if scope==0 else 4*reps), 'persistent result use')
+    else:
+        expected_kinds = dict.fromkeys(objects.KINDS,(0,0))
+        require(allocation['tracked_peak_bytes']==40 and kinds['persistent_unit']['retained_returns']==0, 'C object scope')
+    for kind,(count,size) in expected_kinds.items():
+        item = kinds[kind]
+        require(item['allocations']==item['final_releases']==count and item['bytes']==item['released_bytes']==size,
+                'unexpected selected object cost: '+kind)
+    end = allocation['phases']['run' if scope==0 else 'cleanup']
+    require(end['closed_arena_cycles']==d['lives'] and end['arena_allocations']==end['arena_frees']==6*d['lives'] and
+            end['arena_metadata_allocations']==2*d['lives'], 'operation data lifecycle')
+    require(end['arena_finalizers']==(d['lives'] if row['implementation']=='generated' else 0), 'operation finalizer')
+    require(end['arena_written_bytes']==cost['written_bytes'] and end['arena_copied_bytes']==cost['copied_bytes'], 'operation data traffic')
+
+
+def check_input(command,wire):
+    require(command['stdin']=={'bytes':len(wire),'sha256':hashlib.sha256(wire).hexdigest()}, 'actual kernel input')
+
+
+def verify(path):
+    if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
+    reader = backend.Reader(path)
+    return verify_reader(reader)
+
+
+def verify_reader(r):
+    if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
+    record = r.json('record.json')
+    require(record['schema']==1 and record['kind']=='source-workspace-costs', 'record schema')
+    require(record['claims']==CLAIMS and all(type(v) is bool for v in record['claims'].values()), 'unsupported claim')
+    visible = {n for n in r.names if '.lake' not in Path(n).parts and 'openblas_include' not in Path(n).parts
+               and n not in record['binaries']}
+    require(visible==set(record['files'])|{'record.json'}, 'compact file inventory')
+    for name,item in record['files'].items():
+        data = r.read(name)
+        require(len(data)==item['bytes'] and hashlib.sha256(data).hexdigest()==item['sha256'], 'file fingerprint: '+name)
+    for name,item in record['binaries'].items():
+        if name in r.names:
+            data = r.read(name)
+            require(len(data)==item['bytes'] and hashlib.sha256(data).hexdigest()==item['sha256'], 'binary fingerprint')
+    for name,digest in record['inputs'].items():
+        require(hashlib.sha256(r.read('source/'+name)).hexdigest()==digest, 'source fingerprint')
+    require(record['environment']['LEAN_NUM_THREADS']=='1' and record['environment']['OPENBLAS_NUM_THREADS']=='1', 'build thread profile')
+    calibration = Prefixed(r,record['backend_record'])
+    backend.verify_reader(calibration)
+    calibrated = calibration.json('record.json')
+    require(record['backend_archives']=={k:calibrated['builds'][k]['archive_sha256'] for k in ('stock','diagnostic')}, 'uncalibrated backend')
+    for name in ('observer.c','observer.h','wrappers.c','patch.py'):
+        relative = 'experiments/openblas_workspace/'+name
+        require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'], 'changed observer source')
+    cases = r.json('cases.json')
+    require(len(cases)==len({c['case'] for c in cases}), 'duplicate case')
+    sizes = objects.SIZES if record['selection']=='full' else {'tiny':objects.SIZES['tiny']}
+    require(record['selection'] in ('full','smoke','debug-one'), 'selection')
+    expected_cases = {f"{name}-{'complex' if scalar else 'f64'}-p{pad}" for name,scalar,pad in itertools.product(sizes,(0,1),(0,1))}
+    require(({c['case'] for c in cases}==expected_cases if record['selection']!='debug-one' else len(cases)==1), 'case coverage')
+    cases = {c['case']:c for c in cases}
+    expected_binaries = {f'programs/{name}/{b}/{file}' for name,b,file in
+        itertools.product(cases,('stock','diagnostic'),('canonical','.lake/build/bin/audit'))}
+    require(set(record['binaries'])==expected_binaries, 'executable fingerprint coverage')
+    for item in record['binaries'].values():
+        backend.natural(item['bytes'],'executable size',positive=True)
+        require(isinstance(item['sha256'],str) and len(item['sha256'])==64 and
+                all(c in '0123456789abcdef' for c in item['sha256']), 'executable digest')
+    for path in record['tools'].values(): require(path in record['external_inputs'], 'compiler executable fingerprint')
+    for name,c in cases.items():
+        require(type(c['scalar']) is int and type(c['pad']) is int and c['scalar'] in (0,1) and c['pad'] in (0,1), 'case domain')
+        size = name.split('-')[0]
+        require(size in objects.SIZES and tuple(c[k] for k in ('i','k','j','a','b'))==objects.SIZES[size], 'case dimensions')
+        require(name==f"{size}-{'complex' if c['scalar'] else 'f64'}-p{c['pad']}", 'case name')
+    observations = r.json('observations.json')
+    all_rows = observations['rows']+observations['failures']
+    keys = [(x['case'],x['backend'],x['implementation'],x['scope'],x['repetitions']) for x in all_rows]
+    required = set(itertools.product(cases,('stock','diagnostic'),('generated','c'),(0,1),(1,2,17)))
+    required |= {(name,b,'failure',0,1) for name,b in itertools.product(cases,('stock','diagnostic'))}
+    require(len(keys)==len(set(keys)) and set(keys)==required, 'observation coverage')
+    require(all(type(x[k]) is int for x in all_rows for k in ('scope','repetitions')), 'observation numeric domain')
+    signatures = {}
+    for key,row in zip(keys,all_rows):
+        require((row['workspace'] is not None)==(row['backend']=='diagnostic'), 'stock/diagnostic distinction')
+        check_allocation(row,cases[row['case']])
+        signatures[key] = check_calls(row['calls'],row['workspace'],cases[row['case']],row['repetitions'])
+    lookup = dict(zip(keys,all_rows))
+    for name in cases:
+        stock,diagnostic = (lookup[(name,b,'failure',0,1)] for b in ('stock','diagnostic'))
+        require(stock['allocation']==diagnostic['allocation'] and
+                {k:v for k,v in stock['costs'].items() if k!='process_maxrss_kib'}==
+                {k:v for k,v in diagnostic['costs'].items() if k!='process_maxrss_kib'}, 'failure backend mismatch')
+        require(signatures[(name,'stock','failure',0,1)]==signatures[(name,'diagnostic','failure',0,1)], 'failure call mismatch')
+    for name,scope,reps in itertools.product(cases,(0,1),(1,2,17)):
+        group = [(name,b,impl,scope,reps) for b,impl in itertools.product(('stock','diagnostic'),('generated','c'))]
+        reference = {k:v for k,v in lookup[group[0]]['costs'].items() if k!='process_maxrss_kib'}
+        require(all({k:v for k,v in lookup[key]['costs'].items() if k!='process_maxrss_kib'}==reference for key in group), 'output/explicit cost mismatch')
+        require(all(signatures[key]==signatures[group[0]] for key in group), 'actual CBLAS call mismatch')
+        for impl in ('generated','c'):
+            require(lookup[(name,'stock',impl,scope,reps)]['allocation']==lookup[(name,'diagnostic',impl,scope,reps)]['allocation'], 'backend changed selected Lean costs')
+    commands = r.json('commands.json')
+    samples = [c for c in commands if c['phase']=='source_workspace']
+    require(len(samples)==len(all_rows), 'raw sample command coverage')
+    raw_keys = set()
+    for command in samples:
+        require(command['compiler_environment']['LEAN_NUM_THREADS']=='0', 'observation worker profile')
+        argv = command['command']; impl,scope,reps = argv[-4:-1]
+        matches = [key for key in keys if f'/programs/{key[0]}/{key[1]}/' in argv[0] and key[2:]==(impl,int(scope),int(reps))]
+        require(len(matches)==1 and matches[0] not in raw_keys and argv[-1]=='1' and command['returncode']==0, 'raw command identity')
+        key = matches[0];raw_keys.add(key);row=lookup[key]
+        require(command['context']=={'case':key[0],'backend':key[1]}, 'sample context')
+        parsed = [json.loads(line) for line in command['stdout'].splitlines()]
+        want = [row['costs'],row['allocation'],row['calls']]+([row['workspace']] if row['workspace'] is not None else [])
+        require(parsed==want, 'raw/parsed correspondence')
+    require(all(c['returncode']==0 or (c['phase']=='frontend_capture' and c['returncode']==1 and 'E_CAPTURED' in c['stderr']) for c in commands), 'unexpected command failure')
+    for name,b in itertools.product(cases,('stock','diagnostic')):
+        prefix = f'programs/{name}/{b}/'
+        for phase in ('frontend_capture','public_check','public_build','public_execute','kernel_emit','kernel_failure_emit','audit_build','linked_symbols','linked_libraries'):
+            match = [c for c in commands if c['phase']==phase and c['context']=={'case':name,'backend':b}]
+            require(len(match)==1, 'public/build command provenance: '+phase)
+            command = match[0]
+            if phase not in ('kernel_emit','kernel_failure_emit'):
+                require(any('/'+prefix in a or a.endswith('/'+prefix.rstrip('/'))
+                            for a in command['command']+[command['cwd']]), 'command path/context mismatch')
+            if phase=='public_build':
+                index = match[0]['command'].index('--openblas-prefix')
+                require(match[0]['command'][index+1]==record['prefixes']['stock'], 'public build must use unchanged stock backend')
+            if phase in ('frontend_capture','public_check','public_build'):
+                require(command['command'][0]==record['tools']['frontend'], 'actual frontend executable')
+            if phase in ('public_check','public_build'):
+                require(command['compiler_environment']['VASTITAS_KERNEL']==record['tools']['kernel'], 'actual independent checker')
+            if phase=='public_execute':
+                require(match[0]['stdout'].strip()=='0', 'canonical source output')
+                require(command['compiler_environment']['LEAN_NUM_THREADS']=='0', 'canonical worker profile')
+            if phase=='linked_symbols':
+                require(('vobs_cursor' in match[0]['stdout'])==(b=='diagnostic'), 'linked observer symbol')
+            if phase in ('kernel_emit','kernel_failure_emit'):
+                file = prefix+('response.json' if phase=='kernel_emit' else 'failure-response.json')
+                require(json.loads(match[0]['stdout'])==r.json(file), 'exact kernel response')
+                wire = r.read(prefix+'package/wire.json') if phase=='kernel_emit' else json.dumps(r.json(prefix+'failure-wire.json')).encode()
+                check_input(command,wire)
+                require(command['command']==[record['tools']['kernel'],'emit'], 'kernel emit invocation')
+        for response_name,source_name in (('response.json','Generated.lean'),('failure-response.json','GeneratedFailure.lean')):
+            response = r.json(prefix+response_name)
+            require(response['ok'] is True and response['version']==8 and response['numerical_runtime'] is True and
+                    response['lean_source'].encode()==r.read(prefix+source_name), 'exact checked generated source')
+        ffi = r.read(prefix+'native/ffi.c')
+        for token in (b'lean_obj_once(&unit_success, &success_once, initialize_success)',b'lean_mark_persistent(result)',
+                      b'audit_shared_create()',b'audit_shared_return(result)',b'bench_report(); audit_report(); source_workspace_report();'):
+            require(token in ffi, 'actual production helper/report connection')
+        require(b'lean_alloc_ctor' in r.read(prefix+'Emitted.c') and b'lean_is_exclusive' in r.read(prefix+'Emitted.c'), 'emitted caller inspection')
+        native = r.read(prefix+'native/storage.c')
+        require(b'clocks disabled for cost observation' in native and native.count(b'source_workspace_begin(')==2 and
+                native.count(b'source_workspace_end();')==2, 'actual CBLAS bracketing')
+        require(record['prefixes'][b].encode() in r.read(prefix+'lakefile.lean'), 'private backend link')
+    summaries = []
+    counts = Counter()
+    for row in all_rows:
+        if row['workspace'] is not None:
+            counts.update(e['operation'] for e in row['workspace']['events'])
+    for name in sorted(cases):
+        row = lookup[(name,'diagnostic','generated',1,17)]
+        observed = backend.replay(row['workspace'])
+        summaries.append({'case':name,'buffer_bytes':observed['buffer_bytes'],'peak':observed['peak'],
+            'before_shutdown':observed['before_shutdown'],
+            'cold_counts':observed['phases'][11]['counts'],'reuse_17_counts':observed['phases'][13]['counts']})
+    return {'status':'passed','selection':record['selection'],'cases':len(cases),'records':len(observations['rows']),
+            'failure_cleanups':len(observations['failures']),'canonical_executions':2*len(cases),
+            'diagnostic_processes':len(all_rows)//2,'actual_cblas_calls':sum(len(row['calls']['calls']) for row in all_rows),
+            'diagnostic_event_counts':dict(counts),'reuse_17_generated_workspace':summaries,'claims':CLAIMS}
+
+
+if __name__=='__main__':
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('record',type=Path)
+    print(json.dumps(verify(parser.parse_args().record),indent=2))

@@ -156,7 +156,10 @@ target auditObject pkg : FilePath := do
     lake.write_text(text)
 
 
-def build(runner, case, work, prefix, frontend, kernel, cc, variant):
+def build(runner, case, work, prefix, frontend, kernel, cc, variant, *, link_prefix=None, runtime_hook=None):
+    # Public check/build/run always uses prefix. A separate diagnostic may
+    # decorate only the private runtime and select its own linked backend.
+    link_prefix = prefix if link_prefix is None else link_prefix
     work.mkdir(parents=True)
     package = work / 'package'
     fixtures.write_package(case, package)
@@ -180,7 +183,9 @@ def build(runner, case, work, prefix, frontend, kernel, cc, variant):
     (work / 'GeneratedFailure.lean').write_text(failure['lean_source'])
     (work / 'Main.lean').write_text(wrapper(response['lean_source'], failure['lean_source']))
     private_runtime(work, case, variant)
-    (work / 'openblas_include').symlink_to(prefix / 'include', target_is_directory=True)
+    if runtime_hook is not None:
+        runtime_hook(work)
+    (work / 'openblas_include').symlink_to(link_prefix / 'include', target_is_directory=True)
     shutil.copyfile(ROOT / 'lean-kernel/lean-toolchain', work / 'lean-toolchain')
     lean_root = runner.run(['lean', '--print-prefix'])['stdout'].strip()
     (work / 'lakefile.lean').write_text(f'''import Lake
@@ -189,7 +194,7 @@ package allocation_audit where
   moreLinkArgs := #["-fno-lto", "-L", {json.dumps(str(Path(lean_root) / 'lib'))}]
 require vastitas_kernel from {json.dumps(str(ROOT / 'lean-kernel'))}
 require vastitas_gemm_native from "./numerical" with
-  NameMap.empty.insert `openblas {json.dumps(str(prefix))}
+  NameMap.empty.insert `openblas {json.dumps(str(link_prefix))}
 lean_exe audit where
   root := `Main
   moreLeancArgs := #["-O3", "-fno-lto", "-DAUDIT_GENERATED_MAIN=1", "-include", {json.dumps(str(work / 'native/audit.h'))}]

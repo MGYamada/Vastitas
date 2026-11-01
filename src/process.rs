@@ -3,7 +3,7 @@
 use nix::fcntl::{FcntlArg, OFlag, fcntl};
 use nix::sys::signal::{Signal, killpg};
 use nix::unistd::Pid;
-use signal_hook::consts::{SIGINT, SIGTERM};
+use signal_hook::consts::{SIGHUP, SIGINT, SIGQUIT, SIGTERM};
 use std::io::{self, Read, Write};
 use std::os::fd::AsRawFd;
 use std::os::unix::process::CommandExt;
@@ -17,7 +17,7 @@ static SIGNAL: OnceLock<Arc<AtomicUsize>> = OnceLock::new();
 pub(crate) fn install() -> io::Result<()> {
     if SIGNAL.get().is_none() {
         let signal = Arc::new(AtomicUsize::new(0));
-        for number in [SIGINT, SIGTERM] {
+        for number in [SIGINT, SIGTERM, SIGHUP, SIGQUIT] {
             signal_hook::flag::register_usize(number, signal.clone(), number as usize)?;
         }
         let _ = SIGNAL.set(signal);

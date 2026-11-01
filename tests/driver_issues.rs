@@ -155,6 +155,8 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
         (Signal::SIGTERM, 143, false, false),
         (Signal::SIGTERM, 143, true, false),
         (Signal::SIGTERM, 143, true, true),
+        (Signal::SIGHUP, 129, true, true),
+        (Signal::SIGQUIT, 131, true, true),
     ] {
         let scratch = Scratch::new();
         let temp = scratch.0.join("tmp");
@@ -168,7 +170,7 @@ fn interrupted_build_reaps_children_and_removes_temporary_files() {
             if detached_pipes {
                 // This descendant ignores cancellation and closes every pipe.
                 // Waiting only for the direct child and I/O would leak it.
-                "#!/bin/sh\ntrap 'exit 0' INT TERM\nsh -c 'trap \"\" INT TERM; echo ready > \"$READY\"; exec sleep 60' </dev/null >/dev/null 2>&1 &\necho $! > \"$WORKER\"\nwait\n"
+                "#!/bin/sh\ntrap 'exit 0' INT TERM HUP QUIT\nsh -c 'trap \"\" INT TERM HUP QUIT; echo ready > \"$READY\"; exec sleep 60' </dev/null >/dev/null 2>&1 &\necho $! > \"$WORKER\"\nwait\n"
             } else {
                 "#!/bin/sh\ntrap 'exit 0' INT TERM\nsleep 60 &\necho $! > \"$WORKER\"\necho ready > \"$READY\"\nwait\n"
             },

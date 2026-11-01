@@ -258,6 +258,95 @@ fn waiting_for_either_package_is_interruptible_and_failure_releases_locks() {
     }
 }
 
+#[test]
+fn lake_retains_package_lock_after_driver_is_killed() {
+    let s = fixture();
+    let kernel = s.0.join("kernel");
+    let entered = s.0.join("entered");
+    let release = s.0.join("release");
+    let temp = s.0.join("tmp");
+    fs::create_dir(&temp).unwrap();
+    let mut driver = Running::start(
+        mocked(&s, &kernel, "program")
+            .env("TMPDIR", &temp)
+            .env("BUILD_TEST_ENTERED", &entered)
+            .env("BUILD_TEST_RELEASE", &release),
+    );
+    wait_for(&entered);
+    kill(
+        Pid::from_raw(driver.0.as_ref().unwrap().id() as i32),
+        Signal::SIGKILL,
+    )
+    .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(5);
+    while driver.0.as_mut().unwrap().try_wait().unwrap().is_none() {
+        assert!(Instant::now() < deadline, "driver did not exit");
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let contender = fs::File::open(kernel.join("native")).unwrap();
+    let while_lake_runs = contender.try_lock();
+    // Always release the surviving mock before asserting, even on the old bug.
+    fs::write(release, "").unwrap();
+    assert!(!driver.finish().status.success());
+    assert!(
+        matches!(while_lake_runs, Err(fs::TryLockError::WouldBlock)),
+        "the driver's exit released a live Lake build's lock"
+    );
+    // Pipe EOF can precede the orphan's final descriptor close during exit.
+    let deadline = Instant::now() + Duration::from_secs(5);
+    loop {
+        match contender.try_lock() {
+            Ok(()) => break,
+            Err(fs::TryLockError::WouldBlock) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10))
+            }
+            error => panic!("Lake did not release its package lock: {error:?}"),
+        }
+    }
+}
+
+#[test]
+fn long_output_names_do_not_lengthen_the_staging_name() {
+    let s = fixture();
+    let name = "x".repeat(240);
+    success(&Running::start(&mut mocked(&s, &s.0.join("kernel"), &name)).finish());
+    let result = Command::new(s.0.join(name)).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"42\n");
+}
+
+#[test]
+fn numerical_link_failure_has_a_host_compiler_hint_only_when_applicable() {
+    let s = fixture();
+    for numerical in [false, true] {
+        for explicit_compiler in [false, true] {
+            if explicit_compiler && !numerical {
+                continue;
+            }
+            let mut command = mocked(&s, &s.0.join("kernel"), "program");
+            command.env("BUILD_TEST_FAIL", "1");
+            if numerical {
+                command
+                    .env("BUILD_TEST_NUMERICAL", "true")
+                    .arg("--openblas-prefix")
+                    .arg(&s.0);
+            }
+            if explicit_compiler {
+                command.args(["--native-cc", "cc"]);
+            }
+            let result = Running::start(&mut command).finish();
+            assert!(!result.status.success());
+            let error = String::from_utf8_lossy(&result.stderr);
+            assert!(error.contains("native compilation failed"), "{error}");
+            assert_eq!(
+                error.contains("link with the host libc"),
+                cfg!(target_os = "linux") && numerical && !explicit_compiler,
+                "{error}"
+            );
+        }
+    }
+}
+
 fn copy_sources(source: &Path, destination: &Path) {
     fs::create_dir_all(destination).unwrap();
     for entry in fs::read_dir(source).unwrap() {

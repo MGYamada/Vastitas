@@ -5,6 +5,7 @@ use serde_json::{Value, json};
 use std::ffi::{OsStr, OsString};
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
+use std::os::fd::AsRawFd;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -393,6 +394,18 @@ fn lock_native_packages(kernel_root: &Path, numerical: bool) -> Result<Vec<fs::F
                 }
             }
         }
+        // Lake and its descendants must retain the flock even if the driver is
+        // killed without cleanup. These handles are held only during this build.
+        use nix::fcntl::{FcntlArg, FdFlag, fcntl};
+        let flags = FdFlag::from_bits_truncate(
+            fcntl(file.as_raw_fd(), FcntlArg::F_GETFD)
+                .map_err(|error| format!("E_BUILD: cannot inspect package lock: {error}"))?,
+        );
+        fcntl(
+            file.as_raw_fd(),
+            FcntlArg::F_SETFD(flags & !FdFlag::FD_CLOEXEC),
+        )
+        .map_err(|error| format!("E_BUILD: cannot preserve package lock for Lake: {error}"))?;
         locks.push(file);
     }
     Ok(locks)
@@ -494,8 +507,14 @@ fn build_native(
     let result = crate::process::capture(command, None)
         .map_err(|error| subprocess_error(error, "E_BUILD", "Lake", false))?;
     if !result.status.success() {
+        let hint = if cfg!(target_os = "linux") && numerical_prefix.is_some() && native_cc.is_none()
+        {
+            "\nhelp: on Linux, pass --native-cc cc to link with the host libc used to build OpenBLAS\n"
+        } else {
+            ""
+        };
         return Err(format!(
-            "E_BUILD: native compilation failed ({})\n{}{}",
+            "E_BUILD: native compilation failed ({})\n{}{}{hint}",
             result.status,
             String::from_utf8_lossy(&result.stdout),
             String::from_utf8_lossy(&result.stderr)
@@ -560,9 +579,18 @@ fn validate_output(output: &Path) -> Result<(), String> {
             parent.display()
         ));
     }
-    match fs::metadata(output) {
-        Ok(metadata) if metadata.is_dir() => Err("E_OUTPUT: output must name a file".into()),
-        Ok(_) => Ok(()),
+    match fs::symlink_metadata(output) {
+        Ok(metadata) if metadata.is_file() => Ok(()),
+        Ok(metadata)
+            if metadata.is_symlink()
+                && fs::metadata(output).is_ok_and(|target| target.is_file()) =>
+        {
+            Ok(())
+        }
+        Ok(_) => Err(format!(
+            "E_OUTPUT: output must name a regular file: {}",
+            output.display()
+        )),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(error) => Err(format!(
             "E_OUTPUT: cannot inspect {}: {error}",
@@ -578,16 +606,11 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
         .parent()
         .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    let name = output
-        .file_name()
-        .ok_or_else(|| "E_OUTPUT: output must name a file".to_string())?;
-    let mut staging_name = OsString::from(".");
-    staging_name.push(name);
-    staging_name.push(format!(
+    let staging_name = format!(
         ".vastitas-{}-{}.tmp",
         std::process::id(),
         NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
-    ));
+    );
     let staging = parent.join(staging_name);
     let mut file = OpenOptions::new()
         .write(true)
@@ -609,6 +632,7 @@ fn install_output(binary: &Path, output: &Path, sources: &Sources) -> Result<(),
         file.set_permissions(compiled.metadata()?.permissions())?;
         file.sync_all()?;
         crate::process::check()?;
+        validate_output(output).map_err(std::io::Error::other)?;
         sources
             .protect_output(output)
             .map_err(std::io::Error::other)?;

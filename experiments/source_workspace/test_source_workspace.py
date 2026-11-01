@@ -4,7 +4,44 @@ import json
 from pathlib import Path
 import unittest
 
-from verify import backend, check_allocation, check_backend_pair, check_calls, check_input, verify, verify_reader
+from verify import backend, check_allocation, check_backend_pair, check_calls, check_cases, check_input, objects, verify, verify_reader
+from run import streaming_cases
+
+
+class StreamingProfile(unittest.TestCase):
+    def test_large_output_coverage_and_explicit_costs(self):
+        cases,repetitions=check_cases(streaming_cases(),'streaming')
+        self.assertEqual((len(cases),repetitions),(4,(1,2)))
+        for case in cases.values():
+            with self.subTest(case=case['case']):
+                costs,_=objects.costs(case,1,2)
+                width=16 if case['scalar'] else 8
+                self.assertEqual(case['i']*case['a']*case['b']*width,
+                                 (256 if case['scalar'] else 128)*1024*1024)
+                self.assertGreater(costs['peak_data_bytes'],129*1024*1024)
+                self.assertEqual(costs['timed_data_allocations'],0)
+                self.assertEqual(costs['timed_copied_bytes'],2*67584*width)
+
+    def test_partial_or_duplicate_large_matrix_is_rejected(self):
+        cases=streaming_cases()
+        for bad in (cases[:1],cases[:-1]+cases[:1]):
+            with self.assertRaisesRegex(ValueError,'coverage|duplicate'):
+                check_cases(bad,'streaming')
+        self.assertEqual(len(check_cases(cases[:1],'debug-streaming-one')[0]),1)
+
+    def test_small_measurement_cannot_be_relabelled_as_streaming(self):
+        cases=streaming_cases()
+        cases[0]['i']=24
+        with self.assertRaisesRegex(ValueError,'dimensions'):
+            check_cases(cases,'streaming')
+        with self.assertRaisesRegex(ValueError,'coverage'):
+            check_cases(streaming_cases(),'full')
+
+    def test_boolean_dimension_cannot_impersonate_an_extent(self):
+        cases=streaming_cases()
+        cases[0]['k']=True
+        with self.assertRaisesRegex(ValueError,'domain'):
+            check_cases(cases,'streaming')
 
 
 def fixture():

@@ -41,6 +41,37 @@ debug record; neither can masquerade as full coverage. The three fixed dimension
 tuples are inherited from the existing tree experiment. Its largest fixture is
 not evidence of a representative memory-bound performance workload.
 
+`--streaming` selects a separate large-output profile using the same public tree
+source, exact returned instructions, coordinate oracle and equivalent C work.
+Its fixed `(i,k,j,a,b) = (512,2,2,64,512)` matrix covers real/complex and
+padded/unpadded layouts. The result alone is 128 MiB / 256 MiB; total live arena
+data is about 129 MiB / 258 MiB. Every result and padding cell is checked, with
+explicit caller scratch, initialization, packing and complete lifecycle/reuse
+costs. The small inner dimensions make this a candidate for memory-bandwidth
+measurement, but capacity alone does not establish cache misses, DRAM traffic or
+a bottleneck on a particular host. This diagnostic still has no operation clocks.
+
+Streaming records use batches **1 and 2**, separately from the standard profile's
+1/2/17, to stay within the calibrated packing observer's fixed capacity. Overflow
+is fatal, never truncated or silently replaced by stock results. Full streaming
+coverage with the allocator has 24 canonical executions, 192 normal observations
+and 24 failure-cleanup processes. `--streaming --one-case` is explicitly labeled
+`debug-streaming-one`; it cannot stand in for the complete four-case matrix.
+`--smoke` and `--streaming` are mutually exclusive. Existing records and default
+coverage remain unchanged. Use the same calibration command below with
+`--streaming` and a new output directory; retain host/cache information separately
+before drawing any memory-bound performance conclusion. No such acceptance is
+implied by adding this profile.
+
+The complete [macOS](results/2026-11-01-macos-streaming/RESULTS.md) and
+[Linux](results/2026-11-01-linux-streaming/RESULTS.md) streaming records at clean
+`ceff584` each retain all four cases, 24 canonical executions, 192 normal
+observations and 24 failure cleanups. Their 20 / 24 observed source packing
+contracts receive 80 / 96 separate plain/sanitized footprint executions. All 81
+source snapshots match Git and each other. The 128/256 MiB outputs establish
+large-output execution/cost coverage, with
+operation timings and hardware traffic still unmeasured.
+
 For every case and backend, the runner retains the manifest/source, original
 protocol-8 wire, actual kernel response, exact returned Lean, observed wrapper,
 emitted C and private native sources. A stdin digest binds each kernel invocation
@@ -52,7 +83,7 @@ audit. A checked failure variant changes one expected bit, propagates the actual
 native error, and verifies cleanup. These executions are empirical connections,
 not a proof of wrapper/source or native refinement.
 
-The full record contains 24 canonical public check/build/executions, 288 normal
+The standard full record contains 24 canonical public check/build/executions, 288 normal
 observations and 24 failure-cleanup processes. Normal observations cover generated
 and matched C operations, complete lifecycle and caller-buffer reuse, and batch
 sizes 1, 2 and 17 on each backend. Each process first executes one cold generated
@@ -169,6 +200,18 @@ packing contracts receive separate plain/sanitized stock/diagnostic footprint
 checks. Logical payload agrees for the retained cases while actual copy-call
 counts differ. Both preserve the allocator channel and add no operation timing
 or completion claim.
+
+After Unit-only cleanup, the complete
+[macOS](results/2026-11-01-macos-unit-cleanup/RESULTS.md) and
+[Linux](results/2026-11-01-linux-unit-cleanup/RESULTS.md) records measure clean
+`84b0c115f1a003edf52d4634c9dbebbbf6531b18`. Each preserves the standard twelve-case,
+six-configuration coverage and 9,360 allocator snapshots. Lifecycle batches
+1/2/17 observe 5/7/37 normal allocations and 104/144/744 binned bytes; reuse
+remains three / 64 per batch. All 81 source snapshots match Git and each other.
+Actual source packing uses 72 / 66 contracts, checked by 288 / 264 additional
+plain/sanitized footprint executions. The older records above keep their charged
+`finally` fallback; the new diagnostic counts are not stock total-heap or timing
+claims.
 
 A completed schema-2 [packing calibration](../openblas_packing/README.md) can now
 replace the workspace-only backend calibration. The runner detects its record

@@ -68,6 +68,30 @@ fault-injection checks cover static, runtime-shape and nested arenas. New
 allocation observations and matched timings remain separate evidence; this
 code-generation change does not discharge any performance gate.
 
+[PR #376](https://github.com/MGYamada/Vastitas/pull/376) merged as
+`aa1d1e4062399a3670d1ffc5521fb749fbf64980` after
+[26 successful hosted checks and review](https://github.com/MGYamada/Vastitas/pull/376#issuecomment-6558516397),
+connecting actual source call spans to packing costs. The subsequent cleanup
+change [PR #378](https://github.com/MGYamada/Vastitas/pull/378) merged as
+`77bdd093897a8cd9a66daf6cae0e904dd58570ae` after
+[23 successful hosted checks and re-review](https://github.com/MGYamada/Vastitas/pull/378#issuecomment-6558593549).
+Its native 23-scenario regression covers static, dynamic and nested arenas,
+including error precedence and both actual sparse compiler checkouts. The
+post-cleanup [macOS](../experiments/source_workspace/results/2026-11-01-macos-unit-cleanup/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux-unit-cleanup/RESULTS.md)
+cost records measure clean `84b0c11`, not the merge commit. Their lifecycle
+batches 1/2/17 observe 5/7/37 diagnostic normal allocations / 104/144/744 binned
+bytes; reuse remains three / 64 per batch. These records preserve all 81 Git
+inputs, 936 observation processes and 9,360 allocator snapshots per OS.
+
+The separate large-output source records for
+[macOS](../experiments/source_workspace/results/2026-11-01-macos-streaming/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux-streaming/RESULTS.md)
+measure clean `ceff584`, with 128/256 MiB outputs and complete caller-buffer
+reuse/lifecycle cost checks. They add a bounded workload profile without measuring
+operation time, cache misses or DRAM traffic. This coverage does not discharge the
+representative memory-bound timing or other acceptance conditions below.
+
 ## Remaining acceptance gates
 
 The integrated implementation and initial-condition mapping are recorded above.

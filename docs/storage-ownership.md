@@ -13,6 +13,11 @@ executable integer model, regression cases and proposed Lean obligations for
 the first dense/transpose fragment. It is not production resource acceptance,
 completed Lean soundness, native check elimination or performance evidence.
 
+The [finite CUDA reuse planning reference](cuda-reuse-reference.md) explores
+last-use frontiers and memory/parallelism tradeoffs under #210's existing async
+cleanup contract. Its optional Python analysis is not connected to accepted Core
+or a CUDA adapter and does not establish GPU safety or performance.
+
 The [internal resource IR](storage-ir.md) now supplies independently checked
 logical transitions, canonical layouts, initialization and branch joins, with
 actual-checker byte-region and active-loan theorems. Its component schema is not

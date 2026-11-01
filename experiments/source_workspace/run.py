@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import importlib.util
+import itertools
 import json
 import os
 from pathlib import Path
@@ -26,6 +27,14 @@ backend_verify = module('source_workspace_backend_verify',ROOT/'experiments/open
 allocator = module('source_workspace_allocator',HERE/'allocator.py')
 packing = module('source_workspace_packing',HERE/'packing.py')
 tree,fixtures = audit.tree,audit.fixtures
+
+
+def streaming_cases():
+    # A low-inner-dimension product with a 128/256 MiB real/complex output.
+    # Reuse the public tree source, coordinate oracle and matched C algorithm.
+    return [dict(case=f"streaming-{'complex' if scalar else 'f64'}-p{pad}",
+                 i=512,k=2,j=2,a=64,b=512,scalar=scalar,pad=pad)
+            for scalar,pad in itertools.product((0,1),(0,1))]
 
 
 class Runner(tree.Runner):
@@ -187,7 +196,9 @@ def main():
     parser.add_argument('--frontend',type=Path,default=ROOT/'target/debug/vastitas')
     parser.add_argument('--kernel',type=Path,default=ROOT/'lean-kernel/.lake/build/bin/vastitas-kernel')
     parser.add_argument('--cc',default='cc',help='one compiler executable')
-    parser.add_argument('--smoke',action='store_true',help='tiny real/complex with/without padding; default all 12 cases')
+    profile = parser.add_mutually_exclusive_group()
+    profile.add_argument('--smoke',action='store_true',help='tiny real/complex with/without padding; default all 12 cases')
+    profile.add_argument('--streaming',action='store_true',help='four large-output cases; separate 1/2-repetition cost profile, no timing claim')
     parser.add_argument('--one-case',action='store_true',help='explicit debugging coverage, never a full record')
     args = parser.parse_args()
     if bool(args.lean_record) != bool(args.lean_runtime_dir):
@@ -269,8 +280,9 @@ def main():
         path = lean_prefix/'include/lean'/name
         shutil.copyfile(path,out/('pinned-'+name))
         external[str(path)] = tree.sha(path)
-    cases = fixtures.cases(args.smoke)
+    cases = streaming_cases() if args.streaming else fixtures.cases(args.smoke)
     if args.one_case: cases = cases[:1]
+    repetitions = (1,2) if args.streaming else (1,2,17)
     tree.dump(out/'cases.json',cases)
     rows,failures = [],[]
     for case in cases:
@@ -291,7 +303,7 @@ def main():
             runner.run(['nm','-g',exe],phase='linked_symbols')
             runner.run(['otool','-L',exe] if platform.system()=='Darwin' else ['ldd',exe],phase='linked_libraries')
             for impl,scope,reps in [('failure',0,1)]+[(impl,scope,reps) for scope in (0,1)
-                    for reps in (1,2,17) for impl in ('generated','c')]:
+                    for reps in repetitions for impl in ('generated','c')]:
                 execution = runner.run([exe,impl,scope,reps,1],phase='source_workspace')
                 parsed = [json.loads(line) for line in execution['stdout'].splitlines()]
                 diagnostic_backend = config['backend']=='diagnostic'
@@ -328,7 +340,8 @@ def main():
              and not 'openblas_include' in p.relative_to(out).parts
              and p.relative_to(out).as_posix() not in binaries}
     record = {'schema':3 if with_packing else 2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
-              'selection':'debug-one' if args.one_case else 'smoke' if args.smoke else 'full',
+              'selection':('debug-streaming-one' if args.one_case else 'streaming') if args.streaming else
+                          'debug-one' if args.one_case else 'smoke' if args.smoke else 'full',
               'host':{'platform':platform.platform(),'cc':cc},'environment':env,
               'tools':{'frontend':str(args.frontend.resolve()),'kernel':str(args.kernel.resolve())},
               'inputs':inputs,'external_inputs':external,'backend_record':'backend-calibration',

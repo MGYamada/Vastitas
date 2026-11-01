@@ -28,6 +28,28 @@ CLAIMS = {'operation_timings':False,'total_heap':False,'backend_packing_bytes':F
           'native_refinement':False,'controlled_host':False,'source_execution_observed':True}
 
 
+def check_cases(raw,selection):
+    """Independently fix dimensions and coverage; archive labels grant no scope."""
+    require(selection in ('full','smoke','debug-one','streaming','debug-streaming-one'), 'selection')
+    streaming = selection in ('streaming','debug-streaming-one')
+    sizes = {'streaming':(512,2,2,64,512)} if streaming else objects.SIZES
+    expected_sizes = {'tiny':sizes['tiny']} if selection=='smoke' else sizes
+    require(len(raw)==len({c['case'] for c in raw}), 'duplicate case')
+    expected = {f"{name}-{'complex' if scalar else 'f64'}-p{pad}"
+                for name,scalar,pad in itertools.product(expected_sizes,(0,1),(0,1))}
+    debug = selection in ('debug-one','debug-streaming-one')
+    require(len(raw)==1 if debug else {c['case'] for c in raw}==expected, 'case coverage')
+    for c in raw:
+        require(all(type(c[k]) is int for k in ('i','k','j','a','b','scalar','pad')) and
+                c['scalar'] in (0,1) and c['pad'] in (0,1), 'case domain')
+        size = c['case'].split('-')[0]
+        require(size in sizes and tuple(c[k] for k in ('i','k','j','a','b'))==sizes[size], 'case dimensions')
+        require(c['case']==f"{size}-{'complex' if c['scalar'] else 'f64'}-p{c['pad']}", 'case name')
+    # Large outputs use smaller batches so the same fixed-capacity packing
+    # observer remains bounded. Missing or substituted repetitions still fail.
+    return {c['case']:c for c in raw}, (1,2) if streaming else (1,2,17)
+
+
 class Prefixed:
     def __init__(self,parent,prefix):
         self.parent,self.prefix = parent,prefix+'/'
@@ -256,13 +278,7 @@ def verify_reader(r,*,allow_build_tree=False):
             require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'],
                     'changed packing source')
     if with_allocator: allocator.check_calibration(r,record,Prefixed)
-    cases = r.json('cases.json')
-    require(len(cases)==len({c['case'] for c in cases}), 'duplicate case')
-    sizes = objects.SIZES if record['selection']=='full' else {'tiny':objects.SIZES['tiny']}
-    require(record['selection'] in ('full','smoke','debug-one'), 'selection')
-    expected_cases = {f"{name}-{'complex' if scalar else 'f64'}-p{pad}" for name,scalar,pad in itertools.product(sizes,(0,1),(0,1))}
-    require(({c['case'] for c in cases}==expected_cases if record['selection']!='debug-one' else len(cases)==1), 'case coverage')
-    cases = {c['case']:c for c in cases}
+    cases,repetitions = check_cases(r.json('cases.json'),record['selection'])
     expected_binaries = {f'programs/{name}/{b}/{file}' for name,b,file in
         itertools.product(cases,backends,('canonical','.lake/build/bin/audit'))}
     require(set(record['binaries'])==expected_binaries, 'executable fingerprint coverage')
@@ -271,15 +287,10 @@ def verify_reader(r,*,allow_build_tree=False):
         require(isinstance(item['sha256'],str) and len(item['sha256'])==64 and
                 all(c in '0123456789abcdef' for c in item['sha256']), 'executable digest')
     for path in record['tools'].values(): require(path in record['external_inputs'], 'compiler executable fingerprint')
-    for name,c in cases.items():
-        require(type(c['scalar']) is int and type(c['pad']) is int and c['scalar'] in (0,1) and c['pad'] in (0,1), 'case domain')
-        size = name.split('-')[0]
-        require(size in objects.SIZES and tuple(c[k] for k in ('i','k','j','a','b'))==objects.SIZES[size], 'case dimensions')
-        require(name==f"{size}-{'complex' if c['scalar'] else 'f64'}-p{c['pad']}", 'case name')
     observations = r.json('observations.json')
     all_rows = observations['rows']+observations['failures']
     keys = [(x['case'],x['backend'],x['implementation'],x['scope'],x['repetitions']) for x in all_rows]
-    required = set(itertools.product(cases,backends,('generated','c'),(0,1),(1,2,17)))
+    required = set(itertools.product(cases,backends,('generated','c'),(0,1),repetitions))
     required |= {(name,b,'failure',0,1) for name,b in itertools.product(cases,backends)}
     require(len(keys)==len(set(keys)) and set(keys)==required, 'observation coverage')
     require(all(type(x[k]) is int for x in all_rows for k in ('scope','repetitions')), 'observation numeric domain')
@@ -311,7 +322,7 @@ def verify_reader(r,*,allow_build_tree=False):
                     {k:v for k,v in reference['costs'].items() if k!='process_maxrss_kib'}==
                     {k:v for k,v in other['costs'].items() if k!='process_maxrss_kib'}, 'failure backend mismatch')
             require(signatures[(name,backends[0],'failure',0,1)]==signatures[(name,b,'failure',0,1)], 'failure call mismatch')
-    for name,scope,reps in itertools.product(cases,(0,1),(1,2,17)):
+    for name,scope,reps in itertools.product(cases,(0,1),repetitions):
         group = [(name,b,impl,scope,reps) for b,impl in itertools.product(backends,('generated','c'))]
         reference = {k:v for k,v in lookup[group[0]]['costs'].items() if k!='process_maxrss_kib'}
         require(all({k:v for k,v in lookup[key]['costs'].items() if k!='process_maxrss_kib'}==reference for key in group), 'output/explicit cost mismatch')
@@ -326,13 +337,13 @@ def verify_reader(r,*,allow_build_tree=False):
                                lookup[(name,b,'generated',scope,reps)]['workspace'])
     if with_allocator:
         for name,impl,scope,reps in ((n,i,s,r) for n in cases for i,s,r in
-                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),(1,2,17)))):
+                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),repetitions))):
             require(allocator_summaries[(name,'stock-diagnostic2',impl,scope,reps)]==
                     allocator_summaries[(name,'diagnostic-diagnostic2',impl,scope,reps)],
                     'backend changed allocator phase costs')
     if with_packing:
         for name,impl,scope,reps in ((n,i,s,r) for n in cases for i,s,r in
-                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),(1,2,17)))):
+                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),repetitions))):
             reference = packing_summaries[(name,diagnostic[0],impl,scope,reps)]
             for b in diagnostic:
                 require(packing_summaries[(name,b,impl,scope,reps)]==reference,
@@ -420,15 +431,15 @@ def verify_reader(r,*,allow_build_tree=False):
         if row['workspace'] is not None:
             counts.update(e['operation'] for e in row['workspace']['events'])
     for name in sorted(cases):
-        row = lookup[(name,diagnostic[0],'generated',1,17)]
+        row = lookup[(name,diagnostic[0],'generated',1,repetitions[-1])]
         observed = backend.replay(row['workspace'])
         summaries.append({'case':name,'buffer_bytes':observed['buffer_bytes'],'peak':observed['peak'],
             'before_shutdown':observed['before_shutdown'],
-            'cold_counts':observed['phases'][11]['counts'],'reuse_17_counts':observed['phases'][13]['counts']})
+            'cold_counts':observed['phases'][11]['counts'],f'reuse_{repetitions[-1]}_counts':observed['phases'][13]['counts']})
     summary = {'status':'passed','selection':record['selection'],'cases':len(cases),'records':len(observations['rows']),
             'failure_cleanups':len(observations['failures']),'canonical_executions':len(backends)*len(cases),
             'diagnostic_processes':len(all_rows)//2,'actual_cblas_calls':sum(len(row['calls']['calls']) for row in all_rows),
-            'diagnostic_event_counts':dict(counts),'reuse_17_generated_workspace':summaries,'claims':CLAIMS}
+            'diagnostic_event_counts':dict(counts),f'reuse_{repetitions[-1]}_generated_workspace':summaries,'claims':CLAIMS}
     if with_allocator:
         summary['lean_allocator'] = dict(claims=allocator.CLAIMS,variants=list(allocator.VARIANTS),
             snapshots=10*len(all_rows),observations=[dict(case=key[0],backend=key[1],implementation=key[2],
@@ -437,7 +448,7 @@ def verify_reader(r,*,allow_build_tree=False):
         footprints = packing.check_footprints(r,record,all_rows,calibrated,kernels,commands)
         summary['packing'] = {'claims':packing.CLAIMS,'observed_footprints':footprints,
             'metadata':packing_calibration['metadata'],
-            'reuse_17_generated':[{'case':name,**packing_summaries[(name,diagnostic[0],'generated',1,17)]}
+            f'reuse_{repetitions[-1]}_generated':[{'case':name,**packing_summaries[(name,diagnostic[0],'generated',1,repetitions[-1])]}
                                   for name in sorted(cases)]}
     return summary
 

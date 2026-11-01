@@ -169,7 +169,7 @@ class SourceFootprints(unittest.TestCase):
                     'footprint command/output')
 
 
-@unittest.skipUnless(os.environ.get('VASTITAS_SOURCE_PACKING_RECORD'),'full source packing record not supplied')
+@unittest.skipUnless(os.environ.get('VASTITAS_SOURCE_PACKING_RECORD'),'complete source packing record not supplied')
 class FullSourcePacking(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -180,8 +180,10 @@ class FullSourcePacking(unittest.TestCase):
 
     def test_complete_execution_and_actual_footprint_replay(self):
         summary=self.check(self.reader)
-        self.assertEqual(summary['selection'],'full')
-        self.assertEqual(summary['cases'],12)
+        expected={'full':(12,864,72),'streaming':(4,192,24)}
+        self.assertIn(summary['selection'],expected)
+        self.assertEqual((summary['cases'],summary['records'],summary['failure_cleanups']),
+                         expected[summary['selection']])
         self.assertGreater(summary['packing']['observed_footprints']['contracts'],0)
         self.assertFalse(summary['claims']['total_heap'])
 

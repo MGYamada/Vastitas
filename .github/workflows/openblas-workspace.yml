@@ -4,6 +4,12 @@ on:
   push:
   pull_request:
   workflow_dispatch:
+    inputs:
+      profile:
+        description: Source workload (streaming is a separate large-output cost record)
+        type: choice
+        options: [standard, streaming]
+        default: standard
 
 permissions:
   contents: read
@@ -55,9 +61,17 @@ jobs:
           fi
           python3 experiments/lean_allocation_diagnostic/run.py --out "$RUNNER_TEMP/lean-allocator-record"
       - name: Observe source allocator, arenas, actual packing and call spans
+        env:
+          SOURCE_PROFILE: ${{ inputs.profile || 'standard' }}
         run: |
           cargo build --locked
-          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --lean-record "$RUNNER_TEMP/lean-allocator-record" --lean-runtime-dir "$RUNNER_TEMP/lean-allocator-record/build" --output "$RUNNER_TEMP/source-workspace-record"
+          profile_args=()
+          case "$SOURCE_PROFILE" in
+            standard) ;;
+            streaming) profile_args=(--streaming) ;;
+            *) exit 2 ;;
+          esac
+          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --lean-record "$RUNNER_TEMP/lean-allocator-record" --lean-runtime-dir "$RUNNER_TEMP/lean-allocator-record/build" --output "$RUNNER_TEMP/source-workspace-record" "${profile_args[@]}"
           python3 experiments/source_workspace/archive.py "$RUNNER_TEMP/source-workspace-record" "$RUNNER_TEMP/source-workspace-compact/evidence.zip"
           VASTITAS_SOURCE_ALLOCATOR_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" VASTITAS_SOURCE_PACKING_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
       - name: Retain compact source workspace observation (no timings)

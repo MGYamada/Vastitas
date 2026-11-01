@@ -38,6 +38,13 @@ static void vobs_record(const char *operation, void *address, size_t bytes, int 
     vobs_events[vobs_count++] = (VObsEvent){(uintptr_t)address, bytes, vobs_phase, ok, error, operation};
     atomic_flag_clear(&vobs_busy);
 }
+size_t vobs_cursor(void) {
+    if (atomic_flag_test_and_set(&vobs_busy)) vobs_fail();
+    if (!vobs_owner_set || !pthread_equal(vobs_owner, pthread_self()) || vobs_finished) vobs_fail();
+    size_t result = vobs_count;
+    atomic_flag_clear(&vobs_busy);
+    return result;
+}
 void vobs_mark(unsigned phase) {
     /* The supported caller never races a marker with a library call. */
     vobs_phase = phase;

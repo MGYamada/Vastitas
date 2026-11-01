@@ -12,15 +12,20 @@ jobs:
   workspace:
     name: OpenBLAS workspace lifetimes (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
+        with:
+          toolchain: 1.99.1
       - name: Replay and mutation regressions
-        run: python3 -m unittest discover -s experiments/openblas_workspace -p 'test_*.py'
+        run: |
+          python3 -m unittest discover -s experiments/openblas_workspace -p 'test_*.py'
+          python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
       - name: Build paired backends and observe native adapter workspaces
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
@@ -29,6 +34,27 @@ jobs:
             python3 experiments/openblas_workspace/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4
           fi
           python3 experiments/openblas_workspace/verify.py "$RUNNER_TEMP/workspace-record"
+      - name: Build the actual public source checker
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-kernel
+          auto-config: false
+          build: true
+          build-args: vastitas-kernel
+          use-mathlib-cache: false
+      - name: Observe source, selected objects, arenas and backend call spans
+        run: |
+          cargo build --locked
+          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --output "$RUNNER_TEMP/source-workspace-record"
+          python3 experiments/source_workspace/archive.py "$RUNNER_TEMP/source-workspace-record" "$RUNNER_TEMP/source-workspace-compact/evidence.zip"
+      - name: Retain compact source workspace observation (no timings)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: source-workspace-${{ matrix.os }}-${{ github.event_name }}
+          path: ${{ runner.temp }}/source-workspace-compact/
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Retain workspace observation (no timings)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

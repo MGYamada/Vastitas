@@ -162,6 +162,14 @@ These gates do not require a new universal tensor calculus, category implementat
 
 ## Record maintenance
 
+The optional [source workspace observation](../experiments/source_workspace/README.md)
+joins actual public source executions, selected Lean-object/arena costs and exact
+CBLAS-to-backend-event intervals. Its stock and diagnostic records are separate,
+and every diagnostic backend must carry a complete paired calibration. This
+narrows the attribution gap for the admitted tree fixture without measuring total
+Lean heap, backend packing/static metadata, residency or operation timings. The
+four completion gates above remain unchanged.
+
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.
 Runtime and allocation records keep their original clean/dirty inputs even when

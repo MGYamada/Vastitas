@@ -202,7 +202,11 @@ class Reader:
 
 
 def verify(path):
-    r = Reader(path)
+    return verify_reader(Reader(path))
+
+
+def verify_reader(r):
+    """Also accept a prefixed read-only view within a larger evidence archive."""
     record = r.json('record.json')
     require(record['schema'] == 1 and record['kind'] == 'diagnostic-openblas-workspace', 'schema')
     require(record['claims'] == CLAIMS and all(type(v) is bool for v in record['claims'].values()), 'unsupported claim')

@@ -127,6 +127,22 @@ adapter calls, released at quit. Those are distinct backend configurations and
 virtual mapping capacities, not RSS or actual packing amounts. Both builds select
 upstream `NO_WARMUP`, so live constructor warmup remains outside these records.
 
+The [source workspace experiment](../experiments/source_workspace/README.md)
+connects this diagnostic to actual public source check/build/execution and the
+exact returned tree instructions. Each actual CBLAS call has a verified event
+interval alongside the existing selected-object and arena observations. Stock
+public executables remain distinct from private diagnostic wrappers. Full
+12-case coverage includes matched C, lifecycle/reuse and failure cleanup; recorded
+operation clocks are disabled. General Lean heap, backend static metadata/actual
+packing and meaningful per-operation peak memory remain outside this observation.
+Its retained [macOS](../experiments/source_workspace/results/2026-11-01-macos/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux/RESULTS.md)
+records at clean `605a5a7c82697bd53241983e8a42c03a68fd372a` each contain 288 normal
+observations, 24 failure cleanups, 24 canonical executions and 4,512 actual CBLAS
+calls. Their 156 diagnostic processes each retain one 32 MiB/128 MiB mapping
+after cold source execution and release it at quit; generated/C backend costs
+agree in the measured lifecycle/reuse scopes. No speedup or total-heap claim follows.
+
 ## Implemented proof boundary and broader future scope
 
 The [geometry migration](geometry-migration.md) retains exact returned-Core typed

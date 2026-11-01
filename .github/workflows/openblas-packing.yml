@@ -1,0 +1,43 @@
+name: OpenBLAS packing observation
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  packing:
+    name: OpenBLAS packing costs (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Replay and mutation regressions
+        run: python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
+      - name: Calibrate unchanged packing kernels and observe paired backends
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 experiments/openblas_packing/run.py --out "$RUNNER_TEMP/packing-record" --build-dir "$RUNNER_TEMP/packing-build" --jobs 4 --target HASWELL
+          else
+            python3 experiments/openblas_packing/run.py --out "$RUNNER_TEMP/packing-record" --build-dir "$RUNNER_TEMP/packing-build" --jobs 4
+          fi
+          VASTITAS_PACKING_RECORD="$RUNNER_TEMP/packing-record" python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
+          python3 experiments/openblas_packing/archive.py "$RUNNER_TEMP/packing-record" "$RUNNER_TEMP/packing-export/evidence.zip"
+      - name: Retain full packing evidence (no timings)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: openblas-packing-${{ matrix.os }}-${{ github.event_name }}
+          path: |
+            ${{ runner.temp }}/packing-export/
+            ${{ runner.temp }}/packing-record/commands.json
+            ${{ runner.temp }}/packing-record/logs/*-build.stderr
+          if-no-files-found: ignore
+          retention-days: 30

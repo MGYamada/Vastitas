@@ -263,15 +263,15 @@ def State.markWritten (state : State) (allocation : Nat) (layout : Layout) : Sta
           version := current.version + 1 }
       else current }
 
-private def freshName (state : State) (name : Symbol) : Except Error Unit :=
+def freshName (state : State) (name : Symbol) : Except Error Unit :=
   if state.fresh name then pure () else reject "E_RESOURCE_NAME" "resource symbols cannot be reused or shadowed"
 
-private def owned (state : State) (name : Symbol) : Except Error Allocation :=
+def owned (state : State) (name : Symbol) : Except Error Allocation :=
   match state.owner? name with
   | some allocation => pure allocation
   | none => reject "E_RESOURCE_MOVE" "owner is absent, moved or dropped"
 
-private def usable (state : State) (name : Symbol) (write : Bool) : Except Error (Loan × Allocation) := do
+def usable (state : State) (name : Symbol) (write : Bool) : Except Error (Loan × Allocation) := do
   let some loan := state.loan? name | reject "E_RESOURCE_LOAN" "loan is absent or already returned"
   if state.suspended name then reject "E_RESOURCE_LOAN" "parent access is suspended while child loans are live"
   let some allocation := state.allocation? loan.allocation | reject "E_RESOURCE_PROVENANCE" "loan allocation is not live"

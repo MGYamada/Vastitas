@@ -1,0 +1,314 @@
+[
+  {
+    "profile": "real-normal",
+    "dimensions": [
+      2147483648,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/real-normal/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2147483648",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_GUARD: extent, layout or shape preflight failed\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 3656666,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "real-normal",
+    "dimensions": [
+      18446744073709551616,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/real-normal/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "18446744073709551616",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 3661541,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "real-normal",
+    "dimensions": [
+      2,
+      3,
+      4,
+      9223372036854775808
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/real-normal/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2",
+      "3",
+      "4",
+      "9223372036854775808"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 3376833,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "real-transpose",
+    "dimensions": [
+      2147483648,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/real-transpose/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2147483648",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_GUARD: extent, layout or shape preflight failed\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 5648584,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "real-transpose",
+    "dimensions": [
+      18446744073709551616,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/real-transpose/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "18446744073709551616",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 5944459,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "real-transpose",
+    "dimensions": [
+      2,
+      3,
+      4,
+      9223372036854775808
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/real-transpose/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2",
+      "3",
+      "4",
+      "9223372036854775808"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 5090167,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "complex-normal",
+    "dimensions": [
+      2147483648,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/complex-normal/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2147483648",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_GUARD: extent, layout or shape preflight failed\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 4380375,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "complex-normal",
+    "dimensions": [
+      18446744073709551616,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/complex-normal/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "18446744073709551616",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 4073083,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "complex-normal",
+    "dimensions": [
+      2,
+      3,
+      4,
+      9223372036854775808
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/complex-normal/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2",
+      "3",
+      "4",
+      "9223372036854775808"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 4466625,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "complex-transpose",
+    "dimensions": [
+      2147483648,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/complex-transpose/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2147483648",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_GUARD: extent, layout or shape preflight failed\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 4140458,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "complex-transpose",
+    "dimensions": [
+      18446744073709551616,
+      3,
+      4,
+      1
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/complex-transpose/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "18446744073709551616",
+      "3",
+      "4",
+      "1"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 3843667,
+    "phase": "narrowing_failure_cleanup"
+  },
+  {
+    "profile": "complex-transpose",
+    "dimensions": [
+      2,
+      3,
+      4,
+      9223372036854775808
+    ],
+    "command": [
+      "/private/tmp/vastitas-runtime-shape-audit-final/complex-transpose/.lake/build/bin/audit",
+      "generated",
+      "0",
+      "1",
+      "1",
+      "2",
+      "3",
+      "4",
+      "9223372036854775808"
+    ],
+    "cwd": "/private/tmp/vastitas-runtime-shapes",
+    "returncode": 1,
+    "stdout": "",
+    "stderr": "uncaught exception: E_RUNTIME_EXTENT: extent exceeds signed native size range\nAUDIT_FAILURE_CLEANUP {\"arenas\":1,\"data_allocations\":0,\"data_frees\":0,\"live_bytes\":0}\n",
+    "wall_ns": 4262125,
+    "phase": "narrowing_failure_cleanup"
+  }
+]

@@ -46,6 +46,10 @@ import VastitasOracle.StorageFunctions
 import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
 import VastitasOracle.ResourceValueFlow
+
+import VastitasOracle.StorageShapes
+import VastitasOracle.StorageShapeNumerical
+import VastitasOracle.ResourceRuntimeShapes
 import VastitasOracle.TensorNetwork
 import VastitasOracle.TensorNumerical
 import VastitasOracle.TensorContraction

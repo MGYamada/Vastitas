@@ -84,13 +84,17 @@ theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {signa
     simp only [probe, setup, bind, Except.bind] at accepted
     cases values : ValueFlow.check signatures pair.2.scalarInputs pair.2.flow.toList with
     | error diagnostic => simp [values] at accepted
-    | ok values =>
+    | ok valueCertificate =>
       simp only [values] at accepted
-      split at accepted
-      · split at accepted
+      cases shapes : Shapes.Flow.check valueCertificate.finalState.slots pair.2.flow.toList with
+      | error diagnostic => simp [shapes] at accepted
+      | ok shapes =>
+        simp only [shapes] at accepted
+        split at accepted
+        · split at accepted
+          · contradiction
+          · exact congrArg Probe.function (Except.ok.inj accepted).symm
         · contradiction
-        · exact congrArg Probe.function (Except.ok.inj accepted).symm
-      · contradiction
 
 theorem every_body {program : Program} {environment signatures} (checked : Checked program environment signatures) {function : Function}
     (member : function ∈ program.functions) :

@@ -302,6 +302,25 @@ pub mod source {
             ty: Type,
             span: Span,
         },
+        RuntimeSpace {
+            name: String,
+            implementation: TypePath,
+            dimension: Extent,
+            span: Span,
+        },
+        RuntimeBasis {
+            name: String,
+            space: String,
+            span: Span,
+        },
+        RuntimeMap {
+            name: String,
+            source: String,
+            target: String,
+            access: Access,
+            initializes: bool,
+            span: Span,
+        },
         Owned {
             name: String,
             #[serde(rename = "type")]
@@ -391,6 +410,89 @@ pub mod source {
     pub enum NumericalResult {
         OwnedMap { source: String, target: String },
         OwnedMapTo { source: String, dimension: u64 },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum Extent {
+        Literal { value: u64 },
+        Slot { name: String },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(deny_unknown_fields)]
+    pub struct RuntimeLayout {
+        pub rows: Extent,
+        pub columns: Extent,
+        pub leading: Extent,
+        pub transposed: bool,
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum RuntimeAction {
+        Allocate {
+            owner: String,
+            scalar: Scalar,
+            elements: Extent,
+            layout: RuntimeLayout,
+        },
+        Move {
+            source: String,
+            target: String,
+        },
+        Drop {
+            owner: String,
+        },
+        Borrow {
+            name: String,
+            source: String,
+            access: Access,
+        },
+        Release {
+            loan: String,
+        },
+        Fill {
+            loan: String,
+            value: Literal,
+        },
+        Expect {
+            loan: String,
+            row: u64,
+            column: u64,
+            value: Literal,
+        },
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+    #[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+    pub enum RuntimeNumerical {
+        Space {
+            name: String,
+            implementation: TypePath,
+            dimension: Extent,
+        },
+        Basis {
+            name: String,
+            space: String,
+        },
+        Map {
+            name: String,
+            loan: String,
+            source: String,
+            target: String,
+        },
+        Gemm {
+            left: String,
+            right: String,
+            output: String,
+            mode: GemmMode,
+            policy: NumericalPolicy,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            alpha: Option<Coefficient<String>>,
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            beta: Option<Coefficient<String>>,
+        },
     }
 
     #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -753,6 +855,14 @@ pub mod source {
             #[serde(rename = "type")]
             ty: Type,
             body: Block,
+            span: Span,
+        },
+        Runtime {
+            action: RuntimeAction,
+            span: Span,
+        },
+        RuntimeNumerical {
+            operation: RuntimeNumerical,
             span: Span,
         },
         CallValue {

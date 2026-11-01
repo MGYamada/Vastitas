@@ -9,8 +9,33 @@ flow; every pure fragment is reconstructed with its actual owner and position. -
 namespace VastitasKernel.ResourceSource
 open Storage
 
+inductive RuntimeExtent where
+  | literal (value : Nat)
+  | slot (name : String)
+  deriving Repr, Inhabited
+
+structure RuntimeLayout where
+  rows : RuntimeExtent
+  columns : RuntimeExtent
+  leading : RuntimeExtent
+  transposed : Bool := false
+  deriving Repr, Inhabited
+
+inductive RuntimeAction where
+  | allocate (owner : String) (scalar : Scalar) (elements : RuntimeExtent) (layout : RuntimeLayout)
+  | move (source target : String)
+  | drop (owner : String)
+  | borrow (name source : String) (access : Access)
+  | release (loan : String)
+  | fill (loan : String) (value : Literal)
+  | expect (loan : String) (row column : Nat) (value : Literal)
+  deriving Repr, Inhabited
+
 inductive Parameter where
   | value (name : String) (type : Indexed.Core.PureType) (span : Span)
+  | runtimeSpace (name : String) (implementation : Indexed.Source.Path) (dimension : RuntimeExtent) (span : Span)
+  | runtimeBasis (name space : String) (span : Span)
+  | runtimeMap (name source target : String) (access : Access) (initializes : Bool) (span : Span)
   | owned (name : String) (type : Functions.OwnedType) (span : Span)
   | borrowed (name : String) (scalar : Scalar) (rows columns : Nat)
       (access : Access) (initializes : Bool) (span : Span)
@@ -29,12 +54,14 @@ inductive Parameter where
 
 def Parameter.name : Parameter → String
   | .value name .. => name
+  | .runtimeSpace name .. | .runtimeBasis name .. | .runtimeMap name .. => name
   | .owned name .. | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
   | .vector name .. | .ownedMapTo name .. => name
 
 def Parameter.span : Parameter → Span
   | .value _ _ span => span
+  | .runtimeSpace _ _ _ span | .runtimeBasis _ _ span | .runtimeMap _ _ _ _ _ span => span
   | .owned _ _ span | .borrowed _ _ _ _ _ _ span => span
   | .space _ _ _ span | .basis _ _ span | .map _ _ _ _ _ span | .ownedMap _ _ _ span => span
   | .involution _ _ span | .dualSpace _ _ span | .conjugateSpace _ _ _ span |
@@ -57,6 +84,14 @@ inductive Action where
 inductive Coefficient where
   | literal (value : Literal)
   | loan (name : String)
+  deriving Repr, Inhabited
+
+inductive RuntimeNumerical where
+  | space (name : String) (implementation : Indexed.Source.Path) (dimension : RuntimeExtent)
+  | basis (name space : String)
+  | map (name loan source target : String)
+  | gemm (left right output : String) (mode : GemmMode) (policy : NumericalPolicy)
+      (alpha beta : Option Coefficient := none)
   deriving Repr, Inhabited
 
 inductive NumericalOperation where
@@ -86,6 +121,8 @@ inductive NumericalOperation where
 
 inductive Statement where
   | value (name : String) (type : Indexed.Core.PureType) (body : Indexed.FunctionSource.Block) (span : Span)
+  | runtime (operation : RuntimeAction) (span : Span)
+  | runtimeNumerical (operation : RuntimeNumerical) (span : Span)
   | callValue (callee : Indexed.Source.Path) (arguments results : List String)
       (value : String) (type : Indexed.Core.PureType) (span : Span)
   | branchValue (condition : String) (yes no : List Statement) (span : Span)
@@ -151,6 +188,9 @@ def Program.entry (program : Program) : Option Nat :=
 def Function.resourceNames (function : Function) : List String :=
   function.parameters.map Parameter.name ++ function.body.flatMap fun statement =>
     match statement with
+    | .runtime (.allocate name ..) _ | .runtime (.move _ name) _ | .runtime (.borrow name ..) _ => [name]
+    | .runtimeNumerical (.space name ..) _ | .runtimeNumerical (.basis name ..) _
+      | .runtimeNumerical (.map name ..) _ => [name]
     | .action (.allocate name ..) _ | .action (.move _ name) _ | .action (.borrow name ..) _ => [name]
     | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _
     | .numerical (.ownedMap name ..) _ | .numerical (.ownedView name ..) _
@@ -159,8 +199,10 @@ def Function.resourceNames (function : Function) : List String :=
     | .call _ _ results _ => results
     | _ => []
 
-inductive BindingKind where | owner | loan | numerical | scalar (type : Indexed.Core.PureType)
-  deriving Repr, Inhabited
+inductive BindingKind where
+  | owner | loan | numerical | scalar (type : Indexed.Core.PureType)
+  | runtimeOwner | runtimeLoan | runtimeNumerical
+  deriving Repr, BEq, Inhabited
 
 abbrev Frame := List (String × Symbol × BindingKind)
 
@@ -207,6 +249,79 @@ private def bindName (index : Namespace.Indexed) (scope : Namespace.Scope) (fram
   set {state with next := state.next + 1}
   return ((name, state.next, kind) :: frame, state.next)
 
+private def runtimeName (frame : Frame) (span : Span) (name : String) (expected : BindingKind) :
+    Namespace.Result Symbol := do
+  let (symbol, kind) ← lookup frame name span
+  unless kind == expected do
+    throw {code := "E_RUNTIME_TYPE", message := "runtime and static handles or numerical roles cannot be interchanged", span}
+  return symbol
+
+private def lowerRuntimeExtent (frame : Frame) (span : Span) : RuntimeExtent → Namespace.Result Shapes.Extent
+  | .literal value => pure (.literal value)
+  | .slot name => do
+    let (symbol, kind) ← lookup frame name span
+    match kind with
+    | .scalar .nat | .scalar .int => pure (.slot symbol)
+    | _ => throw {code := "E_RUNTIME_EXTENT", message := "runtime extent requires a live Nat or Int scalar binding", span}
+
+private def lowerRuntimeLayout (frame : Frame) (span : Span) (layout : RuntimeLayout) :
+    Namespace.Result Shapes.Layout := do
+  return ⟨← lowerRuntimeExtent frame span layout.rows,
+    ← lowerRuntimeExtent frame span layout.columns,
+    ← lowerRuntimeExtent frame span layout.leading, layout.transposed⟩
+
+private def lowerRuntimeAction (index : Namespace.Indexed) (scope : Namespace.Scope)
+    (frame : Frame) (span : Span) : RuntimeAction → M (Frame × Shapes.Action)
+  | .allocate name scalar elements layout => do
+    let elements ← lowerRuntimeExtent frame span elements
+    let layout ← lowerRuntimeLayout frame span layout
+    let (frame, name) ← bindName index scope frame name .runtimeOwner span
+    return (frame, .allocate name scalar elements layout)
+  | .move source target => do
+    let source ← runtimeName frame span source .runtimeOwner
+    let (frame, target) ← bindName index scope frame target .runtimeOwner span
+    return (frame, .move source target)
+  | .drop name => return (frame, .drop (← runtimeName frame span name .runtimeOwner))
+  | .borrow name source access => do
+    let (source, kind) ← lookup frame source span
+    let source ← match kind with
+      | .runtimeOwner => pure (Storage.Source.owner source)
+      | .runtimeLoan => pure (.loan source)
+      | _ => throw {code := "E_RUNTIME_TYPE", message := "runtime borrow requires a runtime owner or loan", span}
+    let (frame, name) ← bindName index scope frame name .runtimeLoan span
+    return (frame, .borrow name source access)
+  | .release name => return (frame, .release (← runtimeName frame span name .runtimeLoan))
+  | .fill name value => return (frame, .fill (← runtimeName frame span name .runtimeLoan) value)
+  | .expect name row column value => return (frame, .expect (← runtimeName frame span name .runtimeLoan) row column value)
+
+private def lowerRuntimeNumerical (index : Namespace.Indexed) (caller : Nat) (scope : Namespace.Scope)
+    (frame : Frame) (span : Span) : RuntimeNumerical → M (Frame × Shapes.Numerical.Operation)
+  | .space name implementation dimension => do
+    let dimension ← lowerRuntimeExtent frame span dimension
+    let (resolved, references) ← (Indexed.Source.resolveId index scope implementation).run []
+    let references := references.map (fun reference => NumericalReference.mk caller reference)
+    modify fun state => {state with numericalReferences := state.numericalReferences ++ references}
+    let (frame, name) ← bindName index scope frame name .runtimeNumerical span
+    return (frame, .space name resolved dimension)
+  | .basis name parent => do
+    let parent ← runtimeName frame span parent .runtimeNumerical
+    let (frame, name) ← bindName index scope frame name .runtimeNumerical span
+    return (frame, .basis name parent)
+  | .map name loan source target => do
+    let loan ← runtimeName frame span loan .runtimeLoan
+    let source ← runtimeName frame span source .runtimeNumerical
+    let target ← runtimeName frame span target .runtimeNumerical
+    let (frame, name) ← bindName index scope frame name .runtimeNumerical span
+    return (frame, .map name loan source target)
+  | .gemm left right output mode policy alpha beta => do
+    let literal (value : Option Coefficient) : M (Option Storage.Coefficient) := match value with
+      | none => pure none
+      | some (.literal value) => pure (some (.literal value))
+      | some (.loan _) => throw {code := "E_RUNTIME_COEFFICIENT", message := "runtime GEMM initially supports literal coefficients", span}
+    return (frame, .gemm (← runtimeName frame span left .runtimeNumerical)
+      (← runtimeName frame span right .runtimeNumerical) (← runtimeName frame span output .runtimeNumerical)
+      mode policy (← literal alpha) (← literal beta))
+
 private def lowerAction (index : Namespace.Indexed) (scope : Namespace.Scope) (frame : Frame)
     (span : Span) (operation : Action) : M (Frame × Storage.Action) := do
   let name (value : String) := Prod.fst <$> lookup frame value span
@@ -225,7 +340,7 @@ private def lowerAction (index : Namespace.Indexed) (scope : Namespace.Scope) (f
     let source ← match kind with
       | .owner => pure (Storage.Source.owner source)
       | .loan => pure (.loan source)
-      | .numerical | .scalar _ => throw {code := "E_RESOURCE_TYPE", message := "non-storage values cannot be borrowed as storage", span}
+      | _ => throw {code := "E_RESOURCE_TYPE", message := "non-static-storage values cannot be borrowed as static storage", span}
     return (frame, .borrow loan source layout access)
   | .release loan => return (frame, .release (← name loan))
   | .transpose loan => return (frame, .transpose (← name loan))
@@ -409,6 +524,12 @@ private def lowerStatements (index : Namespace.Indexed) (owners : List Indexed.D
       let (fragment, arguments) ← fragment index owner (path ++ [position]) frame type body span
       let (frame, symbol) ← bindName index scope frame name (.scalar type) span
       pure (frame, .value symbol fragment arguments type)
+    | .runtime operation span => do
+      let (frame, operation) ← lowerRuntimeAction index scope frame span operation
+      pure (frame, .runtime operation)
+    | .runtimeNumerical operation span => do
+      let (frame, operation) ← lowerRuntimeNumerical index caller scope frame span operation
+      pure (frame, .runtimeNumerical operation)
     | .action action span => do
       let (frame, action) ← lowerAction index scope frame span action
       pure (frame, .action action)
@@ -492,12 +613,24 @@ private def lowerFunction (index : Namespace.Indexed) (owners : List Indexed.Dec
   for parameter in function.parameters do
     let kind := match parameter with
       | .value _ type _ => .scalar type
+      | .runtimeSpace .. | .runtimeBasis .. | .runtimeMap .. => .runtimeNumerical
       | .owned .. | .ownedMap .. | .ownedMapTo .. => BindingKind.owner
       | .borrowed .. => .loan
       | _ => .numerical
     let (next, symbol) ← bindName index owner.scope frame parameter.name kind parameter.span
     let parameter ← match parameter with
       | .value _ type _ => pure (Functions.Parameter.value symbol type)
+      | .runtimeSpace _ implementation dimension span => do
+        let dimension ← lowerRuntimeExtent frame span dimension
+        let (resolved, references) ← (Indexed.Source.resolveId index owner.scope implementation).run []
+        let references := references.map (fun reference => NumericalReference.mk id reference)
+        modify fun state => {state with numericalReferences := state.numericalReferences ++ references}
+        pure (.runtimeSpace symbol resolved dimension)
+      | .runtimeBasis _ parent span =>
+        pure (.runtimeBasis symbol (← runtimeName frame span parent .runtimeNumerical))
+      | .runtimeMap _ source target access initializes span =>
+        pure (.runtimeMap symbol (← runtimeName frame span source .runtimeNumerical)
+          (← runtimeName frame span target .runtimeNumerical) access initializes)
       | .owned _ type _ => pure (Functions.Parameter.owned symbol type)
       | .borrowed _ scalar rows columns access initializes _ => pure (.borrowed symbol scalar rows columns access initializes)
       | .space _ implementation dimension _ => do
@@ -664,6 +797,8 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
   adjointOrigins : ∀ receipt ∈ checked.context.adjoints.toList, receipt.environment = environment
   diagonalPairingOrigins : ∀ receipt ∈ checked.context.diagonalPairings.toList, receipt.environment = environment
   treeOrigins : ∀ receipt ∈ checked.context.trees.toList, receipt.environment = environment
+  runtimeProductOrigins : ∀ receipt ∈ checked.context.shapes.products.toList, receipt.environment = environment
+  runtimeInputOrigins : ∀ receipt ∈ checked.context.shapeInputs.toList, receipt.environment = environment
 
 structure Checked (program : Program) (requireMain : Bool) where
   envelope : envelope program = .ok ()
@@ -744,12 +879,18 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                                                     receipt.environment = numericalEnvironment pureProgram then
                                                   if treeOrigins : ∀ receipt ∈ executable.context.trees.toList,
                                                       receipt.environment = numericalEnvironment pureProgram then
-                                                    .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
-                                                      library, libraryAccepted, fun actual same => by
-                                                        have : actual = id := Option.some.inj (same.symm.trans entry)
-                                                        subst actual
-                                                        exact ⟨executable, accepted, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
-                                                          networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins⟩⟩
+                                                    if runtimeOrigins :
+                                                        (∀ receipt ∈ executable.context.shapes.products.toList,
+                                                          receipt.environment = numericalEnvironment pureProgram) ∧
+                                                        (∀ receipt ∈ executable.context.shapeInputs.toList,
+                                                          receipt.environment = numericalEnvironment pureProgram) then
+                                                      .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
+                                                        library, libraryAccepted, fun actual same => by
+                                                          have : actual = id := Option.some.inj (same.symm.trans entry)
+                                                          subst actual
+                                                          exact ⟨executable, accepted, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
+                                                            networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins, runtimeOrigins.1, runtimeOrigins.2⟩⟩
+                                                    else Namespace.problem {} "E_OWNER" "runtime GEMM lost its accepted declaration environment"
                                                   else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"
                                                 else Namespace.problem {} "E_OWNER" "diagonal pairing lost its accepted declaration environment"
                                               else Namespace.problem {} "E_OWNER" "materialized adjoint lost its accepted declaration environment"

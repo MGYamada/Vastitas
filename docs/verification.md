@@ -328,8 +328,15 @@ actual mixed-run slot typing and branch scope, exact source fragment/Core target
 reconstruction, and demanded scalar returns after completed resource calls.
 Both-arm resource acceptance and scalar typing are separate certificates; the
 resource projection alone does not establish their operational equivalence.
-Dynamic extents, floating scalar expression interfaces and native/source
-refinement remain separate obligations.
+The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
+proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
+instantiated `Storage.run`, and restored caller loans/allocations.
+`StorageShapeNumerical` proves acceptance by the actual nominal `checkProduct`
+for the same maps and coefficients. `ResourceRuntimeShapes` connects those
+results to public entry projections, declaration origins, live integral slots
+and scalar returns after both resource components complete. This does not prove
+native arithmetic/UInt64 lowering or source execution refinement. Shape results,
+floating scalar expression interfaces and native/source refinement remain open.
 
 The [numerical declaration profiles](numerical-declarations.md) use the same
 complete declaration certificate. `IndexedSource.checked_implementation_contract`,
@@ -405,8 +412,8 @@ loans and initialized scalar output. The public origin theorems bind these
 receipts to the same accepted declaration environment. Native bit examples and
 forged-IR regressions are separate evidence, not ideal-module or float laws.
 
-Generative numerical result packages, dynamic shape/scalar interfaces, dual/metric laws
-and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
+General generative numerical result packages, broader runtime shape/scalar interfaces,
+general dual/metric laws and native refinement remain pending. Activation freshness, scope and stale-view rejection are tested
 by `NumericalRegression`; generated real/complex fixtures provide separate native
 execution evidence. Raw internal GEMM operations retain only their resource
 certificate and do not acquire nominal authority from this optional typed path.

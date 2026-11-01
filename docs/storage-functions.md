@@ -4,7 +4,7 @@ This is the function component of [storage ownership](storage-ir.md), advancing
 [#183](https://github.com/MGYamada/Vastitas/issues/183). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
 checks. [Protocol 8 resource source](resource-source.md) composes this component
 with the complete package checker, including bounded Nat/Int/Bool/Unit value
-flow. Dynamic shapes and wider numerical interfaces remain required by the
+flow and a separate [guarded runtime-shape frame](runtime-shapes.md). Wider numerical interfaces remain required by the
 [Stage 1 gate](stage1-completion.md).
 
 ## Contracts and calls
@@ -94,7 +94,8 @@ Assertion/allocation failures also close all buffers. `FunctionRegression` cover
 tampering, actual alias conflicts, probe/caller layout disagreement, incomplete
 initialization, escape, capture, recursion and expansion limits.
 
-Calls currently expand synchronously with static shapes and capacities. Public
+Calls expand synchronously at static call sites. Ordinary resource forms retain
+static shapes; explicit runtime forms have universally guarded symbolic frames. Public
 dependent numerical inputs compose through [protocol 8](numerical-values.md#dependent-numerical-inputs);
 the older resource-only internal wire schema remains unchanged. Numerical
 input receipts supplement the existing exact call replay and loan-return checks.
@@ -104,8 +105,8 @@ the existing checked move; temporary loans cannot escape. Result contracts are
 checked in the post-body state, and actual-layout loans permit padded/subregion
 results to be used inside a generic helper without guessing its physical layout.
 See [owned numerical results](numerical-values.md#owned-numerical-results).
-General tensor types, general pure-Core/resource interoperation, runtime
-dimensions, floating scalar expression interfaces, general owned-result branch joins and escaping-loan
+General tensor types, general pure-Core/resource interoperation, general runtime
+shape results, floating scalar expression interfaces, general owned-result branch joins and escaping-loan
 lifetime contracts are not supplied by this component. General dynamic source
 composition, general generative numerical result packages, general scratch/dependency handling and equivalent-C
 measurements remain in Stage 1. Independent compilation caching and broader
@@ -121,7 +122,7 @@ writes and native failure behavior remain distinct from logical resource proofs.
 direct basis, initialized affine storage, fresh consuming unpack and explicit
 repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
-Dynamic dimensions, general resource packages/closures, borrowed results and
+Dynamic package-result dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
 
 
@@ -133,7 +134,9 @@ caller witness, and returned owners do not carry a cache lifetime contract.
 
 Demanded scalar returns retain a `ValueReturnReceipt`: the exact source function
 return fragment, final lexical argument resolution, accepted scalar signature,
-completed actual resource call replay, and the appended pure call. Public
+completed actual resource call replay, and the appended pure call. Its
+`RuntimeReturn` additionally retains the exact runtime event/action slice and
+restored symbolic caller frame before that scalar return. Public
 acceptance independently checks the source function and signature-table origins.
 The older internal resource-only JSON decoder does not acquire these new public
 source forms and still rejects extra fields.

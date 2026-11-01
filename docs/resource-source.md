@@ -5,8 +5,9 @@ compiler. Names, imports, visibility, canonical module owners, indexed declarati
 finite dispatch and edit assemblies share the same namespace. The existing
 `Indexed.AuthoritySource` checks every ordinary, applicable, nonwinning and
 unapplied pure body. Resource bodies then pass independent ownership, layout,
-initialization and actual-call checks. Shapes remain static; scalar values can
-flow between checked pure computations, resource calls and runtime branches.
+initialization and actual-call checks. Static shapes retain their original contracts. The separate
+[runtime-extent profile](runtime-shapes.md) supports whole-map caller interfaces;
+scalar values flow between checked pure computations, resource calls and runtime branches.
 This bounded profile does not complete [Stage 1](stage1-completion.md).
 
 The [complete example](../examples/packages/storage/app/src/main.vast) imports
@@ -136,9 +137,11 @@ checked without native evaluation. A `let ... = call` computes its result only
 after the callee's resource schedule succeeds and its borrowed inputs have been
 restored. The entry's final Int is printed after successful resource completion.
 No scalar result is published after a resource failure; previous writes are not
-rolled back. Shapes, allocation capacities, layouts and numerical profile
-parameters are still static metadata. This does not add floating Core arithmetic,
-resource reads in pure expressions, dynamic extents or escaping resource closures.
+rolled back. Ordinary storage forms keep static capacities and layouts; explicit
+`runtime_*` forms use integral scalar slots for bounded whole-map dimensions,
+capacities and layouts. Profile and nominal identities remain static. This does
+not add floating Core arithmetic, resource reads in pure expressions or escaping
+resource closures. Runtime-shape calls are rejected under resource branches.
 
 Every resource definition is checked, including unused dependencies. Check-only
 libraries use actual all-body probes without a fabricated main. Source owners,
@@ -190,7 +193,8 @@ Bounded generative owned-map packages, explicit rank-three packing/regrouping,
 versioned scratch reuse and connected rank-two/three contraction trees are
 implemented below. [Diagonal metrics](diagonal-metrics.md) add explicit declared
 coefficient realization and scratch-backed pairing. Nat/Int/Bool/Unit value flow and runtime Bool branches compose with these
-operations. Runtime dimensions, floating scalar expression interfaces, general resource packages, dense
+operations. The separate [runtime-shape profile](runtime-shapes.md) adds straight-line
+whole-map GEMM. Broader dynamic interfaces, floating scalar expression interfaces, general resource packages, dense
 metric realization, general owned-result joins and retained-evidence interfaces
 remain open. Equivalent-C measurements exist for bounded paths; controlled-host
 performance and total allocation acceptance remain unfinished. Escaping borrowed lifetimes and
@@ -214,7 +218,7 @@ audits through both branch arms; their broader metric and network contracts rema
 direct basis, initialized affine storage, fresh consuming unpack and explicit
 repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
-Dynamic dimensions, general resource packages/closures, borrowed results and
+Dynamic package-result dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
 
 `cache saved = pack3(source, scratch);` and

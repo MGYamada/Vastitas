@@ -94,7 +94,9 @@ def main():
     executables = [shutil.which(x) for x in (args.cc, args.cxx, 'ar')]
     if not all(executables):
         raise ValueError('C, C++ and ar executables are required')
-    cc, cxx, ar = [str(Path(x).resolve()) for x in executables]
+    # Preserve the invoked basename: clang++ may be a symlink to clang, whose
+    # C driver does not add the C++ ABI libraries when linking this fixture.
+    cc, cxx, ar = [str(Path(x).absolute()) for x in executables]
     overrides = dict(LEAN_CC=cc, LEAN_NUM_THREADS='0', LEAN_MAIN_USE_THREAD='1')
     # No inherited allocator, sanitizer, loader or compiler-injection options.
     if any(os.environ.get(k) for k in verify.FORBIDDEN_ENV):

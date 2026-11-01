@@ -192,6 +192,7 @@ jobs:
         with:
           name: lean-heap-lifetimes-${{ matrix.os }}-${{ github.event_name }}
           path: ${{ runner.temp }}/vastitas-heap-lifetimes/
+          include-hidden-files: true # Complete checksum-pinned upstream source tree.
           if-no-files-found: ignore
           retention-days: 30
       - name: Exact checked GEMM schedules and generated native cleanup

@@ -29,16 +29,22 @@ class RunnerBoundary(unittest.TestCase):
 class LifetimeRecord(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        path = os.environ.get('VASTITAS_HEAP_LIFETIME_RECORD')
-        if not path:
+        paths = sorted((HERE / 'results').glob('*/evidence.zip'))
+        supplied = os.environ.get('VASTITAS_HEAP_LIFETIME_RECORD')
+        if supplied:
+            paths.insert(0, Path(supplied))
+        if not paths:
             raise unittest.SkipTest('actual retained lifetime record not supplied')
-        path = Path(path)
-        if path.is_dir():
-            cls.files = {p.relative_to(path).as_posix(): p.read_bytes() for p in path.rglob('*') if p.is_file()}
-        else:
-            with zipfile.ZipFile(path) as archive:
-                cls.files = {name: archive.read(name) for name in archive.namelist()}
-        cls.summary = verify.verify_files(cls.files.__getitem__, list(cls.files))
+        cls.records = []
+        for path in paths:
+            if path.is_dir():
+                files = {p.relative_to(path).as_posix(): p.read_bytes() for p in path.rglob('*') if p.is_file()}
+            else:
+                with zipfile.ZipFile(path) as archive:
+                    files = {name: archive.read(name) for name in archive.namelist()}
+            verify.verify_files(files.__getitem__, list(files))
+            cls.records.append(files)
+        cls.files = cls.records[0]
 
     def fixture(self):
         return dict(self.files), verify.decode(self.files['record.json'])
@@ -53,11 +59,12 @@ class LifetimeRecord(unittest.TestCase):
 
     def test_complete_record_replays_without_executing_retained_code(self):
         with patch('subprocess.run', side_effect=AssertionError('replay must not execute programs')):
-            summary = verify.verify_files(self.files.__getitem__, list(self.files))
-        self.assertEqual(summary['runs'], 7)
-        self.assertEqual(summary['lean_snapshots'], 54)
-        self.assertEqual(summary['native_snapshots'], 44)
-        self.assertGreater(summary['unchanged_runtime_objects'], 0)
+            for files in self.records:
+                summary = verify.verify_files(files.__getitem__, list(files))
+                self.assertEqual(summary['runs'], 7)
+                self.assertEqual(summary['lean_snapshots'], 54)
+                self.assertEqual(summary['native_snapshots'], 44)
+                self.assertGreater(summary['unchanged_runtime_objects'], 0)
 
     def test_rehashed_incomplete_hook_is_rejected(self):
         files, record = self.fixture()

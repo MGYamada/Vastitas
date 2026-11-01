@@ -201,6 +201,12 @@ are separate native evidence. This calibrates a private logical-block channel.
 It does not yet bind that channel to public `.vast` source, account for other
 allocators or physical backing/RSS, or establish stock-runtime timing or the
 Fast like C acceptance gate.
+The retained [macOS](../experiments/lean_allocation_lifetimes/results/2026-11-02-macos/RESULTS.md)
+and [Linux](../experiments/lean_allocation_lifetimes/results/2026-11-02-linux/RESULTS.md)
+records use clean `a6ff4d0` and its identical-tree test merge `e732f25`. Each
+passes seven normal executions, two expected capacity controls, 54 Lean and
+44 native snapshots and 26 record/observation regressions. All 27 source inputs
+match the measured feature revision. See [PR #403](https://github.com/MGYamada/Vastitas/pull/403).
 
 The optional schema-2 [source composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
 connects these calibrated archives to actual generated source across both

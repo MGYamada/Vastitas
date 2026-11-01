@@ -13,6 +13,13 @@ separate object and preserves every other runtime member byte for byte. The
 installed runtime and ordinary compiler remain unchanged. The private profile
 sets `MI_STAT=2`, `MI_PADDING=0`, `MI_MAX_ALIGN_SIZE=8` and `MI_SECURE=0`.
 
+The retained [macOS record](results/2026-11-02-macos/RESULTS.md) measures clean
+`a6ff4d0`; the [Linux record](results/2026-11-02-linux/RESULTS.md) measures its
+identical-tree CI test merge `e732f25`. Each has seven normal executions, two
+expected capacity failures, 54 Lean and 44 native snapshots, and 34 unchanged
+runtime objects. The verifier and 26 observation/provenance regressions accept
+both. No timing claim follows.
+
 ```sh
 python3 experiments/lean_allocation_lifetimes/run.py --out /tmp/lifetime-record
 python3 experiments/lean_allocation_lifetimes/verify.py /tmp/lifetime-record

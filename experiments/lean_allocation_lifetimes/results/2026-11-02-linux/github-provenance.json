@@ -1,0 +1,99 @@
+{
+  "artifact": {
+    "id": 13090633447,
+    "name": "lean-heap-lifetimes-ubuntu-latest-pull_request",
+    "size_in_bytes": 6874210,
+    "url": "https://api.github.com/repos/MGYamada/Vastitas/actions/artifacts/13090633447",
+    "archive_download_url": "https://api.github.com/repos/MGYamada/Vastitas/actions/artifacts/13090633447/zip",
+    "expired": false,
+    "created_at": "2026-11-01T16:18:00Z",
+    "expires_at": "2026-12-01T16:17:58Z",
+    "updated_at": "2026-11-01T16:18:00Z",
+    "digest": "sha256:c172da6748b5b9eac48e66ade242df95cb5a2325f0f8eaeae9f8aa19a94fff28",
+    "workflow_run": {
+      "id": 41325335132,
+      "repository_id": 1434212364,
+      "head_repository_id": 1434212364,
+      "head_branch": "codex/lean-heap-lifetimes-20261101",
+      "head_sha": "a6ff4d07180a1652648abaacb7c6bf7557b733b0"
+    }
+  },
+  "workflow_run": 41325335132,
+  "job": 124903981045,
+  "measured_commit": {
+    "sha": "e732f2554437497b9679a82daa81b5331ecde1f9",
+    "node_id": "C_kwDOVXxYDNoAKGU3MzJmMjU1NDQzNzQ5N2I5Njc5YTgyZGFhODFiNTMzMWVjZGUxZjk",
+    "url": "https://api.github.com/repos/MGYamada/Vastitas/git/commits/e732f2554437497b9679a82daa81b5331ecde1f9",
+    "html_url": "https://github.com/MGYamada/Vastitas/commit/e732f2554437497b9679a82daa81b5331ecde1f9",
+    "author": {
+      "name": "Masahiko G. Yamada",
+      "email": "myspinor@gmail.com",
+      "date": "2026-11-01T16:14:53Z"
+    },
+    "committer": {
+      "name": "GitHub",
+      "email": "noreply@github.com",
+      "date": "2026-11-01T16:14:53Z"
+    },
+    "tree": {
+      "sha": "4aefa0a60dac566ab6ff914663d193515029d629",
+      "url": "https://api.github.com/repos/MGYamada/Vastitas/git/trees/4aefa0a60dac566ab6ff914663d193515029d629"
+    },
+    "message": "Merge a6ff4d07180a1652648abaacb7c6bf7557b733b0 into 0e4d117a932a9e83d046a0bb3a9c30480c8d7ad7",
+    "parents": [
+      {
+        "sha": "0e4d117a932a9e83d046a0bb3a9c30480c8d7ad7",
+        "url": "https://api.github.com/repos/MGYamada/Vastitas/git/commits/0e4d117a932a9e83d046a0bb3a9c30480c8d7ad7",
+        "html_url": "https://github.com/MGYamada/Vastitas/commit/0e4d117a932a9e83d046a0bb3a9c30480c8d7ad7"
+      },
+      {
+        "sha": "a6ff4d07180a1652648abaacb7c6bf7557b733b0",
+        "url": "https://api.github.com/repos/MGYamada/Vastitas/git/commits/a6ff4d07180a1652648abaacb7c6bf7557b733b0",
+        "html_url": "https://github.com/MGYamada/Vastitas/commit/a6ff4d07180a1652648abaacb7c6bf7557b733b0"
+      }
+    ],
+    "verification": {
+      "verified": true,
+      "reason": "valid",
+      "signature": "-----BEGIN PGP SIGNATURE-----\n\nwsFcBAABCAAQBQJq52V9CRC1aQ7uu5UhlAAAD4oQAKC/JiJuoty6kby/0NoYntIx\nEIkWWw8O1+3sOAf2rQfcyTT8QBQCK4MjypYKv/ukRiCCc9V5vgp1zGL9ep86nASP\nrbxuj2RR+ND+KYIN/eV9HbrwcymNBxscp3HumT0p3xW9W+Z7aOhisOycqafLmmYa\n6FYbt54ZCphriipI7jUD9hP4LedoYfBZzI3tynnzprD36lJSY2KOR9ZbaxdwtMJl\n6gyOL03Ng3WGUTgWjHZYYTddG4MemT4MzCuep98/R00x/XcuB+HvaPHpnAemqCfJ\nudbpE0+9vlousmmm7PaX0fzlwlAnp019Wz3esqGxo1kYzviF/sQl1xbFS74aG7TU\nCHWkerrjrvaO0R9LMWsBSmVXzTizYoZBfiDitnk27nV2XwBn7nRnzPUZWC5UYhOL\nybdPUeV80w16c/yKci42nHrNsP1Ky4iieOPYillzaoRWBKj+BTWa2ph3+cakfiQu\nuxNta/4mbvemV/zdFB6nEysHkYyd/6ZDQXb2QcjoMMEe7pcTQOuaGYA7LXKZU7MF\ny9XVzzIrtuvpzIaZG8ENWoJsg3UQ+4dGPm+koUpXcTz0H/kfK5diW5pBZJZyl+Jv\na+LAia2zfpAoHUkyP3bgaHUjzNgWJqY3OT8StKmpbj3dYLac53XIMV4eMxBeTxOJ\nFzSPHCPEwTJxSrCulKvd\n=r3AD\n-----END PGP SIGNATURE-----\n",
+      "payload": "tree 4aefa0a60dac566ab6ff914663d193515029d629\nparent 0e4d117a932a9e83d046a0bb3a9c30480c8d7ad7\nparent a6ff4d07180a1652648abaacb7c6bf7557b733b0\nauthor Masahiko G. Yamada <myspinor@gmail.com> 1793549693 +0000\ncommitter GitHub <noreply@github.com> 1793549693 +0000\n\nMerge a6ff4d07180a1652648abaacb7c6bf7557b733b0 into 0e4d117a932a9e83d046a0bb3a9c30480c8d7ad7\n",
+      "verified_at": "2026-11-01T16:14:54Z"
+    }
+  },
+  "feature_commit": {
+    "sha": "a6ff4d07180a1652648abaacb7c6bf7557b733b0",
+    "node_id": "C_kwDOVXxYDNoAKGE2ZmY0ZDA3MTgwYTE2NTI2NDhhYmFhY2I3YzZiZjc1NTdiNzMzYjA",
+    "url": "https://api.github.com/repos/MGYamada/Vastitas/git/commits/a6ff4d07180a1652648abaacb7c6bf7557b733b0",
+    "html_url": "https://github.com/MGYamada/Vastitas/commit/a6ff4d07180a1652648abaacb7c6bf7557b733b0",
+    "author": {
+      "name": "Masahiko Yamada",
+      "email": "masa@MasahikonoMacBook-Air.local",
+      "date": "2026-11-01T16:14:49Z"
+    },
+    "committer": {
+      "name": "Masahiko Yamada",
+      "email": "masa@MasahikonoMacBook-Air.local",
+      "date": "2026-11-01T16:14:49Z"
+    },
+    "tree": {
+      "sha": "4aefa0a60dac566ab6ff914663d193515029d629",
+      "url": "https://api.github.com/repos/MGYamada/Vastitas/git/trees/4aefa0a60dac566ab6ff914663d193515029d629"
+    },
+    "message": "Preserve C++ driver mode and complete lifetime artifacts",
+    "parents": [
+      {
+        "sha": "cb4b749d661d018c7dcee3f215c9da6d54a21e6f",
+        "url": "https://api.github.com/repos/MGYamada/Vastitas/git/commits/cb4b749d661d018c7dcee3f215c9da6d54a21e6f",
+        "html_url": "https://github.com/MGYamada/Vastitas/commit/cb4b749d661d018c7dcee3f215c9da6d54a21e6f"
+      }
+    ],
+    "verification": {
+      "verified": false,
+      "reason": "unsigned",
+      "signature": null,
+      "payload": null,
+      "verified_at": null
+    }
+  },
+  "verified_input_count": 27
+}

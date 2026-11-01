@@ -12,7 +12,8 @@ def load(name):
     path = os.environ.get(name)
     if path:
         return observation.calibration.base.stream(Path(path).read_text())
-    record_path = os.environ.get('VASTITAS_HEAP_LIFETIME_RECORD')
+    retained = sorted((Path(__file__).resolve().parent / 'results').glob('*/evidence.zip'))
+    record_path = os.environ.get('VASTITAS_HEAP_LIFETIME_RECORD') or (retained[0] if retained else None)
     if record_path:
         variant = 'lean' if name == 'VASTITAS_LIFETIME_LEAN_OBSERVATION' else 'native'
         path = Path(record_path)

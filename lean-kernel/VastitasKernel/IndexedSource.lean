@@ -2,9 +2,11 @@ import VastitasKernel.Namespace
 import VastitasKernel.IndexedCore
 import VastitasKernel.IndexedGeometryProfile
 
-/-! Unresolved declaration input for the forthcoming source/protocol-7 path.
+/-! Unresolved declaration input used by the public protocol-7 path.
 Owners are reconstructed from enclosing packages/modules, never supplied on a
-declaration or reference. This internal AST is not yet a public wire protocol. -/
+declaration or reference. `Indexed.Wire.check` composes declaration, body,
+function, dispatch and authority checks; this AST alone is not an acceptance
+entry point. Protocol 8 also uses this declaration foundation. -/
 namespace VastitasKernel.Indexed.Source
 
 abbrev Path := TypePath
@@ -90,8 +92,9 @@ inductive DataType where
   | inferredPackage -- only produced by the old pack syntax; never a signature
   deriving Repr, Inhabited
 
-/- The initial internal body adapter handles data functions. Fn lifting and
-finite dispatch/edit composition must be added before public protocol 7. -/
+/- The narrower internal body adapter handles data functions. Public protocol 7
+adds Fn lifting and finite dispatch/edit composition through FunctionSource,
+DispatchSource and AuthoritySource before accepting the returned Core. -/
 structure Param where
   name : String
   type : Source.DataType

@@ -5,19 +5,9 @@ use serde_json::{Value, json};
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use std::process::{Command, Output};
-use std::sync::Once;
-
-static PACKAGE_BUILD: Once = Once::new();
 impl Scratch {
     fn new(source: &str) -> Self {
-        PACKAGE_BUILD.call_once(|| {
-            success(
-                Command::new("python3")
-                    .arg(root().join("scripts/build_stdlib_package.py"))
-                    .output()
-                    .unwrap(),
-            );
-        });
+        common::prepare_stdlib_package();
         let scratch = Self::empty("promotion");
         let path = &scratch.0;
         fs::write(path.join("flat.vast"), source).unwrap();

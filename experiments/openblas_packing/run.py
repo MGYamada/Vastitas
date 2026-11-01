@@ -137,7 +137,7 @@ def main():
             label=f'{variant}-calibration'+('-sanitized' if sanitized else '')
             binary=out/'binaries'/label
             run.run([cc,*flags,*['-DVP_'+key+'='+str(v) for key,v in unroll.items()],
-                     *(['-fsanitize=address,undefined','-fno-omit-frame-pointer'] if sanitized else []),
+                     *(['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer'] if sanitized else []),
                      experiment/'calibrate.c',library,'-lm','-lpthread','-o',binary],label+'-link')
             raw,stdout=run.run([binary],label)
             calibrations.append({'variant':variant,'sanitized':sanitized,'stdout':stdout,'result':json.loads(raw)})

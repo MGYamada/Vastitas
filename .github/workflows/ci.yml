@@ -241,5 +241,7 @@ jobs:
       - name: Dependency boundaries
         run: |
           lake -d lean update
+          lake -d lean-kernel/native update
+          lake -d lean-kernel/numerical update
           python3 scripts/check_boundaries.py
-          git diff --exit-code -- lean/lake-manifest.json lean-kernel/lake-manifest.json
+          git diff --exit-code -- lean/lake-manifest.json lean-kernel/lake-manifest.json lean-kernel/native/lake-manifest.json lean-kernel/numerical/lake-manifest.json

@@ -247,6 +247,11 @@ fingerprinted calibrator, never archived binaries. Exact source, compile/link,
 execution and output-footprint receipts remain in the record; the four executable
 hashes/sizes remain under `packing.binaries`, while their files are omitted from
 compact exports. Upstream kernel objects themselves are not sanitizer-instrumented.
+New packing subrecords use `packing.schema = 2` and require
+`-fno-sanitize-recover=all` in sanitizer compile receipts. Replay retains the
+original flags for subrecord schema 1 and rejects sanitizer diagnostics even
+when an execution returned zero. This subrecord change neither rewrites old
+measurements nor changes the source-cost or public wire version.
 
 The bridge and packing observers use fixed storage and report after the allocator's
 final snapshot. Stock packing observations are null. GEMV/small shortcuts retain

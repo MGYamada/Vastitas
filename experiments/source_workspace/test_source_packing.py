@@ -98,7 +98,7 @@ def footprint_fixture():
     unroll = {'D_M':8,'D_N':4,'Z_M':4,'Z_N':4}
     calibrated = {'repository':{'inputs':{packing.SOURCE:{'sha256':digest}}},
                   'builds':{v:{'unroll':unroll} for v in ('stock','diagnostic')}}
-    binding = dict(schema=1,claims=packing.CLAIMS,build_dir='/record/.lake/source-packing',
+    binding = dict(schema=2,claims=packing.CLAIMS,build_dir='/record/.lake/source-packing',
                    binaries=[],footprints=[])
     record = dict(packing=binding,host={'cc':'/cc'},inputs={packing.SOURCE:digest},
                   prefixes={v:'/backend/'+v for v in ('stock','diagnostic')})
@@ -121,7 +121,7 @@ def footprint_fixture():
                     checked_output_words=m*n*definition['components'])
                 binding['footprints'].append(dict(variant=variant,sanitized=sanitized,contract=list(contract),result=result))
                 commands.append(dict(phase='source_packing_footprint',returncode=0,
-                    command=[binary,*map(str,contract)],stdout=json.dumps(result)))
+                    command=[binary,*map(str,contract)],stdout=json.dumps(result),stderr=''))
     class Reader:
         names=set()
         def read(self,name):
@@ -131,6 +131,24 @@ def footprint_fixture():
 
 
 class SourceFootprints(unittest.TestCase):
+    def test_legacy_receipts_keep_their_original_flags(self):
+        args=footprint_fixture()
+        args[1]['packing']['schema']=1
+        for command in args[5]:
+            if '-fno-sanitize-recover=all' in command['command']:
+                command['command'].remove('-fno-sanitize-recover=all')
+        self.assertEqual(packing.check_footprints(*args),dict(contracts=4,executions=16))
+
+    def test_fatal_ubsan_is_required_by_new_receipts(self):
+        def change(r,c):
+            next(x for x in c if '-fno-sanitize-recover=all' in x['command'])['command'].remove('-fno-sanitize-recover=all')
+        self.reject(change,'compile/link receipt')
+
+    def test_zero_exit_does_not_hide_a_sanitizer_diagnostic(self):
+        for marker in ('runtime error:', 'UndefinedBehaviorSanitizer', 'AddressSanitizer'):
+            self.reject(lambda r,c:next(x for x in c if x['phase']=='source_packing_footprint').update(stderr=marker),
+                        'sanitizer diagnostic')
+
     def test_all_actual_shapes_and_strides_checked_on_four_binaries(self):
         result=packing.check_footprints(*footprint_fixture())
         self.assertEqual(result,dict(contracts=4,executions=16))

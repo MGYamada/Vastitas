@@ -13,7 +13,8 @@ require = backend.require
 CLAIMS = {'logical_packing_payload': True, 'named_pool_metadata': True,
           'shortcut_payload': False, 'hardware_traffic': False, 'whole_process_peak': False}
 FLAGS = ['-std=c11', '-O2', '-fno-lto', '-Wall', '-Wextra', '-Werror']
-SANITIZERS = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+LEGACY_SANITIZERS = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+SANITIZERS = ['-fsanitize=address,undefined', '-fno-sanitize-recover=all', '-fno-omit-frame-pointer']
 SOURCE = 'experiments/openblas_packing/calibrate.c'
 
 
@@ -70,15 +71,16 @@ def calibrate(runner, out, cc, prefixes, calibration, rows):
             result = runner.run([build/binary['name'], *contract], phase='source_packing_footprint')
             footprints.append({'variant': binary['variant'], 'sanitized': binary['sanitized'],
                                'contract': list(contract), 'result': json.loads(result['stdout'])})
-    return {'schema': 1, 'claims': CLAIMS, 'build_dir': str(build),
+    return {'schema': 2, 'claims': CLAIMS, 'build_dir': str(build),
             'binaries': binaries, 'footprints': footprints}
 
 
 def check_footprints(reader, record, rows, calibration, kernels, commands):
     binding = record['packing']
     require(set(binding) == {'schema', 'claims', 'build_dir', 'binaries', 'footprints'} and
-            type(binding['schema']) is int and binding['schema'] == 1 and binding['claims'] == CLAIMS,
+            type(binding['schema']) is int and binding['schema'] in (1, 2) and binding['claims'] == CLAIMS,
             'source packing calibration envelope')
+    sanitizers = SANITIZERS if binding['schema'] == 2 else LEGACY_SANITIZERS
     require(all(type(v) is bool for v in binding['claims'].values()), 'source packing claim domain')
     build = Path(binding['build_dir'])
     require(build.is_absolute() and build.parts[-2:] == ('.lake', 'source-packing'), 'source packing build path')
@@ -109,7 +111,7 @@ def check_footprints(reader, record, rows, calibration, kernels, commands):
         unroll = calibration['builds'][variant]['unroll']
         expected = [record['host']['cc'], *FLAGS,
                     *['-DVP_'+k+'='+str(v) for k, v in sorted(unroll.items())],
-                    *(SANITIZERS if sanitized else []), str(build.parent.parent/'source'/SOURCE),
+                    *(sanitizers if sanitized else []), str(build.parent.parent/'source'/SOURCE),
                     record['prefixes'][variant]+'/lib/libopenblas.a', '-lm', '-lpthread', '-o', str(build/name)]
         require(sum(c['command'] == expected and c['returncode'] == 0 for c in links) == 1,
                 'source packing compile/link receipt')
@@ -136,5 +138,8 @@ def check_footprints(reader, record, rows, calibration, kernels, commands):
         require(command is not None and command['returncode'] == 0 and
                 json.loads(command['stdout']) == receipt['result'] == expected,
                 'source packing footprint command/output')
+        require(not any(marker in command['stderr'] for marker in
+                        ('runtime error:', 'UndefinedBehaviorSanitizer', 'AddressSanitizer')),
+                'source packing sanitizer diagnostic')
     require(seen == wanted, 'missing source packing footprint')
     return {'contracts': len(contracts(rows)), 'executions': len(seen)}

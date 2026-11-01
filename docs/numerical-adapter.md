@@ -157,6 +157,19 @@ The adapter adds no data allocation or copy. Reports count calls and written
 logical bytes; storage counters exclude OpenBLAS's internal workspace/packing
 and allocator/Lean overhead, so they are not an end-to-end cost measurement.
 
+Successful Unit results from `gemm`, `gemmScaled` and diagonal pairing use the
+storage FFI's [shared persistent result](storage-ir.md#native-lowering-and-execution).
+Production uses pinned Lean's `lean_obj_once`, rather than the private
+`pthread_once` prototype in the
+[original allocation record](../experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md).
+Its one-time result retains no arena or backend data; errors remain fresh, and
+nonexclusive caller continuations can still allocate. Removing repeated FFI
+success-result construction leaves physical preflight, GEMM execution and cleanup
+unchanged; it makes no total-heap, speed or C-parity claim.
+The [production allocation record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
+counts the actual once initializer and returned uses separately from the
+remaining generated-caller constructors and physical arena costs.
+
 ASan/UBSan cover the shim and storage runtime. Linux numerical CI additionally
 uses Valgrind on the actual linked OpenBLAS machine code to detect observable
 uninitialized-value use. Compile-time ILP64 rejection and simulated linked-library

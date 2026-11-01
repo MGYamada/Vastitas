@@ -40,6 +40,8 @@ jobs:
         run: python3 -m unittest discover -s experiments/contraction_trees -p 'test_*.py'
       - name: Allocation-audit transformation tests
         run: python3 -m unittest discover -s experiments/allocation_audit -p 'test_*.py'
+      - name: Verify retained production allocation record
+        run: python3 experiments/allocation_audit/verify.py experiments/allocation_audit/results/2026-11-01-macos-production/evidence.zip
       - name: Dependency boundaries
         run: python3 scripts/check_boundaries.py
       - name: Generate and check the standard-library package

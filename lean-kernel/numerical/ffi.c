@@ -1,5 +1,5 @@
 #include "gemm.h"
-#include <lean/lean.h>
+#include "ffi_result.h"
 
 /* The borrowed Arena is the same external object created by the storage
  * runtime. The compiler emits this synchronous call only after replaying its
@@ -16,7 +16,7 @@ LEAN_EXPORT lean_obj_res vastitas_gemm_execute(b_lean_obj_arg arena,
         right, (VStorageLayout){right_offset,right_rows,right_columns,right_leading,right_transposed}, conjugate_right,
         output, (VStorageLayout){output_offset,output_rows,output_columns,output_leading,output_transposed},
         (VGemmMode)mode, NULL);
-    if (status == VS_OK) return lean_io_result_mk_ok(lean_box(0));
+    if (status == VS_OK) return vastitas_io_unit_success();
     return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(vstorage_error(status))));
 }
 
@@ -38,7 +38,7 @@ LEAN_EXPORT lean_obj_res vastitas_gemm_execute_scaled(b_lean_obj_arg arena,
         (VGemmMode)mode,
         (VGemmCoefficient){(VGemmCoefficientKind)alpha_kind,alpha_scalar,alpha_real,alpha_imaginary,alpha_allocation,alpha_offset},
         (VGemmCoefficient){(VGemmCoefficientKind)beta_kind,beta_scalar,beta_real,beta_imaginary,beta_allocation,beta_offset}, NULL);
-    if (status == VS_OK) return lean_io_result_mk_ok(lean_box(0));
+    if (status == VS_OK) return vastitas_io_unit_success();
     return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(vstorage_error(status))));
 }
 
@@ -58,6 +58,6 @@ LEAN_EXPORT lean_obj_res vastitas_diagonal_pair(b_lean_obj_arg arena,
         output, (VStorageLayout){output_offset,output_rows,output_columns,output_leading,output_transposed},
         scratch, (VStorageLayout){scratch_offset,scratch_rows,scratch_columns,scratch_leading,scratch_transposed},
         (VDiagonal){lean_sarray_cptr(diagonal),lean_sarray_size(diagonal),uniform}, conjugate_left, conjugate_right, NULL);
-    if (status == VS_OK) return lean_io_result_mk_ok(lean_box(0));
+    if (status == VS_OK) return vastitas_io_unit_success();
     return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(vstorage_error(status))));
 }

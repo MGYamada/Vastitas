@@ -6,6 +6,8 @@ void audit_phase(unsigned phase);
 void audit_report(void);
 void audit_finalize(void *data);
 lean_obj_res audit_ok(lean_obj_arg value);
+lean_obj_res audit_shared_create(void);
+lean_obj_res audit_shared_return(lean_obj_arg value);
 lean_obj_res audit_control_ok(lean_obj_arg value);
 lean_obj_res audit_error(lean_obj_arg value);
 lean_obj_res audit_ctor(unsigned tag, unsigned objects, unsigned scalars);

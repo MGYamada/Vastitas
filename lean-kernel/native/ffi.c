@@ -1,7 +1,25 @@
 #include "storage.h"
 #include "diagonal.h"
-#include <lean/lean.h>
+#include "ffi_result.h"
 #include <stdatomic.h>
+
+static lean_once_cell_t success_once = LEAN_ONCE_CELL_INITIALIZER;
+static lean_object *unit_success;
+static lean_object *initialize_success(void) {
+    lean_object *result = lean_io_result_mk_ok(lean_box(0));
+    lean_mark_persistent(result);
+    return result;
+}
+
+/* Lean's once cell publishes the fully initialized immutable object. The pinned
+ * Lean API prevents callers from resetting a persistent constructor in place;
+ * generated finally blocks take their ordinary nonexclusive fallback instead.
+ * One result remains live for the process lifetime, with no arena/error payload. */
+LEAN_EXPORT lean_obj_res vastitas_io_unit_success(void) {
+    lean_object *result = lean_obj_once(&unit_success, &success_once, initialize_success);
+    lean_inc(result);
+    return result;
+}
 
 static lean_external_class *arena_class;
 static atomic_flag class_lock = ATOMIC_FLAG_INIT;
@@ -16,7 +34,7 @@ static void initialize_class(void) {
 }
 static VStorageArena *arena_data(b_lean_obj_arg arena) { return lean_get_external_data(arena); }
 static lean_obj_res result(VStorageStatus status) {
-    if (status == VS_OK) return lean_io_result_mk_ok(lean_box(0));
+    if (status == VS_OK) return vastitas_io_unit_success();
     return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(vstorage_error(status))));
 }
 

@@ -149,6 +149,35 @@ API does **not** independently establish initialization, source ownership or loa
 authority: those obligations come from the exact checked schedule. The C adapter,
 FFI ABI, allocator and native compiler remain trusted implementations.
 
+Successful Unit-returning storage and numerical FFI operations share one immutable
+`IO.ok ()` result through `vastitas_io_unit_success`. The pinned Lean 4.35
+`lean_obj_once` API synchronizes initialization and publication; the result is
+marked persistent with `lean_mark_persistent`. The first successful Unit return
+constructs it, while later returns use the initialized once cell without creating
+another FFI result object. The singleton lives for the process lifetime and
+contains only Unit: it retains no arena, array or error. New-arena results,
+statistics arrays and errors retain their ordinary fresh result objects.
+
+The [bounded allocation record](../experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md)
+motivated this change and reports 16 object bytes for this result in the recorded
+64-bit ABI, not a portable size or total heap cost. That historical experiment
+published its private alternative through `pthread_once`; production uses Lean's
+supported once API instead. A persistent constructor is nonexclusive, so generated
+continuations and `finally` may allocate their own replacement result rather than
+resetting the shared one. First-touch initialization, repeated FFI returns and
+these caller allocations are separate costs. Neither the historical counts nor
+this implementation establishes zero total allocation, a speedup, C parity or
+native refinement.
+
+The separate [production allocation record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
+observes the actual Lean-once helper and records its measured source snapshots.
+In that fixture, reuse allocates 64 observed constructor bytes per batch;
+complete lifecycles allocate `56N + 64` fresh object bytes for `N` iterations.
+The latter includes each fresh arena result, external wrapper and generated
+`finally` fallback. These counts exclude the separately retained 16-byte singleton,
+arena data/metadata and unobserved Lean/backend allocations. The private fresh-result
+comparator uses the same current callers and is labeled as an experiment.
+
 The adapter reports data allocation/free counts, live and peak data bytes,
 written/copied bytes, successful metadata allocations, and the retained
 metadata size. Explicit copy reuses its existing destination and allocates no

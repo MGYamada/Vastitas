@@ -7,6 +7,7 @@ package vastitas_storage_native where
 input_file storageHeader where path := "storage.h"
 input_file storageSource where path := "storage.c"
 input_file ffiSource where path := "ffi.c"
+input_file ffiResultHeader where path := "ffi_result.h"
 input_file diagonalSource where path := "diagonal.c"
 input_file diagonalHeader where path := "diagonal.h"
 
@@ -24,7 +25,7 @@ target diagonalObject pkg : FilePath := do
 
 target ffiObject pkg : FilePath := do
   let source ← ffiSource.fetch
-  let headers := #[← storageHeader.fetch, ← diagonalHeader.fetch]
+  let headers := #[← storageHeader.fetch, ← diagonalHeader.fetch, ← ffiResultHeader.fetch]
   let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
   buildLeanO (pkg.buildDir / "ffi.o") source #[] #["-std=c11", "-O3", "-fPIC", "-Wall", "-Wextra", "-Werror"]
 

@@ -38,14 +38,19 @@ def check(prefix: Path, valgrind: bool) -> None:
         run(flags + ["-O1", "-g", *SANITIZER_FLAGS,
                      *sources, *libraries, "-o", str(sanitized)])
         run([str(sanitized)])
-        # Inspect actual linked-library mismatch handling without replacing the
-        # GEMM symbols or numerical implementation exercised by positive tests.
-        backend = directory / "test-backend"
-        run(flags + ["-O2", "-Dopenblas_get_config=vgemm_test_config",
-                     "-Dopenblas_get_parallel=vgemm_test_parallel", str(native / "storage.c"), str(native / "diagonal.c"),
-                     str(numerical / "gemm.c"), str(numerical / "test_backend.c"),
-                     *libraries, "-o", str(backend)])
-        run([str(backend)])
+        # Exercise concurrent first use with the actual backend and count exact
+        # provider calls with mocks. Fresh processes isolate each bad config;
+        # the actual CBLAS symbols stay linked in every variant.
+        backend_sources = [*sources[:-1], str(numerical / "test_backend.c")]
+        threaded = directory / "test-threaded"
+        for mocked in (False, True):
+            definitions = (["-DVGEMM_TEST_BACKEND", "-Dopenblas_get_config=vgemm_test_config",
+                            "-Dopenblas_get_parallel=vgemm_test_parallel"] if mocked else [])
+            for sanitized_mode in (False, True):
+                backend = directory / (f"test-backend-{mocked}-{sanitized_mode}") if mocked or sanitized_mode else threaded
+                run(flags + ["-O1", *definitions, *(SANITIZER_FLAGS if sanitized_mode else []),
+                             *backend_sources, *libraries, "-o", str(backend)])
+                run([str(backend)], timeout=120)
         rejected = subprocess.run(flags + ["-DOPENBLAS_USE64BITINT=1", "-c", str(numerical / "gemm.c"),
                                           "-o", str(directory / "bad-abi.o")], capture_output=True, text=True)
         if rejected.returncode == 0 or "LP64 integer ABI required" not in rejected.stderr:
@@ -57,6 +62,7 @@ def check(prefix: Path, valgrind: bool) -> None:
             # Instrument the actual OpenBLAS machine code, including reads from
             # uninitialized malloc output. Sanitizing only our shim cannot do that.
             run([tool, "--error-exitcode=97", "--track-origins=yes", "--leak-check=full", str(executable)])
+            run([tool, "--error-exitcode=97", "--track-origins=yes", "--leak-check=full", str(threaded)])
     print("Optional GEMM adapter checks passed; source/type integration is a separate obligation.")
 
 

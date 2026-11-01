@@ -7,10 +7,18 @@ pinned OpenBLAS `memory.c` pool/backing events around each actual CBLAS call.
 It does not change the compiler, public protocol, production runtime or numerical
 backend. The older allocation schema-2 records remain separate and unchanged.
 
+Retained full records at clean `605a5a7c82697bd53241983e8a42c03a68fd372a`:
+[macOS](results/2026-11-01-macos/RESULTS.md) and
+[Linux](results/2026-11-01-linux/RESULTS.md). Each has 312 observed executions and
+24 canonical source executions. Later verifier regressions additionally reject
+balanced churn in surrounding phases, mismatched generated/C backend costs,
+changed stdin/backend bindings and unlisted archive files; the original measured
+bytes/revision remain unchanged.
+
 Build a stock/diagnostic pair with the [workspace calibration](../openblas_workspace/README.md)
 from the **same observer sources** first. Its full verified record is required;
 the exact archives, headers, observer inputs and unchanged calculation objects
-are rechecked. Both prefixes are linked only into private observed executables.
+are rechecked. The diagnostic prefix is linked only into private observed executables.
 Every canonical public `check`, `build` and execution uses the stock prefix.
 
 ```sh

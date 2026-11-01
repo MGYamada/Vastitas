@@ -94,6 +94,7 @@ def check_allocation(row,case):
     allocation,cost = row['allocation'],row['costs']
     objects.balanced(allocation)
     require(allocation['variant']=='production_shared', 'different Unit implementation')
+    check_surrounding_objects(allocation,row['implementation'],row['scope'])
     objects.nonnegative_counts(cost,set(cost)-{'checksum','observed'})
     require(cost['elapsed_ns']==0, 'operation clocks must be disabled')
     require(cost['repetitions']==row['repetitions'], 'cost repetition domain')
@@ -151,6 +152,40 @@ def check_allocation(row,case):
     require(end['arena_written_bytes']==cost['written_bytes'] and end['arena_copied_bytes']==cost['copied_bytes'], 'operation data traffic')
 
 
+def check_surrounding_objects(allocation,implementation,scope):
+    """Unexpected balanced churn outside the selected run is still a cost."""
+    def item(count=0,size=16,release=None,retained=0):
+        release=count if release is None else release
+        return dict(allocations=count,bytes=count*size,final_releases=release,
+                    released_bytes=release*size,retained_returns=retained)
+
+    empty={kind:item() for kind in objects.KINDS}
+    expected={'startup':dict(empty),'cold':dict(empty),'setup':dict(empty),'cleanup':dict(empty)}
+    for kind in ('ffi_ok','generated_ctor','control'):expected['cold'][kind]=item(1)
+    expected['cold']['arena_external']=item(1,24)
+    expected['cold']['persistent_unit']=item(1,release=0,retained=35)
+    expected['setup']['control']=item(1)
+    expected['cleanup']['control']=item(1)
+    if implementation=='generated' and scope==1:
+        expected['setup']['ffi_ok']=item(1)
+        expected['setup']['arena_external']=item(1,24,release=0)
+        expected['setup']['persistent_unit']=item(retained=21)
+        expected['cleanup']['arena_external']=item(0,24,release=1)
+        expected['cleanup']['persistent_unit']=item(retained=10)
+        expected['cleanup']['control']=item(2)
+    for phase,kinds in expected.items():
+        require(allocation['phases'][phase]['kinds']==kinds, 'selected object cost outside run: '+phase)
+    zero_phases=('startup','setup','run') if scope==1 else ('startup','setup','cleanup')
+    for phase in zero_phases:
+        require(all(allocation['phases'][phase][key]==0 for key in objects.ARENA_FIELDS), 'arena cycle in wrong phase')
+
+
+def check_backend_pair(left,right):
+    # Addresses differ between fresh processes. Replay compares requested/live
+    # bytes, event counts, phase boundaries and releases, not virtual addresses.
+    require(backend.replay(left)==backend.replay(right), 'generated/C backend cost mismatch')
+
+
 def check_input(command,wire):
     require(command['stdin']=={'bytes':len(wire),'sha256':hashlib.sha256(wire).hexdigest()}, 'actual kernel input')
 
@@ -158,14 +193,16 @@ def check_input(command,wire):
 def verify(path):
     if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
     reader = backend.Reader(path)
-    return verify_reader(reader)
+    return verify_reader(reader,allow_build_tree=reader.zip is None)
 
 
-def verify_reader(r):
+def verify_reader(r,*,allow_build_tree=False):
     if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
     record = r.json('record.json')
     require(record['schema']==1 and record['kind']=='source-workspace-costs', 'record schema')
     require(record['claims']==CLAIMS and all(type(v) is bool for v in record['claims'].values()), 'unsupported claim')
+    if not allow_build_tree:
+        require(r.names==set(record['files'])|{'record.json'}, 'archive must contain only compact evidence')
     visible = {n for n in r.names if '.lake' not in Path(n).parts and 'openblas_include' not in Path(n).parts
                and n not in record['binaries']}
     require(visible==set(record['files'])|{'record.json'}, 'compact file inventory')
@@ -183,6 +220,8 @@ def verify_reader(r):
     backend.verify_reader(calibration)
     calibrated = calibration.json('record.json')
     require(record['backend_archives']=={k:calibrated['builds'][k]['archive_sha256'] for k in ('stock','diagnostic')}, 'uncalibrated backend')
+    for name,digest in record['backend_archives'].items():
+        require(record['external_inputs'][record['prefixes'][name]+'/lib/libopenblas.a']==digest, 'linked archive fingerprint')
     for name in ('observer.c','observer.h','wrappers.c','patch.py'):
         relative = 'experiments/openblas_workspace/'+name
         require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'], 'changed observer source')
@@ -232,6 +271,8 @@ def verify_reader(r):
         require(all(signatures[key]==signatures[group[0]] for key in group), 'actual CBLAS call mismatch')
         for impl in ('generated','c'):
             require(lookup[(name,'stock',impl,scope,reps)]['allocation']==lookup[(name,'diagnostic',impl,scope,reps)]['allocation'], 'backend changed selected Lean costs')
+        check_backend_pair(lookup[(name,'diagnostic','generated',scope,reps)]['workspace'],
+                           lookup[(name,'diagnostic','c',scope,reps)]['workspace'])
     commands = r.json('commands.json')
     samples = [c for c in commands if c['phase']=='source_workspace']
     require(len(samples)==len(all_rows), 'raw sample command coverage')

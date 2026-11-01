@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import unittest
 
-from verify import backend, check_calls, check_input, verify
+from verify import backend, check_allocation, check_backend_pair, check_calls, check_input, verify, verify_reader
 
 
 def fixture():
@@ -107,6 +107,98 @@ class SourceCallReplay(unittest.TestCase):
         check_input(command,wire)
         with self.assertRaisesRegex(ValueError,'actual kernel input'):
             check_input(command,wire.replace(b'original',b'replaced'))
+
+    def test_valid_extra_backend_allocation_cannot_hide_in_matched_pair(self):
+        _,row,_=fixture()
+        changed=copy.deepcopy(row)
+        position=next(i for i,e in enumerate(changed['events']) if e['phase']==13 and e['operation']=='borrow')
+        template=changed['events'][position]
+        changed['events'][position:position]=[
+            dict(template,operation='malloc',address='0x30000',bytes=4096),
+            dict(template,operation='free',address='0x30000',bytes=0)]
+        for i,e in enumerate(changed['events']):e['sequence']=i
+        backend.replay(changed)  # Individually valid cleanup still changes cost.
+        with self.assertRaisesRegex(ValueError,'backend cost mismatch'):
+            check_backend_pair(row,changed)
+
+
+class Overlay:
+    """Rehash modified evidence so regressions reach semantic replay checks."""
+    def __init__(self,reader):
+        self.reader,self.names,self.changed=reader,reader.names,{}
+
+    def read(self,name):return self.changed[name] if name in self.changed else self.reader.read(name)
+    def json(self,name):return json.loads(self.read(name))
+
+    def replace(self,name,value):
+        data=(json.dumps(value,indent=2)+'\n').encode()
+        self.changed[name]=data
+        if name!='record.json':
+            record=self.json('record.json')
+            record['files'][name]={'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)}
+            self.replace('record.json',record)
+
+
+class RetainedSourceRecords(unittest.TestCase):
+    root=Path(__file__).resolve().parent/'results'
+
+    @classmethod
+    def setUpClass(cls):
+        cls.reader=backend.Reader(cls.root/'2026-11-01-macos/evidence.zip')
+
+    def test_both_full_records_match_manifests(self):
+        for platform in ('macos','linux'):
+            with self.subTest(platform=platform):
+                path=self.root/('2026-11-01-'+platform)
+                manifest=json.loads((path/'artifact-manifest.json').read_text())
+                data=(path/'evidence.zip').read_bytes()
+                self.assertEqual(len(data),manifest['bytes'])
+                self.assertEqual(hashlib.sha256(data).hexdigest(),manifest['sha256'])
+                self.assertEqual(verify(path/'evidence.zip'),manifest['summary'])
+                self.assertEqual(manifest['measured_head'],manifest['backend_head'])
+                self.assertEqual(manifest['measured_status'],'')
+
+    def test_rehashed_foreign_kernel_input_fails(self):
+        reader=Overlay(self.reader)
+        commands=reader.json('commands.json')
+        next(c for c in commands if c['phase']=='kernel_emit')['stdin']['sha256']='0'*64
+        reader.replace('commands.json',commands)
+        with self.assertRaisesRegex(ValueError,'actual kernel input'):verify_reader(reader)
+
+    def test_backend_digest_must_match_nested_calibration(self):
+        reader=Overlay(self.reader)
+        record=reader.json('record.json')
+        record['backend_archives']['diagnostic']='0'*64
+        reader.replace('record.json',record)
+        with self.assertRaisesRegex(ValueError,'uncalibrated backend'):verify_reader(reader)
+
+    def test_omitted_executable_fingerprint_fails(self):
+        reader=Overlay(self.reader)
+        record=reader.json('record.json')
+        record['binaries'].pop(next(iter(record['binaries'])))
+        reader.replace('record.json',record)
+        with self.assertRaisesRegex(ValueError,'executable fingerprint coverage'):verify_reader(reader)
+
+    def test_balanced_setup_churn_is_not_ignored(self):
+        observations=self.reader.json('observations.json')
+        row=next(r for r in observations['rows'] if r['implementation']=='generated' and r['scope']==1)
+        case=next(c for c in self.reader.json('cases.json') if c['case']==row['case'])
+        check_allocation(row,case)
+        row['allocation']['phases']['setup']['kinds']['generated_ctor'].update(
+            allocations=1,bytes=16,final_releases=1,released_bytes=16)
+        with self.assertRaisesRegex(ValueError,'outside run: setup'):check_allocation(row,case)
+
+    def test_full_heap_claim_is_rejected(self):
+        reader=Overlay(self.reader)
+        record=reader.json('record.json');record['claims']['total_heap']=True
+        reader.replace('record.json',record)
+        with self.assertRaisesRegex(ValueError,'unsupported claim'):verify_reader(reader)
+
+    def test_archive_cannot_smuggle_an_unlisted_lake_file(self):
+        reader=Overlay(self.reader)
+        reader.names=reader.names|{'programs/unlisted/.lake/extra'}
+        reader.changed['programs/unlisted/.lake/extra']=b'unlisted bytes'
+        with self.assertRaisesRegex(ValueError,'only compact evidence'):verify_reader(reader)
 
 
 if __name__=='__main__': unittest.main()

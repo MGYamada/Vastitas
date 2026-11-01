@@ -1,0 +1,533 @@
+{
+  "schema": 1,
+  "archive": "evidence.zip",
+  "sha256": "de58f3b4b22dddcf1359aebf665c4518d3c2d467e6fc11dee86b10a497ebcdd0",
+  "bytes": 4258277,
+  "members": 1784,
+  "measured_head": "605a5a7c82697bd53241983e8a42c03a68fd372a",
+  "measured_status": "",
+  "backend_head": "605a5a7c82697bd53241983e8a42c03a68fd372a",
+  "excluded_executable_fingerprints": {
+    "programs/small-f64-p0/stock/canonical": {
+      "sha256": "6b64b749fdb826e7c162c81a212f1ce4045f21c85f06ed7cd0fce0e817d59332",
+      "bytes": 4322088
+    },
+    "programs/small-f64-p0/stock/.lake/build/bin/audit": {
+      "sha256": "4540f8a5585f1fb1388f9305502bc90828cdd1d89e36c0acd3a7532393e71e16",
+      "bytes": 4359584
+    },
+    "programs/small-f64-p0/diagnostic/canonical": {
+      "sha256": "6b64b749fdb826e7c162c81a212f1ce4045f21c85f06ed7cd0fce0e817d59332",
+      "bytes": 4322088
+    },
+    "programs/small-f64-p0/diagnostic/.lake/build/bin/audit": {
+      "sha256": "c8bbd86770166c12aea2107106b2f0f517f0afdaf30bb88abc1f0c6c3d6b4ea0",
+      "bytes": 4368360
+    },
+    "programs/tiny-complex-p0/stock/canonical": {
+      "sha256": "dcf6ab99b1b6ccd5b6480bcc102dfd1dd56e7147629849444301338c2a66d102",
+      "bytes": 4322088
+    },
+    "programs/tiny-complex-p0/stock/.lake/build/bin/audit": {
+      "sha256": "7a1b677d600e8b850a874b447e65c40fc0dae47697b5322d79dea61c2e927540",
+      "bytes": 4363816
+    },
+    "programs/tiny-complex-p0/diagnostic/canonical": {
+      "sha256": "dcf6ab99b1b6ccd5b6480bcc102dfd1dd56e7147629849444301338c2a66d102",
+      "bytes": 4322088
+    },
+    "programs/tiny-complex-p0/diagnostic/.lake/build/bin/audit": {
+      "sha256": "77fe61ddb745209fbc809c21745712447871040e990ae3de12e86a15072f3561",
+      "bytes": 4368496
+    },
+    "programs/tiny-complex-p1/stock/canonical": {
+      "sha256": "192a435c516c9908098c037d46f122567c4bcbf5a42cd028a0bc12f1757dc053",
+      "bytes": 4322088
+    },
+    "programs/tiny-complex-p1/stock/.lake/build/bin/audit": {
+      "sha256": "081fb5bc94aae1f75c88781a2cb207775dc138fb60091597dc12ac6900c23047",
+      "bytes": 4363816
+    },
+    "programs/tiny-complex-p1/diagnostic/canonical": {
+      "sha256": "192a435c516c9908098c037d46f122567c4bcbf5a42cd028a0bc12f1757dc053",
+      "bytes": 4322088
+    },
+    "programs/tiny-complex-p1/diagnostic/.lake/build/bin/audit": {
+      "sha256": "260b17ce8f1c150a03d69e5aa8a925d37fd0229b1a40c0366e4f4ab630aa879f",
+      "bytes": 4368496
+    },
+    "programs/bulk-f64-p1/stock/canonical": {
+      "sha256": "63d56a7a276f4a174b5f902380d161eff5f7fdb429425b9ba83bfc26d36c461f",
+      "bytes": 4322088
+    },
+    "programs/bulk-f64-p1/stock/.lake/build/bin/audit": {
+      "sha256": "63c30903f4d5dc6b9daf9a55a3fe54e1d18e08ed47e0c46923d93befab794daa",
+      "bytes": 4359664
+    },
+    "programs/bulk-f64-p1/diagnostic/canonical": {
+      "sha256": "63d56a7a276f4a174b5f902380d161eff5f7fdb429425b9ba83bfc26d36c461f",
+      "bytes": 4322088
+    },
+    "programs/bulk-f64-p1/diagnostic/.lake/build/bin/audit": {
+      "sha256": "a091dd9fe5ce5d597c604d00bea339042abf969c2988efb46a126af481718499",
+      "bytes": 4368440
+    },
+    "programs/bulk-f64-p0/stock/canonical": {
+      "sha256": "5626884c73edf1dc0a14e702a15df6bb33be33c37899869f826b2e415807f801",
+      "bytes": 4322088
+    },
+    "programs/bulk-f64-p0/stock/.lake/build/bin/audit": {
+      "sha256": "93f3463c98999147bb73c0d6fcec9b1b26d46e5d510a31ba9afc8cd4cefe7f3e",
+      "bytes": 4359664
+    },
+    "programs/bulk-f64-p0/diagnostic/canonical": {
+      "sha256": "5626884c73edf1dc0a14e702a15df6bb33be33c37899869f826b2e415807f801",
+      "bytes": 4322088
+    },
+    "programs/bulk-f64-p0/diagnostic/.lake/build/bin/audit": {
+      "sha256": "2104d5d53f086287819873c0885e180dfe80fbba076b3ed2a3b0fcda38bdbcd4",
+      "bytes": 4364344
+    },
+    "programs/small-complex-p1/stock/canonical": {
+      "sha256": "90a8d2a4f62a47bbe7390fed447069417566deacdccea8ecdc4b85e611f747e5",
+      "bytes": 4322088
+    },
+    "programs/small-complex-p1/stock/.lake/build/bin/audit": {
+      "sha256": "39430803e05f8bc83bd760256ba3a14f8df308dfa32a3841865342751699d13c",
+      "bytes": 4359720
+    },
+    "programs/small-complex-p1/diagnostic/canonical": {
+      "sha256": "90a8d2a4f62a47bbe7390fed447069417566deacdccea8ecdc4b85e611f747e5",
+      "bytes": 4322088
+    },
+    "programs/small-complex-p1/diagnostic/.lake/build/bin/audit": {
+      "sha256": "229743e24aa3f1e85b998d9f640a2e7095c8e5fcab9dd8488dfab9ac30c1a159",
+      "bytes": 4368496
+    },
+    "programs/small-f64-p1/stock/canonical": {
+      "sha256": "452e882352d159b381b349b186d47e510238c0acd83afa7af8761e5309b4f082",
+      "bytes": 4322088
+    },
+    "programs/small-f64-p1/stock/.lake/build/bin/audit": {
+      "sha256": "9c109bee8275f6746100fa0e7aa09628682762cde26738487a3b4c08a0ac9df2",
+      "bytes": 4363680
+    },
+    "programs/small-f64-p1/diagnostic/canonical": {
+      "sha256": "452e882352d159b381b349b186d47e510238c0acd83afa7af8761e5309b4f082",
+      "bytes": 4322088
+    },
+    "programs/small-f64-p1/diagnostic/.lake/build/bin/audit": {
+      "sha256": "f37701832d4c14e0b7f4cf157e8640567507f3db5e93bcf36d302fb5ab9b8333",
+      "bytes": 4368360
+    },
+    "programs/tiny-f64-p0/stock/canonical": {
+      "sha256": "542caeeda4ea0e875f467152f452a3b75936124dc48cc3ca73e79f9ed225767c",
+      "bytes": 4322088
+    },
+    "programs/tiny-f64-p0/stock/.lake/build/bin/audit": {
+      "sha256": "4a2d8b15eb2386cd8e5576f8ab58d394c0d945794fe9109f064c78cf53f1fe45",
+      "bytes": 4363680
+    },
+    "programs/tiny-f64-p0/diagnostic/canonical": {
+      "sha256": "542caeeda4ea0e875f467152f452a3b75936124dc48cc3ca73e79f9ed225767c",
+      "bytes": 4322088
+    },
+    "programs/tiny-f64-p0/diagnostic/.lake/build/bin/audit": {
+      "sha256": "aacb71542d83b958810417398170cd1ceeefa0700e27a7422637f7de3407ecc0",
+      "bytes": 4368360
+    },
+    "programs/small-complex-p0/stock/canonical": {
+      "sha256": "3007b84f7fe18dcf7760f0c2559fc4400f412b9e4d1d7578da9934629a89a584",
+      "bytes": 4322088
+    },
+    "programs/small-complex-p0/stock/.lake/build/bin/audit": {
+      "sha256": "81efc0a5a59941ba884eea06a66509e3aaf7388d7d69138a5d317bd27e52f840",
+      "bytes": 4359720
+    },
+    "programs/small-complex-p0/diagnostic/canonical": {
+      "sha256": "3007b84f7fe18dcf7760f0c2559fc4400f412b9e4d1d7578da9934629a89a584",
+      "bytes": 4322088
+    },
+    "programs/small-complex-p0/diagnostic/.lake/build/bin/audit": {
+      "sha256": "2f004c743cb208061279323d7f981ac0cabfa44a2b7a919b1d07f71b1118c505",
+      "bytes": 4368496
+    },
+    "programs/bulk-complex-p0/stock/canonical": {
+      "sha256": "00c1569f6365d6ee241c554a75eff3cd9432fe65bc1be26bfe5108f99a06d60e",
+      "bytes": 4322088
+    },
+    "programs/bulk-complex-p0/stock/.lake/build/bin/audit": {
+      "sha256": "35363869f9190e1a15906abb2f20eea82d646c28a5713ac1633e51d3fbb46c5b",
+      "bytes": 4359720
+    },
+    "programs/bulk-complex-p0/diagnostic/canonical": {
+      "sha256": "00c1569f6365d6ee241c554a75eff3cd9432fe65bc1be26bfe5108f99a06d60e",
+      "bytes": 4322088
+    },
+    "programs/bulk-complex-p0/diagnostic/.lake/build/bin/audit": {
+      "sha256": "5aad515e3d1b7f02f4e7d897bc180c347d2914a6c76fc18bbab38f4030b5f518",
+      "bytes": 4368496
+    },
+    "programs/tiny-f64-p1/stock/canonical": {
+      "sha256": "d1d85dc4f7b3435f32de0f02b3b92986dd0a592f50137a335ebfd0f28d431911",
+      "bytes": 4322088
+    },
+    "programs/tiny-f64-p1/stock/.lake/build/bin/audit": {
+      "sha256": "541b7dfd1c3a9ec76495afe8138f2adcace32171e69be67baa25660626ac3d22",
+      "bytes": 4363680
+    },
+    "programs/tiny-f64-p1/diagnostic/canonical": {
+      "sha256": "d1d85dc4f7b3435f32de0f02b3b92986dd0a592f50137a335ebfd0f28d431911",
+      "bytes": 4322088
+    },
+    "programs/tiny-f64-p1/diagnostic/.lake/build/bin/audit": {
+      "sha256": "ceca919779070ac8d1313910834c2541f1a9c69aae6ea377db6a71cfd93d1f1c",
+      "bytes": 4372456
+    },
+    "programs/bulk-complex-p1/stock/canonical": {
+      "sha256": "e4562a9fe2b8bb4cd7a36a520b37313f7131d4db91abfd6177942a06396af7ff",
+      "bytes": 4322088
+    },
+    "programs/bulk-complex-p1/stock/.lake/build/bin/audit": {
+      "sha256": "5ae64638121b678d980e297f3e08767805b0e348d46474f13e314329415ef568",
+      "bytes": 4359720
+    },
+    "programs/bulk-complex-p1/diagnostic/canonical": {
+      "sha256": "e4562a9fe2b8bb4cd7a36a520b37313f7131d4db91abfd6177942a06396af7ff",
+      "bytes": 4322088
+    },
+    "programs/bulk-complex-p1/diagnostic/.lake/build/bin/audit": {
+      "sha256": "5c312a2990d9fbc1dc93543e01726403c18039d76916f9b626c0b05aac73577d",
+      "bytes": 4368496
+    }
+  },
+  "summary": {
+    "status": "passed",
+    "selection": "full",
+    "cases": 12,
+    "records": 288,
+    "failure_cleanups": 24,
+    "canonical_executions": 24,
+    "diagnostic_processes": 156,
+    "actual_cblas_calls": 4512,
+    "diagnostic_event_counts": {
+      "mark": 936,
+      "mmap": 156,
+      "borrow": 2256,
+      "return": 2256,
+      "shutdown_begin": 156,
+      "munmap": 156,
+      "shutdown_end": 156
+    },
+    "reuse_17_generated_workspace": [
+      {
+        "case": "bulk-complex-p0",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "bulk-complex-p1",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "bulk-f64-p0",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "bulk-f64-p1",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "small-complex-p0",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "small-complex-p1",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "small-f64-p0",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "small-f64-p1",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "tiny-complex-p0",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "tiny-complex-p1",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "tiny-f64-p0",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      },
+      {
+        "case": "tiny-f64-p1",
+        "buffer_bytes": 134217728,
+        "peak": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 134217728
+        },
+        "before_shutdown": {
+          "mmap_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "borrowed_capacity_bytes": 0
+        },
+        "cold_counts": {
+          "mark": 1,
+          "mmap": 1,
+          "borrow": 2,
+          "return": 2
+        },
+        "reuse_17_counts": {
+          "mark": 1,
+          "borrow": 34,
+          "return": 34
+        }
+      }
+    ],
+    "claims": {
+      "operation_timings": false,
+      "total_heap": false,
+      "backend_packing_bytes": false,
+      "native_refinement": false,
+      "controlled_host": false,
+      "source_execution_observed": true
+    }
+  }
+}

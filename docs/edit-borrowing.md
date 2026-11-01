@@ -86,6 +86,10 @@ consistency does not authenticate files or authors. Reborrowing from a borrower,
 owner transfer, runtime method mutation, incremental caches, recursion extensions,
 geometry migration, storage ownership and linear algebra are outside this increment.
 
+The independent [dependency-invalidation reference](incremental-reference.md)
+prepares #339 with finite clean/incremental differential tests. It does not change
+this production validation path or implement a persistent compiler cache.
+
 ## Wire extension
 
 Protocol 5 requires `input: "package"`. Modules may additionally contain

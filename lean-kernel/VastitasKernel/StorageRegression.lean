@@ -84,6 +84,31 @@ def paddedFixture : List Statement := actions [allocate, write 1 padded, .fill 1
   write 1 ⟨3, 0, 4, 1, false⟩, .fill 1 value, .release 1, .drop 0])
 #eval check "nonempty offset must align" (rejects "E_RESOURCE_LAYOUT" [allocate, write 1 ⟨3, 1, 1, 1, false⟩])
 
+-- Self-copy must preserve the complete checked state, not only acceptance or
+-- cell values. In particular it cannot invalidate an unchanged cached version.
+#eval show IO Unit from do
+  for (scalar, literal) in [(Scalar.f64, value), (.complexF64, .complexF64 0 0)] do
+    for layout in [padded, padded.transpose, ⟨3,0,4,1,false⟩] do
+      let setup := actions [.allocate 0 scalar 8, write 1 layout, .fill 1 literal,
+        .release 1, .borrow 2 (.owner 0) layout .readWrite, .captureDependency 3 2 2]
+      let .ok before := run 4096 {} setup | throw (IO.userError "self-copy setup failed")
+      let .ok after := checkAction before (.copy 2 2) | throw (IO.userError "self-copy rejected")
+      check "self-copy preserves initialization, versions and dependencies" (after == before)
+      check "self-copy retains dependency validity" (checkAction after (.requireDependency 3)).isOk
+      check "self-copy plan closes" (checkPlan (setup ++ actions
+        [.copy 2 2, .requireDependency 3, .forgetDependency 3, .release 2, .drop 0])).isOk
+#eval check "self-copy requires write access" (rejects "E_RESOURCE_ACCESS"
+  [allocate, write 1, .fill 1 value, .release 1, read 2, .copy 2 2])
+#eval check "self-copy requires read access even after fill" (rejects "E_RESOURCE_ACCESS"
+  [allocate, write 1, .fill 1 value, .copy 1 1])
+#eval check "self-copy cannot initialize storage" (rejects "E_RESOURCE_INIT"
+  [allocate, .borrow 1 (.owner 0) full .readWrite, .copy 1 1])
+#eval check "self-copy cannot access suspended parent" (rejects "E_RESOURCE_LOAN"
+  [allocate, write 1, .fill 1 value, .release 1, .borrow 2 (.owner 0) full .readWrite,
+    .borrow 3 (.loan 2) first .read, .copy 2 2])
+#eval check "self-copy cannot revive returned loan" (rejects "E_RESOURCE_LOAN"
+  [allocate, write 1, .fill 1 value, .release 1, .copy 1 1])
+
 private def branch (yes no : List Action) (after : List Action := []) : List Statement :=
   actions [allocate, write 1] ++ [.branch true (actions yes) (actions no)] ++ actions after
 #eval check "constant conditions do not hide invalid resources" (!(checkPlan

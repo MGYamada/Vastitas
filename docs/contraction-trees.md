@@ -158,6 +158,10 @@ uses the actual emitted schedule and equivalent explicit C packing and GEMMs.
 Measurements and sanitizer runs are evidence about those cases, not a native
 refinement proof or a claim of C parity. Controlled-host performance acceptance
 remains subject to the [performance gate](storage-ownership.md#713-performance-evidence-and-acceptance).
+The [short-block adapter comparison](../experiments/contraction_trees/results/2026-11-01-macos-regroup-blocks/RESULTS.md)
+retains both rejected variable-copy experiments and the final clean native
+comparison. It motivates the bounded 16–64-byte path without claiming a
+whole-program speedup or replacing the existing generated/C measurements.
 
 ## Proofs, tests and remaining scope
 

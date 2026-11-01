@@ -194,7 +194,8 @@ def verify_files(read, names):
     for name, item in record['files'].items():
         base.digest_info(read(name), item, name)
     require(same(record['claims'], CLAIMS), 'unsupported allocation claim')
-    require(record['environment'] == {'LEAN_NUM_THREADS': '0', 'LEAN_CC': record['host']['cc']}, 'wrong execution environment')
+    require(record['environment'] == {'LEAN_NUM_THREADS': '0', 'LEAN_MAIN_USE_THREAD': '1',
+                                      'LEAN_CC': record['host']['cc']}, 'wrong execution environment')
     require(record['host']['system'] in ('Darwin', 'Linux'), 'unsupported platform')
     require(record['toolchain']['pin'] == PIN and 'version 4.35.0' in record['toolchain']['version'], 'wrong Lean toolchain')
     require(digest(read('inputs/mimalloc-v3.4.5.tar.gz')) == ARCHIVE_SHA, 'wrong mimalloc source archive')

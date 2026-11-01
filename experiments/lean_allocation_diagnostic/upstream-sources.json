@@ -1,5 +1,9 @@
 {
   "lean": {
+    "entry_thread": {
+      "blob": "19bc81212c438206a3e0be08028c62aedc8e5e40",
+      "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/thread.cpp#L186-L202"
+    },
     "files": [
       {
         "path": "runtime/mimalloc.cpp",

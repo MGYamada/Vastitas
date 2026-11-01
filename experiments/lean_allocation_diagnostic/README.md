@@ -31,8 +31,11 @@ The builder needs a host C++20 compiler. Linux uses Clang with libc++ headers
 (`libc++-dev` and `libc++abi-dev` on the CI image), matching Lean's C++ library
 family. macOS uses the installed Apple toolchain. The bundled `leanc` C compiler
 alone does not supply C++ headers. No mathlib, OpenBLAS or runtime installation
-modification is required. `LEAN_NUM_THREADS=0` prevents creation of Lean workers;
-the probe creates no other threads. Child processes clear `MIMALLOC_*` overrides
+modification is required. `LEAN_NUM_THREADS=0` prevents creation of Lean task
+workers. `LEAN_MAIN_USE_THREAD=1` explicitly retains the pinned runtime's ordinary
+[entry thread](https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/thread.cpp#L186-L202):
+the initialization thread waits in `join` while the single probe mutator runs.
+The probe creates no additional threads. Child processes clear `MIMALLOC_*` overrides
 and reject preload interposition, while other ordinary host environment and SDK
 dependencies remain external.
 
@@ -57,8 +60,11 @@ Observer buffers/tables are reported separately; their bytes exclude code,
 alignment, strings, stack and reporting. No operation clocks are sampled.
 
 The calibration concerns **changes after the baseline**. Startup counts and the
-baseline visitor's total need not coincide and are not promoted to a startup
-coverage claim. Likewise, requested `current` staying high after release is not
+baseline visitor's total need not coincide: `mi_stats_get` merges the calling
+thread's current heap statistics and already merged statistics, not the still-live
+initialization thread's unmerged counters. The heap visitor can see its retained
+objects. This difference is not promoted to a startup coverage claim. Likewise,
+requested `current` staying high after release is not
 evidence of retained objects. Normal and huge peak fields cannot simply be added
 to get a simultaneous live peak; cross-thread aggregation introduces further
 limits. This experiment does not close the whole-program cost gate.

@@ -141,7 +141,7 @@ def main():
     else:
         runner.run(['curl', '--fail', '--location', '--silent', '--show-error', URL, '-o', archive], 'download-mimalloc')
 
-    overrides = dict(LEAN_CC=cc, LEAN_NUM_THREADS='0')
+    overrides = dict(LEAN_CC=cc, LEAN_NUM_THREADS='0', LEAN_MAIN_USE_THREAD='1')
     env = {k: v for k, v in os.environ.items() if not k.startswith('MIMALLOC_')}
     if any(env.get(k) for k in ('LD_PRELOAD', 'DYLD_INSERT_LIBRARIES')):
         raise ValueError('allocator calibration requires no preload interposition')

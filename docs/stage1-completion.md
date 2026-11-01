@@ -159,6 +159,20 @@ diagnostic counts every tested transient allocation and release; stock/rebuilt-z
 normal counters have no signal. Waiting-thread startup counters and general peaks
 remain outside the calibrated changes. See [PR #365](https://github.com/MGYamada/Vastitas/pull/365).
 
+The optional schema-2 [source composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
+connects these calibrated archives to actual generated source across both
+backends. It records cold/setup/run/cleanup deltas and actual error payload sizes,
+with paired empty observations and independently checked archive/linker receipts.
+Diagnostic normal counts are a superset of the selected sites, not an additive
+cost. The retained [macOS record](../experiments/source_workspace/results/2026-11-01-macos-allocator/RESULTS.md)
+and [Linux record](../experiments/source_workspace/results/2026-11-01-linux-allocator/RESULTS.md)
+at clean `f0e0c55` each cover 864 normal observations, 72 failures, 72 canonical
+executions and 9,360 allocator snapshots. In the measured phases, all normal
+allocations are explained by selected sites plus actual error payloads. Failure
+adds two previously untracked objects / 96 binned bytes. The run has no operation
+timings or stock-count claim. Startup on the waiting initialization thread, other
+allocators, general peaks and the existing full-cost/performance gates remain open.
+
 ## Implemented proof boundary and broader future scope
 
 The [geometry migration](geometry-migration.md) retains exact returned-Core typed

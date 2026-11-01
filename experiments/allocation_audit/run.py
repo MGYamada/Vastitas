@@ -156,7 +156,8 @@ target auditObject pkg : FilePath := do
     lake.write_text(text)
 
 
-def build(runner, case, work, prefix, frontend, kernel, cc, variant, *, link_prefix=None, runtime_hook=None):
+def build(runner, case, work, prefix, frontend, kernel, cc, variant, *, link_prefix=None, runtime_hook=None,
+          extra_link_args=()):
     # Public check/build/run always uses prefix. A separate diagnostic may
     # decorate only the private runtime and select its own linked backend.
     link_prefix = prefix if link_prefix is None else link_prefix
@@ -191,7 +192,7 @@ def build(runner, case, work, prefix, frontend, kernel, cc, variant, *, link_pre
     (work / 'lakefile.lean').write_text(f'''import Lake
 open Lake DSL
 package allocation_audit where
-  moreLinkArgs := #["-fno-lto", "-L", {json.dumps(str(Path(lean_root) / 'lib'))}]
+  moreLinkArgs := #[{', '.join(json.dumps(x) for x in ['-fno-lto', *extra_link_args, '-L', str(Path(lean_root) / 'lib')])}]
 require vastitas_kernel from {json.dumps(str(ROOT / 'lean-kernel'))}
 require vastitas_gemm_native from "./numerical" with
   NameMap.empty.insert `openblas {json.dumps(str(link_prefix))}

@@ -207,6 +207,9 @@ fn waiting_for_either_package_is_interruptible_and_failure_releases_locks() {
         let held =
             fs::File::open(kernel.join(if numerical { "numerical" } else { "native" })).unwrap();
         held.try_lock().unwrap();
+        // Another test's concurrently spawned process can briefly inherit this
+        // file description before exec closes it. Model that shared ownership.
+        let _inherited_held = held.try_clone().unwrap();
         let ready = s.0.join("ready");
         let entered = s.0.join("entered");
         let output = s.write("program", "existing artifact");
@@ -232,6 +235,9 @@ fn waiting_for_either_package_is_interruptible_and_failure_releases_locks() {
         assert_eq!(result.status.code(), Some(130));
         assert!(String::from_utf8_lossy(&result.stderr).contains("E_INTERRUPTED"));
         assert_eq!(fs::read(&output).unwrap(), b"existing artifact");
+        // Release the fixture's lock even if an inherited descriptor is still
+        // open. Dropping only this handle need not release the shared flock.
+        held.unlock().unwrap();
         drop(held);
         // Cancellation while holding the earlier lock must release that lock.
         for directory in ["native", "numerical"] {

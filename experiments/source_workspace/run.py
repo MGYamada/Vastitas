@@ -23,6 +23,7 @@ def module(name,path):
 
 audit = module('source_workspace_allocation',ROOT/'experiments/allocation_audit/run.py')
 backend_verify = module('source_workspace_backend_verify',ROOT/'experiments/openblas_workspace/verify.py')
+allocator = module('source_workspace_allocator',HERE/'allocator.py')
 tree,fixtures = audit.tree,audit.fixtures
 
 
@@ -37,6 +38,7 @@ class Runner(tree.Runner):
         # Lean workers. Neither setting changes sequential BLAS configuration.
         if kwargs.get('phase') in ('source_workspace','public_execute'):
             environment['LEAN_NUM_THREADS'] = '0'
+            environment['LEAN_MAIN_USE_THREAD'] = '1'
         kwargs['env'] = environment
         entry = super().run(args,required=False,**kwargs)
         entry['context'] = self.context
@@ -44,7 +46,7 @@ class Runner(tree.Runner):
             data = kwargs['input'].encode()
             entry['stdin'] = {'sha256':hashlib.sha256(data).hexdigest(),'bytes':len(data)}
         entry['compiler_environment'] = {key:environment[key] for key in
-            ('LEAN_CC','LEAN_NUM_THREADS','VASTITAS_KERNEL','VASTITAS_KERNEL_ROOT') if key in environment}
+            ('LEAN_CC','LEAN_NUM_THREADS','LEAN_MAIN_USE_THREAD','VASTITAS_KERNEL','VASTITAS_KERNEL_ROOT') if key in environment}
         tree.dump(self.out/'commands.json',self.commands)
         if required and entry['returncode']:
             raise RuntimeError(shlex.join(entry['command'])+'\n'+entry['stderr']+'\n'+entry['stdout'])
@@ -61,7 +63,7 @@ CLOCK = '''static uint64_t now_ns(void) {
 }'''
 
 
-def decorate(work,backend):
+def decorate(work,backend,*,observe_allocator=False,lean_prefix=None):
     """Strict additions to a private runtime; ordinary source/runtime unchanged."""
     native = work/'native'
     for name in ('bridge.c','bridge.h'):
@@ -104,6 +106,39 @@ target bridgeObject pkg : FilePath := do
     text = audit.replace_once(text,'extern_lib storageNative pkg := do',target+'extern_lib storageNative pkg := do')
     text = audit.replace_once(text,'← auditObject.fetch]','← auditObject.fetch, ← bridgeObject.fetch]')
     lake.write_text(text)
+    if observe_allocator:
+        for name in ('allocator.c','allocator.h'):
+            shutil.copyfile(HERE/name,native/name)
+        shutil.copyfile(ROOT/'experiments/stock_allocation_capabilities/vendor/mimalloc-stats.h',
+                        native/'mimalloc-stats.h')
+        shutil.copyfile(lean_prefix/'include/lean/mimalloc.h',native/'mimalloc.h')
+        path = native/'audit.c'
+        text = '#include "allocator.h"\n'+path.read_text()
+        text = audit.replace_once(text,'source_workspace_mark(next);',
+                                  'source_allocator_mark(next); source_workspace_mark(next);')
+        text = audit.replace_once(text,'return record(lean_io_result_mk_error(value), IO_ERROR);',
+                                  'source_allocator_error(value); return record(lean_io_result_mk_error(value), IO_ERROR);')
+        path.write_text(text)
+        path = native/'ffi.c'
+        text = '#include "allocator.h"\n'+path.read_text()
+        text = audit.replace_once(text,'bench_report(); audit_report(); source_workspace_report();',
+            'source_allocator_finish(); bench_report(); audit_report(); source_workspace_report(); source_allocator_report();')
+        path.write_text(text)
+        text = lake.read_text()
+        target = '''input_file allocatorSource where path := "allocator.c"
+input_file allocatorHeader where path := "allocator.h"
+input_file allocatorStatsHeader where path := "mimalloc-stats.h"
+input_file allocatorApiHeader where path := "mimalloc.h"
+target allocatorObject pkg : FilePath := do
+  let source ← allocatorSource.fetch
+  let headers := #[← allocatorHeader.fetch, ← allocatorStatsHeader.fetch, ← allocatorApiHeader.fetch]
+  let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
+  buildLeanO (pkg.buildDir / "allocator.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", "-I", ALLOCATOR_INCLUDE]
+
+'''.replace('ALLOCATOR_INCLUDE',json.dumps(str(native)))
+        text = audit.replace_once(text,'extern_lib storageNative pkg := do',target+'extern_lib storageNative pkg := do')
+        text = audit.replace_once(text,'← bridgeObject.fetch]','← bridgeObject.fetch, ← allocatorObject.fetch]')
+        lake.write_text(text)
 
 
 def check_backend(record_path,stock,diagnostic):
@@ -129,6 +164,8 @@ def main():
     parser.add_argument('--prefix',required=True,type=Path,help='the paired unchanged stock backend')
     parser.add_argument('--diagnostic-prefix',required=True,type=Path)
     parser.add_argument('--backend-record',required=True,type=Path,help='completed workspace calibration directory or ZIP')
+    parser.add_argument('--lean-record',type=Path,help='completed Lean allocator calibration directory or ZIP')
+    parser.add_argument('--lean-runtime-dir',type=Path,help='calibrated build directory containing stock/rebuilt0/diagnostic2')
     parser.add_argument('--output',required=True,type=Path)
     parser.add_argument('--frontend',type=Path,default=ROOT/'target/debug/vastitas')
     parser.add_argument('--kernel',type=Path,default=ROOT/'lean-kernel/.lake/build/bin/vastitas-kernel')
@@ -136,6 +173,8 @@ def main():
     parser.add_argument('--smoke',action='store_true',help='tiny real/complex with/without padding; default all 12 cases')
     parser.add_argument('--one-case',action='store_true',help='explicit debugging coverage, never a full record')
     args = parser.parse_args()
+    if bool(args.lean_record) != bool(args.lean_runtime_dir):
+        raise ValueError('--lean-record and --lean-runtime-dir must be supplied together')
     out,stock,diagnostic = args.output.resolve(),args.prefix.resolve(),args.diagnostic_prefix.resolve()
     if out.is_relative_to(ROOT): raise ValueError('output must be outside the checkout')
     out.mkdir(parents=True,exist_ok=False)
@@ -149,6 +188,29 @@ def main():
         path = calibration_dir/name
         path.parent.mkdir(parents=True,exist_ok=True)
         path.write_bytes(reader.read(name))
+    lean_binding,lean_external = None,{}
+    if args.lean_record:
+        allocator.calibration.verify(args.lean_record)
+        lean_reader = backend_verify.Reader(args.lean_record)
+        calibrated = lean_reader.json('record.json')
+        prefixes,archives = {},{}
+        for variant in allocator.VARIANTS:
+            directory = args.lean_runtime_dir.resolve()/variant
+            path = directory/'libleanrt.a'
+            expected = allocator.calibration.digest(lean_reader.read(calibrated['archives'][variant]['path']))
+            if tree.sha(path) != expected: raise ValueError('uncalibrated Lean runtime: '+variant)
+            prefixes[variant],archives[variant] = str(directory),expected
+            lean_external[str(path)] = expected
+        for item in calibrated['toolchain']['inputs'].values():
+            if tree.sha(Path(item['path'])) != item['sha256']:
+                raise ValueError('installed toolchain differs from allocator calibration')
+            lean_external[item['path']] = item['sha256']
+        for name in sorted(lean_reader.names):
+            path = out/'lean-calibration'/name
+            path.parent.mkdir(parents=True,exist_ok=True)
+            path.write_bytes(lean_reader.read(name))
+        lean_binding = dict(record='lean-calibration',prefixes=prefixes,archives=archives,claims=allocator.CLAIMS)
+    configurations = allocator.configurations(lean_binding is not None)
     env = {k:os.environ[k] for k in ('PATH','HOME','TMPDIR','SDKROOT','DEVELOPER_DIR','LANG') if k in os.environ}
     env.update(OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',GOTO_NUM_THREADS='1',LEAN_NUM_THREADS='1',LC_ALL='C')
     runner = Runner(out,env)
@@ -167,6 +229,8 @@ def main():
                 shutil.copyfile(path,target)
                 inputs[relative] = tree.sha(path)
     for relative in ('examples/packages/contraction-tree/src/profiles/mod.vast',
+                     'experiments/stock_allocation_capabilities/vendor/mimalloc-stats.h',
+                     'experiments/stock_allocation_capabilities/vendor/LICENSE.mimalloc',
                      'lean-toolchain','lean-kernel/lean-toolchain'):
         path = ROOT/relative
         target = out/'source'/relative
@@ -174,7 +238,7 @@ def main():
         shutil.copyfile(path,target)
         inputs[relative] = tree.sha(path)
     lean_prefix = Path(runner.run(['lean','--print-prefix'])['stdout'].strip())
-    external = {}
+    external = dict(lean_external)
     for path in (args.frontend.resolve(),args.kernel.resolve(),stock/'lib/libopenblas.a',
                  diagnostic/'lib/libopenblas.a',lean_prefix/'lib/lean/libleanrt.a',lean_prefix/'bin/lean'):
         external[str(path)] = tree.sha(path)
@@ -187,22 +251,32 @@ def main():
     tree.dump(out/'cases.json',cases)
     rows,failures = [],[]
     for case in cases:
-        for backend,prefix in (('stock',stock),('diagnostic',diagnostic)):
+        for backend,config in configurations.items():
+            prefix = stock if config['backend']=='stock' else diagnostic
             runner.context = {'case':case['case'],'backend':backend}
             work = out/'programs'/case['case']/backend
+            link_args = []
+            if lean_binding:
+                link_args = ['-L'+lean_binding['prefixes'][config['runtime']],
+                             ('-Wl,-map,' if platform.system()=='Darwin' else '-Wl,-Map,')+str(work/'link.map')]
             exe = audit.build(runner,case,work,stock,args.frontend.resolve(),args.kernel.resolve(),cc,
-                'production_shared',link_prefix=prefix,runtime_hook=lambda w:decorate(w,backend))
+                'production_shared',link_prefix=prefix,
+                runtime_hook=lambda w:decorate(w,config['backend'],observe_allocator=lean_binding is not None,lean_prefix=lean_prefix),
+                extra_link_args=link_args)
             runner.run(['nm','-g',exe],phase='linked_symbols')
             runner.run(['otool','-L',exe] if platform.system()=='Darwin' else ['ldd',exe],phase='linked_libraries')
             for impl,scope,reps in [('failure',0,1)]+[(impl,scope,reps) for scope in (0,1)
                     for reps in (1,2,17) for impl in ('generated','c')]:
                 execution = runner.run([exe,impl,scope,reps,1],phase='source_workspace')
                 parsed = [json.loads(line) for line in execution['stdout'].splitlines()]
-                if len(parsed) != (4 if backend == 'diagnostic' else 3):
+                diagnostic_backend = config['backend']=='diagnostic'
+                if len(parsed) != 3+int(diagnostic_backend)+int(lean_binding is not None):
                     raise ValueError('Missing or unexpected observation stream')
                 row = dict(case=case['case'],backend=backend,implementation=impl,scope=scope,repetitions=reps,
                            costs=parsed[0],allocation=parsed[1],calls=parsed[2],
-                           workspace=parsed[3] if backend == 'diagnostic' else None)
+                           workspace=parsed[3] if diagnostic_backend else None)
+                if lean_binding:
+                    row['lean_allocator'] = parsed[-1]
                 if impl != 'failure': audit.validate(parsed[1],scope,reps,'production_shared',impl)
                 (failures if impl == 'failure' else rows).append(row)
                 tree.dump(out/'observations.json',dict(rows=rows,failures=failures))
@@ -213,7 +287,7 @@ def main():
         raise ValueError('Repository revision/status changed during measurement')
     binaries = {}
     for case in cases:
-        for backend in ('stock','diagnostic'):
+        for backend in configurations:
             prefix = Path('programs')/case['case']/backend
             for name in ('canonical','.lake/build/bin/audit'):
                 relative = (prefix/name).as_posix()
@@ -225,7 +299,7 @@ def main():
              for p in sorted(out.rglob('*')) if p.is_file() and not '.lake' in p.relative_to(out).parts
              and not 'openblas_include' in p.relative_to(out).parts
              and p.relative_to(out).as_posix() not in binaries}
-    record = {'schema':1,'kind':'source-workspace-costs','head':head,'status':status,
+    record = {'schema':2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
               'selection':'debug-one' if args.one_case else 'smoke' if args.smoke else 'full',
               'host':{'platform':platform.platform(),'cc':cc},'environment':env,
               'tools':{'frontend':str(args.frontend.resolve()),'kernel':str(args.kernel.resolve())},
@@ -235,9 +309,15 @@ def main():
               'claims':{'operation_timings':False,'total_heap':False,'backend_packing_bytes':False,
                         'native_refinement':False,'controlled_host':False,'source_execution_observed':True},
               'files':files,'binaries':binaries}
+    if lean_binding:
+        record['lean_allocator'] = lean_binding
+        record['configurations'] = configurations
     tree.dump(out/'record.json',record)
     verifier = module('source_workspace_verify',HERE/'verify.py')
-    print(json.dumps(verifier.verify(out),indent=2))
+    summary = verifier.verify(out)
+    if lean_binding:
+        summary['lean_allocator'] = {k:v for k,v in summary['lean_allocator'].items() if k!='observations'}
+    print(json.dumps(summary,indent=2))
 
 
 if __name__ == '__main__': main()

@@ -42,6 +42,8 @@ jobs:
         run: python3 -m unittest discover -s experiments/allocation_audit -p 'test_*.py'
       - name: Stock allocation capability verifier tests
         run: python3 -m unittest discover -s experiments/stock_allocation_capabilities -p 'test_*.py'
+      - name: Diagnostic Lean allocator verifier tests
+        run: python3 -m unittest discover -s experiments/lean_allocation_diagnostic -p 'test_*.py'
       - name: Verify retained production allocation record
         run: python3 experiments/allocation_audit/verify.py experiments/allocation_audit/results/2026-11-01-macos-production/evidence.zip
       - name: Dependency boundaries
@@ -157,6 +159,22 @@ jobs:
         with:
           name: stock-allocation-capabilities-${{ matrix.os }}-${{ github.event_name }}
           path: ${{ runner.temp }}/vastitas-stock-capabilities/
+          if-no-files-found: ignore
+          retention-days: 30
+      - name: Install C++ headers for the private allocator rebuild
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libc++-dev libc++abi-dev
+      - name: Calibrate private Lean allocator diagnostics (no timing)
+        run: |
+          python3 experiments/lean_allocation_diagnostic/run.py --out "$RUNNER_TEMP/vastitas-lean-diagnostic" --cc cc --cxx clang++
+          python3 experiments/lean_allocation_diagnostic/verify.py "$RUNNER_TEMP/vastitas-lean-diagnostic"
+          VASTITAS_LEAN_DIAGNOSTIC_RECORD="$RUNNER_TEMP/vastitas-lean-diagnostic" python3 -m unittest discover -s experiments/lean_allocation_diagnostic -p 'test_*.py'
+      - name: Retain private allocator calibration
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lean-allocation-diagnostic-${{ matrix.os }}-${{ github.event_name }}
+          path: ${{ runner.temp }}/vastitas-lean-diagnostic/
           if-no-files-found: ignore
           retention-days: 30
       - name: Exact checked GEMM schedules and generated native cleanup

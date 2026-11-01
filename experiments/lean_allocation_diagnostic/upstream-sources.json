@@ -1,0 +1,49 @@
+{
+  "lean": {
+    "entry_thread": {
+      "blob": "19bc81212c438206a3e0be08028c62aedc8e5e40",
+      "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/thread.cpp#L186-L202"
+    },
+    "files": [
+      {
+        "path": "runtime/mimalloc.cpp",
+        "sha": "9a4d944d71115ef0c58e3227081338261369e286",
+        "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/mimalloc.cpp"
+      },
+      {
+        "path": "runtime/alloc.h",
+        "sha": "489bae7d60484cf09de1f07cb3b716e568bd49e9",
+        "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/alloc.h"
+      },
+      {
+        "path": "runtime/debug.h",
+        "sha": "1ddc06445c3a12b728e5ec3675fca9cd9d468bc4",
+        "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/debug.h"
+      },
+      {
+        "path": "runtime/alloc_tls.h",
+        "sha": "9b956b24292819b1fa7975bf527d447053b5a13e",
+        "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/alloc_tls.h"
+      },
+      {
+        "path": "runtime/exception.h",
+        "sha": "0004494591da4a03e63b41ec5eb65e5ffadd7e2a",
+        "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/exception.h"
+      }
+    ],
+    "license": {
+      "blob": "813da297567374691eaae7a88739dbbefd2afdfd",
+      "url": "https://github.com/leanprover/lean4/blob/v4.35.0/LICENSE"
+    },
+    "runtime_build": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/CMakeLists.txt",
+    "tag": "v4.35.0"
+  },
+  "mimalloc": {
+    "archive_sha256": "19a43af0645c57d348e729d5b31e23e912582911bb1047f795790834d3416221",
+    "archive_url": "https://github.com/microsoft/mimalloc/archive/v3.4.5.tar.gz",
+    "commit": "acf2fdd329f9dc2a7ffe3f12a133fe7175e39378",
+    "requested_free_boundary": "https://github.com/microsoft/mimalloc/blob/v3.4.5/src/free.c#L650-L677",
+    "statistics_merge": "https://github.com/microsoft/mimalloc/blob/v3.4.5/src/stats.c#L97-L113",
+    "tag": "v3.4.5"
+  }
+}

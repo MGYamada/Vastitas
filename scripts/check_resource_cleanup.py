@@ -4,20 +4,50 @@
 This checks failure semantics, not native refinement or performance. The normal
 public check/build/run precedes the copied runtime's fault-injection executions.
 """
-import importlib.util
 import json
 import os
 from pathlib import Path
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "experiments/contraction_trees"))
-spec = importlib.util.spec_from_file_location("cleanup_runner", ROOT / "experiments/contraction_trees/run.py")
-tree = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(tree)
+
+
+class Runner:
+    """Standalone test runner: the no-mathlib checkout excludes experiments."""
+
+    def __init__(self, env):
+        self.env = env
+
+    def run(self, args, *, cwd=ROOT, env=None, input=None, required=True):
+        command = [str(arg) for arg in args]
+        result = subprocess.run(command, cwd=cwd, env=self.env if env is None else env,
+                                input=input, text=True, capture_output=True)
+        observation = dict(command=command, returncode=result.returncode,
+                           stdout=result.stdout, stderr=result.stderr)
+        if required and result.returncode:
+            raise RuntimeError(observation)
+        return observation
+
+
+def capture_wire(runner, frontend, package):
+    """Capture real frontend output with a rejecting adapter, then check it."""
+    capture, wire = package / "capture.py", package / "wire.json"
+    capture.write_text(f'''#!{sys.executable}
+import json, pathlib, sys
+pathlib.Path({str(wire)!r}).write_text(sys.stdin.read())
+print(json.dumps({{"version":8,"ok":False,"diagnostics":[{{"code":"E_CAPTURED","message":"capture only"}}]}}))
+sys.exit(1)
+''')
+    capture.chmod(0o755)
+    result = runner.run([frontend, "check", "--manifest-path", package / "Vastitas.toml"],
+                        env=dict(runner.env, VASTITAS_KERNEL=str(capture)), required=False)
+    assert result["returncode"] == 1 and "E_CAPTURED" in result["stderr"], result
+    assert json.loads(wire.read_text())["version"] == 8
+    return wire.read_text()
 
 STATIC = """    allocate data: F64[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
@@ -103,7 +133,7 @@ def main():
         env.pop(key, None)
     with tempfile.TemporaryDirectory(prefix="vastitas-resource-cleanup-") as directory:
         work = Path(directory)
-        runner = tree.Runner(work, env)
+        runner = Runner(env)
         lean_prefix = Path(runner.run(["lean", "--print-prefix"])["stdout"].strip())
         runtime = work / "native"
         shutil.copytree(ROOT / "lean-kernel/native", runtime, ignore=shutil.ignore_patterns(".lake"))
@@ -123,11 +153,11 @@ def main():
             (package / "Vastitas.toml").write_text(
                 '[package]\nname = "cleanup"\nversion = "0.1.0"\nroot = "src/main.vast"\n')
             (package / "src/main.vast").write_text("resource fn main() -> Int {\n" + body + "    value { 42 }\n}\n")
-            wire = tree.capture_wire(runner, frontend, package)
-            runner.run([frontend, "check", "--manifest-path", package / "Vastitas.toml"], phase="public_check")
+            wire = capture_wire(runner, frontend, package)
+            runner.run([frontend, "check", "--manifest-path", package / "Vastitas.toml"])
             canonical = package / "program"
             runner.run([frontend, "build", "--manifest-path", package / "Vastitas.toml",
-                        "-o", canonical], phase="public_build")
+                        "-o", canonical])
             assert runner.run([canonical])["stdout"] == "42\n"
             response = json.loads(runner.run([kernel, "emit"], input=wire)["stdout"])
             assert response["ok"] and response["version"] == 8 and not response["numerical_runtime"]

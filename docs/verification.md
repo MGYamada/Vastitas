@@ -452,6 +452,14 @@ Its coordinate-change regressions and nominal-evidence audits are Python
 reference results only; the document lists separate future Lean soundness and
 same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
 
+The [finite pointwise Hodge reference](hodge-reference.md) separately tests exact
+Euclidean rank-three and Lorentz rank-four Hodge maps, orientation-line-valued
+cross products, reflection behavior and signature-dependent square laws. An
+independent candidate path checks the defining wedge identity after binding
+explicit inverse, signature and rational-volume evidence to the selected metric.
+These are Python reference tests, not Lean proofs, accepted Core, registered
+physical facades, bundle gluing or global analytic Hodge theory.
+
 The [polynomial first-variation reference](variational-reference.md) compares the
 linear epsilon coefficient of the expanded action with a separately computed
 Euler–Lagrange integral plus oriented boundary terms. It checks actual variation

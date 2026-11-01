@@ -16,6 +16,8 @@ conversion search, geometry promotion and variadic promotion remain separate.
 | Int, Int | Pair<Int> | Int |
 
 `pair` requires independently inferred operands of one identical numeric type.
+Thus `pair(0, 1)` has type `Pair<Int>` even at a `Pair<Nat>` parameter. Bind
+`let a: Nat = 0; let b: Nat = 1;` first and pass `pair(a, b)` when Nat is intended.
 Projections preserve that type and component order. Pair is not a dispatch
 key, a Fn contract component, a nested/general tuple or a geometric package.
 Generic selection uses scalar argument types and the existing finite

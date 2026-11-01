@@ -29,6 +29,9 @@ are hashed and checked for changes at the end. Build/runtime command logs retain
 raw outputs. Any elapsed-time fields inherited from the tree probe are invalid
 for performance comparison: the observer performs deliberately expensive scans.
 
+The [recorded macOS smoke](results/2026-11-01-macos/RESULTS.md) retains clean-head
+source snapshots, exact counts, output/cost pairs and an independent verifier.
+
 ## Observer coverage
 
 `audit.h` is included only in private native/numerical FFI copies and in the

@@ -1,2 +1,4 @@
 # Preserve Markdown hard breaks in the archived, byte-verified design draft.
 docs/design/*.md whitespace=-blank-at-eol
+# Preserve byte-verified CSV evidence with its original CRLF record separators.
+experiments/contraction_trees/results/*/raw.csv whitespace=cr-at-eol

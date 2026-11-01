@@ -72,7 +72,7 @@ retained, not treated as negative allocation.
 
 All 13,536 actual CBLAS calls retain dimensions, layouts, coefficients and event
 intervals. The 468 backend-diagnostic processes observe 6,768 pool borrows and
-matching returns, plus one 32 MiB mapping per process retained after cold work
+matching returns, plus one 128 MiB mapping per process retained after cold work
 until explicit quit. All mappings are released. These are virtual capacities,
 not resident peaks or measured packing traffic. Outputs and explicit
 arena/backend costs agree across Lean variants and matched C scopes. Overlapping

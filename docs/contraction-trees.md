@@ -129,6 +129,16 @@ The native code independently checks both permutations, all dimensions and
 products, complete rectangles, scalar agreement, nonempty envelope separation
 and accounting overflow before pointers or writes. Raw 8/16-byte cells are
 copied without conjugation; source bytes and destination padding are preserved.
+When the source's first axis occupies 16–64 bytes, has more than one element
+and has unit scalar stride in both prepared views, the native loop copies that
+entire axis with one `memcpy` per pair of remaining coordinates. The other
+groupings use exact 8/16-byte cell copies. Block widths from 16 through 64 bytes select fixed-size
+copies outside the loops, allowing the C compiler to inline them; larger blocks
+retain the cell loop. This decision uses actual physical strides after all
+preflight checks; equal dimensions or nominal factor identities do not justify
+coalescing, aliasing or skipping checks. No block includes padding and no
+temporary storage is added. Both paths preserve every payload bit, including
+signed zeros and signaling NaNs.
 Empty volume still validates all metadata and performs no pointer formation,
 copy or counter increment. Overlapping nonempty envelopes, including identity
 mapping in place, are rejected. Disjoint regions of one allocation are allowed.
@@ -148,6 +158,10 @@ uses the actual emitted schedule and equivalent explicit C packing and GEMMs.
 Measurements and sanitizer runs are evidence about those cases, not a native
 refinement proof or a claim of C parity. Controlled-host performance acceptance
 remains subject to the [performance gate](storage-ownership.md#713-performance-evidence-and-acceptance).
+The [short-block adapter comparison](../experiments/contraction_trees/results/2026-11-01-macos-regroup-blocks/RESULTS.md)
+retains both rejected variable-copy experiments and the final clean native
+comparison. It motivates the bounded 16–64-byte path without claiming a
+whole-program speedup or replacing the existing generated/C measurements.
 
 ## Proofs, tests and remaining scope
 

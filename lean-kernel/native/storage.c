@@ -383,6 +383,33 @@ static void grouping3_strides(const Grouping3 *grouping, const uint64_t dimensio
     }
 }
 
+/* Small variable-length memcpy calls can cost more than the original cell loop.
+ * Select fixed widths outside the loops so the compiler can inline short byte
+ * copies. The caller leaves larger blocks on the original cell loop. All
+ * envelopes and strides have already been checked, including disjoint views
+ * of the same allocation. */
+static void regroup3_blocks(const double *restrict source, double *restrict target,
+                            const uint64_t source_stride[3], const uint64_t target_stride[3],
+                            const uint64_t dimensions[3], unsigned middle, unsigned slow,
+                            size_t block_bytes) {
+#define COPY_BLOCKS(bytes) \
+    for (uint64_t z = 0; z < dimensions[slow]; ++z) \
+        for (uint64_t y = 0; y < dimensions[middle]; ++y) \
+            memcpy(target + y * target_stride[middle] + z * target_stride[slow], \
+                   source + y * source_stride[middle] + z * source_stride[slow], (bytes))
+    switch (block_bytes) {
+    case 16: COPY_BLOCKS(16); break;
+    case 24: COPY_BLOCKS(24); break;
+    case 32: COPY_BLOCKS(32); break;
+    case 40: COPY_BLOCKS(40); break;
+    case 48: COPY_BLOCKS(48); break;
+    case 56: COPY_BLOCKS(56); break;
+    case 64: COPY_BLOCKS(64); break;
+    default: COPY_BLOCKS(block_bytes); break;
+    }
+#undef COPY_BLOCKS
+}
+
 VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorageLayout input,
                                 uint32_t target, VStorageLayout output,
                                 uint64_t d0, uint64_t d1, uint64_t d2,
@@ -415,15 +442,27 @@ VStorageStatus vstorage_regroup3(VStorageArena *arena, uint32_t source, VStorage
     grouping3_strides(&to, dimensions, &b, target_stride);
     const double *source_data = a.buffer->data + a.start / 8;
     double *target_data = b.buffer->data + b.start / 8;
-    for (uint64_t x2 = 0; x2 < d2; ++x2)
-        for (uint64_t x1 = 0; x1 < d1; ++x1)
-            for (uint64_t x0 = 0; x0 < d0; ++x0) {
-                uint64_t src = x0 * source_stride[0] + x1 * source_stride[1] + x2 * source_stride[2];
-                uint64_t dst = x0 * target_stride[0] + x1 * target_stride[1] + x2 * target_stride[2];
-                /* memcpy never evaluates signaling NaNs or changes zero bits. */
-                if (a.components == 1) memcpy(target_data + dst, source_data + src, 8);
-                else memcpy(target_data + dst, source_data + src, 16);
-            }
+    unsigned fast = from.order[0];
+    size_t block_bytes = (size_t)(dimensions[fast] * a.components * 8);
+    if (dimensions[fast] > 1 && block_bytes <= 64 && source_stride[fast] == a.components &&
+        target_stride[fast] == a.components) {
+        /* Only a physically contiguous axis common to both views is coalesced.
+         * The checked nonempty volume bounds this block size; the separated
+         * envelopes justify memcpy even for two views of one allocation.
+         * Padding and the remaining axes are never included in a block. */
+        regroup3_blocks(source_data, target_data, source_stride, target_stride,
+                        dimensions, from.order[1], from.order[2], block_bytes);
+    } else {
+        for (uint64_t x2 = 0; x2 < d2; ++x2)
+            for (uint64_t x1 = 0; x1 < d1; ++x1)
+                for (uint64_t x0 = 0; x0 < d0; ++x0) {
+                    uint64_t src = x0 * source_stride[0] + x1 * source_stride[1] + x2 * source_stride[2];
+                    uint64_t dst = x0 * target_stride[0] + x1 * target_stride[1] + x2 * target_stride[2];
+                    /* Both paths preserve signaling NaNs and signed zero bits. */
+                    if (a.components == 1) memcpy(target_data + dst, source_data + src, 8);
+                    else memcpy(target_data + dst, source_data + src, 16);
+                }
+    }
     arena->stats.written_bytes += bytes;
     arena->stats.copied_bytes += bytes;
     return VS_OK;

@@ -36,6 +36,11 @@ def main():
              "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
              NATIVE / "storage.c", NATIVE / "test_storage.c", "-o", sanitizer])
         print(run([sanitizer]).stdout.strip())
+        blocks = work / "regroup-blocks-sanitizer"
+        run([*shlex.split(os.environ.get("CC", "cc")), "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror",
+             "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+             NATIVE / "test_regroup_blocks.c", "-o", blocks])
+        print(run([blocks]).stdout.strip())
         diagonal = work / "diagonal-sanitizer"
         run([*shlex.split(os.environ.get("CC", "cc")), "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror",
              "-fsanitize=address,undefined", "-fno-omit-frame-pointer",

@@ -3,6 +3,29 @@ dependency. Native functions validate physical preflight; initialized reads and
 loan authority must come from the independently checked resource schedule. -/
 namespace VastitasStorageNative
 
+/-- Scalar extents are narrowed once, after the actual checked pure computation.
+Negative Int values are rejected; there is no saturation or modular conversion. -/
+def runtimeExtentNat (value : Nat) : IO UInt64 := do
+  if value > 9223372036854775807 then
+    throw (IO.userError "E_RUNTIME_EXTENT: extent exceeds signed native size range")
+  return UInt64.ofNat value
+
+def runtimeExtentInt (value : Int) : IO UInt64 := do
+  if value < 0 then throw (IO.userError "E_RUNTIME_EXTENT: extent is negative")
+  runtimeExtentNat value.toNat
+
+/-- Pure constant-metadata preflight for the zero-offset whole-map profile.
+All products below are bounded before evaluation. The native storage/GEMM
+adapter still independently checks actual handles, capacities and aliases. -/
+@[inline] def runtimeLayoutValid (scalar : UInt8) (elements rows columns leading : UInt64) : Bool :=
+  if scalar > 1 || rows > 2147483647 || columns > 2147483647 ||
+      leading > 2147483647 || leading < 1 || leading < rows then false
+  else
+    let width : UInt64 := if scalar == 0 then 8 else 16
+    if elements > 9223372036854775807 / width then false
+    else if rows == 0 || columns == 0 then true
+    else (columns - 1) * leading + rows ≤ elements
+
 /-- Linear first-touch construction of immutable coefficient metadata. A large
 `#[byte, ...]` literal can retain every array prefix in generated closed terms;
 the static hex string and reserved mutable builder avoid that quadratic cost.

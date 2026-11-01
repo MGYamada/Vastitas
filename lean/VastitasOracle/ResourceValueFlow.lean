@@ -152,6 +152,11 @@ theorem run_slots {signatures : List Signature} {fuel : Nat}
       | action operation =>
         simp only [ValueFlow.run, bind, Except.bind, pure, Except.pure] at accepted
         exact ih initial accepted
+      | runtime event =>
+        simp only [ValueFlow.run] at accepted
+        split at accepted
+        · exact ih initial accepted
+        · contradiction
       | value name fragment arguments =>
         simp only [ValueFlow.run] at accepted
         split at accepted

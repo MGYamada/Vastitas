@@ -1,0 +1,120 @@
+{
+  "started": "2026-11-01T00:42:55.626152+00:00",
+  "argv": [
+    "experiments/runtime_shapes/run.py",
+    "--prefix",
+    "/tmp/vastitas-openblas-verified",
+    "--output",
+    "/private/tmp/vastitas-runtime-shape-audit-final",
+    "--no-leak-sanitizer"
+  ],
+  "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "performance": "not measured; instrumented correctness/cost only",
+  "source_sha256": {
+    "experiments/runtime_shapes/run.py": "55a679cc6b786ed450dd314be5f0cd4de6ecf5bca1b2635ed5028a016d723821",
+    "experiments/runtime_shapes/test_harness.py": "4c39979a70fceb1872132e37582ba69322f0bffc219a7c2850c9acd3cc3667a2",
+    "experiments/runtime_shapes/ffi.c": "fc75d7fc7b9dbf4a836bc726a8653ae5a57c7abee1e980a84e8965351115ea9e",
+    "experiments/runtime_shapes/cases.py": "b8ff02c874ec2b1a44db0d6b75fcfc26653ce7a3fcfe89477be42fdbc3f22520",
+    "experiments/runtime_shapes/README.md": "b600aa44d01175667a4f59fc06c00381723f0d5f50179ff261acfa85f91bffab",
+    "experiments/runtime_shapes/calls.h": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94",
+    "experiments/runtime_shapes/verify.py": "f87c11cdc4eded7f8afd0fbe9a7902bc36e04f04d09c18208b5ce246ec6b20df",
+    "experiments/runtime_shapes/probe.c": "ad12bc541c1e53128470e16ba80fe46f9a82e98ebb444fd5484aad5db12bebbe",
+    "experiments/contraction_trees/run.py": "e54f5ec2ff0b0916d8e23949acad1c5db27d0e9fe0f1dd5d309b0d5244936577",
+    "experiments/contraction_trees/cases.py": "52f44d9c93b0ed73c0e604949f7c88b3a28b935a9b68f8576227c1980ac31650",
+    "experiments/storage_copy/run.py": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1",
+    "lean-kernel/native/storage.c": "6a3f3bcd9b1e37a5d41e3807c86a89f00b072a34559308aa8e53b09557b14578",
+    "lean-kernel/native/test_diagonal.c": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f",
+    "lean-kernel/native/diagonal.c": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83",
+    "lean-kernel/native/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean-kernel/native/ffi.c": "34918624fbf7e023417462f21bde8c859115a5cdbd2f5e980659e799da641b72",
+    "lean-kernel/native/lake-manifest.json": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6",
+    "lean-kernel/native/storage.h": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13",
+    "lean-kernel/native/lakefile.lean": "36aaeec5cf4ee2a64f48b310aed46be20d3a993d1ace4279b0966e6500fec073",
+    "lean-kernel/native/test_storage.c": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691",
+    "lean-kernel/native/VastitasStorageNative.lean": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9",
+    "lean-kernel/native/diagonal.h": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f",
+    "lean-kernel/native/VastitasStorageNative/Runtime.lean": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071",
+    "lean-kernel/numerical/gemm.h": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124",
+    "lean-kernel/numerical/test_backend.c": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1",
+    "lean-kernel/numerical/lean-toolchain": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c",
+    "lean-kernel/numerical/ffi.c": "db82453ea22c8e3808b42f73a602fc2c9898ac45d381dec6d518d8670c4eb992",
+    "lean-kernel/numerical/VastitasGemmNative.lean": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3",
+    "lean-kernel/numerical/lake-manifest.json": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557",
+    "lean-kernel/numerical/lakefile.lean": "d8f53e5e16d3cb918e13868c5212ca6f2f7c72fa6e20563cac6564105b3ee9f7",
+    "lean-kernel/numerical/gemm.c": "c39eab9c9bdeacac086ee74737ad5789c97005a61172849905c3af188971d33d",
+    "lean-kernel/numerical/LICENSE.OpenBLAS": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9",
+    "lean-kernel/numerical/test_gemm.c": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b",
+    "src/storage.rs": "6f5ed04e3ec0e9478620e546239c5d8d3e25d4748a4a192b6032a8dbcce7f960",
+    "src/frontend/resource_parser.rs": "823f968d57c3f1ecf5b772cfcd5f88308fa8e1cd15cbc4071665f2a0e6249ae3",
+    "lean-kernel/VastitasKernel/ResourceSource.lean": "74e64a7b4557f8ba8005894525f54b74e62c6559f468e3a419ff6cc86e7f4a8c",
+    "lean-kernel/VastitasKernel/ResourceCodegen.lean": "b775ca97d5e19eb5579081b9cd160fe68c4a7a723ab2300ffb46064dced2305a",
+    "lean-kernel/VastitasKernel/ResourceProtocol.lean": "cca58e218943e5f6e3cc5127e74ec90618c123f1587a24a24970a57b6d4d0603",
+    "lean-kernel/VastitasKernel/StorageFunctions.lean": "7e5bdc7bd8a3405f420ce8afe2ca014d390109d46cb900adcb539390600e70d1",
+    "lean-kernel/VastitasKernel/StorageShapeNumerical.lean": "83fff23bcc36e96d5eb6c184628cb74f300083b2c4c47f1cc5d53c47936f1dcf",
+    "lean-kernel/VastitasKernel/StorageShapeExpr.lean": "2ca500ec0bee6769b6ebacbb04672e0d6cd0b321389a8a2b7a8512981f74bc62",
+    "lean-kernel/VastitasKernel/StorageShapeFunctions.lean": "d2899fa61fc99e3bb2fb13319856b3b2d4f866fbf90e079361fb5db3aa802014",
+    "lean-kernel/VastitasKernel/StorageShapeCodegen.lean": "70bc0f841a95a74a3e92dcdb88027661aa618c78d1a316b60cb5c2d6c623f46e",
+    "lean-kernel/VastitasKernel/StorageShapeFlow.lean": "d2c539e4069c14ef704fb7966658df095c34ebb06d59a915529e1120517066e3",
+    "lean-kernel/VastitasKernel/StorageShapes.lean": "ef20cad517b7aeca77923b7cc46105eb7eb96891391d203e3fa1e6d2f125a9d2",
+    "/private/tmp/vastitas-runtime-shapes/target/debug/vastitas": "6018da23ee35c80aed706ee77f23c62b759bc17489c4be4ce6de063e11e9e908",
+    "/private/tmp/vastitas-runtime-shapes/lean-kernel/.lake/build/bin/vastitas-kernel": "37a84b9a92a669049e135c926f022d6b01a1575ce63c9ea747e6eceb1dd90fa7",
+    "/private/tmp/vastitas-openblas-verified/lib/libopenblas.a": "104ac34c33302dbd7981eb47b5f5c04e4a46ca73c48ae20d60978190c666d41f",
+    "/private/tmp/vastitas-openblas-verified/include/cblas.h": "3955158bd0971b1ce0b5a9324c301bdcf4ddeb18baf2e0ca5e1dbe1387c2d28f",
+    "/private/tmp/vastitas-openblas-verified/include/openblas_config.h": "0ee25635c57f0a480badf75fe35eca7bff9748793f2675c595bf45a5dbc9b6a1"
+  },
+  "lsan": "explicitly unavailable",
+  "commands": {
+    "git": {
+      "command": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/vastitas-runtime-shapes",
+      "returncode": 0,
+      "stdout": "117a6e972308f25b8ddccd9db536af161d6a322a\n",
+      "stderr": "",
+      "wall_ns": 7500667,
+      "phase": "environment"
+    },
+    "dirty": {
+      "command": [
+        "git",
+        "status",
+        "--short"
+      ],
+      "cwd": "/private/tmp/vastitas-runtime-shapes",
+      "returncode": 0,
+      "stdout": " M lean-kernel/VastitasKernel/ResourceCodegen.lean\n M lean-kernel/VastitasKernel/ResourceProtocol.lean\n M lean-kernel/VastitasKernel/ResourceSource.lean\n M lean-kernel/VastitasKernel/Storage.lean\n M lean-kernel/VastitasKernel/StorageFunctions.lean\n M lean-kernel/VastitasKernel/StorageValueFlow.lean\n M lean-kernel/native/VastitasStorageNative/Runtime.lean\n M lean/VastitasOracle/ResourceValueFlow.lean\n M lean/VastitasOracle/StorageFunctions.lean\n M src/frontend/resource_parser.rs\n M src/storage.rs\n?? experiments/runtime_shapes/\n?? lean-kernel/VastitasKernel/StorageShapeCodegen.lean\n?? lean-kernel/VastitasKernel/StorageShapeExpr.lean\n?? lean-kernel/VastitasKernel/StorageShapeFlow.lean\n?? lean-kernel/VastitasKernel/StorageShapeFunctions.lean\n?? lean-kernel/VastitasKernel/StorageShapeNumerical.lean\n?? lean-kernel/VastitasKernel/StorageShapes.lean\n?? lean-kernel/VastitasStorageTest/ShapeRegression.lean\n?? lean/VastitasOracle/StorageShapeNumerical.lean\n?? lean/VastitasOracle/StorageShapes.lean\n?? tests/runtime_shape_source.rs\n",
+      "stderr": "",
+      "wall_ns": 20952667,
+      "phase": "environment"
+    },
+    "lean": {
+      "command": [
+        "lean",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-runtime-shapes",
+      "returncode": 0,
+      "stdout": "Lean (version 4.35.0, arm64-apple-darwin24.6.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)\n",
+      "stderr": "",
+      "wall_ns": 43061750,
+      "phase": "environment"
+    },
+    "cc": {
+      "command": [
+        "cc",
+        "--version"
+      ],
+      "cwd": "/private/tmp/vastitas-runtime-shapes",
+      "returncode": 0,
+      "stdout": "Apple clang version 21.0.0 (clang-2100.4.1.1)\nTarget: arm64-apple-darwin27.2.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+      "stderr": "",
+      "wall_ns": 17905625,
+      "phase": "environment"
+    }
+  },
+  "inputs_unchanged": true,
+  "finished": "2026-11-01T00:43:25.974367+00:00"
+}

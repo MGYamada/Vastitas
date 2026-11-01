@@ -158,7 +158,7 @@ jobs:
           if [ "$RUNNER_OS" = Linux ]; then
             export VASTITAS_TEST_NATIVE_CC=cc
           fi
-          cargo test --locked --test numerical_source --test tensor_source --test tree_source --test cached_packing --test diagonal_metrics -- --ignored
+          cargo test --locked --test numerical_source --test tensor_source --test tree_source --test cached_packing --test diagonal_metrics --test runtime_shape_source -- --ignored
 
   oracle:
     # Preserve the repository's required-check name; this job is Mathlib-free.

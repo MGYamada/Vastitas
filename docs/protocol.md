@@ -37,6 +37,19 @@ No checked target, slot ID, trusted condition or resource handle is accepted in 
 pure block. Protocols 2–7 and the internal resource component retain their strict
 old schemas.
 
+The [runtime-extent profile](runtime-shapes.md) adds parameter kinds
+`runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
+(`name`, `space`, `span`) and `runtime_map` (`name`, `source`, `target`, `access`,
+`initializes`, `span`). An extent is exactly `{kind:"literal",value:<u64>}` or
+`{kind:"slot",name:<local name>}`. A runtime layout has exactly `rows`, `columns`,
+`leading`, `transposed`; no offset is admitted. Statements `kind:"runtime"`
+carry a strict resource `action`; `kind:"runtime_numerical"` carry an unresolved
+`operation` (`space`, `basis`, `map`, `gemm`) and `span`. Raw runtime actions do
+not admit GEMM. All authority, live slots, frame transitions, origins and guards
+are reconstructed; no checked IDs or prevalidated shape metadata is accepted.
+The initial checker rejects coefficient loans and runtime events under resource
+branches, including through calls. Protocols 2–7 reject these forms.
+
 Protocol 8 also admits [numerical declaration profiles](numerical-declarations.md)
 in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and

@@ -1,5 +1,6 @@
 import VastitasKernel.StorageCodegen
 import VastitasKernel.IndexedCore
+import VastitasKernel.StorageShapes
 
 /-! Scalar slots interleaved with a static resource schedule. The resource
 projection forgets scalar calls and branch decisions, never either branch body:
@@ -33,6 +34,7 @@ def Condition.projection : Condition → Bool
 
 inductive Statement where
   | action (operation : Action)
+  | runtime (operation : Shapes.Event)
   | value (name fragment : Nat) (arguments : List Symbol)
   | branch (condition : Condition) (yes no : List Statement)
   deriving Repr, BEq, Inhabited
@@ -40,6 +42,10 @@ inductive Statement where
 mutual
   def Statement.decEq (left right : Statement) : Decidable (left = right) :=
     match left, right with
+    | .runtime a, .runtime b =>
+      if h : a = b then isTrue (h ▸ rfl) else isFalse (fun e => h (Statement.runtime.inj e))
+    | .runtime .., .action .. | .runtime .., .value .. | .runtime .., .branch .. => isFalse (by intro h; cases h)
+    | .action .., .runtime .. | .value .., .runtime .. | .branch .., .runtime .. => isFalse (by intro h; cases h)
     | .action a, .action b =>
       if h : a = b then isTrue (h ▸ rfl) else isFalse (fun h' => h (Statement.action.inj h'))
     | .value n f a, .value m g b =>
@@ -74,6 +80,7 @@ instance : DecidableEq Statement := Statement.decEq
 def project : List Statement → List Storage.Statement
   | [] => []
   | .action action :: rest => .action action :: project rest
+  | .runtime _ :: rest => project rest
   | .value .. :: rest => project rest
   | .branch condition yes no :: rest =>
     .branch condition.projection (project yes) (project no) :: project rest
@@ -103,6 +110,10 @@ def run (signatures : List Signature) : Nat → State → List Statement → Exc
   | fuel + 1, state, first :: rest => do
     let next ← match first with
       | .action _ => pure state
+      | .runtime operation => do
+        unless operation.references.all (Shapes.extentSlot state.slots) do
+          reject "runtime extents require live Nat or Int scalar slots"
+        pure state
       | .value name fragment arguments => do
         if state.used.contains name then reject "scalar slot is reused or shadows a prior binding"
         let result ← checkCall signatures state.slots fragment arguments
@@ -132,6 +143,7 @@ def check (signatures : List Signature) (inputs : Slots) (code : List Statement)
 def fragments : List Statement → List Nat
   | [] => []
   | .action _ :: rest => fragments rest
+  | .runtime _ :: rest => fragments rest
   | .value _ fragment _ :: rest => fragment :: fragments rest
   | .branch _ yes no :: rest => fragments yes ++ fragments no ++ fragments rest
 

@@ -75,6 +75,11 @@ def Guard.references : Guard → List Symbol
   | .equal left right => left.references ++ right.references
   | .cell shape .. => shape.references
 
+/-- Only literal-only guards can be decided without runtime scalar values.
+The dummy valuation is never used to decide a guard containing a slot. -/
+def Guard.closedValid (guard : Guard) : Bool :=
+  !guard.references.isEmpty || guard.eval (fun _ => 0)
+
 def guardsHold (values : Valuation) (guards : List Guard) : Prop :=
   ∀ guard ∈ guards, guard.eval values = true
 

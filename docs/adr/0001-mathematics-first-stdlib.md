@@ -5,7 +5,7 @@
 - **Scope:** Standard-library governance and mathematical contracts, **not** a claim of implemented or proved functionality
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
-- **Dependency amendment proposal (2026-10-30):** §9, first migration increment of [#285](https://github.com/MGYamada/Vastitas/issues/285); effective upon review and merge of this amendment.
+- **Dependency amendment (2026-10-30):** §9 was ratified by merged [PR #288](https://github.com/MGYamada/Vastitas/pull/288) as the first bounded migration increment of [#285](https://github.com/MGYamada/Vastitas/issues/285); the remaining four-package architecture and conformance proofs remain open.
 
 ## Context and decision
 
@@ -172,6 +172,6 @@ updated to match this bounded amendment.
 - The public `std` is not committed to universal solvers, general decidable equality, exact floating-point algebra or automatically differentiable singular/infinite-dimensional operators.
 - **This ADR PR is documentary.** Its validation consists of consistency review against [the v0.3 design index](../design.md), #49/#60/#66/#67/#69/#71/#91/#92/#103/#104/#107/#159, and a negative-case/admission audit. It does not implement the exemplar algorithms, claim Lean theorems, or change the compiler/runtime.
 - Implementation and executable acceptance, including exact algebra/representation, complex/symplectic geometry, functional/Hilbert/PDE reference examples, third-party AD rules, HVP, equivariant linalg, scalar profiles and optimizer regressions, are tracked in **[#160](https://github.com/MGYamada/Vastitas/issues/160)** and its child/existing issues.
-- The historical Draft v0.3 transcription in `docs/design/` remains preserved. To the extent its provisional `§12.5` small-library wording conflicts with this approved charter, this ADR becomes the later normative boundary **upon merge**. Concrete API designs still require their own decisions.
+- The historical Draft v0.3 transcription in `docs/design/` remains preserved. To the extent its provisional `§12.5` small-library wording conflicts with this approved charter, the ratified ADR is the later normative boundary **since PR #166 merged**. Concrete API designs still require their own decisions.
 
 **Principle:** *Standardize the mathematical world and the trusted contracts connecting it; choose algorithms for realizing that world explicitly.*

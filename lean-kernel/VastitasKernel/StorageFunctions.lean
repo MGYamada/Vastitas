@@ -5,6 +5,8 @@ import VastitasKernel.StorageMetric
 import VastitasKernel.TensorNumerical
 import VastitasKernel.TensorTree
 import VastitasKernel.StorageOwnedPackages
+import VastitasKernel.StorageShapeFunctions
+import VastitasKernel.StorageShapeFlow
 
 /-! Internal affine resource functions. Calls consume owned arguments, create
 bounded child loans for borrowed arguments, return those loans, and transfer
@@ -22,6 +24,9 @@ structure OwnedType where
 
 inductive Parameter where
   | value (name : Symbol) (type : Indexed.Core.PureType)
+  | runtimeSpace (name : Symbol) (implementation : Indexed.DeclId) (dimension : Shapes.Extent)
+  | runtimeBasis (name space : Symbol)
+  | runtimeMap (name source target : Symbol) (access : Access) (initializes : Bool)
   | owned (name : Symbol) (type : OwnedType)
   | borrowed (name : Symbol) (scalar : Scalar) (rows columns : Nat)
       (access : Access) (initializes : Bool)
@@ -40,6 +45,7 @@ inductive Parameter where
 
 def Parameter.name : Parameter → Symbol
   | .value name _ => name
+  | .runtimeSpace name .. | .runtimeBasis name .. | .runtimeMap name .. => name
   | .owned name _ | .borrowed name .. | .space name .. | .basis name .. | .map name .. | .ownedMap name .. => name
   | .involution name .. | .dualSpace name .. | .conjugateSpace name .. | .derivedBasis name .. | .metric name .. => name
   | .vector name .. | .ownedMapTo name .. => name
@@ -60,6 +66,8 @@ inductive ResultType (Name : Type := Symbol) where
 
 inductive Statement where
   | value (name fragment : Nat) (arguments : List Symbol) (type : Indexed.Core.PureType)
+  | runtime (operation : Shapes.Action)
+  | runtimeNumerical (operation : Shapes.Numerical.Operation)
   | action (operation : Action)
   | numerical (operation : Numerical.Operation)
   | tensor (operation : Tensor.Operation)
@@ -78,6 +86,10 @@ deriving instance DecidableEq for TensorTree.Graph
 mutual
   def Statement.decEq (left right : Statement) : Decidable (left = right) :=
     match left, right with
+    | .runtime a, .runtime b =>
+      decidable_of_iff (a = b) (by simp only [Statement.runtime.injEq])
+    | .runtimeNumerical a, .runtimeNumerical b =>
+      decidable_of_iff (a = b) (by simp only [Statement.runtimeNumerical.injEq])
     | .value a0 a1 a2 a3, .value b0 b1 b2 b3 =>
       decidable_of_iff (a0 = b0 ∧ a1 = b1 ∧ a2 = b2 ∧ a3 = b3) (by simp only [Statement.value.injEq])
     | .action a0, .action b0 =>
@@ -100,6 +112,44 @@ mutual
       | isFalse h, _, _ => isFalse (fun e => h (Statement.branch.inj e).1)
       | _, isFalse h, _ => isFalse (fun e => h (Statement.branch.inj e).2.1)
       | _, _, isFalse h => isFalse (fun e => h (Statement.branch.inj e).2.2)
+    | .value .., .runtime .. => isFalse (by intro h; cases h)
+    | .value .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .action .., .runtime .. => isFalse (by intro h; cases h)
+    | .action .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .numerical .., .runtime .. => isFalse (by intro h; cases h)
+    | .numerical .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .tensor .., .runtime .. => isFalse (by intro h; cases h)
+    | .tensor .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .network .., .runtime .. => isFalse (by intro h; cases h)
+    | .network .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .tree .., .runtime .. => isFalse (by intro h; cases h)
+    | .tree .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .call .., .runtime .. => isFalse (by intro h; cases h)
+    | .call .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .callValue .., .runtime .. => isFalse (by intro h; cases h)
+    | .callValue .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .branch .., .runtime .. => isFalse (by intro h; cases h)
+    | .branch .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .runtime .., .value .. => isFalse (by intro h; cases h)
+    | .runtime .., .action .. => isFalse (by intro h; cases h)
+    | .runtime .., .numerical .. => isFalse (by intro h; cases h)
+    | .runtime .., .tensor .. => isFalse (by intro h; cases h)
+    | .runtime .., .network .. => isFalse (by intro h; cases h)
+    | .runtime .., .tree .. => isFalse (by intro h; cases h)
+    | .runtime .., .call .. => isFalse (by intro h; cases h)
+    | .runtime .., .callValue .. => isFalse (by intro h; cases h)
+    | .runtime .., .branch .. => isFalse (by intro h; cases h)
+    | .runtime .., .runtimeNumerical .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .value .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .action .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .numerical .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .tensor .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .network .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .tree .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .call .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .callValue .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .branch .. => isFalse (by intro h; cases h)
+    | .runtimeNumerical .., .runtime .. => isFalse (by intro h; cases h)
     | .value .., .action .. | .value .., .numerical .. | .value .., .tensor .. | .value .., .network .. | .value .., .tree .. | .value .., .call .. | .value .., .callValue .. | .value .., .branch .. => isFalse (by intro h; cases h)
     | .action .., .value .. | .action .., .numerical .. | .action .., .tensor .. | .action .., .network .. | .action .., .tree .. | .action .., .call .. | .action .., .callValue .. | .action .., .branch .. => isFalse (by intro h; cases h)
     | .numerical .., .value .. | .numerical .., .action .. | .numerical .., .tensor .. | .numerical .., .network .. | .numerical .., .tree .. | .numerical .., .call .. | .numerical .., .callValue .. | .numerical .., .branch .. => isFalse (by intro h; cases h)
@@ -146,6 +196,7 @@ def OwnedType.valid (type : OwnedType) : Bool :=
 
 def Parameter.valid : Parameter → Bool
   | .value _ type => ValueFlow.scalar type
+  | .runtimeSpace .. | .runtimeBasis .. | .runtimeMap .. => true
   | .owned _ type => type.valid
   | .borrowed _ scalar rows columns _ _ =>
     checkLayout scalar (rows * columns * scalar.width) ⟨0, rows, columns, max 1 rows, false⟩
@@ -167,6 +218,17 @@ def parameterDependencies (parameters : List Parameter) : Bool := Id.run do
     let basis (id : Symbol) := prior.any fun p => p.name == id && p.isBasis
     let involution (id : Symbol) := prior.any fun p => match p with | .involution name _ => name == id | _ => false
     let valid := match parameter with
+      | .runtimeSpace _ _ dimension => dimension.references.all fun id =>
+        prior.any fun p => match p with
+          | .value name .nat | .value name .int => name == id
+          | _ => false
+      | .runtimeBasis _ parent => prior.any fun p => match p with
+        | .runtimeSpace name .. => name == parent
+        | _ => false
+      | .runtimeMap _ source target .. => [source, target].all fun id =>
+        prior.any fun p => match p with
+          | .runtimeBasis name .. => name == id
+          | _ => false
       | .basis _ parent | .dualSpace _ parent | .involution _ parent => space parent
       | .conjugateSpace _ parent selected => space parent && involution selected
       | .derivedBasis _ parent target => basis parent && space target
@@ -578,6 +640,27 @@ structure CachedContractionReceipt where
 /-- A demanded scalar result follows a fully completed actual resource call.
 The return's arguments come from that call's final lexical frame, and the pure
 step is appended after the entire audited resource projection. -/
+structure RuntimeReturn (priorFlow : List ValueFlow.Statement) where
+  call : Shapes.Functions.CallReceipt
+  beforeFlow : List ValueFlow.Statement
+  slice : List ValueFlow.Statement
+  prefixed : beforeFlow ++ slice = priorFlow
+  events : List Shapes.Event
+  collected : Shapes.Flow.collect slice = .ok events
+  projected : Shapes.Flow.actions events = call.slice
+
+private def checkRuntimeReturn (beforeFlow priorFlow : List ValueFlow.Statement)
+    (call : Shapes.Functions.CallReceipt) : Except Error (RuntimeReturn priorFlow) := do
+  let slice := priorFlow.drop beforeFlow.length
+  if prefixed : beforeFlow ++ slice = priorFlow then
+    match collected : Shapes.Flow.collect slice with
+    | .error problem => .error problem
+    | .ok events =>
+      if projected : Shapes.Flow.actions events = call.slice then
+        return ⟨call, beforeFlow, slice, prefixed, events, collected, projected⟩
+      else throw ⟨"E_RUNTIME_RETURN", "scalar return precedes completion of its actual runtime resource call"⟩
+  else throw ⟨"E_RUNTIME_RETURN", "runtime return changed earlier mixed operations"⟩
+
 structure ValueReturnReceipt where
   call : CallReceipt
   function : Function
@@ -597,6 +680,7 @@ structure ValueReturnReceipt where
   flow : List ValueFlow.Statement
   completed : ValueFlow.project priorFlow = call.code
   emitted : priorFlow ++ [.value slot fragment arguments] = flow
+  runtime : RuntimeReturn priorFlow
 
 structure AdjointIntoReceipt where
   environment : Indexed.Environment
@@ -649,6 +733,10 @@ structure Context where
   returnedValue : Option (Symbol × Indexed.Core.PureType) := none
   valueReturns : Array ValueReturnReceipt := #[]
   environment : Indexed.Environment := []
+  shapes : Shapes.Functions.Context := {}
+  shapeCalls : Array Shapes.Functions.CallReceipt := #[]
+  shapeInputs : Array Shapes.Functions.InputReceipt := #[]
+  branchDepth : Nat := 0
   numerical : Numerical.Values := []
   tensors : Tensor.Values := []
   packCaches : List Tensor.Cache := []
@@ -704,6 +792,81 @@ def step (operation : Action) : M Unit := do
     resources
     code := context.code.push (.action operation)
     flow := context.flow.push (.action operation)}
+
+def resolveExtent (frame : Frame) : Shapes.Extent → Except Error Shapes.Extent
+  | .literal value => pure (.literal value)
+  | .slot name => return .slot (← resolve frame name)
+
+def resolveShapeLayout (frame : Frame) (layout : Shapes.Layout) : Except Error Shapes.Layout := do
+  return ⟨← resolveExtent frame layout.rows, ← resolveExtent frame layout.columns,
+    ← resolveExtent frame layout.leading, layout.transposed⟩
+
+/-- Preserve exact event-prefix correspondence when a symbolic operation or
+call adds guards and actions. Only arithmetic guards enter the executable flow. -/
+def setShapes (shapes : Shapes.Functions.Context) : M Unit := do
+  let context ← get
+  if context.branchDepth != 0 then
+    throw ⟨"E_RUNTIME_BRANCH", "runtime-shape operations and calls are not supported inside resource branches"⟩
+  let events := shapes.events.toList.drop context.shapes.events.size
+  unless context.shapes.events.toList ++ events == shapes.events.toList do
+    throw ⟨"E_RUNTIME_SHAPE", "runtime operation changed earlier events"⟩
+  unless events.all (fun event => event.references.all (Shapes.extentSlot context.scalarSlots)) do
+    throw ⟨"E_RUNTIME_SHAPE", "runtime extent requires a live immutable Nat or Int slot"⟩
+  set {context with shapes, flow := context.flow ++ (events.map ValueFlow.Statement.runtime).toArray}
+
+def runtimeStep (operation : Shapes.Action) : M Unit := do
+  spend
+  let context ← get
+  setShapes (← context.shapes.step operation)
+
+def runtimeOperation (frame : Frame) (operation : Shapes.Action) : M Frame := do
+  match operation with
+  | .allocate name scalar elements layout =>
+    let elements ← resolveExtent frame elements
+    let layout ← resolveShapeLayout frame layout
+    let (frame, global) ← bindName frame name
+    runtimeStep (.allocate global scalar elements layout)
+    return frame
+  | .move source target =>
+    let source ← resolve frame source
+    let (frame, target) ← bindName frame target
+    runtimeStep (.move source target)
+    return frame
+  | .drop name => runtimeStep (.drop (← resolve frame name)); return frame
+  | .borrow name source access =>
+    let source ← match source with
+      | .owner name => pure (Source.owner (← resolve frame name))
+      | .loan name => pure (Source.loan (← resolve frame name))
+    let (frame, name) ← bindName frame name
+    runtimeStep (.borrow name source access)
+    return frame
+  | .release name => runtimeStep (.release (← resolve frame name)); return frame
+  | .fill name value => runtimeStep (.fill (← resolve frame name) value); return frame
+  | .expect name row column value => runtimeStep (.expect (← resolve frame name) row column value); return frame
+  | .gemm _ => throw ⟨"E_RUNTIME_NUMERICAL", "runtime source GEMM requires nominal map checking"⟩
+
+def runtimeNumericalOperation (frame : Frame) (operation : Shapes.Numerical.Operation) : M Frame := do
+  let (frame, operation) ← match operation with
+    | .space name implementation dimension => do
+      let dimension ← resolveExtent frame dimension
+      let (frame, name) ← bindName frame name
+      pure (frame, Shapes.Numerical.Operation.space name implementation dimension)
+    | .basis name parent => do
+      let parent ← resolve frame parent
+      let (frame, name) ← bindName frame name
+      pure (frame, .basis name parent)
+    | .map name loan source target => do
+      let loan ← resolve frame loan
+      let source ← resolve frame source
+      let target ← resolve frame target
+      let (frame, name) ← bindName frame name
+      pure (frame, .map name loan source target)
+    | .gemm left right output mode policy alpha beta => do
+      pure (frame, .gemm (← resolve frame left) (← resolve frame right) (← resolve frame output)
+        mode policy alpha beta)
+  let context ← get
+  setShapes (← context.shapes.numerical context.environment operation)
+  return frame
 
 /-- A pure fragment is selected by its reconstructed source index. Its signature
 is supplied by the independently checked Core target table, never inferred from
@@ -1129,11 +1292,12 @@ structure BorrowedArgument where
 /-- Owned arguments are real moves. A borrowed argument creates a child of the
 actual caller loan; sibling conflicts and initialization are checked normally. -/
 def arguments (parameters : List Parameter) (actuals : List Symbol) :
-    M (Frame × List BorrowedArgument) := do
+    M (Frame × List BorrowedArgument × List Shapes.Functions.Borrowed) := do
   if parameters.length != actuals.length then throw ⟨"E_RESOURCE_ARITY", "resource argument count differs"⟩
   let caller ← get
   let mut frame : Frame := []
   let mut borrowed := []
+  let mut runtimeBorrowed := []
   for (parameter, actual) in parameters.zip actuals do
     let dependencies := frame
     let (next, global) ← bindName frame parameter.name
@@ -1144,6 +1308,25 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
       unless ValueFlow.type? caller.scalarSlots actual == some type do
         throw ⟨"E_RESOURCE_VALUE", "scalar argument differs from its declared type"⟩
       frame := (parameter.name, actual) :: dependencies
+    | .runtimeSpace .. | .runtimeBasis .. | .runtimeMap .. =>
+      let input ← match parameter with
+        | .runtimeSpace _ implementation dimension =>
+          pure (Shapes.Functions.Input.space implementation (← resolveExtent dependencies dimension))
+        | .runtimeBasis _ parent => pure (.basis (← resolve dependencies parent))
+        | .runtimeMap _ source target access initializes =>
+          pure (.map (← resolve dependencies source) (← resolve dependencies target) access initializes)
+        | _ => throw ⟨"E_RUNTIME_CALL", "invalid runtime input contract"⟩
+      let child ← fresh
+      let context ← get
+      match accepted : Shapes.Functions.bind caller.environment caller.shapes context.shapes input actual global child with
+      | .error problem => throw problem
+      | .ok binding =>
+        setShapes binding.context
+        frame := (parameter.name, binding.bound) :: dependencies
+        if let some runtimeArgument := binding.borrowed then runtimeBorrowed := runtimeBorrowed ++ [runtimeArgument]
+        let receipt : Shapes.Functions.InputReceipt := ⟨caller.environment, caller.shapes, context.shapes,
+          input, actual, global, child, binding, accepted⟩
+        modify fun context => {context with shapeInputs := context.shapeInputs.push receipt}
     | .owned _ type =>
       rejectOpaque actual
       if !ownedMatches state actual type then throw ⟨"E_RESOURCE_TYPE", "owned argument violates its contract"⟩
@@ -1213,7 +1396,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
             input, actual, checked, accepted, bound, access, state, after.resources, after.numerical, binding⟩
           set {after with inputs := after.inputs.push receipt}
         else throw ⟨"E_NUMERICAL_TYPE", "numerical argument binding changed its identity or borrow transition"⟩
-  return (frame, borrowed)
+  return (frame, borrowed, runtimeBorrowed)
 
 /-- No loan escapes this initial contract. Caller loans retain their own layout
 and lifetime; the callee's temporary child permissions end inside out. -/
@@ -1470,6 +1653,8 @@ mutual
           scalarCall global fragment arguments type
           pure frame
         | .action action => operation frame action
+        | .runtime operation => runtimeOperation frame operation
+        | .runtimeNumerical operation => runtimeNumericalOperation frame operation
         | .numerical op => numericalOperation frame op
         | .network graph output policy => networkOperation frame graph output policy
         | .tree graph output policy plan => treeOperation frame graph output policy plan
@@ -1504,6 +1689,7 @@ mutual
               pure (.slot slot)
           let before ← get
           set {before with
+            branchDepth := before.branchDepth + 1
             code := #[]
             flow := #[]
             returnedValue := none
@@ -1531,6 +1717,7 @@ mutual
           cleanupDependencies before.resources
           let left ← get
           set {before with
+            branchDepth := before.branchDepth + 1
             nextSymbol := left.nextSymbol
             unused := left.unused
             code := #[]
@@ -1562,6 +1749,7 @@ mutual
           let right ← get
           let resources ← join left.resources right.resources
           set {right with
+            branchDepth := before.branchDepth
             resources
             code := before.code.push (.branch condition.projection left.code.toList right.code.toList)
             flow := before.flow.push (.branch condition left.flow.toList right.flow.toList)
@@ -1600,10 +1788,17 @@ mutual
       let some function := functions.find? (·.id == callee)
         | throw ⟨"E_RESOURCE_FUNCTION", "resource callee does not exist"⟩
       let before ← get
-      let (frame, borrowed) ← arguments function.parameters actuals
+      let (frame, borrowed, runtimeBorrowed) ← arguments function.parameters actuals
       let frame ← expand fuel functions (callee :: stack) frame function.body
       cleanupDependencies before.resources
       let returned ← finish before.resources frame borrowed function.results
+      let runtimeContext ← get
+      let runtimeAfter ← Shapes.Functions.finish before.shapes runtimeContext.shapes runtimeBorrowed
+      if runtimeAfter.events.size != runtimeContext.shapes.events.size then setShapes runtimeAfter
+      else modify fun context => {context with shapes := runtimeAfter}
+      let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter
+      if runtimeAfter.events.size != before.shapes.events.size then
+        modify fun context => {context with shapeCalls := context.shapeCalls.push runtimeReceipt}
       -- Discarding a result avoids native evaluation, not its signature audit.
       -- Pair terminals remain compatible without becoming scalar flow slots.
       if let some (fragment, locals, expected) := function.valueResult then
@@ -1650,10 +1845,11 @@ mutual
                         if exactType : actual = type then
                           if completed : ValueFlow.project valueBefore.flow.toList = receipt.code then
                             if emitted : valueBefore.flow.toList ++ [.value slot fragment arguments] = valueAfter.flow.toList then
+                              let runtimeReturn ← checkRuntimeReturn before.flow.toList valueBefore.flow.toList runtimeReceipt
                               let resultReceipt : ValueReturnReceipt := ⟨receipt, function, sameCallee, frame,
                                 fragment, locals, type, contract, arguments, resolved, valueBefore.signatures,
                                 valueBefore.scalarSlots, exactType ▸ typed, slot, valueBefore.flow.toList,
-                                valueAfter.flow.toList, completed, emitted⟩
+                                valueAfter.flow.toList, completed, emitted, runtimeReturn⟩
                               set {valueAfter with
                                 returnedValue := some (slot, type)
                                 valueReturns := valueAfter.valueReturns.push resultReceipt}
@@ -1687,10 +1883,12 @@ structure Probe where
   resources : CheckedPlan statements
   accepted : checkPlan statements = .ok resources
   projected : ValueFlow.project flow = statements
+  shapes : Shapes.Flow.Checked values.finalState.slots flow
 
 def probeSetup (functions : List Function) (function : Function) : M Unit := do
   let mut actuals := []
   let mut borrowed := []
+  let mut runtimeBorrowed : List (Symbol × Symbol) := []
   let mut frame : Frame := []
   for parameter in function.parameters do
     let owner ← fresh
@@ -1700,6 +1898,45 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
         scalarSlots := (owner, type) :: context.scalarSlots
         scalarInputs := context.scalarInputs ++ [(owner, type)]}
       pure owner
+    | .runtimeSpace _ implementation dimension =>
+      let dimension ← resolveExtent frame dimension
+      let context ← get
+      setShapes (← context.shapes.numerical context.environment (.space owner implementation dimension))
+      pure owner
+    | .runtimeBasis _ parent =>
+      let parent ← resolve frame parent
+      let context ← get
+      setShapes (← context.shapes.numerical context.environment (.basis owner parent))
+      pure owner
+    | .runtimeMap _ source target access _ =>
+      let source ← resolve frame source
+      let target ← resolve frame target
+      let context ← get
+      let some (.basis sourceBasis) := Shapes.Numerical.value? context.shapes.values source
+        | throw ⟨"E_RUNTIME_CALL", "runtime probe source is not a basis"⟩
+      let some (.basis targetBasis) := Shapes.Numerical.value? context.shapes.values target
+        | throw ⟨"E_RUNTIME_CALL", "runtime probe target is not a basis"⟩
+      -- Unconstrained symbolic capacity and leading dimension are typed probe
+      -- inputs. Layout guards, not a sampled size, constrain every valuation.
+      let capacity ← fresh
+      let leading ← fresh
+      modify fun context => {context with
+        scalarSlots := (capacity, .nat) :: (leading, .nat) :: context.scalarSlots
+        scalarInputs := context.scalarInputs ++ [(capacity, .nat), (leading, .nat)]}
+      let layout : Shapes.Layout := ⟨targetBasis.space.dimension, sourceBasis.space.dimension, .slot leading, false⟩
+      runtimeStep (.allocate owner sourceBasis.space.scalar (.slot capacity) layout)
+      if access.reads then
+        let writer ← fresh
+        runtimeStep (.borrow writer (.owner owner) .write)
+        runtimeStep (.fill writer (zero sourceBasis.space.scalar))
+        runtimeStep (.release writer)
+      let loan ← fresh
+      runtimeStep (.borrow loan (.owner owner) access)
+      let name ← fresh
+      let context ← get
+      setShapes (← context.shapes.numerical context.environment (.map name loan source target))
+      runtimeBorrowed := runtimeBorrowed ++ [(loan, owner)]
+      pure name
     | .owned _ type =>
       step (.allocate owner type.scalar type.elements)
       for layout in type.initialized do initializeRegion owner type.scalar layout
@@ -1852,16 +2089,20 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
   for (loan, owner) in borrowed.reverse do
     step (.release loan)
     step (.drop owner)
+  for (loan, owner) in runtimeBorrowed.reverse do
+    runtimeStep (.release loan)
+    runtimeStep (.drop owner)
 
 def probe (functions : List Function) (function : Function) (environment : Indexed.Environment := [])
     (signatures : List ValueFlow.Signature := []) : Except Error Probe := do
   let (_, context) ← (probeSetup functions function).run {environment, signatures}
   let values ← ValueFlow.check signatures context.scalarInputs context.flow.toList
+  let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList
   if projected : ValueFlow.project context.flow.toList = context.code.toList then
     match accepted : checkPlan context.code.toList with
     | .error diagnostic => .error diagnostic
     | .ok resources => return ⟨signatures, context.scalarInputs, context.flow.toList, values,
-        function.id, context.code.toList, resources, accepted, projected⟩
+        function.id, context.code.toList, resources, accepted, projected, shapes⟩
   else reject "E_RESOURCE_VALUE" "mixed probe differs from its resource projection"
 
 def executable (program : Program) (environment : Indexed.Environment := [])
@@ -1896,6 +2137,9 @@ structure Checked (program : Program) (environment : Indexed.Environment := [])
   accepted : checkPlan context.code.toList = .ok resources
   values : ValueFlow.Checked signatures [] context.flow.toList
   projected : ValueFlow.project context.flow.toList = context.code.toList
+  shapes : Shapes.Flow.Checked values.finalState.slots context.flow.toList
+  shapeEvents : Shapes.Flow.collect context.flow.toList = .ok context.shapes.events.toList
+  shapeFinal : shapes.resources.after = context.shapes.resources
 
 def Checked.statements {program environment signatures} (checked : Checked program environment signatures) : List Storage.Statement := checked.context.code.toList
 
@@ -1909,16 +2153,25 @@ def check (program : Program) (environment : Indexed.Environment := [])
       | .error diagnostic => .error diagnostic
       | .ok context => do
         let values ← ValueFlow.check signatures [] context.flow.toList
-        if projected : ValueFlow.project context.flow.toList = context.code.toList then
-          match accepted : checkPlan context.code.toList with
-          | .error diagnostic => .error diagnostic
-          | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded,
-              resources, accepted, values, projected⟩
-        else reject "E_RESOURCE_VALUE" "mixed execution differs from its resource projection"
+        let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList
+        if sameEvents : shapes.events = context.shapes.events.toList then
+          have shapeEvents : Shapes.Flow.collect context.flow.toList = .ok context.shapes.events.toList :=
+            sameEvents ▸ shapes.collected
+          if shapeFinal : shapes.resources.after = context.shapes.resources then
+            if projected : ValueFlow.project context.flow.toList = context.code.toList then
+              match accepted : checkPlan context.code.toList with
+              | .error diagnostic => .error diagnostic
+              | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded,
+                  resources, accepted, values, projected, shapes, shapeEvents, shapeFinal⟩
+            else reject "E_RESOURCE_VALUE" "mixed execution differs from its resource projection"
+          else reject "E_RUNTIME_SHAPE" "runtime final frame differs from the independent replay"
+        else reject "E_RUNTIME_SHAPE" "runtime event origins differ from the mixed execution"
 
 def generate (program : Program) (report : Bool := false) (budget : Nat := byteLimit)
     (environment : Indexed.Environment := []) : Except Error String := do
   let checked ← check program environment
+  if Shapes.Flow.contains checked.context.flow.toList then
+    reject "E_RUNTIME_CODEGEN" "runtime shapes require the checked mixed source generator"
   let plan ← Native.compile checked.statements
   Native.generate plan report budget
 

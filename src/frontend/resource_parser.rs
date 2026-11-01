@@ -3,7 +3,8 @@ use crate::storage::{
     Access, Coefficient, GemmMode, Layout, Literal, NumericalPolicy, Scalar,
     functions::OwnedType,
     source::{
-        Action, Evaluation, Gram, Numerical, NumericalResult, Parameter, ResultType, Transform,
+        Action, Evaluation, Extent, Gram, Numerical, NumericalResult, Parameter, ResultType,
+        RuntimeAction, RuntimeLayout, RuntimeNumerical, Transform,
     },
 };
 
@@ -24,6 +25,53 @@ impl Parser {
             "expected a nonnegative resource integer",
             token.span,
         ))
+    }
+
+    fn runtime_extent(&mut self) -> Result<Extent, Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::Number(_)) {
+            Ok(Extent::Literal {
+                value: self.resource_number()?,
+            })
+        } else {
+            Ok(Extent::Slot {
+                name: self.name()?.0,
+            })
+        }
+    }
+
+    fn runtime_access(&mut self) -> Result<Access, Diagnostic> {
+        if self.consume("read") {
+            Ok(Access::Read)
+        } else if self.consume("write") {
+            Ok(Access::Write)
+        } else if self.consume("read_write") {
+            Ok(Access::ReadWrite)
+        } else {
+            Err(diagnostic(
+                "E_RESOURCE_TYPE",
+                "runtime access requires read, write or read_write",
+                self.peek().span,
+            ))
+        }
+    }
+
+    fn runtime_layout(&mut self) -> Result<RuntimeLayout, Diagnostic> {
+        self.expect("runtime_layout")?;
+        self.expect("(")?;
+        let rows = self.runtime_extent()?;
+        self.expect(",")?;
+        let columns = self.runtime_extent()?;
+        self.expect(",")?;
+        let leading = self.runtime_extent()?;
+        self.expect(",")?;
+        let transposed = self.resource_boolean()?;
+        self.expect(")")?;
+        Ok(RuntimeLayout {
+            rows,
+            columns,
+            leading,
+            transposed,
+        })
     }
 
     fn gram_integer(&mut self) -> Result<String, Diagnostic> {
@@ -134,6 +182,47 @@ impl Parser {
             return Ok(Parameter::Owned {
                 name,
                 ty,
+                span: start.through(self.previous().span),
+            });
+        }
+        if self.consume("RuntimeSpace") {
+            self.expect("<")?;
+            let implementation = self.type_path()?;
+            self.expect(",")?;
+            let dimension = self.runtime_extent()?;
+            self.expect(">")?;
+            return Ok(Parameter::RuntimeSpace {
+                name,
+                implementation,
+                dimension,
+                span: start.through(self.previous().span),
+            });
+        }
+        if self.consume("RuntimeBasis") {
+            self.expect("<")?;
+            let space = self.binding_name()?.0;
+            self.expect(">")?;
+            return Ok(Parameter::RuntimeBasis {
+                name,
+                space,
+                span: start.through(self.previous().span),
+            });
+        }
+        if self.consume("RuntimeMap") {
+            self.expect("<")?;
+            let source = self.binding_name()?.0;
+            self.expect(",")?;
+            let target = self.binding_name()?.0;
+            self.expect(",")?;
+            let access = self.runtime_access()?;
+            self.expect(">")?;
+            let initializes = self.consume("initializes");
+            return Ok(Parameter::RuntimeMap {
+                name,
+                source,
+                target,
+                access,
+                initializes,
                 span: start.through(self.previous().span),
             });
         }
@@ -350,6 +439,179 @@ impl Parser {
 
     fn resource_names(&mut self) -> Result<Vec<String>, Diagnostic> {
         self.indexed_list("(", ")", |p| Ok(p.name()?.0))
+    }
+
+    fn runtime_action(&mut self) -> Result<RuntimeAction, Diagnostic> {
+        if self.consume("runtime_allocate") {
+            let owner = self.binding_name()?.0;
+            self.expect(":")?;
+            let scalar = self.resource_scalar()?;
+            self.expect("[")?;
+            let elements = self.runtime_extent()?;
+            self.expect("]")?;
+            let layout = self.runtime_layout()?;
+            return Ok(RuntimeAction::Allocate {
+                owner,
+                scalar,
+                elements,
+                layout,
+            });
+        }
+        if self.consume("runtime_move") {
+            let source = self.name()?.0;
+            self.expect("->")?;
+            let target = self.binding_name()?.0;
+            return Ok(RuntimeAction::Move { source, target });
+        }
+        if self.consume("runtime_borrow") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            let access = self.runtime_access()?;
+            self.expect("(")?;
+            let source = self.name()?.0;
+            self.expect(")")?;
+            return Ok(RuntimeAction::Borrow {
+                name,
+                source,
+                access,
+            });
+        }
+        let operation = self.name()?.0;
+        self.expect("(")?;
+        let loan = self.name()?.0;
+        let action = match operation.as_str() {
+            "runtime_drop" => RuntimeAction::Drop { owner: loan },
+            "runtime_release" => RuntimeAction::Release { loan },
+            "runtime_fill" => {
+                self.expect(",")?;
+                RuntimeAction::Fill {
+                    loan,
+                    value: self.resource_literal()?,
+                }
+            }
+            "runtime_expect" => {
+                self.expect(",")?;
+                let row = self.resource_number()?;
+                self.expect(",")?;
+                let column = self.resource_number()?;
+                self.expect(",")?;
+                RuntimeAction::Expect {
+                    loan,
+                    row,
+                    column,
+                    value: self.resource_literal()?,
+                }
+            }
+            _ => {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "unknown runtime resource operation",
+                    self.previous().span,
+                ));
+            }
+        };
+        self.expect(")")?;
+        Ok(action)
+    }
+
+    fn runtime_numerical(&mut self) -> Result<RuntimeNumerical, Diagnostic> {
+        if self.consume("runtime_space") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("linear")?;
+            self.expect("(")?;
+            let implementation = self.type_path()?;
+            self.expect(",")?;
+            let dimension = self.runtime_extent()?;
+            self.expect(")")?;
+            return Ok(RuntimeNumerical::Space {
+                name,
+                implementation,
+                dimension,
+            });
+        }
+        if self.consume("runtime_basis") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("basis")?;
+            self.expect("(")?;
+            let space = self.name()?.0;
+            self.expect(")")?;
+            return Ok(RuntimeNumerical::Basis { name, space });
+        }
+        if self.consume("runtime_map") {
+            let name = self.binding_name()?.0;
+            self.expect("=")?;
+            self.expect("view")?;
+            self.expect("(")?;
+            let loan = self.name()?.0;
+            self.expect(",")?;
+            let source = self.name()?.0;
+            self.expect(",")?;
+            let target = self.name()?.0;
+            self.expect(")")?;
+            return Ok(RuntimeNumerical::Map {
+                name,
+                loan,
+                source,
+                target,
+            });
+        }
+        self.expect("runtime_gemm")?;
+        self.expect("(")?;
+        let left = self.name()?.0;
+        self.expect(",")?;
+        let right = self.name()?.0;
+        self.expect(",")?;
+        let output = self.name()?.0;
+        self.expect(",")?;
+        let mode = if self.consume("overwrite") {
+            GemmMode::Overwrite
+        } else if self.consume("accumulate") {
+            GemmMode::Accumulate
+        } else {
+            return Err(diagnostic(
+                "E_NUMERICAL_TYPE",
+                "runtime GEMM requires overwrite or accumulate",
+                self.peek().span,
+            ));
+        };
+        self.expect(",")?;
+        self.expect("NativeFast")?;
+        let mut alpha = None;
+        let mut beta = None;
+        while self.consume(",") {
+            let coefficient = if self.consume("alpha") {
+                &mut alpha
+            } else if self.consume("beta") {
+                &mut beta
+            } else {
+                return Err(diagnostic(
+                    "E_NUMERICAL_TYPE",
+                    "expected alpha or beta coefficient",
+                    self.peek().span,
+                ));
+            };
+            if coefficient.is_some() {
+                return Err(diagnostic(
+                    "E_DUPLICATE",
+                    "runtime GEMM coefficient is specified twice",
+                    self.previous().span,
+                ));
+            }
+            self.expect("=")?;
+            *coefficient = Some(self.numerical_coefficient()?);
+        }
+        self.expect(")")?;
+        Ok(RuntimeNumerical::Gemm {
+            left,
+            right,
+            output,
+            mode,
+            policy: NumericalPolicy::NativeFast,
+            alpha,
+            beta,
+        })
     }
 
     fn resource_action(&mut self) -> Result<Action, Diagnostic> {
@@ -1276,6 +1538,39 @@ impl Parser {
                         ty,
                         span: start.through(self.previous().span),
                     }
+                }
+            } else if [
+                "runtime_allocate",
+                "runtime_move",
+                "runtime_drop",
+                "runtime_borrow",
+                "runtime_release",
+                "runtime_fill",
+                "runtime_expect",
+            ]
+            .iter()
+            .any(|word| self.peek().is(word))
+            {
+                let action = self.runtime_action()?;
+                self.expect(";")?;
+                Statement::Runtime {
+                    action,
+                    span: start.through(self.previous().span),
+                }
+            } else if [
+                "runtime_space",
+                "runtime_basis",
+                "runtime_map",
+                "runtime_gemm",
+            ]
+            .iter()
+            .any(|word| self.peek().is(word))
+            {
+                let operation = self.runtime_numerical()?;
+                self.expect(";")?;
+                Statement::RuntimeNumerical {
+                    operation,
+                    span: start.through(self.previous().span),
                 }
             } else if self.peek().is("contract_tree") {
                 self.tree_statement()?

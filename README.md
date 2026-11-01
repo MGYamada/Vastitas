@@ -41,8 +41,10 @@ check owned arguments/results and borrowed destinations against actual caller
 resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
 static storage shapes, interleaved Nat/Int/Bool/Unit computations, captured
 resource-call results and runtime Bool branches to package source and native
-execution. Dynamic extents, floating scalar interfaces and end-to-end C
-performance acceptance are still pending.
+execution. [Runtime extents](docs/runtime-shapes.md) additionally support whole-map
+real/complex GEMM with caller-owned destinations and immutable integral dimensions.
+Runtime-shape operations are restricted to straight-line resource flow; shape
+results, floating scalar interfaces and end-to-end C performance remain pending.
 Public real/complex GEMM executes through an
 [optional internal adapter](docs/numerical-adapter.md), with checked resource access,
 initialization and exact native lowering before pinned OpenBLAS execution.
@@ -75,10 +77,11 @@ coefficients and caller scratch. Conditional ideal laws remain separate from
 NativeFast arithmetic. [Bounded contraction trees](docs/contraction-trees.md)
 add explicit finite multi-edge plans with rank-two/three intermediates and
 caller-owned regrouping. Dense metric realization, general generative numerical
-packages, dynamic shape/scalar interfaces and general-rank networks remain open.
+packages, broader runtime shape/scalar interfaces and general-rank networks remain open.
 GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
 initialized scalar loans, including coefficients computed by earlier operations.
-This does not add general floating values to pure Core or dynamic shape contracts.
+This does not add general floating values to pure Core; the separate runtime-shape
+profile initially permits literal coefficients only.
 The actual-checker proofs and native regressions do not establish floating-point
 field laws, certified error bounds, source/native refinement or C/C++ performance
 parity; see the [layer responsibilities and proof boundary](docs/numerical-adapter.md#responsibilities-along-the-implemented-path).
@@ -343,6 +346,7 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 - [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
 - [Scoped edit borrowing and assemblies](docs/edit-borrowing.md)
 - [Nested edit loans and permanent authority transfer](docs/edit-authority.md)
+- [Runtime extents, guarded caller frames and destination reuse](docs/runtime-shapes.md)
 - [Indexed Core, runtime semantics and internal declaration/function/dispatch/authority elaboration](docs/indexed-declarations.md)
 - [Compiler protocol](docs/protocol.md)
 - [Identifier ASCII round-trip reference and integration contract](docs/identifier-ascii-reference.md)

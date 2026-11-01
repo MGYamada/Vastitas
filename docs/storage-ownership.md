@@ -22,8 +22,12 @@ destination reuse and failure cleanup. [Protocol 8](resource-source.md) now conn
 to package source and pure return blocks, including local nominal real/complex
 GEMM. Bounded partial-write coverage removes redundant input fills in the worked
 numerical examples; its actual-byte theorems and native operation counters are
-recorded in [the resource IR](storage-ir.md). Dynamic shapes/value flow, general
-scratch/dependency handling and equivalent-C acceptance remain pending.
+recorded in [the resource IR](storage-ir.md). Checked scalar value flow and the
+[whole-map runtime-extent profile](runtime-shapes.md) now connect immutable
+integral dimensions to caller-owned GEMM. [Explicit caches](cached-packing.md)
+and [contraction trees](contraction-trees.md) cover bounded scratch/dependency
+consumers. General shape results, retention/pooling and equivalent-C acceptance
+remain pending.
 
 ## 7.1 Fast like C: the primary design goal
 

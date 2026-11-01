@@ -1,0 +1,1249 @@
+{
+  "archive": "evidence.zip",
+  "bytes": 833583,
+  "sha256": "81ca0b631fa9f70d14e2bb4371ce58fec87aebb96178ca1d0424e076b0341c8a",
+  "members": [
+    {
+      "path": "commands.json",
+      "bytes": 307275,
+      "sha256": "d5910aee672725ac13c24ae3ee6ca0939f1155b16af96fddb8d6c4c23ae4f93a"
+    },
+    {
+      "path": "complex-normal/.lake/build/ir/Main.c",
+      "bytes": 140221,
+      "sha256": "b3a54ce111e0678d38cfdb8192f716d4c5f09070b1ac21a6caba432eb6255dcc"
+    },
+    {
+      "path": "complex-normal/Generated.lean",
+      "bytes": 5145,
+      "sha256": "84a81cb3cdd155d904514d391e4588ffad3cbb42534adadc6640e3768fc57ceb"
+    },
+    {
+      "path": "complex-normal/Main.lean",
+      "bytes": 10441,
+      "sha256": "0abdf81d56100121311b2b5fdbfcb63cf26701f0e5492db9780c4c77d8d00827"
+    },
+    {
+      "path": "complex-normal/lake-manifest.json",
+      "bytes": 828,
+      "sha256": "bf29734e799324836943193f083537b66d824b3cba176384c9331d35080d66b8"
+    },
+    {
+      "path": "complex-normal/lakefile.lean",
+      "bytes": 447,
+      "sha256": "724bbb8770b7c006621809491aa1ea335553f97aff06d6a36be2e34a9785255d"
+    },
+    {
+      "path": "complex-normal/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "complex-normal/native/.lake/build/ir/VastitasStorageNative/Runtime.c",
+      "bytes": 55859,
+      "sha256": "f5f10dddc18f5e703537356c47fa64093e812e34f5032933f66926b34b458708"
+    },
+    {
+      "path": "complex-normal/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 5559,
+      "sha256": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071"
+    },
+    {
+      "path": "complex-normal/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+    },
+    {
+      "path": "complex-normal/native/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "complex-normal/native/diagonal.c",
+      "bytes": 7136,
+      "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83"
+    },
+    {
+      "path": "complex-normal/native/diagonal.h",
+      "bytes": 1114,
+      "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+    },
+    {
+      "path": "complex-normal/native/ffi.c",
+      "bytes": 8729,
+      "sha256": "0d1897f3039cb492b6dcec213c6e61859fcbba18b47ef6f889131e5cd74e8214"
+    },
+    {
+      "path": "complex-normal/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+    },
+    {
+      "path": "complex-normal/native/lakefile.lean",
+      "bytes": 2081,
+      "sha256": "ccdf654c8eae947785e4ce42ed16b5217b1d5f4477c309998159e9b06ee1a508"
+    },
+    {
+      "path": "complex-normal/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "complex-normal/native/profile.h",
+      "bytes": 37,
+      "sha256": "c862eca94720f09ffc9968efb3c8f02a330ff7af032859f558eb06330c455dd2"
+    },
+    {
+      "path": "complex-normal/native/storage.c",
+      "bytes": 83,
+      "sha256": "5c74fa73622b34fe994a5bd5e82dcc8ea850178ce5bb04eaca1a78ce03e041dc"
+    },
+    {
+      "path": "complex-normal/native/storage.h",
+      "bytes": 3717,
+      "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+    },
+    {
+      "path": "complex-normal/native/test_diagonal.c",
+      "bytes": 3844,
+      "sha256": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f"
+    },
+    {
+      "path": "complex-normal/native/test_storage.c",
+      "bytes": 28201,
+      "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+    },
+    {
+      "path": "complex-normal/native-test/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "complex-normal/native-test/profile.h",
+      "bytes": 37,
+      "sha256": "c862eca94720f09ffc9968efb3c8f02a330ff7af032859f558eb06330c455dd2"
+    },
+    {
+      "path": "complex-normal/numerical/VastitasGemmNative.lean",
+      "bytes": 2164,
+      "sha256": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3"
+    },
+    {
+      "path": "complex-normal/numerical/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "complex-normal/numerical/ffi.c",
+      "bytes": 4828,
+      "sha256": "db82453ea22c8e3808b42f73a602fc2c9898ac45d381dec6d518d8670c4eb992"
+    },
+    {
+      "path": "complex-normal/numerical/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "complex-normal/numerical/gemm.h",
+      "bytes": 2194,
+      "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+    },
+    {
+      "path": "complex-normal/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+    },
+    {
+      "path": "complex-normal/numerical/lakefile.lean",
+      "bytes": 2152,
+      "sha256": "d8f53e5e16d3cb918e13868c5212ca6f2f7c72fa6e20563cac6564105b3ee9f7"
+    },
+    {
+      "path": "complex-normal/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "complex-normal/numerical/test_backend.c",
+      "bytes": 1883,
+      "sha256": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1"
+    },
+    {
+      "path": "complex-normal/numerical/test_gemm.c",
+      "bytes": 20912,
+      "sha256": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b"
+    },
+    {
+      "path": "complex-normal/public/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "complex-normal/public/capture.py",
+      "bytes": 317,
+      "sha256": "c3dc8f90358b8a472139da0fdb29a14aeb88eb778e9db0b47966aea43d5e5d0c"
+    },
+    {
+      "path": "complex-normal/public/src/main.vast",
+      "bytes": 2460,
+      "sha256": "c1016a7d29efc476f8c3ace40e705cc5d264f921a62d7a39e4c156032fc0688c"
+    },
+    {
+      "path": "complex-normal/public/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "complex-normal/public/wire.json",
+      "bytes": 17991,
+      "sha256": "381d8dd0b82c67062fe3c8a7095d93f22b29f0dfa77ff9946554a7e624dc193b"
+    },
+    {
+      "path": "complex-normal/public-response.json",
+      "bytes": 10045,
+      "sha256": "367e811d8ec2d22b52c687d1028ecdd8cd4a2592d4a7abdfbd6446d0d4f85ffa"
+    },
+    {
+      "path": "complex-normal/response.json",
+      "bytes": 5400,
+      "sha256": "c23d3356ce94ecaa0a4ccdc8619cc065313bd0208638db23d474b6a25dc70478"
+    },
+    {
+      "path": "complex-normal/sanitized/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "complex-normal/sanitized/profile.h",
+      "bytes": 37,
+      "sha256": "c862eca94720f09ffc9968efb3c8f02a330ff7af032859f558eb06330c455dd2"
+    },
+    {
+      "path": "complex-normal/symbols.txt",
+      "bytes": 815146,
+      "sha256": "b060da5804acf6998cfe3585803c5fed82133704abe140b77cdb31ba06eabd5c"
+    },
+    {
+      "path": "complex-normal/transformation.json",
+      "bytes": 3921,
+      "sha256": "d7486c971431c36cbfa497f17d9f41572a6331117d6b08fa366bbfb958c0848d"
+    },
+    {
+      "path": "complex-normal/wrapper-source/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "complex-normal/wrapper-source/capture.py",
+      "bytes": 325,
+      "sha256": "7f871f6a965389cac12f75a81d7c92043067e16835d8d2d6fe29bafa99fd1aba"
+    },
+    {
+      "path": "complex-normal/wrapper-source/src/main.vast",
+      "bytes": 2255,
+      "sha256": "0b1664ff825f287b5534b48bbd7aa35d44a265fbb5f0b555d1a6fa028268aa42"
+    },
+    {
+      "path": "complex-normal/wrapper-source/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "complex-normal/wrapper-source/wire.json",
+      "bytes": 16659,
+      "sha256": "7e94de796accb452d02865edf717ca1867b182adabca1bd6737cfa1505ec27c0"
+    },
+    {
+      "path": "complex-transpose/.lake/build/ir/Main.c",
+      "bytes": 141216,
+      "sha256": "d020f15ec70580552d6fd4b32dc7aa8b6f997c4e8c4c87925471d850af0e5e4a"
+    },
+    {
+      "path": "complex-transpose/Generated.lean",
+      "bytes": 5142,
+      "sha256": "c90f3d2665c45b8e0aa1200abc286dd99e8774681f074999607cef8977211483"
+    },
+    {
+      "path": "complex-transpose/Main.lean",
+      "bytes": 10435,
+      "sha256": "1a9299e5f1e8712feb25fc3d8e7bc1e3b27aef6cb9ab800c60734d242f15ad95"
+    },
+    {
+      "path": "complex-transpose/lake-manifest.json",
+      "bytes": 828,
+      "sha256": "bf29734e799324836943193f083537b66d824b3cba176384c9331d35080d66b8"
+    },
+    {
+      "path": "complex-transpose/lakefile.lean",
+      "bytes": 447,
+      "sha256": "724bbb8770b7c006621809491aa1ea335553f97aff06d6a36be2e34a9785255d"
+    },
+    {
+      "path": "complex-transpose/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "complex-transpose/native/.lake/build/ir/VastitasStorageNative/Runtime.c",
+      "bytes": 55859,
+      "sha256": "f5f10dddc18f5e703537356c47fa64093e812e34f5032933f66926b34b458708"
+    },
+    {
+      "path": "complex-transpose/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 5559,
+      "sha256": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071"
+    },
+    {
+      "path": "complex-transpose/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+    },
+    {
+      "path": "complex-transpose/native/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "complex-transpose/native/diagonal.c",
+      "bytes": 7136,
+      "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83"
+    },
+    {
+      "path": "complex-transpose/native/diagonal.h",
+      "bytes": 1114,
+      "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+    },
+    {
+      "path": "complex-transpose/native/ffi.c",
+      "bytes": 8729,
+      "sha256": "0d1897f3039cb492b6dcec213c6e61859fcbba18b47ef6f889131e5cd74e8214"
+    },
+    {
+      "path": "complex-transpose/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+    },
+    {
+      "path": "complex-transpose/native/lakefile.lean",
+      "bytes": 2099,
+      "sha256": "605c52fdda33472ef5a58fa39af58d446e988376e3e66c8655e08e4ee0ad353a"
+    },
+    {
+      "path": "complex-transpose/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "complex-transpose/native/profile.h",
+      "bytes": 37,
+      "sha256": "c3965d6d53ed844cc3492ea22c0bf7306989384ac1e37588ab06bdfc2fdc2bdc"
+    },
+    {
+      "path": "complex-transpose/native/storage.c",
+      "bytes": 83,
+      "sha256": "5c74fa73622b34fe994a5bd5e82dcc8ea850178ce5bb04eaca1a78ce03e041dc"
+    },
+    {
+      "path": "complex-transpose/native/storage.h",
+      "bytes": 3717,
+      "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+    },
+    {
+      "path": "complex-transpose/native/test_diagonal.c",
+      "bytes": 3844,
+      "sha256": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f"
+    },
+    {
+      "path": "complex-transpose/native/test_storage.c",
+      "bytes": 28201,
+      "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+    },
+    {
+      "path": "complex-transpose/native-test/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "complex-transpose/native-test/profile.h",
+      "bytes": 37,
+      "sha256": "c3965d6d53ed844cc3492ea22c0bf7306989384ac1e37588ab06bdfc2fdc2bdc"
+    },
+    {
+      "path": "complex-transpose/numerical/VastitasGemmNative.lean",
+      "bytes": 2164,
+      "sha256": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3"
+    },
+    {
+      "path": "complex-transpose/numerical/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "complex-transpose/numerical/ffi.c",
+      "bytes": 4828,
+      "sha256": "db82453ea22c8e3808b42f73a602fc2c9898ac45d381dec6d518d8670c4eb992"
+    },
+    {
+      "path": "complex-transpose/numerical/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "complex-transpose/numerical/gemm.h",
+      "bytes": 2194,
+      "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+    },
+    {
+      "path": "complex-transpose/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+    },
+    {
+      "path": "complex-transpose/numerical/lakefile.lean",
+      "bytes": 2152,
+      "sha256": "d8f53e5e16d3cb918e13868c5212ca6f2f7c72fa6e20563cac6564105b3ee9f7"
+    },
+    {
+      "path": "complex-transpose/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "complex-transpose/numerical/test_backend.c",
+      "bytes": 1883,
+      "sha256": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1"
+    },
+    {
+      "path": "complex-transpose/numerical/test_gemm.c",
+      "bytes": 20912,
+      "sha256": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b"
+    },
+    {
+      "path": "complex-transpose/public/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "complex-transpose/public/capture.py",
+      "bytes": 320,
+      "sha256": "06c6630a9b6b48431f72914b05e70a2a3c9da21aff7a55e9ca0e714b377733f9"
+    },
+    {
+      "path": "complex-transpose/public/src/main.vast",
+      "bytes": 2459,
+      "sha256": "49817f49b4ee79c8ff45a5f588b1a07f8cf4b5a97b575d2f5df1d89d831c1eb6"
+    },
+    {
+      "path": "complex-transpose/public/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "complex-transpose/public/wire.json",
+      "bytes": 17999,
+      "sha256": "e352d6b6d0dc466e6920235dfae44fd0607b3398d7c99ac8c3eee27abd2ecef8"
+    },
+    {
+      "path": "complex-transpose/public-response.json",
+      "bytes": 10039,
+      "sha256": "e11b3cf13563b9128f33af3fd8a8f19a281cf6d475840597ac197a66f75a60c8"
+    },
+    {
+      "path": "complex-transpose/response.json",
+      "bytes": 5397,
+      "sha256": "718cc979e5970fd2e4faa9cc93fb14d08df3ac1d046c44987296724b9e7a5f0c"
+    },
+    {
+      "path": "complex-transpose/sanitized/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "complex-transpose/sanitized/profile.h",
+      "bytes": 37,
+      "sha256": "c3965d6d53ed844cc3492ea22c0bf7306989384ac1e37588ab06bdfc2fdc2bdc"
+    },
+    {
+      "path": "complex-transpose/symbols.txt",
+      "bytes": 815146,
+      "sha256": "6ad30f3773fd99f29b752711e15a70362de4dee89107a710a154c87a8911ec5a"
+    },
+    {
+      "path": "complex-transpose/transformation.json",
+      "bytes": 3918,
+      "sha256": "1734f1005ad3072e478ba1b0342df3643028caaf4d82f345431347c08b78accd"
+    },
+    {
+      "path": "complex-transpose/wrapper-source/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "complex-transpose/wrapper-source/capture.py",
+      "bytes": 328,
+      "sha256": "6665e03ddb8f3708cfecc34adb4be98975c9c899eec75e8659a6b728ee1d27de"
+    },
+    {
+      "path": "complex-transpose/wrapper-source/src/main.vast",
+      "bytes": 2254,
+      "sha256": "f37ebc8a520b6d5f849313e4565c6995db2248c9ce1bda397ed8ffa3717167c1"
+    },
+    {
+      "path": "complex-transpose/wrapper-source/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "complex-transpose/wrapper-source/wire.json",
+      "bytes": 16667,
+      "sha256": "eb8c07aad02c160ae7898931211c61a821b73befc7e297911ee7977843dcf1e7"
+    },
+    {
+      "path": "environment.json",
+      "bytes": 8746,
+      "sha256": "dd959ccfc431b402597b66978dbf1a8fd76dc755ed1ab56cb2e327f6f5b4ca26"
+    },
+    {
+      "path": "failure-validation.json",
+      "bytes": 8339,
+      "sha256": "cdf57d282e6c508a17d8d35850f42012940106d40b8cf60e2f8425fac66532cc"
+    },
+    {
+      "path": "native-validation.json",
+      "bytes": 60479,
+      "sha256": "bedc9e0dd74e54ef0e4969b57b8affed6bde87e2bda54d887a866609c9dd8f90"
+    },
+    {
+      "path": "real-normal/.lake/build/ir/Main.c",
+      "bytes": 139672,
+      "sha256": "5da9519967d570e32abb7f7702b0ce2991c2b4598df463289ae7e1afc21e9af1"
+    },
+    {
+      "path": "real-normal/Generated.lean",
+      "bytes": 5108,
+      "sha256": "45ac6434005c0c7348821b88d13caceb79851c99d6b92efd516757880f9772ce"
+    },
+    {
+      "path": "real-normal/Main.lean",
+      "bytes": 10367,
+      "sha256": "6081094f5d38d17167311bc9f1158747531dbbb7233fafb1bb35670fa907c74f"
+    },
+    {
+      "path": "real-normal/lake-manifest.json",
+      "bytes": 828,
+      "sha256": "bf29734e799324836943193f083537b66d824b3cba176384c9331d35080d66b8"
+    },
+    {
+      "path": "real-normal/lakefile.lean",
+      "bytes": 447,
+      "sha256": "724bbb8770b7c006621809491aa1ea335553f97aff06d6a36be2e34a9785255d"
+    },
+    {
+      "path": "real-normal/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "real-normal/native/.lake/build/ir/VastitasStorageNative/Runtime.c",
+      "bytes": 55859,
+      "sha256": "f5f10dddc18f5e703537356c47fa64093e812e34f5032933f66926b34b458708"
+    },
+    {
+      "path": "real-normal/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 5559,
+      "sha256": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071"
+    },
+    {
+      "path": "real-normal/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+    },
+    {
+      "path": "real-normal/native/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "real-normal/native/diagonal.c",
+      "bytes": 7136,
+      "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83"
+    },
+    {
+      "path": "real-normal/native/diagonal.h",
+      "bytes": 1114,
+      "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+    },
+    {
+      "path": "real-normal/native/ffi.c",
+      "bytes": 8729,
+      "sha256": "0d1897f3039cb492b6dcec213c6e61859fcbba18b47ef6f889131e5cd74e8214"
+    },
+    {
+      "path": "real-normal/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+    },
+    {
+      "path": "real-normal/native/lakefile.lean",
+      "bytes": 2063,
+      "sha256": "16bffe6a097a5cf0c20c9944ad6b9af61183c01d83a434c511d9252b40eb9339"
+    },
+    {
+      "path": "real-normal/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "real-normal/native/profile.h",
+      "bytes": 37,
+      "sha256": "d5aa4f012d4a18047e90a7268a6e9a52972f742ea8dd98cf5ee1f01abd3efde4"
+    },
+    {
+      "path": "real-normal/native/storage.c",
+      "bytes": 83,
+      "sha256": "5c74fa73622b34fe994a5bd5e82dcc8ea850178ce5bb04eaca1a78ce03e041dc"
+    },
+    {
+      "path": "real-normal/native/storage.h",
+      "bytes": 3717,
+      "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+    },
+    {
+      "path": "real-normal/native/test_diagonal.c",
+      "bytes": 3844,
+      "sha256": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f"
+    },
+    {
+      "path": "real-normal/native/test_storage.c",
+      "bytes": 28201,
+      "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+    },
+    {
+      "path": "real-normal/native-test/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "real-normal/native-test/profile.h",
+      "bytes": 37,
+      "sha256": "d5aa4f012d4a18047e90a7268a6e9a52972f742ea8dd98cf5ee1f01abd3efde4"
+    },
+    {
+      "path": "real-normal/numerical/VastitasGemmNative.lean",
+      "bytes": 2164,
+      "sha256": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3"
+    },
+    {
+      "path": "real-normal/numerical/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "real-normal/numerical/ffi.c",
+      "bytes": 4828,
+      "sha256": "db82453ea22c8e3808b42f73a602fc2c9898ac45d381dec6d518d8670c4eb992"
+    },
+    {
+      "path": "real-normal/numerical/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "real-normal/numerical/gemm.h",
+      "bytes": 2194,
+      "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+    },
+    {
+      "path": "real-normal/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+    },
+    {
+      "path": "real-normal/numerical/lakefile.lean",
+      "bytes": 2152,
+      "sha256": "d8f53e5e16d3cb918e13868c5212ca6f2f7c72fa6e20563cac6564105b3ee9f7"
+    },
+    {
+      "path": "real-normal/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "real-normal/numerical/test_backend.c",
+      "bytes": 1883,
+      "sha256": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1"
+    },
+    {
+      "path": "real-normal/numerical/test_gemm.c",
+      "bytes": 20912,
+      "sha256": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b"
+    },
+    {
+      "path": "real-normal/public/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "real-normal/public/capture.py",
+      "bytes": 314,
+      "sha256": "13300ffe82798332fe38c9ec3f6a1ddfd7808545561dfdc737f00531cd75423d"
+    },
+    {
+      "path": "real-normal/public/src/main.vast",
+      "bytes": 2364,
+      "sha256": "81f794f847710d598a8be0fac1458ea0c4795e145f6e4311c18a263f3f9c4209"
+    },
+    {
+      "path": "real-normal/public/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "real-normal/public/wire.json",
+      "bytes": 17854,
+      "sha256": "326177bdac8dc7c8e9eab44459c6f76cb9daa7eef58a75f7aa971da627895336"
+    },
+    {
+      "path": "real-normal/public-response.json",
+      "bytes": 9971,
+      "sha256": "6fdb9b9a4d6d451a9ead0ea8fec14c29d91ca3db205aa5a9e065fd5175760800"
+    },
+    {
+      "path": "real-normal/response.json",
+      "bytes": 5363,
+      "sha256": "787a2e866ffa28f3b8e44be69c7c8f0d5efc8591620f58ca0107f687a1d41a90"
+    },
+    {
+      "path": "real-normal/sanitized/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "real-normal/sanitized/profile.h",
+      "bytes": 37,
+      "sha256": "d5aa4f012d4a18047e90a7268a6e9a52972f742ea8dd98cf5ee1f01abd3efde4"
+    },
+    {
+      "path": "real-normal/symbols.txt",
+      "bytes": 815146,
+      "sha256": "192d16d285949c3ebad318cc66497d6e9b9467fd375297afa40da2f86b01cfbe"
+    },
+    {
+      "path": "real-normal/transformation.json",
+      "bytes": 3884,
+      "sha256": "f06cf8ced56653db1b6cec24cc1800a4db50b5a0240aa5ca9a5f42d794c3fbeb"
+    },
+    {
+      "path": "real-normal/wrapper-source/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "real-normal/wrapper-source/capture.py",
+      "bytes": 322,
+      "sha256": "3d7b8484c9c15a5352e037a659c0861657b8bb50c641c418f04ab1ebc8adc692"
+    },
+    {
+      "path": "real-normal/wrapper-source/src/main.vast",
+      "bytes": 2159,
+      "sha256": "dab45ad99785db90e57dc05bcf64d077181380378a0bb1c5db79d4dffb735b16"
+    },
+    {
+      "path": "real-normal/wrapper-source/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "real-normal/wrapper-source/wire.json",
+      "bytes": 16522,
+      "sha256": "449cdd658c48ef7577fafee86b233e16e0bafe2865d13e84c24e406ec41f91a7"
+    },
+    {
+      "path": "real-transpose/.lake/build/ir/Main.c",
+      "bytes": 140666,
+      "sha256": "f30f0f29909ec74481ab76ea6963efd0bf3f9240aea5c4ae1c3dcc9866512c84"
+    },
+    {
+      "path": "real-transpose/Generated.lean",
+      "bytes": 5105,
+      "sha256": "f504fbfdd7581e5cca94ea0af321fc57d5848d27489a436793b869bf8817af85"
+    },
+    {
+      "path": "real-transpose/Main.lean",
+      "bytes": 10361,
+      "sha256": "1d79254a209dced88760800b8db8642483dd8c95c418b70eceb44cac763820cd"
+    },
+    {
+      "path": "real-transpose/lake-manifest.json",
+      "bytes": 828,
+      "sha256": "bf29734e799324836943193f083537b66d824b3cba176384c9331d35080d66b8"
+    },
+    {
+      "path": "real-transpose/lakefile.lean",
+      "bytes": 447,
+      "sha256": "724bbb8770b7c006621809491aa1ea335553f97aff06d6a36be2e34a9785255d"
+    },
+    {
+      "path": "real-transpose/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "real-transpose/native/.lake/build/ir/VastitasStorageNative/Runtime.c",
+      "bytes": 55859,
+      "sha256": "f5f10dddc18f5e703537356c47fa64093e812e34f5032933f66926b34b458708"
+    },
+    {
+      "path": "real-transpose/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 5559,
+      "sha256": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071"
+    },
+    {
+      "path": "real-transpose/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+    },
+    {
+      "path": "real-transpose/native/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "real-transpose/native/diagonal.c",
+      "bytes": 7136,
+      "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83"
+    },
+    {
+      "path": "real-transpose/native/diagonal.h",
+      "bytes": 1114,
+      "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+    },
+    {
+      "path": "real-transpose/native/ffi.c",
+      "bytes": 8729,
+      "sha256": "0d1897f3039cb492b6dcec213c6e61859fcbba18b47ef6f889131e5cd74e8214"
+    },
+    {
+      "path": "real-transpose/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+    },
+    {
+      "path": "real-transpose/native/lakefile.lean",
+      "bytes": 2081,
+      "sha256": "d7ec21cc1b04f6813c66c89e5fc02d8a328202ba5c2e0d6233804bc690221e14"
+    },
+    {
+      "path": "real-transpose/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "real-transpose/native/profile.h",
+      "bytes": 37,
+      "sha256": "7a784cfb1e9e7f8ef0f303d89251704da9780a7fbd5e8afa28a0a2dd845667a0"
+    },
+    {
+      "path": "real-transpose/native/storage.c",
+      "bytes": 83,
+      "sha256": "5c74fa73622b34fe994a5bd5e82dcc8ea850178ce5bb04eaca1a78ce03e041dc"
+    },
+    {
+      "path": "real-transpose/native/storage.h",
+      "bytes": 3717,
+      "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+    },
+    {
+      "path": "real-transpose/native/test_diagonal.c",
+      "bytes": 3844,
+      "sha256": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f"
+    },
+    {
+      "path": "real-transpose/native/test_storage.c",
+      "bytes": 28201,
+      "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+    },
+    {
+      "path": "real-transpose/native-test/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "real-transpose/native-test/profile.h",
+      "bytes": 37,
+      "sha256": "7a784cfb1e9e7f8ef0f303d89251704da9780a7fbd5e8afa28a0a2dd845667a0"
+    },
+    {
+      "path": "real-transpose/numerical/VastitasGemmNative.lean",
+      "bytes": 2164,
+      "sha256": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3"
+    },
+    {
+      "path": "real-transpose/numerical/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "real-transpose/numerical/ffi.c",
+      "bytes": 4828,
+      "sha256": "db82453ea22c8e3808b42f73a602fc2c9898ac45d381dec6d518d8670c4eb992"
+    },
+    {
+      "path": "real-transpose/numerical/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "real-transpose/numerical/gemm.h",
+      "bytes": 2194,
+      "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+    },
+    {
+      "path": "real-transpose/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+    },
+    {
+      "path": "real-transpose/numerical/lakefile.lean",
+      "bytes": 2152,
+      "sha256": "d8f53e5e16d3cb918e13868c5212ca6f2f7c72fa6e20563cac6564105b3ee9f7"
+    },
+    {
+      "path": "real-transpose/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "real-transpose/numerical/test_backend.c",
+      "bytes": 1883,
+      "sha256": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1"
+    },
+    {
+      "path": "real-transpose/numerical/test_gemm.c",
+      "bytes": 20912,
+      "sha256": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b"
+    },
+    {
+      "path": "real-transpose/public/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "real-transpose/public/capture.py",
+      "bytes": 317,
+      "sha256": "1b4ee3c533b9bfe1b4ff9663aebebbaf94f82dbf65628108c337bf9fa209398b"
+    },
+    {
+      "path": "real-transpose/public/src/main.vast",
+      "bytes": 2363,
+      "sha256": "c1549caa4832a5aad0650f63f764f1607669001d112f9f450e0516037db4cfd9"
+    },
+    {
+      "path": "real-transpose/public/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "real-transpose/public/wire.json",
+      "bytes": 17862,
+      "sha256": "bca2445080889c4652ba6da74b3353759cc1c64addff2dfc1ec768c2e397a83e"
+    },
+    {
+      "path": "real-transpose/public-response.json",
+      "bytes": 9965,
+      "sha256": "c4f8c9f550612c121c83882c28821f15b0b9a7606e2f7fb8a2339c7928699722"
+    },
+    {
+      "path": "real-transpose/response.json",
+      "bytes": 5360,
+      "sha256": "306c2e8c4919103eb947777aaf4f3afe4feb5192831a17944ce09b8d8c173001"
+    },
+    {
+      "path": "real-transpose/sanitized/gemm.c",
+      "bytes": 10602,
+      "sha256": "9849a30c9585230b13ab24b1edae416351aba95a136ff93d5c478e267517452a"
+    },
+    {
+      "path": "real-transpose/sanitized/profile.h",
+      "bytes": 37,
+      "sha256": "7a784cfb1e9e7f8ef0f303d89251704da9780a7fbd5e8afa28a0a2dd845667a0"
+    },
+    {
+      "path": "real-transpose/symbols.txt",
+      "bytes": 815146,
+      "sha256": "f7c1df23b41158452657342710d0b21a7f89bf644ff4b902c22d53bc3a1c9067"
+    },
+    {
+      "path": "real-transpose/transformation.json",
+      "bytes": 3881,
+      "sha256": "f22ad26ce2d7ad12dab1aa1ffd45b56195e65dd2e6d3a4187fa0bcd61eeb6ac4"
+    },
+    {
+      "path": "real-transpose/wrapper-source/Vastitas.toml",
+      "bytes": 80,
+      "sha256": "cb9e7e7e4350edaf799a2ff72c05a3e69b1171253f417b2aa63a2fa69eb9ffce"
+    },
+    {
+      "path": "real-transpose/wrapper-source/capture.py",
+      "bytes": 325,
+      "sha256": "f4fa3a0dc92ba6b60fae9e4888ac7d7c5170aa3b2e3c544307eda833c8e9b4db"
+    },
+    {
+      "path": "real-transpose/wrapper-source/src/main.vast",
+      "bytes": 2158,
+      "sha256": "45bf4864568ba9f7e582ccbd5a32e4f30ec95b8b14022a390d7b1976a32a3380"
+    },
+    {
+      "path": "real-transpose/wrapper-source/src/profiles/mod.vast",
+      "bytes": 1043,
+      "sha256": "04308fe0afeeeed766a7e046d36379ddb541b47ef353c1c87f4671853bbff532"
+    },
+    {
+      "path": "real-transpose/wrapper-source/wire.json",
+      "bytes": 16530,
+      "sha256": "fa404cf3b1989855fff039a95a5f29144acebd4588dac9c8795e314713b7ffa1"
+    },
+    {
+      "path": "records.json",
+      "bytes": 176155,
+      "sha256": "4dc259da14bd73a7c5021a1903ecb007dfa00e4cec36711d2c1e4a6ca7b93330"
+    },
+    {
+      "path": "source/experiments/contraction_trees/cases.py",
+      "bytes": 11029,
+      "sha256": "52f44d9c93b0ed73c0e604949f7c88b3a28b935a9b68f8576227c1980ac31650"
+    },
+    {
+      "path": "source/experiments/contraction_trees/run.py",
+      "bytes": 21628,
+      "sha256": "e54f5ec2ff0b0916d8e23949acad1c5db27d0e9fe0f1dd5d309b0d5244936577"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/README.md",
+      "bytes": 5671,
+      "sha256": "b600aa44d01175667a4f59fc06c00381723f0d5f50179ff261acfa85f91bffab"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/calls.h",
+      "bytes": 498,
+      "sha256": "5af275da94457ba47af689399f403d8f8659dc05c1583f7dea9ce740d042aa94"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/cases.py",
+      "bytes": 8677,
+      "sha256": "b8ff02c874ec2b1a44db0d6b75fcfc26653ce7a3fcfe89477be42fdbc3f22520"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/ffi.c",
+      "bytes": 1075,
+      "sha256": "fc75d7fc7b9dbf4a836bc726a8653ae5a57c7abee1e980a84e8965351115ea9e"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/probe.c",
+      "bytes": 13058,
+      "sha256": "ad12bc541c1e53128470e16ba80fe46f9a82e98ebb444fd5484aad5db12bebbe"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/run.py",
+      "bytes": 13097,
+      "sha256": "55a679cc6b786ed450dd314be5f0cd4de6ecf5bca1b2635ed5028a016d723821"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/test_harness.py",
+      "bytes": 2222,
+      "sha256": "4c39979a70fceb1872132e37582ba69322f0bffc219a7c2850c9acd3cc3667a2"
+    },
+    {
+      "path": "source/experiments/runtime_shapes/verify.py",
+      "bytes": 6325,
+      "sha256": "f87c11cdc4eded7f8afd0fbe9a7902bc36e04f04d09c18208b5ce246ec6b20df"
+    },
+    {
+      "path": "source/experiments/storage_copy/run.py",
+      "bytes": 13955,
+      "sha256": "9ec31e212be9e18be4709b0fcebefd0266f9ec783abf9512481e9c68dd170bc1"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/ResourceCodegen.lean",
+      "bytes": 8705,
+      "sha256": "b775ca97d5e19eb5579081b9cd160fe68c4a7a723ab2300ffb46064dced2305a"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/ResourceProtocol.lean",
+      "bytes": 26306,
+      "sha256": "cca58e218943e5f6e3cc5127e74ec90618c123f1587a24a24970a57b6d4d0603"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/ResourceSource.lean",
+      "bytes": 57022,
+      "sha256": "74e64a7b4557f8ba8005894525f54b74e62c6559f468e3a419ff6cc86e7f4a8c"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageFunctions.lean",
+      "bytes": 118643,
+      "sha256": "7e5bdc7bd8a3405f420ce8afe2ca014d390109d46cb900adcb539390600e70d1"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageShapeCodegen.lean",
+      "bytes": 6489,
+      "sha256": "70bc0f841a95a74a3e92dcdb88027661aa618c78d1a316b60cb5c2d6c623f46e"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageShapeExpr.lean",
+      "bytes": 4317,
+      "sha256": "2ca500ec0bee6769b6ebacbb04672e0d6cd0b321389a8a2b7a8512981f74bc62"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageShapeFlow.lean",
+      "bytes": 2518,
+      "sha256": "d2c539e4069c14ef704fb7966658df095c34ebb06d59a915529e1120517066e3"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageShapeFunctions.lean",
+      "bytes": 9040,
+      "sha256": "d2899fa61fc99e3bb2fb13319856b3b2d4f866fbf90e079361fb5db3aa802014"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageShapeNumerical.lean",
+      "bytes": 11057,
+      "sha256": "83fff23bcc36e96d5eb6c184628cb74f300083b2c4c47f1cc5d53c47936f1dcf"
+    },
+    {
+      "path": "source/lean-kernel/VastitasKernel/StorageShapes.lean",
+      "bytes": 15396,
+      "sha256": "ef20cad517b7aeca77923b7cc46105eb7eb96891391d203e3fa1e6d2f125a9d2"
+    },
+    {
+      "path": "source/lean-kernel/native/VastitasStorageNative/Runtime.lean",
+      "bytes": 5559,
+      "sha256": "668a81083976a02ba5472740113a6bcba02df442ed7a35b3bd1db83856a3f071"
+    },
+    {
+      "path": "source/lean-kernel/native/VastitasStorageNative.lean",
+      "bytes": 37,
+      "sha256": "899223074496d14d2bacb83fd1ea8ff34406df2f751b5de0c0beeb604487b0f9"
+    },
+    {
+      "path": "source/lean-kernel/native/diagonal.c",
+      "bytes": 7136,
+      "sha256": "b8d02783631bd506f8a12469bce26fb85384ddbd370d541378d8023bc9968f83"
+    },
+    {
+      "path": "source/lean-kernel/native/diagonal.h",
+      "bytes": 1114,
+      "sha256": "a04126248907d64bdeb87123276b53f4cd69c9a07c0156465ba8a59f422c996f"
+    },
+    {
+      "path": "source/lean-kernel/native/ffi.c",
+      "bytes": 7653,
+      "sha256": "34918624fbf7e023417462f21bde8c859115a5cdbd2f5e980659e799da641b72"
+    },
+    {
+      "path": "source/lean-kernel/native/lake-manifest.json",
+      "bytes": 155,
+      "sha256": "6b5cb98586007067a3951a1a3e7c8ec0bc12380ea480609410cccb470ae921c6"
+    },
+    {
+      "path": "source/lean-kernel/native/lakefile.lean",
+      "bytes": 1592,
+      "sha256": "36aaeec5cf4ee2a64f48b310aed46be20d3a993d1ace4279b0966e6500fec073"
+    },
+    {
+      "path": "source/lean-kernel/native/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "source/lean-kernel/native/storage.c",
+      "bytes": 19871,
+      "sha256": "6a3f3bcd9b1e37a5d41e3807c86a89f00b072a34559308aa8e53b09557b14578"
+    },
+    {
+      "path": "source/lean-kernel/native/storage.h",
+      "bytes": 3717,
+      "sha256": "45227fc91043a91138e583a07bc521a2925fda0e9a027d804c27b04ffcf32c13"
+    },
+    {
+      "path": "source/lean-kernel/native/test_diagonal.c",
+      "bytes": 3844,
+      "sha256": "98adc029be057bcedd567de45aad3a9231581be0a9548c5577b195ffcbbc022f"
+    },
+    {
+      "path": "source/lean-kernel/native/test_storage.c",
+      "bytes": 28201,
+      "sha256": "39f2bfab70fff2d4173fe6830427dcabc827861a02d7fb0d7729eeb73df45691"
+    },
+    {
+      "path": "source/lean-kernel/numerical/LICENSE.OpenBLAS",
+      "bytes": 1545,
+      "sha256": "fc239da73616d04dce1663d9f789bc822221d7df6a25e4139082d1802af8b1e9"
+    },
+    {
+      "path": "source/lean-kernel/numerical/VastitasGemmNative.lean",
+      "bytes": 2164,
+      "sha256": "794a6b5407ad6d982bb2421b7d9a9420419f64aa955cc0f278733b7beefdc0b3"
+    },
+    {
+      "path": "source/lean-kernel/numerical/ffi.c",
+      "bytes": 4828,
+      "sha256": "db82453ea22c8e3808b42f73a602fc2c9898ac45d381dec6d518d8670c4eb992"
+    },
+    {
+      "path": "source/lean-kernel/numerical/gemm.c",
+      "bytes": 10519,
+      "sha256": "c39eab9c9bdeacac086ee74737ad5789c97005a61172849905c3af188971d33d"
+    },
+    {
+      "path": "source/lean-kernel/numerical/gemm.h",
+      "bytes": 2194,
+      "sha256": "27662699bd88e9b23abc6ecc189b77285b78758486d39e3ed0a3af4a2b4a7124"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lake-manifest.json",
+      "bytes": 362,
+      "sha256": "41ef6f3ea7140e79478ee8acb8d3aa499b1d59386f23884120eff2c034632557"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lakefile.lean",
+      "bytes": 2152,
+      "sha256": "d8f53e5e16d3cb918e13868c5212ca6f2f7c72fa6e20563cac6564105b3ee9f7"
+    },
+    {
+      "path": "source/lean-kernel/numerical/lean-toolchain",
+      "bytes": 25,
+      "sha256": "ca5f1f601d34c49079e38d7e7041eb0f2a9c227fbc1df0f404820069a052330c"
+    },
+    {
+      "path": "source/lean-kernel/numerical/test_backend.c",
+      "bytes": 1883,
+      "sha256": "7e810a77c7262099081164becfc06792b430f41077a0390d281bbc42287606f1"
+    },
+    {
+      "path": "source/lean-kernel/numerical/test_gemm.c",
+      "bytes": 20912,
+      "sha256": "f4ddc48089c99128dd17ceba54c538f35f85b6e8993a4ae01476faa078c28b4b"
+    },
+    {
+      "path": "source/src/frontend/resource_parser.rs",
+      "bytes": 58036,
+      "sha256": "823f968d57c3f1ecf5b772cfcd5f88308fa8e1cd15cbc4071665f2a0e6249ae3"
+    },
+    {
+      "path": "source/src/storage.rs",
+      "bytes": 24162,
+      "sha256": "6f5ed04e3ec0e9478620e546239c5d8d3e25d4748a4a192b6032a8dbcce7f960"
+    },
+    {
+      "path": "status.json",
+      "bytes": 109,
+      "sha256": "e90e6f3b9208f4954645e9d6a67629b5775a20d737bb18247e1f40f5f9f87f6d"
+    }
+  ],
+  "plain_copies": {
+    "environment.json": "dd959ccfc431b402597b66978dbf1a8fd76dc755ed1ab56cb2e327f6f5b4ca26",
+    "records.json": "4dc259da14bd73a7c5021a1903ecb007dfa00e4cec36711d2c1e4a6ca7b93330",
+    "native-validation.json": "bedc9e0dd74e54ef0e4969b57b8affed6bde87e2bda54d887a866609c9dd8f90",
+    "failure-validation.json": "cdf57d282e6c508a17d8d35850f42012940106d40b8cf60e2f8425fac66532cc",
+    "status.json": "e90e6f3b9208f4954645e9d6a67629b5775a20d737bb18247e1f40f5f9f87f6d"
+  }
+}

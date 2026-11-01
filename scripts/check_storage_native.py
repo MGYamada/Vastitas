@@ -19,8 +19,8 @@ NATIVE = ROOT / "lean-kernel/native"
 EMITTER = ROOT / "lean-kernel/.lake/build/bin/storage-native-fixture"
 
 
-def run(args, *, cwd=ROOT, success=True):
-    result = subprocess.run([str(arg) for arg in args], cwd=cwd, text=True, capture_output=True)
+def run(args, *, cwd=ROOT, success=True, env=None):
+    result = subprocess.run([str(arg) for arg in args], cwd=cwd, text=True, capture_output=True, env=env)
     if (result.returncode == 0) != success:
         raise RuntimeError(f"{args}: exit {result.returncode}\n{result.stdout}\n{result.stderr}")
     return result
@@ -91,6 +91,16 @@ def main : IO Unit := do
   IO.println "diagonal metadata: malformed inputs and full 4096-entry linear decoding passed"
 ''')
         print(run(["lake", "env", "lean", "--run", "Metadata.lean"], cwd=work).stdout.strip())
+
+        # Test-only comparison of actual native arithmetic helpers with the
+        # concrete checker. This dependency is never added to the runtime.
+        audit_env = os.environ.copy()
+        audit_env["LEAN_PATH"] = os.pathsep.join([
+            str(ROOT / "lean-kernel/.lake/build/lib/lean"),
+            str(runtime / ".lake/build/lib/lean"),
+        ])
+        print(run(["lean", ROOT / "scripts/check_runtime_shape_guards.lean"],
+                  cwd=work, env=audit_env).stdout.strip())
 
         functions = json.loads((ROOT / "tests/fixtures/storage-functions.json").read_text())
         for name, budget, failure, expected in [

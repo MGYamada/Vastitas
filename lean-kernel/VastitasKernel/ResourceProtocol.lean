@@ -10,9 +10,52 @@ private def size (j : Json) (key : String) : Except String Nat := do
   if value ≥ 2^64 then throw "resource source integer exceeds 64 bits"
   return value
 
+private def runtimeExtent (j : Json) : Except String RuntimeExtent := do
+  match ← str j "kind" with
+  | "literal" => fields j ["kind", "value"]; return .literal (← size j "value")
+  | "slot" => fields j ["kind", "name"]; return .slot (← str j "name")
+  | _ => throw "unknown runtime extent kind"
+
+private def runtimeLayout (j : Json) : Except String RuntimeLayout := do
+  fields j ["rows", "columns", "leading", "transposed"]
+  return ⟨← runtimeExtent (← field j "rows"), ← runtimeExtent (← field j "columns"),
+    ← runtimeExtent (← field j "leading"), ← j.getObjValAs? Bool "transposed"⟩
+
+private def runtimeAction (j : Json) : Except String RuntimeAction := do
+  match ← str j "op" with
+  | "allocate" =>
+    fields j ["op", "owner", "scalar", "elements", "layout"]
+    return .allocate (← str j "owner") (← Storage.Wire.scalar (← str j "scalar"))
+      (← runtimeExtent (← field j "elements")) (← runtimeLayout (← field j "layout"))
+  | "move" => fields j ["op", "source", "target"]; return .move (← str j "source") (← str j "target")
+  | "drop" => fields j ["op", "owner"]; return .drop (← str j "owner")
+  | "borrow" =>
+    fields j ["op", "name", "source", "access"]
+    return .borrow (← str j "name") (← str j "source") (← Storage.Wire.access (← str j "access"))
+  | "release" => fields j ["op", "loan"]; return .release (← str j "loan")
+  | "fill" =>
+    fields j ["op", "loan", "value"]
+    return .fill (← str j "loan") (← Storage.Wire.literal (← field j "value"))
+  | "expect" =>
+    fields j ["op", "loan", "row", "column", "value"]
+    return .expect (← str j "loan") (← size j "row") (← size j "column")
+      (← Storage.Wire.literal (← field j "value"))
+  | _ => throw "unknown runtime storage operation"
+
 private def parameter (j : Json) : Except String Parameter := do
   let span ← decodeSpan j
   match ← str j "kind" with
+  | "runtime_space" =>
+    fields j ["kind", "name", "implementation", "dimension", "span"]
+    return .runtimeSpace (← str j "name") (← Indexed.Wire.path (← field j "implementation"))
+      (← runtimeExtent (← field j "dimension")) span
+  | "runtime_basis" =>
+    fields j ["kind", "name", "space", "span"]
+    return .runtimeBasis (← str j "name") (← str j "space") span
+  | "runtime_map" =>
+    fields j ["kind", "name", "source", "target", "access", "initializes", "span"]
+    return .runtimeMap (← str j "name") (← str j "source") (← str j "target")
+      (← Storage.Wire.access (← str j "access")) (← j.getObjValAs? Bool "initializes") span
   | "value" =>
     fields j ["kind", "name", "type", "span"]
     return .value (← str j "name") (← Indexed.Wire.pureType (← field j "type")) span
@@ -97,6 +140,23 @@ private def optionalCoefficient (j : Json) (name : String) : Except String (Opti
   match j.getObjVal? name with
   | .error _ => pure none
   | .ok value => some <$> coefficient value
+
+private def runtimeNumerical (j : Json) : Except String RuntimeNumerical := do
+  match ← str j "op" with
+  | "space" =>
+    fields j ["op", "name", "implementation", "dimension"]
+    return .space (← str j "name") (← Indexed.Wire.path (← field j "implementation"))
+      (← runtimeExtent (← field j "dimension"))
+  | "basis" => fields j ["op", "name", "space"]; return .basis (← str j "name") (← str j "space")
+  | "map" =>
+    fields j ["op", "name", "loan", "source", "target"]
+    return .map (← str j "name") (← str j "loan") (← str j "source") (← str j "target")
+  | "gemm" =>
+    fields j ["op", "left", "right", "output", "mode", "policy", "alpha", "beta"]
+    return .gemm (← str j "left") (← str j "right") (← str j "output")
+      (← Storage.Wire.gemmMode (← str j "mode")) (← Storage.Wire.numericalPolicy (← str j "policy"))
+      (← optionalCoefficient j "alpha") (← optionalCoefficient j "beta")
+  | _ => throw "unknown runtime numerical operation"
 
 private def exactInteger (value : String) : Except String Int :=
   match value.toInt? with | some integer => pure integer | none => throw "Gram entries require exact decimal integers"
@@ -305,6 +365,12 @@ private def statements : Nat → List Json → Except String (List Statement)
   | fuel + 1, first :: rest => do
     let span ← decodeSpan first
     let statement ← match ← str first "kind" with
+      | "runtime" =>
+        fields first ["kind", "action", "span"]
+        pure (.runtime (← runtimeAction (← field first "action")) span)
+      | "runtime_numerical" =>
+        fields first ["kind", "operation", "span"]
+        pure (.runtimeNumerical (← runtimeNumerical (← field first "operation")) span)
       | "action" =>
         fields first ["kind", "action", "span"]
         pure (.action (← action (← field first "action")) span)

@@ -160,7 +160,8 @@ native trust boundary and no-rollback behavior of earlier completed calls remain
 emitted GEMM carries them through the independent native-plan audit. The Oracle
 proves the coefficient loan contract, initialized bytes, absence of a beta read
 in overwrite, and coefficient emission. General scalar expressions, pure-Core
-floating values and dynamic shape interfaces remain separate work.
+floating values remain separate work; whole-map integral extents use the
+separate [runtime-shape interface](runtime-shapes.md).
 
 ## Dependent numerical inputs
 
@@ -225,7 +226,7 @@ The public checker also audits each receipt's declaration environment.
 The nested real/complex source regressions execute overwrite and accumulation
 through these inputs. Their generated schedule retains six allocations and
 four GEMMs with no copy, matching the direct-call fixture. These are structural
-cost checks, not timings or a claim of C parity. Runtime shape/scalar flow,
+cost checks, not timings or a claim of C parity. Broader runtime numerical flow,
 general generative numerical packages and escaping-lifetime contracts remain open.
 
 ## Owned numerical results
@@ -404,7 +405,7 @@ destinations through the same checked GEMM. [Finite two-map networks](finite-net
 add checked occurrences and ports, an explicit bilinear edge and ordered boundaries.
 [Explicit diagonal metrics](diagonal-metrics.md) add materialized adjoints and
 weighted pairing with caller-owned scratch and exact declared Int coefficients.
-Dense metric realization, general generative numerical result packages, dynamic
+Dense metric realization, general generative numerical result packages, broader runtime
 shape/scalar interfaces, general-rank/cyclic networks and controlled-host C
 performance acceptance remain open in the [Stage 1 gate](stage1-completion.md).
 
@@ -413,7 +414,7 @@ performance acceptance remain open in the [Stage 1 gate](stage1-completion.md).
 direct basis, initialized affine storage, fresh consuming unpack and explicit
 repack. The source basis remains an actual caller dependency. Pack/open/transfer
 preserve the exact allocation/layout and emit no additional native instructions.
-Dynamic dimensions, general resource packages/closures, borrowed results and
+Dynamic package-result dimensions, general resource packages/closures, borrowed results and
 full source/native refinement remain pending.
 
 

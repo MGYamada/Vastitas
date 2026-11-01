@@ -156,6 +156,11 @@ with old NaNs. NaN/Inf inputs are accepted; no implicit finite scan occurs.
 The adapter adds no data allocation or copy. Reports count calls and written
 logical bytes; storage counters exclude OpenBLAS's internal workspace/packing
 and allocator/Lean overhead, so they are not an end-to-end cost measurement.
+The separate [workspace diagnostic](../experiments/openblas_workspace/README.md)
+rebuilds only OpenBLAS's memory-management object and calibrates pool loans versus
+retained mmap/malloc requests. Its paired macOS/Linux records preserve identical
+calculation objects and adapter results. They measure virtual/requested capacity,
+not actual packing bytes, residency, unchanged-backend timing or total allocation.
 
 Successful Unit results from `gemm`, `gemmScaled` and diagonal pairing use the
 storage FFI's [shared persistent result](storage-ir.md#native-lowering-and-execution).

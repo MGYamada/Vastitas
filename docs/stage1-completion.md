@@ -111,6 +111,22 @@ Unexpected allocation, hidden copies or asymptotically greater data movement fai
 the cost contract even if a timing sample is favorable. Native correctness and
 cleanup CI are mandatory evidence, separate from performance acceptance.
 
+The optional [OpenBLAS workspace diagnostic](../experiments/openblas_workspace/README.md)
+adds independently replayed pool checkout/return and `memory.c` backing events,
+including constructor warmup, partial unmaps and explicit shutdown. Its paired
+stock/diagnostic adapter fixtures retain identical calculation objects and output
+checks. The diagnostic backend is rebuilt, observes no operation timings, and
+does not count actual packing bytes, other backend files, Lean objects, RSS or
+generated-source lifecycle totals. These additional attribution channels do not
+complete the total-cost or controlled-host gate.
+Its retained [macOS](../experiments/openblas_workspace/results/2026-11-01-macos/RESULTS.md)
+and [Linux](../experiments/openblas_workspace/results/2026-11-01-linux/RESULTS.md)
+records at clean `cc42822f120c8792e7fa0747b509282dcd934dde` each cover 150 executions.
+They observe 32 MiB/128 MiB of pool mapping retained after completed nonempty
+adapter calls, released at quit. Those are distinct backend configurations and
+virtual mapping capacities, not RSS or actual packing amounts. Both builds select
+upstream `NO_WARMUP`, so live constructor warmup remains outside these records.
+
 ## Implemented proof boundary and broader future scope
 
 The [geometry migration](geometry-migration.md) retains exact returned-Core typed

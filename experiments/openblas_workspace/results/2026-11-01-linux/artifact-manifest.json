@@ -1,0 +1,12 @@
+{
+  "measured_head": "cc42822f120c8792e7fa0747b509282dcd934dde",
+  "measured_status": "",
+  "sha256": "bf34e83fc2a352bc1fafd98d40b6f052a0ac039510d5b27b9a84268b829b18b2",
+  "bytes": 711111,
+  "members": 518,
+  "source_snapshots": 16,
+  "commands": 166,
+  "workflow_run": 41270586125,
+  "job_id": 124742364265,
+  "artifact_id": 13069615474
+}

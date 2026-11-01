@@ -1,6 +1,6 @@
 # ADR 0001 — Mathematics-first standard-library admission and trust boundary
 
-- **Status:** Proposed; normative if this ADR is merged
+- **Status:** Accepted (ratified by PR #166 on 2026-10-28); subsequent changes require the §8 amendment procedure
 - **Date:** 2026-10-28
 - **Scope:** Standard-library governance and mathematical contracts, **not** a claim of implemented or proved functionality
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
@@ -41,7 +41,7 @@ The test is **necessary but not an automatic theorem of admission**. A mathemati
 
 | Mathematical target in `std` | Permitted implementation / external realization | Deliberate exclusion from the `std` semantic API |
 | --- | --- | --- |
-| Reduced Gröbner basis over an admitted **exact field**, with fixed monomial order | Buchberger or F4 and independently checked certificates | An `ExactField` instance for a machine float, or unspecified term order |
+| Reduced Gröbner basis over an admitted **exact field**, with fixed monomial order | Buchberger or F4 and independently checked certificates | Claims that machine Float satisfies exact `Field` laws or an effective exact-arithmetic capability, or an unspecified term order |
 | Typed finite composition/contraction | Dense, sparse, GEMM/BLAS kernels with explicit numerical policies | One mandatory BLAS implementation or exact-equality claims from floating output |
 | Abstract Lebesgue integral for an explicit measure | External quadrature/cubature | Implicit `integrate` using a hidden step/tolerance |
 | Typed ODE/PDE equation and its mathematically specified solution object/space | External Runge–Kutta, FEM and other solver packages | A built-in default time step, mesh, adaptive convergence policy |
@@ -60,7 +60,7 @@ An algorithm-free abstract definition may be admitted as **specified but not exe
 The initial *responsibility spine* consists of:
 
 - `std::algebra::{group,ring,field,representation}`: groups/actions/homomorphisms; rings/modules/ideals/quotients; fields/extensions/finite Galois structures; representations, characters, tensor multiplicities and `Hom_G`. Exact executable profiles and hypotheses are explicit. For `Rep(SU(2))`, a multiplicity-free CG map still needs basis, normalization and phase conventions. `Hom_G` exists for larger multiplicity without selecting a preferred intertwiner.
-- `std::geometry`: ordinary `Scheme`, affine/projective construction, indexed opens, covers, sheaves and checked object gluing; `CInfScheme` and smooth gluing; independent integrable complex and closed nondegenerate symplectic structures; compatible Kähler evidence; appropriate jets. A chart/atlas is not mandated as the only representation. No implicit `Scheme ↔ CInfScheme` coercion.
+- `std::geometry`: ordinary `Scheme`, affine/projective constructions, indexed opens, covers, sheaves and checked object gluing; separate `CInfScheme` and smooth gluing; and appropriate jets. Algebraic-variety and smooth-manifold classifications are independently checked `IsVariety` / `IsSmoothManifold` properties on the relevant schemes, **not** standalone `Variety` / `Manifold` abstract types or privileged modules (#360). `std::geometry::complex` owns almost-complex structure (`J² = -id`) only; integrability is a separately proved property, not an implicit std guarantee. `std::geometry::symplectic` owns closed, nondegenerate forms and their exact evidence under existing checkers (#211). Kähler geometry is a downstream ecosystem composition of these mathematical ingredients and additional compatible integrability/metric proofs, **not** a privileged std namespace or new checker. Charts/atlases are optional local certificates rather than mandatory stored representations. No implicit `Scheme ↔ CInfScheme` coercion.
 - `std::analysis`: functional-analytic Banach/dual/distribution objects; **genuinely infinite-dimensional** complex Hilbert spaces with domain-bearing unbounded operators and distinct symmetry/self-adjointness; measure and abstract integration; typed ODE/PDE equations, weak/regular solutions and jet relations. `𝒟`-modules are a **linear** differential-equation specialization, not a representation of arbitrary nonlinear equations. No compulsory numerical probability/sampling subsystem.
 - `std::linalg`: finite linear maps, tensor ports, duality, bases and contractions with object/endpoint identity. Neither complex conjugation nor a metric/Hermitian dagger is inserted by tensor contraction. The `Hom_G` equivariance contract is shared with representation theory; sparse/fusion-tree storage is a chosen realization with tracked gauge/basis.
 - `std::differential`: geometric/cotangent differentials and the **single mandatory standard numerical AD route**, reverse cotangent pullback. Metrics are required for `grad`; nontrivial selected backward conventions must be named and preserved.
@@ -70,7 +70,7 @@ The names above identify intended responsibility boundaries, **not** a claim tha
 
 ### 5. Exact coefficients, smooth meaning and numerical realizations
 
-Machine `Float32`, `Float64` and `Complex<Float64>` **MUST NOT** instantiate the exact `Field`/`ExactField` laws needed by exact algebra. In particular, a type checker must not accept a floating-point-coefficient Gröbner basis as an exact-field algorithm without an explicit supported exact reinterpretation/conversion.
+Machine floating-point representations **MUST NOT** instantiate the exact mathematical `Field` laws or satisfy an effective exact-arithmetic algorithm's requirements by name. `ExactField` is **not** a separate mathematical theory: a supported exact algorithm requires a selected `Field` model plus verified computational capabilities (effective exact operations, equality/zero decisions and applicable evidence; #313). Legacy `Float32`, `Float64` and `Complex<Float64>` names are migration inputs, not an additional permanent field hierarchy; #318/#322 propose `F32<RR>`, `F64<RR>` and `F64<CC>` representation associations, with finite IEEE reference semantics separate from `monad::float` execution policy. In particular, a type checker must not accept a floating-point-coefficient Gröbner basis as an exact-field algorithm without an explicit supported exact reinterpretation/conversion.
 
 Machine floats are not themselves `C∞`-rings. A numerical scalar profile **realizes an ideal real/complex smooth operation** through a declared representation and accuracy/rounding/exception policy. A floating input's finite bit pattern may be interpreted as an exact represented number at an explicit boundary; later machine operations do not thereby become exact field operations.
 

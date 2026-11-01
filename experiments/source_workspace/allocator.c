@@ -8,6 +8,9 @@
 #include <assert.h>
 #include <inttypes.h>
 #include <stdio.h>
+#if SOURCE_HEAP_LIFETIMES
+#include "heap.h"
+#endif
 
 #if UINTPTR_MAX != UINT64_MAX
 #error "The allocator observer requires a 64-bit host"
@@ -37,11 +40,17 @@ void source_allocator_error(b_lean_obj_arg value) {
 
 static void sample(unsigned index) {
     assert(index < 5);
+#if SOURCE_HEAP_LIFETIMES
+    source_heap_before(index);
+#endif
     for (unsigned repeat = 0; repeat < 2; ++repeat) {
         mi_stats_t *s = &samples[index][repeat];
         mi_stats_init(s);
         assert(mi_stats_get(s));
     }
+#if SOURCE_HEAP_LIFETIMES
+    source_heap_after(index);
+#endif
 }
 
 void source_allocator_mark(unsigned next) {
@@ -87,4 +96,7 @@ void source_allocator_report(void) {
                e->string_requested, e->string_usable, e->string_bytes);
     }
     puts("]}");
+#if SOURCE_HEAP_LIFETIMES
+    source_heap_report();
+#endif
 }

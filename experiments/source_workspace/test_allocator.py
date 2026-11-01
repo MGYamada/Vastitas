@@ -100,10 +100,11 @@ class SourceAllocatorRecord(unittest.TestCase):
 
     def test_full_raw_receipt_replay(self):
         summary=self.check(self.reader)
-        per_case=48 if summary['selection'] in ('streaming','debug-streaming-one') else 72
+        backends=8 if self.reader.json('record.json')['schema']==4 else 6
+        per_case=backends*(8 if summary['selection'] in ('streaming','debug-streaming-one') else 12)
         self.assertEqual(summary['records'],per_case*summary['cases'])
-        self.assertEqual(summary['failure_cleanups'],6*summary['cases'])
-        self.assertEqual(summary['lean_allocator']['snapshots'],10*(per_case+6)*summary['cases'])
+        self.assertEqual(summary['failure_cleanups'],backends*summary['cases'])
+        self.assertEqual(summary['lean_allocator']['snapshots'],10*(per_case+backends)*summary['cases'])
 
     def test_configuration_cannot_omit_zero_stat_control(self):
         reader=Overlay(self.reader);record=reader.json('record.json')

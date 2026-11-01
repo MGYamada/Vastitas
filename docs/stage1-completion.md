@@ -198,7 +198,7 @@ free, reallocation and heap provenance. The offline audit reconstructs every
 allocator source byte, checks the one-object runtime replacement and replays
 the complete observations; observer/probe ASan/UBSan and capacity-failure controls
 are separate native evidence. This calibrates a private logical-block channel.
-It does not yet bind that channel to public `.vast` source, account for other
+The calibration alone does not bind that channel to public `.vast` source, account for other
 allocators or physical backing/RSS, or establish stock-runtime timing or the
 Fast like C acceptance gate.
 The retained [macOS](../experiments/lean_allocation_lifetimes/results/2026-11-02-macos/RESULTS.md)
@@ -206,7 +206,32 @@ and [Linux](../experiments/lean_allocation_lifetimes/results/2026-11-02-linux/RE
 records use clean `a6ff4d0` and its identical-tree test merge `e732f25`. Each
 passes seven normal executions, two expected capacity controls, 54 Lean and
 44 native snapshots and 26 record/observation regressions. All 27 source inputs
-match the measured feature revision. See [PR #403](https://github.com/MGYamada/Vastitas/pull/403).
+match the measured feature revision. [PR #403](https://github.com/MGYamada/Vastitas/pull/403)
+merged as `4a89d92cc6367a14ed002c86a5d3103c3724e03a` after
+[all 25 final-head checks and review](https://github.com/MGYamada/Vastitas/pull/403#issuecomment-6561458819);
+the merge tree exactly matches reviewed `e06befb`.
+
+The optional [schema-4 source composition](../experiments/source_workspace/README.md#source-block-lifetimes-and-transient-peaks-schema-4)
+adds that exact calibrated runtime and observer object to the three existing
+controls across both backends. It retains pre-cold initialization traffic and
+five independently visited boundary pairs, then reconciles phase allocations,
+releases and live-byte changes with the calling-thread statistics channel.
+Interval usable-byte peaks remain distinct from endpoint live state and physical
+backing/RSS. All canonical public executions still use stock libraries. The
+observer's static storage is reported separately; other allocators, reporting,
+process teardown, stock timing and the full performance gates remain open.
+The retained [macOS](../experiments/source_workspace/results/2026-11-02-macos-lifetimes/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-02-linux-lifetimes/RESULTS.md)
+standard records, and the separate macOS
+[large-output](../experiments/source_workspace/results/2026-11-02-macos-lifetimes-streaming/RESULTS.md)
+record at clean `8212d7d`, share all 86 source inputs, independently matched to Git.
+Each standard record covers 96 canonical executions, 1,248 observation processes
+and 1,560 lifetime boundary pairs; the large-output record covers 32 / 288 / 360.
+Complete archived summaries replay against their original manifests. Linux's
+original CI failed only a test helper that selected a different case from the
+modified file; its corrected provenance/replay suite passes without changing
+the measured source, runtime or original evidence. Final-head CI remains required
+before merging the source composition.
 
 The optional schema-2 [source composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
 connects these calibrated archives to actual generated source across both

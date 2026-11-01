@@ -21,6 +21,7 @@ def module(name,path):
 
 backend = module('source_cost_backend',ROOT/'experiments/openblas_workspace/verify.py')
 objects = module('source_cost_objects',ROOT/'experiments/allocation_audit/verify.py')
+allocator = module('source_cost_allocator',HERE/'allocator.py')
 require = backend.require
 CLAIMS = {'operation_timings':False,'total_heap':False,'backend_packing_bytes':False,
           'native_refinement':False,'controlled_host':False,'source_execution_observed':True}
@@ -199,7 +200,16 @@ def verify(path):
 def verify_reader(r,*,allow_build_tree=False):
     if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
     record = r.json('record.json')
-    require(record['schema']==1 and record['kind']=='source-workspace-costs', 'record schema')
+    require(type(record['schema']) is int and record['schema'] in (1,2) and
+            record['kind']=='source-workspace-costs', 'record schema')
+    with_allocator = record['schema']==2
+    configurations = allocator.configurations(with_allocator)
+    backends = tuple(configurations)
+    diagnostic = tuple(b for b in backends if configurations[b]['backend']=='diagnostic')
+    if with_allocator:
+        require(record['configurations']==configurations, 'source configuration coverage')
+    else:
+        require('lean_allocator' not in record and 'configurations' not in record, 'allocator needs schema 2')
     require(record['claims']==CLAIMS and all(type(v) is bool for v in record['claims'].values()), 'unsupported claim')
     if not allow_build_tree:
         require(r.names==set(record['files'])|{'record.json'}, 'archive must contain only compact evidence')
@@ -225,6 +235,7 @@ def verify_reader(r,*,allow_build_tree=False):
     for name in ('observer.c','observer.h','wrappers.c','patch.py'):
         relative = 'experiments/openblas_workspace/'+name
         require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'], 'changed observer source')
+    if with_allocator: allocator.check_calibration(r,record,Prefixed)
     cases = r.json('cases.json')
     require(len(cases)==len({c['case'] for c in cases}), 'duplicate case')
     sizes = objects.SIZES if record['selection']=='full' else {'tiny':objects.SIZES['tiny']}
@@ -233,7 +244,7 @@ def verify_reader(r,*,allow_build_tree=False):
     require(({c['case'] for c in cases}==expected_cases if record['selection']!='debug-one' else len(cases)==1), 'case coverage')
     cases = {c['case']:c for c in cases}
     expected_binaries = {f'programs/{name}/{b}/{file}' for name,b,file in
-        itertools.product(cases,('stock','diagnostic'),('canonical','.lake/build/bin/audit'))}
+        itertools.product(cases,backends,('canonical','.lake/build/bin/audit'))}
     require(set(record['binaries'])==expected_binaries, 'executable fingerprint coverage')
     for item in record['binaries'].values():
         backend.natural(item['bytes'],'executable size',positive=True)
@@ -248,37 +259,56 @@ def verify_reader(r,*,allow_build_tree=False):
     observations = r.json('observations.json')
     all_rows = observations['rows']+observations['failures']
     keys = [(x['case'],x['backend'],x['implementation'],x['scope'],x['repetitions']) for x in all_rows]
-    required = set(itertools.product(cases,('stock','diagnostic'),('generated','c'),(0,1),(1,2,17)))
-    required |= {(name,b,'failure',0,1) for name,b in itertools.product(cases,('stock','diagnostic'))}
+    required = set(itertools.product(cases,backends,('generated','c'),(0,1),(1,2,17)))
+    required |= {(name,b,'failure',0,1) for name,b in itertools.product(cases,backends)}
     require(len(keys)==len(set(keys)) and set(keys)==required, 'observation coverage')
     require(all(type(x[k]) is int for x in all_rows for k in ('scope','repetitions')), 'observation numeric domain')
-    signatures = {}
+    signatures,allocator_summaries = {},{}
     for key,row in zip(keys,all_rows):
-        require((row['workspace'] is not None)==(row['backend']=='diagnostic'), 'stock/diagnostic distinction')
+        require((row['workspace'] is not None)==(row['backend'] in diagnostic), 'stock/diagnostic distinction')
+        require(('lean_allocator' in row)==with_allocator, 'allocator observation domain')
         check_allocation(row,cases[row['case']])
         signatures[key] = check_calls(row['calls'],row['workspace'],cases[row['case']],row['repetitions'])
+        if with_allocator:
+            allocator_summaries[key] = allocator.replay(row['lean_allocator'],row['allocation'],
+                                                       configurations[row['backend']]['runtime'])
     lookup = dict(zip(keys,all_rows))
     for name in cases:
-        stock,diagnostic = (lookup[(name,b,'failure',0,1)] for b in ('stock','diagnostic'))
-        require(stock['allocation']==diagnostic['allocation'] and
-                {k:v for k,v in stock['costs'].items() if k!='process_maxrss_kib'}==
-                {k:v for k,v in diagnostic['costs'].items() if k!='process_maxrss_kib'}, 'failure backend mismatch')
-        require(signatures[(name,'stock','failure',0,1)]==signatures[(name,'diagnostic','failure',0,1)], 'failure call mismatch')
+        reference = lookup[(name,backends[0],'failure',0,1)]
+        for b in backends[1:]:
+            other = lookup[(name,b,'failure',0,1)]
+            require(reference['allocation']==other['allocation'] and
+                    {k:v for k,v in reference['costs'].items() if k!='process_maxrss_kib'}==
+                    {k:v for k,v in other['costs'].items() if k!='process_maxrss_kib'}, 'failure backend mismatch')
+            require(signatures[(name,backends[0],'failure',0,1)]==signatures[(name,b,'failure',0,1)], 'failure call mismatch')
     for name,scope,reps in itertools.product(cases,(0,1),(1,2,17)):
-        group = [(name,b,impl,scope,reps) for b,impl in itertools.product(('stock','diagnostic'),('generated','c'))]
+        group = [(name,b,impl,scope,reps) for b,impl in itertools.product(backends,('generated','c'))]
         reference = {k:v for k,v in lookup[group[0]]['costs'].items() if k!='process_maxrss_kib'}
         require(all({k:v for k,v in lookup[key]['costs'].items() if k!='process_maxrss_kib'}==reference for key in group), 'output/explicit cost mismatch')
         require(all(signatures[key]==signatures[group[0]] for key in group), 'actual CBLAS call mismatch')
         for impl in ('generated','c'):
-            require(lookup[(name,'stock',impl,scope,reps)]['allocation']==lookup[(name,'diagnostic',impl,scope,reps)]['allocation'], 'backend changed selected Lean costs')
-        check_backend_pair(lookup[(name,'diagnostic','generated',scope,reps)]['workspace'],
-                           lookup[(name,'diagnostic','c',scope,reps)]['workspace'])
+            require(all(lookup[(name,backends[0],impl,scope,reps)]['allocation']==
+                        lookup[(name,b,impl,scope,reps)]['allocation'] for b in backends[1:]), 'backend changed selected Lean costs')
+        for b in diagnostic:
+            check_backend_pair(lookup[(name,b,'generated',scope,reps)]['workspace'],
+                               lookup[(name,b,'c',scope,reps)]['workspace'])
+            check_backend_pair(lookup[(name,diagnostic[0],'generated',scope,reps)]['workspace'],
+                               lookup[(name,b,'generated',scope,reps)]['workspace'])
+    if with_allocator:
+        for name,impl,scope,reps in ((n,i,s,r) for n in cases for i,s,r in
+                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),(1,2,17)))):
+            require(allocator_summaries[(name,'stock-diagnostic2',impl,scope,reps)]==
+                    allocator_summaries[(name,'diagnostic-diagnostic2',impl,scope,reps)],
+                    'backend changed allocator phase costs')
     commands = r.json('commands.json')
     samples = [c for c in commands if c['phase']=='source_workspace']
     require(len(samples)==len(all_rows), 'raw sample command coverage')
     raw_keys = set()
     for command in samples:
         require(command['compiler_environment']['LEAN_NUM_THREADS']=='0', 'observation worker profile')
+        if with_allocator:
+            require(command['compiler_environment']['LEAN_MAIN_USE_THREAD']=='1', 'allocator entry thread profile')
+            require(not command['stderr'].strip(), 'unexpected allocator execution diagnostic')
         argv = command['command']; impl,scope,reps = argv[-4:-1]
         matches = [key for key in keys if f'/programs/{key[0]}/{key[1]}/' in argv[0] and key[2:]==(impl,int(scope),int(reps))]
         require(len(matches)==1 and matches[0] not in raw_keys and argv[-1]=='1' and command['returncode']==0, 'raw command identity')
@@ -286,9 +316,10 @@ def verify_reader(r,*,allow_build_tree=False):
         require(command['context']=={'case':key[0],'backend':key[1]}, 'sample context')
         parsed = [json.loads(line) for line in command['stdout'].splitlines()]
         want = [row['costs'],row['allocation'],row['calls']]+([row['workspace']] if row['workspace'] is not None else [])
+        if with_allocator: want.append(row['lean_allocator'])
         require(parsed==want, 'raw/parsed correspondence')
     require(all(c['returncode']==0 or (c['phase']=='frontend_capture' and c['returncode']==1 and 'E_CAPTURED' in c['stderr']) for c in commands), 'unexpected command failure')
-    for name,b in itertools.product(cases,('stock','diagnostic')):
+    for name,b in itertools.product(cases,backends):
         prefix = f'programs/{name}/{b}/'
         for phase in ('frontend_capture','public_check','public_build','public_execute','kernel_emit','kernel_failure_emit','audit_build','linked_symbols','linked_libraries'):
             match = [c for c in commands if c['phase']==phase and c['context']=={'case':name,'backend':b}]
@@ -308,7 +339,10 @@ def verify_reader(r,*,allow_build_tree=False):
                 require(match[0]['stdout'].strip()=='0', 'canonical source output')
                 require(command['compiler_environment']['LEAN_NUM_THREADS']=='0', 'canonical worker profile')
             if phase=='linked_symbols':
-                require(('vobs_cursor' in match[0]['stdout'])==(b=='diagnostic'), 'linked observer symbol')
+                require(('vobs_cursor' in match[0]['stdout'])==(b in diagnostic), 'linked observer symbol')
+                if with_allocator:
+                    require('mi_stats_get' in command['stdout'],
+                            'linked source allocator observer')
             if phase in ('kernel_emit','kernel_failure_emit'):
                 file = prefix+('response.json' if phase=='kernel_emit' else 'failure-response.json')
                 require(json.loads(match[0]['stdout'])==r.json(file), 'exact kernel response')
@@ -327,22 +361,28 @@ def verify_reader(r,*,allow_build_tree=False):
         native = r.read(prefix+'native/storage.c')
         require(b'clocks disabled for cost observation' in native and native.count(b'source_workspace_begin(')==2 and
                 native.count(b'source_workspace_end();')==2, 'actual CBLAS bracketing')
-        require(record['prefixes'][b].encode() in r.read(prefix+'lakefile.lean'), 'private backend link')
+        require(record['prefixes'][configurations[b]['backend']].encode() in r.read(prefix+'lakefile.lean'), 'private backend link')
+        if with_allocator: allocator.check_program(r,record,prefix,configurations[b])
     summaries = []
     counts = Counter()
     for row in all_rows:
         if row['workspace'] is not None:
             counts.update(e['operation'] for e in row['workspace']['events'])
     for name in sorted(cases):
-        row = lookup[(name,'diagnostic','generated',1,17)]
+        row = lookup[(name,diagnostic[0],'generated',1,17)]
         observed = backend.replay(row['workspace'])
         summaries.append({'case':name,'buffer_bytes':observed['buffer_bytes'],'peak':observed['peak'],
             'before_shutdown':observed['before_shutdown'],
             'cold_counts':observed['phases'][11]['counts'],'reuse_17_counts':observed['phases'][13]['counts']})
-    return {'status':'passed','selection':record['selection'],'cases':len(cases),'records':len(observations['rows']),
-            'failure_cleanups':len(observations['failures']),'canonical_executions':2*len(cases),
+    summary = {'status':'passed','selection':record['selection'],'cases':len(cases),'records':len(observations['rows']),
+            'failure_cleanups':len(observations['failures']),'canonical_executions':len(backends)*len(cases),
             'diagnostic_processes':len(all_rows)//2,'actual_cblas_calls':sum(len(row['calls']['calls']) for row in all_rows),
             'diagnostic_event_counts':dict(counts),'reuse_17_generated_workspace':summaries,'claims':CLAIMS}
+    if with_allocator:
+        summary['lean_allocator'] = dict(claims=allocator.CLAIMS,variants=list(allocator.VARIANTS),
+            snapshots=10*len(all_rows),observations=[dict(case=key[0],backend=key[1],implementation=key[2],
+            scope=key[3],repetitions=key[4],**value) for key,value in allocator_summaries.items()])
+    return summary
 
 
 if __name__=='__main__':

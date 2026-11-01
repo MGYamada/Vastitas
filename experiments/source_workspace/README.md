@@ -84,3 +84,62 @@ the nested backend calibration. Large Lean executables and Lake caches are omitt
 their exact executable hashes/sizes remain recorded. Verification reads archived
 bytes without executing or extracting archived code. Hashes establish integrity
 and correspondence, not authenticity or a proof about the native toolchain.
+
+## Calibrated Lean allocator composition (schema 2)
+
+Supply a completed [Lean allocator calibration](../lean_allocation_diagnostic/README.md)
+and its three actual runtime archives to observe calling-thread allocator phase
+deltas alongside the existing channels:
+
+```sh
+python3 experiments/lean_allocation_diagnostic/run.py --out /tmp/lean-allocator-record
+python3 experiments/source_workspace/run.py --prefix /tmp/workspace-build/stock --diagnostic-prefix /tmp/workspace-build/diagnostic --backend-record /tmp/workspace-record --lean-record /tmp/lean-allocator-record --lean-runtime-dir /tmp/lean-allocator-record/build --output /tmp/source-allocator-record
+python3 experiments/source_workspace/archive.py /tmp/source-allocator-record /tmp/source-allocator-compact/evidence.zip
+VASTITAS_SOURCE_ALLOCATOR_RECORD=/tmp/source-allocator-compact/evidence.zip python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
+```
+
+Linux requires Clang and the libc++/libc++abi development packages used by the
+calibration. The optional arguments must be supplied together. Omitting them
+retains schema 1 and its original two-backend coverage; existing records keep
+their measured bytes, revisions and claims.
+
+Schema 2 crosses both backends with stock, rebuilt `MI_STAT=0`, and diagnostic
+`MI_STAT=2` Lean runtimes. The full twelve-case matrix has 72 canonical public
+check/build/executions, 864 normal observations and 72 failure-cleanup processes.
+All canonical executables use the installed stock Lean runtime and stock backend.
+Only private observation executables select a calibrated runtime. Each linker map
+must name that exact archive; the nested calibration audits its single changed
+object, all unchanged members, build flags, toolchain/header fingerprints and
+known-allocation experiments. Rebuilt zero is a control, not a claim of byte
+identity with the installed object. Private variants must preserve outputs, arena
+costs, selected objects and actual CBLAS calls. Diagnostic backend replay must
+agree across Lean variants, and allocator deltas must agree across backends.
+
+The additional static observer takes two immediate snapshots at five boundaries:
+before cold execution, after cold, after setup, after the run, and after cleanup.
+The pair must have identical counter values. No counter reset, forced collection,
+printing or dynamic observer allocation occurs inside these phases. The final
+snapshot precedes all reporting. `LEAN_NUM_THREADS=0` and `LEAN_MAIN_USE_THREAD=1`
+pin the observed execution profile. The fixed observer objects occupy 43,732 bytes;
+this excludes alignment, code, strings, stack and reporting costs.
+
+The diagnostic compares normal allocation counts/binned bytes with the existing
+selected sites. The actual error payload is inspected before construction of the
+already-tracked error result: one 16-byte `IO.Error` constructor and a string with
+76 requested / 80 usable bytes (44 UTF-8 bytes including its terminator). Their
+two allocations / 96 binned bytes are separate from the selected error-result
+object and explain a potential additional channel on the checked failure path.
+The verifier retains any further unattributed allocation explicitly. Counts and
+bytes from overlapping channels must never be added together as separate costs.
+
+Only the diagnostic has calibrated transient normal counts. Stock/rebuilt-zero
+summaries use **null**, while retaining their raw values; zero raw counters do not
+mean zero allocation. Requested-byte counters remain incomplete and cumulative,
+and raw peaks are not interpreted as per-operation or whole-process peaks.
+Current-byte **changes** may include release of command arguments that were live
+before the baseline. A negative change is not a negative allocation or a leak.
+Lean's waiting initialization thread has unmerged startup statistics, so its
+allocations are outside this channel. Other allocators, backend packing and static
+metadata, residency, general peaks, other source profiles and controlled-host
+timing remain separate gates. This experiment establishes no native refinement
+or transfer of diagnostic counts to a stock runtime performance claim.

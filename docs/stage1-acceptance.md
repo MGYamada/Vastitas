@@ -182,6 +182,13 @@ objects unchanged. Both reproduce the five known transient counts/releases and
 the incomplete cumulative requested-byte channel; see
 [the calibration records](../experiments/lean_allocation_diagnostic/README.md).
 
+The schema-2 [source allocator composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
+extends the source fixture with the three calibrated Lean archives across both
+backends, preserving stock canonical public builds. It independently binds
+phase deltas, actual error payloads and linker maps to the same source receipts.
+This is a measurement mechanism pending retained full records and CI; it does not
+accept startup, general peaks, stock allocation counts or any of the four gates.
+
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.
 Runtime and allocation records keep their original clean/dirty inputs even when

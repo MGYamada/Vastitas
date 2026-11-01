@@ -12,7 +12,7 @@ jobs:
   workspace:
     name: OpenBLAS workspace lifetimes (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 40
+    timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix:
@@ -42,11 +42,19 @@ jobs:
           build: true
           build-args: vastitas-kernel
           use-mathlib-cache: false
-      - name: Observe source, selected objects, arenas and backend call spans
+      - name: Calibrate the private Lean allocator variants
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo apt-get update
+            sudo apt-get install -y libc++-dev libc++abi-dev
+          fi
+          python3 experiments/lean_allocation_diagnostic/run.py --out "$RUNNER_TEMP/lean-allocator-record"
+      - name: Observe source allocator, arenas and backend call spans
         run: |
           cargo build --locked
-          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --output "$RUNNER_TEMP/source-workspace-record"
+          python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --lean-record "$RUNNER_TEMP/lean-allocator-record" --lean-runtime-dir "$RUNNER_TEMP/lean-allocator-record/build" --output "$RUNNER_TEMP/source-workspace-record"
           python3 experiments/source_workspace/archive.py "$RUNNER_TEMP/source-workspace-record" "$RUNNER_TEMP/source-workspace-compact/evidence.zip"
+          VASTITAS_SOURCE_ALLOCATOR_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
       - name: Retain compact source workspace observation (no timings)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

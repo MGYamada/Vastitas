@@ -15,13 +15,25 @@ Vastitas aims to make textbook mathematical objects directly usable in one langu
 
 The word `ε` in the exclusion rule means a numerical approximation tolerance, not a nilpotent element of a Weil algebra.
 
-### 1. Three responsibility layers
+### 1. Five semantic responsibilities, three user-facing library families
 
-1. **Core:** generic indexed types and identities, ownership/borrowing, function and method authority, dispatch/coherence, generic checked IR, typed evidence validation and structural compiler transformations. No growing set of special-case privileges keyed by the spelling of a mathematical type.
-2. **Mathematical `std`:** ordinary versioned `.vast` definitions and contracts for mathematical structures, maps, invariants, equations and supported exact/reference operations. Where necessary it exposes checked interfaces for admitted primitive/derivative rules and realization boundaries. Abstract definitions may exist without a universal evaluator.
-3. **Ecosystem and selectable backends:** algorithms that approximate or realize mathematical targets using mesh, time step, polynomial degree as a refinement parameter, sampling, cutoff, stopping criteria, tolerance, resource schedule or backend-specific numerical behavior. Examples include quadrature, ODE/PDE solvers, optimizers, sparse iterative eigensolvers, Monte Carlo, DMRG/VUMPS and high-performance kernels.
+These are **responsibility roles**, not five consecutive import layers. The three user-facing library families `std`, `monad`, and `nature` are governed by mathematical versus operational versus physical meaning (#304). Their dependency graph is intentionally acyclic.
 
-A Core mechanism may support a mathematical `std` contract without making its concrete mathematical operations compiler intrinsics. Importing a package must not silently expand edit authority, executable capabilities or the trusted proof boundary.
+1. **Core:** generic indexed identities and types, whole-function ownership/borrowing, explicit authority/delegation, dispatch/coherence, checked IR, evidence validation and structural compiler transformations. It owns no expanding mathematical-type-specific privileged exception.
+2. **Mathematical `std`:** the closed mathematical and pure reference universe: selected mathematical objects, models, maps, laws and exact/reference denotations, with all mathematical parameters and hypotheses explicit. This includes finite reference formats when independently admitted; it excludes hidden runtime, physical identification and selected approximation algorithms. Abstract meanings need not have universal executable representatives.
+3. **`monad`:** opt-in **operational/computational interpretations and policies**: failure and sequencing, resource/capability effects, selected numerical execution and flag observations, asynchronous/parallel/device execution adapters. The package name does *not* assert that each submodule is an instance of the categorical Monad: each module must declare whether it supplies a certified Monad, graded effect, or a non-monadic execution/policy adapter. Mere import grants neither authority nor mandatory monadic syntax.
+4. **`nature`:** pure **empirical/physical interpretations** that attach selected physical meaning to mathematical objects without changing the mathematical denotation. Fundamental families are `dimension` (quantities/units), `error` (measurement/model uncertainty) and `symmetry` (selected physical actions), plus facade-only `vector3d` and `relativity` (#299–#301/#372/#373). It does not own a second mathematical theory, a device effect or a general physics-algorithm catalogue.
+5. **Ecosystem / Harness:** concrete algorithms, simulations, security/physical protocols, measurements, experiment-specific models, numerical backends and explicit bridges combining the above. Selected numerical approximation schedules, iterative solvers, DMRG, Monte Carlo, device orchestration and empirical comparisons belong here or in the specified thin execution adapter.
+
+**Dependency rule:** Core is the trusted base; `std → Core`, `monad → std`, `nature → std`, and the ecosystem may consume all three. `std` MUST NOT import `monad` or `nature`, and no foundational `monad` or `nature` package imports the other; device/measurement bridges live in the ecosystem. Specialized proof-only dependencies (`VastitasMath`, Oracle, Bridge) are governed separately by §9/#285. Package splitting and revision policies must respect these dependencies; they do not silently create new completed public packages.
+
+An operation may have a mathematically pure implementation yet belong to `monad` because its **semantic responsibility** is an opt-in execution/failure policy. Conversely, explicit mathematical choices (e.g. metric, measure, topology, term order) remain in `std` when they determine a mathematical object and are stated as data. A finite IEEE bit-pattern/reference-operation contract can be `std::ieee754` after admission; FMA/ABI/native sequencing and flag observation are `monad::float` / backend matters (#244/#318/#322). Numerical approximation/truncation error, statistical sampling uncertainty and physical measurement/model uncertainty are distinct responsibilities.
+
+**Admission rule for `monad`:** require a declared target computational interpretation, its effects/capabilities (or explicit absence), laws/evaluation order/failure behavior, ownership/cancellation/cleanup, source-to-accepted-Core refinement and negative tests. Generic categorical Monad/strength/commutativity/graded laws belong to `std::category`; an execution module that is not itself a Monad must say so (#199/#206/#207/#303). Physical admission follows #304's two-tier foundational/facade test; a convention alone is insufficient unless it changes or records which physical quantity/action/world interpretation is selected.
+
+**Constructive fast `std::structure`:** the adopted design direction is an all-`.vast` internal implementation optimized for Rust-like ergonomics and C/C++-class execution, with only Ownership/Borrow checker audits on internal code. This proposed exception to routine internal mathematical Domain-Checker traversal is **not** an exemption from CS/MS/CF or #350's Universe Charter: mathematical claims at the public `FinSet`/`FinGroup`/`FinRing` boundary require independently checked Lean model/certificates bound to the actual compiled Core, and unsupported properties remain unsupported (#263/#256/#386). The implementation and proof/erasure gate are still open.
+
+A Core mechanism may support a mathematical `std` contract without making its concrete mathematical operations compiler intrinsics. Importing a package must not silently expand edit authority, executable capabilities, physical claims or the trusted proof boundary.
 
 ### 2. Normative admission test
 
@@ -64,6 +76,7 @@ The initial *responsibility spine* consists of:
 - `std::analysis`: functional-analytic Banach/dual/distribution objects; **genuinely infinite-dimensional** complex Hilbert spaces with domain-bearing unbounded operators and distinct symmetry/self-adjointness; measure and abstract integration; typed ODE/PDE equations, weak/regular solutions and jet relations. `𝒟`-modules are a **linear** differential-equation specialization, not a representation of arbitrary nonlinear equations. No compulsory numerical probability/sampling subsystem.
 - `std::linalg`: finite linear maps, tensor ports, duality, bases and contractions with object/endpoint identity. Neither complex conjugation nor a metric/Hermitian dagger is inserted by tensor contraction. The `Hom_G` equivariance contract is shared with representation theory; sparse/fusion-tree storage is a chosen realization with tracked gauge/basis.
 - `std::differential`: geometric/cotangent differentials and the **single mandatory standard numerical AD route**, reverse cotangent pullback. Metrics are required for `grad`; nontrivial selected backward conventions must be named and preserved.
+- `std::structure`: constructive finite data structures, `FinSet`, certified `FinGroup`/`FinRing` and low-level `.vast` graph/tree/sort/hash algorithms. The mathematical denotation is separate from storage or iteration order, and exact law evidence is needed before promoting finite algebra to Group/Ring (#263/#256/#386).
 - **Spectral vocabulary:** algebraic finite `eigen(H)` and infinite Hilbert spectral measures use their different declared mathematical profiles.
 
 The names above identify intended responsibility boundaries, **not** a claim that all nested APIs, algorithms or syntax have been implemented or that the exact final module nesting is already frozen.
@@ -164,6 +177,16 @@ manifests and new correspondence proofs remain subsequent work under #285.
 They must not be inferred from this dependency removal. The historical v0.3
 source records remain unchanged; current build/contributor documentation is
 updated to match this bounded amendment.
+
+### 10. Mathematical counterpart manifest and independent reference status (2026-11-01 integration proposal)
+
+For each admitted public mathematical symbol, record its defining owner, exact mathematical denotation and equivalence, domain/hypotheses, structural-completeness requirements (#279), executable presentation and evidence status. Assign an explicit counterpart class: **Lean core/Std**, **pinned mathlib**, **independent VastitasMath**, or **none with reviewed ADR exception**. A blank or `none` entry is not a way to bypass admission. Preserve source/model revision and actual-Core binding for any accepted conformance theorem.
+
+The machine-readable manifest schema/CI and minimal `VastitasMath` are implementation obligations under #285/#386, not completed features of this ADR. `VastitasBridge` alone may depend on pinned mathlib; an Oracle may not. Independent Python/reference programs remain useful **tests**, never an additional mathematical proof authority. Lean `native_decide` introduces native-evaluation axioms and cannot supply a proof under the current allowlist; use kernel-checked reduction/proof terms instead.
+
+The pure `std::category` Monad foundation must name its base category and separately admit strength/commutativity/graded laws where meaningful; linear/affine ownership does not inherit cartesian strength automatically (#199/#206/#207/#350). The privileged `std::monoidal::tensor` retains one generic identity but must resolve model-owned implementations through authorized bindings and checked evidence, never foreign import-side method mutation (#201/#223/#387).
+
+This subsection records architecture and audit obligations only, not a wholesale reclassification of historical reference PRs or a claim of implemented conformance.
 
 ## Consequences, validation and migration
 

@@ -155,6 +155,17 @@ the helper's timing effect. All raw rows, including 52 measurement batches below
 the calibration target, remain archived; controlled-host and total-cost gates
 remain open.
 
+The [post-short-axis full Linux record](results/2026-11-01-linux-regroup-blocks/RESULTS.md)
+measures clean main `7486d2c` after #357: all twelve public programs, 24 native
+records, 288 separate verification executions and 1,311 generated/C pairs passed.
+Tiny lifecycle remains 1.4377–1.4930 (+517–994 ns). Small F64 regroup, reuse and
+lifecycle ratios are 1.2519–1.2545, 1.1141–1.2135 and 1.1260–1.2693.
+All 116 measurement batches below the target remain. The EPYC 7763 model matches
+#356, but separate shared-runner jobs are not a matched old/new experiment.
+The report retains fallback slow observations and the distinction between the
+workflow launcher commit and the clean measured source. No causal speedup,
+absence of performance regression, or controlled-host acceptance is claimed.
+
 `cases.json`, generated packages, captured wire, kernel response, exact generated
 source, wrapper, private instrumented runtime, commands and compile times are kept.
 Full run output also records toolchain/backend hashes, compiler flags, explicit

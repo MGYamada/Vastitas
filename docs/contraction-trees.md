@@ -162,6 +162,11 @@ The [short-block adapter comparison](../experiments/contraction_trees/results/20
 retains both rejected variable-copy experiments and the final clean native
 comparison. It motivates the bounded 16–64-byte path without claiming a
 whole-program speedup or replacing the existing generated/C measurements.
+The [subsequent full Linux public-program record](../experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md)
+measures clean main `7486d2c` after this optimization. All twelve public programs
+and native/output/cost checks passed. It reports adapter, FFI-inclusive reuse and
+lifecycle scopes separately, retains tiny overhead and fallback slow observations,
+and does not establish a causal old/new speedup or controlled-host acceptance.
 
 ## Proofs, tests and remaining scope
 

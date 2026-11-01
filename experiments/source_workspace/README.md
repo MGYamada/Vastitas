@@ -63,6 +63,15 @@ coverage remain unchanged. Use the same calibration command below with
 before drawing any memory-bound performance conclusion. No such acceptance is
 implied by adding this profile.
 
+The complete [macOS](results/2026-11-01-macos-streaming/RESULTS.md) and
+[Linux](results/2026-11-01-linux-streaming/RESULTS.md) streaming records at clean
+`ceff584` each retain all four cases, 24 canonical executions, 192 normal
+observations and 24 failure cleanups. Their 20 / 24 observed source packing
+contracts receive 80 / 96 separate plain/sanitized footprint executions. All 81
+source snapshots match Git and each other. The 128/256 MiB outputs establish
+large-output execution/cost coverage, with
+operation timings and hardware traffic still unmeasured.
+
 For every case and backend, the runner retains the manifest/source, original
 protocol-8 wire, actual kernel response, exact returned Lean, observed wrapper,
 emitted C and private native sources. A stdin digest binds each kernel invocation
@@ -191,6 +200,18 @@ packing contracts receive separate plain/sanitized stock/diagnostic footprint
 checks. Logical payload agrees for the retained cases while actual copy-call
 counts differ. Both preserve the allocator channel and add no operation timing
 or completion claim.
+
+After Unit-only cleanup, the complete
+[macOS](results/2026-11-01-macos-unit-cleanup/RESULTS.md) and
+[Linux](results/2026-11-01-linux-unit-cleanup/RESULTS.md) records measure clean
+`84b0c115f1a003edf52d4634c9dbebbbf6531b18`. Each preserves the standard twelve-case,
+six-configuration coverage and 9,360 allocator snapshots. Lifecycle batches
+1/2/17 observe 5/7/37 normal allocations and 104/144/744 binned bytes; reuse
+remains three / 64 per batch. All 81 source snapshots match Git and each other.
+Actual source packing uses 72 / 66 contracts, checked by 288 / 264 additional
+plain/sanitized footprint executions. The older records above keep their charged
+`finally` fallback; the new diagnostic counts are not stock total-heap or timing
+claims.
 
 A completed schema-2 [packing calibration](../openblas_packing/README.md) can now
 replace the workspace-only backend calibration. The runner detects its record

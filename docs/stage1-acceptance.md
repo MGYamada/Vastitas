@@ -219,6 +219,28 @@ on both backends. Matched logical payload is not physical traffic, elapsed time,
 whole-process peak memory, shortcut coverage or controlled-host acceptance; the
 four performance gates remain open.
 
+The post-cleanup [macOS](../experiments/source_workspace/results/2026-11-01-macos-unit-cleanup/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux-unit-cleanup/RESULTS.md)
+records preserve the same complete standard profile at clean `84b0c11`. Each has
+936 observation processes, 9,360 allocator snapshots and all 81 source inputs
+matched to Git. Lifecycle batches 1/2/17 now observe 5/7/37 diagnostic normal
+allocations / 104/144/744 binned bytes; the older fallback remains charged in its
+original records. Source packing contracts receive 288 / 264 independent
+plain/sanitized footprint checks. Cleanup merged in #378 after all 23 hosted
+checks and exact-head re-review; its Unit-only success path preserves failure
+precedence and inside-out finalization.
+
+The large-output profile's
+[macOS](../experiments/source_workspace/results/2026-11-01-macos-streaming/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux-streaming/RESULTS.md)
+records at clean `ceff584` cover real/complex 128/256 MiB destinations with both
+padding layouts. Each has 24 canonical executions and 216 observation processes;
+their source packing contracts receive 80 / 96 additional footprint checks.
+The separate 1/2-repetition cost matrix keeps
+the existing calibration bounds and source authority. It supplies larger source
+execution/cost coverage; measured bandwidth, actual cache behavior, general
+peaks and controlled-host timing acceptance remain open.
+
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.
 Runtime and allocation records keep their original clean/dirty inputs even when

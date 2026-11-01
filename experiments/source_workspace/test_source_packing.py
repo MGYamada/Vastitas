@@ -235,3 +235,48 @@ class RetainedPackingExports(unittest.TestCase):
                 self.assertEqual(record['status'],'')
                 inputs.append(record['inputs'])
         self.assertEqual(inputs[0],inputs[1])
+
+
+class RetainedCurrentCostProfiles(unittest.TestCase):
+    def check_profile(self,suffix,head,selection,counts):
+        root=Path(__file__).resolve().parent/'results'
+        inputs=[]
+        for platform in ('macos','linux'):
+            with self.subTest(profile=suffix,platform=platform):
+                directory=root/('2026-11-01-'+platform+'-'+suffix)
+                manifest=json.loads((directory/'artifact-manifest.json').read_text())
+                archive=directory/'evidence.zip'
+                with archive.open('rb') as stream:
+                    self.assertEqual(hashlib.file_digest(stream,'sha256').hexdigest(),manifest['sha256'])
+                self.assertEqual(archive.stat().st_size,manifest['bytes'])
+                reader=backend.Reader(archive)
+                self.assertEqual(len(reader.names),manifest['members'])
+                summary=verify_reader(reader)
+                self.assertEqual(summary,manifest['summary'])
+                self.assertEqual(summary['selection'],selection)
+                self.assertEqual(tuple(summary[k] for k in
+                    ('cases','records','failure_cleanups','canonical_executions','actual_cblas_calls')),counts)
+                record=reader.json('record.json')
+                self.assertEqual((record['head'],record['status']),(head,''))
+                self.assertEqual((manifest['measured_head'],manifest['measured_status']),(head,''))
+                self.assertEqual(len(record['inputs']),81)
+                inputs.append(record['inputs'])
+                for row in summary['lean_allocator']['observations']:
+                    if row['capability']!='calibrated_phase_deltas':continue
+                    phase=row['phases']['run']
+                    if row['implementation']=='c':expected=(0,0)
+                    elif row['implementation']=='failure':expected=(7,184)
+                    elif row['scope']==1:expected=(3,64)
+                    else:expected={1:(5,104),2:(7,144),17:(37,744)}[row['repetitions']]
+                    self.assertEqual((phase['normal_count'],phase['normal_binned_bytes']),expected)
+                    for phase in row['phases'].values():
+                        self.assertEqual((phase['unattributed_normal_count'],phase['unattributed_normal_binned_bytes']),(0,0))
+        self.assertEqual(inputs[0],inputs[1])
+
+    def test_post_cleanup_exports_retain_actual_unit_return_costs(self):
+        self.check_profile('unit-cleanup','84b0c115f1a003edf52d4634c9dbebbbf6531b18',
+                           'full',(12,864,72,72,13536))
+
+    def test_complete_streaming_exports_preserve_their_separate_profile(self):
+        self.check_profile('streaming','ceff5840e4fd1dbdf0e4ab012d2fd52cab062e7d',
+                           'streaming',(4,192,24,24,1056))

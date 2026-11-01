@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "artifact_id": 13085475253,
+  "artifact_url": "https://github.com/MGYamada/Vastitas/actions/runs/41307639076/artifacts/13085475253",
+  "workflow_run": 41307639076,
+  "event": "push",
+  "head_sha": "84b0c115f1a003edf52d4634c9dbebbbf6531b18",
+  "outer_zip_sha256": "e603d60dea0b2ac80e41a10ce8b17660301d2f01a05761f7049ba9cfe3e772a3",
+  "outer_zip_bytes": 44969614,
+  "inner_archive": "evidence.zip",
+  "inner_sha256": "e0b02a62dd4e75cb9e7bdd99e1d847b3881b675464d5048aad1c98a33fbe987c",
+  "source_inputs_verified_against_git": 81
+}

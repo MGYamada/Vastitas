@@ -218,6 +218,8 @@ jobs:
         run: cd lean && lake env lean ../scripts/audit_axioms.lean
       - name: Core proof migration regressions
         run: cd lean && lake env lean ../scripts/check_oracle_core.lean
+      - name: Exact polynomial cotangent proofs and rejection regressions
+        run: cd lean && lake env lean ../scripts/check_polynomial_cotangent.lean
       - name: Finite edit acceptance indices
         run: cd lean && lake env lean ../scripts/check_edit_acceptance.lean
       - name: Dependency boundaries

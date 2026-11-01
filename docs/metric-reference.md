@@ -186,12 +186,20 @@ part of the reference's trusted implementation, not Lean-checked machinery.
 
 ## Future Lean and accepted-Core obligations
 
+The [polynomial cotangent proof slice](polynomial-cotangent.md) now proves the
+two-variable **Q-point** chain rule, canonical differential and typed reverse
+composition in the official Lean kernel, with nominal endpoint/basepoint and
+unverified-rule regressions. It reuses this reference's exact witnesses without
+claiming a proved Python/Lean correspondence. Real scalar extension, global
+Kähler/C∞ differentials and the actual accepted-Core bridge remain separate.
+
 Keep these obligations separate from the finite regression results:
 
-1. **Metric-free differential/pullback.** Formalize the rational polynomial
-   representation over `R`, its derivative and the canonical dual map. Prove
-   correct basepoints, polynomial chain rule and reverse composition without
-   any metric premise. Establish invariance under adding/replacing unrelated
+1. **Metric-free differential/pullback.** Extend the proved rational-point
+   polynomial fragment to its intended representation over `R` and connect
+   its canonical dual map to the geometric differential. Preserve the proved
+   basepoint, chain-rule and reverse-composition properties without any metric
+   premise. Establish invariance under adding/replacing unrelated
    metric declarations in the *actual* elaboration environment.
 2. **Musical maps.** For the independently selected constant symmetric `G`,
    prove that both inverse identities justify sharp and both inverse laws.

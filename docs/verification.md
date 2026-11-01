@@ -452,6 +452,15 @@ Its coordinate-change regressions and nominal-evidence audits are Python
 reference results only; the document lists separate future Lean soundness and
 same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
 
+The separate [polynomial cotangent proof](polynomial-cotangent.md),
+`VastitasOracle.PolynomialCotangent`, proves the two-variable rational-point
+mathematical chain rule, derivation characterization, presentation invariance,
+linearity, identity and typed reversed composition in the official Lean kernel.
+The regressions include compatible noncommuting endomorphisms and ill-typed
+endpoint/basepoint/unverified-rule mutations. General C∞ differentials, sheaf
+gluing, accepted-Core translation validation, proof erasure and native refinement
+remain unproved by this slice; it is not completion of constitutional CF.
+
 The [polynomial first-variation reference](variational-reference.md) compares the
 linear epsilon coefficient of the expanded action with a separately computed
 Euler–Lagrange integral plus oriented boundary terms. It checks actual variation

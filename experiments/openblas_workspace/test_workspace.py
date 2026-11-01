@@ -1,7 +1,10 @@
 import copy
+import hashlib
+import json
+from pathlib import Path
 import unittest
 
-from verify import check_calibration, replay
+from verify import check_calibration, compact_summary, replay, verify
 
 
 def fixture():
@@ -104,6 +107,21 @@ class WorkspaceReplay(unittest.TestCase):
         def mutate(r):
             next(e for e in r['events'] if e['operation'] == 'direct_borrow')['bytes'] = 12288
         self.reject(mutate,'borrow domain')
+
+
+class RetainedRecords(unittest.TestCase):
+    def test_published_observations_and_inventory(self):
+        root = Path(__file__).resolve().parent/'results'
+        for platform in ('macos','linux'):
+            with self.subTest(platform=platform):
+                path = root/('2026-11-01-'+platform)
+                manifest = json.loads((path/'artifact-manifest.json').read_text())
+                archive = path/'evidence.zip'
+                self.assertEqual(hashlib.sha256(archive.read_bytes()).hexdigest(),manifest['sha256'])
+                self.assertEqual(archive.stat().st_size,manifest['bytes'])
+                # JSON roundtrip normalizes the integer phase keys to strings.
+                actual = json.loads(json.dumps(compact_summary(verify(archive))))
+                self.assertEqual(actual,json.loads((path/'summary.json').read_text()))
 
 
 if __name__ == '__main__':

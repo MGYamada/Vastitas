@@ -1,0 +1,991 @@
+{
+  "claims": {
+    "actual_packing_bytes": false,
+    "controlled_host": false,
+    "stock_kernel_objects_unchanged": true,
+    "timing": false,
+    "total_process_memory": false,
+    "unchanged_backend": false
+  },
+  "groups": [
+    {
+      "observation": {
+        "before_shutdown": {
+          "borrowed_capacity_bytes": 0,
+          "malloc_requested_bytes": 0,
+          "mmap_bytes": 268435456
+        },
+        "buffer_bytes": 134217728,
+        "counts": {
+          "borrow": 3,
+          "direct_borrow": 1,
+          "direct_return": 1,
+          "free": 1,
+          "malloc": 1,
+          "mark": 10,
+          "mmap": 2,
+          "munmap": 2,
+          "return": 3,
+          "shutdown_begin": 1,
+          "shutdown_end": 1
+        },
+        "markers": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19
+        ],
+        "observer_static_bytes": 163869,
+        "peak": {
+          "borrowed_capacity_bytes": 268435456,
+          "malloc_requested_bytes": 134221824,
+          "mmap_bytes": 268435456
+        },
+        "phases": {
+          "10": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "11": {
+            "counts": {
+              "borrow": 1,
+              "mark": 1,
+              "mmap": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 134217728,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 134217728
+            }
+          },
+          "12": {
+            "counts": {
+              "borrow": 1,
+              "mark": 1,
+              "mmap": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 268435456,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 268435456
+            }
+          },
+          "13": {
+            "counts": {
+              "mark": 1,
+              "return": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 134217728,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 268435456
+            }
+          },
+          "14": {
+            "counts": {
+              "borrow": 1,
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 268435456,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 268435456
+            }
+          },
+          "15": {
+            "counts": {
+              "mark": 1,
+              "return": 2
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 268435456
+            }
+          },
+          "16": {
+            "counts": {
+              "direct_borrow": 1,
+              "malloc": 1,
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 134217728,
+              "malloc_requested_bytes": 134221824,
+              "mmap_bytes": 268435456
+            }
+          },
+          "17": {
+            "counts": {
+              "direct_return": 1,
+              "free": 1,
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 268435456
+            }
+          },
+          "18": {
+            "counts": {
+              "mark": 1,
+              "munmap": 2,
+              "shutdown_begin": 1,
+              "shutdown_end": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "19": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          }
+        }
+      },
+      "runs": [
+        {
+          "case": [
+            "calibration"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "calibration"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "calibration"
+          ],
+          "repeat": 3
+        }
+      ]
+    },
+    {
+      "observation": {
+        "before_shutdown": {
+          "borrowed_capacity_bytes": 0,
+          "malloc_requested_bytes": 0,
+          "mmap_bytes": 0
+        },
+        "buffer_bytes": 134217728,
+        "counts": {
+          "mark": 7,
+          "shutdown_begin": 1,
+          "shutdown_end": 1
+        },
+        "markers": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          18,
+          19
+        ],
+        "observer_static_bytes": 163869,
+        "peak": {
+          "borrowed_capacity_bytes": 0,
+          "malloc_requested_bytes": 0,
+          "mmap_bytes": 0
+        },
+        "phases": {
+          "10": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "11": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "12": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "13": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "14": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "18": {
+            "counts": {
+              "mark": 1,
+              "shutdown_begin": 1,
+              "shutdown_end": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "19": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          }
+        }
+      },
+      "runs": [
+        {
+          "case": [
+            "0",
+            "0",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "0",
+            "2"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "0",
+            "2"
+          ],
+          "repeat": 3
+        }
+      ]
+    },
+    {
+      "observation": {
+        "before_shutdown": {
+          "borrowed_capacity_bytes": 0,
+          "malloc_requested_bytes": 0,
+          "mmap_bytes": 134217728
+        },
+        "buffer_bytes": 134217728,
+        "counts": {
+          "borrow": 3,
+          "mark": 7,
+          "mmap": 1,
+          "munmap": 1,
+          "return": 3,
+          "shutdown_begin": 1,
+          "shutdown_end": 1
+        },
+        "markers": [
+          10,
+          11,
+          12,
+          13,
+          14,
+          18,
+          19
+        ],
+        "observer_static_bytes": 163869,
+        "peak": {
+          "borrowed_capacity_bytes": 134217728,
+          "malloc_requested_bytes": 0,
+          "mmap_bytes": 134217728
+        },
+        "phases": {
+          "10": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "11": {
+            "counts": {
+              "borrow": 1,
+              "mark": 1,
+              "mmap": 1,
+              "return": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 134217728
+            }
+          },
+          "12": {
+            "counts": {
+              "borrow": 1,
+              "mark": 1,
+              "return": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 134217728
+            }
+          },
+          "13": {
+            "counts": {
+              "borrow": 1,
+              "mark": 1,
+              "return": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 134217728
+            }
+          },
+          "14": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 134217728
+            }
+          },
+          "18": {
+            "counts": {
+              "mark": 1,
+              "munmap": 1,
+              "shutdown_begin": 1,
+              "shutdown_end": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          },
+          "19": {
+            "counts": {
+              "mark": 1
+            },
+            "end": {
+              "borrowed_capacity_bytes": 0,
+              "malloc_requested_bytes": 0,
+              "mmap_bytes": 0
+            }
+          }
+        }
+      },
+      "runs": [
+        {
+          "case": [
+            "0",
+            "2",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "0"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "1"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "2"
+          ],
+          "repeat": 1
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "0"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "1"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "2"
+          ],
+          "repeat": 2
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "2",
+            "2"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "32",
+            "2"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "0",
+            "256",
+            "2"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "2",
+            "2"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "32",
+            "2"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "0"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "1"
+          ],
+          "repeat": 3
+        },
+        {
+          "case": [
+            "1",
+            "256",
+            "2"
+          ],
+          "repeat": 3
+        }
+      ]
+    }
+  ],
+  "paired_fresh_processes": 75,
+  "runs": 150
+}

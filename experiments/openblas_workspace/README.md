@@ -13,6 +13,13 @@ the actual native storage, diagonal and GEMM adapter sources to each archive.
 There is no Lean compiler/runtime in these probe executables. Later integration
 with generated-source lifecycles remains a distinct measurement obligation.
 
+The retained [macOS](results/2026-11-01-macos/RESULTS.md) and
+[Linux](results/2026-11-01-linux/RESULTS.md) records each contain 150 executions
+at clean `cc42822f120c8792e7fa0747b509282dcd934dde`. Their nonempty fixtures retain
+32 MiB and 128 MiB of pool mapping respectively after return, then release it at
+quit. Neither record observes startup warmup or actual packing bytes. Different
+compiled backends explain the distinct capacities; this is not a timing comparison.
+
 ## Run
 
 ```sh

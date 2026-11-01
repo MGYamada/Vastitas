@@ -282,9 +282,23 @@ def verify(path):
     return {'runs':len(seen),'paired_fresh_processes':len(pairs),'observations':observations,'claims':CLAIMS}
 
 
+def compact_summary(result):
+    """Group only exactly identical address-free observations; retain all cases."""
+    groups = {}
+    for observation in result['observations']:
+        detail = {k:v for k,v in observation.items() if k not in ('repeat','case')}
+        key = json.dumps(detail,sort_keys=True)
+        group = groups.setdefault(key,{'observation':detail,'runs':[]})
+        group['runs'].append({'repeat':observation['repeat'],'case':observation['case']})
+    return {'runs':result['runs'],'paired_fresh_processes':result['paired_fresh_processes'],
+            'claims':result['claims'],'groups':list(groups.values())}
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('record',type=Path)
+    parser.add_argument('--summary',action='store_true',help='emit all grouped observations as JSON')
     args = parser.parse_args()
     result = verify(args.record)
-    print(json.dumps({k:v for k,v in result.items() if k != 'observations'},indent=2))
+    print(json.dumps(compact_summary(result) if args.summary else
+                     {k:v for k,v in result.items() if k != 'observations'},indent=2))

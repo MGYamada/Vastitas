@@ -120,3 +120,8 @@ could expose more churn, but its counts must not be called stock-production
 evidence. Valgrind or malloc interposition alone does not prove completeness.
 These capability checks require no controlled timing host and do not waive the
 remaining performance gate in [the completion ledger](../../docs/stage1-completion.md).
+
+The separate [OpenBLAS diagnostic](../openblas_workspace/README.md) now records
+pool capacity and backing requests for actual native adapter fixtures. It
+rebuilds that backend's memory object; its counts are not stock Lean observations,
+actual packing/residency or complete generated-program allocation coverage.

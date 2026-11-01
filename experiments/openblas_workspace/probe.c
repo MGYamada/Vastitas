@@ -40,7 +40,7 @@ static Z product(unsigned r, unsigned c, unsigned n, unsigned scalar, unsigned t
 }
 static uint64_t verify(VStorageArena *a, unsigned n, unsigned scalar,
                        unsigned transform, unsigned multiplier, uint64_t elements) {
-    uint64_t hash = UINT64_C(1469598103934665603), width = 8*(scalar+1);
+    uint64_t hash = UINT64_C(1469598103934665603), width = UINT64_C(8)*(scalar+1);
     for (unsigned id = 0; id < 3; ++id) {
         VStorageDense view;
         ok(vstorage_prepare_dense(a, id, (VStorageLayout){0,elements,1,elements,0}, &view));
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
         unsigned n = (unsigned)strtoul(argv[2], NULL, 10);
         unsigned transform = (unsigned)strtoul(argv[3], NULL, 10);
         assert(scalar <= 1 && (n == 0 || n == 2 || n == 32 || n == 256) && transform <= 2);
-        uint64_t width = 8*(scalar+1), elements = (n+1)*n+2;
+        uint64_t width = UINT64_C(8)*(scalar+1), elements = ((uint64_t)n+1)*n+2;
         VStorageArena *a = vstorage_new(3*elements*width); assert(a);
         VStorageLayout v = {width,n,n,n+1,0}, av = v;
         av.transposed = transform != 0;
@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
             ok(vgemm_execute(a,0,av,transform == 2,1,v,0,2,v,
                              iteration == 2 ? VGEMM_ACCUMULATE : VGEMM_OVERWRITE, &report));
             assert(report.kernel_calls == (n != 0));
-            assert(report.written_bytes == n*n*width);
+            assert(report.written_bytes == (uint64_t)n*n*width);
             calls += report.kernel_calls;
             checksums[iteration] = verify(a,n,scalar,transform,iteration == 2 ? 2 : 1,elements);
         }

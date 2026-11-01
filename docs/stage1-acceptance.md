@@ -194,6 +194,18 @@ unattributed in those observed diagnostic phases after the actual two-object /
 96-byte error payload is included. This does not accept startup, general peaks,
 stock allocation counts, other unmeasured source paths or any of the four gates.
 
+The optional [backend packing calibration](../experiments/openblas_packing/README.md)
+records actual D/Z packing invocations and their source/active-pool spans while
+requiring unchanged compute/copy kernels. It separately names static pool metadata
+and preserves GEMV/small-matrix shortcuts with unavailable payload measurements.
+Generated-source composition, shortcut internals and complete backend/peak costs
+remain required; this calibration adds no timing or completion claim.
+Its complete [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
+and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
+records each retain 1,828 executions at clean feature `db62d22`, plus exact direct
+checks of all 136 / 133 observed kernel/shape/stride contracts. The actual packing
+kernels retain stock object hashes. The initial grid-only records remain linked.
+
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.
 Runtime and allocation records keep their original clean/dirty inputs even when

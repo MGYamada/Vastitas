@@ -173,6 +173,20 @@ adds two previously untracked objects / 96 binned bytes. The run has no operatio
 timings or stock-count claim. Startup on the waiting initialization thread, other
 allocators, general peaks and the existing full-cost/performance gates remain open.
 
+The optional [actual backend packing experiment](../experiments/openblas_packing/README.md)
+calibrates the selected unchanged D/Z copy kernels, records each packing invocation
+inside its actual CBLAS route and replays input rectangles against live pool loans.
+It counts repeated logical payload and a named set of static pool metadata.
+GEMV/small-matrix shortcuts remain explicit unmeasured payload paths. Joining the
+calibration to generated-source lifecycles, full backend metadata/peak accounting
+and timing acceptance remain outstanding; the Stage 1 gate is unchanged.
+The retained [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
+and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
+records each contain 1,828 executions at clean feature `db62d22`, plus direct
+checks of all 136 / 133 actual kernel/shape/stride contracts. They observe
+308,750 / 385,254 actual copy calls, with all 535 / 769 kernel objects unchanged.
+Different backends retain distinct costs; initial grid-only records remain linked.
+
 ## Implemented proof boundary and broader future scope
 
 The [geometry migration](geometry-migration.md) retains exact returned-Core typed

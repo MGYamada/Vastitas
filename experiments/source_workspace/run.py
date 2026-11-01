@@ -24,6 +24,7 @@ def module(name,path):
 audit = module('source_workspace_allocation',ROOT/'experiments/allocation_audit/run.py')
 backend_verify = module('source_workspace_backend_verify',ROOT/'experiments/openblas_workspace/verify.py')
 allocator = module('source_workspace_allocator',HERE/'allocator.py')
+packing = module('source_workspace_packing',HERE/'packing.py')
 tree,fixtures = audit.tree,audit.fixtures
 
 
@@ -63,12 +64,14 @@ CLOCK = '''static uint64_t now_ns(void) {
 }'''
 
 
-def decorate(work,backend,*,observe_allocator=False,lean_prefix=None):
+def decorate(work,backend,*,observe_allocator=False,lean_prefix=None,observe_packing=False):
     """Strict additions to a private runtime; ordinary source/runtime unchanged."""
     native = work/'native'
     for name in ('bridge.c','bridge.h'):
         shutil.copyfile(HERE/name,native/name)
     shutil.copyfile(ROOT/'experiments/openblas_workspace/observer.h',native/'observer.h')
+    if observe_packing:
+        shutil.copyfile(ROOT/'experiments/openblas_packing/observer.h',native/'packing_observer.h')
     path = native/'audit.c'
     text = '#include "bridge.h"\n'+path.read_text()
     text = audit.replace_once(text,'require(next < PHASES); phase = next;',
@@ -84,11 +87,11 @@ def decorate(work,backend,*,observe_allocator=False,lean_prefix=None):
     text = audit.replace_once(text,CLOCK,'static uint64_t now_ns(void) { return 0; } /* clocks disabled for cost observation */')
     real = '    cblas_dgemm(o, ta, tb, m, n, k, a, x, lx, y, ly, b, z, lz);'
     text = audit.replace_once(text,real,
-        '    source_workspace_begin(0,o,ta,tb,m,n,k,lx,ly,lz,a,0.0,b,0.0);\n'+real+'\n    source_workspace_end();')
+        '    source_workspace_begin(0,o,ta,tb,m,n,k,lx,ly,lz,a,0.0,b,0.0,x,y,z);\n'+real+'\n    source_workspace_end();')
     complex_call = '    cblas_zgemm(o, ta, tb, m, n, k, a, x, lx, y, ly, b, z, lz);'
     text = audit.replace_once(text,complex_call,
         '    const double *av = a, *bv = b;\n'
-        '    source_workspace_begin(1,o,ta,tb,m,n,k,lx,ly,lz,av[0],av[1],bv[0],bv[1]);\n'+
+        '    source_workspace_begin(1,o,ta,tb,m,n,k,lx,ly,lz,av[0],av[1],bv[0],bv[1],x,y,z);\n'+
         complex_call+'\n    source_workspace_end();')
     path.write_text(text)
     lake = native/'lakefile.lean'
@@ -100,9 +103,13 @@ target bridgeObject pkg : FilePath := do
   let source ← bridgeSource.fetch
   let headers := #[← bridgeHeader.fetch, ← observerHeader.fetch]
   let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
-  buildLeanO (pkg.buildDir / "bridge.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", "-DSOURCE_WORKSPACE_DIAGNOSTIC=DIAGNOSTIC"]
+  buildLeanO (pkg.buildDir / "bridge.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", "-DSOURCE_WORKSPACE_DIAGNOSTIC=DIAGNOSTIC", "-DSOURCE_WORKSPACE_PACKING=PACKING"]
 
-'''.replace('DIAGNOSTIC"]',str(int(backend == 'diagnostic'))+'"]')
+'''.replace('=DIAGNOSTIC"','='+str(int(backend == 'diagnostic'))+'"').replace('=PACKING"','='+str(int(observe_packing))+'"')
+    if observe_packing:
+        target = target.replace('input_file observerHeader',
+                                'input_file packingHeader where path := "packing_observer.h"\ninput_file observerHeader')
+        target = target.replace('← observerHeader.fetch]', '← observerHeader.fetch, ← packingHeader.fetch]')
     text = audit.replace_once(text,'extern_lib storageNative pkg := do',target+'extern_lib storageNative pkg := do')
     text = audit.replace_once(text,'← auditObject.fetch]','← auditObject.fetch, ← bridgeObject.fetch]')
     lake.write_text(text)
@@ -142,9 +149,14 @@ target allocatorObject pkg : FilePath := do
 
 
 def check_backend(record_path,stock,diagnostic):
-    backend_verify.verify(record_path)
     reader = backend_verify.Reader(record_path)
     record = reader.json('record.json')
+    is_packing = record.get('kind') == 'diagnostic-openblas-packing'
+    if is_packing:
+        packing.require(record.get('schema') == 2, 'source packing needs actual footprint calibration')
+        packing.backend.verify_reader(reader)
+    else:
+        backend_verify.verify_reader(reader)
     for name,prefix in (('stock',stock),('diagnostic',diagnostic)):
         if tree.sha(prefix/'lib/libopenblas.a') != record['builds'][name]['archive_sha256']:
             raise ValueError('Backend archive is not the calibrated '+name+' build')
@@ -155,6 +167,11 @@ def check_backend(record_path,stock,diagnostic):
         path = 'experiments/openblas_workspace/'+relative
         if tree.sha(ROOT/path) != record['repository']['inputs'][path]['sha256']:
             raise ValueError('Backend observer must be calibrated from the current exact source: '+relative)
+    if is_packing:
+        for relative in ('observer.c','observer.h','patch.py','calibrate.c'):
+            path = 'experiments/openblas_packing/'+relative
+            if tree.sha(ROOT/path) != record['repository']['inputs'][path]['sha256']:
+                raise ValueError('Packing backend must use the current exact sources: '+relative)
     return reader,record
 
 
@@ -163,7 +180,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prefix',required=True,type=Path,help='the paired unchanged stock backend')
     parser.add_argument('--diagnostic-prefix',required=True,type=Path)
-    parser.add_argument('--backend-record',required=True,type=Path,help='completed workspace calibration directory or ZIP')
+    parser.add_argument('--backend-record',required=True,type=Path,help='completed workspace or schema-2 packing calibration directory or ZIP')
     parser.add_argument('--lean-record',type=Path,help='completed Lean allocator calibration directory or ZIP')
     parser.add_argument('--lean-runtime-dir',type=Path,help='calibrated build directory containing stock/rebuilt0/diagnostic2')
     parser.add_argument('--output',required=True,type=Path)
@@ -181,6 +198,7 @@ def main():
     cc = shutil.which(args.cc)
     if not cc: raise ValueError('Compiler executable not found')
     reader,calibration = check_backend(args.backend_record,stock,diagnostic)
+    with_packing = calibration['kind'] == 'diagnostic-openblas-packing'
     # Preserve the full successful calibration as a nested record; no archived
     # code is executed. The prefixes remain external, pinned by their hashes.
     calibration_dir = out/'backend-calibration'
@@ -219,8 +237,10 @@ def main():
     runner.run(['git','diff','--binary','HEAD'])
     runner.run([cc,'--version'])
     inputs = {}
-    for directory in (HERE,ROOT/'experiments/allocation_audit',ROOT/'experiments/contraction_trees',
-                      ROOT/'experiments/openblas_workspace',ROOT/'lean-kernel/native',ROOT/'lean-kernel/numerical'):
+    directories = [HERE,ROOT/'experiments/allocation_audit',ROOT/'experiments/contraction_trees',
+                   ROOT/'experiments/openblas_workspace',ROOT/'lean-kernel/native',ROOT/'lean-kernel/numerical']
+    if with_packing: directories.append(ROOT/'experiments/openblas_packing')
+    for directory in directories:
         for path in sorted(directory.rglob('*')):
             if path.is_file() and not {'.lake','__pycache__','results'}.intersection(path.relative_to(directory).parts):
                 relative = path.relative_to(ROOT).as_posix()
@@ -261,7 +281,8 @@ def main():
                              ('-Wl,-map,' if platform.system()=='Darwin' else '-Wl,-Map,')+str(work/'link.map')]
             exe = audit.build(runner,case,work,stock,args.frontend.resolve(),args.kernel.resolve(),cc,
                 'production_shared',link_prefix=prefix,
-                runtime_hook=lambda w:decorate(w,config['backend'],observe_allocator=lean_binding is not None,lean_prefix=lean_prefix),
+                runtime_hook=lambda w:decorate(w,config['backend'],observe_allocator=lean_binding is not None,
+                                               lean_prefix=lean_prefix,observe_packing=with_packing),
                 extra_link_args=link_args)
             runner.run(['nm','-g',exe],phase='linked_symbols')
             runner.run(['otool','-L',exe] if platform.system()=='Darwin' else ['ldd',exe],phase='linked_libraries')
@@ -270,17 +291,20 @@ def main():
                 execution = runner.run([exe,impl,scope,reps,1],phase='source_workspace')
                 parsed = [json.loads(line) for line in execution['stdout'].splitlines()]
                 diagnostic_backend = config['backend']=='diagnostic'
-                if len(parsed) != 3+int(diagnostic_backend)+int(lean_binding is not None):
+                if len(parsed) != 3+int(diagnostic_backend)*(1+int(with_packing))+int(lean_binding is not None):
                     raise ValueError('Missing or unexpected observation stream')
                 row = dict(case=case['case'],backend=backend,implementation=impl,scope=scope,repetitions=reps,
                            costs=parsed[0],allocation=parsed[1],calls=parsed[2],
                            workspace=parsed[3] if diagnostic_backend else None)
+                if with_packing: row['packing'] = parsed[4] if diagnostic_backend else None
                 if lean_binding:
                     row['lean_allocator'] = parsed[-1]
                 if impl != 'failure': audit.validate(parsed[1],scope,reps,'production_shared',impl)
                 (failures if impl == 'failure' else rows).append(row)
                 tree.dump(out/'observations.json',dict(rows=rows,failures=failures))
     runner.context = None
+    packing_binding = packing.calibrate(runner,out,cc,{'stock':stock,'diagnostic':diagnostic},
+                                         calibration,rows+failures) if with_packing else None
     tree.verify_inputs(inputs)
     tree.verify_inputs(external)
     if runner.run(['git','rev-parse','HEAD'])['stdout'].strip()!=head or runner.run(['git','status','--porcelain'])['stdout']!=status:
@@ -299,7 +323,7 @@ def main():
              for p in sorted(out.rglob('*')) if p.is_file() and not '.lake' in p.relative_to(out).parts
              and not 'openblas_include' in p.relative_to(out).parts
              and p.relative_to(out).as_posix() not in binaries}
-    record = {'schema':2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
+    record = {'schema':3 if with_packing else 2 if lean_binding else 1,'kind':'source-workspace-costs','head':head,'status':status,
               'selection':'debug-one' if args.one_case else 'smoke' if args.smoke else 'full',
               'host':{'platform':platform.platform(),'cc':cc},'environment':env,
               'tools':{'frontend':str(args.frontend.resolve()),'kernel':str(args.kernel.resolve())},
@@ -312,6 +336,7 @@ def main():
     if lean_binding:
         record['lean_allocator'] = lean_binding
         record['configurations'] = configurations
+    if with_packing: record['packing'] = packing_binding
     tree.dump(out/'record.json',record)
     verifier = module('source_workspace_verify',HERE/'verify.py')
     summary = verifier.verify(out)

@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   workspace:
     name: OpenBLAS workspace lifetimes (${{ matrix.os }})
@@ -25,15 +29,16 @@ jobs:
       - name: Replay and mutation regressions
         run: |
           python3 -m unittest discover -s experiments/openblas_workspace -p 'test_*.py'
+          python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
           python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
-      - name: Build paired backends and observe native adapter workspaces
+      - name: Calibrate paired backends, workspace lifetimes and actual packing
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
-            python3 experiments/openblas_workspace/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4 --target HASWELL
+            python3 experiments/openblas_packing/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4 --target HASWELL
           else
-            python3 experiments/openblas_workspace/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4
+            python3 experiments/openblas_packing/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4
           fi
-          python3 experiments/openblas_workspace/verify.py "$RUNNER_TEMP/workspace-record"
+          VASTITAS_PACKING_RECORD="$RUNNER_TEMP/workspace-record" python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
       - name: Build the actual public source checker
         uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
         with:
@@ -49,12 +54,12 @@ jobs:
             sudo apt-get install -y libc++-dev libc++abi-dev
           fi
           python3 experiments/lean_allocation_diagnostic/run.py --out "$RUNNER_TEMP/lean-allocator-record"
-      - name: Observe source allocator, arenas and backend call spans
+      - name: Observe source allocator, arenas, actual packing and call spans
         run: |
           cargo build --locked
           python3 experiments/source_workspace/run.py --prefix "$RUNNER_TEMP/workspace-build/stock" --diagnostic-prefix "$RUNNER_TEMP/workspace-build/diagnostic" --backend-record "$RUNNER_TEMP/workspace-record" --lean-record "$RUNNER_TEMP/lean-allocator-record" --lean-runtime-dir "$RUNNER_TEMP/lean-allocator-record/build" --output "$RUNNER_TEMP/source-workspace-record"
           python3 experiments/source_workspace/archive.py "$RUNNER_TEMP/source-workspace-record" "$RUNNER_TEMP/source-workspace-compact/evidence.zip"
-          VASTITAS_SOURCE_ALLOCATOR_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
+          VASTITAS_SOURCE_ALLOCATOR_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" VASTITAS_SOURCE_PACKING_RECORD="$RUNNER_TEMP/source-workspace-compact/evidence.zip" python3 -m unittest discover -s experiments/source_workspace -p 'test_*.py'
       - name: Retain compact source workspace observation (no timings)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -63,11 +68,11 @@ jobs:
           path: ${{ runner.temp }}/source-workspace-compact/
           if-no-files-found: ignore
           retention-days: 30
-      - name: Retain workspace observation (no timings)
+      - name: Retain calibrated source backend (no timings)
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: openblas-workspace-${{ matrix.os }}-${{ github.event_name }}
+          name: source-backend-calibration-${{ matrix.os }}-${{ github.event_name }}
           path: ${{ runner.temp }}/workspace-record/
           if-no-files-found: ignore
           retention-days: 30

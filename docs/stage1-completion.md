@@ -178,15 +178,27 @@ The optional [actual backend packing experiment](../experiments/openblas_packing
 calibrates the selected unchanged D/Z copy kernels, records each packing invocation
 inside its actual CBLAS route and replays input rectangles against live pool loans.
 It counts repeated logical payload and a named set of static pool metadata.
-GEMV/small-matrix shortcuts remain explicit unmeasured payload paths. Joining the
-calibration to generated-source lifecycles, full backend metadata/peak accounting
-and timing acceptance remain outstanding; the Stage 1 gate is unchanged.
+GEMV/small-matrix shortcuts remain explicit unmeasured payload paths. Full backend
+metadata/peak accounting and timing acceptance remain outstanding; the Stage 1
+gate is unchanged. The subsequent source composition is described below.
 The retained [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
 and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
 records each contain 1,828 executions at clean feature `db62d22`, plus direct
 checks of all 136 / 133 actual kernel/shape/stride contracts. They observe
 308,750 / 385,254 actual copy calls, with all 535 / 769 kernel objects unchanged.
 Different backends retain distinct costs; initial grid-only records remain linked.
+
+The schema-3 [source composition](../experiments/source_workspace/README.md#actual-source-gemm-packing-composition-schema-3)
+binds each diagnostic route to the actual source CBLAS addresses, arguments and
+event interval. The retained [macOS](../experiments/source_workspace/results/2026-11-01-macos-packing/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-01-linux-packing/RESULTS.md)
+records at clean `6abeee1` each cover 72 canonical executions, 936 observations
+and 13,536 actual CBLAS calls. All 70 / 66 source packing contracts receive independent
+plain/sanitized stock/diagnostic footprint checks. Generated/C logical payload
+and named pool metadata agree across the calibrated Lean variants; allocator
+and arena channels remain separately accounted. This closes the measured-profile
+composition gap, not shortcut internals, startup, general heap/peak attribution,
+representative memory-bound coverage or the existing performance gates.
 
 ## Implemented proof boundary and broader future scope
 

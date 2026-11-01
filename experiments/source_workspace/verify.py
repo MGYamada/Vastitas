@@ -22,6 +22,7 @@ def module(name,path):
 backend = module('source_cost_backend',ROOT/'experiments/openblas_workspace/verify.py')
 objects = module('source_cost_objects',ROOT/'experiments/allocation_audit/verify.py')
 allocator = module('source_cost_allocator',HERE/'allocator.py')
+packing = module('source_cost_packing',HERE/'packing.py')
 require = backend.require
 CLAIMS = {'operation_timings':False,'total_heap':False,'backend_packing_bytes':False,
           'native_refinement':False,'controlled_host':False,'source_execution_observed':True}
@@ -36,9 +37,10 @@ class Prefixed:
     def json(self,name): return json.loads(self.read(name))
 
 
-def check_calls(trace,events,case,reps):
+def check_calls(trace,events,case,reps,*,with_packing=False):
     require(set(trace) == {'kind','schema','backend_events_observed','observer_static_bytes','capacity','calls'}, 'call envelope')
-    require(trace['kind']=='source_cblas_calls' and trace['schema']==1 and trace['capacity']==256, 'call schema')
+    require(trace['kind']=='source_cblas_calls' and type(trace['schema']) is int and
+            trace['schema']==(2 if with_packing else 1) and trace['capacity']==256, 'call schema')
     require(type(trace['backend_events_observed']) is bool and trace['backend_events_observed']==(events is not None), 'backend observation domain')
     backend.natural(trace['observer_static_bytes'],'bridge bytes',positive=True)
     calls = trace['calls']
@@ -48,7 +50,11 @@ def check_calls(trace,events,case,reps):
     shapes = ((i*j,a,k),(i*a,b,j))
     signatures,covered = [],set()
     for index,call in enumerate(calls):
-        require(set(call)=={'sequence','phase','scalar','order','transforms','shape','leading','alpha','beta','begin','end'}, 'call fields')
+        fields = {'sequence','phase','scalar','order','transforms','shape','leading','alpha','beta','begin','end'}
+        require(set(call)==fields|({'addresses'} if with_packing else set()), 'call fields')
+        if with_packing:
+            require(isinstance(call['addresses'],list) and len(call['addresses'])==3, 'source address coverage')
+            for address in call['addresses']: packing.backend.address(address)
         for name in ('sequence','phase','scalar','order'): backend.natural(call[name],name)
         phase = 1 if index < 2 else 3
         stage = index%2
@@ -58,7 +64,7 @@ def check_calls(trace,events,case,reps):
         require(all(type(v) is int for name in ('shape','leading','transforms') for v in call[name]), 'call numeric domain')
         require(call['alpha']==['3ff0000000000000','0000000000000000'] and
                 call['beta']==['0000000000000000','0000000000000000'], 'actual coefficients')
-        signatures.append({key:value for key,value in call.items() if key not in ('begin','end')})
+        signatures.append({key:value for key,value in call.items() if key not in ('begin','end','addresses')})
         if events is None:
             require(call['begin'] is None and call['end'] is None, 'unobserved is not zero events')
             continue
@@ -200,9 +206,11 @@ def verify(path):
 def verify_reader(r,*,allow_build_tree=False):
     if not __debug__: raise ValueError('Run without -O: the inherited object verifier uses assertions')
     record = r.json('record.json')
-    require(type(record['schema']) is int and record['schema'] in (1,2) and
+    require(type(record['schema']) is int and record['schema'] in (1,2,3) and
             record['kind']=='source-workspace-costs', 'record schema')
-    with_allocator = record['schema']==2
+    with_packing = record['schema']==3
+    with_allocator = record['schema']==2 or (with_packing and 'lean_allocator' in record)
+    require(('packing' in record)==with_packing, 'packing needs schema 3')
     configurations = allocator.configurations(with_allocator)
     backends = tuple(configurations)
     diagnostic = tuple(b for b in backends if configurations[b]['backend']=='diagnostic')
@@ -227,14 +235,24 @@ def verify_reader(r,*,allow_build_tree=False):
         require(hashlib.sha256(r.read('source/'+name)).hexdigest()==digest, 'source fingerprint')
     require(record['environment']['LEAN_NUM_THREADS']=='1' and record['environment']['OPENBLAS_NUM_THREADS']=='1', 'build thread profile')
     calibration = Prefixed(r,record['backend_record'])
-    backend.verify_reader(calibration)
     calibrated = calibration.json('record.json')
+    if with_packing:
+        require(calibrated['schema']==2, 'source packing needs actual footprint calibration')
+        packing_calibration = packing.backend.verify_reader(calibration)
+        kernels = packing.backend.calibration(calibrated['builds']['stock']['unroll'])['kernels']
+    else:
+        backend.verify_reader(calibration)
     require(record['backend_archives']=={k:calibrated['builds'][k]['archive_sha256'] for k in ('stock','diagnostic')}, 'uncalibrated backend')
     for name,digest in record['backend_archives'].items():
         require(record['external_inputs'][record['prefixes'][name]+'/lib/libopenblas.a']==digest, 'linked archive fingerprint')
     for name in ('observer.c','observer.h','wrappers.c','patch.py'):
         relative = 'experiments/openblas_workspace/'+name
         require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'], 'changed observer source')
+    if with_packing:
+        for name in ('observer.c','observer.h','patch.py','calibrate.c'):
+            relative = 'experiments/openblas_packing/'+name
+            require(record['inputs'][relative]==calibrated['repository']['inputs'][relative]['sha256'],
+                    'changed packing source')
     if with_allocator: allocator.check_calibration(r,record,Prefixed)
     cases = r.json('cases.json')
     require(len(cases)==len({c['case'] for c in cases}), 'duplicate case')
@@ -263,12 +281,18 @@ def verify_reader(r,*,allow_build_tree=False):
     required |= {(name,b,'failure',0,1) for name,b in itertools.product(cases,backends)}
     require(len(keys)==len(set(keys)) and set(keys)==required, 'observation coverage')
     require(all(type(x[k]) is int for x in all_rows for k in ('scope','repetitions')), 'observation numeric domain')
-    signatures,allocator_summaries = {},{}
+    signatures,allocator_summaries,packing_summaries = {},{},{}
     for key,row in zip(keys,all_rows):
         require((row['workspace'] is not None)==(row['backend'] in diagnostic), 'stock/diagnostic distinction')
         require(('lean_allocator' in row)==with_allocator, 'allocator observation domain')
+        require(('packing' in row)==with_packing, 'packing observation domain')
         check_allocation(row,cases[row['case']])
-        signatures[key] = check_calls(row['calls'],row['workspace'],cases[row['case']],row['repetitions'])
+        signatures[key] = check_calls(row['calls'],row['workspace'],cases[row['case']],row['repetitions'],
+                                      with_packing=with_packing)
+        if with_packing:
+            require((row['packing'] is not None)==(row['backend'] in diagnostic), 'stock packing is unavailable')
+            packing_summaries[key] = packing.replay(row['calls'],row['packing'],row['workspace'],
+                                                     kernels,packing_calibration['metadata'])
         if with_allocator:
             allocator_summaries[key] = allocator.replay(row['lean_allocator'],row['allocation'],
                                                        configurations[row['backend']]['runtime'])
@@ -300,6 +324,16 @@ def verify_reader(r,*,allow_build_tree=False):
             require(allocator_summaries[(name,'stock-diagnostic2',impl,scope,reps)]==
                     allocator_summaries[(name,'diagnostic-diagnostic2',impl,scope,reps)],
                     'backend changed allocator phase costs')
+    if with_packing:
+        for name,impl,scope,reps in ((n,i,s,r) for n in cases for i,s,r in
+                [('failure',0,1)]+list(itertools.product(('generated','c'),(0,1),(1,2,17)))):
+            reference = packing_summaries[(name,diagnostic[0],impl,scope,reps)]
+            for b in diagnostic:
+                require(packing_summaries[(name,b,impl,scope,reps)]==reference,
+                        'Lean variant changed backend packing')
+                if impl=='generated':
+                    require(packing_summaries[(name,b,'c',scope,reps)]==reference,
+                            'generated/C packing cost mismatch')
     commands = r.json('commands.json')
     samples = [c for c in commands if c['phase']=='source_workspace']
     require(len(samples)==len(all_rows), 'raw sample command coverage')
@@ -316,6 +350,7 @@ def verify_reader(r,*,allow_build_tree=False):
         require(command['context']=={'case':key[0],'backend':key[1]}, 'sample context')
         parsed = [json.loads(line) for line in command['stdout'].splitlines()]
         want = [row['costs'],row['allocation'],row['calls']]+([row['workspace']] if row['workspace'] is not None else [])
+        if with_packing and row['packing'] is not None: want.append(row['packing'])
         if with_allocator: want.append(row['lean_allocator'])
         require(parsed==want, 'raw/parsed correspondence')
     require(all(c['returncode']==0 or (c['phase']=='frontend_capture' and c['returncode']==1 and 'E_CAPTURED' in c['stderr']) for c in commands), 'unexpected command failure')
@@ -340,6 +375,8 @@ def verify_reader(r,*,allow_build_tree=False):
                 require(command['compiler_environment']['LEAN_NUM_THREADS']=='0', 'canonical worker profile')
             if phase=='linked_symbols':
                 require(('vobs_cursor' in match[0]['stdout'])==(b in diagnostic), 'linked observer symbol')
+                if with_packing:
+                    require(('vpack_dump' in command['stdout'])==(b in diagnostic), 'linked packing observer')
                 if with_allocator:
                     require('mi_stats_get' in command['stdout'],
                             'linked source allocator observer')
@@ -362,6 +399,14 @@ def verify_reader(r,*,allow_build_tree=False):
         require(b'clocks disabled for cost observation' in native and native.count(b'source_workspace_begin(')==2 and
                 native.count(b'source_workspace_end();')==2, 'actual CBLAS bracketing')
         require(record['prefixes'][configurations[b]['backend']].encode() in r.read(prefix+'lakefile.lean'), 'private backend link')
+        if with_packing:
+            require(r.read(prefix+'native/bridge.c')==r.read('source/experiments/source_workspace/bridge.c') and
+                    r.read(prefix+'native/packing_observer.h')==calibration.read('inputs/repository/experiments/openblas_packing/observer.h'),
+                    'actual source packing observer')
+            require(b'-DSOURCE_WORKSPACE_PACKING=1' in r.read(prefix+'native/lakefile.lean'), 'packing bridge compilation')
+            for arguments in (b'0,o,ta,tb,m,n,k,lx,ly,lz,a,0.0,b,0.0,x,y,z',
+                              b'1,o,ta,tb,m,n,k,lx,ly,lz,av[0],av[1],bv[0],bv[1],x,y,z'):
+                require(native.count(b'source_workspace_begin('+arguments+b');')==1, 'actual CBLAS address capture')
         if with_allocator: allocator.check_program(r,record,prefix,configurations[b])
     summaries = []
     counts = Counter()
@@ -382,6 +427,12 @@ def verify_reader(r,*,allow_build_tree=False):
         summary['lean_allocator'] = dict(claims=allocator.CLAIMS,variants=list(allocator.VARIANTS),
             snapshots=10*len(all_rows),observations=[dict(case=key[0],backend=key[1],implementation=key[2],
             scope=key[3],repetitions=key[4],**value) for key,value in allocator_summaries.items()])
+    if with_packing:
+        footprints = packing.check_footprints(r,record,all_rows,calibrated,kernels,commands)
+        summary['packing'] = {'claims':packing.CLAIMS,'observed_footprints':footprints,
+            'metadata':packing_calibration['metadata'],
+            'reuse_17_generated':[{'case':name,**packing_summaries[(name,diagnostic[0],'generated',1,17)]}
+                                  for name in sorted(cases)]}
     return summary
 
 

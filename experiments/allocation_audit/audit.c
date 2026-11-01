@@ -4,8 +4,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifndef AUDIT_PERSISTENT
-#define AUDIT_PERSISTENT 0
+#ifndef AUDIT_PRODUCTION_SHARED
+#define AUDIT_PRODUCTION_SHARED 0
 #endif
 
 enum { STARTUP, COLD, SETUP, RUN, CLEANUP, PHASES };
@@ -20,7 +20,6 @@ static unsigned phase;
 static uint64_t finalized[PHASES], peak_bytes, current_bytes;
 static uint64_t cycles[PHASES][8];
 static lean_object *unit;
-lean_obj_res allocation_persistent_unit(void);
 static void require(int valid) { if (!valid) { fputs("allocation audit contract failure\n", stderr); abort(); } }
 
 static lean_object *record(lean_object *object, unsigned kind) {
@@ -61,14 +60,21 @@ void audit_arena_cycle(uint64_t allocations, uint64_t frees, uint64_t peak,
     if (metadata_peak > c[7]) c[7] = metadata_peak;
 }
 lean_obj_res audit_ok(lean_obj_arg value) {
-    if (AUDIT_PERSISTENT && value == lean_box(0)) {
-        lean_object *shared = allocation_persistent_unit();
-        if (!unit) unit = record(shared, PERSISTENT);
-        require(unit == shared);
-        ++counts[phase][PERSISTENT].retained_returns;
-        return shared;
-    }
     return record(lean_io_result_mk_ok(value), IO_OK);
+}
+/* These hooks surround the actual production initializer/publication. They do
+ * not substitute the earlier pthread prototype or implement a second once. */
+lean_obj_res audit_shared_create(void) {
+    require(AUDIT_PRODUCTION_SHARED && phase != STARTUP && unit == NULL);
+    unit = record(lean_io_result_mk_ok(lean_box(0)), PERSISTENT);
+    return unit;
+}
+lean_obj_res audit_shared_return(lean_obj_arg value) {
+    require(AUDIT_PRODUCTION_SHARED && unit == value);
+    require(lean_is_persistent(value) && !lean_is_exclusive(value));
+    require(lean_io_result_is_ok(value) && lean_ctor_get(value, 0) == lean_box(0));
+    ++counts[phase][PERSISTENT].retained_returns;
+    return value;
 }
 lean_obj_res audit_control_ok(lean_obj_arg value) { return record(lean_io_result_mk_ok(value), CONTROL); }
 lean_obj_res audit_error(lean_obj_arg value) { return record(lean_io_result_mk_error(value), IO_ERROR); }
@@ -88,11 +94,11 @@ void audit_report(void) {
             fprintf(stderr, "unreleased tracked object kind=%s bytes=%zu phase=%s\n", kind_names[live[i].kind], live[i].bytes, phase_names[phase]);
         require(live[i].kind == PERSISTENT && lean_is_persistent(live[i].object)); ++retained;
     }
-    if (retained != (unsigned)AUDIT_PERSISTENT || current_bytes != (AUDIT_PERSISTENT ? 16 : 0))
-        fprintf(stderr, "retained=%u mode=%u bytes=%" PRIu64 "\n",retained,(unsigned)AUDIT_PERSISTENT,current_bytes);
-    require(retained == (unsigned)AUDIT_PERSISTENT);
-    require(current_bytes == (AUDIT_PERSISTENT ? 16 : 0));
-    printf("{\"audit\":true,\"persistent_experiment\":%s,\"tracked_live_bytes\":%" PRIu64 ",\"tracked_peak_bytes\":%" PRIu64 ",\"phases\":{", AUDIT_PERSISTENT ? "true" : "false",current_bytes,peak_bytes);
+    if (retained != (unsigned)AUDIT_PRODUCTION_SHARED || current_bytes != (AUDIT_PRODUCTION_SHARED ? 16 : 0))
+        fprintf(stderr, "retained=%u mode=%u bytes=%" PRIu64 "\n",retained,(unsigned)AUDIT_PRODUCTION_SHARED,current_bytes);
+    require(retained == (unsigned)AUDIT_PRODUCTION_SHARED);
+    require(current_bytes == (AUDIT_PRODUCTION_SHARED ? 16 : 0));
+    printf("{\"audit\":true,\"schema\":2,\"variant\":\"%s\",\"shared_result\":%s,\"tracked_live_bytes\":%" PRIu64 ",\"tracked_peak_bytes\":%" PRIu64 ",\"phases\":{", AUDIT_PRODUCTION_SHARED ? "production_shared" : "private_fresh", AUDIT_PRODUCTION_SHARED ? "true" : "false",current_bytes,peak_bytes);
     for (unsigned p = 0; p < PHASES; ++p) {
         uint64_t *a = cycles[p];
         printf("%s\"%s\":{\"arena_finalizers\":%" PRIu64 ",\"closed_arena_cycles\":%" PRIu64 ",\"arena_allocations\":%" PRIu64 ",\"arena_frees\":%" PRIu64 ",\"arena_peak_bytes\":%" PRIu64 ",\"arena_written_bytes\":%" PRIu64 ",\"arena_copied_bytes\":%" PRIu64 ",\"arena_metadata_allocations\":%" PRIu64 ",\"arena_peak_metadata_bytes\":%" PRIu64 ",\"kinds\":{",p ? "," : "",phase_names[p],finalized[p],a[0],a[1],a[2],a[3],a[4],a[5],a[6],a[7]);

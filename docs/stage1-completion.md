@@ -162,6 +162,18 @@ caller `finally` constructor per lifecycle. The record includes these costs,
 error cleanup and concurrent initialization. It changes no production runtime,
 measures no speedup and excludes general Lean/backend allocation; those gates
 remain open.
+The subsequent [production Unit-result record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
+observes the actual shared `IO.ok ()` helper using pinned Lean's `lean_obj_once`.
+Successful storage/numerical Unit calls reuse one persistent object; new-arena,
+statistics and error results remain fresh. In this fixture, observed fresh object
+bytes become `56N + 64` for `N` lifecycle iterations and 64 per reuse batch,
+including the remaining generated `finally` fallback. The one 16-byte singleton
+is retained separately; observed peak object bytes are 88 rather than 72 for the
+private fresh-result comparator. Arena data/metadata costs are unchanged. Native
+concurrent first use, value-returning continuations and error/finally regressions
+exercise the actual production helper. The record identifies its dirty source
+snapshot independently of the earlier pthread prototype; it measures no speedup,
+total heap/backend allocation or controlled-host acceptance.
 Residual retention is specified now to constrain storage design; AD implementation
 and its performance gates remain in the later AD stage.
 

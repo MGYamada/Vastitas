@@ -23,11 +23,54 @@ _spec = importlib.util.spec_from_file_location('tree_allocation_fixture', TREE /
 tree = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(tree)
 
+SHARED_HELPER = '''static lean_once_cell_t success_once = LEAN_ONCE_CELL_INITIALIZER;
+static lean_object *unit_success;
+static lean_object *initialize_success(void) {
+    lean_object *result = lean_io_result_mk_ok(lean_box(0));
+    lean_mark_persistent(result);
+    return result;
+}
+
+/* Lean's once cell publishes the fully initialized immutable object. The pinned
+ * Lean API prevents callers from resetting a persistent constructor in place;
+ * generated finally blocks take their ordinary nonexclusive fallback instead.
+ * One result remains live for the process lifetime, with no arena/error payload. */
+LEAN_EXPORT lean_obj_res vastitas_io_unit_success(void) {
+    lean_object *result = lean_obj_once(&unit_success, &success_once, initialize_success);
+    lean_inc(result);
+    return result;
+}'''
+
 
 def replace_once(text, before, after):
     if text.count(before) != 1:
         raise ValueError(f'unfamiliar instrumented input: {before}')
     return text.replace(before, after)
+
+
+def unit_helper(text, variant, threaded=False):
+    """Fail closed on the complete actual once/initializer/return envelope."""
+    if variant not in ('production_shared', 'private_fresh'):
+        raise ValueError('unsupported audit variant')
+    if threaded and variant != 'production_shared':
+        raise ValueError('thread audit must exercise the production helper')
+    if variant == 'private_fresh':
+        replacement = '''/* EXPERIMENT ONLY: fresh-result comparator. */
+LEAN_EXPORT lean_obj_res vastitas_io_unit_success(void) {
+    return lean_io_result_mk_ok(lean_box(0));
+}'''
+    elif threaded:
+        replacement = replace_once(SHARED_HELPER,
+            '    lean_mark_persistent(result);',
+            '    lean_mark_persistent(result);\n    allocation_thread_initialize(result);')
+    else:
+        replacement = replace_once(SHARED_HELPER,
+            '    lean_object *result = lean_io_result_mk_ok(lean_box(0));',
+            '    lean_object *result = audit_shared_create();')
+        replacement = replace_once(replacement,
+            '    lean_inc(result);\n    return result;',
+            '    lean_inc(result);\n    return audit_shared_return(result);')
+    return replace_once(text, SHARED_HELPER, replacement)
 
 
 def failure_wire(wire):
@@ -68,9 +111,9 @@ def wrapper(generated, failure):
   else if impl == "c" then''')
 
 
-def private_runtime(work, case, persistent):
+def private_runtime(work, case, variant):
     tree.private_runtime(work, case)
-    for name in ('audit.h', 'audit.c', 'persistent.c'):
+    for name in ('audit.h', 'audit.c'):
         shutil.copyfile(HERE / name, work / 'native' / name)
     probe = (TREE / 'probe.c').read_text()
     probe = probe.replace('"../../lean-kernel/native/storage.c"', json.dumps(str(ROOT / 'lean-kernel/native/storage.c')))
@@ -85,6 +128,7 @@ def private_runtime(work, case, persistent):
     probe = replace_once(probe, 'void bench_stop(void) {', 'void bench_stop(void) {\n    audit_phase(4);')
     (work / 'native/storage.c').write_text(probe)
     native = (ROOT / 'lean-kernel/native/ffi.c').read_text()
+    native = unit_helper(native, variant)
     native = replace_once(native, 'static void finalize(void *data) { vstorage_delete(data); }',
         'static void finalize(void *data) { audit_finalize(data); vstorage_delete(data); }')
     helpers = (TREE / 'ffi.c').read_text()
@@ -100,23 +144,19 @@ def private_runtime(work, case, persistent):
     text = lake.read_text()
     target = '''input_file auditSource where path := "audit.c"
 input_file auditHeader where path := "audit.h"
-input_file persistentSource where path := "persistent.c"
-target persistentObject pkg : FilePath := do
-  let source ← persistentSource.fetch
-  buildLeanO (pkg.buildDir / "persistent.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror"]
 target auditObject pkg : FilePath := do
   let source ← auditSource.fetch
   let header ← auditHeader.fetch
   let source ← source.bindM fun path => header.mapM fun _ => pure path
-  buildLeanO (pkg.buildDir / "audit.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", "-DAUDIT_PERSISTENT=PERSISTENT"]
+  buildLeanO (pkg.buildDir / "audit.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", "-DAUDIT_PRODUCTION_SHARED=SHARED"]
 
-'''.replace('PERSISTENT"]', str(int(persistent)) + '"]')
+'''.replace('SHARED"]', str(int(variant == 'production_shared')) + '"]')
     text = replace_once(text, 'extern_lib storageNative pkg := do', target + 'extern_lib storageNative pkg := do')
-    text = replace_once(text, '← diagonalObject.fetch, ← ffiObject.fetch]', '← diagonalObject.fetch, ← ffiObject.fetch, ← auditObject.fetch, ← persistentObject.fetch]')
+    text = replace_once(text, '← diagonalObject.fetch, ← ffiObject.fetch]', '← diagonalObject.fetch, ← ffiObject.fetch, ← auditObject.fetch]')
     lake.write_text(text)
 
 
-def build(runner, case, work, prefix, frontend, kernel, cc, persistent):
+def build(runner, case, work, prefix, frontend, kernel, cc, variant):
     work.mkdir(parents=True)
     package = work / 'package'
     fixtures.write_package(case, package)
@@ -139,7 +179,7 @@ def build(runner, case, work, prefix, frontend, kernel, cc, persistent):
     (work / 'Generated.lean').write_text(response['lean_source'])
     (work / 'GeneratedFailure.lean').write_text(failure['lean_source'])
     (work / 'Main.lean').write_text(wrapper(response['lean_source'], failure['lean_source']))
-    private_runtime(work, case, persistent)
+    private_runtime(work, case, variant)
     (work / 'openblas_include').symlink_to(prefix / 'include', target_is_directory=True)
     shutil.copyfile(ROOT / 'lean-kernel/lean-toolchain', work / 'lean-toolchain')
     lean_root = runner.run(['lean', '--print-prefix'])['stdout'].strip()
@@ -159,7 +199,9 @@ lean_exe audit where
     return work / '.lake/build/bin/audit'
 
 
-def validate(row, scope, reps, persistent, impl):
+def validate(row, scope, reps, variant, impl):
+    persistent = variant == 'production_shared'
+    assert row['schema'] == 2 and row['variant'] == variant and row['shared_result'] == persistent
     counts = row['phases']['run']['kinds']
     assert row['tracked_live_bytes'] == (16 if persistent else 0)
     if impl == 'generated':
@@ -174,6 +216,10 @@ def validate(row, scope, reps, persistent, impl):
     else:
         assert all(counts[k]['allocations'] == 0 for k in ('ffi_ok','arena_external','generated_ctor'))
     assert row['phases']['cold']['kinds']['ffi_ok']['allocations'] == (1 if persistent else 36)
+    assert row['phases']['cold']['kinds']['persistent_unit']['allocations'] == int(persistent)
+    assert row['phases']['cold']['kinds']['persistent_unit']['retained_returns'] == (35 if persistent else 0)
+    if impl == 'generated':
+        assert counts['persistent_unit']['retained_returns'] == ((35*reps if scope == 0 else 4*reps) if persistent else 0)
     assert row['phases']['cold']['kinds']['arena_external']['allocations'] == 1
     assert row['phases']['cold']['closed_arena_cycles'] == 1
     assert row['phases']['cold']['arena_allocations'] == row['phases']['cold']['arena_frees'] == 6
@@ -184,12 +230,17 @@ def validate(row, scope, reps, persistent, impl):
 
 
 def thread_test(runner, out, cc):
-    work = out / 'persistent-thread-test'
+    work = out / 'production-thread-test'
     work.mkdir()
-    shutil.copyfile(HERE / 'persistent.c', work / 'persistent.c')
+    shutil.copytree(ROOT / 'lean-kernel/native', work / 'native', ignore=shutil.ignore_patterns('.lake'))
+    source = (work / 'native/ffi.c').read_text()
+    source = '#include <lean/lean.h>\nvoid allocation_thread_initialize(lean_object *);\n' + unit_helper(source, 'production_shared', threaded=True)
+    (work / 'native/ffi.c').write_text(source)
+    shutil.copyfile(HERE / 'production_thread.c', work / 'production_thread.c')
     shutil.copyfile(ROOT / 'lean-kernel/lean-toolchain', work / 'lean-toolchain')
     lean_root = Path(runner.run(['lean', '--print-prefix'])['stdout'].strip())
-    (work / 'Main.lean').write_text('''@[extern "allocation_test_unit"] opaque sharedUnit : IO Unit
+    (work / 'Main.lean').write_text('''import VastitasStorageNative
+@[extern "allocation_test_unit"] opaque sharedUnit : IO Unit
 @[extern "allocation_test_gate"] opaque gate : IO Unit
 @[extern "allocation_test_error"] opaque expectedError : IO Unit
 @[extern "allocation_test_validate"] opaque validate (expected : UInt32) : IO Unit
@@ -205,29 +256,31 @@ def main : IO Unit := do
     try expectedError finally sharedUnit
     pure false
   catch error =>
-    if error.toString != "persistent experiment expected error" then throw error
+    if error.toString != "E_NATIVE_HANDLE: allocation is absent, closed or already issued" then throw error
     pure true
   if !caught then throw (IO.userError "expected error was lost")
   validate 8001
 ''')
     (work / 'lakefile.lean').write_text(f'''import Lake
 open Lake DSL System
-package persistent_thread_test where
+package production_thread_test where
   moreLinkArgs := #["-fno-lto", "-L", {json.dumps(str(lean_root / 'lib'))}]
-input_file persistentSource where path := "persistent.c"
-target persistentObject pkg : FilePath := do
-  let source ← persistentSource.fetch
-  buildLeanO (pkg.buildDir / "persistent.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror"]
-extern_lib persistentNative pkg := do
-  buildStaticLib (pkg.staticLibDir / nameToStaticLib "persistent_native") #[← persistentObject.fetch]
+require vastitas_storage_native from "./native"
+input_file threadSource where path := "production_thread.c"
+target threadObject pkg : FilePath := do
+  let source ← threadSource.fetch
+  buildLeanO (pkg.buildDir / "thread.o") source #[] #["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror", {json.dumps('-I' + str(work / 'native'))}]
+extern_lib threadNative pkg := do
+  buildStaticLib (pkg.staticLibDir / nameToStaticLib "thread_native") #[← threadObject.fetch]
 lean_exe test where
   root := `Main
 ''')
-    runner.run(['lake', 'build', 'test'], cwd=work, env=dict(runner.env, LEAN_CC=cc), phase='persistent_thread_build')
+    runner.run(['lake', 'build', 'test'], cwd=work, env=dict(runner.env, LEAN_CC=cc), phase='production_thread_build')
     shutil.copyfile(work / '.lake/build/ir/Main.c', work / 'Emitted.c')
     for _ in range(4):
-        result = runner.run([work / '.lake/build/bin/test'], phase='persistent_thread_test')
-        assert json.loads(result['stdout']) == {'persistent_thread_test':'passed','workers':8,'initializations':1,'calls':8001}
+        result = runner.run([work / '.lake/build/bin/test'], phase='production_thread_test')
+        assert json.loads(result['stdout']) == {'production_thread_test':'passed','workers':8,'initializations':1,'calls':8001,
+                                               'fresh_arena_results':2,'fresh_stats_results':2,'fresh_errors':2}
 
 
 def main():
@@ -266,16 +319,19 @@ def main():
     for path in (args.frontend.resolve(), args.kernel.resolve(), prefix / 'lib/libopenblas.a'):
         inputs[str(path)] = tree.sha(path)
     shutil.copyfile(prefix / 'vastitas-openblas.json', out / 'openblas-build.json')
-    environment = {'head': head, 'git_status': runner.run(['git', 'status', '--short'])['stdout'],
+    environment = {'schema': 2, 'variants': ['production_shared','private_fresh'], 'checkout_root': str(ROOT),
+        'selection': 'debug-one' if args.one_case else 'full' if args.full else 'smoke',
+        'head': head, 'git_status': runner.run(['git', 'status', '--short'])['stdout'],
         'argv': sys.argv, 'platform': platform.platform(), 'timing': 'not performance evidence',
         'coverage': 'instrumented FFI IO/external and direct emitted-C constructors; process startup, general Lean/internal allocator and BLAS workspace excluded',
         'inputs': inputs}
     tree.dump(out / 'environment.json', environment)
     thread_test(runner, out, args.cc)
     for case in selected:
-        for persistent in (False, True):
-            work = out / case['case'] / ('persistent' if persistent else 'fresh')
-            exe = build(runner, case, work, prefix, args.frontend.resolve(), args.kernel.resolve(), args.cc, persistent)
+        for variant in ('production_shared', 'private_fresh'):
+            persistent = variant == 'production_shared'
+            work = out / case['case'] / variant
+            exe = build(runner, case, work, prefix, args.frontend.resolve(), args.kernel.resolve(), args.cc, variant)
             failed = runner.run([exe, 'failure', 0, 1, 1], phase='failure_cleanup')
             failure_cost, failure_audit = map(json.loads, failed['stdout'].splitlines())
             assert failure_cost['data_allocations'] == failure_cost['data_frees'] == 6
@@ -291,16 +347,16 @@ def main():
                         outputs = [json.loads(line) for line in result['stdout'].splitlines()]
                         assert len(outputs) == 2
                         costs, audit = outputs
-                        validate(audit, scope, reps, persistent, impl)
+                        validate(audit, scope, reps, variant, impl)
                         pair.append(costs)
-                        rows.append(dict(case=case['case'], persistent=persistent, scope=scope, repetitions=reps,
+                        rows.append(dict(case=case['case'], variant=variant, scope=scope, repetitions=reps,
                                          implementation=impl, costs=costs, audit=audit))
                         tree.dump(out / 'allocations.json', rows)
                     tree.compare_pair(*pair)
     tree.verify_inputs(inputs)
     environment['recorded_inputs_unchanged'] = True
     tree.dump(out / 'environment.json', environment)
-    tree.dump(out / 'status.json', {'status': 'passed', 'rows': len(rows), 'performance': 'not measured'})
+    tree.dump(out / 'status.json', {'schema': 2, 'status': 'passed', 'rows': len(rows), 'performance': 'not measured'})
     print(json.dumps({'status':'passed','rows':len(rows),'output':str(out)}))
 
 

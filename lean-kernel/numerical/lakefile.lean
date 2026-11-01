@@ -11,6 +11,7 @@ require vastitas_storage_native from "../native"
 input_file gemmHeader where path := "gemm.h"
 input_file gemmSource where path := "gemm.c"
 input_file ffiSource where path := "ffi.c"
+input_file ffiResultHeader where path := "../native/ffi_result.h"
 input_file storageHeader where path := "../native/storage.h"
 input_file diagonalHeader where path := "../native/diagonal.h"
 input_file cblasHeader where path := openblasPrefix / "include/cblas.h"
@@ -30,7 +31,8 @@ target gemmObject pkg : FilePath := do
 
 target ffiObject pkg : FilePath := do
   let source ← ffiSource.fetch
-  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch, ← diagonalHeader.fetch]
+  let headers := #[← gemmHeader.fetch, ← storageHeader.fetch, ← diagonalHeader.fetch,
+    ← ffiResultHeader.fetch]
   let source ← source.bindM fun path => (Job.collectArray headers).mapM fun _ => pure path
   buildLeanO (pkg.buildDir / "ffi.o") source #[]
     #["-std=c11", "-O3", "-fPIC", "-Wall", "-Wextra", "-Werror", s!"-I{pkg.dir / "../native"}"]

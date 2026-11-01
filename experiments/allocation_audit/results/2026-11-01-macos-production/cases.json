@@ -1,0 +1,42 @@
+[
+  {
+    "case": "tiny-complex-p0",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "a": 5,
+    "b": 6,
+    "scalar": 1,
+    "pad": 0
+  },
+  {
+    "case": "tiny-f64-p1",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "a": 5,
+    "b": 6,
+    "scalar": 0,
+    "pad": 1
+  },
+  {
+    "case": "tiny-complex-p1",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "a": 5,
+    "b": 6,
+    "scalar": 1,
+    "pad": 1
+  },
+  {
+    "case": "tiny-f64-p0",
+    "i": 2,
+    "k": 3,
+    "j": 4,
+    "a": 5,
+    "b": 6,
+    "scalar": 0,
+    "pad": 0
+  }
+]

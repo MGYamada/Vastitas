@@ -186,8 +186,13 @@ The schema-2 [source allocator composition](../experiments/source_workspace/READ
 extends the source fixture with the three calibrated Lean archives across both
 backends, preserving stock canonical public builds. It independently binds
 phase deltas, actual error payloads and linker maps to the same source receipts.
-This is a measurement mechanism pending retained full records and CI; it does not
-accept startup, general peaks, stock allocation counts or any of the four gates.
+The clean `f0e0c55` [macOS record](../experiments/source_workspace/results/2026-11-01-macos-allocator/RESULTS.md)
+and [Linux record](../experiments/source_workspace/results/2026-11-01-linux-allocator/RESULTS.md)
+each retain 864 normal observations, 72 failures and 72 canonical executions across
+all twelve cases and six configurations. No normal allocation remains
+unattributed in those observed diagnostic phases after the actual two-object /
+96-byte error payload is included. This does not accept startup, general peaks,
+stock allocation counts, other unmeasured source paths or any of the four gates.
 
 The initial issue checklists were checked against the actual source/checker/oracle
 statements, named positive/negative regressions and retained native records.

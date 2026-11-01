@@ -128,6 +128,15 @@ def check_program(reader, record, prefix, config):
             'lean_alloc_small_object_core' in mapping and 'mi_stats_get' in mapping and
             'source_allocator_mark' in mapping and 'allocator.o' in mapping,
             'source link map selects an uncalibrated runtime')
+    linked = set(re.findall(r'(/[^\s()]+\.a)\(', mapping))
+    installed = reader.json('lean-calibration/record.json')['toolchain']['inputs']
+    require(any(Path(p).name == 'libInit.a' for p in linked), 'missing source initialization archive')
+    for item in installed.values():
+        expected = item['path']
+        if not expected.endswith('.a') or expected.endswith('/libleanrt.a'):
+            continue
+        matches = {p for p in linked if Path(p).name == Path(expected).name}
+        require(not matches or matches == {expected}, 'source link map selects an uncalibrated support archive')
     root = reader.read(prefix + 'lakefile.lean').decode()
     require(root.count(json.dumps('-L' + directory)) == 1 and root.count('link.map') == 1,
             'missing source runtime link arguments')

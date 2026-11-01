@@ -1,5 +1,6 @@
 import copy
 import hashlib
+import json
 import os
 from pathlib import Path
 import unittest
@@ -157,6 +158,44 @@ class SourceAllocatorRecord(unittest.TestCase):
         record['files'][name]=dict(bytes=len(data),sha256=hashlib.sha256(data).hexdigest())
         reader.replace('record.json',record)
         with self.assertRaisesRegex(ValueError,'helper/report connection|reporting is inside'):self.check(reader)
+
+    def test_fingerprinted_support_archive_must_be_the_linked_one(self):
+        reader=Overlay(self.reader);record=reader.json('record.json')
+        name=next(n for n in reader.names if '/stock-diagnostic2/link.map' in n)
+        installed=reader.json('lean-calibration/record.json')['toolchain']['inputs']['lib/lean/libInit.a']['path']
+        data=reader.read(name).replace(installed.encode(),b'/foreign/toolchain/libInit.a')
+        reader.changed[name]=data
+        record['files'][name]=dict(bytes=len(data),sha256=hashlib.sha256(data).hexdigest())
+        reader.replace('record.json',record)
+        with self.assertRaisesRegex(ValueError,'uncalibrated support archive'):self.check(reader)
+
+
+class RetainedAllocatorExports(unittest.TestCase):
+    def test_both_full_exports_match_their_manifests_and_source_inputs(self):
+        root=Path(__file__).resolve().parent/'results'
+        inputs=[]
+        for platform in ('macos','linux'):
+            with self.subTest(platform=platform):
+                directory=root/('2026-11-01-'+platform+'-allocator')
+                manifest=json.loads((directory/'artifact-manifest.json').read_text())
+                archive=directory/'evidence.zip'
+                with archive.open('rb') as stream:
+                    self.assertEqual(hashlib.file_digest(stream,'sha256').hexdigest(),manifest['sha256'])
+                self.assertEqual(archive.stat().st_size,manifest['bytes'])
+                reader=backend.Reader(archive)
+                self.assertEqual(len(reader.names),manifest['members'])
+                summary=verify_reader(reader)
+                self.assertEqual(summary,manifest['summary'])
+                self.assertEqual((summary['cases'],summary['records'],summary['failure_cleanups']), (12,864,72))
+                self.assertEqual(summary['canonical_executions'],72)
+                self.assertEqual(summary['lean_allocator']['snapshots'],9360)
+                record=reader.json('record.json')
+                self.assertEqual(record['head'],manifest['measured_head'])
+                self.assertEqual(record['status'],manifest['measured_status'])
+                self.assertEqual(record['status'],'')
+                inputs.append(record['inputs'])
+        self.assertEqual(len(inputs),2)
+        self.assertEqual(inputs[0],inputs[1])
 
 
 if __name__=='__main__':unittest.main()

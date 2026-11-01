@@ -87,6 +87,18 @@ and correspondence, not authenticity or a proof about the native toolchain.
 
 ## Calibrated Lean allocator composition (schema 2)
 
+The retained [macOS record](results/2026-11-01-macos-allocator/RESULTS.md) and
+[Linux record](results/2026-11-01-linux-allocator/RESULTS.md) measure clean
+`f0e0c55d79978d68021ba0ee0831916d1153606d`. Each contains 936 observed processes
+and 72 canonical executions across all twelve cases and six configurations.
+The diagnostic's normal allocations are explained by the selected sites plus
+the actual error payloads within the observed phases; startup and general heap
+coverage remain excluded. This is cost evidence, not timing acceptance.
+
+The publication verifier additionally checks the actual linked support-library
+paths against the calibration and replays both complete exports. Raw records
+retain their measured revision; later verifier changes do not relabel it.
+
 Supply a completed [Lean allocator calibration](../lean_allocation_diagnostic/README.md)
 and its three actual runtime archives to observe calling-thread allocator phase
 deltas alongside the existing channels:
@@ -128,7 +140,7 @@ selected sites. The actual error payload is inspected before construction of the
 already-tracked error result: one 16-byte `IO.Error` constructor and a string with
 76 requested / 80 usable bytes (44 UTF-8 bytes including its terminator). Their
 two allocations / 96 binned bytes are separate from the selected error-result
-object and explain a potential additional channel on the checked failure path.
+object and explain the additional channel in the retained checked failure runs.
 The verifier retains any further unattributed allocation explicitly. Counts and
 bytes from overlapping channels must never be added together as separate costs.
 

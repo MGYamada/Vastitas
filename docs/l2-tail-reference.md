@@ -1,5 +1,13 @@
 # Exact real ℓ² tail-certificate reference
 
+This document is a **specialized coefficient-tail example**, not the foundation
+of the Hilbert API. The general design is [Cauchy completion of pre-Hilbert
+spaces](hilbert-cauchy-completion.md): a checked dense-fragment Cauchy name and
+its convergence modulus may represent Hilbert elements **without** an `InfList`,
+countable orthonormal basis, or coefficient-tail schema. These two rational
+rules remain useful for a selected `ℓ²` specialization. They do not prove the
+general completion construction, a complete executable subspace, or name equality.
+
 This scoped reference implements two executable certificate rules for
 [#208](https://github.com/MGYamada/Vastitas/issues/208) and
 [#209](https://github.com/MGYamada/Vastitas/issues/209). It is a Python development

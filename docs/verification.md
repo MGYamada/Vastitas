@@ -437,6 +437,10 @@ profile/port/return audits and conditional structural rewrite theorems in
 to tensor syntax. Its categorical law provider, selected-method realization,
 and bridge from `Graph.Core` to actual returned indexed terms remain pending.
 
+The [general Hilbert/Cauchy completion design](hilbert-cauchy-completion.md)
+specifies abstract completion, proof-carrying effective names and their
+quotient/identity boundaries. These are not yet compiled or Lean-proved.
+
 The [exact real ℓ² tail reference](l2-tail-reference.md) checks closed geometric
 and reciprocal certificate rules with rational arithmetic in Python. Its
 generator/environment/returned-record audits are reference tests only. The

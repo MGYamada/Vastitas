@@ -4,6 +4,8 @@
 
 **Current normative standard-library boundary:** [ADR 0001 — Mathematics-first standard-library admission and trust boundary](adr/0001-mathematics-first-stdlib.md). The v0.3 draft linked below is preserved as a historical proposal; normative policy and implementation status are separate. Track implementation in [#160](https://github.com/MGYamada/Vastitas/issues/160).
 
+**Current Hilbert construction:** [Cauchy completion and constructive Hilbert elements](hilbert-cauchy-completion.md) supersedes the former ℓ²/InfList-first design emphasis in [#208](https://github.com/MGYamada/Vastitas/issues/208). This is an abstract mathematical contract and future proof plan, not an implemented Hilbert compiler feature.
+
 **Fast like C is the highest-priority performance and architecture goal.** The current
 [revised Chapter 7 — Storage, ownership, and residual retention](storage-ownership.md)
 defines layout, aliasing, resource transitions, allocation and copy costs, and

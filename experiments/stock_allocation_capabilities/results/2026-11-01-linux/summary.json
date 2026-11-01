@@ -1,0 +1,83 @@
+{
+  "baseline": [
+    [
+      2985,
+      124728
+    ],
+    [
+      2985,
+      124728
+    ],
+    [
+      2985,
+      124728
+    ]
+  ],
+  "bytes": 1316957,
+  "classification": [
+    {
+      "backing": "separate_nonadditive_diagnostic",
+      "huge_current": "not_live_bytes",
+      "large_churn": "calibrated_tested_count",
+      "large_transient_count_delta": 128,
+      "live_snapshots": "calibrated_known_main_heap_objects_only",
+      "small_churn": "unsupported_no_signal",
+      "small_transient_count_delta": 0
+    },
+    {
+      "backing": "separate_nonadditive_diagnostic",
+      "huge_current": "not_live_bytes",
+      "large_churn": "calibrated_tested_count",
+      "large_transient_count_delta": 128,
+      "live_snapshots": "calibrated_known_main_heap_objects_only",
+      "small_churn": "unsupported_no_signal",
+      "small_transient_count_delta": 0
+    },
+    {
+      "backing": "separate_nonadditive_diagnostic",
+      "huge_current": "not_live_bytes",
+      "large_churn": "calibrated_tested_count",
+      "large_transient_count_delta": 128,
+      "live_snapshots": "calibrated_known_main_heap_objects_only",
+      "small_churn": "unsupported_no_signal",
+      "small_transient_count_delta": 0
+    }
+  ],
+  "configuration": {
+    "checksum": 78664,
+    "kind": "configuration",
+    "known_object_table_bytes": 16512,
+    "large_held_count": 8,
+    "large_held_usable_bytes": 18874368,
+    "large_object_bytes": 2097176,
+    "large_payload_bytes": 2097152,
+    "large_transient_count": 128,
+    "mimalloc_header_version": 30405,
+    "observer_snapshot_bytes": 1220328,
+    "small_held_count": 1024,
+    "small_held_usable_bytes": 40960,
+    "small_object_bytes": 40,
+    "small_scalar_bytes": 32,
+    "small_transient_count": 10000,
+    "stats_header_version": 5
+  },
+  "head": "8e548d3188d82d4754fb052cbfe81d3f8e362b24",
+  "host": {
+    "cc": "/usr/bin/x86_64-linux-gnu-gcc-15",
+    "cc_version": "x86_64-linux-gnu-gcc-15 (Ubuntu 15.2.0-16ubuntu1) 15.2.0\nCopyright (C) 2025 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "machine": "x86_64",
+    "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.43",
+    "system": "Linux"
+  },
+  "members": 57,
+  "sha256": "49fa4f3365657ea9f881768f03c8648df07a6128a73198c1689ef680d5b1c7de",
+  "source_inputs": 11,
+  "status": "",
+  "toolchain": {
+    "mimalloc_stats_header_blob": "b4e19c09aaa2b18bae1b1d5f0e4591967a99452f",
+    "pin": "leanprover/lean4:v4.35.0",
+    "prefix": "/home/runner/.elan/toolchains/leanprover--lean4---v4.35.0",
+    "version": "Lean (version 4.35.0, x86_64-unknown-linux-gnu, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)"
+  },
+  "toolchain_inputs": 9
+}

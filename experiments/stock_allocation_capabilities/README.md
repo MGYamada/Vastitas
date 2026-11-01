@@ -11,6 +11,10 @@ The [retained macOS record](results/2026-11-01-macos/RESULTS.md) measures clean
 `8e516d500e234e6a61a0910fd915f862ea7e7773` in three fresh processes. Its 24 snapshots
 and 18 regression tests retain unsupported small-object churn and the distinction
 between huge cumulative counters and actual sampled live bytes.
+The independently downloaded [Linux record](results/2026-11-01-linux/RESULTS.md)
+measures clean integrated head `8e548d3188d82d4754fb052cbfe81d3f8e362b24` and
+passes the same three-process calibration. The two archives keep their distinct
+source revisions, toolchains and observation scopes.
 
 ```sh
 python3 experiments/stock_allocation_capabilities/run.py \

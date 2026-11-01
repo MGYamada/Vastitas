@@ -146,6 +146,15 @@ interval extends to 1.1282. These shared-host results do not establish the
 performance gate. The two runs used different CPU models, so their ratios do not
 isolate the effect of changing the C loop.
 
+The [production Unit-result Linux record](results/2026-11-01-linux-unit-result/RESULTS.md)
+measures clean `3e3157a` after the shared Unit-success helper merged, against the
+same block-copy C algorithm. Its 1,313 matched pairs retain tiny lifecycle ratios
+1.4233–1.5096 and reuse ratios 1.4006–1.4646. Bulk lifecycle is 1.0017–1.0164
+within this run. The CPU changed again, so these differences do not establish
+the helper's timing effect. All raw rows, including 52 measurement batches below
+the calibration target, remain archived; controlled-host and total-cost gates
+remain open.
+
 `cases.json`, generated packages, captured wire, kernel response, exact generated
 source, wrapper, private instrumented runtime, commands and compile times are kept.
 Full run output also records toolchain/backend hashes, compiler flags, explicit

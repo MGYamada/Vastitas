@@ -1,0 +1,52 @@
+[
+  {
+    "name": "lean-root-cmake",
+    "sha": "3b9bd40e6e2196fc41d914b7dd5baa2841979055",
+    "url": "https://github.com/leanprover/lean4/blob/v4.35.0/CMakeLists.txt"
+  },
+  {
+    "name": "lean-runtime-cmake",
+    "sha": "10819279e27910d662a03284c4e263ee9654bf30",
+    "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/CMakeLists.txt"
+  },
+  {
+    "name": "lean-mimalloc-fused",
+    "sha": "9a4d944d71115ef0c58e3227081338261369e286",
+    "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/mimalloc.cpp"
+  },
+  {
+    "name": "mimalloc-stats",
+    "sha": "b4e19c09aaa2b18bae1b1d5f0e4591967a99452f",
+    "url": "https://github.com/microsoft/mimalloc/blob/v3.4.5/include/mimalloc-stats.h"
+  },
+  {
+    "name": "mimalloc-types",
+    "sha": "2026dc924fefaeeb7378e99ba76169565be3a660",
+    "url": "https://github.com/microsoft/mimalloc/blob/v3.4.5/include/mimalloc/types.h"
+  },
+  {
+    "name": "mimalloc-alloc",
+    "sha": "b3b1860ac7d37902e804a8dce3bba171cfef4969",
+    "url": "https://github.com/microsoft/mimalloc/blob/v3.4.5/src/alloc.c"
+  },
+  {
+    "name": "mimalloc-free",
+    "sha": "6b38d71162d5765084fee8b4c7d261d5677689b1",
+    "url": "https://github.com/microsoft/mimalloc/blob/v3.4.5/src/free.c"
+  },
+  {
+    "name": "mimalloc-huge",
+    "sha": "e7851d578f4cbfa55c654d6164992ac391b8f06d",
+    "url": "https://github.com/microsoft/mimalloc/blob/v3.4.5/src/page.c"
+  },
+  {
+    "name": "mimalloc-visitor",
+    "sha": "4077cf6f5a841d41d2c88a6fe5729f7a4fec834b",
+    "url": "https://github.com/microsoft/mimalloc/blob/v3.4.5/src/arena.c"
+  },
+  {
+    "name": "lean-object",
+    "sha": "9ed90394aef37e09135ddb1382bb70bf84d5086a",
+    "url": "https://github.com/leanprover/lean4/blob/v4.35.0/src/runtime/object.cpp"
+  }
+]

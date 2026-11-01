@@ -1,0 +1,34 @@
+resource fn choose(flag: Bool)
+    returns (data: Owned<F64, 1> initialized [layout(0, 1, 1, 1, false)]) -> Bool {
+    allocate data: F64[1];
+    borrow output = write(data, layout(0, 1, 1, 1, false));
+    if flag {
+        fill(output, f64_bits(4607182418800017408));
+    } else {
+        fill(output, f64_bits(4611686018427387904));
+    }
+    release(output);
+    value { flag }
+}
+
+resource fn finish(data: Owned<F64, 1>, seed: Int) -> Int {
+    drop(data);
+    let answer: Int = value { seed + 1 };
+    value { answer }
+}
+
+resource fn main() -> Int {
+    let input: Nat = value { 123456789012345678901234567890 };
+    let flag: Bool = value { input - 123456789012345678901234567891 == 0 };
+    let selected: Bool = call choose(flag) -> (data);
+    borrow view = read(data, layout(0, 1, 1, 1, false));
+    if selected {
+        expect(view, 0, 0, f64_bits(4607182418800017408));
+    } else {
+        expect(view, 0, 0, f64_bits(4611686018427387904));
+    }
+    release(view);
+    let seed: Int = value { 41 };
+    let answer: Int = call finish(data, seed) -> ();
+    value { answer }
+}

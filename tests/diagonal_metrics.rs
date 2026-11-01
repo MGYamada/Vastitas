@@ -196,37 +196,53 @@ fn with_tree(source: &str, tree: &str) -> String {
     branched(&source) + tree
 }
 
+fn with_runtime_tree(source: &str, tree: &str, flag: bool) -> String {
+    let branch = format!(
+        "let seed: Bool = value {{ {flag} }}; \
+         let selected: Bool = call scalar_decision(seed) -> (); if selected"
+    );
+    format!(
+        "{}\nresource fn scalar_decision(flag: Bool) -> Bool {{ value {{ flag }} }}\n",
+        with_tree(source, tree).replacen("if false", &branch, 1)
+    )
+}
+
 #[test]
 fn diagonal_metrics_and_trees_keep_actual_receipts_in_both_branches() {
-    let real = with_tree(
-        REAL,
-        include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
-    );
-    let complex = with_tree(
-        COMPLEX,
-        include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
-    );
-    let s = fixture(&real, &complex);
-    success(&command(&s, "check").output().unwrap());
-    let emitted = kernel(captured(&s), "emit");
-    assert_eq!(emitted["ok"], true, "{emitted}");
-    let code = emitted["lean_source"].as_str().unwrap();
-    assert_eq!(
-        code.matches("VastitasStorageNative.diagonalAdjoint arena")
-            .count(),
-        4
-    );
-    assert_eq!(
-        code.matches("VastitasGemmNative.diagonalPair arena")
-            .count(),
-        8
-    );
-    assert_eq!(code.matches("VastitasGemmNative.gemm arena").count(), 8);
-    assert!(code.contains("regroup3 arena"));
-    rejection(
-        &real.replace("input,output,hv,hw", "input,output,hw,hv"),
-        "E_NUMERICAL_METRIC",
-    );
+    for flag in [false, true] {
+        let real = with_runtime_tree(
+            REAL,
+            include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+            flag,
+        );
+        let complex = with_runtime_tree(
+            COMPLEX,
+            include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+            flag,
+        );
+        let s = fixture(&real, &complex);
+        success(&command(&s, "check").output().unwrap());
+        let emitted = kernel(captured(&s), "emit");
+        assert_eq!(emitted["ok"], true, "{emitted}");
+        let code = emitted["lean_source"].as_str().unwrap();
+        assert_eq!(
+            code.matches("VastitasStorageNative.diagonalAdjoint arena")
+                .count(),
+            4
+        );
+        assert_eq!(
+            code.matches("VastitasGemmNative.diagonalPair arena")
+                .count(),
+            8
+        );
+        assert_eq!(code.matches("VastitasGemmNative.gemm arena").count(), 8);
+        assert!(code.contains("regroup3 arena"));
+        assert_eq!(code.matches("if resourceValue_").count(), 2);
+        rejection(
+            &real.replace("input,output,hv,hw", "input,output,hw,hv"),
+            "E_NUMERICAL_METRIC",
+        );
+    }
 }
 
 #[test]
@@ -346,13 +362,27 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
         (REAL.to_owned(), COMPLEX.to_owned()),
         (empty(false, "0"), empty(true, "9007199254740993")),
         (
-            with_tree(
+            with_runtime_tree(
                 REAL,
                 include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+                false,
             ),
-            with_tree(
+            with_runtime_tree(
                 COMPLEX,
                 include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+                false,
+            ),
+        ),
+        (
+            with_runtime_tree(
+                REAL,
+                include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+                true,
+            ),
+            with_runtime_tree(
+                COMPLEX,
+                include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+                true,
             ),
         ),
     ] {

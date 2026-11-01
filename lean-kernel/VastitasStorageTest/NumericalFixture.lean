@@ -45,6 +45,6 @@ def cleanup : List Functions.Statement := [
   .action (.release 22), .action (.release 23), .action (.release 24),
   .action (.borrow 25 (.owner 12) (layout 2 2) .read), .action (.release 25),
   .action (.drop 10), .action (.drop 11), .action (.drop 12)]
-def program (body : List Functions.Statement) : Functions.Program := ⟨[⟨0, [], [], body⟩], 0⟩
+def program (body : List Functions.Statement) : Functions.Program := ⟨[⟨0, [], [], body, none⟩], 0⟩
 
 end VastitasKernel.Storage.NumericalFixture

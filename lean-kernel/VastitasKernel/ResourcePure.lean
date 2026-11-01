@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedAuthorityCheck
+import VastitasKernel.StorageValueFlow
 
 /-! Pure value computations belonging to resource source. They use the actual
 Fn/dispatch/authority preparation and all-body audits. Their owners remain
@@ -60,5 +61,54 @@ def check (program : DispatchSource.Program) {requireMain : Bool}
           else Namespace.problem {} "E_OWNER" "resource pure composition changed definition origins"
       else Namespace.problem {} "E_OWNER" "resource pure fragment lifting changed lexical owners"
   else Namespace.problem {} "E_CAPTURE" "invalid resource pure-fragment owner, header or independent lambda scope"
+
+structure Target where
+  function : Nat
+  signature : Storage.ValueFlow.Signature
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- Resolve every reconstructed fragment through the actual executable origin
+and exact Core owner/signature. Nonwinning and unapplied pure source bodies are
+still covered by `Checked.audit`; only this executable pass supplies targets. -/
+def targets {program requireMain fragments}
+    {authority : AuthoritySource.CheckedProgram program requireMain}
+    (checked : Checked program authority fragments) : Namespace.Result (List Target) :=
+  fragments.zipIdx.mapM fun ((owner, fragment), index) => do
+    let fail {α} (message : String) : Namespace.Result α := Namespace.problem fragment.span "E_RESOURCE_VALUE" message
+    let parameters ← fragment.params.mapM fun parameter => match parameter.type with
+      | .data (.pure type) => if Storage.ValueFlow.scalar type then pure type else fail "unsupported resource value parameter"
+      | _ => fail "resource pure fragments require scalar parameters"
+    let result ← match fragment.result with
+      | .data (.pure type) => pure type
+      | _ => fail "resource pure fragments require scalar results"
+    let definition := authority.authority.seeds.length + index
+    let some (_, id) := checked.executable.lowered.origins.toList.zipIdx.find? (fun (key, _) =>
+        key.definition == definition && key.targets.isEmpty)
+      | fail "pure fragment has no executable specialization"
+    let some function := checked.executable.core.module.functions[id]?
+      | fail "pure fragment target is absent from checked Core"
+    unless function.id == id && function.definition == owner &&
+        function.parameters.map (·.result) == parameters.map (fun type => Core.Result.mk (.pure type) none) &&
+        function.returnType == .pure result do
+      fail "pure fragment target changed its original owner or signature"
+    return ⟨id, ⟨parameters, result⟩⟩
+
+structure Targets {program requireMain fragments}
+    {authority : AuthoritySource.CheckedProgram program requireMain}
+    (checked : Checked program authority fragments) where
+  entries : List Target
+  accepted : targets checked = .ok entries
+
+def checkTargets {program requireMain fragments}
+    {authority : AuthoritySource.CheckedProgram program requireMain}
+    (checked : Checked program authority fragments) : Namespace.Result (Targets checked) :=
+  match accepted : targets checked with
+  | .error error => .error error
+  | .ok entries => .ok ⟨entries, accepted⟩
+
+def Targets.signatures {program requireMain fragments}
+    {authority : AuthoritySource.CheckedProgram program requireMain}
+    {checked : Checked program authority fragments} (targets : Targets checked) : List Storage.ValueFlow.Signature :=
+  targets.entries.map (·.signature)
 
 end VastitasKernel.ResourcePure

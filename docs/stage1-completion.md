@@ -1,9 +1,15 @@
 # Historical Stage 1 completion gate
 
-The delivery tracker is [#179](https://github.com/MGYamada/Vastitas/issues/179).
-This document records the accepted implementation scope; unchecked rows are
-not implemented or proved merely because they appear here. Stage 1b and the
-protocol-5 increment do not complete the historical Stage 1 proposal.
+**Historical Stage 1 is not complete.** The initial finite numerical/storage
+functionality and bounded runtime-shape interface are implemented and integrated;
+the agreed Fast like C acceptance and completion record remain unfinished. The delivery
+tracker is [#179](https://github.com/MGYamada/Vastitas/issues/179).
+
+The [acceptance map](stage1-acceptance.md) matches all 48 original/amended conditions
+from #66/#67/#69/#91/#92/#183 to source, positive/negative regressions,
+actual-checker theorems and native evidence. It distinguishes the initial finite
+profile from broader parent-issue objectives. Stage 1b or successful native/BLAS
+execution alone does not complete this gate.
 
 | Step | Implementation / issue | Acceptance evidence and status |
 | --- | --- | --- |
@@ -13,14 +19,14 @@ protocol-5 increment do not complete the historical Stage 1 proposal.
 | Nested edit loans | #181, PR #186, merge `a779a67`; part of #52/#64 | Complete: 222 Rust tests, nine kernel regressions, oracle, integrated 6,780-declaration audit and both OS CI. Protocol 6: explicit delegation, region inclusion, suspended parent authority, inner-first return, complete provenance and final winning-footprint checks; see `edit_authority.rs` and `AuthorityRegression` |
 | Permanent authority transfer | #182, PR #186, merge `a779a67`; part of #52/#64 | Complete with the same validation. Protocol 6: immutable definition identity, current owner, explicit transfer, no active loans, retained grants/methods/obligations and revoked former-owner editing; actual-checker proofs in `VastitasOracle.Authority` |
 | Indexed declarations and existing geometry | needed #48 foundation; #58–63 and #49 | Complete finite migration in [PR #255](https://github.com/MGYamada/Vastitas/pull/255), with the [acceptance map](geometry-migration.md) and its linked validation record. Canonical scheme/smooth stdlib declarations, one common public source checker (#240, `f2876ef`), typed total evaluation of exact audit/executable Core (#250, `6d1d752`), finite primitive result compatibility and the public source/raw-IR/forged-Core/native regression matrix are in place. Full source operational equivalence and native toolchain equivalence remain unproved and are not claimed by this migration |
-| Storage ownership | #183, Core Safety boundary in #180 | In progress: the [resource checker](storage-ir.md) validates allocation provenance, affine moves, nested loans, initialization, views and both-branch joins. [Resource functions](storage-functions.md) and [protocol 8](resource-source.md) connect actual caller layouts/aliases, owned results, separate all-body probes and exact call-slice replay to the full package/authority/Fn/dispatch checker. [OwnedMapTo](owned-map-packages.md) adds bounded generative owned results. Explicit [packing/regrouping](tensor-packing.md), [contraction-tree scratch](contraction-trees.md) and [packing caches](cached-packing.md) reuse caller storage with actual source/scratch versions and stale-dependency rejection. [Diagonal pairing](diagonal-metrics.md) additionally checks its scratch write/release/read sequence before compound native execution. Interleaved Nat/Int/Bool/Unit values, captured call results and runtime Bool branches now use actual checked Core with the same resource checker. [Runtime extents](runtime-shapes.md) now cover guarded whole-map real/complex GEMM and caller destination reuse. General shape results, floating scalar expression interfaces, general resource packages, pooling/retained evidence, full source/native refinement and performance acceptance remain open; see [Chapter 7](storage-ownership.md) |
-| Linear algebra and networks | #66/#67/#69/#91/#92 | In progress: [PR #289](https://github.com/MGYamada/Vastitas/pull/289), merge `ed217b3`, connects the [optional internal GEMM adapter](numerical-adapter.md) to actual resource access/initialization/separation checks, actual-transition proofs and exact generated native execution. [Validation](https://github.com/MGYamada/Vastitas/pull/289#issuecomment-6520375010): 263 local Rust tests, 32 kernel regression targets, 16,974-declaration axiom audit, seven generated GEMM cases, and all 11 hosted checks including both OS numerical jobs and Linux Valgrind. The [numerical-value compiler](numerical-values.md) now connects public local spaces/bases and typed real/complex products to actual resource/native lowering. [Typed transforms](linear-transforms.md) add explicit dual/conjugate origins, corresponding bases, declared metrics and orthonormal adjoints through actual nested loans/calls. [Vector evaluation](vector-evaluation.md) adds bilinear dual evaluation and explicit orthonormal Hermitian pairing through real borrowed vector arguments and initialized scalar destinations. [Explicit diagonal metrics](diagonal-metrics.md) add declared bounded-Int realization, materialized adjoints and scratch-backed weighted Hermitian pairing, with conditional ideal laws tied to actual certificates. General generative numerical result packages, broader dynamic shape/scalar interfaces and dense metric realization remain pending. The [runtime-extent profile](runtime-shapes.md) implements guarded whole-map GEMM with actual concrete-checker instantiation proofs. The [two-map network profile](finite-networks.md) now checks occurrence ports, a bilinear edge and explicit boundaries and deterministically emits the existing GEMM. The [finite rank-three contraction](tensor-packing.md) adds actual ordered axes, corresponding-dual contraction and explicit caller-owned packing into one checked GEMM, with coordinate-reference and exact-transition proofs. The [bounded contraction-tree profile](contraction-trees.md) adds explicit finite multi-edge plans, rank-two/three regrouping, reconstructed connectivity and exact producer/resource receipts. General-rank networks, structural nodes and categorical/native-refinement proofs remain pending |
-| Fast like C | Cross-cutting architecture/performance goal; #183/#222 and numerical consumers | In progress: [PR #283](https://github.com/MGYamada/Vastitas/pull/283), merge `e026b89`, records two matched-work C-copy runs with raw samples, full lifecycle versus reused/loop scopes and costs. Shared-VM variation and slower cases do not establish the provisional budget or C parity. Bounded initialization coverage now removes redundant whole-input fills from public numerical examples and the shared generated GEMM fixture (768 → 480 written bytes, unchanged allocations/copies/peak data bytes); this is cost evidence, not C parity. Public GEMM, tensor-packing and bounded-tree measurements now retain matched generated/C output and arena costs. Controlled-host acceptance, total/backend allocation, residual retention costs and declared budgets remain open; see [performance acceptance](storage-ownership.md#713-performance-evidence-and-acceptance) |
-| Integrated completion | #179 | Pending: complete acceptance mapping, merged commit, exact proof boundaries, examples and CI results |
+| Storage ownership | #183, Core Safety boundary in #180 | The initial affine ownership, initialization, views, caller destinations/scratch, `OwnedMapTo`, versioned packing dependencies and mixed scalar-flow contracts are implemented. [Bounded runtime extents](runtime-shapes.md) add guarded whole-map calls and typed GEMM. [Acceptance map](stage1-acceptance.md#183--affine-storage-and-its-performance-amendment): source/forged-IR tests and actual-checker proofs cover the finite profile; the performance amendment and final completion record remain open |
+| Linear algebra and networks | #66/#67/#69/#91/#92 | The initial finite real/complex GEMM, explicit dual/conjugate/evaluation, diagonal adjoint/pairing and connected rank-two/three tree profiles are implemented and [mapped to actual tests/proofs/native evidence](stage1-acceptance.md). Exact source identities, ordered ports, caller packing and written multiplication order are retained. This is not completion of general-rank/structural-node parent scope or controlled-host performance |
+| Fast like C | #183/#222 and numerical consumers | **Not passed.** Matched-C output, explicit packing/data costs, shared-host timings and selected Lean-object allocation records exist. Controlled-host measurements, a predeclared tiny-call absolute budget, total allocation/backend-workspace attribution and unresolved slow paths remain acceptance gates; see [the required contract](storage-ownership.md#713-performance-evidence-and-acceptance) |
+| Integrated completion | #179 | **Not passed.** The [initial-condition evidence map](stage1-acceptance.md) records integrated runtime shapes and Unit-result optimization at merged `95b848b`. A Stage 1 completion commit still requires the performance gate |
 
-The latest numerical increments have separate acceptance records:
+The following records retain their merge-time scope. Later rows and the acceptance map supersede earlier statements that a now-delivered feature was still pending; these historical limits do not create new Stage 1 prerequisites.
 
-| Increment | Merged commit and validation | Remaining boundary |
+| Increment | Merged commit and validation | Scope/limits at that merge |
 | --- | --- | --- |
 | Bilinear vector evaluation and explicit orthonormal Hermitian pairing, PR #332 | `881270df5413b86063d9dab508c074b89222bddc`; [validation](https://github.com/MGYamada/Vastitas/pull/332#issuecomment-6542785520): 301 Rust tests, six optional numerical tests, 36 kernel regression targets, 19,450-declaration axiom audit and all 17 final-head hosted checks | General metric realization and ideal identities remain open; no floating-point field-law or native refinement claim |
 | Executable finite two-map networks, PR #331 | `604d0310c997f7b35dd0e83968865116f7322d89`; [integrated validation](https://github.com/MGYamada/Vastitas/pull/331#issuecomment-6542885966): 306 Rust tests, seven optional numerical tests, 37 kernel regression targets, 19,757-declaration axiom audit and all 17 final-head hosted checks | Exactly two rank-two occurrences and one bilinear edge; higher-rank/multi-edge networks, explicit packing/scratch and categorical laws remain open |
@@ -31,176 +37,105 @@ The latest numerical increments have separate acceptance records:
 | Bounded contraction trees, PR #343 | `52bf744d9f73b757cef48d074deff74ca7c5e9c6`; [validation](https://github.com/MGYamada/Vastitas/pull/343#issuecomment-6545469463): all 19 final-head hosted checks and review of `54bdeefd146fde38ab6c2ff27f03ce0196eef7fb` passed | Explicit connected finite trees with rank-two/three intermediates, exact producer/version checks and caller regrouping; general ranks, cycles, structural nodes and controlled-host performance remain open |
 | Explicit diagonal metrics, PR #348 | `c394716a08f82b7f320c642fd14c5b55a6a3a8e9`; [validation](https://github.com/MGYamada/Vastitas/pull/348#issuecomment-6545720881): 330 Rust tests, twelve optional numerical tests, 42 kernel regression targets, 22,193-declaration axiom audit and all 21 final-head hosted checks | Exact bounded-Int diagonal realization, caller-destination adjoints, scratch-backed weighted pairing and conditional ideal laws tied to actual certificates; dense forms, dynamic interfaces, native refinement and controlled-host performance remain open |
 | Runtime scalar flow through resource calls, PR #349 | `ebf9b5b9deba161a43f2a3865a9e1847cf8e4438`; [validation](https://github.com/MGYamada/Vastitas/pull/349#issuecomment-6551239234): 336 Rust tests, twelve optional numerical tests, 43 kernel regression targets, 23,194-declaration axiom audit and all 21 integrated final-head hosted checks | Immutable Nat/Int/Bool/Unit arguments, intermediate values, completed-call scalar results and runtime Bool branches with both-arm resource auditing; dynamic shapes, branch-result scalar joins, general mutable-heap semantics and native refinement remain open |
-| Bounded runtime extents and caller-owned maps, PR #352 | `f0768ae9a8c03bfb74fb9aaeb700a01075a85c51`; [validation](https://github.com/MGYamada/Vastitas/pull/352#issuecomment-6551709456): 342 Rust tests, thirteen optional numerical tests, 44 kernel regression targets, 25,287-declaration axiom audit and all 21 final-head hosted checks | Immutable integral extents, explicit arithmetic guards, whole-map call restoration and typed real/complex GEMM through actual symbolic-to-concrete checker realization; runtime branches/results, general transformed interfaces, native refinement and controlled-host performance remain separate |
+| Bounded runtime extents and caller-owned maps, PR #352 | `f0768ae9a8c03bfb74fb9aaeb700a01075a85c51`; [validation](https://github.com/MGYamada/Vastitas/pull/352#issuecomment-6551709456): 342 Rust tests, thirteen optional numerical tests, 44 kernel regression targets, 25,287-declaration axiom audit and all 21 final-head hosted checks | Immutable integral extents, explicit arithmetic guards, whole-map call restoration and typed real/complex GEMM through actual symbolic-to-concrete checker realization; runtime-shaped branches and owned/borrowed results, general transformed interfaces, native refinement and controlled-host performance remain separate |
 
-All ten final heads passed review without findings. The network integration also
+All listed final heads passed review without findings. The network integration also
 checks and executes combined network/vector operations across both branch arms.
 These merged increments do not close #67/#69/#91/#183/#179 or #201's wider scope.
 
-Wire extension 6 supplies edit authority and 7 supplies indexed declarations.
-Version 8 implements the initial static resource source profile and
-[numerical declaration profiles](numerical-declarations.md) for ideal real/complex
-coefficients and nominal scalar bases. The [numerical-value compiler](numerical-values.md)
-now constructs local nominal spaces and bases, attaches maps to actual loans,
-and checks typed bilinear GEMM through the real resource/native schedule.
-Numerical inputs now retain caller space/basis identities and create scoped child
-map loans, including nested calls and destination reuse under explicit static
-dimension contracts. Their actual input/binding certificates share the public
-checker’s accepted declaration environment. This does not finish the broader
-dynamic numerical interface gate.
-The [bounded resource value-flow increment](resource-source.md#pure-values-and-executable-boundaries)
-adds actual checked Core scalar arguments/results, interleaved computations and
-runtime Bool branches while preserving both-arm resource joins. It prepares the
-runtime numerical interface. The [runtime-shape increment](runtime-shapes.md)
-adds immutable integral extents and caller-owned whole-map GEMM, with exact
-frame/checkAction/run/checkProduct instantiation under arithmetic guards. It does
-not complete shape results, scalar floating arithmetic, general branch results, full source/native equivalence or
-the performance gate. Hosted measurements do not replace controlled-host
-acceptance, which remains unpassed.
-GEMM coefficients now include explicit real/complex values and initialized 1x1
-read loans. Generated source regressions pass earlier GEMM results through calls
-as coefficients and execute the rectangular beta=0.5 examples. Actual coefficient
-read/init/separation certificates reach the exact native instruction; this is a
-specific numerical data-flow path, not general floating Core values or dynamic
-shape completion.
-Initialized `OwnedMap` inputs and results now retain input-dependent endpoints,
-bases, allocation and layout across moves and nested calls. Actual post-body
-result checks, initialized-byte theorems, accepted move receipts and public
-declaration-origin checks are connected to source/native regressions. Borrowing
-the stored layout handles padded results without extra allocations or copies.
-General generative numerical packages and dynamic interfaces remain unfinished.
+## Validated integrated record
 
-[Owned-map packages](owned-map-packages.md) now add the bounded
-`OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
-direct basis, initialized affine storage, fresh consuming unpack and explicit
-repack. The source basis remains an actual caller dependency. Pack/open/transfer
-preserve the exact allocation/layout and emit no additional native instructions.
-Dynamic package-result dimensions, general resource packages/closures, borrowed results and
-full source/native refinement remain pending.
+[PR #353](https://github.com/MGYamada/Vastitas/pull/353) merged as
+`95b848b072712eeee3e2027e0dee275678a3baee` after validation of integrated head
+`1ccd60eb81c8ada0266390639862851f7a8719d9`, based on merged #352.
+[Exact-head review](https://github.com/MGYamada/Vastitas/pull/353#issuecomment-6551767381)
+completed without findings and [combined local validation](https://github.com/MGYamada/Vastitas/pull/353#issuecomment-6551818496)
+passed: all 13 optional numerical/source tests, all 13 resource/value-flow tests,
+updated native storage/guard matrices and checked GEMM, four fresh-process
+shared-result regressions, 25 experiment tests and three retained-record verifiers.
+[Final validation](https://github.com/MGYamada/Vastitas/pull/353#issuecomment-6551876034)
+records all 21 successful checks on both push and pull_request and no remaining
+review findings before the merge. This integration is not performance acceptance.
 
-Public source now independently resolves profile paths and composes those
-certificates through the actual checker and native generation. General generative
-numerical result packages, broader runtime numerical interfaces and dense metric
-realization remain pending.
-The [finite two-map network profile](finite-networks.md) now connects public
-occurrences, exact port coverage, bilinear edge typing and ordered boundaries to
-independent Lean acceptance and one existing overwrite GEMM. Same immutable map
-reuse uses distinct ports without new storage ownership. General rank, explicit
-trace/copy/pairing nodes, rewrites and order search remain outside this increment;
-#69 and #179 stay open. Both frontend and independent kernel must
-change together. Protocols 2–5 and explicit `--lib` stay supported; new fields
-must not be silently ignored in an old envelope.
+The production change shares only immutable Unit-success IO results through
+pinned Lean's once/persistence APIs. Errors, non-Unit results and arena wrappers
+remain fresh; status checks and cleanup remain. The observed generated `finally`
+fallback and one retained singleton remain charged. The [production record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
+measures its explicitly retained dirty snapshot, not a later merge.
 
-The [checked packing cache](cached-packing.md) adds a bounded implemented
-source/scratch version dependency with an actual repeated-contraction consumer.
-It preserves explicit allocation/packing costs and ordinary snapshot use, and
-rejects stale writes/drop/join reuse through the replayed resource schedule.
-General pooling, retained evidence, broader runtime shape results, AD and equivalent-C
-performance acceptance remain open; this does not close #183 or Stage 1.
+## Remaining acceptance gates
 
-Storage ownership is Core Safety, separate from the eight domain checkers in
-#180. Mutable resource transitions do not inherit pure-Core semantic theorems.
-Mathematical linearity, graph wiring, coherence, and ownership are distinct
-obligations. All acceptance proofs must refer to the actual returned IR.
+The integrated implementation and initial-condition mapping are recorded above.
+The remaining gates are:
 
-GEMM's initial profile is `F64` and `Complex<F64>`, column-major LP64,
-synchronous CPU, explicit `NativeFast`, with OpenBLAS 0.3.34 behind a thin C
-adapter. Overwrite must not read old output; accumulate requires initialized
-output. Preflight failure must preserve output. Non-numerical compilation and
-execution must work without OpenBLAS. Numerical CI uses one thread. Floating
-point results and the native implementation remain explicit trust boundaries.
+1. Measure competent equivalent C with the same algorithm, scalars, layouts,
+   backend/thread count, numerical policy and output contract on a controlled
+   host. Include full lifecycle and prepared/reuse scopes with their own complete
+   costs. The provisional bulk budget is at most 10% median slowdown for
+   representative workloads taking at least 1 ms/sample; uncertainty crossing
+   the budget is inconclusive. A dedicated controlled Linux host is currently
+   unavailable. That does not waive the gate.
+2. Set an absolute tiny-call overhead budget before acceptance, retain raw
+   alternating pairs/distributions, and resolve or explicitly review material
+   slow paths. Do not choose the threshold after seeing a favorable run or infer
+   timing improvement from fewer allocations.
+3. Complete the outstanding allocation/peak-memory/backend-workspace attribution
+   and representative workload coverage. Arena counters and selected FFI/emitted
+   object sites exclude general Lean/allocator/BLAS-private costs. Include visible
+   packing/copy/metadata/retained bytes and both cache-resident and memory-bound
+   work; state any unmeasured path rather than marking it accepted.
+4. Record the completion commit only after these gates pass. Update child issue
+   status from concrete evidence while retaining broader parent scope; this
+   document does not close issues automatically.
 
-The internal GEMM path supports independent transpose and conjugation flags
-(N/T/R/C) without an adapter-created packing buffer. Checker, exact-lowering and
-generated-native regressions cover all operand pairs, physical layout and access
-obligations, complex coefficients and destination reuse. The public typed
-transform composition now supplies actual dual/conjugate-space, basis and metric
-evidence, read-child provenance and exact flags through dependent calls. Direct
-adjoints require declared identity Gram data in the exact used bases. Raw flags
-still do not supply this authority. Actual bilinear evaluation and explicit Hermitian pairing now reach checked scalar destinations.
-[Explicit diagonal metrics](diagonal-metrics.md) add exact declared Int coefficient
-realization, caller-destination adjoints and scratch-backed weighted pairing,
-with conditional ideal laws tied to actual certificates. Dense forms/transport,
-general evaluation laws, dynamic interfaces and native refinement remain pending;
-#67/#91 remain open.
+## Existing performance evidence and unresolved gaps
 
-Fast like C is the primary performance and architecture goal. Measure the same
-algorithm, scalar semantics, layout, backend and numerical policy against C,
-including full-operation and prepared-kernel costs. Record allocation/copy counts
-and peak live memory as well as runtime. Performance gaps cannot be silently
-deferred while claiming the corresponding Stage 1 acceptance condition complete.
-The [full public GEMM measurement](../experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md)
-preserves 24 cases and 1,256 generated/C pairs from a shared Linux host, including
-bulk dimensions. [PR #335](https://github.com/MGYamada/Vastitas/pull/335), merged as
-`91e30a08bc657b9291c7a9f22ce0616151b5bb3b`, publishes measurements of
-`38b96ae5a6b0610ec71babf199e7635867cca023`; these are not measurements of later
-tensor or cached-packing revisions. Output and arena costs agree; tiny lifecycle calls retain
-329–400 ns overhead and small-case lifecycle paired ratios are 1.19–1.31.
-Bulk ratios vary by paired versus separate-median statistics, with intervals
-that cross the provisional budget in some cases. This is exploratory evidence;
-controlled-host acceptance, a declared tiny-call budget and total allocation /
-backend packing measurements remain open. No dedicated controlled host is
-currently available; this does not waive the performance gate.
-The [full Linux tensor packing record](../experiments/tensor_packing/results/2026-10-31-linux-full/RESULTS.md)
-adds twelve actual generated programs, native LSan validation and 877 matched
-output/cost pairs, with explicit packing on every repeated operation. Tiny
-lifecycle overhead is 408–721 ns and some bulk intervals cross the provisional
-budget. Cached packing, generic regrouping and multi-edge tree measurements are
-separate; this shared-host record does not complete controlled-host acceptance.
-The [full block-copy contraction-tree record](../experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md)
-adds twelve public programs, 24 native/sanitizer validations and 1,325 matched
-pairs against a C comparator that copies the common contiguous axis in blocks.
-Tiny lifecycle paired ratios are 2.0860–2.2248 and small ratios are
-1.2584–1.5559. Bulk lifecycle ratios are 0.9879–1.0320, with one interval extending
-to 1.1282. The original weaker coordinate-copy comparison is also retained;
-different CPU models prevent attributing differences between runs to that
-comparator change. Controlled-host, tiny-call budget and total-allocation gates
-remain open.
-The [bounded allocation observation](../experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md)
-measures the actual emitted contraction-tree path at its separate clean revision.
-It exposes four FFI result-object allocations per reused contraction, despite
-zero timed arena allocations. An experiment-only persistent Unit result removes
-those repeated result allocations but retains one 16-byte singleton and adds a
-caller `finally` constructor per lifecycle. The record includes these costs,
-error cleanup and concurrent initialization. It changes no production runtime,
-measures no speedup and excludes general Lean/backend allocation; those gates
-remain open.
-The subsequent [production Unit-result record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
-observes the actual shared `IO.ok ()` helper using pinned Lean's `lean_obj_once`.
-Successful storage/numerical Unit calls reuse one persistent object; new-arena,
-statistics and error results remain fresh. In this fixture, observed fresh object
-bytes become `56N + 64` for `N` lifecycle iterations and 64 per reuse batch,
-including the remaining generated `finally` fallback. The one 16-byte singleton
-is retained separately; observed peak object bytes are 88 rather than 72 for the
-private fresh-result comparator. Arena data/metadata costs are unchanged. Native
-concurrent first use, value-returning continuations and error/finally regressions
-exercise the actual production helper. The record identifies its dirty source
-snapshot independently of the earlier pthread prototype; it measures no speedup,
-total heap/backend allocation or controlled-host acceptance.
-Residual retention is specified now to constrain storage design; AD implementation
-and its performance gates remain in the later AD stage.
+Each record keeps its own exact measured revision and environment. Later compiler
+merges do not reattribute those measurements. Raw samples and independent
+output/cost verification remain available through the linked reports.
 
-For each implementation PR, run applicable Rust formatting, strict Clippy and
-locked all-target tests; kernel build and direct regressions; oracle build and
-transitive axiom audit; source check/build/native execution and malformed or
-forged IR rejection. Hosted macOS/Linux no-mathlib checks are a merge gate.
-Record merged implementation and validation before closing an issue. Parent
-#48/#52/#64 and #159/#160/#165 retain any wider unimplemented scope; #49 and
-#58–63 close only after all migration acceptance conditions hold.
+| Record | What it establishes and what remains |
+| --- | --- |
+| [Explicit storage copy](../experiments/storage_copy/README.md), PR #283 | Matched full-lifecycle/reuse copy work and visible arena costs; shared-VM variance and slower paths do not establish the budget |
+| [Full public GEMM](../experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md), PR #335 | Clean `38b96ae5a6b0610ec71babf199e7635867cca023`, 24 cases/1,256 matched pairs. Tiny lifecycle +329–400 ns, small lifecycle ratios 1.19–1.31; some bulk intervals cross the provisional budget. Shared-host evidence, not controlled acceptance |
+| [Full tensor packing](../experiments/tensor_packing/results/2026-10-31-linux-full/RESULTS.md), PR #341 | Earlier `3c1664c698be93041012b5768a76f4fc0d975b31`, 877 matched pairs and native LSan checks. Explicit packing costs are included; tiny lifecycle +408–721 ns and some bulk intervals remain outside acceptance |
+| [Full contraction tree with block-copy C](../experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md), PR #347 | Clean `82e00e97a6f93ef0b078bdc086f142c5703c6bc4`, 1,325 pairs/24 native records. Tiny lifecycle ratios 2.0860–2.2248, small 1.2584–1.5559; bulk 0.9879–1.0320 with an interval reaching 1.1282. Preserve the older weaker comparison; different CPUs prevent cross-run attribution |
+| [Diagonal metrics](../experiments/diagonal_metrics/README.md) | Matched prepared and matched-preflight C evidence retains tiny-call/coefficient-pass gaps. Public-source lifecycle, total/backend allocation and controlled-host acceptance remain unmeasured |
+| [Runtime shapes](../experiments/runtime_shapes/results/2026-11-01-macos/RESULTS.md) | Dirty base `117a6e972308f25b8ddccd9db536af161d6a322a`, 144 pairs/eight native records/12 failure-cleanup cases, multiple extents and caller destination reuse. Correctness/explicit-cost audit only, no operation timings |
+| [Original allocation experiment](../experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md), PR #351 | Selected FFI/emitted-object observation with an experiment-only pthread prototype; preserved unchanged, not production optimization or total-heap evidence |
+| [Actual production Unit result](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md), PR #353 | Actual once/persistent helper, dirty base `24b5f3166c020a38d941e6140338a6ec08e1f3a8`, 96 records/48 pairs. Tracked warm bytes `56N+64` per lifecycle batch and 64 per reuse batch include the `finally` fallback; 16 bytes remain persistent and tracked peak is 88 versus 72 for the private fresh comparator. Arena costs unchanged. No timing, total-heap or controlled-host claim |
 
-The initial 67-issue triage is recorded in #179. Later work includes full Lean
-frontend migration (#152), recursion, partial application, Union, macros, new
-geometry/gluing, AD, SU(2), solvers, snapshot-reading integrators, independent
-compilation caches and convenience warnings. mdBook follows the recorded
-Stage 1 completion, in a separate change.
+Unexpected allocation, hidden copies or asymptotically greater data movement fail
+the cost contract even if a timing sample is favorable. Native correctness and
+cleanup CI are mandatory evidence, separate from performance acceptance.
 
+## Implemented proof boundary and broader future scope
 
-The diagonal metric increment is merged in PR #348 with its acceptance record
-above. It covers real/complex exact bounded-Int diagonal
-realization, explicit materialized adjoints, weighted Hermitian pairing with
-caller scratch, and ideal laws specialized to actual-checker certificates.
-Native source/counter/sanitizer evidence is distinct from those ideal laws.
-The [prepared and matched-preflight C measurements](../experiments/diagonal_metrics/README.md)
-retain tiny-call and coefficient-pass gaps; public-source/FFI lifecycle costs,
-total/backend allocations and controlled-host acceptance remain open. No parent
-issue or Stage 1 completion condition is closed by this increment alone.
+The [geometry migration](geometry-migration.md) retains exact returned-Core typed
+total evaluation and finite primitive result equations. The resource/numerical
+map adds actual source authority, call replay, loan/initialization/byte-region,
+nominal basis/port, exact lowering and dependency-history certificates. Runtime
+shape realization uses the actual concrete resource/numerical checkers under
+explicit valuation/guard premises. Conditional exact-field diagonal adjoint and
+pairing laws are tied to actual certificates. Native heap behavior, binary64
+arithmetic, FFI/backend correctness and full source/native refinement remain
+separately tested or unproved; none is inferred from checker acceptance.
+
+The initial profile does not implement arbitrary resource packages/closures,
+floating-point pure Core/Fn/dispatch, dense metric solves, arbitrary-rank/cyclic
+networks, structural copy/trace nodes, order-search equivalence or #201's general
+categorical laws. These broader extensions remain open parent scope; they are
+not extra historical Stage 1 implementation gates. The same separation applies
+to general runtime results/transformed interfaces and AD retain/snapshot/recompute
+execution. Versions and a checked packing-cache consumer do not implement AD.
+
+The initial 67-issue triage remains in #179. Later work includes full Lean frontend
+migration (#152), recursion, partial application, Union, macros, new geometry/gluing,
+AD, SU(2), solvers, snapshot-reading integrators and independent compilation caches.
+mdBook follows recorded Stage 1 completion in a separate change.
+
+For implementation PRs, run the applicable Rust, kernel, oracle/axiom,
+source/native, forged-IR and macOS/Linux boundary checks described in [AGENTS.md](../AGENTS.md).
+Documentation-only updates verify links, exact evidence and proof claims without
+pretending to rerun unchanged implementation suites. Record actual merged
+validation before closing a child; broader parent objectives remain visible.

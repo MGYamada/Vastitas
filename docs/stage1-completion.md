@@ -220,11 +220,18 @@ Interval usable-byte peaks remain distinct from endpoint live state and physical
 backing/RSS. All canonical public executions still use stock libraries. The
 observer's static storage is reported separately; other allocators, reporting,
 process teardown, stock timing and the full performance gates remain open.
-The retained macOS [standard](../experiments/source_workspace/results/2026-11-02-macos-lifetimes/RESULTS.md)
-and [large-output](../experiments/source_workspace/results/2026-11-02-macos-lifetimes-streaming/RESULTS.md)
-records at clean `8212d7d` each match all 86 source inputs to Git. They cover
-96 / 32 canonical executions, 1,248 / 288 observation processes and 1,560 / 360
-lifetime boundary pairs. Linux confirmation remains pending.
+The retained [macOS](../experiments/source_workspace/results/2026-11-02-macos-lifetimes/RESULTS.md)
+and [Linux](../experiments/source_workspace/results/2026-11-02-linux-lifetimes/RESULTS.md)
+standard records, and the separate macOS
+[large-output](../experiments/source_workspace/results/2026-11-02-macos-lifetimes-streaming/RESULTS.md)
+record at clean `8212d7d`, share all 86 source inputs, independently matched to Git.
+Each standard record covers 96 canonical executions, 1,248 observation processes
+and 1,560 lifetime boundary pairs; the large-output record covers 32 / 288 / 360.
+Complete archived summaries replay against their original manifests. Linux's
+original CI failed only a test helper that selected a different case from the
+modified file; its corrected provenance/replay suite passes without changing
+the measured source, runtime or original evidence. Final-head CI remains required
+before merging the source composition.
 
 The optional schema-2 [source composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
 connects these calibrated archives to actual generated source across both

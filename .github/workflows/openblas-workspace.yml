@@ -22,7 +22,8 @@ jobs:
   workspace:
     name: OpenBLAS workspace lifetimes (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 70
+    # Eight backend/runtime configurations plus complete retained-record replay.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:

@@ -1,6 +1,7 @@
 """Mutate actual source receipts; rehash edits to reach semantic audits."""
 import copy
 import hashlib
+import json
 import os
 from pathlib import Path
 import unittest
@@ -239,6 +240,37 @@ class SourceHeapProvenance(unittest.TestCase):
         reader.replace('record.json',record)
         with self.assertRaisesRegex(ValueError,'unsupported source heap claim'):
             self.calibration(reader)
+
+
+class RetainedSourceHeapExports(unittest.TestCase):
+    def test_complete_exports_match_manifests_and_measured_inputs(self):
+        root = Path(__file__).resolve().parent / 'results'
+        inputs = []
+        for suffix, expected in (
+                ('macos-lifetimes', (12,1152,96,1560)),
+                ('linux-lifetimes', (12,1152,96,1560)),
+                ('macos-lifetimes-streaming', (4,256,32,360))):
+            with self.subTest(record=suffix):
+                directory = root / ('2026-11-02-'+suffix)
+                manifest = json.loads((directory/'artifact-manifest.json').read_text())
+                archive = directory/'evidence.zip'
+                with archive.open('rb') as stream:
+                    self.assertEqual(hashlib.file_digest(stream,'sha256').hexdigest(),manifest['sha256'])
+                self.assertEqual(archive.stat().st_size,manifest['bytes'])
+                reader = backend.Reader(archive)
+                self.assertEqual(len(reader.names),manifest['members'])
+                summary = verify_reader(reader)
+                self.assertEqual(summary,manifest['summary'])
+                self.assertEqual((summary['cases'],summary['records'],summary['failure_cleanups'],
+                                  summary['heap_lifetimes']['boundary_pairs']),expected)
+                record = reader.json('record.json')
+                self.assertEqual(record['head'],manifest['measured_head'])
+                self.assertEqual(record['head'],'8212d7d0a6720e37913b6d44d5932e8ff263ead8')
+                self.assertEqual(record['status'],manifest['measured_status'])
+                self.assertEqual(record['status'],'')
+                self.assertEqual(len(record['inputs']),86)
+                inputs.append(record['inputs'])
+        self.assertTrue(all(value==inputs[0] for value in inputs[1:]))
 
 
 if __name__ == '__main__':

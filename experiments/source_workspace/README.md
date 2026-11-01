@@ -267,15 +267,20 @@ tests continue to run alongside the new address/route/footprint regressions.
 
 ## Source block lifetimes and transient peaks (schema 4)
 
-The retained macOS [standard](results/2026-11-02-macos-lifetimes/RESULTS.md) and
-[large-output](results/2026-11-02-macos-lifetimes-streaming/RESULTS.md) records
-measure clean `8212d7d0a6720e37913b6d44d5932e8ff263ead8`. Their 86 source inputs
-are identical and match Git. They retain 96 / 32 canonical executions,
-1,248 / 288 observation processes and 1,560 / 360 lifetime boundary pairs.
+The retained [macOS](results/2026-11-02-macos-lifetimes/RESULTS.md) and
+[Linux](results/2026-11-02-linux-lifetimes/RESULTS.md) standard records, and the
+separate macOS [large-output](results/2026-11-02-macos-lifetimes-streaming/RESULTS.md)
+record, measure clean `8212d7d0a6720e37913b6d44d5932e8ff263ead8`. Their 86 source
+inputs are identical and match Git. Each standard record retains 96 canonical
+executions, 1,248 observation processes and 1,560 lifetime boundary pairs;
+the large-output record retains 32 / 288 / 360 respectively.
 Generated lifecycle interval peaks are 72 usable bytes above entry, reuse is
 48 and checked failure is 136 in these private runtime records. These are
 logical-block costs, separately from native arenas, backend backing and observer
-storage. Linux confirmation is pending; no timing acceptance is inferred.
+storage. No timing acceptance is inferred. The retained-export regression checks
+all three original manifests, complete replay summaries and shared input hashes.
+The initial Linux CI's sole mutation-helper failure is documented with the
+unchanged original artifact; the corrected helper and record regressions pass.
 
 Supply the separate [block lifetime calibration](../lean_allocation_lifetimes/README.md)
 and its exact runtime archive and observer object to add the private `lifetimes`

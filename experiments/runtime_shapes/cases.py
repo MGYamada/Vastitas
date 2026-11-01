@@ -1,9 +1,13 @@
 """Actual public runtime-shape fixtures and a fail-closed emitted-code wrapper."""
 from pathlib import Path
+import importlib.util
 import re
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
+_cleanup_spec = importlib.util.spec_from_file_location('shape_cleanup', ROOT/'experiments/native_cleanup.py')
+cleanup_envelope = importlib.util.module_from_spec(_cleanup_spec)
+_cleanup_spec.loader.exec_module(cleanup_envelope)
 
 
 def source(scalar, transpose, twice=False):
@@ -77,11 +81,12 @@ def split_generated(text):
         raise ValueError("unexpected main")
     preamble, body = text.split(marker)
     lines = body.splitlines()
-    if lines[:2] != ["  let shapeArena ← newArena 9223372036854775807", "  try"] or lines[-2:] != ["  finally", "    close shapeArena"]:
+    if lines[:2] != ["  let shapeArena ← newArena 9223372036854775807", "  try"]:
         raise ValueError("unexpected runtime-only arena envelope")
-    if not re.fullmatch(r"    IO.println \(VastitasGenerated\.f_[0-9]+(?: resourceValue_[0-9]+)*\)", lines[-3]):
+    _, lines = cleanup_envelope.split(lines, 'shapeArena')
+    if not re.fullmatch(r"    IO.println \(VastitasGenerated\.f_[0-9]+(?: resourceValue_[0-9]+)*\)", lines[-1]):
         raise ValueError("unexpected terminal return")
-    operations = lines[2:-3]
+    operations = lines[2:-1]
     first = operations[:4]
     if not all(re.fullmatch(r"    let resourceValue_[0-9]+ := VastitasGenerated\.f_[0-9]+(?: resourceValue_[0-9]+)*", x) for x in first):
         raise ValueError("initial four scalar bindings changed")
@@ -120,7 +125,7 @@ def driver(text):
     # Ordinary uninstrumented public executable is built separately. Only the
     # four input scalar definitions are parameterized; all emitted operations
     # and guards remain verbatim in these two explicit benchmark scopes.
-    return preamble + '''
+    wrapped = preamble + '''
 @[extern "shape_begin"] opaque benchBegin (scope : UInt32) (reps : UInt64) (verify : Bool) : IO Unit
 @[extern "shape_stop"] opaque benchStop : IO Unit
 @[extern "shape_report"] opaque benchReport : IO Unit
@@ -173,3 +178,4 @@ def main (args : List String) : IO Unit := do
       generatedReuse m k n pad reps verify
     benchReport
 '''
+    return cleanup_envelope.preserve(text, wrapped, 'shapeArena')

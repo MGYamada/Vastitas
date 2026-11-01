@@ -249,6 +249,9 @@ def main():
                 shutil.copyfile(path,target)
                 inputs[relative] = tree.sha(path)
     for relative in ('examples/packages/contraction-tree/src/profiles/mod.vast',
+                     'experiments/native_cleanup.py',
+                     'lean-kernel/VastitasKernel/StorageCodegen.lean',
+                     'lean-kernel/VastitasKernel/ResourceCodegen.lean',
                      'experiments/stock_allocation_capabilities/vendor/mimalloc-stats.h',
                      'experiments/stock_allocation_capabilities/vendor/LICENSE.mimalloc',
                      'lean-toolchain','lean-kernel/lean-toolchain'):
@@ -284,6 +287,7 @@ def main():
                 runtime_hook=lambda w:decorate(w,config['backend'],observe_allocator=lean_binding is not None,
                                                lean_prefix=lean_prefix,observe_packing=with_packing),
                 extra_link_args=link_args)
+            cleanup, _ = fixtures.cleanup_envelope.split((work/'Generated.lean').read_text().splitlines(), 'arena')
             runner.run(['nm','-g',exe],phase='linked_symbols')
             runner.run(['otool','-L',exe] if platform.system()=='Darwin' else ['ldd',exe],phase='linked_libraries')
             for impl,scope,reps in [('failure',0,1)]+[(impl,scope,reps) for scope in (0,1)
@@ -299,7 +303,7 @@ def main():
                 if with_packing: row['packing'] = parsed[4] if diagnostic_backend else None
                 if lean_binding:
                     row['lean_allocator'] = parsed[-1]
-                if impl != 'failure': audit.validate(parsed[1],scope,reps,'production_shared',impl)
+                if impl != 'failure': audit.validate(parsed[1],scope,reps,'production_shared',impl,cleanup)
                 (failures if impl == 'failure' else rows).append(row)
                 tree.dump(out/'observations.json',dict(rows=rows,failures=failures))
     runner.context = None

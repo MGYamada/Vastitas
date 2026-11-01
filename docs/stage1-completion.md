@@ -62,6 +62,11 @@ pinned Lean's once/persistence APIs. Errors, non-Unit results and arena wrappers
 remain fresh; status checks and cleanup remain. The observed generated `finally`
 fallback and one retained singleton remain charged. The [production record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
 measures its explicitly retained dirty snapshot, not a later merge.
+Current Unit-only cleanup avoids rebuilding the successful cleanup result;
+the old record and its charged fallback remain unchanged. Public native
+fault-injection checks cover static, runtime-shape and nested arenas. New
+allocation observations and matched timings remain separate evidence; this
+code-generation change does not discharge any performance gate.
 
 ## Remaining acceptance gates
 

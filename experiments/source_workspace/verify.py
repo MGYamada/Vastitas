@@ -97,11 +97,12 @@ def check_calls(trace,events,case,reps,*,with_packing=False):
     return signatures
 
 
-def check_allocation(row,case):
+def check_allocation(row,case,cleanup='finally'):
     allocation,cost = row['allocation'],row['costs']
     objects.balanced(allocation)
     require(allocation['variant']=='production_shared', 'different Unit implementation')
-    check_surrounding_objects(allocation,row['implementation'],row['scope'])
+    require(cleanup in ('finally','unit-catch'), 'unsupported cleanup')
+    check_surrounding_objects(allocation,row['implementation'],row['scope'],cleanup)
     objects.nonnegative_counts(cost,set(cost)-{'checksum','observed'})
     require(cost['elapsed_ns']==0, 'operation clocks must be disabled')
     require(cost['repetitions']==row['repetitions'], 'cost repetition domain')
@@ -139,7 +140,7 @@ def check_allocation(row,case):
     if row['implementation']=='generated':
         ffi = reps if scope==0 else 0
         external = reps if scope==0 else 0
-        fallback = reps if scope==0 else 0
+        fallback = reps if scope==0 and cleanup=='finally' else 0
         expected_kinds = {'ffi_ok':(ffi,16*ffi),'arena_external':(external,24*external),
                           'generated_ctor':(2+fallback,48+16*fallback),'control':(1,16),
                           'ffi_error':(0,0),'persistent_unit':(0,0)}
@@ -159,7 +160,7 @@ def check_allocation(row,case):
     require(end['arena_written_bytes']==cost['written_bytes'] and end['arena_copied_bytes']==cost['copied_bytes'], 'operation data traffic')
 
 
-def check_surrounding_objects(allocation,implementation,scope):
+def check_surrounding_objects(allocation,implementation,scope,cleanup='finally'):
     """Unexpected balanced churn outside the selected run is still a cost."""
     def item(count=0,size=16,release=None,retained=0):
         release=count if release is None else release
@@ -169,6 +170,7 @@ def check_surrounding_objects(allocation,implementation,scope):
     empty={kind:item() for kind in objects.KINDS}
     expected={'startup':dict(empty),'cold':dict(empty),'setup':dict(empty),'cleanup':dict(empty)}
     for kind in ('ffi_ok','generated_ctor','control'):expected['cold'][kind]=item(1)
+    if cleanup=='unit-catch':expected['cold']['generated_ctor']=item()
     expected['cold']['arena_external']=item(1,24)
     expected['cold']['persistent_unit']=item(1,release=0,retained=35)
     expected['setup']['control']=item(1)
@@ -282,11 +284,15 @@ def verify_reader(r,*,allow_build_tree=False):
     require(len(keys)==len(set(keys)) and set(keys)==required, 'observation coverage')
     require(all(type(x[k]) is int for x in all_rows for k in ('scope','repetitions')), 'observation numeric domain')
     signatures,allocator_summaries,packing_summaries = {},{},{}
+    styles = {(name,b):objects.cleanup_style(r.read,'programs/'+name+'/'+b+'/')
+              for name,b in itertools.product(cases,backends)}
+    if 'unit-catch' in styles.values():
+        require('experiments/native_cleanup.py' in record['inputs'], 'missing cleanup input')
     for key,row in zip(keys,all_rows):
         require((row['workspace'] is not None)==(row['backend'] in diagnostic), 'stock/diagnostic distinction')
         require(('lean_allocator' in row)==with_allocator, 'allocator observation domain')
         require(('packing' in row)==with_packing, 'packing observation domain')
-        check_allocation(row,cases[row['case']])
+        check_allocation(row,cases[row['case']],styles[row['case'],row['backend']])
         signatures[key] = check_calls(row['calls'],row['workspace'],cases[row['case']],row['repetitions'],
                                       with_packing=with_packing)
         if with_packing:

@@ -154,7 +154,7 @@ def main():
                 lsan="explicitly unavailable" if args.no_leak_sanitizer else "enabled", commands={})
     for name, command in {"git":["git","rev-parse","HEAD"],"dirty":["git","status","--short"],"lean":["lean","--version"],"cc":[args.cc,"--version"]}.items():
         info["commands"][name] = runner.run(command, phase="environment")
-    for rel in ("experiments/runtime_shapes", "experiments/contraction_trees/run.py", "experiments/contraction_trees/cases.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical", "src/storage.rs", "src/frontend/resource_parser.rs", "lean-kernel/VastitasKernel/ResourceSource.lean", "lean-kernel/VastitasKernel/ResourceCodegen.lean", "lean-kernel/VastitasKernel/ResourceProtocol.lean", "lean-kernel/VastitasKernel/StorageFunctions.lean"):
+    for rel in ("experiments/runtime_shapes", "experiments/native_cleanup.py", "experiments/contraction_trees/run.py", "experiments/contraction_trees/cases.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical", "src/storage.rs", "src/frontend/resource_parser.rs", "lean-kernel/VastitasKernel/ResourceSource.lean", "lean-kernel/VastitasKernel/ResourceCodegen.lean", "lean-kernel/VastitasKernel/StorageCodegen.lean", "lean-kernel/VastitasKernel/ResourceProtocol.lean", "lean-kernel/VastitasKernel/StorageFunctions.lean"):
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")
         for f in files:

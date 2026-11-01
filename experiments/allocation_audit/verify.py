@@ -2,7 +2,9 @@
 """Independent schema-v2 production-helper allocation/cost record verification."""
 import argparse
 from collections import Counter
+from functools import cache
 import hashlib
+import importlib.util
 import itertools
 import json
 from pathlib import Path
@@ -15,6 +17,31 @@ COUNT_FIELDS = {'allocations','bytes','final_releases','released_bytes','retaine
 ARENA_FIELDS = {'arena_finalizers','closed_arena_cycles','arena_allocations','arena_frees',
                 'arena_peak_bytes','arena_written_bytes','arena_copied_bytes',
                 'arena_metadata_allocations','arena_peak_metadata_bytes'}
+
+
+@cache
+def cleanup_runner():
+    path = Path(__file__).with_name('run.py')
+    spec = importlib.util.spec_from_file_location('cleanup_allocation_runner', path)
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    return runner
+
+
+def cleanup_style(read, prefix):
+    """Rebuild the exact wrapper with trusted code, never archived Python.
+
+    Allocation expectations follow the returned source, not a caller-selected
+    label. Preserve the original finally records byte for byte.
+    """
+    runner = cleanup_runner()
+    generated = read(prefix+'Generated.lean').decode()
+    failure = read(prefix+'GeneratedFailure.lean').decode()
+    style, _ = runner.fixtures.cleanup_envelope.split(generated.splitlines(), 'arena')
+    failed_style, _ = runner.fixtures.cleanup_envelope.split(failure.splitlines(), 'arena')
+    assert style == failed_style
+    assert runner.wrapper(generated, failure).encode() == read(prefix+'Main.lean')
+    return style
 
 
 def nonnegative_counts(record, fields):
@@ -89,15 +116,20 @@ def verify(read,names):
     assert len(keys)==len(set(keys))
     assert set(keys)==set(itertools.product(cases,VARIANTS,(0,1),(1,2,17),('generated','c')))
     lookup=dict(zip(keys,rows))
+    styles = {(case,variant):cleanup_style(read,case+'/'+variant+'/')
+              for case,variant in itertools.product(cases,VARIANTS)}
+    if 'unit-catch' in styles.values():
+        assert environment['checkout_root']+'/experiments/native_cleanup.py' in environment['inputs']
     for row in rows:
         shared=row['variant']=='production_shared';scope=row['scope'];reps=row['repetitions']
+        legacy=styles[row['case'],row['variant']]=='finally'
         audit=row['audit'];balanced(audit);assert audit['variant']==row['variant']
         nonnegative_counts(row['costs'], set(row['costs'])-{'checksum','observed'})
         run=audit['phases']['run'];kinds=run['kinds']
         if row['implementation']=='generated':
             ffi=(reps if shared else 36*reps) if scope==0 else (0 if shared else 4*reps)
             external=reps if scope==0 else 0
-            fallback=reps if shared and scope==0 else 0
+            fallback=reps if shared and scope==0 and legacy else 0
             assert kinds['ffi_ok']['allocations']==kinds['ffi_ok']['final_releases']==ffi
             assert kinds['ffi_ok']['bytes']==16*ffi
             assert kinds['arena_external']['allocations']==kinds['arena_external']['final_releases']==external
@@ -106,9 +138,9 @@ def verify(read,names):
             assert kinds['generated_ctor']['bytes']==48+16*fallback
             assert kinds['control']['allocations']==1 and kinds['control']['bytes']==16
             assert kinds['persistent_unit']['retained_returns']==((35*reps if scope==0 else 4*reps) if shared else 0)
-            allocation_count=((3*reps+3 if shared else 37*reps+3) if scope==0 else
+            allocation_count=(((2+int(legacy))*reps+3 if shared else 37*reps+3) if scope==0 else
                               (3 if shared else 4*reps+3))
-            allocation_bytes=((56*reps+64 if shared else 600*reps+64) if scope==0 else
+            allocation_bytes=(((40+16*int(legacy))*reps+64 if shared else 600*reps+64) if scope==0 else
                               (64 if shared else 64*reps+64))
             peak=88 if shared else 72
         else:
@@ -131,6 +163,7 @@ def verify(read,names):
         assert cold['kinds']['persistent_unit']['allocations']==int(shared)
         assert cold['kinds']['persistent_unit']['retained_returns']==(35 if shared else 0)
         assert cold['kinds']['arena_external']['allocations']==1
+        assert cold['kinds']['generated_ctor']['allocations']==int(shared and legacy)
         assert sum(p['kinds']['persistent_unit']['allocations'] for p in audit['phases'].values())==int(shared)
         expected,dimensions=costs(cases[row['case']],scope,reps)
         for name,value in expected.items():assert row['costs'][name]==value,(name,row)

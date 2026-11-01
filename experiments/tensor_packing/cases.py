@@ -1,11 +1,15 @@
 """Finite source fixtures: T[i,k,j] B[k,l] -> C[i,j,l], explicit pack + GEMM."""
 import itertools
+import importlib.util
 from pathlib import Path
 import random
 import re
 import struct
 
 ROOT = Path(__file__).resolve().parents[2]
+_cleanup_spec = importlib.util.spec_from_file_location('tensor_cleanup', ROOT/'experiments/native_cleanup.py')
+cleanup_envelope = importlib.util.module_from_spec(_cleanup_spec)
+_cleanup_spec.loader.exec_module(cleanup_envelope)
 
 
 def bits(x):
@@ -120,11 +124,10 @@ def split_generated(text):
     lines = body.splitlines()
     if lines[:2] != [f"  let arena ← newArena {2**63-1}", "  try"]:
         raise ValueError("unexpected arena envelope")
-    if lines[-2:] != ["  finally", "    close arena"]:
-        raise ValueError("unexpected cleanup envelope")
-    if not re.fullmatch(r"    IO.println \(VastitasGenerated\.[A-Za-z0-9_]+\)", lines[-3]):
+    _, lines = cleanup_envelope.split(lines, 'arena')
+    if not re.fullmatch(r"    IO.println \(VastitasGenerated\.[A-Za-z0-9_]+\)", lines[-1]):
         raise ValueError("unexpected pure return display")
-    operations = lines[2:-3]
+    operations = lines[2:-1]
     allowed = r"    (allocate|fill|store|drop|pack3|VastitasGemmNative\.gemm) arena [0-9a-z ]+"
     if not all(re.fullmatch(allowed, line) for line in operations):
         raise ValueError("unsupported generated instruction")
@@ -148,7 +151,7 @@ def driver(generated):
     preamble, arena, setup, operation, cleanup = split_generated(generated)
     def block(lines, indent): return "\n".join(" "*indent + x.strip() for x in lines)
     # Only terminal printing is removed. All resource instructions stay verbatim.
-    return preamble + '''
+    wrapped = preamble + '''
 @[extern "bench_begin_lean"] opaque benchBegin (scope : UInt32) (reps : UInt64) (verify : Bool) : IO Unit
 @[extern "bench_stop_lean"] opaque benchStop : IO Unit
 @[extern "bench_report_lean"] opaque benchReport : IO Unit
@@ -185,3 +188,4 @@ def main (args : List String) : IO Unit := do
       close arena
   benchReport
 '''
+    return cleanup_envelope.preserve(generated, wrapped)

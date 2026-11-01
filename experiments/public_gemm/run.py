@@ -281,7 +281,7 @@ def main():
         performance="unmeasured",leak_sanitizer="disabled explicitly" if args.no_leak_sanitizer else "enabled",
         memory_scope="exact arena data counters; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented")
     environment["expected_lean_toolchain"] = (ROOT / "lean-kernel/lean-toolchain").read_text().strip()
-    for rel in ["experiments/public_gemm", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
+    for rel in ["experiments/public_gemm", "experiments/native_cleanup.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")
         for f in files:

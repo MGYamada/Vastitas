@@ -44,6 +44,24 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(audit.failure_wire(json.dumps(original)), expected)
             self.assertEqual(original['body'][1]['value'][key], 42)
 
+    def test_cleanup_cost_style_requires_the_complete_actual_wrapper(self):
+        with zipfile.ZipFile(HERE / 'results/2026-11-01-macos-production/evidence.zip') as archive:
+            prefix = 'tiny-f64-p0/production_shared/'
+            files = {name: archive.read(prefix+name) for name in ('Generated.lean', 'GeneratedFailure.lean', 'Main.lean')}
+        self.assertEqual(verifier.cleanup_style(files.__getitem__, ''), 'finally')
+        cleanup = audit.fixtures.cleanup_envelope
+        for name in ('Generated.lean', 'GeneratedFailure.lean'):
+            files[name] = files[name].decode().replace(cleanup.suffix('finally', 'arena'),
+                cleanup.suffix('unit-catch', 'arena')).encode()
+        with self.assertRaises(AssertionError): verifier.cleanup_style(files.__getitem__, '')
+        files['Main.lean'] = audit.wrapper(files['Generated.lean'].decode(), files['GeneratedFailure.lean'].decode()).encode()
+        self.assertEqual(verifier.cleanup_style(files.__getitem__, ''), 'unit-catch')
+        original = files['Main.lean']
+        for before, after in ((b'throw cleanupError', b'pure ()'), (b'close arena', b'pure ()'),
+                              (b'benchVerify arena', b'otherVerify arena')):
+            files['Main.lean'] = original.replace(before, after, 1)
+            with self.assertRaises(AssertionError): verifier.cleanup_style(files.__getitem__, '')
+
     def test_changed_assertion_profile_is_rejected(self):
         for count in (0, 2, 4):
             with self.subTest(count=count), self.assertRaises(ValueError):

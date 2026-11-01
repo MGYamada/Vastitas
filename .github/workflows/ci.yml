@@ -105,6 +105,8 @@ jobs:
         run: |
           python3 scripts/build_stdlib_package.py
           cargo test --locked --all-targets
+      - name: Public resource cleanup and nested failure precedence (no BLAS)
+        run: python3 scripts/check_resource_cleanup.py
       - name: Diagnostic reference against the built compiler
         run: |
           test -x target/debug/vastitas

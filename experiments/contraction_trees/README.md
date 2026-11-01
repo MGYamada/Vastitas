@@ -16,12 +16,18 @@ perform exactly this written order:
 
 There are six caller allocations: T, A, B, scratch, middle, C. Source releases and
 reborrows explicitly separate scratch uses. The C baseline performs the first
-contiguous x-block copy, a coordinate loop for the second regroup, and direct
+contiguous x-block copy, contiguous x-block copies for the second regroup, and direct
 CBLAS calls with matching layouts, coefficients, arithmetic order and physical
 preflight. It calls neither the production packing nor GEMM adapter for these
 operations. Both sides use the same arena allocation/setup primitives, so this
 comparison does not isolate allocator choice. Generic network planning, rank-2
 regrouping and larger trees are outside this benchmark.
+
+The original coordinate-copy baseline and its measurements are retained with
+their own source revision. The current C baseline copies each common contiguous
+x block in one `memcpy`, so a missed block-copy opportunity in the comparator
+cannot establish a performance advantage. The tensor coordinates, explicit
+contraction order, preflight, counted bytes and output oracle are unchanged.
 
 ## Reproduce
 
@@ -40,7 +46,7 @@ On macOS add `--no-leak-sanitizer` explicitly because Apple ASan lacks LSan. Lin
 uses ASan/UBSan/LSan by default. `--frontend` and `--kernel` accept already-built
 binaries; no build or acceptance fallback is allowed. `--cc` selects the C compiler
 for both the canonical build and private instrumented build. Output directories
-must not exist. No workflow is installed by this directory.
+must not exist.
 
 The default full mode omits `--smoke`, uses 11 paired samples and targets 5 ms per
 batch. It includes tiny `(2,3,4,5,6)`, small `(7,17,5,11,13)` and bulk
@@ -49,6 +55,24 @@ storage: 12 cases. The small case needs a larger first scratch footprint than th
 second; the others need a larger second footprint. Source size remains bounded:
 three fills and six sparse patches initialize the inputs, plus six full-allocation
 sentinel fills. Three coordinate assertions also execute in the canonical program.
+
+The [Linux workflow](../../.github/workflows/contraction-tree-experiment.yml) runs
+four-case smoke validation on both push and pull-request events affecting the
+harness or its compiler/runtime dependencies. Manual dispatch also offers the full
+twelve-case profile with eleven pairs per scope and a 5 ms calibration target:
+
+```sh
+gh workflow run contraction-tree-experiment.yml --ref REVIEWED_REF -f profile=full
+```
+
+Both profiles require actual public check/build/execution, native ASan/UBSan/LSan
+validation and identical output/cost pairs, with one BLAS thread and a 45-minute
+job cap. Compact source/command/validation/measurement records and large
+disassembly/symbol files are retained as separate artifacts for fourteen days.
+Preserve selected evidence and its exact measured revision before artifact expiry.
+Shared-runner timings remain exploratory; they do not satisfy controlled-host
+performance acceptance, and a calibration target does not guarantee the duration
+of later samples.
 
 ## What is timed
 
@@ -110,6 +134,17 @@ under host variation. No noisy hosted or laptop result establishes the controlle
 host performance gate.
 
 ## Recorded evidence and limitations
+
+The [original full Linux record](results/2026-10-31-linux-full/RESULTS.md) retains
+the coordinate-copy comparator, all raw pairs and its discovered baseline
+limitation. The [block-copy Linux record](results/2026-10-31-linux-block-copy/RESULTS.md)
+measures the stronger C baseline at its own clean revision. It retains twelve
+actual public programs, 24 native/sanitizer validations and 1,325 matched pairs.
+Tiny lifecycle paired ratios are 2.0860–2.2248 and small ratios are
+1.2584–1.5559. Bulk lifecycle ratios are 0.9879–1.0320, but the complex contiguous
+interval extends to 1.1282. These shared-host results do not establish the
+performance gate. The two runs used different CPU models, so their ratios do not
+isolate the effect of changing the C loop.
 
 `cases.json`, generated packages, captured wire, kernel response, exact generated
 source, wrapper, private instrumented runtime, commands and compile times are kept.

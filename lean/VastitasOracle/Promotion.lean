@@ -1,11 +1,13 @@
 import VastitasPromotion.Fixture
 import VastitasOracle.Namespaces
 
-/-! Numerical contracts of the actual accepted stdlib fixture. The fixture is
+/-! Retained numerical contracts of the stdlib fixture through the retired
+checkSurfaceProgram/legacy Core pipeline. Current public indexed-Core numerical
+contracts are in VastitasOracle.IndexedPromotion. The fixture is
 produced by Rust from the canonical .vast files; its actual decoded/checker
 output is reflected as a transparent Term and rechecked at build time.
 These are contracts of those bodies, not compiler magic for the name promote.
-The general public-acceptance typing/termination chain is unchanged. -/
+These legacy Eval derivations are not current public acceptance corollaries. -/
 namespace VastitasOracle.Promotion
 open VastitasKernel VastitasKernel.Semantics VastitasKernel.PromotionFixture
 

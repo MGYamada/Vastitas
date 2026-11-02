@@ -3,6 +3,8 @@ import VastitasOracle.EvaluationSafety
 import VastitasOracle.ArgumentSafety
 import VastitasOracle.AllocationSafety
 
+/-! Retained old-Core whole-program evaluation. Current public returned-Core
+totality is proved separately in IndexedProgramSafety. -/
 namespace VastitasOracle.ProgramSafety
 open VastitasKernel VastitasKernel.Typing VastitasKernel.Semantics
 
@@ -142,7 +144,7 @@ theorem module_total_and_typed (module : CheckedModule)
   · rw [← sameId]
     exact SignatureLookup.module_lookup_member module typed.1 callee declared
 
-/-- The actual public checker establishes the hypotheses of the full semantic
+/-- The retained `checkModule` checker establishes the hypotheses of the full semantic
 safety theorem; the legacy annotation subtype is not used as a substitute. -/
 theorem checkModule_total_and_typed (raw : RawModule) (requireMain : Bool)
     (certified : CertifiedModule)

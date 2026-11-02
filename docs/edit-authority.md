@@ -90,13 +90,22 @@ checks all scalar keys, generic/contract coverage, every applicable body includi
 nonwinners, unapplied contributions, and winning footprints within every ancestor
 grant. Transfer does not repair or discard an obligation by itself.
 
-`VastitasOracle.Authority` proves properties of the actual protocol-6 checker,
-its trace, current-owner/leaf requirements, preserved contribution provenance,
-ancestor-region inclusion, final footprints, and the exact returned typed and
-dependency-ordered Core. The same pure-Core evaluation theorem applies after
-assembly. These are decoded-input guarantees, not filesystem/authorship
+`VastitasOracle.Authority` proves properties of the shared `Authority.assemble`
+trace, current-owner/leaf requirements, preserved contribution provenance and
+ancestor-region inclusion. Its `checkAuthorityProgram_*` results concern the
+retained old top-level checker. Current public composition is connected by
+`IndexedAuthority.authority_trace`, `applied_authorized`, `final_footprints`,
+`instance_body_checked` and `both_passes`; `LegacySource`/`IndexedWire` connect
+the actual JSON acceptance to that composition and the exact returned indexed
+Core. `IndexedProgramSafety` supplies its typed total evaluation. These are
+decoded-input guarantees, not legacy source-correspondence results, filesystem/authorship
 authentication, parser correctness or native-code equivalence. Storage ownership
 and the eight mathematical domain checkers remain separate contracts (#180/#184).
+
+`VastitasPublicTest.AuthorityRegression` exercises the current protocol-5/6/7
+routes with a Rust-frontend fixture, exact returned-Core evaluation/emission and
+forged source/authority mutations. `AuthorityRegression` remains a separate
+test of the retained checker and shared trace helpers.
 
 ```sh
 cargo run -- check --manifest-path examples/packages/edit-authority/app/Vastitas.toml
@@ -104,7 +113,9 @@ cargo run -- build --manifest-path examples/packages/edit-authority/app/Vastitas
 ./target/edit-authority # 44
 ```
 
-Protocol 5 and existing source inputs retain their existing route. Protocol 6
+Protocol 5 and existing source inputs retain their wire decoders, then enter
+`Indexed.LegacySource.check` and the common indexed authority/body checker.
+`checkAuthorityProgram` is a retained legacy API, not Main's public route. Protocol 6
 uses the package envelope, optional `delegable` on grants, new `delegations` and
 `transfers` module arrays, and `reborrow`/`transfer` events. Older envelopes reject
 these semantic fields instead of ignoring them. See [the wire contract](protocol.md).

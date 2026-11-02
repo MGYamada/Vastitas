@@ -1,7 +1,8 @@
 import VastitasKernel.Edit
 import VastitasOracle.Functions
 
-/-! Actual protocol-5 acceptance: independently audited exclusive transitions,
+/-! Retained legacy protocol-5 acceptance (checkEditProgram), not Main's
+current Indexed.LegacySource/AuthoritySource route: independently audited exclusive transitions,
 complete contribution provenance and exact final lowering, then the existing
 finite dispatch and core soundness boundaries. Inputs begin after decoding. -/
 namespace VastitasOracle.EditBorrowing

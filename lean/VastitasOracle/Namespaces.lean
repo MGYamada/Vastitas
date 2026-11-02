@@ -2,7 +2,9 @@ import VastitasKernel.NamespaceChecker
 import Std.Data.HashMap.Lemmas
 import VastitasOracle.Functions
 
-/-! The actual protocol-3 acceptance path: unique declaration owners, independently
+/-! Shared namespace facts and the retained legacy protocol-3 composition:
+Main now enters Indexed.LegacySource.check; old-Core conclusions below are
+not corollaries of that current public entry point. The retained route has unique declaration owners, independently
 resolved references and exact-module method authority, composed with the existing
 surface/core theorems. Filesystem authenticity and source-to-IR preservation are
 outside this theorem boundary. No edit-borrow or abstract-method claims are made. -/
@@ -46,8 +48,8 @@ theorem indexed_scope_lookup (program : Namespace.Program) (scope : Scope) :
     result.mapError render = .ok value ↔ result = .ok value := by
   cases result <;> simp [Except.mapError]
 
-/-- Main supplies a renderer that reuses the successful namespace lowering.
-It changes diagnostics only, and has exactly the public checker's acceptance. -/
+/-- The retained namespace entry accepts a renderer for its successful lowering.
+It changes diagnostics only, and has exactly the retained namespace checker's acceptance. -/
 theorem diagnostic_rendering_preserves_acceptance (program : Namespace.Program)
     (requireMain : Bool) (render : Namespace.Lowered → Diagnostic → Diagnostic)
     (certified : CertifiedModule) :

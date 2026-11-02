@@ -1,7 +1,8 @@
 import VastitasKernel.FunctionChecker
 import VastitasOracle.DispatchLowering
 
-/-! Soundness of the actual Stage 1b acceptance boundary. These results prove
+/-! Soundness of the retained legacy Stage 1b acceptance boundary. Main uses
+Indexed.FunctionSource through the public indexed composition. These results prove
 source lambda closure freedom, independently audited static function contracts,
 and typing/termination of the exact emitted core. They do not claim a complete
 operational correspondence for specialization or equivalence of native code. -/

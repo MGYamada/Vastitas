@@ -3,6 +3,10 @@ import VastitasKernel.EditRegression
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.Codegen
 
+/-! Retained legacy top-level checker/Core regressions. Current public JSON
+acceptance is covered by LegacySourceRegression and
+VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
+remain live in the indexed composition. -/
 namespace VastitasKernel.Namespace.Regression
 
 private def root : PackageId := ⟨"/app/Vastitas.toml", "app", "0.1.0"⟩

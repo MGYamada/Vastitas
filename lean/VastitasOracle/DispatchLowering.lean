@@ -2,14 +2,15 @@ import VastitasKernel.FunctionChecker
 import VastitasOracle.Dispatch
 import VastitasOracle.ActivationSafety
 
-/-! Stage 1's actual acceptance path is connected to the complete checked-core
+/-! The retained Stage 1 legacy acceptance path is connected to the complete checked-core
 theorems, not only the historical annotation certificate. Finite target choices
 retain the real checker equation and row equation, so their unique optimality
 is established by the independently specified dispatch selection relation.
 
 This does not prove the Rust parser, the raw rewriting pass's full source
 correspondence, or Lean/C/native code generation. The semantic theorem concerns
-the exact lowered core returned by the public Stage 1 checker. -/
+the exact lowered core returned by the retired Stage 1 checker; current public composition is in
+IndexedDispatchSource/IndexedAuthoritySource and LegacySource. -/
 namespace VastitasOracle.DispatchLowering
 open VastitasKernel VastitasKernel.DispatchChecker VastitasKernel.Semantics
 

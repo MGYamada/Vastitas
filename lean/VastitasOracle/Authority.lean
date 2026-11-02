@@ -1,7 +1,9 @@
 import VastitasKernel.Authority
 import VastitasOracle.Functions
 
-/-! Actual protocol-6 acceptance and the exact returned Core. These theorems
+/-! Shared Authority.assemble trace/footprint facts and the retained
+checkAuthorityProgram composition over the old Core. Main now enters
+Indexed.LegacySource/AuthoritySource; only the shared assembler is on that route. These theorems
 start at decoded namespace input; they do not authenticate files or certify the
 Rust parser, native code generator or runtime. -/
 namespace VastitasOracle.Authority

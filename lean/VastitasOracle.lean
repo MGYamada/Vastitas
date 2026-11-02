@@ -36,6 +36,7 @@ import VastitasOracle.GeometryCompatibility
 import VastitasOracle.GeometryResults
 import VastitasOracle.LegacySource
 import VastitasOracle.Promotion
+import VastitasOracle.IndexedPromotion
 import VastitasOracle.Graph
 import VastitasOracle.StorageLayout
 import VastitasOracle.StorageRegions

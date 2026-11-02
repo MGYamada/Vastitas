@@ -71,12 +71,85 @@ theorem target_signature_exact {prepared : PreparedProgram} (checked : CheckedPa
     simp only [validTargetName, concrete, found, Bool.and_eq_true, beq_iff_eq, and_assoc] at valid
     exact valid.2.2.1
 
-theorem emitted_call_exact {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+private theorem emitted_call_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
     (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) :
-    checked.lowered.origins[call.id]? = some call.key := by
+    validEmittedCall prepared.input audit checked.lowered call = true := by
   have accepted := checked.accepted
   simp only [validPass, Bool.and_eq_true, and_assoc] at accepted
-  exact of_decide_eq_true (by simpa using List.all_eq_true.mp accepted.2.2.1 call member)
+  have calls := accepted.2.2.1
+  simp only [validEmittedCalls, Bool.and_eq_true, and_assoc] at calls
+  exact List.all_eq_true.mp calls.1 call member
+
+/-- Both passes retain the exact emitted origin. Audit reuse additionally
+records the caller's original key and independently checks its probe renaming. -/
+theorem emitted_call_origin {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+    (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) :
+    checked.lowered.origins[call.id]? = some call.origin := by
+  have valid := emitted_call_valid checked call member
+  simp only [validEmittedCall, Bool.and_eq_true, beq_iff_eq, and_assoc] at valid
+  exact valid.1
+
+/-- Executable specialization keeps the original requested key exactly;
+signature-probe alpha-renaming cannot authorize an executable call. -/
+theorem emitted_call_exact {prepared : PreparedProgram} (checked : CheckedPass prepared false requireMain)
+    (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) :
+    checked.lowered.origins[call.id]? = some call.key := by
+  have valid := emitted_call_valid checked call member
+  simp [validEmittedCall, Bool.and_eq_true, beq_iff_eq, and_assoc] at valid
+  simpa only [valid.2.2] using valid.1
+
+theorem emitted_call_probe_renaming {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+    (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) (different : call.origin ≠ call.key) :
+    audit = true ∧ call.origin.definition = call.key.definition ∧
+      probeRenaming call.key.targets call.origin.targets = true := by
+  have valid := emitted_call_valid checked call member
+  simp only [validEmittedCall, Bool.and_eq_true, Bool.or_eq_true, beq_iff_eq, and_assoc] at valid
+  exact valid.2.2.resolve_left different
+
+/-- The independent renaming audit preserves equality in both directions. -/
+theorem probe_renaming_aliases {requested canonical : List Compiler.TargetName}
+    (valid : probeRenaming requested canonical = true) (a b c d : Compiler.TargetName)
+    (first : (a, b) ∈ requested.zip canonical) (second : (c, d) ∈ requested.zip canonical) :
+    a = c ↔ b = d := by
+  simp only [probeRenaming, Bool.and_eq_true, and_assoc] at valid
+  have pair := List.all_eq_true.mp (List.all_eq_true.mp valid.2.2.2.2 (a, b) first) (c, d) second
+  have same : (a == c) = (b == d) := beq_iff_eq.mp pair
+  constructor
+  · intro equal
+    apply beq_iff_eq.mp
+    rw [← same]
+    exact beq_iff_eq.mpr equal
+  · intro equal
+    apply beq_iff_eq.mp
+    rw [same]
+    exact beq_iff_eq.mpr equal
+
+private theorem probe_reuse_valid {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+    (reuse : ProbeReuse) (member : reuse ∈ checked.lowered.probeReuses) :
+    validProbeReuse prepared.input checked.lowered reuse = true := by
+  have accepted := checked.accepted
+  simp only [validPass, Bool.and_eq_true, and_assoc] at accepted
+  have calls := accepted.2.2.1
+  simp only [validEmittedCalls, Bool.and_eq_true, and_assoc] at calls
+  exact List.all_eq_true.mp calls.2.2.2 reuse member
+
+/-- A cached body returning an input Fn returns that exact caller argument
+after renaming, including its signature and equality with other arguments. -/
+theorem reused_input_return {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
+    (reuse : ProbeReuse) (member : reuse ∈ checked.lowered.probeReuses)
+    (result formal actual : Target) (id : Nat) (hasResult : reuse.result = some result)
+    (probe : result.name = .probe id)
+    (found : (reuse.canonical.zip reuse.requested).find? (fun pair => pair.1.name == result.name) = some (formal, actual)) :
+    reuse.returned = some actual := by
+  have valid := probe_reuse_valid checked reuse member
+  simp only [validProbeReuse, Bool.and_eq_true, and_assoc] at valid
+  have returned := valid.2.2.2.2.1
+  simp only [probe] at found
+  cases value : reuse.returned with
+  | none => simp [validProbeResult, hasResult, value] at returned
+  | some value =>
+    simp only [validProbeResult, hasResult, probe, found, value, Bool.and_eq_true, decide_eq_true_eq] at returned
+    exact congrArg some returned.2
 
 /-- Native function IDs index the exact emitted specialization keys, whose
 canonical owner and complete data signature are rechecked independently. -/

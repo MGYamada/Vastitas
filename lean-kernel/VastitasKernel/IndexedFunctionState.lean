@@ -11,7 +11,7 @@ inductive TargetName where
 structure Target where
   name : TargetName
   signature : Surface.TypeExpr
-  deriving Repr, Inhabited
+  deriving Repr, Inhabited, DecidableEq
 
 structure Value where
   term : Core.Term
@@ -80,6 +80,18 @@ structure StaticUse where
 structure EmittedCall where
   key : Key
   id : Nat
+  origin : Key
+  deriving Inhabited
+
+/-- Audit-only alpha-renaming of a cached all-probe instance. The requested
+targets and returned Fn remain in the caller's probe context. -/
+structure ProbeReuse where
+  definition : Nat
+  id : Nat
+  requested : List Target
+  canonical : List Target
+  result : Option Target
+  returned : Option Target
   deriving Inhabited
 
 structure DispatchCall where
@@ -94,6 +106,9 @@ structure DispatchCall where
 structure State where
   body : Source.Bodies.State := {}
   instances : Std.HashMap Key Instance := {}
+  probeTemplates : Std.HashMap Key (List Target) := {}
+  probeInstances : Std.HashMap Key Instance := {}
+  probeReuses : List ProbeReuse := []
   active : List Key := []
   activeSet : Std.HashSet Key := {}
   functions : Array Core.Function := #[]
@@ -152,6 +167,21 @@ def request (definition : Nat) (targets : List Target) (span : Span) : M Instanc
   .request definition targets span state fun compiled state => .done compiled state
 
 def key (definition : Nat) (targets : List Target) : Key := ⟨definition, targets.map (·.name)⟩
+
+def TargetName.isProbe : TargetName → Bool
+  | .probe _ => true
+  | .concrete _ => false
+
+/-- First-occurrence positions preserve the complete equality pattern, not
+just the signatures or number of Fn parameters. Used only for all-probe keys. -/
+def probePattern (names : List TargetName) : List Nat := names.map names.idxOf
+
+def probeKey (definition : Nat) (targets : List Target) : Key :=
+  ⟨definition, (probePattern (targets.map (·.name))).map TargetName.probe⟩
+
+def fnParameters (entry : Prepared) : List Surface.TypeExpr :=
+  entry.definition.function.params.filterMap fun parameter =>
+    match parameter.type with | .function signature => some signature | _ => none
 
 def prepared (input : Input) (id : Nat) (span : Span) : M Prepared :=
   match input.prepared[id]? with
@@ -259,7 +289,7 @@ def emitCall (input : Input) (id : Nat) (targets : List Target) (values : List V
     if let .data _ := parameter.type then
       arguments := arguments ++ [Core.Term.variable symbol value.term.result]
   let compiled ← request id targets span
-  modify fun state => { state with emittedCalls := ⟨key id targets, compiled.id⟩ :: state.emittedCalls }
+  modify fun state => { state with emittedCalls := ⟨key id targets, compiled.id, compiled.key⟩ :: state.emittedCalls }
   let type := definition.result.rename substitution
   let reference ← match type with
     | .object type => some <$> body (Source.Bodies.freshObject type span s!"function call '{definition.definition.owner.name}'")

@@ -4,6 +4,8 @@ Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
 its **Stage 1b compiler with path packages, finite abstract selectors/contracts and scoped edit assemblies**: `.vast` source → Rust frontend → independently checked
 Lean IR → Lean/C → a native executable.
 
+**Planned v0.1.0 compiler gate:** [Compiler IR v1](docs/compiler-ir.md) specifies an independently checked **Lean IR → Vastitas MidIR → LLVM IR** path with LLVM as the native backend. Rust input generation and the LLVM toolchain remain outside the proof-authority trust boundary; the accepted Lean Core-to-*emitted* LLVM IR refinement must be verified for certified builds. This specification and its implementation/proof acceptance are tracked by [#417](https://github.com/MGYamada/Vastitas/issues/417). **The current compiler still uses the Lean/C path described above.**
+
 The current language supports exact integer computation, a small geometric
 core, finite multiple dispatch over scalar types, and capture-free static
 higher-order functions, local path packages and call-only module imports. Ordinary and smooth

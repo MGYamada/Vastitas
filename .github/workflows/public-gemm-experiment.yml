@@ -5,11 +5,13 @@ on:
     paths:
       - 'experiments/public_gemm/**'
       - 'scripts/install_ci_elan.py'
+      - 'scripts/check_ci_python.sh'
       - '.github/workflows/public-gemm-experiment.yml'
   pull_request:
     paths:
       - 'experiments/public_gemm/**'
       - 'scripts/install_ci_elan.py'
+      - 'scripts/check_ci_python.sh'
       - '.github/workflows/public-gemm-experiment.yml'
   workflow_dispatch:
     inputs:
@@ -51,6 +53,8 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.15.2'
+      - name: Validate Python without a loader override
+        run: bash scripts/check_ci_python.sh
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1

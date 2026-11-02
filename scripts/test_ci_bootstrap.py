@@ -4,6 +4,7 @@ import io
 from pathlib import Path
 import tarfile
 import tempfile
+import sys
 import unittest
 from unittest import mock
 
@@ -24,6 +25,25 @@ def archive(name="elan-init", kind=tarfile.REGTYPE, duplicate=False):
 
 
 class BootstrapTests(unittest.TestCase):
+    def test_ci_python_clears_only_its_known_loader_override(self):
+        script = Path(__file__).with_name("check_ci_python.sh")
+        for override in ["", str(Path(sys.prefix) / "lib"), "/unexpected/loader/path"]:
+            with self.subTest(override=override), tempfile.TemporaryDirectory() as temporary:
+                target = Path(temporary) / "environment"
+                target.write_text("preserved=value\n")
+                environment = dict(bootstrap.os.environ, GITHUB_ENV=str(target),
+                                   pythonLocation=sys.prefix, LD_LIBRARY_PATH=override)
+                result = bootstrap.subprocess.run(["bash", str(script)], env=environment,
+                                                  capture_output=True, text=True)
+                if override == "/unexpected/loader/path":
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn("unexpected loader override", result.stderr)
+                    self.assertEqual(target.read_text(), "preserved=value\n")
+                else:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertIn("Python ", result.stdout)
+                    self.assertEqual(target.read_text(), "preserved=value\nLD_LIBRARY_PATH=\n")
+
     def test_platforms_are_explicit(self):
         self.assertEqual(bootstrap.host_target("Darwin", "arm64"), "aarch64-apple-darwin")
         self.assertEqual(bootstrap.host_target("Linux", "x86_64"), "x86_64-unknown-linux-gnu")

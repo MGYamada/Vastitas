@@ -87,7 +87,7 @@ def main():
                 tag = "sanitized" if sanitize else "optimized"
                 arena = module.native_test(runner, case, work / f"arena-{tag}", prefix,
                                            [args.cc], sanitize, args.no_leak_sanitizer)
-                plain = module.plain_c.native_test(runner, case, cases.c_header, profile,
+                plain = module.plain_c().native_test(runner, case, cases.c_header, profile,
                     work / f"plain-{tag}", prefix, [args.cc], arena["rows"],
                     sanitize=sanitize, no_lsan=args.no_leak_sanitizer)
                 metadata["records"].append(dict(profile=profile, arena=arena, plain=plain))

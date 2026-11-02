@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from check_plain_c_baselines import load_profile
 
@@ -36,6 +37,19 @@ def group(pair=0):
 
 
 class PlainCMeasurements(unittest.TestCase):
+    def test_shared_build_utilities_have_no_eager_timing_dependency(self):
+        original = importlib.util.spec_from_file_location
+
+        def guard(name, path, *args, **kwargs):
+            if Path(path).resolve() == ROOT / "experiments/plain_c/harness.py":
+                raise AssertionError("unrelated diagnostics imported the timing harness")
+            return original(name, path, *args, **kwargs)
+
+        with patch.object(importlib.util, "spec_from_file_location", side_effect=guard):
+            for profile in ("public_gemm", "tensor_packing", "contraction_trees"):
+                _, module = load_profile(profile)
+                self.assertTrue(callable(module.Runner))
+
     def test_timing_cannot_use_instrumented_or_relabelled_cost_records(self):
         harness.check_plain_record(record(), False)
         for bad in [record(True), {**record(), "data_allocations": 0},

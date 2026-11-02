@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Actual public two-edge tensor contraction tree versus matched C, pinned sequential OpenBLAS."""
 import argparse
-import csv
 import datetime as dt
 import hashlib
 import importlib.util
+from functools import cache
 import json
 import os
 from pathlib import Path
@@ -23,9 +23,17 @@ _spec = importlib.util.spec_from_file_location("copy_experiment", ROOT / "experi
 copy_experiment = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copy_experiment)
 
-_plain_spec = importlib.util.spec_from_file_location("plain_c_harness", ROOT / "experiments/plain_c/harness.py")
-plain_c = importlib.util.module_from_spec(_plain_spec)
-_plain_spec.loader.exec_module(plain_c)
+# Other diagnostic experiments import only these runners' logging/build
+# utilities. Load the optional timing dependency only when it is actually used.
+
+
+@cache
+def plain_c():
+    spec = importlib.util.spec_from_file_location("plain_c_harness", ROOT / "experiments/plain_c/harness.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
 FLAGS = ["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror"]
 SCOPES = ["lifecycle", "reused_buffers", "pack3_adapter", "regroup3_adapter", "first_blas", "second_blas"]
 
@@ -210,11 +218,11 @@ lean_exe bench where
 
 
 def measure(runner, c, exe, plain, samples, target_ms, rows, raw, index):
-    plain_c.measure(runner, c, exe, plain, samples, target_ms, rows, raw, index, SCOPES, compare_pair)
+    plain_c().measure(runner, c, exe, plain, samples, target_ms, rows, raw, index, SCOPES, compare_pair)
 
 
 def summarize(rows, out):
-    plain_c.summarize(rows, out, copy_experiment, 'Two-edge contraction-tree measurements')
+    plain_c().summarize(rows, out, copy_experiment, 'Two-edge contraction-tree measurements')
 
 
 def main():
@@ -304,9 +312,9 @@ def main():
             native = native_test(runner,c,work / "native-test",prefix,cc,False,args.no_leak_sanitizer)
             sanitized = native_test(runner,c,work / "sanitized",prefix,cc,True,args.no_leak_sanitizer)
             validation.extend([native, sanitized])
-            validation.append(plain_c.native_test(runner, c, c_header, "contraction_trees",
+            validation.append(plain_c().native_test(runner, c, c_header, "contraction_trees",
                 work / "plain-native", prefix, cc, native["rows"], no_lsan=args.no_leak_sanitizer))
-            validation.append(plain_c.native_test(runner, c, c_header, "contraction_trees",
+            validation.append(plain_c().native_test(runner, c, c_header, "contraction_trees",
                 work / "plain-sanitized", prefix, cc, sanitized["rows"],
                 sanitize=True, no_lsan=args.no_leak_sanitizer))
             dump(out / "native-validation.json",validation)

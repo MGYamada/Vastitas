@@ -2,11 +2,11 @@
 
 This experiment compiles a real protocol-8 package with `contract_tree`, executes
 its canonical executable, and benchmarks the independently emitted public program
-against explicit C. It uses the same sequential LP64 OpenBLAS 0.3.34 archive for
-both implementations. A passing smoke run establishes execution, coordinate,
+against arena-C and standalone plain C. It uses the same sequential LP64 OpenBLAS 0.3.34 archive for
+all three implementations. A passing smoke run establishes execution, coordinate,
 padding, cleanup and cost contracts; it is not C-performance acceptance.
 
-The finite computation is `T[i,k,j] A[k,a] B[j,b] -> C[i,a,b]`. Both implementations
+The finite computation is `T[i,k,j] A[k,a] B[j,b] -> C[i,a,b]`. All three implementations
 perform exactly this written order:
 
 1. Optimized `pack3`: `[i | k,j] -> [i,j | k]` into caller scratch.
@@ -15,16 +15,19 @@ perform exactly this written order:
 4. Overwrite GEMM with B, producing `[i,a | b]`.
 
 There are six caller allocations: T, A, B, scratch, middle, C. Source releases and
-reborrows explicitly separate scratch uses. The C baseline performs the first
+reborrows explicitly separate scratch uses. The arena-C arm performs the first
 contiguous x-block copy, contiguous x-block copies for the second regroup, and direct
 CBLAS calls with matching layouts, coefficients, arithmetic order and physical
 preflight. It calls neither the production packing nor GEMM adapter for these
-operations. Both sides use the same arena allocation/setup primitives, so this
-comparison does not isolate allocator choice. Generic network planning, rank-2
+operations. Generated and arena-C use the same arena allocation/setup primitives. The
+separate [plain-C arm](../plain_c/README.md) uses aligned allocation, the same
+block copies and direct CBLAS, without the Vastitas runtime, per-call preflight
+or primary-loop cost counters. Generated/plain-C is the equivalent-C comparator;
+keep generated/arena-C to attribute codegen overhead. Generic network planning, rank-2
 regrouping and larger trees are outside this benchmark.
 
 The original coordinate-copy baseline and its measurements are retained with
-their own source revision. The current C baseline copies each common contiguous
+their own source revision. Both current C arms copy each common contiguous
 x block in one `memcpy`, so a missed block-copy opportunity in the comparator
 cannot establish a performance advantage. The tensor coordinates, explicit
 contraction order, preflight, counted bytes and output oracle are unchanged.
@@ -39,7 +42,7 @@ lake -d lean-kernel build
 python3 -m unittest discover -s experiments/contraction_trees -p 'test_*.py'
 python3 experiments/contraction_trees/run.py \
   --prefix /path/to/pinned-openblas --output /tmp/tree-smoke \
-  --smoke --samples 3 --target-ms 0.1
+  --smoke --samples 6 --target-ms 0.1
 ```
 
 On macOS add `--no-leak-sanitizer` explicitly because Apple ASan lacks LSan. Linux
@@ -48,7 +51,7 @@ binaries; no build or acceptance fallback is allowed. `--cc` selects the C compi
 for both the canonical build and private instrumented build. Output directories
 must not exist.
 
-The default full mode omits `--smoke`, uses 11 paired samples and targets 5 ms per
+The default full mode omits `--smoke`, uses 12 three-arm groups and targets 5 ms per
 batch. It includes tiny `(2,3,4,5,6)`, small `(7,17,5,11,13)` and bulk
 `(24,40,32,48,56)` dimensions, crossed with real/complex and padded/contiguous
 storage: 12 cases. The small case needs a larger first scratch footprint than the
@@ -59,7 +62,7 @@ sentinel fills. Three coordinate assertions also execute in the canonical progra
 The [Linux workflow](../../.github/workflows/contraction-tree-experiment.yml) runs
 four-case smoke validation on both push and pull-request events affecting the
 harness or its compiler/runtime dependencies. Manual dispatch also offers the full
-twelve-case profile with eleven pairs per scope and a 5 ms calibration target:
+twelve-case profile with twelve three-arm groups per scope and a 5 ms calibration target:
 
 ```sh
 gh workflow run contraction-tree-experiment.yml --ref REVIEWED_REF -f profile=full
@@ -93,8 +96,8 @@ complete four-operation schedule in order. Only its selected interval contribute
 to elapsed time. Primitive clock overhead is included; it matters for tiny inputs.
 Standalone C-adapter selftest timings are validation rows, not public timings.
 
-Each process executes one untimed generated lifecycle before selecting the measured
-implementation. The runner separately executes canonical check/build/run, sends the
+Each process executes one complete untimed lifecycle of its implementation
+before the measured batch. The runner separately executes canonical check/build/run, sends the
 captured protocol-8 input to the actual kernel check/emit path, and keeps exact
 emitted instructions in the wrapper. Unexpected codegen envelopes fail closed.
 Private instrumented runtime copies leave production files unchanged.
@@ -122,18 +125,26 @@ There is no implicit reset between iterations. Per-lifecycle setup writes all si
 allocated capacities once, plus `w*(i*k*j+k*a+j*b+6)` for input fills/patches.
 The three output assertions write no bytes. A lifecycle has six allocations/frees;
 reuse scopes allocate/free none during the timed interval. Peak data bytes are the
-sum of all six capacities, including max-sized scratch and padding. Every paired
-row must agree on output, allocations, frees, copies, writes and cleanup counters.
-Both implementations finish with zero arena live bytes.
+sum of all six capacities, including max-sized scratch and padding. Every generated/arena-C pair must agree on output and all counters. All three
+arms must agree on output; a separate instrumented plain-C replay must match
+the data costs, with no heap metadata for its stack pointer table. Its primary
+timing rows have blank cost fields (unobserved), not zero; diagnostic timings
+are excluded from summaries. Every diagnostic replay finishes with zero live
+buffer bytes.
 
-The runner alternates pair order, warms each scope, calibrates a common repetition
-count and retains every sample. Calibration targets batch duration, not a guarantee
-that later batches exceed the target. It preserves paired median ratios/deltas,
-bootstrap intervals, and the ratio of separate medians; these statistics can differ
-under host variation. No noisy hosted or laptop result establishes the controlled
+The runner rotates three-arm groups through all six implementation orders,
+warms each scope with six groups, calibrates a common repetition count and
+retains every sample. Calibration targets batch duration, not a guarantee that
+later batches exceed the target. Summary schema 2 keeps paired median
+ratios/deltas and bootstrap intervals for generated/plain-C, generated/arena-C
+and arena-C/plain-C separately. No noisy hosted or laptop result establishes the controlled
 host performance gate.
 
 ## Recorded evidence and limitations
+
+All archived ratios below are **generated/arena-C**: the C comparator includes
+Vastitas arena/preflight/accounting. Those bytes and measured revisions remain
+unchanged; they are not standalone-C measurements or a Fast-like-C gate result.
 
 The [original full Linux record](results/2026-10-31-linux-full/RESULTS.md) retains
 the coordinate-copy comparator, all raw pairs and its discovered baseline

@@ -23,6 +23,10 @@ HERE = Path(__file__).resolve().parent
 _spec = importlib.util.spec_from_file_location("copy_experiment", ROOT / "experiments/storage_copy/run.py")
 copy_experiment = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(copy_experiment)
+
+_plain_spec = importlib.util.spec_from_file_location("plain_c_harness", ROOT / "experiments/plain_c/harness.py")
+plain_c = importlib.util.module_from_spec(_plain_spec)
+_plain_spec.loader.exec_module(plain_c)
 FLAGS = ["-std=c11", "-O3", "-fno-lto", "-Wall", "-Wextra", "-Werror"]
 SCOPES = ["lifecycle", "prepared_call", "blas_kernel"]
 
@@ -79,7 +83,9 @@ def native_test(runner, c, work, prefix, cc, sanitize, no_lsan):
     (work / "case.h").write_text(c_header(c))
     instrument_gemm(ROOT / "lean-kernel/numerical/gemm.c",work / "gemm.c")
     flags = FLAGS if not sanitize else ["-std=c11", "-O1", "-g", "-fno-lto", "-Wall", "-Wextra", "-Werror",
-        "-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer", "-fno-pie", "-no-pie"]
+        "-fsanitize=address,undefined", "-fno-sanitize-recover=all", "-fno-omit-frame-pointer"]
+    if sanitize and sys.platform.startswith("linux"):
+        flags += ["-fno-pie", "-no-pie"]
     exe = work / "test"
     runner.run(cc + flags + ["-DBENCH_STANDALONE", "-I", work, "-I", HERE,
         "-I", ROOT / "lean-kernel/native", "-I", ROOT / "lean-kernel/numerical", "-I", prefix / "include",
@@ -194,56 +200,12 @@ lean_exe bench where
     return exe
 
 
-def measure(runner, c, exe, samples, target_ms, rows, raw, index):
-    def pair(scope, phase, pair_id, reps, first, verify=False):
-        found = {}
-        for order,impl in enumerate([first,"c" if first == "generated" else "generated"]):
-            result = runner.run([exe,impl,scope,reps,int(verify)],phase="runtime_validation" if verify else phase)
-            record = json.loads(result["stdout"])
-            found[impl] = record
-            if not verify:
-                row = dict(case=c["case"],scope=SCOPES[scope],phase=phase,pair=pair_id,order=order,implementation=impl,**record)
-                rows.append(row)
-                if raw.tell() == 0:
-                    csv.DictWriter(raw,fieldnames=list(row)).writeheader()
-                csv.DictWriter(raw,fieldnames=list(row)).writerow(row); raw.flush()
-        compare_pair(found["generated"],found["c"])
-        return min(v["elapsed_ns"] for v in found.values())
-    for scope in range(3):
-        pair(scope,"verification",0,1,"generated",True)
-        for i in range(2): pair(scope,"warmup",i,3,"generated" if i % 2 == 0 else "c")
-        reps = 1
-        for attempt in range(16):
-            elapsed = pair(scope,"calibration",attempt,reps,"generated" if attempt % 2 == 0 else "c")
-            if elapsed >= target_ms*1e6 or reps >= 1000000:
-                break
-            reps = min(1000000,max(reps+1,min(reps*8,int(reps*target_ms*1e6/max(elapsed,1)*1.2))))
-        for i in range(samples):
-            pair(scope,"measurement",i,reps,"generated" if (index+i) % 2 == 0 else "c")
-        pair(scope,"verification",1,1,"c",True)
+def measure(runner, c, exe, plain, samples, target_ms, rows, raw, index):
+    plain_c.measure(runner, c, exe, plain, samples, target_ms, rows, raw, index, SCOPES, compare_pair)
 
 
-def summarize(rows,out):
-    # Reuse medians/IQR/MAD, paired ratios/deltas and paired bootstrap from #283.
-    renamed = [{**r,"implementation":"adapter" if r["implementation"] == "generated" else "c"} for r in rows]
-    copy_experiment.summarize(renamed,out)
-    text = (out / "summary.md").read_text().replace("# C storage-copy measurements","# Public GEMM measurements")
-    text = text.replace("All scopes are C only. Lifecycle is primary; the other scopes exclude common work.",
-        "Lifecycle is the emitted public resource program; prepared_call includes FFI and physical preflight; blas_kernel times only the actual BLAS calls.")
-    text = text.replace("adapter/C","generated/C").replace("Adapter median","Generated median")
-    (out / "summary.md").write_text(text)
-    data = json.loads((out / "summary.json").read_text())
-    for item in data:
-        impl = item["implementations"]
-        impl["generated"] = impl.pop("adapter")
-        item["ratio_of_separate_medians"] = impl["generated"]["ns_per_operation"]["median"] / impl["c"]["ns_per_operation"]["median"]
-        for name, values in impl.items():
-            chosen = [r for r in rows if r["phase"] == "measurement" and r["case"] == item["case"]
-                      and r["scope"] == item["scope"] and r["implementation"] == name]
-            values["process_maxrss_kib"] = copy_experiment.distribution([r["process_maxrss_kib"] for r in chosen])
-            values["peak_data_bytes"] = sorted({r["peak_data_bytes"] for r in chosen})
-            values["peak_metadata_bytes"] = sorted({r["peak_metadata_bytes"] for r in chosen})
-    dump(out / "summary.json",data)
+def summarize(rows, out):
+    plain_c.summarize(rows, out, copy_experiment, 'Public GEMM measurements')
 
 
 def main():
@@ -252,7 +214,7 @@ def main():
     p.add_argument("--output",type=Path,required=True)
     p.add_argument("--frontend",type=Path,default=ROOT / "target/release/vastitas")
     p.add_argument("--cc",default=os.environ.get("CC","cc"))
-    p.add_argument("--samples",type=int,default=11)
+    p.add_argument("--samples",type=int,default=12)
     p.add_argument("--target-ms",type=float,default=5)
     p.add_argument("--smoke",action="store_true")
     p.add_argument("--cpu",type=int)
@@ -278,10 +240,13 @@ def main():
     environment = dict(started_utc=dt.datetime.now(dt.timezone.utc).isoformat(),argv=sys.argv,
         platform=platform.platform(),python=sys.version,cpu_affinity_before=allowed,cpu=cpu,flags=FLAGS,
         policy="NativeFast",threads=1,source_sha256={},toolchains={},host={},
+        measurement_schema=2, acceptance_comparator="plain_c",
+        implementations={"generated":"emitted Lean/FFI plus arena", "arena_c":"direct CBLAS with the shared arena preflight/accounting",
+                         "plain_c":"standalone aligned allocation/packing/CBLAS, no arena or timed cost counters"},
         performance="unmeasured",leak_sanitizer="disabled explicitly" if args.no_leak_sanitizer else "enabled",
-        memory_scope="exact arena data counters; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented")
+        memory_scope="arena data counters in generated/arena-C; plain-C logical costs only in separate diagnostic replay; ru_maxrss may include launcher pre-exec footprint and is not isolated executable heap; BLAS private packing/allocations not instrumented")
     environment["expected_lean_toolchain"] = (ROOT / "lean-kernel/lean-toolchain").read_text().strip()
-    for rel in ["experiments/public_gemm", "experiments/native_cleanup.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
+    for rel in ["experiments/public_gemm", "experiments/native_cleanup.py", "experiments/plain_c", "scripts/native_sanitizers.py", "experiments/storage_copy/run.py", "lean-kernel/native", "lean-kernel/numerical"]:
         path = ROOT / rel
         files = [path] if path.is_file() else path.rglob("*")
         for f in files:
@@ -310,8 +275,14 @@ def main():
             work = out / "cases" / c["case"]
             write_package(c,work / "package")
             capture_wire(runner,frontend,work / "package")
-            validation.append(native_test(runner,c,work / "native-test",prefix,cc,False,args.no_leak_sanitizer))
-            validation.append(native_test(runner,c,work / "sanitized",prefix,cc,True,args.no_leak_sanitizer))
+            native = native_test(runner,c,work / "native-test",prefix,cc,False,args.no_leak_sanitizer)
+            sanitized = native_test(runner,c,work / "sanitized",prefix,cc,True,args.no_leak_sanitizer)
+            validation.extend([native, sanitized])
+            validation.append(plain_c.native_test(runner, c, c_header, "public_gemm",
+                work / "plain-native", prefix, cc, native["rows"], no_lsan=args.no_leak_sanitizer))
+            validation.append(plain_c.native_test(runner, c, c_header, "public_gemm",
+                work / "plain-sanitized", prefix, cc, sanitized["rows"],
+                sanitize=True, no_lsan=args.no_leak_sanitizer))
             dump(out / "native-validation.json",validation)
             print(f"{c['case']}: frontend capture and native correctness passed",flush=True)
         # This is a real independent build attempt, never a fabricated response.
@@ -345,11 +316,11 @@ def main():
                 print(f"[{i+1}/{len(all_cases)}] {c['case']}: public check/build and wrapper compilation",flush=True)
                 exe = build_case(runner,c,work,wire,prefix,cc,kernel,lean_root,frontend)
                 built = time.perf_counter()
-                print(f"[{i+1}/{len(all_cases)}] {c['case']}: generated validation/compilation passed in {built-started:.1f}s; paired scopes",flush=True)
-                measure(runner,c,exe,args.samples,args.target_ms,rows,raw,i)
-                print(f"[{i+1}/{len(all_cases)}] {c['case']}: all paired scopes passed in {time.perf_counter()-built:.1f}s",flush=True)
+                print(f"[{i+1}/{len(all_cases)}] {c['case']}: generated validation/compilation passed in {built-started:.1f}s; three-arm scopes",flush=True)
+                measure(runner,c,exe,work / "plain-native/timing",args.samples,args.target_ms,rows,raw,i)
+                print(f"[{i+1}/{len(all_cases)}] {c['case']}: all three-arm scopes passed in {time.perf_counter()-built:.1f}s",flush=True)
         summarize(rows,out)
-        environment["performance"] = "smoke only" if args.smoke else "measured on this host"
+        environment["performance"] = "smoke only" if args.smoke else "exploratory measurements on this host; not controlled-host acceptance"
         dump(out / "status.json",dict(status="passed",performance=environment["performance"],rows=len(rows)))
     except Exception as error:
         dump(out / "status.json",dict(status="failed",performance="unmeasured",reason=str(error)))

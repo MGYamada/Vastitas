@@ -4,12 +4,22 @@ on:
   push:
     paths:
       - 'experiments/public_gemm/**'
+      - 'experiments/plain_c/**'
+      - 'experiments/native_cleanup.py'
+      - 'scripts/native_sanitizers.py'
+      - 'scripts/check_plain_c_baselines.py'
+      - 'scripts/test_plain_c_measurements.py'
       - 'scripts/install_ci_elan.py'
       - 'scripts/check_ci_python.sh'
       - '.github/workflows/public-gemm-experiment.yml'
   pull_request:
     paths:
       - 'experiments/public_gemm/**'
+      - 'experiments/plain_c/**'
+      - 'experiments/native_cleanup.py'
+      - 'scripts/native_sanitizers.py'
+      - 'scripts/check_plain_c_baselines.py'
+      - 'scripts/test_plain_c_measurements.py'
       - 'scripts/install_ci_elan.py'
       - 'scripts/check_ci_python.sh'
       - '.github/workflows/public-gemm-experiment.yml'
@@ -67,12 +77,13 @@ jobs:
       - name: Build frontend and check the harness
         run: |
           cargo build --release --locked
+          python3 -m unittest discover -s scripts -p 'test_plain_c_measurements.py'
           python3 experiments/public_gemm/test_harness.py
-      - name: Validate generated execution and paired output/costs
+      - name: Validate generated, arena-C and plain-C output/cost contracts
         run: |
           case "$GEMM_PROFILE" in
-            smoke) profile_args=(--smoke --samples 3 --target-ms 0.1) ;;
-            full) profile_args=(--samples 11 --target-ms 5) ;;
+            smoke) profile_args=(--smoke --samples 6 --target-ms 0.1) ;;
+            full) profile_args=(--samples 12 --target-ms 5) ;;
             *) echo "Unsupported GEMM profile: $GEMM_PROFILE" >&2; exit 2 ;;
           esac
           python3 experiments/public_gemm/run.py \
@@ -94,6 +105,8 @@ jobs:
             ${{ runner.temp }}/public-gemm-results/cases/**/Generated.lean
             ${{ runner.temp }}/public-gemm-results/cases/**/Main.lean
             ${{ runner.temp }}/public-gemm-results/cases/**/response.json
+            ${{ runner.temp }}/public-gemm-results/cases/**/case.h
+            ${{ runner.temp }}/public-gemm-results/cases/**/*-symbols.txt
             ${{ runner.temp }}/public-gemm-results/cases/**/symbols.txt
             ${{ runner.temp }}/public-gemm-results/cases/**/disassembly.txt
             ${{ runner.temp }}/public-gemm-results/cases/**/linked-libraries.txt

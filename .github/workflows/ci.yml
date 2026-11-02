@@ -161,6 +161,25 @@ jobs:
           else
             python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
+      - name: Standalone C baseline output, costs and failure cleanup
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            python3 scripts/check_plain_c_baselines.py --prefix "$RUNNER_TEMP/vastitas-openblas" --output "$RUNNER_TEMP/plain-c-baselines" --valgrind
+          else
+            python3 scripts/check_plain_c_baselines.py --prefix "$RUNNER_TEMP/vastitas-openblas" --output "$RUNNER_TEMP/plain-c-baselines" --no-leak-sanitizer
+          fi
+      - name: Retain standalone C validation (no performance acceptance)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plain-c-baselines-${{ matrix.os }}-${{ github.event_name }}
+          path: |
+            ${{ runner.temp }}/plain-c-baselines/*.json
+            ${{ runner.temp }}/plain-c-baselines/inputs/
+            ${{ runner.temp }}/plain-c-baselines/cases/**/case.h
+            ${{ runner.temp }}/plain-c-baselines/cases/**/*-symbols.txt
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Install checksum-pinned elan
         run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Build the independent resource checker

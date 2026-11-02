@@ -2,7 +2,37 @@ name: OpenBLAS workspace observation
 
 on:
   push:
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+      - 'experiments/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'lean-kernel/**'
+      - 'stdlib/**'
+      - 'examples/**'
+      - 'config/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - 'lean-toolchain'
   pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'scripts/**'
+      - 'experiments/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'lean-kernel/**'
+      - 'stdlib/**'
+      - 'examples/**'
+      - 'config/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - 'lean-toolchain'
   workflow_dispatch:
     inputs:
       profile:
@@ -30,6 +60,11 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12.12'
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1
@@ -46,14 +81,10 @@ jobs:
             python3 experiments/openblas_packing/run.py --out "$RUNNER_TEMP/workspace-record" --build-dir "$RUNNER_TEMP/workspace-build" --jobs 4
           fi
           VASTITAS_PACKING_RECORD="$RUNNER_TEMP/workspace-record" python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
+      - name: Install checksum-pinned elan
+        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Build the actual public source checker
-        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
-        with:
-          lake-package-directory: lean-kernel
-          auto-config: false
-          build: true
-          build-args: vastitas-kernel
-          use-mathlib-cache: false
+        run: lake -d lean-kernel build vastitas-kernel
       - name: Calibrate the private Lean allocator variants
         run: |
           if [ "$RUNNER_OS" = Linux ]; then

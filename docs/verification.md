@@ -457,8 +457,7 @@ Euclidean rank-three and Lorentz rank-four Hodge maps, orientation-line-valued
 cross products, reflection behavior and signature-dependent square laws. An
 independent candidate path checks the defining wedge identity after binding
 explicit inverse, signature and rational-volume evidence to the selected metric.
-These are Python reference tests, not Lean proofs, accepted Core, registered
-physical facades, bundle gluing or global analytic Hodge theory.
+These are Python reference tests; **separately**, `lean/VastitasOracle/HodgeFinite.lean` adds kernel-reduced fixed-basis Hodge wedge/square-law theorems for Euclidean 3D and Minkowski 4D. This bounded Lean fragment is not accepted Core, an independent general `VastitasMath` package/Bridge, registered physical facades, bundle gluing or global analytic Hodge theory.
 
 The [polynomial first-variation reference](variational-reference.md) compares the
 linear epsilon coefficient of the expanded action with a separately computed

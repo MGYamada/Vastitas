@@ -371,7 +371,15 @@ of contiguous writes, branch intersections and separate padded columns.
 `initialization_bytes` theorem used by read/GEMM safety; `remaining_nodes` and
 `checked_initialization_work_bound` relate the fallback work budget to the actual
 bounded metadata traversal. These are logical-byte and arithmetic bounds, not
-native memory or elapsed-time theorems. Exact decoder/checker certificates start from an
+native memory or elapsed-time theorems. The kernel's `Storage.auditState_eq_indexed`
+and `compatibleWith_eq_indexed` prove equality of the reconstructed indexed
+implementation and the original predicates for every state, including malformed
+ones. Lean uses those `csimp` equations for executable checking; the same reference
+predicate remains the premise of the safety theorems. `Finite.firstIndex_lookup`,
+`countIndex_lookup` and `Storage.AuditIndex.lineage_contains` connect actual hash
+tables/sets to first-match lookup, exact multiplicities and bounded ancestry.
+These equations neither eliminate repeated audits/replay nor prove a global
+compiler work bound; #422 remains open. Exact decoder/checker certificates start from an
 empty logical environment. `StorageCodegen` proves that successful native-plan
 lowering follows those actual transitions, has unique instructions for the same
 input, and requires the rechecked schedule before returning code. The optional

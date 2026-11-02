@@ -20,10 +20,13 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 SHAPES = ("allocate_drop", "read_loans", "write_children", "reborrow_chain", "wrapped_reads")
+RUNTIME_SHAPES = ("allocate_drop", "read_loans", "write_roots", "reborrow_chain", "wrapped_reads")
 
 
-def source(shape, size):
-    if shape == "allocate_drop":
+def source(shape, size, profile="static"):
+    if profile == "runtime":
+        body = runtime_body(shape, size)
+    elif shape == "allocate_drop":
         body = [f"allocate d{i}: F64[1]; drop(d{i});" for i in range(size)]
     elif shape in ("read_loans", "wrapped_reads"):
         body = ["allocate d: F64[1];", "borrow w = write(d, layout(0,1,1,1,false));",
@@ -56,6 +59,27 @@ def source(shape, size):
         functions.append(f"resource fn main() -> Int {{ call {previous}() -> (); value {{ 0 }} }}")
         return "\n".join(functions) + "\n"
     return f"resource fn main() -> Int {{\n{body}\nvalue {{ 0 }}\n}}\n"
+
+
+def runtime_body(shape, size):
+    def allocate(name):
+        return f"runtime_allocate {name}: F64[1] runtime_layout(1,1,1,false);"
+    if shape == "allocate_drop":
+        return [f"{allocate(f'd{i}')} runtime_drop(d{i});" for i in range(size)]
+    if shape in ("read_loans", "wrapped_reads"):
+        return ([allocate("d"), "runtime_borrow w = write(d);",
+                 "runtime_fill(w, f64_bits(0)); runtime_release(w);"] +
+                [f"runtime_borrow r{i} = read(d);" for i in range(size)] +
+                [f"runtime_release(r{i});" for i in reversed(range(size))] + ["runtime_drop(d);"])
+    if shape == "write_roots":
+        # Whole-map runtime loans cannot split an allocation into disjoint views.
+        return ([f"{allocate(f'd{i}')} runtime_borrow r{i} = write(d{i});" for i in range(size)] +
+                [f"runtime_release(r{i}); runtime_drop(d{i});" for i in reversed(range(size))])
+    if shape == "reborrow_chain":
+        return ([allocate("d")] +
+                [f"runtime_borrow r{i} = write({'d' if i == 0 else f'r{i-1}'});" for i in range(size)] +
+                [f"runtime_release(r{i});" for i in reversed(range(size))] + ["runtime_drop(d);"])
+    raise ValueError(shape)
 
 
 def observe(command, env, timeout):
@@ -97,11 +121,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--compiler", type=Path, default=ROOT / "target/debug/vastitas")
     parser.add_argument("--kernel-root", type=Path, default=ROOT / "lean-kernel")
+    parser.add_argument("--profile", choices=("static", "runtime"), default="static")
     parser.add_argument("--sizes", type=int, nargs="+", default=[64, 128, 256])
-    parser.add_argument("--shapes", choices=SHAPES, nargs="+", default=list(SHAPES))
+    parser.add_argument("--shapes", choices=sorted(set(SHAPES + RUNTIME_SHAPES)), nargs="+")
     parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
+    allowed = RUNTIME_SHAPES if args.profile == "runtime" else SHAPES
+    if args.shapes is None:
+        args.shapes = list(allowed)
+    if any(shape not in allowed for shape in args.shapes):
+        parser.error(f"{args.profile} profile supports: {', '.join(allowed)}")
     if (any(size < 1 or size > 1000 for size in args.sizes)
             or not math.isfinite(args.timeout) or args.timeout <= 0):
         parser.error("sizes must be 1..1000 (inside the source work budget); timeout must be positive")
@@ -109,7 +139,7 @@ def main():
     kernel_root = args.kernel_root.resolve(strict=True)
     kernel = (kernel_root / ".lake/build/bin/vastitas-kernel").resolve(strict=True)
     env = dict(os.environ, VASTITAS_KERNEL=str(kernel), VASTITAS_KERNEL_ROOT=str(kernel_root))
-    report = dict(platform=platform.platform(), kernel=str(kernel),
+    report = dict(profile=args.profile, platform=platform.platform(), kernel=str(kernel),
                   kernel_sha256=hashlib.sha256(kernel.read_bytes()).hexdigest(),
                   timeout_seconds=args.timeout, results=[])
     with tempfile.TemporaryDirectory(prefix="vastitas-storage-scaling-") as directory:
@@ -119,7 +149,7 @@ def main():
             raise RuntimeError(f"kernel warmup failed: {report['warmup']}")
         for shape in args.shapes:
             for size in args.sizes:
-                program = source(shape, size)
+                program = source(shape, size, args.profile)
                 manifest = write_package(directory, f"{shape}-{size}", program)
                 result = observe([str(compiler), "check", "--manifest-path", str(manifest)], env, args.timeout)
                 result.update(shape=shape, size=size, source_sha256=hashlib.sha256(program.encode()).hexdigest())

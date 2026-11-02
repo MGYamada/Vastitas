@@ -405,6 +405,12 @@ resource projection alone does not establish their operational equivalence.
 The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
 instantiated `Storage.run`, and restored caller loans/allocations.
+Its compiled frame audit and incoming-loan compatibility scan use reconstructed
+finite indexes through `Shapes.auditFrame_eq_indexed` and
+`Shapes.compatibleWith_eq_indexed`. These unconditional equalities retain the
+reference predicates on malformed frames as well as valid ones; bounded ancestry
+sets preserve first-match lookup and dangling-parent behavior. They do not bound
+total replay/probe work or establish linear compiler scaling.
 `StorageShapeNumerical` proves acceptance by the actual nominal `checkProduct`
 for the same maps and coefficients. `ResourceRuntimeShapes` connects those
 results to public entry projections, declaration origins, live integral slots

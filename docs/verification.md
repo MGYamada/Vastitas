@@ -402,6 +402,29 @@ actual mixed-run slot typing and branch scope, exact source fragment/Core target
 reconstruction, and demanded scalar returns after completed resource calls.
 Both-arm resource acceptance and scalar typing are separate certificates; the
 resource projection alone does not establish their operational equivalence.
+
+The actual emit entries now have acceptance theorems, in addition to the older
+component-generation results. `StorageCodegen.compiled_checked` connects
+`Storage.Native.compile` to its exact original input and successful `Native.audit`;
+`compiled_closed` extracts the checked transition run, final audit and empty
+allocations/loans. `IndexedCodegen.library_checked` and `generated_checked` retain
+the actual repeated Core check, unchanged module, typing, dependency order and
+main signature. `library_roots_present` checks every requested root; the executable
+wrapper theorem records the actual generated library and selected main.
+
+`ResourceCodegen.public_generated_checked` connects successful
+`ResourceSource.Codegen.generate` and its decoded source to the real protocol-8
+`Wire.check` result. `public_resource_plan` identifies the `Native.compile` call
+on that same accepted entry schedule and its audited closed native plan, using
+determinism of the actual repeated source check. `generated_pure_entry` retains
+the same returned pure Core and the disabled optional-runtime flags when there
+is no resource entry. These are **acceptance and exact-input facts**, not emitted
+text semantics, native heap/float refinement, or a proof that every numerical
+operation has an authority receipt. The existing receipt-origin theorems still
+quantify over recorded receipts; converse schedule-to-receipt and
+emitted-generic-call coverage remain open in
+[#432](https://github.com/MGYamada/Vastitas/issues/432).
+
 The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
 instantiated `Storage.run`, and restored caller loans/allocations.

@@ -168,8 +168,10 @@ fn malformed_ir_version_type_binding_and_literal_are_rejected() {
     value["functions"][0]["body"]["result"]["value"] = json!(true);
     assert_rejected(value, "E_TYPE");
     let mut value = original.clone();
-    value["functions"][0]["body"]["result"]["kind"] = json!("variable");
-    value["functions"][0]["body"]["result"]["name"] = json!("forged");
+    let result = &mut value["functions"][0]["body"]["result"];
+    // Replace the record so unknown leftover integer fields do not mask the
+    // intended semantic name/recursion diagnostics in these wire regressions.
+    *result = json!({"kind":"variable", "name":"forged", "span":result["span"]});
     assert_rejected(value, "E_NAME");
     let mut value = original.clone();
     value["functions"][0]["body"]["result"]["value"] = json!("1); IO.println 99");
@@ -268,9 +270,7 @@ fn recursion_diagnostics_identify_the_cycle_not_its_caller() {
     let mut forged =
         request("fn main() -> Int { a() }\nfn a() -> Int { b() }\nfn b() -> Int { 0 }");
     let result = &mut forged["functions"][2]["body"]["result"];
-    result["kind"] = json!("call");
-    result["callee"] = json!("a");
-    result["args"] = json!([]);
+    *result = json!({"kind":"call", "callee":"a", "args":[], "span":result["span"]});
     let response = assert_rejected(forged, "E_RECURSION");
     let diagnostic = &response["diagnostics"][0];
     assert_eq!(diagnostic["span"]["line"], 2);
@@ -290,9 +290,7 @@ fn shared_and_repeated_dependencies_have_a_valid_native_order() {
         "fn main() -> Int { 0 }\nfn unused_a() -> Int { unused_b() }\nfn unused_b() -> Int { 1 }",
     );
     let result = &mut forged["functions"][2]["body"]["result"];
-    result["kind"] = json!("call");
-    result["callee"] = json!("unused_a");
-    result["args"] = json!([]);
+    *result = json!({"kind":"call", "callee":"unused_a", "args":[], "span":result["span"]});
     assert_rejected(forged, "E_RECURSION");
 }
 

@@ -418,6 +418,8 @@ def membershipGraph (p : Indexed) : Result MembershipGraph := do
         declarations := { scope, declaration := { declaration.toRawAbstractType with
           name := symbol p.toProgram target, parents } } :: declarations
       for membership in m.subtypes do
+        if (Dispatch.parseScalar membership.scalar).isNone then
+          problem membership.span "E_TYPE" "subtype membership requires Nat, Int, Bool, or Unit"
         let target ← resolve p scope membership.target.path membership.target.span
         if target.kind != .abstractType || target.owner.scope != scope then
           problem membership.span "E_OWNER" "only the exact module defining an abstract type may add scalar memberships"

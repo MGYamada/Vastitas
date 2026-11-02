@@ -7,7 +7,7 @@ import sys
 import unittest
 
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
-from experiments.openblas_packing.verify import calibration, check_footprints, check_patch, replay, union_area, verify, workspace
+from experiments.openblas_packing.verify import calibration, check_command_diagnostics, check_footprints, check_patch, replay, union_area, verify, workspace
 
 
 def fixture():
@@ -149,6 +149,23 @@ class ActualFootprints(unittest.TestCase):
     def test_output_footprint_cannot_include_unreported_padding(self):
         r,record,c,k,commands=self.fixture(); record['footprints'][0]['result']['checked_output_words']=8
         with self.assertRaisesRegex(ValueError,'observed kernel footprint'): check_footprints(r,record,c,k,commands)
+
+
+class CommandDiagnostics(unittest.TestCase):
+    def test_zero_exit_does_not_hide_a_sanitizer_diagnostic(self):
+        class Reader:
+            def __init__(self, data): self.data = data
+            def read(self, name):
+                assert name == 'run.stderr'
+                return self.data
+        command = dict(returncode=0, stderr='run.stderr')
+        check_command_diagnostics(Reader(b''), [command])
+        for diagnostic in (b'runtime error: signed integer overflow',
+                           b'UndefinedBehaviorSanitizer: alignment',
+                           b'AddressSanitizer: heap-buffer-overflow'):
+            with self.subTest(diagnostic=diagnostic):
+                with self.assertRaisesRegex(ValueError, 'sanitizer diagnostic'):
+                    check_command_diagnostics(Reader(diagnostic), [command])
 
 
 class FullRecord(unittest.TestCase):

@@ -64,6 +64,19 @@ def _header_tokens(source):
                     line += source[position] == "\n"
                     position += 1
             continue
+        if source[position] == '"':
+            start, start_line = position, line
+            position += 1
+            while position < len(source) and source[position] != '"':
+                line += source[position] == "\n"
+                if source[position] == "\\":
+                    position += 1
+                position += 1
+            if position >= len(source):
+                raise ValueError("unterminated Lean string")
+            position += 1
+            yield _Token(source[start:position], start_line, False)
+            continue
         match = _NAME.match(source, position)
         if match:
             text = match.group(0)
@@ -152,6 +165,25 @@ def check_lake_dependencies(package, label, errors, *, oracle=False):
         errors.append(f"{label}: cannot check Lake dependencies: {error}")
 
 
+def check_executable_lake_dependencies(package, label, required, errors):
+    """Audit the closed literal require declarations, not arbitrary Lean execution.
+
+    These two trusted executable configs use one-line literal requirements.
+    Reject unsupported forms instead of guessing at computed dependency paths.
+    Comments and strings cannot manufacture or conceal a require token.
+    """
+    try:
+        lines = {}
+        for token in _header_tokens((package / "lakefile.lean").read_text()):
+            lines.setdefault(token.line, []).append(token)
+        declarations = [[t.text for t in tokens] for tokens in lines.values()
+                        if any(t.is_name and t.text == "require" for t in tokens)]
+        if declarations != required:
+            errors.append(f"{label}: unsupported dependency in lakefile.lean; expected {required}")
+    except (OSError, ValueError) as error:
+        errors.append(f"{label}: cannot check lakefile.lean dependencies: {error}")
+
+
 def check_boundaries(root):
     root = Path(root)
     kernel = root / "lean-kernel"
@@ -162,8 +194,7 @@ def check_boundaries(root):
     native = kernel / "native"
     numerical = kernel / "numerical"
     if native.exists():
-        # The optional native runtime retains its existing executable Lake
-        # configuration; its standalone lockfile still admits no dependencies.
+        check_executable_lake_dependencies(native, "native storage runtime", [], errors)
         native_manifest = json.loads((native / "lake-manifest.json").read_text())
         if native_manifest.get("packages"):
             errors.append("native storage runtime must have no external Lake package dependencies")
@@ -174,6 +205,8 @@ def check_boundaries(root):
         if not native_runtime.is_file():
             errors.append("native storage runtime source is missing")
     if (numerical / "VastitasGemmNative.lean").exists():
+        check_executable_lake_dependencies(numerical, "numerical runtime", [
+            ["require", "vastitas_storage_native", "from", '"../native"']], errors)
         numerical_manifest = json.loads((numerical / "lake-manifest.json").read_text())
         dependencies = numerical_manifest.get("packages", [])
         if len(dependencies) != 1 or any(

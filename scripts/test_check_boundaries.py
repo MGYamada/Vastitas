@@ -147,7 +147,8 @@ class RepositoryBoundaryTests(unittest.TestCase):
     def numerical_package(self):
         self.native_package()
         self.write("lean-kernel/numerical/lean-toolchain", "leanprover/lean4:v4.35.0\n")
-        self.write("lean-kernel/numerical/lakefile.lean", "import Lake\n")
+        self.write("lean-kernel/numerical/lakefile.lean",
+                   'import Lake\nrequire vastitas_storage_native from "../native"\n')
         self.write("lean-kernel/numerical/VastitasGemmNative.lean", "import VastitasStorageNative\n")
         self.write("lean-kernel/numerical/lake-manifest.json", json.dumps({"packages": [{
             "type": "path", "name": "vastitas_storage_native", "dir": "../native"}]}))
@@ -171,6 +172,33 @@ class RepositoryBoundaryTests(unittest.TestCase):
         errors = check_boundaries(self.root)
         self.assertTrue(any("sibling native storage" in e for e in errors))
         self.assertTrue(any("numerical runtime and kernel" in e for e in errors))
+
+    def test_executable_lakefiles_reject_unlocked_and_redirected_requirements(self):
+        self.numerical_package()
+        required = 'require vastitas_storage_native from "../native"'
+        for package, valid in [('native', ''), ('numerical', required)]:
+            for added in ['require mathlib from git "https://example.invalid/mathlib" @ "master"',
+                          'require /- hidden -/ mathlib from "../mathlib"',
+                          'require\n mathlib from "../mathlib"']:
+                with self.subTest(package=package, added=added):
+                    self.write(f'lean-kernel/{package}/lakefile.lean', f'import Lake\n{valid}\n{added}\n')
+                    self.assertTrue(any('unsupported dependency in lakefile.lean' in e
+                                        for e in check_boundaries(self.root)))
+            self.write(f'lean-kernel/{package}/lakefile.lean', f'import Lake\n{valid}\n')
+        for declaration in [required.replace('../native', '../forged'),
+                            required + ' with NameMap.empty', required + '\n' + required, '']:
+            self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{declaration}\n')
+            self.assertTrue(any('unsupported dependency in lakefile.lean' in e
+                                for e in check_boundaries(self.root)))
+
+    def test_dependency_words_inside_comments_and_strings_are_not_commands(self):
+        self.numerical_package()
+        self.write('lean-kernel/numerical/lakefile.lean', '''import Lake
+/- require forged /- require another -/ -/
+def example := "require mathlib from \\"../wrong\\""
+require /- existing local dependency -/ vastitas_storage_native from "../native" -- require wrong
+''')
+        self.assertEqual(check_boundaries(self.root), [])
 
     def test_root_and_oracle_toolchains_must_match_kernel(self):
         self.oracle_package()

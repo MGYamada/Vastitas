@@ -8,6 +8,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+from native_sanitizers import FLAGS as SANITIZER_FLAGS
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -34,7 +35,7 @@ def check(prefix: Path, valgrind: bool) -> None:
         run(flags + ["-O2", "-g", *sources, *libraries, "-o", str(executable)])
         run([str(executable)])
         sanitized = directory / "test-gemm-sanitized"
-        run(flags + ["-O1", "-g", "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+        run(flags + ["-O1", "-g", *SANITIZER_FLAGS,
                      *sources, *libraries, "-o", str(sanitized)])
         run([str(sanitized)])
         # Inspect actual linked-library mismatch handling without replacing the

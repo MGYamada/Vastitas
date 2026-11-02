@@ -220,8 +220,14 @@ A successful resource transition records exactly the output rectangle and
 advances its logical version. Zero-inner overwrite initializes zeros in native
 execution; zero-inner accumulate scales previously initialized output by beta. Empty
 regions contain no bytes. These logical guarantees apply to successful completion;
-a failed native call throws and the generated `finally` closes the arena. Earlier
-completed writes are not rolled back. Native backend faults remain trusted-boundary
+a failed native call throws and the generated Unit-only `try`/`catch` closes the
+arena before rethrowing. Cleanup runs once on either path; if cleanup itself
+fails, that error takes precedence over the body error. Successful completion
+returns the cleanup's Unit result directly, avoiding the old generated
+`finally` result-reconstruction allocation. The older allocation records retain
+their measured fallback cost; this change does not remove other caller
+allocations or the persistent shared result. Earlier completed writes are not
+rolled back. Native backend faults remain trusted-boundary
 failures, not recoverable checked transitions.
 
 `Storage.Native` retains the exact allocation IDs, physical views, flags, mode and

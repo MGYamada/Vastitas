@@ -543,6 +543,13 @@ actual target evidence are proved correct, and the entire resulting core is
 proved well typed and terminating; this does not establish correspondence of
 every rewritten source call or method body to its original generic syntax.
 
+Resource diagnostic wrappers `Storage.Functions.atStatement_success`,
+`atSite_success` and `atFunction_success` preserve the exact successful result
+and state of their enclosed checks. Failed expansion carries function/branch
+positions and operand identities to the public source renderer. These equations
+do not verify the reconstructed source spans or prose; actual-source diagnostic
+regressions assert positions and names across calls, branches and nominal errors.
+
 These results do not verify Rust lexing, parsing, source-library composition, JSON
 serialization or decoding, diagnostic spans, or the accuracy of diagnostic
 prose. The core correspondence relation records elaboration into checked

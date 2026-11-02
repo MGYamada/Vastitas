@@ -89,7 +89,7 @@ structure Checked (env : Indexed.Environment) (resources : State) (values : Valu
   product : CheckedProduct env resources values left.value right.value output .overwrite policy
   acceptedProduct : checkProduct env resources values left.value right.value output .overwrite policy = .ok product
 
-private def reject (message : String) : Except Error α := .error ⟨"E_NETWORK", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_NETWORK", message := message}
 
 def check (env : Indexed.Environment) (resources : State) (values : Values)
     (graph : Graph) (output : Symbol) (policy : NumericalPolicy) :

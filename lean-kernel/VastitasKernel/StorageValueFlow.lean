@@ -93,7 +93,7 @@ structure State where
   used : List Symbol := []
   deriving Repr, BEq, DecidableEq, Inhabited
 
-private def reject (message : String) : Except Error α := .error ⟨"E_RESOURCE_VALUE", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_RESOURCE_VALUE", message := message}
 
 def checkCall (signatures : List Signature) (slots : Slots) (fragment : Nat)
     (arguments : List Symbol) : Except Error PureType := do

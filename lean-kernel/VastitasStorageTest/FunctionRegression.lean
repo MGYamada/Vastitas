@@ -60,6 +60,12 @@ private def value : Literal := .f64 0x4008000000000000
     ("probe layout cannot authorize a caller", changed program 2 (fun f =>
       {f with body := [.action (.borrow 9 (.loan 0) full .read), .action (.release 9), .action (.copy 0 1)]}), "E_RESOURCE_REGION")]
   for (name, input, expected) in cases do checkError name input expected
+  let nestedFailure := changed program 6 fun f => {f with body := [
+    .branch (.literal true) [] [.branch (.literal false) [] [.action (.drop 99)]]]}
+  let .error located := check nestedFailure | throw (IO.userError "nested bad body accepted")
+  unless located.context.sites.any (fun site => site.function == 6 &&
+      site.place == .statement [0, 1, 0, 1, 0]) do
+    throw (IO.userError "nested unused-body diagnostic lost its actual function/branch path")
   let duplicate : Function := ⟨7, [.owned 0 owned, .owned 1 owned], [],
     [.action (.drop 0), .action (.drop 1)], none⟩
   let duplicateCall := changed {program with functions := duplicate :: program.functions} 0 fun f =>

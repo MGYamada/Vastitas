@@ -336,12 +336,40 @@ def AuditIndex.compatibleWith (state : State) (left : Loan) (others : List Loan)
     cases rightWrites : right.access.writes <;> simp [loansCompatible, writes, rightWrites]
   · simp only [ite_true, AuditIndex.compatible_eq]
 
+inductive ErrorSubjectKind where
+  | binding | basis | space
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- Diagnostic-only names. Component checks use activation symbols; the
+function compiler resolves them back to lexical names before locating a site. -/
+structure ErrorSubject where
+  role : String
+  name : Symbol
+  kind : ErrorSubjectKind := .binding
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+inductive ErrorPlace where
+  | header | statement (position : List Nat) | result
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure ErrorSite where
+  function : Nat
+  place : ErrorPlace
+  subjects : List ErrorSubject := []
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure ErrorContext where
+  sites : List ErrorSite := []
+  subjects : List ErrorSubject := []
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 structure Error where
   code : String
   message : String
+  context : ErrorContext := {}
   deriving Repr, BEq, DecidableEq, Inhabited
 
-private def reject (code message : String) : Except Error α := .error ⟨code, message⟩
+private def reject (code message : String) : Except Error α := .error {code := code, message := message}
 
 inductive Source where
   | owner (name : Symbol)
@@ -584,7 +612,12 @@ def borrowTransition (state : State) (name : Symbol) (source : Source) (layout :
     reject "E_RESOURCE_INIT" "requested read region is not initialized"
   let loan := { name, allocation := allocation.identity, layout, access, parent : Loan }
   let after := { state with loans := loan :: state.loans, used := name :: state.used }
-  if !compatibleWith after loan state.loans then reject "E_RESOURCE_ALIAS" "incompatible live loans may overlap"
+  if !compatibleWith after loan state.loans then
+    .error {
+      code := "E_RESOURCE_ALIAS"
+      message := "incompatible live loans may overlap"
+      context := {subjects := ((state.loans.find? (fun prior => !loansCompatible after loan prior)).map
+        (fun prior => [⟨"conflicting loan", prior.name, .binding⟩])).getD []}}
   return after
 
 def releaseTransition (state : State) (name : Symbol) : Except Error State := do
@@ -693,7 +726,11 @@ def executeAction (state : State) : Action → Except Error State
   | .drop owner => do
     let allocation ← owned state owner
     if state.loans.any (·.allocation == allocation.identity) then
-      reject "E_RESOURCE_LOAN" "cannot drop an allocation with live loans"
+      .error {
+        code := "E_RESOURCE_LOAN"
+        message := "cannot drop an allocation with live loans"
+        context := {subjects := ((state.loans.find? (·.allocation == allocation.identity)).map
+          (fun loan => [⟨"live loan preventing drop", loan.name, .binding⟩])).getD []}}
     return { state with
       allocations := state.allocations.filter (·.identity != allocation.identity)
       dependencies := invalidateDependencies state.dependencies allocation.identity }
@@ -808,8 +845,8 @@ def checkAction (state : State) (action : Action) : Except Error State :=
     match executeAction state action with
     | .error diagnostic => .error diagnostic
     | .ok after => if auditState after then .ok after
-      else .error ⟨"E_RESOURCE_STATE", "invalid reconstructed resource environment"⟩
-  else .error ⟨"E_RESOURCE_STATE", "invalid input resource environment"⟩
+      else .error {code := "E_RESOURCE_STATE", message := "invalid reconstructed resource environment"}
+  else .error {code := "E_RESOURCE_STATE", message := "invalid input resource environment"}
 
 inductive Statement where
   | action (action : Action)

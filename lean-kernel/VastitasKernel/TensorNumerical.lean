@@ -82,7 +82,7 @@ inductive Operation (Name : Type := Symbol) where
   | contract3 (left right output : Name) (policy : NumericalPolicy)
   deriving Repr, BEq, Inhabited
 
-private def reject (message : String) : Except Error α := .error ⟨"E_TENSOR", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_TENSOR", message := message}
 
 structure CheckedView (environment : Indexed.Environment) (numerical : Numerical.Values)
     (resources : State) (axes : List Symbol) (grouping : Grouping) (loan : Symbol) where

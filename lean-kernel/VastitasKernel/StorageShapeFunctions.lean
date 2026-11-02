@@ -34,7 +34,7 @@ structure Context where
   deriving Inhabited
 
 private def reject (message : String) : Except Error α :=
-  .error ⟨"E_RUNTIME_CALL", message⟩
+  .error {code := "E_RUNTIME_CALL", message := message}
 
 def Context.guard (context : Context) (conditions : List Guard) : Context :=
   if conditions.isEmpty then context

@@ -1,6 +1,7 @@
 import VastitasKernel.Dispatch
 
-/-! Soundness of the actual finite dispatch checker. Candidate optimality is
+/-! Soundness of the live parameterized `Dispatch.checkWith` engine and retained
+builtin-wrapper `Dispatch.check` corollaries. Candidate optimality is
 defined independently of checker execution. The theorem covers all admitted
 keys, coverage of the declared domain, and permutation-independent selection;
 it does not establish source parsing or native lowering correctness. -/

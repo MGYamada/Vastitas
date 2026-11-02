@@ -74,6 +74,9 @@ def endpointFailure (input : Input) (values : List Core.Result) (span : Span) (m
   fail span "E_ENDPOINT" (message ++ ": " ++ String.intercalate ", " labels)
     ((← objectNotes input refs) ++ Diagnostics.generativeNotes (← get).origins refs span)
 
+/-- Restrict dependent type indices, not bare object values. An object leaving a
+block retains its opening/construction identity; the Core freshness audit still
+checks that identity, and ordinary object-returning calls are generative. -/
 def checkEscape (input : Input) (ctx : TypeContext) (type : Core.DataType) (span : Span) : M Unit := do
   let escaped := type.refs.filter fun ref => !decide (ref.Scoped (Core.Typing.contextRefs ctx.core))
   unless escaped.isEmpty do

@@ -578,7 +578,7 @@ theorem borrow_owner_step (values : Shapes.Valuation) (before : Shapes.Frame)
       let loan : Shapes.Loan := ⟨name, allocation.identity, allocation.layout, access, none⟩
       let next : Shapes.Frame := {before with loans := loan :: before.loans, used := name :: before.used}
       cases reads : access.reads && allocation.initialization.layouts.isEmpty
-      · cases compatible : before.loans.all (Shapes.loansCompatible next loan)
+      · cases compatible : Shapes.compatibleWith next loan before.loans
         · simp only [Shapes.execute, fresh, owned, reads, compatible, loan, next,
             Bool.false_eq_true, ↓reduceIte, bind, Except.bind, pure, Except.pure] at accepted
           cases accepted
@@ -586,6 +586,7 @@ theorem borrow_owner_step (values : Shapes.Valuation) (before : Shapes.Frame)
             bind, Except.bind, pure, Except.pure] at accepted
           rw [ite_eq_left compatible] at accepted
           cases accepted
+          change before.loans.all (Shapes.loansCompatible next loan) = true at compatible
           have origin := owner_origin before owner allocation owned
           have live := List.mem_of_find?_eq_some origin
           have layout := frame_layout values before prior allocation live
@@ -644,7 +645,7 @@ theorem borrow_child_step (values : Shapes.Valuation) (before : Shapes.Frame)
           · let loan : Shapes.Loan := ⟨name, allocation.identity, allocation.layout, access, some parent⟩
             let next : Shapes.Frame := {before with loans := loan :: before.loans, used := name :: before.used}
             cases reads : access.reads && allocation.initialization.layouts.isEmpty
-            · cases compatible : before.loans.all (Shapes.loansCompatible next loan)
+            · cases compatible : Shapes.compatibleWith next loan before.loans
               · simp only [Shapes.execute, fresh, found, allocated, writes, readPermission,
                   reads, compatible, loan, next, Bool.false_eq_true, ↓reduceIte,
                   bind, Except.bind, pure, Except.pure] at accepted
@@ -653,6 +654,7 @@ theorem borrow_child_step (values : Shapes.Valuation) (before : Shapes.Frame)
                   reads, Bool.false_eq_true, ↓reduceIte, bind, Except.bind, pure, Except.pure] at accepted
                 rw [ite_eq_left compatible] at accepted
                 cases accepted
+                change before.loans.all (Shapes.loansCompatible next loan) = true at compatible
                 have live := List.mem_of_find?_eq_some allocated
                 have layout := frame_layout values before prior allocation live
                 have canonical := allocation_history before audited allocation live

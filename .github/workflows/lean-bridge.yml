@@ -1,0 +1,78 @@
+name: Mathematical bridge
+
+on:
+  push:
+    paths:
+      - 'lean-bridge/**'
+      - 'lean-toolchain'
+      - 'lean-kernel/lean-toolchain'
+      - 'scripts/check_boundaries.py'
+      - 'scripts/test_check_boundaries.py'
+      - '.github/workflows/lean-bridge.yml'
+  pull_request:
+    paths:
+      - 'lean-bridge/**'
+      - 'lean-toolchain'
+      - 'lean-kernel/lean-toolchain'
+      - 'scripts/check_boundaries.py'
+      - 'scripts/test_check_boundaries.py'
+      - '.github/workflows/lean-bridge.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  daleckii-krein:
+    name: Daleckii–Krein proof and axiom audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      LEAN_NUM_THREADS: 2
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Dependency boundaries and regressions
+        run: |
+          python3 scripts/check_boundaries.py
+          python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
+      - name: Install the pinned Lean toolchain
+        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        with:
+          lake-package-directory: lean-bridge
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          use-github-cache: false
+      - name: Fetch only the required Mathlib cache
+        working-directory: lean-bridge
+        run: |
+          lake exe cache get \
+            Mathlib.Analysis.CStarAlgebra.ContinuousFunctionalCalculus.Basic \
+            Mathlib.Analysis.CStarAlgebra.ContinuousFunctionalCalculus.Continuity \
+            Mathlib.Analysis.Calculus.DSlope \
+            Mathlib.Analysis.Calculus.FDeriv.Mul \
+            Mathlib.Analysis.Matrix.HermitianFunctionalCalculus \
+            Mathlib.Analysis.CStarAlgebra.Matrix
+      - name: Build the mathematical bridge
+        working-directory: lean-bridge
+        run: lake build
+      - name: Audit all bridge declarations and transitive axiom dependencies
+        working-directory: lean-bridge
+        run: lake env lean Audit.lean
+      - name: Replay bridge proof declarations with the official kernel
+        working-directory: lean-bridge
+        run: lake env leanchecker -v VastitasBridge
+      - name: Recheck boundaries and dependency lockfiles
+        run: |
+          python3 scripts/check_boundaries.py
+          git diff --exit-code -- lean-bridge/lake-manifest.json lean/lake-manifest.json lean-kernel/lake-manifest.json

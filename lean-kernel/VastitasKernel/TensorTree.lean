@@ -160,7 +160,7 @@ instance (runtime : Runtime) (graph : Graph) (original : Tensor.Values) :
     Decidable (runtime.Valid graph original) :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _ ∧ _ ∧ _ ∧ _ ∧ _ ∧ _ ∧ _))
 
-private def reject (message : String) : Except Error α := .error ⟨"E_TENSOR_TREE", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_TENSOR_TREE", message := message}
 
 private def version (resources : State) (view : Tensor.View) : Except Error Nat := do
   let some allocation := resources.allocation? view.loan.allocation

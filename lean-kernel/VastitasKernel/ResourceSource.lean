@@ -815,13 +815,124 @@ structure Checked (program : Program) (requireMain : Bool) where
   libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures = .ok library
   execution : (entry : Nat) → program.entry = some entry → Execution lowered.functions entry (numericalEnvironment pureProgram) targets.signatures
 
-private def resourceError (program : Program) (lowered : Lowered) (environment : Indexed.Environment) (signatures : List ValueFlow.Signature) (error : Storage.Error) : Diagnostic := Id.run do
-  -- On rejection only, locate the first actual invalid contract/probe rather
-  -- than attributing every resource diagnostic to a synthetic zero span.
-  for (function, (_, source)) in lowered.functions.zip program.owned do
-    if !(Functions.definitions [function]).isOk || !(Functions.probe lowered.functions function environment signatures).isOk then
+private def statementSpan : Statement → Span
+  | .value _ _ _ span | .runtime _ span | .runtimeNumerical _ span | .action _ span
+  | .numerical _ span | .tensor _ span => span
+  | .callValue _ _ _ _ _ span | .branchValue _ _ _ span | .call _ _ _ span
+  | .branch _ _ _ span | .network _ _ _ span | .tree _ _ _ _ span => span
+
+private def statementAt : List Nat → List Statement → Option Statement
+  | [], _ => none
+  | [position], statements => statements[position]?
+  | position :: arm :: path, statements => do
+    let statement ← statements[position]?
+    match statement with
+    | .branch _ yes no _ | .branchValue _ yes no _ =>
+      if arm == 0 then statementAt path yes
+      else if arm == 1 then statementAt path no else none
+    | _ => none
+
+private def statementNames : Statement → List String
+  | .value name .. => [name]
+  | .action (.allocate name ..) _ | .action (.move _ name) _ | .action (.borrow name ..) _ => [name]
+  | .runtime (.allocate name ..) _ | .runtime (.move _ name) _ | .runtime (.borrow name ..) _ => [name]
+  | .runtimeNumerical (.space name ..) _ | .runtimeNumerical (.basis name ..) _
+  | .runtimeNumerical (.map name ..) _ => [name]
+  | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.involution name ..) _
+  | .numerical (.dualSpace name ..) _ | .numerical (.conjugateSpace name ..) _
+  | .numerical (.derivedBasis name ..) _ | .numerical (.metric name ..) _
+  | .numerical (.transform name ..) _ | .numerical (.vector name ..) _
+  | .numerical (.conjugateVector name ..) _ | .numerical (.map name ..) _
+  | .numerical (.ownedMap name ..) _ | .numerical (.packMap name ..) _
+  | .numerical (.ownedView name ..) _ | .numerical (.borrowOwned name ..) _ => [name]
+  | .numerical (.unpackMap _ space basis owner) _ => [space, basis, owner]
+  | .tensor (.view name ..) _ | .tensor (.cachedPack name ..) _ => [name]
+  | .call _ _ results _ => results
+  | .callValue _ _ results name _ _ => results ++ [name]
+  | _ => []
+
+private def statementSymbols : Functions.Statement → List Symbol
+  | .value name .. => [name]
+  | .action (.allocate name ..) | .action (.move _ name) | .action (.borrow name ..) => [name]
+  | .runtime (.allocate name ..) | .runtime (.move _ name) | .runtime (.borrow name ..) => [name]
+  | .runtimeNumerical (.space name ..) | .runtimeNumerical (.basis name ..)
+  | .runtimeNumerical (.map name ..) => [name]
+  | .numerical (.space name ..) | .numerical (.basis name ..) | .numerical (.involution name ..)
+  | .numerical (.dualSpace name ..) | .numerical (.conjugateSpace name ..)
+  | .numerical (.derivedBasis name ..) | .numerical (.metric name ..)
+  | .numerical (.transform name ..) | .numerical (.vector name ..)
+  | .numerical (.conjugateVector name ..) | .numerical (.map name ..)
+  | .numerical (.ownedMap name ..) | .numerical (.packMap name ..)
+  | .numerical (.ownedView name ..) | .numerical (.borrowOwned name ..) => [name]
+  | .numerical (.unpackMap _ space basis owner) => [space, basis, owner]
+  | .tensor (.view name ..) | .tensor (.cachedPack name ..) => [name]
+  | .call _ _ results => results
+  | .callValue _ _ results name _ => results ++ [name]
+  | _ => []
+
+private abbrev BindingSite := Symbol × String × Span
+
+/-- Recover names only on rejection, by pairing original statements with their
+actual lowered statements. Nothing is added to the accepted IR or runtime. -/
+private def statementBindings : Nat → List Statement → List Functions.Statement → List BindingSite
+  | 0, _, _ | _, [], _ | _, _, [] => []
+  | fuel + 1, source :: sources, lowered :: rest =>
+    let here := (statementSymbols lowered).zip (statementNames source) |>.map fun (symbol, name) =>
+      (symbol, name, statementSpan source)
+    let children := match source, lowered with
+      | .branch _ yes no _, .branch _ left right
+      | .branchValue _ yes no _, .branch _ left right =>
+        statementBindings fuel yes left ++ statementBindings fuel no right
+      | _, _ => []
+    here ++ children ++ statementBindings fuel sources rest
+
+private def functionBindings (source : Function) (lowered : Functions.Function) : List BindingSite :=
+  ((source.parameters.zip lowered.parameters).map fun (original, parameter) =>
+    (parameter.name, original.name, original.span)) ++ statementBindings 4096 source.body lowered.body
+
+private def siteSpan (source : Function) (place : ErrorPlace) : Span :=
+  match place with
+  | .header => source.span
+  | .result => match source.valueBody with | .mk _ _ span => span
+  | .statement position => ((statementAt position source.body).map statementSpan).getD source.span
+
+private def resourceError (program : Program) (lowered : Lowered) (error : Storage.Error) : Diagnostic := Id.run do
+  let owned := program.owned
+  let sites := error.context.sites.filter fun site => (owned[site.function]?).isSome
+  -- A rejected input contract belongs at its caller; a body failure keeps its
+  -- exact statement, with caller locations retained as notes.
+  let primary := sites.find? (fun site => match site.place with | .statement _ => true | _ => false)
+    |>.orElse (fun _ => sites.head?)
+  if let some primary := primary then
+    if let some (_, source) := owned[primary.function]? then
+      let span := siteSpan source primary.place
+      let mut notes : List DiagnosticNote := []
+      for site in sites do
+        if let some (_, function) := owned[site.function]? then
+          let location := siteSpan function site.place
+          if location ≠ span then
+            let message := match site.place with
+              | .header => s!"while checking resource function `{function.name}`"
+              | .result => s!"while checking the result of resource function `{function.name}`"
+              | .statement position => match statementAt position function.body with
+                | some (.call ..) | some (.callValue ..) => "resource callee was invoked here"
+                | _ => "within this resource statement"
+            unless notes.any (fun note => note.message == message && decide (note.span = location)) do
+              notes := notes ++ [⟨message, location⟩]
+      if let some function := lowered.functions.find? (·.id == primary.function) then
+        let bindings := functionBindings source function
+        for entry in primary.subjects do
+          if let some (_, name, introduced) := bindings.find? (·.1 == entry.name) then
+            let message := s!"{entry.role} is `{name}`, introduced here"
+            unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
+              notes := notes ++ [⟨message, introduced⟩]
+      return ⟨error.code, error.message, span, notes.take 32⟩
+  -- Header-only failures have no expanded statement. Never re-run every body
+  -- probe merely to decorate a diagnostic.
+  for (function, (_, source)) in lowered.functions.zip owned do
+    if !(Functions.definitions [function]).isOk then
       return ⟨error.code, error.message, source.span, []⟩
-  return ⟨error.code, error.message, (program.owned.head?).map (·.2.span) |>.getD {}, []⟩
+  return ⟨error.code, error.message, (owned.head?).map (·.2.span) |>.getD {}, []⟩
 
 def check (program : Program) (requireMain : Bool := false) : Namespace.Result (Checked program requireMain) :=
   match acceptedEnvelope : envelope program with
@@ -836,12 +947,12 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
       | .ok lowered =>
         if provenance : lowered.Valid program then
           match libraryAccepted : Functions.checkLibrary lowered.functions (numericalEnvironment pureProgram) targets.signatures with
-          | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) targets.signatures diagnostic)
+          | .error diagnostic => .error (resourceError program lowered diagnostic)
           | .ok library => match entry : program.entry with
             | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
             | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) targets.signatures with
-              | .error diagnostic => .error (resourceError program lowered (numericalEnvironment pureProgram) targets.signatures diagnostic)
+              | .error diagnostic => .error (resourceError program lowered diagnostic)
               | .ok executable =>
                 if valueReturnOrigins : executable.context.signatures = targets.signatures ∧
                     ∀ receipt ∈ executable.context.valueReturns.toList, receipt.signatures = targets.signatures ∧

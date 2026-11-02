@@ -2,6 +2,9 @@ import VastitasOracle.ElaborationBase
 import VastitasOracle.ElaborationBlocks
 import VastitasOracle.ElaborationCalls
 
+/-! Retained old RawModule-to-checked-Core correspondence. Main now checks
+unresolved source through Indexed.LegacySource/Indexed.Wire; this theorem does
+not establish source correspondence for their indexed lowering. -/
 namespace VastitasOracle.Elaboration
 
 open VastitasKernel VastitasKernel.Checker.Internal VastitasKernel.Elaboration

@@ -4,7 +4,9 @@ import VastitasKernel.Checker
 import VastitasKernel.Codegen
 
 /-!
-Adversarial checked-IR regressions for the independent audit. These are executable
+Retained old-Core adversarial regressions for its independent audit. Main uses
+indexed Core instead; see IndexedCoreRegression and LegacySourceRegression.
+These are executable
 regression checks, separate from the logical soundness theorems.
 They bypass raw elaboration so the audit itself must reject forged annotations.
 -/
@@ -109,7 +111,7 @@ private def rawScalar : RawModule :=
   | .error _ => false)
 
 -- Even a manually obtained legacy annotation certificate cannot bypass the
--- independent checks at the public code-generation boundary.
+-- independent checks at the retained old-Core code-generation boundary.
 private def codegenRejects (functions : List CheckedFunction) (message : String) : Bool :=
   match certifyModule { functions, mainId := some 0 } with
   | .error _ => false -- The fixture must pass the weaker, legacy certificate.

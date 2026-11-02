@@ -122,6 +122,153 @@ fn shared_specializations_preserve_native_results_and_recursion_diagnostics() {
     }
 }
 
+fn forwarding_chain(count: usize, returns_function: bool, reversed: bool) -> String {
+    let result_type = if returns_function {
+        "Fn<Int, Int>"
+    } else {
+        "Int"
+    };
+    let mut declarations: Vec<_> = (0..count)
+        .map(|index| {
+            let body = if index == 0 {
+                if returns_function { "g" } else { "g(41)" }.to_owned()
+            } else {
+                format!("forward{}(g)", index - 1)
+            };
+            format!("fn forward{index}(g: Fn<Int, Int>) -> {result_type} {{ {body} }}")
+        })
+        .collect();
+    if reversed {
+        declarations.reverse();
+    }
+    declarations.push("fn add1(x: Int) -> Int { x + 1 }".to_owned());
+    let invoke = if returns_function { "(41)" } else { "" };
+    declarations.push(format!(
+        "fn main() -> Int {{ forward{}(add1){invoke} }}",
+        count - 1
+    ));
+    declarations.join("\n")
+}
+
+#[test]
+fn forwarded_signature_probes_do_not_exhaust_the_specialization_limit() {
+    for returns_function in [false, true] {
+        for reversed in [false, true] {
+            let source = forwarding_chain(90, returns_function, reversed);
+            success(&check(&source));
+            native(&source, &[], "42");
+        }
+        success(&check(&forwarding_chain(180, returns_function, false)));
+    }
+}
+
+#[test]
+fn forwarded_factory_results_preserve_concrete_identity_across_wrappers() {
+    let mut definitions = vec![
+        "fn add1(x: Int) -> Int { x + 1 }".to_owned(),
+        "fn factory(u: Unit) -> Fn<Int, Int> { add1 }".to_owned(),
+        "fn pick(a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> { if true { a } else { b } }"
+            .to_owned(),
+    ];
+    for index in 0..90 {
+        let body = if index == 0 {
+            "g(())".to_owned()
+        } else {
+            format!("forward{}(g)", index - 1)
+        };
+        definitions.push(format!(
+            "fn forward{index}(g: Fn<Unit, Fn<Int, Int>>) -> Fn<Int, Int> {{ {body} }}"
+        ));
+    }
+    definitions.push("fn main() -> Int { let direct = factory(()); let via = forward89(factory); let repeated = forward89(factory); pick(pick(direct, via), repeated)(41) }".to_owned());
+    let source = definitions.join("\n");
+    success(&check(&source));
+    native(&source, &[], "42");
+}
+
+#[test]
+fn indexed_packages_use_the_same_probe_reuse_checker() {
+    let scratch = Scratch::new();
+    let manifest = scratch.write(
+        "Vastitas.toml",
+        "[package]\nname='probe_reuse'\nversion='0.1.0'\nroot='src/main.vast'\n",
+    );
+    scratch.write(
+        "src/main.vast",
+        &format!(
+            "indexed marker ProbeMarker;\n{}",
+            forwarding_chain(90, true, false)
+        ),
+    );
+    success(
+        &cli()
+            .arg("check")
+            .arg("--manifest-path")
+            .arg(&manifest)
+            .output()
+            .unwrap(),
+    );
+    let executable = scratch.0.join("forwarded");
+    success(
+        &cli()
+            .arg("build")
+            .arg("--manifest-path")
+            .arg(&manifest)
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .unwrap(),
+    );
+    let output = std::process::Command::new(executable).output().unwrap();
+    success(&output);
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), "42\n");
+}
+
+#[test]
+fn probe_reuse_preserves_aliases_returned_inputs_and_concrete_target_choices() {
+    let definitions = "
+fn add1(x: Int) -> Int { x + 1 }
+fn add2(x: Int) -> Int { x + 2 }
+fn first(a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> { a }
+fn pick(flag: Bool, a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> { if flag { a } else { b } }
+fn keep(a: Fn<Int, Int>) -> Fn<Int, Int> { first(a, a) }
+fn relay(a: Fn<Int, Int>, b: Fn<Int, Int>) -> Fn<Int, Int> {
+    let returned = first(a, b);
+    let again = first(a, b);
+    pick(false, returned, again)
+}";
+    native(
+        &format!(
+            "{definitions}\nfn main() -> Int {{ let selected = relay(add1, add2); pick(false, keep(add1), selected)(41) }}"
+        ),
+        &[],
+        "42",
+    );
+    for args in ["add1, add2", "keep(add1), keep(add2)"] {
+        reject(
+            &format!("{definitions}\nfn main() -> Int {{ pick(true, {args})(41) }}"),
+            "E_STATIC_CALL",
+        );
+    }
+    reject(
+        &format!(
+            "{}\nfn unused(a: Fn<Int, Int>) -> Int {{ let checked = forward89(a); a(false) }}",
+            forwarding_chain(90, false, false)
+        ),
+        "E_TYPE",
+    );
+    let mut forged = request(&format!(
+        "{definitions}\nfn main() -> Int {{ pick(true, add1, add1)(41) }}"
+    ));
+    let main = forged["functions"]
+        .as_array_mut()
+        .unwrap()
+        .last_mut()
+        .unwrap();
+    main["body"]["result"]["callee"]["args"][2]["name"] = json!("add2");
+    assert_rejected(forged, "E_STATIC_CALL");
+}
+
 #[test]
 fn lambdas_cannot_shadow_enclosing_parameters_lets_or_unpacked_objects() {
     for source in [

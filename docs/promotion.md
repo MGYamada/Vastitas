@@ -45,16 +45,21 @@ virtual diagnostic filenames/offsets. It compares the complete JSON against
 `tests/fixtures/promotion.json`; it does not substitute a handwritten AST.
 Both no-mathlib CI jobs run this test.
 
-`VastitasPromotion.Fixture` runs the actual JSON decoder and public surface
-checker while elaborating the fixture. It reflects their returned raw program
-and checked module as ordinary transparent Lean data. Build-time checks compare
-both reflected values with the actual decoder/checker outputs. Lake tracks the
+`VastitasPromotion.IndexedFixture` runs `Indexed.LegacySource.check json false`,
+the public protocol-2 library path used by Main, while elaborating the fixture.
+It reflects the exact returned `executable.core.module` as ordinary transparent
+Lean data. Build-time checks compare that module with a fresh public-checker
+result and independently check its indexed Core typing/dependency audits. Lake tracks the
 JSON as an input dependency of this separate test/proof library; it is not a
 dependency of ordinary compiler builds. Concrete fixture acceptance and this
 reflection agreement are executable checks, not a new general decoder proof.
 
-`VastitasOracle.Promotion` proves evaluation using the existing `Semantics.Eval`
-rules on those exact checked bodies, for arbitrary Nat/Int arguments:
+`VastitasOracle.IndexedPromotion` proves `IndexedEvaluation.Evaluates` on those
+exact indexed Core bodies for arbitrary Nat/Int arguments. This states an equation
+for the actual `Indexed.Core.Semantics.eval` at every sufficiently large bound.
+Function selection in this fixed fixture uses the source name and actual input
+scalar types; an expected result does not select a method. The proofs include
+the actual argument/temporary lets, scope/ascription wrappers and helper calls:
 
 | Theorem | Contract |
 | --- | --- |
@@ -68,8 +73,8 @@ rules on those exact checked bodies, for arbitrary Nat/Int arguments:
 
 The individual `promote_nn/ni/in/ii`, `add_nn/ni/in/ii` and
 `maximum_nn/ni/in/ii` lemmas expose the actual evaluation derivations. The
-general `checkProgram`, `checkSurfaceProgram` and `checkNamespaceProgram`
-typing/order/termination theorems still apply to their exact accepted outputs.
+general current `IndexedProgramSafety` and `LegacySource` acceptance theorems
+provide the separate indexed typing/order/termination chain.
 Idempotence does not replace the dependency-order proof.
 
 This does not prove Rust parsing, general JSON decoding, filesystem authenticity,
@@ -79,11 +84,17 @@ are covered by regression checks; the numerical fixture uses flat input.
 
 ## Regression and maintenance
 
-`VastitasPromotion.Regression` checks actual acceptance through all three
-public paths, the 16 binary keys and selected method identities, numerical
-results, and forged checked-call metadata. Its bounded scalar/Pair evaluator
-uses the real primitive semantics only as a test harness. The oracle proofs
-above establish the arbitrary-input claims.
+`VastitasPromotion.IndexedRegression` enters the real JSON checkers for flat
+protocols 2/4, package protocols 3–6 and protocol 7. It checks all three returned
+finite families, the 16 binary keys and selected method identities, exact Core
+numerical results, executable entry/code generation and rejected forged
+Core/source metadata. It uses the existing bounded indexed evaluator as test
+infrastructure; the oracle proofs above establish arbitrary-input contracts.
+
+The earlier `VastitasPromotion.Fixture`/`Regression` and
+`VastitasOracle.Promotion` remain explicitly labelled legacy checks/proofs of
+`checkSurfaceProgram` and the old `Semantics.Eval`. Those entry points are not
+Main's current route and do not establish current source correspondence.
 
 Two mutations are deliberately accepted by ordinary typing but rejected by the
 stdlib contract: a mixed method returning `pair(0, 0)` and a Nat/Nat method
@@ -96,7 +107,7 @@ After an intentional stdlib change, regenerate and review the fixture:
 
 ```sh
 VASTITAS_UPDATE_PROMOTION_FIXTURE=1 cargo test --locked --test promotion stdlib_ir_matches_proof_fixture
-lake -d lean-kernel build VastitasPromotion.Regression
+lake -d lean-kernel build VastitasPromotion.IndexedRegression VastitasPromotion.Regression
 lake -d lean build VastitasOracle
 ```
 

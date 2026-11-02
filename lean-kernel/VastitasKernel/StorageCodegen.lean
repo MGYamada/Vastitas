@@ -30,7 +30,7 @@ inductive Instruction where
   | otherwise | finish | skip
   deriving Repr, BEq, DecidableEq, Inhabited
 
-private def reject (message : String) : Except Error α := .error ⟨"E_RESOURCE_CODEGEN", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_RESOURCE_CODEGEN", message := message}
 
 def action (state : State) : Action → Except Error (List Instruction)
   | .allocate _ scalar elements => pure [.allocate state.nextAllocation scalar elements]
@@ -89,7 +89,7 @@ def action (state : State) : Action → Except Error (List Instruction)
 
 def lower : Nat → State → List Statement → Except Error (State × List Instruction)
   | _, state, [] => pure (state, [])
-  | 0, _, _ :: _ => .error ⟨"E_RESOURCE_CODEGEN", "native lowering exceeds traversal bound"⟩
+  | 0, _, _ :: _ => .error {code := "E_RESOURCE_CODEGEN", message := "native lowering exceeds traversal bound"}
   | fuel + 1, state, first :: rest => do
     let (after, instructions) ← match first with
       | .action operation => do

@@ -1,7 +1,7 @@
 import VastitasKernel.Elaboration
 import VastitasOracle.Core
 
-/-! Proofs about the actual raw elaborator, using independent source-to-term
+/-! Proofs about the retained old-Core raw elaborator, using independent source-to-term
 relations. Monadic success is used only as a proof premise, never as the
 definition of the correspondence relation. -/
 namespace VastitasOracle.Elaboration

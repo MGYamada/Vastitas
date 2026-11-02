@@ -69,6 +69,10 @@ nominal value checking and actual resource checks before native generation.
 
 Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
+Source `f64(...)`/`complex(...)` exact finite literals lower to the same unsigned
+64-bit payload fields as `f64_bits`/`complex_bits`; decimal or hex strings are not
+new wire values. See [literal admission](resource-source.md) for exactness and
+the explicit-bit treatment of signed zero and nonfinite values.
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
 output even for beta zero. A coefficient loan must be a matching initialized

@@ -95,8 +95,37 @@ initialization are checked independently in Lean. Native preflight checks physic
 handles and arithmetic again. See [the layout contract](storage-ir.md).
 
 `f64_bits` and `complex_bits(real, imaginary)` are explicit unsigned 64-bit IEEE
-payload constructors. The example payload is binary64 `3.0`. They do not introduce
-floating-point literals or scalar arithmetic into the existing Nat/Int dispatcher.
+payload constructors. The example payload is binary64 `3.0`. Resource payloads
+also accept **exact finite literals**, including decimal and hexadecimal forms:
+
+```vast
+fill(output, f64(3.0));
+store(output, 0, 0, f64(-0.25));
+fill(complex_output, complex(0x1.8p0, -2.0)); // 1.5 - 2i
+```
+
+`f64(value)` and `complex(real, imaginary)` work in fill/store/expect and literal
+GEMM coefficients, including the runtime-extent profile. A hex mantissa requires
+a `p` exponent, whose decimal integer is a power of two: `0x1p-1074` is the least
+positive subnormal and `0x1.fffffffffffffp1023` the greatest finite binary64 value.
+Decimal forms may use `e` exponents (`125e-3` is exactly `0.125`). Separators and
+type suffixes are not admitted. Exponents must fit a signed 64-bit integer.
+
+There is **no rounding on acceptance**. For example `f64(0.1)` and
+`f64(9007199254740993)` are rejected; the diagnostic shows their adjacent binary64
+values in exact hex form. Inexact hex values, overflow and underflow below
+subnormal precision are rejected too. Positive zero is accepted; negative zero,
+infinities and NaN payloads retain the explicit bits constructors. For example
+`f64_bits(9223372036854775808)` preserves negative zero.
+
+This is source sugar for the existing unsigned-bit payloads, with no wire/schema
+change or runtime conversion. The frontend checks hex precision/range with
+integer arithmetic; for decimals it compares the candidate's exact integer
+decimal expansion with the original value before accepting its bits. Lean
+continues to check the same literal scalar tags and resource authority. This
+frontend conversion is tested, not a new Lean source-literal refinement theorem
+or an IEEE field-law claim. It does not introduce pure floating scalar values or
+arithmetic into the existing Nat/Int dispatcher.
 Allocation sizes and layout arguments are static metadata. An explicit
 `coefficient(loan)` operand instead reads an initialized scalar at GEMM execution;
 it does not introduce general scalar expression flow between resource statements.
@@ -171,6 +200,34 @@ other entries remain BLAS-free. See [numerical source and build](numerical-value
 Native code performs no runtime
 loan interpretation or implicit alias-repair copy; operation costs remain visible
 in the checked schedule.
+
+## Resource diagnostics
+
+Resource expansion retains the current function and structural statement path
+when a check fails. The primary diagnostic points to the failing operation,
+including an unselected branch arm. A failed branch join points to its `if`;
+an input-contract failure points to the caller; a callee-body failure points to
+that body statement and includes the caller as a note. Result/cleanup failures
+use the result block when no caller statement is available. Unused bodies keep
+their own locations. Header and envelope failures still use the relevant header.
+
+Notes recover names and introduction sites from the original source paired with
+its actual lowering. Borrow/drop failures identify the allocation and, when
+available, the conflicting or outstanding loan. GEMM endpoint mismatches name
+the actual unequal spaces/bases; vector evaluation identifies its actual bases
+and explicit metric. Equal dimensions do not suppress these nominal checks.
+Other operations include their local operands. Compiler-created temporary loans
+without a lexical binding are omitted rather than presented as source names.
+Notes are deduplicated and capped at 32, with call context before operand notes.
+The internal trace retains at most 32 innermost sites so unwinding a deep
+rejected call chain does not repeatedly copy an unbounded diagnostic stack.
+
+This context is internal error data: the public wire format and successful
+checked schedules are unchanged. Names and source mappings are recovered only
+on rejection, without rerunning all body probes or retaining a resource-state
+snapshot for diagnostics. The location wrappers have exact successful-result
+equations; source positions and diagnostic prose are covered by regression
+tests, not a source-provenance theorem.
 
 ## Evidence and remaining work
 

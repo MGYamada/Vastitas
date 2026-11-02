@@ -1,4 +1,11 @@
 import VastitasKernel.LegacySource
+import VastitasKernel.IndexedCodegen
+import VastitasKernel.IndexedSemantics
+
+/-! Public compatibility regressions. Every source case starts at the same JSON
+entry as Main, and Core mutations start from its exact returned executable module.
+The older Function/Pair/Contract/TypeAudit regression modules remain separately
+labelled tests of retained checker APIs. -/
 
 namespace VastitasKernel.Indexed.LegacySource.Regression
 open Lean
@@ -64,5 +71,112 @@ private def checkCase (name : String) (json : Json) (requireMain expected : Bool
   if (AuthoritySource.checkProgram corrupted true).isOk then
     throw (IO.userError "corrupted compatibility declaration contract was accepted")
   IO.println "legacy source: 17 adapter, strict field and common-checker cases passed"
+
+private def named (name : String) : Json := Json.mkObj [("kind", toJson "named"), ("name", toJson name)]
+private def varExpr (name : String) : Json := Json.mkObj [
+  ("kind", toJson "variable"), ("name", toJson name), ("span", span)]
+private def boolean : Json := Json.mkObj [("kind", toJson "boolean"), ("value", toJson true), ("span", span)]
+private def call (name : String) (args : List Json) : Json := Json.mkObj [
+  ("kind", toJson "call"), ("callee", toJson name), ("args", toJson args), ("span", span)]
+private def block (result : Json) (statements : List Json := []) : Json := Json.mkObj [
+  ("statements", toJson statements), ("result", result), ("span", span)]
+private def param (name : String) (ty : Json) : Json := Json.mkObj [
+  ("name", toJson name), ("ty", ty), ("span", span)]
+private def letStmt (name : String) (value : Json) : Json := Json.mkObj [
+  ("kind", toJson "let"), ("name", toJson name), ("value", value), ("annotation", .null), ("span", span)]
+private def lambda (params : List Json) (result : Json) : Json := Json.mkObj [
+  ("kind", toJson "lambda"), ("params", toJson params), ("return_type", named "Int"),
+  ("body", block result), ("span", span)]
+private def invoke (callee : Json) (args : List Json) : Json := Json.mkObj [
+  ("kind", toJson "invoke"), ("callee", callee), ("args", toJson args), ("span", span)]
+private def identity : Json :=
+  (fn "identity" (varExpr "x")).setObjVal! "params" (toJson [param "x" (named "Int")])
+private def pairType (element : String) : Json := Json.mkObj [
+  ("kind", toJson "pair"), ("element", toJson element)]
+
+#eval show IO Unit from do
+  for version in [2, 4] do
+    checkCase "named invocation" (flat version [identity, fn "main" (invoke (varExpr "identity") [expr])]) true true
+    checkCase "lambda invocation" (flat version [fn "main" (invoke (lambda [param "x" (named "Int")] (varExpr "x")) [expr])]) true true
+    for (label, functions, code) in [
+        ("capturing lambda", [(fn).setObjVal! "body" (block expr [
+          letStmt "outside" expr, letStmt "callback" (lambda [] (varExpr "outside"))])], "E_CAPTURE"),
+        ("lambda shadows outer binding", [(fn).setObjVal! "body" (block expr [
+          letStmt "outside" expr, letStmt "callback" (lambda [param "outside" (named "Int")] (varExpr "outside"))])], "E_SHADOW"),
+        ("unused lambda result", [(fn).setObjVal! "body" (block expr [letStmt "unused" (lambda [] boolean)])], "E_TYPE"),
+        ("same-arity wrong argument", [identity, fn "main" (invoke (varExpr "identity") [boolean])], "E_TYPE"),
+        ("forged static reference", [fn "main" (Json.mkObj [("kind", toJson "reference"), ("id", toJson (0 : Nat)), ("span", span)])], "E_PROTOCOL"),
+        ("claimed static signature", [fn "main" ((invoke (varExpr "identity") [expr]).setObjVal! "signature" (named "Int")), identity], "E_PROTOCOL"),
+        ("unknown function", [fn "main" (call "missing" [])], "E_NAME"),
+        ("recursion after lowering", [fn "main" (call "main" [])], "E_RECURSION"),
+        ("Pair component mismatch", [fn, (fn "unused" (call "pair" [expr, boolean])).setObjVal! "return_type" (pairType "Int")], "E_TYPE"),
+        ("Pair projection on scalar", [fn "main" (call "pair_first" [expr])], "E_TYPE"),
+        ("Pair outside finite profile", [fn, (fn "unused" (call "pair" [boolean, boolean])).setObjVal! "return_type" (pairType "Bool")], "E_TYPE")] do
+      for requireMain in [false, true] do
+        checkCase label (flat version functions) requireMain false (some code)
+    checkCase "Pair constructor and projection"
+      (flat version [fn "main" (call "pair_first" [call "pair" [expr, expr]])]) true true
+  IO.println "legacy source: public Fn/capture/static-target/Pair and recursion cases passed"
+
+private def typePath (name : String) : Json := Json.mkObj [("path", toJson [name]), ("span", span)]
+private def abstractType (name : String) : Json := Json.mkObj [
+  ("name", toJson name), ("parents", toJson ([] : List Json)), ("span", span)]
+private def contract (result := "Int") (domain := "Numeric") : Json := Json.mkObj [
+  ("name", toJson "f"), ("params", toJson [param "x" (named "Numeric")]),
+  ("return_type", named result), ("requires", toJson ([] : List Json)),
+  ("domain", toJson [[typePath domain]]), ("span", span)]
+private def method (ty : String) (result : Json) : Json :=
+  ((fn "f" result).setObjVal! "params" (toJson [param "x" (named ty)])).setObjVal! "requires" (toJson ([] : List Json))
+private def contracts : Json := Json.mkObj [
+  ("version", toJson (4 : Nat)), ("input", toJson "flat"), ("file", toJson "contracts.vast"),
+  ("functions", toJson [fn "main" (call "f" [expr])]),
+  ("generics", toJson [Json.mkObj [("name", toJson "f"), ("params", toJson [Json.mkObj [
+    ("name", toJson "x"), ("span", span)]]), ("domain", toJson ([] : List Json)), ("span", span)]]),
+  ("methods", toJson [method "Nat" (call "int" [varExpr "x"]), method "Int" (varExpr "x")]),
+  ("abstract_types", toJson [abstractType "Numeric", abstractType "Empty"]),
+  ("subtypes", toJson (["Nat", "Int"].map fun scalar => Json.mkObj [
+    ("scalar", toJson scalar), ("target", typePath "Numeric"), ("span", span)])),
+  ("abstract_methods", toJson [contract])]
+
+#eval show IO Unit from do
+  checkCase "public abstract contract" contracts true true
+  for (label, input, code) in [
+      ("contract cannot supply implementation", contracts.setObjVal! "methods" (toJson ([] : List Json)), "E_DISPATCH_COVERAGE"),
+      ("selected result mismatch", contracts.setObjVal! "abstract_methods" (toJson [contract "Nat"]), "E_CONTRACT_RESULT"),
+      ("all overlapping contracts hold", contracts.setObjVal! "abstract_methods" (toJson [contract, contract "Nat"]), "E_CONTRACT_RESULT"),
+      ("empty contract clause", contracts.setObjVal! "abstract_methods" (toJson [contract "Int" "Empty"]), "E_CONTRACT_EMPTY"),
+      ("domain must satisfy selector", contracts.setObjVal! "abstract_methods" (toJson [contract "Int" "Bool"]), "E_CONTRACT_DOMAIN"),
+      ("abstract is not a value type", contracts.setObjVal! "abstract_methods" (toJson [contract "Numeric"]), "E_TYPE"),
+      ("outside-domain applicable body", contracts.setObjVal! "methods" (toJson [
+        method "Nat" (call "int" [varExpr "x"]), method "Int" (varExpr "x"), method "Bool" (varExpr "x")]), "E_TYPE"),
+      ("contract cannot downgrade", contracts.setObjVal! "version" (toJson (2 : Nat)), "E_PROTOCOL")] do
+    for requireMain in [false, true] do
+      checkCase label input requireMain false (some code)
+  let empty := ((contracts.setObjVal! "functions" (toJson ([] : List Json))).setObjVal! "methods" (toJson ([] : List Json))).setObjVal!
+    "abstract_methods" (toJson [contract.setObjVal! "domain" (toJson ([] : List Json))])
+  checkCase "intentional empty contract" empty false true
+  IO.println "legacy source: public finite abstract-contract adversarial cases passed"
+
+#eval show IO Unit from do
+  let .ok accepted := check (flat) true | throw (IO.userError "public Core fixture rejected")
+  let checked := accepted.checked.executable.core
+  let some main := checked.module.functions.find? (fun f => some f.id == checked.module.main)
+    | throw (IO.userError "public Core fixture has no main")
+  unless (Core.Codegen.generate checked).isOk do throw (IO.userError "public exact Core codegen rejected")
+  unless Core.Semantics.eval checked.module 32 (fun _ => none) main.body == some (.integer 42) do
+    throw (IO.userError "public exact Core evaluation changed")
+  for (label, body) in [
+      ("unbound variable", Core.Term.variable 999 ⟨.pure .int, none⟩),
+      ("forged arithmetic type", .binary .add (.natural 1) (.natural 2) ⟨.pure .int, none⟩),
+      ("forged branch result", .branch (.boolean true) (.natural 1) (.natural 2) ⟨.pure .int, none⟩),
+      ("forged Pair projection", .project .int true (.integer 42)),
+      ("unknown call", .call (main.id + 100) [] [] ⟨.pure .int, none⟩),
+      ("recursive call", .call main.id [] [] ⟨.pure .int, none⟩)] do
+    let forged := { checked.module with functions := [{ main with body }] }
+    unless !(Core.Typing.checkModule forged true).isOk do
+      throw (IO.userError s!"public returned Core mutation accepted: {label}")
+  let duplicate := { checked.module with functions := [main, main] }
+  unless !(Core.Typing.checkModule duplicate true).isOk do throw (IO.userError "duplicate public Core function accepted")
+  IO.println "legacy source: exact returned Core evaluation/codegen and seven independent Core mutations passed"
 
 end VastitasKernel.Indexed.LegacySource.Regression

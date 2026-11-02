@@ -1,6 +1,10 @@
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
 
+/-! Retained legacy top-level checker/Core regressions. Current public JSON
+acceptance is covered by LegacySourceRegression and
+VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
+remain live in the indexed composition. -/
 namespace VastitasKernel.PairRegression
 
 private def check (name : String) (condition : Bool) : IO Unit :=

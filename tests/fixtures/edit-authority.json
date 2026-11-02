@@ -1,0 +1,759 @@
+{
+  "file": "/authority-fixture/app/Vastitas.toml",
+  "input": "package",
+  "packages": [
+    {
+      "dependencies": [],
+      "modules": [
+        {
+          "contributions": [
+            {
+              "methods": [
+                {
+                  "body": {
+                    "result": {
+                      "kind": "integer",
+                      "span": {
+                        "column": 72,
+                        "end": 654,
+                        "line": 6,
+                        "start": 652
+                      },
+                      "value": "99"
+                    },
+                    "span": {
+                      "column": 70,
+                      "end": 656,
+                      "line": 6,
+                      "start": 650
+                    },
+                    "statements": []
+                  },
+                  "name": "choose",
+                  "params": [
+                    {
+                      "name": "x",
+                      "span": {
+                        "column": 47,
+                        "end": 633,
+                        "line": 6,
+                        "start": 627
+                      },
+                      "ty": {
+                        "kind": "named",
+                        "name": "Int"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "span": {
+                        "column": 55,
+                        "end": 641,
+                        "line": 6,
+                        "start": 635
+                      },
+                      "ty": {
+                        "kind": "named",
+                        "name": "Int"
+                      }
+                    }
+                  ],
+                  "requires": [],
+                  "return_type": {
+                    "kind": "named",
+                    "name": "Int"
+                  },
+                  "span": {
+                    "column": 33,
+                    "end": 656,
+                    "line": 6,
+                    "start": 613
+                  }
+                }
+              ],
+              "name": "old",
+              "public": true,
+              "span": {
+                "column": 5,
+                "end": 658,
+                "line": 6,
+                "start": 585
+              },
+              "target": [
+                "choose"
+              ]
+            }
+          ],
+          "functions": [],
+          "generics": [
+            {
+              "domain": [
+                [
+                  {
+                    "kind": "named",
+                    "name": "Int"
+                  },
+                  {
+                    "kind": "named",
+                    "name": "Int"
+                  }
+                ],
+                [
+                  {
+                    "kind": "named",
+                    "name": "Bool"
+                  },
+                  {
+                    "kind": "named",
+                    "name": "Bool"
+                  }
+                ]
+              ],
+              "name": "choose",
+              "params": [
+                {
+                  "name": "x",
+                  "span": {
+                    "column": 20,
+                    "end": 327,
+                    "line": 2,
+                    "start": 326
+                  }
+                },
+                {
+                  "name": "y",
+                  "span": {
+                    "column": 23,
+                    "end": 330,
+                    "line": 2,
+                    "start": 329
+                  }
+                }
+              ],
+              "public": true,
+              "span": {
+                "column": 5,
+                "end": 368,
+                "line": 2,
+                "start": 311
+              }
+            }
+          ],
+          "grants": [
+            {
+              "delegable": true,
+              "grantee_path": [],
+              "grantee_source": "/authority-fixture/addon/Vastitas.toml",
+              "name": "outer",
+              "public": true,
+              "region": [
+                [
+                  "Int",
+                  "Int"
+                ]
+              ],
+              "span": {
+                "column": 5,
+                "end": 509,
+                "line": 4,
+                "start": 416
+              },
+              "target": [
+                "choose"
+              ]
+            }
+          ],
+          "imports": [],
+          "methods": [
+            {
+              "body": {
+                "result": {
+                  "kind": "integer",
+                  "span": {
+                    "column": 40,
+                    "end": 409,
+                    "line": 3,
+                    "start": 408
+                  },
+                  "value": "0"
+                },
+                "span": {
+                  "column": 38,
+                  "end": 411,
+                  "line": 3,
+                  "start": 406
+                },
+                "statements": []
+              },
+              "name": "choose",
+              "params": [
+                {
+                  "name": "x",
+                  "span": {
+                    "column": 15,
+                    "end": 389,
+                    "line": 3,
+                    "start": 383
+                  },
+                  "ty": {
+                    "kind": "named",
+                    "name": "Any"
+                  }
+                },
+                {
+                  "name": "y",
+                  "span": {
+                    "column": 23,
+                    "end": 397,
+                    "line": 3,
+                    "start": 391
+                  },
+                  "ty": {
+                    "kind": "named",
+                    "name": "Any"
+                  }
+                }
+              ],
+              "requires": [],
+              "return_type": {
+                "kind": "named",
+                "name": "Int"
+              },
+              "span": {
+                "column": 1,
+                "end": 411,
+                "line": 3,
+                "start": 369
+              }
+            }
+          ],
+          "path": [],
+          "public": true,
+          "span": {
+            "column": 1,
+            "end": 310,
+            "line": 2,
+            "start": 307
+          },
+          "transfers": [
+            {
+              "grantee_path": [],
+              "grantee_source": "/authority-fixture/addon/Vastitas.toml",
+              "name": "handoff",
+              "public": true,
+              "span": {
+                "column": 5,
+                "end": 580,
+                "line": 5,
+                "start": 514
+              },
+              "target": [
+                "choose"
+              ]
+            }
+          ]
+        }
+      ],
+      "name": "base",
+      "source": "/authority-fixture/base/Vastitas.toml",
+      "version": "0.1.0"
+    },
+    {
+      "dependencies": [
+        {
+          "alias": "base",
+          "target": "/authority-fixture/base/Vastitas.toml"
+        }
+      ],
+      "modules": [
+        {
+          "contributions": [
+            {
+              "methods": [
+                {
+                  "body": {
+                    "result": {
+                      "kind": "binary",
+                      "left": {
+                        "kind": "variable",
+                        "name": "x",
+                        "span": {
+                          "column": 86,
+                          "end": 947,
+                          "line": 5,
+                          "start": 946
+                        }
+                      },
+                      "op": "+",
+                      "right": {
+                        "kind": "variable",
+                        "name": "y",
+                        "span": {
+                          "column": 90,
+                          "end": 951,
+                          "line": 5,
+                          "start": 950
+                        }
+                      },
+                      "span": {
+                        "column": 86,
+                        "end": 951,
+                        "line": 5,
+                        "start": 946
+                      }
+                    },
+                    "span": {
+                      "column": 84,
+                      "end": 953,
+                      "line": 5,
+                      "start": 944
+                    },
+                    "statements": []
+                  },
+                  "name": "base::choose",
+                  "params": [
+                    {
+                      "name": "x",
+                      "span": {
+                        "column": 61,
+                        "end": 927,
+                        "line": 5,
+                        "start": 921
+                      },
+                      "ty": {
+                        "kind": "named",
+                        "name": "Int"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "span": {
+                        "column": 69,
+                        "end": 935,
+                        "line": 5,
+                        "start": 929
+                      },
+                      "ty": {
+                        "kind": "named",
+                        "name": "Int"
+                      }
+                    }
+                  ],
+                  "requires": [],
+                  "return_type": {
+                    "kind": "named",
+                    "name": "Int"
+                  },
+                  "span": {
+                    "column": 41,
+                    "end": 953,
+                    "line": 5,
+                    "start": 901
+                  }
+                }
+              ],
+              "name": "sum",
+              "public": true,
+              "span": {
+                "column": 7,
+                "end": 955,
+                "line": 5,
+                "start": 867
+              },
+              "target": [
+                "base",
+                "choose"
+              ]
+            }
+          ],
+          "functions": [],
+          "generics": [],
+          "imports": [],
+          "methods": [],
+          "path": [
+            "ops"
+          ],
+          "public": true,
+          "span": {
+            "column": 5,
+            "end": 854,
+            "line": 4,
+            "start": 851
+          }
+        },
+        {
+          "contributions": [
+            {
+              "methods": [
+                {
+                  "body": {
+                    "result": {
+                      "kind": "integer",
+                      "span": {
+                        "column": 88,
+                        "end": 842,
+                        "line": 3,
+                        "start": 841
+                      },
+                      "value": "2"
+                    },
+                    "span": {
+                      "column": 86,
+                      "end": 844,
+                      "line": 3,
+                      "start": 839
+                    },
+                    "statements": []
+                  },
+                  "name": "base::choose",
+                  "params": [
+                    {
+                      "name": "x",
+                      "span": {
+                        "column": 61,
+                        "end": 821,
+                        "line": 3,
+                        "start": 814
+                      },
+                      "ty": {
+                        "kind": "named",
+                        "name": "Bool"
+                      }
+                    },
+                    {
+                      "name": "y",
+                      "span": {
+                        "column": 70,
+                        "end": 830,
+                        "line": 3,
+                        "start": 823
+                      },
+                      "ty": {
+                        "kind": "named",
+                        "name": "Bool"
+                      }
+                    }
+                  ],
+                  "requires": [],
+                  "return_type": {
+                    "kind": "named",
+                    "name": "Int"
+                  },
+                  "span": {
+                    "column": 41,
+                    "end": 844,
+                    "line": 3,
+                    "start": 794
+                  }
+                }
+              ],
+              "name": "fresh",
+              "public": true,
+              "span": {
+                "column": 5,
+                "end": 846,
+                "line": 3,
+                "start": 758
+              },
+              "target": [
+                "base",
+                "choose"
+              ]
+            }
+          ],
+          "delegations": [
+            {
+              "grantee_path": [
+                "ops"
+              ],
+              "grantee_source": "/authority-fixture/addon/Vastitas.toml",
+              "name": "inner",
+              "public": true,
+              "region": [
+                [
+                  "Int",
+                  "Int"
+                ]
+              ],
+              "span": {
+                "column": 5,
+                "end": 753,
+                "line": 2,
+                "start": 665
+              },
+              "target": [
+                "base",
+                "choose"
+              ]
+            }
+          ],
+          "functions": [],
+          "generics": [],
+          "imports": [],
+          "methods": [],
+          "path": [],
+          "public": true,
+          "span": {
+            "column": 1,
+            "end": 664,
+            "line": 2,
+            "start": 661
+          }
+        }
+      ],
+      "name": "addon",
+      "source": "/authority-fixture/addon/Vastitas.toml",
+      "version": "0.1.0"
+    },
+    {
+      "dependencies": [
+        {
+          "alias": "addon",
+          "target": "/authority-fixture/addon/Vastitas.toml"
+        },
+        {
+          "alias": "alias",
+          "target": "/authority-fixture/addon/Vastitas.toml"
+        },
+        {
+          "alias": "base",
+          "target": "/authority-fixture/base/Vastitas.toml"
+        }
+      ],
+      "modules": [
+        {
+          "assembly": {
+            "events": [
+              {
+                "grant": [
+                  "base",
+                  "outer"
+                ],
+                "loan": "parent",
+                "op": "borrow",
+                "span": {
+                  "column": 12,
+                  "end": 999,
+                  "line": 1,
+                  "start": 970
+                }
+              },
+              {
+                "delegation": [
+                  "addon",
+                  "inner"
+                ],
+                "loan": "child",
+                "op": "reborrow",
+                "parent": "parent",
+                "span": {
+                  "column": 42,
+                  "end": 1042,
+                  "line": 1,
+                  "start": 1000
+                }
+              },
+              {
+                "contribution": [
+                  "addon",
+                  "ops",
+                  "sum"
+                ],
+                "loan": "child",
+                "op": "apply",
+                "span": {
+                  "column": 85,
+                  "end": 1077,
+                  "line": 1,
+                  "start": 1043
+                }
+              },
+              {
+                "loan": "child",
+                "op": "return",
+                "span": {
+                  "column": 120,
+                  "end": 1091,
+                  "line": 1,
+                  "start": 1078
+                }
+              },
+              {
+                "loan": "parent",
+                "op": "return",
+                "span": {
+                  "column": 134,
+                  "end": 1106,
+                  "line": 1,
+                  "start": 1092
+                }
+              },
+              {
+                "declaration": [
+                  "base",
+                  "handoff"
+                ],
+                "op": "transfer",
+                "span": {
+                  "column": 149,
+                  "end": 1130,
+                  "line": 1,
+                  "start": 1107
+                }
+              },
+              {
+                "contribution": [
+                  "addon",
+                  "fresh"
+                ],
+                "loan": null,
+                "op": "apply",
+                "span": {
+                  "column": 173,
+                  "end": 1150,
+                  "line": 1,
+                  "start": 1131
+                }
+              },
+              {
+                "op": "seal",
+                "span": {
+                  "column": 193,
+                  "end": 1169,
+                  "line": 1,
+                  "start": 1151
+                },
+                "target": [
+                  "base",
+                  "choose"
+                ]
+              }
+            ],
+            "span": {
+              "column": 1,
+              "end": 1171,
+              "line": 1,
+              "start": 959
+            }
+          },
+          "functions": [
+            {
+              "body": {
+                "result": {
+                  "kind": "binary",
+                  "left": {
+                    "args": [
+                      {
+                        "kind": "integer",
+                        "span": {
+                          "column": 246,
+                          "end": 1206,
+                          "line": 1,
+                          "start": 1204
+                        },
+                        "value": "40"
+                      },
+                      {
+                        "kind": "integer",
+                        "span": {
+                          "column": 250,
+                          "end": 1209,
+                          "line": 1,
+                          "start": 1208
+                        },
+                        "value": "2"
+                      }
+                    ],
+                    "callee": "base::choose",
+                    "kind": "call",
+                    "span": {
+                      "column": 233,
+                      "end": 1210,
+                      "line": 1,
+                      "start": 1191
+                    }
+                  },
+                  "op": "+",
+                  "right": {
+                    "args": [
+                      {
+                        "kind": "boolean",
+                        "span": {
+                          "column": 268,
+                          "end": 1230,
+                          "line": 1,
+                          "start": 1226
+                        },
+                        "value": true
+                      },
+                      {
+                        "kind": "boolean",
+                        "span": {
+                          "column": 274,
+                          "end": 1236,
+                          "line": 1,
+                          "start": 1232
+                        },
+                        "value": true
+                      }
+                    ],
+                    "callee": "base::choose",
+                    "kind": "call",
+                    "span": {
+                      "column": 255,
+                      "end": 1237,
+                      "line": 1,
+                      "start": 1213
+                    }
+                  },
+                  "span": {
+                    "column": 233,
+                    "end": 1237,
+                    "line": 1,
+                    "start": 1191
+                  }
+                },
+                "span": {
+                  "column": 231,
+                  "end": 1239,
+                  "line": 1,
+                  "start": 1189
+                },
+                "statements": []
+              },
+              "name": "main",
+              "params": [],
+              "public": false,
+              "return_type": {
+                "kind": "named",
+                "name": "Int"
+              },
+              "span": {
+                "column": 214,
+                "end": 1239,
+                "line": 1,
+                "start": 1172
+              }
+            }
+          ],
+          "generics": [],
+          "imports": [],
+          "methods": [],
+          "path": [],
+          "public": true,
+          "span": {
+            "column": 1,
+            "end": 967,
+            "line": 1,
+            "start": 959
+          }
+        }
+      ],
+      "name": "app",
+      "source": "/authority-fixture/app/Vastitas.toml",
+      "version": "0.1.0"
+    }
+  ],
+  "root": "/authority-fixture/app/Vastitas.toml",
+  "version": 6
+}

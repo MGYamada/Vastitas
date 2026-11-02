@@ -7,7 +7,7 @@ lake -d lean-kernel build VastitasKernel.IndexedCoreRegression VastitasKernel.In
 (cd lean-kernel && lake env lean --run ../scripts/check_indexed_codegen.lean "$work")
 # Compile the runtime and generated modules directly. No compiler, oracle or
 # mathlib module is present in the executable dependency graph.
-for fixture in package primitives scalar global_witness multiple_fields source_declarations source_types source_bodies source_scalars source_fields functions function_objects function_private function_fields dispatch dispatch_contract dispatch_nominal dispatch_pair authority authority_transfer authority_repaired authority_empty; do
+for fixture in package primitives scalar global_witness opened_object multiple_fields source_declarations source_types source_bodies source_scalars source_fields functions function_objects function_private function_fields dispatch dispatch_contract dispatch_nominal dispatch_pair authority authority_transfer authority_repaired authority_empty; do
   (cd lean-kernel && lake env lean -R "$work" -c "$work/$fixture.c" "$work/$fixture.lean")
   (cd lean-kernel && lake env leanc "$work/$fixture.c" .lake/build/ir/VastitasKernel/IndexedRuntime.c.o.export -o "$work/$fixture")
   actual=$("$work/$fixture")
@@ -16,6 +16,7 @@ for fixture in package primitives scalar global_witness multiple_fields source_d
     primitives|functions|dispatch|dispatch_contract|authority|authority_transfer|authority_repaired) expected=42 ;;
     scalar|source_scalars) expected=999999999999999999999999999999999999999997 ;;
     global_witness|multiple_fields) expected=0 ;;
+    opened_object) expected=41 ;;
     source_declarations) expected=7 ;;
     source_types) expected=13 ;;
     source_fields|function_fields) expected=3 ;;
@@ -27,4 +28,4 @@ for fixture in package primitives scalar global_witness multiple_fields source_d
   esac
   test "$actual" = "$expected" || { echo "$fixture: expected $expected, got $actual" >&2; exit 1; }
 done
-echo 'indexed Core: 22 standalone native fixtures passed'
+echo 'indexed Core: 23 standalone native fixtures passed'

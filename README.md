@@ -2,7 +2,9 @@
 
 Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
 its **Stage 1b compiler with path packages, finite abstract selectors/contracts and scoped edit assemblies**: `.vast` source → Rust frontend → independently checked
-Lean IR → Lean/C → a native executable.
+Vastitas Core represented in Lean → Lean/C → a native executable.
+
+**Planned v0.1.0 compiler gate:** [Compiler IR v1](docs/compiler-ir.md) specifies an independently checked **accepted Lean Core → Vastitas MidIR → LLVM IR** path with LLVM as the native backend. Rust input generation and the LLVM toolchain remain outside the proof-authority trust boundary; the accepted Lean Core-to-*emitted* LLVM IR refinement must be officially kernel-checked for explicit `--mode=official` builds, while the default `--mode=fast` may operationally trust pinned nanoda audit of artifact-bound Lean evidence. This specification and its implementation/proof acceptance are tracked by [#417](https://github.com/MGYamada/Vastitas/issues/417). **The current compiler still uses the Lean/C path described above.**
 
 The current language supports exact integer computation, a small geometric
 core, finite multiple dispatch over scalar types, and capture-free static
@@ -169,6 +171,8 @@ constitutional theorem. The official Lean kernel remains the sole authority
 for CI proofs, kernel compilation, and CS/MS/CF proof obligations. See
 [the exact trust boundary](docs/verification.md#independent-internal-lean-export-audit-v010-gate)
 and [v0.1.0 gate #282](https://github.com/MGYamada/Vastitas/issues/282).
+
+**Planned compiler verification modes (#282/#417):** `vastitas check/build --mode=fast|official`; **Fast** is the default and uses pinned `nanoda_lib` as an operationally trusted verifier, while **Official** uses the pinned official Lean kernel. Both must validate proof claims against the *actual* source/Core/MidIR/complete LLVM bytes and authenticated axiom environment; a standalone `audit-lean` success is not sufficient. **Constitutional CI** remains a separate level using only the official kernel for language-wide soundness theorems. Release binaries should integrate Fast's Rust verifier and bundle the matching official Lean checker/runtime as a sidecar for Official, without separately installed Cargo/LLVM/elan. **These are v0.1.0 design targets, not features of the current Stage 1b Lean/C compiler.** See [Compiler IR v1](docs/compiler-ir.md#compiler-verification-modes-and-lean-distribution-normative-v010).
 
 ## Path packages and modules
 

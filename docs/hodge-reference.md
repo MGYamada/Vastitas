@@ -2,10 +2,18 @@
 
 This is a **Python reference calculator and independent candidate verifier** for
 [#375](https://github.com/MGYamada/Vastitas/issues/375). It adds no public Vastitas
-syntax, registered stdlib operation, Lean proof, Core primitive, numerical
-adapter, or physical guarantee. The issue remains open. This first stage uses
+syntax, registered stdlib operation, actual-Core proof, native numerical
+adapter, or physical guarantee. A **separate, newly added Lean kernel-reduced
+finite basis theorem** is described below; the Python calculator is not itself
+that proof. The issue remains open. This first stage uses
 exact rational coordinates on real Euclidean three-space and real Lorentz
 four-space. It does not implement differential geometry or global Hodge theory.
+
+## Lean-first finite mathematical seed (separate from the Python reference)
+
+`lean/VastitasOracle/HodgeFinite.lean` is imported by the mathlib-free Lean Oracle library and defines oriented standard Euclidean rank-three and Minkowski `diag(-1,+1,+1,+1)` rank-four **integral-coefficient basis fragments**. It states and proves with `decide +kernel` (not `native_decide`) the selected Hodge wedge-pairing equation on each complete basis-pair set, `star²=+id` for Euclidean 1-forms, `star²=-id` for Minkowski 2-forms, and orientation/sign counterexamples. Build validation is tracked by the PR CI; do not assume this addition proves any general rational-coefficient, global or source/Core theorem.
+
+The existing Python suite independently tests more metric/volume/coefficients, twisted signs and active isometries than the Lean fragment; those tests remain **finite observations**, not the general mathematical authority. A future independent `VastitasMath` definition/Bridge and actual-Core refinement remain pending under #285/#375.
 
 ## Run and inspect
 

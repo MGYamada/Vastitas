@@ -285,7 +285,7 @@ inductive Action where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def reject (message : String) : Except Error α :=
-  .error ⟨"E_RUNTIME_SHAPE", message⟩
+  .error {code := "E_RUNTIME_SHAPE", message := message}
 
 def owner (frame : Frame) (name : Symbol) : Except Error Allocation :=
   match frame.owner? name with
@@ -474,7 +474,7 @@ def check (slots : Slots) (before : Frame) (code : List Action) :
             if afterValid : auditFrame after then
               if closedGuards : (before.guards ++ guards).all Guard.closedValid then
                 return ⟨bounded, slotsValid, references, beforeValid, after, guards, accepted, afterValid, closedGuards⟩
-              else .error ⟨"E_RUNTIME_GUARD", "literal runtime extent, layout or cell guard is false"⟩
+              else .error {code := "E_RUNTIME_GUARD", message := "literal runtime extent, layout or cell guard is false"}
             else reject "invalid final runtime frame"
         else reject "invalid runtime caller frame"
       else reject "runtime extent requires a live immutable Nat or Int scalar slot"

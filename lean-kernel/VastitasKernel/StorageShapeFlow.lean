@@ -16,7 +16,7 @@ def collect : List ValueFlow.Statement → Except Error (List Event)
   | .runtime operation :: rest => return operation :: (← collect rest)
   | .branch _ yes no :: rest => do
     if contains yes || contains no then
-      throw ⟨"E_RUNTIME_BRANCH", "runtime shapes cannot occur under a resource branch"⟩
+      throw {code := "E_RUNTIME_BRANCH", message := "runtime shapes cannot occur under a resource branch"}
     collect rest
   | _ :: rest => collect rest
 
@@ -48,8 +48,8 @@ def check (slots : Slots) (flow : List ValueFlow.Statement) : Except Error (Chec
           if explicitClosed : (extraGuards events).all Guard.closedValid then
             if closed : resources.after.allocations = [] ∧ resources.after.loans = [] then
               return ⟨events, collected, resources, accepted, explicitReferences, explicitClosed, closed⟩
-            else throw ⟨"E_RUNTIME_ESCAPE", "runtime entry exits with owners or loans"⟩
-          else throw ⟨"E_RUNTIME_GUARD", "literal runtime space, map or call dimension guard is false"⟩
-      else throw ⟨"E_RUNTIME_SHAPE", "runtime guard refers to an absent or nonintegral slot"⟩
+            else throw {code := "E_RUNTIME_ESCAPE", message := "runtime entry exits with owners or loans"}
+          else throw {code := "E_RUNTIME_GUARD", message := "literal runtime space, map or call dimension guard is false"}
+      else throw {code := "E_RUNTIME_SHAPE", message := "runtime guard refers to an absent or nonintegral slot"}
 
 end VastitasKernel.Storage.Shapes.Flow

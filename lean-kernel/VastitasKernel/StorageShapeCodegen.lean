@@ -11,7 +11,7 @@ structure Context where
   narrowed : List Symbol := []
   deriving Repr, Inhabited
 
-private def reject (message : String) : Except Error α := .error ⟨"E_RUNTIME_CODEGEN", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_RUNTIME_CODEGEN", message := message}
 private def scalar : Scalar → Nat | .f64 => 0 | .complexF64 => 1
 private def extent : Extent → String
   | .literal value => toString value

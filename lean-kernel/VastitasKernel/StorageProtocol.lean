@@ -183,7 +183,7 @@ structure CheckedInput (json : Json) where
 
 def check (json : Json) : Except Error (CheckedInput json) :=
   match decoded : plan json with
-  | .error message => .error ⟨"E_PROTOCOL", message⟩
+  | .error message => .error {code := "E_PROTOCOL", message := message}
   | .ok input => match accepted : checkPlan input with
     | .error diagnostic => .error diagnostic
     | .ok checked => .ok ⟨input, decoded, checked, accepted⟩

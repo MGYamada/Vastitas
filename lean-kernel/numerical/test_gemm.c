@@ -224,6 +224,36 @@ static VGemmCoefficient literal(uint8_t scalar, double real, double imaginary) {
     return (VGemmCoefficient){VGEMM_LITERAL,scalar,bits(real),bits(imaginary),0,0};
 }
 
+static void complex_element_boundaries(void) {
+    VStorageArena *arena=vstorage_new(1024); assert(arena);
+    VStorageLayout whole={0,4,1,4,0}, valid={16,1,1,1,0}, half={8,1,1,1,0};
+    for (uint32_t id=0; id<4; ++id) {
+        assert(vstorage_allocate(arena,id,1,4) == VS_OK);
+        assert(vstorage_fill(arena,id,whole,1,bits(2),bits(3)) == VS_OK);
+    }
+    VStorageStats before=vstorage_stats(arena);
+    VGemmReport report={71,72};
+    VGemmCoefficient defaults={VGEMM_DEFAULT,0,0,0,0,0};
+    VGemmCoefficient coefficient={VGEMM_VIEW,0,0,0,3,8};
+    for (uint8_t transpose=0; transpose<2; ++transpose) {
+        half.transposed=transpose;
+        assert(vgemm_execute(arena,0,half,0,1,valid,0,2,valid,VGEMM_OVERWRITE,&report)==VS_LAYOUT);
+        assert(vgemm_execute(arena,0,valid,0,1,half,0,2,valid,VGEMM_OVERWRITE,&report)==VS_LAYOUT);
+    }
+    half.transposed=0;
+    assert(vgemm_execute(arena,0,valid,0,1,valid,0,2,half,VGEMM_OVERWRITE,&report)==VS_LAYOUT);
+    assert(vgemm_execute_scaled(arena,0,valid,0,1,valid,0,2,valid,VGEMM_OVERWRITE,coefficient,defaults,&report)==VS_LAYOUT);
+    assert(vgemm_execute_scaled(arena,0,valid,0,1,valid,0,2,valid,VGEMM_ACCUMULATE,defaults,coefficient,&report)==VS_LAYOUT);
+    assert(report.kernel_calls==71 && report.written_bytes==72);
+    assert(vstorage_stats(arena).written_bytes==before.written_bytes);
+    for (uint32_t id=0; id<4; ++id)
+        for (uint64_t n=0; n<4; ++n) expect(arena,id,whole,n,0,2,3);
+    coefficient.offset=16;
+    assert(vgemm_execute_scaled(arena,0,valid,0,1,valid,0,2,valid,VGEMM_OVERWRITE,coefficient,defaults,&report)==VS_OK);
+    expect(arena,2,valid,0,0,-46,9); /* (2 + 3i)^3 */
+    cleanup(arena);
+}
+
 static void coefficients(void) {
     VGemmCoefficient defaults = {VGEMM_DEFAULT,0,0,0,0,0};
     for (uint8_t scalar=0; scalar<2; ++scalar) {
@@ -346,7 +376,7 @@ static void diagonal_pairing(void) {
 int main(void) {
     assert(vgemm_backend_check()==VS_OK);
     real_orientations(); complex_product(); conjugation_and_nonfinite();
-    degenerate(); nonfinite_inputs(); failures_preserve_output(); coefficients(); diagonal_pairing();
+    degenerate(); nonfinite_inputs(); failures_preserve_output(); complex_element_boundaries(); coefficients(); diagonal_pairing();
     puts(vgemm_configuration());
     puts("GEMM: real/complex N/T/R/C layouts, reuse, empty dimensions and failure-before-write passed");
 }

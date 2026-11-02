@@ -37,18 +37,25 @@ theorem all_accesses_bounded {scalar : Scalar} {capacity : Nat} {layout : Layout
   unfold Layout.address
   omega
 
-theorem all_accesses_aligned {scalar : Scalar} {capacity : Nat} {layout : Layout}
+/-- Every accepted cell starts at a whole scalar element of the allocation,
+including 16-byte complex elements. This is stronger than component ABI alignment. -/
+theorem all_accesses_at_element_boundary {scalar : Scalar} {capacity : Nat} {layout : Layout}
     (accepted : checkLayout scalar capacity layout = true) {row column : Nat}
-    (inside : layout.InDomain row column) : layout.address scalar row column % scalar.alignment = 0 := by
+    (inside : layout.InDomain row column) : layout.address scalar row column % scalar.width = 0 := by
   have valid := checked_layout accepted
   have alignment := valid.2.2.2.2.2.2.1
-  have offset : layout.offset % scalar.alignment = 0 := by
+  have offset : layout.offset % scalar.width = 0 := by
     rcases alignment with empty | aligned
     · rw [nonempty_of_index inside] at empty
       contradiction
     · exact aligned
-  cases scalar <;> simp [Layout.address, Scalar.width, Scalar.alignment,
-    Nat.add_mod, Nat.mul_mod, Scalar.alignment] at offset ⊢ <;> exact offset
+  simp [Layout.address, Nat.add_mod, Nat.mul_mod, offset]
+
+theorem all_accesses_aligned {scalar : Scalar} {capacity : Nat} {layout : Layout}
+    (accepted : checkLayout scalar capacity layout = true) {row column : Nat}
+    (inside : layout.InDomain row column) : layout.address scalar row column % scalar.alignment = 0 := by
+  have boundary := all_accesses_at_element_boundary accepted inside
+  cases scalar <;> simp only [Scalar.width, Scalar.alignment] at boundary ⊢ <;> omega
 
 private theorem earlier_column (width leading r1 r2 c1 c2 : Nat)
     (rowBound : r1 < leading) (columnOrder : c1 < c2) :

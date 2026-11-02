@@ -101,6 +101,11 @@ For a nonempty `m x n` matrix, `ld >= max(1,m)` and capacity covers its last
 element, including column padding. LP64 narrowing is checked before BLAS entry.
 Complex storage and alignment are fixed by the adapter ABI, not inferred from
 the source spelling `Complex<F64>` or an unchecked host struct cast.
+The implemented dense views also preserve typed element boundaries relative to
+the allocation origin: nonempty `F64` offsets are multiples of 8 bytes and
+`Complex<F64>` offsets are multiples of 16 bytes. ABI pointer alignment remains
+8 bytes for binary64 components. Transposition or reborrowing does not authorize
+a half-complex-element reinterpretation; empty views still form no pointer.
 
 ## 7.4 Regions, overlap and alias evidence
 
@@ -328,8 +333,18 @@ Use a competent C baseline with the same algorithm, scalar representation,
 layout, backend/version, thread count, numerical policy and input/output contract.
 Exact integer comparisons use an equivalent arbitrary-precision implementation.
 A naive triple loop is not the baseline for a Vastitas call to optimized BLAS.
+The gate comparator must stand alone: use ordinary allocation and direct backend
+calls, without Vastitas arena preflight, per-call backend configuration checks or
+cost counters in its primary timing loop. Keep a separate arena-C arm to locate
+runtime versus codegen overhead; generated/arena-C ratios cannot establish this
+gate. The [plain-C harness](../experiments/plain_c/README.md) supplies this third
+arm for the finite public GEMM, packing and contraction-tree profiles. Replay
+its logical costs in a separate diagnostic build and leave unobserved timing
+cost fields blank; do not report them as zero.
 Measure both prepared-kernel execution and the full operation including allocation,
-preflight and packing; do not remove those costs from only one side.
+preflight and packing. Include the checks each implementation actually requires;
+do not force the C baseline to repeat Vastitas-specific dynamic checks, or hoist
+Vastitas checks outside its timed scope merely to obtain parity.
 
 | Workload | Required evidence |
 | --- | --- |

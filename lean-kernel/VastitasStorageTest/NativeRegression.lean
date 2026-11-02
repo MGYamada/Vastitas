@@ -64,4 +64,23 @@ namespace VastitasKernel.Storage.Native.Regression
     throw (IO.userError "erasure bypassed returned-loan rejection")
   IO.println s!"native storage: exact lowering, self-copy erasure and {mutations.length + 9} forged/boundary cases passed"
 
+#eval show IO Unit from do
+  let view : Layout := ⟨16, 1, 2, 3, true⟩
+  let source := [Action.allocate 0 .complexF64 8, .borrow 1 (.owner 0) view .write,
+    .fill 1 (.complexF64 0 0), .release 1, .drop 0] |>.map Statement.action
+  let .ok checked := compile source | throw (IO.userError "valid complex view rejected")
+  if !(generate checked).isOk then throw (IO.userError "valid complex generation rejected")
+  let instructions := checked.instructions.map fun instruction => match instruction with
+    | .fill id layout value => .fill id {layout with offset := 8} value
+    | _ => instruction
+  if (generate {checked with instructions}).isOk then
+    throw (IO.userError "forged native complex half-element instruction accepted")
+  let input := source.map fun statement => match statement with
+    | .action (.borrow name parent layout access) =>
+      .action (.borrow name parent {layout with offset := 8} access)
+    | _ => statement
+  if (generate {checked with input, instructions}).isOk then
+    throw (IO.userError "matching forged source/native half-element view accepted")
+  IO.println "native storage: complex element boundary and forged lowering checks passed"
+
 end VastitasKernel.Storage.Native.Regression

@@ -97,7 +97,7 @@ def write_package(c, out):
     (out / "src/product/mod.vast").write_text(source(c))
 
 
-def c_header(c):
+def c_header(c, layout_type="VStorageLayout"):
     s = spec(c)
     def view(v): return "{" + ",".join(str(int(x)) for x in v) + "}"
     def pair(v): return "{" + ",".join(float(x).hex() for x in v) + "}"
@@ -105,7 +105,7 @@ def c_header(c):
     return f'''/* Independently constructed from cases.json, not emitted instructions. */
 static const unsigned scalar = {c['scalar']};
 static const uint64_t dim_i = {c['i']}, dim_k = {c['k']}, dim_j = {c['j']};
-static const VStorageLayout views[4] = {{{','.join(map(view, s['layouts']))}}};
+static const {layout_type} views[4] = {{{','.join(map(view, s['layouts']))}}};
 static const uint64_t elements[4] = {{{','.join(map(str, s['elements']))}}};
 static const double values[2][2] = {{{','.join(map(pair, s['values']))}}};
 static const double sentinel[2] = {pair(s['sentinel'])};

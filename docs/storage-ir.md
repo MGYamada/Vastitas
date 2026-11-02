@@ -96,7 +96,12 @@ This does not implement residual retention, snapshots, recomputation or AD.
 
 The admitted layout is a column-major physical rectangle with an explicit
 logical transpose. Offset and capacity are bytes; leading dimension is elements.
-`f64` uses 8 bytes and `complex_f64` uses 16 bytes, with 8-byte relative alignment.
+`f64` uses 8 bytes and `complex_f64` uses 16 bytes. A nonempty view's offset
+must be a multiple of its element width relative to the allocation origin:
+8 for real and 16 for complex storage. An offset of 8 into complex storage is
+rejected; it cannot pair one element's imaginary component with the next real
+component. This typed-element rule is separate from the native ABI's 8-byte
+binary64 component alignment.
 Scalar literals are raw IEEE payloads, not a new public floating-point type or a
 claim about floating-point arithmetic. The native adapter checks its matching
 representation, base alignment and allocator contract separately.
@@ -107,7 +112,8 @@ computed byte offsets fit the signed 64-bit offset bound. Empty layouts validate
 metadata but have no element access and may have an unaligned offset. Arithmetic
 uses mathematical `Nat` before checking narrowing.
 
-Containment of a contiguous view uses its interval. Containment of a padded
+Containment requires a whole-element offset difference even for contiguous
+views, then checks the interval. Containment of a padded
 rectangle additionally checks the row/column shift and compatible column grid;
 it never treats padding as initialized. A write records its actual rectangle,
 and a scalar store records only its single cell. Branch initialization is the
@@ -240,7 +246,7 @@ The oracle imports the actual kernel definitions:
 
 | Module | Proved boundary |
 | --- | --- |
-| `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds and relatively aligned; distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
+| `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds, relatively ABI-aligned and on a whole scalar element boundary (`all_accesses_at_element_boundary`); distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
 | `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning; bounded interval unions and per-column checks cover actual bytes, with arithmetic work-budget lemmas tied to the actual history traversal |
 | `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; accepted self-copy preserves the exact state; decoder certificates retain the exact checked plan |
 | `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; self-copy emits no native instruction; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |

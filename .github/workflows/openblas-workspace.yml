@@ -59,6 +59,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
+      # Full evidence checkout: replay tests consume retained source-workspace archives.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false

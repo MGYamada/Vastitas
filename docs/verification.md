@@ -652,6 +652,17 @@ regression targets. A separate job builds the proof oracle and audits its
 axioms. Dependency-boundary checks prevent the normal compiler path from
 acquiring a mathlib dependency.
 
+Other CI jobs use a non-cone sparse checkout that excludes only
+`experiments/source_workspace/results/*/evidence.zip`. The pinned checkout
+action selects the `blob:none` fetch filter when sparse patterns are supplied;
+do not also set its `filter` input, which overrides sparse checkout. All source,
+manifests, summaries and other verifier archives remain available. The workspace
+observation job retains a full checkout because its replay and mutation tests
+consume those source-workspace archives, including older records. The compiler
+jobs retain their separate no-oracle allowlist. This reduces unrelated CI fetches
+without moving or deleting retained evidence; release-asset storage, reproducible
+retrieval and repository-history growth remain tracked in #448.
+
 
 ## Package namespace acceptance
 

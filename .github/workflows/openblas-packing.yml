@@ -57,7 +57,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
-          python-version: '3.12.12'
+          python-version: '3.15.2'
       - name: Replay and mutation regressions
         run: python3 -m unittest discover -s experiments/openblas_packing -p 'test_*.py'
       - name: Calibrate unchanged packing kernels and observe paired backends

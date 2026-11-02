@@ -33,6 +33,8 @@ jobs:
           python-version: '3.15.2'
       - name: Validate Python without a loader override
         run: bash scripts/check_ci_python.sh
+      - name: Contributor guidance limits and equality
+        run: python3 scripts/check_docs.py
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1

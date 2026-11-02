@@ -34,7 +34,14 @@ Both arms consume the node budget. Every allocation's initialization metadata
 has a 4096-node audit budget, checked before traversing its full history.
 Repeated writes of an already initialized region reuse its guarantee; identical
 branch guarantees share their history, and an empty guarantee annihilates a
-branch intersection. These are metadata bounds, not limits on buffer elements.
+branch intersection. A write in only one arm leaves the other arm's unchanged
+history; two disjoint writes over the same history retain exactly that common
+history. These rules prevent repeated single-cell branch writes from doubling
+the history at each join. Overlapping or more complex histories still use an
+explicit intersection under the same bound; a join that exceeds it reports
+`E_RESOURCE_LIMIT: branch join initialization metadata budget exceeded`.
+These are metadata bounds, not limits on buffer elements. This normalization
+does not resolve the separate whole-state audit scaling issue (#422).
 
 ## Resources and operations
 

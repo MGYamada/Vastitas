@@ -101,12 +101,24 @@ def Initialization.remaining : Nat → Initialization → Option Nat
     let afterLeft ← left.remaining fuel
     right.remaining afterLeft
 
-/-- Identical guarantees share one history; an empty guarantee on either side
-annuls a branch intersection. Inputs are budget-audited before equality. -/
-def Initialization.meet (left right : Initialization) : Initialization :=
+/-- Exact absorption avoids copying a common history when only one branch adds
+a write, or when both branches add disjoint writes. In the latter case
+`(H ∪ A) ∩ (H ∪ B) = H`. Other intersections retain both histories. Inputs are
+budget-audited before equality; no layout elements are enumerated. -/
+def Initialization.meet (left right : Initialization) (scalar : Scalar) : Initialization :=
+  if left = right then left else
   match left, right with
   | .none, _ | _, .none => .none
-  | _, _ => if left = right then left else .intersection left right
+  | .written a previous, .written b other =>
+    if previous = right then right
+    else if left = other then left
+    else if previous = other ∧ a.disjoint b scalar then previous
+    else .intersection left right
+  | .written _ previous, _ =>
+    if previous = right then right else .intersection left right
+  | _, .written _ previous =>
+    if left = previous then left else .intersection left right
+  | _, _ => .intersection left right
 
 def Initialization.coversRectangle (scalar : Scalar) (layout : Layout) : Initialization → Bool
   | .none => layout.empty

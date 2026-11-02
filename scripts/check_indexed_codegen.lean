@@ -52,6 +52,7 @@ def main (arguments : List String) : IO Unit := do
   for (name, module) in [("package", Regression.packageFixture),
       ("primitives", Regression.primitiveFixture), ("scalar", Regression.scalarFixture),
       ("global_witness", PackageSemanticRegression.globalWitnessFixture),
+      ("opened_object", PackageSemanticRegression.escapedObjectFixture),
       ("multiple_fields", PackageSemanticRegression.multipleFieldsFixture),
       ("source_declarations", sourceFixture), ("source_types", typeFixture)] ++ bodies do
     let .ok checked := Typing.checkModule module true

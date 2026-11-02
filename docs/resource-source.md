@@ -95,8 +95,37 @@ initialization are checked independently in Lean. Native preflight checks physic
 handles and arithmetic again. See [the layout contract](storage-ir.md).
 
 `f64_bits` and `complex_bits(real, imaginary)` are explicit unsigned 64-bit IEEE
-payload constructors. The example payload is binary64 `3.0`. They do not introduce
-floating-point literals or scalar arithmetic into the existing Nat/Int dispatcher.
+payload constructors. The example payload is binary64 `3.0`. Resource payloads
+also accept **exact finite literals**, including decimal and hexadecimal forms:
+
+```vast
+fill(output, f64(3.0));
+store(output, 0, 0, f64(-0.25));
+fill(complex_output, complex(0x1.8p0, -2.0)); // 1.5 - 2i
+```
+
+`f64(value)` and `complex(real, imaginary)` work in fill/store/expect and literal
+GEMM coefficients, including the runtime-extent profile. A hex mantissa requires
+a `p` exponent, whose decimal integer is a power of two: `0x1p-1074` is the least
+positive subnormal and `0x1.fffffffffffffp1023` the greatest finite binary64 value.
+Decimal forms may use `e` exponents (`125e-3` is exactly `0.125`). Separators and
+type suffixes are not admitted. Exponents must fit a signed 64-bit integer.
+
+There is **no rounding on acceptance**. For example `f64(0.1)` and
+`f64(9007199254740993)` are rejected; the diagnostic shows their adjacent binary64
+values in exact hex form. Inexact hex values, overflow and underflow below
+subnormal precision are rejected too. Positive zero is accepted; negative zero,
+infinities and NaN payloads retain the explicit bits constructors. For example
+`f64_bits(9223372036854775808)` preserves negative zero.
+
+This is source sugar for the existing unsigned-bit payloads, with no wire/schema
+change or runtime conversion. The frontend checks hex precision/range with
+integer arithmetic; for decimals it compares the candidate's exact integer
+decimal expansion with the original value before accepting its bits. Lean
+continues to check the same literal scalar tags and resource authority. This
+frontend conversion is tested, not a new Lean source-literal refinement theorem
+or an IEEE field-law claim. It does not introduce pure floating scalar values or
+arithmetic into the existing Nat/Int dispatcher.
 Allocation sizes and layout arguments are static metadata. An explicit
 `coefficient(loan)` operand instead reads an initialized scalar at GEMM execution;
 it does not introduce general scalar expression flow between resource statements.

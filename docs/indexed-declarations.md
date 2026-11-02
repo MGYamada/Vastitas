@@ -311,7 +311,9 @@ contained regions, transfer and revoked old authority, returned Open obligations
 and repair, exact private scope, all-body checking, final out-of-domain footprints,
 contribution order, empty-root assembly, scope escape and forged metadata.
 Four additional native fixtures execute nested contribution helpers, transfer,
-obligation repair and the empty-assembly path (twenty-two in total).
+obligation repair and the empty-assembly path (twenty-two at that increment).
+The bare opened-object fixture brings the current standalone native suite to
+twenty-three, retaining its opening identity through a block and local aliases.
 Public protocol 7 now decodes Rust source into this exact combined checker.
 The geometry stdlib below now uses that public path; the explicit library export also supports legacy syntax in the same closure.
 
@@ -455,8 +457,15 @@ constant condition. Numeric allocation serials are unique across all allocation
 sites and object parameters, independently of claimed type metadata.
 
 Lexical scopes and existential openings reject result types containing new local
-indices. References already present inside an outer indexed value remain in
-scope even when that object's original binding was anonymous. Packages use an
+indices. A bare object may leave an opening because its domain/marker type does
+not index its own identity. The block result and its local aliases retain that
+opening's brand; another opening, construction, or object-returning call does
+not acquire it. Dependent fields still require repackaging. This is intentional
+in both `HasType` and the source `checkEscape` rule; the actual module freshness
+audit and typed evaluation cover the retained result reference. It does not add
+a full source/native refinement theorem. References already present inside an
+outer indexed value remain in scope even when that object's original binding
+was anonymous. Packages use an
 explicit finite case table indexed by domain and coefficient marker, at most
 64 cases per declaration. Cases cannot overlap. Runtime objects and dimensions
 are never case or dispatch keys. Fields use the single-witness templates above.

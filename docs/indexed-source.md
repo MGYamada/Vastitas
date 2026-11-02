@@ -107,9 +107,25 @@ fn main() -> Int {
 }
 ```
 
-`unpack` introduces a fresh scoped witness and binds every field in order. A
-result containing that opened witness must be repackaged before leaving scope.
-An object freshly constructed with the same descriptor remains distinct.
+`unpack` introduces a fresh witness identity and binds every field in order.
+A result whose **type indexes that witness** (for example a point, morphism, or
+indexed token) must be repackaged before leaving the opening's scope. The bare
+witness object is an ordinary first-class value: its `Object<domain,marker>`
+type has no local object index, so it may leave the block directly:
+
+```vast
+let Z = { unpack packed as { witness: Y, fields: [p] }; Y };
+let q: geo::Point<Z, geo::Base> = geo::origin(Z);
+```
+
+Here `Z` retains that opening's identity; ordinary local aliases retain it too.
+This does not export `p` or identify `Z` with a witness from a second opening
+of the same package. Returning an object through a function call introduces a
+fresh caller identity, including repeated calls to the same function. A newly
+constructed object with an equal descriptor also remains distinct. To carry an
+existing dependent field across the boundary, return a package containing its
+witness and fields together. These rules apply to both ordinary and smooth
+geometry and to legacy geometry syntax through the common checker.
 
 The complete [example](../examples/packages/indexed/main.vast) additionally uses
 an identity morphism and a static lambda:

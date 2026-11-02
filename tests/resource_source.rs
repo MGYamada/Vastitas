@@ -85,6 +85,155 @@ const SELF_COPY: &str = "resource fn main() -> Int {
     value { 0 }
 }";
 
+#[test]
+fn exact_payload_spellings_emit_identical_bits_and_execute_without_blas() {
+    let source = r#"resource fn main() -> Int {
+    allocate data: F64[6];
+    borrow w = write(data, layout(0, 6, 1, 6, false));
+    fill(w, f64(1.5));
+    store(w, 1, 0, f64(-0.25));
+    store(w, 2, 0, f64(0x1p-1074));
+    store(w, 3, 0, f64(0x1.fffffffffffffp1023));
+    store(w, 4, 0, f64_bits(9223372036854775808));
+    store(w, 5, 0, f64_bits(9221120237041090626));
+    release(w);
+    borrow r = read(data, layout(0, 6, 1, 6, false));
+    expect(r, 0, 0, f64_bits(4609434218613702656));
+    expect(r, 1, 0, f64_bits(13821547256400052224));
+    expect(r, 2, 0, f64_bits(1));
+    expect(r, 3, 0, f64_bits(9218868437227405311));
+    expect(r, 4, 0, f64_bits(9223372036854775808));
+    expect(r, 5, 0, f64_bits(9221120237041090626));
+    release(r); drop(data);
+    allocate complex_data: Complex<F64>[1];
+    borrow init = write(complex_data, layout(0, 1, 1, 1, false));
+    fill(init, complex(0X1P+0, -2.0)); release(init);
+    borrow result = read(complex_data, layout(0, 1, 1, 1, false));
+    expect(result, 0, 0, complex(1., -0x1p1)); release(result); drop(complex_data);
+    let extent: Nat = value { 1 };
+    runtime_allocate dynamic_data: F64[extent] runtime_layout(extent, extent, extent, false);
+    runtime_borrow dynamic_init = write(dynamic_data);
+    runtime_fill(dynamic_init, f64(0.5)); runtime_release(dynamic_init);
+    runtime_borrow dynamic_read = read(dynamic_data);
+    runtime_expect(dynamic_read, 0, 0, f64_bits(4602678819172646912));
+    runtime_release(dynamic_read); runtime_drop(dynamic_data);
+    value { 42 }
+}"#;
+    let s = fixture(source, OPERATIONS);
+    success(&check(&s));
+    let mut raw = request(&s);
+    assert_eq!(raw["version"], 8);
+    let emitted = kernel(&raw, "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    assert_eq!(emitted["numerical_runtime"], false);
+    success(
+        &cli()
+            .args(["build", "--manifest-path"])
+            .arg(s.0.join("app/Vastitas.toml"))
+            .arg("-o")
+            .arg(s.0.join("program"))
+            .output()
+            .unwrap(),
+    );
+    let result = Command::new(s.0.join("program")).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"42\n");
+    let explicit = source
+        .replace("f64(1.5)", "f64_bits(4609434218613702656)")
+        .replace("f64(0.5)", "f64_bits(4602678819172646912)")
+        .replace("f64(-0.25)", "f64_bits(13821547256400052224)")
+        .replace("f64(0x1p-1074)", "f64_bits(1)")
+        .replace(
+            "f64(0x1.fffffffffffffp1023)",
+            "f64_bits(9218868437227405311)",
+        )
+        .replace(
+            "complex(0X1P+0, -2.0)",
+            "complex_bits(4607182418800017408, 13835058055282163712)",
+        )
+        .replace(
+            "complex(1., -0x1p1)",
+            "complex_bits(4607182418800017408, 13835058055282163712)",
+        );
+    s.write("app/src/main.vast", &explicit);
+    let mut bits = request(&s);
+    common::remove_spans(&mut raw);
+    common::remove_spans(&mut bits);
+    assert_eq!(raw, bits, "sugar may only change source spans");
+}
+
+#[test]
+fn inexact_payloads_report_the_literal_and_preserve_existing_outputs() {
+    for (payload, fragment, message) in [
+        (
+            "f64(0.1)",
+            "0.1",
+            "adjacent values are f64(0x1.9999999999999p-4) and f64(0x1.999999999999ap-4)",
+        ),
+        ("f64(-0.0)", "-0.0", "signed zero"),
+        ("f64(0x1p-1075)", "0x1p-1075", "subnormal precision"),
+        ("f64(0x1p1024)", "0x1p1024", "finite binary64"),
+        (
+            "f64(9007199254740993)",
+            "9007199254740993",
+            "not exactly representable",
+        ),
+        ("complex(1.0, 0.1)", "0.1", "not exactly representable"),
+        ("f64(NaN)", "NaN", "explicit bits"),
+        ("f64(1.5f64)", "1.5f64", "without suffixes"),
+    ] {
+        let line = format!("    fill(w, {payload});");
+        let source = format!(
+            "resource fn main() -> Int {{\n    // 日本語\n    allocate data: F64[1];\n    borrow w = write(data, layout(0, 1, 1, 1, false));\n{line}\n    release(w); drop(data); value {{ 0 }}\n}}"
+        );
+        let s = fixture(&source, OPERATIONS);
+        s.write("program", "preserve this output");
+        let location = format!(
+            "main.vast:5:{}: E_RESOURCE_LITERAL:",
+            line.find(fragment).unwrap() + 1
+        );
+        for mode in ["check", "build"] {
+            let mut c = cli();
+            c.args([mode, "--manifest-path"])
+                .arg(s.0.join("app/Vastitas.toml"));
+            if mode == "build" {
+                c.arg("-o").arg(s.0.join("program"));
+            }
+            let output = c.output().unwrap();
+            assert!(!output.status.success());
+            let error = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                error.contains(&location) && error.contains(message),
+                "{payload}: {error}"
+            );
+            assert_eq!(
+                std::fs::read(s.0.join("program")).unwrap(),
+                b"preserve this output"
+            );
+        }
+    }
+    // Payload syntax does not add pure floating values, sizes or a new IR tag.
+    rejected(
+        "resource fn main() -> Int { value { f64(1.5) } }",
+        OPERATIONS,
+        "E_UNSUPPORTED",
+    );
+    rejected(
+        "resource fn main() -> Int { allocate x: F64[1.0]; drop(x); value { 0 } }",
+        OPERATIONS,
+        "E_PARSE",
+    );
+    let s = fixture(
+        &SELF_COPY.replace("f64_bits(4607182418800017408)", "f64(1.0)"),
+        OPERATIONS,
+    );
+    let mut raw = request(&s);
+    let root = module(&raw, "storage_example", json!([]));
+    raw.pointer_mut(&format!("{root}/resource_functions/0/body/2/action/value"))
+        .unwrap()["bits"] = json!("0x1p0");
+    common::assert_rejected(raw, "E_PROTOCOL");
+}
+
 const COMPLEX_BOUNDARIES: &str = "resource fn main() -> Int {
     allocate data: Complex<F64>[8];
     borrow init = write(data, layout(0, 8, 1, 8, false));

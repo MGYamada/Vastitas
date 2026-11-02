@@ -144,6 +144,8 @@ the corresponding static-storage work in #422 remain open. The bounded public
 source harness `scripts/check_storage_scaling.py --profile runtime` measures
 allocation/drop, shared reads, distinct-allocation writes, reborrow chains and
 ten-wrapper calls; these are compiler observations, not native/C acceptance.
+The [recorded comparison](../experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md)
+retains matching input hashes and the remaining 512-deep reborrow timeout.
 
 A generated entry creates one runtime-shape arena and cleans it up once; entries
 also using static resources have a second, disjoint arena. A call does not create

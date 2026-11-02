@@ -159,11 +159,37 @@ their execution status are recorded separately from mathematical conformance.
 The [verification boundary](../verification.md) documents the changed proof
 dependencies and required official build/axiom checks.
 
-Independent `VastitasMath`, separate pinned-Mathlib `VastitasBridge`, conformance
-manifests and new correspondence proofs remain subsequent work under #285.
-They must not be inferred from this dependency removal. The historical v0.3
+Independent `VastitasMath`, conformance manifests and new correspondence proofs
+remain subsequent work under #285. The first separate pinned-Mathlib
+`VastitasBridge` package is the bounded mathematical increment in §10 below.
+None of these results follows from the Oracle dependency removal. The historical v0.3
 source records remain unchanged; current build/contributor documentation is
 updated to match this bounded amendment.
+
+### 10. Daleckii–Krein mathematical foundation
+
+Introduce `lean-bridge/` as an independent, proof-only Lake package for the
+important [Daleckii–Krein theorem](../daleckii-krein.md). It uses the exact
+Mathlib reference and Lean version in §9. Its initial dependency is only pinned
+Mathlib and its locked transitive packages; it is not a library target inside
+`lean/`, nor a dependency of the kernel, Oracle, runtime or ordinary build.
+Separate CI builds it, audits all bridge declarations against the unchanged
+three-axiom allowlist, and replays its proof modules with the official kernel.
+
+The result identifies the real Fréchet derivative of Mathlib's actual continuous
+functional calculus at a finite-spectrum self-adjoint element. Its complex
+Hermitian matrix specialization includes repeated eigenvalues. This is a
+mathematical foundation for future spectral AD, not a public `std` operation,
+an executable spectral algorithm or a proof about a fabricated Core model.
+The documentation fixes the exact hypotheses and records the missing
+representation, cotangent-rule and source/native correspondence obligations.
+
+This increment introduces no public mathematical family or method authority,
+and does not complete #285's four-package architecture. `VastitasMath` and the
+implementation correspondence layer remain future work. The kernel/Oracle
+dependency policy in §9 stays closed; future bridge imports of implementation
+or independent mathematics packages require an explicit policy amendment.
+The historical v0.3 source records remain unchanged.
 
 ## Consequences, validation and migration
 

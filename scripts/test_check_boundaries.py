@@ -327,6 +327,87 @@ rev = "v4.35.0"
             self.assert_boundary_error("cannot check Lake dependencies")
             path.write_text(original)
 
+    def bridge_package(self):
+        revision = "56a005855ea17e0b0958f73ec801ae140b0a1679"
+        url = "https://github.com/leanprover-community/mathlib4.git"
+        self.write("lean-bridge/lean-toolchain", "leanprover/lean4:v4.35.0\n")
+        self.write("lean-bridge/lakefile.toml", f'''name = "vastitas_bridge"
+[[require]]
+name = "mathlib"
+git = "{url}"
+rev = "{revision}"
+''')
+        self.write("lean-bridge/lake-manifest.json", json.dumps({"packages": [{
+            "name": "mathlib", "type": "git", "url": url, "rev": revision,
+            "inherited": False, "subDir": None,
+        }]}))
+        self.write("lean-bridge/VastitasBridge.lean", "module\npublic import Mathlib\n")
+
+    def test_optional_bridge_does_not_relax_compiler_or_oracle_boundary(self):
+        self.oracle_package()
+        self.bridge_package()
+        self.assertEqual(check_boundaries(self.root), [])
+        for directory in ["lean-kernel/VastitasKernel", "lean/VastitasOracle"]:
+            with self.subTest(directory=directory):
+                path = f"{directory}/BridgeLeak.lean"
+                self.write(path, "import VastitasBridge\nimport Mathlib\n")
+                self.assert_boundary_error(f"{path}: forbidden import VastitasBridge")
+                self.assert_boundary_error(f"{path}: forbidden import Mathlib")
+                (self.root / path).unlink()
+        self.write("lean-bridge/VastitasBridge.lean", "import VastitasKernel.Runtime\n")
+        self.assert_boundary_error("lean-bridge/VastitasBridge.lean: forbidden import")
+
+    def test_bridge_cannot_redirect_or_unpin_mathlib(self):
+        self.bridge_package()
+        path = self.root / "lean-bridge/lake-manifest.json"
+        original = path.read_text()
+        for changes in [
+            {"url": "https://example.org/fork.git"}, {"rev": "main"},
+            {"rev": "0" * 40}, {"type": "path", "dir": "../lean"},
+            {"name": "wrapper"}, {"inherited": True}, {"subDir": "other"},
+        ]:
+            with self.subTest(changes=changes):
+                manifest = json.loads(original)
+                manifest["packages"][0].update(changes)
+                path.write_text(json.dumps(manifest))
+                self.assert_boundary_error("lean-bridge")
+        path.write_text(original)
+        config = self.root / "lean-bridge/lakefile.toml"
+        config.write_text(config.read_text().replace(
+            "56a005855ea17e0b0958f73ec801ae140b0a1679", "main"))
+        self.assert_boundary_error("only the pinned Mathlib reference")
+
+    def test_bridge_transitive_dependencies_must_be_locked_git_commits(self):
+        self.bridge_package()
+        path = self.root / "lean-bridge/lake-manifest.json"
+        manifest = json.loads(path.read_text())
+        inherited = {"name": "helper", "type": "git", "rev": "a" * 40, "inherited": True}
+        manifest["packages"].append(inherited)
+        path.write_text(json.dumps(manifest))
+        self.assertEqual(check_boundaries(self.root), [])
+        for changes in [{"rev": "main"}, {"type": "path"}, {"inherited": False}]:
+            with self.subTest(changes=changes):
+                manifest["packages"][-1] = inherited | changes
+                path.write_text(json.dumps(manifest))
+                self.assert_boundary_error("lock every dependency")
+        manifest["packages"][-1] = manifest["packages"][0]
+        path.write_text(json.dumps(manifest))
+        self.assert_boundary_error("duplicate package names")
+
+    def test_bridge_missing_lock_toolchain_drift_and_executable_override_fail(self):
+        self.bridge_package()
+        self.write("lean-bridge/lean-toolchain", "leanprover/lean4:v4.34.0\n")
+        self.assert_boundary_error("bridge and kernel must use the same Lean toolchain")
+        self.write("lean-bridge/lakefile.lean", "import Lake\n")
+        self.assert_boundary_error("lean-bridge: executable lakefile.lean")
+        path = self.root / "lean-bridge/lake-manifest.json"
+        for text in ["{", "{}", "[]", '{"packages": null}', '{"packages": []}']:
+            with self.subTest(text=text):
+                path.write_text(text)
+                self.assert_boundary_error("lean-bridge")
+        path.unlink()
+        self.assert_boundary_error("lean-bridge: cannot check pinned dependencies")
+
 
 if __name__ == "__main__":
     unittest.main()

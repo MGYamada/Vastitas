@@ -73,7 +73,17 @@ programs do not invoke this builder or link OpenBLAS. The numerical CI job is
 separate from both no-mathlib compiler jobs. The adapter includes the installed
 CBLAS header and checks the linked library's version, integer ABI and threading
 before any GEMM. It rejects ILP64 and unsupported threaded builds; it never changes
-process-wide thread settings inside an operation. LP64 and alternate integer ABIs
+process-wide thread settings inside an operation. The linked static backend is
+validated once with `pthread_once`; both success and failure statuses are cached.
+`vgemm_configuration` shares that initialization and returns an immutable copy,
+avoiding repeated writes to OpenBLAS's global configuration buffer during
+concurrent operations on distinct arenas. This adds a fixed 256-byte static
+snapshot plus once/status metadata, with no heap allocation. A missing or
+oversized provider string is rejected. The cache covers backend identity only;
+each operation still checks its actual shapes, bounds, aliases and coefficients
+before writes. Existing measured records retain their original adapter and
+costs; the once change alone is not new timing or C-parity evidence.
+LP64 and alternate integer ABIs
 are distinct interfaces in the [upstream distribution contract](https://www.openmathlib.org/OpenBLAS/docs/distributing/).
 
 Linux numerical CI selects the explicit `HASWELL`/AVX2 target for Valgrind's

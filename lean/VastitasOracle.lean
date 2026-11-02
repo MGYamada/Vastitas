@@ -1,3 +1,4 @@
+import VastitasOracle.HodgeFinite
 import VastitasOracle.Core
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates

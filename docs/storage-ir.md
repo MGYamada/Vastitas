@@ -66,7 +66,8 @@ shapes at 64/128/256 entries, including ten wrappers. Use `--sizes 512 1000` for
 larger observations and `--kernel-root` to compare the same sources with another
 built kernel. Its per-case deadline terminates the process group and reports a
 timeout; it is a measurement harness, not a compiler work budget or a controlled
-host Fast like C acceptance test.
+host Fast like C acceptance test. The [same-source macOS observation](../experiments/compiler_scaling/results/2026-11-02-macos-storage/RESULTS.md)
+records both the improvement and the remaining 512-deep reborrow timeout.
 
 ## Resources and operations
 

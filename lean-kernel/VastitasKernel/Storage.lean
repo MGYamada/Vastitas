@@ -536,6 +536,9 @@ def executeAction (state : State) : Action → Except Error State
       reject "E_RESOURCE_TYPE" "copy requires equal logical shapes and scalar representations"
     if !sourceAllocation.initialization.covers sourceAllocation.scalar input.layout then
       reject "E_RESOURCE_INIT" "copy source is not fully initialized"
+    -- Same-handle copy still requires live read/write access and initialized
+    -- bytes, but performs no write and preserves versions and dependencies.
+    if source == target then return state
     return state.markWritten targetAllocation.identity output.layout
   | .pack3 source target i k j => do
     let (input, sourceAllocation) ← usable state source false

@@ -72,6 +72,86 @@ fn rejected(main: &str, operations: &str, code: &str) {
     );
 }
 
+const SELF_COPY: &str = "resource fn main() -> Int {
+    allocate data: F64[12];
+    borrow w = write(data, layout(8, 2, 3, 4, false));
+    fill(w, f64_bits(4607182418800017408));
+    release(w);
+    borrow l = read_write(data, layout(8, 2, 3, 4, true));
+    copy(l, l);
+    expect(l, 2, 1, f64_bits(4607182418800017408));
+    release(l);
+    drop(data);
+    value { 0 }
+}";
+
+#[test]
+fn initialized_self_copy_is_checked_and_erased_before_native_generation() {
+    let s = fixture(SELF_COPY, OPERATIONS);
+    success(&check(&s));
+    let raw = request(&s);
+    let accepted = kernel(&raw, "emit");
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    let source = accepted["lean_source"].as_str().unwrap();
+    assert!(!source.contains("copy arena"), "{source}");
+    let output = s.0.join("self-copy");
+    success(
+        &cli()
+            .args(["build", "--manifest-path"])
+            .arg(s.0.join("app/Vastitas.toml"))
+            .arg("-o")
+            .arg(&output)
+            .output()
+            .unwrap(),
+    );
+    let result = Command::new(output).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"0\n");
+
+    // The kernel must reject a forged returned source even though a self-copy
+    // would disappear from native instructions after successful checking.
+    let mut changed = raw;
+    let root = module(&changed, "storage_example", json!([]));
+    let action = changed
+        .pointer_mut(&format!("{root}/resource_functions/0/body/5/action"))
+        .unwrap();
+    assert_eq!(action["op"], "copy");
+    action["source"] = json!("w");
+    action["target"] = json!("w");
+    let response = kernel(changed, "emit");
+    assert_eq!(response["ok"], false, "{response}");
+    assert!(response.get("lean_source").is_none());
+}
+
+#[test]
+fn self_copy_does_not_bypass_access_initialization_or_suspension() {
+    for mode in ["read", "write"] {
+        rejected(
+            &SELF_COPY.replace("read_write(data", &format!("{mode}(data")),
+            OPERATIONS,
+            "E_RESOURCE_ACCESS",
+        );
+    }
+    rejected(
+        &SELF_COPY.replace("fill(w, f64_bits(4607182418800017408));", ""),
+        OPERATIONS,
+        "E_RESOURCE_INIT",
+    );
+    rejected(
+        &SELF_COPY.replace(
+            "copy(l, l);",
+            "borrow child = read(l, layout(8, 1, 1, 1, false)); copy(l, l); release(child);",
+        ),
+        OPERATIONS,
+        "E_RESOURCE_LOAN",
+    );
+    rejected(
+        &SELF_COPY.replace("copy(l, l);", "copy(w, w);"),
+        OPERATIONS,
+        "E_RESOURCE_LOAN",
+    );
+}
+
 #[test]
 fn cell_writes_initialize_padded_call_outputs_without_prefill() {
     let stores: Vec<_> = (0..2)

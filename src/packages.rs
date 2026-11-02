@@ -200,7 +200,12 @@ struct Loader {
     packages: Vec<Package>,
     active: HashSet<PathBuf>,
     output: Option<OutputIdentity>,
+    module_count: usize,
 }
+
+// Count logical modules across the selected closure, including inline modules
+// and independent uses of the same file. A depth limit alone cannot bound fanout.
+const MAX_LOADED_MODULES: usize = 4096;
 
 fn canonical(path: &Path) -> Result<PathBuf, String> {
     path.canonicalize()
@@ -335,6 +340,11 @@ impl Loader {
         seen: &mut HashSet<(u64, u64)>,
         modules: &mut Vec<Module>,
     ) -> Result<(), String> {
+        if self.module_count >= MAX_LOADED_MODULES {
+            return Err(format!(
+                "E_LIMIT: package closure exceeds {MAX_LOADED_MODULES} logical modules"
+            ));
+        }
         if path.len() > MAX_MODULE_NESTING {
             return Err(format!(
                 "E_LIMIT: module nesting exceeds {MAX_MODULE_NESTING}"
@@ -357,6 +367,12 @@ impl Loader {
                 self.sources
                     .diagnostic(&error.code, &error.message, error.span)
             })?;
+        if parsed.modules.len() > MAX_LOADED_MODULES - self.module_count {
+            return Err(format!(
+                "E_LIMIT: package closure exceeds {MAX_LOADED_MODULES} logical modules"
+            ));
+        }
+        self.module_count += parsed.modules.len();
         modules.extend(parsed.modules);
         for external in parsed.external {
             let logical = external
@@ -416,6 +432,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         packages: Vec::new(),
         active: HashSet::new(),
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
+        module_count: 0,
     };
     let root = loader.package(manifest)?;
     let selected: HashSet<_> = loader.packages.iter().map(|p| p.source.clone()).collect();

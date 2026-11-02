@@ -6,8 +6,9 @@
 use crate::frontend::{self, SourceInput};
 use crate::ir::{Module, Span};
 use std::collections::HashSet;
-use std::fs;
-use std::os::unix::fs::MetadataExt;
+use std::fs::{self, OpenOptions};
+use std::io::Read;
+use std::os::unix::fs::{MetadataExt, OpenOptionsExt};
 use std::path::{Path, PathBuf};
 
 struct SourceFile {
@@ -21,7 +22,14 @@ struct SourceFile {
 
 pub(crate) struct Sources {
     files: Vec<SourceFile>,
+    bytes: usize,
 }
+
+// Host input budgets apply before parsing or serializing the public request.
+// Reused files count on every load because each logical module retains its text.
+const MAX_INPUT_FILES: usize = 8192;
+const MAX_FILE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_INPUT_BYTES: usize = 64 * 1024 * 1024;
 
 /// The output's identity is stable for a loading pass. Check each newly loaded
 /// input once, then refresh the identity before the final atomic installation.
@@ -63,11 +71,14 @@ impl OutputIdentity {
 
 impl Sources {
     pub(crate) fn empty() -> Self {
-        Self { files: Vec::new() }
+        Self {
+            files: Vec::new(),
+            bytes: 0,
+        }
     }
 
     /// Every manifest and module participates in the same protection/location
-    /// table. Package loading has already checked file reuse and graph cycles.
+    /// table. Package loading checks cycles but permits reuse by distinct owners.
     pub(crate) fn add(
         &mut self,
         path: &Path,
@@ -89,10 +100,60 @@ impl Sources {
     }
 
     fn push_file(&mut self, path: &Path, canonical: PathBuf) -> Result<(), String> {
-        let text = fs::read_to_string(&canonical)
+        crate::process::check().map_err(|_| "E_INTERRUPTED: compilation interrupted")?;
+        if self.files.len() >= MAX_INPUT_FILES {
+            return Err(format!(
+                "E_LIMIT: compilation inputs exceed {MAX_INPUT_FILES} files"
+            ));
+        }
+        // Opening a FIFO must not block before we can inspect its type. Inspect
+        // the opened descriptor, not just the path, before reading any bytes.
+        let mut file = OpenOptions::new()
+            .read(true)
+            .custom_flags(nix::libc::O_NONBLOCK)
+            .open(&canonical)
             .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
-        let metadata = fs::metadata(&canonical)
+        let metadata = file
+            .metadata()
             .map_err(|error| format!("E_INPUT: cannot inspect {}: {error}", path.display()))?;
+        if !metadata.is_file() {
+            return Err(format!(
+                "E_INPUT: input must be a regular file: {}",
+                path.display()
+            ));
+        }
+        let available = MAX_FILE_BYTES.min(MAX_INPUT_BYTES - self.bytes);
+        let too_large = || {
+            format!(
+                "E_LIMIT: input {} exceeds the 16 MiB file or 64 MiB compilation input budget",
+                path.display()
+            )
+        };
+        if metadata.len() > available as u64 {
+            return Err(too_large());
+        }
+        let mut bytes = Vec::new();
+        let mut buffer = [0; 65536];
+        loop {
+            crate::process::check().map_err(|_| "E_INTERRUPTED: compilation interrupted")?;
+            let count = match file.read(&mut buffer) {
+                Ok(count) => count,
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+                Err(error) => {
+                    return Err(format!("E_INPUT: cannot read {}: {error}", path.display()));
+                }
+            };
+            if count == 0 {
+                break;
+            }
+            // Recheck while reading: the file may grow after fstat.
+            if count > available - bytes.len() {
+                return Err(too_large());
+            }
+            bytes.extend_from_slice(&buffer[..count]);
+        }
+        let text = String::from_utf8(bytes)
+            .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))?;
         let offset = self
             .files
             .last()
@@ -104,6 +165,7 @@ impl Sources {
             .checked_add(text.len())
             .and_then(|end| end.checked_add(1))
             .ok_or("E_INPUT: compilation unit is too large")?;
+        self.bytes += text.len();
         self.files.push(SourceFile {
             path: path.to_path_buf(),
             canonical,

@@ -61,6 +61,9 @@ nominal spaces, bases and loan-backed map products through actual GEMM lowering.
 Public resource functions can use these operations. A native build requires an
 explicit `--openblas-prefix` only when its checked entry emits GEMM; `check` and
 entries without GEMM need no BLAS. Unused numerical bodies are still checked.
+On Linux, use `--openblas-prefix PREFIX --native-cc cc` when OpenBLAS was built
+with the host compiler, so the final link uses the matching host libc rather
+than Lean's bundled sysroot.
 Dependent numerical inputs now preserve caller spaces/bases and borrow actual
 map views under explicit static dimension contracts, including nested calls
 and caller-selected output destinations. Initialized `OwnedMap` inputs/results preserve
@@ -114,16 +117,23 @@ cargo run --locked -- build examples/pointed.vast -o target/pointed
 `fn main() -> Int`; the generated entrypoint prints the integer and exits
 successfully. Compilation never runs the generated program.
 
-Build refuses an output path that aliases any input source, including an
-explicit library, package manifest or module file. On macOS and Linux, SIGINT/SIGTERM cancel compiler children
+Inputs must be regular files, limited to 16 MiB each and 64 MiB / 8,192 loads per
+compilation. Package closures admit at most 4,096 logical modules, including
+inline modules and repeated file uses. Blocking devices and FIFOs are rejected.
+Build refuses nonregular output paths and paths that alias any input source,
+including an explicit library, package manifest or module file.
+On macOS and Linux, SIGINT/SIGTERM/SIGHUP/SIGQUIT cancel compiler children
 and remove the temporary project and staging output. Existing output is kept
 until the final atomic replacement. SIGKILL or a host crash cannot run cleanup.
+Ctrl-Z suspends the driver only; its separate child process group may continue.
 
 Storage and numerical builds coordinate access to their shared optional native
 packages, including aliased paths. Waiting is interruptible; builds using only
 the prebuilt pure runtime or independent optional packages can proceed concurrently. This
 coordination adds no lock to generated programs. Keep direct `lake` builds or
 package edits separate from compiler builds that use the same package artifacts.
+Lake descendants inherit the package locks, so killing the driver alone does
+not unlock artifacts that a surviving build still uses.
 
 The compiler uses this checkout's built backend and runtime. A relocatable
 installation and cross-compilation are not provided. The optional

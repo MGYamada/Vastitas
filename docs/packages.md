@@ -63,6 +63,10 @@ root source directory plus the **logical** module path. For example, a child
 Source files cannot escape their package directory through `..` or symlinks.
 Loading cycles are detected by file identity, including hard links. Independent
 uses of the same source file in different logical modules remain different owners.
+The loader limits the selected closure to 4,096 logical modules (including inline
+modules), and all inputs to 8,192 file loads, 16 MiB per file and 64 MiB in total.
+Each reuse consumes the byte budget again; sharing a filesystem identity does not
+merge owners or exempt a source from the bound. Nonregular inputs are rejected.
 
 - `package::` begins at the current package root; the bare local name `package`
   remains legal. `self::` starts in the current module; `super::` starts in its

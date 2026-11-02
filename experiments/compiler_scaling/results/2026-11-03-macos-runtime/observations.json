@@ -1,0 +1,347 @@
+{
+  "scope": "One warmed observation per case on an uncontrolled macOS host; compiler check time, not native/C performance acceptance.",
+  "reference_commit": "3bf1f175b40f3170ac4d96e0cfc97cdcc8f5c7b1",
+  "indexed_commit": "0d4e667c284a8e7a6e7cbe8aaf59f1fcadcdaa5c",
+  "reports": {
+    "reference": {
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "fa6463888c82b49983bf12b9374f6596f2afee12b05129ad578091a8f86973dd",
+      "timeout_seconds": 30,
+      "results": [
+        {
+          "shape": "allocate_drop",
+          "size": 64,
+          "source_sha256": "2f69b5f7068fbbb16ae1368b1d1630e327b28c18547e0da6939fabaf6ea1acb1",
+          "seconds": 0.031238374998793006,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 128,
+          "source_sha256": "57cc6a82a5627bc2289fa9bea5d12ae13626487b26894215d35ddebffeb981ea",
+          "seconds": 0.05597729200962931,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 256,
+          "source_sha256": "86202446f045f364e9d697c297dd3e92d040b7be77aa592c994ccb4b2e221478",
+          "seconds": 0.25673837499925867,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 64,
+          "source_sha256": "246916888168eb6043b00400ce0747da7dfb97edecb0c458c10905a3783c2041",
+          "seconds": 0.05605745897628367,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "6328d51873d7eceef20a8677ff2d0e12af0753b13669f7b4f3a2e993dc02fa29",
+          "seconds": 0.2297733339946717,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 256,
+          "source_sha256": "27db26c70802975d8f73a4c4bf80e2126df5f0bb2bc2b238f510ba6a99c001d4",
+          "seconds": 1.5948732499964535,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_roots",
+          "size": 64,
+          "source_sha256": "994ec2dcb2833aa118d1b0446b3f66bfc0d0aa609f4ae9e53bfbf6688183adcd",
+          "seconds": 0.15758920897496864,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_roots",
+          "size": 128,
+          "source_sha256": "521ff8242ab57ae90a27955eaead055595db70ea341b132f3480c83fd65fc3a0",
+          "seconds": 1.049818667001091,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_roots",
+          "size": 256,
+          "source_sha256": "8debfeb0544eb185618b66c0ae0031a09d793cb13a2ae50b0dda5e11f0a14b68",
+          "seconds": 7.856810250028502,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 64,
+          "source_sha256": "8fd1eb7be3abb6ab4769a9a52baa5a8f92dd3ad391941f0a2a0c941a444ca9d8",
+          "seconds": 2.402573457977269,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "e36cc196899dc558279da584b99d89865c978fe5e2a057a1af14caa50c634b22",
+          "seconds": 30.018995333986823,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "fbabe55e17b283e89dcef1ea30bdb9e48bf608b878977201a185d35b25e2b231",
+          "seconds": 30.017663250037003,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 64,
+          "source_sha256": "96d04181f46778012dc58d5556922ded5f00f6a39c8cb164c87a8f1b5692f2e8",
+          "seconds": 0.7292247910518199,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "5e972b0927a940673c1471642d2928642bfa993ccff76d794730e720eae4ab4a",
+          "seconds": 5.080855915963184,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 256,
+          "source_sha256": "6a623a11570d7cdcc635f1ce7804dd1731fc798747b95cfd587b4f8175a03b5c",
+          "seconds": 30.02787808299763,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        }
+      ],
+      "warmup": {
+        "seconds": 0.055479709000792354,
+        "exit_code": 0,
+        "timed_out": false
+      }
+    },
+    "indexed": {
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "d659cc5f9a4dc89659b9ce6239bcc2349a5f00746f8a4b928b121b247f3a78b7",
+      "timeout_seconds": 30,
+      "results": [
+        {
+          "shape": "allocate_drop",
+          "size": 64,
+          "source_sha256": "2f69b5f7068fbbb16ae1368b1d1630e327b28c18547e0da6939fabaf6ea1acb1",
+          "seconds": 0.031684416986536235,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 128,
+          "source_sha256": "57cc6a82a5627bc2289fa9bea5d12ae13626487b26894215d35ddebffeb981ea",
+          "seconds": 0.04466920898994431,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 256,
+          "source_sha256": "86202446f045f364e9d697c297dd3e92d040b7be77aa592c994ccb4b2e221478",
+          "seconds": 0.10967195802368224,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 64,
+          "source_sha256": "246916888168eb6043b00400ce0747da7dfb97edecb0c458c10905a3783c2041",
+          "seconds": 0.04006616701371968,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "6328d51873d7eceef20a8677ff2d0e12af0753b13669f7b4f3a2e993dc02fa29",
+          "seconds": 0.08026991703081876,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 256,
+          "source_sha256": "27db26c70802975d8f73a4c4bf80e2126df5f0bb2bc2b238f510ba6a99c001d4",
+          "seconds": 0.2448792500072159,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_roots",
+          "size": 64,
+          "source_sha256": "994ec2dcb2833aa118d1b0446b3f66bfc0d0aa609f4ae9e53bfbf6688183adcd",
+          "seconds": 0.08232720801606774,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_roots",
+          "size": 128,
+          "source_sha256": "521ff8242ab57ae90a27955eaead055595db70ea341b132f3480c83fd65fc3a0",
+          "seconds": 0.30421908298740163,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_roots",
+          "size": 256,
+          "source_sha256": "8debfeb0544eb185618b66c0ae0031a09d793cb13a2ae50b0dda5e11f0a14b68",
+          "seconds": 1.311921833024826,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 64,
+          "source_sha256": "8fd1eb7be3abb6ab4769a9a52baa5a8f92dd3ad391941f0a2a0c941a444ca9d8",
+          "seconds": 0.12977095897076651,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "e36cc196899dc558279da584b99d89865c978fe5e2a057a1af14caa50c634b22",
+          "seconds": 0.9535056669847108,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "fbabe55e17b283e89dcef1ea30bdb9e48bf608b878977201a185d35b25e2b231",
+          "seconds": 6.921596999978647,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 64,
+          "source_sha256": "96d04181f46778012dc58d5556922ded5f00f6a39c8cb164c87a8f1b5692f2e8",
+          "seconds": 0.350913040980231,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "5e972b0927a940673c1471642d2928642bfa993ccff76d794730e720eae4ab4a",
+          "seconds": 1.3243218749994412,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 256,
+          "source_sha256": "6a623a11570d7cdcc635f1ce7804dd1731fc798747b95cfd587b4f8175a03b5c",
+          "seconds": 5.069626916956622,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        }
+      ],
+      "warmup": {
+        "seconds": 0.0531976250349544,
+        "exit_code": 0,
+        "timed_out": false
+      }
+    },
+    "larger": {
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "d659cc5f9a4dc89659b9ce6239bcc2349a5f00746f8a4b928b121b247f3a78b7",
+      "timeout_seconds": 30.0,
+      "results": [
+        {
+          "shape": "read_loans",
+          "size": 1000,
+          "source_sha256": "4f5c1820f560bdd8ce540113f56459c87f6327e3499a4e0bab5128deb7b4f7f9",
+          "seconds": 3.5422455000225455,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        }
+      ],
+      "warmup": {
+        "seconds": 0.030540916020981967,
+        "exit_code": 0,
+        "timed_out": false
+      }
+    },
+    "remaining_limit": {
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "d659cc5f9a4dc89659b9ce6239bcc2349a5f00746f8a4b928b121b247f3a78b7",
+      "timeout_seconds": 30.0,
+      "results": [
+        {
+          "shape": "reborrow_chain",
+          "size": 512,
+          "source_sha256": "d51ba055a1df16e291e5e6013232a4b29f169b25c8434c5a72b034ed834773bd",
+          "seconds": 30.02228658297099,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        }
+      ],
+      "warmup": {
+        "seconds": 0.09640433400636539,
+        "exit_code": 0,
+        "timed_out": false
+      }
+    }
+  }
+}

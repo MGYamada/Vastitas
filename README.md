@@ -272,7 +272,15 @@ stdlib bodies; this increment does not complete the historical Stage 1 proposal.
 | `src/` | Rust CLI, parser, lexical resolution, versioned IR | Rust dependencies in `Cargo.lock` |
 | `lean-kernel/` | Independent semantic checking, hygienic code generation, minimal runtime | Lean distribution only; no mathlib |
 | `lean/` | Proofs about the actual kernel definitions | Local kernel and Lean distribution only; no mathlib |
+| `lean-bridge/` | Separately built mathematical foundations for future correspondence proofs | Pinned Lean and Mathlib; no compiler/runtime dependency |
 | `stdlib/src/` | Standard library written in `.vast` | Explicitly included `.vast` sources |
+
+The bridge contains the [Daleckii–Krein theorem](docs/daleckii-krein.md), an important
+foundation for future spectral differentiation. It proves the real Fréchet
+derivative of Mathlib's functional calculus at finite-spectrum self-adjoint
+elements, including Hermitian matrices with repeated eigenvalues. Its separate
+build, axiom audit and official kernel replay establish this mathematical result;
+connecting it to a `.vast` AD implementation remains future work.
 
 Ordinary compilation and generated programs do not call the proof oracle.
 On the retained legacy Core path, the oracle proves Stage 0 checker soundness, source-to-core

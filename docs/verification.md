@@ -33,8 +33,38 @@ Mathlib cache downloads, and preserves the allowed axiom set. The existing
 `audit_axioms.lean` additionally audits transitive declarations in the Oracle,
 kernel and promotion fixture namespaces. `check_oracle_core.lean` exercises
 nonempty/empty coordinate spaces, duplicate/Unicode names and positional lists.
-This increment adds neither `VastitasMath` nor `VastitasBridge`, and does not
-claim any new std correspondence or constitutional theorem.
+That dependency-removal increment added neither `VastitasMath` nor
+`VastitasBridge`, and claimed no new std correspondence or constitutional theorem.
+The subsequent, separately built mathematical bridge is described below.
+
+## Independent mathematical bridge
+
+`lean-bridge/` now supplies the important
+[Daleckii–Krein theorem](daleckii-krein.md) in
+`VastitasBridge.Analysis.DaleckiiKrein`. It proves the real Fréchet derivative of
+Mathlib's actual `cfc` on self-adjoint elements at a finite-spectrum basepoint,
+and specializes to finite complex Hermitian matrices without a simple-spectrum
+assumption. The theorem documentation records all regularity assumptions and
+the separate obligations for future AD/Core/native realization.
+
+This independent Lake package uses Lean v4.35.0 and Mathlib commit
+`56a005855ea17e0b0958f73ec801ae140b0a1679`, with every transitive package locked.
+The existing kernel/Oracle closed dependency graphs remain unchanged; neither
+may import `VastitasBridge` or Mathlib. The boundary checker additionally checks
+the optional bridge's toolchain, sole direct dependency, pinned Git manifest
+and current mathematical-only imports. Its negative regressions cover bridge
+leakage into kernel/Oracle, unpinned/redirected dependencies and Lake overrides.
+
+`.github/workflows/lean-bridge.yml` builds and checks this package independently,
+using only the Mathlib cache needed by its imports. `lean-bridge/Audit.lean`
+requires the principal theorem names to exist and audits the transitive axiom
+dependencies of every declaration in `VastitasBridge`; only `propext`,
+`Classical.choice` and `Quot.sound` are allowed. Official `leanchecker` replays
+the bridge modules against their imported environment. This is not a separate
+verifier or a fresh replay of all imported Mathlib declarations. No public
+`std` API, executable AD implementation or source/native refinement is claimed.
+
+## Existing compiler entrypoints
 
 Flat protocol versions 2 and 4 enter through `checkSurfaceProgram`. Package
 versions 3 and 4 resolve namespaces before entering the same surface checker.

@@ -159,3 +159,8 @@ kernel regression script, and builds/audits `VastitasOracle.Graph` through the
 oracle root. Python is a development reference, not a compiler/runtime
 dependency. The existing 8 Domain Checkers plus independent Ownership/Borrow
 architecture and historical Stage 1 completion criteria are unchanged.
+
+The separate [CSR/SpGEMM pattern reference](sparse-reference.md) covers #243's
+structural bounds and plan invalidation, with an integration inventory for
+#242's common graph emit. It does not extend this crossing Core or establish
+sparse lowering, storage authority, native execution or performance results.

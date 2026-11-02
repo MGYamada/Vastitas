@@ -1,0 +1,370 @@
+{
+  "scope": "One warmed observation per case on an uncontrolled macOS host; not runtime/C performance acceptance.",
+  "reference_commit": "195b59f16e38999d8d366a0ce66b4be76b82d6ad",
+  "indexed_commit": "33d5854c6ad6b638aa7631e360bc87c1fb01a69f",
+  "reports": {
+    "reference": {
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "965e157b89d60ad21129fd22eaf7f65e732904b3cea5c94c7db9d0d70e9c75c8",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.06364499998744577,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "results": [
+        {
+          "shape": "allocate_drop",
+          "size": 64,
+          "source_sha256": "aefdf2d5578784d3398efba71784471409e83c98c68380ded2fefef838e5b53c",
+          "seconds": 0.036165208963211626,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 128,
+          "source_sha256": "7d7e42a43790648874c1f6995a40a797a4c04634e36125aa571c3c957ec612b7",
+          "seconds": 0.06457099999533966,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 256,
+          "source_sha256": "3c1249ffb1759f1cc11498d74050f592324fcea41a8d89dee880f4b02aff4af4",
+          "seconds": 0.25112345803063363,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 64,
+          "source_sha256": "e57852dd007fc536127ca090755412ac62f00e651ae8b968884ac6946781884d",
+          "seconds": 0.061512541025877,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "9298118ab0524a300685d23c2cad61416ae2025df6528130cf74d2157472aeb4",
+          "seconds": 0.24596704205032438,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 256,
+          "source_sha256": "d060a38672fd144d3ea71cc7a127f03620bfc011993a46051aa07f1b65f30a26",
+          "seconds": 1.6394087910302915,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_children",
+          "size": 64,
+          "source_sha256": "88499127459a64e55ee962bd6085bd01bb592dc66b02b029b6d28ce571c61151",
+          "seconds": 0.4945891249808483,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_children",
+          "size": 128,
+          "source_sha256": "fa19949101b7c81cc3c751ab02ee2c6cdaa7e0f6cc6f7ca2a1f73cc9a9d11ee5",
+          "seconds": 7.761609292007051,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_children",
+          "size": 256,
+          "source_sha256": "0aad8a5c926bb4b7e553065c01e4c4faccdc17a981f9cc469688bb5fd01d45d9",
+          "seconds": 30.02063908299897,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 64,
+          "source_sha256": "9b9d24d209b6b27483b2b8159f346b43400f7419d698e35d8afd4932499fcec5",
+          "seconds": 2.544072542048525,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "42a76ebc1b82ad119c7fb63e784d87e2026e5928ed1bb3eff72a247ae4c47547",
+          "seconds": 30.02748829202028,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "df73bf82b5412816b1a30a3802c84346d19c235576ee14f5e5abea16b346aad0",
+          "seconds": 30.019621332990937,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 64,
+          "source_sha256": "af338d032c2926ec76b91acade5d852cc435a29d70f13f43a40767ca5785fbd2",
+          "seconds": 0.8355480839964002,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "edf69b40be48873537fa8506eb640273bfe3cd900b348a761c3f2764474bfc31",
+          "seconds": 5.6177004590281285,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 256,
+          "source_sha256": "0046ee0dee24eca4aeb2773ab02461136bab21b18d8eaa84d79d2c75df37f96c",
+          "seconds": 30.025906249997206,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        }
+      ]
+    },
+    "indexed": {
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "eac64fbd471987c7cffe9ed71ea046a91d40f8af1436b611ec985f946c21c7d2",
+      "timeout_seconds": 30,
+      "warmup": {
+        "seconds": 0.34390466596232727,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "results": [
+        {
+          "shape": "allocate_drop",
+          "size": 64,
+          "source_sha256": "aefdf2d5578784d3398efba71784471409e83c98c68380ded2fefef838e5b53c",
+          "seconds": 0.04745083302259445,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 128,
+          "source_sha256": "7d7e42a43790648874c1f6995a40a797a4c04634e36125aa571c3c957ec612b7",
+          "seconds": 0.04538587504066527,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 256,
+          "source_sha256": "3c1249ffb1759f1cc11498d74050f592324fcea41a8d89dee880f4b02aff4af4",
+          "seconds": 0.09687837498495355,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 64,
+          "source_sha256": "e57852dd007fc536127ca090755412ac62f00e651ae8b968884ac6946781884d",
+          "seconds": 0.044309584016446024,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "9298118ab0524a300685d23c2cad61416ae2025df6528130cf74d2157472aeb4",
+          "seconds": 0.09535758395213634,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 256,
+          "source_sha256": "d060a38672fd144d3ea71cc7a127f03620bfc011993a46051aa07f1b65f30a26",
+          "seconds": 0.30632666702149436,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_children",
+          "size": 64,
+          "source_sha256": "88499127459a64e55ee962bd6085bd01bb592dc66b02b029b6d28ce571c61151",
+          "seconds": 0.092744333029259,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_children",
+          "size": 128,
+          "source_sha256": "fa19949101b7c81cc3c751ab02ee2c6cdaa7e0f6cc6f7ca2a1f73cc9a9d11ee5",
+          "seconds": 0.44531479198485613,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "write_children",
+          "size": 256,
+          "source_sha256": "0aad8a5c926bb4b7e553065c01e4c4faccdc17a981f9cc469688bb5fd01d45d9",
+          "seconds": 3.1340083749964833,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 64,
+          "source_sha256": "9b9d24d209b6b27483b2b8159f346b43400f7419d698e35d8afd4932499fcec5",
+          "seconds": 0.18171783303841949,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "42a76ebc1b82ad119c7fb63e784d87e2026e5928ed1bb3eff72a247ae4c47547",
+          "seconds": 1.2698485419969074,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "df73bf82b5412816b1a30a3802c84346d19c235576ee14f5e5abea16b346aad0",
+          "seconds": 9.97915612498764,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 64,
+          "source_sha256": "af338d032c2926ec76b91acade5d852cc435a29d70f13f43a40767ca5785fbd2",
+          "seconds": 0.45486674999119714,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "edf69b40be48873537fa8506eb640273bfe3cd900b348a761c3f2764474bfc31",
+          "seconds": 1.646678916993551,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "wrapped_reads",
+          "size": 256,
+          "source_sha256": "0046ee0dee24eca4aeb2773ab02461136bab21b18d8eaa84d79d2c75df37f96c",
+          "seconds": 6.248236124985851,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        }
+      ]
+    },
+    "larger": {
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "eac64fbd471987c7cffe9ed71ea046a91d40f8af1436b611ec985f946c21c7d2",
+      "timeout_seconds": 30,
+      "warmup": {
+        "seconds": 0.05145929200807586,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "results": [
+        {
+          "shape": "allocate_drop",
+          "size": 512,
+          "source_sha256": "c1f870384b8d2e47dc1739e38b2a4496007d3f5f9dbfa9d7d3be378219bc81cb",
+          "seconds": 0.2631251249695197,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "allocate_drop",
+          "size": 1000,
+          "source_sha256": "7a2581158c68eddf905c9a67d33a9a7c16163d535f5687635851e756f8cb686d",
+          "seconds": 0.8342892919899896,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 512,
+          "source_sha256": "4a3e9d3ea1a97bd254546e04d3a2172cd4c89d9ed2d47034bf01b5923d9b4897",
+          "seconds": 1.135397375037428,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        },
+        {
+          "shape": "read_loans",
+          "size": 1000,
+          "source_sha256": "db4c6bed9fbf239182952bc877c20a97f4bd057913d43dac67fb3450d85d65c4",
+          "seconds": 4.19918666704325,
+          "exit_code": 0,
+          "timed_out": false,
+          "stderr": ""
+        }
+      ]
+    },
+    "remaining": {
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "kernel_sha256": "eac64fbd471987c7cffe9ed71ea046a91d40f8af1436b611ec985f946c21c7d2",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.05629958404460922,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "results": [
+        {
+          "shape": "reborrow_chain",
+          "size": 512,
+          "source_sha256": "6c45e0584e7438aee07cfa155dff882decac00b609ebf3a0401dbe391f69bc78",
+          "seconds": 30.016796709038317,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted\n"
+        }
+      ]
+    }
+  }
+}

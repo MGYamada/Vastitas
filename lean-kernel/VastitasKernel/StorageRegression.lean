@@ -207,6 +207,48 @@ private def forged : State := {
 #eval check "join cannot launder a forged branch" (
   match join forged forged with | .error e => e.code == "E_RESOURCE_STATE" | _ => false)
 
+-- These untrusted states bypass transition construction. Reconstructed indexes
+-- must not collapse duplicates or turn cyclic/dangling parents into authority.
+#eval show IO Unit from do
+  let allocation : Allocation := ⟨0, 0, .f64, 64, .written full .none, 0⟩
+  let parent : Loan := ⟨1, 0, full, .readWrite, none⟩
+  let child : Loan := ⟨2, 0, first, .write, some 1⟩
+  let sibling : Loan := ⟨3, 0, second, .write, some 1⟩
+  let state : State := {
+    allocations := [allocation], loans := [child, sibling, parent]
+    used := [0, 1, 2, 3], nextAllocation := 1 }
+  check "indexed audit accepts disjoint children of a suspended writer" (auditState state)
+  for invalid in [
+      {state with used := 0 :: state.used},
+      {state with allocations := allocation :: state.allocations},
+      {state with allocations := {allocation with identity := 1} :: state.allocations, nextAllocation := 2},
+      {state with allocations := {allocation with owner := 1} :: state.allocations},
+      {state with loans := child :: state.loans},
+      {state with loans := [{child with parent := some 99}, sibling, parent]},
+      {state with loans := [child, sibling, {parent with parent := some 2}]},
+      {state with loans := [{child with parent := some 2}, sibling, parent]},
+      {state with loans := [child, {sibling with layout := first}, parent]},
+      {state with loans := [child, sibling, {parent with access := .read}]},
+      {state with
+        loans := [{child with access := .read}, sibling, parent]
+        allocations := [{allocation with initialization := .none}]},
+      {state with dependencies := [⟨2, none⟩]},
+      {state with used := 4 :: state.used, dependencies := [⟨4, none⟩, ⟨4, none⟩]}
+    ] do
+    check "indexed audit rejects forged names, provenance, permissions and parent graphs"
+      (!auditState invalid)
+    check "an action cannot launder an invalid indexed environment"
+      (match checkAction invalid (.release 3) with
+      | .error error => error.code == "E_RESOURCE_STATE"
+      | .ok _ => false)
+  let shared := {state with loans := [{child with parent := none, access := .read},
+    {sibling with layout := first, parent := none, access := .read}]}
+  check "overlapping shared reads need no writer-pair check" (auditState shared)
+  for loans in [[child, {sibling with layout := first, parent := none, access := .read}],
+      [{sibling with layout := first, parent := none, access := .read}, child]] do
+    check "read/write conflicts are checked in both source orders"
+      (!auditState {state with loans := loans ++ [parent]})
+
 private def cells (layout : Layout) (scalar : Scalar) : List Nat :=
   (List.range layout.logicalRows).flatMap fun row => (List.range layout.logicalColumns).flatMap fun column =>
     (List.range scalar.width).map (layout.address scalar row column + ·)

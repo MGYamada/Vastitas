@@ -3,7 +3,10 @@
 This is the protocol-5 implemented increment under #64 and #154–158. It is a
 finite package-only increment, not completion of historical Stage 1.
 The subsequent [protocol-6 extension](edit-authority.md) adds nested reborrowing
-and permanent edit-authority transfer while preserving this protocol-5 route.
+and permanent edit-authority transfer while preserving protocol-5 source/wire
+compatibility. Protocols 2–6 now enter `Indexed.LegacySource.check` and the common
+`Indexed.AuthoritySource` checker; the retained `checkEditProgram` composition
+is documented separately in [verification boundaries](verification.md).
 
 ## Source declarations
 
@@ -101,8 +104,12 @@ No event contains an asserted owner, body replacement, accepted flag or winner.
 Inputs without new declarations retain protocol 2, 3 or 4 and `--lib`
 compatibility. Resource bounds are in `lean-kernel/compiler-limits.json`: 4096 events, 4096
 contribution methods, and 4096 ground instances in the unapplied-body audit.
-See [verification](verification.md#scoped-edit-assembly-acceptance-protocol-5)
-for the actual checker theorem statements.
+See [current routes and proof boundaries](verification.md#current-public-checker-routes)
+for the public `LegacySource`/`IndexedAuthority` connection and
+[the retained protocol-5 composition](verification.md#scoped-edit-assembly-acceptance-protocol-5)
+for the older `checkEditProgram` theorem statements. The current JSON regression
+is `VastitasPublicTest.AuthorityRegression`; old `EditRegression` remains a
+separate check of retained APIs and shared trace logic.
 
 
 Try the complete example:

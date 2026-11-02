@@ -35,7 +35,7 @@ structure CheckedRegroup (environment : Indexed.Environment) (numerical : Numeri
   inputRestored : input.Live after
   outputInitialized : output.Initialized after = true
 
-private def reject (message : String) : Except Error α := .error ⟨"E_TENSOR", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_TENSOR", message := message}
 
 def checkRegroup (environment : Indexed.Environment) (numerical : Numerical.Values)
     (resources : State) (input output : View) :

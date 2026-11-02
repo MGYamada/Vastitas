@@ -377,6 +377,32 @@ fn coefficient_source(complex: bool) -> String {
     )
 }
 
+fn exact_coefficient_source(complex: bool) -> String {
+    coefficient_source(complex)
+        .replace("f64_bits(4611686018427387904)", "f64(0x1p1)")
+        .replace("f64_bits(4602678819172646912)", "f64(0.5)")
+        .replace("complex_bits(4611686018427387904, 0)", "complex(0x1p1, 0)")
+        .replace(
+            "complex_bits(4602678819172646912, 0)",
+            "complex(0.5, 0x0p0)",
+        )
+}
+
+#[test]
+fn exact_gemm_coefficients_keep_the_existing_real_and_complex_wire() {
+    let s = fixture(&exact_coefficient_source(false));
+    s.write("src/complex/mod.vast", &exact_coefficient_source(true));
+    success(&command(&s, "check").output().unwrap());
+    let mut exact = captured(&s);
+    assert_eq!(kernel(&exact, "emit")["ok"], true);
+    s.write("src/real/mod.vast", &coefficient_source(false));
+    s.write("src/complex/mod.vast", &coefficient_source(true));
+    let mut explicit = captured(&s);
+    common::remove_spans(&mut exact);
+    common::remove_spans(&mut explicit);
+    assert_eq!(exact, explicit);
+}
+
 fn half_accumulated(source: &str, complex: bool) -> String {
     let literal = |real: f64, imaginary: f64| {
         if complex {
@@ -998,6 +1024,10 @@ fn numerical_coefficients_build_execute_computed_real_complex_scalars() {
         std::env::var_os("VASTITAS_TEST_OPENBLAS_PREFIX").expect("explicit numerical test prefix");
     for (real, complex) in [
         (coefficient_source(false), coefficient_source(true)),
+        (
+            exact_coefficient_source(false),
+            exact_coefficient_source(true),
+        ),
         (
             half_accumulated(REAL, false),
             half_accumulated(COMPLEX, true),

@@ -74,7 +74,7 @@ structure CheckedPackage (env : Environment) (resources : State) (values : Value
   resultingInitialized : (operation.view original output).Initialized after
   opened : operation.Opened values (operation.view original output)
 
-private def reject (message : String) : Except Error α := .error ⟨"E_NUMERICAL_PACKAGE", message⟩
+private def reject (message : String) : Except Error α := .error {code := "E_NUMERICAL_PACKAGE", message := message}
 
 def checkPackage (env : Environment) (resources : State) (values : Values)
     (operation : PackageOperation) (source output : Symbol) :

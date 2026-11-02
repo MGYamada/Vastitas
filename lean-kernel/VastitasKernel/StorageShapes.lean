@@ -74,6 +74,45 @@ def loansCompatible (frame : Frame) (left right : Loan) : Bool :=
     ancestor frame.loans frame.loans.length left.name right ||
     ancestor frame.loans frame.loans.length right.name left
 
+namespace AuditIndex
+
+/-- Compute one bounded ancestry row with indexed parent lookup. A missing
+parent is still included, exactly as in `ancestor`; validity rejects the link
+separately. No acyclicity or uniqueness premise is trusted by this computation. -/
+def lineage (loans : Std.HashMap Symbol Loan) : Nat → Loan → Std.HashSet Symbol
+  | 0, _ => {}
+  | fuel + 1, loan => match loan.parent with
+    | none => {}
+    | some parent =>
+      let above := match loans[parent]? with
+        | none => {}
+        | some prior => lineage loans fuel prior
+      above.insert parent
+
+theorem lineage_contains (loans : List Loan) (fuel : Nat) (loan : Loan) (name : Symbol) :
+    (lineage (Finite.firstIndex Loan.name loans) fuel loan).contains name =
+      ancestor loans fuel name loan := by
+  induction fuel generalizing loan with
+  | zero => simp [lineage, ancestor]
+  | succ fuel ih =>
+    cases parent : loan.parent with
+    | none => simp [lineage, ancestor, parent]
+    | some parentName =>
+      simp only [lineage, ancestor, parent, Finite.firstIndex_lookup]
+      cases found : loans.find? (fun entry => entry.name == parentName) with
+      | none =>
+        by_cases same : name = parentName
+        · simp [Std.HashSet.contains_insert, same]
+        · simp [Std.HashSet.contains_insert, beq_eq_false_iff_ne.mpr same,
+            beq_eq_false_iff_ne.mpr (Ne.symm same)]
+      | some prior =>
+        simp only [Std.HashSet.contains_insert, ih]
+        by_cases same : name = parentName
+        · simp [same]
+        · simp [beq_eq_false_iff_ne.mpr same, beq_eq_false_iff_ne.mpr (Ne.symm same)]
+
+end AuditIndex
+
 def Loan.valid (frame : Frame) (loan : Loan) : Bool :=
   match frame.allocation? loan.allocation with
   | none => false
@@ -104,6 +143,136 @@ def auditFrame (frame : Frame) : Bool :=
   frame.loans.all (fun loan => frame.loans.countP (·.name == loan.name) == 1 && loan.valid frame) &&
   frame.loans.all (fun left => frame.loans.all (loansCompatible frame left))
 
+
+namespace AuditIndex
+
+structure Tables where
+  allocations : Std.HashMap Nat Allocation
+  loans : Std.HashMap Symbol Loan
+  used : Std.HashSet Symbol
+
+def tables (frame : Frame) : Tables :=
+  ⟨Finite.firstIndex Allocation.identity frame.allocations,
+   Finite.firstIndex Loan.name frame.loans, Std.HashSet.ofList frame.used⟩
+
+def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
+  match index.allocations[loan.allocation]? with
+  | none => false
+  | some allocation =>
+    index.used.contains loan.name && loan.layout == allocation.layout &&
+    (!loan.access.reads || !allocation.initialization.layouts.isEmpty) &&
+    (match loan.parent with
+    | none => true
+    | some parent => match index.loans[parent]? with
+      | none => false
+      | some parentLoan => parent != loan.name && parentLoan.allocation == loan.allocation &&
+        (!loan.access.writes || parentLoan.access.writes) &&
+        (!loan.access.reads || parentLoan.access.reads) &&
+        !(lineage index.loans fuel parentLoan).contains loan.name)
+
+theorem loanValid_eq (frame : Frame) (loan : Loan) :
+    loanValid (tables frame) frame.loans.length loan = loan.valid frame := by
+  simp only [loanValid, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
+    lineage_contains, Loan.valid, Frame.allocation?, Frame.loan?]
+
+abbrev Row := Loan × Std.HashSet Symbol
+
+def row (index : Tables) (fuel : Nat) (loan : Loan) : Row :=
+  (loan, lineage index.loans fuel loan)
+
+def compatible (left right : Row) : Bool :=
+  left.1.name == right.1.name || left.1.allocation != right.1.allocation ||
+    (!left.1.access.writes && !right.1.access.writes) ||
+    right.2.contains left.1.name || left.2.contains right.1.name
+
+theorem compatible_eq (frame : Frame) (left right : Loan) :
+    compatible (row (tables frame) frame.loans.length left)
+      (row (tables frame) frame.loans.length right) = loansCompatible frame left right := by
+  simp only [compatible, row, tables, lineage_contains, loansCompatible]
+
+/-- Whole-map writes still conflict regardless of runtime extent values. Only
+unconditionally compatible read/read pairs are omitted. -/
+def pairs (rows : List Row) : Bool :=
+  let writers := rows.filter (fun entry => entry.1.access.writes)
+  rows.all fun left =>
+    (if left.1.access.writes then rows else writers).all (compatible left)
+
+theorem pairs_eq (frame : Frame) :
+    pairs (frame.loans.map (row (tables frame) frame.loans.length)) =
+      frame.loans.all (fun left => frame.loans.all (loansCompatible frame left)) := by
+  simp only [pairs, List.all_map, Function.comp_def]
+  congr 1
+  funext left
+  change (if left.access.writes then frame.loans.map (row (tables frame) frame.loans.length)
+      else (frame.loans.map (row (tables frame) frame.loans.length)).filter
+        (fun entry => entry.1.access.writes)).all
+      (compatible (row (tables frame) frame.loans.length left)) = _
+  by_cases writes : left.access.writes = true
+  · rw [ite_eq_left writes]
+    simp only [List.all_map, Function.comp_def]
+    exact congrArg (frame.loans.all) (funext (compatible_eq frame left))
+  · rw [ite_eq_right writes]
+    have readOnly : left.access.writes = false := Bool.eq_false_iff.mpr writes
+    simp only [List.all_filter, List.all_map, Function.comp_def]
+    congr 1
+    funext right
+    change (!right.access.writes || compatible (row _ _ left) (row _ _ right)) = _
+    rw [compatible_eq]
+    cases writes : right.access.writes
+    · simp [loansCompatible, readOnly, writes]
+    · simp
+
+def audit (frame : Frame) : Bool :=
+  let index := tables frame
+  let fuel := frame.loans.length
+  let usedCounts := Finite.countIndex id frame.used
+  let allocationCounts := Finite.countIndex Allocation.identity frame.allocations
+  let ownerCounts := Finite.countIndex Allocation.owner frame.allocations
+  let loanCounts := Finite.countIndex Loan.name frame.loans
+  frame.allocations.length ≤ 4096 && frame.loans.length ≤ 4096 && frame.used.length ≤ 16384 &&
+  frame.used.all (fun name => usedCounts.getD name 0 == 1) &&
+  frame.allocations.all (fun allocation =>
+    allocation.identity < frame.nextAllocation && index.used.contains allocation.owner &&
+    allocation.initialization.nodes ≤ 4096 &&
+    allocation.initialization.layouts.all (· == allocation.layout) &&
+    allocationCounts.getD allocation.identity 0 == 1 && ownerCounts.getD allocation.owner 0 == 1 &&
+    index.loans[allocation.owner]?.isNone) &&
+  frame.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && loanValid index fuel loan) &&
+  pairs (frame.loans.map (row index fuel))
+
+theorem audit_eq (frame : Frame) : audit frame = auditFrame frame := by
+  simp only [audit, pairs_eq, Finite.countIndex_lookup, loanValid_eq]
+  simp only [tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList, id_eq,
+    auditFrame, Frame.loan?, List.count_eq_countP]
+
+end AuditIndex
+
+/-- The compiled audit reconstructs indexes but agrees on every frame, even
+with duplicate IDs, missing/cyclic parents or malformed initialization. -/
+@[csimp] theorem auditFrame_eq_indexed : auditFrame = AuditIndex.audit := by
+  funext frame
+  exact (AuditIndex.audit_eq frame).symm
+
+def compatibleWith (frame : Frame) (left : Loan) (others : List Loan) : Bool :=
+  others.all (loansCompatible frame left)
+
+def AuditIndex.compatibleWith (frame : Frame) (left : Loan) (others : List Loan) : Bool :=
+  let index := tables frame
+  let fuel := frame.loans.length
+  let leftRow := row index fuel left
+  let relevant := if left.access.writes then others else others.filter (·.access.writes)
+  relevant.all fun right => compatible leftRow (row index fuel right)
+
+@[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
+  funext frame left others
+  simp only [compatibleWith, AuditIndex.compatibleWith]
+  cases writes : left.access.writes
+  · simp only [Bool.false_eq_true, ite_false, List.all_filter, AuditIndex.compatible_eq]
+    congr 1
+    funext right
+    cases rightWrites : right.access.writes <;> simp [loansCompatible, writes, rightWrites]
+  · simp only [ite_true, AuditIndex.compatible_eq]
+
 inductive Action where
   | allocate (owner : Symbol) (scalar : Scalar) (elements : Extent) (layout : Layout)
   | move (source target : Symbol)
@@ -116,7 +285,7 @@ inductive Action where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def reject (message : String) : Except Error α :=
-  .error ⟨"E_RUNTIME_SHAPE", message⟩
+  .error {code := "E_RUNTIME_SHAPE", message := message}
 
 def owner (frame : Frame) (name : Symbol) : Except Error Allocation :=
   match frame.owner? name with
@@ -190,7 +359,7 @@ def execute (frame : Frame) (operation : Action) : Except Error (Frame × List G
       reject "runtime read requires a preceding whole-map write"
     let loan := {name, allocation := allocation.identity, layout := allocation.layout, access, parent : Loan}
     let after := {frame with loans := loan :: frame.loans, used := name :: frame.used}
-    unless frame.loans.all (loansCompatible after loan) do reject "runtime whole-map loans conflict"
+    unless compatibleWith after loan frame.loans do reject "runtime whole-map loans conflict"
     return (after, [])
   | .release name =>
     if (frame.loan? name).isNone then reject "runtime loan is absent or already returned"
@@ -305,7 +474,7 @@ def check (slots : Slots) (before : Frame) (code : List Action) :
             if afterValid : auditFrame after then
               if closedGuards : (before.guards ++ guards).all Guard.closedValid then
                 return ⟨bounded, slotsValid, references, beforeValid, after, guards, accepted, afterValid, closedGuards⟩
-              else .error ⟨"E_RUNTIME_GUARD", "literal runtime extent, layout or cell guard is false"⟩
+              else .error {code := "E_RUNTIME_GUARD", message := "literal runtime extent, layout or cell guard is false"}
             else reject "invalid final runtime frame"
         else reject "invalid runtime caller frame"
       else reject "runtime extent requires a live immutable Nat or Int scalar slot"

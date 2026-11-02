@@ -3,11 +3,12 @@
 Stage 1b extends the scalar/geometry core and [Stage 1a dispatch](stage1a.md)
 with capture-free function values. It does not complete historical Stage 1.
 Later increments added abstract selectors/contracts, edit borrowing and authority
-transfer. Storage ownership and linear algebra remain pending. All public wire
+transfer, resource ownership and finite numerical profiles. Their initial
+contracts and the open integrated gate are tracked in the Stage 1 ledgers. All public wire
 versions now use the common declaration-driven function/dispatch/authority checker;
 see [the compatibility boundary](indexed-declarations.md#compatibility-adapter-for-protocols-26).
-The historical implementation details below describe the retained Stage 1b
-lowering API and its proofs, not the current public acceptance path. Tracking: [#50](https://github.com/MGYamada/Vastitas/issues/50).
+The source contracts below remain implemented; retained Stage 1b lowering APIs
+and older proofs are identified separately. Tracking: [#50](https://github.com/MGYamada/Vastitas/issues/50).
 
 ## Syntax and values
 
@@ -71,10 +72,13 @@ results in the internal core; their static result target is carried separately.
 ## Checking and specialization
 
 Protocol 2 adds surface types, lambda expressions and expression invocation.
-The surface tree is separate from the unchanged core's Raw/Checked syntax.
-All requests use the same surface lowering, including programs without function
-constructs. The public entry point is `checkSurfaceProgram`; the first-order
-`checkProgram` API converts its input to surface syntax and uses that entry point.
+Protocols 2–6 now decode that unresolved syntax through `Indexed.LegacySource.check`
+into the common `Indexed.AuthoritySource` composition used by protocol 7's
+`Indexed.Wire.check`. Its `Indexed.FunctionSource` compiler lowers functions into
+independently audited indexed Core, including programs without Fn constructs.
+`checkSurfaceProgram`, `checkProgram` and their old Raw/Checked Core remain retained
+internal APIs; Main does not call them. Their older source-correspondence results
+do not imply correspondence for the current source lowering.
 
 Lean independently checks lambda free names, assigns lambda IDs by syntax
 traversal, validates signatures, and constructs every applicable dispatch
@@ -92,6 +96,25 @@ worklist suspends calls until their specialized callee is available, including
 calls returning Fn values; the caller's body budget is retained on resumption.
 Call-chain length, declaration order, and an unrelated lambda do not share or
 reduce that budget. Completed instances are memoized and active cycles rejected.
+
+All-probe audit requests reuse a body by source definition and the complete
+equality pattern of its Fn arguments, after checking each exact formal
+signature. For example, `(p, p)` and `(p, q)` have distinct templates. Returned
+input probes are renamed back to the actual caller argument; a template-local
+probe receives a fresh caller-side name, retained for repeated identical
+requests. Concrete and mixed probe/concrete calls keep their original keys.
+Non-input probe results are abstract signature witnesses; reuse does not infer
+that results of different wrapper calls denote the same function. Executable
+specialization independently reconstructs their concrete targets, including
+factories returning Fn values through long forwarding chains.
+The independent audit checks the positional bijection, signatures, emitted
+origin and return renaming. A 90-function forwarding chain no longer spends
+4095 instances rechecking fresh names: its audit has one probe template and
+one concrete instance per wrapper, plus the ordinary entry and scalar callback.
+This also applies when wrappers return Fn values. The normalization and
+independent alias check are quadratic in Fn parameter arity; the regression
+establishes linear instance counts for forwarding chains, not a general linear
+compiler bound or achieved native performance.
 
 Each pass permits at most 4096 higher-order instances in a compilation unit;
 plain first-order functions do not consume that budget. Limits report `E_LIMIT`.
@@ -128,10 +151,10 @@ projection types in both first-order and function-containing programs. The
 See [the executable example](../examples/pairs.vast) and [protocol](protocol.md).
 
 The actual core carries finite Pair types and primitive operations. Native code
-uses Lean `Prod Nat Nat` or `Prod Int Int`. Independent typing and the existing
-source-correspondence, evaluation and termination proofs include these cases.
-They do not establish general tuple, abstract-type or source-function rewriting
-semantics.
+uses Lean `Prod Nat Nat` or `Prod Int Int`. Current indexed typing, evaluation and
+termination proofs include these cases. The old raw-Core source-correspondence
+theorems cover Pair only in the retained pipeline. Neither set establishes
+general tuples or source-function rewriting correspondence.
 
 ## Regression coverage
 
@@ -139,8 +162,10 @@ semantics.
 Fn contracts and lambdas, zero/Unit/multiple arguments, dispatch, multiple
 explicit libraries, captures, invalid unused bodies, mismatched types/arity,
 runtime target choices, recursion, the 4096-instance boundary and forged IR.
-`VastitasKernel.FunctionRegression` checks public acceptance and forged static
-signature ledgers directly without Rust. Both macOS and Linux CI run these
+`VastitasKernel.LegacySourceRegression` checks current JSON acceptance and
+rejection directly; `IndexedFunctionRegression` covers the common function
+compiler and forged static ledgers. `FunctionRegression` retains the old
+`checkSurfaceProgram` API tests. Both macOS and Linux CI run these
 with no oracle/mathlib checkout; a separate job builds and audits the proofs.
 
 The indexed audit also checks duplicate identities with different signatures
@@ -152,11 +177,17 @@ without a lambda, reversed declarations, and a shared callee. The reproducible
 timing claims.
 
 `tests/pairs.rs` checks Pair source/raw-IR typing and native execution in both
-input modes. `VastitasKernel.PairRegression` forges checked Pair construction,
-projection and call annotations and exercises the code-generation audit boundary.
+input modes. `LegacySourceRegression` checks current public Pair calls and
+mutations of their returned Core; `IndexedCoreRegression` audits indexed Pair
+terms. `PairRegression` retains old-Core construction, projection, call and
+code-generation audit tests.
 
 
 ### Lowering type information
+
+The following `ResultType`/raw-expression optimization describes the retained
+`FunctionChecker` pipeline. Current `IndexedFunctionBodies` instead constructs
+typed indexed Core directly; old raw-Core proofs do not transfer to that lowering.
 
 The common lowering retains backend-inferred `ResultType` information with the
 raw expression. It includes nominal object references. Generic keys, scalar/Pair
@@ -176,12 +207,15 @@ audits as before.
 
 ### Internal identities and resource limits
 
-Source functions, lifted lambdas and method instances have distinct
+In the retained lowering API, source functions, lifted lambdas and method instances have distinct
 `FunctionName` constructors. Static targets distinguish executable definitions
 from signature probes, and an `InstanceKey` stores a function identity and its
 ordered function-argument identities. Lookup, memoization, branch equality and
 cycle detection use these types. Generated strings are rendered when producing
-the preserved core; public JSON names and protocol versions are unchanged.
+the preserved core. Current `Indexed.FunctionSource` uses its own checked
+definition/origin and specialization keys, with the same separate audit/executable
+policy; see [indexed acceptance](verification.md). Public JSON names and protocol
+versions are unchanged.
 
 Resource values are defined in
 [`lean-kernel/compiler-limits.json`](../lean-kernel/compiler-limits.json).

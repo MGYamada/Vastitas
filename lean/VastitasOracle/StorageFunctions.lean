@@ -78,10 +78,12 @@ probe schedule. Actual calls still recheck the caller's layout and alias state. 
 theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {signatures : List ValueFlow.Signature}
     {functions : List Function} {function : Function} {result : Probe}
     (accepted : probe functions function environment signatures = .ok result) : result.function = function.id := by
+  unfold probe at accepted
+  rw [atSite_success] at accepted
   cases setup : (probeSetup functions function).run {environment, signatures} with
-  | error diagnostic => simp [probe, setup] at accepted
+  | error diagnostic => simp [setup] at accepted
   | ok pair =>
-    simp only [probe, setup, bind, Except.bind] at accepted
+    simp only [setup, bind, Except.bind] at accepted
     cases values : ValueFlow.check signatures pair.2.scalarInputs pair.2.flow.toList with
     | error diagnostic => simp [values] at accepted
     | ok valueCertificate =>

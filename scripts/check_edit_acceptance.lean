@@ -1,7 +1,9 @@
 import VastitasOracle.EditAcceptance
 
-/-! Compile-time regressions for the composition boundary. Executable forged-IR
-cases stay in the existing EditRegression and TypeAuditRegression suites. -/
+/-! Compile-time regressions for the retained `checkEditProgram` composition.
+Executable old-Core cases stay in EditRegression/TypeAuditRegression; current
+JSON acceptance is exercised by LegacySourceRegression and
+VastitasPublicTest.AuthorityRegression. -/
 namespace VastitasOracle.EditBorrowing.Regression
 open VastitasKernel VastitasKernel.Edit
 

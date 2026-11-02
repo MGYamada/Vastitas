@@ -87,6 +87,53 @@ fn request(s: &Scratch) -> Value {
 }
 
 #[test]
+fn authority_ir_matches_public_checker_fixture() {
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let s = fixture(BASE, ADDON, &events);
+    let mut raw = request(&s);
+    // Relocate the complete temporary source graph consistently. Preserve
+    // module paths, relative references, spans and all other frontend fields.
+    // The kernel checks IR provenance, not authenticity of filesystem contents.
+    fn relocate(value: &mut Value, root: &str) {
+        match value {
+            Value::String(text) => {
+                if let Some(relative) = text.strip_prefix(root)
+                    && (relative.is_empty() || relative.starts_with('/'))
+                {
+                    *text = format!("/authority-fixture{relative}");
+                }
+            }
+            Value::Array(values) => values.iter_mut().for_each(|value| relocate(value, root)),
+            Value::Object(fields) => fields.values_mut().for_each(|value| relocate(value, root)),
+            _ => {}
+        }
+    }
+    relocate(&mut raw, s.0.canonicalize().unwrap().to_str().unwrap());
+    let path = common::root().join("tests/fixtures/edit-authority.json");
+    if std::env::var_os("VASTITAS_UPDATE_AUTHORITY_FIXTURE").as_deref()
+        == Some(std::ffi::OsStr::new("1"))
+    {
+        std::fs::write(
+            &path,
+            format!("{}\n", serde_json::to_string_pretty(&raw).unwrap()),
+        )
+        .unwrap();
+    }
+    let fixture: Value = serde_json::from_slice(
+        &std::fs::read(path).expect("regenerate the authority fixture as documented"),
+    )
+    .unwrap();
+    assert_eq!(
+        raw, fixture,
+        "frontend authority IR differs from the Lean public regression fixture"
+    );
+    for mode in ["check", "emit"] {
+        let response = kernel(&fixture, mode);
+        assert_eq!(response["ok"], true, "{mode}: {response}");
+    }
+}
+
+#[test]
 fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() {
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     let s = fixture(BASE, ADDON, &events);

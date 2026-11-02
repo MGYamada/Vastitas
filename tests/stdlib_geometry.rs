@@ -344,6 +344,167 @@ fn generated_objects_and_opened_witnesses_do_not_collapse() {
     );
 }
 
+fn opened_object_source(
+    module: &str,
+    domain: &str,
+    marker: &str,
+    base: &str,
+    body: &str,
+) -> String {
+    format!(
+        "use std::geometry::{module} as g;\n\
+         fn open(packed: g::Pointed<g::{domain}, g::{marker}>) -> Object<g::{domain}, g::{marker}> {{\n\
+         unpack packed as {{ witness: Y, fields: [p] }}; Y\n\
+         }}\nfn main() -> Int {{ {body} }}"
+    )
+    .replace("DOMAIN", domain)
+    .replace("MARKER", marker)
+    .replace("BASE", base)
+}
+
+#[test]
+fn opened_objects_survive_blocks_in_both_geometry_modules() {
+    for (module, domain, marker, base) in [
+        ("scheme", "Scheme", "QQ", "BaseQQ"),
+        ("smooth", "CInfScheme", "CInfReal", "BaseSmooth"),
+    ] {
+        let source = opened_object_source(
+            module,
+            domain,
+            marker,
+            base,
+            r#"
+    let packed = g::pointed(41);
+    let Z = { unpack packed as { witness: Y, fields: [p] }; Y };
+    let Alias = Z;
+    let q: g::Point<Alias, g::BASE> = g::apply(g::id(Z), g::origin(Z));
+    let repacked = {
+        unpack packed as { witness: W, fields: [r] };
+        pack g::Pointed<g::DOMAIN, g::MARKER> { witness: W, fields: [g::apply(g::id(W), r)] }
+    };
+    unpack repacked as { witness: R, fields: [s] };
+    let RAlias = R;
+    let kept: g::Point<RAlias, g::BASE> = s;
+    let A = open(g::pointed(0));
+    let B = open(g::pointed(1));
+    int(g::dimension(Z) + g::dimension(R) + g::dimension(A) + g::dimension(B))
+"#,
+        );
+        let s = fixture(&source, str::to_owned);
+        native_result(&s, b"83\n");
+        let wire = captured_wire(&s);
+        for mode in ["check", "emit"] {
+            let response = kernel(&wire, mode);
+            assert_eq!(response["ok"], true, "{response}");
+        }
+    }
+}
+
+#[test]
+fn opened_objects_do_not_export_dependent_fields_or_merge_identities() {
+    let cases = [
+        (
+            "let escaped = { unpack packed as { witness: Y, fields: [p] }; p };",
+            "E_ESCAPE",
+        ),
+        (
+            "let escaped = { unpack packed as { witness: Y, fields: [p] }; g::id(Y) };",
+            "E_ESCAPE",
+        ),
+        (
+            "let Z = { unpack packed as { witness: Y, fields: [p] }; Y }; let W = { unpack packed as { witness: X, fields: [q] }; X }; let wrong: g::Point<W, g::BASE> = g::origin(Z);",
+            "E_TYPE",
+        ),
+        (
+            "let A = open(packed); let B = open(packed); let wrong: g::Point<B, g::BASE> = g::origin(A);",
+            "E_TYPE",
+        ),
+        (
+            "let Z = { unpack packed as { witness: Y, fields: [p] }; Y }; let X = g::Affine(2); let wrong: g::Point<X, g::BASE> = g::origin(Z);",
+            "E_TYPE",
+        ),
+        (
+            "let Z = { unpack packed as { witness: Y, fields: [p] }; Y }; unpack packed as { witness: W, fields: [q] }; let wrong = pack g::Pointed<g::DOMAIN, g::MARKER> { witness: Z, fields: [q] };",
+            "E_ENDPOINT",
+        ),
+    ];
+    for (module, domain, marker, base) in [
+        ("scheme", "Scheme", "QQ", "BaseQQ"),
+        ("smooth", "CInfScheme", "CInfReal", "BaseSmooth"),
+    ] {
+        for (body, code) in cases {
+            let source = opened_object_source(
+                module,
+                domain,
+                marker,
+                base,
+                &format!("let packed = g::pointed(2); {body} 0"),
+            );
+            let s = fixture(&source, str::to_owned);
+            s.write("program", "preserve this output");
+            for mode in ["check", "build"] {
+                let mut command = cli();
+                command
+                    .current_dir(&s.0)
+                    .args([mode, "--manifest-path", "app/Vastitas.toml"]);
+                if mode == "build" {
+                    command.args(["-o", "program"]);
+                }
+                let output = command.output().unwrap();
+                assert!(!output.status.success(), "accepted {source}");
+                assert!(
+                    String::from_utf8_lossy(&output.stderr).contains(code),
+                    "{output:?}"
+                );
+                assert_eq!(
+                    std::fs::read(s.0.join("program")).unwrap(),
+                    b"preserve this output"
+                );
+            }
+            let wire = captured_wire(&s);
+            for mode in ["check", "emit"] {
+                let response = kernel(&wire, mode);
+                assert_eq!(response["ok"], false, "{response}");
+                assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
+                assert!(response.get("lean_source").is_none(), "{response}");
+            }
+        }
+    }
+}
+
+#[test]
+fn legacy_opened_objects_remain_first_class() {
+    for (domain, marker) in [("Scheme", "QQ"), ("CInfScheme", "CInfReal")] {
+        let source = format!(
+            r#"
+fn make(n: Nat) -> Pointed<{domain}, {marker}> {{
+    let X = Affine({marker}, n);
+    pack {{ scheme: X, point: origin(X) }}
+}}
+fn open(packed: Pointed<{domain}, {marker}>) -> {domain} {{
+    unpack packed as {{ scheme: Y, point: p }}; Y
+}}
+fn main() -> Int {{
+    let packed = make(41);
+    let Z = {{ unpack packed as {{ scheme: Y, point: p }}; Y }};
+    let Alias = Z;
+    let q: Point<Alias, Base({marker})> = apply(id(Z), origin(Z));
+    let A = open(make(1));
+    int(dimension(Z) + dimension(A))
+}}
+"#
+        );
+        // Both legacy flat protocol 2 and the explicit protocol-7 stdlib adapter.
+        common::native(&source, &[], "42", "opened-object.vast");
+        native(&fixture(&source, str::to_owned));
+        let mismatched = source.replace("let A = open(make(1));", &format!(
+            "let A = open(packed); let B = open(packed); let bad: Point<B, Base({marker})> = origin(A);"
+        ));
+        common::reject(&mismatched, "E_TYPE", "opened-object.vast");
+        reject(&mismatched, "E_TYPE");
+    }
+}
+
 #[test]
 fn copying_the_library_package_does_not_copy_its_nominal_identity() {
     let s = fixture(

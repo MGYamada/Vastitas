@@ -2,7 +2,11 @@ import VastitasPromotion.Fixture
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.Codegen
 
-/-! Test-only evaluation of the scalar/Pair subset, using the actual primitive
+/-! Retained legacy checker fixture/regression. Public indexed acceptance and
+numerical regression live in IndexedFixture and IndexedRegression; these old
+entry points are not used by Main.
+
+ Test-only evaluation of the scalar/Pair subset, using the actual primitive
 semantics. This is a bounded regression harness, not a public interpreter or a
 substitute for the oracle's arbitrary-input Eval proofs. -/
 namespace VastitasKernel.PromotionRegression

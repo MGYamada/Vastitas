@@ -1,8 +1,9 @@
 import VastitasKernel.FunctionChecker
 import VastitasKernel.Codegen
 
-/-! Executable adversarial checks against the actual Stage 1b acceptance path
-and its independent static-signature audit, without the Rust frontend. -/
+/-! Retained `checkSurfaceProgram` and old-Core static-signature regressions.
+Main no longer uses this top-level checker. LegacySourceRegression and the
+indexed function/wire regressions cover the current public composition. -/
 namespace VastitasKernel.Surface.Regression
 
 private def int : TypeExpr := .data (.named "Int")

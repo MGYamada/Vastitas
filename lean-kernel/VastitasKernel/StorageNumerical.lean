@@ -50,6 +50,10 @@ structure Basis where
   parent : Option Symbol := none
   deriving Repr, BEq, DecidableEq, Inhabited
 
+/-- Diagnostic references use actual nominal identities, never dimensions. -/
+def Basis.errorSubjects (basis : Basis) (role : String) : List ErrorSubject :=
+  [⟨s!"{role} basis", basis.brand, .basis⟩, ⟨s!"{role} space", basis.space.brand, .space⟩]
+
 /-- The admitted involution is identity over R and conjugation over C. The
 descriptor is reconstructed from an actual profile, never from a dimension. -/
 structure Involution where
@@ -375,7 +379,7 @@ inductive Operation where
   deriving Repr, BEq, Inhabited
 
 private def reject (message : String) : Except Error α :=
-  .error ⟨"E_NUMERICAL_TYPE", message⟩
+  .error {code := "E_NUMERICAL_TYPE", message := message}
 
 def insert (env : Environment) (values : Values) (name : Symbol) (value : Value) : Except Error Values := do
   if (value? values name).isSome then reject "numerical value identity is already bound"
@@ -603,6 +607,14 @@ def Product.Composable (product : Product) : Prop :=
   product.output.source = product.right.source ∧
   product.output.target = product.left.target
 
+def Product.errorSubjects (product : Product) : List ErrorSubject :=
+  (if product.left.source = product.right.target then [] else
+    product.left.source.errorSubjects "left source" ++ product.right.target.errorSubjects "right target") ++
+  (if product.output.source = product.right.source then [] else
+    product.output.source.errorSubjects "output source" ++ product.right.source.errorSubjects "right source") ++
+  (if product.output.target = product.left.target then [] else
+    product.output.target.errorSubjects "output target" ++ product.left.target.errorSubjects "left target")
+
 instance (product : Product) : Decidable product.Composable :=
   inferInstanceAs (Decidable (_ ∧ _ ∧ _))
 
@@ -651,7 +663,10 @@ def checkProduct (env : Environment) (resources : Storage.State) (values : Value
               else reject "output map no longer matches its resource loan"
             else reject "right map no longer matches its resource loan"
           else reject "left map no longer matches its resource loan"
-        else reject "GEMM requires the exact middle and outer objects and bases"
+        else .error {
+          code := "E_NUMERICAL_TYPE"
+          message := "GEMM requires the exact middle and outer objects and bases"
+          context := {subjects := product.errorSubjects}}
       | _, _, _ => reject "GEMM operands must be explicit typed map views"
     else reject "invalid numerical environment or value provenance"
   else reject "invalid numerical resource state"

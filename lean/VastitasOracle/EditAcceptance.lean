@@ -1,7 +1,9 @@
 import VastitasOracle.EditBorrowing
 
 /-!
-First, deliberately limited acceptance composition for decoded protocol 5.
+Retained, deliberately limited checkEditProgram composition for decoded
+protocol 5. This old-Core proposition does not describe Main's current indexed
+public route.
 All evidence is indexed by the input, the entrypoint policy, the actual returned
 Core and ONE assembly. This is a proof-only proposition, not a new checker or a
 replacement for the runtime certificate. See docs/verification.md for the

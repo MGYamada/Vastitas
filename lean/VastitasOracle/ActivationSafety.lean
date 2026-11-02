@@ -1,7 +1,8 @@
 import VastitasOracle.ProgramSafety
 
 /-!
-The public termination and preservation result quantifies over every well-typed
+Retained old-Core termination and preservation, not Main's indexed public route.
+The result quantifies over every well-typed
 argument environment. Freshness is established by constructing an activation,
 not required of the caller's ambient world. Different nominal IDs may denote
 the same runtime object throughout these results.
@@ -71,7 +72,7 @@ theorem module_total_for_arguments (module : CheckedModule)
     (allocations_local _ _ _ (typed.2.2 function member).2.1)
     (module_total_and_typed module typed ordered function member) world env context
 
-/-- Actual public checker acceptance implies termination and preservation for
+/-- Retained `checkModule` acceptance implies termination and preservation for
 all well-typed arguments, without a caller freshness or injectivity hypothesis. -/
 theorem checkModule_total_for_arguments (raw : RawModule) (requireMain : Bool)
     (certified : CertifiedModule) (accepted : checkModule raw requireMain = .ok certified)

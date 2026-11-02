@@ -43,6 +43,32 @@ explicit intersection under the same bound; a join that exceeds it reports
 These are metadata bounds, not limits on buffer elements. This normalization
 does not resolve the separate whole-state audit scaling issue (#422).
 
+### Reconstructed audit indexes
+
+The executable checker reconstructs lookup/multiplicity tables and bounded
+loan ancestry sets from each actual state. `AuditIndex.audit_eq` proves equality
+with `Storage.auditState` for every state, including duplicate names, dangling
+parents and cycles. Lean's proved `csimp` replacement selects this implementation
+at compilation; no serialized index, cached validity flag or unchecked alternate
+implementation participates. First-occurrence lookup and exact multiplicities
+preserve rejection of malformed environments. Read/read pairs need no comparison;
+every pair involving a writer retains its original check. Physical disjointness
+is tested before ancestry membership. Borrow transitions use the corresponding
+proved `compatibleWith_eq_indexed` replacement.
+
+Full audits still run before and after transitions and at existing replay/join/
+code-generation boundaries. With expected constant-time hash lookup, constructing
+ancestry rows takes O(L * depth), and writer-pair checks take O(W * L), where L is
+the live loan count and W counts writers, including suspended ancestors. Repeating
+these audits and nested call replays is still superlinear; #422 remains open.
+`python3 scripts/check_storage_scaling.py` checks five generated public-source
+shapes at 64/128/256 entries, including ten wrappers. Use `--sizes 512 1000` for
+larger observations and `--kernel-root` to compare the same sources with another
+built kernel. Its per-case deadline terminates the process group and reports a
+timeout; it is a measurement harness, not a compiler work budget or a controlled
+host Fast like C acceptance test. The [same-source macOS observation](../experiments/compiler_scaling/results/2026-11-02-macos-storage/RESULTS.md)
+records both the improvement and the remaining 512-deep reborrow timeout.
+
 ## Resources and operations
 
 | Operation | Checked transition |

@@ -1,5 +1,11 @@
 # Stage 1b indexing: issue #141 follow-up
 
+This is a historical implementation and measurement record for the retained
+`FunctionChecker`/`checkSurfaceProgram` pipeline at the commits below. Main now
+uses the indexed source composition. These measurements and old-Core theorems
+are not current-pipeline performance or source-correspondence claims; see
+[current verification routes](verification.md#current-public-checker-routes).
+
 ## Starting point
 
 On 2026-10-28, issue [#141](https://github.com/MGYamada/Vastitas/issues/141)

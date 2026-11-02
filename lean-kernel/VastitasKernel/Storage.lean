@@ -1,5 +1,7 @@
 import VastitasKernel.StorageDiagonalData
 import VastitasKernel.StorageTensorLayout
+import VastitasKernel.FiniteIndex
+import Std.Data.HashSet.Lemmas
 
 /-! Explicit resource transitions, separate from pure indexed Core. All handles
 are lexical symbols, not addresses. Allocation identities are reconstructed by
@@ -93,7 +95,8 @@ def auditDependencies (state : State) : Bool :=
     (state.owner? entry.name).isNone && (state.loan? entry.name).isNone &&
     (entry.value.map (·.valid state)).getD true
 
-/-- A bounded ancestry walk also rejects cycles or absent parent links. -/
+/-- Bounded ancestry query. `Loan.valid` separately rejects absent parents and
+cycles; a direct parent name matches even if its loan is missing. -/
 def ancestor (loans : List Loan) : Nat → Symbol → Loan → Bool
   | 0, _, _ => false
   | fuel + 1, name, loan => match loan.parent with
@@ -102,6 +105,45 @@ def ancestor (loans : List Loan) : Nat → Symbol → Loan → Bool
         match loans.find? (·.name == parent) with
         | none => false
         | some parentLoan => ancestor loans fuel name parentLoan
+
+namespace AuditIndex
+
+/-- Compute one bounded ancestry row with indexed parent lookup. A missing
+parent is still included, exactly as in `ancestor`; validity rejects the link
+separately. No acyclicity or uniqueness premise is trusted by this computation. -/
+def lineage (loans : Std.HashMap Symbol Loan) : Nat → Loan → Std.HashSet Symbol
+  | 0, _ => {}
+  | fuel + 1, loan => match loan.parent with
+    | none => {}
+    | some parent =>
+      let above := match loans[parent]? with
+        | none => {}
+        | some prior => lineage loans fuel prior
+      above.insert parent
+
+theorem lineage_contains (loans : List Loan) (fuel : Nat) (loan : Loan) (name : Symbol) :
+    (lineage (Finite.firstIndex Loan.name loans) fuel loan).contains name =
+      ancestor loans fuel name loan := by
+  induction fuel generalizing loan with
+  | zero => simp [lineage, ancestor]
+  | succ fuel ih =>
+    cases parent : loan.parent with
+    | none => simp [lineage, ancestor, parent]
+    | some parentName =>
+      simp only [lineage, ancestor, parent, Finite.firstIndex_lookup]
+      cases found : loans.find? (fun entry => entry.name == parentName) with
+      | none =>
+        by_cases same : name = parentName
+        · simp [Std.HashSet.contains_insert, same]
+        · simp [Std.HashSet.contains_insert, beq_eq_false_iff_ne.mpr same,
+            beq_eq_false_iff_ne.mpr (Ne.symm same)]
+      | some prior =>
+        simp only [Std.HashSet.contains_insert, ih]
+        by_cases same : name = parentName
+        · simp [same]
+        · simp [beq_eq_false_iff_ne.mpr same, beq_eq_false_iff_ne.mpr (Ne.symm same)]
+
+end AuditIndex
 
 def Loan.valid (state : State) (loan : Loan) : Bool :=
   match state.allocation? loan.allocation with
@@ -143,12 +185,191 @@ def auditState (state : State) : Bool :=
   state.loans.all (fun loan => state.loans.countP (·.name == loan.name) == 1 && loan.valid state) &&
   state.loans.all (fun left => state.loans.all (loansCompatible state left))
 
+namespace AuditIndex
+
+structure Tables where
+  allocations : Std.HashMap Nat Allocation
+  owners : Std.HashMap Symbol Allocation
+  loans : Std.HashMap Symbol Loan
+  used : Std.HashSet Symbol
+
+def tables (state : State) : Tables :=
+  ⟨Finite.firstIndex Allocation.identity state.allocations,
+   Finite.firstIndex Allocation.owner state.allocations,
+   Finite.firstIndex Loan.name state.loans, Std.HashSet.ofList state.used⟩
+
+def stampValid (index : Tables) (stamp : DependencyStamp) : Bool :=
+  index.allocations[stamp.allocation]?.any fun allocation =>
+    allocation.version == stamp.version && allocation.scalar == stamp.scalar &&
+    checkLayout allocation.scalar allocation.capacity stamp.layout &&
+    allocation.initialization.covers allocation.scalar stamp.layout
+
+theorem stampValid_eq (state : State) (stamp : DependencyStamp) :
+    stampValid (tables state) stamp = stamp.valid state := by
+  simp only [stampValid, tables, Finite.firstIndex_lookup, DependencyStamp.valid, State.allocation?]
+
+def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
+  match index.allocations[loan.allocation]? with
+  | none => false
+  | some allocation =>
+    checkLayout allocation.scalar allocation.capacity loan.layout && index.used.contains loan.name &&
+    (!loan.access.reads || allocation.initialization.covers allocation.scalar loan.layout) &&
+    (match loan.parent with
+    | none => true
+    | some parent => match index.loans[parent]? with
+      | none => false
+      | some parentLoan => parent != loan.name && parentLoan.allocation == loan.allocation &&
+          (!loan.access.writes || parentLoan.access.writes) &&
+          (!loan.access.reads || parentLoan.access.reads) &&
+          parentLoan.layout.covers loan.layout allocation.scalar &&
+          !(lineage index.loans fuel parentLoan).contains loan.name)
+
+theorem loanValid_eq (state : State) (loan : Loan) :
+    loanValid (tables state) state.loans.length loan = loan.valid state := by
+  simp only [loanValid, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
+    lineage_contains, Loan.valid, State.allocation?, State.loan?]
+
+abbrev Row := Loan × Std.HashSet Symbol
+
+def row (index : Tables) (fuel : Nat) (loan : Loan) : Row :=
+  (loan, lineage index.loans fuel loan)
+
+def compatible (index : Tables) (left right : Row) : Bool :=
+  left.1.name == right.1.name || left.1.allocation != right.1.allocation ||
+    (!left.1.access.writes && !right.1.access.writes) ||
+    (index.allocations[left.1.allocation]?.any fun allocation =>
+      left.1.layout.disjoint right.1.layout allocation.scalar) ||
+    right.2.contains left.1.name || left.2.contains right.1.name
+
+theorem compatible_eq (state : State) (left right : Loan) :
+    compatible (tables state) (row (tables state) state.loans.length left)
+      (row (tables state) state.loans.length right) = loansCompatible state left right := by
+  simp only [compatible, row, tables, lineage_contains, Finite.firstIndex_lookup,
+    loansCompatible, State.allocation?]
+  ac_rfl
+
+/-- Read/read pairs are unconditionally compatible. All pairs involving a
+writer are still checked, retaining both directions even for malformed states. -/
+def pairs (index : Tables) (rows : List Row) : Bool :=
+  let writers := rows.filter (fun entry => entry.1.access.writes)
+  rows.all fun left =>
+    (if left.1.access.writes then rows else writers).all (compatible index left)
+
+theorem pairs_eq (state : State) :
+    pairs (tables state) (state.loans.map (row (tables state) state.loans.length)) =
+      state.loans.all (fun left => state.loans.all (loansCompatible state left)) := by
+  simp only [pairs, List.all_map, Function.comp_def]
+  congr 1
+  funext left
+  change (if left.access.writes then state.loans.map (row (tables state) state.loans.length)
+      else (state.loans.map (row (tables state) state.loans.length)).filter
+        (fun entry => entry.1.access.writes)).all
+      (compatible (tables state) (row (tables state) state.loans.length left)) = _
+  by_cases writes : left.access.writes = true
+  · rw [ite_eq_left writes]
+    simp only [List.all_map, Function.comp_def]
+    exact congrArg (state.loans.all) (funext (compatible_eq state left))
+  · rw [ite_eq_right writes]
+    have readOnly : left.access.writes = false := Bool.eq_false_iff.mpr writes
+    simp only [List.all_filter, List.all_map, Function.comp_def]
+    congr 1
+    funext right
+    change (!right.access.writes || compatible _ (row _ _ left) (row _ _ right)) = _
+    rw [compatible_eq]
+    cases writes : right.access.writes
+    · simp [loansCompatible, readOnly, writes]
+    · simp
+
+def audit (state : State) : Bool :=
+  let index := tables state
+  let fuel := state.loans.length
+  let usedCounts := Finite.countIndex id state.used
+  let allocationCounts := Finite.countIndex Allocation.identity state.allocations
+  let ownerCounts := Finite.countIndex Allocation.owner state.allocations
+  let loanCounts := Finite.countIndex Loan.name state.loans
+  let dependencyCounts := Finite.countIndex DependencyEntry.name state.dependencies
+  (state.dependencies.length ≤ 4096 && state.dependencies.all fun entry =>
+    index.used.contains entry.name && dependencyCounts.getD entry.name 0 == 1 &&
+    index.owners[entry.name]?.isNone && index.loans[entry.name]?.isNone &&
+    (entry.value.map (fun value => stampValid index value.source && stampValid index value.target)).getD true) &&
+  state.used.all (fun name => usedCounts.getD name 0 == 1) &&
+  state.allocations.all (fun allocation =>
+    allocation.identity < state.nextAllocation && allocation.capacity ≤ byteLimit &&
+    allocation.capacity % allocation.scalar.width == 0 && index.used.contains allocation.owner &&
+    (allocation.initialization.remaining 4096).isSome &&
+    allocation.initialization.valid allocation.scalar allocation.capacity &&
+    allocationCounts.getD allocation.identity 0 == 1 && ownerCounts.getD allocation.owner 0 == 1 &&
+    index.loans[allocation.owner]?.isNone) &&
+  state.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && loanValid index fuel loan) &&
+  pairs index (state.loans.map (row index fuel))
+
+theorem audit_eq (state : State) : audit state = auditState state := by
+  simp only [audit, pairs_eq, Finite.countIndex_lookup, loanValid_eq, stampValid_eq]
+  simp only [tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList, id_eq,
+    auditState, auditDependencies, Dependency.valid, State.owner?, State.loan?, List.count_eq_countP]
+
+end AuditIndex
+
+/-- The executable audit uses reconstructed indexes. Its result is equal for
+every state, not just states already known to satisfy the reference audit. -/
+@[csimp] theorem auditState_eq_indexed : auditState = AuditIndex.audit := by
+  funext state
+  exact (AuditIndex.audit_eq state).symm
+
+def compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
+  others.all (loansCompatible state left)
+
+def AuditIndex.compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
+  let index := tables state
+  let fuel := state.loans.length
+  let leftRow := row index fuel left
+  let relevant := if left.access.writes then others else others.filter (·.access.writes)
+  relevant.all fun right => compatible index leftRow (row index fuel right)
+
+@[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
+  funext state left others
+  simp only [compatibleWith, AuditIndex.compatibleWith]
+  cases writes : left.access.writes
+  · simp only [Bool.false_eq_true, ite_false, List.all_filter, AuditIndex.compatible_eq]
+    congr 1
+    funext right
+    cases rightWrites : right.access.writes <;> simp [loansCompatible, writes, rightWrites]
+  · simp only [ite_true, AuditIndex.compatible_eq]
+
+inductive ErrorSubjectKind where
+  | binding | basis | space
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+/-- Diagnostic-only names. Component checks use activation symbols; the
+function compiler resolves them back to lexical names before locating a site. -/
+structure ErrorSubject where
+  role : String
+  name : Symbol
+  kind : ErrorSubjectKind := .binding
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+inductive ErrorPlace where
+  | header | statement (position : List Nat) | result
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure ErrorSite where
+  function : Nat
+  place : ErrorPlace
+  subjects : List ErrorSubject := []
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+structure ErrorContext where
+  sites : List ErrorSite := []
+  subjects : List ErrorSubject := []
+  deriving Repr, BEq, DecidableEq, Inhabited
+
 structure Error where
   code : String
   message : String
+  context : ErrorContext := {}
   deriving Repr, BEq, DecidableEq, Inhabited
 
-private def reject (code message : String) : Except Error α := .error ⟨code, message⟩
+private def reject (code message : String) : Except Error α := .error {code := code, message := message}
 
 inductive Source where
   | owner (name : Symbol)
@@ -391,7 +612,12 @@ def borrowTransition (state : State) (name : Symbol) (source : Source) (layout :
     reject "E_RESOURCE_INIT" "requested read region is not initialized"
   let loan := { name, allocation := allocation.identity, layout, access, parent : Loan }
   let after := { state with loans := loan :: state.loans, used := name :: state.used }
-  if !state.loans.all (loansCompatible after loan) then reject "E_RESOURCE_ALIAS" "incompatible live loans may overlap"
+  if !compatibleWith after loan state.loans then
+    .error {
+      code := "E_RESOURCE_ALIAS"
+      message := "incompatible live loans may overlap"
+      context := {subjects := ((state.loans.find? (fun prior => !loansCompatible after loan prior)).map
+        (fun prior => [⟨"conflicting loan", prior.name, .binding⟩])).getD []}}
   return after
 
 def releaseTransition (state : State) (name : Symbol) : Except Error State := do
@@ -500,7 +726,11 @@ def executeAction (state : State) : Action → Except Error State
   | .drop owner => do
     let allocation ← owned state owner
     if state.loans.any (·.allocation == allocation.identity) then
-      reject "E_RESOURCE_LOAN" "cannot drop an allocation with live loans"
+      .error {
+        code := "E_RESOURCE_LOAN"
+        message := "cannot drop an allocation with live loans"
+        context := {subjects := ((state.loans.find? (·.allocation == allocation.identity)).map
+          (fun loan => [⟨"live loan preventing drop", loan.name, .binding⟩])).getD []}}
     return { state with
       allocations := state.allocations.filter (·.identity != allocation.identity)
       dependencies := invalidateDependencies state.dependencies allocation.identity }
@@ -615,8 +845,8 @@ def checkAction (state : State) (action : Action) : Except Error State :=
     match executeAction state action with
     | .error diagnostic => .error diagnostic
     | .ok after => if auditState after then .ok after
-      else .error ⟨"E_RESOURCE_STATE", "invalid reconstructed resource environment"⟩
-  else .error ⟨"E_RESOURCE_STATE", "invalid input resource environment"⟩
+      else .error {code := "E_RESOURCE_STATE", message := "invalid reconstructed resource environment"}
+  else .error {code := "E_RESOURCE_STATE", message := "invalid input resource environment"}
 
 inductive Statement where
   | action (action : Action)

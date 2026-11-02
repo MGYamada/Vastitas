@@ -24,6 +24,7 @@ def fields (j : Json) (allowed : List String) : Except String Unit := do
 
 def decodeSpan (j : Json) : Except String Span := do
   let s ← field j "span"
+  fields s ["start", "end", "line", "column"]
   let start ← s.getObjValAs? Nat "start"
   let finish ← s.getObjValAs? Nat "end"
   let line ← s.getObjValAs? Nat "line"

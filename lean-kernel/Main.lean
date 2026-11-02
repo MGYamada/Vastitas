@@ -9,8 +9,8 @@ private def process (mode input : String) : Lean.Json := Id.run do
   match parsed with
   | .error message => return failureJson { code := "E_PROTOCOL", message }
   | .ok json =>
-    let requested := (json.getObjValAs? Nat "version").toOption
-    let version := requested.getD 2
+    let .ok version := json.getObjValAs? Nat "version"
+      | return failureJson { code := "E_PROTOCOL", message := "IR version must be a natural number" }
     if version == 8 then
       match ResourceSource.Wire.check json (mode == "emit") with
       | .error diagnostic => return failureJson diagnostic version
@@ -54,8 +54,11 @@ def main (args : List String) : IO UInt32 := do
   if args.length > 1 || !(mode == "check" || mode == "emit") then
     output.putStrLn ((failureJson { code := "E_ARGUMENT", message := "usage: vastitas-kernel [check|emit]" }).compress)
     return 1
-  let input ← (← IO.getStdin).readToEnd
-  let response := process mode input
+  let response ← try
+    let input ← (← IO.getStdin).readToEnd
+    pure (process mode input)
+  catch error =>
+    pure (failureJson { code := "E_PROTOCOL", message := s!"cannot read UTF-8 IR input: {error}" })
   output.putStrLn response.compress
   match response.getObjValAs? Bool "ok" with
   | .ok true => return 0

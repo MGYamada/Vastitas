@@ -145,7 +145,7 @@ def validPass (input : Input) (audit : Bool) (pass : Pass) : Bool :=
     validEmittedCalls input audit pass &&
     validSourceCalls input pass &&
     pass.references.all (fun reference => decide (reference.Valid input.body.index)) &&
-    validDispatchCalls input pass
+    validDispatchCalls input pass && decide (pass.elaborationWork ≤ Limits.elaborationWork)
 
 /-- Coverage concerns the separate audit pass, where every named function and
 lifted lambda must have a typed emitted instance, even when never invoked. -/

@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedFunctionScope
+import VastitasKernel.IndexedFunctionWork
 
 namespace VastitasKernel.Indexed.FunctionSource
 
@@ -52,6 +53,7 @@ mutual
 end
 
 def liftDefinitions (functions : List (DeclId × Function)) : Namespace.Result Lifted := do
+  WorkBudget.check (functions.map Prod.snd)
   let action : LiftM (List Definition) := functions.zipIdx.mapM fun ((owner, function), id) => do
     let body ← liftBlock Limits.sourceNesting functions.length id owner owner.scope function.body
     return ⟨id, id, owner, { function with body }, false, owner.scope⟩

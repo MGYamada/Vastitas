@@ -44,15 +44,18 @@ theorem prepared_profile {program : FunctionSource.Program} {env : Core.Declarat
     ∃ references, (Source.resolveGeometry program.headers env).run [] =
       .ok (prepared.input.body.geometry, references) := by
   unfold FunctionSource.Compiler.prepareProgram at lowered
-  cases resolved : (Source.resolveGeometry program.headers env).run [] with
-  | error diagnostic => simp [resolved, bind, Except.bind] at lowered
-  | ok pair =>
-    rcases pair with ⟨geometry, references⟩
-    simp only [resolved, bind, Except.bind] at lowered
-    split at lowered
-    · contradiction
-    · cases lowered
-      exact ⟨references, rfl⟩
+  simp only [bind, Except.bind] at lowered
+  split at lowered
+  · contradiction
+  · cases resolved : (Source.resolveGeometry program.headers env).run [] with
+    | error diagnostic => simp [resolved] at lowered
+    | ok pair =>
+      rcases pair with ⟨geometry, references⟩
+      simp only [resolved] at lowered
+      split at lowered
+      · contradiction
+      · cases lowered
+        exact ⟨references, rfl⟩
 
 theorem lowered_profile {program : Source.Program} {resolved : Source.Resolved}
     (lowered : Source.lower program = .ok resolved) :

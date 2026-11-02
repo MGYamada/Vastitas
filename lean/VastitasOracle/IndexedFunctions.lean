@@ -29,6 +29,17 @@ theorem both_passes {program : Program} (checked : CheckedProgram program requir
   ⟨(checked_pass checked.audit).2.2.1, (checked_pass checked.executable).2.2.1,
     checked.audit.reconstructed, checked.executable.reconstructed⟩
 
+/-- This is the counter on the actual reconstructed pass paired with its exact
+returned Core, not a runtime bound or a claim about namespace resolution. -/
+theorem checked_elaboration_budget {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) :
+    lowerPass prepared audit = .ok checked.lowered ∧
+    checked.core.module = checked.lowered.module ∧
+    checked.lowered.elaborationWork ≤ Limits.elaborationWork := by
+  have accepted := checked.accepted
+  simp only [validPass, Bool.and_eq_true, decide_eq_true_eq, and_assoc] at accepted
+  exact ⟨checked.reconstructed, checked.coreInput, accepted.2.2.2.2.2.2⟩
+
 theorem lambda_scope {program : Program} (checked : CheckedProgram program requireMain)
     (scope : Namespace.Scope) (lambda : LambdaScope) (member : (scope, lambda) ∈ program.lambdaScopes) :
     lambda.function.callable.isSome = true ∧

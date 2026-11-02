@@ -1059,6 +1059,17 @@ the template returns an input Fn. Separate receipts check local-result freshness
 against the template result and caller inputs; the actual lowering equation
 retains the fresh-name counter and repeated-request cache. These structural
 facts are not a source-specialization equivalence theorem.
+`checked_elaboration_budget` connects the actual reconstructed pass and its exact
+returned Core to the independently checked 1,000,000-unit work-counter bound.
+`FunctionSource.WorkBudget.charge_exact` proves exact accumulation without
+overflow or a discarded charge. Source preflight includes every expanded body;
+each actual specialization consumes work again in its separate pass, while a
+memoized instance does not. This is the syntax/binding-slot admission policy in
+[Stage 1b](stage1b.md), not a time-complexity theorem or a bound on namespace and
+resource-plan work. The all-body coverage and exact Core audits still run for
+every accepted input. Overspent receipt mutations and public check/emit/build
+regressions cover aggregate families, unapplied contributions and concrete Fn
+specializations; rejecting a large program supplies no proof of its semantics.
 Coverage cannot be replaced with a list of executable winners or probes
 reused as executable targets. `IndexedFunctionRegression` includes scalar/Fn
 forwarding chains, alias patterns, forged reuse receipts, unused-body rejection

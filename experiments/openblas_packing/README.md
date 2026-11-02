@@ -63,6 +63,9 @@ every distinct `(kernel,m,n,lda)` from the actual diagnostic records, then check
 that exact shape/stride on both plain/sanitized stock/diagnostic kernels. This
 covers actual blocks outside the initial grid, such as extent 512 and large
 leading dimensions. Missing or duplicate footprint receipts are rejected.
+New sanitizer builds use `-fno-sanitize-recover=all`; replay also rejects
+sanitizer diagnostics in retained stderr even if the recorded exit status is
+zero. Historical records retain their original compiler flags and bytes.
 Upstream kernel objects themselves
 are not sanitizer-instrumented. This is a finite calibration, not a theorem about
 arbitrary dimensions or out-of-contract zero-size direct kernel calls. Zero-size

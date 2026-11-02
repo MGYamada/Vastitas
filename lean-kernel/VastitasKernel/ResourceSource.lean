@@ -750,6 +750,8 @@ private def sourceRemaining : Nat → Nat → List Statement → Option Nat
       | .branch _ yes no _ | .branchValue _ yes no _ => sourceRemaining depth (← sourceRemaining depth unused yes) no
       | .call _ arguments results _ | .callValue _ arguments results _ _ _ =>
         if arguments.length ≤ 64 && results.length ≤ 64 then some unused else none
+      | .tree _ _ _ plan _ =>
+        if plan.length ≤ unused then some (unused - plan.length) else none
       | _ => some unused
     sourceRemaining depth after rest
 

@@ -19,6 +19,9 @@ typedef struct {
     uint64_t offset;
 } VGemmCoefficient;
 
+/* Both entries share one process-lifetime validation of the statically linked
+ * backend. Configuration returns an immutable copied string, or NULL if the
+ * provider returned no bounded string. Failure status is cached as well. */
 const char *vgemm_configuration(void);
 VStorageStatus vgemm_backend_check(void);
 VStorageStatus vgemm_execute(VStorageArena *arena,

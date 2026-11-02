@@ -1,4 +1,5 @@
 import VastitasKernel.StorageShapeFunctions
+import VastitasKernel.StorageShapeCodegen
 
 namespace VastitasKernel.Storage.ShapeRegression
 
@@ -9,6 +10,33 @@ private def get (label : String) (result : Except Error α) : IO α :=
   match result with
   | .ok value => pure value
   | .error problem => throw (IO.userError s!"runtime shapes: {label}: {repr problem}")
+
+#eval show IO Unit from do
+  let shape : Shapes.Layout := ⟨.literal 2, .literal 3, .literal 4, true⟩
+  let invalid : List Shapes.Guard := [
+    .bound (.literal (dimensionLimit + 1)) dimensionLimit,
+    .layout .f64 (.literal 9) shape,
+    .equal (.literal 2) (.literal 3), .cell shape 3 0]
+  let valid : List Shapes.Guard := [
+    .bound (.literal 0) dimensionLimit, .layout .f64 (.literal 10) shape,
+    .equal (.literal 2) (.literal 2), .cell shape 2 1]
+  for guard in invalid do
+    let flow := [Storage.ValueFlow.Statement.runtime (.guard [guard])]
+    ensure "closed false guard rejected by actual flow checker" (!(Shapes.Flow.check [] flow).isOk)
+    ensure "closed false guard rejected by native lowering" (!(Shapes.Native.renderGuard guard 0).isOk)
+  for guard in valid do
+    let flow := [Storage.ValueFlow.Statement.runtime (.guard [guard])]
+    ensure "closed true guard accepted" (Shapes.Flow.check [] flow).isOk
+    ensure "closed true guard emits no check" (match Shapes.Native.renderGuard guard 0 with
+      | .ok text => text.isEmpty | .error _ => false)
+  ensure "literal physical contradiction rejected by symbolic checker" (!(Shapes.check [] {}
+    [.allocate 0 .f64 (.literal 9) shape, .drop 0]).isOk)
+  let .ok frame := Shapes.checkStep {} (.allocate 0 .f64 (.literal 9) shape)
+    | throw (IO.userError "symbolic transition setup rejected")
+  ensure "empty schedule also checks caller's closed layout guards" (!(Shapes.check [] frame.after []).isOk)
+  let dynamic := Shapes.Guard.equal (.slot 0) (.literal 3)
+  ensure "slot guards are not guessed using a dummy value" (Shapes.Flow.check [(0, .nat)]
+    [.runtime (.guard [dynamic])]).isOk
 
 private def slots : Shapes.Slots := (List.range 10).map fun n => (n, if n % 2 == 0 then .nat else .int)
 private def literal : Scalar → Literal

@@ -3,6 +3,8 @@
 Nat scalars, closed pure operation tags, and one affine owner per traversal.
 Resource IDs and releases are instrumentation, not host-memory semantics.
 """
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
 
 from dataclasses import dataclass, replace
 from enum import Enum

@@ -33,6 +33,7 @@ structure Checked (slots : Slots) (flow : List ValueFlow.Statement) where
   accepted : Shapes.check slots {} (actions events) = .ok resources
   explicitReferences : (extraGuards events).all (fun condition =>
     condition.references.all (extentSlot slots)) = true
+  explicitClosed : (extraGuards events).all Guard.closedValid = true
   closed : resources.after.allocations = [] ∧ resources.after.loans = []
 
 def check (slots : Slots) (flow : List ValueFlow.Statement) : Except Error (Checked slots flow) := do
@@ -44,9 +45,11 @@ def check (slots : Slots) (flow : List ValueFlow.Statement) : Except Error (Chec
     | .ok resources =>
       if explicitReferences : (extraGuards events).all (fun condition =>
           condition.references.all (extentSlot slots)) then
-        if closed : resources.after.allocations = [] ∧ resources.after.loans = [] then
-          return ⟨events, collected, resources, accepted, explicitReferences, closed⟩
-        else throw ⟨"E_RUNTIME_ESCAPE", "runtime entry exits with owners or loans"⟩
+          if explicitClosed : (extraGuards events).all Guard.closedValid then
+            if closed : resources.after.allocations = [] ∧ resources.after.loans = [] then
+              return ⟨events, collected, resources, accepted, explicitReferences, explicitClosed, closed⟩
+            else throw ⟨"E_RUNTIME_ESCAPE", "runtime entry exits with owners or loans"⟩
+          else throw ⟨"E_RUNTIME_GUARD", "literal runtime space, map or call dimension guard is false"⟩
       else throw ⟨"E_RUNTIME_SHAPE", "runtime guard refers to an absent or nonintegral slot"⟩
 
 end VastitasKernel.Storage.Shapes.Flow

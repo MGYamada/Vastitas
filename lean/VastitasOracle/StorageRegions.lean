@@ -293,12 +293,37 @@ theorem checked_initialization_work_bound {history : Initialization} {remaining 
   exact initialization_work_bound _
 
 theorem meet_bytes (left right : Initialization) (scalar : Scalar) (byte : Nat) :
-    Initialized scalar byte (left.meet right) ↔ Initialized scalar byte left ∧ Initialized scalar byte right := by
-  cases left <;> cases right <;> simp only [Initialization.meet, Initialized, false_and, and_false]
-  all_goals split
-  all_goals first
-    | (rename_i equal; cases equal <;> simp [Initialized])
-    | rfl
+    Initialized scalar byte (left.meet right scalar) ↔
+      Initialized scalar byte left ∧ Initialized scalar byte right := by
+  unfold Initialization.meet
+  split
+  next equal => subst right; simp
+  next different =>
+    cases left <;> cases right <;> simp only [Initialized, false_and, and_false]
+    all_goals try rfl
+    all_goals split
+    all_goals try {
+      rename_i equal; cases equal
+      exact ⟨fun h => ⟨Or.inr h, h⟩, And.right⟩ }
+    all_goals try {
+      rename_i equal; cases equal
+      exact ⟨fun h => ⟨h, Or.inr h⟩, And.left⟩ }
+    all_goals try rfl
+    all_goals split
+    all_goals try {
+      rename_i equal; cases equal
+      exact ⟨fun h => ⟨h, Or.inr h⟩, And.left⟩ }
+    all_goals try rfl
+    all_goals split
+    next same =>
+      obtain ⟨rfl, separated⟩ := same
+      constructor
+      · intro initialized
+        exact ⟨Or.inr initialized, Or.inr initialized⟩
+      · rintro ⟨inLeft | initialized, inRight | initialized⟩
+        · exact False.elim (disjoint_bytes separated inLeft inRight)
+        all_goals exact initialized
+    next => rfl
 
 theorem record_bytes (previous : Initialization) (layout : Layout) (scalar : Scalar) (byte : Nat) :
     Initialized scalar byte (previous.record scalar layout) ↔

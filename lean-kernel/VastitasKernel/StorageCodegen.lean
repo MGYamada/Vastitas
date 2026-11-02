@@ -49,6 +49,9 @@ def action (state : State) : Action → Except Error (List Instruction)
   | .copy source target => do
     let some input := state.loan? source | reject "missing copy source during native lowering"
     let some output := state.loan? target | reject "missing copy target during native lowering"
+    -- `lower` checks the complete action before this erasure. No native copy,
+    -- including its restrict kernel, is needed for the checked identity case.
+    if source == target then return []
     pure [.copy input.allocation input.layout output.allocation output.layout]
   | .pack3 source target i k j => do
     let some input := state.loan? source | reject "missing packing source during native lowering"

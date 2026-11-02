@@ -12,7 +12,7 @@ private def fn (name := "main") (result := expr) : Json := Json.mkObj [
   ("name", toJson name), ("params", toJson ([] : List Json)),
   ("return_type", Json.mkObj [("kind", toJson "named"), ("name", toJson "Int")]),
   ("body", Json.mkObj [("statements", toJson ([] : List Json)), ("result", result), ("span", span)]),
-  ("public", toJson false), ("span", span)]
+  ("span", span)]
 private def flat (version := 2) (functions := [fn]) : Json := Json.mkObj ([
   ("version", toJson version), ("file", toJson "legacy.vast"),
   ("functions", toJson functions), ("generics", toJson ([] : List Json)), ("methods", toJson ([] : List Json))] ++
@@ -24,7 +24,7 @@ private def package (version := 3) (source := "/legacy/Vastitas.toml") (dependen
     ("dependencies", toJson dependencies), ("modules", toJson [Json.mkObj [
       ("path", toJson ([] : List String)), ("public", toJson true), ("span", span),
       ("imports", toJson ([] : List Json)), ("generics", toJson ([] : List Json)),
-      ("methods", toJson ([] : List Json)), ("functions", toJson [fn])]])]])] ++
+      ("methods", toJson ([] : List Json)), ("functions", toJson [fn.setObjVal! "public" (toJson false)])]])]])] ++
   if version != 3 then [("input", toJson "package")] else [])
 
 private def checkCase (name : String) (json : Json) (requireMain expected : Bool)
@@ -38,6 +38,10 @@ private def checkCase (name : String) (json : Json) (requireMain expected : Bool
 #eval show IO Unit from do
   for version in [2, 4] do
     checkCase s!"flat protocol {version}" (flat version) true true
+    checkCase "flat declaration rejects namespace metadata"
+      (flat version [fn.setObjVal! "public" (toJson false)]) true false (some "E_PROTOCOL")
+    checkCase "nested expression rejects claimed owner"
+      (flat version [fn "main" (expr.setObjVal! "owner" (toJson "forged"))]) true false (some "E_PROTOCOL")
   for version in [3, 4, 5, 6] do
     checkCase s!"package protocol {version}" (package version) true true
   checkCase "library" (flat 2 []) false true
@@ -59,6 +63,6 @@ private def checkCase (name : String) (json : Json) (requireMain expected : Bool
     else pkg }
   if (AuthoritySource.checkProgram corrupted true).isOk then
     throw (IO.userError "corrupted compatibility declaration contract was accepted")
-  IO.println "legacy source: 13 adapter and common-checker cases passed"
+  IO.println "legacy source: 17 adapter, strict field and common-checker cases passed"
 
 end VastitasKernel.Indexed.LegacySource.Regression

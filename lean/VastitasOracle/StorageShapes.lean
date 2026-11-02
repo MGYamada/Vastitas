@@ -11,6 +11,45 @@ deriving instance ReflBEq, LawfulBEq for Shapes.Extent
 deriving instance ReflBEq, LawfulBEq for Shapes.Layout
 deriving instance ReflBEq for Literal
 
+theorem closed_extent_eval (extent : Shapes.Extent) (values : Shapes.Valuation)
+    (closed : extent.references = []) : extent.eval values = extent.eval (fun _ => 0) := by
+  cases extent <;> simp_all [Shapes.Extent.references, Shapes.Extent.eval]
+
+theorem closed_layout_eval (layout : Shapes.Layout) (values : Shapes.Valuation)
+    (closed : layout.references = []) : layout.eval values = layout.eval (fun _ => 0) := by
+  rcases layout with ⟨rows, columns, leading, transposed⟩
+  cases rows <;> cases columns <;> cases leading <;>
+    simp_all [Shapes.Layout.references, Shapes.Extent.references, Shapes.Layout.eval, Shapes.Extent.eval]
+
+/-- A closed arithmetic guard is independent of every runtime valuation. -/
+theorem closed_guard_eval (guard : Shapes.Guard) (values : Shapes.Valuation)
+    (closed : guard.references = []) : guard.eval values = guard.eval (fun _ => 0) := by
+  cases guard with
+  | bound extent maximum =>
+    simp [Shapes.Guard.eval, closed_extent_eval extent values closed]
+  | equal left right =>
+    cases left <;> cases right <;>
+      simp_all [Shapes.Guard.references, Shapes.Extent.references, Shapes.Guard.eval, Shapes.Extent.eval]
+  | layout scalar elements layout =>
+    have parts : elements.references = [] ∧ layout.references = [] := by
+      simpa [Shapes.Guard.references] using closed
+    simp [Shapes.Guard.eval, closed_extent_eval elements values parts.1, closed_layout_eval layout values parts.2]
+  | cell layout row column =>
+    simp [Shapes.Guard.eval, closed_layout_eval layout values closed]
+
+theorem closed_guard_holds (guard : Shapes.Guard) (values : Shapes.Valuation)
+    (closed : guard.references = []) (accepted : guard.closedValid = true) : guard.eval values = true := by
+  rw [closed_guard_eval guard values closed]
+  simpa [Shapes.Guard.closedValid, closed] using accepted
+
+/-- The actual symbolic checker retains the closed-guard decision together
+with the exact executed schedule. Guards containing slots remain conditional. -/
+theorem checked_closed_guard {slots : Shapes.Slots} {before : Shapes.Frame} {code : List Shapes.Action}
+    (checked : Shapes.Checked slots before code) (guard : Shapes.Guard) (values : Shapes.Valuation)
+    (member : guard ∈ before.guards ++ checked.guards) (closed : guard.references = []) :
+    guard.eval values = true :=
+  closed_guard_holds guard values closed (List.all_eq_true.mp checked.closedGuards guard member)
+
 @[simp] theorem eval_owner (values : Shapes.Valuation) (frame : Shapes.Frame) (name : Symbol) :
     (frame.eval values).owner? name = (frame.owner? name).map (Shapes.Allocation.eval values) := by
   simp [State.owner?, Shapes.Frame.eval, Shapes.Frame.owner?, List.find?_map, Function.comp_def, Shapes.Allocation.eval]

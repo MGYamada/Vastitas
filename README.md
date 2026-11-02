@@ -337,7 +337,17 @@ the arithmetic standard library on macOS and Linux with the oracle directory
 absent, and builds/audits proofs without Mathlib in a separate job. It runs on pull requests,
 pushes to every branch, and manual dispatch. Superseded runs for the same event
 and branch/PR are cancelled; push and pull-request runs do not cancel each other.
-Action revisions and language toolchains are pinned.
+Action revisions and language toolchains are pinned. CI installs elan 4.2.4
+from a release archive whose SHA-256 is checked before its installer runs;
+it does not execute elan's moving `master` bootstrap script. The isolated
+installation does not modify shell profiles. Python is pinned to 3.15.2 and
+checked without setup-python's extra loader path before native calibration;
+unexpected loader overrides remain errors. Checkout credentials are not
+persisted, and the external axiom auditor is
+checked out at its exact commit in addition to the repository's own audit.
+The optional packing/workspace observations filter both event types to their
+source, harness and build inputs, so documentation-only edits do not rebuild
+OpenBLAS; the required compiler/proof jobs continue to run on every change.
 
 The dependency-boundary checker has its own regression tests:
 

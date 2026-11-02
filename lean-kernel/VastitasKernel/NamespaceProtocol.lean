@@ -93,16 +93,16 @@ def decodeNamespaceModule (extended editable authority : Bool) (j : Json) : Exce
     (if authority then ["delegations", "transfers"] else []))
   let functions ← (← array j "functions").mapM fun f => do
     fields3 f ["name", "params", "return_type", "body", "span", "public"]
-    return { (← decodeSurfaceFunction f) with isPublic := ← f.getObjValAs? Bool "public" : Namespace.Function }
+    return { (← decodeSurfaceFunction f true) with isPublic := ← f.getObjValAs? Bool "public" : Namespace.Function }
   let generics ← (← array j "generics").mapM fun g => do
     fields3 g ["name", "params", "domain", "span", "public"]
-    return { (← decodeSurfaceGeneric g) with isPublic := ← g.getObjValAs? Bool "public" : Namespace.Generic }
+    return { (← decodeSurfaceGeneric g true) with isPublic := ← g.getObjValAs? Bool "public" : Namespace.Generic }
   let methods ← (← array j "methods").mapM fun m => do
     fields3 m ["name", "params", "return_type", "body", "span", "requires"]
     decodeSurfaceMethod m
   let abstractTypes ← (← optionalArray j "abstract_types").mapM fun t => do
     fields3 t ["name", "parents", "span", "public"]
-    return { (← decodeAbstractType t) with isPublic := ← t.getObjValAs? Bool "public" : Namespace.AbstractType }
+    return { (← decodeAbstractType t true) with isPublic := ← t.getObjValAs? Bool "public" : Namespace.AbstractType }
   let subtypes ← (← optionalArray j "subtypes").mapM decodeSubtype
   let assembly ← match j.getObjVal? "assembly" with
     | .error _ => pure none

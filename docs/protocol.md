@@ -231,8 +231,10 @@ Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.
 Failure responses preserve any readable natural-number request version, even
-when unsupported. An unreadable version or invalid JSON uses version 2 as the
-fallback. `supportedProtocolVersions` in the kernel defines the complete wire
+when unsupported. Missing or non-natural versions are rejected before decoder
+selection. An unreadable version, invalid JSON or non-UTF-8 stdin produces an
+`E_PROTOCOL` JSON response using version 2 as the fallback; stdin decoding errors
+do not escape as uncaught IO exceptions. `supportedProtocolVersions` in the kernel defines the complete wire
 version list. Drivers display failure diagnostics before adding a version
 mismatch note; a mismatched success response is always rejected.
 
@@ -317,7 +319,15 @@ path, and exact-module generic method authority. Each resolution shares a
 nesting bound; exhaustion returns `E_LIMIT` at the referring source span.
 Completed dependency nodes are memoized, so duplicate aliases do not cause
 repeated graph traversal. Unknown namespace metadata
-fields, including claimed owners, are rejected. A public reexport preserves
+fields, including claimed owners, are rejected. Protocols 2–6 also reject unknown
+fields in nested type/index, parameter, expression, statement, block, declaration
+and span records. Only protocol 2's top-level envelope retains its legacy tolerance
+for unrelated untrusted hints; that exception does not apply to nested records or
+allow newer declarations to be silently downgraded. Flat declarations cannot carry
+the package-only `public` field. Invalid membership scalar names are rejected as
+`E_TYPE` before constructing their namespace authority graph.
+
+A public reexport preserves
 its original target and requires a public declaration; private intermediates
 must be accessible from the reexporting module. Private declarations are
 visible from their declaring module and descendants only. Parent names are

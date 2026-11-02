@@ -394,9 +394,12 @@ fn main() -> Int { pick(true) }",
     let mut forged_facts = valid;
     forged_facts["methods"][0]["requires"] = json!(["HasOrder"]);
     forged_facts["capabilities"] = json!({"Bool": ["HasEq", "HasOrder"]});
+    // The v2 envelope may retain an untrusted hint, but it cannot establish
+    // facts. Unknown nested evidence is rejected by the stricter wire schema.
+    assert_rejected(forged_facts.clone(), "E_CAPABILITY");
     forged_facts["generics"][0]["available_capabilities"] = json!(["HasOrder"]);
     forged_facts["methods"][0]["capability_evidence"] = json!({"HasOrder": true});
-    assert_rejected(forged_facts, "E_CAPABILITY");
+    assert_rejected(forged_facts, "E_PROTOCOL");
 
     let mut ambiguous = request(
         "generic cross(x) { domain (Int); }
@@ -404,10 +407,11 @@ method cross(x: Number) -> Int { 1 }
 method cross(x: Any) -> Int requires (HasOrder) { 2 }
 fn main() -> Int { cross(0) }",
     );
+    ambiguous["dispatch_certificate"] = json!({"coherent": true, "covered": true});
+    assert_rejected(ambiguous.clone(), "E_DISPATCH_AMBIGUOUS");
     ambiguous["generics"][0]["selected_method"] = json!(0);
     ambiguous["functions"][0]["body"]["result"]["candidate"] = json!(0);
-    ambiguous["dispatch_certificate"] = json!({"coherent": true, "covered": true});
-    assert_rejected(ambiguous, "E_DISPATCH_AMBIGUOUS");
+    assert_rejected(ambiguous, "E_PROTOCOL");
 }
 
 #[test]

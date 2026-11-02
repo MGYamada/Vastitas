@@ -156,6 +156,28 @@ impl<'a> Lexer<'a> {
         Some(ch)
     }
 
+    fn check_line_break(&self, ch: char) -> Result<(), Diagnostic> {
+        if (ch == '\r' && !self.source[self.offset..].starts_with("\r\n"))
+            || matches!(
+                ch,
+                '\u{b}' | '\u{c}' | '\u{1c}'..='\u{1e}' | '\u{85}' | '\u{2028}' | '\u{2029}'
+            )
+        {
+            return Err(diagnostic(
+                "E_LEX",
+                format!(
+                    "unsupported line separator U+{:04X}; use LF or CRLF line endings, including in comments",
+                    ch as u32
+                ),
+                Span {
+                    end: self.offset + ch.len_utf8(),
+                    ..self.span()
+                },
+            ));
+        }
+        Ok(())
+    }
+
     fn float_tail(&mut self) {
         if self.peek() == Some('.') {
             self.advance();
@@ -194,12 +216,14 @@ impl<'a> Lexer<'a> {
     fn tokenize(mut self) -> Result<Vec<Token>, Diagnostic> {
         let mut tokens = Vec::new();
         while let Some(ch) = self.peek() {
+            self.check_line_break(ch)?;
             if ch.is_whitespace() {
                 self.advance();
                 continue;
             }
             if self.source[self.offset..].starts_with("//") {
-                while self.peek().is_some_and(|ch| ch != '\n') {
+                while let Some(ch) = self.peek().filter(|ch| *ch != '\n') {
+                    self.check_line_break(ch)?;
                     self.advance();
                 }
                 continue;
@@ -236,7 +260,9 @@ impl<'a> Lexer<'a> {
             } else if ch == '"' {
                 self.advance();
                 let mut escaped = false;
-                while let Some(c) = self.advance() {
+                while let Some(c) = self.peek() {
+                    self.check_line_break(c)?;
+                    self.advance();
                     if !escaped && c == '"' {
                         break;
                     }
@@ -258,6 +284,23 @@ impl<'a> Lexer<'a> {
                     || tail.starts_with("f64")
                 {
                     return Err(self.reject_float(span));
+                }
+                if self
+                    .peek()
+                    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+                {
+                    while self
+                        .peek()
+                        .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+                    {
+                        self.advance();
+                    }
+                    span.end = self.offset;
+                    return Err(diagnostic(
+                        "E_LEX",
+                        "integer literals use decimal digits without separators, radix prefixes or type suffixes",
+                        span,
+                    ));
                 }
                 TokenKind::Number(self.source[span.start..self.offset].into())
             } else {
@@ -320,6 +363,7 @@ struct MethodHeader {
 struct Parser {
     tokens: Vec<Token>,
     position: usize,
+    split_closer: Option<Token>,
     nesting: usize,
     packages: bool,
     indexed: bool,
@@ -331,11 +375,14 @@ impl Parser {
         &self.tokens[self.position]
     }
     fn previous(&self) -> &Token {
-        &self.tokens[self.position - 1]
+        self.split_closer
+            .as_ref()
+            .unwrap_or_else(|| &self.tokens[self.position - 1])
     }
 
     fn advance(&mut self) -> Token {
         let token = self.peek().clone();
+        self.split_closer = None;
         if token.kind != TokenKind::Eof {
             self.position += 1;
         }
@@ -368,24 +415,25 @@ impl Parser {
         // argument list can split `>=` into its closing `>` and an assignment.
         if self.peek().is(">=") {
             let span = self.peek().span;
-            self.tokens[self.position] = Token {
+            let closer = Token {
                 kind: TokenKind::Symbol(">".into()),
                 span: Span {
                     end: span.start + 1,
                     ..span
                 },
             };
-            self.tokens.insert(
-                self.position + 1,
-                Token {
-                    kind: TokenKind::Symbol("=".into()),
-                    span: Span {
-                        start: span.start + 1,
-                        column: span.column + 1,
-                        ..span
-                    },
+            // Leave the unconsumed `=` at the current position. Remember the
+            // virtual `>` for previous(), without shifting the token suffix.
+            self.tokens[self.position] = Token {
+                kind: TokenKind::Symbol("=".into()),
+                span: Span {
+                    start: span.start + 1,
+                    column: span.column + 1,
+                    ..span
                 },
-            );
+            };
+            self.split_closer = Some(closer.clone());
+            return Ok(closer);
         }
         self.expect(">")
     }
@@ -419,7 +467,20 @@ impl Parser {
         {
             Err(diagnostic(
                 "E_RESERVED",
-                format!("`{name}` is reserved and cannot be used as a binding name"),
+                if BUILTINS.contains(&name.as_str()) {
+                    let reason = match name.as_str() {
+                        "int" => "Nat-to-Int conversion",
+                        "pair" | "pair_first" | "pair_second" => "Pair construction or projection",
+                        _ => "geometry operations",
+                    };
+                    format!(
+                        "`{name}` is reserved for builtin {reason}; choose another declaration or binding name"
+                    )
+                } else {
+                    format!(
+                        "`{name}` is reserved and cannot be used as a declaration or binding name"
+                    )
+                },
                 span,
             ))
         } else {
@@ -1116,7 +1177,9 @@ impl Parser {
         if self.nesting >= MAX_PARSE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
-                "type nesting exceeds the supported limit",
+                format!(
+                    "combined type/expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"
+                ),
                 self.peek().span,
             ));
         }
@@ -1127,6 +1190,13 @@ impl Parser {
     }
 
     fn ty_inner(&mut self) -> Result<Type, Diagnostic> {
+        if self.peek().is("fn") {
+            return Err(diagnostic(
+                "E_PARSE",
+                "function types use Fn<Input, Output>; fn(...) -> ... introduces a function expression",
+                self.advance().span,
+            ));
+        }
         let (name, span) = self.name()?;
         if self.packages
             && (self.peek().is("::")
@@ -1176,11 +1246,6 @@ impl Parser {
                     return_type,
                 })
             }
-            "fn" => Err(diagnostic(
-                "E_PARSE",
-                "function types use Fn<Input, Output>; fn(...) -> ... introduces a function expression",
-                span,
-            )),
             "Nat" | "Int" | "Bool" | "Unit" | "Scheme" | "CInfScheme" => Ok(Type::Named { name }),
             "Point" => {
                 self.expect("<")?;
@@ -1473,7 +1538,9 @@ impl Parser {
         if self.nesting >= MAX_PARSE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
-                format!("expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"),
+                format!(
+                    "combined type/expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"
+                ),
                 self.peek().span,
             ));
         }
@@ -1595,7 +1662,7 @@ impl Parser {
                     // guard. Operators after its final block still belong to
                     // the surrounding expression, not the synthetic block.
                     let result = self.expression(u8::MAX).map_err(|mut error| {
-                        if error.code == "E_LIMIT" && (error.message.starts_with("expression nesting") || error.message.starts_with("expression tree")) {
+                        if error.code == "E_LIMIT" && (error.message.starts_with("combined type/expression nesting") || error.message.starts_with("expression tree")) {
                             error.message = format!("`else if` chain exceeds the supported nesting limit; a standalone chain supports at most {} conditions, and enclosing expressions also consume nesting budget", MAX_PARSE_NESTING - 2);
                         }
                         error
@@ -2058,7 +2125,12 @@ impl<'a> Resolver<'a> {
                 } else if !self.generics.contains(callee.as_str())
                     && !BUILTINS.contains(&callee.as_str())
                 {
-                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; calls require a declared function, generic, or supported builtin"), expr.span));
+                    let hint = if callee == "nat_to_int" {
+                        "; help: nat_to_int is defined by the arithmetic standard library (include it with --lib or a package import); the builtin conversion is int(...)"
+                    } else {
+                        ""
+                    };
+                    self.errors.push(diagnostic("E_NAME", format!("unknown function `{callee}`; calls require a declared function, generic, or supported builtin{hint}"), expr.span));
                 }
                 for (i, arg) in args.iter().enumerate() {
                     self.expr(
@@ -2168,6 +2240,7 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         let parsed = Parser {
             tokens,
             position: 0,
+            split_closer: None,
             nesting: 0,
             packages: false,
             indexed: false,
@@ -2232,6 +2305,7 @@ pub(crate) fn parse_module_source(
     let mut parser = Parser {
         tokens,
         position: 0,
+        split_closer: None,
         nesting: 0,
         packages: true,
         indexed: false,
@@ -2805,6 +2879,126 @@ fn leaf() -> Int { 0 }";
     }
 
     #[test]
+    fn unsupported_line_breaks_are_rejected_even_inside_comments_and_paths() {
+        for separator in [
+            '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{85}', '\u{2028}', '\u{2029}',
+        ] {
+            for prefix in ["", "// 日本語", "\"path"] {
+                let source = format!("\n{prefix}{separator}hidden");
+                let error = Lexer::new(&source).tokenize().unwrap_err();
+                let start = 1 + prefix.len();
+                assert_eq!(error.code, "E_LEX");
+                assert!(error.message.contains("use LF or CRLF"));
+                assert_eq!(
+                    (error.span.start, error.span.end),
+                    (start, start + separator.len_utf8())
+                );
+                assert_eq!(
+                    (error.span.line, error.span.column),
+                    (2, 1 + prefix.chars().count())
+                );
+            }
+        }
+        let source = "// 日本語\r\nfn main() -> Int { missing }\r\n";
+        let error = parse(source, "crlf.vast").unwrap_err().remove(0);
+        assert_eq!(error.code, "E_NAME");
+        assert_eq!((error.span.line, error.span.column), (2, 20));
+        assert_eq!(&source[error.span.start..error.span.end], "missing");
+    }
+
+    #[test]
+    fn unsupported_integer_spellings_and_lowercase_function_types_are_explained() {
+        for literal in ["1_000", "0x10", "0b10", "2u8"] {
+            let source = format!("fn main() -> Int {{ {literal} }}");
+            let error = parse(&source, "literal.vast").unwrap_err().remove(0);
+            assert_eq!(error.code, "E_LEX");
+            assert!(error.message.contains("decimal digits"));
+            assert_eq!(&source[error.span.start..error.span.end], literal);
+        }
+        let source = "fn f(g: fn(Int) -> Int) -> Int { 0 }";
+        let error = parse(source, "function-type.vast").unwrap_err().remove(0);
+        assert!(error.message.contains("Fn<Input, Output>"));
+        assert_eq!(&source[error.span.start..error.span.end], "fn");
+    }
+
+    #[test]
+    fn shared_type_and_expression_nesting_budget_is_named() {
+        for source in [
+            format!(
+                "fn main() -> Int {{ {}0{} }}",
+                "(".repeat(64),
+                ")".repeat(64)
+            ),
+            format!(
+                "fn f(x: {}Int{}) -> Int {{ 0 }}",
+                "Fn<Int, ".repeat(64),
+                ">".repeat(64)
+            ),
+        ] {
+            let error = parse(&source, "nesting.vast").unwrap_err().remove(0);
+            assert_eq!(error.code, "E_LIMIT");
+            assert!(error.message.contains("combined type/expression nesting"));
+        }
+    }
+
+    #[test]
+    fn builtin_names_and_missing_library_conversion_are_explained() {
+        for (name, reason) in [
+            ("compose", "geometry"),
+            ("int", "Nat-to-Int"),
+            ("pair", "Pair"),
+        ] {
+            for source in [
+                format!("fn {name}() -> Int {{ 0 }}"),
+                format!("fn main() -> Int {{ let {name}: Int = 0; 0 }}"),
+            ] {
+                let error = parse(&source, "builtin.vast").unwrap_err().remove(0);
+                assert_eq!(error.code, "E_RESERVED");
+                assert!(error.message.contains("builtin") && error.message.contains(reason));
+            }
+        }
+        let error = parse("fn main() -> Int { nat_to_int(1) }", "conversion.vast")
+            .unwrap_err()
+            .remove(0);
+        assert_eq!(error.code, "E_NAME");
+        assert!(
+            error.message.contains("arithmetic standard library")
+                && error.message.contains("int(...)")
+        );
+        parse(
+            "fn nat_to_int(x: Nat) -> Int { int(x) } fn main() -> Int { nat_to_int(1) }",
+            "declared.vast",
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn indexed_type_closers_can_touch_assignment() {
+        let source = "fn f(X: Object<D,M>) -> Int {
+    let x: Object<D,M>= X;
+    let y: Foo<X>= make(X);
+    if 3 >= 2 { 1 } else { 0 }
+}";
+        let parsed = parse_module_source(
+            SourceInput {
+                source,
+                file: "indexed.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )
+        .unwrap();
+        let function = &parsed.modules[0].functions[0].declaration;
+        assert_eq!(function.body.statements.len(), 2);
+        let ExprKind::If { condition, .. } = &function.body.result.kind else {
+            panic!("expected conditional");
+        };
+        assert!(matches!(&condition.kind, ExprKind::Binary { op, .. } if op == ">="));
+    }
+
+    #[test]
     fn type_closer_can_touch_assignment_without_changing_comparisons() {
         let source = "fn f(X: Scheme) -> Int {
     let p: Point<X, Base(QQ)>= origin(X);
@@ -2823,12 +3017,16 @@ fn leaf() -> Int { 0 }";
         let mut parser = Parser {
             tokens,
             position: 0,
+            split_closer: None,
             nesting: 0,
             packages: false,
             indexed: false,
             expression_depths: HashMap::new(),
         };
+        let token_count = parser.tokens.len();
         let close = parser.type_close().unwrap();
+        assert_eq!(parser.previous().span, close.span);
+        assert_eq!(parser.tokens.len(), token_count);
         let assignment = parser.expect("=").unwrap();
         assert_eq!(
             (close.span.start, close.span.end, close.span.column),

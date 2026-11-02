@@ -26,6 +26,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.15.2'
+      - name: Validate Python without a loader override
+        run: bash scripts/check_ci_python.sh
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1
@@ -66,6 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          persist-credentials: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /src/
@@ -82,17 +90,18 @@ jobs:
             /rust-toolchain.toml
             /lean-toolchain
             /.gitignore
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.15.2'
+      - name: Validate Python without a loader override
+        run: bash scripts/check_ci_python.sh
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1
+      - name: Install checksum-pinned elan
+        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Build the standalone Lean kernel
-        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
-        with:
-          lake-package-directory: lean-kernel
-          auto-config: false
-          build: true
-          build-args: vastitas-kernel
-          use-mathlib-cache: false
+        run: lake -d lean-kernel build vastitas-kernel
       - name: Check dependency boundary
         run: |
           test ! -d lean
@@ -125,6 +134,13 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.15.2'
+      - name: Validate Python without a loader override
+        run: bash scripts/check_ci_python.sh
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1
@@ -145,14 +161,10 @@ jobs:
           else
             python3 scripts/check_gemm_native.py --prefix "$RUNNER_TEMP/vastitas-openblas"
           fi
+      - name: Install checksum-pinned elan
+        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Build the independent resource checker
-        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
-        with:
-          lake-package-directory: lean-kernel
-          auto-config: false
-          build: true
-          build-args: vastitas-kernel storage-native-fixture
-          use-mathlib-cache: false
+        run: lake -d lean-kernel build vastitas-kernel storage-native-fixture
       - name: Calibrate stock Lean allocation observation (no timing)
         run: |
           python3 experiments/stock_allocation_capabilities/run.py --out "$RUNNER_TEMP/vastitas-stock-capabilities" --cc cc
@@ -219,19 +231,32 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.15.2'
+      - name: Validate Python without a loader override
+        run: bash scripts/check_ci_python.sh
       - name: Check proof dependency boundary before Lake resolution
         run: python3 scripts/check_boundaries.py
+      - name: Install checksum-pinned elan
+        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Build and audit the proof-only oracle
-        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
+        run: lake -d lean build VastitasOracle
+      - name: Fetch the pinned external axiom auditor
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          lake-package-directory: lean
-          auto-config: false
-          build: true
-          build-args: VastitasOracle
-          use-mathlib-cache: false
-          axiom-audit: true
-          axiom-audit-root: VastitasOracle
-          axiom-audit-allow: propext,Classical.choice,Quot.sound
+          repository: leanprover-community/axiom-audit
+          ref: 46024e005996495c65ef609368e11ab39c4222e3 # v0.1.2
+          path: .ci-tools/axiom-audit
+          persist-credentials: false
+      - name: Build and run the external axiom auditor
+        run: |
+          cp lean/lean-toolchain .ci-tools/axiom-audit/lean-toolchain
+          lake -d .ci-tools/axiom-audit build
+          cd lean
+          lake env ../.ci-tools/axiom-audit/.lake/build/bin/axiom-audit --root VastitasOracle --allow propext,Classical.choice,Quot.sound
       - name: Audit transitive oracle and kernel axioms
         run: cd lean && lake env lean ../scripts/audit_axioms.lean
       - name: Core proof migration regressions
@@ -241,5 +266,7 @@ jobs:
       - name: Dependency boundaries
         run: |
           lake -d lean update
+          lake -d lean-kernel/native update
+          lake -d lean-kernel/numerical update
           python3 scripts/check_boundaries.py
-          git diff --exit-code -- lean/lake-manifest.json lean-kernel/lake-manifest.json
+          git diff --exit-code -- lean/lake-manifest.json lean-kernel/lake-manifest.json lean-kernel/native/lake-manifest.json lean-kernel/numerical/lake-manifest.json

@@ -143,7 +143,7 @@ regression is still a proposed compiler test, not an accepted-Core proof.
 
 Arbitrary infinite-spectrum operator differentiation, higher derivatives,
 Hessians, singular functions and the derivative of a chosen eigenbasis are
-outside this result. See [ADR 0001 §9](adr/0001-mathematics-first-stdlib.md#daleckii-krein-mathematical-foundation-bounded-addition-2026-11-02),
+outside this result. See [ADR 0001 §9](adr/0001-mathematics-first-stdlib.md),
 [verification boundaries](verification.md#independent-mathematical-bridge),
 and the separately tracked mathematical architecture
 [#285](https://github.com/MGYamada/Vastitas/issues/285).

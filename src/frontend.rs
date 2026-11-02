@@ -5,6 +5,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+mod exact_float;
 mod indexed_parser;
 mod resource_parser;
 
@@ -84,6 +85,7 @@ fn unsupported_keyword(name: &str) -> Option<&'static str> {
 enum TokenKind {
     Name(String),
     Number(String),
+    Floating(String),
     Text(String),
     Symbol(String),
     Eof,
@@ -107,6 +109,7 @@ impl Token {
         match &self.kind {
             TokenKind::Name(s)
             | TokenKind::Number(s)
+            | TokenKind::Floating(s)
             | TokenKind::Symbol(s)
             | TokenKind::Text(s) => format!("`{s}`"),
             TokenKind::Eof => "end of file".into(),
@@ -203,14 +206,41 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    fn reject_float(&mut self, mut span: Span) -> Diagnostic {
+    fn float_token(&mut self, span: Span) -> TokenKind {
         self.float_tail();
-        span.end = self.offset;
-        diagnostic(
-            "E_UNSUPPORTED",
-            "floating-point literals are not supported; use an exact Nat or Int literal",
-            span,
-        )
+        TokenKind::Floating(self.source[span.start..self.offset].into())
+    }
+
+    fn hex_float_token(&mut self, mut span: Span) -> Result<TokenKind, Diagnostic> {
+        self.advance(); // 0
+        self.advance(); // x/X
+        while self
+            .peek()
+            .is_some_and(|c| c.is_ascii_hexdigit() || c == '.')
+        {
+            self.advance();
+        }
+        if !matches!(self.peek(), Some('p' | 'P')) {
+            span.end = self.offset;
+            return Err(diagnostic(
+                "E_LEX",
+                "hexadecimal payloads require a binary exponent (for example f64(0x1.8p0)); integer literals use decimal digits without radix prefixes",
+                span,
+            ));
+        }
+        self.advance();
+        if matches!(self.peek(), Some('+' | '-')) {
+            self.advance();
+        }
+        while self
+            .peek()
+            .is_some_and(|c| c.is_ascii_alphanumeric() || c == '_')
+        {
+            self.advance();
+        }
+        Ok(TokenKind::Floating(
+            self.source[span.start..self.offset].into(),
+        ))
     }
 
     fn tokenize(mut self) -> Result<Vec<Token>, Diagnostic> {
@@ -273,6 +303,10 @@ impl<'a> Lexer<'a> {
                         diagnostic("E_LEX", "invalid quoted manifest or module path", span)
                     })?;
                 TokenKind::Text(value)
+            } else if self.source[self.offset..].starts_with("0x")
+                || self.source[self.offset..].starts_with("0X")
+            {
+                self.hex_float_token(span)?
             } else if ch.is_ascii_digit() {
                 while self.peek().is_some_and(|c| c.is_ascii_digit()) {
                     self.advance();
@@ -283,9 +317,8 @@ impl<'a> Lexer<'a> {
                     || tail.starts_with("f32")
                     || tail.starts_with("f64")
                 {
-                    return Err(self.reject_float(span));
-                }
-                if self
+                    self.float_token(span)
+                } else if self
                     .peek()
                     .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
                 {
@@ -301,12 +334,13 @@ impl<'a> Lexer<'a> {
                         "integer literals use decimal digits without separators, radix prefixes or type suffixes",
                         span,
                     ));
+                } else {
+                    TokenKind::Number(self.source[span.start..self.offset].into())
                 }
-                TokenKind::Number(self.source[span.start..self.offset].into())
             } else {
                 let tail = &self.source[self.offset..];
                 if ch == '.' && tail.chars().nth(1).is_some_and(|c| c.is_ascii_digit()) {
-                    return Err(self.reject_float(span));
+                    self.float_token(span)
                 } else if ch == '/' || ch == '%' {
                     self.advance();
                     span.end = self.offset;
@@ -1633,6 +1667,13 @@ impl Parser {
         let token = self.advance();
         let start = token.span;
         let kind = match token.kind {
+            TokenKind::Floating(_) => {
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    "floating-point literals are only supported as exact resource payloads inside f64(...) or complex(...); pure expressions require Nat or Int literals",
+                    token.span,
+                ));
+            }
             TokenKind::Name(ref name) if unsupported_keyword(name).is_some() => {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",

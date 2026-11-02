@@ -411,30 +411,59 @@ impl Parser {
     }
 
     fn resource_literal(&mut self) -> Result<Literal, Diagnostic> {
-        let complex = if self.consume("f64_bits") {
-            false
+        let (complex, exact) = if self.consume("f64_bits") {
+            (false, false)
         } else if self.consume("complex_bits") {
-            true
+            (true, false)
+        } else if self.consume("f64") {
+            (false, true)
+        } else if self.consume("complex") {
+            (true, true)
         } else {
             return Err(diagnostic(
                 "E_TYPE",
-                "resource payloads use f64_bits or complex_bits",
+                "resource payloads use exact f64/complex literals or explicit f64_bits/complex_bits",
                 self.peek().span,
             ));
         };
         self.expect("(")?;
-        let real = self.resource_number()?;
+        let real = self.resource_payload_number(exact)?;
         let value = if complex {
             self.expect(",")?;
             Literal::ComplexF64 {
                 real,
-                imaginary: self.resource_number()?,
+                imaginary: self.resource_payload_number(exact)?,
             }
         } else {
             Literal::F64 { bits: real }
         };
         self.expect(")")?;
         Ok(value)
+    }
+
+    fn resource_payload_number(&mut self, exact: bool) -> Result<u64, Diagnostic> {
+        if !exact {
+            return self.resource_number();
+        }
+        let start = self.peek().span;
+        let negative = self.consume("-");
+        if !negative {
+            self.consume("+");
+        }
+        let token = self.advance();
+        let span = start.through(token.span);
+        let text = match token.kind {
+            TokenKind::Number(text) | TokenKind::Floating(text) => text,
+            _ => {
+                return Err(diagnostic(
+                    "E_RESOURCE_LITERAL",
+                    "expected an exact finite decimal or hex literal; NaN, infinity and signed zero require explicit bits",
+                    span,
+                ));
+            }
+        };
+        exact_float::bits(&text, negative)
+            .map_err(|message| diagnostic("E_RESOURCE_LITERAL", message, span))
     }
 
     fn resource_names(&mut self) -> Result<Vec<String>, Diagnostic> {

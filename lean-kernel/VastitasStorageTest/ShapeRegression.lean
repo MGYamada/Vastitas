@@ -12,6 +12,41 @@ private def get (label : String) (result : Except Error α) : IO α :=
   | .error problem => throw (IO.userError s!"runtime shapes: {label}: {repr problem}")
 
 #eval show IO Unit from do
+  let layout : Shapes.Layout := ⟨.slot 0, .literal 1, .slot 0, false⟩
+  let allocation : Shapes.Allocation := ⟨0, 0, .f64, .slot 1, layout, .record layout .none, 0⟩
+  let parent : Shapes.Loan := ⟨1, 0, layout, .readWrite, none⟩
+  let child : Shapes.Loan := ⟨2, 0, layout, .readWrite, some 1⟩
+  let frame : Shapes.Frame := ⟨[allocation], [child, parent], [0, 1, 2], 1⟩
+  ensure "indexed frame retains suspended writer ancestry" (Shapes.auditFrame frame)
+  let malformed : List Shapes.Frame := [
+    {frame with used := 1 :: frame.used},
+    {frame with allocations := allocation :: frame.allocations},
+    {frame with allocations := {allocation with identity := 1} :: frame.allocations, nextAllocation := 2},
+    {frame with loans := child :: frame.loans},
+    {frame with loans := [{child with allocation := 99}, parent]},
+    {frame with loans := [{child with parent := some 99}, parent]},
+    {frame with loans := [child, {parent with parent := some 2}]},
+    {frame with loans := [{child with parent := some 2}, parent]},
+    {frame with loans := [child, {parent with access := .read}]},
+    {frame with loans := [child, {child with name := 3}, parent], used := 3 :: frame.used},
+    {frame with allocations := [{allocation with initialization := .none}]},
+    {frame with loans := [{child with layout := {layout with transposed := true}}, parent]},
+    {frame with allocations := [{allocation with initialization := .record {layout with transposed := true} .none}]}]
+  for forged in malformed do
+    ensure "indexed frame rejects forged names, parents, aliases and initialization" (!Shapes.auditFrame forged)
+    ensure "transition cannot launder a forged frame" (!(Shapes.checkStep forged (.drop 0)).isOk)
+  for loans in [[{parent with access := .read}, {child with parent := none}],
+                [{child with parent := none}, {parent with access := .read}]] do
+    ensure "both writer/read pair orders retain conflicts" (!Shapes.auditFrame {frame with loans})
+  let empty : Shapes.Layout := ⟨.literal 0, .literal 1, .literal 1, false⟩
+  let emptyFrame : Shapes.Frame := {
+    allocations := [{allocation with layout := empty, initialization := .none}]
+    loans := [{parent with layout := empty, access := .write},
+      {child with layout := empty, access := .write, parent := none}]
+    used := frame.used, nextAllocation := 1 }
+  ensure "empty physical extents do not authorize symbolic write aliasing" (!Shapes.auditFrame emptyFrame)
+
+#eval show IO Unit from do
   let shape : Shapes.Layout := ⟨.literal 2, .literal 3, .literal 4, true⟩
   let invalid : List Shapes.Guard := [
     .bound (.literal (dimensionLimit + 1)) dimensionLimit,

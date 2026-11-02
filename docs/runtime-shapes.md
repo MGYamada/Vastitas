@@ -129,6 +129,22 @@ implementation evidence.
 
 ## Execution costs and limits
 
+The compiler reconstructs allocation/loan lookup tables, multiplicities and
+bounded ancestor sets once per symbolic frame audit. It omits read/read alias
+pairs while retaining both orders of every pair involving a writer. The Lean
+equations `Shapes.auditFrame_eq_indexed` and `Shapes.compatibleWith_eq_indexed`
+connect the compiled implementation to the original predicates for every frame,
+including duplicate names, missing/cyclic parents and invalid initialization.
+No runtime extent value authorizes a symbolic alias or uninitialized read.
+
+Every boundary still performs its full audit and call replay. Indexing removes
+repeated linear searches but does not make deep ancestry, writer-pair checks or
+nested call expansion linear, and it adds no program-wide work budget. #423 and
+the corresponding static-storage work in #422 remain open. The bounded public
+source harness `scripts/check_storage_scaling.py --profile runtime` measures
+allocation/drop, shared reads, distinct-allocation writes, reborrow chains and
+ten-wrapper calls; these are compiler observations, not native/C acceptance.
+
 A generated entry creates one runtime-shape arena and cleans it up once; entries
 also using static resources have a second, disjoint arena. A call does not create
 an arena or silently allocate/copy a matrix. Only explicit `runtime_allocate`,

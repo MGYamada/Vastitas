@@ -188,7 +188,7 @@ structure Program where
   entry : Nat
   deriving Repr, Inhabited
 
-private def reject (code message : String) : Except Error α := .error ⟨code, message⟩
+private def reject (code message : String) : Except Error α := .error {code := code, message := message}
 
 def OwnedType.valid (type : OwnedType) : Bool :=
   type.elements * type.scalar.width ≤ byteLimit && type.initialized.length ≤ 64 &&
@@ -658,8 +658,8 @@ private def checkRuntimeReturn (beforeFlow priorFlow : List ValueFlow.Statement)
     | .ok events =>
       if projected : Shapes.Flow.actions events = call.slice then
         return ⟨call, beforeFlow, slice, prefixed, events, collected, projected⟩
-      else throw ⟨"E_RUNTIME_RETURN", "scalar return precedes completion of its actual runtime resource call"⟩
-  else throw ⟨"E_RUNTIME_RETURN", "runtime return changed earlier mixed operations"⟩
+      else throw {code := "E_RUNTIME_RETURN", message := "scalar return precedes completion of its actual runtime resource call"}
+  else throw {code := "E_RUNTIME_RETURN", message := "runtime return changed earlier mixed operations"}
 
 structure ValueReturnReceipt where
   call : CallReceipt
@@ -767,10 +767,120 @@ structure Context where
 
 abbrev M := StateT Context (Except Error)
 
+private def subject (role : String) (name : Symbol) : ErrorSubject :=
+  ⟨role, name, .binding⟩
+
+private def actionSubjects : Action → List ErrorSubject
+  | .allocate owner .. | .drop owner => [subject "allocation owner" owner]
+  | .move source target => [subject "moved owner" source, subject "new owner" target]
+  | .borrow _ source _ _ => match source with
+    | .owner name => [subject "borrowed allocation" name]
+    | .loan name => [subject "parent loan" name]
+  | .release loan | .transpose loan | .fill loan _ | .store loan .. | .expect loan .. =>
+    [subject "loan" loan]
+  | .copy source target | .pack3 source target .. | .regroup3 source target .. =>
+    [subject "source loan" source, subject "destination loan" target]
+  | .gemm request => [subject "left loan" request.left, subject "right loan" request.right,
+      subject "output loan" request.output]
+  | .diagonalAdjoint request => [subject "input loan" request.input, subject "output loan" request.output]
+  | .diagonalScale request => [subject "input loan" request.input, subject "output loan" request.output]
+  | .diagonalPair request => [subject "left loan" request.left, subject "right loan" request.right,
+      subject "output loan" request.output, subject "scratch allocation" request.scratch]
+  | .captureDependency _ source target => [subject "source loan" source, subject "packed loan" target]
+  | .requireDependency name | .forgetDependency name => [subject "dependency" name]
+
+private def numericalSubjects : Numerical.Operation → List ErrorSubject
+  | .space .. => []
+  | .basis _ space | .involution _ space => [subject "space" space]
+  | .dualSpace _ parent | .conjugateSpace _ parent _ => [subject "parent space" parent]
+  | .derivedBasis _ parent space => [subject "parent basis" parent, subject "space" space]
+  | .metric _ basis involution _ => [subject "metric basis" basis, subject "involution" involution]
+  | .map _ loan source target | .ownedMap _ loan _ source target =>
+    [subject "storage" loan, subject "source basis" source, subject "target basis" target]
+  | .packMap _ owner | .borrowOwned _ owner _ => [subject "owned map" owner]
+  | .unpackMap package .. => [subject "owned package" package]
+  | .ownedView _ loan owner => [subject "loan" loan, subject "owned map" owner]
+  | .vector _ loan basis => [subject "vector loan" loan, subject "vector basis" basis]
+  | .conjugateVector _ parent basis _ => [subject "original vector" parent, subject "conjugate basis" basis]
+  | .transform _ parent _ => [subject "original map" parent]
+  | .gemm left right output .. => [subject "left map" left, subject "right map" right, subject "output map" output]
+  | .evaluate left right output .. => [subject "left vector" left, subject "right vector" right, subject "output loan" output]
+  | .adjointInto input output source target _ => [subject "input map" input, subject "output map" output,
+      subject "source metric" source, subject "target metric" target]
+  | .hermitianDiagonal left right output metric scratch .. => [subject "left vector" left,
+      subject "right vector" right, subject "output loan" output, subject "metric" metric,
+      subject "scratch allocation" scratch]
+
+private def statementSubjects : Statement → List ErrorSubject
+  | .action operation => actionSubjects operation
+  | .numerical operation => numericalSubjects operation
+  | .runtime (.allocate owner ..) | .runtime (.drop owner) => [subject "runtime allocation owner" owner]
+  | .runtime (.move source target) => [subject "moved runtime owner" source, subject "new runtime owner" target]
+  | .runtime (.borrow _ source _) => match source with
+    | .owner name => [subject "borrowed runtime allocation" name]
+    | .loan name => [subject "runtime parent loan" name]
+  | .runtime (.release loan) | .runtime (.fill loan _) | .runtime (.expect loan ..) =>
+    [subject "runtime loan" loan]
+  | .runtime (.gemm request) => [subject "left runtime loan" request.left,
+      subject "right runtime loan" request.right, subject "runtime output loan" request.output]
+  | .runtimeNumerical (.basis _ space) => [subject "runtime space" space]
+  | .runtimeNumerical (.map _ loan source target) => [subject "runtime loan" loan,
+      subject "runtime source basis" source, subject "runtime target basis" target]
+  | .runtimeNumerical (.gemm left right output ..) => [subject "left runtime map" left,
+      subject "right runtime map" right, subject "runtime output map" output]
+  | .call _ arguments _ | .callValue _ arguments .. => arguments.map (subject "call argument")
+  | .branch (.slot name) .. => [subject "branch condition" name]
+  | .network _ output _ | .tree _ output .. => [subject "output" output]
+  | _ => []
+
+/-- Only the error arm constructs locations or resolves diagnostic subjects.
+The successful state and result are returned unchanged; no diagnostic snapshot
+keeps the resource context shared during successful expansion. -/
+def atStatement (stack path : List Nat) (position : Nat) (frame : Frame)
+    (statement : Statement) (work : M α) : M α := fun context =>
+  match work context with
+  | .ok result => .ok result
+  | .error error => match stack.head? with
+    | none => .error error
+    | some function =>
+      let names := error.context.subjects.filterMap fun entry =>
+        (frame.find? (fun binding => binding.2 == entry.name)).map fun binding =>
+          {entry with name := binding.1}
+      let site : ErrorSite :=
+        ⟨function, .statement (path ++ [position]), names ++ statementSubjects statement⟩
+      .error {error with context := {sites := error.context.sites ++ [site]}}
+
+def atSite (function : Nat) (place : ErrorPlace) (work : Except Error α) : Except Error α :=
+  match work with
+  | .ok result => .ok result
+  | .error error => .error {error with context := {error.context with
+      sites := error.context.sites ++ [⟨function, place, []⟩]}}
+
+theorem atSite_success (function : Nat) (place : ErrorPlace)
+    (work : Except Error α) (result : α) :
+    atSite function place work = .ok result ↔ work = .ok result := by
+  cases work <;> simp [atSite]
+
+def atFunction (function : Nat) (place : ErrorPlace) (work : M α) : M α := fun context =>
+  atSite function place (work context)
+
+theorem atStatement_success (stack path : List Nat) (position : Nat) (frame : Frame)
+    (statement : Statement) (work : M α) (context : Context) (result : α × Context) :
+    atStatement stack path position frame statement work context = .ok result ↔
+      work context = .ok result := by
+  simp only [atStatement]
+  cases work context <;> simp
+  split <;> simp
+
+theorem atFunction_success (function : Nat) (place : ErrorPlace) (work : M α)
+    (context : Context) (result : α × Context) :
+    atFunction function place work context = .ok result ↔ work context = .ok result := by
+  exact atSite_success function place (work context) result
+
 private def spend : M Unit := do
   let context ← get
   if context.unused == 0 then
-    throw ⟨"E_RESOURCE_LIMIT", "expanded resource calls exceed the global work budget"⟩
+    throw {code := "E_RESOURCE_LIMIT", message := "expanded resource calls exceed the global work budget"}
   set {context with unused := context.unused - 1}
 
 private def fresh : M Symbol := do
@@ -779,7 +889,7 @@ private def fresh : M Symbol := do
   return context.nextSymbol
 
 private def bindName (frame : Frame) (localName : Symbol) : M (Frame × Symbol) := do
-  if frame.any (·.1 == localName) then throw ⟨"E_RESOURCE_NAME", "resource names cannot be reused or shadowed"⟩
+  if frame.any (·.1 == localName) then throw {code := "E_RESOURCE_NAME", message := "resource names cannot be reused or shadowed"}
   let global ← fresh
   return ((localName, global) :: frame, global)
 
@@ -806,12 +916,12 @@ call adds guards and actions. Only arithmetic guards enter the executable flow. 
 def setShapes (shapes : Shapes.Functions.Context) : M Unit := do
   let context ← get
   if context.branchDepth != 0 then
-    throw ⟨"E_RUNTIME_BRANCH", "runtime-shape operations and calls are not supported inside resource branches"⟩
+    throw {code := "E_RUNTIME_BRANCH", message := "runtime-shape operations and calls are not supported inside resource branches"}
   let events := shapes.events.toList.drop context.shapes.events.size
   unless context.shapes.events.toList ++ events == shapes.events.toList do
-    throw ⟨"E_RUNTIME_SHAPE", "runtime operation changed earlier events"⟩
+    throw {code := "E_RUNTIME_SHAPE", message := "runtime operation changed earlier events"}
   unless events.all (fun event => event.references.all (Shapes.extentSlot context.scalarSlots)) do
-    throw ⟨"E_RUNTIME_SHAPE", "runtime extent requires a live immutable Nat or Int slot"⟩
+    throw {code := "E_RUNTIME_SHAPE", message := "runtime extent requires a live immutable Nat or Int slot"}
   set {context with shapes, flow := context.flow ++ (events.map ValueFlow.Statement.runtime).toArray}
 
 def runtimeStep (operation : Shapes.Action) : M Unit := do
@@ -843,7 +953,7 @@ def runtimeOperation (frame : Frame) (operation : Shapes.Action) : M Frame := do
   | .release name => runtimeStep (.release (← resolve frame name)); return frame
   | .fill name value => runtimeStep (.fill (← resolve frame name) value); return frame
   | .expect name row column value => runtimeStep (.expect (← resolve frame name) row column value); return frame
-  | .gemm _ => throw ⟨"E_RUNTIME_NUMERICAL", "runtime source GEMM requires nominal map checking"⟩
+  | .gemm _ => throw {code := "E_RUNTIME_NUMERICAL", message := "runtime source GEMM requires nominal map checking"}
 
 def runtimeNumericalOperation (frame : Frame) (operation : Shapes.Numerical.Operation) : M Frame := do
   let (frame, operation) ← match operation with
@@ -876,9 +986,9 @@ def scalarCall (name fragment : Nat) (arguments : List Symbol)
   spend
   let context ← get
   let actual ← ValueFlow.checkCall context.signatures context.scalarSlots fragment arguments
-  unless actual == expected do throw ⟨"E_RESOURCE_VALUE", "pure fragment result type differs"⟩
+  unless actual == expected do throw {code := "E_RESOURCE_VALUE", message := "pure fragment result type differs"}
   if (ValueFlow.type? context.scalarSlots name).isSome then
-    throw ⟨"E_RESOURCE_VALUE", "scalar slot is already bound"⟩
+    throw {code := "E_RESOURCE_VALUE", message := "scalar slot is already bound"}
   set {context with
     scalarSlots := (name, actual) :: context.scalarSlots
     flow := context.flow.push (.value name fragment arguments)}
@@ -905,10 +1015,10 @@ def transferMap (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
             let receipt : OwnedMapTransfer := ⟨view, target, before.resources, after.resources, values,
               live, initialized, same ▸ moved, bound⟩
             set {after with numerical := values, transfers := after.transfers.push receipt}
-          else throw ⟨"E_NUMERICAL_TYPE", "owned map transfer lost its coordinate interpretation"⟩
-        else throw ⟨"E_RESOURCE_STATE", "owned map transfer differs from checked move"⟩
-    else throw ⟨"E_RESOURCE_INIT", "owned map transfer requires initialized coordinates"⟩
-  else throw ⟨"E_RESOURCE_MOVE", "owned map allocation or owner is no longer live"⟩
+          else throw {code := "E_NUMERICAL_TYPE", message := "owned map transfer lost its coordinate interpretation"}
+        else throw {code := "E_RESOURCE_STATE", message := "owned map transfer differs from checked move"}
+    else throw {code := "E_RESOURCE_INIT", message := "owned map transfer requires initialized coordinates"}
+  else throw {code := "E_RESOURCE_MOVE", message := "owned map allocation or owner is no longer live"}
 
 def packageStep (operation : Numerical.PackageOperation) (source output : Symbol) : M Unit := do
   let before ← get
@@ -923,8 +1033,8 @@ def packageStep (operation : Numerical.PackageOperation) (source output : Symbol
           operation, source, output, checked, accepted, after.resources, transitioned,
           before.code.toList, after.code.toList, emitted⟩
         set {after with numerical := checked.values, packages := after.packages.push receipt}
-      else throw ⟨"E_NUMERICAL_PACKAGE", "package operation differs from emitted ownership move"⟩
-    else throw ⟨"E_NUMERICAL_PACKAGE", "package operation differs from checked resource transition"⟩
+      else throw {code := "E_NUMERICAL_PACKAGE", message := "package operation differs from emitted ownership move"}
+    else throw {code := "E_NUMERICAL_PACKAGE", message := "package operation differs from checked resource transition"}
 
 def transferPackage (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
   let before ← get
@@ -932,8 +1042,8 @@ def transferPackage (view : Numerical.OwnedMap) (target : Symbol) : M Unit := do
     | none => Numerical.insert before.environment before.numerical view.owner (.ownedPackage view)
     | some (.ownedPackage original) =>
       if original == view then pure before.numerical
-      else throw ⟨"E_NUMERICAL_PACKAGE", "package transfer changed its closed payload"⟩
-    | _ => throw ⟨"E_NUMERICAL_PACKAGE", "package transfer source has a different kind"⟩
+      else throw {code := "E_NUMERICAL_PACKAGE", message := "package transfer changed its closed payload"}
+    | _ => throw {code := "E_NUMERICAL_PACKAGE", message := "package transfer source has a different kind"}
   set {before with numerical := values}
   packageStep .transfer view.owner target
 
@@ -941,7 +1051,7 @@ private def rejectOpaque (name : Symbol) : M Unit := do
   if (← get).numerical.any (fun (key, value) => match value with
       | .ownedPackage view => key == name || view.owner == name
       | _ => false) then
-    throw ⟨"E_NUMERICAL_PACKAGE", "opaque owned package must be unpacked before accessing or erasing its storage"⟩
+    throw {code := "E_NUMERICAL_PACKAGE", message := "opaque owned package must be unpacked before accessing or erasing its storage"}
 
 private def lowerSource (frame : Frame) : Source → Except Error Source
   | .owner name => return .owner (← resolve frame name)
@@ -1053,8 +1163,8 @@ private def emitProduct (context : Context) {left right output mode policy alpha
             checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted⟩
         set {after with products := after.products.push receipt}
         return ⟨after.resources, same ▸ transitioned, after.code.toList, emitted⟩
-      else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its emitted schedule"⟩
-    else throw ⟨"E_NUMERICAL_TYPE", "typed GEMM differs from its resource transition"⟩
+      else throw {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its emitted schedule"}
+    else throw {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its resource transition"}
 
 /-- Values share the activation's fresh-name supply, but never enter the native
 heap. Only the checked product's exact physical request enters the schedule. -/
@@ -1080,8 +1190,8 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
             context.code.toList, after.code.toList, emitted⟩
           set {after with adjoints := after.adjoints.push receipt}
           return frame
-        else throw ⟨"E_NUMERICAL_METRIC", "materialized adjoint differs from its emitted operation"⟩
-      else throw ⟨"E_NUMERICAL_METRIC", "materialized adjoint differs from its resource transition"⟩
+        else throw {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its emitted operation"}
+      else throw {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its resource transition"}
   | .hermitianDiagonal left right output metric scratch layout policy =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1107,8 +1217,8 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
             checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
           set {after with diagonalPairings := after.diagonalPairings.push receipt}
           return frame
-        else throw ⟨"E_NUMERICAL_METRIC", "diagonal pairing differs from its emitted operation"⟩
-      else throw ⟨"E_NUMERICAL_METRIC", "diagonal pairing differs from its resource transition"⟩
+        else throw {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its emitted operation"}
+      else throw {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its resource transition"}
   | .conjugateVector name parent basis selected =>
     let parent ← resolve frame parent
     let basis ← resolve frame basis
@@ -1128,8 +1238,8 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
             context.code.toList, after.code.toList, emitted⟩
           set {after with numerical := checked.output, vectorConjugates := after.vectorConjugates.push receipt}
           return frame
-        else throw ⟨"E_NUMERICAL_TYPE", "vector conjugation differs from its emitted borrow"⟩
-      else throw ⟨"E_NUMERICAL_TYPE", "vector conjugation differs from its actual resource transition"⟩
+        else throw {code := "E_NUMERICAL_TYPE", message := "vector conjugation differs from its emitted borrow"}
+      else throw {code := "E_NUMERICAL_TYPE", message := "vector conjugation differs from its actual resource transition"}
   | .evaluate left right output operation mode policy alpha beta =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1149,7 +1259,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
       for statement in code do
         match statement with
         | .action action => step action
-        | _ => throw ⟨"E_NUMERICAL_TYPE", "evaluation contains an unexpected branch"⟩
+        | _ => throw {code := "E_NUMERICAL_TYPE", message := "evaluation contains an unexpected branch"}
       let after ← get
       if transitioned : checked.after = after.resources then
         if emitted : context.code.toList ++ code = after.code.toList then
@@ -1158,8 +1268,8 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
             checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
           set {after with evaluations := after.evaluations.push receipt}
           return frame
-        else throw ⟨"E_NUMERICAL_TYPE", "evaluation differs from its emitted resource schedule"⟩
-      else throw ⟨"E_NUMERICAL_TYPE", "evaluation differs from its actual resource transition"⟩
+        else throw {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its emitted resource schedule"}
+      else throw {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its actual resource transition"}
   | .transform name parent operation =>
     let parent ← resolve frame parent
     let operation ← match operation with
@@ -1182,8 +1292,8 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
             context.code.toList, after.code.toList, emitted⟩
           set {after with numerical := checked.output, transforms := after.transforms.push receipt}
           return frame
-        else throw ⟨"E_NUMERICAL_TYPE", "transformed map differs from its emitted borrow"⟩
-      else throw ⟨"E_NUMERICAL_TYPE", "transformed map differs from its actual resource transition"⟩
+        else throw {code := "E_NUMERICAL_TYPE", message := "transformed map differs from its emitted borrow"}
+      else throw {code := "E_NUMERICAL_TYPE", message := "transformed map differs from its actual resource transition"}
   | .packMap name owner =>
     let owner ← resolve frame owner
     let (frame, name) ← bindName frame name
@@ -1199,9 +1309,9 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
   | .borrowOwned name owner access =>
     let owner ← resolve frame owner
     let some (.ownedMap view) := Numerical.value? context.numerical owner
-      | throw ⟨"E_NUMERICAL_TYPE", "implicit coordinate layout requires an owned map"⟩
+      | throw {code := "E_NUMERICAL_TYPE", message := "implicit coordinate layout requires an owned map"}
     unless view.Live context.resources do
-      throw ⟨"E_RESOURCE_MOVE", "owned map is no longer live"⟩
+      throw {code := "E_RESOURCE_MOVE", message := "owned map is no longer live"}
     let (frame, name) ← bindName frame name
     step (.borrow name (.owner view.owner) view.layout access)
     return frame
@@ -1214,7 +1324,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
     let values ← Numerical.construct context.environment context.resources context.numerical
       (.ownedMap name owner layout source target)
     let some (.ownedMap view) := Numerical.value? values name
-      | throw ⟨"E_NUMERICAL_TYPE", "owned map constructor lost its interpretation"⟩
+      | throw {code := "E_NUMERICAL_TYPE", message := "owned map constructor lost its interpretation"}
     transferMap view name
     return frame
   | .gemm left right output mode policy alpha beta =>
@@ -1278,7 +1388,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         let (frame, name) ← bindName frame name
         pure (frame, Numerical.Operation.ownedView name loan owner)
       | .gemm .. | .ownedMap .. | .borrowOwned .. | .transform .. | .conjugateVector .. | .evaluate .. | .packMap .. | .unpackMap .. | .adjointInto .. | .hermitianDiagonal .. =>
-        throw ⟨"E_NUMERICAL_TYPE", "invalid numerical constructor"⟩
+        throw {code := "E_NUMERICAL_TYPE", message := "invalid numerical constructor"}
     let values ← Numerical.construct context.environment context.resources context.numerical operation
     modify fun after => {after with numerical := values}
     return frame
@@ -1293,7 +1403,7 @@ structure BorrowedArgument where
 actual caller loan; sibling conflicts and initialization are checked normally. -/
 def arguments (parameters : List Parameter) (actuals : List Symbol) :
     M (Frame × List BorrowedArgument × List Shapes.Functions.Borrowed) := do
-  if parameters.length != actuals.length then throw ⟨"E_RESOURCE_ARITY", "resource argument count differs"⟩
+  if parameters.length != actuals.length then throw {code := "E_RESOURCE_ARITY", message := "resource argument count differs"}
   let caller ← get
   let mut frame : Frame := []
   let mut borrowed := []
@@ -1306,7 +1416,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
     match parameter with
     | .value _ type =>
       unless ValueFlow.type? caller.scalarSlots actual == some type do
-        throw ⟨"E_RESOURCE_VALUE", "scalar argument differs from its declared type"⟩
+        throw {code := "E_RESOURCE_VALUE", message := "scalar argument differs from its declared type"}
       frame := (parameter.name, actual) :: dependencies
     | .runtimeSpace .. | .runtimeBasis .. | .runtimeMap .. =>
       let input ← match parameter with
@@ -1315,7 +1425,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         | .runtimeBasis _ parent => pure (.basis (← resolve dependencies parent))
         | .runtimeMap _ source target access initializes =>
           pure (.map (← resolve dependencies source) (← resolve dependencies target) access initializes)
-        | _ => throw ⟨"E_RUNTIME_CALL", "invalid runtime input contract"⟩
+        | _ => throw {code := "E_RUNTIME_CALL", message := "invalid runtime input contract"}
       let child ← fresh
       let context ← get
       match accepted : Shapes.Functions.bind caller.environment caller.shapes context.shapes input actual global child with
@@ -1329,13 +1439,13 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         modify fun context => {context with shapeInputs := context.shapeInputs.push receipt}
     | .owned _ type =>
       rejectOpaque actual
-      if !ownedMatches state actual type then throw ⟨"E_RESOURCE_TYPE", "owned argument violates its contract"⟩
+      if !ownedMatches state actual type then throw {code := "E_RESOURCE_TYPE", message := "owned argument violates its contract"}
       step (.move actual global)
     | .borrowed _ scalar rows columns access initializes =>
-      let some loan := state.loan? actual | throw ⟨"E_RESOURCE_LOAN", "borrowed argument is not a live loan"⟩
-      let some allocation := state.allocation? loan.allocation | throw ⟨"E_RESOURCE_PROVENANCE", "argument allocation is absent"⟩
+      let some loan := state.loan? actual | throw {code := "E_RESOURCE_LOAN", message := "borrowed argument is not a live loan"}
+      let some allocation := state.allocation? loan.allocation | throw {code := "E_RESOURCE_PROVENANCE", message := "argument allocation is absent"}
       if allocation.scalar != scalar || loan.layout.logicalRows != rows || loan.layout.logicalColumns != columns then
-        throw ⟨"E_RESOURCE_TYPE", "borrowed argument scalar or logical shape differs"⟩
+        throw {code := "E_RESOURCE_TYPE", message := "borrowed argument scalar or logical shape differs"}
       step (.borrow global (.loan actual) loan.layout access)
       borrowed := borrowed ++ [⟨global, loan.allocation, loan.layout, initializes⟩]
     | .space .. | .basis .. | .map .. | .ownedMap .. | .involution .. | .dualSpace .. |
@@ -1352,7 +1462,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         | .vector _ basis access _ => pure (.vector (← resolve dependencies basis), access)
         | .ownedMap _ source target => pure (.ownedMap (← resolve dependencies source) (← resolve dependencies target), .readWrite)
         | .ownedMapTo _ source dimension => pure (.ownedMapTo (← resolve dependencies source) dimension, .readWrite)
-        | _ => throw ⟨"E_NUMERICAL_TYPE", "invalid numerical parameter"⟩
+        | _ => throw {code := "E_NUMERICAL_TYPE", message := "invalid numerical parameter"}
       match accepted : Numerical.checkInput caller.environment caller.resources caller.numerical input actual with
       | .error diagnostic => throw diagnostic
       | .ok checked =>
@@ -1365,7 +1475,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
             step (.borrow child (.loan view.loan.name) view.loan.layout access)
             let context ← get
             let some loan := context.resources.loan? child
-              | throw ⟨"E_NUMERICAL_TYPE", "map input lost its checked child loan"⟩
+              | throw {code := "E_NUMERICAL_TYPE", message := "map input lost its checked child loan"}
             let values ← Numerical.insert context.environment context.numerical global
               (.map {view with loan, origin := .reborrow actual})
             modify fun context => {context with numerical := values}
@@ -1383,7 +1493,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
             step (.borrow child (.loan view.loan.name) view.loan.layout access)
             let context ← get
             let some loan := context.resources.loan? child
-              | throw ⟨"E_NUMERICAL_TYPE", "vector input lost its checked child loan"⟩
+              | throw {code := "E_NUMERICAL_TYPE", message := "vector input lost its checked child loan"}
             let values ← Numerical.insert context.environment context.numerical global
               (.vector {view with loan, origin := .reborrow actual})
             modify fun context => {context with numerical := values}
@@ -1395,7 +1505,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
           let receipt : NumericalInputReceipt := ⟨caller.environment, caller.resources, caller.numerical,
             input, actual, checked, accepted, bound, access, state, after.resources, after.numerical, binding⟩
           set {after with inputs := after.inputs.push receipt}
-        else throw ⟨"E_NUMERICAL_TYPE", "numerical argument binding changed its identity or borrow transition"⟩
+        else throw {code := "E_NUMERICAL_TYPE", message := "numerical argument binding changed its identity or borrow transition"}
   return (frame, borrowed, runtimeBorrowed)
 
 /-- No loan escapes this initial contract. Caller loans retain their own layout
@@ -1404,11 +1514,11 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
     (results : List (Symbol × ResultType)) : M (List Returned) := do
   for argument in borrowed.reverse do
     let state := (← get).resources
-    let some loan := state.loan? argument.child | throw ⟨"E_RESOURCE_LOAN", "borrowed parameter must be returned at function exit"⟩
-    let some allocation := state.allocation? argument.allocation | throw ⟨"E_RESOURCE_PROVENANCE", "borrowed allocation escaped"⟩
+    let some loan := state.loan? argument.child | throw {code := "E_RESOURCE_LOAN", message := "borrowed parameter must be returned at function exit"}
+    let some allocation := state.allocation? argument.allocation | throw {code := "E_RESOURCE_PROVENANCE", message := "borrowed allocation escaped"}
     if loan.allocation != argument.allocation ||
         (argument.initializes && !allocation.initialization.covers allocation.scalar argument.layout) then
-      throw ⟨"E_RESOURCE_INIT", "borrowed output is not completely initialized"⟩
+      throw {code := "E_RESOURCE_INIT", message := "borrowed output is not completely initialized"}
     step (.release argument.child)
   let mut returned : List Returned := []
   for (name, type) in results do
@@ -1428,14 +1538,14 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
           match selected : checked.value with
           | .ownedMap view =>
             let some allocation := context.resources.owner? view.owner
-              | throw ⟨"E_RESOURCE_MOVE", "owned numerical result has no live allocation"⟩
+              | throw {code := "E_RESOURCE_MOVE", message := "owned numerical result has no live allocation"}
             let result : Returned := ⟨view.owner,
               ⟨allocation.scalar, allocation.capacity / allocation.scalar.width, [view.layout]⟩, .map view⟩
             let receipt : NumericalResultReceipt := ⟨context.environment, context.resources, context.numerical,
               source, target, global, checked, accepted, result, view, selected, rfl, rfl⟩
             set {context with outputs := context.outputs.push receipt}
             pure result
-          | _ => throw ⟨"E_NUMERICAL_TYPE", "owned numerical result must preserve its map interpretation"⟩
+          | _ => throw {code := "E_NUMERICAL_TYPE", message := "owned numerical result must preserve its map interpretation"}
       | .ownedMapTo source dimension => do
         let source ← resolve frame source
         let context ← get
@@ -1446,26 +1556,26 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
           match selected : checked.value with
           | .ownedPackage view =>
             let some allocation := context.resources.owner? view.owner
-              | throw ⟨"E_RESOURCE_MOVE", "owned package result has no live allocation"⟩
+              | throw {code := "E_RESOURCE_MOVE", message := "owned package result has no live allocation"}
             let result : Returned := ⟨view.owner,
               ⟨allocation.scalar, allocation.capacity / allocation.scalar.width, [view.layout]⟩, .package view⟩
             let receipt : PackageResultReceipt := ⟨context.environment, context.resources, context.numerical,
               source, dimension, global, checked, accepted, view, selected, result, rfl, rfl⟩
             set {context with packageResults := context.packageResults.push receipt}
             pure result
-          | _ => throw ⟨"E_NUMERICAL_PACKAGE", "package result must preserve its closed interpretation"⟩
+          | _ => throw {code := "E_NUMERICAL_PACKAGE", message := "package result must preserve its closed interpretation"}
     let state := (← get).resources
     if returned.any (·.owner == result.owner) || !ownedMatches state result.owner result.type then
-      throw ⟨"E_RESOURCE_TYPE", "owned result is duplicated, borrowed, absent or violates its contract"⟩
-    let some allocation := state.owner? result.owner | throw ⟨"E_RESOURCE_MOVE", "owned result is absent"⟩
+      throw {code := "E_RESOURCE_TYPE", message := "owned result is duplicated, borrowed, absent or violates its contract"}
+    let some allocation := state.owner? result.owner | throw {code := "E_RESOURCE_MOVE", message := "owned result is absent"}
     if state.loans.any (·.allocation == allocation.identity) then
-      throw ⟨"E_RESOURCE_ESCAPE", "owned result cannot carry outstanding loans"⟩
+      throw {code := "E_RESOURCE_ESCAPE", message := "owned result cannot carry outstanding loans"}
     returned := returned ++ [result]
   let state := (← get).resources
-  if state.loans != before.loans then throw ⟨"E_RESOURCE_ESCAPE", "local loans escape the resource function"⟩
+  if state.loans != before.loans then throw {code := "E_RESOURCE_ESCAPE", message := "local loans escape the resource function"}
   if state.allocations.any (fun allocation =>
       !(before.owner? allocation.owner).isSome && !returned.any (·.owner == allocation.owner)) then
-    throw ⟨"E_RESOURCE_ESCAPE", "local owner was neither dropped nor returned"⟩
+    throw {code := "E_RESOURCE_ESCAPE", message := "local owner was neither dropped nor returned"}
   return returned
 
 def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := do
@@ -1485,8 +1595,8 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
             axes, grouping, loan, checked, accepted, name, values, bound, valid⟩
           set {before with tensors := values, tensorViews := before.tensorViews.push receipt}
           return frame
-        else throw ⟨"E_TENSOR", "tensor constructor lost its actual value"⟩
-      else throw ⟨"E_TENSOR", "invalid tensor constructor identity"⟩
+        else throw {code := "E_TENSOR", message := "tensor constructor lost its actual value"}
+      else throw {code := "E_TENSOR", message := "invalid tensor constructor identity"}
   | .pack source target =>
     let source ← resolve frame source
     let target ← resolve frame target
@@ -1503,8 +1613,8 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
             before.code.toList, after.code.toList, emitted⟩
           set {after with tensorPacks := after.tensorPacks.push receipt}
           return frame
-        else throw ⟨"E_TENSOR", "packing differs from its emitted schedule"⟩
-      else throw ⟨"E_TENSOR", "packing differs from its actual resource transition"⟩
+        else throw {code := "E_TENSOR", message := "packing differs from its emitted schedule"}
+      else throw {code := "E_TENSOR", message := "packing differs from its actual resource transition"}
   | .cachedPack name source target =>
     let source ← resolve frame source
     let target ← resolve frame target
@@ -1523,8 +1633,8 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
           let receipt : CacheCaptureReceipt := ⟨cache, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
           set {after with packCaches := cache :: after.packCaches, cacheCaptures := after.cacheCaptures.push receipt}
           return frame
-        else throw ⟨"E_TENSOR_CACHE", "cached packing differs from its emitted schedule"⟩
-      else throw ⟨"E_TENSOR_CACHE", "cached packing differs from its actual post-pack capture"⟩
+        else throw {code := "E_TENSOR_CACHE", message := "cached packing differs from its emitted schedule"}
+      else throw {code := "E_TENSOR_CACHE", message := "cached packing differs from its actual post-pack capture"}
   | .cachedContract3 cache left right output policy =>
     let cacheName ← resolve frame cache
     let left ← resolve frame left
@@ -1532,7 +1642,7 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
     let output ← resolve frame output
     let before ← get
     let some cache := before.packCaches.find? (·.name == cacheName)
-      | throw ⟨"E_TENSOR_CACHE", "cached contraction requires a local actual packing certificate"⟩
+      | throw {code := "E_TENSOR_CACHE", message := "cached contraction requires a local actual packing certificate"}
     match accepted : Tensor.checkCachedContraction before.environment before.numerical before.resources before.tensors cache left right output policy with
     | .error error => throw error
     | .ok checked =>
@@ -1547,8 +1657,8 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
             transitioned, before.code.toList, after.code.toList, emitted⟩
           set {after with cachedContractions := after.cachedContractions.push receipt}
           return frame
-        else throw ⟨"E_TENSOR_CACHE", "cached contraction differs from emitted dependency/GEMM schedule"⟩
-      else throw ⟨"E_TENSOR_CACHE", "cached contraction differs from its actual resource transition"⟩
+        else throw {code := "E_TENSOR_CACHE", message := "cached contraction differs from emitted dependency/GEMM schedule"}
+      else throw {code := "E_TENSOR_CACHE", message := "cached contraction differs from its actual resource transition"}
   | .contract3 left right output policy =>
     let left ← resolve frame left
     let right ← resolve frame right
@@ -1567,11 +1677,11 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
             before.code.toList, after.code.toList, emitted⟩
           set {after with tensorContractions := after.tensorContractions.push receipt}
           return frame
-        else throw ⟨"E_TENSOR", "contraction differs from its emitted schedule"⟩
-      else throw ⟨"E_TENSOR", "contraction differs from its actual resource transition"⟩
+        else throw {code := "E_TENSOR", message := "contraction differs from its emitted schedule"}
+      else throw {code := "E_TENSOR", message := "contraction differs from its actual resource transition"}
 
 private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (List TensorTree.Event) := do
-  unless plan.length ≤ 1024 do throw ⟨"E_TENSOR_TREE", "tree plan exceeds 1024 explicit steps"⟩
+  unless plan.length ≤ 1024 do throw {code := "E_TENSOR_TREE", message := "tree plan exceeds 1024 explicit steps"}
   let mut localFrame := frame
   let mut resolved := []
   for event in plan do
@@ -1588,7 +1698,7 @@ private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (
           | some (.vector view) => view.loan.name
           | _ => name
         pure (localFrame, .action (.release loan))
-      | .action _ => throw ⟨"E_TENSOR_TREE", "tree preparation permits only explicit borrow/release"⟩
+      | .action _ => throw {code := "E_TENSOR_TREE", message := "tree preparation permits only explicit borrow/release"}
       | .view name loan axes grouping => do
         let loan ← resolve localFrame loan
         let axes ← (axes.mapM (resolve localFrame) : Except Error (List Symbol))
@@ -1603,7 +1713,7 @@ private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (
 
 def treeOperation (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
     (policy : NumericalPolicy) (plan : List TensorTree.Event) : M Frame := do
-  unless graph.Bounded do throw ⟨"E_TENSOR_TREE", "tree exceeds bounded occurrence/edge/boundary profile"⟩
+  unless graph.Bounded do throw {code := "E_TENSOR_TREE", message := "tree exceeds bounded occurrence/edge/boundary profile"}
   let graph ← (graph.mapM (resolve frame) : Except Error TensorTree.Graph)
   let output ← resolve frame output
   let before ← get
@@ -1621,12 +1731,12 @@ def treeOperation (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
             graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
           set {after with trees := after.trees.push receipt}
           return frame
-        else throw ⟨"E_TENSOR_TREE", "tree emission changed an earlier resource operation"⟩
-      else throw ⟨"E_TENSOR_TREE", "tree differs from its actual resource expansion"⟩
+        else throw {code := "E_TENSOR_TREE", message := "tree emission changed an earlier resource operation"}
+      else throw {code := "E_TENSOR_TREE", message := "tree differs from its actual resource expansion"}
 
 def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
     (policy : NumericalPolicy) : M Frame := do
-  unless graph.Bounded do throw ⟨"E_NETWORK", "unsupported network profile"⟩
+  unless graph.Bounded do throw {code := "E_NETWORK", message := "unsupported network profile"}
   let graph ← (graph.mapM (resolve frame) : Except Error TensorNetwork.Graph)
   let output ← resolve frame output
   let context ← get
@@ -1641,12 +1751,15 @@ def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Sym
     return frame
 
 mutual
-  def expand : Nat → List Function → List Nat → Frame → List Statement → M Frame
-    | _, _, _, frame, [] => pure frame
-    | 0, _, _, _, _ :: _ => throw ⟨"E_RESOURCE_LIMIT", "resource expansion exceeds the depth bound"⟩
-    | fuel + 1, functions, stack, frame, first :: rest => do
-      spend
-      let after ← match first with
+  def expandAt : Nat → List Function → List Nat → List Nat → Nat → Frame → List Statement → M Frame
+    | _, _, _, _, _, frame, [] => pure frame
+    | 0, _, stack, path, position, frame, first :: _ =>
+      atStatement stack path position frame first
+        (throw {code := "E_RESOURCE_LIMIT", message := "resource expansion exceeds the depth bound"})
+    | fuel + 1, functions, stack, path, position, frame, first :: rest => do
+      let after ← atStatement stack path position frame first do
+        spend
+        match first with
         | .value name fragment arguments type => do
           let arguments ← (arguments.mapM (resolve frame) : Except Error (List Symbol))
           let (frame, global) ← bindName frame name
@@ -1663,7 +1776,7 @@ mutual
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
           let demand := match first with | .callValue .. => true | _ => false
           let returned ← invoke fuel functions stack callee actuals demand
-          if returned.length != outputs.length then throw ⟨"E_RESOURCE_ARITY", "resource result count differs"⟩
+          if returned.length != outputs.length then throw {code := "E_RESOURCE_ARITY", message := "resource result count differs"}
           let mut frame := frame
           for (localName, value) in outputs.zip returned do
             let (next, target) ← bindName frame localName
@@ -1674,9 +1787,9 @@ mutual
             frame := next
           if let .callValue _ _ _ localName expected := first then
             let some (slot, actual) := (← get).returnedValue
-              | throw ⟨"E_RESOURCE_VALUE", "resource callee has no scalar result"⟩
-            unless actual == expected do throw ⟨"E_RESOURCE_VALUE", "resource scalar result type differs"⟩
-            if frame.any (·.1 == localName) then throw ⟨"E_RESOURCE_NAME", "scalar result shadows a binding"⟩
+              | throw {code := "E_RESOURCE_VALUE", message := "resource callee has no scalar result"}
+            unless actual == expected do throw {code := "E_RESOURCE_VALUE", message := "resource scalar result type differs"}
+            if frame.any (·.1 == localName) then throw {code := "E_RESOURCE_NAME", message := "scalar result shadows a binding"}
             frame := (localName, slot) :: frame
           pure frame
         | .branch condition yes no => do
@@ -1685,7 +1798,7 @@ mutual
             | .slot localName => do
               let slot ← resolve frame localName
               unless ValueFlow.type? (← get).scalarSlots slot == some .bool do
-                throw ⟨"E_RESOURCE_VALUE", "resource branch requires a live Bool value"⟩
+                throw {code := "E_RESOURCE_VALUE", message := "resource branch requires a live Bool value"}
               pure (.slot slot)
           let before ← get
           set {before with
@@ -1713,7 +1826,7 @@ mutual
             adjoints := #[]
             diagonalPairings := #[]
             evaluations := #[]}
-          let _ ← expand fuel functions stack frame yes
+          let _ ← expandAt fuel functions stack (path ++ [position, 0]) 0 frame yes
           cleanupDependencies before.resources
           let left ← get
           set {before with
@@ -1744,7 +1857,7 @@ mutual
             diagonalPairings := #[]
             evaluations := #[]
             resources := {before.resources with nextAllocation := left.resources.nextAllocation}}
-          let _ ← expand fuel functions stack frame no
+          let _ ← expandAt fuel functions stack (path ++ [position, 1]) 0 frame no
           cleanupDependencies before.resources
           let right ← get
           let resources ← join left.resources right.resources
@@ -1779,89 +1892,94 @@ mutual
             adjoints := before.adjoints ++ left.adjoints ++ right.adjoints
             diagonalPairings := before.diagonalPairings ++ left.diagonalPairings ++ right.diagonalPairings}
           pure frame
-      expand fuel functions stack after rest
+      expandAt fuel functions stack path (position + 1) after rest
   def invoke : Nat → List Function → List Nat → Nat → List Symbol → Bool → M (List Returned)
-    | 0, _, _, _, _, _ => throw ⟨"E_RESOURCE_LIMIT", "resource call exceeds the depth bound"⟩
-    | fuel + 1, functions, stack, callee, actuals, demand => do
+    | 0, _, _, _, _, _ => throw {code := "E_RESOURCE_LIMIT", message := "resource call exceeds the depth bound"}
+    | fuel + 1, functions, stack, callee, actuals, demand => atFunction callee .header do
       spend
-      if stack.contains callee then throw ⟨"E_RESOURCE_RECURSION", "resource functions cannot recurse"⟩
+      if stack.contains callee then throw {code := "E_RESOURCE_RECURSION", message := "resource functions cannot recurse"}
       let some function := functions.find? (·.id == callee)
-        | throw ⟨"E_RESOURCE_FUNCTION", "resource callee does not exist"⟩
+        | throw {code := "E_RESOURCE_FUNCTION", message := "resource callee does not exist"}
       let before ← get
       let (frame, borrowed, runtimeBorrowed) ← arguments function.parameters actuals
-      let frame ← expand fuel functions (callee :: stack) frame function.body
-      cleanupDependencies before.resources
-      let returned ← finish before.resources frame borrowed function.results
-      let runtimeContext ← get
-      let runtimeAfter ← Shapes.Functions.finish before.shapes runtimeContext.shapes runtimeBorrowed
-      if runtimeAfter.events.size != runtimeContext.shapes.events.size then setShapes runtimeAfter
-      else modify fun context => {context with shapes := runtimeAfter}
-      let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter
-      if runtimeAfter.events.size != before.shapes.events.size then
-        modify fun context => {context with shapeCalls := context.shapeCalls.push runtimeReceipt}
-      -- Discarding a result avoids native evaluation, not its signature audit.
-      -- Pair terminals remain compatible without becoming scalar flow slots.
-      if let some (fragment, locals, expected) := function.valueResult then
-        let arguments ← (locals.mapM (resolve frame) : Except Error (List Symbol))
-        let context ← get
-        let some signature := context.signatures[fragment]?
-          | throw ⟨"E_RESOURCE_VALUE", "callee return fragment is absent"⟩
-        unless signature.result == expected && signature.parameters.all ValueFlow.scalar &&
-            arguments.map (ValueFlow.type? context.scalarSlots) == signature.parameters.map some do
-          throw ⟨"E_RESOURCE_VALUE", "callee return arguments or signature differ"⟩
-      let after ← get
-      let results := returned.map fun value => (value.owner, value.type)
-      let statements := after.code.toList.drop before.code.size
-      if slice : before.code.toList ++ statements = after.code.toList then
-        match replayed : run 4096 before.resources statements with
-        | .error diagnostic => throw diagnostic
-        | .ok state =>
-          if exactState : state = after.resources then
-            if valid : ExitValid before.resources after.resources results then
-              let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
-                before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
-              set {after with
-                calls := after.calls.push receipt
-                numerical := before.numerical
-                tensors := before.tensors
-                packCaches := before.packCaches
-                returnedValue := none}
-              if demand then
-                match contract : function.valueResult with
-                | none => pure ()
-                | some (fragment, locals, type) =>
-                  match resolved : locals.mapM (resolve frame) with
-                  | .error diagnostic => throw diagnostic
-                  | .ok arguments =>
-                    let valueBefore ← get
-                    match typed : ValueFlow.checkCall valueBefore.signatures valueBefore.scalarSlots fragment arguments with
+      let frame ← expandAt fuel functions (callee :: stack) [] 0 frame function.body
+      atFunction callee .result do
+        cleanupDependencies before.resources
+        let returned ← finish before.resources frame borrowed function.results
+        let runtimeContext ← get
+        let runtimeAfter ← Shapes.Functions.finish before.shapes runtimeContext.shapes runtimeBorrowed
+        if runtimeAfter.events.size != runtimeContext.shapes.events.size then setShapes runtimeAfter
+        else modify fun context => {context with shapes := runtimeAfter}
+        let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter
+        if runtimeAfter.events.size != before.shapes.events.size then
+          modify fun context => {context with shapeCalls := context.shapeCalls.push runtimeReceipt}
+        -- Discarding a result avoids native evaluation, not its signature audit.
+        -- Pair terminals remain compatible without becoming scalar flow slots.
+        if let some (fragment, locals, expected) := function.valueResult then
+          let arguments ← (locals.mapM (resolve frame) : Except Error (List Symbol))
+          let context ← get
+          let some signature := context.signatures[fragment]?
+            | throw {code := "E_RESOURCE_VALUE", message := "callee return fragment is absent"}
+          unless signature.result == expected && signature.parameters.all ValueFlow.scalar &&
+              arguments.map (ValueFlow.type? context.scalarSlots) == signature.parameters.map some do
+            throw {code := "E_RESOURCE_VALUE", message := "callee return arguments or signature differ"}
+        let after ← get
+        let results := returned.map fun value => (value.owner, value.type)
+        let statements := after.code.toList.drop before.code.size
+        if slice : before.code.toList ++ statements = after.code.toList then
+          match replayed : run 4096 before.resources statements with
+          | .error diagnostic => throw diagnostic
+          | .ok state =>
+            if exactState : state = after.resources then
+              if valid : ExitValid before.resources after.resources results then
+                let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
+                  before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
+                set {after with
+                  calls := after.calls.push receipt
+                  numerical := before.numerical
+                  tensors := before.tensors
+                  packCaches := before.packCaches
+                  returnedValue := none}
+                if demand then
+                  match contract : function.valueResult with
+                  | none => pure ()
+                  | some (fragment, locals, type) =>
+                    match resolved : locals.mapM (resolve frame) with
                     | .error diagnostic => throw diagnostic
-                    | .ok actual =>
-                      unless actual == type do throw ⟨"E_RESOURCE_VALUE", "callee result signature differs"⟩
-                      let slot ← fresh
-                      scalarCall slot fragment arguments type
-                      let valueAfter ← get
-                      if sameCallee : function.id = receipt.callee then
-                        if exactType : actual = type then
-                          if completed : ValueFlow.project valueBefore.flow.toList = receipt.code then
-                            if emitted : valueBefore.flow.toList ++ [.value slot fragment arguments] = valueAfter.flow.toList then
-                              let runtimeReturn ← checkRuntimeReturn before.flow.toList valueBefore.flow.toList runtimeReceipt
-                              let resultReceipt : ValueReturnReceipt := ⟨receipt, function, sameCallee, frame,
-                                fragment, locals, type, contract, arguments, resolved, valueBefore.signatures,
-                                valueBefore.scalarSlots, exactType ▸ typed, slot, valueBefore.flow.toList,
-                                valueAfter.flow.toList, completed, emitted, runtimeReturn⟩
-                              set {valueAfter with
-                                returnedValue := some (slot, type)
-                                valueReturns := valueAfter.valueReturns.push resultReceipt}
-                            else throw ⟨"E_RESOURCE_VALUE", "scalar result changed earlier mixed operations"⟩
-                          else throw ⟨"E_RESOURCE_VALUE", "scalar result precedes resource call completion"⟩
-                        else throw ⟨"E_RESOURCE_VALUE", "scalar result signature differs"⟩
-                      else throw ⟨"E_RESOURCE_VALUE", "scalar result belongs to another callee"⟩
-              return returned
-            else throw ⟨"E_RESOURCE_ESCAPE", "call exit failed the independent resource audit"⟩
-          else throw ⟨"E_RESOURCE_STATE", "call expansion differs from replayed resource transitions"⟩
-      else throw ⟨"E_RESOURCE_STATE", "call expansion changed earlier resource operations"⟩
+                    | .ok arguments =>
+                      let valueBefore ← get
+                      match typed : ValueFlow.checkCall valueBefore.signatures valueBefore.scalarSlots fragment arguments with
+                      | .error diagnostic => throw diagnostic
+                      | .ok actual =>
+                        unless actual == type do throw {code := "E_RESOURCE_VALUE", message := "callee result signature differs"}
+                        let slot ← fresh
+                        scalarCall slot fragment arguments type
+                        let valueAfter ← get
+                        if sameCallee : function.id = receipt.callee then
+                          if exactType : actual = type then
+                            if completed : ValueFlow.project valueBefore.flow.toList = receipt.code then
+                              if emitted : valueBefore.flow.toList ++ [.value slot fragment arguments] = valueAfter.flow.toList then
+                                let runtimeReturn ← checkRuntimeReturn before.flow.toList valueBefore.flow.toList runtimeReceipt
+                                let resultReceipt : ValueReturnReceipt := ⟨receipt, function, sameCallee, frame,
+                                  fragment, locals, type, contract, arguments, resolved, valueBefore.signatures,
+                                  valueBefore.scalarSlots, exactType ▸ typed, slot, valueBefore.flow.toList,
+                                  valueAfter.flow.toList, completed, emitted, runtimeReturn⟩
+                                set {valueAfter with
+                                  returnedValue := some (slot, type)
+                                  valueReturns := valueAfter.valueReturns.push resultReceipt}
+                              else throw {code := "E_RESOURCE_VALUE", message := "scalar result changed earlier mixed operations"}
+                            else throw {code := "E_RESOURCE_VALUE", message := "scalar result precedes resource call completion"}
+                          else throw {code := "E_RESOURCE_VALUE", message := "scalar result signature differs"}
+                        else throw {code := "E_RESOURCE_VALUE", message := "scalar result belongs to another callee"}
+                return returned
+              else throw {code := "E_RESOURCE_ESCAPE", message := "call exit failed the independent resource audit"}
+            else throw {code := "E_RESOURCE_STATE", message := "call expansion differs from replayed resource transitions"}
+        else throw {code := "E_RESOURCE_STATE", message := "call expansion changed earlier resource operations"}
 end
+
+def expand (fuel : Nat) (functions : List Function) (stack : List Nat)
+    (frame : Frame) (statements : List Statement) : M Frame :=
+  expandAt fuel functions stack [] 0 frame statements
 
 private def zero : Scalar → Literal | .f64 => .f64 0 | .complexF64 => .complexF64 0 0
 
@@ -1913,9 +2031,9 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let target ← resolve frame target
       let context ← get
       let some (.basis sourceBasis) := Shapes.Numerical.value? context.shapes.values source
-        | throw ⟨"E_RUNTIME_CALL", "runtime probe source is not a basis"⟩
+        | throw {code := "E_RUNTIME_CALL", message := "runtime probe source is not a basis"}
       let some (.basis targetBasis) := Shapes.Numerical.value? context.shapes.values target
-        | throw ⟨"E_RUNTIME_CALL", "runtime probe target is not a basis"⟩
+        | throw {code := "E_RUNTIME_CALL", message := "runtime probe target is not a basis"}
       -- Unconstrained symbolic capacity and leading dimension are typed probe
       -- inputs. Layout guards, not a sampled size, constrain every valuation.
       let capacity ← fresh
@@ -2000,9 +2118,9 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let target ← resolve frame target
       let context ← get
       let some (.basis sourceBasis) := Numerical.value? context.numerical source
-        | throw ⟨"E_NUMERICAL_TYPE", "map input requires an earlier source basis"⟩
+        | throw {code := "E_NUMERICAL_TYPE", message := "map input requires an earlier source basis"}
       let some (.basis targetBasis) := Numerical.value? context.numerical target
-        | throw ⟨"E_NUMERICAL_TYPE", "map input requires an earlier target basis"⟩
+        | throw {code := "E_NUMERICAL_TYPE", message := "map input requires an earlier target basis"}
       let rows := targetBasis.space.dimension
       let columns := sourceBasis.space.dimension
       let scalar := sourceBasis.space.scalar
@@ -2021,7 +2139,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let basis ← resolve frame basis
       let context ← get
       let some (.basis vectorBasis) := Numerical.value? context.numerical basis
-        | throw ⟨"E_NUMERICAL_TYPE", "vector input requires an earlier basis"⟩
+        | throw {code := "E_NUMERICAL_TYPE", message := "vector input requires an earlier basis"}
       let rows := vectorBasis.space.dimension
       let scalar := vectorBasis.space.scalar
       let layout : Layout := ⟨0, rows, 1, max 1 rows, false⟩
@@ -2040,9 +2158,9 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let target ← resolve frame target
       let context ← get
       let some (.basis sourceBasis) := Numerical.value? context.numerical source
-        | throw ⟨"E_NUMERICAL_TYPE", "owned map input requires an earlier source basis"⟩
+        | throw {code := "E_NUMERICAL_TYPE", message := "owned map input requires an earlier source basis"}
       let some (.basis targetBasis) := Numerical.value? context.numerical target
-        | throw ⟨"E_NUMERICAL_TYPE", "owned map input requires an earlier target basis"⟩
+        | throw {code := "E_NUMERICAL_TYPE", message := "owned map input requires an earlier target basis"}
       let rows := targetBasis.space.dimension
       let columns := sourceBasis.space.dimension
       let scalar := sourceBasis.space.scalar
@@ -2059,7 +2177,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let source ← resolve frame source
       let context ← get
       let some (.basis sourceBasis) := Numerical.value? context.numerical source
-        | throw ⟨"E_NUMERICAL_PACKAGE", "package probe requires an earlier source basis"⟩
+        | throw {code := "E_NUMERICAL_PACKAGE", message := "package probe requires an earlier source basis"}
       let space ← fresh
       let basis ← fresh
       let viewName ← fresh
@@ -2077,7 +2195,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
       let values ← Numerical.construct context.environment context.resources context.numerical
         (.ownedMap viewName owner layout source basis)
       let some (.ownedMap view) := Numerical.value? values viewName
-        | throw ⟨"E_NUMERICAL_PACKAGE", "package probe lost its owned map"⟩
+        | throw {code := "E_NUMERICAL_PACKAGE", message := "package probe lost its owned map"}
       transferMap view viewName
       packageStep .pack viewName package
       pure package
@@ -2094,7 +2212,7 @@ def probeSetup (functions : List Function) (function : Function) : M Unit := do
     runtimeStep (.drop owner)
 
 def probe (functions : List Function) (function : Function) (environment : Indexed.Environment := [])
-    (signatures : List ValueFlow.Signature := []) : Except Error Probe := do
+    (signatures : List ValueFlow.Signature := []) : Except Error Probe := atSite function.id .header do
   let (_, context) ← (probeSetup functions function).run {environment, signatures}
   let values ← ValueFlow.check signatures context.scalarInputs context.flow.toList
   let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList

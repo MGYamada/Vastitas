@@ -201,6 +201,32 @@ Native code performs no runtime
 loan interpretation or implicit alias-repair copy; operation costs remain visible
 in the checked schedule.
 
+## Resource diagnostics
+
+Resource expansion retains the current function and structural statement path
+when a check fails. The primary diagnostic points to the failing operation,
+including an unselected branch arm. A failed branch join points to its `if`;
+an input-contract failure points to the caller; a callee-body failure points to
+that body statement and includes the caller as a note. Result/cleanup failures
+use the result block when no caller statement is available. Unused bodies keep
+their own locations. Header and envelope failures still use the relevant header.
+
+Notes recover names and introduction sites from the original source paired with
+its actual lowering. Borrow/drop failures identify the allocation and, when
+available, the conflicting or outstanding loan. GEMM endpoint mismatches name
+the actual unequal spaces/bases; vector evaluation identifies its actual bases
+and explicit metric. Equal dimensions do not suppress these nominal checks.
+Other operations include their local operands. Compiler-created temporary loans
+without a lexical binding are omitted rather than presented as source names.
+Notes are deduplicated and capped at 32.
+
+This context is internal error data: the public wire format and successful
+checked schedules are unchanged. Names and source mappings are recovered only
+on rejection, without rerunning all body probes or retaining a resource-state
+snapshot for diagnostics. The location wrappers have exact successful-result
+equations; source positions and diagnostic prose are covered by regression
+tests, not a source-provenance theorem.
+
 ## Evidence and remaining work
 
 `ResourceSource.Checked` retains the original decoder/source mapping, canonical

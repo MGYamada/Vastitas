@@ -7,7 +7,7 @@ namespace VastitasKernel.Storage.Numerical
 open Indexed
 
 private def reject (message : String) : Except Error α :=
-  .error ⟨"E_NUMERICAL_TYPE", message⟩
+  .error {code := "E_NUMERICAL_TYPE", message := message}
 
 structure CheckedVectorConjugate (env : Environment) (resources : State) (values : Values)
     (name parent child basis selected : Symbol) where
@@ -158,7 +158,13 @@ def checkEvaluation (env : Environment) (resources : State) (values : Values)
                         else reject "evaluation output is not an initialized scalar of the selected profile"
                       else reject "evaluation did not restore its right input loan"
                     else reject "evaluation did not restore its left input loan"
-          else reject "evaluation requires the corresponding dual basis, or an explicit conjugate basis and matching orthonormal metric"
+          else .error {
+            code := "E_NUMERICAL_TYPE"
+            message := "evaluation requires the corresponding dual basis, or an explicit conjugate basis and matching orthonormal metric"
+            context := {subjects := left.basis.errorSubjects "left vector" ++ right.basis.errorSubjects "right vector" ++
+              (match operation with
+              | .dual => []
+              | .hermitian selected => [⟨"selected metric", selected, .binding⟩])}}
         else reject "right vector no longer matches its resource loan"
       else reject "left vector no longer matches its resource loan"
     | _, _ => reject "evaluation requires typed vectors and an explicit scalar output loan"

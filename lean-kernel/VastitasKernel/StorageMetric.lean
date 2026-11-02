@@ -7,7 +7,7 @@ namespace VastitasKernel.Storage.Numerical
 open Indexed
 
 private def reject (message : String) : Except Error α :=
-  .error ⟨"E_NUMERICAL_METRIC", message⟩
+  .error {code := "E_NUMERICAL_METRIC", message := message}
 
 def Gram.realizes (gram : Gram) (dimension : Nat) (diagonal : Diagonal) : Bool :=
   diagonal.valid dimension && (dimension == 0 || match gram with

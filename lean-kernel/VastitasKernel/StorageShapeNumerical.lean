@@ -131,7 +131,7 @@ def guards (values : Values) : List Guard := values.flatMap fun (_, value) => ma
   | .map view => view.guards
 
 private def reject (message : String) : Except Error α :=
-  .error ⟨"E_RUNTIME_NUMERICAL", message⟩
+  .error {code := "E_RUNTIME_NUMERICAL", message := message}
 
 def insert (environment : Environment) (values : Values) (name : Symbol) (value : Value) :
     Except Error Values := do

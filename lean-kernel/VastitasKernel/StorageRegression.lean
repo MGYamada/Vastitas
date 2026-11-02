@@ -107,6 +107,36 @@ private def branch (yes no : List Action) (after : List Action := []) : List Sta
 #eval check "repeated writes retain bounded initialization metadata" ((checkPlan
   (actions [allocate, write 1] ++ actions (List.replicate 128 (.fill 1 value)) ++
     actions [.release 1, read 2, .release 2, .drop 0])).isOk)
+#eval show IO Unit from do
+  for scalar in [Scalar.f64, .complexF64] do
+    let literal := if scalar == .f64 then value else Literal.complexF64 0 0
+    let shared : Layout := ⟨128 * scalar.width, 1, 1, 1, false⟩
+    let initial := actions [.allocate 0 scalar 129,
+      .borrow 1 (.owner 0) ⟨0, 1, 129, 1, false⟩ .write, .store 1 0 128 literal]
+    let branches := (List.range 64).map fun index => Statement.branch true
+      (actions [.store 1 0 (2 * index) literal]) (actions [.store 1 0 (2 * index + 1) literal])
+    let .ok state := run 1024 {} (initial ++ branches)
+      | throw (IO.userError "sequential disjoint branch writes exceeded history budget")
+    check "disjoint branch additions retain the exact common history"
+      ((state.allocation? 0).map Allocation.initialization == some (.written shared .none))
+    check "common initialized cell remains readable after many joins"
+      (checkPlan (initial ++ branches ++ actions [.release 1,
+        .borrow 2 (.owner 0) shared .read, .expect 2 0 0 literal, .release 2, .drop 0])).isOk
+    check "branch-local writes do not initialize either exclusive cell"
+      (!(checkPlan (initial ++ branches ++ actions [.release 1,
+        .borrow 2 (.owner 0) ⟨0, 1, 1, 1, false⟩ .read, .release 2, .drop 0])).isOk)
+
+private def longHistory : Initialization :=
+  (List.range 2100).foldl (fun previous _ => .written first previous) .none
+private def largeJoinState (layout : Layout) : State := {
+  allocations := [⟨0, 0, .f64, 64, .written layout longHistory, 0⟩]
+  used := [0], nextAllocation := 1 }
+#eval check "valid unresolved intersection names its initialization budget"
+  (auditState (largeJoinState full) && auditState (largeJoinState first) &&
+    match join (largeJoinState full) (largeJoinState first) with
+    | .error error => error.code == "E_RESOURCE_LIMIT" &&
+        error.message == "branch join initialization metadata budget exceeded"
+    | .ok _ => false)
 #eval check "global node budget includes both branches" (
   match checkPlan (List.replicate 1400 (.branch true
     (actions [.allocate 0 .f64 1, .drop 0]) (actions [.allocate 1 .f64 1, .drop 1]))) with
@@ -129,6 +159,31 @@ private def forged : State := {
 private def cells (layout : Layout) (scalar : Scalar) : List Nat :=
   (List.range layout.logicalRows).flatMap fun row => (List.range layout.logicalColumns).flatMap fun column =>
     (List.range scalar.width).map (layout.address scalar row column + ·)
+
+private def initializedCells (scalar : Scalar) : Initialization → List Nat
+  | .none => []
+  | .written layout previous => cells layout scalar ++ initializedCells scalar previous
+  | .intersection left right =>
+    (initializedCells scalar left).filter (initializedCells scalar right).contains
+
+/- Independent byte enumeration includes overlapping, disjoint, padded,
+transposed and empty writes. Exact normalization must neither invent nor lose
+common initialized bytes, even when it cannot simplify the intersection. -/
+#eval show IO Unit from do
+  let layouts := [full, padded, first, second, padded.transpose, ⟨3, 0, 1, 1, false⟩]
+  for scalar in [Scalar.f64, .complexF64] do
+    for common in [Initialization.none, .written first .none, .intersection
+        (.written full .none) (.written padded .none)] do
+      for a in layouts do
+        for b in layouts do
+          let left := Initialization.written a common
+          let right := Initialization.written b common
+          for pair in [(left, right), (left, common), (common, right), (left, left)] do
+            let actual := initializedCells scalar (pair.1.meet pair.2 scalar)
+            let leftBytes := initializedCells scalar pair.1
+            let rightBytes := initializedCells scalar pair.2
+            check "normalized join is the exact byte intersection" ((List.range 160).all fun byte =>
+              actual.contains byte == (leftBytes.contains byte && rightBytes.contains byte))
 
 /-- Small independent byte-set oracle only in tests; the checker never expands
 the matrix. Include padded, transposed, shifted and empty rectangles. -/

@@ -73,6 +73,80 @@ fn rejected(main: &str, operations: &str, code: &str) {
 }
 
 #[test]
+fn sequential_branch_writes_preserve_only_common_initialization() {
+    let branches = (0..64)
+        .map(|i| {
+            format!(
+                "if flag {{ store(output, 0, {}, f64_bits(0)); }} \
+                 else {{ store(output, 0, {}, f64_bits(0)); }}",
+                2 * i,
+                2 * i + 1
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let main = format!(
+        "resource fn main() -> Int {{
+            let flag: Bool = value {{ true }};
+            allocate data: F64[129];
+            borrow output = write(data, layout(0, 1, 129, 1, false));
+            store(output, 0, 128, f64_bits(0));
+            {branches}
+            release(output);
+            borrow shared = read(data, layout(1024, 1, 1, 1, false));
+            expect(shared, 0, 0, f64_bits(0));
+            release(shared);
+            drop(data);
+            value {{ 42 }}
+        }}"
+    );
+    for source in [
+        main.clone(),
+        main.replace("value { true }", "value { false }"),
+    ] {
+        let s = fixture(&source, OPERATIONS);
+        success(&check(&s));
+        success(
+            &cli()
+                .args(["build", "--manifest-path"])
+                .arg(s.0.join("app/Vastitas.toml"))
+                .arg("-o")
+                .arg(s.0.join("program"))
+                .output()
+                .unwrap(),
+        );
+        let output = Command::new(s.0.join("program")).output().unwrap();
+        success(&output);
+        assert_eq!(output.stdout, b"42\n");
+    }
+    for offset in [0, 8] {
+        rejected(
+            &main.replace("layout(1024,", &format!("layout({offset},")),
+            OPERATIONS,
+            "E_RESOURCE_INIT",
+        );
+    }
+    rejected(
+        &main.replace("store(output, 0, 127,", "store(output, 0, 129,"),
+        OPERATIONS,
+        "E_RESOURCE_BOUNDS",
+    );
+    let mut raw = request(&fixture(&main, OPERATIONS));
+    let root = module(&raw, "storage_example", json!([]));
+    let body = raw
+        .pointer_mut(&format!("{root}/resource_functions/0/body"))
+        .unwrap()
+        .as_array_mut()
+        .unwrap();
+    // The common store is required by the independently checked raw program.
+    body.remove(3);
+    let response = kernel(raw, "emit");
+    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["diagnostics"][0]["code"], "E_RESOURCE_INIT");
+    assert!(response.get("lean_source").is_none());
+}
+
+#[test]
 fn cell_writes_initialize_padded_call_outputs_without_prefill() {
     let stores: Vec<_> = (0..2)
         .flat_map(|row| {

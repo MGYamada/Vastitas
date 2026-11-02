@@ -679,8 +679,10 @@ def join (left right : State) : Except Error State := do
     if a.owner != b.owner || a.scalar != b.scalar || a.capacity != b.capacity then
       reject "E_RESOURCE_JOIN" "branch owner or allocation metadata differs"
     return { a with
-      initialization := a.initialization.meet b.initialization
+      initialization := a.initialization.meet b.initialization a.scalar
       version := max a.version b.version + 1 }
+  if allocations.any (fun allocation => (allocation.initialization.remaining 4096).isNone) then
+    reject "E_RESOURCE_LIMIT" "branch join initialization metadata budget exceeded"
   let after : State := {
     allocations
     loans := left.loans

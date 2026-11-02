@@ -80,6 +80,15 @@ whose extent exceeds one. Singleton axes impose no access-stride alignment
 obligation. The actual absolute address is checked; an assumed aligned base
 does not replace this calculation.
 
+These byte/ABI conditions alone do not preserve a typed allocation's element
+origin. The implemented dense resource profile additionally requires nonempty
+offsets to be multiples of the scalar width (8 for `F64`, 16 for `Complex<F64>`).
+Its strides are whole-element multiples by construction, and containment checks
+the relative element boundary as well. This rules out half-complex-element views
+even though their component addresses satisfy 8-byte ABI alignment. The broader
+strided reference model below is an address/injectivity contract; admitting it as
+a typed resource view also requires this element-origin contract.
+
 When **either extent is zero**, `D(L)` and `region(L)` are empty. The code
 branches before computing either `extent-1`; validates `0 <= offset <= capacity`
 and the descriptor/native fields; and produces no accessible envelope. Access

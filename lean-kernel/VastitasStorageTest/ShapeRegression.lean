@@ -19,6 +19,7 @@ private def get (label : String) (result : Except Error α) : IO α :=
     .equal (.literal 2) (.literal 3), .cell shape 3 0]
   let valid : List Shapes.Guard := [
     .bound (.literal 0) dimensionLimit, .layout .f64 (.literal 10) shape,
+    .layout .complexF64 (.literal 10) shape,
     .equal (.literal 2) (.literal 2), .cell shape 2 1]
   for guard in invalid do
     let flow := [Storage.ValueFlow.Statement.runtime (.guard [guard])]

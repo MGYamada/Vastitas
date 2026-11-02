@@ -21,8 +21,18 @@ text = true
 # Test/proof fixtures are separate from the ordinary compiler library.
 [[lean_lib]]
 name = "VastitasPromotion"
-roots = ["VastitasPromotion.Fixture", "VastitasPromotion.Regression"]
+roots = ["VastitasPromotion.Fixture", "VastitasPromotion.Regression", "VastitasPromotion.IndexedFixture", "VastitasPromotion.IndexedRegression"]
 needs = ["promotionFixture"]
+
+[[input_file]]
+name = "authorityFixture"
+path = "../tests/fixtures/edit-authority.json"
+text = true
+
+[[lean_lib]]
+name = "VastitasPublicTest"
+roots = ["VastitasPublicTest.AuthorityRegression"]
+needs = ["authorityFixture"]
 
 [[lean_exe]]
 name = "vastitas-kernel"

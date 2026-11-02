@@ -36,22 +36,40 @@ nonempty/empty coordinate spaces, duplicate/Unicode names and positional lists.
 This increment adds neither `VastitasMath` nor `VastitasBridge`, and does not
 claim any new std correspondence or constitutional theorem.
 
-Flat protocol versions 2 and 4 enter through `checkSurfaceProgram`. Package
-versions 3 and 4 resolve namespaces before entering the same surface checker.
-Protocol 5 additionally validates the edit assembly and final contributions.
-Protocol 6's `checkAuthorityProgram` additionally validates nested delegations
-and current-owner transfer histories before entering that same surface checker.
-The first-order `checkProgram` API is an input adapter to that checker.
-All inputs check independent lambdas, static function contracts and finite
-dispatch families, then use one lowering and specialization implementation.
-They pass the exact lowered module to
-`checkModule`, the internal Stage 0 core checker. The
-combined core theorem, `VastitasOracle.checkModule_sound`, establishes decoded
-core source correspondence, independent typing, a strict function dependency
-order, and finite typed evaluation. Stage 1a has additional finite-selection
-and checker-composition theorems, extended in Stage 1b as described below.
+## Current public checker routes
+
+`lean-kernel/Main.lean` currently uses these entry points:
+
+| Wire input | Independent acceptance | Native generation |
+| --- | --- | --- |
+| Protocols 2–6 | `Indexed.LegacySource.check`, including original decoder/namespace validation and conversion into `Indexed.AuthoritySource.checkProgram` | `Indexed.Core.Codegen.generate` on the exact returned executable Core |
+| Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator |
+| Protocol 8 | `ResourceSource.Wire.check`, composing indexed pure bodies with resource/numerical checks | `ResourceSource.Codegen.generate` rechecks the accepted source and both components |
+
+The current pure Core typing and terminating-evaluation chain is
+`IndexedCore` → `IndexedEvaluationSafety` → `IndexedFunctionSafety` →
+`IndexedArgumentSafety` → `IndexedProgramSafety`, with the public receipt
+connections in `IndexedAcceptance`, `IndexedWire` and `LegacySource`.
+The actual promotion/add/maximum fixture is covered by `IndexedPromotion`.
+Resource receipts, native generation and floating-point results keep the
+separate boundaries described below. These results do not supply full source
+specialization correspondence or native refinement.
+
+The repository also retains the earlier Stage 0–1b checker and proofs.
+`checkModule`, `checkProgram`, `checkSurfaceProgram`, `checkNamespaceProgram`,
+`checkEditProgram`, `checkAuthorityProgram` and `LegacyIndexed.check` are **not
+Main's public entry points**. Their theorem statements remain valid for those
+APIs; their source correspondence and old `Semantics.Eval` results cannot be
+transferred to the current indexed pipeline without a separate proof. Shared
+namespace, dispatch and authority helpers can still be live. The sections below
+identify the retained compositions explicitly; the indexed sections describe
+the current Core and public acceptance connections.
 
 ## Checked language and independent audits
+
+**Retained legacy Core.** This section describes the earlier `Term`,
+`CertifiedModule` and their audits. Current public compilation uses
+`Indexed.Core.Term` and `Indexed.Core.Typing.CheckedModule` instead.
 
 The checked `Term` language retains normalized integer literals, finite
 operator and builtin constructors, resolved variable and function symbols,
@@ -84,11 +102,15 @@ both `Typing.ModuleWellTyped` and `Dependency.ModuleOrdered`.
 compatible endpoint bases and agreement between each body's annotated result
 and its declared return type. `certifiedModule_annotation_property` is the
 projection of that subtype property. It does not establish the stronger
-typing, dependency, or source-correspondence results. The public
+typing, dependency, or source-correspondence results. The retained legacy
 `Codegen.generate` boundary repeats the independent audits, so constructing
 this weaker certificate directly cannot bypass them.
 
 ## Stage 0 source correspondence and type safety
+
+**Retained legacy theorem scope.** These source-correspondence theorems
+apply to the old decoded `RawModule`/`CheckedModule` pipeline. They do not prove
+source correspondence for the current protocol 2–7 indexed adapter.
 
 `VastitasOracle.Elaboration.checkModule_source_correspondence` proves the
 independent `ModuleCorresponds` relation between an accepted decoded core
@@ -129,7 +151,15 @@ by enclosing object bindings or the types of enclosing values.
 
 ## Stage 1a finite dispatch and checker composition
 
-The actual reusable finite engine is `VastitasKernel.Dispatch.check`; the
+**Shared finite selection facts; retained legacy body composition.** The
+finite engine and selection relations remain useful, but the
+`DispatchLowering.checkProgram_*` composition below targets the old Core.
+Current all-body/target/Core correspondence is in the indexed dispatch and
+authority acceptance theorems.
+
+The live reusable finite engine is `VastitasKernel.Dispatch.checkWith`, called
+with the independently reconstructed nominal hierarchy. The old `Dispatch.check`
+is a retained wrapper fixing that hierarchy to the builtins. The
 theorems below are in `VastitasOracle.Dispatch`. Public ground types are Nat,
 Int, Bool, and Unit. Specificity uses the product of nominal subtyping and
 implication of normalized requirements, including `HasOrder ⇒ HasEq`. It does
@@ -143,40 +173,41 @@ the order used by the theorems. Their correspondence with the prose product
 order is supported by code inspection and regressions, not a separate theorem
 deriving these helpers from an independent mathematical specification.
 
-- `check_sound` connects successful execution to the independent `Optimal`
+- `checkWith_sound` connects successful execution to the independent `Optimal`
   and `Selection` conditions. It also establishes actual normalization,
   unique method identities and normalized signatures, realizable method
   conditions, and the correctness of every selected row. Ambiguity checking
   covers the entire enumerated universe, including keys outside the declared
   callable domain.
-- `check_key_universe` proves that the enumeration contains every concrete
+- The builtin-wrapper corollary `check_key_universe` proves that the enumeration contains every concrete
   tuple of the declared arity, has exactly `4^arity` elements, and has at most
   4096 elements. `domain_coverage` proves that every declared callable key has
   a selected method.
-- `winner_sound` proves that the selected ID belongs to the unique optimal
-  method. `winner_identity_unique` additionally proves that no other record
+- `winner_selection` applies to the current parameterized engine; `winner_sound`
+  is the builtin-wrapper corollary that the selected ID belongs to the unique optimal
+  method. The wrapper's `winner_identity_unique` additionally proves that no other record
   in the accepted family has that ID, including inapplicable records.
 - `applicablePairs_complete` characterizes the exact list of applicable
   method/key pairs exposed for ground body checking. It includes losing
   methods and keys outside the callable domain.
-- `check_permutation_success` proves that permuting method records preserves
-  acceptance and the exact winner rows. `check_order_independent` states the
+- `checkWith_permutation_success` proves that permuting method records preserves
+  acceptance and the exact winner rows. `checkWith_order_independent` states the
   corresponding equality of selections. Stable IDs remain attached to their
   records; these theorems do not equate unrelated IDs reassigned by a frontend.
 
 The generic `checkWith` engine and its soundness/permutation theorems use the
 same algorithm for other validated finite hierarchies. Synthetic multiple
 inheritance and triple-intersection tests exercise that engine. They do not
-add user-defined types or capabilities to the public language.
+extend the public four concrete key types or authorize new capabilities.
 
 `VastitasOracle.DispatchLowering.selected_target_sound` connects the backend's
 actual family-check and target-selection evidence to domain membership and
-the unique optimal method. The same namespace provides the public checker
+the unique optimal method. The same namespace provides the retained legacy checker
 composition results:
 
 - `checked_call_pair_result` proves that the independently audited call result
   equals the Pair element type of its actual looked-up signature. It applies
-  to the typed cores returned by all three public acceptance paths; it does
+  to the typed cores returned by the three retained legacy acceptance APIs; it does
   not add a full source-rewriting equivalence claim.
 - `checkProgram_core` proves that successful `checkProgram` execution produced
   an exact lowered core module accepted by the actual `checkModule`.
@@ -197,6 +228,10 @@ CI audits the oracle namespace against Lean's standard logical axioms
 (`propext`, `Classical.choice`, and `Quot.sound`).
 
 ## Stage 1b capture and static function contracts
+
+**Retained `checkSurfaceProgram` composition.** Its exact old-Core
+conclusions are distinct from current `Indexed.FunctionSource` acceptance and
+`IndexedProgramSafety`. See the indexed function section for that connection.
 
 `VastitasOracle.Functions` imports the actual `FunctionChecker`. Surface Fn
 syntax is separate from core Raw/Checked IR. The actual acceptance path checks
@@ -464,7 +499,7 @@ function-space differentiation, Lean soundness and the actual returned-Core
 connection remain separate obligations. No implicit metric or gradient, new
 AD engine, integral-enclosure verifier or variational compiler feature is added.
 
-The Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
+The retained Stage 0 source-correspondence theorem starts at decoded core `RawModule`.
 The full Stage 1 rewriting pass from decoded surface `Program` (or legacy
 `RawProgram`) to that core does
 **not** yet have a source-correspondence theorem. Finite selection tables and
@@ -477,7 +512,7 @@ serialization or decoding, diagnostic spans, or the accuracy of diagnostic
 prose. The core correspondence relation records elaboration into checked
 syntax; it is not a separate operational-equivalence theorem for source text.
 
-The big-step semantics evaluates both operands of Boolean `&&` and `||`;
+The retained legacy big-step semantics evaluates both operands of Boolean `&&` and `||`;
 generated Lean uses short-circuit evaluation. The proved contract concerns
 values and types in the pure, terminating Stage 0 core. It does not assert
 identical evaluation order, execution traces, or resource costs. Nor is there
@@ -491,16 +526,18 @@ The ordinary/smooth affine descriptors remain a restricted geometric core.
 These results do not formalize all schemes or C-infinity schemes, prove
 general geometric constructions, establish numerical accuracy, or certify
 physical adequacy. The auxiliary coordinate interpretation is limited to the
-stated zero/identity fragment. User-defined types and
-capabilities, ownership transfer, storage ownership, linear
-algebra, iteration, and recursion remain unimplemented and outside these
-theorems. Finite static dispatch does not establish those later Stage 1 goals.
+stated zero/identity fragment. Later indexed declarations, abstract capabilities,
+edit-authority transfer, resource ownership and finite numerical profiles have
+their own checker/proof contracts described above and below. They are outside
+these retained Stage 0 theorems. Implementation status and remaining extensions
+are tracked in the README and the Stage 1 acceptance/completion ledgers.
 
 ## Validation
 
 The [initial promotion contract](promotion.md) documents the arbitrary-input
-numerical proofs in `VastitasOracle.Promotion`, reflection of the actual checked
-stdlib bodies, frontend-fixture agreement, and the distinction between proof
+numerical proofs in `VastitasOracle.IndexedPromotion`, reflection of the stdlib's
+actual public `Indexed.LegacySource.check` executable Core, frontend-fixture
+agreement, and the distinction between proof
 statements and executable fixture/namespace/native checks.
 
 Run from the repository root:
@@ -516,8 +553,8 @@ python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/check_boundaries.py
 ```
 
-`TypeAuditRegression` is an explicit build target: its executable checks forge
-checked terms directly, bypassing elaboration. They exercise invalid operand
+`TypeAuditRegression` is a retained old-Core build target: its executable checks forge
+legacy checked terms directly, bypassing elaboration. They exercise invalid operand
 and result annotations, variables, nominal identities, substitutions,
 packages, symbol reuse, and dependency cycles. They also verify that the code
 generator rejects forged modules carrying only the legacy annotation
@@ -531,12 +568,37 @@ after pair repairs, complete triple repairs, permutations, and the 4096-key
 boundary. It also checks that applicable losing methods and keys outside the
 domain appear in the ground-body work list.
 
-`FunctionRegression` exercises actual public function acceptance, capture
+`FunctionRegression` exercises retained `checkSurfaceProgram` acceptance, capture
 rejection and forged static signatures, including mismatched types with equal
 arities and unknown targets for erased function arguments. Rust function tests
 cover native higher-order composition, independent nesting, all Fn arities,
 dispatch and multiple libraries, unused invalid bodies, changed diagnostic
 spans, the 4096-instance limit and reachability after whole-module checking.
+
+Current JSON acceptance is exercised directly by `LegacySourceRegression`:
+protocols 2–6, strict metadata/provenance rejection, unused bodies, Fn capture and
+signature failures, recursion, Pair construction/projection, abstract-contract
+coverage/results, and mutations of the exact returned indexed Core. Its positive
+Core is evaluated and passed to `Indexed.Core.Codegen.generate`.
+`VastitasPublicTest.AuthorityRegression` adds actual frontend protocol-6 fixture
+agreement, nested reborrowing/transfer through protocols 6 and 7, and direct
+exclusive edits through protocol 5. It checks parent suspension, inside-out
+returns, recipient/region provenance, final footprints, old-owner revocation,
+applied/unapplied/losing bodies and downgrade rejection under both check/emit
+entry policies. All five accepted cases evaluate the actual returned Core and
+pass it to current code generation. The fixture is separate from the compiler
+library; its relocated paths assert IR provenance, not filesystem authenticity.
+`VastitasPromotion.IndexedRegression` supplies the numerical public-route cases.
+The current indexed Core/function/dispatch/authority regression targets retain
+their more detailed internal forged-IR cases. Keeping the old tests provides
+additional coverage of retained APIs; it does not turn them into public-path tests.
+
+Regenerate and check the actual-source authority fixture when its source changes:
+
+```sh
+VASTITAS_UPDATE_AUTHORITY_FIXTURE=1 cargo test --locked --test edit_authority authority_ir_matches_public_checker_fixture -- --exact
+lake -d lean-kernel build VastitasPublicTest.AuthorityRegression
+```
 
 Rust integration tests exercise parsing and diagnostics, malformed raw IR,
 semantic rejection codes, native execution, source libraries, implementation
@@ -549,6 +611,11 @@ acquiring a mathlib dependency.
 
 
 ## Package namespace acceptance
+
+**Shared namespace audits; retained legacy body composition.**
+`checkNamespaceProgram_*` targets the old surface/Core checker. The public
+protocol-3 decoder now enters `Indexed.LegacySource.check`, preserving original
+namespace provenance before the common indexed authority check.
 
 `VastitasOracle.Namespaces` imports the actual `NamespaceChecker` implementation.
 `checkNamespaceProgram_audited` connects acceptance to the actual namespace
@@ -628,21 +695,27 @@ under permutations of the base keys and validated contracts. Together with the
 hierarchy construction and finite engine's method-permutation theorems, these
 cover the order-independent components used for selection. They do not assert
 that diagnostics have identical ordering, or prove all parser/lowering behavior.
-The existing `Functions.checkSurfaceProgram_core` and namespace composition
-continue to connect protocol-4 acceptance to the exact independently checked
-core, its typing, dependency order, endpoint preservation and termination.
+These shared contract facts are used by the current indexed dispatch/authority
+composition. `LegacySource` connects public protocol-4 acceptance to its exact
+independently checked indexed Core, typing and total evaluation.
+`Functions.checkSurfaceProgram_core` and the old namespace composition remain
+separate corollaries about retained APIs.
 No theorem asserts native toolchain equivalence or mathematical properties of
 uninhabited Variety/Manifold declarations. Compiler/runtime remain mathlib-free.
 
 ## Stabilization audits
 
+**Retained composition lemmas.** The namespace/function top-level theorems in
+this section concern the old checker; current indexed namespace and static-call
+connections are in `IndexedSource`, `IndexedFunctions` and `IndexedAuthority`.
+
 `checkNamespaceProgram_full_audit` and `accepted_memberships_authorized` connect
-the public package checker to a separately reconstructed membership graph.
+the retained package checker to a separately reconstructed membership graph.
 Every inherited scalar membership has support declared in the ancestor's exact
 module, using an abstract-only inheritance path. This is a decoded-input
 authority guarantee, not filesystem or author authentication.
 
-The common function lowerer indexes structural function/instance identities.
+The retained function lowerer indexes structural function/instance identities.
 `definitionLookup_matches_list` proves equality with the original first-match
 list lookup, even before duplicate-name validation. The independent static-call
 audit has a different contract: it must find *any* definition with both the
@@ -677,6 +750,12 @@ under its 60-second watchdog.
 
 ## Scoped edit assembly acceptance (protocol 5)
 
+**Retained protocol-5 composition.** The `Edit.runTrace`/`Edit.assemble` and
+`checkEditProgram_*` entry points below are historical APIs. Current protocol 5
+is adapted into `Indexed.AuthoritySource`, using `Authority.assemble` and its
+full indexed-body audits. Shared transition/footprint facts retain their stated
+premises; the old-Core conclusions are not current wire-acceptance corollaries.
+
 `VastitasOracle.EditBorrowing` imports the actual `VastitasKernel.Edit` checker.
 Its `runTrace_sound` proves that successful execution has a `Trace` whose every
 step satisfies the independent `TransitionAllowed` relation and `StateValid`
@@ -701,7 +780,7 @@ contract results. Seal prevents subsequent edits of that generic; completion is
 checked over the final immutable environment before acceptance. This does not
 claim an intermediate Open state is callable or complete.
 
-`checkEditProgram_audited` unfolds the public checker: its exact discarded audit
+`checkEditProgram_audited` unfolds the retained legacy checker: its exact discarded audit
 surface and exact final executable surface both pass `checkSurfaceProgram`.
 The audit adds ground instances of unapplied contribution bodies without adding
 dispatch candidates. Existing all-applicable-method checks include losing applied
@@ -711,7 +790,7 @@ existing core typing, dependency and terminating typed-evaluation theorems.
 This composition does not prove arbitrary Rust parsing or native codegen correct.
 
 `EditRegression` runs through `NamespaceRegression` in the common eight-target
-script. It exercises actual acceptance and direct Lean API forgery attempts.
+script. It exercises retained legacy acceptance and direct Lean API forgery attempts.
 `tests/edit_borrowing.rs` covers source packages, tampered protocol 5, alias replay,
 exclusive loans, owner suspension, Open repair, final footprints, losing/unused
 bodies, changed hierarchy/contracts and native execution. Both run in macOS/Linux
@@ -719,6 +798,9 @@ no-mathlib CI; the proof oracle and transitive axiom audit remain separate.
 Guarantees start at decoded input, not filesystem authenticity or authorship.
 
 ### First finite edit composition contract (v1)
+
+**Retained legacy contract.** This proposition and its regression script
+remain about `checkEditProgram`, not the current public JSON entry point.
 
 `VastitasOracle.EditBorrowing.checkEditProgram_finite_acceptance`, in
 [`EditAcceptance.lean`](../lean/VastitasOracle/EditAcceptance.lean), has the premise
@@ -831,8 +913,8 @@ does not extend any public acceptance theorem or complete #244 / #237.
 
 ## Edit authority acceptance (protocol 6)
 
-`VastitasKernel.Authority` is the actual implementation used by public wire
-version 6. It imports the namespace, contribution-lowering, final dispatch and
+`VastitasKernel.Authority.assemble` supplies the authority assembly used by
+the current indexed public composition, including adapted protocol 6. It imports the namespace, contribution-lowering, final dispatch and
 unapplied-body mechanisms from the existing compiler. Its `TransitionAllowed`,
 `StateValid`, `ChainValid` and `HistoryValid` propositions are defined separately
 from `step`; acceptance audits every prefix. `DeclarationsCorrespond` compares
@@ -850,14 +932,15 @@ and `final_winner_authorized` connect final winning footprints to every ancestor
 region. Membership and abstract-contract authority continue through the existing
 exact-defining-module namespace audits.
 
-`checkAuthorityProgram_audited` connects the actual returned `CertifiedModule`
+`checkAuthorityProgram_audited` describes the retained legacy top-level checker.
+It connects that checker's returned `CertifiedModule`
 to both the checked unapplied-body audit surface and the exact checked final
 surface. `checkAuthorityProgram_typed_and_ordered` and
 `checkAuthorityProgram_total_for_arguments` compose with the existing Core
 theorems. No claim is made that an Open intermediate family is executable.
 
 `AuthorityRegression` is an additional target in the shared regression script.
-It exercises actual acceptance, rejected legacy API bypasses, forged parent
+It exercises retained legacy acceptance, rejected API bypasses, forged parent
 links/regions/recipient records and invented histories. `tests/edit_authority.rs`
 covers source and wire paths, native execution, alias replay, transfer before
 or after borrowing, retained grants and Open obligations, repaired ambiguity,

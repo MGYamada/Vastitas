@@ -4,8 +4,9 @@ import VastitasOracle.ActivationSafety
 namespace VastitasOracle
 open VastitasKernel VastitasKernel.Semantics
 
-/-- Stage 0's combined checker-soundness and type-safety result. The premise is
-success of the actual public checker on decoded input IR. The conclusions relate
+/-- The retained legacy Core checker-soundness and type-safety result. The premise is
+success of the old `checkModule` on decoded input IR. Main now uses the
+indexed public routes; this does not transfer legacy source correspondence to them. The conclusions relate
 the input declarations/bodies to the checked terms, establish independent typing
 and a strict dependency order, and give a finite typed evaluation for every
 well-typed argument environment. Runtime endpoint interpretation is part of

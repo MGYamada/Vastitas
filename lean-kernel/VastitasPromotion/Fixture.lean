@@ -3,7 +3,11 @@ import VastitasKernel.FunctionChecker
 import VastitasKernel.Semantics
 import Lean.Elab.Term
 
-/-! Fixed frontend fixture for the stdlib's numerical contracts. Rust CI checks
+/-! Retained legacy checker fixture/regression. Public indexed acceptance and
+numerical regression live in IndexedFixture and IndexedRegression; these old
+entry points are not used by Main.
+
+ Fixed frontend fixture for the stdlib's numerical contracts. Rust CI checks
 this exact JSON against the canonical .vast sources. This is not a proof of
 the Rust parser or a general source-level operational correspondence theorem. -/
 namespace VastitasKernel.PromotionFixture
@@ -37,7 +41,7 @@ open Lean Elab Term in
 /-- Reflect the exact output of the actual checker, not a handwritten model.
 The kernel subsequently checks proofs about this ordinary CheckedModule term.
 Concrete frontend/decoder/checker agreement is also checked below at build time;
-general public-checker soundness remains the oracle's acceptance theorem. -/
+general legacy-checker soundness remains the oracle's acceptance theorem. -/
 elab "stdlib_checked% " path:str : term => do
   let file := System.FilePath.mk (← readThe Lean.Core.Context).fileName
   let source ← IO.FS.readFile (file.parent.getD "." / path.getString)

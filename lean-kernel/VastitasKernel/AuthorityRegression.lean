@@ -1,5 +1,9 @@
 import VastitasKernel.Authority
 
+/-! Retained legacy top-level checker/Core regressions. Current public JSON
+acceptance is covered by LegacySourceRegression and
+VastitasPublicTest.AuthorityRegression; shared namespace/dispatch/trace helpers
+remain live in the indexed composition. -/
 namespace VastitasKernel.Authority.Regression
 open Namespace
 private def app : PackageId := ⟨"/app/Vastitas.toml", "app", "0.1.0"⟩
@@ -50,7 +54,7 @@ private def rejects (result : Except Diagnostic α) (code : String) : Bool :=
   | .ok _ => false
   | .error diagnostic => diagnostic.code == code
 
-#eval check "actual public authority acceptance" ((checkAuthorityProgram program true).isOk)
+#eval check "retained authority checker acceptance" ((checkAuthorityProgram program true).isOk)
 #eval check "legacy direct API cannot skip authority" (rejects (checkEditProgram program) "E_PROTOCOL")
 #eval check "namespace API cannot skip authority" (rejects (checkNamespaceProgram program) "E_PROTOCOL")
 #eval check "forged old protocol cannot carry authority syntax" (rejects

@@ -103,6 +103,15 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertTrue(any("no external Lake" in error for error in errors))
         self.assertEqual(sum("runtime must not import" in error for error in errors), 3)
 
+    def test_public_source_fixture_cannot_enter_the_compiler(self):
+        self.write("lean-kernel/VastitasPublicTest/AuthorityRegression.lean",
+                   "import VastitasKernel.LegacySource\nimport Lean\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/Core.lean",
+                   "import VastitasPublicTest.AuthorityRegression\n")
+        self.assertTrue(any("forbidden import VastitasPublicTest.AuthorityRegression" in error
+                            for error in check_boundaries(self.root)))
+
     def test_storage_fixtures_stay_within_the_test_library(self):
         self.write("lean-kernel/VastitasStorageTest/Regression.lean",
                    "import VastitasStorageTest.NumericalFixture\nimport VastitasKernel.Storage\n")

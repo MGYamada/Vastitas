@@ -2,7 +2,9 @@ import VastitasKernel.Semantics
 import VastitasOracle.Core
 
 /-!
-Semantic lemmas for the actual runtime values and nominal type indices.
+Retained old-Core semantic lemmas for its runtime values and nominal type indices.
+Current public indexed evaluation safety is proved in IndexedEvaluationSafety;
+these legacy Semantics.Eval results do not transfer across the new source lowering.
 
 This module deliberately does not yet assert whole-term or checker soundness.
 Those obligations additionally require a typing derivation from the actual

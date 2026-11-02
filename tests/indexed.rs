@@ -52,7 +52,13 @@ fn rejected(source: &str, code: &str) {
 
 #[test]
 fn declaration_package_and_static_fn_compile_to_native() {
-    let s = fixture(MAIN);
+    let adjacent = MAIN
+        .replace(
+            "let q:",
+            "let same: Object<geo::Scheme, geo::QQ>= Y;\n    let q:",
+        )
+        .replace("> =", ">=");
+    let s = fixture(&adjacent);
     success(&check(&s));
     success(
         &cli()
@@ -66,6 +72,35 @@ fn declaration_package_and_static_fn_compile_to_native() {
         .unwrap();
     success(&output);
     assert_eq!(output.stdout, b"42\n");
+}
+
+#[test]
+fn indexed_calls_explain_missing_conversion_and_literal_pair_inference() {
+    for (source, hint) in [
+        (
+            "mod geo; fn main() -> Int { nat_to_int(1) }",
+            "arithmetic standard library",
+        ),
+        (
+            "mod geo; fn first(p: Pair<Nat>) -> Nat { pair_first(p) } fn main() -> Int { int(first(pair(0, 1))) }",
+            "pair infers its operands independently",
+        ),
+    ] {
+        let result = check(&fixture(source));
+        assert!(!result.status.success());
+        let message = String::from_utf8_lossy(&result.stderr);
+        assert!(message.contains(hint), "{message}");
+        let response = kernel(request(&fixture(source)), "check");
+        assert_eq!(response["ok"], false);
+        assert!(
+            response["diagnostics"][0]["notes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|note| note["message"].as_str().unwrap().contains(hint)),
+            "{response}"
+        );
+    }
 }
 
 #[test]

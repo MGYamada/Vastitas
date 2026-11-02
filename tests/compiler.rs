@@ -239,6 +239,40 @@ fn native_base_objects_pack_and_unpack_in_both_settings() {
 }
 
 #[test]
+fn pair_literal_arguments_explain_independent_inference_without_changing_it() {
+    let header = "fn first(p: Pair<Nat>) -> Nat { pair_first(p) } ";
+    let message = reject(
+        &format!("{header} fn main() -> Int {{ int(first(pair(0, 1))) }}"),
+        "E_TYPE",
+    );
+    assert!(
+        message.contains("expected Pair<Nat>, found Pair<Int>"),
+        "{message}"
+    );
+    assert!(
+        message.contains("help: pair infers its operands independently"),
+        "{message}"
+    );
+    assert!(message.contains("let a: Nat = 0"), "{message}");
+    for value in ["pair(-1, 1)", "pair(x, x)"] {
+        let message = reject(
+            &format!("{header} fn bad(x: Int) -> Nat {{ first({value}) }}"),
+            "E_TYPE",
+        );
+        assert!(
+            !message.contains("bind and annotate Nat operands first"),
+            "{message}"
+        );
+    }
+    native(
+        &format!(
+            "{header} fn main() -> Int {{ let a: Nat = 0; let b: Nat = 1; int(first(pair(a, b))) }}"
+        ),
+        "0",
+    );
+}
+
+#[test]
 fn conditional_literal_typing_is_symmetric_and_branch_order_is_preserved() {
     native(
         "fn first(n: Nat, choice: Bool) -> Nat { let x = if choice { n } else { 1 }; x } fn second(n: Nat, choice: Bool) -> Nat { let x = if choice { 1 } else { n }; x } fn main() -> Int { if first(7, true) == 7 && first(7, false) == 1 && second(7, true) == 1 && second(7, false) == 7 { 42 } else { -1 } }",

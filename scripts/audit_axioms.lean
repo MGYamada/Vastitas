@@ -18,4 +18,12 @@ run_cmd do
           throwError "unapproved axiom {axiomName} in {name}"
       count := count + 1
   logInfo m!"axiom audit passed for {count} declarations"
+  -- #350's least witness must come from accessibility search, not choice.
+  for name in #[`VastitasOracle.LeastFuel.least, `VastitasOracle.LeastFuel.least_spec,
+      `VastitasOracle.LeastFuel.least_minimal] do
+    let axioms ← Lean.collectAxioms name
+    for axiomName in axioms do
+      unless #[`propext, `Quot.sound].contains axiomName do
+        throwError "choice or unapproved axiom {axiomName} in least-fuel search {name}"
+  logInfo "least-fuel search uses no Classical.choice or custom axiom"
 

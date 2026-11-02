@@ -61,6 +61,10 @@ The Rust frontend is in `src/`, the mathlib-free Lean backend in `lean-kernel/`,
 the mathlib-free proof oracle in `lean/`; the oracle imports the actual backend
 definitions. Ordinary compilation does not invoke the proof oracle.
 
+[Least-fuel meaning for accepted scalar Core](universe-totality.md) records the
+first finite #350 totality proofs, their connection to the actual checker and
+evaluator, and the remaining stateful, composition and CF obligations.
+
 Stage 0 geometry syntax remains supported for compatibility, so its specification
 is not obsolete merely because it is old. General polynomial morphisms, AD,
 numerical solvers, physical models, and evidence management are later work. This

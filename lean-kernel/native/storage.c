@@ -148,6 +148,9 @@ static VStorageStatus prepare(VStorageArena *arena, uint32_t id, VStorageLayout 
     if (!multiply(view.leading, width, &stride) || !multiply(view.rows, view.columns, &bytes) ||
         !multiply(bytes, width, &bytes)) return VS_OVERFLOW;
     if (view.rows && view.columns) {
+        /* A typed view begins at a whole element relative to its allocation.
+         * This is separate from the ABI's 8-byte component pointer alignment. */
+        if (view.offset % width) return VS_LAYOUT;
         if (!multiply(view.rows - 1, width, &row_bytes) || !multiply(view.columns - 1, stride, &column_bytes) ||
             !add(end, row_bytes, &end) || !add(end, column_bytes, &end) || !add(end, width, &end)) return VS_OVERFLOW;
         if (end > buffer->capacity || !buffer->data) return VS_LAYOUT;

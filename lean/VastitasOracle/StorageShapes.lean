@@ -95,7 +95,8 @@ theorem eval_ancestor (values : Shapes.Valuation) (loans : List Shapes.Loan)
 
 theorem whole_layout_covers (layout : Storage.Layout) (scalar : Scalar) :
     layout.covers layout scalar = true := by
-  simp only [Storage.Layout.covers]
+  have sameOrigin : ((layout.offset - layout.offset) % scalar.width != 0) = false := by simp
+  simp only [Storage.Layout.covers, sameOrigin, Bool.false_eq_true, ↓reduceIte]
   split
   · rfl
   · simp only [Nat.lt_irrefl, Nat.sub_self]
@@ -731,8 +732,10 @@ theorem cell_covered {layout : Storage.Layout} {scalar : Scalar} {capacity row c
     simp only [cellLayout, Layout.address]
     omega
   have cellEmpty : (cellLayout layout scalar row column).empty = false := rfl
+  have sameOrigin : (((cellLayout layout scalar row column).offset - layout.offset) %
+      scalar.width != 0) = false := by simp [aligned]
   simp only [Layout.covers, cellEmpty, Bool.false_eq_true, ↓reduceIte,
-    nonempty, notBelow, decide_false, Bool.or_self]
+    nonempty, notBelow, decide_false, Bool.or_self, sameOrigin]
   cases contiguous : layout.contiguous
   · dsimp only [cellLayout] at aligned remainder quotient ⊢
     simp only [Bool.false_eq_true, ↓reduceIte, aligned, remainder, quotient,

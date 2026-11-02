@@ -85,6 +85,98 @@ const SELF_COPY: &str = "resource fn main() -> Int {
     value { 0 }
 }";
 
+const COMPLEX_BOUNDARIES: &str = "resource fn main() -> Int {
+    allocate data: Complex<F64>[8];
+    borrow init = write(data, layout(0, 8, 1, 8, false));
+    fill(init, complex_bits(4607182418800017408, 4611686018427387904));
+    store(init, 1, 0, complex_bits(4613937818241073152, 4616189618054758400));
+    release(init);
+    borrow parent = read_write(data, layout(0, 8, 1, 8, false));
+    borrow first = read(parent, layout(0, 1, 1, 1, false));
+    expect(first, 0, 0, complex_bits(4607182418800017408, 4611686018427387904));
+    release(first);
+    borrow padded = read(parent, layout(16, 1, 2, 3, true));
+    expect(padded, 0, 0, complex_bits(4613937818241073152, 4616189618054758400));
+    expect(padded, 1, 0, complex_bits(4607182418800017408, 4611686018427387904));
+    release(padded);
+    borrow empty = read(parent, layout(8, 0, 1, 1, false));
+    release(empty);
+    release(parent);
+    drop(data);
+    allocate real: F64[2];
+    borrow real_write = write(real, layout(8, 1, 1, 1, false));
+    fill(real_write, f64_bits(4607182418800017408));
+    release(real_write);
+    borrow real_read = read(real, layout(8, 1, 1, 1, false));
+    expect(real_read, 0, 0, f64_bits(4607182418800017408));
+    release(real_read);
+    drop(real);
+    value { 42 }
+}";
+
+#[test]
+fn complex_views_preserve_elements_through_source_wire_and_native_execution() {
+    let s = fixture(COMPLEX_BOUNDARIES, OPERATIONS);
+    success(&check(&s));
+    let raw = request(&s);
+    assert_eq!(kernel(&raw, "emit")["ok"], true);
+    success(
+        &cli()
+            .args(["build", "--manifest-path"])
+            .arg(s.0.join("app/Vastitas.toml"))
+            .arg("-o")
+            .arg(s.0.join("program"))
+            .output()
+            .unwrap(),
+    );
+    let result = Command::new(s.0.join("program")).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"42\n");
+    for layout in ["layout(0, 1, 1, 1, false)", "layout(16, 1, 2, 3, true)"] {
+        let invalid = COMPLEX_BOUNDARIES.replace(
+            layout,
+            &layout.replacen(
+                if layout.starts_with("layout(16,") {
+                    "16"
+                } else {
+                    "0"
+                },
+                "8",
+                1,
+            ),
+        );
+        rejected(&invalid, OPERATIONS, "E_RESOURCE_REGION");
+    }
+    rejected(
+        &COMPLEX_BOUNDARIES.replace(
+            "read(parent, layout(0, 1, 1, 1, false))",
+            "read(data, layout(8, 1, 1, 1, false))",
+        ),
+        OPERATIONS,
+        "E_RESOURCE_LAYOUT",
+    );
+    // The original allocation is already fully initialized. Neither source nor
+    // forged wire input may reinterpret an imaginary component as a new real one.
+    let root = module(&raw, "storage_example", json!([]));
+    let mut changed = raw.clone();
+    let body = changed
+        .pointer_mut(&format!("{root}/resource_functions/0/body"))
+        .unwrap()
+        .as_array_mut()
+        .unwrap();
+    let padded = body
+        .iter_mut()
+        .find(|statement| statement["action"]["layout"]["offset"] == 16)
+        .unwrap();
+    padded["action"]["layout"]["offset"] = json!(8);
+    for operation in ["check", "emit"] {
+        let rejected = kernel(&changed, operation);
+        assert_eq!(rejected["ok"], false, "{rejected}");
+        assert_eq!(rejected["diagnostics"][0]["code"], "E_RESOURCE_REGION");
+        assert!(rejected.get("lean_source").is_none());
+    }
+}
+
 #[test]
 fn initialized_self_copy_is_checked_and_erased_before_native_generation() {
     let s = fixture(SELF_COPY, OPERATIONS);

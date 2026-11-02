@@ -4,6 +4,9 @@
 Also executes closed fixtures through the nominal resource-function checker.
 Neither fixture entry point is a public source GEMM interface.
 """
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
+
 import argparse
 import copy
 import itertools

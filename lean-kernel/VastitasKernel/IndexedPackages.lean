@@ -1,8 +1,10 @@
 import VastitasKernel.Indexed
 
 /-! Generic, single-witness existential package contracts. The indexed Core and
-oracle payload semantics use these exact records; public protocol-7 declaration
-integration remains pending. Every field retains its bound witness and family. -/
+oracle payload semantics use these exact records. Public protocol 7 resolves and
+audits their source declarations through `Indexed.Wire.check`; declaration
+acceptance alone does not check bodies. Every field retains its bound witness
+and family. -/
 namespace VastitasKernel.Indexed
 
 /-- A package template may mention its own bound object and validated globals;

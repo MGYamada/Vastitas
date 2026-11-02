@@ -3,7 +3,9 @@ import VastitasKernel.IndexedPackages
 /-! Closed primitive signature/binding contracts for the finite descriptor
 representation. These internal audits do not accept arbitrary native primitives
 or attest mathematical geometry. Core typing and primitive runtime semantics
-use these exact contracts; public declaration syntax remains pending. -/
+use these exact contracts. Public protocol 7 resolves their declaration syntax
+through `Indexed.Wire.check` and sends its returned Core to `IndexedCodegen`;
+native refinement remains unproved. -/
 namespace VastitasKernel.Indexed
 
 /-- Upcasts use the complete current static domain. A narrow original brand

@@ -66,6 +66,17 @@ theorem unique_instructions {first second : Native.Plan}
   have equality := a.lowered.symm.trans ((congrArg (Native.lower 4096 {}) same).trans b.lowered)
   exact congrArg Prod.snd (Except.ok.inj equality)
 
+/-- Lowering erases self-copy rather than relying on a native alias special
+case. `lowered_state` connects the surrounding lowering to `checkAction`, where
+the original loan permissions and initialization are still checked. -/
+theorem self_copy_erased {state : State} {name : Symbol} {instructions : List Native.Instruction}
+    (accepted : Native.action state (.copy name name) = .ok instructions) : instructions = [] := by
+  cases found : state.loan? name with
+  | none =>
+    simp [Native.action, found] at accepted
+    cases accepted
+  | some loan => simpa [Native.action, found] using accepted.symm
+
 /-- Even direct callers supplying an untrusted native plan must obtain the
 actual source checker certificate and exact lowering before any text is returned. -/
 theorem generated_checked {plan : Native.Plan} {report : Bool} {budget : Nat} {text : String}

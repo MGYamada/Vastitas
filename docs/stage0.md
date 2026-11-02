@@ -40,7 +40,10 @@ existing binding or a function name.
 
 Identifiers are ASCII letters, digits, and underscores, with a non-digit first
 character. Source files are UTF-8; whitespace and `//` comments can contain
-Unicode. Diagnostics use byte offsets and one-based Unicode-scalar columns.
+Unicode. Lines use LF or CRLF. Bare CR, NEL, Unicode line/paragraph separators,
+vertical tab, form feed and the ASCII file/group/record separators are rejected,
+including inside comments and raw quoted paths. Diagnostics use byte offsets
+and one-based Unicode-scalar columns.
 Trailing commas are accepted in argument lists and package fields.
 
 ## Scalars
@@ -131,7 +134,7 @@ native compilation; a failed compile preserves an existing output file.
 The backend and its native runtime artifacts must already be built with
 `lake -d lean-kernel build vastitas-kernel`. A missing backend, protocol mismatch,
 semantic error, or failed native build is an error; there is no frontend-only
-fallback. The frontend bounds recursive parsing at 64 levels and syntax trees
+fallback. The frontend bounds combined type/expression recursive parsing at 64 levels and syntax trees
 at 128 nodes of depth, including left-associated operator chains. A standalone
 `if`/`else if` chain supports at most 62 conditions; enclosing expressions also
 consume the nesting budget. The protocol

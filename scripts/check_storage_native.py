@@ -3,6 +3,9 @@
 
 This is a regression harness, not public protocol 8 or a user-facing interpreter.
 """
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
+
 import copy
 import json
 import os
@@ -12,6 +15,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
+from native_sanitizers import FLAGS as SANITIZER_FLAGS
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,17 +37,17 @@ def main():
         work = Path(directory)
         sanitizer = work / "sanitizer"
         run([*shlex.split(os.environ.get("CC", "cc")), "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror",
-             "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+             *SANITIZER_FLAGS,
              NATIVE / "storage.c", NATIVE / "test_storage.c", "-o", sanitizer])
         print(run([sanitizer]).stdout.strip())
         blocks = work / "regroup-blocks-sanitizer"
         run([*shlex.split(os.environ.get("CC", "cc")), "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror",
-             "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+             *SANITIZER_FLAGS,
              NATIVE / "test_regroup_blocks.c", "-o", blocks])
         print(run([blocks]).stdout.strip())
         diagonal = work / "diagonal-sanitizer"
         run([*shlex.split(os.environ.get("CC", "cc")), "-std=c11", "-O3", "-Wall", "-Wextra", "-Werror",
-             "-fsanitize=address,undefined", "-fno-omit-frame-pointer",
+             *SANITIZER_FLAGS,
              NATIVE / "storage.c", NATIVE / "diagonal.c", NATIVE / "test_diagonal.c", "-o", diagonal])
         print(run([diagonal]).stdout.strip())
         # A standalone consumer depends only on this optional runtime package.

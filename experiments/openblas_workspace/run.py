@@ -75,7 +75,7 @@ def main():
     cc = str(Path(cc).resolve())
     # Deliberately do not inherit Make/C/compiler/preload options. Preserve only
     # host tool discovery, SDK/temp paths and locale; this is not a hermetic SDK.
-    env = {k: os.environ[k] for k in ('PATH','HOME','TMPDIR','SDKROOT','DEVELOPER_DIR','LANG') if k in os.environ}
+    env = {k: os.environ[k] for k in ('PATH','HOME','ELAN_HOME','TMPDIR','SDKROOT','DEVELOPER_DIR','LANG') if k in os.environ}
     env.update(OPENBLAS_NUM_THREADS='1', GOTO_NUM_THREADS='1', OMP_NUM_THREADS='1', LC_ALL='C')
     run = Runner(out, env)
     head = run.run(['git','rev-parse','HEAD'], 'git-head')[0].strip()

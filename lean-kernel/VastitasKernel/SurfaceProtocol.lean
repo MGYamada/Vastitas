@@ -7,24 +7,25 @@ open Lean JsonDecode
 
 private def decodeIndex (j : Json) : Except String RawIndex := do
   match ← str j "kind" with
-  | "name" => pure (.name (← str j "name"))
-  | "base" => pure (.base (← str j "ring"))
+  | "name" => fields j ["kind", "name"]; pure (.name (← str j "name"))
+  | "base" => fields j ["kind", "ring"]; pure (.base (← str j "ring"))
   | k => throw s!"unknown index kind '{k}'"
 
 private def decodeType : Nat → Json → Except String Surface.TypeExpr
   | 0, _ => throw "IR type nesting exceeds the supported limit"
   | fuel + 1, j => do
     match ← str j "kind" with
-    | "function" => pure (.function (← (← array j "params").mapM (decodeType fuel))
+    | "function" => fields j ["kind", "params", "return_type"]; pure (.function (← (← array j "params").mapM (decodeType fuel))
         (← decodeType fuel (← field j "return_type")))
-    | "named" => pure (.data (.named (← str j "name")))
-    | "pair" => pure (.data (.pair (← str j "element")))
-    | "point" => pure (.data (.point (← decodeIndex (← field j "target")) (← decodeIndex (← field j "source"))))
-    | "morphism" => pure (.data (.morphism (← decodeIndex (← field j "source")) (← decodeIndex (← field j "target"))))
-    | "pointed" => pure (.data (.pointed (← str j "setting") (← str j "base")))
+    | "named" => fields j ["kind", "name"]; pure (.data (.named (← str j "name")))
+    | "pair" => fields j ["kind", "element"]; pure (.data (.pair (← str j "element")))
+    | "point" => fields j ["kind", "target", "source"]; pure (.data (.point (← decodeIndex (← field j "target")) (← decodeIndex (← field j "source"))))
+    | "morphism" => fields j ["kind", "source", "target"]; pure (.data (.morphism (← decodeIndex (← field j "source")) (← decodeIndex (← field j "target"))))
+    | "pointed" => fields j ["kind", "setting", "base"]; pure (.data (.pointed (← str j "setting") (← str j "base")))
     | k => throw s!"unknown type kind '{k}'"
 
 private def decodeParam (j : Json) : Except String Surface.Param := do
+  fields j ["name", "ty", "span"]
   pure { name := ← str j "name", ty := ← decodeType Limits.typeNesting (← field j "ty"), span := ← decodeSpan j }
 
 mutual
@@ -33,22 +34,22 @@ mutual
     | fuel + 1, j => do
       let s ← decodeSpan j
       match ← str j "kind" with
-      | "integer" => pure (.integer (← str j "value") s)
-      | "boolean" => pure (.boolean (← j.getObjValAs? Bool "value") s)
-      | "unit" => pure (.unit s)
-      | "variable" => pure (.variable (← str j "name") s)
-      | "call" => pure (.call (← str j "callee") (← (← array j "args").mapM (decodeExpr fuel)) s)
-      | "invoke" => pure (.invoke (← decodeExpr fuel (← field j "callee"))
+      | "integer" => fields j ["kind", "value", "span"]; pure (.integer (← str j "value") s)
+      | "boolean" => fields j ["kind", "value", "span"]; pure (.boolean (← j.getObjValAs? Bool "value") s)
+      | "unit" => fields j ["kind", "span"]; pure (.unit s)
+      | "variable" => fields j ["kind", "name", "span"]; pure (.variable (← str j "name") s)
+      | "call" => fields j ["kind", "callee", "args", "span"]; pure (.call (← str j "callee") (← (← array j "args").mapM (decodeExpr fuel)) s)
+      | "invoke" => fields j ["kind", "callee", "args", "span"]; pure (.invoke (← decodeExpr fuel (← field j "callee"))
           (← (← array j "args").mapM (decodeExpr fuel)) s)
-      | "lambda" => pure (.lambda (← (← array j "params").mapM decodeParam)
+      | "lambda" => fields j ["kind", "params", "return_type", "body", "span"]; pure (.lambda (← (← array j "params").mapM decodeParam)
           (← decodeType Limits.typeNesting (← field j "return_type")) (← decodeBlock fuel (← field j "body")) s)
-      | "unary" => pure (.unary (← str j "op") (← decodeExpr fuel (← field j "operand")) s)
-      | "binary" => pure (.binary (← str j "op") (← decodeExpr fuel (← field j "left"))
+      | "unary" => fields j ["kind", "op", "operand", "span"]; pure (.unary (← str j "op") (← decodeExpr fuel (← field j "operand")) s)
+      | "binary" => fields j ["kind", "op", "left", "right", "span"]; pure (.binary (← str j "op") (← decodeExpr fuel (← field j "left"))
           (← decodeExpr fuel (← field j "right")) s)
-      | "if" => pure (.ite (← decodeExpr fuel (← field j "condition"))
+      | "if" => fields j ["kind", "condition", "then_branch", "else_branch", "span"]; pure (.ite (← decodeExpr fuel (← field j "condition"))
           (← decodeBlock fuel (← field j "then_branch")) (← decodeBlock fuel (← field j "else_branch")) s)
-      | "block" => pure (.block (← decodeBlock fuel (← field j "body")) s)
-      | "pack" => pure (.pack (← decodeExpr fuel (← field j "scheme")) (← decodeExpr fuel (← field j "point")) s)
+      | "block" => fields j ["kind", "body", "span"]; pure (.block (← decodeBlock fuel (← field j "body")) s)
+      | "pack" => fields j ["kind", "scheme", "point", "span"]; pure (.pack (← decodeExpr fuel (← field j "scheme")) (← decodeExpr fuel (← field j "point")) s)
       | k => throw s!"unknown expression kind '{k}'"
   private def decodeStmt : Nat → Json → Except String Surface.Stmt
     | 0, _ => throw "IR nesting exceeds the supported limit"
@@ -56,19 +57,22 @@ mutual
       let s ← decodeSpan j
       match ← str j "kind" with
       | "let" =>
+        fields j ["kind", "name", "annotation", "value", "span"]
         let annotation ← field j "annotation"
         let annotation ← if annotation == Json.null then pure none else some <$> decodeType Limits.typeNesting annotation
         pure (.letE (← str j "name") annotation (← decodeExpr fuel (← field j "value")) s)
-      | "unpack" => pure (.unpack (← decodeExpr fuel (← field j "value")) (← str j "scheme") (← str j "point") s)
+      | "unpack" => fields j ["kind", "value", "scheme", "point", "span"]; pure (.unpack (← decodeExpr fuel (← field j "value")) (← str j "scheme") (← str j "point") s)
       | k => throw s!"unknown statement kind '{k}'"
   private def decodeBlock : Nat → Json → Except String Surface.Block
     | 0, _ => throw "IR nesting exceeds the supported limit"
     | fuel + 1, j => do
+      fields j ["statements", "result", "span"]
       pure (.mk (← (← array j "statements").mapM (decodeStmt fuel))
         (← decodeExpr fuel (← field j "result")) (← decodeSpan j))
 end
 
-def decodeSurfaceFunction (j : Json) : Except String Surface.Function := do
+def decodeSurfaceFunction (j : Json) (allowPublic : Bool := false) : Except String Surface.Function := do
+  fields j (["name", "params", "return_type", "body", "span"] ++ if allowPublic then ["public"] else [])
   let name ← str j "name"
   let params ← (← array j "params").mapM decodeParam
   let result ← decodeType Limits.typeNesting (← field j "return_type")
@@ -76,8 +80,10 @@ def decodeSurfaceFunction (j : Json) : Except String Surface.Function := do
   let span ← decodeSpan j
   pure { name, params, result, body, span }
 
-def decodeSurfaceGeneric (j : Json) : Except String RawGeneric := do
+def decodeSurfaceGeneric (j : Json) (allowPublic : Bool := false) : Except String RawGeneric := do
+  fields j (["name", "params", "domain", "span"] ++ if allowPublic then ["public"] else [])
   let params ← (← array j "params").mapM fun param => do
+    fields param ["name", "span"]
     pure { name := ← str param "name", span := ← decodeSpan param : RawGenericParam }
   let domain ← (← array j "domain").mapM fun key => do
     (← key.getArr?).toList.mapM fun ty => do
@@ -86,6 +92,7 @@ def decodeSurfaceGeneric (j : Json) : Except String RawGeneric := do
   pure { name := ← str j "name", params, domain, span := ← decodeSpan j }
 
 def decodeSurfaceMethod (j : Json) : Except String Surface.Method := do
+  fields j ["name", "params", "return_type", "requires", "body", "span"]
   pure {
     name := ← str j "name"
     params := ← (← array j "params").mapM decodeParam
@@ -100,7 +107,8 @@ def decodeTypePath (j : Json) : Except String TypePath := do
   if path.isEmpty || path.any String.isEmpty then throw "empty type path"
   return { path, span := ← decodeSpan j }
 
-def decodeAbstractType (j : Json) : Except String RawAbstractType := do
+def decodeAbstractType (j : Json) (allowPublic : Bool := false) : Except String RawAbstractType := do
+  fields j (["name", "parents", "span"] ++ if allowPublic then ["public"] else [])
   return {
     name := ← str j "name", parents := ← (← array j "parents").mapM decodeTypePath,
     span := ← decodeSpan j }

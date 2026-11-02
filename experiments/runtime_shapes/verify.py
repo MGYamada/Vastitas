@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Independent retained-record arithmetic/hash audit; no compiler execution."""
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
+
 import argparse
 import hashlib
 import json

@@ -47,6 +47,40 @@ namespace VastitasKernel.Storage.Native.Regression
     | .action (.store _ 1 2 _) => false | _ => true
   if (generate {initialized with input, instructions}).isOk then
     throw (IO.userError "matching forged input/native omission bypassed initialization")
-  IO.println s!"native storage: exact lowering and {mutations.length + 7} forged/boundary cases passed"
+  let selfCopy := [Action.allocate 0 .f64 12, .borrow 1 (.owner 0) view .write,
+    .fill 1 (.f64 0), .release 1, .borrow 2 (.owner 0) view.transpose .readWrite,
+    .copy 2 2, .release 2, .drop 0] |>.map Statement.action
+  let .ok erased := compile selfCopy | throw (IO.userError "valid self-copy rejected")
+  if erased.instructions.any (fun i => match i with | .copy .. => true | _ => false) then
+    throw (IO.userError "self-copy emitted a native operation")
+  if !(generate erased).isOk then throw (IO.userError "erased self-copy generation failed")
+  let injected := erased.instructions.take 2 ++ [.copy 0 view.transpose 0 view.transpose] ++
+    erased.instructions.drop 2
+  if (generate {erased with instructions := injected}).isOk then
+    throw (IO.userError "forged native self-copy accepted")
+  let invalid := selfCopy.map fun s => match s with
+    | .action (.copy _ _) => .action (.copy 1 1) | _ => s
+  if (generate {erased with input := invalid}).isOk then
+    throw (IO.userError "erasure bypassed returned-loan rejection")
+  IO.println s!"native storage: exact lowering, self-copy erasure and {mutations.length + 9} forged/boundary cases passed"
+
+#eval show IO Unit from do
+  let view : Layout := ⟨16, 1, 2, 3, true⟩
+  let source := [Action.allocate 0 .complexF64 8, .borrow 1 (.owner 0) view .write,
+    .fill 1 (.complexF64 0 0), .release 1, .drop 0] |>.map Statement.action
+  let .ok checked := compile source | throw (IO.userError "valid complex view rejected")
+  if !(generate checked).isOk then throw (IO.userError "valid complex generation rejected")
+  let instructions := checked.instructions.map fun instruction => match instruction with
+    | .fill id layout value => .fill id {layout with offset := 8} value
+    | _ => instruction
+  if (generate {checked with instructions}).isOk then
+    throw (IO.userError "forged native complex half-element instruction accepted")
+  let input := source.map fun statement => match statement with
+    | .action (.borrow name parent layout access) =>
+      .action (.borrow name parent {layout with offset := 8} access)
+    | _ => statement
+  if (generate {checked with input, instructions}).isOk then
+    throw (IO.userError "matching forged source/native half-element view accepted")
+  IO.println "native storage: complex element boundary and forged lowering checks passed"
 
 end VastitasKernel.Storage.Native.Regression

@@ -7,12 +7,15 @@ emitted program with a matched C algorithm using contiguous `x`-block copies
 and the **same pinned sequential LP64 OpenBLAS 0.3.34 archive**. Native
 compilation, passing checks, and smoke ratios do not establish C parity.
 
-The C side uses the same arena allocation/fill/drop primitives and physical
-layout preparation, then its own pack loop and direct CBLAS call. It does not
-call `vstorage_pack3` or `vgemm_execute`. This controls allocator and setup
-policy while exposing generated FFI and adapter overhead; it is not a claim
-against every optimized C tensor implementation. Both sides use `-O3`, no LTO,
-one backend thread, the same layouts, initialization, and explicit scratch.
+The `arena_c` arm uses the same arena allocation/fill/drop primitives and
+physical preparation, then its own pack loop and direct CBLAS call. It exposes
+codegen/FFI overhead relative to the shared runtime. The separate
+[`plain_c` arm](../plain_c/README.md) uses aligned allocation, explicit block
+copies and direct CBLAS, with no Vastitas runtime, per-call preflight or cost
+counters in its primary timing loop. All three use `-O3`, no LTO, one backend
+thread, identical layouts, initialization, arithmetic order and caller scratch.
+Generated/plain-C is the performance comparator; archived generated/C records
+use arena-C and cannot establish standalone-C parity.
 
 ## Run
 
@@ -26,7 +29,7 @@ lake -d lean-kernel build
 python3 -m unittest discover -s experiments/tensor_packing -p 'test_*.py' -v
 python3 experiments/tensor_packing/run.py \
   --prefix /path/to/pinned-openblas --output /tmp/tensor-smoke \
-  --smoke --samples 3 --target-ms 0.1
+  --smoke --samples 6 --target-ms 0.1
 ```
 
 The output directory must not exist. The harness uses existing compiler/kernel
@@ -37,19 +40,19 @@ control and explicit `--no-leak-sanitizer` required because Apple ASan lacks
 LSan. Linux should retain the default ASan/UBSan/LSan validation. No unavailable
 toolchain fallback can turn a failed generated run into a successful result.
 
-A reproducible exploratory full run uses twelve cases and eleven paired
-samples with a 5 ms calibration target per batch:
+A reproducible exploratory full run uses twelve cases and twelve three-arm
+groups with a 5 ms calibration target per batch:
 
 ```sh
 python3 experiments/tensor_packing/run.py \
   --prefix /path/to/pinned-openblas --output /tmp/tensor-full \
-  --samples 11 --target-ms 5
+  --samples 12 --target-ms 5
 ```
 
 The dedicated Linux workflow runs four-case smoke validation on both `push`
 and `pull_request` for changes to the harness and its selected native/checker
 dependencies. Manual dispatch accepts `profile=smoke` (default) or `profile=full`;
-the latter uses all twelve cases, eleven paired samples and the 5 ms target.
+the latter uses all twelve cases, twelve three-arm groups and the 5 ms target.
 Both retain ASan/UBSan/LSan, one backend thread and a 45-minute job limit.
 The target applies during calibration, not as a guarantee that later batches
 remain above 5 ms; retain all samples when interpreting variability.
@@ -99,7 +102,9 @@ input bytes, and four patch scalars. A lifecycle repetition has four data
 allocations/frees; reused buffers have zero timed data allocations/frees.
 Peak data bytes are exactly `S`, including scratch and padding. Metadata
 allocations/peak bytes, total/timed writes/copies, drops, and zero final live
-bytes are checked on both sides, then paired records must agree exactly.
+bytes must agree for generated/arena-C. A separate plain-C diagnostic build
+must match the data costs; its pointer table is stack-resident. Plain-C timing
+rows leave cost fields blank (unobserved), and its diagnostic timings are excluded.
 The pack is never hidden as an untimed one-time preprocessing step.
 
 ## Acceptance and diagnostics
@@ -107,14 +112,14 @@ The pack is never hidden as an untimed one-time preprocessing step.
 Each case runs the real frontend check, canonical build and executable,
 independent Lean wire check/emit, then compiles a wrapper around that **actual
 emitted source**. In `lifecycle`, the wrapper removes only terminal printing
-and preserves the whole resource schedule and `try/finally`. In the three
+and preserves the whole resource schedule and emitted cleanup/error envelope. In the three
 reused scopes, it explicitly hoists the emitted setup/cleanup around a runtime
 loop of the emitted pack + GEMM instructions. This hoisting is an experimental
 reuse measurement, not execution of an unchanged single-shot public schedule.
 Instruction operands and cleanup remain exact; the wrapper fails closed if
 codegen's reviewed straight-line shape changes. Private runtime copies provide timing,
-counters, and inspection; production files are untouched. Both sides execute
-the same untimed generated warmup in each fresh process.
+counters, and inspection; production files are untouched. Each arm executes
+one complete untimed lifecycle in its own fresh process.
 
 The oracle checks every original/right element, every packed coordinate
 `packed[x+i*y,z] = T[x,z+k*y]`, every output coordinate against a direct
@@ -126,19 +131,20 @@ both packed-coordinate and resulting-output oracles to reject it before
 restoring the valid operation. Input, pack,
 and padding checks are bit exact; arithmetic output has an explicit
 `32*epsilon*(k+1)*max(1,abs(expected))` tolerance. Hashes must also agree exactly
-between the two implementations. Real/imaginary multiplication is explicit;
+across all three implementations. Real/imaginary multiplication is explicit;
 there is no implicit conjugation. Deliberate corruption of all four logical
 buffers and padded prefixes must be detected. Invalid pack shape/alias and
 aliased GEMM attempts must reject without changing valid data/copy/write
 counters. ASan/UBSan (and Linux LSan by default) validate the standalone native
-adapter and C baseline; these sanitizers do **not** instrument the complete
+adapter/arena-C and both plain-C builds; these sanitizers do **not** instrument the complete
 Lean executable or the prebuilt OpenBLAS archive.
 
 Correctness checks run outside measurement batches, including before/after
 paired sampling; reused buffers are also validated after each batch. Lifecycle
 measurement batches consume the first output word at drop and use the
 separate verification batches for full output validation. Case order is
-seeded; paired implementation order alternates. Raw calibration/warmup and
+seeded; three-arm groups rotate through all six execution orders, with six
+warmup groups before calibration and equal repetition counts across arms. Raw calibration/warmup and
 measurement rows, exact source/wire/emission, canonical/wrapped programs,
 compile/check phase times, toolchain/host/backend provenance, hashes, and
 native sanitizer records remain in the output directory. Large disassembly
@@ -146,17 +152,18 @@ is stored once, with path/size/hash in bounded command logs. Interrupted runs
 retain the last atomic status/command snapshot and flushed raw rows.
 
 `summary.json`/`summary.md` use the storage-copy experiment's median, IQR, MAD,
-paired ratios/deltas and paired bootstrap interval. A bootstrap interval
+paired ratios/deltas and paired bootstrap intervals for generated/plain-C,
+generated/arena-C and arena-C/plain-C in summary schema 2. A bootstrap interval
 covers within-run sampling only, not host/process uncertainty or a performance
 acceptance gate. `process_maxrss_kib` is normalized to KiB on both platforms;
 on Linux it may retain launcher pre-exec footprint and is **not** isolated
-executable heap or BLAS memory. Exact arena counters are the resource evidence.
+executable heap or BLAS memory. Arena counters and the separate plain-C replay provide explicit logical cost evidence.
 OpenBLAS private packing/allocations, stack/runtime heap, cache pressure and
 host activity are not separately instrumented. Full results are exploratory
 unless collected and assessed under the controlled-host completion gate.
 
 The first strengthened all-size validation is recorded in
 [the macOS validation record](results/2026-10-31-macos/RESULTS.md).
-The [full Linux run](results/2026-10-31-linux-full/RESULTS.md) retains all twelve
+The historical **generated/arena-C** [full Linux run](results/2026-10-31-linux-full/RESULTS.md) retains all twelve
 cases, native LSan validation, raw paired measurements and the remaining
 tiny/small overhead and bulk uncertainty. It does not accept the performance gate.

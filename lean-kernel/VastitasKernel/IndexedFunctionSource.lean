@@ -1,9 +1,11 @@
 import VastitasKernel.IndexedSource
 import VastitasKernel.Surface
 
-/-! Internal source syntax before Fn erasure. Data types reuse the indexed
+/-! Source syntax before Fn erasure. Data types reuse the indexed
 annotation AST. Fn signatures retain the existing scalar/recursive-Fn boundary;
-this syntax is not a public wire protocol. -/
+the public protocol-7 decoder constructs this AST, then `Indexed.Wire.check`
+composes its compiler with dispatch and authority validation. This AST is not an
+independent wire acceptance entry point. -/
 namespace VastitasKernel.Indexed.FunctionSource
 
 inductive FnType where

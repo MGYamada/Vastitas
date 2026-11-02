@@ -296,7 +296,7 @@ def main():
         heap_binding = dict(record='heap-calibration',runtime_dir=str(runtime.parent),archive_sha256=archive_sha,
                             observer_object=str(observer),observer_sha256=observer_sha,claims=lifetimes.CLAIMS)
     configurations = allocator.configurations(lean_binding is not None,heap_binding is not None)
-    env = {k:os.environ[k] for k in ('PATH','HOME','TMPDIR','SDKROOT','DEVELOPER_DIR','LANG') if k in os.environ}
+    env = {k:os.environ[k] for k in ('PATH','HOME','ELAN_HOME','TMPDIR','SDKROOT','DEVELOPER_DIR','LANG') if k in os.environ}
     env.update(OPENBLAS_NUM_THREADS='1',OMP_NUM_THREADS='1',GOTO_NUM_THREADS='1',LEAN_NUM_THREADS='1',LC_ALL='C')
     runner = Runner(out,env)
     head = runner.run(['git','rev-parse','HEAD'])['stdout'].strip()

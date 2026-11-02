@@ -34,7 +34,14 @@ Both arms consume the node budget. Every allocation's initialization metadata
 has a 4096-node audit budget, checked before traversing its full history.
 Repeated writes of an already initialized region reuse its guarantee; identical
 branch guarantees share their history, and an empty guarantee annihilates a
-branch intersection. These are metadata bounds, not limits on buffer elements.
+branch intersection. A write in only one arm leaves the other arm's unchanged
+history; two disjoint writes over the same history retain exactly that common
+history. These rules prevent repeated single-cell branch writes from doubling
+the history at each join. Overlapping or more complex histories still use an
+explicit intersection under the same bound; a join that exceeds it reports
+`E_RESOURCE_LIMIT: branch join initialization metadata budget exceeded`.
+These are metadata bounds, not limits on buffer elements. This normalization
+does not resolve the separate whole-state audit scaling issue (#422).
 
 ## Resources and operations
 
@@ -49,7 +56,7 @@ branch intersection. These are metadata bounds, not limits on buffer elements.
 | `transpose` | Swap logical axes, preserving physical allocation and byte footprint; reject suspended parent changes |
 | `fill`, `store` | Writable active loan, exact scalar representation; record the whole view or the one addressed cell |
 | `expect` | Readable active loan, valid index and initialized cell; native execution asserts the supplied bit pattern |
-| `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source |
+| `copy` | Active readable source and writable destination with equal scalar representation and logical shape; initialized source. The same loan is an explicit no-op after all access checks; distinct loans require byte separation through the state audit |
 | Internal `pack3` | Explicit `[i | k,j]` to `[i,j | k]` permutation into an existing writable rectangle; initialized readable input, matching scalar, bounded dimensions and byte separation; no allocation |
 | Internal `gemm` | Initialized readable inputs, exclusive compatible output, explicit NativeFast policy/mode/orientation, independent input/output byte separation; accumulate also requires initialized readable output |
 | GEMM coefficients | Matching explicit scalar bits or live initialized readable 1x1 loans disjoint from output; overwrite rejects beta operands, and beta zero does not relax accumulate initialization |
@@ -71,6 +78,14 @@ Ancestors may overlap their children only because their access is suspended;
 siblings still undergo compatibility checks. Mathematical tensor factors confer
 no allocation or alias rights.
 
+`copy(loan, loan)` requires a live, active, initialized `read_write` loan even
+though it changes no bytes. It preserves the entire checked state, including
+allocation versions and cached dependencies. The exact native lowering emits
+no instruction for this case; generated code does not depend on the C adapter's
+identical-mapping fast path. Write-only, read-only, suspended and returned loans
+remain invalid. This rule is about the same loan identity, not equal dimensions
+or a guessed correspondence between different views.
+
 Logical versions advance on writes; a branch join creates a version after both
 branches. The bounded [packing cache](cached-packing.md) reconstructs post-pack
 source/scratch stamps and rejects stale reuse in actual contraction. Its erased
@@ -81,7 +96,12 @@ This does not implement residual retention, snapshots, recomputation or AD.
 
 The admitted layout is a column-major physical rectangle with an explicit
 logical transpose. Offset and capacity are bytes; leading dimension is elements.
-`f64` uses 8 bytes and `complex_f64` uses 16 bytes, with 8-byte relative alignment.
+`f64` uses 8 bytes and `complex_f64` uses 16 bytes. A nonempty view's offset
+must be a multiple of its element width relative to the allocation origin:
+8 for real and 16 for complex storage. An offset of 8 into complex storage is
+rejected; it cannot pair one element's imaginary component with the next real
+component. This typed-element rule is separate from the native ABI's 8-byte
+binary64 component alignment.
 Scalar literals are raw IEEE payloads, not a new public floating-point type or a
 claim about floating-point arithmetic. The native adapter checks its matching
 representation, base alignment and allocator contract separately.
@@ -92,7 +112,8 @@ computed byte offsets fit the signed 64-bit offset bound. Empty layouts validate
 metadata but have no element access and may have an unaligned offset. Arithmetic
 uses mathematical `Nat` before checking narrowing.
 
-Containment of a contiguous view uses its interval. Containment of a padded
+Containment requires a whole-element offset difference even for contiguous
+views, then checks the interval. Containment of a padded
 rectangle additionally checks the row/column shift and compatible column grid;
 it never treats padding as initialized. A write records its actual rectangle,
 and a scalar store records only its single cell. Branch initialization is the
@@ -225,10 +246,10 @@ The oracle imports the actual kernel definitions:
 
 | Module | Proved boundary |
 | --- | --- |
-| `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds and relatively aligned; distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
+| `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds, relatively ABI-aligned and on a whole scalar element boundary (`all_accesses_at_element_boundary`); distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
 | `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning; bounded interval unions and per-column checks cover actual bytes, with arithmetic work-budget lemmas tied to the actual history traversal |
-| `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; decoder certificates retain the exact checked plan |
-| `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
+| `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; accepted self-copy preserves the exact state; decoder certificates retain the exact checked plan |
+| `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; self-copy emits no native instruction; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
 | `VastitasOracle.StorageGemm` | Actual GEMM subject and accepted transition, input/accumulate initialization, output byte separation, and initialized destination bytes in the reconstructed post-state; no nominal or native numerical guarantee |
 | `VastitasOracle.StorageFunctions` | Exact call-slice replay, caller-loan restoration, unique owned results with declared initialized bytes, all-body probe coverage and exact decoder/executable/closed-plan connection |
 

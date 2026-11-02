@@ -18,6 +18,7 @@ const MANIFEST: &str = include_str!("../stdlib/src/geometry/Vastitas.toml");
 const DEMO: &str = include_str!("../examples/packages/stdlib-geometry/main.vast");
 
 fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
+    common::prepare_stdlib_package();
     let s = Scratch::empty("stdlib geometry");
     s.write("geo/Vastitas.toml", &rewrite(MANIFEST));
     for (name, source) in LIBRARY {

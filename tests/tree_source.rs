@@ -794,6 +794,25 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     let step = tree(&mut raw)["plan"][0].clone();
     tree(&mut raw)["plan"] = json!(vec![step; 1025]);
     wire_rejected(raw);
+    // Each plan is below the per-tree bound, but its steps also consume the
+    // global source budget before lowering names or reconstructing the graph.
+    let mut raw = original.clone();
+    let step = tree(&mut raw)["plan"][0].clone();
+    let mut large_tree = tree(&mut raw).clone();
+    large_tree["plan"] = json!(vec![step; 1024]);
+    let body = raw["packages"][0]["modules"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|module| module["path"] == json!(["real"]))
+        .unwrap()["resource_functions"][0]["body"]
+        .as_array_mut()
+        .unwrap();
+    body.extend(vec![large_tree; 4]);
+    let response = kernel(raw, "emit");
+    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["diagnostics"][0]["code"], "E_RESOURCE_LIMIT");
+    assert!(response.get("lean_source").is_none());
     let mut raw = original.clone();
     tree(&mut raw)["graph"]["edges"][0]["dual"]["axis"] = json!(3);
     wire_rejected(raw);

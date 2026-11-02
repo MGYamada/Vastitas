@@ -34,6 +34,9 @@ Here $f(A)$ is Mathlib's `cfc f A`, and the divided difference is Mathlib's
 `dslope f s r`. The domain and perturbation $H$ are self-adjoint; the scalar
 field of differentiation is **real**, and the codomain is the ambient algebra.
 This does not claim a complex Fréchet derivative on all matrices.
+For matrices, the pinned Mathlib theorem `Matrix.IsHermitian.cfc_eq` identifies
+this generic `cfc` with the spectral-theorem construction using the eigenvector
+unitary and diagonal scalar values. No replacement functional calculus is assumed.
 
 The projection is defined by the actual functional calculus:
 `spectralProjection a r = cfc (fun x : ℝ => if x = r then 1 else 0) a`.
@@ -110,23 +113,37 @@ dependency closure. The normal kernel and Oracle builds remain Mathlib-free.
 ## Connection to future Vastitas work
 
 This theorem provides the derivative formula needed for basis-independent
-spectral function rules, including at eigenvalue multiplicities. To use it as
-an actual Vastitas AD rule, subsequent work must:
+spectral function rules, including at eigenvalue multiplicities. The remaining
+proof plan is [#471](https://github.com/MGYamada/Vastitas/issues/471); none of its
+five integration steps is discharged by the mathematical theorem alone:
 
-1. Relate admitted source/Core matrix values, scalar profiles and self-adjoint
-   evidence to the mathematical objects in this theorem.
-2. State and prove the cotangent pullback with the actual domain, basepoint,
-   duality and metric conventions; a forward derivative alone does not provide
-   a checked reverse-mode implementation.
-3. Connect the admitted implementation and its returned Core to that contract,
-   preserving ownership, residual and authority obligations.
-4. Separately establish any native numerical algorithm's approximation,
-   conditioning and error claims. The exact theorem does not prove a floating
-   eigensolver or stable evaluation of divided differences.
+1. **Typed linearization:** prove that the derivative preserves self-adjointness
+   and lift the ambient codomain to `Herm_n(ℂ)`, keeping real scalars and the
+   exact regularity hypotheses.
+2. **Cotangent action:** define the metric-free dual action `η ↦ η ∘ L_A`, with
+   source basepoint `A` and seed basepoint `f(A)`. If representing covectors by
+   Hermitian matrices, separately prove the formula under the explicitly
+   selected pairing `Re tr(KH)`; insert no implicit Hermitian adjoint.
+3. **C∞ comparison:** under globally smooth real `f`, separately prove smoothness
+   of the spectral map and identify this dual action with point-fiber evaluation
+   of the universal C∞ differential. A first-derivative theorem proves neither.
+4. **Actual-Core correspondence:** relate the actual accepted source, selected
+   rule and returned forward/residual/backward Core to these mathematical
+   objects. For every point in the certified region and every valid seed, bind
+   the residual relation and dual action to the actual code, basepoint and pinned
+   environment, preserving ownership and rule authority.
+5. **Composition and preservation:** connect the result to cotangent composition
+   with its endpoint/basepoint transports and prove preservation through each
+   certified compiler pass. Only the combined premises establish scoped CF.
+
+Floating/native refinement, approximation, conditioning and error bounds remain
+separate. The exact theorem does not prove a floating eigensolver or stable
+evaluation of divided differences. #471's proposed noncommuting composition
+regression is still a proposed compiler test, not an accepted-Core proof.
 
 Arbitrary infinite-spectrum operator differentiation, higher derivatives,
 Hessians, singular functions and the derivative of a chosen eigenbasis are
-outside this result. See [ADR 0001 §10](adr/0001-mathematics-first-stdlib.md#10-daleckii-krein-mathematical-foundation),
+outside this result. See [ADR 0001 §9](adr/0001-mathematics-first-stdlib.md#daleckii-krein-mathematical-foundation-bounded-addition-2026-11-02),
 [verification boundaries](verification.md#independent-mathematical-bridge),
 and the separately tracked mathematical architecture
 [#285](https://github.com/MGYamada/Vastitas/issues/285).

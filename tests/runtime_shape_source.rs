@@ -227,6 +227,82 @@ fn rejected(source: &str) {
     );
 }
 
+const LITERAL_SHAPES: &str = "mod profiles;
+resource fn main() -> Int {
+    runtime_space u = linear(profiles::RealSmooth, 2);
+    runtime_basis bu = basis(u);
+    runtime_allocate data: F64[4] runtime_layout(2, 2, 2, false);
+    runtime_borrow w = write(data);
+    runtime_map m = view(w, bu, bu);
+    runtime_fill(w, f64_bits(4607182418800017408));
+    runtime_release(w);
+    runtime_borrow r = read(data);
+    runtime_expect(r, 1, 1, f64_bits(4607182418800017408));
+    runtime_release(r);
+    runtime_drop(data);
+    value { 0 }
+}";
+
+#[test]
+fn literal_runtime_guards_reject_contradictions_and_erase_true_checks() {
+    let s = fixture(LITERAL_SHAPES);
+    success(&command(&s, "check").output().unwrap());
+    let raw = request(&s);
+    let response = kernel(&raw, "emit");
+    assert_eq!(response["ok"], true, "{response}");
+    let emitted = response["lean_source"].as_str().unwrap();
+    assert!(!emitted.contains("runtimeLayoutValid"), "{emitted}");
+    assert!(!emitted.contains("E_RUNTIME_GUARD:"), "{emitted}");
+    let output = s.0.join("literal-shapes");
+    success(
+        &command(&s, "build")
+            .arg("-o")
+            .arg(&output)
+            .output()
+            .unwrap(),
+    );
+    let result = Command::new(output).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"0\n");
+
+    for invalid in [
+        LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 3)"),
+        LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 2147483648)"),
+        LITERAL_SHAPES.replace("F64[4]", "F64[3]"),
+        LITERAL_SHAPES.replace("runtime_layout(2, 2, 2", "runtime_layout(2, 2, 1"),
+        LITERAL_SHAPES.replace("runtime_expect(r, 1, 1", "runtime_expect(r, 2, 1"),
+        format!(
+            "{}\nfn main() -> Int {{ 0 }}",
+            LITERAL_SHAPES
+                .replace("resource fn main", "resource fn unused")
+                .replace("RealSmooth, 2)", "RealSmooth, 3)")
+        ),
+        "mod profiles;
+         resource fn consume(u: RuntimeSpace<profiles::RealSmooth, 3>) -> Unit { value { () } }
+         resource fn main() -> Int {
+             runtime_space u = linear(profiles::RealSmooth, 2);
+             call consume(u) -> ();
+             value { 0 }
+         }"
+        .to_string(),
+    ] {
+        let result = command(&fixture(&invalid), "check").output().unwrap();
+        assert!(!result.status.success(), "{invalid}");
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(error.contains("E_RUNTIME_GUARD"), "{error}");
+        assert!(error.contains("main.vast:"), "{error}");
+    }
+    // The kernel independently rechecks literal map dimensions in raw wire IR.
+    let mut changed = raw;
+    let space = &mut functions_mut(&mut changed)[0]["body"][0]["operation"];
+    assert_eq!(space["op"], "space");
+    space["dimension"] = json!({"kind":"literal","value":3});
+    let response = kernel(changed, "emit");
+    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["diagnostics"][0]["code"], "E_RUNTIME_GUARD");
+    assert!(response.get("lean_source").is_none());
+}
+
 #[test]
 fn parser_preserves_runtime_slots_whole_layouts_access_and_both_arms() {
     let source = source(false, 2, 3, 2, 1).replace(

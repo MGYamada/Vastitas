@@ -45,6 +45,9 @@ private def extentFits : Extent → Bool
   | .slot _ => true
 
 def renderGuard (condition : Guard) (indent : Nat) : Except Error String := do
+  if condition.references.isEmpty then
+    if condition.closedValid then return ""
+    else reject "false literal runtime guard reached native lowering"
   let spaces := String.ofList (List.replicate indent ' ')
   let expression ← match condition with
     | .bound size maximum =>

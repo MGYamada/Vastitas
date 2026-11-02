@@ -536,6 +536,9 @@ def executeAction (state : State) : Action → Except Error State
       reject "E_RESOURCE_TYPE" "copy requires equal logical shapes and scalar representations"
     if !sourceAllocation.initialization.covers sourceAllocation.scalar input.layout then
       reject "E_RESOURCE_INIT" "copy source is not fully initialized"
+    -- Same-handle copy still requires live read/write access and initialized
+    -- bytes, but performs no write and preserves versions and dependencies.
+    if source == target then return state
     return state.markWritten targetAllocation.identity output.layout
   | .pack3 source target i k j => do
     let (input, sourceAllocation) ← usable state source false
@@ -679,8 +682,10 @@ def join (left right : State) : Except Error State := do
     if a.owner != b.owner || a.scalar != b.scalar || a.capacity != b.capacity then
       reject "E_RESOURCE_JOIN" "branch owner or allocation metadata differs"
     return { a with
-      initialization := a.initialization.meet b.initialization
+      initialization := a.initialization.meet b.initialization a.scalar
       version := max a.version b.version + 1 }
+  if allocations.any (fun allocation => (allocation.initialization.remaining 4096).isNone) then
+    reject "E_RESOURCE_LIMIT" "branch join initialization metadata budget exceeded"
   let after : State := {
     allocations
     loans := left.loans

@@ -8,7 +8,7 @@ pull_request, and can also be dispatched manually. It does not close #222,
 establish Stage 1 completion, prove native
 refinement, or establish general C/C++ performance equivalence.
 
-Recorded measurements: [full Linux run with raw pairs and remaining overhead](results/2026-10-31-linux-full/RESULTS.md).
+Historical **generated/arena-C** measurements (shared runtime checks, not standalone C): [full Linux run with raw pairs and remaining overhead](results/2026-10-31-linux-full/RESULTS.md).
 Recorded validation: [Linux generated-path smoke passed](results/2026-10-31-linux-smoke/RESULTS.md);
 [original unavailable-toolchain attempt](results/2026-10-31-linux-unmeasured/RESULTS.md).
 The smoke validates execution and output/cost contracts, without a performance
@@ -21,7 +21,7 @@ numbers from the C adapter tests.
 ## Reproduce
 
 Linux x86-64, Python 3, the repository-pinned Rust and Lean toolchains, a C11
-compiler and the **same sequential LP64 OpenBLAS 0.3.34 archive** for both sides:
+compiler and the **same sequential LP64 OpenBLAS 0.3.34 archive** for all three arms:
 
 ```sh
 python3 scripts/build_openblas.py --prefix /tmp/gemm-openblas --jobs 4 --target HASWELL
@@ -37,17 +37,17 @@ selects the same host C compiler for the baseline, storage, numerical adapter,
 FFI and generated consumer. The existing kernel builds with its pinned Lean
 toolchain. The output directory must not exist.
 
-`--smoke --samples 3 --target-ms 0.1` runs only the two smaller sizes and is **not
+`--smoke --samples 6 --target-ms 0.1` runs only the two smaller sizes and is **not
 performance evidence**. `--cpu N` selects an allowed CPU (default: first allowed).
-Default: 11 alternating pairs per scope, adaptive batches targeting at least
-5 ms on both sides, at most 1,000,000 operations. Use an otherwise idle host;
+Default: 12 three-arm groups per scope, rotating through all six execution
+orders, with adaptive batches targeting at least 5 ms for every arm, at most 1,000,000 operations. Use an otherwise idle host;
 the runner does not control frequency, turbo, other processes or virtualization.
 All thread environment variables are set to one and the adapter rejects a
 non-sequential/incorrect-version/ILP64 backend. Actual backend configuration,
 parallel mode and thread count are also printed by native validation.
 
 The dedicated workflow keeps push and pull-request runs on `smoke`. Manual
-dispatch accepts `profile=full` to execute all 24 cases with 11 alternating pairs
+dispatch accepts `profile=full` to execute all 24 cases with 12 three-arm groups
 per scope and a 5 ms calibration target, including the bulk dimensions. For
 example, select the reviewed revision explicitly:
 
@@ -89,7 +89,7 @@ affect observable results. Overwrite must replace its destination sentinel.
 The full-buffer sentinel initialization is present in the actual `.vast`
 program and on the C side, and is included in lifecycle measurements.
 
-The initial matrix is the same on both sides. In reused scopes, repeated
+The initial matrix is the same for all three arms. In reused scopes, repeated
 accumulate calls deliberately implement the same recurrence
 `C[t+1] = alpha*A*B + beta*C[t]`. C is **not reset inside the timed region**;
 the oracle verifies the final recurrence at the actual repetition count.
@@ -110,16 +110,16 @@ unmodified executable are also executed as untimed validation.
 
 The complete emitted source is preserved as `Generated.lean`. `Main.lean` wraps
 its exact resource instructions in experiment-only loops. It preserves every
-allocation, fill, store, GEMM operand, drop and `try/finally` cleanup. It omits
+allocation, fill, store, GEMM operand, drop and the emitted cleanup/error envelope. It omits
 only the terminal print of the constant pure result `0` from timing. The parser
 fails closed on unfamiliar instructions, branches, extra GEMMs or changed
 cleanup. This instrumentation is an experiment, not a new compiler entry/API.
 
 | Scope | Timed work | Outside its clock |
 | --- | --- | --- |
-| `lifecycle` | Generated resource execution via Lean/FFI: arena creation, allocation, full initialization, physical preflight, GEMM, constant-size observation, drop/close, arena finalization and counter aggregation; C performs the same resource sequence | Process/Lean startup, one backend warmup, compilation/checking, exhaustive verification and reporting |
-| `prepared_call` | Repeated emitted `gemmScaled`, including Lean loop/FFI, physical preflight, BLAS and adapter write accounting; C loops over its direct checked CBLAS boundary | Allocation, initialization, verification, cleanup |
-| `blas_kernel` | Sum of clocks immediately around the **actual CBLAS calls** made by the prepared emitted path and the C path | All preflight, FFI/loop/accounting work, initialization and cleanup |
+| `lifecycle` | Generated resource execution via Lean/FFI: arena creation, allocation, full initialization, physical preflight, GEMM, constant-size observation, drop/close, arena finalization and counter aggregation; arena-C retains that machinery, while plain C uses aligned allocation/direct CBLAS/free | Process/Lean startup, one backend warmup, compilation/checking, exhaustive verification and reporting |
+| `prepared_call` | Repeated emitted `gemmScaled`, including Lean loop/FFI, physical preflight, BLAS and adapter write accounting; arena-C loops over its checked CBLAS boundary; plain C calls CBLAS directly | Allocation, initialization, verification, cleanup |
+| `blas_kernel` | Sum of clocks immediately around the **actual CBLAS calls** made by the prepared emitted path and both C paths | All preflight, FFI/loop/accounting work, initialization and cleanup |
 
 `blas_kernel` is a projection of actual calls into the same backend, **not** a
 claim that the public runtime has a preflight-free production entry point.
@@ -131,12 +131,12 @@ The benchmark uses private copies of the native and numerical Lake packages.
 `probe.c` includes the unmodified production storage source for access to arena
 contents, and wraps new/drop/delete for observation and accounting. The numerical
 copy adds CBLAS clock wrappers. Production source and APIs remain untouched.
-Both sides get the same hooks, allocator, representations, layout checks,
+Generated and arena-C get the same hooks, allocator, representations, layout checks,
 backend check, write counters, cleanup and C compiler. No LTO or fast-math is
 enabled. The generated consumer uses `-O3`; its own ordinary Lean loop/FFI costs
 remain part of the first two scopes.
 
-The C baseline separately initializes the case from `case.h`, checks the finite
+The arena-C arm separately initializes the case from `case.h`, checks the finite
 nonempty N/N literal-coefficient contract, and directly calls CBLAS. It **does not
 call `vgemm_execute_scaled`**. Its physical layout and write-budget primitives
 are shared with the adapter; disjoint allocation IDs certify its output
@@ -144,6 +144,13 @@ separation for this fixture. It is neither an independent proof of those shared
 checks nor an optimized alternative arena/allocator implementation. Static
 dimensions and coefficients are available to the C compiler just as to the
 public source generator; compiler specialization differences are not concealed.
+
+The [standalone plain-C arm](../plain_c/README.md) links no Vastitas or Lean
+runtime. It validates the fixed fixture/backend once, then uses 64-byte-aligned
+allocation, the same full initialization/observations and direct CBLAS without
+per-call arena preflight or cost counters. Its ordinary-C lifecycle and prepared
+scope are the Fast-like-C comparator. The arena arm remains useful for attributing
+codegen/FFI overhead. All three use the same backend, compiler and output oracle.
 
 ## Correctness and costs
 
@@ -162,8 +169,11 @@ Lifecycle receives exhaustive checking before and after each scope's timing
 series, and every measured lifecycle operation gets an O(1) volatile observation.
 Prepared batches get exhaustive verification after every batch. Native selftests
 exercise both the actual adapter and the independent C boundary in all scopes.
-All paired allocation, copy, write, peak-data and metadata counters must agree;
-cleanup must leave zero live data bytes and equal data allocations/frees.
+Generated/arena-C allocation, copy, write, peak-data and metadata counters must
+agree. A separate instrumented plain-C executable must match the data costs;
+its stack pointer table needs no heap metadata. Plain-C timing cost fields are
+blank (unobserved), not zero. Every diagnostic replay must leave zero live data
+bytes and equal allocations/frees; its timings never enter performance summaries.
 
 `peak_data_bytes` is the maximum simultaneous matrix allocation capacity,
 including padding; it is not summed over repetitions. `peak_metadata_bytes` is
@@ -181,25 +191,26 @@ pre-exec memory footprint as well as executable startup/warmup/code/shared
 pages. A fresh subprocess does not isolate the executable's memory high-water
 mark ([Linux getrusage(2)](https://man7.org/linux/man-pages/man2/getrusage.2.html)).
 The value is neither an exact heap counter nor an isolated Lean/BLAS allocation
-measurement, and is not required to match across the pair. It cannot localize
+measurement, and is not required to match across implementations. It cannot localize
 BLAS-private allocation counts or packing traffic. Those remain unmeasured;
 zero arena copies is not a claim of zero backend packing. The same statically
-linked BLAS archive/hash controls the backend on both sides.
+linked BLAS archive/hash controls the backend across all three arms.
 
 ## Sampling, latency and retained evidence
 
-Case order uses seed 20261031. Each pair runs in fresh processes with equal
-repetitions and alternating generated/C order, and alternating starting side by
-case. Each process performs the same untimed generated warmup before its measured
-operation. Two additional warmup pairs precede calibration. Fresh initialization
+Case order uses seed 20261031. Each group runs three fresh processes with equal
+repetitions, cycling through all six implementation orders. Each process performs
+one complete untimed lifecycle with its own backend before measurement. Six
+additional warmup groups precede calibration. Fresh initialization
 means recently touched inputs; this is not a cold-cache/DRAM experiment. No sample
 is discarded. All measurement hosts and batch sizes require inspection before
 interpreting ratios, especially on shared or throttled machines.
 
 The summary reuses #283's median, IQR, MAD, extrema, paired differences, paired
-ratios, and 5,000-resample paired percentile interval. JSON also reports the
-distinct ratio of separate medians. Neither statistic is a performance gate;
-the interval concerns within-run variability only.
+ratios, and 5,000-resample paired percentile interval. Schema 2 reports
+generated/plain-C, generated/arena-C and arena-C/plain-C separately. Only generated/plain-C is the equivalent-C comparator. These
+statistics do not establish a performance gate; the interval concerns within-run
+variability only. Historical two-arm summaries keep their original schema.
 
 Artifacts include source packages, protocol requests and checker responses,
 unmodified emitted Lean and benchmark wrappers, private runtime sources,

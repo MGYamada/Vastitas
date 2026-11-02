@@ -159,14 +159,7 @@ their execution status are recorded separately from mathematical conformance.
 The [verification boundary](../verification.md) documents the changed proof
 dependencies and required official build/axiom checks.
 
-Independent `VastitasMath`, conformance manifests and new correspondence proofs
-remain subsequent work under #285. The first separate pinned-Mathlib
-`VastitasBridge` package is the bounded mathematical increment in §10 below.
-None of these results follows from the Oracle dependency removal. The historical v0.3
-source records remain unchanged; current build/contributor documentation is
-updated to match this bounded amendment.
-
-### 10. Daleckii–Krein mathematical foundation
+#### Daleckii–Krein mathematical foundation (bounded addition, 2026-11-02)
 
 Introduce `lean-bridge/` as an independent, proof-only Lake package for the
 important [Daleckii–Krein theorem](../daleckii-krein.md). It uses the exact
@@ -190,6 +183,13 @@ implementation correspondence layer remain future work. The kernel/Oracle
 dependency policy in §9 stays closed; future bridge imports of implementation
 or independent mathematics packages require an explicit policy amendment.
 The historical v0.3 source records remain unchanged.
+
+Independent `VastitasMath`, conformance manifests and new correspondence proofs
+remain subsequent work under #285. The first separate pinned-Mathlib
+`VastitasBridge` package is the bounded mathematical increment described above.
+None of these results follows from the Oracle dependency removal. The historical v0.3
+source records remain unchanged; current build/contributor documentation is
+updated to match this bounded amendment.
 
 ## Consequences, validation and migration
 

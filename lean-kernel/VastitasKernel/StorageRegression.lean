@@ -84,6 +84,57 @@ def paddedFixture : List Statement := actions [allocate, write 1 padded, .fill 1
   write 1 ⟨3, 0, 4, 1, false⟩, .fill 1 value, .release 1, .drop 0])
 #eval check "nonempty offset must align" (rejects "E_RESOURCE_LAYOUT" [allocate, write 1 ⟨3, 1, 1, 1, false⟩])
 
+#eval show IO Unit from do
+  for scalar in [Scalar.f64, .complexF64] do
+    for offset in [0, 8, 16] do
+      for transposed in [false, true] do
+        for leading in [2, 3] do
+          let view : Layout := ⟨offset, 2, 2, leading, transposed⟩
+          let valid := scalar == .f64 || offset % 16 == 0
+          let plan := [Action.allocate 0 scalar 8, .borrow 1 (.owner 0) view .write,
+            .release 1, .drop 0]
+          check "typed nonempty views preserve element boundaries" (accepts plan == valid)
+          check "empty views retain vacuous element boundaries" (accepts
+            [.allocate 0 scalar 8, .borrow 1 (.owner 0) {view with rows := 0} .read,
+              .release 1, .drop 0])
+  let whole : Layout := ⟨0, 8, 1, 8, false⟩
+  let half : Layout := ⟨8, 1, 1, 1, false⟩
+  check "contiguous containment cannot justify a half complex element" (!whole.covers half .complexF64)
+  check "padded containment cannot justify a half complex element" (!padded.covers half .complexF64)
+  check "real element containment is unchanged" (whole.covers half .f64)
+  check "reborrow cannot create half complex elements" (rejects "E_RESOURCE_REGION"
+    [.allocate 0 .complexF64 8, .borrow 1 (.owner 0) whole .write,
+      .borrow 2 (.loan 1) half .write])
+  let forged : State := {
+    allocations := [⟨0, 0, .complexF64, 128, .written half .none, 0⟩]
+    used := [0], nextAllocation := 1 }
+  check "forged initialization cannot confer half-element access" (!auditState forged)
+
+-- Self-copy must preserve the complete checked state, not only acceptance or
+-- cell values. In particular it cannot invalidate an unchanged cached version.
+#eval show IO Unit from do
+  for (scalar, literal) in [(Scalar.f64, value), (.complexF64, .complexF64 0 0)] do
+    for layout in [padded, padded.transpose, ⟨3,0,4,1,false⟩] do
+      let setup := actions [.allocate 0 scalar 8, write 1 layout, .fill 1 literal,
+        .release 1, .borrow 2 (.owner 0) layout .readWrite, .captureDependency 3 2 2]
+      let .ok before := run 4096 {} setup | throw (IO.userError "self-copy setup failed")
+      let .ok after := checkAction before (.copy 2 2) | throw (IO.userError "self-copy rejected")
+      check "self-copy preserves initialization, versions and dependencies" (after == before)
+      check "self-copy retains dependency validity" (checkAction after (.requireDependency 3)).isOk
+      check "self-copy plan closes" (checkPlan (setup ++ actions
+        [.copy 2 2, .requireDependency 3, .forgetDependency 3, .release 2, .drop 0])).isOk
+#eval check "self-copy requires write access" (rejects "E_RESOURCE_ACCESS"
+  [allocate, write 1, .fill 1 value, .release 1, read 2, .copy 2 2])
+#eval check "self-copy requires read access even after fill" (rejects "E_RESOURCE_ACCESS"
+  [allocate, write 1, .fill 1 value, .copy 1 1])
+#eval check "self-copy cannot initialize storage" (rejects "E_RESOURCE_INIT"
+  [allocate, .borrow 1 (.owner 0) full .readWrite, .copy 1 1])
+#eval check "self-copy cannot access suspended parent" (rejects "E_RESOURCE_LOAN"
+  [allocate, write 1, .fill 1 value, .release 1, .borrow 2 (.owner 0) full .readWrite,
+    .borrow 3 (.loan 2) first .read, .copy 2 2])
+#eval check "self-copy cannot revive returned loan" (rejects "E_RESOURCE_LOAN"
+  [allocate, write 1, .fill 1 value, .release 1, .copy 1 1])
+
 private def branch (yes no : List Action) (after : List Action := []) : List Statement :=
   actions [allocate, write 1] ++ [.branch true (actions yes) (actions no)] ++ actions after
 #eval check "constant conditions do not hide invalid resources" (!(checkPlan
@@ -107,6 +158,36 @@ private def branch (yes no : List Action) (after : List Action := []) : List Sta
 #eval check "repeated writes retain bounded initialization metadata" ((checkPlan
   (actions [allocate, write 1] ++ actions (List.replicate 128 (.fill 1 value)) ++
     actions [.release 1, read 2, .release 2, .drop 0])).isOk)
+#eval show IO Unit from do
+  for scalar in [Scalar.f64, .complexF64] do
+    let literal := if scalar == .f64 then value else Literal.complexF64 0 0
+    let shared : Layout := ⟨128 * scalar.width, 1, 1, 1, false⟩
+    let initial := actions [.allocate 0 scalar 129,
+      .borrow 1 (.owner 0) ⟨0, 1, 129, 1, false⟩ .write, .store 1 0 128 literal]
+    let branches := (List.range 64).map fun index => Statement.branch true
+      (actions [.store 1 0 (2 * index) literal]) (actions [.store 1 0 (2 * index + 1) literal])
+    let .ok state := run 1024 {} (initial ++ branches)
+      | throw (IO.userError "sequential disjoint branch writes exceeded history budget")
+    check "disjoint branch additions retain the exact common history"
+      ((state.allocation? 0).map Allocation.initialization == some (.written shared .none))
+    check "common initialized cell remains readable after many joins"
+      (checkPlan (initial ++ branches ++ actions [.release 1,
+        .borrow 2 (.owner 0) shared .read, .expect 2 0 0 literal, .release 2, .drop 0])).isOk
+    check "branch-local writes do not initialize either exclusive cell"
+      (!(checkPlan (initial ++ branches ++ actions [.release 1,
+        .borrow 2 (.owner 0) ⟨0, 1, 1, 1, false⟩ .read, .release 2, .drop 0])).isOk)
+
+private def longHistory : Initialization :=
+  (List.range 2100).foldl (fun previous _ => .written first previous) .none
+private def largeJoinState (layout : Layout) : State := {
+  allocations := [⟨0, 0, .f64, 64, .written layout longHistory, 0⟩]
+  used := [0], nextAllocation := 1 }
+#eval check "valid unresolved intersection names its initialization budget"
+  (auditState (largeJoinState full) && auditState (largeJoinState first) &&
+    match join (largeJoinState full) (largeJoinState first) with
+    | .error error => error.code == "E_RESOURCE_LIMIT" &&
+        error.message == "branch join initialization metadata budget exceeded"
+    | .ok _ => false)
 #eval check "global node budget includes both branches" (
   match checkPlan (List.replicate 1400 (.branch true
     (actions [.allocate 0 .f64 1, .drop 0]) (actions [.allocate 1 .f64 1, .drop 1]))) with
@@ -129,6 +210,31 @@ private def forged : State := {
 private def cells (layout : Layout) (scalar : Scalar) : List Nat :=
   (List.range layout.logicalRows).flatMap fun row => (List.range layout.logicalColumns).flatMap fun column =>
     (List.range scalar.width).map (layout.address scalar row column + ·)
+
+private def initializedCells (scalar : Scalar) : Initialization → List Nat
+  | .none => []
+  | .written layout previous => cells layout scalar ++ initializedCells scalar previous
+  | .intersection left right =>
+    (initializedCells scalar left).filter (initializedCells scalar right).contains
+
+/- Independent byte enumeration includes overlapping, disjoint, padded,
+transposed and empty writes. Exact normalization must neither invent nor lose
+common initialized bytes, even when it cannot simplify the intersection. -/
+#eval show IO Unit from do
+  let layouts := [full, padded, first, second, padded.transpose, ⟨3, 0, 1, 1, false⟩]
+  for scalar in [Scalar.f64, .complexF64] do
+    for common in [Initialization.none, .written first .none, .intersection
+        (.written full .none) (.written padded .none)] do
+      for a in layouts do
+        for b in layouts do
+          let left := Initialization.written a common
+          let right := Initialization.written b common
+          for pair in [(left, right), (left, common), (common, right), (left, left)] do
+            let actual := initializedCells scalar (pair.1.meet pair.2 scalar)
+            let leftBytes := initializedCells scalar pair.1
+            let rightBytes := initializedCells scalar pair.2
+            check "normalized join is the exact byte intersection" ((List.range 160).all fun byte =>
+              actual.contains byte == (leftBytes.contains byte && rightBytes.contains byte))
 
 /-- Small independent byte-set oracle only in tests; the checker never expands
 the matrix. Include padded, transposed, shifted and empty rectangles. -/

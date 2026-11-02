@@ -512,9 +512,52 @@ static void regroup_empty(uint8_t scalar) {
     vstorage_delete(a);
 }
 
+static void element_boundaries(void) {
+    for (uint8_t scalar=0; scalar<2; ++scalar) {
+        VStorageArena *arena=vstorage_new(1024); assert(arena);
+        assert(vstorage_allocate(arena,0,scalar,8) == VS_OK);
+        assert(vstorage_allocate(arena,1,scalar,8) == VS_OK);
+        VStorageLayout whole={0,8,1,8,0};
+        for (uint32_t id=0; id<2; ++id)
+            assert(vstorage_fill(arena,id,whole,scalar,one,two) == VS_OK);
+        for (uint64_t offset=0; offset<=16; offset+=8)
+        for (uint8_t transpose=0; transpose<2; ++transpose)
+        for (uint64_t leading=2; leading<=3; ++leading) {
+            VStorageLayout view={offset,2,2,leading,transpose};
+            VStorageDense dense;
+            VStorageStats before=vstorage_stats(arena);
+            if (scalar && offset == 8) {
+                assert(vstorage_prepare_dense(arena,0,view,&dense) == VS_LAYOUT);
+                assert(vstorage_fill(arena,0,view,scalar,two,one) == VS_LAYOUT);
+                assert(vstorage_store(arena,0,view,0,0,scalar,two,one) == VS_LAYOUT);
+                assert(vstorage_expect(arena,0,view,0,0,scalar,two,one) == VS_LAYOUT);
+                VStorageLayout valid=view; valid.offset=0;
+                assert(vstorage_copy(arena,0,view,1,valid) == VS_LAYOUT);
+                assert(vstorage_copy(arena,0,valid,1,view) == VS_LAYOUT);
+            } else {
+                assert(vstorage_prepare_dense(arena,0,view,&dense) == VS_OK);
+                assert(dense.data != NULL && dense.start == offset);
+            }
+            assert_stats(vstorage_stats(arena),before);
+            for (uint32_t id=0; id<2; ++id)
+                for (uint64_t n=0; n<8; ++n)
+                    assert_value(arena,id,whole,scalar,n,0,one,two);
+            /* No element exists at an empty view's arbitrary in-capacity origin. */
+            view.rows=0;
+            assert(vstorage_prepare_dense(arena,0,view,&dense) == VS_OK && dense.data == NULL);
+            assert(vstorage_fill(arena,0,view,scalar,two,one) == VS_OK);
+            assert_stats(vstorage_stats(arena),before);
+        }
+        vstorage_close(arena);
+        assert(vstorage_stats(arena).live_bytes == 0);
+        vstorage_delete(arena);
+    }
+}
+
 int main(void) {
     layouts(0);
     layouts(1);
+    element_boundaries();
     alias_and_failure();
     pack_layouts(0,0);
     pack_layouts(1,0);

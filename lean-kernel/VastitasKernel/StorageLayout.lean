@@ -10,6 +10,8 @@ inductive Scalar where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Scalar.width : Scalar → Nat | .f64 => 8 | .complexF64 => 16
+/-- Native binary64 component alignment. Typed views additionally preserve
+whole-element boundaries relative to their allocation origin. -/
 def Scalar.alignment (_ : Scalar) : Nat := 8
 
 /-- A dense physical rectangle and an explicit logical transpose. `leading`
@@ -53,7 +55,7 @@ def Layout.Valid (scalar : Scalar) (capacity : Nat) (layout : Layout) : Prop :=
   capacity ≤ byteLimit ∧ layout.offset ≤ capacity ∧
   layout.rows ≤ dimensionLimit ∧ layout.columns ≤ dimensionLimit ∧
   layout.leading ≤ dimensionLimit ∧ max 1 layout.rows ≤ layout.leading ∧
-  (layout.empty = true ∨ layout.offset % scalar.alignment = 0) ∧
+  (layout.empty = true ∨ layout.offset % scalar.width = 0) ∧
   layout.endByte scalar ≤ capacity
 
 instance (scalar : Scalar) (capacity : Nat) (layout : Layout) : Decidable (layout.Valid scalar capacity) :=
@@ -72,6 +74,7 @@ operations, independent of the number of cells. -/
 def Layout.covers (outer inner : Layout) (scalar : Scalar) : Bool :=
   if inner.empty then true
   else if outer.empty || inner.offset < outer.offset then false
+  else if (inner.offset - outer.offset) % scalar.width != 0 then false
   else if outer.contiguous then inner.endByte scalar ≤ outer.endByte scalar
   else
     let difference := inner.offset - outer.offset
@@ -101,12 +104,24 @@ def Initialization.remaining : Nat → Initialization → Option Nat
     let afterLeft ← left.remaining fuel
     right.remaining afterLeft
 
-/-- Identical guarantees share one history; an empty guarantee on either side
-annuls a branch intersection. Inputs are budget-audited before equality. -/
-def Initialization.meet (left right : Initialization) : Initialization :=
+/-- Exact absorption avoids copying a common history when only one branch adds
+a write, or when both branches add disjoint writes. In the latter case
+`(H ∪ A) ∩ (H ∪ B) = H`. Other intersections retain both histories. Inputs are
+budget-audited before equality; no layout elements are enumerated. -/
+def Initialization.meet (left right : Initialization) (scalar : Scalar) : Initialization :=
+  if left = right then left else
   match left, right with
   | .none, _ | _, .none => .none
-  | _, _ => if left = right then left else .intersection left right
+  | .written a previous, .written b other =>
+    if previous = right then right
+    else if left = other then left
+    else if previous = other ∧ a.disjoint b scalar then previous
+    else .intersection left right
+  | .written _ previous, _ =>
+    if previous = right then right else .intersection left right
+  | _, .written _ previous =>
+    if left = previous then left else .intersection left right
+  | _, _ => .intersection left right
 
 def Initialization.coversRectangle (scalar : Scalar) (layout : Layout) : Initialization → Bool
   | .none => layout.empty

@@ -96,6 +96,28 @@ theorem action_audits {state after : State} {action : Action}
         subst after
         exact ⟨rfl, next⟩
 
+/-- An accepted self-copy is the exact identity transition, including logical
+versions, initialization history and recorded dependencies. This does not give
+an inactive, write-only or uninitialized loan permission to read. -/
+theorem checked_self_copy {state after : State} {name : Symbol}
+    (accepted : checkAction state (.copy name name) = .ok after) : after = state := by
+  have audited := (action_audits accepted).1
+  cases input : usable state name false with
+  | error diagnostic =>
+    simp [checkAction, audited, executeAction, input, bind, Except.bind] at accepted
+  | ok source =>
+    cases output : usable state name true with
+    | error diagnostic =>
+      simp [checkAction, audited, executeAction, input, output, bind, Except.bind] at accepted
+    | ok target =>
+      cases shape : (source.2.scalar != target.2.scalar ||
+        source.1.layout.logicalRows != target.1.layout.logicalRows ||
+        source.1.layout.logicalColumns != target.1.layout.logicalColumns) <;>
+        cases initialized : source.2.initialization.covers source.2.scalar source.1.layout <;>
+        simp [checkAction, audited, executeAction, input, output, shape, initialized,
+          bind, Except.bind, pure, Except.pure] at accepted
+      all_goals first | exact accepted.symm | cases accepted
+
 /-- The decoder certificate keeps acceptance tied to these exact statements;
 there is no alternate serialized checked state or trusted initialization flag. -/
 theorem decoded_plan {json : Lean.Json} (checked : Wire.CheckedInput json) :

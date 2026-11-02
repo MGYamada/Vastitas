@@ -37,6 +37,17 @@ impl Drop for Scratch {
 pub fn root() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR"))
 }
+pub fn prepare_stdlib_package() {
+    static BUILD: std::sync::Once = std::sync::Once::new();
+    BUILD.call_once(|| {
+        success(
+            &Command::new("python3")
+                .arg(root().join("scripts/build_stdlib_package.py"))
+                .output()
+                .unwrap(),
+        );
+    });
+}
 pub fn cli() -> Command {
     Command::new(env!("CARGO_BIN_EXE_vastitas"))
 }

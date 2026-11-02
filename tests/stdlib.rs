@@ -47,8 +47,8 @@ fn generated_package_preserves_comment_boundaries_in_native_programs() {
         .unwrap();
     }
     let original = fs::read_to_string(sources.join("int.vast")).unwrap();
-    // Every separator below is a line boundary to Python, but only LF ends a
-    // Vastitas comment. All injected additions must remain inside comments.
+    // These separators are line boundaries to Python. The generator must keep
+    // their bytes so that the lexer rejects them instead of exposing code.
     let comments = [
         '\r', '\u{b}', '\u{c}', '\u{1c}', '\u{1d}', '\u{1e}', '\u{85}', '\u{2028}', '\u{2029}',
     ]
@@ -78,6 +78,43 @@ fn generated_package_preserves_comment_boundaries_in_native_programs() {
                 .unwrap(),
         );
     }
+    let generated = fs::read_to_string(
+        scratch
+            .0
+            .join("stdlib/target/package/arithmetic/integers.vast"),
+    )
+    .unwrap();
+    assert!(generated.contains(&comments));
+    for args in [
+        vec!["flat.vast", "--lib"],
+        vec!["--manifest-path", "Vastitas.toml"],
+    ] {
+        let mut command = cli();
+        command.current_dir(&scratch.0).arg("check").args(&args);
+        if args[0] == "flat.vast" {
+            command.arg(sources.join("int.vast"));
+        }
+        failure(
+            &command.output().unwrap(),
+            "E_LEX: unsupported line separator",
+        );
+    }
+    // CRLF and ordinary Unicode comment text remain supported in both forms.
+    fs::write(
+        sources.join("int.vast"),
+        original.replacen(
+            "left + right",
+            "left\r\n    // 日本語 + 100\r\n    + right",
+            1,
+        ),
+    )
+    .unwrap();
+    success(
+        &Command::new("python3")
+            .arg(scratch.0.join("scripts/build_stdlib_package.py"))
+            .output()
+            .unwrap(),
+    );
     for package in [false, true] {
         for mode in ["check", "build"] {
             let mut command = cli();

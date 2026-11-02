@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Independent schema-v2 production-helper allocation/cost record verification."""
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
+
 import argparse
 from collections import Counter
 from functools import cache

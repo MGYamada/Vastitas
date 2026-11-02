@@ -2,6 +2,7 @@
 #include <cblas.h>
 #include <float.h>
 #include <limits.h>
+#include <pthread.h>
 #include <string.h>
 
 _Static_assert(sizeof(blasint) == 4 && (blasint)-1 < 0, "OpenBLAS LP64 integer ABI required");
@@ -13,18 +14,40 @@ _Static_assert(sizeof(openblas_complex_double) == 16 && _Alignof(openblas_comple
 #error "OpenBLAS ILP64 headers are unsupported"
 #endif
 
-const char *vgemm_configuration(void) { return openblas_get_config(); }
+static pthread_once_t backend_once = PTHREAD_ONCE_INIT;
+static VStorageStatus backend_status = VS_ABI;
+static char backend_configuration[256];
+static int has_configuration;
 
-VStorageStatus vgemm_backend_check(void) {
-    const char *configuration = vgemm_configuration();
+static void initialize_backend(void) {
+    /* The pinned provider rewrites one global buffer on every get_config call.
+     * Call it once and publish our own immutable snapshot, shared by checks and
+     * reporting. Never expose the provider's mutable buffer to callers. */
+    const char *configuration = openblas_get_config();
+    if (!configuration) return;
+    size_t length = 0;
+    while (length < sizeof(backend_configuration) && configuration[length]) ++length;
+    if (length == sizeof(backend_configuration)) return;
+    memcpy(backend_configuration, configuration, length + 1);
+    has_configuration = 1;
     /* The linked library can differ from the compile-time header. Inspect both
      * before calling an integer-ABI-sensitive entry point. Never reset threads
      * or process-wide settings inside an operation. */
-    if (!strstr(OPENBLAS_VERSION, " OpenBLAS 0.3.34 ") || !configuration ||
-        strncmp(configuration, "OpenBLAS 0.3.34 ", 16) != 0 ||
-        strstr(configuration, "USE64BITINT") ||
-        openblas_get_parallel() != OPENBLAS_SEQUENTIAL) return VS_ABI;
-    return VS_OK;
+    if (!strstr(OPENBLAS_VERSION, " OpenBLAS 0.3.34 ") ||
+        strncmp(backend_configuration, "OpenBLAS 0.3.34 ", 16) != 0 ||
+        strstr(backend_configuration, "USE64BITINT") ||
+        openblas_get_parallel() != OPENBLAS_SEQUENTIAL) return;
+    backend_status = VS_OK;
+}
+
+const char *vgemm_configuration(void) {
+    if (pthread_once(&backend_once, initialize_backend) != 0) return NULL;
+    return has_configuration ? backend_configuration : NULL;
+}
+
+VStorageStatus vgemm_backend_check(void) {
+    if (pthread_once(&backend_once, initialize_backend) != 0) return VS_ABI;
+    return backend_status;
 }
 
 static int overlaps(const VStorageDense *a, const VStorageDense *b) {

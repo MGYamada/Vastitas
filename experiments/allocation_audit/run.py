@@ -5,6 +5,9 @@ Never use elapsed fields from this instrumented run as performance evidence.
 Hooks count FFI result/external allocations and direct emitted-C constructors,
 not all allocations inside the Lean runtime or OpenBLAS.
 """
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
+
 import argparse
 import importlib.util
 import json

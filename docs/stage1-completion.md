@@ -99,7 +99,8 @@ The remaining gates are:
 
 1. Measure competent equivalent C with the same algorithm, scalars, layouts,
    backend/thread count, numerical policy and output contract on a controlled
-   host. Include full lifecycle and prepared/reuse scopes with their own complete
+   host, using standalone C without the Vastitas arena or timed cost counters.
+   Retain arena-C as a separate attribution arm. Include full lifecycle and prepared/reuse scopes with their own complete
    costs. The provisional bulk budget is at most 10% median slowdown for
    representative workloads taking at least 1 ms/sample; uncertainty crossing
    the budget is inconclusive. A dedicated controlled Linux host is currently
@@ -123,12 +124,20 @@ Each record keeps its own exact measured revision and environment. Later compile
 merges do not reattribute those measurements. Raw samples and independent
 output/cost verification remain available through the linked reports.
 
+The archived GEMM, packing and tree timing ratios in this table all use
+**arena-C**, which shares Vastitas preflight and accounting. They are not
+standalone-C performance evidence. The current
+[three-arm harness](../experiments/plain_c/README.md) uses `generated/plain_c`
+for the equivalent-C comparison and keeps `generated/arena_c` for attribution;
+plain-C costs are checked in a separate diagnostic replay. Old records are
+preserved unchanged, and the controlled-host gate remains open.
+
 | Record | What it establishes and what remains |
 | --- | --- |
 | [Explicit storage copy](../experiments/storage_copy/README.md), PR #283 | Matched full-lifecycle/reuse copy work and visible arena costs; shared-VM variance and slower paths do not establish the budget |
 | [Full public GEMM](../experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md), PR #335 | Clean `38b96ae5a6b0610ec71babf199e7635867cca023`, 24 cases/1,256 matched pairs. Tiny lifecycle +329–400 ns, small lifecycle ratios 1.19–1.31; some bulk intervals cross the provisional budget. Shared-host evidence, not controlled acceptance |
 | [Full tensor packing](../experiments/tensor_packing/results/2026-10-31-linux-full/RESULTS.md), PR #341 | Earlier `3c1664c698be93041012b5768a76f4fc0d975b31`, 877 matched pairs and native LSan checks. Explicit packing costs are included; tiny lifecycle +408–721 ns and some bulk intervals remain outside acceptance |
-| [Full contraction tree with block-copy C](../experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md), PR #347 | Clean `82e00e97a6f93ef0b078bdc086f142c5703c6bc4`, 1,325 pairs/24 native records. Tiny lifecycle ratios 2.0860–2.2248, small 1.2584–1.5559; bulk 0.9879–1.0320 with an interval reaching 1.1282. Preserve the older weaker comparison; different CPUs prevent cross-run attribution |
+| [Full contraction tree with block-copy arena-C](../experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md), PR #347 | Clean `82e00e97a6f93ef0b078bdc086f142c5703c6bc4`, 1,325 pairs/24 native records. Tiny lifecycle ratios 2.0860–2.2248, small 1.2584–1.5559; bulk 0.9879–1.0320 with an interval reaching 1.1282. Preserve the older weaker comparison; different CPUs prevent cross-run attribution |
 | [Contraction tree with production Unit result](../experiments/contraction_trees/results/2026-11-01-linux-unit-result/RESULTS.md) | Clean `3e3157a19ad3dfcae8c265fa4de68dd097138c38`, 1,313 pairs/24 native records. Tiny lifecycle 1.4233–1.5096 (+566–795 ns), reuse 1.4006–1.4646; bulk lifecycle 1.0017–1.0164 within this shared-host run. 52 measurement batches fell below the calibration target. Different CPUs prevent attributing the change from the older record to Unit sharing; timing and full-cost gates remain open |
 | [Post-short-axis full Linux tree](../experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md) | Clean main `7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c` after #357; [run 41290985225](https://github.com/MGYamada/Vastitas/actions/runs/41290985225), 12 public check/build/executions, 24 native/sanitizer records, 288 verification executions and 1,311 matched pairs. Tiny lifecycle 1.4377–1.4930 (+517–994 ns); small F64 regroup/reuse/lifecycle 1.2519–1.2545 / 1.1141–1.2135 / 1.1260–1.2693. Functional/cost fallback checks pass; bulk-complex contiguous regroup is 1.1055 [1.0749, 1.1128], and small padded F64 lifecycle has an interval reaching 1.9155. All 116 short measurement batches remain. Same CPU model as #356 does not establish same-host old/new attribution; controlled-host, tiny-budget and total-cost gates remain open. |
 | [Diagonal metrics](../experiments/diagonal_metrics/README.md) | Matched prepared and matched-preflight C evidence retains tiny-call/coefficient-pass gaps. Public-source lifecycle, total/backend allocation and controlled-host acceptance remain unmeasured |

@@ -1,7 +1,7 @@
 import VastitasKernel.Identity
 
-/-! Finite declaration and index foundations for protocol 7. These definitions
-are internal infrastructure until the public frontend and checker use them.
+/-! Finite declaration and index foundations used by public protocol 7 through
+`Indexed.Wire.check`, and by the protocol-8 resource composition.
 Names select declarations; they never select a representation or capability. -/
 namespace VastitasKernel.Indexed
 

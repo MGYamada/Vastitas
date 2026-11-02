@@ -4,6 +4,9 @@
 This checks failure semantics, not native refinement or performance. The normal
 public check/build/run precedes the copied runtime's fault-injection executions.
 """
+if not __debug__:
+    raise RuntimeError("verification requires Python assertions; remove -O / PYTHONOPTIMIZE")
+
 import json
 import os
 from pathlib import Path

@@ -255,6 +255,14 @@ def check_footprints(reader,record,contracts,kernels,commands):
     return {'contracts':len(contracts),'executions':len(seen)}
 
 
+def check_command_diagnostics(reader, commands):
+    for command in commands:
+        diagnostics=reader.read(command['stderr']).decode(errors='replace')
+        require(not any(marker in diagnostics for marker in
+                        ('runtime error:', 'UndefinedBehaviorSanitizer', 'AddressSanitizer')),
+                'sanitizer diagnostic in retained command')
+
+
 def verify_reader(reader):
     record=reader.json('record.json')
     require(type(record['schema']) is int and record['schema'] in (1,2) and record['kind']=='diagnostic-openblas-packing','record schema')
@@ -281,6 +289,7 @@ def verify_reader(reader):
     require(len([p for p in old if p.startswith('kernel/')])>100,'missing kernel objects')
     commands=reader.json(record['commands']); labels={c['label']:c for c in commands}
     require(len(labels)==len(commands) and all(c['returncode']==0 for c in commands),'command receipts')
+    check_command_diagnostics(reader, commands)
     require(record['builds']['stock']['unroll']==record['builds']['diagnostic']['unroll'],'changed kernel configuration')
     for variant in ('stock','diagnostic'):
         conf=reader.read('inputs/'+variant+'/Makefile.conf').decode()

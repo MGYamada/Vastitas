@@ -45,7 +45,10 @@ contract_tree(c, NativeFast) {
 }
 ```
 
-The plan contains at most 1024 events. `join result = (edge,left,right,output)`
+The plan contains at most 1024 events. Each event also consumes the global
+4096-statement resource source budget, including events in both branch arms.
+The source envelope checks this before lowering the plan and reports
+`E_RESOURCE_LIMIT` if the total is exceeded. `join result = (edge,left,right,output)`
 consumes two distinct active components and the named connecting edge. It emits
 one checked overwrite GEMM with alpha one, absent beta and `NativeFast`.
 The selected axis is the GEMM inner coordinate. Free left axes retain their

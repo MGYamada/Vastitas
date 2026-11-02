@@ -20,9 +20,9 @@ use super::naturals::nat_max;
 
 def rendered(name):
     source = (ROOT / "stdlib/src/arithmetic" / f"{name}.vast").read_bytes()
-    # Only LF terminates a Vastitas line comment. Universal-newline reading or
-    # splitlines() can expose commented text as executable source. Preserve all
-    # original bytes, including CR, Unicode separators and the final newline.
+    # LF/CRLF delimit Vastitas lines; other line separators are lexer errors.
+    # Universal-newline reading or splitlines() could normalize rejected input
+    # into executable source. Preserve the original bytes for the lexer audit.
     public = b"\n".join(
         b"pub " + line if line.startswith((b"fn ", b"generic ")) else line
         for line in source.split(b"\n")

@@ -100,8 +100,14 @@ def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
 def expect (input : Input) (expected : Option Core.DataType) (value : Core.Term) (span : Span) : M Core.Term := do
   if let some expected := expected then
     unless Core.Typing.Compatible input.declarations value.result.type expected do
+      let pairNotes := match expected, value with
+        | .pure (.pair .nat), .pair .int (.integer first) (.integer second) =>
+          if first >= 0 && second >= 0 then
+            [{ span, message := "help: pair infers its operands independently; bind and annotate Nat operands first, for example let a: Nat = 0; let b: Nat = 1; pair(a, b)" }]
+          else []
+        | _, _ => []
       fail span "E_TYPE" s!"expected {← typeLabel input expected}, found {← typeLabel input value.result.type}"
-        ((← objectNotes input (expected.refs ++ value.result.type.refs)) ++
+        ((← objectNotes input (expected.refs ++ value.result.type.refs)) ++ pairNotes ++
           if expected == .pure .int && value.result.type == .pure .nat then
             [{ span, message := "help: convert explicitly with int(...); Nat values are never converted implicitly" }] else [])
   return value

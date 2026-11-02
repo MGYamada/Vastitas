@@ -155,6 +155,13 @@ def dataProgram (program : Source.Program) : Program := {
   | .error _ => false
   | .ok checked => (Core.Codegen.generate checked.executable.core).isOk)
 
+#eval check "overspent pass receipt is independently rejected" (match Compiler.checkProgram higherFixture true with
+  | .error _ => false
+  | .ok checked => checked.audit.lowered.elaborationWork > 0 &&
+      checked.executable.lowered.elaborationWork > 0 &&
+      !validPass checked.prepared.input false { checked.executable.lowered with
+        elaborationWork := Limits.elaborationWork + 1 })
+
 private def library (p : Program) (functions : List Function) : Program :=
   { p with packages := [p.packages[0]!, { p.packages[1]! with modules :=
     [{ p.packages[1]!.modules[0]! with functions }] }] }

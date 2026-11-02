@@ -120,6 +120,32 @@ Each pass permits at most 4096 higher-order instances in a compilation unit;
 plain first-order functions do not consume that budget. Limits report `E_LIMIT`.
 Recursive specialization is rejected, followed by the core dependency audit.
 
+The common indexed function compiler also has a **1,000,000-unit aggregate
+elaboration budget** per pass. `IndexedFunctionWork` counts each expression,
+statement, block and function header once, plus parameter slots and unpacked
+binding slots. Both branches, nested lambda bodies and all call arguments count.
+These units are an admission policy, not elapsed time, allocation bytes, or
+native instructions. Type syntax and namespace traversal have separate limits.
+
+Before lifting/preparation, work is summed across ordinary functions, every
+applicable method/key, unapplied contributions and extra pure fragments. Method
+expansion also charges before retaining each instance, so separate families
+cannot each spend a fresh budget. Nonwinning and out-of-domain instances count.
+The actual audit and executable passes independently charge every newly compiled
+Fn specialization before checking its body; an already cached instance is not
+charged twice. Each pass additionally caps worklist requests at 2,000,000, plus
+one final completion step. The passes retain separate counters and target states.
+
+Exceeding any budget rejects the entire input with `E_LIMIT`; it never licenses
+omitting an unused body or accepting a partial dispatch audit. The exact returned
+pass carries its accumulated work and independently checks the upper bound.
+Protocols 2–8 use this common pure-function path, including pure resource
+fragments. This does not bound resource-plan expansion/replay, all namespace
+resolution, quadratic local-context operations, or total compiler wall time.
+Those remaining work limits and indexing costs are tracked in #422, #423 and
+[#426](https://github.com/MGYamada/Vastitas/issues/426). Existing per-body,
+dispatch-key and higher-order-instance limits remain in force.
+
 An independent structural predicate checks the recorded static target and
 erased function-argument signatures against backend definitions. The actual
 returned core then passes the existing whole-module typing and dependency
@@ -222,5 +248,5 @@ Resource values are defined in
 Cargo generates frontend constants from it; Lean reifies the kernel's values
 as transparent natural-number definitions in `VastitasKernel.Limits`. Both build
 systems track changes to the file. Parsing depth, source traversal, body checking,
-generated lets, specialization count, dispatch keys and namespace resolution
+generated lets, aggregate elaboration work, specialization count, dispatch keys and namespace resolution
 retain separate named budgets even when their numeric values coincide.

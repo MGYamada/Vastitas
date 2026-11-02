@@ -51,6 +51,7 @@ def scalarType : Nat → Option Core.PureType
 def expandMethods (methods : Array ResolvedMethod) (families : List DispatchChecker.Family) :
     Namespace.Result (List MethodInstance) := do
   let mut instances := #[]
+  let mut work := 0
   for family in families do
     for (ordinal, key) in family.checked.applicablePairs do
       let some method := methods[ordinal]?
@@ -64,6 +65,8 @@ def expandMethods (methods : Array ResolvedMethod) (families : List DispatchChec
       let function : FunctionSource.Function := {
         name := method.target.owner.name, params, result := .data (.pure method.source.result),
         body := method.source.body, span := method.source.span }
+      work ← FunctionSource.WorkBudget.charge work
+        (FunctionSource.WorkBudget.function function) method.source.span
       instances := instances.push ⟨ordinal, key, method.target.owner, function, method.scope⟩
   return instances.toList
 

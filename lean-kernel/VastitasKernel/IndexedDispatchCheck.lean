@@ -12,6 +12,9 @@ identity avoids spending specialization budget once per applicable key. -/
 def liftMethods (source : List (DeclId × FunctionSource.Function)) (resolved : Array ResolvedMethod)
     (instances : List MethodInstance)
     (extras : List (DeclId × FunctionSource.Function) := []) : Namespace.Result FunctionSource.Lifted := do
+  -- The aggregate includes ordinary functions, every applied/unapplied key,
+  -- and extra pure fragments. Separate families cannot each reset the budget.
+  WorkBudget.check (source.map Prod.snd ++ instances.map (·.function) ++ extras.map Prod.snd)
   let sourceCount := source.length
   let extraStart := sourceCount + instances.length
   let namedCount := extraStart + extras.length

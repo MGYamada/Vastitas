@@ -16,6 +16,7 @@ def expandUnapplied {program : Program} (prepared : PreparedHeaders program) : N
   let mut methods := #[]
   let mut instances := #[]
   let mut headers := #[]
+  let mut work := 0
   let assembled := prepared.assembled
   let surface := Authority.finalSurface assembled.prepared assembled.state
   for contribution in prepared.contributions do
@@ -43,6 +44,8 @@ def expandUnapplied {program : Program} (prepared : PreparedHeaders program) : N
         let function : FunctionSource.Function := {
           name := original.target.owner.name, params, result := .data (.pure original.source.result),
           body := original.source.body, span := original.source.span }
+        work ← FunctionSource.WorkBudget.charge work
+          (FunctionSource.WorkBudget.function function) original.source.span
         instances := instances.push ⟨ordinal, key, original.target.owner, function, original.scope⟩
         let headerParams := (method.params.zip key).map fun (param, scalar) =>
           { param with ty := .data (.named (Dispatch.nominalName scalar)) }

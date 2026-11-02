@@ -402,6 +402,29 @@ actual mixed-run slot typing and branch scope, exact source fragment/Core target
 reconstruction, and demanded scalar returns after completed resource calls.
 Both-arm resource acceptance and scalar typing are separate certificates; the
 resource projection alone does not establish their operational equivalence.
+
+The actual emit entries now have acceptance theorems, in addition to the older
+component-generation results. `StorageCodegen.compiled_checked` connects
+`Storage.Native.compile` to its exact original input and successful `Native.audit`;
+`compiled_closed` extracts the checked transition run, final audit and empty
+allocations/loans. `IndexedCodegen.library_checked` and `generated_checked` retain
+the actual repeated Core check, unchanged module, typing, dependency order and
+main signature. `library_roots_present` checks every requested root; the executable
+wrapper theorem records the actual generated library and selected main.
+
+`ResourceCodegen.public_generated_checked` connects successful
+`ResourceSource.Codegen.generate` and its decoded source to the real protocol-8
+`Wire.check` result. `public_resource_plan` identifies the `Native.compile` call
+on that same accepted entry schedule and its audited closed native plan, using
+determinism of the actual repeated source check. `generated_pure_entry` retains
+the same returned pure Core and the disabled optional-runtime flags when there
+is no resource entry. These are **acceptance and exact-input facts**, not emitted
+text semantics, native heap/float refinement, or a proof that every numerical
+operation has an authority receipt. The existing receipt-origin theorems still
+quantify over recorded receipts; converse schedule-to-receipt and
+emitted-generic-call coverage remain open in
+[#432](https://github.com/MGYamada/Vastitas/issues/432).
+
 The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
 instantiated `Storage.run`, and restored caller loans/allocations.
@@ -1059,6 +1082,17 @@ the template returns an input Fn. Separate receipts check local-result freshness
 against the template result and caller inputs; the actual lowering equation
 retains the fresh-name counter and repeated-request cache. These structural
 facts are not a source-specialization equivalence theorem.
+`checked_elaboration_budget` connects the actual reconstructed pass and its exact
+returned Core to the independently checked 1,000,000-unit work-counter bound.
+`FunctionSource.WorkBudget.charge_exact` proves exact accumulation without
+overflow or a discarded charge. Source preflight includes every expanded body;
+each actual specialization consumes work again in its separate pass, while a
+memoized instance does not. This is the syntax/binding-slot admission policy in
+[Stage 1b](stage1b.md), not a time-complexity theorem or a bound on namespace and
+resource-plan work. The all-body coverage and exact Core audits still run for
+every accepted input. Overspent receipt mutations and public check/emit/build
+regressions cover aggregate families, unapplied contributions and concrete Fn
+specializations; rejecting a large program supplies no proof of its semantics.
 Coverage cannot be replaced with a list of executable winners or probes
 reused as executable targets. `IndexedFunctionRegression` includes scalar/Fn
 forwarding chains, alias patterns, forged reuse receipts, unused-body rejection

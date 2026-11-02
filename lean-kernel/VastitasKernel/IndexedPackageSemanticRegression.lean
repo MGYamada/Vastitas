@@ -51,6 +51,33 @@ private def check (name : String) (condition : Bool) : IO Unit :=
 #eval check "a point cannot escape the opened witness scope" (!
   (Typing.checkModule (moduleWith (.letE 80 (.unpack 60 [61] globalPackage (field 61 60)) (.integer 0))) true).isOk)
 
+private def localObject : Term := .primitive (id "construct") [.natural 41]
+  (objectResult concrete (.local concrete 45))
+private def localAlias : Term := .variable 49 localObject.result
+private def localPackage : Term := .pack packed localAlias
+  [.primitive (id "origin") [localAlias]
+    ⟨.indexed ⟨id "Position", [.object (.local concrete 45), .object (.global (id "Base"))]⟩, none⟩]
+private def escapedAlias (symbol : Nat) : Term := .variable symbol (witness 60).result
+
+/-- The object itself is first class. Its type contains no local object index,
+while its result reference retains the opening's exact fresh identity. -/
+def escapedObjectFixture : Module := moduleWith
+  (.letE 49 localObject (.letE 50 localPackage
+    (.letE 80 (.scope (.unpack 60 [61] (.variable 50 ⟨.package packed, none⟩) (witness 60)))
+      (.letE 81 (.scope (escapedAlias 80))
+        (.natToInt (.primitive (id "dimension") [escapedAlias 81] ⟨.pure .nat, none⟩))))))
+#eval check "bare opened object and aliases can leave their blocks" (Typing.checkModule escapedObjectFixture true).isOk
+#eval check "escaped bare object retains the actual descriptor" (decide
+  (eval escapedObjectFixture 100 (fun _ => none) escapedObjectFixture.functions[0]!.body = some (.integer 41)))
+#eval check "escaped object cannot acquire another opening's field" (!
+  (Typing.checkModule (moduleWith (.letE 50 globalPackage
+    (.letE 80 (.unpack 60 [61] (.variable 50 ⟨.package packed, none⟩) (witness 60))
+      (.unpack 70 [71] (.variable 50 ⟨.package packed, none⟩)
+        (.letE 81 (.pack packed (escapedAlias 80) [field 71 70]) (.integer 0)))))) true).isOk)
+#eval check "an escaped object does not permit reusing its opening serial" (!
+  (Typing.checkModule (moduleWith (.letE 80 (.unpack 60 [61] globalPackage (witness 60))
+    (.unpack 60 [71] globalPackage (.integer 0)))) true).isOk)
+
 private def multiEnv : Declarations := { Regression.primitiveFixture.declarations with packages :=
   [⟨id "Pointed", [⟨abstractObject, [⟨id "Position", [.witness, .global (id "Base")]⟩,
     ⟨id "Route", [.witness, .witness]⟩]⟩]⟩] }
@@ -75,6 +102,10 @@ def multipleFieldsFixture : Module :=
   (eval multipleFieldsFixture 100 (fun _ => none) multipleFieldsFixture.functions[0]!.body = some (.integer 0)))
 #eval check "swapping point and morphism payloads is rejected" (!
   (Typing.checkModule { moduleWith (multiBody identityBase originBase) with declarations := multiEnv } true).isOk)
+#eval check "a morphism cannot escape the opened witness scope" (!
+  (Typing.checkModule { moduleWith (.letE 80
+    (.unpack 60 [61, 62] (.pack packed base [originBase, identityBase]) mapField) (.integer 0))
+    with declarations := multiEnv } true).isOk)
 
 private def tokenEnv : Declarations := {
   Regression.packageFixture.declarations with

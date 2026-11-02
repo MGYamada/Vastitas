@@ -110,6 +110,22 @@ pub fn native(source: &str, libraries: &[PathBuf], expected: &str, filename: &st
 pub fn request(source: &str, filename: &str) -> Value {
     serde_json::to_value(vastitas::frontend::parse(source, filename).unwrap()).unwrap()
 }
+pub fn remove_spans(value: &mut Value) {
+    match value {
+        Value::Object(fields) => {
+            fields.remove("span");
+            for child in fields.values_mut() {
+                remove_spans(child);
+            }
+        }
+        Value::Array(items) => {
+            for child in items {
+                remove_spans(child);
+            }
+        }
+        _ => {}
+    }
+}
 pub fn assert_rejected(request: Value, code: &str) -> Value {
     let response = kernel(request, "emit");
     assert_eq!(response["ok"], false, "{response}");

@@ -999,11 +999,23 @@ lambda lifting, signature preparation and both separate lowering passes.
 modules. `source_body_checked` and `lifted_definition_checked` cover every input
 function and lambda, including unused higher-order bodies. `lambda_scope`
 includes type-index free names and the shadowing ban. `target_signature_exact`,
-`executable_target_concrete`, `function_origin`, `emitted_call_exact` and
+`executable_target_concrete`, `function_origin`, `emitted_call_origin` and
 `source_call_resolves` extract the independent static-target, origin and namespace
-audits. Coverage cannot be replaced with a list of executable winners or probes
-reused as executable targets. Fifty-five regressions and four more standalone
-native fixtures exercise this path. These statements do not prove source
+audits. `emitted_call_exact` retains exact requested-key correspondence for the
+executable pass. Audit-only template reuse records both the original requested
+key and the emitted origin; `emitted_call_probe_renaming` and
+`probe_renaming_aliases` establish the independently checked positional
+bijection, and `reused_input_return` preserves the exact caller argument when
+the template returns an input Fn. Separate receipts check local-result freshness
+against the template result and caller inputs; the actual lowering equation
+retains the fresh-name counter and repeated-request cache. These structural
+facts are not a source-specialization equivalence theorem.
+Coverage cannot be replaced with a list of executable winners or probes
+reused as executable targets. `IndexedFunctionRegression` includes scalar/Fn
+forwarding chains, alias patterns, forged reuse receipts, unused-body rejection
+and unchanged specialization limits; source tests also check, build and execute
+the 90-wrapper examples. The earlier standalone native fixtures remain.
+These statements do not prove source
 operational correspondence, typed termination, dispatch/edit composition,
 protocol-7 acceptance or correctness of the native toolchain.
 

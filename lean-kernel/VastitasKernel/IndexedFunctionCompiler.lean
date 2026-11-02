@@ -68,6 +68,49 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
     active := state.active.tail, activeSet := state.activeSet.erase instanceKey }
   return compiled
 
+/-- Reuse audit bodies only when every argument is a probe of the exact formal
+signature. Concrete and mixed calls, and the entire executable pass, retain
+their original specialization keys. The first request supplies the template. -/
+def auditTargets (input : Input) (id : Nat) (targets : List Target) (span : Span) : M (List Target) := do
+  unless (← get).audit && !targets.isEmpty && targets.all (·.name.isProbe) do return targets
+  let definition ← prepared input id span
+  let signatures := fnParameters definition
+  unless signatures.length == targets.length do
+    error span "E_INTERNAL_FUNCTION" "wrong signature-probe argument count"
+  for (signature, actual) in signatures.zip targets do
+    sameSignature signature actual.signature span
+    recordTarget actual signature
+  -- A single probe cannot acquire two different signatures through a forged
+  -- internal request, even if both formal positions individually typecheck.
+  for actual in targets do
+    for other in targets do
+      if actual.name == other.name then sameSignature actual.signature other.signature span
+  let pattern := probeKey id targets
+  if let some canonical := (← get).probeTemplates[pattern]? then return canonical
+  modify fun state => { state with probeTemplates := state.probeTemplates.insert pattern targets }
+  return targets
+
+/-- Transport a returned input probe to the caller's corresponding argument.
+A template-local probe gets a fresh name; repeated identical requests retain
+that name through a separate cache. Neither cache enters executable lowering. -/
+def reuseProbeInstance (id : Nat) (requested canonical : List Target)
+    (compiled : Instance) : M Instance := do
+  let requestedKey := key id requested
+  if requestedKey == compiled.key then return compiled
+  if let some reused := (← get).probeInstances[requestedKey]? then return reused
+  let returned ← match compiled.target with
+    | none => pure none
+    | some result => match result.name with
+      | .concrete _ => pure (some result)
+      | .probe _ => match (canonical.zip requested).find? (fun pair => pair.1.name == result.name) with
+        | some (_, actual) => pure (some actual)
+        | none => some <$> probe result.signature
+  let reused := { compiled with target := returned }
+  modify fun state => { state with
+    probeInstances := state.probeInstances.insert requestedKey reused,
+    probeReuses := ⟨id, compiled.id, requested, canonical, compiled.target, returned⟩ :: state.probeReuses }
+  return reused
+
 /-- This worklist traverses dependencies without spending body fuel or using
 the native call stack for a long chain of ordinary source functions. -/
 def runWork (input : Input) : Nat → Work α → Namespace.Result (α × State)
@@ -75,10 +118,10 @@ def runWork (input : Input) : Nat → Work α → Namespace.Result (α × State)
   | _ + 1, .done value state => .ok (value, state)
   | _ + 1, .failed diagnostic => .error diagnostic
   | fuel + 1, .request id targets span state resume =>
-    match state.instances[key id targets]? with
-    | some compiled => runWork input fuel (resume compiled state)
-    | none => runWork input fuel ((compileInstance input id targets span state).bind
-        fun compiled state => resume compiled state)
+    runWork input fuel ((auditTargets input id targets span state).bind fun canonical => do
+      let compiled ← compileInstance input id canonical span
+      let reused ← reuseProbeInstance id targets canonical compiled
+      fun state => resume reused state)
 
 mutual
   def requests : Expr → Nat
@@ -130,6 +173,7 @@ structure Pass where
   staticUses : List StaticUse
   references : List Source.Reference
   dispatchCalls : List DispatchCall := []
+  probeReuses : List ProbeReuse := []
   deriving Inhabited
 
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
@@ -148,6 +192,6 @@ def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pas
   let main := (entryDefinition prepared.input.source).bind fun main =>
     (state.origins.toList.zipIdx.find? (fun (key, _) => key.definition == main)).map Prod.snd
   return ⟨⟨prepared.input.body.declarations, state.functions.toList, main⟩, state.origins,
-    state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls⟩
+    state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls, state.probeReuses⟩
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

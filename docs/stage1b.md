@@ -97,6 +97,25 @@ calls returning Fn values; the caller's body budget is retained on resumption.
 Call-chain length, declaration order, and an unrelated lambda do not share or
 reduce that budget. Completed instances are memoized and active cycles rejected.
 
+All-probe audit requests reuse a body by source definition and the complete
+equality pattern of its Fn arguments, after checking each exact formal
+signature. For example, `(p, p)` and `(p, q)` have distinct templates. Returned
+input probes are renamed back to the actual caller argument; a template-local
+probe receives a fresh caller-side name, retained for repeated identical
+requests. Concrete and mixed probe/concrete calls keep their original keys.
+Non-input probe results are abstract signature witnesses; reuse does not infer
+that results of different wrapper calls denote the same function. Executable
+specialization independently reconstructs their concrete targets, including
+factories returning Fn values through long forwarding chains.
+The independent audit checks the positional bijection, signatures, emitted
+origin and return renaming. A 90-function forwarding chain no longer spends
+4095 instances rechecking fresh names: its audit has one probe template and
+one concrete instance per wrapper, plus the ordinary entry and scalar callback.
+This also applies when wrappers return Fn values. The normalization and
+independent alias check are quadratic in Fn parameter arity; the regression
+establishes linear instance counts for forwarding chains, not a general linear
+compiler bound or achieved native performance.
+
 Each pass permits at most 4096 higher-order instances in a compilation unit;
 plain first-order functions do not consume that budget. Limits report `E_LIMIT`.
 Recursive specialization is rejected, followed by the core dependency audit.

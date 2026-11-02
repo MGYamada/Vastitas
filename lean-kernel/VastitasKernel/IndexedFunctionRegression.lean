@@ -214,4 +214,92 @@ private def longChain (count : Nat) : Program := program (main (call "chain0") :
     (if id + 1 < count then call s!"chain{id + 1}" else num 7)))
 #eval accepts "long ordinary dependency chain" (longChain 4200)
 
+/-- Before audit reuse, 90 wrappers produced 4095 probe instances before
+checking the entry point. Both scalar and Fn returns now have two instances
+per wrapper (one audit template and one concrete target), in either order. -/
+private def forwardingChain (count : Nat) (returnsFn reversed : Bool) : Program :=
+  let wrappers := (List.range count).map fun id => fn s!"forward{id}" [⟨"g", fnInt, {}⟩]
+    (if returnsFn then fnInt else int) (block (if id == 0 then
+      if returnsFn then var "g" else call "g" [num 41]
+    else call s!"forward{id - 1}" [var "g"]))
+  let result := call s!"forward{count - 1}" [var "add1"]
+  program ((if reversed then wrappers.reverse else wrappers) ++
+    [add1, main (if returnsFn then invoke result [num 41] else result)])
+
+#eval for count in [90, 180] do
+  for returnsFn in [false, true] do
+    for reversed in [false, true] do
+      match Compiler.checkProgram (forwardingChain count returnsFn reversed) true with
+      | .error diagnostic => throw (IO.userError s!"forwarding audit: {diagnostic.code}: {diagnostic.message}")
+      | .ok checked =>
+        check "linear forwarding audit instance count" (checked.audit.lowered.module.functions.length == 2 * count + 2)
+        check "concrete forwarding instance count" (checked.executable.lowered.module.functions.length == count + 2)
+        check "forwarding has audit reuse" (!checked.audit.lowered.probeReuses.isEmpty)
+        check "executable has no probe reuse" checked.executable.lowered.probeReuses.isEmpty
+
+private def pick : Function := fn "pick" [⟨"a", fnInt, {}⟩, ⟨"b", fnInt, {}⟩] fnInt
+  (block (.branch (.boolean true {}) (block (var "a")) (block (var "b")) {}))
+private def probeAliasFixture : Program := program [pick, add1, main (num 0),
+  fn "pairs" [⟨"f", fnInt, {}⟩, ⟨"g", fnInt, {}⟩] fnInt (block (var "mixed") [
+    bind "same" (call "pick" [var "f", var "f"]),
+    bind "mixed" (call "pick" [var "f", var "g"]),
+    bind "again" (call "pick" [var "f", var "g"]),
+    bind "swapped" (call "pick" [var "g", var "f"]),
+    bind "cachedSame" (call "pick" [var "mixed", var "again"]),
+    bind "cachedDifferent" (call "pick" [var "mixed", var "swapped"]),
+    bind "concrete" (call "pick" [var "f", var "add1"])])]
+
+#eval check "equal probes, distinct probes and mixed targets retain separate keys" (match Compiler.checkProgram probeAliasFixture true with
+  | .error _ => false
+  | .ok checked =>
+    let keys := checked.audit.lowered.origins.toList.filter (·.definition == 0)
+    keys.length == 3 && keys.any (fun k => match k.targets with | [a, b] => a == b | _ => false) &&
+      keys.any (fun k => k.targets.any (fun name => !name.isProbe)))
+
+#eval check "forged audit renaming and returned argument rejected" (match Compiler.checkProgram probeAliasFixture true with
+  | .error _ => false
+  | .ok checked =>
+    let pass := checked.audit.lowered
+    let renamed := pass.emittedCalls.find? (fun call => call.key != call.origin)
+    let localResult := pass.probeReuses.find? (fun reuse => reuse.result.isSome)
+    match renamed, localResult with
+    | some call, some reuse =>
+      !validPass checked.prepared.input true { pass with emittedCalls :=
+        [{ call with key := { call.key with targets := [.probe 999, .probe 999] } }] } &&
+      !validPass checked.prepared.input true { pass with probeReuses := [] } &&
+      !validProbeReuse checked.prepared.input pass { reuse with returned := reuse.requested.head? } &&
+      !validProbeReuse checked.prepared.input pass { reuse with id := pass.origins.size } &&
+      !validEmittedCalls checked.prepared.input false pass
+    | _, _ => false)
+
+#eval check "probe reuse preserves input returns and fresh local results" (match Compiler.checkProgram
+    (forwardingChain 90 true false) true, Compiler.checkProgram probeAliasFixture true with
+  | .ok forwarded, .ok paired =>
+    forwarded.audit.lowered.probeReuses.all (fun reuse => reuse.returned == reuse.requested.head?) &&
+      paired.audit.lowered.probeReuses.all validProbeResult
+  | _, _ => false)
+
+#eval rejects "audit reuse still checks unused invalid bodies" "E_TYPE" (program [pick, main (num 0),
+  fn "unused" [⟨"f", fnInt, {}⟩] int (block (call "pick" [var "f", .boolean false {}]))])
+#eval rejects "equal-signature concrete targets are never merged" "E_STATIC_CALL" (program [pick, add1, add2,
+  main (invoke (call "pick" [var "add1", var "add2"]) [num 41])])
+#eval rejects "recursion through renamed audit probes" "E_RECURSION" (program [main (num 0),
+  fn "recur" [⟨"f", fnInt, {}⟩, ⟨"g", fnInt, {}⟩] int (block (call "recur" [var "g", var "f"]))])
+
+/-- Returning the result of invoking an unknown Fn exercises abstract result
+transport, rather than just returning a formal input. Concrete identity is
+still reconstructed independently in the executable pass. -/
+private def factoryChain (count : Nat) : Program :=
+  let factoryType := FnType.function (.function (.cons (.data (.named "Unit")) .nil) intFn)
+  let wrappers := (List.range count).map fun id => fn s!"factoryForward{id}" [⟨"g", factoryType, {}⟩]
+    fnInt (block (if id == 0 then call "g" [.unit {}] else call s!"factoryForward{id - 1}" [var "g"]))
+  program (wrappers ++ [add1, fn "factory" [⟨"u", .data (.pure .unit), {}⟩] fnInt (block (var "add1")),
+    main (invoke (call s!"factoryForward{count - 1}" [var "factory"]) [num 41])])
+
+#eval check "unknown Fn results retain linear audit instance counts" (match Compiler.checkProgram (factoryChain 90) true with
+  | .error _ => false
+  | .ok checked => checked.audit.lowered.module.functions.length == 183 &&
+      checked.executable.lowered.module.functions.length == 93 &&
+      checked.audit.lowered.probeReuses.all validProbeResult)
+
 end VastitasKernel.Indexed.FunctionSource.Regression

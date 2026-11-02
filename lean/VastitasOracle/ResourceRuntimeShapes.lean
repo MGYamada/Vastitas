@@ -23,6 +23,22 @@ theorem runtime_references {signatures : List ValueFlow.Signature}
     exact ⟨by simpa using references, accepted⟩
   · contradiction
 
+/-- Closed guards in the actual public entry's physical actions and explicit
+nominal/call conditions hold for every valuation. This removes no premise for
+guards that refer to runtime scalar slots. -/
+theorem entry_closed_guard {program : ResourceSource.Program} {requireMain : Bool}
+    (checked : ResourceSource.Checked program requireMain)
+    (entry : Nat) (found : program.entry = some entry) (guard : Shapes.Guard)
+    (values : Shapes.Valuation)
+    (member : guard ∈ (checked.execution entry found).checked.shapes.resources.guards ∨
+      guard ∈ Shapes.Flow.extraGuards (checked.execution entry found).checked.shapes.events)
+    (closed : guard.references = []) : guard.eval values = true := by
+  let certificate := (checked.execution entry found).checked.shapes
+  apply StorageShapes.closed_guard_holds guard values closed
+  rcases member with physical | explicit
+  · exact List.all_eq_true.mp certificate.resources.closedGuards guard (List.mem_append.mpr (Or.inr physical))
+  · exact List.all_eq_true.mp certificate.explicitClosed guard explicit
+
 /-- The public entry's actual mixed flow determines the exact symbolic actions.
 For every valuation satisfying their emitted operation guards, the original
 concrete checker accepts precisely their instantiated schedule and has no

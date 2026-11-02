@@ -290,6 +290,7 @@ structure Checked (slots : Slots) (before : Frame) (code : List Action) where
   guards : List Guard
   accepted : run 4096 before code = .ok (after, guards)
   afterValid : auditFrame after = true
+  closedGuards : (before.guards ++ guards).all Guard.closedValid = true
 
 def check (slots : Slots) (before : Frame) (code : List Action) :
     Except Error (Checked slots before code) := do
@@ -302,7 +303,9 @@ def check (slots : Slots) (before : Frame) (code : List Action) :
           | .error problem => .error problem
           | .ok (after, guards) =>
             if afterValid : auditFrame after then
-              return ⟨bounded, slotsValid, references, beforeValid, after, guards, accepted, afterValid⟩
+              if closedGuards : (before.guards ++ guards).all Guard.closedValid then
+                return ⟨bounded, slotsValid, references, beforeValid, after, guards, accepted, afterValid, closedGuards⟩
+              else .error ⟨"E_RUNTIME_GUARD", "literal runtime extent, layout or cell guard is false"⟩
             else reject "invalid final runtime frame"
         else reject "invalid runtime caller frame"
       else reject "runtime extent requires a live immutable Nat or Int scalar slot"

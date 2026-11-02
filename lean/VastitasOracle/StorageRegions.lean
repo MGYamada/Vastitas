@@ -105,6 +105,7 @@ theorem covers_bytes {outer inner : Layout} {scalar : Scalar}
     have offsets : outer.offset ≤ inner.offset := by
       simp only [Bool.or_eq_true, decide_eq_true_eq, not_or] at nonemptyOuter
       omega
+    split at covered <;> try contradiction
     split at covered
     next contiguous =>
       have bounds := byte_bounds inside

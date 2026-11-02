@@ -299,7 +299,10 @@ The separate [internal resource IR](storage-ir.md) now has actual-checker
 theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization
 entailment, normalized write/join meaning, and nonoverlap of distinct active
-loans when either writes. Initialization entailment now includes bounded unions
+loans when either writes. `StorageLayout.all_accesses_at_element_boundary`
+also connects the accepted layout to whole-element allocation offsets, including
+16-byte complex elements; component ABI alignment remains a separate 8-byte
+property. Initialization entailment now includes bounded unions
 of contiguous writes, branch intersections and separate padded columns.
 `reach_sound`, `interval_sound` and `columns_sound` feed the actual
 `initialization_bytes` theorem used by read/GEMM safety; `remaining_nodes` and

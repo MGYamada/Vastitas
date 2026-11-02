@@ -10,6 +10,8 @@ inductive Scalar where
   deriving Repr, BEq, DecidableEq, Inhabited
 
 def Scalar.width : Scalar → Nat | .f64 => 8 | .complexF64 => 16
+/-- Native binary64 component alignment. Typed views additionally preserve
+whole-element boundaries relative to their allocation origin. -/
 def Scalar.alignment (_ : Scalar) : Nat := 8
 
 /-- A dense physical rectangle and an explicit logical transpose. `leading`
@@ -53,7 +55,7 @@ def Layout.Valid (scalar : Scalar) (capacity : Nat) (layout : Layout) : Prop :=
   capacity ≤ byteLimit ∧ layout.offset ≤ capacity ∧
   layout.rows ≤ dimensionLimit ∧ layout.columns ≤ dimensionLimit ∧
   layout.leading ≤ dimensionLimit ∧ max 1 layout.rows ≤ layout.leading ∧
-  (layout.empty = true ∨ layout.offset % scalar.alignment = 0) ∧
+  (layout.empty = true ∨ layout.offset % scalar.width = 0) ∧
   layout.endByte scalar ≤ capacity
 
 instance (scalar : Scalar) (capacity : Nat) (layout : Layout) : Decidable (layout.Valid scalar capacity) :=
@@ -72,6 +74,7 @@ operations, independent of the number of cells. -/
 def Layout.covers (outer inner : Layout) (scalar : Scalar) : Bool :=
   if inner.empty then true
   else if outer.empty || inner.offset < outer.offset then false
+  else if (inner.offset - outer.offset) % scalar.width != 0 then false
   else if outer.contiguous then inner.endByte scalar ≤ outer.endByte scalar
   else
     let difference := inner.offset - outer.offset

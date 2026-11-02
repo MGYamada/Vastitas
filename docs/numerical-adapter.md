@@ -110,7 +110,11 @@ accumulate. Both entries use the same preflight and execution path.
 | `VGEMM_ACCUMULATE` | `C := alpha A B + beta C` | Exclusive read/write; all logical output cells initialized even for beta zero |
 
 `VGemmCoefficient` selects default, explicit scalar bits, or one scalar at a
-live allocation/byte offset. Views undergo bounds/alignment/scalar and output
+live allocation/byte offset. Nonempty complex views and live complex coefficient
+views must start on a 16-byte element boundary relative to that allocation;
+the native binary64 component pointer alignment remains 8 bytes. Half-element
+offsets fail preflight before reading coefficients or writing output. Views
+undergo bounds/alignment/scalar and output
 separation checks, then their values are read before any output mutation. They
 may alias input reads and each other. Logical read rights and initialization
 come from `Storage.checkCoefficient`; physical preflight does not manufacture

@@ -101,6 +101,11 @@ For a nonempty `m x n` matrix, `ld >= max(1,m)` and capacity covers its last
 element, including column padding. LP64 narrowing is checked before BLAS entry.
 Complex storage and alignment are fixed by the adapter ABI, not inferred from
 the source spelling `Complex<F64>` or an unchecked host struct cast.
+The implemented dense views also preserve typed element boundaries relative to
+the allocation origin: nonempty `F64` offsets are multiples of 8 bytes and
+`Complex<F64>` offsets are multiples of 16 bytes. ABI pointer alignment remains
+8 bytes for binary64 components. Transposition or reborrowing does not authorize
+a half-complex-element reinterpretation; empty views still form no pointer.
 
 ## 7.4 Regions, overlap and alias evidence
 

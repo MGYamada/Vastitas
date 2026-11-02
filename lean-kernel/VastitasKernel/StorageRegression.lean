@@ -84,6 +84,32 @@ def paddedFixture : List Statement := actions [allocate, write 1 padded, .fill 1
   write 1 ⟨3, 0, 4, 1, false⟩, .fill 1 value, .release 1, .drop 0])
 #eval check "nonempty offset must align" (rejects "E_RESOURCE_LAYOUT" [allocate, write 1 ⟨3, 1, 1, 1, false⟩])
 
+#eval show IO Unit from do
+  for scalar in [Scalar.f64, .complexF64] do
+    for offset in [0, 8, 16] do
+      for transposed in [false, true] do
+        for leading in [2, 3] do
+          let view : Layout := ⟨offset, 2, 2, leading, transposed⟩
+          let valid := scalar == .f64 || offset % 16 == 0
+          let plan := [Action.allocate 0 scalar 8, .borrow 1 (.owner 0) view .write,
+            .release 1, .drop 0]
+          check "typed nonempty views preserve element boundaries" (accepts plan == valid)
+          check "empty views retain vacuous element boundaries" (accepts
+            [.allocate 0 scalar 8, .borrow 1 (.owner 0) {view with rows := 0} .read,
+              .release 1, .drop 0])
+  let whole : Layout := ⟨0, 8, 1, 8, false⟩
+  let half : Layout := ⟨8, 1, 1, 1, false⟩
+  check "contiguous containment cannot justify a half complex element" (!whole.covers half .complexF64)
+  check "padded containment cannot justify a half complex element" (!padded.covers half .complexF64)
+  check "real element containment is unchanged" (whole.covers half .f64)
+  check "reborrow cannot create half complex elements" (rejects "E_RESOURCE_REGION"
+    [.allocate 0 .complexF64 8, .borrow 1 (.owner 0) whole .write,
+      .borrow 2 (.loan 1) half .write])
+  let forged : State := {
+    allocations := [⟨0, 0, .complexF64, 128, .written half .none, 0⟩]
+    used := [0], nextAllocation := 1 }
+  check "forged initialization cannot confer half-element access" (!auditState forged)
+
 -- Self-copy must preserve the complete checked state, not only acceptance or
 -- cell values. In particular it cannot invalidate an unchanged cached version.
 #eval show IO Unit from do

@@ -218,7 +218,9 @@ the actual unequal spaces/bases; vector evaluation identifies its actual bases
 and explicit metric. Equal dimensions do not suppress these nominal checks.
 Other operations include their local operands. Compiler-created temporary loans
 without a lexical binding are omitted rather than presented as source names.
-Notes are deduplicated and capped at 32.
+Notes are deduplicated and capped at 32, with call context before operand notes.
+The internal trace retains at most 32 innermost sites so unwinding a deep
+rejected call chain does not repeatedly copy an unbounded diagnostic stack.
 
 This context is internal error data: the public wire format and successful
 checked schedules are unchanged. Names and source mappings are recovered only

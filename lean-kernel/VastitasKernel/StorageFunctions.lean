@@ -848,13 +848,13 @@ def atStatement (stack path : List Nat) (position : Nat) (frame : Frame)
           {entry with name := binding.1}
       let site : ErrorSite :=
         ⟨function, .statement (path ++ [position]), names ++ statementSubjects statement⟩
-      .error {error with context := {sites := error.context.sites ++ [site]}}
+      .error {error with context := {sites := (error.context.sites ++ [site]).take 32}}
 
 def atSite (function : Nat) (place : ErrorPlace) (work : Except Error α) : Except Error α :=
   match work with
   | .ok result => .ok result
   | .error error => .error {error with context := {error.context with
-      sites := error.context.sites ++ [⟨function, place, []⟩]}}
+      sites := (error.context.sites ++ [(⟨function, place, []⟩ : ErrorSite)]).take 32}}
 
 theorem atSite_success (function : Nat) (place : ErrorPlace)
     (work : Except Error α) (result : α) :

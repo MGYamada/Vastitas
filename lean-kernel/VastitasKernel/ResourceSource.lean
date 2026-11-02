@@ -907,13 +907,6 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
     if let some (_, source) := owned[primary.function]? then
       let span := siteSpan source primary.place
       let mut notes : List DiagnosticNote := []
-      if let some function := lowered.functions.find? (·.id == primary.function) then
-        let bindings := functionBindings source function
-        for entry in primary.subjects do
-          if let some (_, name, introduced) := bindings.find? (·.1 == entry.name) then
-            let message := s!"{entry.role} is `{name}`, introduced here"
-            unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
-              notes := notes ++ [⟨message, introduced⟩]
       for site in sites do
         if let some (_, function) := owned[site.function]? then
           let location := siteSpan function site.place
@@ -926,6 +919,13 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
                 | _ => "within this resource statement"
             unless notes.any (fun note => note.message == message && decide (note.span = location)) do
               notes := notes ++ [⟨message, location⟩]
+      if let some function := lowered.functions.find? (·.id == primary.function) then
+        let bindings := functionBindings source function
+        for entry in primary.subjects do
+          if let some (_, name, introduced) := bindings.find? (·.1 == entry.name) then
+            let message := s!"{entry.role} is `{name}`, introduced here"
+            unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
+              notes := notes ++ [⟨message, introduced⟩]
       return ⟨error.code, error.message, span, notes.take 32⟩
   -- Header-only failures have no expanded statement. Never re-run every body
   -- probe merely to decorate a diagnostic.

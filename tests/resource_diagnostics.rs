@@ -461,3 +461,83 @@ fn runtime_ownership_errors_also_keep_source_names() {
         "borrowed runtime allocation is `data`, introduced here",
     );
 }
+
+#[test]
+fn wide_call_argument_notes_do_not_hide_the_callee_context() {
+    let values = (0..40)
+        .map(|i| format!("    let n{i}: Nat = value {{ 0 }};\n"))
+        .collect::<String>();
+    let arguments = (0..40)
+        .map(|i| format!("n{i}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let parameters = (0..40)
+        .map(|i| format!("p{i}: Nat"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let source = format!(
+        "resource fn main() -> Int {{\n{values}
+    allocate data: F64[2];
+    borrow init = write(data, layout(0, 2, 1, 2, false));
+    fill(init, f64(1)); release(init);
+    borrow input = read(data, layout(0, 2, 1, 2, false));
+    call consume_many({arguments}, input) -> ();
+    release(input); drop(data);
+    value {{ 42 }}
+}}
+resource fn consume_many({parameters}, input: Read<F64, 1, 1>) -> Unit {{ value {{ () }} }}"
+    );
+    let message = rejection(&fixture(&source), "check");
+    assert_primary(
+        &message,
+        "main.vast",
+        &source,
+        "call consume_many",
+        "E_RESOURCE_TYPE",
+    );
+    assert_note(
+        &message,
+        "main.vast",
+        &source,
+        "resource fn consume_many",
+        "while checking resource function `consume_many`",
+    );
+    assert!(
+        message
+            .lines()
+            .filter(|line| line.contains(": note: "))
+            .count()
+            <= 32
+    );
+}
+
+#[test]
+fn deep_rejected_calls_keep_the_failing_statement_with_bounded_notes() {
+    let mut source = "resource fn main() -> Int { call f0() -> (); value { 42 } }\n".to_owned();
+    for i in 0..40 {
+        source.push_str(&format!(
+            "resource fn f{i}() -> Unit {{ call f{}() -> (); value {{ () }} }}\n",
+            i + 1
+        ));
+    }
+    source.push_str("resource fn f40() -> Unit {\n    allocate data: F64[1];\n    borrow bad = read(data, layout(0, 1, 1, 1, false));\n    value { () }\n}");
+    let message = rejection(&fixture(&source), "check");
+    assert_primary(
+        &message,
+        "main.vast",
+        &source,
+        "borrow bad",
+        "E_RESOURCE_INIT",
+    );
+    assert!(
+        message.contains("borrowed allocation is `data`, introduced here"),
+        "{message}"
+    );
+    assert!(
+        message
+            .lines()
+            .filter(|line| line.contains(": note: "))
+            .count()
+            <= 32
+    );
+}

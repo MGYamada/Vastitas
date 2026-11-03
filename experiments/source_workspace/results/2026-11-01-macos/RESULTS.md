@@ -1,12 +1,15 @@
 # macOS checked-source workspace observation
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-macos`.
+
 Measured source and backend calibration both use clean commit
 `605a5a7c82697bd53241983e8a42c03a68fd372a`. This is a local arm64 macOS 27.2
 observation with Apple clang 21.0.0, Lean 4.35.0 and pinned sequential LP64
 OpenBLAS 0.3.34 (`VORTEXM4`, upstream `NO_WARMUP`). No operation timings or
 controlled-host acceptance are claimed.
 
-The [archive manifest](artifact-manifest.json) binds `evidence.zip` (3,668,155 bytes,
+The [archive manifest](artifact-manifest.json) binds [`evidence.zip`](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-macos.zip) (3,668,155 bytes,
 1,784 members), SHA-256
 `e2db3ba1b55a2c5a77941b5a9820b26c6c06f89b22ba7b4bfbfea903a7d2a129`.
 All 60 source snapshots and the nested calibration's 16 source snapshots were

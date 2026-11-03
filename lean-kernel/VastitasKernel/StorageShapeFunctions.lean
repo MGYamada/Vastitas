@@ -171,17 +171,28 @@ structure CallReceipt where
   replayed : Shapes.run 4096 before.resources slice = .ok (after.resources, guards)
   exited : ExitValid before.resources after.resources
 
-def checkCall (before after : Context) : Except Error CallReceipt := do
+private def finishCallReplay (before after : Context) (slice : List Action)
+    (prefixed : before.code.toList ++ slice = after.code.toList)
+    (checked : {r // Shapes.run 4096 before.resources slice = r}) : Except Error CallReceipt := do
+  match result : checked.val with
+  | .error problem => .error problem
+  | .ok (frame, guards) =>
+    if same : frame = after.resources then
+      if exited : ExitValid before.resources after.resources then
+        return ⟨before, after, slice, guards, prefixed, same ▸ checked.property.trans result, exited⟩
+      else reject "runtime call failed its caller-frame audit"
+    else reject "runtime call differs from exact symbolic replay"
+
+def checkCall (before after : Context) (nested : Option CallReceipt := none) : Except Error CallReceipt := do
   let slice := after.code.toList.drop before.code.size
   if prefixed : before.code.toList ++ slice = after.code.toList then
-    match replayed : Shapes.run 4096 before.resources slice with
-    | .error problem => .error problem
-    | .ok (frame, guards) =>
-      if same : frame = after.resources then
-        if exited : ExitValid before.resources after.resources then
-          return ⟨before, after, slice, guards, prefixed, same ▸ replayed, exited⟩
-        else reject "runtime call failed its caller-frame audit"
-      else reject "runtime call differs from exact symbolic replay"
+    let checked := replayWithEvidence (Shapes.run 4096) before.resources slice (nested.map fun receipt =>
+      ⟨receipt.before.resources, receipt.slice, .ok (receipt.after.resources, receipt.guards), receipt.replayed⟩)
+    finishCallReplay before after slice prefixed checked
   else reject "runtime call changed an earlier operation"
+
+theorem checkCall_eq_uncached (before after : Context) (nested : Option CallReceipt) :
+    checkCall before after nested = checkCall before after none := by
+  simp only [checkCall, replayWithEvidence_eq]
 
 end VastitasKernel.Storage.Shapes.Functions

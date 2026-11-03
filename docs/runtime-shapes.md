@@ -153,14 +153,23 @@ ancestor sets and all writer pairs. `Shapes.auditFrame_eq_indexed` and
 for every frame and every compatibility input. The proof depends only on the
 loan graph and applies at any runtime extent.
 
-Full frame audits, replay and all-body probes still repeat across calls. The
-request-wide work budget remains open in [#423](https://github.com/MGYamada/Vastitas/issues/423)
-and its [static counterpart](https://github.com/MGYamada/Vastitas/issues/422).
-The public source harness `scripts/check_storage_scaling.py --profile runtime`
+Every call checks the actual caller and exit frame. An identical starting
+frame and action slice can reuse a completed nested replay, including its
+ordered guards. `Shapes.Functions.checkCall_eq_uncached` equates that call
+check with a fresh replay. Different frames or actions take the ordinary path.
+The public entry also reuses the checked library's all-body probe batch.
+[Forwarding-call measurements](../experiments/compiler_scaling/results/2026-11-03-macos-nested-replay/RESULTS.md)
+
+General nested expansion, writer-pair checks and full frame audits still
+contribute to checking cost. A request-wide resource-work limit remains open.
+[#423](https://github.com/MGYamada/Vastitas/issues/423) · [Static storage #422](https://github.com/MGYamada/Vastitas/issues/422)
+
+The public harness `scripts/check_storage_scaling.py --profile runtime`
 measures allocation/drop, shared reads, distinct-allocation writers, reborrow
-chains and ten-wrapper calls. The [earlier comparison](../experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md)
-records the previous 512-deep timeout. The [chain comparison](../experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
-reports compiler checking times separately from generated-program performance.
+chains and forwarding calls. It records compiler checking times. The earlier
+record includes the 512-deep timeout and the later chain record measures the
+same workload after the ancestry check changed.
+[Earlier comparison](../experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md) · [Chain comparison](../experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
 
 A generated entry creates one runtime-shape arena and cleans it up once; entries
 also using static resources have a second, disjoint arena. A call does not create

@@ -7,3 +7,4 @@
 *.trace
 __pycache__/
 *.py[cod]
+/experiments/source_workspace/results/*/evidence.zip

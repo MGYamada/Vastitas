@@ -17,6 +17,34 @@ balanced churn in surrounding phases, mismatched generated/C backend costs,
 changed stdin/backend bindings and unlisted archive files; the original measured
 bytes/revision remain unchanged.
 
+## Retrieve a retained archive
+
+From the repository root, fetch a single record and run the existing offline replay.
+
+```sh
+python3 experiments/source_workspace/fetch.py 2026-11-01-macos
+python3 experiments/source_workspace/verify.py experiments/source_workspace/results/2026-11-01-macos/evidence.zip
+```
+
+The source catalog names one public release attachment per record. The original
+`artifact-manifest.json` in each record supplies its SHA-256 and byte count.
+The fetcher checks both while streaming, then publishes the complete ZIP
+atomically. The offline verifier checks its structure and contents.
+[Source catalog](archive-sources.json) · [Evidence release](https://github.com/MGYamada/Vastitas/releases/tag/source-workspace-evidence-20261103)
+
+Run `python3 experiments/source_workspace/fetch.py --all` before running the
+complete replay and mutation suite. This restores all 13 archives to their
+original paths (616,677,342 bytes). Re-running the command verifies the files
+already present and downloads any missing ones. Use `--cache-dir DIR` with a
+record or with `--all` to write digest-named files to a shared cache. The
+command prints each verified path for use with `verify.py`.
+
+The repository tracks the manifests and summaries. Downloads at the original
+result paths are ignored by Git. Full clones that include the original commits
+still contain the historical blobs.
+
+## Reproduce a source observation
+
 Build a stock/diagnostic pair with the [workspace calibration](../openblas_workspace/README.md)
 from the **same observer sources** first. Its full verified record is required;
 the exact archives, headers, observer inputs and unchanged calculation objects

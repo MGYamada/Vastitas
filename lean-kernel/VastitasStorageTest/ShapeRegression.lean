@@ -254,6 +254,12 @@ private def guardsPass (values : Shapes.Valuation) (guards : List Shapes.Guard) 
   ensure "call cannot leave its child live" (!(Shapes.Functions.checkCall caller child).isOk)
   let returned ← get "call returns child" (child.step (.release 90))
   let receipt ← get "actual call slice receipt" (Shapes.Functions.checkCall caller returned)
+  let forwarded ← get "forward the same symbolic slice" (Shapes.Functions.checkCall caller returned (some receipt))
+  ensure "forwarding preserves exact guards and frame" (forwarded.guards == receipt.guards &&
+    forwarded.after.resources == receipt.after.resources)
+  let spent := {caller with resources := {frame with used := 90 :: frame.used}}
+  ensure "a matching symbolic slice cannot reuse a spent name in another frame"
+    (!(Shapes.Functions.checkCall spent returned (some receipt)).isOk)
   ensure "exact source call slice" (receipt.slice == [.borrow 90 (.loan 21) .read, .release 90])
   let actualCall ← get "call slice instantiation" (Shapes.instantiate values 4096 frame receipt.slice)
   let actualAfter ← get "call slice concrete run" (Storage.run 4096 (frame.eval values) actualCall)
@@ -262,6 +268,9 @@ private def guardsPass (values : Shapes.Valuation) (guards : List Shapes.Guard) 
   let writer ← get "call actual whole-map write" (writer.step (.fill 91 (.f64 0)))
   let writer ← get "call write child return" (writer.step (.release 91))
   let writerReceipt ← get "initialized caller destination may survive" (Shapes.Functions.checkCall caller writer)
+  let different ← get "different slice at the same starting frame" (Shapes.Functions.checkCall caller writer (some receipt))
+  ensure "other slice cannot replace the writer's guards or state" (different.slice == writerReceipt.slice &&
+    different.guards == writerReceipt.guards && different.after.resources == writerReceipt.after.resources)
   let writerCode ← get "write call instantiation" (Shapes.instantiate values 4096 frame writerReceipt.slice)
   let writerState ← get "write call actual run" (Storage.run 4096 (frame.eval values) writerCode)
   let some written := writerState.allocation? 2 | throw (IO.userError "missing write-call destination")

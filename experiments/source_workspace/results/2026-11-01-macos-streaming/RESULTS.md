@@ -1,5 +1,8 @@
 # Large-output checked source costs — macOS
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-macos-streaming`.
+
 This complete streaming profile measures clean
 `ceff5840e4fd1dbdf0e4ab012d2fd52cab062e7d`. The same public contraction-tree source,
 returned instructions, coordinate oracle and matched C work now cover 128 MiB
@@ -13,7 +16,7 @@ memory-bandwidth acceptance claim.
 | Lean calibration | Clean `54531c11b2843a0d3d7565b71e7463e4387b8c03`, retained in the archive |
 | Backend calibration | Clean `db62d224837031f1a8b3e05e6ca4756325716a04`, pinned sequential LP64 OpenBLAS 0.3.34 |
 | Source inputs | All 81 repository snapshots independently matched to the measured Git revision |
-| Compact archive | [evidence.zip](evidence.zip), 8,237 members, 25,258,478 bytes |
+| Compact archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-macos-streaming.zip), 8,237 members, 25,258,478 bytes |
 | SHA-256 | `251a8a27324ac76f58035d721b9ecd0668bec55a4c032133b36c3a85d2f3e9a3` |
 | Export receipt | [artifact-manifest.json](artifact-manifest.json) |
 

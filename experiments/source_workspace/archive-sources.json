@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "records": {
+    "2026-11-01-linux": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-linux.zip"
+    },
+    "2026-11-01-linux-allocator": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-linux-allocator.zip"
+    },
+    "2026-11-01-linux-packing": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-linux-packing.zip"
+    },
+    "2026-11-01-linux-streaming": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-linux-streaming.zip"
+    },
+    "2026-11-01-linux-unit-cleanup": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-linux-unit-cleanup.zip"
+    },
+    "2026-11-01-macos": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-macos.zip"
+    },
+    "2026-11-01-macos-allocator": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-macos-allocator.zip"
+    },
+    "2026-11-01-macos-packing": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-macos-packing.zip"
+    },
+    "2026-11-01-macos-streaming": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-macos-streaming.zip"
+    },
+    "2026-11-01-macos-unit-cleanup": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-01-macos-unit-cleanup.zip"
+    },
+    "2026-11-02-linux-lifetimes": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-02-linux-lifetimes.zip"
+    },
+    "2026-11-02-macos-lifetimes": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-02-macos-lifetimes.zip"
+    },
+    "2026-11-02-macos-lifetimes-streaming": {
+      "release_tag": "source-workspace-evidence-20261103",
+      "asset": "2026-11-02-macos-lifetimes-streaming.zip"
+    }
+  }
+}

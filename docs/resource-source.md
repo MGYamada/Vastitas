@@ -177,7 +177,10 @@ not add floating Core arithmetic, resource reads in pure expressions or escaping
 resource closures. Runtime-shape calls are rejected under resource branches.
 
 Every resource definition is checked, including unused dependencies. Check-only
-libraries use actual all-body probes without a fabricated main. Source owners,
+libraries use actual all-body probes without a fabricated main. A package with
+a resource entry reuses that checked probe list and independently expands its
+actual entry schedule as described in [resource functions](storage-functions.md#all-body-checking-and-exact-expansion).
+Source owners,
 local symbols and call IDs are reconstructed; the public input cannot provide
 allocation IDs, checked Core, alias assertions or trusted initialization flags.
 Versions 2–7 reject resource declarations rather than discarding them.

@@ -1,5 +1,8 @@
 # Large-output checked source costs — Linux
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-linux-streaming`.
+
 This complete streaming profile measures clean
 `ceff5840e4fd1dbdf0e4ab012d2fd52cab062e7d`. The same public contraction-tree source,
 returned instructions, coordinate oracle and matched C work now cover 128 MiB
@@ -13,7 +16,7 @@ memory-bandwidth acceptance claim.
 | Lean calibration | Clean `ceff5840e4fd1dbdf0e4ab012d2fd52cab062e7d`, retained in the archive |
 | Backend calibration | Clean `ceff5840e4fd1dbdf0e4ab012d2fd52cab062e7d`, sequential LP64 OpenBLAS 0.3.34, HASWELL |
 | Source inputs | All 81 repository snapshots independently matched to the measured Git revision |
-| Compact archive | [evidence.zip](evidence.zip), 8,215 members, 34,880,910 bytes |
+| Compact archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-linux-streaming.zip), 8,215 members, 34,880,910 bytes |
 | SHA-256 | `6f5048e98edc427b3045dddaf2439496d526a3b79fb4348eedc06d52aa3e337b` |
 | Export receipts | [artifact manifest](artifact-manifest.json), [GitHub provenance](github-artifact.json) |
 | Source CI | [Streaming run 41310354369](https://github.com/MGYamada/Vastitas/actions/runs/41310354369/job/124859243216) |

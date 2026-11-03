@@ -1,0 +1,273 @@
+{
+  "compiler_sha256": "4850cb677203efb04fea370496987c480b64a9b4cdbad8db6e49bcf24aa014a9",
+  "kernels": {
+    "baseline": "aa9794e1f428514cb137b6bc56f951920b8d29a332b0bb54e73a759fa4489789",
+    "candidate": "e7106584457c4f66281d4ee9fe8ce097eb3f8ae9025dd92aa6122bc1b98edbe0"
+  },
+  "cases": [
+    {
+      "profile": "static",
+      "depth": 0,
+      "loans": 200,
+      "source_sha256": "c5e7cfdf5c723f188ae8a9e9793e3eb75c861f4743ff34c958a1e1ee995b6acc",
+      "samples": [
+        {
+          "run": 0,
+          "kernel": "baseline",
+          "seconds": 0.27264437498524785,
+          "exit_code": 0
+        },
+        {
+          "run": 0,
+          "kernel": "candidate",
+          "seconds": 1.092131374985911,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "candidate",
+          "seconds": 0.2058774579782039,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "baseline",
+          "seconds": 0.2542475829832256,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "baseline",
+          "seconds": 0.2438272919971496,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "candidate",
+          "seconds": 0.2079479579697363,
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "profile": "static",
+      "depth": 10,
+      "loans": 200,
+      "source_sha256": "08767d4f7c9aba4c8c011f5825653be7e7738d9aadb5d7e2fd125cdab90a4e13",
+      "samples": [
+        {
+          "run": 0,
+          "kernel": "baseline",
+          "seconds": 2.1642367080203258,
+          "exit_code": 0
+        },
+        {
+          "run": 0,
+          "kernel": "candidate",
+          "seconds": 0.7585511250072159,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "candidate",
+          "seconds": 0.7400074580218643,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "baseline",
+          "seconds": 2.1135699169826694,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "baseline",
+          "seconds": 2.2053163340315223,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "candidate",
+          "seconds": 0.7572892919997685,
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "profile": "static",
+      "depth": 30,
+      "loans": 200,
+      "source_sha256": "a69e86fb2a16cfc1f11514b69558ab7be116d004cf5313da182d26b772531376",
+      "samples": [
+        {
+          "run": 0,
+          "kernel": "baseline",
+          "seconds": 11.179411832999904,
+          "exit_code": 0
+        },
+        {
+          "run": 0,
+          "kernel": "candidate",
+          "seconds": 1.8245951250428334,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "candidate",
+          "seconds": 1.8561249170452356,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "baseline",
+          "seconds": 11.200634375039954,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "baseline",
+          "seconds": 11.235467749997042,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "candidate",
+          "seconds": 1.8328467500396073,
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "profile": "runtime",
+      "depth": 0,
+      "loans": 200,
+      "source_sha256": "17b59c038d596d5aa814d5d7ab78e05df263ab53a0ab33e0e88e1386453ad9f1",
+      "samples": [
+        {
+          "run": 0,
+          "kernel": "baseline",
+          "seconds": 0.19482454098761082,
+          "exit_code": 0
+        },
+        {
+          "run": 0,
+          "kernel": "candidate",
+          "seconds": 0.15762566699413583,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "candidate",
+          "seconds": 0.16784991702297702,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "baseline",
+          "seconds": 0.19509266701061279,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "baseline",
+          "seconds": 0.1923772080335766,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "candidate",
+          "seconds": 0.16832291695754975,
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "profile": "runtime",
+      "depth": 10,
+      "loans": 200,
+      "source_sha256": "8f51dec91d7157e3810be363d7202b062f362f1833de823c5898f0ba6a4d8c4a",
+      "samples": [
+        {
+          "run": 0,
+          "kernel": "baseline",
+          "seconds": 1.6178953329799697,
+          "exit_code": 0
+        },
+        {
+          "run": 0,
+          "kernel": "candidate",
+          "seconds": 0.5938332920195535,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "candidate",
+          "seconds": 0.582611582998652,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "baseline",
+          "seconds": 1.6012103339890018,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "baseline",
+          "seconds": 1.6040429580025375,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "candidate",
+          "seconds": 0.5837097499752417,
+          "exit_code": 0
+        }
+      ]
+    },
+    {
+      "profile": "runtime",
+      "depth": 30,
+      "loans": 200,
+      "source_sha256": "991908f0548f588943384e101f3920f591f1db569b6fc4c8957785951e1999a7",
+      "samples": [
+        {
+          "run": 0,
+          "kernel": "baseline",
+          "seconds": 8.47355500003323,
+          "exit_code": 0
+        },
+        {
+          "run": 0,
+          "kernel": "candidate",
+          "seconds": 1.4464496670407243,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "candidate",
+          "seconds": 1.464292332995683,
+          "exit_code": 0
+        },
+        {
+          "run": 1,
+          "kernel": "baseline",
+          "seconds": 8.537492709001526,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "baseline",
+          "seconds": 8.584749208006542,
+          "exit_code": 0
+        },
+        {
+          "run": 2,
+          "kernel": "candidate",
+          "seconds": 1.461426499998197,
+          "exit_code": 0
+        }
+      ]
+    }
+  ]
+}

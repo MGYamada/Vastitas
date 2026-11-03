@@ -1,5 +1,8 @@
 # Checked source costs after Unit cleanup — macOS
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-macos-unit-cleanup`.
+
 This full schema-3 record measures clean
 `84b0c115f1a003edf52d4634c9dbebbbf6531b18`. It includes the Unit-only
 cleanup change subsequently merged in [PR #378](https://github.com/MGYamada/Vastitas/pull/378)
@@ -14,7 +17,7 @@ measured revision or the [older packing record](../2026-11-01-macos-packing/RESU
 | Backend | Pinned sequential LP64 OpenBLAS 0.3.34; exact stock/diagnostic archives retained in the nested calibration |
 | Calibration revisions | Both backend and Lean calibrations measure the same clean `84b0c11` head |
 | Source provenance | All 81 repository snapshots independently match Git; 1,955 retained commands |
-| Compact archive | [evidence.zip](evidence.zip), 11,007 members, 49,342,594 bytes |
+| Compact archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-macos-unit-cleanup.zip), 11,007 members, 49,342,594 bytes |
 | SHA-256 | `e0b02a62dd4e75cb9e7bdd99e1d847b3881b675464d5048aad1c98a33fbe987c` |
 | Receipts | [Export manifest](artifact-manifest.json), [GitHub artifact provenance](github-artifact.json) |
 

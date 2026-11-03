@@ -189,7 +189,7 @@ def method (j : Json) : Except String DispatchSource.Method := do
 
 def contribution (j : Json) : Except String DispatchSource.Contribution := do
   fields j ["name", "target", "methods", "span", "public"]
-  let target ← (← array j "target").mapM Json.getStr?
+  let target ← segments j "target"
   let span ← decodeSpan j
   if target.isEmpty || target.any String.isEmpty then throw "empty contribution target"
   return {

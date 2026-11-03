@@ -696,7 +696,10 @@ def borrowTransition (state : State) (name : Symbol) (source : Source) (layout :
       if !loan.layout.covers layout allocation.scalar then reject "E_RESOURCE_REGION" "child region is not contained in its parent"
       pure (allocation, some parent)
   let (allocation, parent) ← sourceResult
-  if !checkLayout allocation.scalar allocation.capacity layout then reject "E_RESOURCE_LAYOUT" "invalid layout, bounds, alignment or native narrowing"
+  if !checkLayout allocation.scalar allocation.capacity layout then
+    let reason := ((layout.firstViolation allocation.scalar allocation.capacity).map
+      fun violation => s!": {violation.message}").getD ""
+    reject "E_RESOURCE_LAYOUT" s!"invalid layout{reason}"
   if access.reads && !allocation.initialization.covers allocation.scalar layout then
     reject "E_RESOURCE_INIT" "requested read region is not initialized"
   let loan := { name, allocation := allocation.identity, layout, access, parent : Loan }

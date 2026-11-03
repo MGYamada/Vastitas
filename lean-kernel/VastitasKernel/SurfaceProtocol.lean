@@ -103,8 +103,8 @@ def decodeSurfaceMethod (j : Json) : Except String Surface.Method := do
 
 def decodeTypePath (j : Json) : Except String TypePath := do
   fields j ["path", "span"]
-  let path ← (← array j "path").mapM Json.getStr?
-  if path.isEmpty || path.any String.isEmpty then throw "empty type path"
+  let path ← segments j "path"
+  if path.isEmpty then throw "empty type path"
   return { path, span := ← decodeSpan j }
 
 def decodeAbstractType (j : Json) (allowPublic : Bool := false) : Except String RawAbstractType := do

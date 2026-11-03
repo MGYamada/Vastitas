@@ -26,6 +26,7 @@ def generatedLets : Nat := compiler_limit% "generatedLets"
 def specializations : Nat := compiler_limit% "specializations"
 def dispatchKeys : Nat := compiler_limit% "dispatchKeys"
 def dispatchArity : Nat := compiler_limit% "dispatchArity"
+def dispatchWork : Nat := compiler_limit% "dispatchWork"
 def nominalTypes : Nat := compiler_limit% "nominalTypes"
 def namespaceResolution : Nat := compiler_limit% "namespaceResolution"
 def namespaceImportWork : Nat := compiler_limit% "namespaceImportWork"
@@ -33,6 +34,7 @@ def namespaceProgramWork : Nat := compiler_limit% "namespaceProgramWork"
 def dependencyGraph : Nat := compiler_limit% "dependencyGraph"
 
 def assemblyEvents : Nat := compiler_limit% "assemblyEvents"
+def authorityTraceWork : Nat := compiler_limit% "authorityTraceWork"
 def contributionMethods : Nat := compiler_limit% "contributionMethods"
 
 end VastitasKernel.Limits

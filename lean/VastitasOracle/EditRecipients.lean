@@ -73,6 +73,7 @@ theorem lower_grant_resolves (p : Indexed) (scope : Scope) (raw : Namespace.Gran
       entry.grantee = ⟨pkg.id, raw.granteePath⟩ := by
   unfold Edit.lowerGrant at accepted
   obtain ⟨target, state, _, accepted⟩ := state_bind_success accepted
+  obtain ⟨_, state, _, accepted⟩ := state_bind_success accepted
   obtain ⟨arity, state, _, accepted⟩ := state_bind_success accepted
   obtain ⟨pkg, state, resolved, accepted⟩ := state_bind_success accepted
   refine ⟨pkg, lifted_success resolved, ?_⟩

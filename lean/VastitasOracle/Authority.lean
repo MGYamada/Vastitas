@@ -9,29 +9,44 @@ Rust parser, native code generator or runtime. -/
 namespace VastitasOracle.Authority
 open VastitasKernel VastitasKernel.Namespace VastitasKernel.Authority VastitasKernel.Semantics
 
-theorem runTrace_sound (p : Indexed) (prepared : Prepared p) (events : List EditEvent)
-    (initial final : State) (accepted : runTrace p prepared events initial = .ok final) :
+/-- The work budget only adds rejections; every accepted trace is audited. -/
+theorem runTraceWith_sound (p : Indexed) (prepared : Prepared p) (events : List EditEvent)
+    (initial final : State) (work : Nat) (accepted : runTraceWith p prepared events initial work = .ok final) :
     Trace p prepared initial events final := by
-  induction events generalizing initial with
+  induction events generalizing initial work with
   | nil =>
+    by_cases budget : auditWork prepared initial > work
+    · simp [runTraceWith, budget, traceLimit, problem] at accepted
     by_cases valid : StateValid prepared initial
-    · simp [runTrace, valid, pure, Except.pure] at accepted
+    · simp [runTraceWith, budget, valid, pure, Except.pure] at accepted
       subst final
       exact .nil initial
-    · simp [runTrace, valid, problem] at accepted
+    · simp [runTraceWith, budget, valid, problem] at accepted
   | cons event rest ih =>
+    by_cases budget : auditWork prepared initial > work
+    · simp [runTraceWith, budget, traceLimit, problem, bind, Except.bind] at accepted
     have initialValid : StateValid prepared initial := by
       by_cases valid : StateValid prepared initial
       · exact valid
-      · simp [runTrace, valid, problem, bind, Except.bind] at accepted
+      · simp [runTraceWith, budget, valid, problem, bind, Except.bind] at accepted
     cases stepResult : step p prepared initial event with
-    | error diagnostic => simp [runTrace, initialValid, stepResult, bind, Except.bind] at accepted
+    | error diagnostic => simp [runTraceWith, budget, initialValid, stepResult, bind, Except.bind] at accepted
     | ok next =>
+      by_cases charged : auditWork prepared initial + auditWork prepared next > work
+      · simp [runTraceWith, budget, initialValid, stepResult, charged, traceLimit, problem,
+          bind, Except.bind] at accepted
       by_cases valid : TransitionAllowed p prepared initial event next ∧ StateValid prepared next
-      · have tail : runTrace p prepared rest next = .ok final := by
-          simpa [runTrace, initialValid, stepResult, valid, bind, Except.bind] using accepted
-        exact .cons valid.1 valid.2 (ih next tail)
-      · simp [runTrace, initialValid, stepResult, valid, problem, bind, Except.bind] at accepted
+      · have tail : runTraceWith p prepared rest next
+            (work - (auditWork prepared initial + auditWork prepared next)) = .ok final := by
+          simpa [runTraceWith, budget, initialValid, stepResult, charged, valid, bind, Except.bind] using accepted
+        exact .cons valid.1 valid.2 (ih next _ tail)
+      · simp [runTraceWith, budget, initialValid, stepResult, charged, valid, problem, bind,
+          Except.bind] at accepted
+
+theorem runTrace_sound (p : Indexed) (prepared : Prepared p) (events : List EditEvent)
+    (initial final : State) (accepted : runTrace p prepared events initial = .ok final) :
+    Trace p prepared initial events final :=
+  runTraceWith_sound p prepared events initial final _ accepted
 
 theorem trace_final_valid (trace : Trace p prepared initial events final)
     (initialValid : StateValid prepared initial) : StateValid prepared final := by

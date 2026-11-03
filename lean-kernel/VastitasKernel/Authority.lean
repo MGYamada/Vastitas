@@ -21,7 +21,7 @@ structure Prepared (p : Indexed) where
   references : List Reference
 
 def lowerTransfer (p : Indexed) (scope : Scope) (raw : Namespace.Transfer) : Namespace.M TransferEntry := do
-  let target ← Namespace.lookup p scope (String.intercalate "::" raw.target) raw.span
+  let target ← Namespace.lookupPath p scope raw.target raw.span
   Edit.requireKind target .generic raw.span
   let pkg ← recipientPackage p raw.granteePackage raw.span
   let recipient : Scope := ⟨pkg.id, raw.granteePath⟩
@@ -299,16 +299,47 @@ inductive Trace (p : Indexed) (prepared : Prepared p) : State → List EditEvent
   | cons : TransitionAllowed p prepared before event next → StateValid prepared next →
       Trace p prepared next rest final → Trace p prepared before (event :: rest) final
 
-def runTrace (p : Indexed) (prepared : Prepared p) : List EditEvent → State → Result State
-  | [], state =>
-    if StateValid prepared state then pure state
+/-- Admission units for deciding `StateValid` at `state`, and the transition
+audit into or out of it, charged before either runs: loan pairs with their
+chains, chain declaration membership and region containment, histories,
+applications and the hash-set snapshots. The units track the actual audit
+(about 5 ns each when measured on deep reborrow chains); they are an admission
+policy, not elapsed time. Every audit still runs at every event. -/
+def auditWork (prepared : Prepared p) (state : State) : Nat :=
+  let chains := state.loans.map (·.chain.length) ++ state.applied.map (·.chain.length)
+  let loans := state.loans.length + state.applied.length + 1
+  let chain := chains.foldl max 0 + 1
+  let links := chains.sum + 1
+  let declarations := prepared.core.grants.length + prepared.delegations.length +
+    prepared.transfers.length + prepared.core.contributions.length + 1
+  let region := ((prepared.core.grants ++ prepared.delegations).map (·.region.length)).foldl max 0 + 1
+  let history := state.history.length + 1
+  loans * loans * (loans + chain) + links * (chain + declarations + region * region) +
+    loans * (declarations + history + region * chain) + history * (history + declarations) +
+    state.usedLoans.size + state.sealed.size + state.edited.size + 1
+
+def traceLimit (span : Span) : Result α :=
+  problem span "E_LIMIT" s!"authority trace audit exceeds the {Limits.authorityTraceWork}-unit work budget"
+
+def runTraceWith (p : Indexed) (prepared : Prepared p) : List EditEvent → State → Nat → Result State
+  | [], state, work =>
+    if auditWork prepared state > work then traceLimit {}
+    else if StateValid prepared state then pure state
     else problem {} "E_INTERNAL_AUTHORITY" "authority state audit failed"
-  | event :: rest, state => do
+  | event :: rest, state, work => do
+    let before := auditWork prepared state
+    if before > work then traceLimit event.span
     if !StateValid prepared state then problem event.span "E_INTERNAL_AUTHORITY" "authority state audit failed"
     let next ← step p prepared state event
+    let after := auditWork prepared next
+    if before + after > work then traceLimit event.span
     if !(TransitionAllowed p prepared state event next ∧ StateValid prepared next) then
       problem event.span "E_INTERNAL_AUTHORITY" "authority transition or provenance audit failed"
-    runTrace p prepared rest next
+    runTraceWith p prepared rest next (work - (before + after))
+
+/-- One trace shares one budget; there is no per-event reset. -/
+def runTrace (p : Indexed) (prepared : Prepared p) (events : List EditEvent) (state : State) : Result State :=
+  runTraceWith p prepared events state Limits.authorityTraceWork
 
 def DeclarationsAuthorized (prepared : Prepared p) (state : State) : Prop :=
   (∀ grant ∈ prepared.core.grants, HeldAuthority state.history grant.target.owner grant.id.scope) ∧

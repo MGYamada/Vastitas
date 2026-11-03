@@ -202,6 +202,9 @@ constructs the nominal hierarchy and capability facts itself; request metadata
 cannot add subtype edges, assert capabilities, or provide a trusted winner.
 It checks ambiguity on the complete concrete key space, coverage on the
 declared domain, and every applicable monomorphized body, including nonwinners.
+Each family's table is charged to a 16,000,000-unit dispatch-work budget before
+the work runs: keys × methods plus method pairs, then the squared number of
+applicable methods at each key. Exhaustion reports `E_LIMIT`.
 See [Stage 1a](stage1a.md) for the exact specialization order and limits.
 
 Expressions use a `kind` tag and always include `span`:
@@ -255,7 +258,14 @@ Failure responses preserve any readable natural-number request version, even
 when unsupported. Missing or non-natural versions are rejected before decoder
 selection. An unreadable version, invalid JSON or non-UTF-8 stdin produces an
 `E_PROTOCOL` JSON response using version 2 as the fallback; stdin decoding errors
-do not escape as uncaught IO exceptions. `supportedProtocolVersions` in the kernel defines the complete wire
+do not escape as uncaught IO exceptions. Before JSON parsing, the kernel also
+answers `E_PROTOCOL` for requests over 1 GiB, nesting deeper than 16384
+arrays/objects, numbers with more than 64 integer and fraction digits or an
+exponent of more than two digits, and duplicate object keys (compared after
+string decoding). Path lists are structured: each component is nonempty and
+contains no `:`. Integer literal and Gram strings are ASCII decimal digits
+(Gram entries may start with `-`); `_` separators are rejected.
+`supportedProtocolVersions` in the kernel defines the complete wire
 version list. Drivers display failure diagnostics before adding a version
 mismatch note; a mismatched success response is always rejected.
 

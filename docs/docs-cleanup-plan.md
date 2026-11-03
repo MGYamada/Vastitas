@@ -2,11 +2,12 @@
 
 # Documentation cleanup and mdBook adoption after Stage 1
 
-Status: plan, with English-language preparation completed before Stage 1 at the
-user's request. Book reorganization, mdBook installation, and site publication remain
-after the Stage 1 completion record; none is claimed complete here.
+The first content task after Stage 1 delivery is an English guide to historical
+Stages 2–7. Link it from the opening book navigation. The English tracking
+issue lists a deliverable and an acceptance example for each stage.
+[First mdBook task, #516](https://github.com/MGYamada/Vastitas/issues/516)
 
-Created: 27 October 2026 (JST). Updated: 31 October 2026 (JST). The inventory uses
+Created 27 October 2026 (JST). Updated 3 November 2026 (JST). The inventory uses
 PR #234's merge `4de22b4` and the documentation in this revision as its baseline.
 The [README](../README.md), [Stage 1 completion ledger](stage1-completion.md), tests,
 and validation records remain the implementation sources of truth. Repeat the
@@ -18,17 +19,21 @@ scope or formal-verification claims.
 
 ## 1. Entry conditions and purpose
 
-The public implementation includes Stage 1b, path packages / call-only module
-imports, finite abstract selectors/contracts, edit assemblies, protocol-6
-reborrowing and authority transfer, protocol-7 indexed declarations with the
-finite geometry stdlib, and protocol-8 static resource functions and numerical
-operations. The [numerical guide](numerical-values.md) records the implemented
-GEMM, typed transform, vector evaluation and finite two-map network profiles.
-This is not completion of the entire historical Stage 1.
-[Stage 1 in v0.3](design/roadmap-acceptance.md#14-initial-implementation-sequence)
-includes independent lambdas and finite dispatch, function edit authority,
-composition of declarative differences, footprints, obligation transfer and repair,
-storage ownership, basic linear algebra, and more.
+Use the [finite Stage 1 delivery record](stage1-completion.md) for the
+implementation baseline and its known performance differences. Use
+[v0.3 §14–15](design/roadmap-acceptance.md#14-initial-implementation-sequence)
+for the proposed research sequence. Apply any later maintainer decision
+explicitly in the new guide, outside the preserved draft blocks.
+
+The guide opens with ordinary affine schemes, exact rings, dual numbers and
+base change (Stage 2), then smooth affine geometry and cotangent-based reverse
+AD (3), bundles and tensor diagrams (4), spectral observations (5), a first
+physical-model example (6), and broader geometry and physics (7). Give each
+stage a concrete success condition and identify the Stage 1 foundation it uses.
+Distinguish these stages from versioned release gates. Cover the controlled
+Linux comparison, tiny-call budget and remaining Lean/BLAS costs as a
+cross-stage performance obligation assigned to Stage 2 or later.
+[Performance handoff](stage1-completion.md#stage-2-or-later-performance-acceptance)
 
 Before starting the book reorganization, record the following in the implementation roadmap:
 
@@ -195,6 +200,7 @@ The planned contents follow. Add new pages to the contents only after writing th
 
 ```text
 Entry and implementation status   docs/README.md
+Historical Stages 2–7             docs/guide/historical-roadmap.md (first content task)
 Usage guide                       docs/guide/{getting-started,cli,stdlib}.md
 Language specification            docs/{stage0,stage1a,stage1b,packages}.md
                                   + specifications added before Stage 1 completion
@@ -277,14 +283,16 @@ and pin Actions to commit SHAs, as in the existing CI.
 | Stage | Work | Completion criterion |
 | --- | --- | --- |
 | 0. English preparation | Translate remaining navigation/planning prose before Stage 1; preserve original draft blocks and old anchors | English prose, valid links/anchors, and matching source hashes; no mdBook dependency added |
-| 1. Inventory | Fix the Stage 1 completion baseline and reconcile this inventory with every page, duplicate, stale statement, and reference | Every file has a classification, source of truth, status, destination, preservation policy, and basis for corrections |
-| 2. Content organization | Prepare implementation status, usage guidance, and contributor procedures; synchronize specifications, proof scope, and README | Readers can distinguish current specifications from historical proposals and trace examples/evidence |
-| 3. mdBook adoption | Add the pinned version, `book.toml`, `SUMMARY.md`, and minimal rendering support | Local build/serve works; equations, code, and every chapter are visually checked |
-| 4. CI and maintenance | Add docs build, link/source-preservation checks, procedures, and an HTML artifact | PR output is reviewable; broken chapters, links, and changes to preserved text are detected |
-| 5. Publication | After local/CI completion, choose the destination, branch, and URL and configure deployment | Record the published URL and update procedure; verify the real site's navigation, including subpaths |
+| 1. Historical Stages 2–7 | Draft the English guide from §14–15 and the current decision record before the general inventory | Each stage has a scope, acceptance example and source. The guide is ready to link from the book entrypoint under [#516](https://github.com/MGYamada/Vastitas/issues/516). |
+| 2. Inventory | Fix the Stage 1 completion baseline and reconcile this inventory with every page, duplicate, stale statement, and reference | Every file has a classification, source of truth, status, destination, preservation policy, and basis for corrections |
+| 3. Content organization | Prepare implementation status, usage guidance, and contributor procedures; synchronize specifications, proof scope, and README | Readers can distinguish current specifications from historical proposals and trace examples/evidence |
+| 4. mdBook adoption | Add the pinned version, `book.toml`, `SUMMARY.md`, and minimal rendering support | Local build/serve works; equations, code, and every chapter are visually checked |
+| 5. CI and maintenance | Add docs build, link/source-preservation checks, procedures, and an HTML artifact | PR output is reviewable; broken chapters, links, and changes to preserved text are detected |
+| 6. Publication | After local/CI completion, choose the destination, branch, and URL and configure deployment | Record the published URL and update procedure; verify the real site's navigation, including subpaths |
 
-Keep English preparation, stages 1–2 content work, stage 3 book configuration,
-stage 4 checks/maintenance, and stage 5 publication in separate reviewable changes.
+Review the first roadmap chapter separately. Follow it with the inventory and
+content corrections (2–3), book configuration (4), checks and maintenance (5),
+and publication (6).
 Record affected documents and rendering/link checks in each PR. Keep existing
 Markdown readable if adoption encounters problems; do not make generated HTML the
 only place information exists. Do not mix mdBook dependencies into Stage 1
@@ -334,6 +342,7 @@ implementation-status table.
 
 - [x] English preparation is recorded with prose, link/anchor, and source-hash checks.
 - [x] The [Stage 1 delivery record](stage1-completion.md) identifies the finite implementation commit, evidence and outstanding performance requirements.
+- [ ] The first English chapter covers all six historical stages and their acceptance examples, and is reachable from the book entrypoint. [#516](https://github.com/MGYamada/Vastitas/issues/516)
 - [ ] Readers can navigate usage, current specifications, implementation/proof boundaries, and historical design separately.
 - [ ] Every resource has a classification and source of truth; obsolete pages identify successors/reasons, without incorrectly retiring compatibility specifications or historical evidence.
 - [ ] Revised Chapter 7 cost/performance contracts are included, with measured Fast like C scope and unmet goals traceable from implementation status.

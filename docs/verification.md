@@ -441,8 +441,11 @@ Its compiled frame audit and incoming-loan compatibility scan use reconstructed
 finite indexes through `Shapes.auditFrame_eq_indexed` and
 `Shapes.compatibleWith_eq_indexed`. These unconditional equalities retain the
 reference predicates on malformed frames as well as valid ones; bounded ancestry
-sets preserve first-match lookup and dangling-parent behavior. They do not bound
-total replay/probe work or establish linear compiler scaling.
+sets preserve first-match lookup and dangling-parent behavior.
+`Finite.LoanChain.comparable` and `acyclic` establish the chain case for both
+static and symbolic loans. The checker verifies the actual order, distinct
+names and terminating root before using either lemma. Repeated audit and
+call/probe work remains outside these per-frame equations.
 `StorageShapeNumerical` proves acceptance by the actual nominal `checkProduct`
 for the same maps and coefficients. `ResourceRuntimeShapes` connects those
 results to public entry projections, declaration origins, live integral slots

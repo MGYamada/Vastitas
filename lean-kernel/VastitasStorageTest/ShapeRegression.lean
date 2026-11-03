@@ -18,6 +18,17 @@ private def get (label : String) (result : Except Error α) : IO α :=
   let child : Shapes.Loan := ⟨2, 0, layout, .readWrite, some 1⟩
   let frame : Shapes.Frame := ⟨[allocation], [child, parent], [0, 1, 2], 1⟩
   ensure "indexed frame retains suspended writer ancestry" (Shapes.auditFrame frame)
+  let chain := ((List.range 4096).map fun n =>
+    {parent with name := n + 1, parent := if n == 0 then none else some n}).reverse
+  let deep := {frame with loans := chain, used := List.range 4097}
+  ensure "4096 whole-map reborrows retain a valid inspectable frame"
+    (Shapes.auditFrame deep && (Shapes.checkStep deep (.release 4096)).isOk)
+  ensure "valid unordered loans still use ordinary first-match lookup"
+    (Shapes.auditFrame {frame with loans := [parent, child]})
+  ensure "a different compatibility input cannot borrow the frame's chain"
+    (!Shapes.compatibleWith frame {parent with name := 999} [parent])
+  ensure "a closed list of links still checks parent permissions"
+    (!Shapes.auditFrame {frame with loans := [child, {parent with access := .read}]})
   let malformed : List Shapes.Frame := [
     {frame with used := 1 :: frame.used},
     {frame with allocations := allocation :: frame.allocations},

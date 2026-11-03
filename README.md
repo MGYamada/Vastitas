@@ -21,6 +21,30 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 The program prints `42`. [Quick start](docs/guide/getting-started.md) ·
 [CLI and diagnostics](docs/guide/cli.md) · [Packages and stdlib](docs/guide/stdlib.md)
 
+## Install the alpha
+
+This alpha runs on macOS and Linux. Install Rust 1.99.1, Lean 4.35.0
+(with Lake) and a host C toolchain. Cargo installs the driver. Build its
+matching kernel in a writable directory and keep it for subsequent runs.
+
+```sh
+cargo install --locked --version '=0.1.0-alpha' vastitas
+curl -fLsS https://static.crates.io/crates/vastitas/vastitas-0.1.0-alpha.crate -o vastitas-0.1.0-alpha.crate
+tar -xzf vastitas-0.1.0-alpha.crate
+cd vastitas-0.1.0-alpha
+export VASTITAS_KERNEL_ROOT="$PWD/lean-kernel"
+lake -d lean-kernel build vastitas-kernel
+vastitas check examples/pointed.vast
+vastitas build examples/pointed.vast -o pointed
+./pointed
+```
+
+The example prints `42`. Set `VASTITAS_KERNEL_ROOT` to this same absolute
+path in each new shell. For programs that import the combined standard
+library, run `python3 scripts/build_stdlib_package.py` once in the extracted
+crate. Numerical programs also require sequential LP64
+OpenBLAS 0.3.34. [Numerical build guide](https://github.com/MGYamada/Vastitas/blob/v0.1.0-alpha/docs/guide/cli.md)
+
 ## Documentation
 
 Read the [English book](docs/README.md) or browse its [contents](docs/SUMMARY.md).

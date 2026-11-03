@@ -350,7 +350,7 @@ containing other declarations of axioms may fail this strict export policy
 even when the intended theorem does not use those axioms; prepare an
 appropriately scoped export instead of silently weakening the policy.
 
-nanoda_lib 0.4.31 is pinned by Git revision in Cargo and accepts the
+The compiler bundles nanoda_lib 0.4.31 at [its pinned revision](https://github.com/ammkrn/nanoda_lib/tree/8de7e0c4ed3052745a7f8725164efd9e76d84c56). It accepts the
 `lean4export` 3.1.x format. The included minimal theorem fixture is hand-assembled from documented
 format 3.1.0 nodes (with illustrative historical metadata); the compiler
 and official proof projects remain pinned to Lean 4.35.0. Building and invoking `audit-lean` does not require

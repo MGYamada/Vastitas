@@ -1,5 +1,5 @@
 //! Host driver. Semantic acceptance always comes from the Lean backend.
-use crate::ir::{PROTOCOL_VERSION, Span};
+use crate::ir::Span;
 use crate::sources::Sources;
 use serde_json::{Value, json};
 use std::ffi::{OsStr, OsString};
@@ -113,9 +113,11 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         return Ok(());
     }
     if args == ["--version"] {
+        let protocols = crate::packages::PUBLIC_PROTOCOLS.map(|version| version.to_string());
         println!(
-            "vastitas {} (Stage 1b + packages + abstract selectors + edit authority + indexed declarations + static resources, protocols {PROTOCOL_VERSION}/3/4/5/6/7/8)",
-            env!("CARGO_PKG_VERSION")
+            "vastitas {} (wire protocols {})",
+            env!("CARGO_PKG_VERSION"),
+            protocols.join("/")
         );
         return Ok(());
     }

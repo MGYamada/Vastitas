@@ -77,21 +77,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
-name = "nanoda_lib"
-version = "0.4.31"
-source = "git+https://github.com/ammkrn/nanoda_lib?rev=8de7e0c4ed3052745a7f8725164efd9e76d84c56#8de7e0c4ed3052745a7f8725164efd9e76d84c56"
-dependencies = [
- "indexmap",
- "num-bigint",
- "num-integer",
- "num-traits",
- "rustc-hash",
- "semver",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "nix"
 version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -294,10 +279,14 @@ checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
 name = "vastitas"
-version = "0.1.0"
+version = "0.1.0-alpha"
 dependencies = [
- "nanoda_lib",
+ "indexmap",
  "nix",
+ "num-bigint",
+ "num-integer",
+ "num-traits",
+ "rustc-hash",
  "semver",
  "serde",
  "serde_json",

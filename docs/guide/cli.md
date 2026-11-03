@@ -19,8 +19,7 @@ Ctrl-Z suspends the driver only; its separate child process group may continue.
 At the pre-book revision, validation of an existing output symlink concerns
 its target, while final replacement affects the link itself. The native
 manifest path escaping and process-group cleanup limits are tracked
-separately. Protocol 9 is supported by the kernel even though the version
-banner at that revision lists protocols only through 8.
+separately. The version banner reports the package version and supported wire protocols 2–9.
 [Output links, #519](https://github.com/MGYamada/Vastitas/issues/519) · [Process cleanup, #520](https://github.com/MGYamada/Vastitas/issues/520) · [Version banner, #521](https://github.com/MGYamada/Vastitas/issues/521) · [Native manifest paths, #522](https://github.com/MGYamada/Vastitas/issues/522)
 
 Storage and numerical builds coordinate access to their shared optional native

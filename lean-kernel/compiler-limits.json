@@ -20,5 +20,13 @@
   "namespaceProgramWork": 4000000,
   "dependencyGraph": 4096,
   "assemblyEvents": 4096,
-  "contributionMethods": 4096
+  "contributionMethods": 4096,
+  "algebraGenerators": 16,
+  "algebraRelations": 32,
+  "algebraDegree": 16,
+  "algebraTerms": 512,
+  "algebraBasis": 64,
+  "algebraCoefficientDigits": 64,
+  "algebraChain": 16,
+  "algebraWork": 8000000
 }

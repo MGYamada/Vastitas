@@ -98,10 +98,20 @@ class RepositoryBoundaryTests(unittest.TestCase):
     def test_runtime_cannot_import_compiler_or_external_packages(self):
         self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Lean\nimport VastitasKernel.Core\n")
         self.write("lean-kernel/VastitasKernel/IndexedRuntime.lean", "import VastitasKernel.IndexedCore\n")
+        self.write("lean-kernel/VastitasKernel/AlgebraRuntime.lean", "import VastitasKernel.AlgebraBasis\n")
         self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": [{"name": "mathlib"}]}))
         errors = check_boundaries(self.root)
         self.assertTrue(any("no external Lake" in error for error in errors))
-        self.assertEqual(sum("runtime must not import" in error for error in errors), 3)
+        self.assertEqual(sum("runtime must not import" in error for error in errors), 4)
+
+    def test_algebra_fixture_library_cannot_enter_the_compiler(self):
+        self.write("lean-kernel/VastitasAlgebraTest/BasisRegression.lean",
+                   "import VastitasKernel.AlgebraBasis\nimport Lean.Data.Json\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/AlgebraBasis.lean",
+                   "import VastitasAlgebraTest.BasisRegression\n")
+        self.assertTrue(any("forbidden import VastitasAlgebraTest.BasisRegression" in error
+                            for error in check_boundaries(self.root)))
 
     def test_public_source_fixture_cannot_enter_the_compiler(self):
         self.write("lean-kernel/VastitasPublicTest/AuthorityRegression.lean",

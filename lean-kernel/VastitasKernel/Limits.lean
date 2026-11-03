@@ -35,4 +35,16 @@ def dependencyGraph : Nat := compiler_limit% "dependencyGraph"
 def assemblyEvents : Nat := compiler_limit% "assemblyEvents"
 def contributionMethods : Nat := compiler_limit% "contributionMethods"
 
+/-! Finite Stage 2 algebra: generators per ring, declared relations, source
+degree, polynomial terms, reduced basis size, decimal digits per source
+integer, base-chain length and weighted checker work. -/
+def algebraGenerators : Nat := compiler_limit% "algebraGenerators"
+def algebraRelations : Nat := compiler_limit% "algebraRelations"
+def algebraDegree : Nat := compiler_limit% "algebraDegree"
+def algebraTerms : Nat := compiler_limit% "algebraTerms"
+def algebraBasis : Nat := compiler_limit% "algebraBasis"
+def algebraCoefficientDigits : Nat := compiler_limit% "algebraCoefficientDigits"
+def algebraChain : Nat := compiler_limit% "algebraChain"
+def algebraWork : Nat := compiler_limit% "algebraWork"
+
 end VastitasKernel.Limits

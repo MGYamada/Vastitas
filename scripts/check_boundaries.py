@@ -245,7 +245,8 @@ def check_boundaries(root):
     errors = []
     check_lake_dependencies(kernel, "lean-kernel", errors)
     runtime = kernel / "VastitasKernel" / "Runtime.lean"
-    runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean"}
+    runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean",
+                kernel / "VastitasKernel" / "AlgebraRuntime.lean"}
     native = kernel / "native"
     numerical = kernel / "numerical"
     if native.exists():

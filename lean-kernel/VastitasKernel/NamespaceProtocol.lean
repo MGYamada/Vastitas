@@ -20,23 +20,28 @@ private def import3 (j : Json) : Except String Namespace.Import := do
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
 
 
-private def grant5 (authority : Bool) (j : Json) : Except String Namespace.Grant := do
-  fields3 j (["name", "target", "grantee_source", "grantee_path", "region", "span", "public"] ++
+private def recipient (named : Bool) (j : Json) : Except String Namespace.RecipientPackage :=
+  if named then .name <$> str j "grantee_package" else .source <$> str j "grantee_source"
+
+private def grant5 (authority named : Bool) (j : Json) : Except String Namespace.Grant := do
+  fields3 j (["name", "target", "grantee_path", "region", "span", "public"] ++
+    [if named then "grantee_package" else "grantee_source"] ++
     if authority then ["delegable"] else [])
   let delegable ← match j.getObjVal? "delegable" with
     | .error _ => pure false
     | .ok value => value.getBool?
   return {
     name := ← str j "name", target := ← path3 j "target",
-    granteeSource := ← str j "grantee_source", granteePath := ← path3 j "grantee_path",
+    granteePackage := ← recipient named j, granteePath := ← path3 j "grantee_path",
     region := ← (← array j "region").mapM fun key => do (← key.getArr?).toList.mapM Json.getStr?,
     delegable, span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
-private def transfer6 (j : Json) : Except String Namespace.Transfer := do
-  fields3 j ["name", "target", "grantee_source", "grantee_path", "span", "public"]
+private def transfer6 (named : Bool) (j : Json) : Except String Namespace.Transfer := do
+  fields3 j (["name", "target", "grantee_path", "span", "public"] ++
+    [if named then "grantee_package" else "grantee_source"])
   return {
     name := ← str j "name", target := ← path3 j "target",
-    granteeSource := ← str j "grantee_source", granteePath := ← path3 j "grantee_path",
+    granteePackage := ← recipient named j, granteePath := ← path3 j "grantee_path",
     span := ← decodeSpan j, isPublic := ← j.getObjValAs? Bool "public" }
 
 private def contribution5 (j : Json) : Except String Namespace.Contribution := do
@@ -86,7 +91,8 @@ private def assembly5 (authority : Bool) (j : Json) : Except String Namespace.As
 /-- Shared strict namespace-envelope decoder. Rich indexed wire inputs first
 validate their own field set and replace all bodies with empty metadata lists;
 their actual bodies are decoded and independently checked on the rich path. -/
-def decodeNamespaceModule (extended editable authority : Bool) (j : Json) : Except String Namespace.Module := do
+def decodeNamespaceModule (extended editable authority : Bool) (j : Json)
+    (namedRecipients : Bool := false) : Except String Namespace.Module := do
   fields3 j (["path", "public", "span", "imports", "functions", "generics", "methods"] ++
     (if extended then ["abstract_types", "subtypes", "abstract_methods"] else []) ++
     (if editable then ["grants", "contributions", "assembly"] else []) ++
@@ -111,9 +117,9 @@ def decodeNamespaceModule (extended editable authority : Bool) (j : Json) : Exce
     path := ← path3 j "path", isPublic := ← j.getObjValAs? Bool "public",
     span := ← decodeSpan j, imports := ← (← array j "imports").mapM import3,
     functions, generics, methods, abstractTypes, subtypes, assembly,
-    grants := ← (← optionalArray j "grants").mapM (grant5 authority),
-    delegations := ← (← optionalArray j "delegations").mapM (grant5 authority),
-    transfers := ← (← optionalArray j "transfers").mapM transfer6,
+    grants := ← (← optionalArray j "grants").mapM (grant5 authority namedRecipients),
+    delegations := ← (← optionalArray j "delegations").mapM (grant5 authority namedRecipients),
+    transfers := ← (← optionalArray j "transfers").mapM (transfer6 namedRecipients),
     contributions := ← (← optionalArray j "contributions").mapM contribution5,
     abstractMethods := ← (← optionalArray j "abstract_methods").mapM decodeAbstractMethod }
 

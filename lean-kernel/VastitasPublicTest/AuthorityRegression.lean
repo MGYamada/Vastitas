@@ -2,6 +2,7 @@ import VastitasKernel.LegacySource
 import VastitasKernel.IndexedProtocol
 import VastitasKernel.IndexedSemantics
 import VastitasKernel.IndexedCodegen
+import VastitasKernel.ResourceProtocol
 
 /-! Actual public authority composition, starting from frontend JSON captured by
 `tests/edit_authority.rs`. These executable regressions supplement the retained
@@ -12,6 +13,8 @@ open Lean VastitasKernel Indexed.Core Indexed.Core.Semantics
 
 private def fixture : Json :=
   (Json.parse (include_str "../../tests/fixtures/edit-authority.json")).toOption.getD .null
+private def namedFixture : Json :=
+  (Json.parse (include_str "../../tests/fixtures/edit-recipients.json")).toOption.getD .null
 private def get (j : Json) (key : String) : Json := (j.getObjVal? key).toOption.getD .null
 private def values (j : Json) (key : String) : Array Json :=
   (j.getObjValAs? (Array Json) key).toOption.getD #[]
@@ -36,6 +39,11 @@ private def contributionMethod (j : Json) (pkg : String) (path : List String) (e
   editModule j pkg path fun m => editAt m "contributions" 0 fun c => editAt c "methods" 0 edit
 
 private def acceptedCore (input : Json) : Except Diagnostic (Typing.CheckedModule true) := do
+  if [toJson (8 : Nat), toJson (9 : Nat)].contains (get input "version") then
+    let accepted ← ResourceSource.Wire.check input true
+    if entry : accepted.input.entry = none then
+      return (by simpa [entry] using accepted.checked.pureProgram.executable.core)
+    else throw {code := "E_TEST", message := "authority fixture unexpectedly has a resource entry"}
   if get input "version" == toJson (7 : Nat) then
     return (← Indexed.Wire.check input true).checked.executable.core
   return (← Indexed.LegacySource.check input true).checked.executable.core
@@ -55,6 +63,8 @@ private def checkBad (name : String) (input : Json) (code : String) : IO Unit :=
   for requireMain in [false, true] do
     let result := if get input "version" == toJson (7 : Nat) then
       (Indexed.Wire.check input requireMain).map fun _ => ()
+    else if [toJson (8 : Nat), toJson (9 : Nat)].contains (get input "version") then
+      (ResourceSource.Wire.check input requireMain).map fun _ => ()
     else (Indexed.LegacySource.check input requireMain).map fun _ => ()
     match result with
     | .ok _ => throw (IO.userError s!"public authority {name}: forgery accepted")
@@ -92,8 +102,25 @@ private def cases : List (String × Json × String) := [
     editAt m "contributions" 0 (·.setObjVal! "public" (toJson false))), "E_VISIBILITY"),
   ("namespace dependency cannot be forged", editModule fixture "app" [] (·.setObjVal! "owner" (toJson "trusted")), "E_PROTOCOL")]
 
+/-- Test migration of the historical raw inputs, including their forgeries.
+The independently captured current source fixture above is also checked. -/
+private def namedRecipients (input : Json) : Json :=
+  (input.setObjVal! "version" (toJson (9 : Nat))).setObjVal! "packages"
+    (toJson ((values input "packages").map fun pkg => pkg.setObjVal! "modules"
+      (toJson ((values pkg "modules").map fun m =>
+        ["grants", "delegations", "transfers"].foldl (fun current field =>
+          if !(m.getObjVal? field).isOk then current else
+            current.setObjVal! field (toJson ((values m field).map fun raw =>
+              let target := (values input "packages").find? (fun p => get p "source" == get raw "grantee_source")
+              (dropField raw "grantee_source").setObjVal! "grantee_package"
+                (target.map (get · "name") |>.getD (toJson "missing"))))) m))))
+
 #eval show IO Unit from do
-  for version in [6, 7] do
+  checkGood "protocol 9 actual frontend fixture" namedFixture 44
+  checkGood "protocol 9 historical fixture migration" (namedRecipients fixture) 44
+  for (name, input, code) in cases do
+    checkBad s!"protocol 9: {name}" (namedRecipients input) code
+  for version in [6, 7, 8] do
     checkGood s!"protocol {version} nested loans and transfer" (fixture.setObjVal! "version" (toJson version)) 44
     checkGood s!"protocol {version} alias preserves identity"
       ((event 2 (·.setObjVal! "contribution" (toJson ["alias", "ops", "sum"]))).setObjVal! "version" (toJson version)) 44
@@ -112,6 +139,6 @@ private def cases : List (String × Json × String) := [
   for version in [2, 3, 4, 5] do
     checkBad s!"authority metadata cannot downgrade to {version}"
       (fixture.setObjVal! "version" (toJson version)) "E_PROTOCOL"
-  IO.println s!"public authority: five accepted/executable cases, {cases.length * 2 + 5} rejected inputs under both check/emit policies passed"
+  IO.println s!"public authority: nine accepted/executable cases, {cases.length * 4 + 5} rejected inputs under both check/emit policies passed"
 
 end VastitasPublicTest.AuthorityRegression

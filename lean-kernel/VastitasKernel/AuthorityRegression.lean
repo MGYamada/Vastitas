@@ -35,15 +35,15 @@ private def program : Namespace.Program := {
       generics := [{ name := "choose", params := [⟨"x", {}⟩], domain := [[.named "Int"]], span := {}, isPublic := true }]
       methods := [method "choose" "Number"]
       grants := [{
-        name := "outer", target := ["choose"], granteeSource := addon.source,
+        name := "outer", target := ["choose"], granteePackage := .source addon.source,
         granteePath := [], region := [["Int"]], delegable := true, span := {}, isPublic := true }]
       transfers := [{
-        name := "handoff", target := ["choose"], granteeSource := addon.source,
+        name := "handoff", target := ["choose"], granteePackage := .source addon.source,
         granteePath := [], span := {}, isPublic := true }] }] },
     { id := addon, dependencies := [⟨"base", base.source⟩], modules := [
       { emptyModule with delegations := [{
         name := "inner", target := ["base", "choose"],
-        granteeSource := addon.source, granteePath := ["ops"], region := [["Int"]], span := {}, isPublic := true }] },
+        granteePackage := .source addon.source, granteePath := ["ops"], region := [["Int"]], span := {}, isPublic := true }] },
       { emptyModule with path := ["ops"], contributions := [{
         name := "sum", target := ["base", "choose"],
         methods := [method "base::choose" "Int"], span := {}, isPublic := true }] }] }] }

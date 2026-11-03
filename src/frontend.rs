@@ -789,14 +789,6 @@ impl Parser {
         })
     }
 
-    fn quoted_path(&mut self) -> Result<String, Diagnostic> {
-        let token = self.advance();
-        match token.kind {
-            TokenKind::Text(value) => Ok(value),
-            _ => Err(diagnostic("E_PARSE", "expected a quoted path", token.span)),
-        }
-    }
-
     fn edit_path(&mut self) -> Result<Vec<String>, Diagnostic> {
         Ok(self
             .reference_path()?
@@ -841,23 +833,31 @@ impl Parser {
         Ok(domain)
     }
 
+    fn edit_recipient(&mut self) -> Result<(String, Vec<String>), Diagnostic> {
+        if self.peek().is("module")
+            && self
+                .tokens
+                .get(self.position + 1)
+                .is_some_and(|t| t.is("("))
+        {
+            return Err(diagnostic(
+                "E_UNSUPPORTED",
+                "manifest-path edit recipients were removed; use `to package_name::module` (or `to package_name` for its root), with the recipient's manifest name, not a dependency alias",
+                self.peek().span,
+            ));
+        }
+        let mut path = self.edit_path()?.into_iter();
+        let package = path.next().expect("a parsed path has its first component");
+        Ok((package, path.collect()))
+    }
+
     fn grant(&mut self, keyword: &str) -> Result<crate::packages::Grant, Diagnostic> {
         let start = self.expect(keyword)?.span;
         let name = self.binding_name()?.0;
         self.expect(":")?;
         let target = self.edit_path()?;
         self.expect("to")?;
-        self.expect("module")?;
-        self.expect("(")?;
-        let grantee_source = self.quoted_path()?;
-        self.expect(",")?;
-        let path = self.quoted_path()?;
-        let grantee_path = if path.is_empty() {
-            Vec::new()
-        } else {
-            path.split("::").map(str::to_owned).collect()
-        };
-        self.expect(")")?;
+        let (grantee_package, grantee_path) = self.edit_recipient()?;
         let delegable = self.consume("delegable");
         self.expect("{")?;
         self.expect("domain")?;
@@ -871,7 +871,7 @@ impl Parser {
         Ok(crate::packages::Grant {
             name,
             target,
-            grantee_source,
+            grantee_package,
             grantee_path,
             region,
             delegable,
@@ -885,22 +885,12 @@ impl Parser {
         self.expect(":")?;
         let target = self.edit_path()?;
         self.expect("to")?;
-        self.expect("module")?;
-        self.expect("(")?;
-        let grantee_source = self.quoted_path()?;
-        self.expect(",")?;
-        let module = self.quoted_path()?;
-        let grantee_path = if module.is_empty() {
-            Vec::new()
-        } else {
-            module.split("::").map(str::to_owned).collect()
-        };
-        self.expect(")")?;
+        let (grantee_package, grantee_path) = self.edit_recipient()?;
         let end = self.expect(";")?.span;
         Ok(crate::packages::Transfer {
             name,
             target,
-            grantee_source,
+            grantee_package,
             grantee_path,
             span: start.through(end),
         })

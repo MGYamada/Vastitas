@@ -17,12 +17,13 @@ pub(crate) const EDIT_PROTOCOL: u32 = 5;
 pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
 pub(crate) const INDEXED_PROTOCOL: u32 = 7;
 pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
+pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Grant {
     pub name: String,
     pub target: Vec<String>,
-    pub grantee_source: String,
+    pub grantee_package: String,
     pub grantee_path: Vec<String>,
     pub region: Vec<Vec<String>>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -34,7 +35,7 @@ pub(crate) struct Grant {
 pub(crate) struct Transfer {
     pub name: String,
     pub target: Vec<String>,
-    pub grantee_source: String,
+    pub grantee_package: String,
     pub grantee_path: Vec<String>,
     pub span: Span,
 }
@@ -435,37 +436,13 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         module_count: 0,
     };
     let root = loader.package(manifest)?;
-    let selected: HashSet<_> = loader.packages.iter().map(|p| p.source.clone()).collect();
-    // Grants only name inputs in the closure already selected by dependencies.
-    // Canonicalizing the location never loads an additional package.
-    for package in &mut loader.packages {
-        let directory = Path::new(&package.source).parent().unwrap();
-        for module in &mut package.modules {
-            let grants = module
-                .grants
-                .iter_mut()
-                .chain(&mut module.delegations)
-                .map(|g| (&mut g.declaration.grantee_source, g.declaration.span));
-            let transfers = module
-                .transfers
-                .iter_mut()
-                .map(|t| (&mut t.declaration.grantee_source, t.declaration.span));
-            for (source, span) in grants.chain(transfers) {
-                let target = canonical(&directory.join(&*source))?;
-                let target = target
-                    .to_str()
-                    .ok_or("E_INPUT: grant manifest path must be UTF-8")?;
-                if !selected.contains(target) {
-                    return Err(loader.sources.diagnostic(
-                        "E_OWNER",
-                        "grant grantee must belong to the selected dependency closure",
-                        span,
-                    ));
-                }
-                *source = target.into();
-            }
-        }
-    }
+    // Preserve recipient names verbatim. The kernel alone resolves them in the
+    // selected closure; a grant must neither resolve a path nor load a package.
+    let named_recipients = loader
+        .packages
+        .iter()
+        .flat_map(|p| &p.modules)
+        .any(|m| !m.grants.is_empty() || !m.delegations.is_empty() || !m.transfers.is_empty());
     let authority = loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
         !m.delegations.is_empty()
             || !m.transfers.is_empty()
@@ -494,7 +471,9 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         .any(|m| m.uses_indexed)
         || loader.packages.iter().any(|p| p.geometry_compat.is_some());
     let program = Program {
-        version: if loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
+        version: if named_recipients {
+            NAMED_RECIPIENT_PROTOCOL
+        } else if loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
             !m.resource_functions.is_empty()
                 || m.indexed_declarations.iter().any(|d| {
                     matches!(&d.declaration.body, crate::indexed::DeclarationBody::Implementation {

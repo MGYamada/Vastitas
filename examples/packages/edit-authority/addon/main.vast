@@ -1,4 +1,4 @@
-pub delegation inner : base::choose to module("Vastitas.toml", "ops") {
+pub delegation inner : base::choose to addon::ops {
   domain (Int, Int);
 }
 pub mod ops {

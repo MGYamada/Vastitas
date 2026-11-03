@@ -43,10 +43,17 @@ structure AbstractType extends RawAbstractType where
   isPublic : Bool
   deriving Repr, Inhabited
 
+/-- Legacy wire inputs identify a selected manifest; protocol 9 retains the
+unresolved manifest package name. Neither form loads a package or uses aliases. -/
+inductive RecipientPackage where
+  | source (location : String)
+  | name (name : String)
+  deriving Repr, Inhabited, DecidableEq, BEq
+
 structure Grant where
   name : String
   target : List String
-  granteeSource : String
+  granteePackage : RecipientPackage
   granteePath : List String
   region : List (List String)
   delegable : Bool := false
@@ -57,7 +64,7 @@ structure Grant where
 structure Transfer where
   name : String
   target : List String
-  granteeSource : String
+  granteePackage : RecipientPackage
   granteePath : List String
   span : Span
   isPublic : Bool

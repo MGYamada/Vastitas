@@ -6,12 +6,12 @@ use std::os::unix::fs::PermissionsExt;
 const BASE: &str = r#"
 pub generic choose(x, y) { domain (Int, Int), (Bool, Bool); }
 method choose(x: Any, y: Any) -> Int { 0 }
-pub grant outer : choose to module("../addon/Vastitas.toml", "") delegable { domain (Int, Int); }
-pub transfer handoff : choose to module("../addon/Vastitas.toml", "");
+pub grant outer : choose to addon delegable { domain (Int, Int); }
+pub transfer handoff : choose to addon;
 pub contribution old : choose { method choose(x: Int, y: Int) -> Int { 99 } }
 "#;
 const ADDON: &str = r#"
-pub delegation inner : base::choose to module("Vastitas.toml", "ops") { domain (Int, Int); }
+pub delegation inner : base::choose to addon::ops { domain (Int, Int); }
 pub contribution fresh : base::choose { method base::choose(x: Bool, y: Bool) -> Int { 2 } }
 pub mod ops {
   pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } }
@@ -74,7 +74,7 @@ fn native(s: &Scratch, expected: &[u8]) {
 fn request(s: &Scratch) -> Value {
     // Capture the actual frontend's wire request, then use the real kernel for
     // all mutations. The stub has no acceptance authority.
-    let backend = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":6,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
+    let backend = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":9,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
     std::fs::set_permissions(&backend, std::fs::Permissions::from_mode(0o755)).unwrap();
     let output = cli()
         .current_dir(&s.0)
@@ -109,8 +109,8 @@ fn authority_ir_matches_public_checker_fixture() {
         }
     }
     relocate(&mut raw, s.0.canonicalize().unwrap().to_str().unwrap());
-    let path = common::root().join("tests/fixtures/edit-authority.json");
-    if std::env::var_os("VASTITAS_UPDATE_AUTHORITY_FIXTURE").as_deref()
+    let path = common::root().join("tests/fixtures/edit-recipients.json");
+    if std::env::var_os("VASTITAS_UPDATE_RECIPIENT_FIXTURE").as_deref()
         == Some(std::ffi::OsStr::new("1"))
     {
         std::fs::write(
@@ -134,6 +134,194 @@ fn authority_ir_matches_public_checker_fixture() {
 }
 
 #[test]
+fn named_recipients_keep_manifest_identity_and_ignore_dependency_aliases() {
+    let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
+    let s = fixture(BASE, ADDON, &events);
+    let raw = request(&s);
+    let packages = raw["packages"].as_array().unwrap();
+    assert!(
+        packages.iter().find(|p| p["name"] == "base").unwrap()["dependencies"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    for package in packages {
+        for module in package["modules"].as_array().unwrap() {
+            for field in ["grants", "delegations", "transfers"] {
+                for item in module[field].as_array().into_iter().flatten() {
+                    assert_eq!(item["grantee_package"], "addon");
+                    assert!(item.get("grantee_source").is_none());
+                }
+            }
+        }
+    }
+    // `alias` is a real root dependency alias, but not the manifest name.
+    reject(
+        &fixture(&BASE.replace("to addon", "to alias"), ADDON, &events),
+        "E_OWNER",
+    );
+    // The receiver need not be a sibling of the issuer on disk.
+    let moved = s.0.join("vendor/deep/receiver");
+    std::fs::create_dir_all(moved.parent().unwrap()).unwrap();
+    std::fs::rename(s.0.join("addon"), &moved).unwrap();
+    s.write("vendor/deep/receiver/Vastitas.toml", "[package]\nname='addon'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../../../base'}\n");
+    s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nbase={path='../base'}\naddon={path='../vendor/deep/receiver'}\nalias={path='../vendor/deep/receiver'}\n");
+    native(&s, b"44\n");
+}
+
+#[test]
+fn every_unused_recipient_declaration_rejects_ambiguous_packages_before_modules() {
+    for kind in ["grants", "delegations", "transfers"] {
+        let s = fixture(BASE, ADDON, "");
+        let mut raw = request(&s);
+        for package in raw["packages"].as_array_mut().unwrap() {
+            for module in package["modules"].as_array_mut().unwrap() {
+                module.as_object_mut().unwrap().remove("assembly");
+                for other in ["grants", "delegations", "transfers"] {
+                    if other != kind {
+                        module.as_object_mut().unwrap().remove(other);
+                    }
+                }
+            }
+        }
+        assert_eq!(kernel(&raw, "check")["ok"], true, "{kind}: {raw}");
+        // Different version and source; only the original has `ops`.
+        // Neither difference is a permitted name disambiguator.
+        let mut duplicate = raw["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["name"] == "addon")
+            .unwrap()
+            .clone();
+        duplicate["source"] = json!("/second-addon/Vastitas.toml");
+        duplicate["version"] = json!("2.0.0");
+        duplicate["modules"]
+            .as_array_mut()
+            .unwrap()
+            .retain(|m| m["path"] == json!([]));
+        let root = duplicate["modules"][0].as_object_mut().unwrap();
+        for field in ["grants", "delegations", "transfers", "contributions"] {
+            root.remove(field);
+        }
+        raw["packages"].as_array_mut().unwrap().push(duplicate);
+        let root = raw["root"].clone();
+        let app = raw["packages"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find(|p| p["source"] == root)
+            .unwrap();
+        app["dependencies"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"alias":"second", "target":"/second-addon/Vastitas.toml"}));
+        for reverse in [false, true] {
+            if reverse {
+                raw["packages"].as_array_mut().unwrap().reverse();
+            }
+            for mode in ["check", "emit"] {
+                let result = kernel(&raw, mode);
+                assert_eq!(
+                    result["diagnostics"][0]["code"], "E_OWNER",
+                    "{kind}/{mode}: {result}"
+                );
+                assert!(
+                    result["diagnostics"][0]["message"]
+                        .as_str()
+                        .unwrap()
+                        .contains("ambiguous"),
+                    "{result}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn named_recipient_wire_rejects_forged_locations_and_unselected_records() {
+    let s = fixture(BASE, ADDON, "");
+    let raw = request(&s);
+    let base = raw["packages"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .position(|p| p["name"] == "base")
+        .unwrap();
+    for field in ["grants", "transfers"] {
+        for forgery in ["location", "identity", "missing"] {
+            let mut bad = raw.clone();
+            let item = &mut bad["packages"][base]["modules"][0][field][0];
+            match forgery {
+                "location" => item["grantee_source"] = json!("/trusted/Vastitas.toml"),
+                "identity" => item["grantee_package"] = json!({"name":"addon","version":"0.1.0"}),
+                _ => {
+                    item.as_object_mut().unwrap().remove("grantee_package");
+                }
+            }
+            assert_eq!(
+                kernel(&bad, "check")["diagnostics"][0]["code"],
+                "E_PROTOCOL"
+            );
+        }
+    }
+    let mut orphan = raw;
+    let app = orphan["packages"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|p| p["name"] == "app")
+        .unwrap();
+    app["dependencies"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|d| d["alias"] == "base");
+    app["modules"][0]["functions"][0]["body"]["result"] =
+        json!({"kind":"integer","value":"0","span":{"start":0,"end":0,"line":1,"column":1}});
+    assert_eq!(
+        kernel(&orphan, "check")["diagnostics"][0]["code"],
+        "E_OWNER"
+    );
+}
+
+#[test]
+fn recipient_source_migration_keeps_legacy_wire_and_optional_runtime_boundaries() {
+    let legacy: Value = serde_json::from_str(include_str!("fixtures/edit-authority.json")).unwrap();
+    for version in [6, 7, 8] {
+        let mut raw = legacy.clone();
+        raw["version"] = json!(version);
+        for mode in ["check", "emit"] {
+            assert_eq!(kernel(&raw, mode)["ok"], true);
+        }
+    }
+    for source in [
+        BASE.replace("to addon", "to module(\"../addon/Vastitas.toml\", \"\")"),
+        BASE.replace(
+            "pub transfer handoff : choose to addon",
+            "pub transfer handoff : choose to module(\"../addon/Vastitas.toml\", \"\")",
+        ),
+    ] {
+        reject(&fixture(&source, ADDON, ""), "E_UNSUPPORTED");
+    }
+    reject(
+        &fixture(
+            BASE,
+            &ADDON.replace("to addon::ops", "to module(\"Vastitas.toml\", \"ops\")"),
+            "",
+        ),
+        "E_UNSUPPORTED",
+    );
+    let s = fixture(BASE, ADDON, "");
+    s.write("app/main.vast", "resource fn main() -> Int { allocate data: F64[1]; borrow w = write(data, layout(0, 1, 1, 1, false)); fill(w, f64(2.0)); release(w); drop(data); value { base::choose(40, 2) } }");
+    let raw = request(&s);
+    let response = kernel(&raw, "emit");
+    assert_eq!(raw["version"], 9);
+    assert_eq!(response["storage_runtime"], true, "{response}");
+    assert_eq!(response["numerical_runtime"], false);
+    native(&s, b"0\n");
+}
+
+#[test]
 fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() {
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     let s = fixture(BASE, ADDON, &events);
@@ -148,10 +336,10 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
     // an explicit active loan, while its old owner cannot directly edit.
     let events = format!("transfer base::handoff; {NESTED} apply addon::fresh; seal base::choose;");
     native(&fixture(BASE, ADDON, &events), b"44\n");
-    let deeper = ADDON.replace("\"ops\") {", "\"ops\") delegable {").replace(
+    let deeper = ADDON.replace("to addon::ops {", "to addon::ops delegable {").replace(
         "pub mod ops {",
         r#"pub mod ops {
-        pub delegation deeper : base::choose to module("Vastitas.toml", "ops::deep") { domain (Int, Int); }
+        pub delegation deeper : base::choose to addon::ops::deep { domain (Int, Int); }
         pub mod deep { pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } } }
         "#,
     );
@@ -177,7 +365,7 @@ fn nested_loans_and_transfer_preserve_function_identity_and_installed_methods() 
 }
 
 #[test]
-fn protocol_seven_preserves_nested_loans_transfer_and_unapplied_audits() {
+fn indexed_declarations_preserve_nested_loans_transfer_and_unapplied_audits() {
     let base = format!("indexed marker Wire; {BASE}");
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     native(&fixture(&base, ADDON, &events), b"44\n");
@@ -237,7 +425,7 @@ fn suspended_parent_return_order_and_exact_delegation_are_enforced() {
     reject(
         &fixture(
             BASE,
-            &ADDON.replace("\"ops\"", "\"\""),
+            &ADDON.replace("to addon::ops", "to addon"),
             &format!("{NESTED} seal base::choose;"),
         ),
         "E_OWNER",
@@ -262,9 +450,8 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
     }
     // A grant declared by the recipient becomes usable only after it acquires
     // authority. It cannot bootstrap itself or be silently ignored if unused.
-    let addon = format!(
-        "{ADDON} pub grant own : base::choose to module(\"Vastitas.toml\", \"ops\") {{ domain (Int, Int); }}"
-    );
+    let addon =
+        format!("{ADDON} pub grant own : base::choose to addon::ops {{ domain (Int, Int); }}");
     reject(&fixture(BASE, &addon, ""), "E_OWNER");
     reject(
         &fixture(BASE, &addon, "borrow addon::own as edit;"),
@@ -281,16 +468,16 @@ fn transfer_revokes_old_authority_and_requires_returned_loans_and_completion() {
 }
 
 #[test]
-fn protocol_six_reconstructs_authority_and_checks_all_bodies() {
+fn protocol_nine_reconstructs_authority_and_checks_all_bodies() {
     let events = format!("{NESTED} transfer base::handoff; apply addon::fresh; seal base::choose;");
     let s = fixture(BASE, ADDON, &events);
     let raw = request(&s);
-    assert_eq!(raw["version"], 6);
+    assert_eq!(raw["version"], 9);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let packages = raw["packages"].as_array().unwrap();
     let base = packages.iter().position(|p| p["name"] == "base").unwrap();
     let app = packages.iter().position(|p| p["name"] == "app").unwrap();
-    for version in [2, 3, 4, 5] {
+    for version in 2..=8 {
         let mut bad = raw.clone();
         bad["version"] = json!(version);
         assert_eq!(kernel(bad, "check")["diagnostics"][0]["code"], "E_PROTOCOL");
@@ -335,7 +522,7 @@ fn open_obligations_survive_nested_returns_and_transfer_until_owner_repairs() {
     let base = BASE.replace("{ domain (Int, Int); }", &format!("{{ domain {region}; }}"));
     let addon = format!(
         r#"
-pub delegation inner : base::choose to module("Vastitas.toml", "ops") {{ domain {region}; }}
+pub delegation inner : base::choose to addon::ops {{ domain {region}; }}
 pub contribution fresh : base::choose {{ method base::choose(x: Number, y: Number) -> Int {{ 42 }} }}
 pub mod ops {{ pub contribution sum : base::choose {{
   method base::choose(x: Number, y: Any) -> Int {{ 1 }}

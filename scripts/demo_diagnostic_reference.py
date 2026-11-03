@@ -81,7 +81,7 @@ def package_sources(names, repair=False):
     region = ", ".join(f"({a}, {b})" for a, b in itertools.product(dr.SCALARS, repeat=2))
     base = f'''pub generic choose(x, y) {{ domain (Int, Int); }}
 method choose(x: Any, y: Any) -> Int {{ 0 }}
-pub grant integers : choose to module("../addon/Vastitas.toml", "") {{ domain {region}; }}
+pub grant integers : choose to addon {{ domain {region}; }}
 pub contribution repair : choose {{ method choose(x: Number, y: Number) -> Int {{ 42 }} }}
 '''
     addon = '''pub contribution A : base::choose {

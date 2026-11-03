@@ -1,10 +1,11 @@
 # Scoped edit borrowing and validated assemblies
 
-This is the protocol-5 implemented increment under #64 and #154–158. It is a
+The assembly model originated in the protocol-5 increment under #64 and #154–158. It is a
 finite package-only increment, not completion of historical Stage 1.
 The subsequent [protocol-6 extension](edit-authority.md) adds nested reborrowing
-and permanent edit-authority transfer while preserving protocol-5 source/wire
-compatibility. Protocols 2–6 now enter `Indexed.LegacySource.check` and the common
+and permanent edit-authority transfer while preserving protocol-5 wire
+compatibility. Current source recipients use protocol 9 as described below.
+Protocols 2–6 now enter `Indexed.LegacySource.check` and the common
 `Indexed.AuthoritySource` checker; the retained `checkEditProgram` composition
 is documented separately in [verification boundaries](verification.md).
 
@@ -13,17 +14,44 @@ is documented separately in [verification boundaries](verification.md).
 The generic's exact module declares a grant:
 
 ```vast
-pub grant integers : choose to module("../addon/Vastitas.toml", "ops") {
+pub grant integers : choose to addon::ops {
   domain (Int, Int);
 }
 ```
 
-The quoted manifest location is relative to the issuer's manifest. It must
-identify a package already in the root's selected dependency closure. The
-second quoted string is its exact logical module path; `""` denotes the root.
-Grant resolution never loads a package. The region lists concrete scalar tuples;
-`domain;` permits an empty region. A grant does not authorize membership or
-abstract-contract edits.
+`addon` is the recipient's manifest `[package] name`, not an import or dependency
+alias. The rest is its exact logical module path; `to addon` denotes its root.
+Protocol 9 carries this unresolved name and path. Lean independently traverses
+the root's dependency graph, requires exactly one selected package with that
+name, and then checks the distinct exact module. Different versions, locations,
+module availability and declaration order do not disambiguate equal names.
+The issuer need not depend on the recipient. Grant resolution never loads a
+package, and injected records unreachable from the root cannot become recipients.
+The region lists concrete scalar tuples; `domain;` permits an empty region.
+A grant does not authorize membership or abstract-contract edits.
+
+This is Rust-shaped path syntax with a different resolution rule: Rust/Cargo
+uses the caller's dependency names (including renames), while edit recipients
+use manifest names across the selected closure. Ordinary Vastitas call/import
+resolution still uses its existing dependency aliases.
+
+### Migrating recipients for v0.1.0
+
+The old source form `to module("../addon/Vastitas.toml", "ops")` is removed.
+Read that selected manifest's `[package] name`, then rewrite it as
+`to addon::ops`; use `to addon` for an empty module path. Do not substitute the
+manifest's directory name or a dependency alias. A name must be expressible as
+an ordinary source path component. Same-name packages are rejected; version
+qualification and root-bound recipient roles are deferred. Apply the same
+rewrite to `grant`, `delegation` and `transfer`. Moving the recipient only
+requires updating dependency manifests, not the issuing source.
+
+Wire protocols 2–8 retain their original decoders and recipient-location records.
+Protocol 9 uses the full protocol-8 pure/resource composition, even for a
+pure-only edit assembly. As in protocols 7/8, legacy geometry spellings on this
+route require an explicit validated library `geometry_compat` export. The
+separate `fn`-family and `assemble` migrations (#462/#455) remain pending; this
+recipient change does not complete their v0.1.0 gates.
 
 The grantee declares a named block for one generic:
 

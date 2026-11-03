@@ -11,7 +11,7 @@ private def process (mode input : String) : Lean.Json := Id.run do
   | .ok json =>
     let .ok version := json.getObjValAs? Nat "version"
       | return failureJson { code := "E_PROTOCOL", message := "IR version must be a natural number" }
-    if version == 8 then
+    if version == 8 || version == 9 then
       match ResourceSource.Wire.check json (mode == "emit") with
       | .error diagnostic => return failureJson diagnostic version
       | .ok accepted =>

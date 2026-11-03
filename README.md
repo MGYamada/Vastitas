@@ -174,7 +174,8 @@ and [v0.1.0 gate #282](https://github.com/MGYamada/Vastitas/issues/282).
 
 Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
 and root source, plus optional `[dependencies]` path entries. Package mode
-retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies, protocol 6 for delegated loans/transfers, protocol 7 for indexed declarations) and cannot be mixed with positional input or
+retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies, protocol 6 for delegated loans/transfers, protocol 7 for indexed declarations, protocol 8 for resources, and protocol 9 for
+named edit recipients) and cannot be mixed with positional input or
 `--lib`; protocol 2 remains supported for those existing commands.
 
 ```sh
@@ -189,7 +190,9 @@ logical modules and aliases. Functions have one defining package/module owner;
 ordinary methods require that exact module; explicit grants and active assembly loans permit external contributions. Imports permit repeated calls
 without granting edit authority. See [packages and modules](docs/packages.md)
 for file layout, visibility, limits and proof scope. Registry/Git dependencies and
-general abstract values remain deferred; explicit edit borrowing uses protocols 5/6.
+general abstract values remain deferred. Current edit grants name recipients as
+`to package_name::module` through protocol 9; old wire protocols 5–8 remain supported.
+See the [recipient migration](docs/edit-borrowing.md#migrating-recipients-for-v010).
 
 ## Arithmetic standard library
 

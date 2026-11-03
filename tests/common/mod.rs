@@ -62,6 +62,27 @@ pub fn success(output: &Output) {
 pub fn kernel_path() -> PathBuf {
     root().join("lean-kernel/.lake/build/bin/vastitas-kernel")
 }
+/// The `kernel` build identity (JSON object text) that the built kernel reports
+/// in every response. The driver rejects success responses without it, so mock
+/// backends must echo it.
+pub fn kernel_identity() -> String {
+    static IDENTITY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    IDENTITY
+        .get_or_init(|| {
+            let mut child = Command::new(kernel_path())
+                .arg("check")
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .spawn()
+                .expect("built kernel");
+            child.stdin.take().unwrap().write_all(b"{}").unwrap();
+            let output = child.wait_with_output().unwrap();
+            let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+            assert!(response["kernel"].is_object(), "{response}");
+            response["kernel"].to_string()
+        })
+        .clone()
+}
 pub fn check(source: &str, filename: &str) -> Output {
     let scratch = Scratch::empty("check");
     cli()

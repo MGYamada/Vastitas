@@ -248,6 +248,12 @@ is present for emit and may be absent for check).
 Failure: `{ "version": 2, "ok": false, "diagnostics": [
 { "code": "E_TYPE", "message": "...", "span": Span,
   "notes": [{ "message": "...", "span": Span }] }] }`.
+Every response also carries `"kernel": { "sources": String, "lean": String }`:
+the digest of the kernel's `Main.lean` and every kernel module it imports
+(`VastitasKernel/BuildIdentity.lean`, mirrored by the driver's `build.rs`) and
+the Lean version it was built with. Drivers reject a success response whose
+identity is missing or differs from their own build, and add a note to failure
+diagnostics. The identity is a build-consistency check, not a semantic proof.
 Notes carry related source locations, including object introduction sites. They
 are diagnostic metadata, not trusted identity evidence. Current backends emit
 an empty array when there are no notes; drivers also accept omitted notes.

@@ -9,6 +9,7 @@ use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashSet};
+use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -218,6 +219,41 @@ struct Loader {
 // and independent uses of the same file. A depth limit alone cannot bound fanout.
 const MAX_LOADED_MODULES: usize = 4096;
 
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Existence {
+    Missing,
+    Exact,
+    /// The path resolves, but some component's on-disk name differs (in case).
+    CaseMismatch,
+}
+
+/// Whether `base` joined with `names` exists with exactly these entry names.
+/// Case-insensitive filesystems (default macOS APFS) would otherwise resolve
+/// `mod Math;` to `math.vast`, or load one file for both `mod a;` and `mod A;`.
+fn existence(base: &Path, names: &[OsString]) -> std::io::Result<Existence> {
+    let path = names
+        .iter()
+        .fold(base.to_path_buf(), |path, name| path.join(name));
+    if !path.try_exists()? {
+        return Ok(Existence::Missing);
+    }
+    let mut directory = base.to_path_buf();
+    for name in names {
+        let mut found = false;
+        for entry in std::fs::read_dir(&directory)? {
+            if entry?.file_name() == *name {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return Ok(Existence::CaseMismatch);
+        }
+        directory.push(name);
+    }
+    Ok(Existence::Exact)
+}
+
 fn canonical(path: &Path) -> Result<PathBuf, String> {
     path.canonicalize()
         .map_err(|error| format!("E_INPUT: cannot read {}: {error}", path.display()))
@@ -392,10 +428,43 @@ impl Loader {
                 .fold(base.to_path_buf(), |dir, part| dir.join(part));
             let flat = logical.with_extension("vast");
             let nested = logical.join("mod.vast");
-            let file = match (flat.try_exists(), nested.try_exists()) {
-                (Ok(true), Ok(false)) => flat,
-                (Ok(false), Ok(true)) => nested,
-                (Ok(true), Ok(true)) => {
+            let (leaf, parents) = external.path.split_last().expect("module path");
+            let flat_names: Vec<OsString> = parents
+                .iter()
+                .map(OsString::from)
+                .chain([OsString::from(format!("{leaf}.vast"))])
+                .collect();
+            let nested_names: Vec<OsString> = external
+                .path
+                .iter()
+                .map(OsString::from)
+                .chain([OsString::from("mod.vast")])
+                .collect();
+            use Existence::{CaseMismatch, Exact, Missing};
+            let file = match (
+                existence(base, &flat_names).ok(),
+                existence(base, &nested_names).ok(),
+            ) {
+                (Some(Exact), Some(Missing | CaseMismatch)) => flat,
+                (Some(Missing | CaseMismatch), Some(Exact)) => nested,
+                (Some(flat_state), Some(nested_state))
+                    if flat_state == CaseMismatch || nested_state == CaseMismatch =>
+                {
+                    let spelled = if flat_state == CaseMismatch {
+                        &flat
+                    } else {
+                        &nested
+                    };
+                    return Err(self.sources.diagnostic(
+                        "E_INPUT",
+                        &format!(
+                            "module path {} matches a file only case-insensitively; module names are case-sensitive",
+                            spelled.display()
+                        ),
+                        external.span,
+                    ));
+                }
+                (Some(Exact), Some(Exact)) => {
                     return Err(self.sources.diagnostic(
                         "E_INPUT",
                         &format!(
@@ -406,7 +475,7 @@ impl Loader {
                         external.span,
                     ));
                 }
-                (Ok(false), Ok(false)) => {
+                (Some(Missing), Some(Missing)) => {
                     return Err(self.sources.diagnostic(
                         "E_INPUT",
                         &format!("module requires {} or {}", flat.display(), nested.display()),

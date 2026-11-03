@@ -1,6 +1,7 @@
 import VastitasKernel.LegacySource
 import VastitasKernel.IndexedRuntime
 import VastitasKernel.ResourceProtocol
+import VastitasKernel.BuildIdentity
 
 open VastitasKernel
 
@@ -48,18 +49,26 @@ private def process (mode input : String) : Lean.Json := Id.run do
       | .error diagnostic => return failureJson diagnostic version
       | .ok _ => return successJson none version
 
+/-- Every response identifies this build: the digest of `Main` and its kernel
+imports, and the Lean version. See `VastitasKernel.BuildIdentity`. -/
+private def identity : Lean.Json :=
+  Lean.Json.mkObj [("sources", Lean.Json.str kernel_source_digest%), ("lean", Lean.Json.str Lean.versionString)]
+
+private def respond (output : IO.FS.Stream) (response : Lean.Json) : IO Unit :=
+  output.putStrLn (response.setObjVal! "kernel" identity).compress
+
 def main (args : List String) : IO UInt32 := do
   let output ← IO.getStdout
   let mode := args.headD "check"
   if args.length > 1 || !(mode == "check" || mode == "emit") then
-    output.putStrLn ((failureJson { code := "E_ARGUMENT", message := "usage: vastitas-kernel [check|emit]" }).compress)
+    respond output (failureJson { code := "E_ARGUMENT", message := "usage: vastitas-kernel [check|emit]" })
     return 1
   let response ← try
     let input ← (← IO.getStdin).readToEnd
     pure (process mode input)
   catch error =>
     pure (failureJson { code := "E_PROTOCOL", message := s!"cannot read UTF-8 IR input: {error}" })
-  output.putStrLn response.compress
+  respond output response
   match response.getObjValAs? Bool "ok" with
   | .ok true => return 0
   | _ => return 1

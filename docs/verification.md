@@ -438,12 +438,25 @@ wrapper theorem records the actual generated library and selected main.
 on that same accepted entry schedule and its audited closed native plan, using
 determinism of the actual repeated source check. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
-is no resource entry. These are **acceptance and exact-input facts**, not emitted
-text semantics, native heap/float refinement, or a proof that every numerical
-operation has an authority receipt. The existing receipt-origin theorems still
-quantify over recorded receipts; converse schedule-to-receipt and
-emitted-generic-call coverage remain open in
-[#432](https://github.com/MGYamada/Vastitas/issues/432).
+is no resource entry. These theorems establish acceptance and identify the exact
+inputs to native generation. Native heap and floating-point refinement remain open.
+
+**Static numerical receipt coverage.** For protocols 8 and 9,
+`VastitasOracle.NumericalCoverage.public_action` proves that every GEMM,
+diagonal adjoint and diagonal pairing at an actual address in the returned
+storage schedule has a typed receipt with the same operation and declaration
+environment. The address includes the enclosing branch arms and the offset
+within the innermost arm. Repeated calls and identical instructions in
+different arms each require their own occurrence. Network operations also
+require their companion product receipts.
+
+`coverage` relates these occurrences with multiplicity and checks their order
+against an independent traversal of the lowered source from the actual entry.
+Each source site includes its function, lexical position and enclosing call
+sites. `original_emission` and `full_slice` cover the entire certified expansion
+at its physical addresses, including the loans around a vector evaluation and
+the dependency check before a cached contraction. The symbolic runtime-shape
+event schedule has its own realization theorems.
 
 The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
@@ -1200,8 +1213,8 @@ count, origin and winner facts directly to the exact returned Core of public
 protocols 2–9, including both ordinary and resource-fragment passes. Matching
 is by caller specialization and emitted target with multiplicity; it does not
 assign distinct source locations to otherwise identical edges.
-Completeness of numerical schedule receipts remains a separate open part of
-[#432](https://github.com/MGYamada/Vastitas/issues/432).
+The static numerical schedule has a separate positional coverage theorem,
+`NumericalCoverage.public_action`, described above.
 
 `VastitasOracle.IndexedAuthority` connects rich contribution bodies to the
 actual `Authority.assemble` certificate. `authority_trace`, `applied_authorized`

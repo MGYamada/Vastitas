@@ -64,6 +64,7 @@ import VastitasOracle.StorageMetricLaws
 import VastitasOracle.StorageCachedPacking
 import VastitasOracle.ScalarFuelRegression
 import VastitasOracle.CallCoverage
+import VastitasOracle.NumericalCoverage
 
 /-!
 Vastitas Stage 0 / Stage 1a / Stage 1b proof-only oracle. No compiler/runtime target imports this

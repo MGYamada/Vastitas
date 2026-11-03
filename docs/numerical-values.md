@@ -389,7 +389,11 @@ ideal field/module laws, floating-point accuracy, source operational
 correspondence or native refinement.
 `ResourceSource.numerical_provenance` and `public_product_origin` connect profile
 resolution and the actual returned product receipts to the same accepted public
-source and declaration environment.
+source and declaration environment. In the reverse direction,
+`NumericalCoverage.public_action` finds the typed receipt for each static GEMM
+or diagonal metric instruction at its exact position in that entry's schedule.
+The audit distinguishes both branch arms and repeated calls to the same function.
+See the [positional coverage theorems](../lean/VastitasOracle/NumericalCoverage.lean).
 
 `actual_input`, `input_space_identity`, `input_basis_identity` and
 `input_map_reborrow` describe the certificates produced by actual argument

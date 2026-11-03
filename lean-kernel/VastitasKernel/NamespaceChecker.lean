@@ -142,6 +142,25 @@ def graphVisit : Nat → Indexed → String → List String → StateT (Std.Hash
 def validateGraph (p : Indexed) : Result Unit :=
   ((p.packages.forM fun pkg => graphVisit Limits.dependencyGraph p pkg.id.source []).run {}).map (·.1)
 
+/-- Root-reachable package records, reconstructed from the unresolved graph.
+No dependency of the issuing module on the recipient is required. -/
+def recipientCandidates (p : Indexed) (name : String) : Result (List Package) := do
+  let (_, selected) ← (graphVisit Limits.dependencyGraph p p.root []).run {}
+  return p.packages.filter fun pkg => selected.contains pkg.id.source && pkg.id.name == name
+
+/-- Resolve the complete name before inspecting module paths. A matching module
+or version cannot disambiguate packages; return the full selected identity.
+The original source-location rule remains confined to protocols 5–8. -/
+def recipientPackage (p : Indexed) (reference : RecipientPackage) (span : Span) : Result Package := do
+  match reference with
+  | .source source => match packageAt p source with
+    | some pkg => return pkg
+    | none => problem span "E_OWNER" "edit recipient is outside the selected dependency closure"
+  | .name name => match ← recipientCandidates p name with
+    | [pkg] => return pkg
+    | [] => problem span "E_OWNER" s!"edit recipient package '{name}' is outside the selected dependency closure"
+    | _ => problem span "E_OWNER" s!"edit recipient package '{name}' is ambiguous in the selected dependency closure"
+
 def versionNumber (s : String) : Bool :=
   !s.isEmpty && s.toList.all Char.isDigit && (s == "0" || !s.startsWith "0")
 

@@ -76,8 +76,7 @@ instance : Decidable (ContributionsCorrespond p prepared) := inferInstanceAs (De
 def lowerGrant (p : Indexed) (scope : Scope) (grant : Namespace.Grant) : Namespace.M GrantEntry := do
   let target ← Namespace.lookup p scope (String.intercalate "::" grant.target) grant.span (!p.authority)
   let arity ← genericArity p target grant.span
-  let some granteePackage := packageAt p grant.granteeSource
-    | problem grant.span "E_OWNER" "grant grantee is outside the selected dependency closure"
+  let granteePackage ← recipientPackage p grant.granteePackage grant.span
   let grantee : Scope := ⟨granteePackage.id, grant.granteePath⟩
   if (moduleAt p grantee).isNone || grantee == scope then
     problem grant.span "E_OWNER" "grant requires an existing distinct exact module"

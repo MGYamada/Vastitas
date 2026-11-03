@@ -42,7 +42,7 @@ private def program (region : List (List String) := [["Int", "Int"]])
         domain := [[.named "Int", .named "Int"]], span := {}, isPublic := true }]
       methods := [method "choose" "Number" (.integer "0" {})]
       grants := [{
-        name := "integers", target := ["choose"], granteeSource := addon.source
+        name := "integers", target := ["choose"], granteePackage := .source addon.source
         granteePath := [], region, span := {}, isPublic := true }] }] },
     { id := addon, dependencies := [⟨"base", base.source⟩], modules := [{ rootModule with
       functions := []

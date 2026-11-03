@@ -23,8 +23,7 @@ structure Prepared (p : Indexed) where
 def lowerTransfer (p : Indexed) (scope : Scope) (raw : Namespace.Transfer) : Namespace.M TransferEntry := do
   let target ← Namespace.lookup p scope (String.intercalate "::" raw.target) raw.span
   Edit.requireKind target .generic raw.span
-  let some pkg := packageAt p raw.granteeSource
-    | problem raw.span "E_OWNER" "transfer recipient is outside the selected dependency closure"
+  let pkg ← recipientPackage p raw.granteePackage raw.span
   let recipient : Scope := ⟨pkg.id, raw.granteePath⟩
   if (moduleAt p recipient).isNone || recipient == scope then
     problem raw.span "E_OWNER" "transfer requires an existing distinct exact module"

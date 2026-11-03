@@ -1,6 +1,8 @@
 # Nested edit loans and permanent authority transfer
 
-Protocol 6 extends the [protocol-5 assembly](edit-borrowing.md) for #181/#182.
+The protocol-6 model extends the [protocol-5 assembly](edit-borrowing.md) for
+#181/#182. Current source uses protocol-9 named recipients; see the
+[recipient migration](edit-borrowing.md#migrating-recipients-for-v010).
 The immutable function identity is still its defining package, module and name.
 The current editor is tracked separately, with a complete transfer history.
 This is compile-time assembly of one fixed environment, not runtime mutation.
@@ -10,7 +12,7 @@ This is compile-time assembly of one fixed environment, not runtime mutation.
 An owner grant permits reborrowing only when marked `delegable`:
 
 ```vast
-pub grant outer : choose to module("../addon/Vastitas.toml", "") delegable {
+pub grant outer : choose to addon delegable {
   domain (Int, Int);
 }
 ```
@@ -18,7 +20,7 @@ pub grant outer : choose to module("../addon/Vastitas.toml", "") delegable {
 The borrower must separately declare its delegation to an exact module:
 
 ```vast
-pub delegation inner : base::choose to module("Vastitas.toml", "ops") {
+pub delegation inner : base::choose to addon::ops {
   domain (Int, Int);
 }
 ```
@@ -49,7 +51,7 @@ The current owner declares a named operation; an assembly cannot invent the
 issuer or recipient:
 
 ```vast
-pub transfer handoff : choose to module("../addon/Vastitas.toml", "");
+pub transfer handoff : choose to addon;
 ```
 
 After every loan has returned, `transfer base::handoff;` consumes that operation
@@ -102,8 +104,9 @@ decoded-input guarantees, not legacy source-correspondence results, filesystem/a
 authentication, parser correctness or native-code equivalence. Storage ownership
 and the eight mathematical domain checkers remain separate contracts (#180/#184).
 
-`VastitasPublicTest.AuthorityRegression` exercises the current protocol-5/6/7
-routes with a Rust-frontend fixture, exact returned-Core evaluation/emission and
+`VastitasPublicTest.AuthorityRegression` exercises protocol-5/6/7/8 compatibility
+and protocol 9 with separate historical and current Rust-frontend fixtures,
+exact returned-Core evaluation/emission and
 forged source/authority mutations. `AuthorityRegression` remains a separate
 test of the retained checker and shared trace helpers.
 
@@ -119,3 +122,14 @@ Protocol 5 and existing source inputs retain their wire decoders, then enter
 uses the package envelope, optional `delegable` on grants, new `delegations` and
 `transfers` module arrays, and `reborrow`/`transfer` events. Older envelopes reject
 these semantic fields instead of ignoring them. See [the wire contract](protocol.md).
+
+
+Protocol 9 replaces `grantee_source` with `grantee_package` in all three
+recipient-bearing declarations, retaining the exact `grantee_path`. Both forms
+cannot be combined. `Namespace.recipientCandidates` reconstructs the root-selected
+package graph and `recipientPackage` rejects missing or ambiguous names before
+module resolution. `Edit.lowerGrant` (also used for delegations) and
+`Authority.lowerTransfer` preserve the selected package's full identity.
+`VastitasOracle.EditRecipients` proves these actual lowering connections and
+exposes complete declaration replay from the public `ResourceSource.Wire`
+certificate. No filesystem or authorship authentication is claimed.

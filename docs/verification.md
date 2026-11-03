@@ -81,7 +81,18 @@ verifier or a fresh replay of all imported Mathlib declarations. No public
 | --- | --- | --- |
 | Protocols 2–6 | `Indexed.LegacySource.check`, including original decoder/namespace validation and conversion into `Indexed.AuthoritySource.checkProgram` | `Indexed.Core.Codegen.generate` on the exact returned executable Core |
 | Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator |
-| Protocol 8 | `ResourceSource.Wire.check`, composing indexed pure bodies with resource/numerical checks | `ResourceSource.Codegen.generate` rechecks the accepted source and both components |
+| Protocols 8/9 | `ResourceSource.Wire.check`, composing indexed pure bodies with resource/numerical checks | `ResourceSource.Codegen.generate` rechecks the accepted source and both components |
+
+Protocol 9 changes only edit recipient identity syntax within the full resource
+wire composition. `VastitasOracle.EditRecipients.named_recipient_iff` characterizes
+actual acceptance by exactly one root-reachable manifest-name candidate;
+`named_recipient_preserves_identity` retains the original package record.
+`lower_grant_resolves` and `lower_transfer_resolves` connect the real lowering
+functions to that resolver and their exact returned scope. The public
+`public_declaration_correspondence` theorem exposes complete grant/delegation/
+transfer reconstruction from the actual JSON checker's certificate. Legacy
+location lookup is characterized separately. These are decoded-input guarantees,
+not authentication of files/authors or a proof of Rust parsing/native refinement.
 
 The current pure Core typing and terminating-evaluation chain is
 `IndexedCore` → `IndexedEvaluationSafety` → `IndexedFunctionSafety` →
@@ -668,12 +679,13 @@ protocols 2–6, strict metadata/provenance rejection, unused bodies, Fn capture
 signature failures, recursion, Pair construction/projection, abstract-contract
 coverage/results, and mutations of the exact returned indexed Core. Its positive
 Core is evaluated and passed to `Indexed.Core.Codegen.generate`.
-`VastitasPublicTest.AuthorityRegression` adds actual frontend protocol-6 fixture
+`VastitasPublicTest.AuthorityRegression` retains the historical protocol-6 fixture
+and adds the actual frontend protocol-9 fixture
 agreement, nested reborrowing/transfer through protocols 6 and 7, and direct
 exclusive edits through protocol 5. It checks parent suspension, inside-out
 returns, recipient/region provenance, final footprints, old-owner revocation,
 applied/unapplied/losing bodies and downgrade rejection under both check/emit
-entry policies. All five accepted cases evaluate the actual returned Core and
+entry policies. All nine accepted cases evaluate the actual returned Core and
 pass it to current code generation. The fixture is separate from the compiler
 library; its relocated paths assert IR provenance, not filesystem authenticity.
 `VastitasPromotion.IndexedRegression` supplies the numerical public-route cases.
@@ -681,10 +693,11 @@ The current indexed Core/function/dispatch/authority regression targets retain
 their more detailed internal forged-IR cases. Keeping the old tests provides
 additional coverage of retained APIs; it does not turn them into public-path tests.
 
-Regenerate and check the actual-source authority fixture when its source changes:
+Regenerate `tests/fixtures/edit-recipients.json` when its current source changes.
+Keep `tests/fixtures/edit-authority.json` as historical protocol-6 evidence:
 
 ```sh
-VASTITAS_UPDATE_AUTHORITY_FIXTURE=1 cargo test --locked --test edit_authority authority_ir_matches_public_checker_fixture -- --exact
+VASTITAS_UPDATE_RECIPIENT_FIXTURE=1 cargo test --locked --test edit_authority authority_ir_matches_public_checker_fixture -- --exact
 lake -d lean-kernel build VastitasPublicTest.AuthorityRegression
 ```
 

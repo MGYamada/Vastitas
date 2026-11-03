@@ -32,8 +32,8 @@ may raise limits.
 - No `sorry`, `admit` or custom unproved axioms. Follow [proof boundaries](docs/verification.md)
   and [stdlib admission](docs/adr/0001-mathematics-first-stdlib.md). State assumptions;
   distinguish checker acceptance, mathematical meaning, floats and native refinement.
-- Public protocols 2-6 use `Indexed.LegacySource`, 7 uses `Indexed.Wire`, and 8
-  uses `ResourceSource.Wire`. Preserve full authority/Fn/dispatch composition,
+- Public protocols 2-6 use `Indexed.LegacySource`, 7 uses `Indexed.Wire`, and 8/9
+  use `ResourceSource.Wire`. Preserve full authority/Fn/dispatch composition,
   all-body audits and returned-Core equations. Internal/retired checks cannot replace public acceptance.
 - Align canonical package namespaces with directories and `mod.vast`.
   Preserve IDs, owners, visibility and provenance. Imports grant no edit authority;

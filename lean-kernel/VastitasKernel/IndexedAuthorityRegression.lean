@@ -42,10 +42,10 @@ def authorityFixture : DispatchSource.Program := {
       module := { mod.module with
         generics := [{ name := "choose", params := [⟨"x", {}⟩], domain := [[.named "Int"]], span := {}, isPublic := true }],
         grants := [{
-          name := "outer", target := ["choose"], granteeSource := addon.source,
+          name := "outer", target := ["choose"], granteePackage := .source addon.source,
           granteePath := [], region := [["Int"]], delegable := true, span := {}, isPublic := true }],
         transfers := [{
-          name := "handoff", target := ["choose"], granteeSource := addon.source,
+          name := "handoff", target := ["choose"], granteePackage := .source addon.source,
           granteePath := [], span := {}, isPublic := true }] },
       functions := [fn "helper" (block (num 100))],
       methods := [method "choose" "Number" (block (num 5))],
@@ -54,7 +54,7 @@ def authorityFixture : DispatchSource.Program := {
       { mod with
         module := { mod.module with
           delegations := [{
-            name := "inner", target := ["base", "choose"], granteeSource := addon.source,
+            name := "inner", target := ["base", "choose"], granteePackage := .source addon.source,
             granteePath := ["ops"], region := [["Int"]], span := {}, isPublic := true }] },
         contributions := [⟨"post", path "base::choose", [method "base::choose" "Nat" (block (num 7))], {}, true⟩] },
       { mod with

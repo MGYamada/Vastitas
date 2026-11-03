@@ -1,4 +1,4 @@
-# Compiler protocols (versions 2–8)
+# Compiler protocols (versions 2–9)
 
 The Rust frontend sends one JSON object on stdin to `vastitas-kernel check`
 or `vastitas-kernel emit`. The Lean backend writes one response on stdout;
@@ -25,6 +25,23 @@ also requires storage and explicit driver build configuration. The [internal sto
 is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
+
+Package-only protocol 9 retains that complete protocol-8 envelope and composition,
+and replaces `grantee_source` with `grantee_package: String` in `grants`,
+`delegations` and `transfers`. `grantee_path` remains an ordered list of module
+components. The string is the original manifest package name, never a resolved
+source location, dependency alias or claimed PackageId. Lean reconstructs the
+root-reachable selected packages, requires one exact name match before examining
+the module path, and retains that record's full source/name/version identity.
+No match or several matches is `E_OWNER`, even for unused declarations. A name
+collision cannot be resolved by version, module availability or list order.
+
+New source recipient declarations select protocol 9 even without resources;
+pure-only emits return both optional-runtime flags as false. Protocols 5–8 retain
+`grantee_source` and reject `grantee_package`; protocol 9 rejects `grantee_source`
+even alongside the new field. Earlier versions retain their strict schemas.
+Source migration and the explicit geometry compatibility requirement are described
+in [edit borrowing](edit-borrowing.md#migrating-recipients-for-v010).
 
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),
@@ -53,7 +70,7 @@ branches, including through calls. Protocols 2–7 reject these forms.
 Protocol 8 also admits [numerical declaration profiles](numerical-declarations.md)
 in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and
-unresolved nominal base paths. They require version 8 even without resource
+unresolved nominal base paths. They require version 8 or 9 even without resource
 functions. Protocol 7 retains only `"affine_descriptor"`; it rejects these new
 representations. Declaration acceptance alone does not enable GEMM.
 

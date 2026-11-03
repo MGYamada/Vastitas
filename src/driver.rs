@@ -175,7 +175,12 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .ok_or_else(|| "E_PROTOCOL: backend omitted generated Lean source".to_string())?;
         let storage_runtime = match response.get("storage_runtime") {
             None => false,
-            Some(Value::Bool(required)) if version == crate::packages::RESOURCE_PROTOCOL => {
+            Some(Value::Bool(required))
+                if matches!(
+                    version,
+                    crate::packages::RESOURCE_PROTOCOL | crate::packages::NAMED_RECIPIENT_PROTOCOL
+                ) =>
+            {
                 *required
             }
             Some(_) => {
@@ -184,7 +189,12 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         };
         let numerical_runtime = match response.get("numerical_runtime") {
             None => false,
-            Some(Value::Bool(required)) if version == crate::packages::RESOURCE_PROTOCOL => {
+            Some(Value::Bool(required))
+                if matches!(
+                    version,
+                    crate::packages::RESOURCE_PROTOCOL | crate::packages::NAMED_RECIPIENT_PROTOCOL
+                ) =>
+            {
                 *required
             }
             Some(_) => {

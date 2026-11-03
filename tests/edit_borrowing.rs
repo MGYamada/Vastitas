@@ -5,8 +5,8 @@ use serde_json::{Value, json};
 const BASE: &str = r#"
 pub generic choose(x, y) { domain (Int, Int); }
 method choose(x: Number, y: Number) -> Int { 0 }
-pub grant integers : choose to module("../addon/Vastitas.toml", "") { domain (Int, Int); }
-pub grant second : choose to module("../addon/Vastitas.toml", "") { domain (Int, Int); }
+pub grant integers : choose to addon { domain (Int, Int); }
+pub grant second : choose to addon { domain (Int, Int); }
 "#;
 const ADDON: &str =
     "pub contribution sum : base::choose { method base::choose(x: Int, y: Int) -> Int { x + y } }";
@@ -169,7 +169,7 @@ fn open_return_can_be_repaired_by_owner_before_seal() {
         r#"
 pub generic choose(x, y) {{ domain (Int, Int); }}
 method choose(x: Any, y: Any) -> Int {{ 0 }}
-pub grant integers : choose to module("../addon/Vastitas.toml", "") {{ domain {region}; }}
+pub grant integers : choose to addon {{ domain {region}; }}
 pub contribution repair : choose {{ method choose(x: Number, y: Number) -> Int {{ 42 }} }}
 "#
     );
@@ -186,7 +186,7 @@ method base::choose(x: Any, y: Number) -> Int { 2 } }";
 
 #[test]
 fn exact_module_root_placement_and_selected_closure_are_required() {
-    let wrong = BASE.replace("\"\")", "\"child\")");
+    let wrong = BASE.replace("to addon", "to addon::child");
     rejects(&fixture(&wrong, ADDON, EVENTS), "E_OWNER");
     // The named module exists, but its parent is not the grantee.
     let s = fixture(&wrong, &format!("pub mod child; {ADDON}"), EVENTS);
@@ -197,10 +197,7 @@ fn exact_module_root_placement_and_selected_closure_are_required() {
     rejects(&s, "E_ASSEMBLY");
     let s = fixture(BASE, ADDON, EVENTS);
     package(&s, "unselected", "fn f() -> Int { 0 }", "");
-    s.write(
-        "base/main.vast",
-        &BASE.replace("../addon/", "../unselected/"),
-    );
+    s.write("base/main.vast", &BASE.replace("to addon", "to unselected"));
     rejects(&s, "E_OWNER");
     let s = fixture(BASE, ADDON, EVENTS);
     s.write("app/main.vast", "fn main() -> Int { 0 }");
@@ -209,10 +206,8 @@ fn exact_module_root_placement_and_selected_closure_are_required() {
 
 #[test]
 fn nonwinning_applied_body_is_checked_even_with_an_empty_footprint() {
-    let base = BASE.replace(
-        r#"module("../addon/Vastitas.toml", "") { domain (Int, Int); }"#,
-        r#"module("../addon/Vastitas.toml", "") { domain; }"#,
-    ) + "method choose(x: Int, y: Int) requires (HasOrder) -> Int { 42 }";
+    let base = BASE.replace("to addon { domain (Int, Int); }", "to addon { domain; }")
+        + "method choose(x: Int, y: Int) requires (HasOrder) -> Int { 42 }";
     let addon = ADDON.replace("-> Int { x + y }", "requires (HasEq) -> Int { true }");
     rejects(&fixture(&base, &addon, EVENTS), "E_TYPE");
 }
@@ -354,7 +349,10 @@ fn omitted_assembly_keeps_all_declaration_and_unapplied_body_audits() {
         s.write("addon/main.vast", &ADDON.replace("{ x + y }", "{ true }"));
         rejects(&s, "E_TYPE");
         s.write("addon/main.vast", ADDON);
-        s.write("base/main.vast", &BASE.replace(", \"\")", ", \"absent\")"));
+        s.write(
+            "base/main.vast",
+            &BASE.replace("to addon", "to addon::absent"),
+        );
         rejects(&s, "E_OWNER");
     }
     let mut raw = raw_program();

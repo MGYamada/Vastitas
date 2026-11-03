@@ -439,24 +439,25 @@ def function (j : Json) : Except String Function := do
     valueBody := ← Indexed.Wire.block Limits.sourceNesting (← field j "value_body"),
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
 
-def module (j : Json) : Except String Module := do
-  let pureModule ← Indexed.Wire.module (← without j "resource_functions") true
+def module (j : Json) (namedRecipients : Bool := false) : Except String Module := do
+  let pureModule ← Indexed.Wire.module (← without j "resource_functions") true namedRecipients
   return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function⟩
 
-def package (j : Json) : Except String Package := do
-  let modules ← (← array j "modules").mapM module
+def package (j : Json) (namedRecipients : Bool := false) : Except String Package := do
+  let modules ← (← array j "modules").mapM (module · namedRecipients)
   -- Reuse the exact package metadata decoder, with no resource body projected
   -- into a pure function. Unknown metadata fields remain rejected.
   let stripped ← (← array j "modules").mapM (without · "resource_functions")
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
-  let pkg ← Indexed.Wire.package metadata true
+  let pkg ← Indexed.Wire.package metadata true namedRecipients
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
 def program (j : Json) : Except String Program := do
   fields j ["version", "input", "file", "root", "packages"]
-  if (← j.getObjValAs? Nat "version") != 8 then throw "expected protocol 8"
-  if (← str j "input") != "package" then throw "protocol 8 requires package input"
-  return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM package⟩
+  let version ← j.getObjValAs? Nat "version"
+  if version != 8 && version != 9 then throw "expected protocol 8 or 9"
+  if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
+  return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM (package · (version == 9))⟩
 
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program

@@ -49,9 +49,11 @@ def revise(value, package):
 
 class DiagnosticReferenceTests(unittest.TestCase):
     def test_v1_fingerprint_vector(self):
+        # The protocol-9 recipient rewrite changes the source snapshot and
+        # therefore this occurrence ID; the semantic issue key stays fixed.
         ids = dr.identities(fixture())
         self.assertEqual(ids["reference_occurrence_id"], "vastitas-reference-occurrence-v1:"
-                         "a5508f1820cdaee8f4d921e71500dff893bd670c85c450cf0ec825161c405771")
+                         "4c2d4e07becbff4ec09177bc00bf052b8352d7f015e8b539b38bc373fae528a3")
         self.assertEqual(ids["semantic_issue_key"], "vastitas-reference-issue-v1:"
                          "76dbc53ef5595642f8c6d1fe4331052d4f6f724cfecfb8154fa0ec506c244e8d")
 

@@ -47,7 +47,9 @@ scalar flow, symbolic events and static storage schedule. Its result, including
 any diagnostic, equals the standalone function check by
 `checkWithLibrary_eq_check`. The public theorem `entry_uses_checked_library`
 identifies both the shared probe list and that separate executable expansion.
-Nested callee slices still undergo their normal replay.
+Nested callee slices still undergo their normal replay. The
+[public compiler observations](../experiments/compiler_scaling/results/2026-11-03-macos-resource-probes/RESULTS.md)
+compare 200 shared loans at three call depths.
 
 Every function receives a separate synthetic probe, including unused definitions
 and both branch arms. Owned probes start with declared initialization; borrowed

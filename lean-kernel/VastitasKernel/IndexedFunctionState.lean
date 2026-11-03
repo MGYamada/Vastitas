@@ -225,7 +225,7 @@ def probe (signature : Surface.TypeExpr) : M Target := do
   return ⟨.probe id, signature⟩
 
 def resolve (input : Input) (scope : Namespace.Scope) (path : Source.Path) : M Nat := do
-  let target ← result (Namespace.resolve input.body.index scope path.path path.span)
+  let target ← body (Source.Bodies.lookupPath input.body.index scope path)
   if target.kind == .module then error path.span "E_NAME" "a module is not a value"
   unless target.kind == .function do error path.span "E_TYPE" "expected an ordinary function; generic families are not Fn values"
   let some id := input.named[target.owner]? | error path.span "E_NAME" "function has no source definition"

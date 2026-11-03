@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSourceDiagnostics
+import VastitasKernel.NamespaceQuery
 
 /-! Internal data-function elaboration. The public protocol-7 entry point must
 also compose Fn specialization, finite dispatch and edit authority. This adapter
@@ -25,9 +26,18 @@ structure State where
   origins : Diagnostics.Origins := {}
   references : List Source.Reference := []
   calls : List CallReference := []
+  queries : Option Namespace.QuerySession := none
   deriving Inhabited
 
 abbrev M := StateT State Namespace.Result
+
+def lookupPath (index : Namespace.Indexed) (scope : Namespace.Scope) (path : Source.Path)
+    (describe : Diagnostic → Diagnostic := id) : M Namespace.Target := do
+  let before ← get
+  let session := before.queries.getD {index}
+  let (target, after) ← (session.query scope path.path path.span).mapError describe
+  set {before with queries := some after}
+  return target
 
 structure Input where
   index : Namespace.Indexed
@@ -97,6 +107,9 @@ def type (input : Input) (scope : Namespace.Scope) (ctx : TypeContext)
     let code := match raw with | .legacy (.point ..) | .legacy (.morphism ..) => "E_BASE" | _ => "E_TYPE"
     fail span code s!"invalid indexed annotation {← typeLabel input type}"
   unless type.Scoped (Core.Typing.contextRefs ctx.core) do fail span "E_SCOPE" "annotation contains a local object outside its scope"
+  for reference in references do
+    let actual ← lookupPath input.index reference.scope reference.path
+    unless actual == reference.target do fail reference.path.span "E_PROTOCOL" "indexed annotation resolution differs"
   modify fun state => { state with references := references ++ state.references }
   return type
 
@@ -314,7 +327,7 @@ mutual
         let hint := if name == "Affine" then some (Core.DataType.pure .nat) else none
         let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
         return ← emitLegacy input ctx name base values span
-      let target ← Namespace.resolve input.index scope callee.path callee.span
+      let target ← lookupPath input.index scope callee
       if target.kind == .indexedDeclaration then
         let some binding := input.declarations.primitive? target.owner
           | fail span "E_TYPE" "this indexed declaration is not a primitive function"

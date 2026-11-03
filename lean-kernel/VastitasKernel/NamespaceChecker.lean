@@ -210,7 +210,52 @@ def ownerLocations (p : Indexed) : List (Owner × Span) :=
     (if m.path.isEmpty then [] else
       [(⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, m.span)])
 
-def validate (p : Indexed) : Result Unit := do
+structure ImportWork where
+  units : Nat
+  bounded : units ≤ Limits.namespaceImportWork
+
+def ImportWork.add (work : ImportWork) (consumed : Nat) (span : Span) : Result ImportWork :=
+  let next := work.units + consumed
+  if h : next ≤ Limits.namespaceImportWork then
+    .ok ⟨next, h⟩
+  else problem span "E_LIMIT" s!"program-wide namespace import validation exceeds {Limits.namespaceImportWork} member visits"
+
+theorem ImportWork.add_exact {prior next : ImportWork} {amount : Nat} {span : Span}
+    (ok : prior.add amount span = .ok next) : next.units = prior.units + amount := by
+  unfold ImportWork.add at ok
+  dsimp only at ok
+  split at ok
+  · cases ok; rfl
+  · contradiction
+
+def importWorkStep (p : Indexed) (scope : Scope) (entry : Import) (work : ImportWork) :
+    Result (Target × ImportWork) := do
+  let limit := Limits.namespaceResolution
+  let (target, remaining) ← (memberAt limit p scope scope entry.alias {} entry.span).run limit
+  let consumed := limit - remaining
+  return (target, ← work.add consumed entry.span)
+
+theorem importWorkStep_exact {p : Indexed} {scope : Scope} {entry : Import} {prior next : ImportWork}
+    {target : Target} (ok : importWorkStep p scope entry prior = .ok (target, next)) :
+    ∃ remaining, (memberAt Limits.namespaceResolution p scope scope entry.alias {} entry.span).run
+        Limits.namespaceResolution = .ok (target, remaining) ∧
+      next.units = prior.units + (Limits.namespaceResolution - remaining) := by
+  unfold importWorkStep at ok
+  cases actual : (memberAt Limits.namespaceResolution p scope scope entry.alias {} entry.span).run
+      Limits.namespaceResolution with
+  | error diagnostic => simp [actual, bind, Except.bind] at ok
+  | ok pair =>
+    rcases pair with ⟨value, remaining⟩
+    cases debit : prior.add (Limits.namespaceResolution - remaining) entry.span with
+    | error diagnostic => simp [actual, debit, bind, Except.bind] at ok
+    | ok result =>
+      have pair : (value, result) = (target, next) := by
+        simpa [actual, debit, bind, Except.bind, pure, Except.pure] using ok
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj pair
+      exact ⟨remaining, rfl, ImportWork.add_exact debit⟩
+
+def validateWithWork (p : Indexed) : Result ImportWork := do
+  let mut work : ImportWork := ⟨0, Nat.zero_le _⟩
   if p.authority && !p.editable then problem {} "E_PROTOCOL" "authority requires edit input"
   if !p.authority && p.packages.any (fun pkg => pkg.modules.any fun m =>
       !m.delegations.isEmpty || !m.transfers.isEmpty || m.grants.any (·.delegable) ||
@@ -258,9 +303,13 @@ def validate (p : Indexed) : Result Unit := do
             p.declarations.any (·.kind == .indexedDeclaration)) then
           sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
-        let (target, _) ← (memberAt Limits.namespaceResolution p scope scope entry.alias {} entry.span).run Limits.namespaceResolution
+        let (target, next) ← importWorkStep p scope entry work
+        work := next
         declarationName (if target.kind == .indexedDeclaration then target.kind else .function)
           entry.alias entry.span
+  return work
+
+def validate (p : Indexed) : Result Unit := (validateWithWork p).map fun _ => ()
 
 structure Reference where
   scope : Scope

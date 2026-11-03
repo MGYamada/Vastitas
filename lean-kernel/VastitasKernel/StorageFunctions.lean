@@ -257,14 +257,24 @@ def remaining : Nat → Nat → List Statement → Option Nat
       | _ => pure unused
     remaining depth after rest
 
+/-- Each of these ordinary statements also spends one primitive transition.
+This lower bound can reject a straight-line body before constructing its loans. -/
+private def directTransition : Statement → Bool
+  | .action (.allocate ..) | .action (.borrow ..) | .action (.release ..) |
+    .action (.drop ..) | .action (.fill ..) | .runtime (.allocate ..) |
+    .runtime (.borrow ..) | .runtime (.release ..) | .runtime (.drop ..) |
+    .runtime (.fill ..) => true
+  | _ => false
+
 def definitions (functions : List Function) : Except Error Unit := do
   if functions.length > 4096 then
     reject "E_RESOURCE_LIMIT" "resource library exceeds 4096 functions"
   let mut unused := 4096
+  let counts := Finite.countIndex Function.id functions
   for function in functions do
     if function.parameters.length > 64 || function.results.length > 64 then
       reject "E_RESOURCE_LIMIT" "resource function contract exceeds 64 inputs or outputs"
-    if functions.countP (·.id == function.id) != 1 then
+    if counts.getD function.id 0 != 1 then
       reject "E_RESOURCE_FUNCTION" "resource function identifiers must be unique"
     let names := function.parameters.map Parameter.name
     if names.any (fun name => names.count name != 1) then
@@ -275,6 +285,8 @@ def definitions (functions : List Function) : Except Error Unit := do
       reject "E_NUMERICAL_TYPE" "numerical parameter dependencies must name earlier spaces or bases"
     let some after := remaining 4096 unused function.body
       | reject "E_RESOURCE_LIMIT" "resource source exceeds the global statement budget"
+    if 1 + function.body.length + function.body.countP directTransition > 4096 then
+      reject "E_RESOURCE_LIMIT" "resource function exceeds 4096 expanded steps before nested calls"
     unused := after
 
 def headers (program : Program) : Except Error Unit := do
@@ -791,6 +803,7 @@ structure Context where
   resources : State := {}
   nextSymbol : Nat := 0
   unused : Nat := 4096
+  work : Work.Total := Work.zero
   code : Array Storage.Statement := #[]
   calls : Array CallReceipt := #[]
   deriving Inhabited
@@ -915,7 +928,13 @@ private def spend : M Unit := do
   let context ← get
   if context.unused == 0 then
     throw {code := "E_RESOURCE_LIMIT", message := "expanded resource calls exceed the global work budget"}
-  set {context with unused := context.unused - 1}
+  let work ← debitWork context.work 1
+  set {context with unused := context.unused - 1, work}
+
+private def priceFrame : M Unit := do
+  let context ← get
+  let work ← debitWork context.work context.resources.work
+  set {context with work}
 
 private def fresh : M Symbol := do
   let context ← get
@@ -930,6 +949,7 @@ private def bindName (frame : Frame) (localName : Symbol) : M (Frame × Symbol) 
 /-- Only actual checked primitive transitions can enter an expanded schedule. -/
 def step (operation : Action) : M Unit := do
   spend
+  priceFrame
   let context ← get
   let resources ← checkAction context.resources operation
   set {context with
@@ -951,12 +971,13 @@ def setShapes (shapes : Shapes.Functions.Context) : M Unit := do
   let context ← get
   if context.branchDepth != 0 then
     throw {code := "E_RUNTIME_BRANCH", message := "runtime-shape operations and calls are not supported inside resource branches"}
+  let work ← debitWork context.work (context.shapes.resources.work + context.shapes.events.size + shapes.events.size)
   let events := shapes.events.toList.drop context.shapes.events.size
   unless context.shapes.events.toList ++ events == shapes.events.toList do
     throw {code := "E_RUNTIME_SHAPE", message := "runtime operation changed earlier events"}
   unless events.all (fun event => event.references.all (Shapes.extentSlot context.scalarSlots)) do
     throw {code := "E_RUNTIME_SHAPE", message := "runtime extent requires a live immutable Nat or Int slot"}
-  set {context with shapes, flow := context.flow ++ (events.map ValueFlow.Statement.runtime).toArray}
+  set {context with shapes, work, flow := context.flow ++ (events.map ValueFlow.Statement.runtime).toArray}
 
 def runtimeStep (operation : Shapes.Action) : M Unit := do
   spend
@@ -1803,12 +1824,18 @@ mutual
         | .action action => operation frame action
         | .runtime operation => runtimeOperation frame operation
         | .runtimeNumerical operation => runtimeNumericalOperation frame operation
-        | .numerical op => numericalOperation ⟨stack.head?, path ++ [position]⟩ frame op
-        | .network graph output policy =>
+        | .numerical op => do
+          priceFrame
+          numericalOperation ⟨stack.head?, path ++ [position]⟩ frame op
+        | .network graph output policy => do
+          priceFrame
           networkOperation ⟨stack.head?, path ++ [position]⟩ frame graph output policy
-        | .tree graph output policy plan =>
+        | .tree graph output policy plan => do
+          priceFrame
           treeOperation ⟨stack.head?, path ++ [position]⟩ frame graph output policy plan
-        | .tensor op => tensorOperation ⟨stack.head?, path ++ [position]⟩ frame op
+        | .tensor op => do
+          priceFrame
+          tensorOperation ⟨stack.head?, path ++ [position]⟩ frame op
         | .call callee actuals outputs | .callValue callee actuals outputs .. => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
           let demand := match first with | .callValue .. => true | _ => false
@@ -1875,6 +1902,7 @@ mutual
             codeBlock := (before.code.size, false) :: before.codeBlock
             nextSymbol := left.nextSymbol
             unused := left.unused
+            work := left.work
             code := #[]
             flow := #[]
             returnedValue := none
@@ -1902,8 +1930,10 @@ mutual
           let _ ← expandAt fuel functions stack (path ++ [position, 1]) 0 frame no
           cleanupDependencies before.resources
           let right ← get
+          let work ← debitWork right.work (left.resources.work + right.resources.work)
           let resources ← join left.resources right.resources
           set {right with
+            work
             branchDepth := before.branchDepth
             codeBlock := before.codeBlock
             resources
@@ -1955,7 +1985,9 @@ mutual
         else modify fun context => {context with shapes := runtimeAfter}
         let nestedShape := if before.shapeCalls.size < runtimeContext.shapeCalls.size then
           runtimeContext.shapeCalls.back? else none
-        let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter nestedShape
+        let (runtimeReceipt, work) ← Shapes.Functions.checkCallMetered before.shapes runtimeAfter nestedShape
+          (← get).work
+        modify fun context => {context with work}
         if runtimeAfter.events.size != before.shapes.events.size then
           modify fun context => {context with shapeCalls := context.shapeCalls.push runtimeReceipt}
         -- Discarding a result avoids native evaluation, not its signature audit.
@@ -1970,11 +2002,14 @@ mutual
             throw {code := "E_RESOURCE_VALUE", message := "callee return arguments or signature differ"}
         let after ← get
         let results := returned.map fun value => (value.owner, value.type)
+        let prefixWork ← debitWork after.work (1 + before.code.size + after.code.size +
+          before.resources.work + after.resources.work)
         let statements := after.code.toList.drop before.code.size
         if slice : before.code.toList ++ statements = after.code.toList then
           let nested := if before.calls.size < after.calls.size then after.calls.back? else none
-          let checked := replayWithEvidence (run 4096) before.resources statements (nested.map fun receipt =>
-            ⟨receipt.before, receipt.statements, .ok receipt.after, receipt.replayed⟩)
+          let (checked, work) ← replayMeteredWithEvidence (run 4096) (runMetered 4096) before.resources
+            statements (nested.map fun receipt =>
+              ⟨receipt.before, receipt.statements, .ok receipt.after, receipt.replayed⟩) prefixWork
           match result : checked.val with
           | .error diagnostic => throw diagnostic
           | .ok state =>
@@ -1983,6 +2018,7 @@ mutual
                 let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
                   before.code.toList, statements, after.code.toList, slice, exactState ▸ checked.property.trans result, valid⟩
                 set {after with
+                  work
                   calls := after.calls.push receipt
                   numerical := before.numerical
                   tensors := before.tensors
@@ -2050,6 +2086,9 @@ structure Probe where
   accepted : checkPlan statements = .ok resources
   projected : ValueFlow.project flow = statements
   shapes : Shapes.Flow.Checked values.finalState.slots flow
+  work : Work.Total
+
+def Probe.units (p : Probe) := p.work.val
 
 def probeSetup (functions : List Function) (function : Function) : M Unit := do
   let mut actuals := []
@@ -2264,17 +2303,25 @@ def probe (functions : List Function) (function : Function) (environment : Index
   let (_, context) ← (probeSetup functions function).run {environment, signatures}
   let values ← ValueFlow.check signatures context.scalarInputs context.flow.toList
   let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList
+  let used ← debitWork context.work shapes.resources.work.val
   if projected : ValueFlow.project context.flow.toList = context.code.toList then
     match accepted : checkPlan context.code.toList with
     | .error diagnostic => .error diagnostic
-    | .ok resources => return ⟨signatures, context.scalarInputs, context.flow.toList, values,
-        function.id, context.code.toList, resources, accepted, projected, shapes⟩
+    | .ok resources =>
+      let work ← debitWork used resources.work.val
+      return ⟨signatures, context.scalarInputs, context.flow.toList, values,
+        function.id, context.code.toList, resources, accepted, projected, shapes, work⟩
   else reject "E_RESOURCE_VALUE" "mixed probe differs from its resource projection"
 
 def executable (program : Program) (environment : Indexed.Environment := [])
     (signatures : List ValueFlow.Signature := []) : Except Error Context := do
   let (_, context) ← (invoke 4096 program.functions [] program.entry [] true).run {environment, signatures}
   return context
+
+def probeBatch (functions : List Function) (environment : Indexed.Environment)
+    (signatures : List ValueFlow.Signature) :=
+  Work.collect (fun function => probe functions function environment signatures)
+    Probe.units workError functions Work.zero
 
 /-- Check-only packages do not need a fabricated executable entry. Every
 original resource definition still has its actual independently checked probe. -/
@@ -2283,14 +2330,16 @@ structure CheckedLibrary (functions : List Function) (environment : Indexed.Envi
   headers : definitions functions = .ok ()
   bodies : List Probe
   bodiesFrom : functions.mapM (fun function => probe functions function environment signatures) = .ok bodies
+  work : Work.Total
+  collected : probeBatch functions environment signatures = .ok (bodies, work)
 
 def checkLibrary (functions : List Function) (environment : Indexed.Environment := [])
     (signatures : List ValueFlow.Signature := []) : Except Error (CheckedLibrary functions environment signatures) :=
   match headers : definitions functions with
   | .error diagnostic => .error diagnostic
-  | .ok () => match bodiesFrom : functions.mapM (fun function => probe functions function environment signatures) with
+  | .ok () => match collected : probeBatch functions environment signatures with
     | .error diagnostic => .error diagnostic
-    | .ok bodies => .ok ⟨headers, bodies, bodiesFrom⟩
+    | .ok (bodies, work) => .ok ⟨headers, bodies, (Work.collect_exact collected).1, work, collected⟩
 
 structure Checked (program : Program) (environment : Indexed.Environment := [])
     (signatures : List ValueFlow.Signature := []) where
@@ -2306,6 +2355,8 @@ structure Checked (program : Program) (environment : Indexed.Environment := [])
   shapes : Shapes.Flow.Checked values.finalState.slots context.flow.toList
   shapeEvents : Shapes.Flow.collect context.flow.toList = .ok context.shapes.events.toList
   shapeFinal : shapes.resources.after = context.shapes.resources
+  workBound : (bodies.map Probe.units).sum + context.work.val + resources.work.val +
+    shapes.resources.work.val ≤ Limits.resourceWork
 
 def Checked.statements {program environment signatures} (checked : Checked program environment signatures) : List Storage.Statement := checked.context.code.toList
 
@@ -2319,8 +2370,11 @@ private def checkExecutable (program : Program) (environment : Indexed.Environme
   match expanded : executable program environment signatures with
   | .error diagnostic => .error diagnostic
   | .ok context => do
+    let baseWork := (bodies.map Probe.units).sum + context.work.val
+    if baseWork > Limits.resourceWork then throw workError
     let values ← ValueFlow.check signatures [] context.flow.toList
     let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList
+    if baseWork + shapes.resources.work.val > Limits.resourceWork then throw workError
     if sameEvents : shapes.events = context.shapes.events.toList then
       have shapeEvents : Shapes.Flow.collect context.flow.toList = .ok context.shapes.events.toList :=
         sameEvents ▸ shapes.collected
@@ -2328,8 +2382,12 @@ private def checkExecutable (program : Program) (environment : Indexed.Environme
         if projected : ValueFlow.project context.flow.toList = context.code.toList then
           match accepted : checkPlan context.code.toList with
           | .error diagnostic => .error diagnostic
-          | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded,
-              resources, accepted, values, projected, shapes, shapeEvents, shapeFinal⟩
+          | .ok resources =>
+            if bound : baseWork + resources.work.val +
+                shapes.resources.work.val ≤ Limits.resourceWork then
+              .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded, resources, accepted,
+                values, projected, shapes, shapeEvents, shapeFinal, bound⟩
+            else .error workError
         else reject "E_RESOURCE_VALUE" "mixed execution differs from its resource projection"
       else reject "E_RUNTIME_SHAPE" "runtime final frame differs from the independent replay"
     else reject "E_RUNTIME_SHAPE" "runtime event origins differ from the mixed execution"
@@ -2338,9 +2396,10 @@ def check (program : Program) (environment : Indexed.Environment := [])
     (signatures : List ValueFlow.Signature := []) : Except Error (Checked program environment signatures) :=
   match headerAccepted : headers program with
   | .error diagnostic => .error diagnostic
-  | .ok () => match bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment signatures) with
+  | .ok () => match collected : probeBatch program.functions environment signatures with
     | .error diagnostic => .error diagnostic
-    | .ok bodies => checkExecutable program environment signatures headerAccepted bodies bodiesFrom
+    | .ok (bodies, _) => checkExecutable program environment signatures headerAccepted bodies
+        (Work.collect_exact collected).1
 
 /-- A public package has already checked every resource body for this exact
 function list, declaration environment and scalar signature table. -/
@@ -2358,10 +2417,10 @@ theorem checkWithLibrary_eq_check (program : Program) {environment signatures}
   split
   · rfl
   · split
-    next diagnostic failed => rw [library.bodiesFrom] at failed; contradiction
-    next bodies checked =>
-      have same := Except.ok.inj (library.bodiesFrom.symm.trans checked)
-      subst bodies
+    next diagnostic failed => rw [library.collected] at failed; contradiction
+    next bodies work checked =>
+      have same := Except.ok.inj (library.collected.symm.trans checked)
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj same
       rfl
 
 def generate (program : Program) (report : Bool := false) (budget : Nat := byteLimit)

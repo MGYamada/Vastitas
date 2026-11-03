@@ -76,8 +76,26 @@ theorem entry_uses_checked_library {program : Program} (checked : Checked progra
       Functions.executable p (numericalEnvironment checked.pureProgram) checked.targets.signatures =
         .ok e.checked.context := by
   let e := checked.execution entry found
-  exact ⟨(Functions.checkWithLibrary_eq_check _ checked.library).trans e.accepted,
-    Except.ok.inj (e.checked.bodiesFrom.symm.trans checked.library.bodiesFrom), e.checked.expanded⟩
+  let p : Functions.Program := ⟨checked.lowered.functions, entry⟩
+  have reused := Functions.checkWithLibrary_eq_check p checked.library
+  have same : e.checked.bodies = checked.library.bodies :=
+    Except.ok.inj (e.checked.bodiesFrom.symm.trans checked.library.bodiesFrom)
+  exact ⟨reused.trans e.accepted, same, e.checked.expanded⟩
+
+theorem library_work_bound {program : Program} (checked : Checked program requireMain) :
+    (checked.library.bodies.map Functions.Probe.units).sum = checked.library.work.val ∧
+      checked.library.work.val ≤ Limits.resourceWork := by
+  have total := (Work.collect_exact checked.library.collected).2
+  exact ⟨by simpa [Work.zero] using total.symm, Nat.le_of_lt_succ checked.library.work.isLt⟩
+
+theorem entry_work_bound {program : Program} (checked : Checked program requireMain)
+    (entry : Nat) (found : program.entry = some entry) :
+    let e := (checked.execution entry found).checked
+    (checked.library.bodies.map Functions.Probe.units).sum + e.context.work.val +
+      e.resources.work.val + e.shapes.resources.work.val ≤ Limits.resourceWork := by
+  have same := (entry_uses_checked_library checked entry found).2.1
+  rw [← same]
+  exact (checked.execution entry found).checked.workBound
 
 theorem actual_entry_closed {program : Program} (checked : Checked program requireMain)
     (entry : Nat) (found : program.entry = some entry) :
@@ -87,6 +105,11 @@ theorem actual_entry_closed {program : Program} (checked : Checked program requi
     execution.checked.resources.finalState.allocations = [] ∧ execution.checked.resources.finalState.loans = [] :=
   ⟨(checked.execution entry found).accepted, (checked.execution entry found).checked.resources.accepted,
     (checked.execution entry found).checked.resources.closed⟩
+
+theorem namespace_work_bound {json : Lean.Json} (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
+    Namespace.priceInput input.input.pureProgram.source.headers.indexed json = .ok input.namespaceReceipt.inputUnits ∧
+    input.namespaceReceipt.inputUnits.val + VastitasKernel.ResourceSource.Wire.namespaceUnits input.checked ≤ Limits.namespaceProgramWork :=
+  ⟨input.namespaceReceipt.priced, input.namespaceReceipt.bounded⟩
 
 theorem public_input {json : Lean.Json} (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
     VastitasKernel.ResourceSource.Wire.program json = .ok input.input ∧

@@ -659,6 +659,7 @@ fn raw_resource_wire_cannot_supply_checked_owners_targets_or_alias_evidence() {
     let operations = module(&raw, "storage_buffers", json!(["operations"]));
     for (pointer, key, value) in [
         ("".to_string(), "checked", json!(true)),
+        ("".to_string(), "namespace_receipt", json!({"units":0})),
         (root.clone(), "resource_headers", json!([])),
         (
             format!("{root}/resource_functions/0"),

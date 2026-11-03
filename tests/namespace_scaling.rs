@@ -78,3 +78,63 @@ fn long_cycles_and_resolution_depth_still_fail_closed() {
         );
     }
 }
+
+fn assert_limit(s: &Scratch, message: &str) {
+    let output = check(s);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(!output.status.success(), "{stderr}");
+    assert!(
+        stderr.contains("E_LIMIT") && stderr.contains(message),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn separate_modules_share_the_import_validation_budget() {
+    let mut source = String::new();
+    for module in ["left", "right"] {
+        source.push_str(&format!("mod {module} {{\n"));
+        for i in 0..1050 {
+            source.push_str(&format!("use self::a{} as a{i};\n", i + 1));
+        }
+        source.push_str("fn a1050() -> Int { 42 }\n}\n");
+    }
+    source.push_str("fn main() -> Int { 42 }\n");
+    // The existing positive control admits a complete 1,000-link chain.
+    for profile in [
+        "",
+        "indexed marker BudgetMarker;\n",
+        "resource fn spare() -> Unit { value { () } }\n",
+    ] {
+        let package = fixture(&format!("{profile}{source}"));
+        assert_limit(&package, "program-wide namespace import validation");
+    }
+}
+
+#[test]
+fn alias_queries_in_unused_functions_share_the_request_budget() {
+    let mut program = source(600, 1);
+    let mut body = String::new();
+    for i in 0..100 {
+        body.push_str(&format!("let v{i} = a0(41);\n"));
+    }
+    for i in 0..24 {
+        program.push_str(&format!("fn f{i}() -> Int {{\n{body}v99\n}}\n"));
+    }
+    let s = fixture(&program);
+    assert_limit(&s, "program-wide namespace resolution");
+    let previous = s.write("program", "previous output");
+    let output = cli()
+        .args(["build", "--manifest-path"])
+        .arg(s.0.join("Vastitas.toml"))
+        .arg("-o")
+        .arg(&previous)
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !output.status.success() && stderr.contains("E_LIMIT"),
+        "{stderr}"
+    );
+    assert_eq!(std::fs::read(previous).unwrap(), b"previous output");
+}

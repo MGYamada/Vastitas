@@ -1,8 +1,9 @@
 # Storage, ownership and residual retention — revised Chapter 7
 
-Status: accepted design direction, 2026-10-29; public implementation is in progress
-and performance acceptance remains pending under [#183](https://github.com/MGYamada/Vastitas/issues/183)
-and the [Stage 1 completion gate](stage1-completion.md).
+The finite Stage 1 compiler implements the ownership profiles mapped in the
+[acceptance record](stage1-acceptance.md). Stage 2 or later owns the remaining
+performance acceptance under [#183](https://github.com/MGYamada/Vastitas/issues/183)
+and the [performance handoff](stage1-completion.md#stage-2-or-later-performance-acceptance).
 This is the current design contract replacing the storage discussion in
 [historical Chapter 7](design/tensor-resources-units.md#7-ownership-and-tensor-network-ports).
 The archived v0.3 text and its source hashes remain unchanged.

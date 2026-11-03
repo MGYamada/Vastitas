@@ -34,6 +34,10 @@ structure CheckedProgram (program : DispatchSource.Program) (requireMain : Bool)
   coverage : Compiler.coversDefinitions compiler.input audit.lowered = true
   executable : Compiler.CheckedPass compiler false requireMain
 
+def CheckedProgram.namespaceUnits {p : DispatchSource.Program} {requireMain : Bool}
+    (checked : CheckedProgram p requireMain) : Nat :=
+  checked.audit.lowered.namespaceWork.val + checked.executable.lowered.namespaceWork.val
+
 def checkProgram (program : DispatchSource.Program) (requireMain : Bool := false) : Namespace.Result (CheckedProgram program requireMain) := do
   let authority ← prepare program
   match dispatcherFrom : authority.dispatcher with

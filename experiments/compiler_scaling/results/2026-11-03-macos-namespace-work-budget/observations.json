@@ -1,0 +1,119 @@
+{
+  "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "deadline_seconds": 20,
+  "cli_sha256": "8e09001a5ea065025e834ac11447dfd223f8bfa731811db794a8491cc556c95d",
+  "kernel_sha256": {
+    "baseline": "2e59563defd863a32b21354c5bf6eb6a8a332da33fb2907449e7bee468af8691",
+    "candidate": "344993bc08aa1383387c9739c00dbde455c7223297c247be0e157291f388bfbc"
+  },
+  "cases": [
+    {
+      "name": "one-1000",
+      "source_sha256": "639d4d1f15ab3ce2b1dd1d9723ab90c3972f80f3c5d54d9b16ba60faa057dfc4",
+      "runs": {
+        "baseline": {
+          "seconds": 1.444828417035751,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 2.2051636669784784,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "name": "shared-600",
+      "source_sha256": "e31be458e37ba9408be72cc5b41d0da5ec32c5426504da4db7f03322f400c423",
+      "runs": {
+        "candidate": {
+          "seconds": 0.8700914999935776,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "baseline": {
+          "seconds": 1.594246833003126,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "name": "two-1050",
+      "source_sha256": "8f59304f904ee1db7b2a795e5a3c51aef5510f8c27485bfe2938cfac4577518b",
+      "runs": {
+        "baseline": {
+          "seconds": 3.6986147920251824,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 0.0719677500310354,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide namespace import validation exceeds 1000000 member visits"
+        }
+      }
+    },
+    {
+      "name": "many-references",
+      "source_sha256": "7ad64e06d646bf03f808783e85099a1f2c298c4329fc94de6d11e8bf882a8d36",
+      "runs": {
+        "candidate": {
+          "seconds": 3.5751598330098204,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide namespace resolution exceeds 4000000 logical visits"
+        },
+        "baseline": {
+          "seconds": 9.557982750004157,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "name": "more-references",
+      "source_sha256": "37e2e35ef7669b5b7655fa0637d34920a1e02c0835e009eeb2ed86bf9b05276f",
+      "runs": {
+        "baseline": {
+          "seconds": 20.0184344999725,
+          "exit_code": 143,
+          "timed_out": true,
+          "diagnostic": "E_INTERRUPTED: compilation interrupted"
+        },
+        "candidate": {
+          "seconds": 0.42602549999719486,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide namespace resolution exceeds 4000000 logical visits"
+        }
+      }
+    },
+    {
+      "name": "dispatch-4096",
+      "source_sha256": "b75815f8d68e8874bdd3358dcfcd9c06a243c28b85de38951524e55dacf16f46",
+      "runs": {
+        "candidate": {
+          "seconds": 0.0501020840019919,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide elaboration exceeds the 1000000-unit budget (expanded bodies and binding slots)"
+        },
+        "baseline": {
+          "seconds": 0.04867366602411494,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide elaboration exceeds the 1000000-unit budget (expanded bodies and binding slots)"
+        }
+      }
+    }
+  ]
+}

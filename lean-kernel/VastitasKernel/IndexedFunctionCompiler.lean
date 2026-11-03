@@ -180,6 +180,7 @@ structure Pass where
   dispatchCalls : List DispatchCall := []
   probeReuses : List ProbeReuse := []
   elaborationWork : Nat := 0
+  namespaceWork : Fin (Limits.namespaceProgramWork + 1) := 0
   deriving Inhabited
 
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
@@ -200,6 +201,6 @@ def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pas
     (state.origins.toList.zipIdx.find? (fun (key, _) => key.definition == main)).map Prod.snd
   return ⟨⟨prepared.input.body.declarations, state.functions.toList, main⟩, state.origins,
     state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls,
-    state.probeReuses, state.elaborationWork⟩
+    state.probeReuses, state.elaborationWork, (state.body.queries.map (·.units)).getD 0⟩
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

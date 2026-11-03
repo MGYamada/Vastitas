@@ -1,15 +1,46 @@
-# Historical Stage 1 completion gate
+# Historical Stage 1 delivery record
 
-**Historical Stage 1 is not complete.** The initial finite numerical/storage
-functionality and bounded runtime-shape interface are implemented and integrated;
-the agreed Fast like C acceptance and completion record remain unfinished. The delivery
-tracker is [#179](https://github.com/MGYamada/Vastitas/issues/179).
+<a id="historical-stage-1-completion-gate"></a>
 
-The [acceptance map](stage1-acceptance.md) matches all 48 original/amended conditions
-from #66/#67/#69/#91/#92/#183 to source, positive/negative regressions,
-actual-checker theorems and native evidence. It distinguishes the initial finite
-profile from broader parent-issue objectives. Stage 1b or successful native/BLAS
-execution alone does not complete this gate.
+The finite Stage 1 compiler includes independent functions, finite dispatch,
+edit reborrowing and transfer, the indexed geometry library, affine storage,
+real and complex GEMM, and bounded contraction trees. Delivery requires
+the checked finite profiles, positive and adversarial native/source tests,
+green integration CI and a record of known performance differences.
+The maintainer assigned the remaining **Fast like C** verdict to Stage 2 or
+later on 2026-11-03. [Delivery decision](https://github.com/MGYamada/Vastitas/issues/179#issuecomment-6602653283)
+
+## Final implementation and validation
+
+The integrated implementation is `3c3098e2402628d36140e3459dafc7edda988b13`.
+The acceptance map ties 48 original and amended conditions to their source,
+tests, actual-checker proofs, native evidence and outstanding performance work.
+The delivery tracker records the main merge and hosted results.
+[Acceptance map](stage1-acceptance.md) · [Delivery tracker](https://github.com/MGYamada/Vastitas/issues/179)
+
+- #422 and #423 bound resource checking across every library probe, nested
+  replay, branch and the executable entry. Both static and runtime 30-wrapper
+  positives remain accepted. Unused 90-wrapper packages reject with `E_LIMIT`.
+  On one uncontrolled Mac the static 200-read case increased from 1.904 to
+  2.889 s and the runtime case changed from 1.643 to 1.500 s.
+  [Resource budgets and matched inputs](../experiments/compiler_scaling/results/2026-11-03-macos-resource-work-budget/RESULTS.md) · [PR #513](https://github.com/MGYamada/Vastitas/pull/513)
+- #426 bounds import work across modules and namespace work across the input
+  and all body passes. Reused aliases have a proof of the same target under
+  the original resolver. A 600-link alias used 300 times fell from 1.594 to
+  0.870 s. The 1,000-link single-use case rose from 1.445 to 2.205 s. Two
+  individually valid 1,050-link modules reached the combined limit in 0.072 s.
+  [Namespace cases and measured revision](../experiments/compiler_scaling/results/2026-11-03-macos-namespace-work-budget/RESULTS.md) · [PR #514](https://github.com/MGYamada/Vastitas/pull/514)
+- The integrated head passed local Rust formatting, strict Clippy, 418 Rust
+  tests across 39 suites with the optional OpenBLAS tests enabled, a 197-job
+  kernel build, 160-job kernel regressions and a 202-job proof build. The axiom
+  audit covered 31,287 declarations including 4,308 private declarations and
+  passed eight auditor mutations. Checks also exercised 23 standalone indexed
+  native fixtures, storage sanitizers and cleanup, checked real/complex GEMM,
+  public check/build/execution and duplicate-release rejection in both
+  resource profiles. [Integration checks](https://github.com/MGYamada/Vastitas/pull/514/checks)
+
+The compiler timings above measure program admission. Earlier native timings
+retain the comparator, host and source revision recorded below.
 
 | Step | Implementation / issue | Acceptance evidence and status |
 | --- | --- | --- |
@@ -19,10 +50,10 @@ execution alone does not complete this gate.
 | Nested edit loans | #181, PR #186, merge `a779a67`; part of #52/#64 | Complete: 222 Rust tests, nine kernel regressions, oracle, integrated 6,780-declaration audit and both OS CI. Protocol 6: explicit delegation, region inclusion, suspended parent authority, inner-first return, complete provenance and final winning-footprint checks; see `edit_authority.rs` and `AuthorityRegression` |
 | Permanent authority transfer | #182, PR #186, merge `a779a67`; part of #52/#64 | Complete with the same validation. Protocol 6: immutable definition identity, current owner, explicit transfer, no active loans, retained grants/methods/obligations and revoked former-owner editing; actual-checker proofs in `VastitasOracle.Authority` |
 | Indexed declarations and existing geometry | needed #48 foundation; #58–63 and #49 | Complete finite migration in [PR #255](https://github.com/MGYamada/Vastitas/pull/255), with the [acceptance map](geometry-migration.md) and its linked validation record. Canonical scheme/smooth stdlib declarations, one common public source checker (#240, `f2876ef`), typed total evaluation of exact audit/executable Core (#250, `6d1d752`), finite primitive result compatibility and the public source/raw-IR/forged-Core/native regression matrix are in place. Full source operational equivalence and native toolchain equivalence remain unproved and are not claimed by this migration |
-| Storage ownership | #183, Core Safety boundary in #180 | The initial affine ownership, initialization, views, caller destinations/scratch, `OwnedMapTo`, versioned packing dependencies and mixed scalar-flow contracts are implemented. [Bounded runtime extents](runtime-shapes.md) add guarded whole-map calls and typed GEMM. [Acceptance map](stage1-acceptance.md#183--affine-storage-and-its-performance-amendment): source/forged-IR tests and actual-checker proofs cover the finite profile; the performance amendment and final completion record remain open |
+| Storage ownership | #183, Core Safety boundary in #180 | The initial affine ownership, initialization, views, caller destinations/scratch, `OwnedMapTo`, versioned packing dependencies and mixed scalar-flow contracts are implemented. [Bounded runtime extents](runtime-shapes.md) add guarded whole-map calls and typed GEMM. [Acceptance map](stage1-acceptance.md#183--affine-storage-and-its-performance-amendment): source/forged-IR tests and actual-checker proofs cover the finite profile; Stage 2 or later owns remaining performance attribution under #183 |
 | Linear algebra and networks | #66/#67/#69/#91/#92 | The initial finite real/complex GEMM, explicit dual/conjugate/evaluation, diagonal adjoint/pairing and connected rank-two/three tree profiles are implemented and [mapped to actual tests/proofs/native evidence](stage1-acceptance.md). Exact source identities, ordered ports, caller packing and written multiplication order are retained. This is not completion of general-rank/structural-node parent scope or controlled-host performance |
-| Fast like C | #183/#222 and numerical consumers | **Not passed.** Matched-C output, explicit packing/data costs, shared-host timings and selected Lean-object allocation records exist. Controlled-host measurements, a predeclared tiny-call absolute budget, total allocation/backend-workspace attribution and unresolved slow paths remain acceptance gates; see [the required contract](storage-ownership.md#713-performance-evidence-and-acceptance) |
-| Integrated completion | #179 | **Not passed.** The [initial-condition evidence map](stage1-acceptance.md) records integrated runtime shapes and Unit-result optimization at merged `95b848b`. A Stage 1 completion commit still requires the performance gate |
+| Fast like C | #183/#222 | Stage 2 or later owns the controlled-host verdict, a predeclared tiny-call budget, remaining general/BLAS costs and review of material slow paths. The measured gaps and comparator scope are recorded below. |
+| Integrated finite delivery | #179 | The final implementation, regression and CI record above covers the finite scope. The performance follow-up is tracked in #183 and #222. |
 
 The following records retain their merge-time scope. Later rows and the acceptance map supersede earlier statements that a now-delivered feature was still pending; these historical limits do not create new Stage 1 prerequisites.
 
@@ -92,31 +123,28 @@ reuse/lifecycle cost checks. They add a bounded workload profile without measuri
 operation time, cache misses or DRAM traffic. This coverage does not discharge the
 representative memory-bound timing or other acceptance conditions below.
 
-## Remaining acceptance gates
+<a id="remaining-acceptance-gates"></a>
 
-The integrated implementation and initial-condition mapping are recorded above.
-The remaining gates are:
+## Stage 2 or later performance acceptance
 
-1. Measure competent equivalent C with the same algorithm, scalars, layouts,
-   backend/thread count, numerical policy and output contract on a controlled
-   host, using standalone C without the Vastitas arena or timed cost counters.
-   Retain arena-C as a separate attribution arm. Include full lifecycle and prepared/reuse scopes with their own complete
-   costs. The provisional bulk budget is at most 10% median slowdown for
-   representative workloads taking at least 1 ms/sample; uncertainty crossing
-   the budget is inconclusive. A dedicated controlled Linux host is currently
-   unavailable. That does not waive the gate.
-2. Set an absolute tiny-call overhead budget before acceptance, retain raw
-   alternating pairs/distributions, and resolve or explicitly review material
-   slow paths. Do not choose the threshold after seeing a favorable run or infer
-   timing improvement from fewer allocations.
-3. Complete the outstanding allocation/peak-memory/backend-workspace attribution
-   and representative workload coverage. Arena counters and selected FFI/emitted
-   object sites exclude general Lean/allocator/BLAS-private costs. Include visible
-   packing/copy/metadata/retained bytes and both cache-resident and memory-bound
-   work; state any unmeasured path rather than marking it accepted.
-4. Record the completion commit only after these gates pass. Update child issue
-   status from concrete evidence while retaining broader parent scope; this
-   document does not close issues automatically.
+1. On a controlled Linux host, compare generated programs with a competent
+   standalone C implementation using the same algorithm, scalar type, layout,
+   backend, thread count and output contract. Measure lifecycle and prepared
+   reuse separately. For representative bulk operations lasting at least 1 ms,
+   the provisional median slowdown budget is 10%. An uncertainty interval
+   crossing it leaves the result inconclusive.
+2. Set the absolute tiny-call overhead budget before accepting new
+   measurements. Publish alternating raw pairs, absolute differences and
+   intervals. Review material slow paths. Historical shared-host tree
+   measurements saw tiny lifecycle ratios of 1.44–1.49 against arena-C. That
+   comparator shared runtime preflight and accounting.
+   [Matched tree observations](../experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md)
+3. Reconcile outstanding general Lean/allocator and OpenBLAS-private costs,
+   startup, whole-process peaks and representative memory-bound timings.
+   Existing 128/256 MiB output records establish large-output execution and
+   observed logical costs for their fixtures. The standalone C timing arm
+   and selected-object, arena and backend attribution data each have a
+   separate scope. [Cost tracker](https://github.com/MGYamada/Vastitas/issues/183#issuecomment-6602672759) · [Performance tracker](https://github.com/MGYamada/Vastitas/issues/222#issuecomment-6602667492)
 
 ## Existing performance evidence and unresolved gaps
 

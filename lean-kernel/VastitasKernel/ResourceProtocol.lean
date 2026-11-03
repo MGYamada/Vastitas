@@ -459,17 +459,28 @@ def program (j : Json) : Except String Program := do
   if (← str j "input") != "package" then throw "protocol 8/9 requires package input"
   return ⟨← str j "file", ← str j "root", ← (← array j "packages").mapM (package · (version == 9))⟩
 
+def namespaceUnits {p : Program} {requireMain : Bool} (checked : Checked p requireMain) : Nat :=
+  checked.pureProgram.namespaceUnits + checked.values.audit.lowered.namespaceWork.val +
+    checked.values.executable.lowered.namespaceWork.val
+
 structure CheckedInput (json : Json) (requireMain : Bool) where
   input : Program
   decoded : program json = .ok input
   checked : Checked input requireMain
   accepted : ResourceSource.check input requireMain = .ok checked
+  namespaceReceipt : Namespace.RequestReceipt input.pureProgram.source.headers.indexed json (namespaceUnits checked)
 
 def check (json : Json) (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=
   match decoded : program json with
   | .error message => .error {code := "E_PROTOCOL", message}
-  | .ok input => match accepted : ResourceSource.check input requireMain with
+  | .ok input => match Namespace.checkRequest input.pureProgram.source.headers.indexed json
+        (fun _ => ResourceSource.check input requireMain) namespaceUnits with
     | .error diagnostic => .error diagnostic
-    | .ok checked => .ok ⟨input, decoded, checked, accepted⟩
+    | .ok result => .ok ⟨input, decoded, result.value, result.accepted, result.receipt⟩
+
+/-- Public generation consumes the budgeted wire request's exact checked program. -/
+def emit (json : Json) : Except Diagnostic Codegen.Generated := do
+  let input ← check json true
+  Codegen.generateChecked input.checked
 
 end VastitasKernel.ResourceSource.Wire

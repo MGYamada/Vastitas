@@ -1,8 +1,13 @@
-# Historical Stage 1: finite numerical and storage acceptance map
+# Historical Stage 1 finite numerical and storage acceptance map
 
-Acceptance map, 2026-11-01 JST. This records the initial finite contracts and their evidence; it does not close broader parent issues, declare historical Stage 1 complete, or attribute earlier measurements to the current compiler. See the [completion gate](stage1-completion.md) for remaining acceptance work.
-
-The initial finite mathematical/resource functionality has implementation, rejection tests, actual-checker certificates and native execution evidence. The runtime-shape and production IO-result changes are integrated in merged revision `95b848b072712eeee3e2027e0dee275678a3baee`, with the validation recorded below. This mapping publishes that finite-profile evidence; **Fast like C** acceptance and the eventual completion record remain unresolved. Shared-host timings and selected allocation counters do not satisfy the latter.
+This map links each initial finite contract to implementation, positive and
+negative tests, theorems and native evidence at its recorded revision. Runtime
+shapes and the Unit-result optimization were integrated at
+`95b848b072712eeee3e2027e0dee275678a3baee`. The final Stage 1 compiler also
+includes the resource and namespace limits recorded in the delivery ledger.
+Under the 2026-11-03 decision, known performance gaps accompany delivery.
+Final Fast like C measurement and cost acceptance belong to Stage 2 or later.
+[Delivery and validation](stage1-completion.md) · [Maintainer decision](https://github.com/MGYamada/Vastitas/issues/179#issuecomment-6602653283)
 
 ## Scope and revision ledger
 
@@ -159,16 +164,21 @@ For U, [combined local validation](https://github.com/MGYamada/Vastitas/pull/353
 
 The relevant reproducible command families are `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`, `cargo test --locked --all-targets`, the explicitly opted-in native test targets with the pinned prefix, `lake -d lean-kernel build`, `bash scripts/check_kernel_regressions.sh`, `lake -d lean build`, the repository axiom audit, `bash scripts/check_storage_native.sh`, `python3 scripts/check_gemm_native.py --prefix <pinned-prefix>` (Linux Valgrind mode separately), and `python3 scripts/check_gemm_checked.py --prefix <pinned-prefix>`. Each evidence record identifies commands actually run; this documentation update does not rerun unchanged implementation suites.
 
-## Concrete remaining historical acceptance gates
+<a id="concrete-remaining-historical-acceptance-gates"></a>
 
-The combined R/U implementation gate has passed on the exact integrated head recorded above. This map supplies the initial-profile evidence; keep its source/test/theorem links and issue dispositions synchronized as later changes merge. Neither publication nor a stale historical checklist is a substitute for the remaining gates.
+## Delivery and remaining performance obligations
 
-1. **Controlled-host matched-C performance.** `docs/storage-ownership.md` §7.13 requires representative bulk workloads of at least 1 ms/sample with a provisional ≤10% median slowdown target and uncertainty on a controlled host. An interval crossing the budget is inconclusive. The user currently has no dedicated controlled Linux host; this is an unavailable required facility, not a waiver or permission to relabel hosted CI.
-2. **A predeclared tiny-call absolute budget and unresolved overhead.** Set the budget before accepting new measurements, retain alternating raw paired data and absolute distributions, and address or explicitly review the remaining tiny/small slowdown. Do not pick a threshold after seeing a favorable result, discard noisy samples, infer U timing improvement from allocation reductions, or compare different-host records as a speedup.
-3. **Full cost attribution and representative work.** Preserve full lifecycle and prepared/reuse scopes, explicit packing/copy/metadata/retained bytes, exact preflight/setup placement and competent equivalent C. Extend current arena and selected-object audits to the outstanding general Lean/allocator/BLAS workspace costs and meaningful peak memory. Cover representative cache-resident and memory-bound workloads and the affected transpose/adjoint/packing/runtime paths, with any unmeasured path explicitly excluded from a completion claim. U's supported-API allocation improvement does not close these total-cost or timing obligations.
-4. **Record completion only after acceptance.** Publish the accepted merged revision and final validation once the preceding gates pass. Reconcile child-issue status with the evidence while retaining broader parent scope; this map does not automatically close whole issues.
+The finite implementation and safety evidence above supplies the Stage 1
+functional record. The final integration adds bounded resource and namespace
+work. Scope exclusions include arbitrary rank, general floating-point
+dispatch, arbitrary resource packages and full native refinement.
+[Integrated compiler and CI](stage1-completion.md#final-implementation-and-validation)
 
-These gates do not require a new universal tensor calculus, category implementation, general floating-point dispatch, arbitrary resource package system or proof of the entire native compiler/backend. Those remain explicitly separate future/proof scopes. Conversely, their exclusion must not be used to waive the integrated initial-profile checks or the agreed performance contract.
+Stage 2 or later owns controlled Linux comparison against standalone C,
+the predeclared absolute tiny-call budget, remaining Lean/BLAS cost
+attribution and representative workload measurements. Earlier ratios and
+allocation records retain their original comparators and coverage.
+[Performance requirements and measured gaps](stage1-completion.md#stage-2-or-later-performance-acceptance)
 
 ## Record maintenance
 
@@ -177,15 +187,14 @@ joins actual public source executions, selected Lean-object/arena costs and exac
 CBLAS-to-backend-event intervals. Its stock and diagnostic records are separate,
 and every diagnostic backend must carry a complete paired calibration. This
 narrows the attribution gap for the admitted tree fixture without measuring total
-Lean heap, backend packing/static metadata, residency or operation timings. The
-four completion gates above remain unchanged.
+Lean heap, backend packing/static metadata, residency or operation timings. The remaining costs are tracked for Stage 2 or later.
 
 The [private Lean allocator calibration](../experiments/lean_allocation_diagnostic/README.md)
 adds stock/rebuilt-zero/diagnostic comparisons for five known object workloads.
 It audits the single replaced runtime archive member and independently checks
 known count/retention/release arithmetic. Diagnostic counts are not stock runtime
 measurements; startup, general peaks and connection to real generated source are
-not accepted by this calibration. The four gates remain open.
+not accepted by this calibration. Performance acceptance remains open for Stage 2 or later.
 The retained macOS/Linux records cover nine processes / 162 snapshots each from
 clean `54531c1` / identical-tree CI merge `5425c1a`, with all 34 other runtime
 objects unchanged. Both reproduce the five known transient counts/releases and
@@ -202,7 +211,7 @@ each retain 864 normal observations, 72 failures and 72 canonical executions acr
 all twelve cases and six configurations. No normal allocation remains
 unattributed in those observed diagnostic phases after the actual two-object /
 96-byte error payload is included. This does not accept startup, general peaks,
-stock allocation counts, other unmeasured source paths or any of the four gates.
+stock allocation counts, other unmeasured source paths or the remaining performance requirements.
 
 The optional [backend packing calibration](../experiments/openblas_packing/README.md)
 records actual D/Z packing invocations and their source/active-pool spans while
@@ -226,7 +235,7 @@ records each retain 72 canonical executions, 936 observations and 13,536 actual 
 All 70 / 66 source-observed packing contracts receive separate plain/sanitized checks
 on both backends. Matched logical payload is not physical traffic, elapsed time,
 whole-process peak memory, shortcut coverage or controlled-host acceptance; the
-four performance gates remain open.
+remaining performance requirements carry forward to Stage 2 or later.
 
 The post-cleanup [macOS](../experiments/source_workspace/results/2026-11-01-macos-unit-cleanup/RESULTS.md)
 and [Linux](../experiments/source_workspace/results/2026-11-01-linux-unit-cleanup/RESULTS.md)

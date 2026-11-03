@@ -195,4 +195,15 @@ theorem checkCall_eq_uncached (before after : Context) (nested : Option CallRece
     checkCall before after nested = checkCall before after none := by
   simp only [checkCall, replayWithEvidence_eq]
 
+def checkCallMetered (before after : Context) (nested : Option CallReceipt) (used : Work.Total) :
+    Except Error (CallReceipt × Work.Total) := do
+  let used ← debitWork used (1 + before.code.size + after.code.size + before.resources.work + after.resources.work)
+  let slice := after.code.toList.drop before.code.size
+  if prefixed : before.code.toList ++ slice = after.code.toList then
+    let (checked, used) ← replayMeteredWithEvidence (Shapes.run 4096) (Shapes.runMetered 4096)
+      before.resources slice (nested.map fun r =>
+        ⟨r.before.resources, r.slice, .ok (r.after.resources, r.guards), r.replayed⟩) used
+    return (← finishCallReplay before after slice prefixed checked, used)
+  else reject "runtime call changed an earlier operation"
+
 end VastitasKernel.Storage.Shapes.Functions

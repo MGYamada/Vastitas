@@ -35,31 +35,16 @@ theorem generated_checked {program : VastitasKernel.ResourceSource.Program} {gen
 
 /-- JSON decoding and generation use the same source program and actual
 combined authority/body/resource checker, including its returned components. -/
-theorem public_generated_checked {json : Lean.Json} {program : VastitasKernel.ResourceSource.Program}
+theorem public_generated_checked {json : Lean.Json}
     {generated : VastitasKernel.ResourceSource.Codegen.Generated}
-    (decoded : VastitasKernel.ResourceSource.Wire.program json = .ok program)
-    (emitted : VastitasKernel.ResourceSource.Codegen.generate program = .ok generated) :
+    (emitted : VastitasKernel.ResourceSource.Wire.emit json = .ok generated) :
     ∃ input : VastitasKernel.ResourceSource.Wire.CheckedInput json true,
-      VastitasKernel.ResourceSource.Wire.check json true = .ok input ∧ input.input = program ∧
-      VastitasKernel.ResourceSource.check input.input true = .ok input.checked := by
-  obtain ⟨checked, accepted⟩ := generated_checked emitted
-  refine ⟨⟨program, decoded, checked, accepted⟩, ?_, rfl, accepted⟩
-  unfold VastitasKernel.ResourceSource.Wire.check
-  split
-  · rename_i problem rejected
-    rw [decoded] at rejected
-    cases rejected
-  · rename_i input actualDecoded
-    have same := Except.ok.inj (actualDecoded.symm.trans decoded)
-    subst input
-    split
-    · rename_i problem rejected
-      rw [accepted] at rejected
-      cases rejected
-    · rename_i actual actualChecked
-      have same := Except.ok.inj (actualChecked.symm.trans accepted)
-      subst actual
-      rfl
+      VastitasKernel.ResourceSource.Wire.check json true = .ok input ∧
+      VastitasKernel.ResourceSource.Wire.program json = .ok input.input ∧
+      VastitasKernel.ResourceSource.check input.input true = .ok input.checked ∧
+      VastitasKernel.ResourceSource.Codegen.generateChecked input.checked = .ok generated := by
+  obtain ⟨input, accepted, rendered⟩ := bind_success emitted
+  exact ⟨input, accepted, input.decoded, input.accepted, rendered⟩
 
 /-- The native plan is compiled from the actual source entry's exact checked
 schedule. Its audit/closed-state consequences are supplied by `compiled_closed`.
@@ -72,6 +57,7 @@ theorem generated_resource_plan {program : VastitasKernel.ResourceSource.Program
       ∃ plan, Native.compile (checked.execution entry found).checked.statements = .ok plan := by
   unfold VastitasKernel.ResourceSource.Codegen.generate at emitted
   obtain ⟨checked, accepted, emitted⟩ := bind_success emitted
+  unfold VastitasKernel.ResourceSource.Codegen.generateChecked at emitted
   split at emitted
   · rename_i absent
     simp [found] at absent
@@ -110,7 +96,7 @@ theorem public_resource_plan {json : Lean.Json}
     (input : VastitasKernel.ResourceSource.Wire.CheckedInput json true)
     {entry : Nat} (found : input.input.entry = some entry)
     {generated : VastitasKernel.ResourceSource.Codegen.Generated}
-    (emitted : VastitasKernel.ResourceSource.Codegen.generate input.input = .ok generated) :
+    (emitted : VastitasKernel.ResourceSource.Codegen.generateChecked input.checked = .ok generated) :
     ∃ plan : Native.Plan, ∃ native : Native.Checked plan,
       Native.compile (input.checked.execution entry found).checked.statements = .ok plan ∧
       plan.input = (input.checked.execution entry found).checked.statements ∧
@@ -119,7 +105,7 @@ theorem public_resource_plan {json : Lean.Json}
       Storage.auditState native.source.finalState = true ∧
       native.source.finalState.allocations = [] ∧ native.source.finalState.loans = [] := by
   obtain ⟨checked, accepted, plan, native, compiled, same, audited, closed⟩ :=
-    generated_resource_closed found emitted
+    generated_resource_closed found ((VastitasKernel.ResourceSource.Codegen.generate_eq_checked input.accepted).trans emitted)
   have equal := Except.ok.inj (accepted.symm.trans input.accepted)
   subst checked
   exact ⟨plan, native, compiled, same, audited, closed⟩
@@ -136,6 +122,7 @@ theorem generated_pure_entry {program : VastitasKernel.ResourceSource.Program}
         generated.storageRuntime = false ∧ generated.numericalRuntime = false := by
   unfold VastitasKernel.ResourceSource.Codegen.generate at emitted
   obtain ⟨checked, accepted, emitted⟩ := bind_success emitted
+  unfold VastitasKernel.ResourceSource.Codegen.generateChecked at emitted
   split at emitted
   · rename_i absent
     obtain ⟨source, compiled, returned⟩ := bind_success emitted

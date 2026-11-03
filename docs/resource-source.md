@@ -34,7 +34,7 @@ pub resource fn make()
     returns (data: Owned<F64, 8> initialized [layout(8, 2, 2, 4, false)]) -> Unit {
     allocate data: F64[8];
     borrow output = write(data, layout(8, 2, 2, 4, false));
-    fill(output, f64_bits(4613937818241073152));
+    fill(output, f64(0x1.8p1)); // 3.0
     release(output);
     value { () }
 }
@@ -65,7 +65,7 @@ cells, padding holes and exhausted coverage budgets remain unreadable.
 | `release(view);` | Return a childless loan. |
 | `drop(data);` | Free an unborrowed owned allocation. |
 | `transpose(view);` | Swap the logical axes without copying or conjugating. |
-| `fill(view, f64_bits(bits));` | Fill the writable logical rectangle. |
+| `fill(view, f64(0x1.8p0));` | Fill the writable logical rectangle with 1.5. |
 | `store(view, row, column, payload);` | Initialize one checked cell. |
 | `expect(view, row, column, payload);` | Assert the exact bits of an initialized readable cell at runtime. |
 | `copy(input, output);` | Copy between compatible checked views; reuse the destination. |
@@ -76,7 +76,7 @@ cells, padding holes and exhausted coverage budgets remain unreadable.
 | `borrow coordinates = read(a);` | Borrow an owned map using its actual stored layout; also `write` and `read_write`. |
 | `map view = view(coordinates, a);` | Recover the owned map's exact interpretation for a matching live loan. |
 | `gemm(a, b, c, overwrite, NativeFast);` | Check exact endpoints/bases and resources, then multiply into `c`; also `accumulate`. |
-| `gemm(a, b, c, accumulate, NativeFast, alpha=coefficient(s), beta=f64_bits(bits));` | Read the checked 1x1 scalar loan at execution and apply explicit coefficients; complex maps require complex coefficient bits. |
+| `gemm(a, b, c, accumulate, NativeFast, alpha=coefficient(s), beta=f64(0x1p-1));` | Read alpha from the checked 1x1 scalar loan at execution and use beta = 0.5. Complex maps require complex coefficients. |
 | `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
 | `let n: Nat = value { expression };` | Compute a checked pure scalar at this point in the resource body. |
 | `let answer: Int = call helper(n) -> (owners);` | Receive a pure result after the callee completes its resource operations and returns its loans. |
@@ -94,28 +94,32 @@ element leading dimension. Bounds, LP64 dimensions, capacity, alignment and
 initialization are checked independently in Lean. Native preflight checks physical
 handles and arithmetic again. See [the layout contract](storage-ir.md).
 
-`f64_bits` and `complex_bits(real, imaginary)` are explicit unsigned 64-bit IEEE
-payload constructors. The example payload is binary64 `3.0`. Resource payloads
-also accept **exact finite literals**, including decimal and hexadecimal forms:
+Use `f64(value)` or `complex(real, imaginary)` for **exact finite** resource
+payloads. Hexadecimal notation makes the binary exponent explicit.
 
 ```vast
-fill(output, f64(3.0));
-store(output, 0, 0, f64(-0.25));
-fill(complex_output, complex(0x1.8p0, -2.0)); // 1.5 - 2i
+fill(output, f64(0x1.8p1));                      // 3.0
+store(output, 0, 0, f64(-0x1p-2));               // -0.25
+fill(complex_output, complex(0x1.8p0, -0x1p1));  // 1.5 - 2i
 ```
 
 `f64(value)` and `complex(real, imaginary)` work in fill/store/expect and literal
-GEMM coefficients, including the runtime-extent profile. A hex mantissa requires
-a `p` exponent, whose decimal integer is a power of two: `0x1p-1074` is the least
-positive subnormal and `0x1.fffffffffffffp1023` the greatest finite binary64 value.
-Decimal forms may use `e` exponents (`125e-3` is exactly `0.125`). Separators and
-type suffixes are not admitted. Exponents must fit a signed 64-bit integer.
+GEMM coefficients, including the runtime-extent profile. In a hexadecimal
+literal, `p` introduces a required decimal exponent `e`. The value is the
+hexadecimal significand multiplied by `2^e`. For example, `0x1.8p0` is
+`(1 + 8/16) * 2^0`, exactly `1.5`.
+`0x1p-1074` is the least positive subnormal and `0x1.fffffffffffffp1023` the
+greatest finite binary64 value. Exact decimal forms such as `f64(1.5)` or
+`f64(125e-3)` (0.125) are also accepted. Exponents must fit a signed 64-bit
+integer. Literals use plain digits without separators or type suffixes.
 
 There is **no rounding on acceptance**. For example `f64(0.1)` and
 `f64(9007199254740993)` are rejected; the diagnostic shows their adjacent binary64
 values in exact hex form. Inexact hex values, overflow and underflow below
 subnormal precision are rejected too. Positive zero is accepted; negative zero,
-infinities and NaN payloads retain the explicit bits constructors. For example
+infinities and NaN payloads use `f64_bits(bits)` or
+`complex_bits(real_bits, imaginary_bits)`, whose arguments are unsigned 64-bit
+IEEE binary64 payloads. For example
 `f64_bits(9223372036854775808)` preserves negative zero.
 
 This is source sugar for the existing unsigned-bit payloads, with no wire/schema

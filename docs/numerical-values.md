@@ -116,15 +116,20 @@ GEMM accepts optional named coefficients after `NativeFast`:
 ```vast
 // Real beta = 0.5. Accumulate still requires initialized output.
 gemm(left, right, accumulated, accumulate, NativeFast,
-    beta=f64_bits(4602678819172646912));
+    beta=f64(0x1p-1));
 // alpha is read at execution time from an initialized 1x1 scalar loan.
 gemm(left, right, destination, overwrite, NativeFast,
     alpha=coefficient(scale));
 ```
 
-Complex coefficients use `complex_bits(real_bits, imaginary_bits)`, with two
-binary64 components. Their representation must match the maps; real-to-complex
-coercion is not implicit. `alpha` and `beta` may each appear once, in either
+For complex maps, `alpha=complex(0x1.8p0, -0x1p1)` specifies `1.5 - 2i`.
+Both components must be exactly representable in binary64. Use
+`complex_bits(real_bits, imaginary_bits)` when the bit patterns themselves
+matter, for example a NaN payload or negative zero. Each coefficient must use
+the same scalar representation as the maps. See the
+[literal syntax](resource-source.md#explicit-source-contracts).
+
+`alpha` and `beta` may each appear once, in either
 order. Overwrite rejects any beta operand and fixes beta to zero. Accumulate
 computes `alpha*A*B + beta*C_old` and requires initialized readable output even
 for an explicit zero beta. The numerical policy remains `NativeFast`.

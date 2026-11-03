@@ -99,6 +99,12 @@ The current pure Core typing and terminating-evaluation chain is
 `IndexedArgumentSafety` → `IndexedProgramSafety`, with the public receipt
 connections in `IndexedAcceptance`, `IndexedWire` and `LegacySource`.
 The actual promotion/add/maximum fixture is covered by `IndexedPromotion`.
+The indexed Core type audit builds a first-match symbol table from each
+function's ordered lexical context. A `let` extends only its body and an
+`unpack` introduces the witness and fields in their original order.
+`ContextIndex.get?_eq` proves each indexed lookup equals the specified list
+lookup even for repeated symbols. `ContextIndex.exactRefs` preserves the
+ordered object references used by scope, freshness and primitive checks.
 Resource receipts, native generation and floating-point results keep the
 separate boundaries described below. These results do not supply full source
 specialization correspondence or native refinement.

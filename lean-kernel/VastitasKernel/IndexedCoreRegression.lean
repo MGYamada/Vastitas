@@ -49,6 +49,17 @@ private def accepts (module : Module) (requireMain : Bool := true) : Bool := (ch
 private def check (name : String) (condition : Bool) : IO Unit :=
   unless condition do throw (IO.userError s!"indexed Core regression failed: {name}")
 
+private def manyLets (body : Term) : Term :=
+  (List.range 512).foldr (fun symbol rest => .letE symbol (.integer symbol) rest) body
+
+#eval check "oldest binding survives 511 newer lets" (accepts
+  (bodyProgram (manyLets (.variable 0 ⟨.pure .int, none⟩))))
+#eval check "oldest binding still forbids shadowing" (!accepts
+  (bodyProgram (manyLets (.letE 0 (.integer 1) (.integer 2)))))
+#eval check "a sibling branch cannot read the other's local" (!accepts (bodyProgram
+  (.branch (.boolean true) (.letE 77 (.integer 1) (.integer 2))
+    (.variable 77 ⟨.pure .int, none⟩) ⟨.pure .int, none⟩)))
+
 #eval check "full package/primitive/function composition" (accepts program)
 #eval check "all bodies checked, even when main does not call them" (!accepts
   { program with functions := [make, { unwrap with body := .integer 0, returnType := .pure .bool }, { main with body := .integer 0 }] })

@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedTyping
+import VastitasKernel.FiniteIndex
 import VastitasKernel.Dependency
 import VastitasKernel.Distinct
 
@@ -14,93 +15,139 @@ theorem validDeclarations_iff (env : Declarations) : validDeclarations env = tru
 instance (env : Declarations) : Decidable env.Valid :=
   decidable_of_iff (validDeclarations env = true) (validDeclarations_iff env)
 
+/-- A first-match symbol table and ordered references for the exact lexical context. -/
+structure ContextIndex (ctx : Context) where
+  bindings : Std.HashMap Nat Parameter
+  exactBindings : bindings = Finite.firstIndex Parameter.symbol ctx
+  refs : List ObjectRef
+  exactRefs : refs = contextRefs ctx
+
+def ContextIndex.build (ctx : Context) : ContextIndex ctx :=
+  ⟨Finite.firstIndex Parameter.symbol ctx, rfl, contextRefs ctx, rfl⟩
+
+def ContextIndex.bind {ctx : Context} (index : ContextIndex ctx) (binding : Parameter) :
+    ContextIndex (binding :: ctx) :=
+  ⟨index.bindings.insert binding.symbol binding, by rw [index.exactBindings]; rfl,
+    binding.result.refs ++ index.refs, by rw [index.exactRefs]; rfl⟩
+
+def ContextIndex.prepend {ctx : Context} (index : ContextIndex ctx) :
+    (locals : Context) → ContextIndex (locals ++ ctx)
+  | [] => index
+  | binding :: rest => (index.prepend rest).bind binding
+
+def ContextIndex.get? {ctx : Context} (index : ContextIndex ctx) (symbol : Nat) : Option Result :=
+  index.bindings[symbol]?.map Parameter.result
+
+theorem ContextIndex.get?_eq {ctx : Context} (index : ContextIndex ctx) (symbol : Nat) :
+    index.get? symbol = lookup ctx symbol := by
+  simp only [ContextIndex.get?, index.exactBindings, Finite.firstIndex_lookup, lookup]
+
 mutual
-  def hasTypeDecidable (env : Declarations) (functions : Signatures) (ctx : Context) (term : Term) :
+  def hasTypeWithIndex (env : Declarations) (functions : Signatures) (ctx : Context)
+      (index : ContextIndex ctx) (term : Term) :
       Decidable (HasType env functions ctx term) := by
     cases term with
-    | natural | integer | boolean | unit | «variable» => unfold HasType; infer_instance
+    | natural | integer | boolean | unit => unfold HasType; infer_instance
+    | «variable» symbol result =>
+      unfold HasType
+      simp only [← index.get?_eq]
+      infer_instance
     | unary op operand result =>
-      haveI := hasTypeDecidable env functions ctx operand
+      haveI := hasTypeWithIndex env functions ctx index operand
       unfold HasType
       infer_instance
     | binary op left right result =>
-      haveI := hasTypeDecidable env functions ctx left
-      haveI := hasTypeDecidable env functions ctx right
+      haveI := hasTypeWithIndex env functions ctx index left
+      haveI := hasTypeWithIndex env functions ctx index right
       unfold HasType
       infer_instance
     | pair element first second =>
-      haveI := hasTypeDecidable env functions ctx first
-      haveI := hasTypeDecidable env functions ctx second
+      haveI := hasTypeWithIndex env functions ctx index first
+      haveI := hasTypeWithIndex env functions ctx index second
       unfold HasType
       infer_instance
     | project element first value =>
-      haveI := hasTypeDecidable env functions ctx value
+      haveI := hasTypeWithIndex env functions ctx index value
       unfold HasType
       infer_instance
     | natToInt value =>
-      haveI := hasTypeDecidable env functions ctx value
+      haveI := hasTypeWithIndex env functions ctx index value
       unfold HasType
       infer_instance
     | ascribe annotation value =>
-      haveI := hasTypeDecidable env functions ctx value
+      haveI := hasTypeWithIndex env functions ctx index value
       unfold HasType
       infer_instance
     | primitive id arguments result =>
-      haveI := argsTypedDecidable env functions ctx arguments
+      haveI := argsTypedWithIndex env functions ctx index arguments
+      haveI : Decidable (PrimitiveTyping env ctx id (arguments.map Term.result) result) := by
+        unfold PrimitiveTyping
+        rw [← index.exactRefs]
+        split <;> infer_instance
       unfold HasType
       infer_instance
     | call id arguments substitution result =>
-      haveI := argsTypedDecidable env functions ctx arguments
+      haveI := argsTypedWithIndex env functions ctx index arguments
       unfold HasType
       infer_instance
     | branch condition yes no result =>
-      haveI := hasTypeDecidable env functions ctx condition
-      haveI := hasTypeDecidable env functions ctx yes
-      haveI := hasTypeDecidable env functions ctx no
+      haveI := hasTypeWithIndex env functions ctx index condition
+      haveI := hasTypeWithIndex env functions ctx index yes
+      haveI := hasTypeWithIndex env functions ctx index no
       unfold HasType
       infer_instance
     | pack id witness fields =>
-      haveI := hasTypeDecidable env functions ctx witness
-      haveI := argsTypedDecidable env functions ctx fields
+      haveI := hasTypeWithIndex env functions ctx index witness
+      haveI := argsTypedWithIndex env functions ctx index fields
       unfold HasType
       infer_instance
     | scope body =>
-      haveI := hasTypeDecidable env functions ctx body
+      haveI := hasTypeWithIndex env functions ctx index body
       unfold HasType
+      rw [← index.exactRefs]
       infer_instance
     | letE symbol value body =>
-      haveI := hasTypeDecidable env functions ctx value
-      haveI := hasTypeDecidable env functions (⟨symbol, value.result⟩ :: ctx) body
+      haveI := hasTypeWithIndex env functions ctx index value
+      haveI := hasTypeWithIndex env functions _ (index.bind ⟨symbol, value.result⟩) body
       unfold HasType
+      simp only [← index.get?_eq]
       infer_instance
     | unpack witnessSymbol fieldSymbols package body =>
-      haveI := hasTypeDecidable env functions ctx package
+      haveI := hasTypeWithIndex env functions ctx index package
       unfold HasType
-      dsimp only
+      simp only [← index.get?_eq, ← index.exactRefs]
       cases package.result.type with
       | package id =>
         dsimp only
         cases env.package? id with
         | none => infer_instance
         | some shape =>
-          haveI := hasTypeDecidable env functions (openedContext shape witnessSymbol fieldSymbols ++ ctx) body
+          haveI := hasTypeWithIndex env functions _
+            (index.prepend (openedContext shape witnessSymbol fieldSymbols)) body
           infer_instance
       | _ => infer_instance
     termination_by sizeOf term
     decreasing_by all_goals simp_wf; all_goals omega
 
-  def argsTypedDecidable (env : Declarations) (functions : Signatures) (ctx : Context) (arguments : List Term) :
+  def argsTypedWithIndex (env : Declarations) (functions : Signatures) (ctx : Context)
+      (index : ContextIndex ctx) (arguments : List Term) :
       Decidable (ArgsTyped env functions ctx arguments) := by
     cases arguments with
     | nil => unfold ArgsTyped; infer_instance
     | cons argument rest =>
-      haveI := hasTypeDecidable env functions ctx argument
-      haveI := argsTypedDecidable env functions ctx rest
+      haveI := hasTypeWithIndex env functions ctx index argument
+      haveI := argsTypedWithIndex env functions ctx index rest
       unfold ArgsTyped
       infer_instance
     termination_by sizeOf arguments
     decreasing_by all_goals simp_wf; all_goals omega
 end
+
+def hasTypeDecidable (env : Declarations) (functions : Signatures) (ctx : Context) (term : Term) :
+    Decidable (HasType env functions ctx term) := hasTypeWithIndex env functions ctx (.build ctx) term
+
+def argsTypedDecidable (env : Declarations) (functions : Signatures) (ctx : Context) (args : List Term) :
+    Decidable (ArgsTyped env functions ctx args) := argsTypedWithIndex env functions ctx (.build ctx) args
 
 instance (env : Declarations) (functions : Signatures) (ctx : Context) (term : Term) :
     Decidable (HasType env functions ctx term) := hasTypeDecidable env functions ctx term
@@ -117,14 +164,20 @@ def ParametersValid (env : Declarations) : Context → List Parameter → Prop
        | .object type => parameter.result.reference = some (.local type parameter.symbol)
        | _ => parameter.result.reference = none) ∧ ParametersValid env (parameter :: previous) rest
 
-instance parametersValidDecidable (env : Declarations) (previous : Context) (parameters : List Parameter) :
+def parametersValidWithIndex (env : Declarations) (previous : Context)
+    (index : ContextIndex previous) (parameters : List Parameter) :
     Decidable (ParametersValid env previous parameters) := by
   cases parameters with
   | nil => unfold ParametersValid; infer_instance
   | cons parameter rest =>
-    haveI := parametersValidDecidable env (parameter :: previous) rest
+    haveI := parametersValidWithIndex env _ (index.bind parameter) rest
     unfold ParametersValid
+    simp only [← index.get?_eq, ← index.exactRefs]
     cases parameter.result.type <;> infer_instance
+
+instance parametersValidDecidable (env : Declarations) (previous : Context) (parameters : List Parameter) :
+    Decidable (ParametersValid env previous parameters) :=
+  parametersValidWithIndex env previous (.build previous) parameters
 
 def FunctionTyped (env : Declarations) (functions : Signatures) (function : Function) : Prop :=
   ParametersValid env [] function.parameters ∧ HasType env functions function.parameters function.body ∧

@@ -2,12 +2,14 @@
 
 # Documentation cleanup and mdBook adoption after Stage 1
 
-The first content task after Stage 1 delivery is an English guide to historical
-Stages 2–7. Link it from the opening book navigation. The English tracking
-issue lists a deliverable and an acceptance example for each stage.
-[First mdBook task, #516](https://github.com/MGYamada/Vastitas/issues/516)
+The [book entrypoint](README.md) opens the
+[English guide to historical Stages 2–7](guide/historical-roadmap.md) as the
+first migration chapter. The current GitHub issue decisions govern its plan
+where they supersede the preserved draft. The full inventory and later
+chapter migrations follow this first delivery.
+[Chapter scope and verification, #516](https://github.com/MGYamada/Vastitas/issues/516)
 
-Created 27 October 2026 (JST). Updated 3 November 2026 (JST). The inventory uses
+Created 27 October 2026 (JST). Updated 4 November 2026 (JST). The inventory uses
 PR #234's merge `4de22b4` and the documentation in this revision as its baseline.
 The [README](../README.md), [Stage 1 completion ledger](stage1-completion.md), tests,
 and validation records remain the implementation sources of truth. Repeat the
@@ -190,8 +192,8 @@ different meaning.
 
 ## 3. mdBook structure
 
-Add `book.toml` at the repository root and `SUMMARY.md` under `docs/`, using the
-existing Markdown directly as book input. Organize readers' paths through the table
+The initial book uses the root `book.toml` and `docs/SUMMARY.md`, with
+the existing Markdown directory as its source. Organize readers' paths through the table
 of contents rather than maintaining duplicate book text. Avoid bulk moves or
 renames of existing specifications; include a mapping, old-link handling, and
 referring-link updates in any necessary move.
@@ -215,42 +217,30 @@ Migration and maintenance         docs/docs-cleanup-plan.md
                                   docs/development/documentation.md
 ```
 
-The initial configuration below is an example to validate during adoption, not a
-current build procedure. Follow the
-[configuration specification](https://rust-lang.github.io/mdBook/format/configuration/general.html)
-and [contents format](https://rust-lang.github.io/mdBook/format/summary.html).
+### Build the current book
 
-```toml
-[book]
-title = "Vastitas Programming Language"
-authors = ["Vastitas Project Contributors"]
-language = "en"
-src = "docs"
+Use the version in [the mdBook pin](../config/mdbook-version) for a local
+build and preview. Run these commands from the repository root.
 
-[build]
-build-dir = "target/book"
-create-missing = false
-
-[output.html]
-mathjax-support = true
-
-[output.html.playground]
-runnable = false
+```sh
+cargo install mdbook --locked --version "=$(cat config/mdbook-version)"
+mdbook build
+python3 scripts/check_book.py
+mdbook serve --open
 ```
 
-Use `Vastitas Programming Language` as the book title and
-`Vastitas Project Contributors` as the author name. Show
-`Copyright 2026 Vastitas Project Contributors` and an Apache License, Version 2.0
-notice at the book entrypoint, consistent with the repository README and LICENSE.
+The two-page skeleton writes HTML and a search index to the ignored
+`target/book/` directory. Missing chapters fail the build. The first
+chapter uses Unicode and inline subscripts for its equations. The preserved
+draft's dollar-delimited mathematics still needs rendering checks when it
+enters the book. The initial portable build has no site-specific error page.
 
-Place generated output under the already ignored `target/` directory and do not
-commit it. `create-missing = false` prevents typo-driven empty chapter creation.
-Pin mdBook as a documentation development tool; do not add it to compiler Cargo or
-Lake dependencies. Select a compatible version at adoption and use the same pin
-locally and in CI. The default installation command is
-`cargo install mdbook --version '=SELECTED_VERSION' --locked`. Consult the
-[official CI guide](https://rust-lang.github.io/mdBook/continuous-integration.html)
-and pin Actions to commit SHAs, as in the existing CI.
+The [documentation workflow](../.github/workflows/documentation.yml)
+downloads the pinned release, verifies the Linux archive checksum, builds the
+book, checks local HTML links and fragments, reconstructs the preserved v0.3
+source, and uploads an HTML artifact. See the [book configuration](../book.toml)
+and [contents](SUMMARY.md). The compiler and both Lean projects retain their
+own dependencies. Site publication is a later migration step.
 
 <a id="数式コードリンクの互換性"></a>
 
@@ -283,7 +273,7 @@ and pin Actions to commit SHAs, as in the existing CI.
 | Stage | Work | Completion criterion |
 | --- | --- | --- |
 | 0. English preparation | Translate remaining navigation/planning prose before Stage 1; preserve original draft blocks and old anchors | English prose, valid links/anchors, and matching source hashes; no mdBook dependency added |
-| 1. Historical Stages 2–7 | Draft the English guide from §14–15 and the current decision record before the general inventory | Each stage has a scope, acceptance example and source. The guide is ready to link from the book entrypoint under [#516](https://github.com/MGYamada/Vastitas/issues/516). |
+| 1. Historical Stages 2–7 | Draft the English guide from §14–15 and the current decision record before the general inventory | Each stage has a scope, acceptance example and source. The opening navigation links the chapter under [#516](https://github.com/MGYamada/Vastitas/issues/516). |
 | 2. Inventory | Fix the Stage 1 completion baseline and reconcile this inventory with every page, duplicate, stale statement, and reference | Every file has a classification, source of truth, status, destination, preservation policy, and basis for corrections |
 | 3. Content organization | Prepare implementation status, usage guidance, and contributor procedures; synchronize specifications, proof scope, and README | Readers can distinguish current specifications from historical proposals and trace examples/evidence |
 | 4. mdBook adoption | Add the pinned version, `book.toml`, `SUMMARY.md`, and minimal rendering support | Local build/serve works; equations, code, and every chapter are visually checked |
@@ -342,13 +332,14 @@ implementation-status table.
 
 - [x] English preparation is recorded with prose, link/anchor, and source-hash checks.
 - [x] The [Stage 1 delivery record](stage1-completion.md) identifies the finite implementation commit, evidence and outstanding performance requirements.
-- [ ] The first English chapter covers all six historical stages and their acceptance examples, and is reachable from the book entrypoint. [#516](https://github.com/MGYamada/Vastitas/issues/516)
+- [x] The first English chapter covers all six historical stages and their acceptance examples, and is reachable from the book entrypoint. [#516](https://github.com/MGYamada/Vastitas/issues/516)
 - [ ] Readers can navigate usage, current specifications, implementation/proof boundaries, and historical design separately.
 - [ ] Every resource has a classification and source of truth; obsolete pages identify successors/reasons, without incorrectly retiring compatibility specifications or historical evidence.
 - [ ] Revised Chapter 7 cost/performance contracts are included, with measured Fast like C scope and unmet goals traceable from implementation status.
 - [ ] Duplicated explanations have a designated source of truth, reachable from README and existing entrypoints.
-- [ ] The v0.3 preface and all 18 sections are preserved with matching hashes.
-- [ ] Pinned mdBook builds locally and in CI; internal links and attachments open.
+- [x] The v0.3 preface and all 18 sections reproduce their original hashes and the whole-document hash.
+- [x] The initial book builds locally and in documentation CI with the same mdBook pin. Local links, fragments and assets are checked.
+- [ ] Check additional attachments and all migrated chapters as the full inventory enters the book.
 - [ ] Old Markdown paths/headings and HTML references are checked; moves have mappings and compatibility navigation.
 - [ ] Equations, tables, code, contents, and search are visually checked, with problems and search limitations recorded.
 - [ ] Example check/build/output and rejection behavior are verified, with actual commands/results recorded.

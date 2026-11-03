@@ -6,6 +6,10 @@ to a native executable. The delivery includes finite dispatch, edit authority,
 affine storage ownership, real and complex GEMM, and checked contraction trees.
 [Stage 1 delivery record](docs/stage1-completion.md)
 
+Start with the [Vastitas book](docs/README.md) for an English guide to
+[historical Stages 2–7](docs/guide/historical-roadmap.md) and the current
+issue decisions that shape them.
+
 The current language supports exact integer computation, a small geometric
 core, finite multiple dispatch over scalar types, and capture-free static
 higher-order functions, local path packages and call-only module imports. Ordinary and smooth

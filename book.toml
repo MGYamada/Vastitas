@@ -1,0 +1,18 @@
+[book]
+title = "Vastitas Programming Language"
+authors = ["Vastitas Project Contributors"]
+description = "The checked Vastitas compiler and its mathematical roadmap"
+language = "en"
+src = "docs"
+
+[build]
+build-dir = "target/book"
+create-missing = false
+
+[output.html]
+git-repository-url = "https://github.com/MGYamada/Vastitas"
+# Keep the local review build portable until a publication base path is chosen.
+input-404 = ""
+
+[output.html.playground]
+runnable = false

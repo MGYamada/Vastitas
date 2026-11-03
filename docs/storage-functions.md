@@ -47,7 +47,7 @@ scalar flow, symbolic events and static storage schedule. Its result, including
 any diagnostic, equals the standalone function check by
 `checkWithLibrary_eq_check`. The public theorem `entry_uses_checked_library`
 identifies both the shared probe list and that separate executable expansion.
-Nested callee slices still undergo their normal replay. The
+Nested callees each retain their own replay equation and caller exit audit. The
 [public compiler observations](../experiments/compiler_scaling/results/2026-11-03-macos-resource-probes/RESULTS.md)
 compare 200 shared loans at three call depths.
 
@@ -70,8 +70,12 @@ Branch-local bindings cannot escape; both arms receive distinct fresh allocation
 and symbol identities. Definition order is irrelevant. Disconnected recursive
 cycles and invalid unused bodies are rejected.
 
-Each call records its exact newly appended schedule, preserves the preceding
-operations, and independently replays that slice from the actual caller state.
+Each call records its exact newly appended schedule and preserves the preceding
+operations. A forwarding call can reuse the last nested call's independent
+replay when the complete starting resource state and complete action list
+compare equal. On a mismatch or in the absence of a nested receipt it runs the
+slice from its own caller state. `replayWithEvidence_eq` identifies the complete
+result, including failures, with the original replay for all inputs.
 The receipt checks the same resulting state, restored caller loans, distinct
 live/unborrowed owned results, their initialization contracts and absence of
 unreturned local owners. The final entry schedule is checked again from empty

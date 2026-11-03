@@ -152,9 +152,12 @@ connect the compiled implementation to the original predicates for every frame,
 including duplicate names, missing/cyclic parents and invalid initialization.
 No runtime extent value authorizes a symbolic alias or uninitialized read.
 
-Every boundary still performs its full audit and call replay. Indexing removes
-repeated linear searches but does not make deep ancestry, writer-pair checks or
-nested call expansion linear, and it adds no program-wide work budget. #423 and
+Every call boundary checks the actual caller and exit frame. An identical
+starting frame and action slice can reuse a completed nested replay, including
+its ordered guards. `Shapes.Functions.checkCall_eq_uncached` equates the entire
+call check with a fresh replay. Different frames or actions take the ordinary
+path. Writer-pair checks and nested expansion still have separate costs.
+A request-wide resource-work limit remains open. #423 and
 the corresponding static-storage work in #422 remain open. The bounded public
 source harness `scripts/check_storage_scaling.py --profile runtime` measures
 allocation/drop, shared reads, distinct-allocation writes, reborrow chains and

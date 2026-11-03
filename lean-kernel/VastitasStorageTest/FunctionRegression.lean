@@ -17,6 +17,20 @@ private def owned : OwnedType := ⟨.f64,8,[]⟩
 private def value : Literal := .f64 0x4008000000000000
 
 #eval show IO Unit from do
+  let leaf : Function := ⟨2, [], [], [.action (.allocate 7 .f64 1), .action (.drop 7)], none⟩
+  let wrapper : Function := ⟨1, [], [], [.call 2 [] []], none⟩
+  let entry : Function := ⟨0, [], [], [.call 1 [] [], .action (.allocate 8 .f64 1), .action (.drop 8)], none⟩
+  let .ok checked := check ⟨[entry, wrapper, leaf], 0⟩ | throw (IO.userError "forwarding fixture rejected")
+  let [child, parent, outer] := checked.context.calls.toList | throw (IO.userError "missing separate call receipts")
+  unless (child.callee, parent.callee, outer.callee) == (2, 1, 0) &&
+      child.before == parent.before && child.statements == parent.statements && child.after == parent.after &&
+      outer.statements.length == 4 && outer.after.nextAllocation == 2 && outer.statements == checked.statements do
+    throw (IO.userError "forwarding call changed its replay or lost the outer suffix")
+  let known : ReplayEvidence (run 4096) := ⟨child.before, child.statements, .ok child.after, child.replayed⟩
+  if (replayWithEvidence (run 4096) child.after child.statements (some known)).val.isOk then
+    throw (IO.userError "a matching slice hid the reuse of spent names from a different frame")
+
+#eval show IO Unit from do
   let .ok json := Lean.Json.parse (include_str "../../tests/fixtures/storage-functions.json")
     | throw (IO.userError "invalid shared resource-function fixture")
   let .ok wire := Wire.check json | throw (IO.userError "resource function fixture rejected")

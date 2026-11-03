@@ -1953,7 +1953,9 @@ mutual
         let runtimeAfter ← Shapes.Functions.finish before.shapes runtimeContext.shapes runtimeBorrowed
         if runtimeAfter.events.size != runtimeContext.shapes.events.size then setShapes runtimeAfter
         else modify fun context => {context with shapes := runtimeAfter}
-        let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter
+        let nestedShape := if before.shapeCalls.size < runtimeContext.shapeCalls.size then
+          runtimeContext.shapeCalls.back? else none
+        let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter nestedShape
         if runtimeAfter.events.size != before.shapes.events.size then
           modify fun context => {context with shapeCalls := context.shapeCalls.push runtimeReceipt}
         -- Discarding a result avoids native evaluation, not its signature audit.
@@ -1970,13 +1972,16 @@ mutual
         let results := returned.map fun value => (value.owner, value.type)
         let statements := after.code.toList.drop before.code.size
         if slice : before.code.toList ++ statements = after.code.toList then
-          match replayed : run 4096 before.resources statements with
+          let nested := if before.calls.size < after.calls.size then after.calls.back? else none
+          let checked := replayWithEvidence (run 4096) before.resources statements (nested.map fun receipt =>
+            ⟨receipt.before, receipt.statements, .ok receipt.after, receipt.replayed⟩)
+          match result : checked.val with
           | .error diagnostic => throw diagnostic
           | .ok state =>
             if exactState : state = after.resources then
               if valid : ExitValid before.resources after.resources results then
                 let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
-                  before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
+                  before.code.toList, statements, after.code.toList, slice, exactState ▸ checked.property.trans result, valid⟩
                 set {after with
                   calls := after.calls.push receipt
                   numerical := before.numerical

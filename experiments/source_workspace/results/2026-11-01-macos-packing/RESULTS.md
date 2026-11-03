@@ -1,5 +1,8 @@
 # Checked source GEMM packing costs — macOS
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-macos-packing`.
+
 Full schema-3 record from clean
 `6abeee14b708e9bc1752c420949043971dc48a28`. It connects actual generated-source
 CBLAS calls to calibrated packing, alongside the existing allocator and arena
@@ -13,7 +16,7 @@ channels. This is cost evidence, not timing acceptance or native refinement.
 | Backend calibration | Clean `db62d224837031f1a8b3e05e6ca4756325716a04`; schema 2, pinned sequential LP64 OpenBLAS 0.3.34, VORTEXM4, `NO_WARMUP` |
 | Source inputs | All 78 repository snapshots independently matched to the measured Git revision |
 | Source commands | 1,947, including kernel input hashes, actual output streams and source packing calibrations |
-| Compact archive | [evidence.zip](evidence.zip), 10,922 members, 49,217,480 bytes |
+| Compact archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-macos-packing.zip), 10,922 members, 49,217,480 bytes |
 | SHA-256 | `47e027b31d81070b89cb798f6ee5d803530f4cff1a3cb4219a20e22075f183d0` |
 | Export manifest | [artifact-manifest.json](artifact-manifest.json) |
 

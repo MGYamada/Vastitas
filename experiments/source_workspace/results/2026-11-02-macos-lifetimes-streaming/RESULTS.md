@@ -1,11 +1,14 @@
 # macOS source block lifetimes: large-output profile
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-02-macos-lifetimes-streaming`.
+
 This record measures clean `8212d7d0a6720e37913b6d44d5932e8ff263ead8` on
 macOS 27.2 arm64. It extends the existing separate streaming profile to all eight
 backend/runtime configurations in source-cost schema 4. It contains no operation
 timings or controlled-host acceptance claim.
 
-The [complete compact record](evidence.zip) and
+The [complete compact record](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-02-macos-lifetimes-streaming.zip) and
 [manifest with full replay summary](artifact-manifest.json) preserve:
 
 - Four real/complex, padded/contiguous cases, with 128 / 256 MiB outputs and

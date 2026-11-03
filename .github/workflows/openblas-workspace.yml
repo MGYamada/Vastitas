@@ -59,7 +59,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     steps:
-      # Full evidence checkout: replay tests consume retained source-workspace archives.
+      # The replay suite restores source-workspace ZIPs from their verified release assets.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
@@ -71,6 +71,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1
+      - name: Restore verified source-workspace archives
+        run: python3 experiments/source_workspace/fetch.py --all
       - name: Replay and mutation regressions
         run: |
           python3 -m unittest discover -s experiments/openblas_workspace -p 'test_*.py'

@@ -1,5 +1,8 @@
 # Checked source allocator phases — Linux
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-linux-allocator`.
+
 Full diagnostic record from clean
 `f0e0c55d79978d68021ba0ee0831916d1153606d`, submitted in
 [PR #366](https://github.com/MGYamada/Vastitas/pull/366).
@@ -16,7 +19,7 @@ refinement.
 | Backend calibration | Same clean `f0e0c55`; complete paired OpenBLAS 0.3.34 calibration retained; sequential LP64, HASWELL |
 | Source inputs | 66 repository snapshots, independently matched to the measured Git revision and the retained macOS input set |
 | Source commands | 1,663, including exact kernel-stdin hashes, context and raw observations |
-| Compact archive | [evidence.zip](evidence.zip), 4,668 members, 64,228,863 bytes |
+| Compact archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-linux-allocator.zip), 4,668 members, 64,228,863 bytes |
 | SHA-256 | `d99a971d60c35c9e698760e80c3d6aa9270dc75f55e325adabaad9eb66ce972d` |
 | Export manifest | [artifact-manifest.json](artifact-manifest.json) |
 

@@ -1,3 +1,4 @@
+from contextlib import redirect_stderr, redirect_stdout
 import hashlib
 import io
 import json
@@ -44,6 +45,24 @@ class VerifiedFetchTests(unittest.TestCase):
             self.assertEqual(cached.name, self.digest + ".zip")
             self.assertEqual(cached.read_bytes(), self.data)
             remote.assert_not_called()
+
+    def test_all_restores_then_resumes_only_the_missing_record(self):
+        second = self.root / "results" / "second"
+        second.mkdir()
+        (second / "artifact-manifest.json").write_text(json.dumps(self.manifest))
+        self.catalog["records"]["second"] = {"release_tag": "sample", "asset": "second.zip"}
+        self.catalog_file.write_text(json.dumps(self.catalog))
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            with mock.patch.object(fetch, "urlopen", side_effect=[io.BytesIO(self.data), io.BytesIO(b"short")]):
+                self.assertEqual(fetch.main(["--all"], self.root), 1)
+            self.assertEqual(self.record.archive.read_bytes(), self.data)
+            self.assertFalse((second / "evidence.zip").exists())
+            with mock.patch.object(fetch, "urlopen", return_value=io.BytesIO(self.data)) as remote:
+                self.assertEqual(fetch.main(["--all"], self.root), 0)
+                remote.assert_called_once_with(fetch.load_record("second", self.root).url, timeout=120)
+            with self.assertRaises(SystemExit):
+                fetch.main(["--all", self.name], self.root)
+        self.assertEqual((second / "evidence.zip").read_bytes(), self.data)
 
     def test_bad_streams_and_interrupted_read_publish_nothing(self):
         class Interrupted(io.BytesIO):

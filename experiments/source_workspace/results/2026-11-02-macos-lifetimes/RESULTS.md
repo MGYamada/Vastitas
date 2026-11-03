@@ -1,11 +1,14 @@
 # macOS source block lifetimes: complete standard profile
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-02-macos-lifetimes`.
+
 This record measures clean `8212d7d0a6720e37913b6d44d5932e8ff263ead8` on
 macOS 27.2 arm64. Source-cost schema 4 connects the actual checked two-edge
 contraction source to the calibrated lifetime runtime across both backends.
 It contains no operation timings or controlled-host acceptance claim.
 
-The [complete compact record](evidence.zip) and
+The [complete compact record](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-02-macos-lifetimes.zip) and
 [manifest with full replay summary](artifact-manifest.json) preserve:
 
 - All 12 tiny/small/bulk real/complex cases with/without padding, eight

@@ -1,5 +1,8 @@
 # Linux checked-source workspace observation
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-linux`.
+
 Measured source and backend calibration both use clean commit
 `605a5a7c82697bd53241983e8a42c03a68fd372a` in
 [push workflow 41274204681](https://github.com/MGYamada/Vastitas/actions/runs/41274204681),
@@ -12,7 +15,7 @@ Lean is 4.35.0; pinned sequential LP64 OpenBLAS 0.3.34 targets `HASWELL` with
 upstream `NO_WARMUP`. The actual CPU model is not captured; the compile target
 does not identify it. This shared GitHub runner is not a controlled performance host.
 
-The [archive manifest](artifact-manifest.json) binds `evidence.zip` (4,258,277 bytes,
+The [archive manifest](artifact-manifest.json) binds [`evidence.zip`](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-linux.zip) (4,258,277 bytes,
 1,784 members), SHA-256
 `de58f3b4b22dddcf1359aebf665c4518d3c2d467e6fc11dee86b10a497ebcdd0`.
 All 60 source snapshots and the nested calibration's 16 source snapshots were

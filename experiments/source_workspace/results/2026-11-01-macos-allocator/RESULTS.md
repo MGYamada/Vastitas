@@ -1,5 +1,8 @@
 # Checked source allocator phases — macOS
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-macos-allocator`.
+
 Full diagnostic record from clean
 `f0e0c55d79978d68021ba0ee0831916d1153606d`, submitted in
 [PR #366](https://github.com/MGYamada/Vastitas/pull/366).
@@ -13,7 +16,7 @@ This is allocation/cost evidence, not timing acceptance or native refinement.
 | Backend calibration | Clean `605a5a7c82697bd53241983e8a42c03a68fd372a`; complete paired OpenBLAS 0.3.34 calibration retained; sequential LP64, VORTEXM4, `NO_WARMUP` |
 | Source inputs | 66 repository snapshots, independently matched to the measured Git revision |
 | Source commands | 1,663, including exact kernel-stdin hashes, context and raw observations |
-| Compact archive | [evidence.zip](evidence.zip), 4,666 members, 41,924,992 bytes |
+| Compact archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-macos-allocator.zip), 4,666 members, 41,924,992 bytes |
 | SHA-256 | `1a5230c1a895c59a44070aa20a001d745164a16efa32e301a089dcedd5ce7efd` |
 | Export manifest | [artifact-manifest.json](artifact-manifest.json) |
 

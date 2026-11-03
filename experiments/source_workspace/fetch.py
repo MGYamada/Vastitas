@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch one retained source-workspace archive and verify its existing manifest."""
+"""Fetch retained source-workspace archives and verify their original manifests."""
 import argparse
 import hashlib
 from http.client import HTTPException
@@ -40,14 +40,20 @@ def source_url(name, origin):
     raise ValueError("expected an immutable Git revision or a named repository release asset")
 
 
-def load_record(name, root=HERE):
+def load_catalog(root):
+    catalog = json.loads((root / "archive-sources.json").read_text(encoding="utf-8"))
+    if (type(catalog) is not dict or type(catalog.get("schema")) is not int or catalog["schema"] != 1
+            or not isinstance(catalog.get("records"), dict) or not catalog["records"]):
+        raise ValueError("invalid archive source catalog")
+    return catalog["records"]
+
+
+def load_record(name, root=HERE, origins=None):
     if not SAFE_NAME.fullmatch(name):
         raise ValueError("invalid record name")
-    catalog = json.loads((root / "archive-sources.json").read_text(encoding="utf-8"))
-    if (type(catalog) is not dict or type(catalog.get("schema")) is not int
-            or catalog["schema"] != 1 or not isinstance(catalog.get("records"), dict)):
-        raise ValueError("invalid archive source catalog")
-    if name not in catalog["records"]:
+    if origins is None:
+        origins = load_catalog(root)
+    if name not in origins:
         raise ValueError(f"unknown retained record: {name}")
     directory = root / "results" / name
     manifest = json.loads((directory / "artifact-manifest.json").read_text(encoding="utf-8"))
@@ -58,7 +64,7 @@ def load_record(name, root=HERE):
             or not re.fullmatch(r"[0-9a-f]{64}", manifest["sha256"])):
         raise ValueError("invalid retained archive manifest")
     return Record(directory / "evidence.zip", manifest["bytes"], manifest["sha256"],
-                  source_url(name, catalog["records"][name]))
+                  source_url(name, origins[name]))
 
 
 def verify_stream(source, record, output=None):
@@ -98,13 +104,19 @@ def fetch(record, cache_dir=None):
     return target
 
 
-def main():
+def main(argv=None, root=HERE):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("record", help="retained record directory name")
+    selection = parser.add_mutually_exclusive_group(required=True)
+    selection.add_argument("record", nargs="?", help="retained record directory name")
+    selection.add_argument("--all", action="store_true", help="restore every cataloged archive")
     parser.add_argument("--cache-dir", type=Path, help="use a SHA-256-named cache file")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     try:
-        print(fetch(load_record(args.record), args.cache_dir))
+        origins = load_catalog(root)
+        names = sorted(origins) if args.all else [args.record]
+        records = [load_record(name, root, origins) for name in names]
+        for record in records:
+            print(fetch(record, args.cache_dir), flush=True)
     except (OSError, HTTPException, ValueError) as error:
         print(f"cannot fetch verified evidence: {error}", file=sys.stderr)
         return 1

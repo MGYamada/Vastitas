@@ -1,5 +1,8 @@
 # Checked source GEMM packing costs — Linux
 
+Restore this record from the repository root with
+`python3 experiments/source_workspace/fetch.py 2026-11-01-linux-packing`.
+
 Full schema-3 record from clean
 `6abeee14b708e9bc1752c420949043971dc48a28`, independently downloaded and replayed
 after the successful hosted run. This is cost evidence, not timing acceptance or
@@ -15,7 +18,7 @@ native refinement.
 | Source inputs | All 78 repository snapshots match their Git blobs and the same-revision macOS record |
 | Source commands | 1,931, including kernel input hashes, actual output streams and source packing calibrations |
 | Downloaded Actions artifact | `13080569980`, 66,842,759 bytes; SHA-256 `322d74d245b070b307e673158ca8368d7f5c3f82889e9415e5e444ebe7367f59` |
-| Retained inner archive | [evidence.zip](evidence.zip), 10,900 members, 72,029,976 bytes |
+| Retained inner archive | [evidence.zip](https://github.com/MGYamada/Vastitas/releases/download/source-workspace-evidence-20261103/2026-11-01-linux-packing.zip), 10,900 members, 72,029,976 bytes |
 | Inner SHA-256 | `8f188837886a60a2ba20796f04c8c233108173f5d35816b0cdf9097cdd1eb1e1` |
 | Export manifest | [artifact-manifest.json](artifact-manifest.json) |
 

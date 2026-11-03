@@ -537,6 +537,25 @@ def run : Nat → Frame → List Action → Except Error (Frame × List Guard)
     let (after, guards) ← run fuel checked.after rest
     return (after, checked.guards ++ guards)
 
+def Frame.work (frame : Frame) : Nat :=
+  let regions := frame.allocations.foldl (fun n a => n + a.initialization.nodes) 0
+  Work.frame frame.used.length frame.allocations.length regions 0 frame.loans
+    Loan.name Loan.parent (fun loan => loan.access.writes)
+
+def runMetered : (fuel : Nat) → (before : Frame) → (code : List Action) → Work.Total →
+    Except Error ({result : Frame × List Guard // run fuel before code = .ok result} × Work.Total)
+  | _, frame, [], used => do
+    return (⟨(frame, []), by simp [run, pure, Except.pure]⟩, ← debitWork used frame.work)
+  | 0, _, _ :: _, _ => reject "runtime shape schedule exceeds traversal bound"
+  | fuel + 1, before, first :: rest, used => do
+    let used ← debitWork used before.work
+    match step : checkStep before first with
+    | .error diagnostic => .error diagnostic
+    | .ok checked =>
+      let (tail, used) ← runMetered fuel checked.after rest used
+      return (⟨(tail.val.1, checked.guards ++ tail.val.2), by
+        simp [run, step, tail.property, bind, Except.bind, pure, Except.pure]⟩, used)
+
 structure Checked (slots : Slots) (before : Frame) (code : List Action) where
   bounded : code.length ≤ 4096
   slotsValid : (slots.map Prod.fst).Nodup
@@ -548,20 +567,24 @@ structure Checked (slots : Slots) (before : Frame) (code : List Action) where
   accepted : run 4096 before code = .ok (after, guards)
   afterValid : auditFrame after = true
   closedGuards : (before.guards ++ guards).all Guard.closedValid = true
+  work : Work.Total
+  metered : (runMetered 4096 before code Work.zero).map (fun r => (r.1.val, r.2)) = .ok ((after, guards), work)
 
 def check (slots : Slots) (before : Frame) (code : List Action) :
     Except Error (Checked slots before code) := do
+  if before.work > Limits.resourceWork then throw workError
   if bounded : code.length ≤ 4096 then
     if slotsValid : (slots.map Prod.fst).Nodup then
       if references : (before.guards.flatMap Guard.references ++ code.flatMap Action.references).all
           (extentSlot slots) then
         if beforeValid : auditFrame before then
-          match accepted : run 4096 before code with
+          match measured : runMetered 4096 before code Work.zero with
           | .error problem => .error problem
-          | .ok (after, guards) =>
+          | .ok (⟨(after, guards), accepted⟩, work) =>
             if afterValid : auditFrame after then
               if closedGuards : (before.guards ++ guards).all Guard.closedValid then
-                return ⟨bounded, slotsValid, references, beforeValid, after, guards, accepted, afterValid, closedGuards⟩
+                return ⟨bounded, slotsValid, references, beforeValid, after, guards, accepted, afterValid, closedGuards,
+                  work, by rw [measured]; rfl⟩
               else .error {code := "E_RUNTIME_GUARD", message := "literal runtime extent, layout or cell guard is false"}
             else reject "invalid final runtime frame"
         else reject "invalid runtime caller frame"

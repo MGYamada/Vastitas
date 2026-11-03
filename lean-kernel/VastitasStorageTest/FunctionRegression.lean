@@ -17,6 +17,27 @@ private def owned : OwnedType := ⟨.f64,8,[]⟩
 private def value : Literal := .f64 0x4008000000000000
 
 #eval show IO Unit from do
+  let nearlyFull : Work.Total := ⟨Limits.resourceWork - 6, by decide⟩
+  let arm : List Statement := [.branch (.literal true) [] []]
+  let start : Context := {work := nearlyFull}
+  unless ((expand 4096 [] [] [] [.branch (.literal false) arm []]).run start).isOk do
+    throw (IO.userError "one branch arm should fit the six remaining units")
+  match (expand 4096 [] [] [] [.branch (.literal true) arm arm]).run start with
+  | .error diagnostic => unless diagnostic.code == "E_LIMIT" do throw (IO.userError diagnostic.message)
+  | .ok _ => throw (IO.userError "the right arm reset the request work budget")
+
+#eval show IO Unit from do
+  let code : List Storage.Statement := (List.range 2048).flatMap fun owner =>
+    [.action (.allocate owner .f64 1), .action (.drop owner)]
+  let .ok checked := checkPlan code | throw (IO.userError "4096 sequential actions exceeded the work budget")
+  unless checked.finalState.used.length == 2048 && checked.work.val > code.length do
+    throw (IO.userError "the final receipt did not charge growing name metadata")
+  let exhausted : Work.Total := ⟨Limits.resourceWork, Nat.lt_succ_self _⟩
+  match runMetered 4096 {} [.action (.allocate 0 .f64 1)] exhausted with
+  | .error diagnostic => unless diagnostic.code == "E_LIMIT" do throw (IO.userError diagnostic.message)
+  | .ok _ => throw (IO.userError "raw replay ignored an exhausted budget")
+
+#eval show IO Unit from do
   let leaf : Function := ⟨2, [], [], [.action (.allocate 7 .f64 1), .action (.drop 7)], none⟩
   let wrapper : Function := ⟨1, [], [], [.call 2 [] []], none⟩
   let entry : Function := ⟨0, [], [], [.call 1 [] [], .action (.allocate 8 .f64 1), .action (.drop 8)], none⟩

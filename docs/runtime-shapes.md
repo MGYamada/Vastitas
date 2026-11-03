@@ -160,9 +160,11 @@ check with a fresh replay. Different frames or actions take the ordinary path.
 The public entry also reuses the checked library's all-body probe batch.
 [Forwarding-call measurements](../experiments/compiler_scaling/results/2026-11-03-macos-nested-replay/RESULTS.md)
 
-General nested expansion, writer-pair checks and full frame audits still
-contribute to checking cost. A request-wide resource-work limit remains open.
-[#423](https://github.com/MGYamada/Vastitas/issues/423) · [Static storage #422](https://github.com/MGYamada/Vastitas/issues/422)
+General nested expansion, writer comparisons and frame audits consume the
+shared resource-work budget. The metered replay checks every symbolic step
+and returns the original frame and ordered guards. Unused probes and the
+actual entry contribute to one accepted total.
+[Resource checking work](storage-functions.md#resource-checking-work)
 
 The public harness `scripts/check_storage_scaling.py --profile runtime`
 measures allocation/drop, shared reads, distinct-allocation writers, reborrow

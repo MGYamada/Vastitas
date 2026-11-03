@@ -1,0 +1,261 @@
+{
+  "cli_sha256": "8e09001a5ea065025e834ac11447dfd223f8bfa731811db794a8491cc556c95d",
+  "kernel_sha256": {
+    "baseline": "2e59563defd863a32b21354c5bf6eb6a8a332da33fb2907449e7bee468af8691",
+    "candidate": "17346cbbf1f4e3b7552bdb3d20799e501c1b6e33117dc217cae594e6fc0d5913"
+  },
+  "cases": [
+    {
+      "profile": "static",
+      "shape": "wrapped_reads",
+      "size": 200,
+      "depth": 30,
+      "source_sha256": "a69e86fb2a16cfc1f11514b69558ab7be116d004cf5313da182d26b772531376",
+      "runs": {
+        "baseline": {
+          "seconds": 1.904116875026375,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 2.888985750032589,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "runtime",
+      "shape": "wrapped_reads",
+      "size": 200,
+      "depth": 30,
+      "source_sha256": "991908f0548f588943384e101f3920f591f1db569b6fc4c8957785951e1999a7",
+      "runs": {
+        "candidate": {
+          "seconds": 1.4996208329685032,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "baseline": {
+          "seconds": 1.6433218750171363,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "reborrow_chain",
+      "size": 512,
+      "depth": 0,
+      "source_sha256": "6c45e0584e7438aee07cfa155dff882decac00b609ebf3a0401dbe391f69bc78",
+      "runs": {
+        "baseline": {
+          "seconds": 0.8179486250155605,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 0.9137264160090126,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "runtime",
+      "shape": "reborrow_chain",
+      "size": 512,
+      "depth": 0,
+      "source_sha256": "d51ba055a1df16e291e5e6013232a4b29f169b25c8434c5a72b034ed834773bd",
+      "runs": {
+        "candidate": {
+          "seconds": 0.7574501250055619,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "baseline": {
+          "seconds": 0.6951285420218483,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "allocate_drop",
+      "size": 512,
+      "depth": 0,
+      "source_sha256": "c1f870384b8d2e47dc1739e38b2a4496007d3f5f9dbfa9d7d3be378219bc81cb",
+      "runs": {
+        "baseline": {
+          "seconds": 0.19941620901226997,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 0.1871659160242416,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "write_children",
+      "size": 64,
+      "depth": 0,
+      "source_sha256": "88499127459a64e55ee962bd6085bd01bb592dc66b02b029b6d28ce571c61151",
+      "runs": {
+        "candidate": {
+          "seconds": 0.08147916698362678,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "baseline": {
+          "seconds": 0.07924508402356878,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "write_children",
+      "size": 256,
+      "depth": 0,
+      "source_sha256": "0aad8a5c926bb4b7e553065c01e4c4faccdc17a981f9cc469688bb5fd01d45d9",
+      "runs": {
+        "baseline": {
+          "seconds": 2.024767208029516,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 0.3487474159919657,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide resource checking exceeds the 32000000-unit work budget"
+        }
+      }
+    },
+    {
+      "profile": "runtime",
+      "shape": "read_loans",
+      "size": 1300,
+      "depth": 0,
+      "source_sha256": "3481da736311eac15dbc51c1009cd577f4914c4b3a5288a4ac2a3c6d28e2aec1",
+      "runs": {
+        "candidate": {
+          "seconds": 0.11253016703994945,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_RESOURCE_LIMIT: resource function exceeds 4096 expanded steps before nested calls"
+        },
+        "baseline": {
+          "seconds": 0.7076878329971805,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_RESOURCE_LIMIT: expanded resource calls exceed the global work budget"
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "wrapped_reads",
+      "size": 200,
+      "depth": 90,
+      "source_sha256": "90759178e4a0e1f1813b5d4feea92402b005eb710b381dd9e468ae1c144f53bf",
+      "runs": {
+        "baseline": {
+          "seconds": 5.249052958970424,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 3.192433583026286,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide resource checking exceeds the 32000000-unit work budget"
+        }
+      }
+    },
+    {
+      "profile": "runtime",
+      "shape": "wrapped_reads",
+      "size": 200,
+      "depth": 90,
+      "source_sha256": "f629a991a7e47f5027457a51967ec32c5a41ac437c584c79feb476f2593befd3",
+      "runs": {
+        "candidate": {
+          "seconds": 2.0553428750135936,
+          "exit_code": 1,
+          "timed_out": false,
+          "diagnostic": "E_LIMIT: program-wide resource checking exceeds the 32000000-unit work budget"
+        },
+        "baseline": {
+          "seconds": 4.215542207995895,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "borrowed_forward",
+      "size": 0,
+      "depth": 32,
+      "source_sha256": "9186109ab9d962b7df497171121e59eac7c185ede6aeee9ecec2f080172a9fd1",
+      "runs": {
+        "baseline": {
+          "seconds": 0.23010791698470712,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "candidate": {
+          "seconds": 0.2656418749829754,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    },
+    {
+      "profile": "static",
+      "shape": "borrowed_forward",
+      "size": 0,
+      "depth": 48,
+      "source_sha256": "9b8449d404dedecd37638b84ac23563fb57fb94334484c476f66f1661456ffa2",
+      "runs": {
+        "candidate": {
+          "seconds": 0.9625897920341231,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        },
+        "baseline": {
+          "seconds": 0.822796875028871,
+          "exit_code": 0,
+          "timed_out": false,
+          "diagnostic": ""
+        }
+      }
+    }
+  ]
+}

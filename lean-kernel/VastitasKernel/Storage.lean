@@ -1,4 +1,5 @@
 import VastitasKernel.StorageDiagonalData
+import VastitasKernel.StorageWork
 import VastitasKernel.StorageTensorLayout
 import VastitasKernel.FiniteIndex
 import VastitasKernel.LoanChain
@@ -1036,19 +1037,76 @@ structure ReplayEvidence {σ α β : Type} (execute : σ → List α → β) whe
   output : β
   verified : execute initial actions = output
 
+def lookupReplay {σ α β : Type} [DecidableEq σ] [DecidableEq α]
+    (execute : σ → List α → β) (initial : σ) (actions : List α)
+    (previous : Option (ReplayEvidence execute)) : Option {r : β // execute initial actions = r} := do
+  let receipt ← previous
+  if same : initial = receipt.initial ∧ actions = receipt.actions then
+    return ⟨receipt.output, by rw [same.1, same.2]; exact receipt.verified⟩
+  else none
+
 def replayWithEvidence {σ α β : Type} [DecidableEq σ] [DecidableEq α]
     (execute : σ → List α → β) (initial : σ) (actions : List α)
-    (previous : Option (ReplayEvidence execute)) : {r : β // execute initial actions = r} := Id.run do
-  if let some receipt := previous then
-    if same : initial = receipt.initial ∧ actions = receipt.actions then
-      return ⟨receipt.output, by rw [same.1, same.2]; exact receipt.verified⟩
-  return ⟨execute initial actions, rfl⟩
+    (previous : Option (ReplayEvidence execute)) : {r : β // execute initial actions = r} :=
+  match lookupReplay execute initial actions previous with
+  | some checked => checked
+  | none => ⟨execute initial actions, rfl⟩
 
 theorem replayWithEvidence_eq {σ α β : Type} [DecidableEq σ] [DecidableEq α]
     (execute : σ → List α → β) (initial : σ) (actions : List α)
     (previous : Option (ReplayEvidence execute)) :
     replayWithEvidence execute initial actions previous = ⟨execute initial actions, rfl⟩ :=
   Subtype.ext (replayWithEvidence execute initial actions previous).property.symm
+
+def State.work (state : State) : Nat :=
+  let regions := state.allocations.foldl (fun total allocation =>
+    total + ((allocation.initialization.remaining 4096).map (4096 - ·)).getD 4097) 0
+  Work.frame state.used.length state.allocations.length regions state.dependencies.length state.loans
+    Loan.name Loan.parent (fun loan => loan.access.writes)
+
+def workError : Error :=
+  {code := "E_LIMIT", message := s!"program-wide resource checking exceeds the {Limits.resourceWork}-unit work budget"}
+
+def debitWork (used : Work.Total) (units : Nat) : Except Error Work.Total :=
+  match Work.add used units with | some next => .ok next | none => .error workError
+
+def replayMeteredWithEvidence {σ α β : Type} [DecidableEq σ] [DecidableEq α]
+    (execute : σ → List α → Except Error β)
+    (metered : (s : σ) → (a : List α) → Work.Total →
+      Except Error ({out : β // execute s a = .ok out} × Work.Total))
+    (s : σ) (a : List α) (prior : Option (ReplayEvidence execute)) (used : Work.Total) :
+    Except Error ({out // execute s a = out} × Work.Total) := do
+  let used ← debitWork used (1 + a.length)
+  match lookupReplay execute s a prior with
+  | some checked => return (checked, used)
+  | none =>
+    let (result, final) ← metered s a used
+    return (⟨.ok result.val, result.property⟩, final)
+
+/-- Meter the same transitions as `run`. Return the equation for the original
+schedule, including both branch arms with their distinct allocation serials. -/
+def runMetered : (fuel : Nat) → (before : State) → (code : List Statement) → Work.Total →
+    Except Error ({after : State // run fuel before code = .ok after} × Work.Total)
+  | _, state, [], used => do
+    return (⟨state, by simp [run, pure, Except.pure]⟩, ← debitWork used state.work)
+  | 0, _, _ :: _, _ => reject "E_RESOURCE_LIMIT" "resource plan exceeds the traversal bound"
+  | fuel + 1, before, .action action :: rest, used => do
+    let used ← debitWork used before.work
+    match step : checkAction before action with
+    | .error diagnostic => .error diagnostic
+    | .ok next =>
+      let (after, used) ← runMetered fuel next rest used
+      return (⟨after.val, by simpa [run, step, bind, Except.bind] using after.property⟩, used)
+  | fuel + 1, before, .branch _ yes no :: rest, used => do
+    let (left, used) ← runMetered fuel before yes used
+    let (right, used) ← runMetered fuel {before with nextAllocation := left.val.nextAllocation} no used
+    let used ← debitWork used (left.val.work + right.val.work)
+    match joined : join left.val right.val with
+    | .error diagnostic => .error diagnostic
+    | .ok next =>
+      let (after, used) ← runMetered fuel next rest used
+      return (⟨after.val, by simpa only [run, left.property, right.property, bind, Except.bind, joined]
+                                using after.property⟩, used)
 
 structure CheckedPlan (input : List Statement) where
   bounded : (remaining 4096 4096 input).isSome = true
@@ -1057,16 +1115,20 @@ structure CheckedPlan (input : List Statement) where
   valid : auditState finalState = true
   closed : finalState.allocations = [] ∧ finalState.loans = []
   dependenciesClosed : finalState.dependencies = []
+  work : Work.Total
+  metered : (runMetered 4096 {} input Work.zero).map (fun r => (r.1.val, r.2)) = .ok (finalState, work)
 
 def checkPlan (input : List Statement) : Except Error (CheckedPlan input) :=
   if bounded : (remaining 4096 4096 input).isSome = true then
-    match accepted : run 4096 {} input with
+    match measured : runMetered 4096 {} input Work.zero with
     | .error diagnostic => .error diagnostic
-    | .ok finalState =>
+    | .ok (result, work) =>
+      let finalState := result.val
       if valid : auditState finalState = true then
         if closed : finalState.allocations = [] ∧ finalState.loans = [] then
           if dependenciesClosed : finalState.dependencies = [] then
-            .ok ⟨bounded, finalState, accepted, valid, closed, dependenciesClosed⟩
+            .ok ⟨bounded, finalState, result.property, valid, closed, dependenciesClosed, work,
+              by rw [measured]; rfl⟩
           else reject "E_RESOURCE_ESCAPE" "resource plan exits with local dependency handles"
         else reject "E_RESOURCE_ESCAPE" "resource plan exits with live owners or loans"
       else reject "E_RESOURCE_STATE" "invalid final resource environment"

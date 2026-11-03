@@ -18,16 +18,16 @@ inductive Representation where
   | presentedAffine (field : AlgebraDeclarations.ExactField)
   deriving Repr, Inhabited
 
-/-- Unexpanded polynomial syntax. The kernel bounds degree, exponents and
-digits before expanding it. Rust parses and never evaluates it. -/
+/-- Unexpanded polynomial syntax. Sums and products are n-ary, so long
+polynomials stay shallow. The kernel bounds degree, exponents and digits
+before expanding. Rust parses and never evaluates. -/
 inductive PolyExpr where
   | natural (value : Nat)
   | fraction (numerator : Int) (denominator : Nat)
   | coordinate (name : String)
   | neg (operand : PolyExpr)
-  | add (left right : PolyExpr)
-  | sub (left right : PolyExpr)
-  | mul (left right : PolyExpr)
+  | sum (terms : List PolyExpr)
+  | product (factors : List PolyExpr)
   | pow (base : PolyExpr) (exponent : Nat)
   deriving Repr, Inhabited
 

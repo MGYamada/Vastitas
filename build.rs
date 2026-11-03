@@ -12,6 +12,8 @@ fn main() {
         ("astDepth", "MAX_AST_DEPTH"),
         ("moduleNesting", "MAX_MODULE_NESTING"),
         ("packageNesting", "MAX_PACKAGE_NESTING"),
+        ("algebraNesting", "MAX_ALGEBRA_NESTING"),
+        ("algebraCoefficientDigits", "MAX_ALGEBRA_DIGITS"),
     ] {
         let value = limits[key]
             .as_u64()

@@ -32,7 +32,7 @@ def parameter (j : Json) : Except String Source.Parameter := do
   | "object" => fields j ["kind", "domain"]; return .object (← path (← field j "domain"))
   | _ => throw "unknown indexed parameter kind"
 
-def constraint (j : Json) : Except String Constraint := do
+def constraint (j : Json) (algebraic : Bool := false) : Except String Constraint := do
   match ← str j "kind" with
   | "same_object" =>
     fields j ["kind", "left", "right"]
@@ -43,6 +43,10 @@ def constraint (j : Json) : Except String Constraint := do
   | "over" =>
     fields j ["kind", "object", "marker"]
     return .over (← j.getObjValAs? Nat "object") (← j.getObjValAs? Nat "marker")
+  | "structural" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j ["kind", "object", "base"]
+    return .structural (← j.getObjValAs? Nat "object") (← j.getObjValAs? Nat "base")
   | _ => throw "unknown indexed constraint"
 
 def boundIndex (j : Json) : Except String Source.BoundIndex := do
@@ -100,8 +104,15 @@ def geometricSetting (j : Json) : Except String GeometricSetting := do
   | "smooth" => return .smooth
   | _ => throw "expected scheme or smooth setting"
 
-def representation (j : Json) (numerical : Bool := false) : Except String Source.Representation := do
+def representation (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
+    Except String Source.Representation := do
   if j == Json.str "affine_descriptor" then return .affineDescriptor
+  if let .ok body := j.getObjVal? "presented_affine" then
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    if (← j.getObj?).size != 1 then throw "expected exactly one concrete representation"
+    fields body ["field"]
+    unless (← str body "field") == "rational" do throw "presented objects use the rational field"
+    return .presentedAffine .rational
   unless numerical do throw "numerical declarations require protocol 8"
   let entries ← j.getObj?
   if entries.size != 1 then throw "expected exactly one concrete representation"
@@ -128,13 +139,57 @@ def familyRepresentation (j : Json) : Except String FamilyRepresentation := do
   | "morphism" => return .morphism
   | _ => throw "unsupported indexed family representation"
 
-def declarationBody (j : Json) (numerical : Bool := false) : Except String Source.Body := do
+/-- A bounded decimal string, optionally signed. -/
+def decimal (text : String) (signed : Bool := false) : Except String Int := do
+  let (negative, digits) := if signed && text.startsWith "-" then (true, (text.drop 1).toString) else (false, text)
+  if digits.isEmpty || !digits.toList.all (fun c => '0' ≤ c && c ≤ '9') then
+    throw "polynomial literals are unsigned decimal strings"
+  if digits.length > Limits.algebraCoefficientDigits then throw "polynomial literal has too many digits"
+  match digits.toNat? with
+  | some n => return if negative then -(n : Int) else n
+  | none => throw "invalid polynomial literal"
+
+def naturalString (text : String) : Except String Nat := do
+  return (← decimal text).toNat
+
+def polyExpr : Nat → Json → Except String Source.PolyExpr
+  | 0, _ => throw "polynomial expression is nested too deeply"
+  | depth + 1, j => do
+    match ← str j "op" with
+    | "natural" => fields j ["op", "value"]; return .natural (← naturalString (← str j "value"))
+    | "fraction" =>
+      fields j ["op", "numerator", "denominator"]
+      return .fraction (← decimal (← str j "numerator") true) (← naturalString (← str j "denominator"))
+    | "coordinate" => fields j ["op", "name"]; return .coordinate (← str j "name")
+    | "neg" => fields j ["op", "operand"]; return .neg (← polyExpr depth (← field j "operand"))
+    | "sum" =>
+      fields j ["op", "terms"]
+      let terms ← array j "terms"
+      if terms.length < 2 then throw "a polynomial sum has at least two terms"
+      return .sum (← terms.mapM (polyExpr depth))
+    | "product" =>
+      fields j ["op", "factors"]
+      let factors ← array j "factors"
+      if factors.length < 2 then throw "a polynomial product has at least two factors"
+      return .product (← factors.mapM (polyExpr depth))
+    | "pow" =>
+      fields j ["op", "base", "exponent"]
+      return .pow (← polyExpr depth (← field j "base")) (← naturalString (← str j "exponent"))
+    | _ => throw "unknown polynomial expression"
+
+def binding (j : Json) : Except String (String × Source.PolyExpr) := do
+  fields j ["name", "image"]
+  return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
+
+def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
+    Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
   match ← str j "kind" with
   | "marker" => fields j common; return .marker
   | "implementation" =>
     fields j (common ++ ["marker", "representation", "capabilities"])
-    return .implementation (← path (← field j "marker")) (← representation (← field j "representation") numerical)
+    return .implementation (← path (← field j "marker"))
+      (← representation (← field j "representation") numerical algebraic)
       (← (← array j "capabilities").mapM capability)
   | "classification" =>
     fields j (common ++ ["parents", "domain"])
@@ -145,13 +200,25 @@ def declarationBody (j : Json) (numerical : Bool := false) : Except String Sourc
   | "family" =>
     fields j (common ++ ["parameters", "constraints", "representation"])
     return .family ⟨← (← array j "parameters").mapM parameter,
-      ← (← array j "constraints").mapM constraint, ← familyRepresentation (← field j "representation")⟩
+      ← (← array j "constraints").mapM (constraint · algebraic),
+      ← familyRepresentation (← field j "representation")⟩
   | "package" => fields j (common ++ ["cases"]); return .package (← (← array j "cases").mapM packageShape)
   | "primitive" => fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding"))
+  | "affine" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])
+    let base ← match ← field j "base" with
+      | .null => pure none
+      | value => some <$> path value
+    return .affine (← path (← field j "implementation"))
+      (← (← array j "generators").mapM Json.getStr?)
+      (← (← array j "relations").mapM (polyExpr Limits.algebraNesting))
+      base (← (← array j "bindings").mapM binding)
   | _ => throw "unknown indexed declaration kind"
 
-def declaration (j : Json) (numerical : Bool := false) : Except String Source.Declaration := do
-  let body ← declarationBody j numerical
+def declaration (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
+    Except String Source.Declaration := do
+  let body ← declarationBody j numerical algebraic
   return ⟨← str j "name", body, ← j.getObjValAs? Bool "public", ← decodeSpan j⟩
 
 end VastitasKernel.Indexed.Wire

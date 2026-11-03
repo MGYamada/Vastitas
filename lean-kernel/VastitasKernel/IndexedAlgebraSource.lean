@@ -17,15 +17,15 @@ def PolyExpr.degree : PolyExpr → Nat
   | .natural _ | .fraction .. => 0
   | .coordinate _ => 1
   | .neg e => e.degree
-  | .add a b | .sub a b => max a.degree b.degree
-  | .mul a b => a.degree + b.degree
+  | .sum terms => (terms.map PolyExpr.degree).foldl max 0
+  | .product factors => (factors.map PolyExpr.degree).foldl (· + ·) 0
   | .pow e k => e.degree * k
 
 /-- Every exponent literal is within `algebraDegree`. -/
 def PolyExpr.exponentsBounded : PolyExpr → Bool
   | .natural _ | .fraction .. | .coordinate _ => true
   | .neg e => e.exponentsBounded
-  | .add a b | .sub a b | .mul a b => a.exponentsBounded && b.exponentsBounded
+  | .sum es | .product es => es.attach.all fun ⟨e, _⟩ => e.exponentsBounded
   | .pow e k => k ≤ Limits.algebraDegree && e.exponentsBounded
 
 def digitsBounded (value : Nat) : Bool := (toString value).length ≤ Limits.algebraCoefficientDigits
@@ -35,7 +35,7 @@ def PolyExpr.digitsBounded : PolyExpr → Bool
   | .fraction n d => Source.digitsBounded n.natAbs && Source.digitsBounded d
   | .coordinate _ => true
   | .neg e => e.digitsBounded
-  | .add a b | .sub a b | .mul a b => a.digitsBounded && b.digitsBounded
+  | .sum es | .product es => es.attach.all fun ⟨e, _⟩ => e.digitsBounded
   | .pow e _ => e.digitsBounded
 
 def powWork (arity : Nat) (p : Poly) : Nat → Work Poly
@@ -53,9 +53,10 @@ def PolyExpr.expand (coordinates : List String) : PolyExpr → Work Poly
     | some index => pure (Poly.var coordinates.length index)
     | none => throw (.coordinate s!"unknown coordinate {name}")
   | .neg e => do AlgebraBasis.bounded (Poly.neg (← e.expand coordinates))
-  | .add a b => do AlgebraBasis.add (← a.expand coordinates) (← b.expand coordinates)
-  | .sub a b => do AlgebraBasis.sub (← a.expand coordinates) (← b.expand coordinates)
-  | .mul a b => do AlgebraBasis.mul (← a.expand coordinates) (← b.expand coordinates)
+  | .sum terms => terms.attach.foldlM (fun total ⟨e, _⟩ => do
+      AlgebraBasis.add total (← e.expand coordinates)) []
+  | .product factors => factors.attach.foldlM (fun total ⟨e, _⟩ => do
+      AlgebraBasis.mul total (← e.expand coordinates)) (Poly.one coordinates.length)
   | .pow e k => do powWork coordinates.length (← e.expand coordinates) k
 
 def PolyExpr.evaluate (coordinates : List String) (e : PolyExpr) : Work Poly := do

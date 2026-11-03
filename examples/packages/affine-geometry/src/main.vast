@@ -1,0 +1,15 @@
+mod profile;
+
+// Presented QQ-algebras as canonical affine objects (historical Stage 2).
+// Each declaration is one object; its base chain is declared, not inferred.
+use profile::AffineQQ;
+use profile::SpecQQ;
+
+indexed affine D(AffineQQ) = spec[e] relations(e^2) over SpecQQ;
+indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
+indexed affine S(AffineQQ) = spec[t] over SpecQQ;
+indexed affine X(AffineQQ) = spec[t, x] relations(x^2 - t) over S by(t -> t);
+indexed affine Origin(AffineQQ) = spec[] over S by(t -> 0);
+indexed affine DS(AffineQQ) = spec[e] relations(e^2) over S by(t -> 0);
+
+fn main() -> Int { 42 }

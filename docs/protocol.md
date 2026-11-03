@@ -43,6 +43,35 @@ even alongside the new field. Earlier versions retain their strict schemas.
 Source migration and the explicit geometry compatibility requirement are described
 in [edit borrowing](packages.md#edit-borrowing--migrating-recipients-for-v010).
 
+<a id="protocol-9-algebraic-affine-forms"></a>
+
+**Protocol-9 algebraic affine forms (Stage 2).** Following the single schema epoch
+decision in #533, presented affine declarations are validated optional fields of
+protocol 9; no feature-level version is added. Any module using one selects
+protocol 9, and protocols 7 and 8 reject each form with `E_PROTOCOL`.
+
+- **Representation.** An implementation may use
+  `{"presented_affine": {"field": "rational"}}`, with exactly one key and no
+  other field.
+- **Constraint.** `{"kind": "structural", "object": i, "base": j}`.
+- **Declaration.** `kind: "affine"` carries `implementation` (path),
+  `generators` (names), `relations` (polynomials), `base` (path or `null`) and
+  `bindings` (`[{name, image}]`), besides the common `name`, `public` and `span`.
+
+Polynomials are tagged by `op`:
+
+- `natural {value}`
+- `fraction {numerator, denominator}`, where the numerator may be signed
+- `coordinate {name}`
+- `neg {operand}`
+- `sum {terms}` and `product {factors}`, each with at least two entries
+- `pow {base, exponent}`
+
+Literals are unsigned decimal strings of at most 64 digits, and nesting is at
+most 64. Unknown fields and operations are rejected. The wire never carries a
+basis, cofactor, normal form or structure image: Lean computes and verifies
+them. See [affine geometry](affine-geometry.md).
+
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),
 `kind: "call_value"` (`callee`, named `arguments`, owned `results`, scalar `value`,

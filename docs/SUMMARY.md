@@ -17,6 +17,7 @@
 - [Independent functions and specialization](stage1b.md)
 - [Packages, edit loans and transfer](packages.md)
 - [Indexed declarations and the geometry library](indexed-source.md)
+- [Presented affine geometry (Stage 2)](affine-geometry.md)
 
 # Storage and numerical computing
 

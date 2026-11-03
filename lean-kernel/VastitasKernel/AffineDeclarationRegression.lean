@@ -33,7 +33,7 @@ private def declarations : List Source.Declaration := [
   affine "Line" ["t"] [] "SpecQQ" [],
   affine "D" ["e"] [sq "e"] "SpecQQ",
   affine "S" ["t"] [] "SpecQQ",
-  affine "X" ["t", "x"] [.sub (sq "x") (c "t")] "S" [("t", c "t")],
+  affine "X" ["t", "x"] [.sum [sq "x", .neg (c "t")]] "S" [("t", c "t")],
   affine "Origin" [] [] "S" [("t", n 0)],
   affine "DS" ["e"] [sq "e"] "S" [("t", n 0)] ]
 
@@ -99,7 +99,7 @@ private def accepts (x y s : String) : Bool :=
   | none => false)
 
 -- Source rejections.
-#eval check "missing base binding" (code (change "X" (affine "X" ["t", "x"] [.sub (sq "x") (c "t")] "S")) ==
+#eval check "missing base binding" (code (change "X" (affine "X" ["t", "x"] [.sum [sq "x", .neg (c "t")]] "S")) ==
   "E_AFFINE_BASE")
 #eval check "unknown base coordinate binding"
   (code (change "Origin" (affine "Origin" [] [] "S" [("t", n 0), ("u", n 0)])) == "E_AFFINE_BASE")
@@ -114,10 +114,10 @@ private def accepts (x y s : String) : Bool :=
 #eval check "degree 16 accepted, 17 rejected"
   (code (change "D" (affine "D" ["e"] [.pow (c "e") 16] "SpecQQ")) == "accepted" &&
     code (change "D" (affine "D" ["e"] [.pow (c "e") 17] "SpecQQ")) == "E_LIMIT" &&
-    code (change "D" (affine "D" ["e"] [.mul (.pow (c "e") 9) (.pow (c "e") 8)] "SpecQQ")) == "E_LIMIT")
+    code (change "D" (affine "D" ["e"] [.product [.pow (c "e") 9, .pow (c "e") 8]] "SpecQQ")) == "E_LIMIT")
 #eval check "64 digits accepted, 65 rejected"
-  (code (change "D" (affine "D" ["e"] [.sub (c "e") (n (10 ^ 63))] "SpecQQ")) == "accepted" &&
-    code (change "D" (affine "D" ["e"] [.sub (c "e") (n (10 ^ 64))] "SpecQQ")) == "E_LIMIT")
+  (code (change "D" (affine "D" ["e"] [.sum [c "e", .neg (n (10 ^ 63))]] "SpecQQ")) == "accepted" &&
+    code (change "D" (affine "D" ["e"] [.sum [c "e", .neg (n (10 ^ 64))]] "SpecQQ")) == "E_LIMIT")
 #eval check "zero denominator" (code (change "D" (affine "D" ["e"] [.fraction 1 0] "SpecQQ")) ==
   "E_AFFINE_COORDINATE")
 #eval check "17 generators rejected"

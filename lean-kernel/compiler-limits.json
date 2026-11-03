@@ -28,5 +28,6 @@
   "algebraBasis": 64,
   "algebraCoefficientDigits": 64,
   "algebraChain": 16,
-  "algebraWork": 8000000
+  "algebraWork": 8000000,
+  "algebraNesting": 64
 }

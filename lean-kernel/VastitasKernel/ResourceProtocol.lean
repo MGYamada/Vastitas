@@ -440,7 +440,9 @@ def function (j : Json) : Except String Function := do
     isPublic := ← j.getObjValAs? Bool "public", span := ← decodeSpan j }
 
 def module (j : Json) (namedRecipients : Bool := false) : Except String Module := do
+  -- Protocol 9 is the current schema epoch (#533); only it admits Stage 2 forms.
   let pureModule ← Indexed.Wire.module (← without j "resource_functions") true namedRecipients
+    namedRecipients
   return ⟨pureModule, ← (← optionalArray j "resource_functions").mapM function⟩
 
 def package (j : Json) (namedRecipients : Bool := false) : Except String Package := do
@@ -449,7 +451,7 @@ def package (j : Json) (namedRecipients : Bool := false) : Except String Package
   -- into a pure function. Unknown metadata fields remain rejected.
   let stripped ← (← array j "modules").mapM (without · "resource_functions")
   let metadata := (← without j "modules").setObjVal! "modules" (toJson stripped)
-  let pkg ← Indexed.Wire.package metadata true namedRecipients
+  let pkg ← Indexed.Wire.package metadata true namedRecipients namedRecipients
   return ⟨pkg.id, pkg.dependencies, modules, pkg.geometryCompat⟩
 
 def program (j : Json) : Except String Program := do

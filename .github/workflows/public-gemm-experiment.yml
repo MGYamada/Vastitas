@@ -2,17 +2,8 @@ name: Public GEMM experiment
 
 on:
   push:
-    paths:
-      - 'experiments/public_gemm/**'
-      - 'experiments/plain_c/**'
-      - 'experiments/native_cleanup.py'
-      - 'scripts/native_sanitizers.py'
-      - 'scripts/check_plain_c_baselines.py'
-      - 'scripts/test_plain_c_measurements.py'
-      - 'scripts/install_ci_elan.py'
-      - 'scripts/check_ci_python.sh'
-      - '.github/workflows/public-gemm-experiment.yml'
-  pull_request:
+    # Heavy OpenBLAS observations run on main and on demand, not on every PR (#571).
+    branches: [main]
     paths:
       - 'experiments/public_gemm/**'
       - 'experiments/plain_c/**'

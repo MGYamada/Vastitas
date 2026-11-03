@@ -24,8 +24,9 @@ principle in [ADR 0001](../adr/0001-mathematics-first-stdlib.md#9-mathematical-a
 CI runs Rust formatting and strict Clippy once, tests native compilation and
 the arithmetic standard library on macOS and Linux with the oracle directory
 absent, and builds/audits proofs without Mathlib in a separate job. It runs on pull requests,
-pushes to every branch, and manual dispatch. Superseded runs for the same event
-and branch/PR are cancelled; push and pull-request runs do not cancel each other.
+pushes to `main`, and manual dispatch; a pull request's branch pushes are checked once
+through its `pull_request` run. Superseded runs for the same event and branch/PR are
+cancelled; push and pull-request runs do not cancel each other.
 Action revisions and language toolchains are pinned. CI installs elan 4.2.4
 from a release archive whose SHA-256 is checked before its installer runs;
 it does not execute elan's moving `master` bootstrap script. The isolated
@@ -34,9 +35,11 @@ checked without setup-python's extra loader path before native calibration;
 unexpected loader overrides remain errors. Checkout credentials are not
 persisted, and the external axiom auditor is
 checked out at its exact commit in addition to the repository's own audit.
-The optional packing/workspace observations filter both event types to their
-source, harness and build inputs, so documentation-only edits do not rebuild
-OpenBLAS; the required compiler/proof jobs continue to run on every change.
+The optional OpenBLAS packing/workspace observations and the GEMM, tensor-packing
+and contraction-tree experiment smokes run on pushes to `main` that touch their
+source, harness and build inputs, and on manual dispatch. They do not run on pull
+requests, so pull-request CI does not rebuild OpenBLAS for them; the required
+compiler, proof and GEMM-adapter jobs continue to run on every pull request.
 
 The dependency-boundary checker has its own regression tests:
 

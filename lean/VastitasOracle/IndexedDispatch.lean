@@ -161,9 +161,9 @@ theorem dispatch_call_selected {prepared : PreparedProgram} (checked : CheckedPa
   have valid := checked.accepted
   simp only [validPass, Bool.and_eq_true, and_assoc] at valid
   have dispatchValid := valid.2.2.2.2.2.1
-  simp only [validDispatchCalls, List.all_eq_true] at dispatchValid
-  have entry := dispatchValid call member
-  simp only [Bool.and_eq_true, decide_eq_true_eq, and_assoc] at entry
+  simp only [validDispatchCalls, Bool.and_eq_true, List.all_eq_true] at dispatchValid
+  have entry := (dispatchValid.1 call member).1.1
+  simp only [validDispatchSelection, Bool.and_eq_true, decide_eq_true_eq, and_assoc] at entry
   refine ⟨entry.1, entry.2.1, entry.2.2.1, ?_⟩
   cases found : prepared.input.dispatch.families[call.target.owner]? with
   | none => simp [found] at entry
@@ -172,6 +172,102 @@ theorem dispatch_call_selected {prepared : PreparedProgram} (checked : CheckedPa
     simp only [found, Bool.and_eq_true, List.contains_iff_mem, beq_iff_eq, and_assoc] at selected
     let target : DispatchChecker.Target family call.key := ⟨call.method, selected.1, selected.2.1⟩
     exact ⟨family, rfl, selected.1, (DispatchLowering.selected_target_sound family call.key target).2, selected.2.2⟩
+
+theorem dispatch_call_emitted {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (call : DispatchCall)
+    (member : call ∈ checked.lowered.dispatchCalls) :
+    checked.lowered.origins[call.emittedId]? = some (Key.mk call.definition []) := by
+  have valid := checked.accepted
+  simp only [validPass, Bool.and_eq_true, and_assoc] at valid
+  have dispatchValid := valid.2.2.2.2.2.1
+  simp only [validDispatchCalls, Bool.and_eq_true, List.all_eq_true] at dispatchValid
+  exact beq_iff_eq.mp (dispatchValid.1 call member).1.2
+
+theorem dispatch_caller_scope {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (call : DispatchCall)
+    (member : call ∈ checked.lowered.dispatchCalls) :
+    ∃ caller, prepared.input.prepared[call.caller.definition]? = some caller ∧
+      caller.definition.bodyScope = call.scope := by
+  have valid := checked.accepted
+  simp only [validPass, Bool.and_eq_true, and_assoc] at valid
+  have dispatchValid := valid.2.2.2.2.2.1
+  simp only [validDispatchCalls, Bool.and_eq_true, List.all_eq_true] at dispatchValid
+  have caller := (dispatchValid.1 call member).2
+  cases found : prepared.input.prepared[call.caller.definition]? with
+  | none => simp [found] at caller
+  | some definition => exact ⟨definition, rfl, by simpa [found] using caller⟩
+
+private theorem dispatch_coverage {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) :
+    dispatchCallCoverage prepared.input checked.lowered = true := by
+  have valid := checked.accepted
+  simp only [validPass, Bool.and_eq_true, and_assoc] at valid
+  have dispatchValid := valid.2.2.2.2.2.1
+  simp only [validDispatchCalls, Bool.and_eq_true] at dispatchValid
+  exact dispatchValid.2
+
+/-- Generic recognition uses the actual target origin and reconstructed
+method/key-to-definition table, not an emitted-call ledger flag. -/
+theorem dispatch_target_iff (input : Input) (pass : Pass) (target : Nat) :
+    dispatchTarget (dispatchDefinitions input) pass target = true ↔
+      ∃ origin, pass.origins[target]? = some origin ∧
+        ∃ selection : Nat × Dispatch.Key, input.dispatch.definitions[selection]? = some origin.definition := by
+  rw [dispatchTarget, Option.any_eq_true]
+  constructor
+  · rintro ⟨origin, found, selected⟩
+    have present : origin.definition ∈ input.dispatch.definitions.toList.map Prod.snd := by
+      simpa [dispatchDefinitions] using selected
+    obtain ⟨⟨selection, definition⟩, entry, same⟩ := List.mem_map.mp present
+    exact ⟨origin, found, selection, same ▸ Std.HashMap.mem_toList_iff_getElem?_eq_some.mp entry⟩
+  · rintro ⟨origin, found, selection, selected⟩
+    refine ⟨origin, found, ?_⟩
+    have present : origin.definition ∈ input.dispatch.definitions.toList.map Prod.snd :=
+      List.mem_map.mpr ⟨(selection, origin.definition),
+        Std.HashMap.mem_toList_iff_getElem?_eq_some.mpr selected, rfl⟩
+    simpa [dispatchDefinitions] using present
+
+/-- Every actual generic Core call is counted with its caller specialization
+and emitted target. This includes repeated occurrences, not just set membership. -/
+theorem core_dispatch_call_count {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (function : Core.Function)
+    (present : function ∈ checked.lowered.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds)
+    (generic : dispatchTarget (dispatchDefinitions prepared.input) checked.lowered target = true) :
+    (coreDispatchEdges prepared.input checked.lowered).countP
+        (· == (checked.lowered.origins[function.id]?, target)) =
+      (dispatchCallEdges checked.lowered).countP
+        (· == (checked.lowered.origins[function.id]?, target)) := by
+  exact Finite.sameCounts_count (dispatch_coverage checked) _
+    (List.mem_filter.mpr ⟨IndexedFunctions.core_call_edge _ function present target called, generic⟩)
+
+theorem core_dispatch_call_recorded {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (function : Core.Function)
+    (present : function ∈ checked.lowered.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds)
+    (generic : dispatchTarget (dispatchDefinitions prepared.input) checked.lowered target = true) :
+    ∃ call ∈ checked.lowered.dispatchCalls,
+      checked.lowered.origins[function.id]? = some call.caller ∧ call.emittedId = target := by
+  have covered := Finite.sameCounts_member (dispatch_coverage checked)
+    (checked.lowered.origins[function.id]?, target)
+    (List.mem_filter.mpr ⟨IndexedFunctions.core_call_edge _ function present target called, generic⟩)
+  obtain ⟨call, member, same⟩ := List.mem_map.mp covered
+  exact ⟨call, member, (congrArg Prod.fst same).symm, congrArg Prod.snd same⟩
+
+theorem core_dispatch_call_selected {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (function : Core.Function)
+    (present : function ∈ checked.lowered.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds)
+    (generic : dispatchTarget (dispatchDefinitions prepared.input) checked.lowered target = true) :
+    ∃ call ∈ checked.lowered.dispatchCalls,
+      checked.lowered.origins[function.id]? = some call.caller ∧ call.emittedId = target ∧
+      checked.lowered.origins[target]? = some (Key.mk call.definition []) ∧
+      ∃ family, prepared.input.dispatch.families[call.target.owner]? = some family ∧
+        call.key ∈ family.domain ∧
+        Dispatch.Selection family.nominals.hierarchy family.checked.methods call.key (some call.method) ∧
+        prepared.input.dispatch.definitions[(call.method, call.key)]? = some call.definition := by
+  obtain ⟨call, member, caller, same⟩ := core_dispatch_call_recorded checked function present target called generic
+  exact ⟨call, member, caller, same, same ▸ dispatch_call_emitted checked call member,
+    (dispatch_call_selected checked call member).2.2.2⟩
 
 theorem pipeline_reconstructed {program : Program} (checked : CheckedProgram program requireMain) :
     supported program = .ok () ∧

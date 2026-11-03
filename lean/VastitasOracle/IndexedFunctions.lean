@@ -109,6 +109,66 @@ theorem emitted_call_exact {prepared : PreparedProgram} (checked : CheckedPass p
   simp [validEmittedCall, Bool.and_eq_true, beq_iff_eq, and_assoc] at valid
   simpa only [valid.2.2] using valid.1
 
+private theorem emitted_coverage {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) :
+    emittedCallCoverage checked.lowered = true := by
+  have accepted := checked.accepted
+  simp only [validPass, Bool.and_eq_true, and_assoc] at accepted
+  have calls := accepted.2.2.1
+  simp only [validEmittedCalls, Bool.and_eq_true, and_assoc] at calls
+  exact calls.2.2.2.2
+
+theorem caller_instances_unique {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) : checked.lowered.origins.toList.Nodup := by
+  have coverage := emitted_coverage checked
+  simp only [emittedCallCoverage, Bool.and_eq_true] at coverage
+  exact (Finite.distinct_iff _).mp coverage.1
+
+theorem core_call_edge (pass : Pass) (function : Core.Function)
+    (present : function ∈ pass.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds) :
+    (pass.origins[function.id]?, target) ∈ coreCallEdges pass :=
+  List.mem_flatMap.mpr ⟨function, present, List.mem_map.mpr ⟨target, called, rfl⟩⟩
+
+/-- Converse coverage starts from the actual returned Core, including calls in
+both branches and unused audited bodies. Counts retain repeated occurrences. -/
+theorem core_call_count {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (function : Core.Function)
+    (present : function ∈ checked.lowered.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds) :
+    (coreCallEdges checked.lowered).countP
+        (· == (checked.lowered.origins[function.id]?, target)) =
+      (emittedCallEdges checked.lowered).countP
+        (· == (checked.lowered.origins[function.id]?, target)) := by
+  have coverage := emitted_coverage checked
+  simp only [emittedCallCoverage, Bool.and_eq_true] at coverage
+  exact Finite.sameCounts_count coverage.2 _ (core_call_edge _ function present target called)
+
+theorem core_call_recorded {prepared : PreparedProgram}
+    (checked : CheckedPass prepared audit requireMain) (function : Core.Function)
+    (present : function ∈ checked.lowered.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds) :
+    ∃ call ∈ checked.lowered.emittedCalls,
+      checked.lowered.origins[function.id]? = some call.caller ∧ call.id = target := by
+  have coverage := emitted_coverage checked
+  simp only [emittedCallCoverage, Bool.and_eq_true] at coverage
+  have recorded := Finite.sameCounts_member coverage.2 _
+    (core_call_edge _ function present target called)
+  obtain ⟨call, member, same⟩ := List.mem_map.mp recorded
+  exact ⟨call, member, (congrArg Prod.fst same).symm, congrArg Prod.snd same⟩
+
+/-- Executable Core calls have both their exact caller specialization and
+their exact target origin, not merely a separately valid ledger entry. -/
+theorem core_call_exact {prepared : PreparedProgram}
+    (checked : CheckedPass prepared false requireMain) (function : Core.Function)
+    (present : function ∈ checked.lowered.module.functions) (target : Nat)
+    (called : target ∈ function.body.callIds) :
+    ∃ call ∈ checked.lowered.emittedCalls,
+      checked.lowered.origins[function.id]? = some call.caller ∧ call.id = target ∧
+      checked.lowered.origins[target]? = some call.key := by
+  obtain ⟨call, member, caller, same⟩ := core_call_recorded checked function present target called
+  exact ⟨call, member, caller, same, same ▸ emitted_call_exact checked call member⟩
+
 theorem emitted_call_probe_renaming {prepared : PreparedProgram} (checked : CheckedPass prepared audit requireMain)
     (call : EmittedCall) (member : call ∈ checked.lowered.emittedCalls) (different : call.origin ≠ call.key) :
     audit = true ∧ call.origin.definition = call.key.definition ∧
@@ -142,7 +202,7 @@ private theorem probe_reuse_valid {prepared : PreparedProgram} (checked : Checke
   simp only [validPass, Bool.and_eq_true, and_assoc] at accepted
   have calls := accepted.2.2.1
   simp only [validEmittedCalls, Bool.and_eq_true, and_assoc] at calls
-  exact List.all_eq_true.mp calls.2.2.2 reuse member
+  exact List.all_eq_true.mp calls.2.2.2.1 reuse member
 
 /-- A cached body returning an input Fn returns that exact caller argument
 after renaming, including its signature and equality with other arguments. -/

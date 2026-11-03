@@ -1137,6 +1137,19 @@ the template returns an input Fn. Separate receipts check local-result freshness
 against the template result and caller inputs; the actual lowering equation
 retains the fresh-name counter and repeated-request cache. These structural
 facts are not a source-specialization equivalence theorem.
+
+The public Fn composition also checks converse call coverage against the actual
+returned Core. `coreCallEdges` traverses every body, including both branches,
+and pairs each target ID with its caller's specialization key. A reconstructed
+count table must match the emitted-call ledger in both directions; duplicate
+caller keys are independently rejected. `caller_instances_unique`,
+`core_call_count`, `core_call_recorded` and `core_call_exact` connect every
+actual call and its multiplicity to the recorded caller and exact executable
+target origin. Dropping a repeated call's record cannot pass merely because
+another matching record exists. This is structural correspondence of returned
+Core calls and checked records; it does not prove source evaluation preservation
+or completeness of the separate ordinary-source `CallReference` ledger.
+
 `checked_elaboration_budget` connects the actual reconstructed pass and its exact
 returned Core to the independently checked 1,000,000-unit work-counter bound.
 `FunctionSource.WorkBudget.charge_exact` proves exact accumulation without
@@ -1171,6 +1184,24 @@ rich method bodies, expanded definitions and returned Core passes. Thirty-seven
 regressions and four native fixtures exercise the composition. Edit/authority
 envelopes remain rejected. Public protocol 7, whole-term typed evaluation and
 native refinement are still outside these structural guarantees.
+
+`DispatchCall` additionally records the caller specialization and emitted Core
+target ID. `dispatch_target_iff` characterizes generic targets using the actual
+origin array and reconstructed method/key definition table, independently of
+receipt flags. `core_dispatch_call_count` and `core_dispatch_call_recorded`
+prove converse occurrence coverage for those actual Core calls.
+`core_dispatch_call_selected` connects each to the independently selected
+method and exact emitted origin; `dispatch_caller_scope` checks the original
+lexical body scope. These checks run in both the audit and executable passes,
+including the authority composition used by public protocols. Regressions
+delete, duplicate and alter records and cover repeated calls and both branches.
+`CallCoverage.legacy_wire`, `indexed_wire` and `resource_wire` apply the
+count, origin and winner facts directly to the exact returned Core of public
+protocols 2–9, including both ordinary and resource-fragment passes. Matching
+is by caller specialization and emitted target with multiplicity; it does not
+assign distinct source locations to otherwise identical edges.
+Completeness of numerical schedule receipts remains a separate open part of
+[#432](https://github.com/MGYamada/Vastitas/issues/432).
 
 `VastitasOracle.IndexedAuthority` connects rich contribution bodies to the
 actual `Authority.assemble` certificate. `authority_trace`, `applied_authorized`

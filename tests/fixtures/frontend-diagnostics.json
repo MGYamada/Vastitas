@@ -1,0 +1,755 @@
+{
+ "about": "Source to frontend diagnostic cases; the backend never runs. A case with a code expects the first diagnostic to have that code at line/column (1-based; columns count Unicode scalar values) and a message containing `message`. A null code means the frontend accepts the source. `input` is `flat` (one file) or `package` (the root module of a minimal package).",
+ "cases": [
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "use other::int;\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 12,
+   "message": "`int` is reserved for builtin Nat-to-Int conversion"
+  },
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "use other::thing as int;\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 21,
+   "message": "`int` is reserved for builtin Nat-to-Int conversion"
+  },
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "use other::generic;\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 12,
+   "message": "`generic` is reserved and cannot be used"
+  },
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "use other::Any;\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 12,
+   "message": "`Any` is reserved and cannot be used"
+  },
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "use other::super;\nfn main() -> Int { 0 }\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 12,
+   "message": "`super` is reserved and cannot be used"
+  },
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "use other::Point;\nfn main() -> Int { 0 }\n",
+   "code": null
+  },
+  {
+   "issue": 524,
+   "input": "package",
+   "source": "pub use other::compose;\nfn main() -> Int { 0 }\n",
+   "code": null
+  },
+  {
+   "issue": 525,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    cache int = pack3(a, b);\n    value { 0 }\n}\n",
+   "code": "E_RESERVED",
+   "line": 2,
+   "column": 11,
+   "message": "`int` is reserved for builtin Nat-to-Int conversion"
+  },
+  {
+   "issue": 525,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    tensor int = view2(a, x, y);\n    value { 0 }\n}\n",
+   "code": "E_RESERVED",
+   "line": 2,
+   "column": 12,
+   "message": "`int` is reserved for builtin Nat-to-Int conversion"
+  },
+  {
+   "issue": 525,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    call make() -> (out, int);\n    value { 0 }\n}\n",
+   "code": "E_RESERVED",
+   "line": 2,
+   "column": 26,
+   "message": "`int` is reserved for builtin Nat-to-Int conversion"
+  },
+  {
+   "issue": 525,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    let v: Int = call make() -> (Nat);\n    value { v }\n}\n",
+   "code": "E_RESERVED",
+   "line": 2,
+   "column": 34,
+   "message": "`Nat` is reserved and cannot be used"
+  },
+  {
+   "issue": 525,
+   "input": "package",
+   "source": "resource fn make() returns (int: Owned<F64, 1>) -> Int {\n    value { 0 }\n}\n",
+   "code": "E_RESERVED",
+   "line": 1,
+   "column": 29,
+   "message": "`int` is reserved for builtin Nat-to-Int conversion"
+  },
+  {
+   "issue": 525,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    call make(data) -> (out);\n    cache packed = pack3(a, b);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    gemm(a, b, c, overwrite, NativeFast, alpha = f64(1.0), alpha = f64(2.0));\n    value { 0 }\n}\n",
+   "code": "E_DUPLICATE",
+   "line": 2,
+   "column": 60,
+   "message": "GEMM coefficient is specified twice"
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    gemm(a, b, c, overwrite, NativeFast, beta = f64(1.0), beta = f64(2.0));\n    value { 0 }\n}\n",
+   "code": "E_DUPLICATE",
+   "line": 2,
+   "column": 59,
+   "message": "GEMM coefficient is specified twice"
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    gemm(a, b, c, overwrite, NativeFast, gamma = f64(1.0));\n    value { 0 }\n}\n",
+   "code": "E_NUMERICAL_TYPE",
+   "line": 2,
+   "column": 42,
+   "message": "expected alpha or beta coefficient"
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    gemm(a, b, c, accumulate, NativeFast, beta = f64(1.0), alpha = coefficient(s));\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_gemm(a, b, c, overwrite, NativeFast, alpha = f64(1.0), alpha = f64(2.0));\n    value { 0 }\n}\n",
+   "code": "E_DUPLICATE",
+   "line": 2,
+   "column": 68,
+   "message": "runtime GEMM coefficient is specified twice"
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_gemm(a, b, c, overwrite, NativeFast, beta = f64(1.0), beta = f64(2.0));\n    value { 0 }\n}\n",
+   "code": "E_DUPLICATE",
+   "line": 2,
+   "column": 67,
+   "message": "runtime GEMM coefficient is specified twice"
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_gemm(a, b, c, overwrite, NativeFast, gamma = f64(1.0));\n    value { 0 }\n}\n",
+   "code": "E_NUMERICAL_TYPE",
+   "line": 2,
+   "column": 50,
+   "message": "expected alpha or beta coefficient"
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_gemm(a, b, c, accumulate, NativeFast, beta = f64(1.0), alpha = coefficient(s));\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 527,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    evaluate(a, b, c, overwrite, NativeFast, beta = f64(1.0), beta = f64(1.0));\n    value { 0 }\n}\n",
+   "code": "E_DUPLICATE",
+   "line": 2,
+   "column": 63,
+   "message": "GEMM coefficient is specified twice"
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    borrow w = modify(data);\n    value { 0 }\n}\n",
+   "code": "E_TYPE",
+   "line": 2,
+   "column": 16,
+   "message": "borrow requires read, write or read_write"
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_borrow w = modify(data);\n    value { 0 }\n}\n",
+   "code": "E_RESOURCE_TYPE",
+   "line": 2,
+   "column": 24,
+   "message": "runtime access requires read, write or read_write"
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    borrow w = read(data);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_borrow w = read(data);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    borrow w = write(data);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_borrow w = write(data);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    borrow w = read_write(data);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 528,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    runtime_borrow w = read_write(data);\n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 529,
+   "input": "flat",
+   "source": "fn main() -> Int { if true { 0 } else if false { 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1 } else { 2 } }\n",
+   "code": "E_LIMIT",
+   "line": 1,
+   "column": 50,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 529,
+   "input": "flat",
+   "source": "fn main() -> Int { 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1 }\n",
+   "code": "E_LIMIT",
+   "line": 1,
+   "column": 20,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 529,
+   "input": "flat",
+   "source": "fn main() -> Int { if true { 0 } else if false { ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) } else { 2 } }\n",
+   "code": "E_LIMIT",
+   "line": 1,
+   "column": 112,
+   "message": "combined type/expression nesting exceeds the supported limit of 64"
+  },
+  {
+   "issue": 529,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { if x == 0 { 0 } else if x == 1 { 1 } else if x == 2 { 2 } else if x == 3 { 3 } else if x == 4 { 4 } else if x == 5 { 5 } else if x == 6 { 6 } else if x == 7 { 7 } else if x == 8 { 8 } else if x == 9 { 9 } else if x == 10 { 10 } else if x == 11 { 11 } else if x == 12 { 12 } else if x == 13 { 13 } else if x == 14 { 14 } else if x == 15 { 15 } else if x == 16 { 16 } else if x == 17 { 17 } else if x == 18 { 18 } else if x == 19 { 19 } else if x == 20 { 20 } else if x == 21 { 21 } else if x == 22 { 22 } else if x == 23 { 23 } else if x == 24 { 24 } else if x == 25 { 25 } else if x == 26 { 26 } else if x == 27 { 27 } else if x == 28 { 28 } else if x == 29 { 29 } else if x == 30 { 30 } else if x == 31 { 31 } else if x == 32 { 32 } else if x == 33 { 33 } else if x == 34 { 34 } else if x == 35 { 35 } else if x == 36 { 36 } else if x == 37 { 37 } else if x == 38 { 38 } else if x == 39 { 39 } else if x == 40 { 40 } else if x == 41 { 41 } else if x == 42 { 42 } else if x == 43 { 43 } else if x == 44 { 44 } else if x == 45 { 45 } else if x == 46 { 46 } else if x == 47 { 47 } else if x == 48 { 48 } else if x == 49 { 49 } else if x == 50 { 50 } else if x == 51 { 51 } else if x == 52 { 52 } else if x == 53 { 53 } else if x == 54 { 54 } else if x == 55 { 55 } else if x == 56 { 56 } else if x == 57 { 57 } else if x == 58 { 58 } else if x == 59 { 59 } else if x == 60 { 60 } else if x == 61 { 61 } else if x == 62 { 62 } else { -1 } }\n",
+   "code": "E_LIMIT",
+   "line": 1,
+   "column": 1437,
+   "message": "`else if` chain exceeds the supported nesting limit; a standalone chain supports at most 62 conditions"
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { -(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1) }\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 20,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { -(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1) }\n",
+   "code": null
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { !(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1) }\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 20,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { !(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1) }\n",
+   "code": null
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { f(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1) }\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 20,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { f(1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1) }\n",
+   "code": null
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { if 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1 { 0 } else { 1 } }\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 20,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn f(x: Int) -> Int { x }\nfn main() -> Int { if 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1 { 0 } else { 1 } }\n",
+   "code": null
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn main() -> Int { { 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1 } }\n",
+   "code": "E_LIMIT",
+   "line": 1,
+   "column": 20,
+   "message": "expression tree exceeds the supported depth limit of 128"
+  },
+  {
+   "issue": 530,
+   "input": "flat",
+   "source": "fn main() -> Int { { 1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1 } }\n",
+   "code": null
+  },
+  {
+   "issue": 531,
+   "input": "flat",
+   "source": "fn main() -> Int { \"abc\" }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 20,
+   "message": "string literals are not supported"
+  },
+  {
+   "issue": 531,
+   "input": "flat",
+   "source": "fn main() -> Int { \"a\\qb\" }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 20,
+   "message": "string literals are not supported"
+  },
+  {
+   "issue": 531,
+   "input": "flat",
+   "source": "fn main() -> Int { \"unterminated }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 20,
+   "message": "string literals are not supported"
+  },
+  {
+   "issue": 531,
+   "input": "flat",
+   "source": "\"abc\"\nfn main() -> Int { 0 }\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 1,
+   "message": "found a string literal"
+  },
+  {
+   "issue": 531,
+   "input": "package",
+   "source": "pub transfer handoff : choose to module(\"../addon/Vastitas.toml\", \"\");\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 34,
+   "message": "manifest-path edit recipients were removed"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int { \"\\u001b[2J\\u001b]8;;http://example.invalid\\u0007click\\u001b]8;;\\u0007\" }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 20,
+   "message": "string literals are not supported"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int { \u001b[2J }\n",
+   "code": "E_LEX",
+   "line": 1,
+   "column": 20,
+   "message": "unsupported character U+001B;"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int { \u0007 }\n",
+   "code": "E_LEX",
+   "line": 1,
+   "column": 20,
+   "message": "unsupported character U+0007;"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int { \u202e0 }\n",
+   "code": "E_LEX",
+   "line": 1,
+   "column": 20,
+   "message": "unsupported character U+202E;"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int { caf\u00e9 }\n",
+   "code": "E_LEX",
+   "line": 1,
+   "column": 23,
+   "message": "unsupported character `\u00e9` (U+00E9);"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u202e} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+202E"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u2066} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+2066"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u200b} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+200B"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u200f} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+200F"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u061c} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+061C"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u00ad} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+00AD"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \ufe0f} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+FE0F"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \udb40\udc41} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the invisible or bidirectional format character U+E0041"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // caf\u00e9 \u2211 \u65e5\u672c \u05e9\u05dc\u05d5\u05dd tab:\t.\n    0\n}\n",
+   "code": null
+  },
+  {
+   "issue": 565,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } \n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 565,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } \n    value { 0 }\n}\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 655,
+   "message": "resource branch nesting exceeds the supported limit of 64"
+  },
+  {
+   "issue": 565,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { if true { let v: Int = value { ((((((((((((((((((((((((((((((0)))))))))))))))))))))))))))))) }; } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } } else { } \n    value { 0 }\n}\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 450,
+   "message": "combined type/expression nesting exceeds the supported limit of 64"
+  },
+  {
+   "issue": 565,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    let v: Int = value { (((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((0))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) }; \n    value { 0 }\n}\n",
+   "code": null
+  },
+  {
+   "issue": 565,
+   "input": "package",
+   "source": "resource fn main() -> Int {\n    let v: Int = value { ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) }; \n    value { 0 }\n}\n",
+   "code": "E_LIMIT",
+   "line": 2,
+   "column": 90,
+   "message": "combined type/expression nesting exceeds the supported limit of 64"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int { ((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((0)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))) }\n",
+   "code": "E_LIMIT",
+   "line": 1,
+   "column": 84,
+   "message": "combined type/expression nesting exceeds the supported limit of 64"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "resource fn main() -> Int { value { 42 } }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "`resource fn` declarations require manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "mod helpers;\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "`mod` declarations require manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "use std::geometry;\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "`use` imports require manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "pub fn f() -> Int { 1 }\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "`pub` visibility requires manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "indexed marker M;\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "`indexed` declarations require manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "grant g: f to app { domain; }\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "edit-authority declarations require manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "assembly { }\nfn main() -> Int { 0 }\n",
+   "code": "E_UNSUPPORTED",
+   "line": 1,
+   "column": 1,
+   "message": "edit-authority declarations require manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "fun main() -> Int { 42 }\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 1,
+   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `fun`; help: did you mean `fn`?"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "fn main() -> Int { 0 }\nmethd f(x: Int) -> Int { x }\n",
+   "code": "E_PARSE",
+   "line": 2,
+   "column": 1,
+   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `methd`; help: did you mean `method`?"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "resource main;\n",
+   "code": "E_PARSE",
+   "line": 1,
+   "column": 1,
+   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `resource`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "fn main() -> Int { 0 }\n42\n",
+   "code": "E_PARSE",
+   "line": 2,
+   "column": 1,
+   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `42`"
+  },
+  {
+   "issue": 569,
+   "input": "flat",
+   "source": "fn main() -> Int { 0 }\n}\n",
+   "code": "E_PARSE",
+   "line": 2,
+   "column": 1,
+   "message": "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found `}`"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let x = 1; { let x = 2; x } }\n",
+   "code": "E_DUPLICATE",
+   "line": 1,
+   "column": 33,
+   "message": "binding `x` already exists in this scope"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let a = { let x = 1; x }; x }\n",
+   "code": "E_NAME",
+   "line": 1,
+   "column": 46,
+   "message": "unknown value `x`"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let x = 1; let f = fn(y: Int) -> Int { x }; f(1) }\n",
+   "code": "E_CAPTURE",
+   "line": 1,
+   "column": 59,
+   "message": "independent lambda cannot capture `x`"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let x = 1; let f = fn(x: Int) -> Int { x }; f(1) }\n",
+   "code": "E_SHADOW",
+   "line": 1,
+   "column": 42,
+   "message": "binding `x` shadows an enclosing binding"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let f = fn(y: Int) -> Int { let g = fn(z: Int) -> Int { y }; g(y) }; f(1) }\n",
+   "code": "E_CAPTURE",
+   "line": 1,
+   "column": 76,
+   "message": "independent lambda cannot capture `y`"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let f = fn(y: Int) -> Int { let g = fn(z: Int) -> Int { let y = z; y }; g(y) }; f(1) }\n",
+   "code": "E_SHADOW",
+   "line": 1,
+   "column": 76,
+   "message": "binding `y` shadows an enclosing binding"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn f(X: Scheme) -> Int { let g = fn(p: Point<X, Base(QQ)>) -> Int { 0 }; 0 }\n",
+   "code": "E_CAPTURE",
+   "line": 1,
+   "column": 37,
+   "message": "independent lambda cannot capture endpoint `X`"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let f = fn(y: Int) -> Int { y }; y }\n",
+   "code": "E_NAME",
+   "line": 1,
+   "column": 53,
+   "message": "unknown value `y`"
+  },
+  {
+   "issue": 552,
+   "input": "flat",
+   "source": "fn main() -> Int { let a = { let x = 1; x }; let b = { let x = 2; x }; let f = fn(y: Int) -> Int { let x = y; x }; a + b + f(if true { let x = 3; x } else { let x = 4; x }) }\n",
+   "code": null
+  }
+ ]
+}

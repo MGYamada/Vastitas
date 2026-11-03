@@ -209,6 +209,8 @@ struct PathDependency {
 struct Loader {
     sources: Sources,
     packages: Vec<Package>,
+    // Sources of `packages`, so a shared dependency is found in constant time.
+    loaded: HashSet<String>,
     active: HashSet<PathBuf>,
     output: Option<OutputIdentity>,
     module_count: usize,
@@ -250,7 +252,7 @@ impl Loader {
                 manifest.display()
             ));
         }
-        if self.packages.iter().any(|package| package.source == source) {
+        if self.loaded.contains(&source) {
             return Ok(source);
         }
         if self.active.len() >= MAX_PACKAGE_NESTING {
@@ -311,6 +313,7 @@ impl Loader {
             &mut seen,
             &mut modules,
         )?;
+        self.loaded.insert(source.clone());
         self.packages.push(Package {
             source: source.clone(),
             name: parsed.package.name,
@@ -441,6 +444,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     let mut loader = Loader {
         sources: Sources::empty(),
         packages: Vec::new(),
+        loaded: HashSet::new(),
         active: HashSet::new(),
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
         module_count: 0,

@@ -1,4 +1,5 @@
 import VastitasOracle.Core
+import VastitasOracle.AlgebraBasis
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

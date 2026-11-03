@@ -15,7 +15,7 @@ def fnv1a (hash : UInt64) (bytes : ByteArray) : UInt64 :=
 
 def hex16 (value : UInt64) : String :=
   let digits := Nat.toDigits 16 value.toNat
-  String.mk (List.replicate (16 - digits.length) '0' ++ digits)
+  String.ofList (List.replicate (16 - digits.length) '0' ++ digits)
 
 /-- Digest of the file being elaborated and of every module it imports, directly
 or transitively, whose source lies beside it. Each entry is hashed in path order

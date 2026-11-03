@@ -1028,6 +1028,28 @@ def run : Nat → State → List Statement → Except Error State
         join left right
     run fuel after rest
 
+/-- The result of an independent replay, for a particular starting frame and
+complete action list. Built only from a completed call receipt. -/
+structure ReplayEvidence {σ α β : Type} (execute : σ → List α → β) where
+  initial : σ
+  actions : List α
+  output : β
+  verified : execute initial actions = output
+
+def replayWithEvidence {σ α β : Type} [DecidableEq σ] [DecidableEq α]
+    (execute : σ → List α → β) (initial : σ) (actions : List α)
+    (previous : Option (ReplayEvidence execute)) : {r : β // execute initial actions = r} := Id.run do
+  if let some receipt := previous then
+    if same : initial = receipt.initial ∧ actions = receipt.actions then
+      return ⟨receipt.output, by rw [same.1, same.2]; exact receipt.verified⟩
+  return ⟨execute initial actions, rfl⟩
+
+theorem replayWithEvidence_eq {σ α β : Type} [DecidableEq σ] [DecidableEq α]
+    (execute : σ → List α → β) (initial : σ) (actions : List α)
+    (previous : Option (ReplayEvidence execute)) :
+    replayWithEvidence execute initial actions previous = ⟨execute initial actions, rfl⟩ :=
+  Subtype.ext (replayWithEvidence execute initial actions previous).property.symm
+
 structure CheckedPlan (input : List Statement) where
   bounded : (remaining 4096 4096 input).isSome = true
   finalState : State

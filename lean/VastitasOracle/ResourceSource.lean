@@ -65,6 +65,20 @@ theorem pure_value_functions_total {program : Program} (checked : Checked progra
       IndexedFunctionSafety.FunctionReturns checked.values.executable.core.module function :=
   IndexedProgramSafety.checked_functions_total_and_typed checked.values.executable.core
 
+/-- The accepted public entry uses the original library's complete probe list
+and starts executable expansion from the actual closed program. -/
+theorem entry_uses_checked_library {program : Program} (checked : Checked program requireMain)
+    (entry : Nat) (found : program.entry = some entry) :
+    let p : Functions.Program := ⟨checked.lowered.functions, entry⟩
+    let e := checked.execution entry found
+    Functions.checkWithLibrary p checked.library = .ok e.checked ∧
+      e.checked.bodies = checked.library.bodies ∧
+      Functions.executable p (numericalEnvironment checked.pureProgram) checked.targets.signatures =
+        .ok e.checked.context := by
+  let e := checked.execution entry found
+  exact ⟨(Functions.checkWithLibrary_eq_check _ checked.library).trans e.accepted,
+    Except.ok.inj (e.checked.bodiesFrom.symm.trans checked.library.bodiesFrom), e.checked.expanded⟩
+
 theorem actual_entry_closed {program : Program} (checked : Checked program requireMain)
     (entry : Nat) (found : program.entry = some entry) :
     let execution := checked.execution entry found

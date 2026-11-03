@@ -1953,7 +1953,9 @@ mutual
         let runtimeAfter ← Shapes.Functions.finish before.shapes runtimeContext.shapes runtimeBorrowed
         if runtimeAfter.events.size != runtimeContext.shapes.events.size then setShapes runtimeAfter
         else modify fun context => {context with shapes := runtimeAfter}
-        let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter
+        let nestedShape := if before.shapeCalls.size < runtimeContext.shapeCalls.size then
+          runtimeContext.shapeCalls.back? else none
+        let runtimeReceipt ← Shapes.Functions.checkCall before.shapes runtimeAfter nestedShape
         if runtimeAfter.events.size != before.shapes.events.size then
           modify fun context => {context with shapeCalls := context.shapeCalls.push runtimeReceipt}
         -- Discarding a result avoids native evaluation, not its signature audit.
@@ -1970,13 +1972,16 @@ mutual
         let results := returned.map fun value => (value.owner, value.type)
         let statements := after.code.toList.drop before.code.size
         if slice : before.code.toList ++ statements = after.code.toList then
-          match replayed : run 4096 before.resources statements with
+          let nested := if before.calls.size < after.calls.size then after.calls.back? else none
+          let checked := replayWithEvidence (run 4096) before.resources statements (nested.map fun receipt =>
+            ⟨receipt.before, receipt.statements, .ok receipt.after, receipt.replayed⟩)
+          match result : checked.val with
           | .error diagnostic => throw diagnostic
           | .ok state =>
             if exactState : state = after.resources then
               if valid : ExitValid before.resources after.resources results then
                 let receipt : CallReceipt := ⟨callee, before.resources, after.resources, results,
-                  before.code.toList, statements, after.code.toList, slice, exactState ▸ replayed, valid⟩
+                  before.code.toList, statements, after.code.toList, slice, exactState ▸ checked.property.trans result, valid⟩
                 set {after with
                   calls := after.calls.push receipt
                   numerical := before.numerical
@@ -2304,29 +2309,60 @@ structure Checked (program : Program) (environment : Indexed.Environment := [])
 
 def Checked.statements {program environment signatures} (checked : Checked program environment signatures) : List Storage.Statement := checked.context.code.toList
 
+/-- Only the synthetic body evidence is supplied. The entry is independently
+expanded with its real arguments, and all actual schedules are checked here. -/
+private def checkExecutable (program : Program) (environment : Indexed.Environment)
+    (signatures : List ValueFlow.Signature) (headerAccepted : headers program = .ok ())
+    (bodies : List Probe)
+    (bodiesFrom : program.functions.mapM (fun f => probe program.functions f environment signatures) = .ok bodies) :
+    Except Error (Checked program environment signatures) :=
+  match expanded : executable program environment signatures with
+  | .error diagnostic => .error diagnostic
+  | .ok context => do
+    let values ← ValueFlow.check signatures [] context.flow.toList
+    let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList
+    if sameEvents : shapes.events = context.shapes.events.toList then
+      have shapeEvents : Shapes.Flow.collect context.flow.toList = .ok context.shapes.events.toList :=
+        sameEvents ▸ shapes.collected
+      if shapeFinal : shapes.resources.after = context.shapes.resources then
+        if projected : ValueFlow.project context.flow.toList = context.code.toList then
+          match accepted : checkPlan context.code.toList with
+          | .error diagnostic => .error diagnostic
+          | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded,
+              resources, accepted, values, projected, shapes, shapeEvents, shapeFinal⟩
+        else reject "E_RESOURCE_VALUE" "mixed execution differs from its resource projection"
+      else reject "E_RUNTIME_SHAPE" "runtime final frame differs from the independent replay"
+    else reject "E_RUNTIME_SHAPE" "runtime event origins differ from the mixed execution"
+
 def check (program : Program) (environment : Indexed.Environment := [])
     (signatures : List ValueFlow.Signature := []) : Except Error (Checked program environment signatures) :=
   match headerAccepted : headers program with
   | .error diagnostic => .error diagnostic
   | .ok () => match bodiesFrom : program.functions.mapM (fun function => probe program.functions function environment signatures) with
     | .error diagnostic => .error diagnostic
-    | .ok bodies => match expanded : executable program environment signatures with
-      | .error diagnostic => .error diagnostic
-      | .ok context => do
-        let values ← ValueFlow.check signatures [] context.flow.toList
-        let shapes ← Shapes.Flow.check values.finalState.slots context.flow.toList
-        if sameEvents : shapes.events = context.shapes.events.toList then
-          have shapeEvents : Shapes.Flow.collect context.flow.toList = .ok context.shapes.events.toList :=
-            sameEvents ▸ shapes.collected
-          if shapeFinal : shapes.resources.after = context.shapes.resources then
-            if projected : ValueFlow.project context.flow.toList = context.code.toList then
-              match accepted : checkPlan context.code.toList with
-              | .error diagnostic => .error diagnostic
-              | .ok resources => .ok ⟨headerAccepted, bodies, bodiesFrom, context, expanded,
-                  resources, accepted, values, projected, shapes, shapeEvents, shapeFinal⟩
-            else reject "E_RESOURCE_VALUE" "mixed execution differs from its resource projection"
-          else reject "E_RUNTIME_SHAPE" "runtime final frame differs from the independent replay"
-        else reject "E_RUNTIME_SHAPE" "runtime event origins differ from the mixed execution"
+    | .ok bodies => checkExecutable program environment signatures headerAccepted bodies bodiesFrom
+
+/-- A public package has already checked every resource body for this exact
+function list, declaration environment and scalar signature table. -/
+def checkWithLibrary (program : Program) {environment signatures}
+    (library : CheckedLibrary program.functions environment signatures) :
+    Except Error (Checked program environment signatures) :=
+  match headerAccepted : headers program with
+  | .error diagnostic => .error diagnostic
+  | .ok () => checkExecutable program environment signatures headerAccepted library.bodies library.bodiesFrom
+
+theorem checkWithLibrary_eq_check (program : Program) {environment signatures}
+    (library : CheckedLibrary program.functions environment signatures) :
+    checkWithLibrary program library = check program environment signatures := by
+  unfold checkWithLibrary check
+  split
+  · rfl
+  · split
+    next diagnostic failed => rw [library.bodiesFrom] at failed; contradiction
+    next bodies checked =>
+      have same := Except.ok.inj (library.bodiesFrom.symm.trans checked)
+      subst bodies
+      rfl
 
 def generate (program : Program) (report : Bool := false) (budget : Nat := byteLimit)
     (environment : Indexed.Environment := []) : Except Error String := do

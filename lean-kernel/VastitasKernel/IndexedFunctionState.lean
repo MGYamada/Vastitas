@@ -119,6 +119,7 @@ structure State where
   dispatchCalls : List DispatchCall := []
   nextProbe : Nat := 0
   specializations : Nat := 0
+  elaborationWork : Nat := 0
   audit : Bool := false
   deriving Inhabited
 

@@ -30,8 +30,17 @@ scanned as well. This deliberately closed graph must be amended when future
 packages are actually introduced; it is not a general Lake dependency resolver.
 CI checks the boundary before resolution and after the official build, disables
 Mathlib cache downloads, and preserves the allowed axiom set. The existing
-`audit_axioms.lean` additionally audits transitive declarations in the Oracle,
-kernel and promotion fixture namespaces. `check_oracle_core.lean` exercises
+`audit_axioms.lean` additionally selects every imported declaration by its
+actual defining module in the Oracle, kernel and promotion-fixture libraries,
+including private declarations and declarations in other namespaces. Each
+required module group must be nonempty. It audits their transitive axioms and
+rejects project `extern`/`implemented_by` substitutions; proved `csimp`
+rewrites remain permitted. This deliberately excludes Lean distribution
+implementations and the separately built optional native/FFI packages.
+`scripts/check_axiom_audit.py` compiles isolated test modules and checks rejection
+of unused private axioms in each library, unrelated namespaces, external and
+implementation substitutions, and an empty audit scope. These are CI policy
+checks, not a native-refinement theorem. `check_oracle_core.lean` exercises
 nonempty/empty coordinate spaces, duplicate/Unicode names and positional lists.
 That dependency-removal increment added neither `VastitasMath` nor
 `VastitasBridge`, and claimed no new std correspondence or constitutional theorem.
@@ -252,7 +261,7 @@ including the proof/axiom audit and macOS/Linux compiler builds without mathlib
 This is not completion of all Stage 1 features in the historical design.
 
 The proofs contain no `sorry`, `admit`, or project-specific unproved axioms.
-CI audits the oracle namespace against Lean's standard logical axioms
+CI audits declarations from the actual project modules against Lean's standard logical axioms
 (`propext`, `Classical.choice`, and `Quot.sound`).
 
 ## Stage 1b capture and static function contracts
@@ -402,6 +411,29 @@ actual mixed-run slot typing and branch scope, exact source fragment/Core target
 reconstruction, and demanded scalar returns after completed resource calls.
 Both-arm resource acceptance and scalar typing are separate certificates; the
 resource projection alone does not establish their operational equivalence.
+
+The actual emit entries now have acceptance theorems, in addition to the older
+component-generation results. `StorageCodegen.compiled_checked` connects
+`Storage.Native.compile` to its exact original input and successful `Native.audit`;
+`compiled_closed` extracts the checked transition run, final audit and empty
+allocations/loans. `IndexedCodegen.library_checked` and `generated_checked` retain
+the actual repeated Core check, unchanged module, typing, dependency order and
+main signature. `library_roots_present` checks every requested root; the executable
+wrapper theorem records the actual generated library and selected main.
+
+`ResourceCodegen.public_generated_checked` connects successful
+`ResourceSource.Codegen.generate` and its decoded source to the real protocol-8
+`Wire.check` result. `public_resource_plan` identifies the `Native.compile` call
+on that same accepted entry schedule and its audited closed native plan, using
+determinism of the actual repeated source check. `generated_pure_entry` retains
+the same returned pure Core and the disabled optional-runtime flags when there
+is no resource entry. These are **acceptance and exact-input facts**, not emitted
+text semantics, native heap/float refinement, or a proof that every numerical
+operation has an authority receipt. The existing receipt-origin theorems still
+quantify over recorded receipts; converse schedule-to-receipt and
+emitted-generic-call coverage remain open in
+[#432](https://github.com/MGYamada/Vastitas/issues/432).
+
 The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
 instantiated `Storage.run`, and restored caller loans/allocations.
@@ -414,9 +446,16 @@ total replay/probe work or establish linear compiler scaling.
 `StorageShapeNumerical` proves acceptance by the actual nominal `checkProduct`
 for the same maps and coefficients. `ResourceRuntimeShapes` connects those
 results to public entry projections, declaration origins, live integral slots
-and scalar returns after both resource components complete. This does not prove
-native arithmetic/UInt64 lowering or source execution refinement. Shape results,
-floating scalar expression interfaces and native/source refinement remain open.
+and scalar returns after both resource components complete. Separately,
+[`prove_runtime_shape_guards.lean`](../scripts/prove_runtime_shape_guards.lean)
+proves and audits 13 universal facts about the actual optional runtime helpers:
+Lean `UInt64` layout decisions equal the concrete checker, LP64 span arithmetic cannot
+wrap, narrowing agrees with actual Nat/Int admission, and the bound/equality/cell
+expressions agree with Nat arithmetic for representable constants. Its layout
+corollary reaches actual `Shapes.Guard.eval` under explicit representation
+premises. This validation-only import does not add runtime/FFI dependencies to
+the oracle, interpret generated text, or prove source execution/native refinement.
+Shape results and floating scalar expression interfaces remain open.
 
 The [numerical declaration profiles](numerical-declarations.md) use the same
 complete declaration certificate. `IndexedSource.checked_implementation_contract`,
@@ -657,6 +696,17 @@ Linux from a checkout without `lean/` or mathlib, including the direct kernel
 regression targets. A separate job builds the proof oracle and audits its
 axioms. Dependency-boundary checks prevent the normal compiler path from
 acquiring a mathlib dependency.
+
+Other CI jobs use a non-cone sparse checkout that excludes only
+`experiments/source_workspace/results/*/evidence.zip`. The pinned checkout
+action selects the `blob:none` fetch filter when sparse patterns are supplied;
+do not also set its `filter` input, which overrides sparse checkout. All source,
+manifests, summaries and other verifier archives remain available. The workspace
+observation job retains a full checkout because its replay and mutation tests
+consume those source-workspace archives, including older records. The compiler
+jobs retain their separate no-oracle allowlist. This reduces unrelated CI fetches
+without moving or deleting retained evidence; release-asset storage, reproducible
+retrieval and repository-history growth remain tracked in #448.
 
 
 ## Package namespace acceptance
@@ -1059,6 +1109,17 @@ the template returns an input Fn. Separate receipts check local-result freshness
 against the template result and caller inputs; the actual lowering equation
 retains the fresh-name counter and repeated-request cache. These structural
 facts are not a source-specialization equivalence theorem.
+`checked_elaboration_budget` connects the actual reconstructed pass and its exact
+returned Core to the independently checked 1,000,000-unit work-counter bound.
+`FunctionSource.WorkBudget.charge_exact` proves exact accumulation without
+overflow or a discarded charge. Source preflight includes every expanded body;
+each actual specialization consumes work again in its separate pass, while a
+memoized instance does not. This is the syntax/binding-slot admission policy in
+[Stage 1b](stage1b.md), not a time-complexity theorem or a bound on namespace and
+resource-plan work. The all-body coverage and exact Core audits still run for
+every accepted input. Overspent receipt mutations and public check/emit/build
+regressions cover aggregate families, unapplied contributions and concrete Fn
+specializations; rejecting a large program supplies no proof of its semantics.
 Coverage cannot be replaced with a list of executable winners or probes
 reused as executable targets. `IndexedFunctionRegression` includes scalar/Fn
 forwarding chains, alias patterns, forged reuse receipts, unused-body rejection

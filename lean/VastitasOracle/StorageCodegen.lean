@@ -91,4 +91,33 @@ theorem checked_closed {plan : Native.Plan} (checked : Native.Checked plan) :
     checked.source.finalState.allocations = [] ∧ checked.source.finalState.loans = [] :=
   ⟨lowered_state checked.lowered, checked.source.valid, checked.source.closed⟩
 
+/-- The entry used by public resource generation retains the exact original
+schedule and succeeds only after the actual native-plan audit succeeds. -/
+theorem compiled_checked {input : List Statement} {plan : Native.Plan}
+    (compiled : Native.compile input = .ok plan) :
+    plan.input = input ∧ ∃ checked : Native.Checked plan, Native.audit plan = .ok checked := by
+  cases source : checkPlan input with
+  | error diagnostic => simp [Native.compile, source] at compiled
+  | ok sourceChecked =>
+    cases lowered : Native.lower 4096 {} input with
+    | error diagnostic => simp [Native.compile, source, lowered] at compiled
+    | ok pair =>
+      cases audited : Native.audit ⟨input, pair.2⟩ with
+      | error diagnostic => simp [Native.compile, source, lowered, audited] at compiled
+      | ok checked =>
+        have same : (⟨input, pair.2⟩ : Native.Plan) = plan := by
+          simpa [Native.compile, source, lowered, audited] using compiled
+        subst plan
+        exact ⟨rfl, checked, audited⟩
+
+theorem compiled_closed {input : List Statement} {plan : Native.Plan}
+    (compiled : Native.compile input = .ok plan) :
+    ∃ checked : Native.Checked plan,
+      plan.input = input ∧ Native.audit plan = .ok checked ∧
+      run 4096 {} input = .ok checked.source.finalState ∧
+      auditState checked.source.finalState = true ∧
+      checked.source.finalState.allocations = [] ∧ checked.source.finalState.loans = [] := by
+  obtain ⟨same, checked, audited⟩ := compiled_checked compiled
+  exact ⟨checked, same, audited, same ▸ checked_closed checked⟩
+
 end VastitasOracle.StorageCodegen

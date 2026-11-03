@@ -108,8 +108,8 @@ def main : IO Unit := do
             str(ROOT / "lean-kernel/.lake/build/lib/lean"),
             str(runtime / ".lake/build/lib/lean"),
         ])
-        print(run(["lean", ROOT / "scripts/check_runtime_shape_guards.lean"],
-                  cwd=work, env=audit_env).stdout.strip())
+        for script in ["prove_runtime_shape_guards.lean", "check_runtime_shape_guards.lean"]:
+            print(run(["lean", ROOT / "scripts" / script], cwd=work, env=audit_env).stdout.strip())
 
         functions = json.loads((ROOT / "tests/fixtures/storage-functions.json").read_text())
         for name, budget, failure, expected in [

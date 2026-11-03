@@ -160,7 +160,7 @@ theorem dispatch_call_selected {prepared : PreparedProgram} (checked : CheckedPa
       prepared.input.dispatch.definitions[(call.method, call.key)]? = some call.definition := by
   have valid := checked.accepted
   simp only [validPass, Bool.and_eq_true, and_assoc] at valid
-  have dispatchValid := valid.2.2.2.2.2
+  have dispatchValid := valid.2.2.2.2.2.1
   simp only [validDispatchCalls, List.all_eq_true] at dispatchValid
   have entry := dispatchValid call member
   simp only [Bool.and_eq_true, decide_eq_true_eq, and_assoc] at entry

@@ -46,6 +46,7 @@ import VastitasOracle.StorageGemm
 import VastitasOracle.StorageFunctions
 import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
+import VastitasOracle.ResourceCodegen
 import VastitasOracle.ResourceValueFlow
 
 import VastitasOracle.StorageShapes

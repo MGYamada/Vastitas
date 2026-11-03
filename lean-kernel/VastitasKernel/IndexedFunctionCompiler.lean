@@ -46,9 +46,13 @@ def compileInstance (input : Input) (id : Nat) (targets : List Target) (span : S
   let specialized := definition.definition.isLambda || definition.definition.function.higher
   if specialized && (← get).specializations >= Limits.specializations then
     error span "E_LIMIT" s!"higher-order specialization exceeds the {Limits.specializations}-instance limit"
+  let work ← result (WorkBudget.charge (← get).elaborationWork
+    (WorkBudget.function definition.definition.function) span)
   modify fun state => { state with
     active := instanceKey :: state.active,
-    activeSet := state.activeSet.insert instanceKey, specializations := state.specializations + if specialized then 1 else 0 }
+    activeSet := state.activeSet.insert instanceKey,
+    specializations := state.specializations + if specialized then 1 else 0,
+    elaborationWork := work }
   let context ← initialContext definition targets
   let hint := match definition.definition.function.result with | .data _ => some definition.result | .function _ => none
   let value ← block Limits.bodyChecking input definition.definition.bodyScope context definition.definition.function.body hint
@@ -145,6 +149,7 @@ structure PreparedProgram where
 
 def prepareProgram (program : Program) (declarations : Core.Declarations) (lifted : Lifted)
     (dispatch : DispatchInput := {}) (excluded : Std.HashSet Nat := {}) : Namespace.Result PreparedProgram := do
+  WorkBudget.check (lifted.definitions.toList.map (·.function))
   let (geometry, references) ← (Source.resolveGeometry program.headers declarations).run []
   let input : Source.Bodies.Input := { index := program.headers.indexed, declarations, geometry }
   let (prepared, initial) ← (lifted.definitions.mapM (prepareDefinition input)).run { references }
@@ -174,6 +179,7 @@ structure Pass where
   references : List Source.Reference
   dispatchCalls : List DispatchCall := []
   probeReuses : List ProbeReuse := []
+  elaborationWork : Nat := 0
   deriving Inhabited
 
 def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pass := do
@@ -186,12 +192,14 @@ def lowerPass (prepared : PreparedProgram) (audit : Bool) : Namespace.Result Pas
           if let .function signature := param.type then targets := targets ++ [← probe signature]
         let _ ← request entry.definition.id targets entry.definition.function.span
         pure ()
-  let workBudget := (prepared.input.prepared.size + Limits.specializations + 1) *
+  let structuralBudget := (prepared.input.prepared.size + Limits.specializations + 1) *
     (prepared.input.prepared.foldl (fun total definition => total + blockRequests definition.definition.function.body + 1) 1)
+  let workBudget := min structuralBudget (2 * Limits.elaborationWork + 1)
   let (_, state) ← runWork prepared.input workBudget (action { body := prepared.initial, audit })
   let main := (entryDefinition prepared.input.source).bind fun main =>
     (state.origins.toList.zipIdx.find? (fun (key, _) => key.definition == main)).map Prod.snd
   return ⟨⟨prepared.input.body.declarations, state.functions.toList, main⟩, state.origins,
-    state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls, state.probeReuses⟩
+    state.emittedCalls, state.calls, state.staticUses, state.body.references, state.dispatchCalls,
+    state.probeReuses, state.elaborationWork⟩
 
 end VastitasKernel.Indexed.FunctionSource.Compiler

@@ -28,6 +28,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # Retained source-workspace archives are replayed in their own job.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/experiments/source_workspace/results/*/evidence.zip
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.15.2'
@@ -138,6 +143,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # Retained source-workspace archives are replayed in their own job.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/experiments/source_workspace/results/*/evidence.zip
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.15.2'
@@ -254,6 +264,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # Retained source-workspace archives are replayed in their own job.
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/experiments/source_workspace/results/*/evidence.zip
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.15.2'

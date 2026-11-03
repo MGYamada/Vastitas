@@ -116,8 +116,8 @@ fn unsupported_keyword(name: &str) -> Option<&'static str> {
     }
 }
 
-// Unicode 16.0 Default_Ignorable_Code_Point, which includes every Bidi_Control
-// character (scripts/identifier_data/DerivedCoreProperties-16.0.0.txt).
+// Unicode 16.0 Default_Ignorable_Code_Point
+// (scripts/identifier_data/DerivedCoreProperties-16.0.0.txt).
 fn default_ignorable(ch: char) -> bool {
     matches!(
         ch as u32,
@@ -138,6 +138,17 @@ fn default_ignorable(ch: char) -> bool {
             | 0x1BCA0..=0x1BCA3
             | 0x1D173..=0x1D17A
             | 0xE0000..=0xE0FFF
+    )
+}
+
+// Characters that can make a comment display differently from how the source
+// is parsed: every Bidi_Control character (Trojan Source), and invisible
+// characters with no text-shaping role. Joiners, variation selectors and tag
+// characters remain allowed, since prose and emoji sequences use them.
+fn deceptive_in_comment(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x061C | 0x200B | 0x200E | 0x200F | 0x202A..=0x202E | 0x2060..=0x206F | 0xFEFF
     )
 }
 
@@ -328,11 +339,11 @@ impl<'a> Lexer<'a> {
             if self.source[self.offset..].starts_with("//") {
                 while let Some(ch) = self.peek().filter(|ch| *ch != '\n') {
                     self.check_line_break(ch)?;
-                    if default_ignorable(ch) {
+                    if deceptive_in_comment(ch) {
                         return Err(diagnostic(
                             "E_LEX",
                             format!(
-                                "comments cannot contain the invisible or bidirectional format character U+{:04X}; it can make source display differently from how it is parsed",
+                                "comments cannot contain the bidirectional control or invisible character U+{:04X}; it can make source display differently from how it is parsed",
                                 ch as u32
                             ),
                             Span {

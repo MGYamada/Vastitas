@@ -446,7 +446,7 @@
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+202E"
+   "message": "comments cannot contain the bidirectional control or invisible character U+202E"
   },
   {
    "issue": 565,
@@ -455,16 +455,25 @@
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+2066"
+   "message": "comments cannot contain the bidirectional control or invisible character U+2066"
   },
   {
    "issue": 565,
    "input": "flat",
-   "source": "fn main() -> Int {\n    // \u200b} 0 {\u202c\n    0\n}\n",
+   "source": "fn main() -> Int {\n    // \u2069} 0 {\u202c\n    0\n}\n",
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+200B"
+   "message": "comments cannot contain the bidirectional control or invisible character U+2069"
+  },
+  {
+   "issue": 565,
+   "input": "flat",
+   "source": "fn main() -> Int {\n    // \u200e} 0 {\u202c\n    0\n}\n",
+   "code": "E_LEX",
+   "line": 2,
+   "column": 8,
+   "message": "comments cannot contain the bidirectional control or invisible character U+200E"
   },
   {
    "issue": 565,
@@ -473,7 +482,7 @@
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+200F"
+   "message": "comments cannot contain the bidirectional control or invisible character U+200F"
   },
   {
    "issue": 565,
@@ -482,39 +491,39 @@
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+061C"
+   "message": "comments cannot contain the bidirectional control or invisible character U+061C"
   },
   {
    "issue": 565,
    "input": "flat",
-   "source": "fn main() -> Int {\n    // \u00ad} 0 {\u202c\n    0\n}\n",
+   "source": "fn main() -> Int {\n    // \u200b} 0 {\u202c\n    0\n}\n",
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+00AD"
+   "message": "comments cannot contain the bidirectional control or invisible character U+200B"
   },
   {
    "issue": 565,
    "input": "flat",
-   "source": "fn main() -> Int {\n    // \ufe0f} 0 {\u202c\n    0\n}\n",
+   "source": "fn main() -> Int {\n    // \u2060} 0 {\u202c\n    0\n}\n",
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+FE0F"
+   "message": "comments cannot contain the bidirectional control or invisible character U+2060"
   },
   {
    "issue": 565,
    "input": "flat",
-   "source": "fn main() -> Int {\n    // \udb40\udc41} 0 {\u202c\n    0\n}\n",
+   "source": "fn main() -> Int {\n    // \ufeff} 0 {\u202c\n    0\n}\n",
    "code": "E_LEX",
    "line": 2,
    "column": 8,
-   "message": "comments cannot contain the invisible or bidirectional format character U+E0041"
+   "message": "comments cannot contain the bidirectional control or invisible character U+FEFF"
   },
   {
    "issue": 565,
    "input": "flat",
-   "source": "fn main() -> Int {\n    // caf\u00e9 \u2211 \u65e5\u672c \u05e9\u05dc\u05d5\u05dd tab:\t.\n    0\n}\n",
+   "source": "fn main() -> Int {\n    // caf\u00e9 \u2211 \u65e5\u672c \u05e9\u05dc\u05d5\u05dd \u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645 \u0915\u094d\u200d\u0937 \u26a0\ufe0f \ud83d\udc68\u200d\ud83d\udc69\u200d\ud83d\udc67 \ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc73\udb40\udc63\udb40\udc74\udb40\udc7f soft\u00adhyphen tab:\t.\n    0\n}\n",
    "code": null
   },
   {

@@ -97,6 +97,8 @@ persistent ordered set of complete scope/name keys, preserving cycle checks
 without copying or scanning a growing path list. No lookup index is trusted
 from wire input. These changes reduce repeated lookup work; they do not memoize
 completed resolutions or impose a program-wide namespace work budget.
+See the [compiler scaling observation](../experiments/compiler_scaling/results/2026-11-03-macos-namespace/RESULTS.md)
+for reproducible inputs, measurements and remaining limits.
 
 ## Visibility and ownership
 

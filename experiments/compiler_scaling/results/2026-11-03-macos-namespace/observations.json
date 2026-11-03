@@ -1,0 +1,314 @@
+{
+  "host": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "controlled_host": false,
+  "compiler": {
+    "path": "/private/tmp/vastitas-named-edit-recipients-20261103/target/debug/vastitas",
+    "sha256": "06ba013805843fd3f081aa47b257c976fee24841fd6e278e67521387e81b5d69"
+  },
+  "kernels": {
+    "baseline": {
+      "path": "/private/tmp/vastitas-named-edit-recipients-20261103/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "sha256": "ff09b8e04c3f7897d8629fec21d701c9c65da989b3670735698f46490985def5"
+    },
+    "candidate": {
+      "path": "/private/tmp/vastitas-namespace-lookup-indexes-20261103/lean-kernel/.lake/build/bin/vastitas-kernel",
+      "sha256": "5ff485064e56a5505478e503450a0555bba69e76bf09954681429a17b4b88ddc"
+    }
+  },
+  "runs": 3,
+  "timeout_seconds": 60,
+  "cases": [
+    {
+      "imports": 250,
+      "references": 1,
+      "source_sha256": "a6d9b7848078050e622a2504a81db7d81d6e9bcbd8cf121540c647025d8fb361",
+      "warmups": {
+        "baseline": {
+          "seconds": 0.12029408302623779,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        },
+        "candidate": {
+          "seconds": 1.0272510420181789,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        }
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 0.10655758302891627,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.10497533396119252,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.11911941703874618,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.10664804198313504,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.10484987497329712,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.10682370897848159,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "median_seconds": {
+        "baseline": 0.10655758302891627,
+        "candidate": 0.10664804198313504
+      }
+    },
+    {
+      "imports": 500,
+      "references": 1,
+      "source_sha256": "6de84490d2aa81b6995dab64b7a2cac618a2f1d93fa933ee41ee6192be972ec9",
+      "warmups": {
+        "baseline": {
+          "seconds": 0.6587273749755695,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        },
+        "candidate": {
+          "seconds": 0.3337565420079045,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        }
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 0.6446627500117756,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.6595359169878066,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.6716127090039663,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 0.3440801249817014,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.34428941598162055,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 0.3465059580048546,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "median_seconds": {
+        "baseline": 0.6595359169878066,
+        "candidate": 0.34428941598162055
+      }
+    },
+    {
+      "imports": 1000,
+      "references": 1,
+      "source_sha256": "639d4d1f15ab3ce2b1dd1d9723ab90c3972f80f3c5d54d9b16ba60faa057dfc4",
+      "warmups": {
+        "baseline": {
+          "seconds": 4.988330000021961,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        },
+        "candidate": {
+          "seconds": 1.3613362920004874,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        }
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 4.988237041980028,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 4.988395874970593,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 4.952643291966524,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 1.3606985000078566,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 1.334533833025489,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 1.32361766602844,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "median_seconds": {
+        "baseline": 4.988237041980028,
+        "candidate": 1.334533833025489
+      }
+    },
+    {
+      "imports": 600,
+      "references": 300,
+      "source_sha256": "e31be458e37ba9408be72cc5b41d0da5ec32c5426504da4db7f03322f400c423",
+      "warmups": {
+        "baseline": {
+          "seconds": 3.358970000001136,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        },
+        "candidate": {
+          "seconds": 1.5377905000350438,
+          "exit_code": 0,
+          "timed_out": false,
+          "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+          "stderr": ""
+        }
+      },
+      "samples": {
+        "baseline": [
+          {
+            "seconds": 3.3355517500313,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 3.3696240420104004,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 3.326889374991879,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ],
+        "candidate": [
+          {
+            "seconds": 1.5392057499848306,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 1.5493599159526639,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          },
+          {
+            "seconds": 1.5400880000088364,
+            "exit_code": 0,
+            "timed_out": false,
+            "stdout": "checked /var/folders/g9/r1bkbtf50wd103y4jjcpkmfw0000gn/T/vastitas-namespace-scaling-lej8kcvo/Vastitas.toml\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "median_seconds": {
+        "baseline": 3.3355517500313,
+        "candidate": 1.5400880000088364
+      }
+    }
+  ]
+}

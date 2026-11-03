@@ -405,6 +405,41 @@ struct Parser {
 }
 
 impl Parser {
+    fn from_source(input: &SourceInput<'_>, packages: bool) -> Result<Self, Diagnostic> {
+        if input.offset.checked_add(input.source.len()).is_none() {
+            return Err(diagnostic(
+                "E_LIMIT",
+                "source byte positions exceed the supported range",
+                Span {
+                    start: input.offset,
+                    end: input.offset,
+                    line: 1,
+                    column: 1,
+                },
+            ));
+        }
+        let shift = |span: &mut Span| {
+            span.start += input.offset;
+            span.end += input.offset;
+        };
+        let mut tokens = Lexer::new(input.source).tokenize().map_err(|mut error| {
+            shift(&mut error.span);
+            error
+        })?;
+        for token in &mut tokens {
+            shift(&mut token.span);
+        }
+        Ok(Self {
+            tokens,
+            position: 0,
+            split_closer: None,
+            nesting: 0,
+            packages,
+            indexed: false,
+            expression_depths: HashMap::new(),
+        })
+    }
+
     fn peek(&self) -> &Token {
         &self.tokens[self.position]
     }
@@ -522,26 +557,20 @@ impl Parser {
         }
     }
 
-    fn module(&mut self, file: &str) -> Result<Module, Diagnostic> {
-        let mut functions = Vec::new();
-        let mut generics = Vec::new();
-        let mut methods = Vec::new();
-        let mut abstract_types = Vec::new();
-        let mut subtypes = Vec::new();
-        let mut abstract_methods = Vec::new();
+    fn flat_declarations(&mut self, module: &mut Module) -> Result<(), Diagnostic> {
         while self.peek().kind != TokenKind::Eof {
             if self.peek().is("fn") {
-                functions.push(self.function()?);
+                module.functions.push(self.function()?);
             } else if self.peek().is("generic") {
-                generics.push(self.generic()?);
+                module.generics.push(self.generic()?);
             } else if self.peek().is("method") {
-                methods.push(self.method()?);
+                module.methods.push(self.method()?);
             } else if self.abstract_method_start() {
-                abstract_methods.push(self.abstract_method()?);
+                module.abstract_methods.push(self.abstract_method()?);
             } else if self.peek().is("abstract") {
-                abstract_types.push(self.abstract_type()?);
+                module.abstract_types.push(self.abstract_type()?);
             } else if self.peek().is("subtype") {
-                subtypes.push(self.subtype()?);
+                module.subtypes.push(self.subtype()?);
             } else {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",
@@ -550,17 +579,7 @@ impl Parser {
                 ));
             }
         }
-        Ok(Module {
-            version: PROTOCOL_VERSION,
-            input: None,
-            file: file.into(),
-            functions,
-            generics,
-            methods,
-            abstract_types,
-            subtypes,
-            abstract_methods,
-        })
+        Ok(())
     }
 
     fn reference_path(&mut self) -> Result<(String, Span), Diagnostic> {
@@ -2245,46 +2264,9 @@ pub fn parse_sources(sources: &[SourceInput<'_>]) -> Result<Module, Vec<Diagnost
         abstract_methods: Vec::new(),
     };
     for input in sources {
-        if input.offset.checked_add(input.source.len()).is_none() {
-            return Err(vec![diagnostic(
-                "E_LIMIT",
-                "source byte positions exceed the supported range",
-                Span {
-                    start: input.offset,
-                    end: input.offset,
-                    line: 1,
-                    column: 1,
-                },
-            )]);
-        }
-        let shift = |span: &mut Span| {
-            span.start += input.offset;
-            span.end += input.offset;
-        };
-        let mut tokens = Lexer::new(input.source).tokenize().map_err(|mut error| {
-            shift(&mut error.span);
-            vec![error]
-        })?;
-        for token in &mut tokens {
-            shift(&mut token.span);
-        }
-        let parsed = Parser {
-            tokens,
-            position: 0,
-            split_closer: None,
-            nesting: 0,
-            packages: false,
-            indexed: false,
-            expression_depths: HashMap::new(),
-        }
-        .module(input.file)
-        .map_err(|error| vec![error])?;
-        module.functions.extend(parsed.functions);
-        module.generics.extend(parsed.generics);
-        module.methods.extend(parsed.methods);
-        module.abstract_types.extend(parsed.abstract_types);
-        module.subtypes.extend(parsed.subtypes);
-        module.abstract_methods.extend(parsed.abstract_methods);
+        Parser::from_source(input, false)
+            .and_then(|mut parser| parser.flat_declarations(&mut module))
+            .map_err(|error| vec![error])?;
     }
     if !module.abstract_types.is_empty()
         || !module.subtypes.is_empty()
@@ -2309,39 +2291,8 @@ pub(crate) fn parse_module_source(
     public: bool,
     declaration: Option<Span>,
 ) -> Result<crate::packages::Parsed, Diagnostic> {
-    if input.offset.checked_add(input.source.len()).is_none() {
-        return Err(diagnostic(
-            "E_LIMIT",
-            "source byte positions exceed the supported range",
-            Span {
-                start: input.offset,
-                end: input.offset,
-                line: 1,
-                column: 1,
-            },
-        ));
-    }
-    let shift = |span: &mut Span| {
-        span.start += input.offset;
-        span.end += input.offset;
-    };
-    let mut tokens = Lexer::new(input.source).tokenize().map_err(|mut error| {
-        shift(&mut error.span);
-        error
-    })?;
-    for token in &mut tokens {
-        shift(&mut token.span);
-    }
-    let span = declaration.unwrap_or(tokens[0].span);
-    let mut parser = Parser {
-        tokens,
-        position: 0,
-        split_closer: None,
-        nesting: 0,
-        packages: true,
-        indexed: false,
-        expression_depths: HashMap::new(),
-    };
+    let mut parser = Parser::from_source(&input, true)?;
+    let span = declaration.unwrap_or(parser.peek().span);
     let mut parsed = crate::packages::Parsed {
         modules: Vec::new(),
         external: Vec::new(),
@@ -3044,16 +2995,12 @@ fn leaf() -> Int { 0 }";
         };
         assert!(matches!(&condition.kind, ExprKind::Binary { op, .. } if op == ">="));
 
-        let tokens = Lexer::new(">=").tokenize().unwrap();
-        let mut parser = Parser {
-            tokens,
-            position: 0,
-            split_closer: None,
-            nesting: 0,
-            packages: false,
-            indexed: false,
-            expression_depths: HashMap::new(),
+        let input = SourceInput {
+            source: ">=",
+            file: "type-close.vast",
+            offset: 0,
         };
+        let mut parser = Parser::from_source(&input, false).unwrap();
         let token_count = parser.tokens.len();
         let close = parser.type_close().unwrap();
         assert_eq!(parser.previous().span, close.span);

@@ -160,7 +160,23 @@ jobs:
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1
+      - name: Identify OpenBLAS build host
+        id: blas-host
+        run: |
+          cpu=HASWELL
+          # The macOS build lets OpenBLAS select kernels for the host CPU.
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            cpu=$(sysctl -n machdep.cpu.brand_string)
+          fi
+          echo "profile=${ImageOS:?}-${ImageVersion:?}-$cpu" >> "$GITHUB_OUTPUT"
+      - name: Cache pinned sequential LP64 OpenBLAS
+        id: blas-cache
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/vastitas-openblas
+          key: openblas-${{ runner.os }}-${{ runner.arch }}-${{ steps.blas-host.outputs.profile }}-${{ hashFiles('scripts/build_openblas.py', '.github/workflows/ci.yml') }}
       - name: Build pinned sequential LP64 OpenBLAS
+        if: steps.blas-cache.outputs.cache-hit != 'true'
         run: |
           if [ "$RUNNER_OS" = Linux ]; then
             python3 scripts/build_openblas.py --prefix "$RUNNER_TEMP/vastitas-openblas" --jobs 4 --target HASWELL

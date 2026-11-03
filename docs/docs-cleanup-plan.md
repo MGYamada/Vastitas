@@ -333,7 +333,7 @@ implementation-status table.
 ## 6. Completion checklist
 
 - [x] English preparation is recorded with prose, link/anchor, and source-hash checks.
-- [ ] Stage 1 completion criteria, commit, evidence, and remaining limits are recorded.
+- [x] The [Stage 1 delivery record](stage1-completion.md) identifies the finite implementation commit, evidence and outstanding performance requirements.
 - [ ] Readers can navigate usage, current specifications, implementation/proof boundaries, and historical design separately.
 - [ ] Every resource has a classification and source of truth; obsolete pages identify successors/reasons, without incorrectly retiring compatibility specifications or historical evidence.
 - [ ] Revised Chapter 7 cost/performance contracts are included, with measured Fast like C scope and unmet goals traceable from implementation status.

@@ -1,8 +1,10 @@
 # Vastitas
 
-Vastitas is a language for Math 2.0 and Physics 2.0. This repository implements
-its **Stage 1b compiler with path packages, finite abstract selectors/contracts and scoped edit assemblies**: `.vast` source → Rust frontend → independently checked
-Lean IR → Lean/C → a native executable.
+Vastitas is a language for Math 2.0 and Physics 2.0. Its finite Stage 1 compiler
+takes `.vast` packages through a Rust frontend and an independent Lean checker
+to a native executable. The delivery includes finite dispatch, edit authority,
+affine storage ownership, real and complex GEMM, and checked contraction trees.
+[Stage 1 delivery record](docs/stage1-completion.md)
 
 The current language supports exact integer computation, a small geometric
 core, finite multiple dispatch over scalar types, and capture-free static
@@ -15,9 +17,9 @@ it is not a list of implemented features.
 **Fast like C is the primary performance and architecture goal.** Numerical
 abstractions must support explicit layouts, checked aliasing, reusable destinations
 and visible allocation/copy costs. The [storage and ownership design](docs/storage-ownership.md)
-defines the contract and equivalent-C measurement gates; C-level performance has
-not yet been established. Correctness and declared numerical semantics constrain
-every optimization.
+defines equivalent-C measurements. Stage 2 or later owns the controlled-host
+performance verdict, the absolute tiny-call budget and remaining cost attribution.
+Correctness and declared numerical semantics constrain every optimization.
 
 Stage 1a adds `generic`/`method` declarations with explicit callable domains,
 nominal selectors and static capabilities. Lean checks all concrete keys for
@@ -28,10 +30,9 @@ versions now reach the same declaration/function/dispatch/authority checker;
 preserves existing input formats. The exact checked indexed Core has proved
 terminating typed evaluation; [finite geometry migration](docs/geometry-migration.md)
 records primitive result compatibility and the broader source/native proof limits. Stage 1b adds independent
-lambdas, function values and higher-order specialization. This is not completion
-of the full Stage 1 design. [Finite abstract scalar selectors](docs/abstract-types.md)
+lambdas, function values and higher-order specialization. [Finite abstract scalar selectors](docs/abstract-types.md)
 add nominal hierarchies and bodyless method contracts over the existing four keys.
-[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. Storage ownership and linear algebra are in progress in the [Stage 1 completion gate](docs/stage1-completion.md).
+[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. The [finite-profile acceptance map](docs/stage1-acceptance.md) links storage and linear algebra to their implementations, regression tests and checker theorems.
 
 The [internal storage resource IR](docs/storage-ir.md) checks logical ownership,
 loans, initialization and layouts with byte-region proofs. Its exact checked

@@ -395,6 +395,32 @@ fn explicit_kernel_check_does_not_require_a_kernel_root() {
 }
 
 #[test]
+fn unbuilt_default_kernel_names_its_absolute_root() {
+    let scratch = Scratch::new();
+    let root = scratch.0.join("kernel-root");
+    fs::create_dir(&root).unwrap();
+    let result = scratch
+        .cli()
+        .args(["check", "main.vast"])
+        .env_remove("VASTITAS_KERNEL")
+        .env("VASTITAS_KERNEL_ROOT", &root)
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    let root = root.canonicalize().unwrap();
+    assert!(error.contains("is not built"), "{error}");
+    assert!(
+        error.contains(&format!("lake -d {} build vastitas-kernel", root.display())),
+        "{error}"
+    );
+    assert!(
+        !error.contains("VASTITAS_KERNEL_ROOT is not set"),
+        "{error}"
+    );
+}
+
+#[test]
 fn native_project_uses_the_selected_kernel_toolchain() {
     let scratch = Scratch::new();
     let root = scratch.0.join("selected kernel");

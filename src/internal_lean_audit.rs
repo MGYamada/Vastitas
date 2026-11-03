@@ -1,4 +1,4 @@
-use nanoda_lib::{env::Declar, util::Config};
+use crate::nanoda::{env::Declar, util::Config};
 use serde_json::{Value, json};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

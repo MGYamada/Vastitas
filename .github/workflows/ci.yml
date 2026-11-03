@@ -50,6 +50,8 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Rust lint
         run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Verify the registry distribution builds from its packaged sources
+        run: cargo package --locked
       - name: Dependency-boundary checker tests
         run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - name: Contraction-tree harness tests

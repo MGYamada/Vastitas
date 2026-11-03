@@ -18,6 +18,16 @@ pub(crate) const AUTHORITY_PROTOCOL: u32 = 6;
 pub(crate) const INDEXED_PROTOCOL: u32 = 7;
 pub(crate) const RESOURCE_PROTOCOL: u32 = 8;
 pub(crate) const NAMED_RECIPIENT_PROTOCOL: u32 = 9;
+pub(crate) const PUBLIC_PROTOCOLS: [u32; 8] = [
+    crate::ir::PROTOCOL_VERSION,
+    PROTOCOL,
+    ABSTRACT_PROTOCOL_VERSION,
+    EDIT_PROTOCOL,
+    AUTHORITY_PROTOCOL,
+    INDEXED_PROTOCOL,
+    RESOURCE_PROTOCOL,
+    NAMED_RECIPIENT_PROTOCOL,
+];
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Grant {

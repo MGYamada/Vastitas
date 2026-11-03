@@ -544,3 +544,19 @@ fn mismatched_failure_version_preserves_diagnostics_but_success_is_rejected() {
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("E_PROTOCOL: incompatible"));
 }
+
+#[test]
+fn version_reports_package_and_every_public_wire_protocol() {
+    let result = Command::new(env!("CARGO_BIN_EXE_vastitas"))
+        .arg("--version")
+        .output()
+        .unwrap();
+    assert!(result.status.success());
+    assert_eq!(
+        String::from_utf8(result.stdout).unwrap().trim(),
+        format!(
+            "vastitas {} (wire protocols 2/3/4/5/6/7/8/9)",
+            env!("CARGO_PKG_VERSION")
+        )
+    );
+}

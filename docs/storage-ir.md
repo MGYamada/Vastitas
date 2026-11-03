@@ -45,29 +45,36 @@ does not resolve the separate whole-state audit scaling issue (#422).
 
 ### Reconstructed audit indexes
 
-The executable checker reconstructs lookup/multiplicity tables and bounded
-loan ancestry sets from each actual state. `AuditIndex.audit_eq` proves equality
-with `Storage.auditState` for every state, including duplicate names, dangling
-parents and cycles. Lean's proved `csimp` replacement selects this implementation
-at compilation; no serialized index, cached validity flag or unchecked alternate
-implementation participates. First-occurrence lookup and exact multiplicities
-preserve rejection of malformed environments. Read/read pairs need no comparison;
-every pair involving a writer retains its original check. Physical disjointness
-is tested before ancestry membership. Borrow transitions use the corresponding
-proved `compatibleWith_eq_indexed` replacement.
+The checker reconstructs lookup tables and exact name counts from each state.
+For a stack of reborrows it checks that names are distinct, each parent is the
+next loan in the list, and the final loan has no parent. Under those conditions,
+every pair is related by ancestry and a parent cannot reach its own child.
+This takes expected linear work in the number of live loans.
+Each loan still needs the correct allocation, a contained layout, compatible
+permissions and established initialization. When checking a new borrow, the
+same shortcut also requires the supplied loan and comparison list to equal
+the actual state's complete loan list.
 
-Full audits still run before and after transitions and at existing replay/join/
-code-generation boundaries. With expected constant-time hash lookup, constructing
-ancestry rows takes O(L * depth), and writer-pair checks take O(W * L), where L is
-the live loan count and W counts writers, including suspended ancestors. Repeating
-these audits and nested call replays is still superlinear; #422 remains open.
-`python3 scripts/check_storage_scaling.py` checks five generated public-source
-shapes at 64/128/256 entries, including ten wrappers. Use `--sizes 512 1000` for
-larger observations and `--kernel-root` to compare the same sources with another
-built kernel. Its per-case deadline terminates the process group and reports a
-timeout; it is a measurement harness, not a compiler work budget or a controlled
-host Fast like C acceptance test. The [same-source macOS observation](../experiments/compiler_scaling/results/2026-11-02-macos-storage/RESULTS.md)
-records both the improvement and the remaining 512-deep reborrow timeout.
+For other loan tables, including valid tables in a different order, the
+checker builds bounded ancestor sets. It skips read/read pairs and checks
+physical disjointness before ancestry for writer pairs. With expected
+constant-time hash lookups, these fallback stages take O(L × depth) and
+O(W × L), respectively, for L live loans and W writers. The two compiled
+equations `auditState_eq_indexed` and `compatibleWith_eq_indexed` agree with
+the original predicates on every input, including duplicate names, cycles
+and dangling parents. The [shared chain lemmas](../lean-kernel/VastitasKernel/LoanChain.lean)
+prove the first-match ancestry facts.
+
+Audits still run on both sides of transitions and at replay, join and code
+generation boundaries. An entire growing and shrinking chain still incurs
+repeated linear scans. Nested call replay and program-wide work accounting
+remain open in [#422](https://github.com/MGYamada/Vastitas/issues/422).
+Use `python3 scripts/check_storage_scaling.py` with `--sizes`, `--shapes`
+and `--kernel-root` to compare identical public inputs under its per-case
+deadline. The [earlier measurements](../experiments/compiler_scaling/results/2026-11-02-macos-storage/RESULTS.md)
+record the previous 512-deep timeout. The
+[chain comparison](../experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
+records the new outcomes and controls.
 
 ## Resources and operations
 

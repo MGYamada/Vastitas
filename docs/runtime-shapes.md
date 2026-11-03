@@ -144,23 +144,23 @@ implementation evidence.
 
 ## Execution costs and limits
 
-The compiler reconstructs allocation/loan lookup tables, multiplicities and
-bounded ancestor sets once per symbolic frame audit. It omits read/read alias
-pairs while retaining both orders of every pair involving a writer. The Lean
-equations `Shapes.auditFrame_eq_indexed` and `Shapes.compatibleWith_eq_indexed`
-connect the compiled implementation to the original predicates for every frame,
-including duplicate names, missing/cyclic parents and invalid initialization.
-No runtime extent value authorizes a symbolic alias or uninitialized read.
+The compiler reconstructs lookup tables and exact name counts from the symbolic
+frame. When distinct loan names form one child-to-root stack, it verifies all
+parent links in one pass. Every loan still needs its original allocation,
+layout, access and initialization checks. Other loan tables use bounded
+ancestor sets and all writer pairs. `Shapes.auditFrame_eq_indexed` and
+`Shapes.compatibleWith_eq_indexed` prove equality with the reference checks
+for every frame and every compatibility input. The proof depends only on the
+loan graph and applies at any runtime extent.
 
-Every boundary still performs its full audit and call replay. Indexing removes
-repeated linear searches but does not make deep ancestry, writer-pair checks or
-nested call expansion linear, and it adds no program-wide work budget. #423 and
-the corresponding static-storage work in #422 remain open. The bounded public
-source harness `scripts/check_storage_scaling.py --profile runtime` measures
-allocation/drop, shared reads, distinct-allocation writes, reborrow chains and
-ten-wrapper calls; these are compiler observations, not native/C acceptance.
-The [recorded comparison](../experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md)
-retains matching input hashes and the remaining 512-deep reborrow timeout.
+Full frame audits, replay and all-body probes still repeat across calls. The
+request-wide work budget remains open in [#423](https://github.com/MGYamada/Vastitas/issues/423)
+and its [static counterpart](https://github.com/MGYamada/Vastitas/issues/422).
+The public source harness `scripts/check_storage_scaling.py --profile runtime`
+measures allocation/drop, shared reads, distinct-allocation writers, reborrow
+chains and ten-wrapper calls. The [earlier comparison](../experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md)
+records the previous 512-deep timeout. The [chain comparison](../experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
+reports compiler checking times separately from generated-program performance.
 
 A generated entry creates one runtime-shape arena and cleans it up once; entries
 also using static resources have a second, disjoint arena. A call does not create

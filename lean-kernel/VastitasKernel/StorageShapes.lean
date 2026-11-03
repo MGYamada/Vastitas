@@ -1,4 +1,5 @@
 import VastitasKernel.StorageShapeExpr
+import VastitasKernel.LoanChain
 
 /-! A bounded symbolic frame for fixed-rank runtime storage. Ownership, names,
 allocation identity, access, ancestry and whole-map initialization are checked
@@ -155,7 +156,7 @@ def tables (frame : Frame) : Tables :=
   ⟨Finite.firstIndex Allocation.identity frame.allocations,
    Finite.firstIndex Loan.name frame.loans, Std.HashSet.ofList frame.used⟩
 
-def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
+private def checkLoan (index : Tables) (fuel : Nat) (loan : Loan) (chain : Bool) : Bool :=
   match index.allocations[loan.allocation]? with
   | none => false
   | some allocation =>
@@ -168,12 +169,70 @@ def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
       | some parentLoan => parent != loan.name && parentLoan.allocation == loan.allocation &&
         (!loan.access.writes || parentLoan.access.writes) &&
         (!loan.access.reads || parentLoan.access.reads) &&
-        !(lineage index.loans fuel parentLoan).contains loan.name)
+        (chain || !(lineage index.loans fuel parentLoan).contains loan.name))
+
+def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
+  checkLoan index fuel loan false
 
 theorem loanValid_eq (frame : Frame) (loan : Loan) :
     loanValid (tables frame) frame.loans.length loan = loan.valid frame := by
-  simp only [loanValid, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
+  simp only [loanValid, checkLoan, Bool.false_or, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
     lineage_contains, Loan.valid, Frame.allocation?, Frame.loan?]
+
+private theorem ancestor_walk (loans : List Loan) (fuel key : Nat) (loan : Loan) :
+    ancestor loans fuel key loan = Finite.LoanChain.walk Loan.parent
+      (fun id => loans.find? (fun l => l.name == id)) fuel key loan := by
+  induction fuel generalizing loan with
+  | zero => rfl
+  | succ fuel ih =>
+    cases edge : loan.parent with
+    | none => simp [ancestor, Finite.LoanChain.walk, edge]
+    | some id =>
+      cases found : loans.find? (fun l => l.name == id) <;>
+        simp [ancestor, Finite.LoanChain.walk, edge, found, ih]
+
+private theorem chainPair (frame : Frame) (linked : Finite.LoanChain.check Loan.name Loan.parent frame.loans = true)
+    (left right : Loan) (hl : left ∈ frame.loans) (hr : right ∈ frame.loans) :
+    loansCompatible frame left right = true := by
+  obtain same | lr | rl := Finite.LoanChain.comparable linked hl hr
+  · simp [loansCompatible, same]
+  · rw [← ancestor_walk] at lr
+    simp [loansCompatible, lr]
+  · rw [← ancestor_walk] at rl
+    simp [loansCompatible, rl]
+
+private theorem loanValid_chain (frame : Frame) (loan : Loan) (member : loan ∈ frame.loans) :
+    checkLoan (tables frame) frame.loans.length loan
+      (Finite.LoanChain.check Loan.name Loan.parent frame.loans) = loan.valid frame := by
+  cases linked : Finite.LoanChain.check Loan.name Loan.parent frame.loans with
+  | false => exact loanValid_eq frame loan
+  | true =>
+    rw [← loanValid_eq frame loan]
+    unfold loanValid checkLoan
+    cases (tables frame).allocations[loan.allocation]? with
+    | none => rfl
+    | some a =>
+      dsimp only
+      cases edge : loan.parent with
+      | none => rfl
+      | some id =>
+        dsimp only
+        cases resolved : (tables frame).loans[id]? with
+        | none => rfl
+        | some parentLoan =>
+          have first : frame.loans.find? (fun l => l.name == id) = some parentLoan := by
+            simpa only [tables, Finite.firstIndex_lookup] using resolved
+          have h := Finite.LoanChain.acyclic linked member edge first frame.loans.length
+          rw [← ancestor_walk] at h
+          simp only [tables, lineage_contains, h, Bool.not_false, Bool.or_true]
+
+private theorem validMembers (frame : Frame) (counts : Std.HashMap Symbol Nat) :
+    frame.loans.all (fun l => counts.getD l.name 0 == 1 && checkLoan (tables frame) frame.loans.length l
+      (Finite.LoanChain.check Loan.name Loan.parent frame.loans)) =
+    frame.loans.all (fun l => counts.getD l.name 0 == 1 && l.valid frame) := by
+  apply Bool.eq_iff_iff.mpr
+  simp only [List.all_eq_true]
+  exact forall_congr' fun l => forall_congr' fun hl => by rw [loanValid_chain frame l hl]
 
 abbrev Row := Loan × Std.HashSet Symbol
 
@@ -222,9 +281,22 @@ theorem pairs_eq (frame : Frame) :
     · simp [loansCompatible, readOnly, writes]
     · simp
 
+private theorem checkedPairs (frame : Frame) :
+    (Finite.LoanChain.check Loan.name Loan.parent frame.loans ||
+      pairs (frame.loans.map (row (tables frame) frame.loans.length))) =
+    frame.loans.all (fun left => frame.loans.all (loansCompatible frame left)) := by
+  rw [pairs_eq]
+  cases linked : Finite.LoanChain.check Loan.name Loan.parent frame.loans with
+  | false => rfl
+  | true =>
+    symm
+    exact List.all_eq_true.mpr fun left hl => List.all_eq_true.mpr fun right hr =>
+      chainPair frame linked left right hl hr
+
 def audit (frame : Frame) : Bool :=
   let index := tables frame
   let fuel := frame.loans.length
+  let chain := Finite.LoanChain.check Loan.name Loan.parent frame.loans
   let usedCounts := Finite.countIndex id frame.used
   let allocationCounts := Finite.countIndex Allocation.identity frame.allocations
   let ownerCounts := Finite.countIndex Allocation.owner frame.allocations
@@ -237,12 +309,12 @@ def audit (frame : Frame) : Bool :=
     allocation.initialization.layouts.all (· == allocation.layout) &&
     allocationCounts.getD allocation.identity 0 == 1 && ownerCounts.getD allocation.owner 0 == 1 &&
     index.loans[allocation.owner]?.isNone) &&
-  frame.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && loanValid index fuel loan) &&
-  pairs (frame.loans.map (row index fuel))
+  frame.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && checkLoan index fuel loan chain) &&
+  (chain || pairs (frame.loans.map (row index fuel)))
 
 theorem audit_eq (frame : Frame) : audit frame = auditFrame frame := by
-  simp only [audit, pairs_eq, Finite.countIndex_lookup, loanValid_eq]
-  simp only [tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList, id_eq,
+  simp only [audit, checkedPairs, validMembers]
+  simp only [Finite.countIndex_lookup, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList, id_eq,
     auditFrame, Frame.loan?, List.count_eq_countP]
 
 end AuditIndex
@@ -256,22 +328,38 @@ with duplicate IDs, missing/cyclic parents or malformed initialization. -/
 def compatibleWith (frame : Frame) (left : Loan) (others : List Loan) : Bool :=
   others.all (loansCompatible frame left)
 
-def AuditIndex.compatibleWith (frame : Frame) (left : Loan) (others : List Loan) : Bool :=
+private def AuditIndex.compatibleRows (frame : Frame) (left : Loan) (others : List Loan) : Bool :=
   let index := tables frame
   let fuel := frame.loans.length
   let leftRow := row index fuel left
   let relevant := if left.access.writes then others else others.filter (·.access.writes)
   relevant.all fun right => compatible leftRow (row index fuel right)
 
-@[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
+private theorem compatibleWith_eq_rows : compatibleWith = AuditIndex.compatibleRows := by
   funext frame left others
-  simp only [compatibleWith, AuditIndex.compatibleWith]
+  simp only [compatibleWith, AuditIndex.compatibleRows]
   cases writes : left.access.writes
   · simp only [Bool.false_eq_true, ite_false, List.all_filter, AuditIndex.compatible_eq]
     congr 1
     funext right
     cases rightWrites : right.access.writes <;> simp [loansCompatible, writes, rightWrites]
   · simp only [ite_true, AuditIndex.compatible_eq]
+
+def AuditIndex.compatibleWith (frame : Frame) (left : Loan) (others : List Loan) : Bool :=
+  if Finite.LoanChain.check Loan.name Loan.parent frame.loans && decide (frame.loans = left :: others) then
+    true
+  else compatibleRows frame left others
+
+@[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
+  funext frame left others
+  unfold AuditIndex.compatibleWith
+  split
+  next both =>
+    have ok : Finite.LoanChain.check Loan.name Loan.parent frame.loans = true ∧ frame.loans = left :: others := by
+      simpa only [Bool.and_eq_true, decide_eq_true_eq] using both
+    exact List.all_eq_true.mpr fun right hr => AuditIndex.chainPair frame ok.1 left right
+      (ok.2 ▸ List.mem_cons_self) (ok.2 ▸ List.mem_cons_of_mem left hr)
+  next => rw [compatibleWith_eq_rows]
 
 inductive Action where
   | allocate (owner : Symbol) (scalar : Scalar) (elements : Extent) (layout : Layout)

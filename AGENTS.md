@@ -13,8 +13,8 @@ may raise limits.
 - Develop `.vast`; status: [README](README.md), tests and
   [acceptance](docs/stage1-acceptance.md)/[completion](docs/stage1-completion.md).
   Stage 1b is not full Stage 1 completion.
-- [Design](docs/design.md) is a proposal; distinguish implementation, tests, proofs,
-  assumptions and deferred work.
+- [Roadmap](docs/guide/historical-roadmap.md) follows current issues. Separate
+  implemented, tested, proved and planned work.
 - **Fast like C is the primary goal.** Follow [storage ownership](docs/storage-ownership.md):
   explicit layouts/aliases, destination/scratch reuse, allocation/packing/retention
   costs and equivalent-C measurements. Record gaps; native/BLAS use is insufficient.
@@ -59,23 +59,20 @@ may raise limits.
 
 ## Read relevant contracts before editing
 
-- [Dispatch](docs/stage1a.md), [Fn](docs/stage1b.md),
-  [abstract contracts](docs/abstract-types.md), [promotion](docs/promotion.md).
-- [Packages](docs/packages.md), [edit borrowing](docs/edit-borrowing.md),
-  [reborrow/transfer](docs/edit-authority.md), [indexed declarations](docs/indexed-declarations.md),
-  [indexed source](docs/indexed-source.md), [geometry](docs/geometry-migration.md).
-- [Storage IR/native cleanup](docs/storage-ir.md), [resource calls](docs/storage-functions.md),
-  [public resources](docs/resource-source.md), [runtime shapes](docs/runtime-shapes.md).
-- [Numerical adapter](docs/numerical-adapter.md), [declarations](docs/numerical-declarations.md),
-  [values](docs/numerical-values.md), [transforms](docs/linear-transforms.md),
-  [vectors](docs/vector-evaluation.md), [owned packages](docs/owned-map-packages.md).
-- [Networks](docs/finite-networks.md), [packing](docs/tensor-packing.md),
-  [trees](docs/contraction-trees.md), [cached packing](docs/cached-packing.md),
-  [internal graph](docs/graph-crossings.md).
+- [Book contents](docs/SUMMARY.md) list the active specifications, proof boundaries,
+  reference models and maintenance procedures. Track decisions in current Issues.
+- [Dispatch and contracts](docs/stage1a.md), [functions](docs/stage1b.md),
+  [packages and edit authority](docs/packages.md), [indexed types](docs/indexed-source.md).
+- [Storage checker](docs/storage/checked-storage.md), [resource programs](docs/storage/resource-programs.md),
+  [GEMM](docs/linalg/maps-and-gemm.md), [transforms](docs/linalg/transforms-and-metrics.md),
+  [networks and packing](docs/linalg/networks-and-packing.md).
+- [Core and graph proofs](docs/verification/core-models.md), [verification](docs/verification.md).
+  See [documentation maintenance](docs/development/documentation.md) for book changes.
 
 ## Validation
 
-- Run `python3 scripts/check_docs.py`; add meaningful behavior regressions.
+- Run `python3 scripts/check_docs.py`. Book changes also run `mdbook build`
+  and `python3 scripts/check_book.py`. Add meaningful behavior regressions.
 - Rust: `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`,
   `cargo test --locked --all-targets`. Kernel: `lake -d lean-kernel build`.
   Oracle: `lake -d lean build` and `lake -d lean env lean scripts/audit_axioms.lean`.

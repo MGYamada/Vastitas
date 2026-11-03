@@ -13,7 +13,7 @@ below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assem
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
 
-Package-only [protocol 8](resource-source.md) adds unresolved `resource_functions`
+Package-only [protocol 8](storage/resource-programs.md#resource-source) adds unresolved `resource_functions`
 to modules while preserving the full protocol-7 declaration/Fn/dispatch/authority
 checks. Each resource function carries `name`, `parameters`, ordered owned
 `results`, resource `body`, pure `value_type`/`value_body`, `public` and `span`.
@@ -21,7 +21,7 @@ Calls carry unresolved paths and local names, not checked IDs. The strict schema
 is defined by `storage.rs::source` and `ResourceProtocol.lean`. Emit responses
 include `storage_runtime: Bool` and `numerical_runtime: Bool` to request optional
 native packages only when the actual entry needs them. A numerical requirement
-also requires storage and explicit driver build configuration. The [internal storage component schema](storage-ir.md)
+also requires storage and explicit driver build configuration. The [internal storage component schema](storage/checked-storage.md#storage-ir)
 is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
@@ -41,7 +41,7 @@ pure-only emits return both optional-runtime flags as false. Protocols 5–8 ret
 `grantee_source` and reject `grantee_package`; protocol 9 rejects `grantee_source`
 even alongside the new field. Earlier versions retain their strict schemas.
 Source migration and the explicit geometry compatibility requirement are described
-in [edit borrowing](edit-borrowing.md#migrating-recipients-for-v010).
+in [edit borrowing](packages.md#edit-borrowing--migrating-recipients-for-v010).
 
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),
@@ -54,7 +54,7 @@ No checked target, slot ID, trusted condition or resource handle is accepted in 
 pure block. Protocols 2–7 and the internal resource component retain their strict
 old schemas.
 
-The [runtime-extent profile](runtime-shapes.md) adds parameter kinds
+The [runtime-extent profile](storage/resource-programs.md#runtime-shapes) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
 (`name`, `space`, `span`) and `runtime_map` (`name`, `source`, `target`, `access`,
 `initializes`, `span`). An extent is exactly `{kind:"literal",value:<u64>}` or
@@ -67,7 +67,7 @@ are reconstructed; no checked IDs or prevalidated shape metadata is accepted.
 The initial checker rejects coefficient loans and runtime events under resource
 branches, including through calls. Protocols 2–7 reject these forms.
 
-Protocol 8 also admits [numerical declaration profiles](numerical-declarations.md)
+Protocol 8 also admits [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations)
 in the existing `indexed_declarations` array: `scalar_base` and
 `linear_descriptor` representation objects preserve ideal coefficient kinds and
 unresolved nominal base paths. They require version 8 or 9 even without resource
@@ -78,7 +78,7 @@ Resource bodies also support `kind: "numerical"` statements carrying `operation`
 and `span`. Operations are `space` (name, unresolved implementation path,
 dimension), `basis` (name, space), `map` (name, loan, source/target bases), and
 `gemm` (left, right, output, mode, policy). Mode is `overwrite` or `accumulate`;
-policy is explicitly `native_fast`. See [the source contract](numerical-values.md).
+policy is explicitly `native_fast`. See [the source contract](linalg/maps-and-gemm.md#numerical-values).
 All names remain unresolved. Numeric IDs, trusted certificates, raw GEMM flags
 and extra fields are rejected. The old raw resource `action` schema does not
 acquire a public GEMM operation. Version 8 composes independent path resolution,
@@ -88,14 +88,14 @@ Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
 Source `f64(...)`/`complex(...)` exact finite literals lower to the same unsigned
 64-bit payload fields as `f64_bits`/`complex_bits`; decimal or hex strings are not
-new wire values. See [literal admission](resource-source.md) for exactness and
+new wire values. See [literal admission](storage/resource-programs.md#resource-source) for exactness and
 the explicit-bit treatment of signed zero and nonfinite values.
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
 output even for beta zero. A coefficient loan must be a matching initialized
 readable 1x1 region disjoint from output. The checked allocation/offset reaches
 native execution, where the current scalar is read before output writes.
-See [coefficient semantics](numerical-values.md#explicit-and-computed-coefficients).
+See [coefficient semantics](linalg/maps-and-gemm.md#numerical-values--explicit-and-computed-coefficients).
 
 Owned numerical inputs use parameter `kind:"owned_map"` with `name`, `source`,
 `target` and `span`. Result `type` may be `{kind:"owned_map",source,target}`;
@@ -106,24 +106,24 @@ initialized storage into the interpretation. `borrow_owned` supplies `name`,
 `owner` and `access`, using the actual stored layout; `owned_view` supplies `name`,
 `loan` and `owner`, retaining exact allocation/layout/bases. These forms are
 independently checked, contain no allocation IDs or trusted metadata, and are
-rejected by older decoders. See [owned results](numerical-values.md#owned-numerical-results).
+rejected by older decoders. See [owned results](linalg/maps-and-gemm.md#numerical-values--owned-numerical-results).
 The bounded generative form uses parameter `kind:"owned_map_to"` with `name`,
 `source`, `dimension`, `span`, and result `type:{kind:"owned_map_to",source,dimension}`.
 Numerical `pack_map` takes `name,owner`; `unpack_map` takes
 `package,space,basis,owner`. These are unresolved names; no allocation/brand or
-success metadata is accepted. See [owned-map packages](owned-map-packages.md).
+success metadata is accepted. See [owned-map packages](linalg/maps-and-gemm.md#owned-map-packages).
 
 
 Resource parameters additionally support `kind: "space"` with unresolved
 `implementation` and static `dimension`, `kind: "basis"` naming an earlier
 `space` parameter, and `kind: "map"` naming earlier `source`/`target` basis
 parameters plus `access` and `initializes`. Every parameter includes `name` and
-`span`. [Dependent input checking](numerical-values.md#dependent-numerical-inputs)
+`span`. [Dependent input checking](linalg/maps-and-gemm.md#numerical-values--dependent-numerical-inputs)
 preserves actual caller identities and creates scoped child loans for maps.
 Unknown tags/fields fail closed on older kernels; these are additive protocol-8
 forms. They do not add a shape-polymorphic signature language.
 
-[Typed transforms](linear-transforms.md#wire-and-proof-boundary) add numerical
+[Typed transforms](linalg/transforms-and-metrics.md#linear-transforms--wire-and-proof-boundary) add numerical
 operations `involution`, `dual_space`, `conjugate_space`, `derived_basis`, `metric`
 and `transform`. Their operands remain unresolved local names; `transform`
 contains a strict operation naming derived bases or explicit metrics, never raw
@@ -132,7 +132,7 @@ parameter tags retain earlier space/basis/involution relationships and an explic
 orthonormal requirement for direct adjunction. Rust and Lean decode these forms
 together; old envelopes and unknown nested metadata fail closed.
 
-[Vector evaluation](vector-evaluation.md) adds `vector` (`name`, `loan`, `basis`),
+[Vector evaluation](linalg/transforms-and-metrics.md#vector-evaluation) adds `vector` (`name`, `loan`, `basis`),
 `conjugate_vector` (`name`, `parent`, `basis`, `involution`) and `evaluate`
 (`left`, `right`, `output`, `operation`, `mode`, `policy`, optional `alpha`/`beta`).
 The nested operation is strictly `{kind: "dual"}` or
@@ -141,7 +141,7 @@ with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
 provenance, child loans, scalar output and emitted flags are reconstructed by
 the independent checker; no supplied origin or native flag grants authority.
 
-[Diagonal metrics](diagonal-metrics.md) add strict numerical operations
+[Diagonal metrics](linalg/transforms-and-metrics.md#diagonal-metrics) add strict numerical operations
 `adjoint_into` (`input`, `output`, `source_metric`, `target_metric`, `policy`) and
 `hermitian_diagonal` (`left`, `right`, `output`, `metric`, `scratch`, `layout`,
 `policy`). Source syntax also requires the explicit `overwrite` keyword for the
@@ -304,7 +304,7 @@ Runtime representation: generated Lean code imports only
 `Unit`; geometric objects, indexed points/morphisms and existential payloads use
 the common runtime representations. Nominal typing is established before erasure.
 The old runtime remains for retained legacy evaluation proofs.
-The [finite migration acceptance map](geometry-migration.md) records checked
+The [finite migration acceptance map](indexed-source.md#geometry-migration) records checked
 primitive result compatibility, source regressions and the limits of the
 source/native proof claims. The compatibility adapter is not an additional wire
 version or a privileged semantic checker.
@@ -401,7 +401,7 @@ It resolves abstract selector aliases using the namespace index and records
 membership edit authority in the independently checked reference ledger.
 `E_HIERARCHY` reports cycles or changes to builtin relations; `E_OWNER` reports
 unauthorized membership edits. All existing method/body/core audits remain in
-the acceptance path. See [abstract selectors](abstract-types.md) for semantics
+the acceptance path. See [abstract selectors](stage1a.md#abstract-types) for semantics
 and theorem boundaries.
 
 An `abstract_methods` entry has `name`, `params`, `return_type`, `requires`,
@@ -423,7 +423,7 @@ concrete winners retain the existing dispatch diagnostics.
 Protocol 5 extends the protocol-4 package envelope, requires `input: "package"`,
 and retains all package identities, declarations, hierarchy and unresolved paths.
 Inputs without edit declarations continue to use versions 2/3/4. There is no
-cached or pre-approved assembly input. See [edit borrowing](edit-borrowing.md)
+cached or pre-approved assembly input. See [edit borrowing](packages.md#edit-borrowing)
 for the source contract and proof boundary.
 
 Each module additionally permits `grants: [Grant...]`,
@@ -492,7 +492,7 @@ namespace, membership, final dispatch, footprint, all-body and Core audits.
 The original function identity never changes. A returned loan or transfer
 preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
-no outstanding loans. See [source semantics](edit-authority.md) and
+no outstanding loans. See [source semantics](packages.md#edit-authority) and
 [the proof boundary](verification.md#edit-authority-acceptance-protocol-6).
 
 ## Protocol 7: indexed declarations and rich package bodies
@@ -602,7 +602,7 @@ See [source syntax and limitations](indexed-source.md).
 
 ## Expected-rejection doctest consumer (reference only)
 
-The [doctest result contract](doctest-result-reference.md) for #236 separates
+The [doctest result contract](reference/compiler-tools.md#doctest-result-reference) for #236 separates
 ordinary language rejection from protocol, transport, and execution failure.
 It reuses the diagnostic payload above without changing this wire protocol or
 the driver's preservation of diagnostics on incompatible failure responses.
@@ -610,20 +610,20 @@ The Python reference and fixture regressions do not implement production driver
 receipts, doctest execution, or official package admission.
 
 The additive protocol-8 `network` resource statement and its strict finite graph
-schema are specified in [finite-networks.md](finite-networks.md). It is checked
+schema are specified in [finite-networks.md](linalg/networks-and-packing.md#finite-networks). It is checked
 independently before lowering to the existing numerical/storage path.
 
 The additive protocol-8 `tensor` operations (`view`, `pack`, `contract3`) and their
-bounded ordered-axis/grouping schema are specified in [tensor-packing.md](tensor-packing.md).
+bounded ordered-axis/grouping schema are specified in [tensor-packing.md](linalg/networks-and-packing.md#tensor-packing).
 Packing is explicit and checked independently from nominal contraction authority.
 
 The additive protocol-8 `tree` statement carries a bounded unresolved finite graph
 and explicit borrow/view/regroup/rebind/join plan. Lean reconstructs producer
 connectivity, nominal ports and actual resource transitions; see
-[contraction trees](contraction-trees.md). The raw internal `regroup3` action
+[contraction trees](linalg/networks-and-packing.md#contraction-trees). The raw internal `regroup3` action
 contains source/target loans, three physical dimensions and explicit input/output
 groupings; it is not a public nominal-authority certificate.
 Protocol-8 tensor operations also include strict `cached_pack`
 (`name`, `source`, `target`) and `cached_contract3`
 (`cache`, `left`, `right`, `output`, `policy`) envelopes. They carry unresolved
-local names, never stamps or certificates. See [cached packing](cached-packing.md).
+local names, never stamps or certificates. See [cached packing](linalg/networks-and-packing.md#cached-packing).

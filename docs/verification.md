@@ -137,7 +137,7 @@ generation. The formal evaluation relation operates on this actual `Term`
 language and uses the actual runtime objects, points, morphisms, and packages.
 It also includes the closed `Pair<Nat>` / `Pair<Int>` types, construction and
 projections. The declaration/expression correspondence and whole-core safety
-proofs cover these operations. Separate [stdlib numerical contracts](promotion.md)
+proofs cover these operations. Separate [stdlib numerical contracts](stage1a.md#promotion)
 cover the value policy of promotion and its arithmetic callers.
 
 Successful core `checkModule` runs two independent audits after elaboration:
@@ -373,7 +373,7 @@ separate worker and converts such outcomes into audit errors.
 
 ## What is outside these claims
 
-The [dense layout/preflight reference](storage-layout-preflight.md) separates
+The [dense layout/preflight reference](storage/checked-storage.md#storage-layout-preflight) separates
 byte bounds, alignment, write injectivity, native narrowing and loan conflicts.
 Its Python regressions and successful-session receipts do not establish Lean
 resource safety or authorize native check elimination. The linked document
@@ -385,10 +385,10 @@ transition: input and accumulate initialization, reconstructed allocation subjec
 output byte separation and initialized output bytes in its exact post-state.
 It does not establish nominal endpoint/basis/metric typing, ideal multiplication,
 floating-point accuracy, native no-read behavior or source/native refinement.
-The [generated numerical runtime checks](numerical-adapter.md) provide separate
+The [generated numerical runtime checks](linalg/maps-and-gemm.md#numerical-adapter) provide separate
 execution and cleanup evidence; the optional native package is not an oracle dependency.
 
-The separate [internal resource IR](storage-ir.md) now has actual-checker
+The separate [internal resource IR](storage/checked-storage.md#storage-ir) now has actual-checker
 theorems in `StorageLayout`, `StorageRegions` and `StorageSafety`: all-cell
 bounds/alignment/byte separation, footprint containment and initialization
 entailment, normalized write/join meaning, and nonoverlap of distinct active
@@ -417,12 +417,12 @@ native runtime has sanitizer and generated-executable regression evidence for
 real/complex buffers, output preservation and failure cleanup. These results now compose with the initial static protocol-8 source profile;
 they do not extend pure-Core totality to mutable storage. Actual memory initialization,
 allocator liveness, native cleanup and native refinement are not proved; C
-performance comparisons remain pending. The [internal resource function component](storage-functions.md)
+performance comparisons remain pending. The [internal resource function component](storage/checked-storage.md#storage-functions)
 adds actual call-slice replay, restored caller loans, unique live owned results
 with declared initialized bytes, and checked probes for every source body.
 Probes are separate from executable expansion and do not prove a universal
 parametric contract; actual calls are independently checked again. The raw component does not change pure-Core semantics.
-[Protocol 8 resource source](resource-source.md) composes the actual authority/Fn/dispatch
+[Protocol 8 resource source](storage/resource-programs.md#resource-source) composes the actual authority/Fn/dispatch
 checker, independently resolved resource calls, every resource-body probe and exact
 entry schedule. `VastitasOracle.ResourceSource` proves complete resource identities,
 actual call provenance, original authority trace, typed totality of its returned
@@ -470,7 +470,7 @@ at its physical addresses, including the loans around a vector evaluation and
 the dependency check before a cached contraction. The symbolic runtime-shape
 event schedule has its own realization theorems.
 
-The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
+The [runtime-shape profile](storage/resource-programs.md#runtime-shapes) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
 instantiated `Storage.run`, and restored caller loans/allocations.
 Its compiled frame audit and incoming-loan compatibility scan use reconstructed
@@ -486,7 +486,7 @@ call/probe work remains outside these per-frame equations.
 for the same maps and coefficients. `ResourceRuntimeShapes` connects those
 results to public entry projections, declaration origins, live integral slots
 and scalar returns after both resource components complete. Separately,
-[`prove_runtime_shape_guards.lean`](../scripts/prove_runtime_shape_guards.lean)
+[`prove_runtime_shape_guards.lean`](https://github.com/MGYamada/Vastitas/blob/main/scripts/prove_runtime_shape_guards.lean)
 proves and audits 13 universal facts about the actual optional runtime helpers:
 Lean `UInt64` layout decisions equal the concrete checker, LP64 span arithmetic cannot
 wrap, narrowing agrees with actual Nat/Int admission, and the bound/equality/cell
@@ -496,7 +496,7 @@ premises. This validation-only import does not add runtime/FFI dependencies to
 the oracle, interpret generated text, or prove source execution/native refinement.
 Shape results and floating scalar expression interfaces remain open.
 
-The [numerical declaration profiles](numerical-declarations.md) use the same
+The [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations) use the same
 complete declaration certificate. `IndexedSource.checked_implementation_contract`,
 `checked_linear_base`, `checked_smooth_complex_base`, `checked_coefficient_unique`
 and `checked_descriptor_is_affine` establish the actual accepted metadata
@@ -505,7 +505,7 @@ same decoded protocol-8 input and authority checker. These are structural type
 and provenance facts; by themselves they do not establish field/module laws,
 linear object construction, public GEMM, floating-point accuracy or native refinement.
 
-The [numerical-value compiler](numerical-values.md) now has a separate
+The [numerical-value compiler](linalg/maps-and-gemm.md#numerical-values) now has a separate
 `StorageNumerical` certificate composed with that resource checker.
 `accepted_profiles` derives each map endpoint's actual declaration contract;
 `nominal_endpoints` preserves exact objects and basis identities;
@@ -543,7 +543,7 @@ checks to the public request's accepted declaration environment. Callee-local
 identities and outstanding loans cannot become owned results. These are logical
 checker/transfer facts, not native heap or floating arithmetic proofs.
 
-For [typed map transforms](linear-transforms.md), `actual_transform` ties the
+For [typed map transforms](linalg/transforms-and-metrics.md#linear-transforms), `actual_transform` ties the
 accepted operation to its original map, independently checked read reborrow,
 full provenance audit and exact emitted schedule. `transform_storage` retains
 the allocation, parent and physical layout; `dual_flags`, `conjugate_flags` and
@@ -557,7 +557,7 @@ native floating-point refinement. `TransformRegression` adds independent
 provenance/metric/loan/flag mutations; public source tests execute scalar and
 rectangular real/complex transforms, nested calls and owned materialized results.
 
-For [vector evaluation](vector-evaluation.md), `vector_space` and
+For [vector evaluation](linalg/transforms-and-metrics.md#vector-evaluation), `vector_space` and
 `vector_input_reborrow` retain actual profile/basis identity and the exact child
 borrow, including conjugation. `actual_vector_conjugation` connects the selected
 derived space/involution to the real resource transition. `actual_evaluation`
@@ -576,7 +576,7 @@ by `NumericalRegression`; generated real/complex fixtures provide separate nativ
 execution evidence. Raw internal GEMM operations retain only their resource
 certificate and do not acquire nominal authority from this optional typed path.
 
-The [finite two-map network profile](finite-networks.md) is independently checked
+The [finite two-map network profile](linalg/networks-and-packing.md#finite-networks) is independently checked
 by `Storage.TensorNetwork` before reusing the existing typed product and exact
 GEMM emitter. `VastitasOracle.TensorNetwork.ports_used_once` derives exact single
 consumption of every occurrence port. `admitted_bilinear_edge`, `output_boundary`
@@ -589,20 +589,20 @@ source/wire/native tests cover nominal mismatches, duplicate/unconnected ports,
 forged transforms, immutable reuse and nested calls. General networks and
 structural nodes remain outside this two-occurrence profile.
 
-The internal [Graph crossing checker](graph-crossings.md) has separate
+The internal [Graph crossing checker](verification/core-models.md#graph-crossings) has separate
 profile/port/return audits and conditional structural rewrite theorems in
 `VastitasOracle.Graph`. It does not extend these source/Core evaluation claims
 to tensor syntax. Its categorical law provider, selected-method realization,
 and bridge from `Graph.Core` to actual returned indexed terms remain pending.
 
-The [exact real ℓ² tail reference](l2-tail-reference.md) checks closed geometric
+The [exact real ℓ² tail reference](reference/analysis-and-effects.md#l2-tail-reference) checks closed geometric
 and reciprocal certificate rules with rational arithmetic in Python. Its
 generator/environment/returned-record audits are reference tests only. The
 document states the Lean analytic soundness goals and actual returned-Core
 integration obligations; no new Hilbert theorem, compiler acceptance,
 completeness proof, or iterator memory-safety claim follows from those tests.
 
-The [exact real-plane metric reference](metric-reference.md) separately tests
+The [exact real-plane metric reference](reference/geometry.md#metric-reference) separately tests
 metric-free polynomial differentials/cotangent pullbacks, selected constant
 metrics and their musical maps. Exact inverse and real positivity checks are
 distinct, and evidence retains the object/base/frame/basepoint/metric identity.
@@ -610,7 +610,7 @@ Its coordinate-change regressions and nominal-evidence audits are Python
 reference results only; the document lists separate future Lean soundness and
 same-returned-Core obligations. It adds no AD primitive or compiler acceptance.
 
-The [polynomial first-variation reference](variational-reference.md) compares the
+The [polynomial first-variation reference](reference/geometry.md#variational-reference) compares the
 linear epsilon coefficient of the expanded action with a separately computed
 Euler–Lagrange integral plus oriented boundary terms. It checks actual variation
 endpoint values and binds evidence to the complete independent polynomial
@@ -661,7 +661,7 @@ are tracked in the README and the Stage 1 acceptance/completion ledgers.
 
 ## Validation
 
-The [initial promotion contract](promotion.md) documents the arbitrary-input
+The [initial promotion contract](stage1a.md#promotion) documents the arbitrary-input
 numerical proofs in `VastitasOracle.IndexedPromotion`, reflection of the stdlib's
 actual public `Indexed.LegacySource.check` executable Core, frontend-fixture
 agreement, and the distinction between proof
@@ -743,7 +743,7 @@ replay and mutation tests with `python3 experiments/source_workspace/fetch.py --
 Their original manifests bind each release download to its byte count and SHA-256.
 The latest source tree holds the manifests and summaries. A fresh shallow checkout
 omits 616,677,342 bytes of ZIPs. Full clones that include earlier commits retain
-the old blobs. [Retrieval and offline replay](../experiments/source_workspace/README.md#retrieve-a-retained-archive)
+the old blobs. [Retrieval and offline replay](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/README.md#retrieve-a-retained-archive)
 
 Other CI jobs retain their non-cone sparse checkout patterns. The pinned checkout
 action selects `blob:none` when given those patterns. Its `filter` input would
@@ -894,7 +894,7 @@ instances are memoized in a separate map; active membership uses a set, and
 completion pops the stack and erases the key without filtering the entire stack.
 Signature-probe and executable passes have separate state. Type shape checks do
 not count a synthesized Fn wrapper toward the 64-level declared-type limit.
-See [the indexing regression and measurement notes](stage1b-indexing.md).
+See [the indexing regression and measurement notes](stage1b.md#stage1b-indexing).
 
 Run the transitive local axiom audit with:
 
@@ -964,7 +964,7 @@ Guarantees start at decoded input, not filesystem authenticity or authorship.
 remain about `checkEditProgram`, not the current public JSON entry point.
 
 `VastitasOracle.EditBorrowing.checkEditProgram_finite_acceptance`, in
-[`EditAcceptance.lean`](../lean/VastitasOracle/EditAcceptance.lean), has the premise
+[`EditAcceptance.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/EditAcceptance.lean), has the premise
 `checkEditProgram program requireMain = .ok certified` and concludes
 `∃ assembled : Assembled program.indexed,
 FiniteEditAcceptance program requireMain certified assembled`.
@@ -1020,7 +1020,7 @@ oracle audit checks its dependencies against `propext`, `Classical.choice` and
 
 #### Regression connection and validation
 
-[`scripts/check_edit_acceptance.lean`](../scripts/check_edit_acceptance.lean)
+[`scripts/check_edit_acceptance.lean`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_edit_acceptance.lean)
 contains compile-time attempts to reuse evidence for a different program,
 policy, assembly or even another well-typed Core. They must fail. It also proves
 that a genuinely different returned Core cannot have a bundle for the same
@@ -1052,7 +1052,7 @@ executed them; report actual validation results with each change.
 
 ### Polynomial symplectic reference (#211)
 
-The [exact symplectic reference](symplectic-reference.md) separates subject
+The [exact symplectic reference](reference/geometry.md#symplectic-reference) separates subject
 binding, alternation, exterior derivative and domain-qualified inverse checks
 for polynomial 2-forms on `R^4` or `D(1+q1)`. It has executable Python regressions,
 including same-determinant evidence replay and invalid global extension, but no
@@ -1062,7 +1062,7 @@ existing 8+1 division. It does not extend the finite acceptance theorem above.
 
 ### Rational SOS cover reference (#244 / #237)
 
-The [SOS cover reference](sos-reference.md) independently checks exact rational
+The [SOS cover reference](reference/analysis-and-effects.md#sos-reference) independently checks exact rational
 polynomial identities, permutation-qualified LDL^T factors with zero pivots, and
 a strictly positive rational lower bound for real-polynomial cozero covers.
 It shares arity-aware sparse polynomial arithmetic with the symplectic reference
@@ -1278,8 +1278,8 @@ identity preservation are also proved for these internal records.
 
 These declaration-only lemmas are prerequisites for the public checker, not its
 entire acceptance theorem. Every public protocol now uses the common indexed
-source checker and returned Core. See [indexed-declarations.md](indexed-declarations.md)
-for exact checks and [migration acceptance](geometry-migration.md) for the complete
+source checker and returned Core. See [indexed-declarations.md](indexed-source.md#indexed-declarations)
+for exact checks and [migration acceptance](indexed-source.md#geometry-migration) for the complete
 source/namespace/primitive/existential/Core evidence map.
 
 
@@ -1309,7 +1309,7 @@ only `IndexedRuntime`. Thirty-four structural regressions and three standalone
 native fixtures run without mathlib. This structural theorem alone is not a source
 acceptance, typed evaluation or native equivalence theorem. The public acceptance
 and program evaluation results described here compose with it; native equivalence
-remains unproved. See [indexed-declarations.md](indexed-declarations.md).
+remains unproved. See [indexed-declarations.md](indexed-source.md#indexed-declarations).
 
 `VastitasOracle.LegacyIndexed.check_acceptance` connects the exact legacy input
 to the actual translated indexed module, with complete typing and actual
@@ -1466,7 +1466,7 @@ These are structural checker guarantees. Whole-term indexed evaluation is suppli
 by `IndexedProgramSafety`; protocols 2–6 use the common source checker via
 `LegacySource`. General scheme/manifold mathematics, native equivalence and C
 performance measurements are not established by these theorems or tests. See the
-[library contract](../stdlib/src/geometry/README.md) and
+[library contract](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md) and
 [completion ledger](stage1-completion.md).
 
 ### Finite geometry result compatibility
@@ -1489,11 +1489,11 @@ Erasure drops nominal/marker tags. These equations do not permit mixing bases,
 equating distinct brands or fabricating endpoint evidence; the typing and world
 theorems establish those obligations before erasure. This is operation-level
 finite result compatibility, not whole-source equivalence or native compilation
-correctness. [The migration map](geometry-migration.md) records how the separate
+correctness. [The migration map](indexed-source.md#geometry-migration) records how the separate
 proofs and actual-source regressions fulfill #49/#58–63 without expanding their
 claims to arbitrary geometry or the complete native toolchain.
 
-The finite [rank-three tensor/packing profile](tensor-packing.md) adds actual
+The finite [rank-three tensor/packing profile](linalg/networks-and-packing.md#tensor-packing) adds actual
 ordered-axis and corresponding-dual certificates. `VastitasOracle.TensorNumerical`
 connects accepted physical groupings, coordinate bounds and initialized packing
 outputs to exact emitted transitions and public declaration origins. The finite
@@ -1511,10 +1511,10 @@ return contracts; `result_initialized_bytes` derives actual byte initialization.
 existing native lowerer. `public_operation_origin` and `public_result_origin`
 connect receipts to the declaration environment of the same protocol-8 checker
 result. Both branch receipts and independent unused-body probes are retained.
-See [the bounded package contract](owned-map-packages.md) for rejection/native
+See [the bounded package contract](linalg/maps-and-gemm.md#owned-map-packages) for rejection/native
 coverage and remaining general-package, dynamic-shape and refinement boundaries.
 
-The [bounded contraction-tree profile](contraction-trees.md) adds
+The [bounded contraction-tree profile](linalg/networks-and-packing.md#contraction-trees) adds
 `TensorContraction` and `TensorTree` oracle modules over actual checker receipts.
 They prove generic grouping bounds/injectivity, rank-two neutral physical
 embedding, selected-axis finite coordinate references, reconstructed connected
@@ -1539,12 +1539,12 @@ capture/require/GEMM schedules, public environment origins and metadata erasure.
 Closed plans require all dependency handles forgotten. These are logical
 resource/history and actual-checker facts; they do not prove copied heap contents,
 BLAS arithmetic, whole-source/native refinement or AD residual correctness.
-See [the bounded packing cache](cached-packing.md).
+See [the bounded packing cache](linalg/networks-and-packing.md#cached-packing).
 
 
 ## Explicit diagonal metric certificates and ideal laws
 
-[Diagonal metrics](diagonal-metrics.md) use the actual `StorageMetric` acceptance
+[Diagonal metrics](linalg/transforms-and-metrics.md#diagonal-metrics) use the actual `StorageMetric` acceptance
 certificates. `VastitasOracle.StorageMetric` links declared form/basis identity,
 exact bounded-Int realization, live original inputs, initialized output and
 precise emitted actions. Pairing includes acceptance of its full eight-action

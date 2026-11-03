@@ -1,0 +1,54 @@
+name: Documentation book
+
+on:
+  push:
+    paths:
+      - 'book.toml'
+      - 'config/mdbook-version'
+      - 'config/mdbook-katex-version'
+      - 'docs/**'
+      - 'scripts/check_book.py'
+      - '.github/workflows/documentation.yml'
+  pull_request:
+    paths:
+      - 'book.toml'
+      - 'config/mdbook-version'
+      - 'config/mdbook-katex-version'
+      - 'docs/**'
+      - 'scripts/check_book.py'
+      - '.github/workflows/documentation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  book:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install the pinned offline math renderer
+        run: cargo install mdbook-katex --locked --version "=$(cat config/mdbook-katex-version)"
+      - name: Build with the pinned mdBook release
+        run: |
+          version=$(cat config/mdbook-version)
+          archive="mdbook-v${version}-x86_64-unknown-linux-musl.tar.gz"
+          curl --fail --location --retry 3 --silent --show-error \
+            "https://github.com/rust-lang/mdBook/releases/download/v${version}/$archive" \
+            --output "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' '5222beabd3e37dc5be0d18ff99b79058469354db5c220153a1b92db5ba12be89' \
+            "$RUNNER_TEMP/$archive" | sha256sum --check -
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" mdbook
+          test "$("$RUNNER_TEMP/mdbook" --version)" = "mdbook v$version"
+          "$RUNNER_TEMP/mdbook" build
+      - name: Check chapter inventory, navigation and links
+        run: python3 scripts/check_book.py
+      - name: Retain the rendered book for review
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: vastitas-book
+          path: target/book/
+          if-no-files-found: error
+          retention-days: 7

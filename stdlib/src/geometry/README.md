@@ -151,7 +151,7 @@ The exact returned Core has typed total evaluation through `IndexedProgramSafety
 `GeometryResults` proves that the validated primitive roles preserve finite
 legacy runtime results after erasure. These results do not prove general scheme
 mathematics, complete surface operational correspondence or native correctness.
-See the [migration acceptance map](../../../docs/geometry-migration.md) for the
+See the [migration acceptance map](../../../docs/indexed-source.md#geometry-migration) for the
 inventory, regression matrix and remaining trust boundaries.
 
 ## Representation and future design

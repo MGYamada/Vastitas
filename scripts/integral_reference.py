@@ -1,7 +1,7 @@
 """Finite QQ-polynomial integral enclosures for #293; Python reference only.
 
 No adaptive quadrature, arbitrary function callbacks, Lean proof, actual Core
-acceptance or native rounding guarantee. See docs/integral-reference.md.
+acceptance or native rounding guarantee. See docs/reference/analysis-and-effects.md#integral-reference.
 """
 
 from __future__ import annotations

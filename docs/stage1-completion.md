@@ -23,13 +23,13 @@ The delivery tracker records the main merge and hosted results.
   positives remain accepted. Unused 90-wrapper packages reject with `E_LIMIT`.
   On one uncontrolled Mac the static 200-read case increased from 1.904 to
   2.889 s and the runtime case changed from 1.643 to 1.500 s.
-  [Resource budgets and matched inputs](../experiments/compiler_scaling/results/2026-11-03-macos-resource-work-budget/RESULTS.md) · [PR #513](https://github.com/MGYamada/Vastitas/pull/513)
+  [Resource budgets and matched inputs](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-resource-work-budget/RESULTS.md) · [PR #513](https://github.com/MGYamada/Vastitas/pull/513)
 - #426 bounds import work across modules and namespace work across the input
   and all body passes. Reused aliases have a proof of the same target under
   the original resolver. A 600-link alias used 300 times fell from 1.594 to
   0.870 s. The 1,000-link single-use case rose from 1.445 to 2.205 s. Two
   individually valid 1,050-link modules reached the combined limit in 0.072 s.
-  [Namespace cases and measured revision](../experiments/compiler_scaling/results/2026-11-03-macos-namespace-work-budget/RESULTS.md) · [PR #514](https://github.com/MGYamada/Vastitas/pull/514)
+  [Namespace cases and measured revision](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-namespace-work-budget/RESULTS.md) · [PR #514](https://github.com/MGYamada/Vastitas/pull/514)
 - The integrated head passed local Rust formatting, strict Clippy, 418 Rust
   tests across 39 suites with the optional OpenBLAS tests enabled, a 197-job
   kernel build, 160-job kernel regressions and a 202-job proof build. The axiom
@@ -49,8 +49,8 @@ retain the comparator, host and source revision recorded below.
 | Finite edit acceptance composition | PR #187, merge `d2f81fd` | Complete for protocol 5 only: same-input/assembly/Core composition, index regressions, oracle, 6,417-declaration audit and both OS CI; #184 remains open |
 | Nested edit loans | #181, PR #186, merge `a779a67`; part of #52/#64 | Complete: 222 Rust tests, nine kernel regressions, oracle, integrated 6,780-declaration audit and both OS CI. Protocol 6: explicit delegation, region inclusion, suspended parent authority, inner-first return, complete provenance and final winning-footprint checks; see `edit_authority.rs` and `AuthorityRegression` |
 | Permanent authority transfer | #182, PR #186, merge `a779a67`; part of #52/#64 | Complete with the same validation. Protocol 6: immutable definition identity, current owner, explicit transfer, no active loans, retained grants/methods/obligations and revoked former-owner editing; actual-checker proofs in `VastitasOracle.Authority` |
-| Indexed declarations and existing geometry | needed #48 foundation; #58–63 and #49 | Complete finite migration in [PR #255](https://github.com/MGYamada/Vastitas/pull/255), with the [acceptance map](geometry-migration.md) and its linked validation record. Canonical scheme/smooth stdlib declarations, one common public source checker (#240, `f2876ef`), typed total evaluation of exact audit/executable Core (#250, `6d1d752`), finite primitive result compatibility and the public source/raw-IR/forged-Core/native regression matrix are in place. Full source operational equivalence and native toolchain equivalence remain unproved and are not claimed by this migration |
-| Storage ownership | #183, Core Safety boundary in #180 | The initial affine ownership, initialization, views, caller destinations/scratch, `OwnedMapTo`, versioned packing dependencies and mixed scalar-flow contracts are implemented. [Bounded runtime extents](runtime-shapes.md) add guarded whole-map calls and typed GEMM. [Acceptance map](stage1-acceptance.md#183--affine-storage-and-its-performance-amendment): source/forged-IR tests and actual-checker proofs cover the finite profile; Stage 2 or later owns remaining performance attribution under #183 |
+| Indexed declarations and existing geometry | needed #48 foundation; #58–63 and #49 | Complete finite migration in [PR #255](https://github.com/MGYamada/Vastitas/pull/255), with the [acceptance map](indexed-source.md#geometry-migration) and its linked validation record. Canonical scheme/smooth stdlib declarations, one common public source checker (#240, `f2876ef`), typed total evaluation of exact audit/executable Core (#250, `6d1d752`), finite primitive result compatibility and the public source/raw-IR/forged-Core/native regression matrix are in place. Full source operational equivalence and native toolchain equivalence remain unproved and are not claimed by this migration |
+| Storage ownership | #183, Core Safety boundary in #180 | The initial affine ownership, initialization, views, caller destinations/scratch, `OwnedMapTo`, versioned packing dependencies and mixed scalar-flow contracts are implemented. [Bounded runtime extents](storage/resource-programs.md#runtime-shapes) add guarded whole-map calls and typed GEMM. [Acceptance map](stage1-acceptance.md#183--affine-storage-and-its-performance-amendment): source/forged-IR tests and actual-checker proofs cover the finite profile; Stage 2 or later owns remaining performance attribution under #183 |
 | Linear algebra and networks | #66/#67/#69/#91/#92 | The initial finite real/complex GEMM, explicit dual/conjugate/evaluation, diagonal adjoint/pairing and connected rank-two/three tree profiles are implemented and [mapped to actual tests/proofs/native evidence](stage1-acceptance.md). Exact source identities, ordered ports, caller packing and written multiplication order are retained. This is not completion of general-rank/structural-node parent scope or controlled-host performance |
 | Fast like C | #183/#222 | Stage 2 or later owns the controlled-host verdict, a predeclared tiny-call budget, remaining general/BLAS costs and review of material slow paths. The measured gaps and comparator scope are recorded below. |
 | Integrated finite delivery | #179 | The final implementation, regression and CI record above covers the finite scope. The performance follow-up is tracked in #183 and #222. |
@@ -61,7 +61,7 @@ The following records retain their merge-time scope. Later rows and the acceptan
 | --- | --- | --- |
 | Bilinear vector evaluation and explicit orthonormal Hermitian pairing, PR #332 | `881270df5413b86063d9dab508c074b89222bddc`; [validation](https://github.com/MGYamada/Vastitas/pull/332#issuecomment-6542785520): 301 Rust tests, six optional numerical tests, 36 kernel regression targets, 19,450-declaration axiom audit and all 17 final-head hosted checks | General metric realization and ideal identities remain open; no floating-point field-law or native refinement claim |
 | Executable finite two-map networks, PR #331 | `604d0310c997f7b35dd0e83968865116f7322d89`; [integrated validation](https://github.com/MGYamada/Vastitas/pull/331#issuecomment-6542885966): 306 Rust tests, seven optional numerical tests, 37 kernel regression targets, 19,757-declaration axiom audit and all 17 final-head hosted checks | Exactly two rank-two occurrences and one bilinear edge; higher-rank/multi-edge networks, explicit packing/scratch and categorical laws remain open |
-| Optional public GEMM experiment, PR #333 | `5664639143d50288d72bfd35c7ab8a15b33b14e3`; [validation](https://github.com/MGYamada/Vastitas/pull/333#issuecomment-6543004832): all 19 final-head hosted checks, including both Linux smoke jobs; [preserved run](../experiments/public_gemm/results/2026-10-31-linux-smoke/RESULTS.md) covers 16 public check/build/executions, 32 native/sanitizer validations and 454 generated/C output/cost pairs | Smoke validates execution and arena costs, not speed or controlled-host acceptance. Subsequent full-size measurements are recorded below; controlled-host, total allocation/packing and budget acceptance remain open |
+| Optional public GEMM experiment, PR #333 | `5664639143d50288d72bfd35c7ab8a15b33b14e3`; [validation](https://github.com/MGYamada/Vastitas/pull/333#issuecomment-6543004832): all 19 final-head hosted checks, including both Linux smoke jobs; [preserved run](https://github.com/MGYamada/Vastitas/blob/main/experiments/public_gemm/results/2026-10-31-linux-smoke/RESULTS.md) covers 16 public check/build/executions, 32 native/sanitizer validations and 454 generated/C output/cost pairs | Smoke validates execution and arena costs, not speed or controlled-host acceptance. Subsequent full-size measurements are recorded below; controlled-host, total allocation/packing and budget acceptance remain open |
 | Generative affine owned-map packages, PR #336 | `5681610745d11af6e376924e64e0a70dfe595a16`; [validation](https://github.com/MGYamada/Vastitas/pull/336#issuecomment-6543326912): 309 Rust tests, eight optional numerical tests, 38 kernel regression targets, 20,066-declaration axiom audit and all 18 final-head hosted checks | `OwnedMapTo` closes one primal target and direct basis with static dimensions; general existential resources, dynamic shapes and native refinement remain open |
 | Explicit rank-three packing and contraction, PR #340 | `c105811d12034c347f905f94a4a916e40c597631`; [validation](https://github.com/MGYamada/Vastitas/pull/340#issuecomment-6543541549): 313 Rust tests, nine optional numerical tests, 39 kernel regression targets, 20,489-declaration axiom audit and all 18 final-head hosted checks | One explicit rank-three permutation and rank-three/rank-two contraction; general networks, native refinement and equivalent-C performance acceptance remain open |
 | Explicit versioned packing caches, PR #342 | `0a1062845dc58f030bc946cf52598db81a5bc9f2`; [validation](https://github.com/MGYamada/Vastitas/pull/342#issuecomment-6544701678): 317 Rust tests, ten optional numerical tests, 40 kernel regression targets, 20,832-declaration axiom audit and all 18 final-head hosted checks | Explicit source/scratch dependency stamps and invalidation; general value retention, AD residuals and implicit reuse remain open |
@@ -91,7 +91,7 @@ review findings before the merge. This integration is not performance acceptance
 The production change shares only immutable Unit-success IO results through
 pinned Lean's once/persistence APIs. Errors, non-Unit results and arena wrappers
 remain fresh; status checks and cleanup remain. The observed generated `finally`
-fallback and one retained singleton remain charged. The [production record](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
+fallback and one retained singleton remain charged. The [production record](https://github.com/MGYamada/Vastitas/blob/main/experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md)
 measures its explicitly retained dirty snapshot, not a later merge.
 Current Unit-only cleanup avoids rebuilding the successful cleanup result;
 the old record and its charged fallback remain unchanged. Public native
@@ -108,16 +108,16 @@ change [PR #378](https://github.com/MGYamada/Vastitas/pull/378) merged as
 [23 successful hosted checks and re-review](https://github.com/MGYamada/Vastitas/pull/378#issuecomment-6558593549).
 Its native 23-scenario regression covers static, dynamic and nested arenas,
 including error precedence and both actual sparse compiler checkouts. The
-post-cleanup [macOS](../experiments/source_workspace/results/2026-11-01-macos-unit-cleanup/RESULTS.md)
-and [Linux](../experiments/source_workspace/results/2026-11-01-linux-unit-cleanup/RESULTS.md)
+post-cleanup [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-macos-unit-cleanup/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-linux-unit-cleanup/RESULTS.md)
 cost records measure clean `84b0c11`, not the merge commit. Their lifecycle
 batches 1/2/17 observe 5/7/37 diagnostic normal allocations / 104/144/744 binned
 bytes; reuse remains three / 64 per batch. These records preserve all 81 Git
 inputs, 936 observation processes and 9,360 allocator snapshots per OS.
 
 The separate large-output source records for
-[macOS](../experiments/source_workspace/results/2026-11-01-macos-streaming/RESULTS.md)
-and [Linux](../experiments/source_workspace/results/2026-11-01-linux-streaming/RESULTS.md)
+[macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-macos-streaming/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-linux-streaming/RESULTS.md)
 measure clean `ceff584`, with 128/256 MiB outputs and complete caller-buffer
 reuse/lifecycle cost checks. They add a bounded workload profile without measuring
 operation time, cache misses or DRAM traffic. This coverage does not discharge the
@@ -138,7 +138,7 @@ representative memory-bound timing or other acceptance conditions below.
    intervals. Review material slow paths. Historical shared-host tree
    measurements saw tiny lifecycle ratios of 1.44–1.49 against arena-C. That
    comparator shared runtime preflight and accounting.
-   [Matched tree observations](../experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md)
+   [Matched tree observations](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md)
 3. Reconcile outstanding general Lean/allocator and OpenBLAS-private costs,
    startup, whole-process peaks and representative memory-bound timings.
    Existing 128/256 MiB output records establish large-output execution and
@@ -155,30 +155,30 @@ output/cost verification remain available through the linked reports.
 The archived GEMM, packing and tree timing ratios in this table all use
 **arena-C**, which shares Vastitas preflight and accounting. They are not
 standalone-C performance evidence. The current
-[three-arm harness](../experiments/plain_c/README.md) uses `generated/plain_c`
+[three-arm harness](https://github.com/MGYamada/Vastitas/blob/main/experiments/plain_c/README.md) uses `generated/plain_c`
 for the equivalent-C comparison and keeps `generated/arena_c` for attribution;
 plain-C costs are checked in a separate diagnostic replay. Old records are
 preserved unchanged, and the controlled-host gate remains open.
 
 | Record | What it establishes and what remains |
 | --- | --- |
-| [Explicit storage copy](../experiments/storage_copy/README.md), PR #283 | Matched full-lifecycle/reuse copy work and visible arena costs; shared-VM variance and slower paths do not establish the budget |
-| [Full public GEMM](../experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md), PR #335 | Clean `38b96ae5a6b0610ec71babf199e7635867cca023`, 24 cases/1,256 matched pairs. Tiny lifecycle +329–400 ns, small lifecycle ratios 1.19–1.31; some bulk intervals cross the provisional budget. Shared-host evidence, not controlled acceptance |
-| [Full tensor packing](../experiments/tensor_packing/results/2026-10-31-linux-full/RESULTS.md), PR #341 | Earlier `3c1664c698be93041012b5768a76f4fc0d975b31`, 877 matched pairs and native LSan checks. Explicit packing costs are included; tiny lifecycle +408–721 ns and some bulk intervals remain outside acceptance |
-| [Full contraction tree with block-copy arena-C](../experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md), PR #347 | Clean `82e00e97a6f93ef0b078bdc086f142c5703c6bc4`, 1,325 pairs/24 native records. Tiny lifecycle ratios 2.0860–2.2248, small 1.2584–1.5559; bulk 0.9879–1.0320 with an interval reaching 1.1282. Preserve the older weaker comparison; different CPUs prevent cross-run attribution |
-| [Contraction tree with production Unit result](../experiments/contraction_trees/results/2026-11-01-linux-unit-result/RESULTS.md) | Clean `3e3157a19ad3dfcae8c265fa4de68dd097138c38`, 1,313 pairs/24 native records. Tiny lifecycle 1.4233–1.5096 (+566–795 ns), reuse 1.4006–1.4646; bulk lifecycle 1.0017–1.0164 within this shared-host run. 52 measurement batches fell below the calibration target. Different CPUs prevent attributing the change from the older record to Unit sharing; timing and full-cost gates remain open |
-| [Post-short-axis full Linux tree](../experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md) | Clean main `7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c` after #357; [run 41290985225](https://github.com/MGYamada/Vastitas/actions/runs/41290985225), 12 public check/build/executions, 24 native/sanitizer records, 288 verification executions and 1,311 matched pairs. Tiny lifecycle 1.4377–1.4930 (+517–994 ns); small F64 regroup/reuse/lifecycle 1.2519–1.2545 / 1.1141–1.2135 / 1.1260–1.2693. Functional/cost fallback checks pass; bulk-complex contiguous regroup is 1.1055 [1.0749, 1.1128], and small padded F64 lifecycle has an interval reaching 1.9155. All 116 short measurement batches remain. Same CPU model as #356 does not establish same-host old/new attribution; controlled-host, tiny-budget and total-cost gates remain open. |
-| [Diagonal metrics](../experiments/diagonal_metrics/README.md) | Matched prepared and matched-preflight C evidence retains tiny-call/coefficient-pass gaps. Public-source lifecycle, total/backend allocation and controlled-host acceptance remain unmeasured |
-| [Runtime shapes](../experiments/runtime_shapes/results/2026-11-01-macos/RESULTS.md) | Dirty base `117a6e972308f25b8ddccd9db536af161d6a322a`, 144 pairs/eight native records/12 failure-cleanup cases, multiple extents and caller destination reuse. Correctness/explicit-cost audit only, no operation timings |
-| [Original allocation experiment](../experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md), PR #351 | Selected FFI/emitted-object observation with an experiment-only pthread prototype; preserved unchanged, not production optimization or total-heap evidence |
-| [Actual production Unit result](../experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md), PR #353 | Actual once/persistent helper, dirty base `24b5f3166c020a38d941e6140338a6ec08e1f3a8`, 96 records/48 pairs. Tracked warm bytes `56N+64` per lifecycle batch and 64 per reuse batch include the `finally` fallback; 16 bytes remain persistent and tracked peak is 88 versus 72 for the private fresh comparator. Arena costs unchanged. No timing, total-heap or controlled-host claim |
-| [Stock runtime observation calibration](../experiments/stock_allocation_capabilities/README.md), PR #355 | Merged `6185085` after [17 successful checks and review](https://github.com/MGYamada/Vastitas/pull/355#issuecomment-6552305294). Separate clean macOS `8e516d5` and Linux `8e548d3` records calibrate known main-heap retention/release. Small-object churn has no stock-counter signal; huge `current` remains cumulative after release. This identifies unsupported cost channels, not zero allocation, a leak, total heap accounting or timing acceptance |
+| [Explicit storage copy](https://github.com/MGYamada/Vastitas/blob/main/experiments/storage_copy/README.md), PR #283 | Matched full-lifecycle/reuse copy work and visible arena costs; shared-VM variance and slower paths do not establish the budget |
+| [Full public GEMM](https://github.com/MGYamada/Vastitas/blob/main/experiments/public_gemm/results/2026-10-31-linux-full/RESULTS.md), PR #335 | Clean `38b96ae5a6b0610ec71babf199e7635867cca023`, 24 cases/1,256 matched pairs. Tiny lifecycle +329–400 ns, small lifecycle ratios 1.19–1.31; some bulk intervals cross the provisional budget. Shared-host evidence, not controlled acceptance |
+| [Full tensor packing](https://github.com/MGYamada/Vastitas/blob/main/experiments/tensor_packing/results/2026-10-31-linux-full/RESULTS.md), PR #341 | Earlier `3c1664c698be93041012b5768a76f4fc0d975b31`, 877 matched pairs and native LSan checks. Explicit packing costs are included; tiny lifecycle +408–721 ns and some bulk intervals remain outside acceptance |
+| [Full contraction tree with block-copy arena-C](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-10-31-linux-block-copy/RESULTS.md), PR #347 | Clean `82e00e97a6f93ef0b078bdc086f142c5703c6bc4`, 1,325 pairs/24 native records. Tiny lifecycle ratios 2.0860–2.2248, small 1.2584–1.5559; bulk 0.9879–1.0320 with an interval reaching 1.1282. Preserve the older weaker comparison; different CPUs prevent cross-run attribution |
+| [Contraction tree with production Unit result](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-11-01-linux-unit-result/RESULTS.md) | Clean `3e3157a19ad3dfcae8c265fa4de68dd097138c38`, 1,313 pairs/24 native records. Tiny lifecycle 1.4233–1.5096 (+566–795 ns), reuse 1.4006–1.4646; bulk lifecycle 1.0017–1.0164 within this shared-host run. 52 measurement batches fell below the calibration target. Different CPUs prevent attributing the change from the older record to Unit sharing; timing and full-cost gates remain open |
+| [Post-short-axis full Linux tree](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-11-01-linux-regroup-blocks/RESULTS.md) | Clean main `7486d2ca7f8f9bb9cd2bc4d77335b47e79ebf28c` after #357; [run 41290985225](https://github.com/MGYamada/Vastitas/actions/runs/41290985225), 12 public check/build/executions, 24 native/sanitizer records, 288 verification executions and 1,311 matched pairs. Tiny lifecycle 1.4377–1.4930 (+517–994 ns); small F64 regroup/reuse/lifecycle 1.2519–1.2545 / 1.1141–1.2135 / 1.1260–1.2693. Functional/cost fallback checks pass; bulk-complex contiguous regroup is 1.1055 [1.0749, 1.1128], and small padded F64 lifecycle has an interval reaching 1.9155. All 116 short measurement batches remain. Same CPU model as #356 does not establish same-host old/new attribution; controlled-host, tiny-budget and total-cost gates remain open. |
+| [Diagonal metrics](https://github.com/MGYamada/Vastitas/blob/main/experiments/diagonal_metrics/README.md) | Matched prepared and matched-preflight C evidence retains tiny-call/coefficient-pass gaps. Public-source lifecycle, total/backend allocation and controlled-host acceptance remain unmeasured |
+| [Runtime shapes](https://github.com/MGYamada/Vastitas/blob/main/experiments/runtime_shapes/results/2026-11-01-macos/RESULTS.md) | Dirty base `117a6e972308f25b8ddccd9db536af161d6a322a`, 144 pairs/eight native records/12 failure-cleanup cases, multiple extents and caller destination reuse. Correctness/explicit-cost audit only, no operation timings |
+| [Original allocation experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/allocation_audit/results/2026-11-01-macos/RESULTS.md), PR #351 | Selected FFI/emitted-object observation with an experiment-only pthread prototype; preserved unchanged, not production optimization or total-heap evidence |
+| [Actual production Unit result](https://github.com/MGYamada/Vastitas/blob/main/experiments/allocation_audit/results/2026-11-01-macos-production/RESULTS.md), PR #353 | Actual once/persistent helper, dirty base `24b5f3166c020a38d941e6140338a6ec08e1f3a8`, 96 records/48 pairs. Tracked warm bytes `56N+64` per lifecycle batch and 64 per reuse batch include the `finally` fallback; 16 bytes remain persistent and tracked peak is 88 versus 72 for the private fresh comparator. Arena costs unchanged. No timing, total-heap or controlled-host claim |
+| [Stock runtime observation calibration](https://github.com/MGYamada/Vastitas/blob/main/experiments/stock_allocation_capabilities/README.md), PR #355 | Merged `6185085` after [17 successful checks and review](https://github.com/MGYamada/Vastitas/pull/355#issuecomment-6552305294). Separate clean macOS `8e516d5` and Linux `8e548d3` records calibrate known main-heap retention/release. Small-object churn has no stock-counter signal; huge `current` remains cumulative after release. This identifies unsupported cost channels, not zero allocation, a leak, total heap accounting or timing acceptance |
 
 Unexpected allocation, hidden copies or asymptotically greater data movement fail
 the cost contract even if a timing sample is favorable. Native correctness and
 cleanup CI are mandatory evidence, separate from performance acceptance.
 
-The optional [OpenBLAS workspace diagnostic](../experiments/openblas_workspace/README.md)
+The optional [OpenBLAS workspace diagnostic](https://github.com/MGYamada/Vastitas/blob/main/experiments/openblas_workspace/README.md)
 adds independently replayed pool checkout/return and `memory.c` backing events,
 including constructor warmup, partial unmaps and explicit shutdown. Its paired
 stock/diagnostic adapter fixtures retain identical calculation objects and output
@@ -186,15 +186,15 @@ checks. The diagnostic backend is rebuilt, observes no operation timings, and
 does not count actual packing bytes, other backend files, Lean objects, RSS or
 generated-source lifecycle totals. These additional attribution channels do not
 complete the total-cost or controlled-host gate.
-Its retained [macOS](../experiments/openblas_workspace/results/2026-11-01-macos/RESULTS.md)
-and [Linux](../experiments/openblas_workspace/results/2026-11-01-linux/RESULTS.md)
+Its retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/openblas_workspace/results/2026-11-01-macos/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/openblas_workspace/results/2026-11-01-linux/RESULTS.md)
 records at clean `cc42822f120c8792e7fa0747b509282dcd934dde` each cover 150 executions.
 They observe 32 MiB/128 MiB of pool mapping retained after completed nonempty
 adapter calls, released at quit. Those are distinct backend configurations and
 virtual mapping capacities, not RSS or actual packing amounts. Both builds select
 upstream `NO_WARMUP`, so live constructor warmup remains outside these records.
 
-The [source workspace experiment](../experiments/source_workspace/README.md)
+The [source workspace experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/README.md)
 connects this diagnostic to actual public source check/build/execution and the
 exact returned tree instructions. Each actual CBLAS call has a verified event
 interval alongside the existing selected-object and arena observations. Stock
@@ -202,15 +202,15 @@ public executables remain distinct from private diagnostic wrappers. Full
 12-case coverage includes matched C, lifecycle/reuse and failure cleanup; recorded
 operation clocks are disabled. General Lean heap, backend static metadata/actual
 packing and meaningful per-operation peak memory remain outside this observation.
-Its retained [macOS](../experiments/source_workspace/results/2026-11-01-macos/RESULTS.md)
-and [Linux](../experiments/source_workspace/results/2026-11-01-linux/RESULTS.md)
+Its retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-macos/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-linux/RESULTS.md)
 records at clean `605a5a7c82697bd53241983e8a42c03a68fd372a` each contain 288 normal
 observations, 24 failure cleanups, 24 canonical executions and 4,512 actual CBLAS
 calls. Their 156 diagnostic processes each retain one 32 MiB/128 MiB mapping
 after cold source execution and release it at quit; generated/C backend costs
 agree in the measured lifecycle/reuse scopes. No speedup or total-heap claim follows.
 
-The optional [Lean allocator diagnostic](../experiments/lean_allocation_diagnostic/README.md)
+The optional [Lean allocator diagnostic](https://github.com/MGYamada/Vastitas/blob/main/experiments/lean_allocation_diagnostic/README.md)
 calibrates the previously unsupported normal-allocation channel with a private
 `MI_STAT=2` rebuild. It compares stock, rebuilt-zero and diagnostic runtimes while
 requiring every other runtime archive member to remain unchanged. Five known
@@ -218,15 +218,15 @@ object workloads distinguish binned allocation/live bytes from the incomplete,
 cumulative requested-byte counter. This is instrumentation calibration; joining
 it to actual generated-source calls, startup/general peak coverage and the full
 cost/performance gates remain separate obligations.
-Its retained [macOS](../experiments/lean_allocation_diagnostic/results/2026-11-01-macos/RESULTS.md)
-and [Linux](../experiments/lean_allocation_diagnostic/results/2026-11-01-linux/RESULTS.md)
+Its retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/lean_allocation_diagnostic/results/2026-11-01-macos/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/lean_allocation_diagnostic/results/2026-11-01-linux/RESULTS.md)
 records use clean feature `54531c1` and its identical-tree CI test merge `5425c1a`.
 Each has nine processes / 162 snapshots and 34 unchanged runtime objects. The
 diagnostic counts every tested transient allocation and release; stock/rebuilt-zero
 normal counters have no signal. Waiting-thread startup counters and general peaks
 remain outside the calibrated changes. See [PR #365](https://github.com/MGYamada/Vastitas/pull/365).
 
-The separate [block lifetime calibration](../experiments/lean_allocation_lifetimes/README.md)
+The separate [block lifetime calibration](https://github.com/MGYamada/Vastitas/blob/main/experiments/lean_allocation_lifetimes/README.md)
 adds a fixed-capacity process-global observer to a checksum-pinned private
 allocator rebuild. Its actual Lean API fixtures retain initialization traffic and
 compare live blocks/usable bytes to independent heap walking. Mixed-size and
@@ -238,8 +238,8 @@ are separate native evidence. This calibrates a private logical-block channel.
 The calibration alone does not bind that channel to public `.vast` source, account for other
 allocators or physical backing/RSS, or establish stock-runtime timing or the
 Fast like C acceptance gate.
-The retained [macOS](../experiments/lean_allocation_lifetimes/results/2026-11-02-macos/RESULTS.md)
-and [Linux](../experiments/lean_allocation_lifetimes/results/2026-11-02-linux/RESULTS.md)
+The retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/lean_allocation_lifetimes/results/2026-11-02-macos/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/lean_allocation_lifetimes/results/2026-11-02-linux/RESULTS.md)
 records use clean `a6ff4d0` and its identical-tree test merge `e732f25`. Each
 passes seven normal executions, two expected capacity controls, 54 Lean and
 44 native snapshots and 26 record/observation regressions. All 27 source inputs
@@ -248,7 +248,7 @@ merged as `4a89d92cc6367a14ed002c86a5d3103c3724e03a` after
 [all 25 final-head checks and review](https://github.com/MGYamada/Vastitas/pull/403#issuecomment-6561458819);
 the merge tree exactly matches reviewed `e06befb`.
 
-The optional [schema-4 source composition](../experiments/source_workspace/README.md#source-block-lifetimes-and-transient-peaks-schema-4)
+The optional [schema-4 source composition](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/README.md#source-block-lifetimes-and-transient-peaks-schema-4)
 adds that exact calibrated runtime and observer object to the three existing
 controls across both backends. It retains pre-cold initialization traffic and
 five independently visited boundary pairs, then reconciles phase allocations,
@@ -257,10 +257,10 @@ Interval usable-byte peaks remain distinct from endpoint live state and physical
 backing/RSS. All canonical public executions still use stock libraries. The
 observer's static storage is reported separately; other allocators, reporting,
 process teardown, stock timing and the full performance gates remain open.
-The retained [macOS](../experiments/source_workspace/results/2026-11-02-macos-lifetimes/RESULTS.md)
-and [Linux](../experiments/source_workspace/results/2026-11-02-linux-lifetimes/RESULTS.md)
+The retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-02-macos-lifetimes/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-02-linux-lifetimes/RESULTS.md)
 standard records, and the separate macOS
-[large-output](../experiments/source_workspace/results/2026-11-02-macos-lifetimes-streaming/RESULTS.md)
+[large-output](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-02-macos-lifetimes-streaming/RESULTS.md)
 record at clean `8212d7d`, share all 86 source inputs, independently matched to Git.
 Each standard record covers 96 canonical executions, 1,248 observation processes
 and 1,560 lifetime boundary pairs; the large-output record covers 32 / 288 / 360.
@@ -270,13 +270,13 @@ modified file; its corrected provenance/replay suite passes without changing
 the measured source, runtime or original evidence. Final-head CI remains required
 before merging the source composition.
 
-The optional schema-2 [source composition](../experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
+The optional schema-2 [source composition](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/README.md#calibrated-lean-allocator-composition-schema-2)
 connects these calibrated archives to actual generated source across both
 backends. It records cold/setup/run/cleanup deltas and actual error payload sizes,
 with paired empty observations and independently checked archive/linker receipts.
 Diagnostic normal counts are a superset of the selected sites, not an additive
-cost. The retained [macOS record](../experiments/source_workspace/results/2026-11-01-macos-allocator/RESULTS.md)
-and [Linux record](../experiments/source_workspace/results/2026-11-01-linux-allocator/RESULTS.md)
+cost. The retained [macOS record](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-macos-allocator/RESULTS.md)
+and [Linux record](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-linux-allocator/RESULTS.md)
 at clean `f0e0c55` each cover 864 normal observations, 72 failures, 72 canonical
 executions and 9,360 allocator snapshots. In the measured phases, all normal
 allocations are explained by selected sites plus actual error payloads. Failure
@@ -284,24 +284,24 @@ adds two previously untracked objects / 96 binned bytes. The run has no operatio
 timings or stock-count claim. Startup on the waiting initialization thread, other
 allocators, general peaks and the existing full-cost/performance gates remain open.
 
-The optional [actual backend packing experiment](../experiments/openblas_packing/README.md)
+The optional [actual backend packing experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/openblas_packing/README.md)
 calibrates the selected unchanged D/Z copy kernels, records each packing invocation
 inside its actual CBLAS route and replays input rectangles against live pool loans.
 It counts repeated logical payload and a named set of static pool metadata.
 GEMV/small-matrix shortcuts remain explicit unmeasured payload paths. Full backend
 metadata/peak accounting and timing acceptance remain outstanding; the Stage 1
 gate is unchanged. The subsequent source composition is described below.
-The retained [macOS](../experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
-and [Linux](../experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
+The retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/openblas_packing/results/2026-11-01-macos/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/openblas_packing/results/2026-11-01-linux/RESULTS.md)
 records each contain 1,828 executions at clean feature `db62d22`, plus direct
 checks of all 136 / 133 actual kernel/shape/stride contracts. They observe
 308,750 / 385,254 actual copy calls, with all 535 / 769 kernel objects unchanged.
 Different backends retain distinct costs; initial grid-only records remain linked.
 
-The schema-3 [source composition](../experiments/source_workspace/README.md#actual-source-gemm-packing-composition-schema-3)
+The schema-3 [source composition](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/README.md#actual-source-gemm-packing-composition-schema-3)
 binds each diagnostic route to the actual source CBLAS addresses, arguments and
-event interval. The retained [macOS](../experiments/source_workspace/results/2026-11-01-macos-packing/RESULTS.md)
-and [Linux](../experiments/source_workspace/results/2026-11-01-linux-packing/RESULTS.md)
+event interval. The retained [macOS](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-macos-packing/RESULTS.md)
+and [Linux](https://github.com/MGYamada/Vastitas/blob/main/experiments/source_workspace/results/2026-11-01-linux-packing/RESULTS.md)
 records at clean `6abeee1` each cover 72 canonical executions, 936 observations
 and 13,536 actual CBLAS calls. All 70 / 66 source packing contracts receive independent
 plain/sanitized stock/diagnostic footprint checks. Generated/C logical payload
@@ -312,7 +312,7 @@ representative memory-bound coverage or the existing performance gates.
 
 ## Implemented proof boundary and broader future scope
 
-The [geometry migration](geometry-migration.md) retains exact returned-Core typed
+The [geometry migration](indexed-source.md#geometry-migration) retains exact returned-Core typed
 total evaluation and finite primitive result equations. The resource/numerical
 map adds actual source authority, call replay, loan/initialization/byte-region,
 nominal basis/port, exact lowering and dependency-history certificates. Runtime
@@ -333,10 +333,10 @@ execution. Versions and a checked packing-cache consumer do not implement AD.
 The initial 67-issue triage remains in #179. Later work includes full Lean frontend
 migration (#152), recursion, partial application, Union, macros, new geometry/gluing,
 AD, SU(2), solvers, snapshot-reading integrators and independent compilation caches.
-mdBook follows recorded Stage 1 completion in a separate change.
+The [book entrypoint](./) and [issue-led roadmap](guide/historical-roadmap.md) follow this recorded Stage 1 delivery.
 
 For implementation PRs, run the applicable Rust, kernel, oracle/axiom,
-source/native, forged-IR and macOS/Linux boundary checks described in [AGENTS.md](../AGENTS.md).
+source/native, forged-IR and macOS/Linux boundary checks described in [AGENTS.md](https://github.com/MGYamada/Vastitas/blob/main/AGENTS.md).
 Documentation-only updates verify links, exact evidence and proof claims without
 pretending to rerun unchanged implementation suites. Record actual merged
 validation before closing a child; broader parent objectives remain visible.

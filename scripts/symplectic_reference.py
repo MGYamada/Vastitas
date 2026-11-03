@@ -2,7 +2,7 @@
 
 Only Q[x0,x1,x2,x3] two-forms on R^4 or D(1+q1), with inverse witnesses
 N/(1+q1)^k. Standard library only. No expression parser, CAS or numeric sampling
-is used in acceptance. See docs/symplectic-reference.md for semantics and gaps.
+is used in acceptance. See docs/reference/geometry.md#symplectic-reference for semantics and gaps.
 """
 
 from __future__ import annotations

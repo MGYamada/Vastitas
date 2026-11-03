@@ -6,7 +6,7 @@ foundation for future spectral AD. A `.vast` implementation and its
 correspondence to this theorem are not yet supplied.
 
 The source is
-[`lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean`](../lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean).
+[`lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Analysis/DaleckiiKrein.lean).
 All declarations are in `VastitasBridge.Analysis.DaleckiiKrein` and are exported
 by `import VastitasBridge`. The package pins Lean v4.35.0 and Mathlib commit
 `56a005855ea17e0b0958f73ec801ae140b0a1679`, matching ADR 0001's reference.
@@ -21,11 +21,11 @@ normed space of self-adjoint elements is
 
 $$
  Df(A)[H]=\sum_{s\in\sigma(A)}\sum_{r\in\sigma(A)}
- f^{[1]}(s,r)\,P_r H P_s,
+ f^{[1]}(s,r)\thinspace P_r H P_s,
  \qquad
  f^{[1]}(s,r)=
  \begin{cases}
- \dfrac{f(r)-f(s)}{r-s},&r\ne s,\\[4pt]
+ \dfrac{f(r)-f(s)}{r-s},&r\ne s,\cr
  f'(s),&r=s.
  \end{cases}
 $$
@@ -104,7 +104,7 @@ is exactly `propext`, `Classical.choice`, `Quot.sound`; `sorryAx` and custom
 unproved axioms fail the check. The scalar-multiple-of-identity theorem is a
 proved regression for the fully repeated spectrum.
 
-The dedicated [bridge workflow](../.github/workflows/lean-bridge.yml) repeats
+The dedicated [bridge workflow](https://github.com/MGYamada/Vastitas/blob/main/.github/workflows/lean-bridge.yml) repeats
 these checks and checks that the dependency lockfiles did not change. Official
 `leanchecker` replays the bridge modules against their imported environment;
 this is neither an independent verifier nor a fresh replay of the whole Mathlib

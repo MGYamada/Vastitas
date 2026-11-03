@@ -2,7 +2,7 @@
 
 State execution, explicit partitioning, finite rational laws, and logical address
 ownership are separate models. Immutable supply snapshots are test data, not
-Python-enforced linear resources. See docs/rand-reference.md for proof boundaries.
+Python-enforced linear resources. See docs/reference/analysis-and-effects.md#rand-reference for proof boundaries.
 """
 
 from __future__ import annotations

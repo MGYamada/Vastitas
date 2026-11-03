@@ -22,5 +22,5 @@ python3 scripts/generate_identifier_unicode.py --check
 The generator verifies the complete source SHA-256 before extracting properties.
 Regression tests independently construct per-code-point bitmaps from the source
 and compare the codec over the full code-point range. See the
-[identifier contract](../../docs/identifier-ascii-reference.md) for the exclusions
+[identifier contract](../../docs/reference/compiler-tools.md#identifier-ascii-reference) for the exclusions
 and exact-identity policy; the tables themselves do not normalize names.

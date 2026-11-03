@@ -247,20 +247,96 @@ VStorageStatus vstorage_store(VStorageArena *arena, uint32_t id, VStorageLayout 
     return VS_OK;
 }
 
-VStorageStatus vstorage_expect(VStorageArena *arena, uint32_t id, VStorageLayout view,
-                              uint64_t row, uint64_t column, uint8_t scalar, uint64_t real, uint64_t imaginary) {
+VStorageStatus vstorage_expect_observed(VStorageArena *arena, uint32_t id, VStorageLayout view,
+                                       uint64_t row, uint64_t column, uint8_t scalar,
+                                       uint64_t real, uint64_t imaginary, uint64_t observed[2]) {
     Prepared input;
     VStorageStatus status = typed(arena, id, view, scalar, &input);
     if (status != VS_OK) return status;
     if (row >= input.rows || column >= input.columns) return VS_BOUNDS;
-    uint64_t at = cell(&input, row, column), actual;
+    uint64_t at = cell(&input, row, column), actual, other = 0;
     memcpy(&actual, &input.buffer->data[at], 8);
-    if (actual != real) return VS_EXPECT;
-    if (input.components == 2) {
-        memcpy(&actual, &input.buffer->data[at + 1], 8);
-        if (actual != imaginary) return VS_EXPECT;
+    if (input.components == 2) memcpy(&other, &input.buffer->data[at + 1], 8);
+    if (actual == real && (input.components == 1 || other == imaginary)) return VS_OK;
+    /* Failure only: report the same initialized cell that was compared. */
+    if (observed) { observed[0] = actual; observed[1] = other; }
+    return VS_EXPECT;
+}
+
+VStorageStatus vstorage_expect(VStorageArena *arena, uint32_t id, VStorageLayout view,
+                              uint64_t row, uint64_t column, uint8_t scalar, uint64_t real, uint64_t imaginary) {
+    return vstorage_expect_observed(arena, id, view, row, column, scalar, real, imaginary, NULL);
+}
+
+/* Bounded append; a short capacity poisons the whole message. */
+typedef struct { char *data; size_t capacity, length; int full; } Text;
+static void append(Text *text, const char *piece) {
+    while (*piece) {
+        if (text->length + 1 >= text->capacity) { text->full = 1; return; }
+        text->data[text->length++] = *piece++;
     }
-    return VS_OK;
+}
+static void append_decimal(Text *text, uint64_t value) {
+    char digits[21], *at = digits + sizeof(digits);
+    *--at = 0;
+    do *--at = (char)('0' + value % 10); while (value /= 10);
+    append(text, at);
+}
+/* The frontend's exact spelling: f64(<hex>) for finite nonzero values, with the
+ * least normal binade for subnormals, else f64_bits(<bits>). Bits always follow,
+ * so NaN payloads and signed zeros stay visible. Never uses host printf %a. */
+static void append_component(Text *text, uint64_t bits) {
+    const uint64_t magnitude = bits & ~(UINT64_C(1) << 63), power = magnitude >> 52;
+    if (magnitude == 0 || power == 2047) {
+        append(text, "f64_bits(");
+        append_decimal(text, bits);
+        append(text, ")");
+        return;
+    }
+    char fraction[14];
+    for (unsigned i = 0; i < 13; ++i)
+        fraction[i] = "0123456789abcdef"[(magnitude >> (48 - 4 * i)) & 15];
+    unsigned digits = 13;
+    while (digits && fraction[digits - 1] == '0') --digits;
+    fraction[digits] = 0;
+    append(text, bits >> 63 ? "f64(-0x" : "f64(0x");
+    append(text, power ? "1" : "0");
+    if (digits) { append(text, "."); append(text, fraction); }
+    append(text, "p");
+    int64_t exponent = power ? (int64_t)power - 1023 : -1022;
+    if (exponent < 0) append(text, "-");
+    append_decimal(text, (uint64_t)(exponent < 0 ? -exponent : exponent));
+    append(text, ") [bits ");
+    append_decimal(text, bits);
+    append(text, "]");
+}
+static void append_payload(Text *text, uint8_t scalar, const uint64_t value[2]) {
+    if (!scalar) { append_component(text, value[0]); return; }
+    append(text, "complex(");
+    append_component(text, value[0]);
+    append(text, ", ");
+    append_component(text, value[1]);
+    append(text, ")");
+}
+
+size_t vstorage_expect_message(char *buffer, size_t capacity, uint64_t row, uint64_t column,
+                               uint8_t scalar, const uint64_t observed[2], const uint64_t expected[2]) {
+    /* Longest: 53 + 2*20 + 2 + 9 + 11 + 2*123 = 361 bytes before the NUL. A
+     * component is at most 56 bytes: a 24-byte negative subnormal spelling has
+     * 19-digit bits, and 20-digit bits imply a spelling of at most 23 bytes. */
+    if (!buffer || !capacity || !observed || !expected || scalar > 1) return 0;
+    Text text = {buffer, capacity, 0, 0};
+    append(&text, "E_NATIVE_EXPECT: stored bit pattern differs at cell (");
+    append_decimal(&text, row);
+    append(&text, ", ");
+    append_decimal(&text, column);
+    append(&text, "): holds ");
+    append_payload(&text, scalar, observed);
+    append(&text, "; expected ");
+    append_payload(&text, scalar, expected);
+    if (text.full) { buffer[0] = 0; return 0; }
+    buffer[text.length] = 0;
+    return text.length;
 }
 
 /* restrict is scoped to this synchronous kernel, after both full envelopes

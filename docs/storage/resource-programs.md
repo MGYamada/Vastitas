@@ -207,6 +207,17 @@ failure; a cleanup error overrides the body error. When both static and dynamic
 arenas exist, the inner arena closes first. See the
 [native cleanup contract and fault-injection checks](checked-storage.md#storage-ir).
 
+A failing `expect` raises `E_NATIVE_EXPECT` with its view-relative cell and
+both payloads, for example
+`E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 0): holds f64(0x1.4p1) [bits 4612811918334230528]; expected f64(0x1.cp1) [bits 4615063718147915776]`.
+Finite nonzero components use the exact `f64(hex)` spelling followed by their
+decimal bits; zeros, infinities and NaNs use `f64_bits(bits)`, so signed zeros
+and NaN payloads stay visible. A `Complex<F64>` cell shows both components as
+`complex(real, imaginary)`. The ASCII message is formatted without host `printf`
+float conversion, so it is identical across hosts, and has at most 361 bytes.
+It is built only after the bit comparison fails. Handle, scalar, layout and bounds
+errors keep their precedence and fixed messages, and cleanup is unchanged.
+
 The optional `lean-kernel/native` package is linked only for a resource entry.
 A protocol-8 program with only an ordinary pure entry still builds without that
 runtime. Neither route needs mathlib. A checked GEMM schedule additionally links

@@ -8,7 +8,8 @@
 #include <unistd.h>
 
 #ifdef VGEMM_TEST_BACKEND
-static char good_configuration[]="OpenBLAS 0.3.34 SINGLE_THREADED";
+/* The pinned build reports USE_LOCKING; sequential builds without it are rejected. */
+static char good_configuration[]="OpenBLAS 0.3.34 NO_LAPACK NO_AFFINITY USE_LOCKING HASWELL SINGLE_THREADED";
 static char *configuration=good_configuration;
 static int parallel;
 static atomic_uint configuration_calls, parallel_calls;
@@ -57,11 +58,17 @@ static void fresh_process_rejections(void) {
     memcpy(oversized,"OpenBLAS 0.3.34 ",16);
     oversized[sizeof(oversized)-1]=0;
     struct { char *configuration; int parallel; } bad[]={
-        {NULL,0},{"OpenBLAS 0.3.33 SINGLE_THREADED",0},
-        {"OpenBLAS 0.3.340 SINGLE_THREADED",0},
-        {"OpenBLAS 0.3.34 USE64BITINT SINGLE_THREADED",0},
+        {NULL,0},{"OpenBLAS 0.3.33 USE_LOCKING SINGLE_THREADED",0},
+        {"OpenBLAS 0.3.340 USE_LOCKING SINGLE_THREADED",0},
+        {"OpenBLAS 0.3.34 USE64BITINT USE_LOCKING SINGLE_THREADED",0},
         {"unrelated BLAS 0.3.34",0},{good_configuration,1},
-        {good_configuration,2},{oversized,0}
+        {good_configuration,2},{oversized,0},
+        /* Sequential but unlocked: OpenBLAS's buffer pool would be unsynchronized. */
+        {"OpenBLAS 0.3.34 SINGLE_THREADED",0},
+        {"OpenBLAS 0.3.34 NO_LAPACK NO_AFFINITY HASWELL SINGLE_THREADED",0},
+        /* The flag must be a whole space-delimited token after the version. */
+        {"OpenBLAS 0.3.34 NO_USE_LOCKING HASWELL SINGLE_THREADED",0},
+        {"OpenBLAS 0.3.34 USE_LOCKING_X HASWELL SINGLE_THREADED",0}
     };
     /* Fork only before any threads or backend initialization. Each case gets
      * a fresh once cell; no production reset hook is needed. */
@@ -76,7 +83,7 @@ static void fresh_process_rejections(void) {
         assert(waitpid(child,&status,0)==child && WIFEXITED(status) && WEXITSTATUS(status)==0);
     }
     assert(atomic_load(&configuration_calls)==0);
-    puts("GEMM: eight fresh-process backend failures stay cached and preserve output/scratch/report");
+    puts("GEMM: twelve fresh-process backend failures, including unlocked sequential builds, stay cached and preserve output/scratch/report");
 }
 #endif
 

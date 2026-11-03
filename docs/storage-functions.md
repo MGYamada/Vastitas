@@ -92,6 +92,41 @@ source statements and emitted actions, plus a depth bound. This bounds even
 exponential acyclic call expansion. The resulting primitive schedule retains the
 storage checker's bounds. These are compiler limits, not buffer-size limits.
 
+## Resource checking work
+
+The public resource checker admits at most 32,000,000 weighted units across
+all definition probes and the executable entry. This policy applies to both
+static storage and runtime-shape frames. An over-budget request reports
+`E_LIMIT` under both `check` and `build`. The existing 4,096-step limit
+still applies independently to each expansion. A straight-line body whose
+source statements and direct primitive transitions already exceed it fails
+before constructing any loans.
+
+For a frame with `U` used names, `A` live allocations, `R` initialization
+nodes, `D` dependencies and `L` loans, the base price is
+`1 + U + A + R × (1 + L) + D + L`. General loan tables add
+`L × (2 × writers + loans_with_a_parent)` for pair comparisons and bounded
+parent walks. The verified child-to-root chain takes the base price. The
+symbolic frame has zero storage dependencies. Static initialization traversal
+uses the existing bounded history check.
+
+Expansion charges its actual frames and shared branch counter. Replaying a
+different call charges each visited frame. An already certified identical
+slice pays for the call boundary and comparison. The static and symbolic
+projections checked at the end of each probe and entry also contribute.
+A library checks probes in declaration order and stops on the first failed
+debit. A rejected request can finish one individually bounded probe or entry
+before its aggregate debit. Each expansion and each of its two projections
+has its own ceiling, so a failing root cannot start an unbounded tail of probes.
+The price measures compiler metadata exposure. Native operand sizes and wall
+time are separate quantities.
+
+`ResourceSource.library_work_bound` and `ResourceSource.entry_work_bound`
+connect both admissions to the actual checked public program and original
+body list. `Storage.runMetered` and `Shapes.runMetered` return equations for
+the original unmetered schedules and the runtime guard sequence. The two
+branch arms share the running total.
+
 ## Evidence and remaining boundaries
 
 `VastitasOracle.StorageFunctions` imports the actual component. It extracts exact

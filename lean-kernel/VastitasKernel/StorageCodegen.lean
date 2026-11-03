@@ -130,6 +130,30 @@ def compile (input : List Statement) : Except Error Plan := do
   let _ ← audit plan
   pure plan
 
+/-- The plan was just constructed from this exact lowering. Reuse both
+computations while retaining the independent final-state comparison. -/
+def compileOnce (input : List Statement) : Except Error Plan := do
+  let checked ← checkPlan input
+  let (after, instructions) ← lower 4096 {} input
+  if after = checked.finalState then return ⟨input, instructions⟩
+  else reject "native instructions differ from the exact checked resource schedule"
+
+attribute [local simp] Except.bind Except.map Except.pure bind pure Functor.map in
+@[csimp] theorem compile_eq_once : compile = compileOnce := by
+  funext input
+  cases source : checkPlan input with
+  | error diagnostic => simp [compile, compileOnce, source]
+  | ok checked =>
+    cases lowered : lower 4096 {} input with
+    | error diagnostic => simp [compile, compileOnce, source, lowered]
+    | ok pair =>
+      rcases pair with ⟨after, instructions⟩
+      by_cases same : after = checked.finalState
+      · simp [compile, compileOnce, audit, source, lowered, same]
+        split <;> rename_i equation <;> split at equation <;> simp_all
+      · simp [compile, compileOnce, audit, source, lowered, same]
+        split <;> rename_i equation <;> split at equation <;> simp_all [reject]
+
 private def scalar : Scalar → Nat | .f64 => 0 | .complexF64 => 1
 private def layout (view : Layout) : String :=
   s!"{view.offset} {view.rows} {view.columns} {view.leading} {view.transposed}"
@@ -226,7 +250,7 @@ The optional reporting entry point is for native regression/cost fixtures. -/
 def generate (plan : Plan) (report : Bool := false) (byteBudget : Nat := byteLimit) : Except Error String := do
   let _ ← audit plan
   if byteBudget > byteLimit then reject "native live-byte budget exceeds profile"
-  let operations ← generateBody plan
+  let operations ← render plan.instructions
   let cleanup := ["close arena"] ++ if report then
     ["let counters ← stats arena", "IO.println counters"] else []
   let numericalImport := if plan.needsNumerical then "import VastitasGemmNative\n" else ""

@@ -65,10 +65,14 @@ the original predicates on every input, including duplicate names, cycles
 and dangling parents. The [shared chain lemmas](../lean-kernel/VastitasKernel/LoanChain.lean)
 prove the first-match ancestry facts.
 
-Audits still run on both sides of transitions and at replay, join and code
-generation boundaries. An entire growing and shrinking chain still incurs
-repeated linear scans. Nested call replay and program-wide work accounting
-remain open in [#422](https://github.com/MGYamada/Vastitas/issues/422).
+Both sides of transitions, joins and the native generation boundary retain
+their independent audits. The closed-plan checker meters the actual run and
+returns both its original replay equation and its measured work. The compiled
+`Native.compile` reuses that exact checked schedule and lowering. Its
+`compile_eq_once` theorem covers the full success or diagnostic result.
+Public generation still audits a supplied native plan before rendering it.
+The weighted limit also covers growing and shrinking loan tables.
+[Resource work policy](storage-functions.md#resource-checking-work)
 Use `python3 scripts/check_storage_scaling.py` with `--sizes`, `--shapes`
 and `--kernel-root` to compare identical public inputs under its per-case
 deadline. The [earlier measurements](../experiments/compiler_scaling/results/2026-11-02-macos-storage/RESULTS.md)

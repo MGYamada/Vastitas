@@ -9,6 +9,7 @@
   "captureDiagnostic": 8192,
   "bodyChecking": 4096,
   "elaborationWork": 1000000,
+  "resourceWork": 32000000,
   "generatedLets": 4096,
   "specializations": 4096,
   "dispatchKeys": 4096,

@@ -92,11 +92,10 @@ theorem probe_identity {environment : VastitasKernel.Indexed.Environment} {signa
       | error diagnostic => simp [shapes] at accepted
       | ok shapes =>
         simp only [shapes] at accepted
-        split at accepted
-        · split at accepted
-          · contradiction
-          · exact congrArg Probe.function (Except.ok.inj accepted).symm
-        · contradiction
+        repeat' first
+          | contradiction
+          | exact congrArg Probe.function (Except.ok.inj accepted).symm
+          | split at accepted
 
 theorem every_body {program : Program} {environment signatures} (checked : Checked program environment signatures) {function : Function}
     (member : function ∈ program.functions) :

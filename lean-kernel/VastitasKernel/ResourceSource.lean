@@ -952,9 +952,10 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
           | .ok library => match entry : program.entry with
             | none => .ok ⟨acceptedEnvelope, pureProgram, pureAccepted, values, targets, lowered, reconstructed, provenance,
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
-            | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) targets.signatures with
+            | some id => match reused : Functions.checkWithLibrary ⟨lowered.functions, id⟩ library with
               | .error diagnostic => .error (resourceError program lowered diagnostic)
               | .ok executable => do
+                have accepted := (Functions.checkWithLibrary_eq_check ⟨lowered.functions, id⟩ library).symm.trans reused
                 let coverage ← if h : NumericalCoverage.audit lowered.functions id executable.context then
                     pure (PLift.up h)
                   else Namespace.problem {} "E_NUMERICAL_ORIGIN" "numerical instructions differ from their source receipts"

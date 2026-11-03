@@ -39,6 +39,16 @@ additional workspace allocation must appear explicitly in the body.
 
 ## All-body checking and exact expansion
 
+The public package checker runs the library's batch of synthetic probes once per
+source check. For a selected entry, `checkWithLibrary` takes the certificate for
+that exact function list, declaration environment and scalar signatures. It
+checks the entry contract, expands the real closed call and audits the resulting
+scalar flow, symbolic events and static storage schedule. Its result, including
+any diagnostic, equals the standalone function check by
+`checkWithLibrary_eq_check`. The public theorem `entry_uses_checked_library`
+identifies both the shared probe list and that separate executable expansion.
+Nested callee slices still undergo their normal replay.
+
 Every function receives a separate synthetic probe, including unused definitions
 and both branch arms. Owned probes start with declared initialization; borrowed
 probes use a contiguous view with declared rights. These detect invalid bodies,

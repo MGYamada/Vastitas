@@ -21,6 +21,15 @@ private def value : Literal := .f64 0x4008000000000000
     | throw (IO.userError "invalid shared resource-function fixture")
   let .ok wire := Wire.check json | throw (IO.userError "resource function fixture rejected")
   let program := wire.input
+  let .ok library := checkLibrary program.functions | throw (IO.userError "valid probe batch rejected")
+  let .ok reused := checkWithLibrary program library | throw (IO.userError "valid entry rejected")
+  unless reused.statements == wire.checked.statements do
+    throw (IO.userError "reusing body evidence changed the actual entry schedule")
+  for (id, expected) in [(999, "E_RESOURCE_FUNCTION"), (1, "E_RESOURCE_ESCAPE")] do
+    match checkWithLibrary {program with entry := id} library with
+    | .ok _ => throw (IO.userError "a checked library authorized an invalid entry")
+    | .error error => unless error.code == expected do
+      throw (IO.userError s!"reused probe batch: expected {expected}, got {error.code}")
   let .ok native := Native.compile wire.checked.statements | throw (IO.userError "function native lowering failed")
   unless (native.instructions.filter fun instruction => match instruction with | .allocate .. => true | _ => false).length == 4 do
     throw (IO.userError "probe allocations leaked into executable expansion")

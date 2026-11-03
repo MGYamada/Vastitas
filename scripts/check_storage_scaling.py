@@ -23,7 +23,7 @@ SHAPES = ("allocate_drop", "read_loans", "write_children", "reborrow_chain", "wr
 RUNTIME_SHAPES = ("allocate_drop", "read_loans", "write_roots", "reborrow_chain", "wrapped_reads")
 
 
-def source(shape, size, profile="static"):
+def source(shape, size, profile="static", wrapper_depth=10):
     if profile == "runtime":
         body = runtime_body(shape, size)
     elif shape == "allocate_drop":
@@ -52,7 +52,7 @@ def source(shape, size, profile="static"):
     if shape == "wrapped_reads":
         functions = [f"resource fn leaf() -> Unit {{\n{body}\nvalue {{ () }}\n}}"]
         previous = "leaf"
-        for index in range(10):
+        for index in range(wrapper_depth):
             current = f"wrapper{index}"
             functions.append(f"resource fn {current}() -> Unit {{ call {previous}() -> (); value {{ () }} }}")
             previous = current
@@ -124,6 +124,8 @@ def main():
     parser.add_argument("--profile", choices=("static", "runtime"), default="static")
     parser.add_argument("--sizes", type=int, nargs="+", default=[64, 128, 256])
     parser.add_argument("--shapes", choices=sorted(set(SHAPES + RUNTIME_SHAPES)), nargs="+")
+    parser.add_argument("--wrapper-depth", type=int, default=10,
+                        help="number of functions between main and the wrapped_reads leaf")
     parser.add_argument("--timeout", type=float, default=30)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
@@ -135,6 +137,8 @@ def main():
     if (any(size < 1 or size > 1000 for size in args.sizes)
             or not math.isfinite(args.timeout) or args.timeout <= 0):
         parser.error("sizes must be 1..1000 (inside the source work budget); timeout must be positive")
+    if not 0 <= args.wrapper_depth <= 4094:
+        parser.error("wrapper depth must be 0..4094 (main and leaf each take one function)")
     compiler = args.compiler.resolve(strict=True)
     kernel_root = args.kernel_root.resolve(strict=True)
     kernel = (kernel_root / ".lake/build/bin/vastitas-kernel").resolve(strict=True)
@@ -142,6 +146,8 @@ def main():
     report = dict(profile=args.profile, platform=platform.platform(), kernel=str(kernel),
                   kernel_sha256=hashlib.sha256(kernel.read_bytes()).hexdigest(),
                   timeout_seconds=args.timeout, results=[])
+    if "wrapped_reads" in args.shapes:
+        report["wrapper_depth"] = args.wrapper_depth
     with tempfile.TemporaryDirectory(prefix="vastitas-storage-scaling-") as directory:
         warmup = write_package(directory, "warmup", "resource fn main() -> Int { value { 0 } }\n")
         report["warmup"] = observe([str(compiler), "check", "--manifest-path", str(warmup)], env, args.timeout)
@@ -149,7 +155,7 @@ def main():
             raise RuntimeError(f"kernel warmup failed: {report['warmup']}")
         for shape in args.shapes:
             for size in args.sizes:
-                program = source(shape, size, args.profile)
+                program = source(shape, size, args.profile, args.wrapper_depth)
                 manifest = write_package(directory, f"{shape}-{size}", program)
                 result = observe([str(compiler), "check", "--manifest-path", str(manifest)], env, args.timeout)
                 result.update(shape=shape, size=size, source_sha256=hashlib.sha256(program.encode()).hexdigest())

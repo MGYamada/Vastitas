@@ -414,9 +414,16 @@ total replay/probe work or establish linear compiler scaling.
 `StorageShapeNumerical` proves acceptance by the actual nominal `checkProduct`
 for the same maps and coefficients. `ResourceRuntimeShapes` connects those
 results to public entry projections, declaration origins, live integral slots
-and scalar returns after both resource components complete. This does not prove
-native arithmetic/UInt64 lowering or source execution refinement. Shape results,
-floating scalar expression interfaces and native/source refinement remain open.
+and scalar returns after both resource components complete. Separately,
+[`prove_runtime_shape_guards.lean`](../scripts/prove_runtime_shape_guards.lean)
+proves and audits 13 universal facts about the actual optional runtime helpers:
+Lean `UInt64` layout decisions equal the concrete checker, LP64 span arithmetic cannot
+wrap, narrowing agrees with actual Nat/Int admission, and the bound/equality/cell
+expressions agree with Nat arithmetic for representable constants. Its layout
+corollary reaches actual `Shapes.Guard.eval` under explicit representation
+premises. This validation-only import does not add runtime/FFI dependencies to
+the oracle, interpret generated text, or prove source execution/native refinement.
+Shape results and floating scalar expression interfaces remain open.
 
 The [numerical declaration profiles](numerical-declarations.md) use the same
 complete declaration certificate. `IndexedSource.checked_implementation_contract`,

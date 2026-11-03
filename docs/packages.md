@@ -109,6 +109,8 @@ references. Diagnostic spans are omitted and import declarations are priced
 separately. Public resource programs include both additional pure-fragment
 passes. Either aggregate limit produces `E_LIMIT`; the per-path limit and
 every import's target, visibility and cycle checks still apply.
+The [matched compiler measurements](../experiments/compiler_scaling/results/2026-11-03-macos-namespace-work-budget/RESULTS.md)
+cover single-use chains, repeated references and the aggregate limits.
 
 ## Visibility and ownership
 

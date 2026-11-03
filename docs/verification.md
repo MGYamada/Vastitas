@@ -1586,3 +1586,47 @@ Stage 2's finite affine-geometry profile ([tracker](https://github.com/MGYamada/
   - the term and work budgets.
 
   `python3 scripts/affine_algebra_reference.py --check` keeps the fixture current, and `scripts/test_affine_algebra_reference.py` checks the Python model's own Buchberger, reducedness and divisor-order invariants.
+
+### Presented affine declarations (internal, Stage 2 S2)
+
+The kernel's internal source AST adds `affine` declarations. A declaration
+`spec[g₁, …] relations(…) over B by(b ↦ p, …)` names one canonical presented
+QQ-algebra.
+
+Representations and constraints:
+
+- **Implementation.** The implementation uses the new representation
+  `presentedAffine rational`, which has no descriptor capabilities and cannot
+  back a plain `global`.
+- **Bounds before expansion.** Polynomial syntax is checked before it is
+  expanded: degree and exponents ≤ 16, literals ≤ 64 digits, then the term and
+  work budgets.
+- **Elaboration.** It computes reduced bases and ordered structure images in
+  base-chain order. Declaration order does not matter.
+- **Chains.** Missing, cyclic or non-presented bases are `E_AFFINE_BASE`, and
+  chains longer than 16 are `E_LIMIT`.
+- **The `structural(i, j)` constraint.** It holds only for canonical global
+  objects with `j` on the declared base chain of `i`. It compares identities,
+  never markers or shapes, and local brands never satisfy it.
+
+The declaration audit re-verifies all stored data (`validAffine`).
+`AffineDeclarationRegression` covers:
+
+- acceptance and order independence;
+- chains and constraint positives and negatives;
+- source rejections;
+- descriptor and sealed-family non-regression;
+- six tampered-Core cases.
+
+`VastitasOracle.AffineDeclarations` proves:
+
+- `validAffine_sound`: an accepted entry has a presented implementation, a
+  bounded duplicate-free chain, a valid certificate, and a structure map
+  whose bindings cover the base and whose base relations pull back into the
+  ideal;
+- `chainOf_spec` and `structural_holds`;
+- `presented_not_descriptor` and `sealed_families_exclude_presented`: the
+  two-index `Point`/`Morphism`/`sameBase` contracts are unchanged and never
+  range over presented objects.
+
+No public wire field reaches these declarations yet.

@@ -18,7 +18,7 @@ def ObjectHasType (env : Indexed.Environment) (object : Object) (type : ObjectTy
   type.Valid env ∧ object.implementation ∈ type.implementations env
 
 def globalObject (env : Indexed.Environment) (id : DeclId) : Option Object := do
-  let .global implementation ← Indexed.lookup env id | none
+  let implementation ← (Indexed.lookup env id).bind Declaration.objectImplementation?
   pure ⟨implementation, IndexedRuntime.baseObject⟩
 
 /-- Numeric serials, not claimed type metadata, identify local world slots. -/

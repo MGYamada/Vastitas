@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedSource
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.IndexedTypeAudit
+import VastitasKernel.IndexedAlgebraSource
 
 namespace VastitasKernel.Indexed.Source
 
@@ -52,9 +53,10 @@ def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
   | .affineDescriptor => pure .affineDescriptor
   | .scalarBase setting coefficient => pure (.scalarBase setting coefficient)
   | .linearDescriptor base coefficient => return .linearDescriptor (← resolveId p scope base) coefficient
+  | .presentedAffine field => pure (.presentedAffine field)
 
-def resolveBody (p : Namespace.Indexed) (owner : DeclId) (body : Body) (env : Core.Declarations) :
-    ResolveM Core.Declarations := do
+def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : Body)
+    (env : Core.Declarations) : ResolveM Core.Declarations := do
   let scope := owner.scope
   let add (declaration : Indexed.Declaration) := { env with indexed := env.indexed ++ [⟨owner, declaration⟩] }
   match body with
@@ -71,6 +73,11 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (body : Body) (env : Co
       return { env with packages := env.packages ++ [⟨owner, ← cases.mapM (resolveShape p scope)⟩] }
   | .primitive binding =>
       return { env with primitives := env.primitives ++ [⟨owner, ← resolvePrimitive p scope binding⟩] }
+  | .affine implementation generators relations base bindings => do
+      let implementation ← resolveId p scope implementation
+      let base ← base.mapM (resolveId p scope)
+      let data ← lowerAffineData span generators relations base bindings
+      return add (.affine implementation data)
 
 def resolveGeometrySetting (p : Namespace.Indexed) (scope : Namespace.Scope)
     (setting : GeometrySetting Path) : ResolveM (GeometrySetting DeclId) := do
@@ -102,8 +109,9 @@ complete finite environment is validated. No observed-use domain inference. -/
 def lower (p : Program) : Namespace.Result Resolved := do
   let index := p.indexed
   let action : ResolveM Core.Declarations := p.owned.foldlM (fun env entry =>
-    resolveBody index entry.1 entry.2.body env) ⟨[], [], []⟩
+    resolveBody index entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
   let (declarations, references) ← action.run []
+  let declarations ← elaborateAffine (p.owned.map fun (owner, d) => (owner, d.span)) declarations
   let (geometry, geometryReferences) ← (resolveGeometry p declarations).run []
   return ⟨declarations, references.reverse ++ geometryReferences.reverse, geometry⟩
 

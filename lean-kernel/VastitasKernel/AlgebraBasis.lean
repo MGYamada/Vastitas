@@ -26,15 +26,19 @@ open AlgebraRuntime
 inductive Error where
   | limit (resource : String)
   | invalid (reason : String)
+  | base (reason : String)
+  | coordinate (reason : String)
   deriving Repr, DecidableEq, Inhabited
 
 def Error.code : Error → String
   | .limit _ => "E_LIMIT"
   | .invalid _ => "E_AFFINE_RELATION"
+  | .base _ => "E_AFFINE_BASE"
+  | .coordinate _ => "E_AFFINE_COORDINATE"
 
 def Error.message : Error → String
   | .limit resource => s!"algebraic {resource} limit exceeded"
-  | .invalid reason => reason
+  | .invalid reason | .base reason | .coordinate reason => reason
 
 /-- Checker work: the state counts weighted term operations. -/
 abbrev Work := StateT Nat (Except Error)

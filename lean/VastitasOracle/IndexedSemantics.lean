@@ -74,32 +74,36 @@ theorem result_of_worldExtends {env : Declarations} {before after : World}
       obtain ⟨object, equal, denotes⟩ := (show ValueHasRef env.indexed before value (some ref) from reference ▸ typed.2)
       exact ⟨object, equal, denotes_of_worldExtends extension denotes⟩
 
+private theorem implementation_member {env : Indexed.Environment} {implementation base : DeclId}
+    (marker : implementationMarker env implementation = some base) :
+    implementation ∈ ObjectType.implementations env ⟨implementation, base⟩ := by
+  unfold implementationMarker at marker
+  cases concrete : Indexed.lookup env implementation <;> simp only [concrete] at marker <;> try contradiction
+  case some decl =>
+    cases decl <;> simp only at marker <;> try contradiction
+    case implementation coefficient representation capabilities =>
+      cases marker
+      simp [ObjectType.implementations, Indexed.domain, concrete, implementationMarker]
+
 theorem global_denotes (env : Indexed.Environment) (world : World) (id : DeclId)
     (valid : ObjectRef.Valid env (.global id)) :
     ∃ object, globalObject env id = some object ∧ RefDenotes env world (.global id) object := by
   obtain ⟨type, found, typeValid⟩ := valid
   change ObjectRef.type? env (.global id) = some type at found
   unfold ObjectRef.type? at found
-  cases entry : Indexed.lookup env id <;> simp only [entry] at found
-  · contradiction
-  case some declaration =>
-    cases declaration <;> try contradiction
-    case global implementation =>
-      simp only [Bind.bind, Option.bind, Pure.pure] at found
-      cases marker : implementationMarker env implementation <;> simp only [marker] at found
-      · contradiction
-      case some base =>
-        cases found
-        refine ⟨⟨implementation, IndexedRuntime.baseObject⟩, by simp [globalObject, entry], ?_⟩
-        refine ⟨by simp [interpretRef, globalObject, entry], ⟨implementation, base⟩, ?_, typeValid, ?_⟩
-        · simp [ObjectRef.type?, entry, marker]
-        · unfold implementationMarker at marker
-          cases concrete : Indexed.lookup env implementation <;> simp only [concrete] at marker <;> try contradiction
-          case some decl =>
-            cases decl <;> simp only at marker <;> try contradiction
-            case implementation coefficient representation capabilities =>
-              cases marker
-              simp [ObjectType.implementations, Indexed.domain, concrete, implementationMarker]
+  cases impl : (Indexed.lookup env id).bind Declaration.objectImplementation? with
+  | none => simp [impl] at found
+  | some implementation =>
+    cases marker : implementationMarker env implementation with
+    | none => simp [impl, marker] at found
+    | some base =>
+      simp [impl, marker, Bind.bind, Pure.pure] at found
+      subst found
+      have object : globalObject env id = some ⟨implementation, IndexedRuntime.baseObject⟩ := by
+        simp [globalObject, impl]
+      refine ⟨_, object, by simp [interpretRef, object], ⟨implementation, base⟩, ?_, typeValid,
+        implementation_member marker⟩
+      simp [ObjectRef.type?, impl, marker]
 
 theorem descriptor_typed {env : Indexed.Environment} {implementation : DeclId} {type : ObjectType}
     (found : implementationType env implementation = some type) (valid : type.Valid env) (dimension : Nat) :
@@ -364,8 +368,9 @@ theorem global_object_descriptor {env : Indexed.Environment} {id : DeclId} {obje
   cases entry : Indexed.lookup env id with
   | none => simp [globalObject, entry] at computed
   | some declaration =>
-      cases declaration <;> simp [globalObject, entry] at computed
+      cases declaration <;> simp [globalObject, entry, Declaration.objectImplementation?] at computed
       case global implementation => cases computed; rfl
+      case affine implementation data => cases computed; rfl
 
 /-- Successful logical registry evaluation erases to the actual IndexedRuntime
 operations. This is an operation-level commuting theorem, not a proof about

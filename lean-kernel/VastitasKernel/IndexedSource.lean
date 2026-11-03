@@ -15,6 +15,20 @@ inductive Representation where
   | affineDescriptor
   | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
   | linearDescriptor (base : Path) (coefficient : CoefficientKind)
+  | presentedAffine (field : AlgebraDeclarations.ExactField)
+  deriving Repr, Inhabited
+
+/-- Unexpanded polynomial syntax. The kernel bounds degree, exponents and
+digits before expanding it. Rust parses and never evaluates it. -/
+inductive PolyExpr where
+  | natural (value : Nat)
+  | fraction (numerator : Int) (denominator : Nat)
+  | coordinate (name : String)
+  | neg (operand : PolyExpr)
+  | add (left right : PolyExpr)
+  | sub (left right : PolyExpr)
+  | mul (left right : PolyExpr)
+  | pow (base : PolyExpr) (exponent : Nat)
   deriving Repr, Inhabited
 
 inductive Parameter where
@@ -70,6 +84,9 @@ inductive Body where
   | family (contract : Family)
   | package (cases : List PackageShape)
   | primitive (binding : Primitive)
+  /-- `spec[generators] relations(…) over base by(name ↦ image, …)` -/
+  | affine (implementation : Path) (generators : List String) (relations : List PolyExpr)
+      (base : Option Path) (bindings : List (String × PolyExpr))
   deriving Repr, Inhabited
 
 structure Declaration where

@@ -163,7 +163,8 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
         (sources, request, module.version)
     };
     let configured_executable = std::env::var_os("VASTITAS_KERNEL").map(PathBuf::from);
-    let root = if output.is_some() || configured_executable.is_none() {
+    let default_executable = configured_executable.is_none();
+    let root = if output.is_some() || default_executable {
         Some(kernel_root()?)
     } else {
         None
@@ -180,6 +181,12 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
             .expect("default executable requires kernel root")
             .join(".lake/build/bin/vastitas-kernel")
     });
+    if default_executable && !executable.is_file() {
+        let root = root
+            .as_deref()
+            .expect("default executable requires kernel root");
+        return Err(missing_kernel(root, &executable));
+    }
     let response = invoke_kernel(
         &executable,
         mode,
@@ -301,6 +308,27 @@ fn rebuild_advice(root: Option<&Path>) -> String {
     format!(
         "Rebuild the kernel from the same Vastitas sources as this compiler: {build}\n\
          VASTITAS_KERNEL_ROOT and VASTITAS_KERNEL must name a kernel of this compiler's version."
+    )
+}
+
+/// An installed driver falls back to its build-time source directory, which may be
+/// Cargo's registry cache; Cargo removes unused extracted sources automatically.
+fn missing_kernel(root: &Path, executable: &Path) -> String {
+    let build = format!("lake -d {} build vastitas-kernel", root.display());
+    let advice = if std::env::var_os("VASTITAS_KERNEL_ROOT").is_some() {
+        format!("Build it with: {build}")
+    } else {
+        format!(
+            "VASTITAS_KERNEL_ROOT is not set; the default is this compiler's build-time source directory.\n\
+             In a source checkout, build it with: {build}\n\
+             After cargo install, that directory is Cargo's registry cache, which Cargo cleans \
+             automatically. Extract the matching crate, build its lean-kernel and set \
+             VASTITAS_KERNEL_ROOT to that absolute path (README: Install the alpha)."
+        )
+    };
+    format!(
+        "E_BACKEND: kernel executable {} is not built\n{advice}",
+        executable.display()
     )
 }
 

@@ -89,10 +89,10 @@ True closed guards emit no native condition. Guards referring to scalar slots
 remain runtime checks; this does not constant-fold an earlier `value` block or
 guess its value. The certificate retains both physical and explicit guard
 decisions, and the oracle proves that admitted closed guards hold under every
-valuation for the actual checked public entry. Native arithmetic refinement
-remains unproved. Resource diagnostics currently identify the containing function;
-statement and call-site locations are tracked separately in
-[#450](https://github.com/MGYamada/Vastitas/issues/450).
+valuation for the actual checked public entry. The helper arithmetic agreement
+below does not establish full source/native refinement. Resource diagnostics
+retain the failing statement, available binding locations and call-site context;
+see [resource source](resource-source.md).
 
 Runtime shape operations or calls are rejected under resource branch nodes,
 including transitively and in unselected arms. Ordinary scalar/resource branches
@@ -121,10 +121,25 @@ with the same endpoints, bases, coefficients and GEMM request. The public
 `ResourceRuntimeShapes` corollaries use actual source origins, entry projections
 and scalar-return receipts. Synthetic probes do not prove universal extents.
 
-These are mathematical guard-to-checker theorems. They do not prove runtime
-scalar evaluation/UInt64 lowering refinement, native memory safety of the full
-C/Lean toolchain, floating-point field laws or numerical error bounds. Native
-boundary tests, sanitizer runs and equivalent-work experiments are separate
+The test-only [runtime guard proof](../scripts/prove_runtime_shape_guards.lean)
+connects the actual `runtimeLayoutValid` helper to `Storage.checkLayout` for all
+Lean `UInt64` inputs and both scalar tags, including empty extents and either transpose
+flag. LP64 bounds prove the nonempty span multiplication/addition cannot wrap;
+invalid scalar tags are rejected. The `layout_guard` corollary connects this
+result to actual `Shapes.Guard.eval` under explicit extent-representation
+premises. Bound, equality and cell expressions have matching Nat judgments
+when emitted constants fit Lean `UInt64`. Actual Nat/Int narrowing helpers return the
+exact admitted value without wrapping or clamping, and produce their prescribed
+IO errors on checker rejection. All 13 theorems have a transitive axiom audit.
+`UInt64` here names the backend Lean type. Source extents still come from `Nat`
+or `Int`; this work does not add the planned Vastitas `U64` source type.
+
+This script imports kernel and runtime only for validation; neither gains a
+new dependency and the optional native/FFI package stays outside the oracle.
+These results do not prove that source scalar execution supplies the stated
+valuation, interpret generated source strings, or establish native memory safety
+of the full C/Lean toolchain, floating-point field laws or numerical error bounds.
+Native boundary tests, sanitizers and equivalent-work experiments remain separate
 implementation evidence.
 
 ## Execution costs and limits
@@ -178,7 +193,9 @@ optional native suite. The numerical CI runs that suite on both supported OSes.
 The [storage-native guard regression](../scripts/check_runtime_shape_guards.lean)
 compares 5,488 physical-layout boundary tuples and 13 integral narrowing cases
 against the actual runtime and checker helpers.
-These finite checks supplement the universal mathematical guard theorems.
+These finite checks supplement both the universal mathematical guard theorems
+and the 13 actual helper/expression theorems above. The storage-native harness
+checks both scripts against its freshly built standalone runtime.
 
 The full feature validation includes 342 Rust tests and all 13 optional public
 numerical native tests, 44 kernel regression targets,

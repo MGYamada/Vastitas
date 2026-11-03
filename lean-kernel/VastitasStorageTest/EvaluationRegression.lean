@@ -1,4 +1,5 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.NumericalCoverage
 
 namespace VastitasKernel.Storage.EvaluationRegression
 open NumericalFixture Numerical
@@ -33,6 +34,11 @@ private def finish : List Functions.Statement := [.action (.release 23),
         let body := prepare scalar implementation dimension transposed ++ [algebraic] ++ hermitian ++ finish
         let .ok accepted := Functions.check (program body) env | throw (IO.userError "valid vector evaluation rejected")
         check "actual evaluation receipts exclude probes" (accepted.context.evaluations.size == 2)
+        let some first := accepted.context.evaluations[0]? | throw (IO.userError "missing evaluation")
+        let tampered := accepted.context.code.set! first.location.start (.action (.release first.leftChild))
+        check "evaluation coverage checks child borrows as well as GEMM"
+          (NumericalCoverage.audit (program body).functions 0 accepted.context &&
+            !NumericalCoverage.audit (program body).functions 0 {accepted.context with code := tampered})
         check "actual conjugation receipt excludes probes" (accepted.context.vectorConjugates.size == 1)
         check "two allocations, no copy or packing" (accepted.statements.countP (fun s => match s with
           | .action (.allocate ..) => true | _ => false) == 2 && accepted.statements.all (fun s => match s with

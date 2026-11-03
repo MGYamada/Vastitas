@@ -1,0 +1,351 @@
+{
+  "reference_commit": "d3d2c9ac2254c0f247df040a7e3dba9ab481e915",
+  "candidate_commit": "6f08929c4da10e41fbcc6cf7c0439f5130afda5d",
+  "kernel_sha256": {
+    "reference": "a28130f6191b9ff5650a108cc053af53fcab3a3a28a4cfd9cf62fffd9d6e28e7",
+    "candidate": "f54018a56e2e44ffd670d2a7772bebd80dc955b8c214819330578ae15f230a54"
+  },
+  "cli_sha256": "170cca08e4282e9a06219bc95cde37dc5f653b7e74a1912a985b943807a05fa2",
+  "runs": [
+    {
+      "variant": "reference",
+      "profile": "static",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.04287466703681275,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 1.2897942500421777,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "42a76ebc1b82ad119c7fb63e784d87e2026e5928ed1bb3eff72a247ae4c47547"
+        },
+        {
+          "seconds": 10.195279499981552,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "df73bf82b5412816b1a30a3802c84346d19c235576ee14f5e5abea16b346aad0"
+        },
+        {
+          "seconds": 30.019058750011027,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted",
+          "shape": "reborrow_chain",
+          "size": 512,
+          "source_sha256": "6c45e0584e7438aee07cfa155dff882decac00b609ebf3a0401dbe391f69bc78"
+        }
+      ]
+    },
+    {
+      "variant": "reference",
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 1.1522364999982528,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.8442028330173343,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "e36cc196899dc558279da584b99d89865c978fe5e2a057a1af14caa50c634b22"
+        },
+        {
+          "seconds": 7.212491750018671,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "fbabe55e17b283e89dcef1ea30bdb9e48bf608b878977201a185d35b25e2b231"
+        },
+        {
+          "seconds": 30.02907004096778,
+          "exit_code": 143,
+          "timed_out": true,
+          "stderr": "E_INTERRUPTED: compilation interrupted",
+          "shape": "reborrow_chain",
+          "size": 512,
+          "source_sha256": "d51ba055a1df16e291e5e6013232a4b29f169b25c8434c5a72b034ed834773bd"
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "profile": "static",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.954756457998883,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.10978441702900454,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "42a76ebc1b82ad119c7fb63e784d87e2026e5928ed1bb3eff72a247ae4c47547"
+        },
+        {
+          "seconds": 0.32185091701103374,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "df73bf82b5412816b1a30a3802c84346d19c235576ee14f5e5abea16b346aad0"
+        },
+        {
+          "seconds": 1.2203109580441378,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 512,
+          "source_sha256": "6c45e0584e7438aee07cfa155dff882decac00b609ebf3a0401dbe391f69bc78"
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.030325250001624227,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.11524625000311062,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 128,
+          "source_sha256": "e36cc196899dc558279da584b99d89865c978fe5e2a057a1af14caa50c634b22"
+        },
+        {
+          "seconds": 0.3316932080197148,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 256,
+          "source_sha256": "fbabe55e17b283e89dcef1ea30bdb9e48bf608b878977201a185d35b25e2b231"
+        },
+        {
+          "seconds": 1.1097909579984844,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 512,
+          "source_sha256": "d51ba055a1df16e291e5e6013232a4b29f169b25c8434c5a72b034ed834773bd"
+        }
+      ]
+    },
+    {
+      "variant": "reference",
+      "profile": "static",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.030488250020425767,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.0943095000111498,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "9298118ab0524a300685d23c2cad61416ae2025df6528130cf74d2157472aeb4"
+        },
+        {
+          "seconds": 0.4389467079890892,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "write_children",
+          "size": 128,
+          "source_sha256": "fa19949101b7c81cc3c751ab02ee2c6cdaa7e0f6cc6f7ca2a1f73cc9a9d11ee5"
+        },
+        {
+          "seconds": 1.626746916968841,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "edf69b40be48873537fa8506eb640273bfe3cd900b348a761c3f2764474bfc31"
+        }
+      ]
+    },
+    {
+      "variant": "reference",
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.043074166984297335,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.08188974997028708,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "6328d51873d7eceef20a8677ff2d0e12af0753b13669f7b4f3a2e993dc02fa29"
+        },
+        {
+          "seconds": 0.3039165419759229,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "write_roots",
+          "size": 128,
+          "source_sha256": "521ff8242ab57ae90a27955eaead055595db70ea341b132f3480c83fd65fc3a0"
+        },
+        {
+          "seconds": 1.2402387910406105,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "5e972b0927a940673c1471642d2928642bfa993ccff76d794730e720eae4ab4a"
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "profile": "static",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.030452666978817433,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.09527675004210323,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "9298118ab0524a300685d23c2cad61416ae2025df6528130cf74d2157472aeb4"
+        },
+        {
+          "seconds": 0.4454120420268737,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "write_children",
+          "size": 128,
+          "source_sha256": "fa19949101b7c81cc3c751ab02ee2c6cdaa7e0f6cc6f7ca2a1f73cc9a9d11ee5"
+        },
+        {
+          "seconds": 1.628655709035229,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "edf69b40be48873537fa8506eb640273bfe3cd900b348a761c3f2764474bfc31"
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.03047358395997435,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 0.08210070797940716,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "read_loans",
+          "size": 128,
+          "source_sha256": "6328d51873d7eceef20a8677ff2d0e12af0753b13669f7b4f3a2e993dc02fa29"
+        },
+        {
+          "seconds": 0.29321920801885426,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "write_roots",
+          "size": 128,
+          "source_sha256": "521ff8242ab57ae90a27955eaead055595db70ea341b132f3480c83fd65fc3a0"
+        },
+        {
+          "seconds": 1.2306056250235997,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "wrapped_reads",
+          "size": 128,
+          "source_sha256": "5e972b0927a940673c1471642d2928642bfa993ccff76d794730e720eae4ab4a"
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "profile": "static",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.03009825001936406,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 4.81535749998875,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 1000,
+          "source_sha256": "d74b6e65fb7e2d9d6470c781cdecfa34e286ca15f29742a47b9046aeea4bfed4"
+        }
+      ]
+    },
+    {
+      "variant": "candidate",
+      "profile": "runtime",
+      "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+      "timeout_seconds": 30.0,
+      "warmup": {
+        "seconds": 0.030150458973366767,
+        "exit_code": 0,
+        "timed_out": false
+      },
+      "samples": [
+        {
+          "seconds": 3.8275654580211267,
+          "exit_code": 0,
+          "timed_out": false,
+          "shape": "reborrow_chain",
+          "size": 1000,
+          "source_sha256": "f376d6402b6aa8b7d51778f08f5f1bccee1f346ecf6eda2fba247c2eb2a7846d"
+        }
+      ]
+    }
+  ]
+}

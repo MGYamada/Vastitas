@@ -17,14 +17,33 @@ private def fn (name : String) (value : Surface.Expr) (pub := true) : Function :
 private def mod (path : List String) (functions : List Function := []) : Module := {
   path, functions, generics := [], methods := [], imports := [], span := {}, isPublic := true }
 private def pkg (id : PackageId) (modules : List Module) : Package := { id, modules, dependencies := [] }
+
+private def check (name : String) (condition : Bool) : IO Unit :=
+  unless condition do throw (IO.userError s!"namespace regression failed: {name}")
+
+-- Index construction must preserve the old first-match result even before
+-- validation rejects duplicate package/module/import/dependency identities.
+#eval check "lookup indexes retain duplicate precedence and exact package identity" (Id.run do
+  let first := pkg root [mod [] [fn "first" (.integer "1" {})], mod [] [fn "second" (.integer "2" {})]]
+  let later := pkg {root with version := "2.0.0"} [mod [] [fn "later" (.integer "3" {})]]
+  let p : Program := {file := "index-regression", root := root.source, packages := [first, later]}
+  return (packageAt p.indexed root.source).map (·.id) == some root &&
+    ((moduleAt p.indexed ⟨root, []⟩).map (·.functions.map (·.name))) == some ["first"] &&
+    (moduleAt p.indexed ⟨later.id, []⟩).isNone)
+
+#eval check "duplicate import and dependency indexes keep the first record" (Id.run do
+  let m := {mod [] with imports := [
+    ⟨["self", "first"], "alias", false, {}⟩, ⟨["self", "second"], "alias", true, {}⟩]}
+  let p := {pkg root [m] with dependencies := [⟨"dep", "first"⟩, ⟨"dep", "second"⟩]}
+  return (m.lookup.imports["alias"]?.map (·.path)) == some ["self", "first"] &&
+    (p.lookup.dependencies["dep"]?.map (·.target)) == some "first")
+
 private def program : Program := {
   file := "namespace-regression", root := root.source
   packages := [
     { pkg root [mod [] [fn "main" (.call "other::value" [] {})]] with
       dependencies := [⟨"other", dependency.source⟩, ⟨"alias", dependency.source⟩] },
     pkg dependency [mod [] [fn "value" (.integer "42" {})]] ] }
-private def check (name : String) (condition : Bool) : IO Unit :=
-  unless condition do throw (IO.userError s!"namespace regression failed: {name}")
 private def rejects (code : String) (p : Program) : Bool :=
   match checkNamespaceProgram p with
   | .error error => error.code == code

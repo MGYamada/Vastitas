@@ -203,6 +203,28 @@ def privateTargetFixture : Program := library (program [main (invoke (call "geo:
 #eval check "missing audit coverage rejected" (match Compiler.checkProgram higherFixture true with
   | .error _ => false
   | .ok checked => !coversDefinitions checked.prepared.input { checked.audit.lowered with origins := #[] })
+#eval check "actual Core calls require complete occurrence ledgers" (match Compiler.checkProgram higherFixture true with
+  | .error _ => false
+  | .ok checked =>
+    [checked.audit.lowered, checked.executable.lowered].all fun pass =>
+      match pass.emittedCalls with
+      | [] => false
+      | first :: rest =>
+        let noCalls := pass.module.functions.map fun function => { function with body := .integer 0 }
+        emittedCallCoverage pass &&
+        !emittedCallCoverage { pass with emittedCalls := [] } &&
+        !emittedCallCoverage { pass with emittedCalls := rest } &&
+        !emittedCallCoverage { pass with emittedCalls := first :: pass.emittedCalls } &&
+        !emittedCallCoverage { pass with emittedCalls :=
+          { first with caller := { first.caller with definition := 999999 } } :: rest } &&
+        !emittedCallCoverage { pass with module := { pass.module with functions := noCalls } })
+#eval check "duplicate caller specialization identities rejected" (match Compiler.checkProgram higherFixture true with
+  | .error _ => false
+  | .ok checked =>
+    let pass := checked.executable.lowered
+    match pass.origins[0]? with
+    | none => false
+    | some origin => !emittedCallCoverage { pass with origins := pass.origins.push origin })
 #eval check "tampered lifted owner rejected" (match Compiler.checkProgram higherFixture true with
   | .error _ => false
   | .ok checked => !validDefinitions higherFixture { checked.lifted with

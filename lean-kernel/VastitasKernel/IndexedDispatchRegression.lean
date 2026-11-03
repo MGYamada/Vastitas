@@ -145,6 +145,34 @@ private def twoArgumentAmbiguity : Program := rootModule
   | .error _ => false
   | .ok checked => !instancesValid checked.dispatch { checked.compiler with input :=
       { checked.compiler.input with dispatch := { checked.compiler.input.dispatch with definitions := {} } } })
+
+#eval check "repeated generic calls require distinct counted receipts" (match checkProgram
+    (program [broad, narrow] (main (call "adjust" [call "adjust" [num 1]]))) true with
+  | .error _ => false
+  | .ok checked =>
+    let pass := checked.executable.lowered
+    match pass.dispatchCalls with
+    | [first, second] =>
+      first.caller == second.caller && first.emittedId == second.emittedId &&
+      Compiler.validDispatchCalls checked.compiler.input pass &&
+      !Compiler.validDispatchCalls checked.compiler.input { pass with dispatchCalls := [] } &&
+      !Compiler.validDispatchCalls checked.compiler.input { pass with dispatchCalls := [first] } &&
+      !Compiler.validDispatchCalls checked.compiler.input { pass with dispatchCalls := first :: pass.dispatchCalls } &&
+      !Compiler.validDispatchCalls checked.compiler.input { pass with dispatchCalls :=
+        [{ first with emittedId := pass.origins.size }, second] } &&
+      !Compiler.validDispatchCalls checked.compiler.input { pass with dispatchCalls :=
+        [{ first with caller := { first.caller with definition := 999999 } }, second] }
+    | _ => false)
+
+#eval check "generic calls in both branches retain complete receipts" (match checkProgram
+    (program [broad, narrow] (main (.branch (.boolean false {})
+      (block (call "adjust" [num 1])) (block (call "adjust" [num 2])) {}))) true with
+  | .error _ => false
+  | .ok checked =>
+    [checked.audit.lowered, checked.executable.lowered].all fun pass =>
+      pass.dispatchCalls.length == 2 &&
+      Compiler.dispatchCallCoverage checked.compiler.input pass &&
+      !Compiler.dispatchCallCoverage checked.compiler.input { pass with dispatchCalls := pass.dispatchCalls.tail })
 #eval check "omitted nonwinner expansion rejected" (match checkProgram dispatchFixture true with
   | .error _ => false
   | .ok checked => !expansionValid checked.dispatch.families checked.dispatch.instances.tail)

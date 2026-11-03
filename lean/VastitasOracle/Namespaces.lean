@@ -1,5 +1,7 @@
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.IndexedSource
 import Std.Data.HashMap.Lemmas
+import Std.Data.TreeSet.Lemmas
 import VastitasOracle.Functions
 
 /-! Shared namespace facts and the retained legacy protocol-3 composition:
@@ -10,6 +12,86 @@ surface/core theorems. Filesystem authenticity and source-to-IR preservation are
 outside this theorem boundary. No edit-borrow or abstract-method claims are made. -/
 namespace VastitasOracle.Namespaces
 open VastitasKernel VastitasKernel.Namespace VastitasKernel.Semantics
+
+attribute [local instance] lexOrd
+
+/-- The actual first-match table builder retains list precedence, including
+duplicate keys in invalid input. Values are reconstructed from original records. -/
+theorem first_index_matches_list {α κ β : Type} [BEq κ] [Hashable κ] [LawfulBEq κ]
+    (items : List α) (key : α → κ) (value : α → β) (query : κ) :
+    (firstIndex items key value)[query]? = (items.find? (fun item => key item == query)).map value := by
+  induction items with
+  | nil => simp [firstIndex]
+  | cons head tail ih =>
+    change ((firstIndex tail key value).insert (key head) (value head))[query]? = _
+    rw [Std.HashMap.getElem?_insert, ih]
+    cases h : key head == query <;> simp [h]
+
+theorem indexed_package_lookup (program : Namespace.Program) (source : String) :
+    program.indexed.byPackage[source]? =
+      (program.packages.find? (·.id.source == source)).map Package.lookup :=
+  first_index_matches_list _ _ _ _
+
+theorem indexed_package_matches_list (program : Namespace.Program) (source : String) :
+    packageAt program.indexed source = program.packages.find? (·.id.source == source) := by
+  simp [packageAt, indexed_package_lookup, Option.map_map, Function.comp_def, Package.lookup]
+
+theorem indexed_module_lookup (program : Namespace.Program) (scope : Scope) :
+    moduleLookupAt program.indexed scope = (do
+      let pkg ← program.packages.find? (fun (item : Namespace.Package) => item.id.source == scope.package.source)
+      if pkg.id != scope.package then none else pkg.modules.find? (fun (item : Namespace.Module) => item.path == scope.path)).map Module.lookup := by
+  simp only [moduleLookupAt, indexed_package_lookup]
+  cases found : program.packages.find? (fun (item : Namespace.Package) => item.id.source == scope.package.source) with
+  | none => simp
+  | some pkg =>
+    simp [Package.lookup, first_index_matches_list]
+    split <;> rfl
+
+theorem indexed_module_matches_list (program : Namespace.Program) (scope : Scope) :
+    moduleAt program.indexed scope = (do
+      let pkg ← program.packages.find? (fun (item : Namespace.Package) => item.id.source == scope.package.source)
+      if pkg.id != scope.package then none else pkg.modules.find? (fun (item : Namespace.Module) => item.path == scope.path)) := by
+  simp [moduleAt, indexed_module_lookup, Option.map_map, Function.comp_def, Module.lookup]
+
+theorem indexed_module_certificate (program : Namespace.Program) (scope : Scope) :
+    moduleLookupAt program.indexed scope = (moduleAt program.indexed scope).map Module.lookup := by
+  rw [indexed_module_matches_list, indexed_module_lookup]
+
+theorem indexed_import_lookup (m : Namespace.Module) (name : String) :
+    m.lookup.imports[name]? = m.imports.find? (·.alias == name) := by
+  simpa [Module.lookup] using first_index_matches_list m.imports (·.alias) id name
+
+theorem indexed_dependency_lookup (p : Namespace.Package) (name : String) :
+    p.lookup.dependencies[name]? = p.dependencies.find? (·.alias == name) := by
+  simpa [Package.lookup] using first_index_matches_list p.dependencies (·.alias) (fun dependency => dependency) name
+
+/-- The indexed declaration path builds the same package/module/import tables;
+its additional declaration targets do not supply namespace lookup authority. -/
+theorem rich_package_index (program : VastitasKernel.Indexed.Source.Program) :
+    program.indexed.byPackage = program.toNamespace.indexed.byPackage := rfl
+
+theorem rich_module_lookup (program : VastitasKernel.Indexed.Source.Program) (scope : Scope) :
+    moduleLookupAt program.indexed scope = moduleLookupAt program.toNamespace.indexed scope := rfl
+
+theorem active_import_key_injective (left right : Scope × String) :
+    importKey left = importKey right ↔ left = right := by
+  rcases left with ⟨⟨⟨ls, ln, lv⟩, lp⟩, la⟩
+  rcases right with ⟨⟨⟨rs, rn, rv⟩, rp⟩, ra⟩
+  simp only [importKey, Prod.mk.injEq, Scope.mk.injEq, PackageId.mk.injEq, and_assoc]
+
+/-- The persistent tree has exactly list membership's cycle test, with no
+string encoding or hash identity standing in for the complete package scope. -/
+theorem active_import_membership (entries : List (Scope × String)) (entry : Scope × String) :
+    Std.TreeSet.contains
+      (entries.foldr (fun item (seen : Std.TreeSet ImportKey) => seen.insert (importKey item)) {}) (importKey entry) =
+      entries.contains entry := by
+  induction entries with
+  | nil => simp
+  | cons head tail ih =>
+    apply Bool.eq_iff_iff.mpr
+    simp only [List.foldr, Std.TreeSet.contains_insert, ih, List.contains_cons, Bool.or_eq_true,
+      beq_iff_eq, Std.compare_eq_eq_iff_eq, active_import_key_injective]
+    rw [eq_comm (a := head) (b := entry)]
 
 /-- The executable owner and module indexes agree with the original declaration
 list, even before duplicate-owner validation. Hashing cannot merge identities. -/
@@ -148,22 +230,27 @@ theorem membership_owner (program : Namespace.Program) (lowered : Namespace.Lowe
 /-- Following an import returns the original target, not an identity constructed
 from the alias spelling. Both private-use and public re-export use this code. -/
 theorem alias_preserves_target (fuel : Nat) (program : Namespace.Program)
-    (requester scope : Scope) (name : String) (active : List (Scope × String)) (span : Span)
+    (requester scope : Scope) (name : String) (active : Std.TreeSet ImportKey) (span : Span)
     (m : Namespace.Module) (entry : Import) (target : Namespace.Target) (budget remaining : Nat)
     (noDeclaration : program.declarations.find? (fun t => t.owner == ⟨scope, name⟩) = none)
     (moduleFound : moduleAt program.indexed scope = some m)
     (importFound : m.imports.find? (·.alias == name) = some entry)
     (accessible : visible requester ⟨⟨scope, name⟩, .module, entry.isPublic⟩ = true)
-    (acyclic : active.contains (scope, name) = false)
-    (resolved : (resolveAt fuel program.indexed scope entry.path ((scope, name) :: active) entry.span).run budget = .ok (target, remaining))
+    (acyclic : active.contains (importKey (scope, name)) = false)
+    (resolved : (resolveAt fuel program.indexed scope entry.path (active.insert (importKey (scope, name))) entry.span).run budget = .ok (target, remaining))
     (exportable : (entry.isPublic && !target.isPublic) = false) :
     (memberAt (fuel + 1) program.indexed requester scope name active span).run (budget + 1) = .ok (target, remaining) := by
   simp only [StateT.run] at resolved
-  have inactive : (scope, name) ∉ active := by simpa using acyclic
+  have inactive : importKey (scope, name) ∉ active := by
+    intro member
+    have present := Std.TreeSet.mem_iff_contains.mp member
+    rw [acyclic] at present
+    contradiction
   have permitted : ¬ (entry.isPublic = true ∧ target.isPublic = false) := by
     intro ⟨publicEntry, privateTarget⟩
     simp [publicEntry, privateTarget] at exportable
-  simp [memberAt, indexed_owner_lookup, charge, noDeclaration, moduleFound, importFound, accessible, inactive,
+  simp [memberAt, indexed_owner_lookup, indexed_module_certificate, charge, noDeclaration, moduleFound,
+    indexed_import_lookup, importFound, accessible, inactive,
     resolved, permitted, bind, Except.bind, pure, Except.pure, StateT.run, StateT.bind, StateT.pure]
 
 

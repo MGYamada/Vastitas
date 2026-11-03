@@ -743,12 +743,27 @@ lowering; it does not independently specify name resolution. Correspondence
 between the ledger entries and names emitted into the surface program is not
 proved.
 
-The kernel builds one internal declaration index per namespace check and shares
-it across lowering, binding checks, validation and reference auditing.
+The kernel builds internal namespace indexes per namespace check and shares
+them across lowering, binding checks, validation and reference auditing.
 `indexed_owner_lookup` and `indexed_scope_lookup` prove equality with the
 original list search/filter, including first-declaration behavior on duplicate
-input. No index is accepted from wire IR. `alias_preserves_target` retains the
-original list-search premise while unfolding the actual indexed resolver.
+input. `first_index_matches_list`, `indexed_package_matches_list`,
+`indexed_module_matches_list`, `indexed_import_lookup` and
+`indexed_dependency_lookup` also connect package/module/import/dependency
+tables to the original first-match list searches. Module lookup retains the
+full package identity check. `rich_package_index` and `rich_module_lookup`
+connect the indexed-source entry to the same reconstructed tables. No index is
+accepted from wire IR. `alias_preserves_target` retains the original list-search
+premise while unfolding the actual indexed resolver.
+
+Active imports use a persistent ordered set. `active_import_key_injective`
+preserves every package identity, module path and alias field;
+`active_import_membership` equates the actual set's cycle test with the
+previous list membership. This does not memoize completed resolution or add
+an aggregate namespace budget. The long-chain cases in
+`tests/namespace_scaling.rs` exercise public check/build/execution, an unused
+invalid body, cycles and the retained per-resolution limit. These equations
+and regressions are separate from any time-complexity or timing claim.
 
 `same_logical_owner_same_symbol` is congruence: equal owners have equal symbols.
 The `Owner` structure contains package identity, logical module path and

@@ -33,11 +33,14 @@ def declarationName (kind : Kind) (name : String) (span : Span) : Result Unit :=
   else sourceName name span
 
 def packageAt (p : Indexed) (source : String) : Option Package :=
-  p.packages.find? (·.id.source == source)
+  p.byPackage[source]?.map (·.source)
 
-def moduleAt (p : Indexed) (scope : Scope) : Option Module := do
-  let pkg ← packageAt p scope.package.source
-  if pkg.id != scope.package then none else pkg.modules.find? (·.path == scope.path)
+def moduleLookupAt (p : Indexed) (scope : Scope) : Option ModuleLookup := do
+  let pkg ← p.byPackage[scope.package.source]?
+  if pkg.source.id != scope.package then none else pkg.modules[scope.path]?
+
+def moduleAt (p : Indexed) (scope : Scope) : Option Module :=
+  (moduleLookupAt p scope).map (·.source)
 
 def dependencyRoot (pkg : Package) : Target :=
   ⟨⟨⟨pkg.id, []⟩, ""⟩, .module, true⟩
@@ -59,6 +62,15 @@ def ancestors (scope : Scope) (path : List String) (span : Span) : Result (Scope
 
 abbrev ResolutionM := StateT Nat Result
 
+/-- A lossless ordered key for persistent active-import paths. Balanced trees
+share unchanged branches when nested path resolution retains a parent set. -/
+abbrev ImportKey := String × String × String × List String × String
+
+attribute [local instance] lexOrd
+
+def importKey (entry : Scope × String) : ImportKey :=
+  (entry.1.package.source, entry.1.package.name, entry.1.package.version, entry.1.path, entry.2)
+
 def charge (span : Span) : ResolutionM Unit
   | 0 => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
   | remaining + 1 => .ok ((), remaining)
@@ -67,7 +79,7 @@ def charge (span : Span) : ResolutionM Unit
 -- visibility edge. Resolving an alias checks its declaration's visibility first,
 -- then its source path in the alias's own scope, preserving the original target.
 mutual
-  def memberAt : Nat → Indexed → Scope → Scope → String → List (Scope × String) → Span → ResolutionM Target
+  def memberAt : Nat → Indexed → Scope → Scope → String → Std.TreeSet ImportKey → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
     | fuel + 1, p, requester, scope, name, active, span => do
       charge span
@@ -75,17 +87,17 @@ mutual
         if !visible requester target then
           problem span "E_VISIBILITY" s!"'{name}' is private in its declaring module"
         return target
-      let some m := moduleAt p scope | problem span "E_NAME" "unknown module"
-      let some entry := m.imports.find? (·.alias == name)
+      let some m := moduleLookupAt p scope | problem span "E_NAME" "unknown module"
+      let some entry := m.imports[name]?
         | problem span "E_NAME" s!"undefined name '{name}' in this module"
       let access : Target := ⟨⟨scope, name⟩, .module, entry.isPublic⟩
       if !visible requester access then problem span "E_VISIBILITY" s!"import '{name}' is private"
-      if active.contains (scope, name) then problem entry.span "E_CYCLE" "cyclic import or re-export"
-      let target ← resolveAt fuel p scope entry.path ((scope, name) :: active) entry.span
+      if active.contains (importKey (scope, name)) then problem entry.span "E_CYCLE" "cyclic import or re-export"
+      let target ← resolveAt fuel p scope entry.path (active.insert (importKey (scope, name))) entry.span
       if entry.isPublic && !target.isPublic then
         problem entry.span "E_VISIBILITY" "pub use requires a public declaration"
       return target
-  def descend : Nat → Indexed → Scope → Target → List String → List (Scope × String) → Span → ResolutionM Target
+  def descend : Nat → Indexed → Scope → Target → List String → Std.TreeSet ImportKey → Span → ResolutionM Target
     | 0, _, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
     | fuel + 1, p, requester, target, path, active, span => do
       match path with
@@ -94,19 +106,19 @@ mutual
         if target.kind != .module then problem span "E_NAME" "a function cannot contain path components"
         let next ← memberAt fuel p requester (targetScope target) name active span
         descend fuel p requester next rest active span
-  def resolveAt : Nat → Indexed → Scope → List String → List (Scope × String) → Span → ResolutionM Target
+  def resolveAt : Nat → Indexed → Scope → List String → Std.TreeSet ImportKey → Span → ResolutionM Target
     | 0, _, _, _, _, span => problem span "E_LIMIT" s!"namespace resolution exceeds the {Limits.namespaceResolution}-unit budget"
     | fuel + 1, p, scope, path, active, span => do
-      let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
+      let some pkg := p.byPackage[scope.package.source]? | problem span "E_NAME" "unknown package"
       match path with
       | [] => problem span "E_NAME" "empty reference path"
-      | "package" :: name :: rest => descend fuel p scope (dependencyRoot pkg) (name :: rest) active span
+      | "package" :: name :: rest => descend fuel p scope (dependencyRoot pkg.source) (name :: rest) active span
       | "self" :: rest => descend fuel p scope (← moduleTarget p scope span) rest active span
       | "super" :: rest =>
         let (parent, remaining) ← ancestors scope ("super" :: rest) span
         descend fuel p scope (← moduleTarget p parent span) remaining active span
       | name :: rest =>
-        if let some dep := pkg.dependencies.find? (·.alias == name) then
+        if let some dep := pkg.dependencies[name]? then
           let some target := packageAt p dep.target | problem span "E_NAME" "unknown dependency target"
           descend fuel p scope (dependencyRoot target) rest active span
         else
@@ -115,7 +127,7 @@ mutual
 end
 
 def resolve (p : Indexed) (scope : Scope) (path : List String) (span : Span) : Result Target :=
-  ((resolveAt Limits.namespaceResolution p scope path [] span).run Limits.namespaceResolution).map (·.1)
+  ((resolveAt Limits.namespaceResolution p scope path {} span).run Limits.namespaceResolution).map (·.1)
 
 def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&
@@ -246,7 +258,7 @@ def validate (p : Indexed) : Result Unit := do
             p.declarations.any (·.kind == .indexedDeclaration)) then
           sourceName entry.alias entry.span
         if entry.alias == "package" then problem entry.span "E_RESERVED" "package is reserved as a path prefix"
-        let (target, _) ← (memberAt Limits.namespaceResolution p scope scope entry.alias [] entry.span).run Limits.namespaceResolution
+        let (target, _) ← (memberAt Limits.namespaceResolution p scope scope entry.alias {} entry.span).run Limits.namespaceResolution
         declarationName (if target.kind == .indexedDeclaration then target.kind else .function)
           entry.alias entry.span
 
@@ -290,10 +302,10 @@ def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method :
 
 def binder (p : Indexed) (scope : Scope) (name : String) (span : Span) : Result String := do
   sourceName name span
-  let some m := moduleAt p scope | problem span "E_NAME" "unknown module"
-  let some pkg := packageAt p scope.package.source | problem span "E_NAME" "unknown package"
-  if p.byOwner.contains ⟨scope, name⟩ || m.imports.any (·.alias == name) ||
-      pkg.dependencies.any (·.alias == name) then
+  let some m := moduleLookupAt p scope | problem span "E_NAME" "unknown module"
+  let some pkg := p.byPackage[scope.package.source]? | problem span "E_NAME" "unknown package"
+  if p.byOwner.contains ⟨scope, name⟩ || m.imports.contains name ||
+      pkg.dependencies.contains name then
     problem span "E_SHADOW" s!"binding '{name}' conflicts with a module declaration, import or dependency alias"
   return localName name
 

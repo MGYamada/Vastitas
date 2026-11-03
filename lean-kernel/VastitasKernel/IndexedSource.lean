@@ -192,7 +192,8 @@ def Program.targets (p : Program) : List Namespace.Target :=
 are rebuilt from the input, not received as frontend lookup certificates. -/
 def Program.indexed (p : Program) : Namespace.Indexed := {
   toProgram := p.toNamespace, declarations := p.targets,
-  byOwner := Namespace.ownerIndex p.targets, byScope := Namespace.scopeIndex p.targets }
+  byOwner := Namespace.ownerIndex p.targets, byScope := Namespace.scopeIndex p.targets,
+  byPackage := Namespace.packageIndex p.toNamespace.packages }
 
 def Body.category : Body → Nat
   | .package _ => 1

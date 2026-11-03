@@ -17,6 +17,33 @@ balanced churn in surrounding phases, mismatched generated/C backend costs,
 changed stdin/backend bindings and unlisted archive files; the original measured
 bytes/revision remain unchanged.
 
+## Retrieve a retained archive
+
+From the repository root, fetch a single record and run the existing offline replay.
+
+```sh
+python3 experiments/source_workspace/fetch.py 2026-11-01-macos
+python3 experiments/source_workspace/verify.py experiments/source_workspace/results/2026-11-01-macos/evidence.zip
+```
+
+The first command verifies an existing file or fetches it when a sparse checkout
+omits it. The [source catalog](archive-sources.json) pins each historical ZIP to
+a full Git commit and records its Git blob ID. The sparse CI job checks the
+tracked blob IDs using the Git index. Its original `artifact-manifest.json` supplies the exact byte
+count and SHA-256. The fetcher checks both while streaming and publishes a
+complete file atomically. A failed download leaves existing files untouched.
+Replay verifies the structure and contents of the resulting archive.
+
+Use `--cache-dir DIR` to obtain a digest-named copy in a shared cache. The
+command prints the verified path for use with `verify.py`. A verified local ZIP
+or cache entry works offline. A catalog entry can also name a public release
+asset in this repository with `release_tag` and `asset`. Its bytes must match the
+same manifest. All 13 current records use their original Git blobs. New result
+ZIPs are ignored by ordinary Git adds. External storage of historical archives
+is tracked in [#448](https://github.com/MGYamada/Vastitas/issues/448).
+
+## Reproduce a source observation
+
 Build a stock/diagnostic pair with the [workspace calibration](../openblas_workspace/README.md)
 from the **same observer sources** first. Its full verified record is required;
 the exact archives, headers, observer inputs and unchanged calculation objects

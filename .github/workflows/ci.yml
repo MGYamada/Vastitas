@@ -40,6 +40,8 @@ jobs:
         run: bash scripts/check_ci_python.sh
       - name: Contributor guidance limits and equality
         run: python3 scripts/check_docs.py
+      - name: Verify sparse source evidence retrieval
+        run: python3 -m unittest discover -s experiments/source_workspace -p test_fetch.py
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
         with:
           toolchain: 1.99.1

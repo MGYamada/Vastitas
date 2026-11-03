@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "records": {
+    "2026-11-01-linux": {
+      "git_commit": "489eecc9c995babe80be41d0fa3f1a64a0677123",
+      "git_blob": "e89edba9b2b17155572a1deaab7ed91ebcbaffbe"
+    },
+    "2026-11-01-linux-allocator": {
+      "git_commit": "8d43f1cb98099fd68d878ea6cb543221a591a8a8",
+      "git_blob": "52efbbbed1c0f2bce6e309467445c05cb69770dc"
+    },
+    "2026-11-01-linux-packing": {
+      "git_commit": "eee1d95911ce2ea0c9679c07c4eecae53f7aa15a",
+      "git_blob": "2834571e2aaf82c97b8b6c8b0939dc219c45bb16"
+    },
+    "2026-11-01-linux-streaming": {
+      "git_commit": "95d41773cf820dc9ec9cb3f62b05bc1e5dae93f0",
+      "git_blob": "911b0a0f273666ed8c2375a836486da9355d2af9"
+    },
+    "2026-11-01-linux-unit-cleanup": {
+      "git_commit": "95d41773cf820dc9ec9cb3f62b05bc1e5dae93f0",
+      "git_blob": "4e30a19b85b6ea9e3004e0b386c4ea2507e384e7"
+    },
+    "2026-11-01-macos": {
+      "git_commit": "489eecc9c995babe80be41d0fa3f1a64a0677123",
+      "git_blob": "849123dc3c349b7d974f6981303edc7c3af09858"
+    },
+    "2026-11-01-macos-allocator": {
+      "git_commit": "8d43f1cb98099fd68d878ea6cb543221a591a8a8",
+      "git_blob": "c83a4d6e979b652a652700a47c088fe03f834a9c"
+    },
+    "2026-11-01-macos-packing": {
+      "git_commit": "eee1d95911ce2ea0c9679c07c4eecae53f7aa15a",
+      "git_blob": "518b21e9749f83304ef6c6abdb59da7bcf675ca5"
+    },
+    "2026-11-01-macos-streaming": {
+      "git_commit": "95d41773cf820dc9ec9cb3f62b05bc1e5dae93f0",
+      "git_blob": "17f92d6f9ea51161ac8f9fd692f8c7a6e56818c3"
+    },
+    "2026-11-01-macos-unit-cleanup": {
+      "git_commit": "95d41773cf820dc9ec9cb3f62b05bc1e5dae93f0",
+      "git_blob": "496cd507f59109a18d37ae8ad49abdc4095041c2"
+    },
+    "2026-11-02-linux-lifetimes": {
+      "git_commit": "1f3f858bf0b76e2b4361050b4fde4195c64f89e9",
+      "git_blob": "a599b8cdd198ace56ecdedbc80f4729af9053de9"
+    },
+    "2026-11-02-macos-lifetimes": {
+      "git_commit": "d83f85c808ba3df5fd4f55e152769ccf6bf28aad",
+      "git_blob": "db493ad654e9f972388d71bf9e2af3a297d16d2d"
+    },
+    "2026-11-02-macos-lifetimes-streaming": {
+      "git_commit": "d83f85c808ba3df5fd4f55e152769ccf6bf28aad",
+      "git_blob": "095d854878acb84f55638eca347790e984c4c74e"
+    }
+  }
+}

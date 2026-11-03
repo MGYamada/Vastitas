@@ -295,6 +295,8 @@ jobs:
           lake env ../.ci-tools/axiom-audit/.lake/build/bin/axiom-audit --root VastitasOracle --allow propext,Classical.choice,Quot.sound
       - name: Audit transitive oracle and kernel axioms
         run: cd lean && lake env lean ../scripts/audit_axioms.lean
+      - name: Axiom-audit provenance and substitution regressions
+        run: lake -d lean env python3 scripts/check_axiom_audit.py
       - name: Core proof migration regressions
         run: cd lean && lake env lean ../scripts/check_oracle_core.lean
       - name: Finite edit acceptance indices

@@ -30,8 +30,17 @@ scanned as well. This deliberately closed graph must be amended when future
 packages are actually introduced; it is not a general Lake dependency resolver.
 CI checks the boundary before resolution and after the official build, disables
 Mathlib cache downloads, and preserves the allowed axiom set. The existing
-`audit_axioms.lean` additionally audits transitive declarations in the Oracle,
-kernel and promotion fixture namespaces. `check_oracle_core.lean` exercises
+`audit_axioms.lean` additionally selects every imported declaration by its
+actual defining module in the Oracle, kernel and promotion-fixture libraries,
+including private declarations and declarations in other namespaces. Each
+required module group must be nonempty. It audits their transitive axioms and
+rejects project `extern`/`implemented_by` substitutions; proved `csimp`
+rewrites remain permitted. This deliberately excludes Lean distribution
+implementations and the separately built optional native/FFI packages.
+`scripts/check_axiom_audit.py` compiles isolated test modules and checks rejection
+of unused private axioms in each library, unrelated namespaces, external and
+implementation substitutions, and an empty audit scope. These are CI policy
+checks, not a native-refinement theorem. `check_oracle_core.lean` exercises
 nonempty/empty coordinate spaces, duplicate/Unicode names and positional lists.
 That dependency-removal increment added neither `VastitasMath` nor
 `VastitasBridge`, and claimed no new std correspondence or constitutional theorem.
@@ -252,7 +261,7 @@ including the proof/axiom audit and macOS/Linux compiler builds without mathlib
 This is not completion of all Stage 1 features in the historical design.
 
 The proofs contain no `sorry`, `admit`, or project-specific unproved axioms.
-CI audits the oracle namespace against Lean's standard logical axioms
+CI audits declarations from the actual project modules against Lean's standard logical axioms
 (`propext`, `Classical.choice`, and `Quot.sound`).
 
 ## Stage 1b capture and static function contracts

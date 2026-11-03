@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import tarfile
@@ -17,6 +18,36 @@ URL = f"https://github.com/OpenMathLib/OpenBLAS/releases/download/v{VERSION}/Ope
 SHA256 = "cd7e129868320cc2d033afa920e31202dfe0b8066a5b66661900ccc0f197dfed"
 OPTIONS = ["USE_THREAD=0", "USE_LOCKING=1", "NO_LAPACK=1", "NOFORTRAN=1", "INTERFACE64=0",
            "NO_SHARED=1", "BINARY=64", "DYNAMIC_ARCH=0", "NO_AFFINITY=1"]
+# Report the linked library's own profile, as the GEMM adapter reads it at run time.
+PROFILE_PROBE = r"""#include <cblas.h>
+#include <stdio.h>
+int main(void) {
+    const char *configuration = openblas_get_config();
+    printf("%d\n%s\n", openblas_get_parallel(), configuration ? configuration : "");
+    return 0;
+}
+"""
+
+
+def check_profile(prefix: Path, work: Path, env: dict[str, str]) -> str:
+    """Fail closed unless the installed archive is sequential, locked and LP64.
+
+    A sequential 0.3.34 build serializes its shared buffer pool only with
+    USE_LOCKING=1, and the GEMM adapter rejects any build that does not report it.
+    """
+    probe, executable = work / "profile.c", work / "profile"
+    probe.write_text(PROFILE_PROBE)
+    subprocess.run([*shlex.split(env.get("CC", "cc")), "-std=c11", f"-I{prefix / 'include'}", str(probe),
+                    str(prefix / "lib/libopenblas.a"), "-lm", "-lpthread", "-o", str(executable)],
+                   env=env, check=True)
+    output = subprocess.run([str(executable)], env=env, check=True, capture_output=True, text=True).stdout
+    parallel, _, configuration = output.removesuffix("\n").partition("\n")
+    head = f"OpenBLAS {VERSION} "
+    if (parallel != "0" or not configuration.startswith(head) or "USE64BITINT" in configuration or
+            " USE_LOCKING " not in configuration[len(head) - 1:]):
+        raise ValueError(f"built OpenBLAS is not the sequential locked LP64 profile: "
+                         f"parallel={parallel!r}, configuration={configuration!r}")
+    return configuration
 
 
 def build(prefix: Path, archive: Path | None, jobs: int, target: str | None) -> None:
@@ -45,6 +76,7 @@ def build(prefix: Path, archive: Path | None, jobs: int, target: str | None) -> 
         options = OPTIONS + ([f"TARGET={target}"] if target else [])
         subprocess.run(["make", f"-j{jobs}", *options], cwd=source, env=env, check=True)
         subprocess.run(["make", *options, f"PREFIX={prefix}", "install"], cwd=source, env=env, check=True)
+        print(f"verified OpenBLAS profile: {check_profile(prefix, root, env)}")
         license_dir = prefix / "share/licenses/OpenBLAS"
         license_dir.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(source / "LICENSE", license_dir / "LICENSE")

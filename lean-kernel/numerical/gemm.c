@@ -32,10 +32,14 @@ static void initialize_backend(void) {
     has_configuration = 1;
     /* The linked library can differ from the compile-time header. Inspect both
      * before calling an integer-ABI-sensitive entry point. Never reset threads
-     * or process-wide settings inside an operation. */
+     * or process-wide settings inside an operation. A sequential 0.3.34 build
+     * serializes its shared buffer pool only when made with USE_LOCKING=1, and
+     * concurrent operations on distinct arenas rely on that pool lock. Its
+     * configuration reports the flag as one space-delimited token. */
     if (!strstr(OPENBLAS_VERSION, " OpenBLAS 0.3.34 ") ||
         strncmp(backend_configuration, "OpenBLAS 0.3.34 ", 16) != 0 ||
         strstr(backend_configuration, "USE64BITINT") ||
+        !strstr(backend_configuration + 15, " USE_LOCKING ") ||
         openblas_get_parallel() != OPENBLAS_SEQUENTIAL) return;
     backend_status = VS_OK;
 }
@@ -81,6 +85,83 @@ static VStorageStatus coefficient(VStorageArena *arena, VGemmCoefficient input,
     if (overlaps(&source, output)) return VS_ALIAS;
     memcpy(value, source.data, source.scalar ? 2 * sizeof(double) : sizeof(double));
     return VS_OK;
+}
+
+/* Component step between consecutive elements of a 1-by-k row (row != 0) or
+ * k-by-1 column vector view, following the same physical layout as GEMM. */
+static uint64_t vector_step(const VStorageDense *view, int row) {
+    uint64_t step = (row ? view->transposed : !view->transposed) ? 1 : view->leading;
+    return view->scalar ? 2 * step : step;
+}
+
+/* Fused 1-by-1 output: c := beta*c + alpha*sum_p op(a_p) op(b_p) for a 1-by-k
+ * row a and k-by-1 column b, k >= 1, replacing a dgemm/zgemm call with M = N = 1.
+ * The order is fixed and host independent: the sum starts at +0 and adds each
+ * product in increasing p; every product, difference and sum is separately
+ * rounded (no FMA contraction; GCC keeps ISO C11 mode off and clang obeys the
+ * pragma). The pinned BLAS kernels may instead use FMA and their own order, so
+ * results can differ from the former call in the last bits. Zero beta reads no
+ * old output, one beta preserves it, and zero alpha reads neither input, as in
+ * the pinned level-3 driver; an alpha of one is applied exactly. */
+static void dot_update(const VStorageDense *a, uint8_t conjugate_a,
+                       const VStorageDense *b, uint8_t conjugate_b,
+                       const VStorageDense *c, const double alpha[2], const double beta[2]) {
+#if defined(__clang__)
+#pragma STDC FP_CONTRACT OFF
+#endif
+    const int is_complex = c->scalar != 0;
+    const int beta_zero = beta[0] == 0.0 && beta[1] == 0.0, beta_one = beta[0] == 1.0 && beta[1] == 0.0;
+    const int alpha_zero = alpha[0] == 0.0 && alpha[1] == 0.0, alpha_one = alpha[0] == 1.0 && alpha[1] == 0.0;
+    double *out = c->data;
+    double base[2] = {0.0, 0.0};
+    if (beta_one) {
+        base[0] = out[0];
+        if (is_complex) base[1] = out[1];
+    } else if (!beta_zero) {
+        if (!is_complex) base[0] = beta[0] * out[0];
+        else {
+            double rr = beta[0] * out[0], ii = beta[1] * out[1];
+            double ri = beta[0] * out[1], ir = beta[1] * out[0];
+            base[0] = rr - ii;
+            base[1] = ri + ir;
+        }
+    }
+    if (alpha_zero) {
+        out[0] = base[0];
+        if (is_complex) out[1] = base[1];
+        return;
+    }
+    const double *x = a->data, *y = b->data;
+    const uint64_t k = a->columns, sx = vector_step(a, 1), sy = vector_step(b, 0);
+    double sum[2] = {0.0, 0.0};
+    if (!is_complex) {
+        for (uint64_t p = 0; p < k; ++p) {
+            double product = x[p * sx] * y[p * sy];
+            sum[0] = sum[0] + product;
+        }
+    } else {
+        for (uint64_t p = 0; p < k; ++p) {
+            const double *u = x + p * sx, *v = y + p * sy;
+            double ur = u[0], ui = conjugate_a ? -u[1] : u[1];
+            double vr = v[0], vi = conjugate_b ? -v[1] : v[1];
+            double rr = ur * vr, ii = ui * vi, ri = ur * vi, ir = ui * vr;
+            double re = rr - ii, im = ri + ir;
+            sum[0] = sum[0] + re;
+            sum[1] = sum[1] + im;
+        }
+    }
+    double scaled[2] = {sum[0], sum[1]};
+    if (!alpha_one) {
+        if (!is_complex) scaled[0] = alpha[0] * sum[0];
+        else {
+            double rr = alpha[0] * sum[0], ii = alpha[1] * sum[1];
+            double ri = alpha[0] * sum[1], ir = alpha[1] * sum[0];
+            scaled[0] = rr - ii;
+            scaled[1] = ri + ir;
+        }
+    }
+    out[0] = base[0] + scaled[0];
+    if (is_complex) out[1] = base[1] + scaled[1];
 }
 
 VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
@@ -139,6 +220,12 @@ VStorageStatus vgemm_execute_scaled(VStorageArena *arena,
                 vstorage_record_write(arena, c.bytes);
                 result.written_bytes = c.bytes;
             }
+        } else if (c.rows == 1 && c.columns == 1) {
+            /* A scalar result needs no GEMM driver, packing or BLAS workspace.
+             * It still counts as the operation's one kernel call. */
+            dot_update(&a, left_conjugate, &b, right_conjugate, &c, alpha, beta);
+            vstorage_record_write(arena, c.bytes);
+            result = (VGemmReport){1, c.bytes};
         } else {
             /* No scan, implicit packing, defensive copy or temporary output.
              * A and B may alias; C was independently checked against each. */
@@ -203,16 +290,10 @@ VStorageStatus vgemm_diagonal_pair(VStorageArena *arena,
         c.data[0] = 0.0;
         if (c.scalar) c.data[1] = 0.0;
     } else {
-        enum CBLAS_TRANSPOSE ta = operation(&a, conjugate_left);
-        if (!a.scalar) cblas_dgemm(CblasColMajor, ta, CblasNoTrans, 1, 1,
-            (blasint)b.rows, 1.0, a.data, (blasint)a.leading, b.data, (blasint)b.leading,
-            0.0, c.data, (blasint)c.leading);
-        else {
-            const double alpha[2] = {1.0, 0.0}, beta[2] = {0.0, 0.0};
-            cblas_zgemm(CblasColMajor, ta, CblasNoTrans, 1, 1, (blasint)b.rows,
-                alpha, a.data, (blasint)a.leading, b.data, (blasint)b.leading,
-                beta, c.data, (blasint)c.leading);
-        }
+        /* The scalar pairing reads the weighted scratch vector back through the
+         * same fused 1-by-1 path as an overwrite GEMM with default alpha. */
+        const double alpha[2] = {1.0, 0.0}, beta[2] = {0.0, 0.0};
+        dot_update(&a, conjugate_left, &b, 0, &c, alpha, beta);
         result.kernel_calls = 1;
     }
     vstorage_record_write(arena, c.bytes);

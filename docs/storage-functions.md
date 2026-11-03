@@ -126,6 +126,8 @@ connect both admissions to the actual checked public program and original
 body list. `Storage.runMetered` and `Shapes.runMetered` return equations for
 the original unmetered schedules and the runtime guard sequence. The two
 branch arms share the running total.
+The [matched public sources and recorded outcomes](../experiments/compiler_scaling/results/2026-11-03-macos-resource-work-budget/RESULTS.md)
+cover forwarding, long reborrows, disjoint writers and the expansion limit.
 
 ## Evidence and remaining boundaries
 

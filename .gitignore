@@ -1,6 +1,8 @@
 /target/
 /stdlib/target/
 **/.lake/
+# Fallback package lock where directory flock is unsupported (NFS).
+.vastitas-build.lock
 .DS_Store
 *.olean
 *.ilean

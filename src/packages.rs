@@ -8,7 +8,7 @@ use crate::ir::{
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
@@ -213,6 +213,8 @@ struct Loader {
     active: HashSet<PathBuf>,
     output: Option<OutputIdentity>,
     module_count: usize,
+    /// On-disk entry names per directory, read once for exact-name lookup.
+    listings: HashMap<PathBuf, HashSet<OsString>>,
 }
 
 // Count logical modules across the selected closure, including inline modules
@@ -230,7 +232,12 @@ enum Existence {
 /// Whether `base` joined with `names` exists with exactly these entry names.
 /// Case-insensitive filesystems (default macOS APFS) would otherwise resolve
 /// `mod Math;` to `math.vast`, or load one file for both `mod a;` and `mod A;`.
-fn existence(base: &Path, names: &[OsString]) -> std::io::Result<Existence> {
+/// Directory listings are cached, so sibling modules cost one `read_dir`.
+fn existence(
+    listings: &mut HashMap<PathBuf, HashSet<OsString>>,
+    base: &Path,
+    names: &[OsString],
+) -> std::io::Result<Existence> {
     let path = names
         .iter()
         .fold(base.to_path_buf(), |path, name| path.join(name));
@@ -239,14 +246,13 @@ fn existence(base: &Path, names: &[OsString]) -> std::io::Result<Existence> {
     }
     let mut directory = base.to_path_buf();
     for name in names {
-        let mut found = false;
-        for entry in std::fs::read_dir(&directory)? {
-            if entry?.file_name() == *name {
-                found = true;
-                break;
-            }
+        if !listings.contains_key(&directory) {
+            let entries = std::fs::read_dir(&directory)?
+                .map(|entry| entry.map(|entry| entry.file_name()))
+                .collect::<std::io::Result<HashSet<_>>>()?;
+            listings.insert(directory.clone(), entries);
         }
-        if !found {
+        if !listings[&directory].contains(name) {
             return Ok(Existence::CaseMismatch);
         }
         directory.push(name);
@@ -442,8 +448,8 @@ impl Loader {
                 .collect();
             use Existence::{CaseMismatch, Exact, Missing};
             let file = match (
-                existence(base, &flat_names).ok(),
-                existence(base, &nested_names).ok(),
+                existence(&mut self.listings, base, &flat_names).ok(),
+                existence(&mut self.listings, base, &nested_names).ok(),
             ) {
                 (Some(Exact), Some(Missing | CaseMismatch)) => flat,
                 (Some(Missing | CaseMismatch), Some(Exact)) => nested,
@@ -513,6 +519,7 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         active: HashSet::new(),
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
         module_count: 0,
+        listings: HashMap::new(),
     };
     let root = loader.package(manifest)?;
     // Preserve recipient names verbatim. The kernel alone resolves them in the

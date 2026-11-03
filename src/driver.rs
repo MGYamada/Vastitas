@@ -374,18 +374,21 @@ fn invoke_kernel(
     if version_mismatch {
         return Err("E_PROTOCOL: incompatible backend protocol version".into());
     }
+    if response.get("ok") != Some(&Value::Bool(true)) || !output.status.success() {
+        let note = identity_problem.map_or_else(String::new, |problem| {
+            format!("\nnote: {problem}\n{}", rebuild_advice(root))
+        });
+        return Err(format!(
+            "E_BACKEND: backend failed ({})\n{}{note}",
+            output.status,
+            String::from_utf8_lossy(&output.stderr)
+        ));
+    }
     if let Some(problem) = identity_problem {
         return Err(format!(
             "E_BACKEND: incompatible kernel {}: {problem}\n{}",
             executable.display(),
             rebuild_advice(root)
-        ));
-    }
-    if response.get("ok") != Some(&Value::Bool(true)) || !output.status.success() {
-        return Err(format!(
-            "E_BACKEND: backend failed ({})\n{}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr)
         ));
     }
     Ok(response)
@@ -624,19 +627,14 @@ fn lean_string(text: &str) -> String {
     quoted
 }
 
-/// Expected `lean --version` text for a `lean-toolchain` pin such as
-/// `leanprover/lean4:v4.35.0`.
-fn pinned_lean_version(toolchain: &str) -> &str {
-    let release = toolchain.trim().rsplit(':').next().unwrap_or_default();
-    release.strip_prefix('v').unwrap_or(release)
-}
-
 /// Lake compiles the shared kernel packages with whatever `lean` it resolves.
 /// Resolve it the same way (same directory and environment) and require the
 /// pinned version, so ELAN_TOOLCHAIN or another Lean on PATH cannot rebuild the
 /// kernel artifacts with a different toolchain.
+/// The caller has already required `toolchain` to be this compiler's pin, whose
+/// version `build.rs` exports as `expected_kernel::LEAN`.
 fn check_lean_version(directory: &Path, toolchain: &str) -> Result<(), String> {
-    let expected = pinned_lean_version(toolchain);
+    let expected = expected_kernel::LEAN;
     let mut command = Command::new("lean");
     command.current_dir(directory).arg("--version");
     let retention = crate::process::Retention::Complete(64 * 1024);
@@ -1009,16 +1007,6 @@ mod tests {
         let error = manifest_text(path, "kernel root").unwrap_err();
         assert!(error.starts_with("E_BUILD: kernel root path is not valid UTF-8"));
         assert!(error.contains("/tmp/root"));
-    }
-
-    #[test]
-    fn toolchain_pins_name_the_reported_lean_version() {
-        assert_eq!(pinned_lean_version("leanprover/lean4:v4.35.0\n"), "4.35.0");
-        assert_eq!(pinned_lean_version("v4.36.0-rc1"), "4.36.0-rc1");
-        assert_eq!(
-            pinned_lean_version(expected_kernel::TOOLCHAIN),
-            expected_kernel::LEAN
-        );
     }
 
     #[test]

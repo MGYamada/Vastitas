@@ -129,6 +129,39 @@ end
 def resolve (p : Indexed) (scope : Scope) (path : List String) (span : Span) : Result Target :=
   ((resolveAt Limits.namespaceResolution p scope path {} span).run Limits.namespaceResolution).map (·.1)
 
+/-- Structured "not found" for a one-component reference in an existing module:
+no dependency alias, declaration or import of this name exists. A present
+entry that fails to resolve is never reinterpreted as absent. -/
+def unboundName (p : Indexed) (scope : Scope) (name : String) : Bool :=
+  match p.byPackage[scope.package.source]?, moduleLookupAt p scope with
+  | some pkg, some m =>
+    name != "self" && name != "super" && name != "package" &&
+      !pkg.dependencies.contains name && !p.byOwner.contains ⟨scope, name⟩ && !m.imports.contains name
+  | _, _ => false
+
+/-- An unbound name never resolves, so treating it as absent cannot shadow a
+declaration, import or dependency alias. -/
+theorem resolve_unboundName (p : Indexed) (scope : Scope) (name : String) (span : Span)
+    (unbound : unboundName p scope name = true) :
+    ∃ diagnostic, resolve p scope [name] span = .error diagnostic ∧ diagnostic.code = "E_NAME" := by
+  unfold unboundName at unbound
+  split at unbound
+  · rename_i pkg m hpkg hm
+    simp only [Bool.and_eq_true, bne_iff_ne, ne_eq, Bool.not_eq_true'] at unbound
+    obtain ⟨⟨⟨⟨⟨hself, hsuper⟩, hpackage⟩, hdep⟩, hown⟩, himp⟩ := unbound
+    obtain ⟨fuel, limit⟩ : ∃ fuel, Limits.namespaceResolution = fuel + 2 :=
+      ⟨Limits.namespaceResolution - 2, by decide⟩
+    have hdep' : pkg.dependencies[name]? = none := Std.HashMap.getElem?_eq_none_of_contains_eq_false hdep
+    have hown' : p.byOwner[(⟨scope, name⟩ : Owner)]? = none :=
+      Std.HashMap.getElem?_eq_none_of_contains_eq_false hown
+    have himp' : m.imports[name]? = none := Std.HashMap.getElem?_eq_none_of_contains_eq_false himp
+    unfold resolve
+    rw [limit]
+    simp only [resolveAt, hpkg]
+    simp only [hdep', memberAt, hown', hm, himp']
+    exact ⟨_, rfl, rfl⟩
+  · simp at unbound
+
 def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&
       target.owner.name == "main" then "main" else target.owner.symbol
@@ -339,8 +372,10 @@ instance (p : Indexed) (lowered : Lowered) : Decidable (ReferencesValid p lowere
 
 abbrev M := StateT (List Reference) Result
 
-def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method := false) (membership := false) : M Target := do
-  let path := (name.splitOn "::")
+/-- Resolve a structured path component-wise; wire path lists are never
+rejoined into a string and split again. -/
+def lookupPath (p : Indexed) (scope : Scope) (path : List String) (span : Span) (method := false)
+    (membership := false) : M Target := do
   let target ← resolve p scope path span
   if method && (target.kind != .generic || target.owner.scope != scope) then
     problem span "E_OWNER" "only the exact module defining a generic may add methods"
@@ -348,6 +383,9 @@ def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method :
     problem span "E_OWNER" "only the exact module defining an abstract type may add scalar memberships"
   modify (⟨scope, path, span, target, method, membership⟩ :: ·)
   return target
+
+def lookup (p : Indexed) (scope : Scope) (name : String) (span : Span) (method := false) (membership := false) : M Target :=
+  lookupPath p scope (name.splitOn "::") span method membership
 
 def binder (p : Indexed) (scope : Scope) (name : String) (span : Span) : Result String := do
   sourceName name span
@@ -569,44 +607,48 @@ def membershipAuthorityDiagnostic (graph : MembershipGraph) : Diagnostic := Id.r
 def lower (p : Indexed) : Result Lowered := do
   validate p
   let action : M Surface.Program := do
-    let mut functions := []
-    let mut generics := []
-    let mut methods := []
-    let mut abstractTypes := []
-    let mut subtypes := []
-    let mut abstractMethods := []
+    -- Arrays keep lowering linear in the number of declarations.
+    let mut functions : Array Surface.Function := #[]
+    let mut generics : Array RawGeneric := #[]
+    let mut methods : Array Surface.Method := #[]
+    let mut abstractTypes : Array RawAbstractType := #[]
+    let mut subtypes : Array RawSubtype := #[]
+    let mut abstractMethods : Array RawAbstractMethod := #[]
     for pkg in p.packages do
       for m in pkg.modules do
         let scope : Scope := ⟨pkg.id, m.path⟩
         for declaration in m.abstractTypes do
           let target : Target := ⟨⟨scope, declaration.name⟩, .abstractType, declaration.isPublic⟩
-          abstractTypes := abstractTypes ++ [{ declaration.toRawAbstractType with
+          abstractTypes := abstractTypes.push { declaration.toRawAbstractType with
             name := symbol p.toProgram target
-            parents := ← declaration.parents.mapM (abstractPath p scope) }]
+            parents := ← declaration.parents.mapM (abstractPath p scope) }
         for membership in m.subtypes do
-          subtypes := subtypes ++ [{ membership with target := ← abstractPath p scope membership.target true }]
+          subtypes := subtypes.push { membership with target := ← abstractPath p scope membership.target true }
         for f in m.functions do
-          functions := functions ++ [← function p scope f.toFunction ⟨⟨scope, f.name⟩, .function, f.isPublic⟩]
+          functions := functions.push (← function p scope f.toFunction ⟨⟨scope, f.name⟩, .function, f.isPublic⟩)
         for g in m.generics do
           let params ← g.params.mapM fun param => do
             return { param with name := ← binder p scope param.name param.span }
-          generics := generics ++ [{ g.toRawGeneric with
-            name := symbol p.toProgram ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩, params }]
+          generics := generics.push { g.toRawGeneric with
+            name := symbol p.toProgram ⟨⟨scope, g.name⟩, .generic, g.isPublic⟩, params }
         for contract in m.abstractMethods do
           let target ← lookup p scope contract.name contract.span true
           let params ← contract.params.mapM fun param => do
             let ty ← selectorType p scope (.data param.ty) param.span
             return { param with name := ← binder p scope param.name param.span, ty := ty.core }
           let domain ← contract.domain.mapM fun clause => clause.mapM (abstractPath p scope)
-          abstractMethods := abstractMethods ++ [{ contract with
-            name := symbol p.toProgram target, params, domain }]
+          abstractMethods := abstractMethods.push { contract with
+            name := symbol p.toProgram target, params, domain }
         for method in m.methods do
           let target ← lookup p scope method.name method.span true
           let params ← method.params.mapM fun param => do
             return { param with ty := ← selectorType p scope param.ty param.span }
           let f ← function p scope { method.toFunction with params } target
-          methods := methods ++ [{ f with requirements := method.requirements }]
-    return { version := if p.extended then 4 else 2, file := p.file, functions, generics, methods, abstractTypes, subtypes, abstractMethods }
+          methods := methods.push { f with requirements := method.requirements }
+    return {
+      version := if p.extended then 4 else 2, file := p.file, functions := functions.toList
+      generics := generics.toList, methods := methods.toList, abstractTypes := abstractTypes.toList
+      subtypes := subtypes.toList, abstractMethods := abstractMethods.toList }
   let (surface, references) ← action.run []
   return { surface, references }
 

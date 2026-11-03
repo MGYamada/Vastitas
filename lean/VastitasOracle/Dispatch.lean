@@ -11,19 +11,16 @@ open VastitasKernel.Dispatch
 theorem mem_optimalCandidates (hierarchy : Hierarchy) (methods : List NormalizedMethod)
     (key : Key) (method : NormalizedMethod) :
     method ∈ optimalCandidates hierarchy methods key ↔ Optimal hierarchy methods key method := by
-  simp only [optimalCandidates, List.mem_filter, Bool.and_eq_true, Bool.not_eq_true',
-    List.any_eq_false, Bool.and_eq_true, Optimal]
+  simp only [optimalCandidates, List.mem_filter, Bool.not_eq_true', List.any_eq_false, Optimal]
   constructor
-  · rintro ⟨member, applies, optimal⟩
+  · rintro ⟨⟨member, applies⟩, optimal⟩
     refine ⟨member, applies, ?_⟩
-    intro other present applicable
-    simpa [applicable] using optimal other present
+    intro other present appliesOther
+    simpa using optimal other ⟨present, appliesOther⟩
   · rintro ⟨member, applies, optimal⟩
-    refine ⟨member, applies, ?_⟩
-    intro other present
-    cases appliesOther : applicable hierarchy key other
-    · simp
-    · simp [optimal other present appliesOther]
+    refine ⟨⟨member, applies⟩, ?_⟩
+    rintro other ⟨present, appliesOther⟩
+    simp [optimal other present appliesOther]
 
 theorem optimal_permutation (hierarchy : Hierarchy) {left right : List NormalizedMethod}
     (permutation : left.Perm right) (key : Key) (method : NormalizedMethod) :
@@ -227,11 +224,15 @@ theorem checkWith_sound (hierarchy : Hierarchy) (arity : Nat) (domain : List Key
         | error error => simp [normalized, bind, Except.bind] at accepted
         | ok methods =>
             simp only [normalized, bind, Except.bind] at accepted
+            split at accepted
+            · simp [throw, bind, Except.bind] at accepted
             cases validated : validateMethods hierarchy (keys hierarchy.concrete arity) methods with
             | error error => simp [validated] at accepted
             | ok result =>
                 cases result
                 simp only [validated] at accepted
+                split at accepted
+                · simp [throw, bind, Except.bind] at accepted
                 cases selected : selectRows hierarchy domain methods (keys hierarchy.concrete arity) with
                 | error error => simp [selected] at accepted
                 | ok rows =>
@@ -369,8 +370,8 @@ theorem check_order_independent (arity : Nat) (domain : List Key)
 theorem optimalCandidates_permutation (hierarchy : Hierarchy)
     {left right : List NormalizedMethod} (permutation : left.Perm right) (key : Key) :
     (optimalCandidates hierarchy left key).Perm (optimalCandidates hierarchy right key) := by
-  simp only [optimalCandidates, permutation.any_eq]
-  exact permutation.filter _
+  simp only [optimalCandidates, (permutation.filter (applicable hierarchy key)).any_eq]
+  exact (permutation.filter _).filter _
 
 theorem validateMethods_complete (hierarchy : Hierarchy) (allKeys : List Key)
     (methods : List NormalizedMethod) (unique : (methods.map (·.id)).Nodup)
@@ -465,6 +466,51 @@ theorem mapM_complete {α β ε : Type} (f : α → Except ε β) (g : α → β
 
 /-- Reordering records also preserves acceptance, not just the result of two
 checks already assumed successful. The exact winner rows are preserved. -/
+theorem rankingWork_perm (hierarchy : Hierarchy) {left right : List NormalizedMethod}
+    (permutation : left.Perm right) (allKeys : List Key) :
+    rankingWork hierarchy left allKeys = rankingWork hierarchy right allKeys := by
+  unfold rankingWork
+  congr 1
+  apply List.map_congr_left
+  intro key _
+  rw [(permutation.filter _).length_eq]
+
+/-- An accepted family stayed inside both dispatch work budgets. -/
+theorem checkWith_budgets (hierarchy : Hierarchy) (arity : Nat) (domain : List Key)
+    (source : List Method) (checked : Checked)
+    (accepted : checkWith hierarchy arity domain source = .ok checked) :
+    tableWork (keys hierarchy.concrete arity).length checked.methods.length ≤ VastitasKernel.Limits.dispatchWork ∧
+    rankingWork hierarchy checked.methods (keys hierarchy.concrete arity) ≤ VastitasKernel.Limits.dispatchWork ∧
+    selectRows hierarchy domain checked.methods (keys hierarchy.concrete arity) = .ok checked.rows := by
+  simp only [checkWith] at accepted
+  split at accepted
+  · simp [throw, bind, Except.bind] at accepted
+  · split at accepted
+    · simp [throw, bind, Except.bind] at accepted
+    · split at accepted
+      · simp [throw, bind, Except.bind] at accepted
+      · cases normalized : source.mapM (normalizeMethod hierarchy arity) with
+        | error error => simp [normalized, bind, Except.bind] at accepted
+        | ok methods =>
+            simp only [normalized, bind, Except.bind] at accepted
+            split at accepted
+            · simp [throw, bind, Except.bind] at accepted
+            rename_i table
+            cases validated : validateMethods hierarchy (keys hierarchy.concrete arity) methods with
+            | error error => simp [validated] at accepted
+            | ok result =>
+                cases result
+                simp only [validated] at accepted
+                split at accepted
+                · simp [throw, bind, Except.bind] at accepted
+                rename_i ranking
+                cases selected : selectRows hierarchy domain methods (keys hierarchy.concrete arity) with
+                | error error => simp [selected] at accepted
+                | ok rows =>
+                    simp [selected, pure, Except.pure] at accepted
+                    subst checked
+                    exact ⟨Nat.le_of_not_gt table, Nat.le_of_not_gt ranking, selected⟩
+
 theorem checkWith_permutation_success (hierarchy : Hierarchy) (arity : Nat)
     (domain : List Key) (left right : List Method) (first : Checked)
     (permutation : left.Perm right)
@@ -496,28 +542,17 @@ theorem checkWith_permutation_success (hierarchy : Hierarchy) (arity : Nat)
     · intro method member
       obtain ⟨key, admitted, applies⟩ := correct.realizable method (normalizedPerm.mem_iff.mpr member)
       exact ⟨key, correct.enumerated ▸ admitted, applies⟩
-  have selected : selectRows hierarchy domain normalized (keys hierarchy.concrete arity) = .ok first.rows := by
-    apply selectRows_permutation hierarchy domain normalizedPerm
-    simp only [checkWith] at accepted
-    split at accepted
-    · simp [throw, bind, Except.bind] at accepted
-    · split at accepted
-      · simp [throw, bind, Except.bind] at accepted
-      · split at accepted
-        · simp [throw, bind, Except.bind] at accepted
-        · simp only [correct.normalized, bind, Except.bind] at accepted
-          cases validation : validateMethods hierarchy (keys hierarchy.concrete arity) first.methods with
-          | error error => simp [validation] at accepted
-          | ok value =>
-              cases value
-              simp only [validation] at accepted
-              cases selection : selectRows hierarchy domain first.methods (keys hierarchy.concrete arity) with
-              | error error => simp [selection] at accepted
-              | ok rows =>
-                  simp [selection, pure, Except.pure] at accepted
-                  have equal := congrArg Checked.rows accepted
-                  change rows = first.rows at equal
-                  simp only [← equal]
+  obtain ⟨table, ranking, firstSelected⟩ := checkWith_budgets hierarchy arity domain left first accepted
+  have selected : selectRows hierarchy domain normalized (keys hierarchy.concrete arity) = .ok first.rows :=
+    selectRows_permutation hierarchy domain normalizedPerm _ _ firstSelected
+  have tableRight : ¬VastitasKernel.Limits.dispatchWork <
+      tableWork (keys hierarchy.concrete arity).length normalized.length := by
+    rw [← normalizedPerm.length_eq]
+    exact Nat.not_lt.mpr table
+  have rankingRight : ¬VastitasKernel.Limits.dispatchWork <
+      rankingWork hierarchy normalized (keys hierarchy.concrete arity) := by
+    rw [← rankingWork_perm hierarchy normalizedPerm]
+    exact Nat.not_lt.mpr ranking
   have bound : ¬(arity > VastitasKernel.Limits.dispatchKeys || hierarchy.concrete.length ^ arity > VastitasKernel.Limits.dispatchKeys) = true := by
     simp only [checkWith] at accepted
     split at accepted
@@ -529,7 +564,7 @@ theorem checkWith_permutation_success (hierarchy : Hierarchy) (arity : Nat)
     simpa only [List.all_eq_true, List.contains_iff_mem, ← correct.enumerated] using correct.domain_valid
   refine ⟨{ keys := keys hierarchy.concrete arity, methods := normalized, rows := first.rows, applicablePairs := allApplicablePairs hierarchy normalized (keys hierarchy.concrete arity) }, ?_, rfl⟩
   simp [checkWith, correct.hierarchy_valid, bound, domainValid, normalizeRight, validated, selected,
-    bind, Except.bind, pure, Except.pure]
+    tableRight, rankingRight, bind, Except.bind, pure, Except.pure]
 
 theorem check_permutation_success (arity : Nat) (domain : List Key)
     (left right : List Method) (first : Checked) (permutation : left.Perm right)

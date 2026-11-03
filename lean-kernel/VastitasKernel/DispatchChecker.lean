@@ -216,12 +216,14 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
     for key in base do
       if seen.contains key then fail generic.span "E_DUPLICATE" s!"duplicate domain key {keyLabel key}"
       seen := seen.insert key
-    let mut methods := []
+    -- An array keeps family collection linear before the dispatch budget.
+    let mut collected : Array Dispatch.Method := #[]
     for (id, method) in program.methods.zipIdx.map (fun pair => (pair.2, pair.1)) do
       if method.name == generic.name then
         let selectors ← method.params.mapM fun param => Abstract.selector nominals param.ty param.span
         methodResult method.returnType method.span
-        methods := methods ++ [{ id, selectors, requirements := method.requirements }]
+        collected := collected.push { id, selectors, requirements := method.requirements }
+    let methods := collected.toList
     if generic.params.length > Limits.dispatchArity then fail generic.span "E_LIMIT" s!"dispatch key space exceeds {Limits.dispatchKeys}"
     let allKeys := Dispatch.keys nominals.hierarchy.concrete generic.params.length
     unless base.all allKeys.contains do

@@ -64,6 +64,59 @@ instance (scalar : Scalar) (capacity : Nat) (layout : Layout) : Decidable (layou
 def checkLayout (scalar : Scalar) (capacity : Nat) (layout : Layout) : Bool :=
   decide (layout.Valid scalar capacity)
 
+/-- The first conjunct of `Layout.Valid` that fails, with its computed
+numbers. This explains a rejection only; `checkLayout` alone decides. -/
+inductive Layout.Violation where
+  | capacity (capacity : Nat)
+  | offset (offset capacity : Nat)
+  | rows (rows : Nat)
+  | columns (columns : Nat)
+  | leading (leading : Nat)
+  | leadingBelowRows (leading rows : Nat)
+  | alignment (offset width : Nat)
+  | endByte (endByte capacity width : Nat)
+  deriving Repr, BEq, DecidableEq, Inhabited
+
+def Layout.firstViolation (scalar : Scalar) (capacity : Nat) (layout : Layout) : Option Layout.Violation :=
+  if ¬capacity ≤ byteLimit then some (.capacity capacity)
+  else if ¬layout.offset ≤ capacity then some (.offset layout.offset capacity)
+  else if ¬layout.rows ≤ dimensionLimit then some (.rows layout.rows)
+  else if ¬layout.columns ≤ dimensionLimit then some (.columns layout.columns)
+  else if ¬layout.leading ≤ dimensionLimit then some (.leading layout.leading)
+  else if ¬max 1 layout.rows ≤ layout.leading then some (.leadingBelowRows layout.leading layout.rows)
+  else if ¬(layout.empty = true ∨ layout.offset % scalar.width = 0) then
+    some (.alignment layout.offset scalar.width)
+  else if ¬layout.endByte scalar ≤ capacity then
+    some (.endByte (layout.endByte scalar) capacity scalar.width)
+  else none
+
+/-- The explanation can never disagree with acceptance. -/
+theorem Layout.firstViolation_eq_none (scalar : Scalar) (capacity : Nat) (layout : Layout) :
+    layout.firstViolation scalar capacity = none ↔ layout.Valid scalar capacity := by
+  unfold Layout.firstViolation Layout.Valid
+  repeat' split
+  all_goals simp only [reduceCtorEq, false_iff, not_and]
+  all_goals first
+    | (intros; omega)
+    | (intros; simp_all; done)
+    | (cases empty : layout.empty <;> simp_all)
+
+theorem checkLayout_eq_false_iff_violation (scalar : Scalar) (capacity : Nat) (layout : Layout) :
+    checkLayout scalar capacity layout = false ↔ (layout.firstViolation scalar capacity).isSome := by
+  have := Layout.firstViolation_eq_none scalar capacity layout
+  cases h : layout.firstViolation scalar capacity <;> simp_all [checkLayout]
+
+def Layout.Violation.message : Layout.Violation → String
+  | .capacity bytes => s!"allocation capacity {bytes} bytes exceeds the native limit 2^63 - 1"
+  | .offset start bytes => s!"view offset {start} is beyond the allocation's {bytes} bytes"
+  | .rows count => s!"rows {count} exceed the native limit 2^31 - 1"
+  | .columns count => s!"columns {count} exceed the native limit 2^31 - 1"
+  | .leading count => s!"leading {count} exceeds the native limit 2^31 - 1"
+  | .leadingBelowRows stride count => s!"leading {stride} is smaller than max(1, rows {count})"
+  | .alignment start width => s!"view offset {start} is not aligned to {width}-byte elements"
+  | .endByte stop bytes width =>
+    s!"view ends at byte {stop}, but the allocation has {bytes} bytes ({bytes / width} elements of {width} bytes)"
+
 /-- A whole byte interval is available only if there is no inter-column gap. -/
 def Layout.contiguous (layout : Layout) : Bool := layout.columns ≤ 1 || layout.leading == layout.rows
 

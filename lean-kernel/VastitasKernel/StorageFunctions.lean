@@ -323,6 +323,24 @@ def resolve (frame : Frame) (localName : Symbol) : Except Error Symbol :=
   | some binding => pure binding.2
   | none => reject "E_RESOURCE_NAME" "resource name is outside this function or branch scope"
 
+/-- A source function and its lexical statement path. Branch paths use the
+same position/arm convention as the independent source lowering. -/
+structure NumericalSourceSite where
+  function : Option Nat
+  path : List Nat
+  deriving Repr, BEq, DecidableEq, Hashable, Inhabited
+
+/-- Nearest enclosing scheduled arm first. Its position counts storage
+statements, so scalar-only operations do not shift a physical address. -/
+abbrev ScheduleBlock := List (Nat × Bool)
+
+structure NumericalLocation (priorCode : List Storage.Statement) where
+  source : NumericalSourceSite
+  callers : List NumericalSourceSite
+  block : ScheduleBlock
+  start : Nat
+  start_eq : start = priorCode.length
+
 /-- Exact mathematical/resource certificate recorded before the emitted GEMM. -/
 structure NumericalReceipt where
   environment : Indexed.Environment
@@ -342,6 +360,8 @@ structure NumericalReceipt where
   priorCode : List Storage.Statement
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (checked.product.request mode policy))] = code
+  location : NumericalLocation priorCode
+  networkProduct : Bool
 
 structure NetworkReceipt where
   environment : Indexed.Environment
@@ -357,6 +377,7 @@ structure NetworkReceipt where
   priorCode : List Storage.Statement
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm checked.request)] = code
+  location : NumericalLocation priorCode
 
 structure TransformReceipt where
   environment : Indexed.Environment
@@ -413,6 +434,7 @@ structure EvaluationReceipt where
   priorCode : List Storage.Statement
   code : List Storage.Statement
   emitted : priorCode ++ Numerical.evaluationCode checked.left checked.right leftChild rightChild output mode policy alpha beta = code
+  location : NumericalLocation priorCode
 
 /-- Alias immutable identities; a map instead receives a real child loan with
 exactly the original endpoints. This is audited on the actual binding state. -/
@@ -593,6 +615,7 @@ structure TensorContractionReceipt where
   priorCode : List Storage.Statement
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm (Tensor.contractionRequest checked.left checked.right checked.output policy))] = code
+  location : NumericalLocation priorCode
 
 structure TreeReceipt where
   environment : Indexed.Environment
@@ -609,6 +632,8 @@ structure TreeReceipt where
   priorCode : List Storage.Statement
   code : List Storage.Statement
   emitted : priorCode ++ checked.finalState.code.map Storage.Statement.action = code
+  location : NumericalLocation priorCode
+
 structure CacheCaptureReceipt where
   cache : Tensor.Cache
   after : State
@@ -636,6 +661,7 @@ structure CachedContractionReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.requireDependency cache.name),
     .action (.gemm (Tensor.contractionRequest checked.contraction.left checked.contraction.right checked.contraction.output policy))] = code
+  location : NumericalLocation priorCode
 
 /-- A demanded scalar result follows a fully completed actual resource call.
 The return's arguments come from that call's final lexical frame, and the pure
@@ -699,6 +725,7 @@ structure AdjointIntoReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.diagonalAdjoint (Numerical.adjointIntoRequest checked.input checked.output
     checked.sourceRealization.diagonal checked.targetRealization.diagonal policy))] = code
+  location : NumericalLocation priorCode
 
 structure DiagonalPairingReceipt where
   environment : Indexed.Environment
@@ -724,6 +751,7 @@ structure DiagonalPairingReceipt where
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.diagonalPair (Numerical.diagonalPairRequest checked.left checked.right
     output scratch writeLoan readLoan leftChild layout checked.realization.diagonal policy))] = code
+  location : NumericalLocation priorCode
 
 structure Context where
   signatures : List ValueFlow.Signature := []
@@ -737,6 +765,8 @@ structure Context where
   shapeCalls : Array Shapes.Functions.CallReceipt := #[]
   shapeInputs : Array Shapes.Functions.InputReceipt := #[]
   branchDepth : Nat := 0
+  codeBlock : ScheduleBlock := []
+  sourceCallers : List NumericalSourceSite := []
   numerical : Numerical.Values := []
   tensors : Tensor.Values := []
   packCaches : List Tensor.Cache := []
@@ -764,6 +794,10 @@ structure Context where
   code : Array Storage.Statement := #[]
   calls : Array CallReceipt := #[]
   deriving Inhabited
+
+private def Context.location (context : Context) (source : NumericalSourceSite) :
+    NumericalLocation context.code.toList :=
+  ⟨source, context.sourceCallers, context.codeBlock, context.code.size, by simp⟩
 
 abbrev M := StateT Context (Except Error)
 
@@ -1145,7 +1179,8 @@ private structure ProductEmission (resources : State) (request : Gemm) (priorCod
   code : List Storage.Statement
   emitted : priorCode ++ [.action (.gemm request)] = code
 
-private def emitProduct (context : Context) {left right output mode policy alpha beta}
+private def emitProduct (context : Context) (site : NumericalSourceSite) (networkProduct : Bool)
+    {left right output mode policy alpha beta}
     (checked : Numerical.CheckedProduct context.environment context.resources context.numerical
       left right output mode policy alpha beta)
     (accepted : Numerical.checkProduct context.environment context.resources context.numerical
@@ -1160,7 +1195,7 @@ private def emitProduct (context : Context) {left right output mode policy alpha
       if emitted : context.code.toList ++ [.action (.gemm (checked.product.request mode policy))] = after.code.toList then
         let receipt : NumericalReceipt :=
           ⟨context.environment, context.resources, context.numerical, left, right, output, mode, policy, alpha, beta,
-            checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted⟩
+            checked, accepted, after.resources, same ▸ transitioned, context.code.toList, after.code.toList, emitted, context.location site, networkProduct⟩
         set {after with products := after.products.push receipt}
         return ⟨after.resources, same ▸ transitioned, after.code.toList, emitted⟩
       else throw {code := "E_NUMERICAL_TYPE", message := "typed GEMM differs from its emitted schedule"}
@@ -1168,7 +1203,7 @@ private def emitProduct (context : Context) {left right output mode policy alpha
 
 /-- Values share the activation's fresh-name supply, but never enter the native
 heap. Only the checked product's exact physical request enters the schedule. -/
-def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Frame := do
+def numericalOperation (site : NumericalSourceSite) (frame : Frame) (operation : Numerical.Operation) : M Frame := do
   let context ← get
   match operation with
   | .adjointInto input output source target policy =>
@@ -1187,7 +1222,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         if emitted : context.code.toList ++ [.action action] = after.code.toList then
           let receipt : AdjointIntoReceipt := ⟨context.environment, context.resources, context.numerical,
             input, output, source, target, policy, checked, accepted, after.resources, transitioned,
-            context.code.toList, after.code.toList, emitted⟩
+            context.code.toList, after.code.toList, emitted, context.location site⟩
           set {after with adjoints := after.adjoints.push receipt}
           return frame
         else throw {code := "E_NUMERICAL_METRIC", message := "materialized adjoint differs from its emitted operation"}
@@ -1214,7 +1249,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         if emitted : context.code.toList ++ [.action action] = after.code.toList then
           let receipt : DiagonalPairingReceipt := ⟨context.environment, context.resources, context.numerical,
             left, right, output, metric, scratch, writeLoan, readLoan, leftChild, layout, policy,
-            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
+            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted, context.location site⟩
           set {after with diagonalPairings := after.diagonalPairings.push receipt}
           return frame
         else throw {code := "E_NUMERICAL_METRIC", message := "diagonal pairing differs from its emitted operation"}
@@ -1265,7 +1300,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         if emitted : context.code.toList ++ code = after.code.toList then
           let receipt : EvaluationReceipt := ⟨context.environment, context.resources, context.numerical,
             left, right, output, leftChild, rightChild, operation, mode, policy, alpha, beta,
-            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted⟩
+            checked, accepted, after.resources, transitioned, context.code.toList, after.code.toList, emitted, context.location site⟩
           set {after with evaluations := after.evaluations.push receipt}
           return frame
         else throw {code := "E_NUMERICAL_TYPE", message := "evaluation differs from its emitted resource schedule"}
@@ -1337,7 +1372,7 @@ def numericalOperation (frame : Frame) (operation : Numerical.Operation) : M Fra
         left right output mode policy alpha beta with
     | .error diagnostic => throw diagnostic
     | .ok checked =>
-      let _ ← emitProduct context checked accepted
+      let _ ← emitProduct context site false checked accepted
       return frame
   | other =>
     let (frame, operation) ← match other with
@@ -1578,7 +1613,7 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
     throw {code := "E_RESOURCE_ESCAPE", message := "local owner was neither dropped nor returned"}
   return returned
 
-def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := do
+def tensorOperation (site : NumericalSourceSite) (frame : Frame) (operation : Tensor.Operation) : M Frame := do
   match operation with
   | .view name loan axes grouping =>
     let loan ← resolve frame loan
@@ -1654,7 +1689,7 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
         if emitted : before.code.toList ++ [.action (.requireDependency cache.name), .action (.gemm request)] = after.code.toList then
           let receipt : CachedContractionReceipt := ⟨before.environment, before.numerical, before.resources,
             before.tensors, cache, left, right, output, policy, checked, accepted, after.resources,
-            transitioned, before.code.toList, after.code.toList, emitted⟩
+            transitioned, before.code.toList, after.code.toList, emitted, before.location site⟩
           set {after with cachedContractions := after.cachedContractions.push receipt}
           return frame
         else throw {code := "E_TENSOR_CACHE", message := "cached contraction differs from emitted dependency/GEMM schedule"}
@@ -1674,7 +1709,7 @@ def tensorOperation (frame : Frame) (operation : Tensor.Operation) : M Frame := 
         if emitted : before.code.toList ++ [.action (.gemm request)] = after.code.toList then
           let receipt : TensorContractionReceipt := ⟨before.environment, before.numerical, before.resources,
             before.tensors, left, right, output, policy, checked, accepted, after.resources, transitioned,
-            before.code.toList, after.code.toList, emitted⟩
+            before.code.toList, after.code.toList, emitted, before.location site⟩
           set {after with tensorContractions := after.tensorContractions.push receipt}
           return frame
         else throw {code := "E_TENSOR", message := "contraction differs from its emitted schedule"}
@@ -1711,7 +1746,7 @@ private def resolveTreePlan (frame : Frame) (plan : List TensorTree.Event) : M (
     resolved := resolved ++ [event]
   return resolved
 
-def treeOperation (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
+def treeOperation (site : NumericalSourceSite) (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
     (policy : NumericalPolicy) (plan : List TensorTree.Event) : M Frame := do
   unless graph.Bounded do throw {code := "E_TENSOR_TREE", message := "tree exceeds bounded occurrence/edge/boundary profile"}
   let graph ← (graph.mapM (resolve frame) : Except Error TensorTree.Graph)
@@ -1728,13 +1763,13 @@ def treeOperation (frame : Frame) (graph : TensorTree.Graph) (output : Symbol)
       if transitioned : after.resources = checked.finalState.resources then
         if emitted : before.code.toList ++ checked.finalState.code.map Storage.Statement.action = after.code.toList then
           let receipt : TreeReceipt := ⟨before.environment, before.numerical, before.resources, before.tensors,
-            graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted⟩
+            graph, output, plan, checked, accepted, after.resources, transitioned, before.code.toList, after.code.toList, emitted, before.location site⟩
           set {after with trees := after.trees.push receipt}
           return frame
         else throw {code := "E_TENSOR_TREE", message := "tree emission changed an earlier resource operation"}
       else throw {code := "E_TENSOR_TREE", message := "tree differs from its actual resource expansion"}
 
-def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
+def networkOperation (site : NumericalSourceSite) (frame : Frame) (graph : TensorNetwork.Graph) (output : Symbol)
     (policy : NumericalPolicy) : M Frame := do
   unless graph.Bounded do throw {code := "E_NETWORK", message := "unsupported network profile"}
   let graph ← (graph.mapM (resolve frame) : Except Error TensorNetwork.Graph)
@@ -1743,10 +1778,10 @@ def networkOperation (frame : Frame) (graph : TensorNetwork.Graph) (output : Sym
   match accepted : TensorNetwork.check context.environment context.resources context.numerical graph output policy with
   | .error diagnostic => throw diagnostic
   | .ok checked =>
-    let receipt ← emitProduct context checked.product checked.acceptedProduct
+    let receipt ← emitProduct context site true checked.product checked.acceptedProduct
     let network : NetworkReceipt := ⟨context.environment, context.resources, context.numerical,
       graph, output, policy, checked, accepted, receipt.after, receipt.transitioned,
-      context.code.toList, receipt.code, receipt.emitted⟩
+      context.code.toList, receipt.code, receipt.emitted, context.location site⟩
     modify fun after => {after with networks := after.networks.push network}
     return frame
 
@@ -1768,14 +1803,19 @@ mutual
         | .action action => operation frame action
         | .runtime operation => runtimeOperation frame operation
         | .runtimeNumerical operation => runtimeNumericalOperation frame operation
-        | .numerical op => numericalOperation frame op
-        | .network graph output policy => networkOperation frame graph output policy
-        | .tree graph output policy plan => treeOperation frame graph output policy plan
-        | .tensor operation => tensorOperation frame operation
+        | .numerical op => numericalOperation ⟨stack.head?, path ++ [position]⟩ frame op
+        | .network graph output policy =>
+          networkOperation ⟨stack.head?, path ++ [position]⟩ frame graph output policy
+        | .tree graph output policy plan =>
+          treeOperation ⟨stack.head?, path ++ [position]⟩ frame graph output policy plan
+        | .tensor op => tensorOperation ⟨stack.head?, path ++ [position]⟩ frame op
         | .call callee actuals outputs | .callValue callee actuals outputs .. => do
           let actuals ← (actuals.mapM (resolve frame) : Except Error (List Symbol))
           let demand := match first with | .callValue .. => true | _ => false
+          let callers := (← get).sourceCallers
+          modify fun c => {c with sourceCallers := ⟨stack.head?, path ++ [position]⟩ :: callers}
           let returned ← invoke fuel functions stack callee actuals demand
+          modify fun c => {c with sourceCallers := callers}
           if returned.length != outputs.length then throw {code := "E_RESOURCE_ARITY", message := "resource result count differs"}
           let mut frame := frame
           for (localName, value) in outputs.zip returned do
@@ -1803,6 +1843,7 @@ mutual
           let before ← get
           set {before with
             branchDepth := before.branchDepth + 1
+            codeBlock := (before.code.size, true) :: before.codeBlock
             code := #[]
             flow := #[]
             returnedValue := none
@@ -1831,6 +1872,7 @@ mutual
           let left ← get
           set {before with
             branchDepth := before.branchDepth + 1
+            codeBlock := (before.code.size, false) :: before.codeBlock
             nextSymbol := left.nextSymbol
             unused := left.unused
             code := #[]
@@ -1863,6 +1905,7 @@ mutual
           let resources ← join left.resources right.resources
           set {right with
             branchDepth := before.branchDepth
+            codeBlock := before.codeBlock
             resources
             code := before.code.push (.branch condition.projection left.code.toList right.code.toList)
             flow := before.flow.push (.branch condition left.flow.toList right.flow.toList)

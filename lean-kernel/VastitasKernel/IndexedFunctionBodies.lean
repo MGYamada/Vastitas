@@ -195,9 +195,8 @@ mutual
         let selected ← result (((DispatchChecker.selectTarget family key span).run {}).map Prod.fst)
         let some definition := input.dispatch.definitions[(selected.method, key)]?
           | error span "E_INTERNAL_DISPATCH" "winner has no checked source specialization"
-        modify fun state => { state with dispatchCalls :=
-          ⟨scope, path, resolved, key, selected.method, definition⟩ :: state.dispatchCalls }
         return ← emitCall input definition [] values [] span
+          (some ⟨scope, path, resolved, key, selected.method, definition⟩)
       if resolved.kind == .indexedDeclaration then
         let some binding := input.body.declarations.primitive? resolved.owner | error span "E_TYPE" "declaration is not a primitive"
         let arity := match binding with | .global _ => 0 | .compose _ | .apply .. => 2 | _ => 1

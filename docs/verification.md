@@ -438,12 +438,25 @@ wrapper theorem records the actual generated library and selected main.
 on that same accepted entry schedule and its audited closed native plan, using
 determinism of the actual repeated source check. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
-is no resource entry. These are **acceptance and exact-input facts**, not emitted
-text semantics, native heap/float refinement, or a proof that every numerical
-operation has an authority receipt. The existing receipt-origin theorems still
-quantify over recorded receipts; converse schedule-to-receipt and
-emitted-generic-call coverage remain open in
-[#432](https://github.com/MGYamada/Vastitas/issues/432).
+is no resource entry. These theorems establish acceptance and identify the exact
+inputs to native generation. Native heap and floating-point refinement remain open.
+
+**Static numerical receipt coverage.** For protocols 8 and 9,
+`VastitasOracle.NumericalCoverage.public_action` proves that every GEMM,
+diagonal adjoint and diagonal pairing at an actual address in the returned
+storage schedule has a typed receipt with the same operation and declaration
+environment. The address includes the enclosing branch arms and the offset
+within the innermost arm. Repeated calls and identical instructions in
+different arms each require their own occurrence. Network operations also
+require their companion product receipts.
+
+`coverage` relates these occurrences with multiplicity and checks their order
+against an independent traversal of the lowered source from the actual entry.
+Each source site includes its function, lexical position and enclosing call
+sites. `original_emission` and `full_slice` cover the entire certified expansion
+at its physical addresses, including the loans around a vector evaluation and
+the dependency check before a cached contraction. The symbolic runtime-shape
+event schedule has its own realization theorems.
 
 The [runtime-shape profile](runtime-shapes.md) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
@@ -743,12 +756,27 @@ lowering; it does not independently specify name resolution. Correspondence
 between the ledger entries and names emitted into the surface program is not
 proved.
 
-The kernel builds one internal declaration index per namespace check and shares
-it across lowering, binding checks, validation and reference auditing.
+The kernel builds internal namespace indexes per namespace check and shares
+them across lowering, binding checks, validation and reference auditing.
 `indexed_owner_lookup` and `indexed_scope_lookup` prove equality with the
 original list search/filter, including first-declaration behavior on duplicate
-input. No index is accepted from wire IR. `alias_preserves_target` retains the
-original list-search premise while unfolding the actual indexed resolver.
+input. `first_index_matches_list`, `indexed_package_matches_list`,
+`indexed_module_matches_list`, `indexed_import_lookup` and
+`indexed_dependency_lookup` also connect package/module/import/dependency
+tables to the original first-match list searches. Module lookup retains the
+full package identity check. `rich_package_index` and `rich_module_lookup`
+connect the indexed-source entry to the same reconstructed tables. No index is
+accepted from wire IR. `alias_preserves_target` retains the original list-search
+premise while unfolding the actual indexed resolver.
+
+Active imports use a persistent ordered set. `active_import_key_injective`
+preserves every package identity, module path and alias field;
+`active_import_membership` equates the actual set's cycle test with the
+previous list membership. This does not memoize completed resolution or add
+an aggregate namespace budget. The long-chain cases in
+`tests/namespace_scaling.rs` exercise public check/build/execution, an unused
+invalid body, cycles and the retained per-resolution limit. These equations
+and regressions are separate from any time-complexity or timing claim.
 
 `same_logical_owner_same_symbol` is congruence: equal owners have equal symbols.
 The `Owner` structure contains package identity, logical module path and
@@ -1122,6 +1150,19 @@ the template returns an input Fn. Separate receipts check local-result freshness
 against the template result and caller inputs; the actual lowering equation
 retains the fresh-name counter and repeated-request cache. These structural
 facts are not a source-specialization equivalence theorem.
+
+The public Fn composition also checks converse call coverage against the actual
+returned Core. `coreCallEdges` traverses every body, including both branches,
+and pairs each target ID with its caller's specialization key. A reconstructed
+count table must match the emitted-call ledger in both directions; duplicate
+caller keys are independently rejected. `caller_instances_unique`,
+`core_call_count`, `core_call_recorded` and `core_call_exact` connect every
+actual call and its multiplicity to the recorded caller and exact executable
+target origin. Dropping a repeated call's record cannot pass merely because
+another matching record exists. This is structural correspondence of returned
+Core calls and checked records; it does not prove source evaluation preservation
+or completeness of the separate ordinary-source `CallReference` ledger.
+
 `checked_elaboration_budget` connects the actual reconstructed pass and its exact
 returned Core to the independently checked 1,000,000-unit work-counter bound.
 `FunctionSource.WorkBudget.charge_exact` proves exact accumulation without
@@ -1156,6 +1197,24 @@ rich method bodies, expanded definitions and returned Core passes. Thirty-seven
 regressions and four native fixtures exercise the composition. Edit/authority
 envelopes remain rejected. Public protocol 7, whole-term typed evaluation and
 native refinement are still outside these structural guarantees.
+
+`DispatchCall` additionally records the caller specialization and emitted Core
+target ID. `dispatch_target_iff` characterizes generic targets using the actual
+origin array and reconstructed method/key definition table, independently of
+receipt flags. `core_dispatch_call_count` and `core_dispatch_call_recorded`
+prove converse occurrence coverage for those actual Core calls.
+`core_dispatch_call_selected` connects each to the independently selected
+method and exact emitted origin; `dispatch_caller_scope` checks the original
+lexical body scope. These checks run in both the audit and executable passes,
+including the authority composition used by public protocols. Regressions
+delete, duplicate and alter records and cover repeated calls and both branches.
+`CallCoverage.legacy_wire`, `indexed_wire` and `resource_wire` apply the
+count, origin and winner facts directly to the exact returned Core of public
+protocols 2–9, including both ordinary and resource-fragment passes. Matching
+is by caller specialization and emitted target with multiplicity; it does not
+assign distinct source locations to otherwise identical edges.
+The static numerical schedule has a separate positional coverage theorem,
+`NumericalCoverage.public_action`, described above.
 
 `VastitasOracle.IndexedAuthority` connects rich contribution bodies to the
 actual `Authority.assemble` certificate. `authority_trace`, `applied_authorized`

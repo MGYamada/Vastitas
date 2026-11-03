@@ -137,6 +137,7 @@ fn forged_wire_metadata_never_becomes_checked_authority() {
         .unwrap();
     let pointers = [
         "/checked_core".into(),
+        "/namespace_receipt".into(),
         "/packages/0/owner".into(),
         format!("/packages/0/modules/{geo}/indexed_declarations/0/owner"),
         format!("/packages/0/modules/{root}/functions/0/body/result/checked"),

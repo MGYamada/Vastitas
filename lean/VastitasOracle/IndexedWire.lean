@@ -8,6 +8,11 @@ preservation, native refinement or a proof of numerical semantics. -/
 namespace VastitasOracle.IndexedWire
 open VastitasKernel VastitasKernel.Indexed
 
+theorem namespace_work_bound {json : Lean.Json} (input : Wire.CheckedInput json requireMain) :
+    Namespace.priceInput input.source.source.headers.indexed json = .ok input.namespaceReceipt.inputUnits ∧
+    input.namespaceReceipt.inputUnits.val + input.checked.namespaceUnits ≤ Limits.namespaceProgramWork :=
+  ⟨input.namespaceReceipt.priced, input.namespaceReceipt.bounded⟩
+
 theorem reconstructed {json : Lean.Json} (accepted : Wire.CheckedInput json requireMain) :
     Wire.program json = .ok accepted.source ∧
     AuthoritySource.checkProgram accepted.source requireMain = .ok accepted.checked :=

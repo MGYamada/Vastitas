@@ -1,4 +1,5 @@
 import VastitasKernel.NamespaceChecker
+import VastitasKernel.NamespaceQuery
 import VastitasKernel.EditRegression
 import VastitasKernel.NamespaceProtocol
 import VastitasKernel.Codegen
@@ -102,6 +103,23 @@ private def callback : Program := replaceRoot { mod [] [
     (.mk [] (.variable "aliasValue" {}) {}) {}) [] {})] with
   imports := [⟨["value"], "aliasValue", false, {}⟩] }
 #eval check "aliases share the same static target" ((checkNamespaceProgram callback true).isOk)
+
+#eval check "alias hits preserve scope, span independence and the original logical charge" (Id.run do
+  let child := {mod ["child"] [fn "value" (.integer "7" {})] with
+    imports := [⟨["self", "value"], "aliasValue", false, {}⟩]}
+  let p := (replaceRoot callback.packages[0]!.modules[0]! [child]).indexed
+  let scope : Scope := ⟨root, []⟩
+  let other : Scope := ⟨root, ["child"]⟩
+  let session : QuerySession := {index := p}
+  let path := ["aliasValue"]
+  let later : Span := {line := 99, column := 15}
+  let .ok (first, s) := session.query scope path {} | return false
+  let .ok (again, t) := s.query scope path later | return false
+  let .ok (distinct, u) := t.query other path later | return false
+  return first == again && again != distinct && s.hits == 0 && t.hits == 1 && u.hits == 1 &&
+    s.units.val > 2 && t.units.val == 2 * s.units.val &&
+    (resolve p scope path later).toOption == some again &&
+    (resolve p other path later).toOption == some distinct)
 #eval check "unused invalid dependency body" (rejects "E_TYPE" { program with packages :=
   [program.packages[0]!, pkg dependency [mod [] [fn "value" (.integer "42" {}), fn "bad" (.boolean true {})]]] })
 #eval check "unused lambda capture" (rejects "E_CAPTURE" (replaceRoot (mod [] [{

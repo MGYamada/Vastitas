@@ -10,13 +10,15 @@ structure CheckedInput (json : Lean.Json) (requireMain : Bool) where
   decoded : program json = .ok source
   checked : AuthoritySource.CheckedProgram source requireMain
   accepted : AuthoritySource.checkProgram source requireMain = .ok checked
+  namespaceReceipt : Namespace.RequestReceipt source.source.headers.indexed json checked.namespaceUnits
 
 def check (json : Lean.Json) (requireMain : Bool) : Except Diagnostic (CheckedInput json requireMain) :=
   match decoded : program json with
   | .error message => .error { code := "E_PROTOCOL", message }
   | .ok source =>
-    match accepted : AuthoritySource.checkProgram source requireMain with
+    match Namespace.checkRequest source.source.headers.indexed json
+        (fun _ => AuthoritySource.checkProgram source requireMain) (·.namespaceUnits) with
     | .error diagnostic => .error diagnostic
-    | .ok checked => .ok ⟨source, decoded, checked, accepted⟩
+    | .ok result => .ok ⟨source, decoded, result.value, result.accepted, result.receipt⟩
 
 end VastitasKernel.Indexed.Wire

@@ -442,11 +442,13 @@ the actual repeated Core check, unchanged module, typing, dependency order and
 main signature. `library_roots_present` checks every requested root; the executable
 wrapper theorem records the actual generated library and selected main.
 
-`ResourceCodegen.public_generated_checked` connects successful
-`ResourceSource.Codegen.generate` and its decoded source to the real protocol-8
-`Wire.check` result. `public_resource_plan` identifies the `Native.compile` call
-on that same accepted entry schedule and its audited closed native plan, using
-determinism of the actual repeated source check. `generated_pure_entry` retains
+`ResourceCodegen.public_generated_checked` connects successful protocol-8/9
+`Wire.emit` to the exact `Wire.check` result, its namespace receipt and the
+successful `Codegen.generateChecked` call on that result. The public emitter
+reuses the accepted source program. The internal component entry's
+`generate_eq_checked` preserves its independently checkable equation.
+`public_resource_plan` identifies the `Native.compile` call on the same
+accepted entry schedule and its audited closed native plan. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
 is no resource entry. These theorems establish acceptance and identify the exact
 inputs to native generation. Native heap and floating-point refinement remain open.
@@ -786,11 +788,16 @@ premise while unfolding the actual indexed resolver.
 Active imports use a persistent ordered set. `active_import_key_injective`
 preserves every package identity, module path and alias field;
 `active_import_membership` equates the actual set's cycle test with the
-previous list membership. This does not memoize completed resolution or add
-an aggregate namespace budget. The long-chain cases in
-`tests/namespace_scaling.rs` exercise public check/build/execution, an unused
-invalid body, cycles and the retained per-resolution limit. These equations
-and regressions are separate from any time-complexity or timing claim.
+previous list membership. `Namespace.AliasHit.resolves` ties each cached
+unqualified alias to the original resolver at any diagnostic span in its exact
+namespace and scope. `importWorkStep_exact` connects the import debit to
+the actual remaining member budget. The public `namespace_work_bound`
+theorems in `LegacySource`, `IndexedWire` and `ResourceSource` connect each
+accepted JSON request to its wire price and the sum of its body-pass
+receipts. These bounds concern logical work; they do not establish a
+wall-clock bound. The long-chain cases in `tests/namespace_scaling.rs` cover
+public check/build/execution, unused bodies, cycles, import sums across
+modules, repeated queries in unused functions and output preservation.
 
 `same_logical_owner_same_symbol` is congruence: equal owners have equal symbols.
 The `Owner` structure contains package identity, logical module path and

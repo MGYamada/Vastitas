@@ -88,6 +88,11 @@ theorem actual_entry_closed {program : Program} (checked : Checked program requi
   ⟨(checked.execution entry found).accepted, (checked.execution entry found).checked.resources.accepted,
     (checked.execution entry found).checked.resources.closed⟩
 
+theorem namespace_work_bound {json : Lean.Json} (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
+    Namespace.priceInput input.input.pureProgram.source.headers.indexed json = .ok input.namespaceReceipt.inputUnits ∧
+    input.namespaceReceipt.inputUnits.val + VastitasKernel.ResourceSource.Wire.namespaceUnits input.checked ≤ Limits.namespaceProgramWork :=
+  ⟨input.namespaceReceipt.priced, input.namespaceReceipt.bounded⟩
+
 theorem public_input {json : Lean.Json} (input : VastitasKernel.ResourceSource.Wire.CheckedInput json requireMain) :
     VastitasKernel.ResourceSource.Wire.program json = .ok input.input ∧
     VastitasKernel.ResourceSource.check input.input requireMain = .ok input.checked ∧

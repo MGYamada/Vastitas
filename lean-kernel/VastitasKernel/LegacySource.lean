@@ -195,6 +195,7 @@ structure CheckedInput (json : Lean.Json) (requireMain : Bool) where
   adaptedFrom : adapt source = .ok adapted
   checked : AuthoritySource.CheckedProgram adapted requireMain
   accepted : AuthoritySource.checkProgram adapted requireMain = .ok checked
+  namespaceReceipt : Namespace.RequestReceipt source.namespace.indexed json checked.namespaceUnits
 
 /-- Error presentation only: restore the original source names, without feeding
 the old elaborator's body checks or Core into acceptance. -/
@@ -214,11 +215,17 @@ def check (json : Lean.Json) (requireMain : Bool) : Except Diagnostic (CheckedIn
   match decoded : decode json with
   | .error message => .error { code := "E_PROTOCOL", message }
   | .ok source =>
-    match adaptedFrom : adapt source with
+    match priced : Namespace.priceInput source.namespace.indexed json with
     | .error diagnostic => .error diagnostic
-    | .ok adapted =>
-      match accepted : AuthoritySource.checkProgram adapted requireMain with
-      | .error diagnostic => .error (describeDiagnostic source diagnostic)
-      | .ok checked => .ok ⟨source, decoded, adapted, adaptedFrom, checked, accepted⟩
+    | .ok inputUnits =>
+      match adaptedFrom : adapt source with
+      | .error diagnostic => .error diagnostic
+      | .ok adapted =>
+        match accepted : AuthoritySource.checkProgram adapted requireMain with
+        | .error diagnostic => .error (describeDiagnostic source diagnostic)
+        | .ok checked =>
+          if bound : inputUnits.val + checked.namespaceUnits ≤ Limits.namespaceProgramWork then
+            .ok ⟨source, decoded, adapted, adaptedFrom, checked, accepted, ⟨inputUnits, priced, bound⟩⟩
+          else Namespace.queryLimit
 
 end VastitasKernel.Indexed.LegacySource

@@ -27,6 +27,8 @@ def dispatchKeys : Nat := compiler_limit% "dispatchKeys"
 def dispatchArity : Nat := compiler_limit% "dispatchArity"
 def nominalTypes : Nat := compiler_limit% "nominalTypes"
 def namespaceResolution : Nat := compiler_limit% "namespaceResolution"
+def namespaceImportWork : Nat := compiler_limit% "namespaceImportWork"
+def namespaceProgramWork : Nat := compiler_limit% "namespaceProgramWork"
 def dependencyGraph : Nat := compiler_limit% "dependencyGraph"
 
 def assemblyEvents : Nat := compiler_limit% "assemblyEvents"

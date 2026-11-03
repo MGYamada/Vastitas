@@ -95,10 +95,20 @@ from the supplied declarations. A module lookup still checks the complete
 package identity, including name and version. Active import paths use a
 persistent ordered set of complete scope/name keys, preserving cycle checks
 without copying or scanning a growing path list. No lookup index is trusted
-from wire input. These changes reduce repeated lookup work; they do not memoize
-completed resolutions or impose a program-wide namespace work budget.
-See the [compiler scaling observation](../experiments/compiler_scaling/results/2026-11-03-macos-namespace/RESULTS.md)
-for reproducible inputs, measurements and remaining limits.
+from wire input. A body-checking pass caches successful unqualified import
+aliases under their full package/module scope and spelling. Qualified paths,
+dependency aliases and failures use the ordinary resolver. Each cache hit
+pays for the same logical member visits as the original lookup.
+
+A request admits at most 1,000,000 member visits across all import declarations.
+The kernel also limits the sum of the original wire input price and the namespace
+queries in its independent body passes to 4,000,000 units. The wire price counts
+syntax nodes, path components and the largest reconstructed import cost for
+each matching spelling. It conservatively charges matching strings as well as
+references. Diagnostic spans are omitted and import declarations are priced
+separately. Public resource programs include both additional pure-fragment
+passes. Either aggregate limit produces `E_LIMIT`; the per-path limit and
+every import's target, visibility and cycle checks still apply.
 
 ## Visibility and ownership
 

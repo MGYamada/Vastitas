@@ -10,6 +10,11 @@ source evaluation preservation or refinement of the native toolchain. -/
 namespace VastitasOracle.LegacySource
 open VastitasKernel VastitasKernel.Indexed
 
+theorem namespace_work_bound {json : Lean.Json} (input : Indexed.LegacySource.CheckedInput json requireMain) :
+    Namespace.priceInput input.source.namespace.indexed json = .ok input.namespaceReceipt.inputUnits ∧
+    input.namespaceReceipt.inputUnits.val + input.checked.namespaceUnits ≤ Limits.namespaceProgramWork :=
+  ⟨input.namespaceReceipt.priced, input.namespaceReceipt.bounded⟩
+
 theorem reconstructed {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json requireMain) :
     Indexed.LegacySource.decode json = .ok accepted.source ∧
     Indexed.LegacySource.adapt accepted.source = .ok accepted.adapted ∧

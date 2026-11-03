@@ -69,8 +69,7 @@ structure Generated where
   storageRuntime : Bool
   numericalRuntime : Bool
 
-def generate (program : Program) : Except Diagnostic Generated := do
-  let checked ← ResourceSource.check program true
+def generateChecked {program : Program} (checked : Checked program true) : Except Diagnostic Generated := do
   match entry : program.entry with
   | none =>
     let core : Core.Typing.CheckedModule true := by
@@ -135,5 +134,14 @@ def generate (program : Program) : Except Diagnostic Generated := do
       "\nopen VastitasStorageNative\n\ndef main : IO Unit := do\n" ++
       envelope
     return ⟨source, true, needsNumerical⟩
+
+/-- Internal source-component entry. Public emission receives the wire check's exact result. -/
+def generate (program : Program) : Except Diagnostic Generated := do
+  generateChecked (← ResourceSource.check program true)
+
+theorem generate_eq_checked {program : Program} {checked : Checked program true}
+    (accepted : ResourceSource.check program true = .ok checked) :
+    generate program = generateChecked checked := by
+  simp [generate, accepted, bind, Except.bind]
 
 end VastitasKernel.ResourceSource.Codegen

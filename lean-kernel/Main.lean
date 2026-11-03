@@ -12,16 +12,16 @@ private def process (mode input : String) : Lean.Json := Id.run do
     let .ok version := json.getObjValAs? Nat "version"
       | return failureJson { code := "E_PROTOCOL", message := "IR version must be a natural number" }
     if version == 8 || version == 9 then
-      match ResourceSource.Wire.check json (mode == "emit") with
-      | .error diagnostic => return failureJson diagnostic version
-      | .ok accepted =>
-        if mode == "emit" then
-          match ResourceSource.Codegen.generate accepted.input with
-          | .error diagnostic => return failureJson diagnostic version
-          | .ok generated =>
-            return ((successJson (some generated.source) version).setObjVal! "storage_runtime" (Lean.toJson generated.storageRuntime)).setObjVal!
-              "numerical_runtime" (Lean.toJson generated.numericalRuntime)
-        else return successJson none version
+      if mode == "emit" then
+        match ResourceSource.Wire.emit json with
+        | .error diagnostic => return failureJson diagnostic version
+        | .ok generated =>
+          return ((successJson (some generated.source) version).setObjVal! "storage_runtime" (Lean.toJson generated.storageRuntime)).setObjVal!
+            "numerical_runtime" (Lean.toJson generated.numericalRuntime)
+      else
+        match ResourceSource.Wire.check json false with
+        | .error diagnostic => return failureJson diagnostic version
+        | .ok _ => return successJson none version
     if version == 7 then
       if mode == "emit" then
         match Indexed.Wire.check json true with

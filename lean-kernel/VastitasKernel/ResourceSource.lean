@@ -1,4 +1,4 @@
-import VastitasKernel.StorageFunctions
+import VastitasKernel.NumericalCoverage
 import VastitasKernel.ResourcePure
 
 /-! Unresolved resource functions in the same package namespace as pure indexed
@@ -778,6 +778,7 @@ structure Execution (functions : List Functions.Function) (entry : Nat) (environ
     (signatures : List ValueFlow.Signature := []) where
   checked : Functions.Checked ⟨functions, entry⟩ environment signatures
   accepted : Functions.check ⟨functions, entry⟩ environment signatures = .ok checked
+  numericalCoverage : NumericalCoverage.audit functions entry checked.context = true
   valueReturnOrigins : checked.context.signatures = signatures ∧
     ∀ receipt ∈ checked.context.valueReturns.toList, receipt.signatures = signatures ∧
       functions.find? (·.id == receipt.call.callee) = some receipt.function
@@ -953,7 +954,10 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                 library, libraryAccepted, fun _ impossible => by simp [entry] at impossible⟩
             | some id => match accepted : Functions.check ⟨lowered.functions, id⟩ (numericalEnvironment pureProgram) targets.signatures with
               | .error diagnostic => .error (resourceError program lowered diagnostic)
-              | .ok executable =>
+              | .ok executable => do
+                let coverage ← if h : NumericalCoverage.audit lowered.functions id executable.context then
+                    pure (PLift.up h)
+                  else Namespace.problem {} "E_NUMERICAL_ORIGIN" "numerical instructions differ from their source receipts"
                 if valueReturnOrigins : executable.context.signatures = targets.signatures ∧
                     ∀ receipt ∈ executable.context.valueReturns.toList, receipt.signatures = targets.signatures ∧
                       lowered.functions.find? (·.id == receipt.call.callee) = some receipt.function then
@@ -1001,7 +1005,7 @@ def check (program : Program) (requireMain : Bool := false) : Namespace.Result (
                                                         library, libraryAccepted, fun actual same => by
                                                           have : actual = id := Option.some.inj (same.symm.trans entry)
                                                           subst actual
-                                                          exact ⟨executable, accepted, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
+                                                          exact ⟨executable, accepted, coverage.down, valueReturnOrigins, origins, inputOrigins, outputOrigins, transformOrigins,
                                                             networkOrigins, tensorViewOrigins, cacheCaptureOrigins, cachedContractionOrigins, tensorPackOrigins, tensorContractionOrigins, vectorOrigins, evaluationOrigins, packageOrigins, packageResultOrigins, adjointOrigins, diagonalPairingOrigins, treeOrigins, runtimeOrigins.1, runtimeOrigins.2⟩⟩
                                                     else Namespace.problem {} "E_OWNER" "runtime GEMM lost its accepted declaration environment"
                                                   else Namespace.problem {} "E_OWNER" "tensor trees lost their accepted declaration environment"

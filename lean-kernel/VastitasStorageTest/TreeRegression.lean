@@ -1,3 +1,4 @@
+import VastitasKernel.NumericalCoverage
 import VastitasStorageTest.NumericalFixture
 
 namespace VastitasKernel.Storage.TreeRegression
@@ -59,6 +60,9 @@ private def cleanup : List Functions.Statement := [
       let .ok result := Functions.check (program body) env | throw (IO.userError "valid complete contraction trees rejected")
       ensure "all prefix/branch/suffix receipts retained once, no probes" (result.context.trees.size == 4)
       ensure "all tree origins preserved" (result.context.trees.all fun r => r.environment == env)
+      ensure "every emitted join uses its own tree slice and arm"
+        (NumericalCoverage.audit (program body).functions 0 result.context &&
+          !NumericalCoverage.audit (program body).functions 0 {result.context with trees := result.context.trees.pop})
       for receipt in result.context.trees do
         ensure "all declared occurrences survive into result" (receipt.checked.result.members.length == 3)
         ensure "explicit event order covered exactly" (receipt.checked.receipts.length == plan.length)

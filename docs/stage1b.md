@@ -190,7 +190,13 @@ explicit libraries, captures, invalid unused bodies, mismatched types/arity,
 runtime target choices, recursion, the 4096-instance boundary and forged IR.
 `VastitasKernel.LegacySourceRegression` checks current JSON acceptance and
 rejection directly; `IndexedFunctionRegression` covers the common function
-compiler and forged static ledgers. `FunctionRegression` retains the old
+compiler and forged static ledgers. The current function compiler additionally
+reconstructs caller/target occurrence counts from the returned Core and checks
+them against its emitted-call ledger. Generic-call records retain the emitted
+target ID and caller specialization and must cover all actual generic calls,
+including repeated calls and both branches. These audits apply separately to
+the signature and executable passes; they are not source operational or native
+refinement proofs. `FunctionRegression` retains the old
 `checkSurfaceProgram` API tests. Both macOS and Linux CI run these
 with no oracle/mathlib checkout; a separate job builds and audits the proofs.
 

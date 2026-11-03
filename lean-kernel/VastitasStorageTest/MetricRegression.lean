@@ -1,4 +1,5 @@
 import VastitasStorageTest.NumericalFixture
+import VastitasKernel.NumericalCoverage
 import VastitasKernel.StorageMetric
 
 namespace VastitasKernel.Storage.MetricRegression
@@ -54,6 +55,10 @@ private def cleanup : List Functions.Statement := [
   let .ok branched := Functions.check (program (setup ++ [.branch false [adjoint] [adjoint]] ++ cleanup)) env
     | throw (IO.userError "adjoint branches rejected")
   ensure "both original branch receipts retained" (branched.context.adjoints.size == 2)
+  let functions := (program (setup ++ [.branch false [adjoint] [adjoint]] ++ cleanup)).functions
+  ensure "unselected adjoint requires its own nominal receipt"
+    (NumericalCoverage.audit functions 0 branched.context &&
+      !NumericalCoverage.audit functions 0 {branched.context with adjoints := branched.context.adjoints.pop})
   let invalid := .numerical (.adjointInto 30 31 6 5 .nativeFast)
   ensure "unselected wrong metric branch rejected" (!(Functions.check (program (setup ++ [.branch true [adjoint] [invalid]] ++ cleanup)) env).isOk)
 

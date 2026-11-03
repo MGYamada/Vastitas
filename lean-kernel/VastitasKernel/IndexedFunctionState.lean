@@ -81,6 +81,7 @@ structure EmittedCall where
   key : Key
   id : Nat
   origin : Key
+  caller : Key
   deriving Inhabited
 
 /-- Audit-only alpha-renaming of a cached all-probe instance. The requested
@@ -94,13 +95,18 @@ structure ProbeReuse where
   returned : Option Target
   deriving Inhabited
 
-structure DispatchCall where
+structure DispatchSelection where
   scope : Namespace.Scope
   path : Source.Path
   target : Namespace.Target
   key : Dispatch.Key
   method : Nat
   definition : Nat
+  deriving Inhabited
+
+structure DispatchCall extends DispatchSelection where
+  caller : Key
+  emittedId : Nat
   deriving Inhabited
 
 structure State where
@@ -278,7 +284,10 @@ def prepareDefinition (input : Source.Bodies.Input) (definition : Definition) : 
 /-- Shared final call construction evaluates every argument exactly once.
 The dependent substitution was checked while elaborating the actual arguments. -/
 def emitCall (input : Input) (id : Nat) (targets : List Target) (values : List Value)
-    (substitution : List (ObjectRef × ObjectRef)) (span : Span) : M Value := do
+    (substitution : List (ObjectRef × ObjectRef)) (span : Span)
+    (dispatch : Option DispatchSelection := none) : M Value := do
+  let some caller := (← get).active.head?
+    | error span "E_INTERNAL_FUNCTION" "emitted call has no active source instance"
   let definition ← prepared input id span
   let parameters := definition.definition.function.params
   unless parameters.length == values.length do error span "E_ARITY" "wrong checked call argument count"
@@ -290,7 +299,11 @@ def emitCall (input : Input) (id : Nat) (targets : List Target) (values : List V
     if let .data _ := parameter.type then
       arguments := arguments ++ [Core.Term.variable symbol value.term.result]
   let compiled ← request id targets span
-  modify fun state => { state with emittedCalls := ⟨key id targets, compiled.id, compiled.key⟩ :: state.emittedCalls }
+  modify fun state => { state with
+    emittedCalls := ⟨key id targets, compiled.id, compiled.key, caller⟩ :: state.emittedCalls }
+  if let some selection := dispatch then
+    modify fun state => { state with dispatchCalls :=
+      { toDispatchSelection := selection, caller, emittedId := compiled.id } :: state.dispatchCalls }
   let type := definition.result.rename substitution
   let reference ← match type with
     | .object type => some <$> body (Source.Bodies.freshObject type span s!"function call '{definition.definition.owner.name}'")

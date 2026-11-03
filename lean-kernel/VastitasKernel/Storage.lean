@@ -1,6 +1,7 @@
 import VastitasKernel.StorageDiagonalData
 import VastitasKernel.StorageTensorLayout
 import VastitasKernel.FiniteIndex
+import VastitasKernel.LoanChain
 import Std.Data.HashSet.Lemmas
 
 /-! Explicit resource transitions, separate from pure indexed Core. All handles
@@ -208,7 +209,7 @@ theorem stampValid_eq (state : State) (stamp : DependencyStamp) :
     stampValid (tables state) stamp = stamp.valid state := by
   simp only [stampValid, tables, Finite.firstIndex_lookup, DependencyStamp.valid, State.allocation?]
 
-def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
+private def checkLoan (index : Tables) (fuel : Nat) (loan : Loan) (chain : Bool) : Bool :=
   match index.allocations[loan.allocation]? with
   | none => false
   | some allocation =>
@@ -222,12 +223,70 @@ def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
           (!loan.access.writes || parentLoan.access.writes) &&
           (!loan.access.reads || parentLoan.access.reads) &&
           parentLoan.layout.covers loan.layout allocation.scalar &&
-          !(lineage index.loans fuel parentLoan).contains loan.name)
+          (chain || !(lineage index.loans fuel parentLoan).contains loan.name))
+
+def loanValid (index : Tables) (fuel : Nat) (loan : Loan) : Bool :=
+  checkLoan index fuel loan false
 
 theorem loanValid_eq (state : State) (loan : Loan) :
     loanValid (tables state) state.loans.length loan = loan.valid state := by
-  simp only [loanValid, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
+  simp only [loanValid, checkLoan, Bool.false_or, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList,
     lineage_contains, Loan.valid, State.allocation?, State.loan?]
+
+private theorem ancestor_walk (loans : List Loan) (fuel key : Nat) (loan : Loan) :
+    ancestor loans fuel key loan = Finite.LoanChain.walk Loan.parent
+      (fun id => loans.find? (fun l => l.name == id)) fuel key loan := by
+  induction fuel generalizing loan with
+  | zero => rfl
+  | succ fuel ih =>
+    cases edge : loan.parent with
+    | none => simp [ancestor, Finite.LoanChain.walk, edge]
+    | some id =>
+      cases found : loans.find? (fun l => l.name == id) <;>
+        simp [ancestor, Finite.LoanChain.walk, edge, found, ih]
+
+private theorem chainPair (state : State) (linked : Finite.LoanChain.check Loan.name Loan.parent state.loans = true)
+    (left right : Loan) (hl : left ∈ state.loans) (hr : right ∈ state.loans) :
+    loansCompatible state left right = true := by
+  obtain same | lr | rl := Finite.LoanChain.comparable linked hl hr
+  · simp [loansCompatible, same]
+  · rw [← ancestor_walk] at lr
+    simp [loansCompatible, lr]
+  · rw [← ancestor_walk] at rl
+    simp [loansCompatible, rl]
+
+private theorem loanValid_chain (state : State) (loan : Loan) (member : loan ∈ state.loans) :
+    checkLoan (tables state) state.loans.length loan
+      (Finite.LoanChain.check Loan.name Loan.parent state.loans) = loan.valid state := by
+  cases linked : Finite.LoanChain.check Loan.name Loan.parent state.loans with
+  | false => exact loanValid_eq state loan
+  | true =>
+    rw [← loanValid_eq state loan]
+    unfold loanValid checkLoan
+    cases (tables state).allocations[loan.allocation]? with
+    | none => rfl
+    | some a =>
+      dsimp only
+      cases edge : loan.parent with
+      | none => rfl
+      | some id =>
+        dsimp only
+        cases resolved : (tables state).loans[id]? with
+        | none => rfl
+        | some parentLoan =>
+          have first : state.loans.find? (fun l => l.name == id) = some parentLoan := by
+            simpa only [tables, Finite.firstIndex_lookup] using resolved
+          have h := Finite.LoanChain.acyclic linked member edge first state.loans.length
+          rw [← ancestor_walk] at h
+          simp only [tables, lineage_contains, h, Bool.not_false, Bool.or_true]
+
+private theorem validMembers (state : State) (counts : Std.HashMap Symbol Nat) :
+    state.loans.all (fun l => counts.getD l.name 0 == 1 && checkLoan (tables state) state.loans.length l
+      (Finite.LoanChain.check Loan.name Loan.parent state.loans)) =
+    state.loans.all (fun l => counts.getD l.name 0 == 1 && l.valid state) := by
+  apply Bool.eq_iff_iff.mpr
+  simp only [List.all_eq_true]
+  exact forall_congr' fun l => forall_congr' fun hl => by rw [loanValid_chain state l hl]
 
 abbrev Row := Loan × Std.HashSet Symbol
 
@@ -280,9 +339,22 @@ theorem pairs_eq (state : State) :
     · simp [loansCompatible, readOnly, writes]
     · simp
 
+private theorem checkedPairs (state : State) :
+    (Finite.LoanChain.check Loan.name Loan.parent state.loans ||
+      pairs (tables state) (state.loans.map (row (tables state) state.loans.length))) =
+    state.loans.all (fun left => state.loans.all (loansCompatible state left)) := by
+  rw [pairs_eq]
+  cases linked : Finite.LoanChain.check Loan.name Loan.parent state.loans with
+  | false => rfl
+  | true =>
+    symm
+    exact List.all_eq_true.mpr fun left hl => List.all_eq_true.mpr fun right hr =>
+      chainPair state linked left right hl hr
+
 def audit (state : State) : Bool :=
   let index := tables state
   let fuel := state.loans.length
+  let chain := Finite.LoanChain.check Loan.name Loan.parent state.loans
   let usedCounts := Finite.countIndex id state.used
   let allocationCounts := Finite.countIndex Allocation.identity state.allocations
   let ownerCounts := Finite.countIndex Allocation.owner state.allocations
@@ -300,12 +372,12 @@ def audit (state : State) : Bool :=
     allocation.initialization.valid allocation.scalar allocation.capacity &&
     allocationCounts.getD allocation.identity 0 == 1 && ownerCounts.getD allocation.owner 0 == 1 &&
     index.loans[allocation.owner]?.isNone) &&
-  state.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && loanValid index fuel loan) &&
-  pairs index (state.loans.map (row index fuel))
+  state.loans.all (fun loan => loanCounts.getD loan.name 0 == 1 && checkLoan index fuel loan chain) &&
+  (chain || pairs index (state.loans.map (row index fuel)))
 
 theorem audit_eq (state : State) : audit state = auditState state := by
-  simp only [audit, pairs_eq, Finite.countIndex_lookup, loanValid_eq, stampValid_eq]
-  simp only [tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList, id_eq,
+  simp only [audit, checkedPairs, validMembers, stampValid_eq]
+  simp only [Finite.countIndex_lookup, tables, Finite.firstIndex_lookup, Std.HashSet.contains_ofList, id_eq,
     auditState, auditDependencies, Dependency.valid, State.owner?, State.loan?, List.count_eq_countP]
 
 end AuditIndex
@@ -319,22 +391,38 @@ every state, not just states already known to satisfy the reference audit. -/
 def compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
   others.all (loansCompatible state left)
 
-def AuditIndex.compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
+private def AuditIndex.compatibleRows (state : State) (left : Loan) (others : List Loan) : Bool :=
   let index := tables state
   let fuel := state.loans.length
   let leftRow := row index fuel left
   let relevant := if left.access.writes then others else others.filter (·.access.writes)
   relevant.all fun right => compatible index leftRow (row index fuel right)
 
-@[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
+private theorem compatibleWith_eq_rows : compatibleWith = AuditIndex.compatibleRows := by
   funext state left others
-  simp only [compatibleWith, AuditIndex.compatibleWith]
+  simp only [compatibleWith, AuditIndex.compatibleRows]
   cases writes : left.access.writes
   · simp only [Bool.false_eq_true, ite_false, List.all_filter, AuditIndex.compatible_eq]
     congr 1
     funext right
     cases rightWrites : right.access.writes <;> simp [loansCompatible, writes, rightWrites]
   · simp only [ite_true, AuditIndex.compatible_eq]
+
+def AuditIndex.compatibleWith (state : State) (left : Loan) (others : List Loan) : Bool :=
+  if Finite.LoanChain.check Loan.name Loan.parent state.loans && decide (state.loans = left :: others) then
+    true
+  else compatibleRows state left others
+
+@[csimp] theorem compatibleWith_eq_indexed : compatibleWith = AuditIndex.compatibleWith := by
+  funext state left others
+  unfold AuditIndex.compatibleWith
+  split
+  next both =>
+    have ok : Finite.LoanChain.check Loan.name Loan.parent state.loans = true ∧ state.loans = left :: others := by
+      simpa only [Bool.and_eq_true, decide_eq_true_eq] using both
+    exact List.all_eq_true.mpr fun right hr => AuditIndex.chainPair state ok.1 left right
+      (ok.2 ▸ List.mem_cons_self) (ok.2 ▸ List.mem_cons_of_mem left hr)
+  next => rw [compatibleWith_eq_rows]
 
 inductive ErrorSubjectKind where
   | binding | basis | space

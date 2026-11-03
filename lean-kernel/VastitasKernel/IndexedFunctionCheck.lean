@@ -1,4 +1,4 @@
-import VastitasKernel.IndexedFunctionCompiler
+import VastitasKernel.IndexedCallCoverage
 
 namespace VastitasKernel.Indexed.FunctionSource.Compiler
 
@@ -70,14 +70,22 @@ def validSourceCalls (input : Input) (pass : Pass) : Bool :=
     | none => false
     | some definition => !definition.definition.isLambda && definition.definition.owner == call.target.owner
 
-def validDispatchCalls (input : Input) (pass : Pass) : Bool :=
-  pass.dispatchCalls.all fun call =>
+def validDispatchSelection (input : Input) (call : DispatchSelection) : Bool :=
     decide (call.scope ∈ input.body.index.scopes) && decide (call.target.kind = .generic) &&
     decide ((Namespace.resolve input.body.index call.scope call.path.path call.path.span).toOption = some call.target) &&
     match input.dispatch.families[call.target.owner]? with
     | none => false
     | some family => family.domain.contains call.key && family.checked.winner call.key == some call.method &&
         input.dispatch.definitions[(call.method, call.key)]? == some call.definition
+
+def validDispatchCalls (input : Input) (pass : Pass) : Bool :=
+  (pass.dispatchCalls.all fun call =>
+    validDispatchSelection input call.toDispatchSelection &&
+      pass.origins[call.emittedId]? == some (Key.mk call.definition []) &&
+      match input.prepared[call.caller.definition]? with
+      | none => false
+      | some caller => caller.definition.bodyScope == call.scope) &&
+    dispatchCallCoverage input pass
 
 /-- An independent positional bijection check, deliberately not the template
 cache's first-occurrence normalization. Repeated and distinct targets stay so. -/
@@ -137,7 +145,8 @@ def validEmittedCalls (input : Input) (audit : Bool) (pass : Pass) : Bool :=
     (key reuse.definition reuse.requested, key reuse.definition reuse.canonical, reuse.id))
   pass.emittedCalls.all (validEmittedCall input audit pass) &&
     pass.emittedCalls.all (fun call => call.origin == call.key || reused.contains (call.key, call.origin, call.id)) &&
-    (audit || pass.probeReuses.isEmpty) && pass.probeReuses.all (validProbeReuse input pass)
+    (audit || pass.probeReuses.isEmpty) && pass.probeReuses.all (validProbeReuse input pass) &&
+    emittedCallCoverage pass
 
 def validPass (input : Input) (audit : Bool) (pass : Pass) : Bool :=
   validOrigins input audit pass &&

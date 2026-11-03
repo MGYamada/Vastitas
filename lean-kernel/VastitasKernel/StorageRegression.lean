@@ -218,6 +218,17 @@ private def forged : State := {
     allocations := [allocation], loans := [child, sibling, parent]
     used := [0, 1, 2, 3], nextAllocation := 1 }
   check "indexed audit accepts disjoint children of a suspended writer" (auditState state)
+  let chain := ((List.range 4096).map fun n =>
+    {parent with name := n + 1, parent := if n == 0 then none else some n}).reverse
+  let deep := {state with loans := chain, used := List.range 4097}
+  check "4096 static reborrows retain the exact allocation and permissions"
+    (auditState deep && (checkAction deep (.release 4096)).isOk)
+  check "valid unordered loans retain original ancestry and layout containment"
+    (auditState {state with loans := [parent, child]})
+  check "actual compatibility inputs must match the recognized chain"
+    (!compatibleWith {state with loans := [child, parent]} {parent with name := 99} [parent])
+  check "chain recognition grants no layout widening"
+    (!auditState {state with loans := [{child with layout := full}, {parent with layout := first}]})
   for invalid in [
       {state with used := 0 :: state.used},
       {state with allocations := allocation :: state.allocations},

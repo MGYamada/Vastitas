@@ -90,6 +90,16 @@ nesting and dependency nesting are bounded to 64 in the loader; namespace
 resolution has a shared 4096-member work budget and rejects exhaustion with
 `E_LIMIT`, instead of expanding shared import paths indefinitely.
 
+The kernel reconstructs package, module, import and dependency lookup tables
+from the supplied declarations. A module lookup still checks the complete
+package identity, including name and version. Active import paths use a
+persistent ordered set of complete scope/name keys, preserving cycle checks
+without copying or scanning a growing path list. No lookup index is trusted
+from wire input. These changes reduce repeated lookup work; they do not memoize
+completed resolutions or impose a program-wide namespace work budget.
+See the [compiler scaling observation](../experiments/compiler_scaling/results/2026-11-03-macos-namespace/RESULTS.md)
+for reproducible inputs, measurements and remaining limits.
+
 ## Visibility and ownership
 
 Declarations are private by default and accessible from their declaring module

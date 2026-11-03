@@ -156,13 +156,38 @@ def Program.declarations (p : Program) : List Target :=
     (if m.path.isEmpty then [] else
       [⟨⟨⟨pkg.id, m.path.dropLast⟩, m.path.getLast!⟩, .module, m.isPublic⟩])
 
-/-- Internal, backend-built declaration index. It is not a wire input. The list
-retains declaration order for diagnostics and duplicate checks; both indexes use
-first-declaration precedence, including on invalid duplicate input. -/
+/-- First-match lookup, including malformed duplicate inputs before validation. -/
+def firstIndex {α κ β : Type} [BEq κ] [Hashable κ]
+    (items : List α) (key : α → κ) (value : α → β) : Std.HashMap κ β :=
+  items.foldr (fun item table => table.insert (key item) (value item)) {}
+
+structure ModuleLookup where
+  source : Module
+  imports : Std.HashMap String Import
+
+def Module.lookup (m : Module) : ModuleLookup :=
+  ⟨m, firstIndex m.imports (·.alias) id⟩
+
+structure PackageLookup where
+  source : Package
+  modules : Std.HashMap (List String) ModuleLookup
+  dependencies : Std.HashMap String Dependency
+
+def Package.lookup (p : Package) : PackageLookup :=
+  ⟨p, firstIndex p.modules (·.path) Module.lookup,
+    firstIndex p.dependencies (·.alias) (fun dependency => dependency)⟩
+
+def packageIndex (packages : List Package) : Std.HashMap String PackageLookup :=
+  firstIndex packages (·.id.source) Package.lookup
+
+/-- Internal, backend-built namespace indexes. They are not wire inputs. Lists
+retain source order for diagnostics and duplicate checks; lookup tables preserve
+first-match precedence, including on invalid duplicate input. -/
 structure Indexed extends Program where
   declarations : List Target
   byOwner : Std.HashMap Owner Target
   byScope : Std.HashMap Scope (List Target)
+  byPackage : Std.HashMap String PackageLookup
 
 def ownerIndex (declarations : List Target) : Std.HashMap Owner Target :=
   declarations.foldr (fun target table => table.insert target.owner target) {}
@@ -174,7 +199,8 @@ def scopeIndex (declarations : List Target) : Std.HashMap Scope (List Target) :=
 def Program.indexed (program : Program) : Indexed :=
   let declarations := program.declarations
   { toProgram := program, declarations,
-    byOwner := ownerIndex declarations, byScope := scopeIndex declarations }
+    byOwner := ownerIndex declarations, byScope := scopeIndex declarations,
+    byPackage := packageIndex program.packages }
 
 def Target.moduleScope (t : Target) : Scope :=
   ⟨t.owner.scope.package, t.owner.scope.path ++ [t.owner.name]⟩

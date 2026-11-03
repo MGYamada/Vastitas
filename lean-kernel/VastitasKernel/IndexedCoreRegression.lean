@@ -56,6 +56,8 @@ private def manyLets (body : Term) : Term :=
   (bodyProgram (manyLets (.variable 0 ⟨.pure .int, none⟩))))
 #eval check "oldest binding still forbids shadowing" (!accepts
   (bodyProgram (manyLets (.letE 0 (.integer 1) (.integer 2)))))
+#eval check "an unused ill-typed value in a deep let is still rejected" (!accepts
+  (bodyProgram (manyLets (.letE 512 (.variable 0 ⟨.pure .bool, none⟩) (.integer 42)))))
 #eval check "a sibling branch cannot read the other's local" (!accepts (bodyProgram
   (.branch (.boolean true) (.letE 77 (.integer 1) (.integer 2))
     (.variable 77 ⟨.pure .int, none⟩) ⟨.pure .int, none⟩)))

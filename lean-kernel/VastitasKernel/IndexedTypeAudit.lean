@@ -42,6 +42,19 @@ theorem ContextIndex.get?_eq {ctx : Context} (index : ContextIndex ctx) (symbol 
     index.get? symbol = lookup ctx symbol := by
   simp only [ContextIndex.get?, index.exactBindings, Finite.firstIndex_lookup, lookup]
 
+theorem HasType.resultValid {env : Declarations} {functions : Signatures} {ctx : Context} {term : Term}
+    (typed : HasType env functions ctx term) : term.result.Valid env := by
+  cases term <;> exact typed.1
+
+/-- A let's result is its body's result. The recursive body check already
+establishes its validity, even when finding that result traverses further lets. -/
+theorem letTyped_iff (env : Declarations) (functions : Signatures) (ctx : Context)
+    (symbol : Nat) (value body : Term) :
+    HasType env functions ctx (.letE symbol value body) ↔
+      HasType env functions ctx value ∧ lookup ctx symbol = none ∧
+      HasType env functions (⟨symbol, value.result⟩ :: ctx) body := by
+  exact ⟨fun typed => typed.2, fun parts => ⟨parts.2.2.resultValid, parts⟩⟩
+
 mutual
   def hasTypeWithIndex (env : Declarations) (functions : Signatures) (ctx : Context)
       (index : ContextIndex ctx) (term : Term) :
@@ -109,8 +122,7 @@ mutual
     | letE symbol value body =>
       haveI := hasTypeWithIndex env functions ctx index value
       haveI := hasTypeWithIndex env functions _ (index.bind ⟨symbol, value.result⟩) body
-      unfold HasType
-      simp only [← index.get?_eq]
+      rw [letTyped_iff, ← index.get?_eq]
       infer_instance
     | unpack witnessSymbol fieldSymbols package body =>
       haveI := hasTypeWithIndex env functions ctx index package

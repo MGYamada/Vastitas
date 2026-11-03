@@ -105,6 +105,10 @@ function's ordered lexical context. A `let` extends only its body and an
 `ContextIndex.get?_eq` proves each indexed lookup equals the specified list
 lookup even for repeated symbols. `ContextIndex.exactRefs` preserves the
 ordered object references used by scope, freshness and primitive checks.
+`letTyped_iff` derives the validity of a `let` result from its checked body.
+The type audit still checks the value, rejects a symbol already in scope and
+checks the body in the extended context. This avoids walking a nested chain
+to inspect the same terminal result at every enclosing `let`.
 Resource receipts, native generation and floating-point results keep the
 separate boundaries described below. These results do not supply full source
 specialization correspondence or native refinement.

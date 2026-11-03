@@ -2,6 +2,7 @@ import VastitasKernel.LegacySource
 import VastitasKernel.IndexedRuntime
 import VastitasKernel.ResourceProtocol
 import VastitasKernel.WireScan
+import VastitasKernel.BuildIdentity
 
 open VastitasKernel
 
@@ -59,11 +60,19 @@ private partial def readBounded (stream : IO.FS.Stream) (limit : Nat) (data : By
   if chunk.isEmpty then return data
   readBounded stream limit (data ++ chunk)
 
+/-- Every response identifies this build: the digest of `Main` and its kernel
+imports, and the Lean version. See `VastitasKernel.BuildIdentity`. -/
+private def identity : Lean.Json :=
+  Lean.Json.mkObj [("sources", Lean.Json.str kernel_source_digest%), ("lean", Lean.Json.str Lean.versionString)]
+
+private def respond (output : IO.FS.Stream) (response : Lean.Json) : IO Unit :=
+  output.putStrLn (response.setObjVal! "kernel" identity).compress
+
 def main (args : List String) : IO UInt32 := do
   let output ← IO.getStdout
   let mode := args.headD "check"
   if args.length > 1 || !(mode == "check" || mode == "emit") then
-    output.putStrLn ((failureJson { code := "E_ARGUMENT", message := "usage: vastitas-kernel [check|emit]" }).compress)
+    respond output (failureJson { code := "E_ARGUMENT", message := "usage: vastitas-kernel [check|emit]" })
     return 1
   let limit := ({} : WireScan.Bounds).bytes
   let response ← try
@@ -75,7 +84,7 @@ def main (args : List String) : IO UInt32 := do
       | none => pure (failureJson { code := "E_PROTOCOL", message := "cannot read UTF-8 IR input: invalid UTF-8" })
   catch error =>
     pure (failureJson { code := "E_PROTOCOL", message := s!"cannot read UTF-8 IR input: {error}" })
-  output.putStrLn response.compress
+  respond output response
   match response.getObjValAs? Bool "ok" with
   | .ok true => return 0
   | _ => return 1

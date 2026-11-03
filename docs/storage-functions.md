@@ -76,6 +76,8 @@ replay when the complete starting resource state and complete action list
 compare equal. On a mismatch or in the absence of a nested receipt it runs the
 slice from its own caller state. `replayWithEvidence_eq` identifies the complete
 result, including failures, with the original replay for all inputs.
+The [matched public checks](../experiments/compiler_scaling/results/2026-11-03-macos-nested-replay/RESULTS.md)
+measure identical forwarding slices at depths 0, 10 and 30.
 The receipt checks the same resulting state, restored caller loans, distinct
 live/unborrowed owned results, their initialization contracts and absence of
 unreturned local owners. The final entry schedule is checked again from empty

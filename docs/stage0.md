@@ -2,8 +2,8 @@
 
 Stage 0 compiles an entry file and explicitly selected source libraries, with a
 deliberately finite geometric core.
-It implements the original design's object/point/morphism skeleton and a
-native compilation path. The original proposal is indexed in [design.md](design.md).
+Its object, point and morphism syntax remains supported by the current compiler.
+The package language and later wire versions build on these compatibility rules.
 
 ## Surface language
 

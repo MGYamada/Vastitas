@@ -2,7 +2,7 @@
 
 Check supplied QQ-polynomial Gram/LDL^T certificates on all real affine space.
 No search, eigenvalue computation, sampling, tolerance or general cover decision.
-See docs/sos-reference.md for the fixed interpretation and remaining obligations.
+See docs/reference/analysis-and-effects.md#sos-reference for the fixed interpretation and remaining obligations.
 """
 
 from __future__ import annotations

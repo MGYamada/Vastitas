@@ -5,6 +5,7 @@ on:
     paths:
       - 'book.toml'
       - 'config/mdbook-version'
+      - 'config/mdbook-katex-version'
       - 'docs/**'
       - 'scripts/check_book.py'
       - '.github/workflows/documentation.yml'
@@ -12,6 +13,7 @@ on:
     paths:
       - 'book.toml'
       - 'config/mdbook-version'
+      - 'config/mdbook-katex-version'
       - 'docs/**'
       - 'scripts/check_book.py'
       - '.github/workflows/documentation.yml'
@@ -27,6 +29,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+      - name: Install the pinned offline math renderer
+        run: cargo install mdbook-katex --locked --version "=$(cat config/mdbook-katex-version)"
       - name: Build with the pinned mdBook release
         run: |
           version=$(cat config/mdbook-version)
@@ -39,7 +43,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" mdbook
           test "$("$RUNNER_TEMP/mdbook" --version)" = "mdbook v$version"
           "$RUNNER_TEMP/mdbook" build
-      - name: Check links, navigation and preserved design text
+      - name: Check chapter inventory, navigation and links
         run: python3 scripts/check_book.py
       - name: Retain the rendered book for review
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

@@ -20,7 +20,7 @@ use arena-C and cannot establish standalone-C parity.
 ## Run
 
 Build the tools and the repository-pinned OpenBLAS prefix first (see
-[the adapter instructions](../../docs/numerical-adapter.md)). Run from the
+[the adapter instructions](../../docs/linalg/maps-and-gemm.md#numerical-adapter)). Run from the
 repository root:
 
 ```sh

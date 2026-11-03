@@ -1,16 +1,15 @@
 # Historical Stages 2–7
 
-The October 2026 design draft proposed six stages after the first executable
-core. They answer a sequence of mathematical questions. What structure does a
+The historical roadmap has six stages after the first executable core. They answer a sequence of mathematical questions. What structure does a
 point see? How does a differential travel back along a map? Which quantities
 survive a change of coordinates, an eigenvalue collision, or a change of
 physical convention?
 
-This chapter keeps the stage numbers from draft v0.3. Where the draft and a
-later GitHub issue differ, the current issue governs the plan. The examples
+This chapter keeps the historical stage numbers. Current GitHub issue
+decisions govern the plan, including changes to earlier proposals. The examples
 below are mathematical targets. Implementation claims refer to the finite
 Stage 1 delivery at `7d612a4`. Issue decisions were checked on 4 November
-2026 (JST). [Historical sequence and examples, §§14–15](https://github.com/MGYamada/Vastitas/blob/cc4922f505077567c72848310fec2a7c7b812076/docs/design/roadmap-acceptance.md#14-initial-implementation-sequence) · [Stage 1 acceptance map](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/stage1-acceptance.md)
+2026 (JST). [Stage 1 acceptance map](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/stage1-acceptance.md)
 
 ## Stage 2. Ordinary affine geometry
 
@@ -20,7 +19,7 @@ target and test object. Stage 2 gives the ordinary affine fragment coordinate
 rings, polynomial maps, module presentations and fiber products over a
 specified base. A ring homomorphism from A to B induces a scheme morphism
 from Spec(B) to Spec(A), including its action on the structure sheaves.
-[Geometric settings and generalized points](https://github.com/MGYamada/Vastitas/blob/cc4922f505077567c72848310fec2a7c7b812076/docs/design/geometry.md) · [Spectrum correspondence, #362](https://github.com/MGYamada/Vastitas/issues/362)
+[Spectrum correspondence, #362](https://github.com/MGYamada/Vastitas/issues/362)
 
 **Acceptance example.** Over a field K, the ring K[ε]/(ε²) contains a
 nonzero element whose square is zero. Its spectrum D has the same underlying
@@ -40,7 +39,7 @@ is `Affine(n)` for smooth real affine space and `Affine(K, n)` for ordinary
 affine space over an explicit algebraic base. A smooth manifold is a
 `CInfScheme` with checked local and topological evidence. These decisions
 concern the future interface. The Stage 1 compatibility adapter continues to
-resolve its historical inputs. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](https://github.com/MGYamada/Vastitas/blob/7d612a4b76ef54a17bd859c466fb3407912ac14b/docs/geometry-migration.md)
+resolve its historical inputs. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../indexed-source.md#geometry-migration)
 
 **Acceptance example.** Given smooth maps f and g, start with a covector at
 g(f(x)). Pull it back first along g at f(x), then along f at x. Check that
@@ -53,7 +52,7 @@ current plan derives `gradient(f, using = g)` by applying the inverse metric
 map to the differential. This requires a selected metric and evidence of
 nondegeneracy, even in Euclidean coordinates. The comparison with analytic Fréchet
 derivatives and the comparison with polynomial Kähler differentials are
-distinct proof obligations. [Reverse differentiation, §9](https://github.com/MGYamada/Vastitas/blob/cc4922f505077567c72848310fec2a7c7b812076/docs/design/differentiation-spectral.md#9-differentials-and-reverse-differentiation) · [Cotangent semantics, #381](https://github.com/MGYamada/Vastitas/issues/381) · [Compiled pullbacks, #361](https://github.com/MGYamada/Vastitas/issues/361) · [Explicit metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
+distinct proof obligations. [Cotangent semantics, #381](https://github.com/MGYamada/Vastitas/issues/381) · [Compiled pullbacks, #361](https://github.com/MGYamada/Vastitas/issues/361) · [Explicit metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
 
 ## Stage 4. Bundles and tensor diagrams
 
@@ -64,7 +63,7 @@ sheaves, Grassmannians classifying subbundles, and tensor diagrams with
 dimension grades. For the common `⊗`, the current plan selects one certified
 monoidal model and its owned implementation. Ordinary and graded models may
 share a carrier. If implicit selection is ambiguous, the caller must select
-a model explicitly to determine the laws and signs. [Tensors and dimensions, §6](https://github.com/MGYamada/Vastitas/blob/cc4922f505077567c72848310fec2a7c7b812076/docs/design/tensor-resources-units.md) · [Bundles, #261](https://github.com/MGYamada/Vastitas/issues/261) · [Tensor coherence, #201](https://github.com/MGYamada/Vastitas/issues/201) · [Model selection, #387](https://github.com/MGYamada/Vastitas/issues/387)
+a model explicitly to determine the laws and signs. [Bundles, #261](https://github.com/MGYamada/Vastitas/issues/261) · [Tensor coherence, #201](https://github.com/MGYamada/Vastitas/issues/201) · [Model selection, #387](https://github.com/MGYamada/Vastitas/issues/387)
 
 **Acceptance example.** Lower one accepted linear map in two different valid,
 nonorthogonal ordered bases. The arrays may differ. Decoding either array
@@ -87,7 +86,7 @@ finite endomorphism H, the current spectral plan retains **both** its
 characteristic scheme and the module on which the coordinate acts as H.
 A scalar matrix and a nontrivial Jordan block can have the same characteristic
 polynomial and different module actions. A numerical adapter must identify
-the observation it computes. [Eigen and SVD, §§10–11](https://github.com/MGYamada/Vastitas/blob/cc4922f505077567c72848310fec2a7c7b812076/docs/design/differentiation-spectral.md#10-eigen-as-spectral-geometry) · [Exact spectral pair, #337](https://github.com/MGYamada/Vastitas/issues/337)
+the observation it computes. [Exact spectral pair, #337](https://github.com/MGYamada/Vastitas/issues/337)
 
 **Acceptance example.** For the symmetric matrix with rows (x, y) and
 (y, −x), the eigenvalues ±√(x² + y²) meet at the origin. The invariant
@@ -106,7 +105,7 @@ For a two-level Hamiltonian, declare what the parameters mean, their units,
 the state preparation, the observable and the regime in which the model is
 intended to apply. The current library plan assigns pure mathematics to
 `std`, explicit computational policies and effects to `monad`, and physical
-interpretation, conventions and uncertainty to `nature`. [Physical models, §12](https://github.com/MGYamada/Vastitas/blob/cc4922f505077567c72848310fec2a7c7b812076/docs/design/physics-compiler-verification.md) · [Library responsibilities, #304](https://github.com/MGYamada/Vastitas/issues/304) · [Physics conventions, #374](https://github.com/MGYamada/Vastitas/issues/374)
+interpretation, conventions and uncertainty to `nature`. [Library responsibilities, #304](https://github.com/MGYamada/Vastitas/issues/304) · [Physics conventions, #374](https://github.com/MGYamada/Vastitas/issues/374)
 
 **Acceptance example.** Record the model's exact prediction, the result
 obtained under a named solver and approximation policy, and a comparison

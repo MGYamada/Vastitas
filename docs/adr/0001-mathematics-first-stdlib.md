@@ -1,11 +1,11 @@
 # ADR 0001 — Mathematics-first standard-library admission and trust boundary
 
-- **Status:** Proposed; normative if this ADR is merged
+- **Status:** Adopted for standard-library admission in [PR #166](https://github.com/MGYamada/Vastitas/pull/166).
 - **Date:** 2026-10-28
 - **Scope:** Standard-library governance and mathematical contracts, **not** a claim of implemented or proved functionality
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
-- **Dependency amendment proposal (2026-10-30):** §9, first migration increment of [#285](https://github.com/MGYamada/Vastitas/issues/285); effective upon review and merge of this amendment.
+- **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
 
 ## Context and decision
 
@@ -15,11 +15,19 @@ Vastitas aims to make textbook mathematical objects directly usable in one langu
 
 The word `ε` in the exclusion rule means a numerical approximation tolerance, not a nilpotent element of a Weil algebra.
 
-### 1. Three responsibility layers
+### 1. Responsibility boundaries
 
 1. **Core:** generic indexed types and identities, ownership/borrowing, function and method authority, dispatch/coherence, generic checked IR, typed evidence validation and structural compiler transformations. No growing set of special-case privileges keyed by the spelling of a mathematical type.
 2. **Mathematical `std`:** ordinary versioned `.vast` definitions and contracts for mathematical structures, maps, invariants, equations and supported exact/reference operations. Where necessary it exposes checked interfaces for admitted primitive/derivative rules and realization boundaries. Abstract definitions may exist without a universal evaluator.
 3. **Ecosystem and selectable backends:** algorithms that approximate or realize mathematical targets using mesh, time step, polynomial degree as a refinement parameter, sampling, cutoff, stopping criteria, tolerance, resource schedule or backend-specific numerical behavior. Examples include quadrature, ODE/PDE solvers, optimizers, sparse iterative eigensolvers, Monte Carlo, DMRG/VUMPS and high-performance kernels.
+
+In the current implementation plan, `monad` owns explicit computational
+policies and effects, and `nature` owns physical interpretations, conventions
+and uncertainty. Mathematical denotations remain in `std`. The governing
+issues distinguish these roles from Core and ecosystem algorithms. The
+[architecture tracker](https://github.com/MGYamada/Vastitas/issues/386) records
+the status of the broader ADR amendment.
+[Current jurisdiction, #304](https://github.com/MGYamada/Vastitas/issues/304)
 
 A Core mechanism may support a mathematical `std` contract without making its concrete mathematical operations compiler intrinsics. Importing a package must not silently expand edit authority, executable capabilities or the trusted proof boundary.
 
@@ -182,22 +190,18 @@ and does not complete #285's four-package architecture. `VastitasMath` and the
 implementation correspondence layer remain future work. The kernel/Oracle
 dependency policy in §9 stays closed; future bridge imports of implementation
 or independent mathematics packages require an explicit policy amendment.
-The historical v0.3 source records remain unchanged.
 
 Independent `VastitasMath`, conformance manifests and new correspondence proofs
 remain subsequent work under #285. The first separate pinned-Mathlib
 `VastitasBridge` package is the bounded mathematical increment described above.
-None of these results follows from the Oracle dependency removal. The historical v0.3
-source records remain unchanged; current build/contributor documentation is
-updated to match this bounded amendment.
+The oracle dependency boundary and the mathematical correspondence obligations are verified separately.
 
 ## Consequences, validation and migration
 
 - A *thick* foundational `std` can cover algebra, topology/geometry, analysis, infinite-dimensional quantum mechanics and the mathematical formulation of equations, while a potentially infinite space of approximation algorithms remains in the ecosystem.
 - The compiler need not know every mathematical object by name. It **does** need stable generic authority, indexed IR and checked evidence interfaces for admitted library contracts.
 - The public `std` is not committed to universal solvers, general decidable equality, exact floating-point algebra or automatically differentiable singular/infinite-dimensional operators.
-- **This ADR PR is documentary.** Its validation consists of consistency review against [the v0.3 design index](../design.md), #49/#60/#66/#67/#69/#71/#91/#92/#103/#104/#107/#159, and a negative-case/admission audit. It does not implement the exemplar algorithms, claim Lean theorems, or change the compiler/runtime.
+- This ADR governs admission. Executable and proof acceptance for specific families remain tracked in [#160](https://github.com/MGYamada/Vastitas/issues/160).
 - Implementation and executable acceptance, including exact algebra/representation, complex/symplectic geometry, functional/Hilbert/PDE reference examples, third-party AD rules, HVP, equivariant linalg, scalar profiles and optimizer regressions, are tracked in **[#160](https://github.com/MGYamada/Vastitas/issues/160)** and its child/existing issues.
-- The historical Draft v0.3 transcription in `docs/design/` remains preserved. To the extent its provisional `§12.5` small-library wording conflicts with this approved charter, this ADR becomes the later normative boundary **upon merge**. Concrete API designs still require their own decisions.
 
 **Principle:** *Standardize the mathematical world and the trusted contracts connecting it; choose algorithms for realizing that world explicitly.*

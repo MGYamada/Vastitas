@@ -4,29 +4,26 @@ The finite Stage 1 compiler implements the ownership profiles mapped in the
 [acceptance record](stage1-acceptance.md). Stage 2 or later owns the remaining
 performance acceptance under [#183](https://github.com/MGYamada/Vastitas/issues/183)
 and the [performance handoff](stage1-completion.md#stage-2-or-later-performance-acceptance).
-This is the current design contract replacing the storage discussion in
-[historical Chapter 7](design/tensor-resources-units.md#7-ownership-and-tensor-network-ports).
-The archived v0.3 text and its source hashes remain unchanged.
 The notation below describes required IR behavior, not available surface syntax.
 
-The [dense layout/preflight reference](storage-layout-preflight.md) supplies an
+The [dense layout/preflight reference](storage/checked-storage.md#storage-layout-preflight) supplies an
 executable integer model, regression cases and proposed Lean obligations for
 the first dense/transpose fragment. It is not production resource acceptance,
 completed Lean soundness, native check elimination or performance evidence.
 
-The [internal resource IR](storage-ir.md) now supplies independently checked
+The [internal resource IR](storage/checked-storage.md#storage-ir) now supplies independently checked
 logical transitions, canonical layouts, initialization and branch joins, with
 actual-checker byte-region and active-loan theorems. Its component schema is not
 public protocol 8. Its optional native runtime and
-[internal resource functions](storage-functions.md) exercise allocation, calls,
-destination reuse and failure cleanup. [Protocol 8](resource-source.md) now connects the initial static resource profile
+[internal resource functions](storage/checked-storage.md#storage-functions) exercise allocation, calls,
+destination reuse and failure cleanup. [Protocol 8](storage/resource-programs.md#resource-source) now connects the initial static resource profile
 to package source and pure return blocks, including local nominal real/complex
 GEMM. Bounded partial-write coverage removes redundant input fills in the worked
 numerical examples; its actual-byte theorems and native operation counters are
-recorded in [the resource IR](storage-ir.md). Checked scalar value flow and the
-[whole-map runtime-extent profile](runtime-shapes.md) now connect immutable
-integral dimensions to caller-owned GEMM. [Explicit caches](cached-packing.md)
-and [contraction trees](contraction-trees.md) cover bounded scratch/dependency
+recorded in [the resource IR](storage/checked-storage.md#storage-ir). Checked scalar value flow and the
+[whole-map runtime-extent profile](storage/resource-programs.md#runtime-shapes) now connect immutable
+integral dimensions to caller-owned GEMM. [Explicit caches](linalg/networks-and-packing.md#cached-packing)
+and [contraction trees](linalg/networks-and-packing.md#contraction-trees) cover bounded scratch/dependency
 consumers. General shape results, retention/pooling and equivalent-C acceptance
 remain pending.
 
@@ -64,7 +61,7 @@ Compiler latency and generated-program runtime are separate measurements.
 | Network occurrence | Fresh occurrence and linear port identities | A fresh allocation or disjoint tensor factors |
 
 Function-edit ownership remains the independent protocol-6 discipline in
-[edit authority](edit-authority.md). Borrowing a function does not borrow its data.
+[edit authority](packages.md#edit-authority). Borrowing a function does not borrow its data.
 Creating two occurrences of one immutable tensor creates new ports, not copies.
 The runtime may share immutable descriptors; copying a descriptor does not grant
 mutable authority. A numerical logical value may reuse storage only after all
@@ -223,7 +220,7 @@ this refinement. Keep explicit resource transitions distinct from the existing
 pure Core; prove the connection to logical evaluation for each supported lowering.
 The initial schedule is deterministic; optimization search is not a prerequisite.
 
-The implemented [packing cache](cached-packing.md) supplies one bounded reuse
+The implemented [packing cache](linalg/networks-and-packing.md#cached-packing) supplies one bounded reuse
 contract: actual post-pack source/scratch versions, explicit invalidation and
 lexical cleanup, followed by the checked tensor contraction. Whole-allocation
 versions and all-join invalidation are conservative; general pooling and retained
@@ -338,7 +335,7 @@ The gate comparator must stand alone: use ordinary allocation and direct backend
 calls, without Vastitas arena preflight, per-call backend configuration checks or
 cost counters in its primary timing loop. Keep a separate arena-C arm to locate
 runtime versus codegen overhead; generated/arena-C ratios cannot establish this
-gate. The [plain-C harness](../experiments/plain_c/README.md) supplies this third
+gate. The [plain-C harness](https://github.com/MGYamada/Vastitas/blob/main/experiments/plain_c/README.md) supplies this third
 arm for the finite public GEMM, packing and contraction-tree profiles. Replay
 its logical costs in a separate diagnostic build and leave unobserved timing
 cost fields blank; do not report them as zero.

@@ -9,6 +9,12 @@ src = "docs"
 build-dir = "target/book"
 create-missing = false
 
+[preprocessor.katex]
+after = ["links"]
+output = "mathml"
+no-css = true
+throw-on-error = true
+
 [output.html]
 git-repository-url = "https://github.com/MGYamada/Vastitas"
 # Keep the local review build portable until a publication base path is chosen.

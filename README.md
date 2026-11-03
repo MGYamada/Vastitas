@@ -1,399 +1,51 @@
 # Vastitas
 
-Vastitas is a language for Math 2.0 and Physics 2.0. Its finite Stage 1 compiler
-takes `.vast` packages through a Rust frontend and an independent Lean checker
-to a native executable. The delivery includes finite dispatch, edit authority,
-affine storage ownership, real and complex GEMM, and checked contraction trees.
-[Stage 1 delivery record](docs/stage1-completion.md)
-
-Start with the [Vastitas book](docs/README.md) for an English guide to
-[historical Stages 2–7](docs/guide/historical-roadmap.md) and the current
-issue decisions that shape them.
-
-The current language supports exact integer computation, a small geometric
-core, finite multiple dispatch over scalar types, and capture-free static
-higher-order functions, local path packages and call-only module imports. Ordinary and smooth
-affine descriptors, points, identity morphisms,
-dependent arguments, and existential packages preserve nominal endpoints.
-The [language design](docs/design.md) describes the larger research direction;
-it is not a list of implemented features.
-
-**Fast like C is the primary performance and architecture goal.** Numerical
-abstractions must support explicit layouts, checked aliasing, reusable destinations
-and visible allocation/copy costs. The [storage and ownership design](docs/storage-ownership.md)
-defines equivalent-C measurements. Stage 2 or later owns the controlled-host
-performance verdict, the absolute tiny-call budget and remaining cost attribution.
-Correctness and declared numerical semantics constrain every optimization.
-
-Stage 1a adds `generic`/`method` declarations with explicit callable domains,
-nominal selectors and static capabilities. Lean checks all concrete keys for
-ambiguity, every declared domain for coverage, and every applicable method
-body before lowering calls to independently audited indexed Core. All public wire
-versions now reach the same declaration/function/dispatch/authority checker;
-[legacy source adaptation](docs/indexed-declarations.md#compatibility-adapter-for-protocols-26)
-preserves existing input formats. The exact checked indexed Core has proved
-terminating typed evaluation; [finite geometry migration](docs/geometry-migration.md)
-records primitive result compatibility and the broader source/native proof limits. Stage 1b adds independent
-lambdas, function values and higher-order specialization. [Finite abstract scalar selectors](docs/abstract-types.md)
-add nominal hierarchies and bodyless method contracts over the existing four keys.
-[Scoped edit borrowing and validated assemblies](docs/edit-borrowing.md) permit owner-approved external contributions. [Nested reborrowing and permanent edit-authority transfer](docs/edit-authority.md) preserve function identity, grants and open obligations. The [finite-profile acceptance map](docs/stage1-acceptance.md) links storage and linear algebra to their implementations, regression tests and checker theorems.
-
-The [internal storage resource IR](docs/storage-ir.md) checks logical ownership,
-loans, initialization and layouts with byte-region proofs. Its exact checked
-schedule can generate native real/complex buffer operations with failure cleanup
-and allocation/copy counters. [Internal resource functions](docs/storage-functions.md)
-check owned arguments/results and borrowed destinations against actual caller
-resources. [Protocol 8 resource functions](docs/resource-source.md) now connect
-static storage shapes, interleaved Nat/Int/Bool/Unit computations, captured
-resource-call results and runtime Bool branches to package source and native
-execution. [Runtime extents](docs/runtime-shapes.md) additionally support whole-map
-real/complex GEMM with caller-owned destinations and immutable integral dimensions.
-Runtime-shape operations are restricted to straight-line resource flow; shape
-results, floating scalar interfaces and end-to-end C performance remain pending.
-Public real/complex GEMM executes through an
-[optional internal adapter](docs/numerical-adapter.md), with checked resource access,
-initialization and exact native lowering before pinned OpenBLAS execution.
-[Numerical declaration profiles](docs/numerical-declarations.md) now independently
-check ideal real/complex coefficients and nominal scalar bases through protocol 8.
-[Generative owned-map packages](docs/owned-map-packages.md) now return one hidden
-primal target and direct basis while preserving a caller-dependent source basis.
-Consuming unpack creates fresh scoped identities; pack/open/move adds no data
-allocation or copy. Static real/complex padded, transposed and zero-size examples
-run without OpenBLAS when their checked schedule contains no GEMM.
-
-The [protocol-8 numerical-value compiler](docs/numerical-values.md) checks local
-nominal spaces, bases and loan-backed map products through actual GEMM lowering.
-Public resource functions can use these operations. A native build requires an
-explicit `--openblas-prefix` only when its checked entry emits GEMM; `check` and
-entries without GEMM need no BLAS. Unused numerical bodies are still checked.
-On Linux, use `--openblas-prefix PREFIX --native-cc cc` when OpenBLAS was built
-with the host compiler, so the final link uses the matching host libc rather
-than Lean's bundled sysroot.
-Dependent numerical inputs now preserve caller spaces/bases and borrow actual
-map views under explicit static dimension contracts, including nested calls
-and caller-selected output destinations. Initialized `OwnedMap` inputs/results preserve
-those bases and their allocation/layout through ownership transfer.
-[Typed transforms](docs/linear-transforms.md) add explicit dual/conjugate spaces,
-corresponding bases, canonical involutions and adjoints for declared orthonormal
-metrics, preserving views through nested calls. [Vector evaluation](docs/vector-evaluation.md)
-adds bilinear dual evaluation and explicit Hermitian pairing through actual
-borrowed vector arguments and scalar destinations. [Finite two-map networks](docs/finite-networks.md)
-check occurrences, ports, a bilinear edge and ordered boundaries before the same
-typed GEMM path. [Explicit diagonal metrics](docs/diagonal-metrics.md) materialize
-real/complex adjoints and evaluate weighted Hermitian forms using actual declared
-coefficients and caller scratch. Conditional ideal laws remain separate from
-NativeFast arithmetic. [Bounded contraction trees](docs/contraction-trees.md)
-add explicit finite multi-edge plans with rank-two/three intermediates and
-caller-owned regrouping. Dense metric realization, general generative numerical
-packages, broader runtime shape/scalar interfaces and general-rank networks remain open.
-GEMM also accepts explicit real/complex alpha/beta and synchronous reads from
-initialized scalar loans, including coefficients computed by earlier operations.
-This does not add general floating values to pure Core; the separate runtime-shape
-profile initially permits literal coefficients only.
-The actual-checker proofs and native regressions do not establish floating-point
-field laws, certified error bounds, source/native refinement or C/C++ performance
-parity; see the [layer responsibilities and proof boundary](docs/numerical-adapter.md#responsibilities-along-the-implemented-path).
-
-The [finite rank-three tensor profile](docs/tensor-packing.md) adds explicit
-caller-destination packing and one typed rank-three/rank-two contraction to
-protocol 8. It retains actual ordered bases/dual origins and emits one checked
-GEMM without implicit packing or product-basis fabrication. General networks
-and equivalent-C performance remain unfinished.
-
-The bounded [packing-cache contract](docs/cached-packing.md) reuses caller-owned
-packed scratch in repeated checked contractions, with actual source/scratch
-version validation and no runtime cache allocation or hidden repacking.
+Vastitas compiles mathematical programs written in `.vast` to native executables.
+Its finite Stage 1 compiler supports static functions and dispatch, nominal
+affine geometry, scoped edit authority, checked storage ownership, real and
+complex GEMM, and finite contraction trees. An independent Lean kernel
+checks the program before generation. [Delivery record](docs/stage1-completion.md)
 
 ## Build and use
 
-Requirements: Rust 1.99.1, Lean 4.35.0 via Elan/Lake, and a host C toolchain
-(Xcode Command Line Tools on macOS or a C compiler on Linux).
+From the repository root with Rust 1.99.1, Lean 4.35.0 and a host C toolchain:
 
 ```sh
 lake -d lean-kernel build vastitas-kernel
 cargo build --locked
-cargo run --locked -- check examples/pointed.vast
-cargo run --locked -- build examples/pointed.vast -o target/pointed
+target/debug/vastitas check examples/pointed.vast
+target/debug/vastitas build examples/pointed.vast -o target/pointed
 ./target/pointed
-# 42
 ```
 
-`check` also accepts a library without `main`. `build` requires
-`fn main() -> Int`; the generated entrypoint prints the integer and exits
-successfully. Compilation never runs the generated program.
-
-Inputs must be regular files, limited to 16 MiB each and 64 MiB / 8,192 loads per
-compilation. Package closures admit at most 4,096 logical modules, including
-inline modules and repeated file uses. Blocking devices and FIFOs are rejected.
-Build refuses nonregular output paths and paths that alias any input source,
-including an explicit library, package manifest or module file.
-On macOS and Linux, SIGINT/SIGTERM/SIGHUP/SIGQUIT cancel compiler children
-and remove the temporary project and staging output. Existing output is kept
-until the final atomic replacement. SIGKILL or a host crash cannot run cleanup.
-Ctrl-Z suspends the driver only; its separate child process group may continue.
-
-Storage and numerical builds coordinate access to their shared optional native
-packages, including aliased paths. Waiting is interruptible; builds using only
-the prebuilt pure runtime or independent optional packages can proceed concurrently. This
-coordination adds no lock to generated programs. Keep direct `lake` builds or
-package edits separate from compiler builds that use the same package artifacts.
-Lake descendants inherit the package locks, so killing the driver alone does
-not unlock artifacts that a surviving build still uses.
-
-The compiler uses this checkout's built backend and runtime. A relocatable
-installation and cross-compilation are not provided. The optional
-`VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` environment variables select a
-trusted backend executable and kernel package directory for development.
-The backend build includes the native runtime. `check` needs only the executable
-when explicitly selected; `build` also needs the package and uses its pinned
-`lean-toolchain` for the generated project.
-
-### Internal Lean proof audit (v0.1.0 gate)
-
-The Rust compiler also offers an opt-in, **non-authoritative** cross-check of
-Lean proof exports using the pinned [`nanoda_lib`](https://github.com/ammkrn/nanoda_lib)
-crate. Generate an NDJSON file with `lean4export`, then run:
-
-```sh
-cargo run --locked -- audit-lean path/to/lean4export.ndjson
-```
-
-`audit-lean` uses the checked-in [axiom-name policy](config/nanoda-internal-audit.json):
-only the names `propext`, `Classical.choice`, and `Quot.sound` are allowed, with hard
-rejection of all other exported axiom names. Their statements and dependencies
-are not authenticated against the standard Lean environment. Every result is
-explicitly conditional on the supplied environment and reports its exported
-axiom count; renaming an arbitrary assumption does not validate it as a standard
-Lean axiom. In particular, `sorryAx` and
-`Lean.trustCompiler` are not permitted. The internal checker runs in an
-isolated worker because rejection in upstream nanoda may panic or exit.
-
-This command **rechecks an existing proof term**; it does not elaborate Lean
-source, discover proofs, authorize `.vast` source/IR, or discharge any
-constitutional theorem. The official Lean kernel remains the sole authority
-for CI proofs, kernel compilation, and CS/MS/CF proof obligations. See
-[the exact trust boundary](docs/verification.md#independent-internal-lean-export-audit-v010-gate)
-and [v0.1.0 gate #282](https://github.com/MGYamada/Vastitas/issues/282).
-
-## Path packages and modules
-
-Use an explicit `Vastitas.toml` with required `[package]` name, SemVer version
-and root source, plus optional `[dependencies]` path entries. Package mode
-retains namespaces in protocol 3 (protocol 4 for abstract declarations, protocol 5 for edit assemblies, protocol 6 for delegated loans/transfers, protocol 7 for indexed declarations, protocol 8 for resources, and protocol 9 for
-named edit recipients) and cannot be mixed with positional input or
-`--lib`; protocol 2 remains supported for those existing commands.
-
-```sh
-cargo run --locked -- check --manifest-path examples/packages/demo/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
-./target/demo
-# 42
-```
-
-`mod`, `use`, `as`, `pub`, `pub use`, `package::`, `self::` and `super::` support
-logical modules and aliases. Functions have one defining package/module owner;
-ordinary methods require that exact module; explicit grants and active assembly loans permit external contributions. Imports permit repeated calls
-without granting edit authority. See [packages and modules](docs/packages.md)
-for file layout, visibility, limits and proof scope. Registry/Git dependencies and
-general abstract values remain deferred. Current edit grants name recipients as
-`to package_name::module` through protocol 9; old wire protocols 5–8 remain supported.
-See the [recipient migration](docs/edit-borrowing.md#migrating-recipients-for-v010).
-
-## Arithmetic standard library
-
-The [arithmetic library](stdlib/README.md) contains `.vast` definitions for
-`Int` and `Nat` addition, subtraction, multiplication, minimum and maximum,
-plus integer negation and absolute value. Include the source files explicitly:
-
-```sh
-cargo run --locked -- build examples/stdlib-arithmetic.vast \
-  --lib stdlib/src/arithmetic/int.vast \
-  --lib stdlib/src/arithmetic/nat.vast -o target/stdlib-arithmetic
-./target/stdlib-arithmetic
-# 42
-```
-
-`--lib` also works with `check` and may be repeated. Libraries and the entry
-file are checked together by Lean. Each file keeps its own diagnostic locations;
-this protocol-2 `--lib` mode has no implicit prelude or module/import syntax.
-Use [manifest mode](docs/packages.md) for path packages and imports.
-
-The generic `add` and `maximum` wrappers use the same prefixed functions:
-
-```sh
-cargo run --locked -- build examples/dispatch-arithmetic.vast \
-  --lib stdlib/src/arithmetic/int.vast \
-  --lib stdlib/src/arithmetic/nat.vast \
-  --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
-./target/dispatch-arithmetic
-# 42
-```
-
-Their domains are all four Nat/Int pairs. Mixed methods bind `promote` once and
-delegate through its projections to the Int/Int method. Nat/Nat retains Nat.
-Generic arguments determine selection, so bare literals choose Int.
-There is no implicit conversion or selection using the expected result type.
-See [the Stage 1a specification](docs/stage1a.md) for selectors, capabilities,
-the 4096-key bound, and examples of ambiguity.
-
-## Independent functions
-
-```vast
-fn invoke(f: Fn<Int, Int>, x: Int) -> Int { f(x) }
-fn main() -> Int {
-    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
-    invoke(increment, 41)
-}
-```
-
-Function types use `Fn<Int, Int>`, `Fn<(Int, Int), Int>`, `Fn<(), Int>`,
-or `Fn<Unit, Int>`; the last two distinguish zero arguments from one Unit
-argument. Lambdas have explicit parameter/result types and cannot capture
-outer locals. Named functions can also be passed, aliased, returned and called.
-Lean resolves calls to a single static target and erases function values.
-Generic families remain declarations, usable through ordinary wrappers.
-See [Stage 1b](docs/stage1b.md) for the contract and proof boundary.
-
-```sh
-cargo run --locked -- check examples/functions.vast
-cargo run --locked -- build examples/functions.vast -o target/functions
-./target/functions
-# 42
-```
-
-## Homogeneous pairs
-
-Ordinary functions and selected methods support homogeneous `Pair<Nat>` / `Pair<Int>` values
-through `pair`, `pair_first`, and `pair_second`. Their elements are inferred
-without conversion; Pair is excluded from dispatch keys and Fn contracts.
-See [the Pair contract](docs/stage1b.md#homogeneous-data-pairs) and
-[native example](examples/pairs.vast). The stdlib's four-key `promote` preserves
-Nat/Nat as Pair<Nat> and embeds mixed keys into Pair<Int> explicitly. See the
-[promotion contract and package usage](stdlib/README.md#explicit-promotion).
-The [numerical proof contract](docs/promotion.md) covers the actual checked
-stdlib bodies; this increment does not complete the historical Stage 1 proposal.
-
-## Architecture
-
-| Directory | Responsibility | Dependencies |
-| --- | --- | --- |
-| `src/` | Rust CLI, parser, lexical resolution, versioned IR | Rust dependencies in `Cargo.lock` |
-| `lean-kernel/` | Independent semantic checking, hygienic code generation, minimal runtime | Lean distribution only; no mathlib |
-| `lean/` | Proofs about the actual kernel definitions | Local kernel and Lean distribution only; no mathlib |
-| `lean-bridge/` | Separately built mathematical foundations for future correspondence proofs | Pinned Lean and Mathlib; no compiler/runtime dependency |
-| `stdlib/src/` | Standard library written in `.vast` | Explicitly included `.vast` sources |
-
-The bridge contains the [Daleckii–Krein theorem](docs/daleckii-krein.md), an important
-foundation for future spectral differentiation. It proves the real Fréchet
-derivative of Mathlib's functional calculus at finite-spectrum self-adjoint
-elements, including Hermitian matrices with repeated eigenvalues. Its separate
-build, axiom audit and official kernel replay establish this mathematical result;
-connecting it to a `.vast` AD implementation remains future work.
-
-Ordinary compilation and generated programs do not call the proof oracle.
-On the retained legacy Core path, the oracle proves Stage 0 checker soundness, source-to-core
-correspondence, terminating typed evaluation, and runtime endpoint preservation.
-It also proves the finite dispatch checker's unique selection, coverage, and
-declaration-order invariance, and connects the retained Stage 1b checker's exact
-lowered result to that proved core. Independent capture and static function
-signature audits are connected to actual acceptance. Protocol-3 owner uniqueness,
-reference/visibility and method-authority audits connect the namespace path to
-the same core theorems. Protocols 5/6 also audit grant origins, exclusive loan transitions, complete contribution bodies and final winning footprints; protocol 6 additionally audits nested delegation and current-owner histories. Their exact assembled surfaces enter that same checker. Rust parsing, JSON decoding, full Stage 1
-source rewriting correspondence, native code-generation equivalence, and a
-full mathematical model of schemes remain outside those claims. The precise
-[proof boundary](docs/verification.md) is part of the implementation contract.
-
-The internal declaration-driven source adapters now compose independent
-functions, finite scalar dispatch and edit-authority assemblies, including
-applied and unapplied contribution bodies. [Public protocol 7](docs/indexed-source.md)
-connects the Rust declaration/body syntax to that same combined checker and
-returned Core. Legacy geometry syntax in protocol 7 uses the library’s explicit,
-independently checked compatibility export. `IndexedProgramSafety` proves finite
-typed evaluation for all functions and main in the exact returned Core, including
-dependent calls and package openings. Finite geometry primitive results agree
-with the retained runtime after erasure. Full source operational correspondence
-and native refinement remain unproved. See
-[indexed declarations](docs/indexed-declarations.md).
-
-The [geometry standard library](stdlib/src/geometry/README.md) exposes
-`std::geometry::scheme` and `std::geometry::smooth` for the existing affine
-descriptors, nominal points, morphisms and existential packages. Use the
-`stdlib` dependency entrypoint for geometry and arithmetic together. Original
-legacy geometry clients use the same declaration identities in that package
-closure; the temporary `stdlib/indexed` entrypoint has been removed.
-The new declarations use the same protocol-7 checker as application declarations,
-without privileges from geometric names. General scheme/manifold mathematics,
-new geometric constructions and the rest of #211 remain future work.
-
-## Validation
-
-```sh
-lake -d lean-kernel build vastitas-kernel
-bash scripts/check_kernel_regressions.sh
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked --all-targets
-python3 scripts/check_boundaries.py
-```
-
-To build the separate proof oracle:
-
-```sh
-lake -d lean build VastitasOracle
-(cd lean && lake env lean ../scripts/audit_axioms.lean)
-(cd lean && lake env lean ../scripts/check_oracle_core.lean)
-```
-
-Both Lean packages pin Lean v4.35.0. The oracle manifest contains only the
-local kernel; Mathlib and its transitive packages are forbidden in both packages.
-This build boundary preserves the separate mathematical-definition alignment
-principle in [ADR 0001](docs/adr/0001-mathematics-first-stdlib.md#9-mathematical-alignment-and-oracle-dependency-independence).
-CI runs Rust formatting and strict Clippy once, tests native compilation and
-the arithmetic standard library on macOS and Linux with the oracle directory
-absent, and builds/audits proofs without Mathlib in a separate job. It runs on pull requests,
-pushes to every branch, and manual dispatch. Superseded runs for the same event
-and branch/PR are cancelled; push and pull-request runs do not cancel each other.
-Action revisions and language toolchains are pinned. CI installs elan 4.2.4
-from a release archive whose SHA-256 is checked before its installer runs;
-it does not execute elan's moving `master` bootstrap script. The isolated
-installation does not modify shell profiles. Python is pinned to 3.15.2 and
-checked without setup-python's extra loader path before native calibration;
-unexpected loader overrides remain errors. Checkout credentials are not
-persisted, and the external axiom auditor is
-checked out at its exact commit in addition to the repository's own audit.
-The optional packing/workspace observations filter both event types to their
-source, harness and build inputs, so documentation-only edits do not rebuild
-OpenBLAS; the required compiler/proof jobs continue to run on every change.
-
-The dependency-boundary checker has its own regression tests:
-
-```sh
-python3 -m unittest discover -s scripts -p 'test_*.py'
-```
+The program prints `42`. [Quick start](docs/guide/getting-started.md) ·
+[CLI and diagnostics](docs/guide/cli.md) · [Packages and stdlib](docs/guide/stdlib.md)
 
 ## Documentation
 
-- [Stage 0 core grammar, semantics, and limits](docs/stage0.md)
-- [Stage 1a finite multiple dispatch](docs/stage1a.md)
-- [Stage 1b independent functions](docs/stage1b.md)
-- [Finite abstract scalar selectors](docs/abstract-types.md)
-- [Packages and modules](docs/packages.md)
-- [Implementation roadmap](docs/stage1-roadmap.md)
-- [Post-Stage 1 docs cleanup and mdBook plan](docs/docs-cleanup-plan.md)
-- [Scoped edit borrowing and assemblies](docs/edit-borrowing.md)
-- [Nested edit loans and permanent authority transfer](docs/edit-authority.md)
-- [Runtime extents, guarded caller frames and destination reuse](docs/runtime-shapes.md)
-- [Indexed Core, runtime semantics and internal declaration/function/dispatch/authority elaboration](docs/indexed-declarations.md)
-- [Compiler protocol](docs/protocol.md)
-- [Identifier ASCII round-trip reference and integration contract](docs/identifier-ascii-reference.md)
-- [Finite random-supply, exact-law, and logical-address reference](docs/rand-reference.md)
-- [Exact polynomial first variations and explicit boundary terms](docs/variational-reference.md)
-- [Arithmetic library](stdlib/README.md)
-- [Proof scope and trust boundary](docs/verification.md)
-- [Exact SOS real-cover reference and pending proof obligations](docs/sos-reference.md)
-- [Finite polynomial integral enclosure reference and pending proof obligations](docs/integral-reference.md)
-- [Design v0.3, reorganized by topic](docs/design.md)
-- [Contributor guidance](AGENTS.md)
+Read the [English book](docs/README.md) or browse its [contents](docs/SUMMARY.md).
+The [Stages 2–7 roadmap](docs/guide/historical-roadmap.md) follows current GitHub
+issue decisions and distinguishes planned work from the delivered compiler.
+[Build the book locally](docs/development/documentation.md)
+
+**Fast like C** is the primary performance goal. Explicit layout and alias
+checks, destination and scratch reuse, and visible allocation, packing and
+retention costs govern the numerical design. Stage 2 or later owns controlled
+Linux comparison with standalone C and outstanding tiny-call and total-cost
+acceptance. [Storage and performance contract](docs/storage-ownership.md)
+
+## Architecture
+
+The Rust frontend supplies versioned input to the mathlib-independent Lean
+kernel. Optional native storage and numerical runtimes link when the checked
+entry needs them. [Compiler architecture](docs/development/architecture.md) ·
+[Wire protocols 2–9](docs/protocol.md) · [Contributor guidance](AGENTS.md)
+
+## Validation
+
+The [validation guide](docs/development/validation.md) lists Rust, kernel,
+oracle, native and CI checks. The [proof reference](docs/verification.md)
+identifies the exact accepted inputs, conclusions and assumptions.
 
 ## License
 

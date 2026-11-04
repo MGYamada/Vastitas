@@ -16,6 +16,9 @@ coordinate of `Y`.
 * `MorphismValid.bridge`: an accepted morphism over a base has canonical, normal-form images that
   respect the target's relations, and records the triangle with the structure maps.
   `pullbackHom_triangle` turns that record into an equation of algebra maps.
+* `validAffine_structure`: the stored structure map of an accepted declaration is a ring map
+  with no further hypothesis. Its images are canonical because each is the normal form of a
+  canonical binding (`validAffine_images_normal`, `validAffine_bindings_canonical`).
 -/
 
 noncomputable section
@@ -242,9 +245,8 @@ theorem pullbackHom_triangle {cs : Certificate} (hx : Verified cx) (hy : Verifie
   exact pullbackHom_compose hx hy hs hm hrm hsy hrsy
 
 /-- The stored structure map of an object over its base, with canonical images, defines a ring
-map of the presented algebras. `StructureValid` records the relation identities; canonicity of
-the stored images is checked by the kernel against the normal forms of the bindings, but not
-recorded by the Oracle, so it is a hypothesis here. -/
+map of the presented algebras: `StructureValid` records the relation identities.
+`validAffine_structure` discharges canonicity for accepted declarations. -/
 theorem structureValid_bridge {data base : AffineData} (hv : Verified data.certificate)
     (hs : VastitasOracle.AffineDeclarations.StructureValid data base)
     (hcan : ∀ g ∈ data.structureImages, Canonical data.arity g) :
@@ -253,6 +255,87 @@ theorem structureValid_bridge {data base : AffineData} (hv : Verified data.certi
   refine ⟨⟨hcan, hs.images_length⟩, fun g hg => ?_⟩
   obtain ⟨qs, hq⟩ := hs.pullback g hg
   exact hv.combination_mem hq (canonical_subst hcan g).arity
+
+open VastitasOracle.AlgebraBasis (bind_ok ensure_ok throw_not_ok) in
+/-- A successful structure check has canonical bindings. -/
+theorem checkStructure_bindings_canonical {data base : AffineData} {s s' : ℕ}
+    (h : (checkStructure data base).run s = .ok ((), s')) :
+    ∀ binding ∈ data.bindings, Canonical data.arity binding.2 := by
+  unfold checkStructure at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  obtain ⟨_, _, hcan, _⟩ := bind_ok h
+  have hall := ensure_ok hcan
+  simp only [List.all_eq_true] at hall
+  rintro ⟨name, image⟩ hb
+  exact canonical_iff.1 (hall _ hb)
+
+open VastitasOracle.AlgebraBasis (bind_ok throw_not_ok) in
+/-- An accepted declaration over a presented base has canonical bindings. -/
+theorem validAffine_bindings_canonical {env : Indexed.Environment}
+    {id implementation baseRef : Indexed.DeclId} {data base : AffineData}
+    (h : Indexed.validAffine env id implementation data = true) (hbase : data.base = some baseRef)
+    (hdata : Indexed.affineData? env baseRef = some base) :
+    ∀ binding ∈ data.bindings, Canonical data.arity binding.2 := by
+  unfold Indexed.validAffine at h
+  simp only [Bool.and_eq_true] at h
+  obtain ⟨⟨_, valid⟩, _⟩ := h
+  simp only [hbase, Option.bind, hdata] at valid
+  unfold validAffineData run at valid
+  cases result : (checkAffine data (some base)).run 0 with
+  | error e => simp [result, Except.map, Except.isOk, Except.toBool] at valid
+  | ok pair =>
+    have hc : (checkAffine data (some base)).run 0 = .ok ((), pair.2) := by simpa using result
+    unfold checkAffine at hc
+    obtain ⟨_, _, _, hc⟩ := bind_ok hc
+    obtain ⟨_, _, _, hc⟩ := bind_ok hc
+    obtain ⟨_, _, _, hc⟩ := bind_ok hc
+    rw [hbase] at hc
+    exact checkStructure_bindings_canonical hc
+
+/-- **Accepted structure images are canonical.** Every stored structure image of an accepted
+declaration is the normal form of its canonical binding (`validAffine_images_normal`), hence
+canonical (`normalForm_spec`). -/
+theorem validAffine_structureImages_canonical {env : Indexed.Environment}
+    {id implementation baseRef : Indexed.DeclId} {data base : AffineData}
+    (h : Indexed.validAffine env id implementation data = true) (hbase : data.base = some baseRef)
+    (hdata : Indexed.affineData? env baseRef = some base) :
+    ∀ g ∈ data.structureImages, Canonical data.arity g := by
+  have hv := verified_of_validAffine h
+  have hvalid := (VastitasOracle.AffineDeclarations.validAffine_sound h).2.2.1
+  have hs := (hvalid.based base (by simp [hbase, hdata])).2
+  intro g hg
+  obtain ⟨k, hk, rfl⟩ := List.getElem_of_mem hg
+  have hkb : k < base.generators.length := by
+    have := hs.images_length
+    simp only [AffineData.arity] at this
+    omega
+  have hmem : (base.generators[k], data.structureImages[k]) ∈
+      base.generators.zip data.structureImages := by
+    have := List.getElem_mem (l := base.generators.zip data.structureImages) (n := k)
+      (by simp [hk, hkb])
+    simpa [List.getElem_zip] using this
+  obtain ⟨declared, hbind, hnf⟩ :=
+    VastitasOracle.AffineDeclarations.validAffine_images_normal h hbase hdata _ hmem
+  have hdecl : Canonical data.arity declared := by
+    unfold AffineData.binding? at hbind
+    obtain ⟨b, hb, rfl⟩ := Option.map_eq_some_iff.1 hbind
+    exact validAffine_bindings_canonical h hbase hdata b (List.mem_of_find?_eq_some hb)
+  have hnf' : normalForm data.basis declared = data.structureImages[k] := hnf
+  rw [← hnf']
+  exact (normalForm_spec hv.basis_canonical hdecl).1
+
+/-- **The structure map of an accepted declaration is a ring map**, with no further hypothesis:
+its images are canonical and respect the base's relations. -/
+theorem validAffine_structure {env : Indexed.Environment}
+    {id implementation baseRef : Indexed.DeclId} {data base : AffineData}
+    (h : Indexed.validAffine env id implementation data = true) (hbase : data.base = some baseRef)
+    (hdata : Indexed.affineData? env baseRef = some base) :
+    Images data.certificate base.certificate data.structureImages ∧
+      Respects data.certificate base.certificate data.structureImages := by
+  have hvalid := (VastitasOracle.AffineDeclarations.validAffine_sound h).2.2.1
+  exact structureValid_bridge (verified_of_validAffine h)
+    (hvalid.based base (by simp [hbase, hdata])).2
+    (validAffine_structureImages_canonical h hbase hdata)
 
 end Accepted
 

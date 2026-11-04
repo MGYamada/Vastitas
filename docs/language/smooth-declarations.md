@@ -621,19 +621,23 @@ These rules apply to every call of a primitive of this chapter.
   is an error (`E_ARITY`).
 - An operand whose shape does not fit its slot is an error (`E_TYPE`). This
   covers a value that is not a family application, such as an `Int` or a
-  `Bool`, where a map, point, fiber or tape is required. It also covers a value
-  with one object index in a map slot of `smooth_compose`,
-  `cotangent_pullback`, `differential` or `linearize`, or in the tape slot of
-  `cotangent_backward`.
+  `Bool`, where a map, point, fiber or tape is required, except in the point
+  slot of `fiber_vector`. It also covers a value with one object index in a
+  map slot of `smooth_compose`, `cotangent_pullback`, `differential` or
+  `linearize`, or in the tape slot of `cotangent_backward`.
 - Any other operand from the wrong family or over the wrong object is an
   error (`E_ENDPOINT`). Examples are a `Tangent` value where a `Cotangent`
   value is required, a seed over the wrong object, and two maps whose middle
-  objects differ. For the requirements in its role table, the message names
-  the first failed requirement: the operand, and the family or object that it
-  requires and the one supplied. Families are checked before objects. Other
-  failures list the operand types instead. Examples are a point whose source
-  object is not 0-dimensional, and a covector in the point slot of
-  `fiber_vector`.
+  objects differ.
+- When every operand has the index shape that its slot expects, two object
+  indices for a map, point or tape and one for a covector or vector, and an
+  operand has the wrong family or object, the `E_ENDPOINT` message names the
+  first failed requirement: the operand, and
+  the family or object that it requires and the one supplied. Families are
+  checked before objects. Otherwise the message lists the operand types.
+  Examples are a covector in the point slot of `cotangent_pullback` or
+  `fiber_vector`, a value that is not a family application in the point slot
+  of `fiber_vector`, and a point whose source object is not 0-dimensional.
 
 For example, `pullback(g(), plane_at(3, 9), dplane(plane_at(3, 9), 1, 0))`
 pulls back a seed on `Plane` along a map to `Line`. It is rejected with:

@@ -171,7 +171,7 @@ program's object or metric as a parameter, so the standard library does not
 export a `gradient`.
 
 > **What is checked.** The checker rejects a seed, point or map over the wrong
-> object before any code is generated, and the compiler runs only programs
+> object before any code is generated, and the compiler builds only programs
 > that it has checked. The [proofs](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
 > cover the reverse pass on the checked program, the chain rule, the agreement
 > of the saved and recomputing passes, the comparison with the derivative of

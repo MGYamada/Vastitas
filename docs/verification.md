@@ -1634,3 +1634,13 @@ Stage 2's finite affine-geometry profile ([tracker](https://github.com/MGYamada/
   - the term and work budgets.
 
   `python3 scripts/affine_algebra_reference.py --check` keeps the fixture current, and `scripts/test_affine_algebra_reference.py` checks the Python model's own Buchberger, reducedness and divisor-order invariants.
+
+### Stage 2 bridge: Buchberger's criterion
+
+`lean-bridge/VastitasBridge/AlgebraicGeometry/Buchberger.lean` proves, in plain Mathlib over any field and any `MonomialOrder`, what a verified certificate means. The pinned Mathlib supplies division (`MonomialOrder.div`), `sPolynomial` and `sPolynomial_decomposition'`, but no Gröbner-basis theory. All names below are in `VastitasBridge.AlgebraicGeometry.Buchberger`, are required by `lean-bridge/Audit.lean`, and are replayed by `leanchecker`.
+
+- **Criterion (proved in general).** `isGroebnerBasis_of_sPairReduces`: suppose every S-polynomial of a finite family `g` is an exact combination `Σ qₗ gₗ` with `deg(qₗ gₗ) ≤ deg S` whenever `S ≠ 0` (`SPairReduces`). Then `g` is a Gröbner basis of the ideal it spans: some leading monomial of `g` divides the leading monomial of each nonzero ideal element (`IsGroebnerBasis`). The core lemma is `exists_isStandardRep`, and `IsGroebnerBasis.span_leadingTerm` identifies the leading-term ideal. No fallback to special bases was needed.
+- **Canonical normal forms (proved).** Modulo a Gröbner basis of `I`, let `r` be fully reduced with `f - r ∈ I` (`IsNormalForm`). Then `r` is unique (`normalForm_unique`), `f - f' ∈ I` iff the two remainders agree (`sub_mem_iff_normalForm_eq`), and `f ∈ I` iff `r = 0` (`mem_iff_normalForm_eq_zero`). `exists_isNormalForm` takes `r` from Mathlib's division.
+- **Relations (proved).** `span_eq_of_cofactors` gives ideal equality from relations that reduce to zero and from cofactor rows. `list_isGroebnerBasis_of_certificate` states the kernel certificate's shape over lists, with S-pairs only for `i < j`. `sPairReduces_of_normalized` accepts the kernel's S-polynomial, which is Mathlib's divided by both leading coefficients.
+- **Orientation.** `degLex_lt_iff_exists` and `degLex_X_lt_X`: Mathlib's `degLex` on `Fin n` also makes coordinate 0 most significant, so kernel coordinate `i` is `X i` with no reversal.
+- **Not proved here.** The correspondence between kernel `Poly` operations, `CertificateValid` and these `MvPolynomial (Fin n) ℚ` statements is a separate step of [#571](https://github.com/MGYamada/Vastitas/issues/571).

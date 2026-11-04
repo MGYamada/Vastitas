@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 
 const BASE: &str = r#"
 pub generic choose(x, y) { domain (Int, Int), (Bool, Bool); }
@@ -19,17 +18,11 @@ pub mod ops {
 "#;
 const NESTED: &str = "borrow base::outer as parent; reborrow parent via addon::inner as child; apply addon::ops::sum using child; return child; return parent;";
 
-fn package(s: &Scratch, name: &str, source: &str, dependencies: &str) {
-    s.write(&format!("{name}/Vastitas.toml"), &format!("[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"));
-    s.write(&format!("{name}/main.vast"), source);
-}
 fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     let s = Scratch::empty("edit authority");
-    package(&s, "base", base, "");
-    package(&s, "addon", addon, "base={path='../base'}");
-    package(
-        &s,
-        "app",
+    s.write_package("base", base, "");
+    s.write_package("addon", addon, "base={path='../base'}");
+    s.write_package("app",
         &format!(
             "assembly {{ {events} }} fn main() -> Int {{ base::choose(40, 2) + base::choose(true, true) }}"
         ),
@@ -47,8 +40,7 @@ fn check(s: &Scratch) -> std::process::Output {
 fn reject(s: &Scratch, code: &str) {
     let output = check(s);
     assert!(!output.status.success(), "accepted invalid authority");
-    let error = String::from_utf8_lossy(&output.stderr);
-    assert!(error.contains(code), "expected {code}: {error}");
+    common::expect_code(&output, code);
 }
 fn native(s: &Scratch, expected: &[u8]) {
     success(&check(s));
@@ -74,16 +66,12 @@ fn native(s: &Scratch, expected: &[u8]) {
 fn request(s: &Scratch) -> Value {
     // Capture the actual frontend's wire request, then use the real kernel for
     // all mutations. The stub has no acceptance authority.
-    let backend = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":9,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&backend, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = cli()
-        .current_dir(&s.0)
-        .env("VASTITAS_KERNEL", backend)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap();
-    assert!(String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"));
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(
+        cli()
+            .current_dir(&s.0)
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        9,
+    )
 }
 
 #[test]
@@ -110,9 +98,7 @@ fn authority_ir_matches_public_checker_fixture() {
     }
     relocate(&mut raw, s.0.canonicalize().unwrap().to_str().unwrap());
     let path = common::root().join("tests/fixtures/edit-recipients.json");
-    if std::env::var_os("VASTITAS_UPDATE_RECIPIENT_FIXTURE").as_deref()
-        == Some(std::ffi::OsStr::new("1"))
-    {
+    if common::regenerate_fixture("VASTITAS_UPDATE_RECIPIENT_FIXTURE") {
         std::fs::write(
             &path,
             format!("{}\n", serde_json::to_string_pretty(&raw).unwrap()),

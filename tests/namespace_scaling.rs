@@ -58,7 +58,7 @@ fn long_import_chains_preserve_static_targets_and_unused_body_checks() {
             s.write("main.vast", &(source + "fn unused() -> Int { true }\n"));
             let output = check(&s);
             assert!(!output.status.success());
-            assert!(String::from_utf8_lossy(&output.stderr).contains("E_TYPE"));
+            common::expect_code(&output, "E_TYPE");
         }
     }
 }
@@ -72,10 +72,7 @@ fn long_cycles_and_resolution_depth_still_fail_closed() {
     for (source, code) in [(cyclic, "E_CYCLE"), (source(1500, 1), "E_LIMIT")] {
         let output = check(&fixture(&source));
         assert!(!output.status.success());
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains(code),
-            "expected {code}: {output:?}"
-        );
+        common::expect_code(&output, code);
     }
 }
 
@@ -83,10 +80,8 @@ fn assert_limit(s: &Scratch, message: &str) {
     let output = check(s);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(!output.status.success(), "{stderr}");
-    assert!(
-        stderr.contains("E_LIMIT") && stderr.contains(message),
-        "{stderr}"
-    );
+    common::assert_first_code(&stderr, "E_LIMIT");
+    assert!(stderr.contains(message), "{stderr}");
 }
 
 #[test]
@@ -132,10 +127,8 @@ fn alias_queries_in_unused_functions_share_the_request_budget() {
         .output()
         .unwrap();
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        !output.status.success() && stderr.contains("E_LIMIT"),
-        "{stderr}"
-    );
+    assert!(!output.status.success(), "{stderr}");
+    common::assert_first_code(&stderr, "E_LIMIT");
     assert_eq!(std::fs::read(previous).unwrap(), b"previous output");
 }
 

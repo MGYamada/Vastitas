@@ -67,7 +67,8 @@ leakage into kernel/Oracle, unpinned/redirected dependencies and Lake overrides.
 `.github/workflows/lean-bridge.yml` builds and checks this package independently,
 using only the Mathlib cache needed by its imports. `lean-bridge/Audit.lean`
 requires the principal theorem names to exist and audits the transitive axiom
-dependencies of every declaration in `VastitasBridge`; only `propext`,
+dependencies of every declaration defined in a `VastitasBridge` module,
+selected by defining module so private names are included; only `propext`,
 `Classical.choice` and `Quot.sound` are allowed. Official `leanchecker` replays
 the bridge modules against their imported environment. This is not a separate
 verifier or a fresh replay of all imported Mathlib declarations. No public

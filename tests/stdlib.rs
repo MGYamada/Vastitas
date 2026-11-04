@@ -22,6 +22,9 @@ fn failure(output: &Output, expected: &str) -> String {
         !output.status.success(),
         "unexpected successful compilation"
     );
+    if expected.starts_with("E_") {
+        return common::expect_diagnostic(output, expected);
+    }
     let error = String::from_utf8_lossy(&output.stderr).into_owned();
     assert!(error.contains(expected), "expected {expected:?}: {error}");
     error

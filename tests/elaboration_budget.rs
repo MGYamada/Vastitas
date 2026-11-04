@@ -59,7 +59,7 @@ fn expanded_body_work_is_bounded_for_check_emit_and_native_build() {
         let result = command.output().unwrap();
         assert!(!result.status.success());
         let message = String::from_utf8_lossy(&result.stderr);
-        assert!(message.contains("E_LIMIT"), "{message}");
+        common::assert_first_code(&message, "E_LIMIT");
         assert!(message.contains("program-wide elaboration"), "{message}");
     }
     assert_eq!(fs::read_to_string(output).unwrap(), "previous artifact");
@@ -104,7 +104,7 @@ fn unapplied_and_applied_bodies_share_the_preparation_budget() {
             !result.status.success(),
             "accepted {ordinary_lets}/{unused_lets}"
         );
-        assert!(message.contains("E_LIMIT"), "{message}");
+        common::assert_first_code(&message, "E_LIMIT");
         assert!(message.contains("program-wide elaboration"), "{message}");
     }
 }

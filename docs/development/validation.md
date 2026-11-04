@@ -15,7 +15,13 @@ To build the separate proof oracle:
 lake -d lean build VastitasOracle
 (cd lean && lake env lean ../scripts/audit_axioms.lean)
 (cd lean && lake env lean ../scripts/check_oracle_core.lean)
+(cd lean && lake env leanchecker VastitasOracle && lake env leanchecker VastitasKernel)
 ```
+
+The last line replays every built Oracle and kernel module with the official
+`leanchecker` against its imported environment, as CI does. It is not an
+independent verifier, and it also reads stale `.olean` files left in `.lake`
+by renamed modules, so run it on a clean build.
 
 Both Lean packages pin Lean v4.35.0. The oracle manifest contains only the
 local kernel; Mathlib and its transitive packages are forbidden in both packages.

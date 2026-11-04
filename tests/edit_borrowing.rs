@@ -13,16 +13,11 @@ const ADDON: &str =
 const EVENTS: &str =
     "borrow base::integers as edit; apply addon::sum using edit; return edit; seal base::choose;";
 
-fn package(s: &Scratch, name: &str, source: &str, dependencies: &str) {
-    s.write(&format!("{name}/Vastitas.toml"), &format!("[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"));
-    s.write(&format!("{name}/main.vast"), source);
-}
 fn fixture(base: &str, addon: &str, events: &str) -> Scratch {
     let s = Scratch::empty("edit borrowing");
-    package(&s, "base", base, "");
-    package(&s, "addon", addon, "base={path='../base'}");
-    package(
-        &s,
+    s.write_package("base", base, "");
+    s.write_package("addon", addon, "base={path='../base'}");
+    s.write_package(
         "app",
         &format!("assembly {{ {events} }} fn main() -> Int {{ base::choose(40, 2) }}"),
         "base={path='../base'}\naddon={path='../addon'}\ndiamond={path='../addon'}",
@@ -39,8 +34,7 @@ fn check(s: &Scratch) -> std::process::Output {
 fn rejects(s: &Scratch, code: &str) {
     let output = check(s);
     assert!(!output.status.success(), "accepted {code}");
-    let error = String::from_utf8_lossy(&output.stderr);
-    assert!(error.contains(code), "expected {code}: {error}");
+    common::expect_code(&output, code);
 }
 
 #[test]
@@ -196,7 +190,7 @@ fn exact_module_root_placement_and_selected_closure_are_required() {
     s.write("addon/main.vast", &format!("{ADDON} assembly {{ }}"));
     rejects(&s, "E_ASSEMBLY");
     let s = fixture(BASE, ADDON, EVENTS);
-    package(&s, "unselected", "fn f() -> Int { 0 }", "");
+    s.write_package("unselected", "fn f() -> Int { 0 }", "");
     s.write("base/main.vast", &BASE.replace("to addon", "to unselected"));
     rejects(&s, "E_OWNER");
     let s = fixture(BASE, ADDON, EVENTS);

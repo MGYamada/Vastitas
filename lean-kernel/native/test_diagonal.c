@@ -1,5 +1,8 @@
 #include "diagonal.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "these regressions are assert() checks; build without NDEBUG"
+#endif
 #include <stdio.h>
 #include <string.h>
 

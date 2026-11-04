@@ -6,6 +6,14 @@ on:
     branches: [main]
     paths:
       - 'experiments/public_gemm/**'
+      - 'src/**'
+      - 'build.rs'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'lean-toolchain'
+      - 'lean-kernel/**'
+      - 'scripts/build_openblas.py'
       - 'experiments/plain_c/**'
       - 'experiments/native_cleanup.py'
       - 'scripts/native_sanitizers.py'

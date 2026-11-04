@@ -14,6 +14,15 @@ int openblas_get_parallel(void) { return PARALLEL; }
 """
 
 
+class BuildEnvironmentTests(unittest.TestCase):
+    def test_make_variables_are_not_inherited(self):
+        inherited = {name: "1" for name in ("NO_AVX2", "NO_AVX512", "NUM_THREADS", "BUFFERSIZE", "LDFLAGS",
+                                            "CPPFLAGS", "CFLAGS", "MAKEFLAGS", "TARGET", "USE_OPENMP",
+                                            "INTERFACE64", "USE_THREAD", "DYNAMIC_ARCH", "FC")}
+        kept = {"PATH": "/usr/bin", "HOME": "/home/ci", "TMPDIR": "/tmp", "CC": "clang"}
+        self.assertEqual(build_openblas.build_environment({**inherited, **kept}), kept)
+
+
 @unittest.skipUnless(shutil.which("cc") and shutil.which("ar"), "requires a C compiler and archiver")
 class ProfileCheckTests(unittest.TestCase):
     def setUp(self):

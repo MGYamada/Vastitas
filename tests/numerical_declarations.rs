@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 
 const PROFILES: &str =
     include_str!("../examples/packages/numerical-declarations/src/profiles/mod.vast");
@@ -29,28 +28,18 @@ fn check(s: &Scratch) -> std::process::Output {
 }
 
 fn request(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let result = cli()
-        .current_dir(&s.0)
-        .env("VASTITAS_KERNEL", stub)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_CAPTURED"),
-        "{result:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(
+        cli()
+            .current_dir(&s.0)
+            .args(["check", "--manifest-path", "Vastitas.toml"]),
+        8,
+    )
 }
 
 fn rejects(source: &str, code: &str) {
     let output = check(&fixture(source));
     assert!(!output.status.success(), "accepted {source}");
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains(code),
-        "{output:?}"
-    );
+    common::expect_code(&output, code);
 }
 
 #[test]
@@ -76,10 +65,7 @@ fn declared_numerical_profiles_compose_with_pure_check_build_and_execution() {
     );
     let output = check(&s);
     assert!(!output.status.success());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_TYPE"),
-        "{output:?}"
-    );
+    common::expect_code(&output, "E_TYPE");
 }
 
 #[test]
@@ -92,9 +78,7 @@ fn numerical_declarations_require_version_eight_without_any_resource_function() 
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
-        let rejected = kernel(changed, "emit");
-        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
-        assert!(rejected.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
     }
 }
 
@@ -199,10 +183,7 @@ fn base_path_obeys_module_visibility_and_kind_even_when_unused() {
     s.write("src/main.vast", "mod profiles; indexed implementation Bad(profiles::RealCoefficients, linear_descriptor(profiles::SmoothBase, real)) capabilities(); fn main() -> Int { 0 }");
     let output = check(&s);
     assert!(!output.status.success());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_VISIBILITY"),
-        "{output:?}"
-    );
+    common::expect_code(&output, "E_VISIBILITY");
     rejects(
         &PROFILES.replace(
             "linear_descriptor(SmoothBase, real)",

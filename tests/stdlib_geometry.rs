@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 
 const LIBRARY: &[(&str, &str)] = &[
     ("mod.vast", include_str!("../stdlib/src/geometry/mod.vast")),
@@ -54,10 +53,7 @@ fn check(s: &Scratch) -> std::process::Output {
 fn reject(source: &str, code: &str) {
     let result = check(&fixture(source, str::to_owned));
     assert!(!result.status.success(), "accepted {source}");
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains(code),
-        "{result:?}"
-    );
+    common::expect_code(&result, code);
 }
 
 fn native(s: &Scratch) {
@@ -452,10 +448,7 @@ fn opened_objects_do_not_export_dependent_fields_or_merge_identities() {
                 }
                 let output = command.output().unwrap();
                 assert!(!output.status.success(), "accepted {source}");
-                assert!(
-                    String::from_utf8_lossy(&output.stderr).contains(code),
-                    "{output:?}"
-                );
+                common::expect_code(&output, code);
                 assert_eq!(
                     std::fs::read(s.0.join("program")).unwrap(),
                     b"preserve this output"
@@ -520,10 +513,7 @@ fn copying_the_library_package_does_not_copy_its_nominal_identity() {
     s.write("app/Vastitas.toml", &manifest);
     let result = check(&s);
     assert!(!result.status.success());
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_TYPE"),
-        "{result:?}"
-    );
+    common::expect_code(&result, "E_TYPE");
 }
 
 #[test]
@@ -569,10 +559,7 @@ fn classification_does_not_manufacture_missing_implementation_capabilities() {
             !result.status.success(),
             "accepted incomplete implementation: {capabilities}"
         );
-        assert!(
-            String::from_utf8_lossy(&result.stderr).contains("E_TYPE"),
-            "{result:?}"
-        );
+        common::expect_code(&result, "E_TYPE");
     }
 }
 
@@ -625,22 +612,12 @@ fn original_arithmetic_entrypoint_still_accepts_legacy_geometry() {
 }
 
 fn captured_wire(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > wire.json\nprintf '%s\\n' '{\"version\":7,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = cli()
-        .current_dir(&s.0)
-        .env("VASTITAS_KERNEL", stub)
-        .args(["check", "--manifest-path", "app/Vastitas.toml"])
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    let original: Value =
-        serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap();
-    assert_eq!(original["version"], 7);
-    original
+    common::captured_wire(
+        cli()
+            .current_dir(&s.0)
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        7,
+    )
 }
 
 #[test]
@@ -661,11 +638,11 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
         .iter()
         .position(|m| m["path"] == json!(["scheme"]))
         .unwrap();
-    for mutation in [
-        "private module",
-        "wrong base",
-        "forged owner",
-        "missing capability",
+    for (mutation, code) in [
+        ("private module", "E_VISIBILITY"),
+        ("wrong base", "E_TYPE"),
+        ("forged owner", "E_PROTOCOL"),
+        ("missing capability", "E_TYPE"),
     ] {
         let mut raw = original.clone();
         let module = &mut raw["packages"][geo]["modules"][scheme];
@@ -693,9 +670,7 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
             }
         }
         for mode in ["check", "emit"] {
-            let result = kernel(&raw, mode);
-            assert_eq!(result["ok"], false, "{mutation}/{mode}: {result}");
-            assert!(result.get("lean_source").is_none(), "{result}");
+            common::assert_wire_rejected(&kernel(&raw, mode), code);
         }
     }
 }
@@ -711,14 +686,14 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
         .iter()
         .position(|p| p["name"] == "vastitas_geometry")
         .unwrap();
-    for mutation in [
-        "missing profile",
-        "wrong base",
-        "wrong origin",
-        "same marker",
-        "wrong point",
-        "unknown field",
-        "null profile",
+    for (mutation, code) in [
+        ("missing profile", "E_TYPE"),
+        ("wrong base", "E_TYPE"),
+        ("wrong origin", "E_TYPE"),
+        ("same marker", "E_TYPE"),
+        ("wrong point", "E_TYPE"),
+        ("unknown field", "E_PROTOCOL"),
+        ("null profile", "E_PROTOCOL"),
     ] {
         let mut raw = original.clone();
         let package = &mut raw["packages"][geo];
@@ -741,9 +716,7 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
             _ => package["geometry_compat"] = Value::Null,
         }
         for mode in ["check", "emit"] {
-            let output = kernel(&raw, mode);
-            assert_eq!(output["ok"], false, "{mutation}/{mode}: {output}");
-            assert!(output.get("lean_source").is_none());
+            common::assert_wire_rejected(&kernel(&raw, mode), code);
         }
     }
     for version in 3..=6 {
@@ -761,7 +734,7 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
             }
         }
         let output = kernel(&raw, "emit");
-        assert_eq!(output["ok"], false, "downgrade {version}: {output}");
+        common::assert_wire_rejected(&output, "E_PROTOCOL");
         assert!(
             output["diagnostics"][0]["message"]
                 .as_str()
@@ -772,5 +745,5 @@ fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
     }
     let mut flat = common::request("fn main() -> Int { 42 }", "flat.vast");
     flat["geometry_compat"] = original["packages"][geo]["geometry_compat"].clone();
-    assert_eq!(kernel(&flat, "emit")["ok"], false);
+    common::assert_wire_rejected(&kernel(&flat, "emit"), "E_PROTOCOL");
 }

@@ -31,6 +31,83 @@ class _Token(NamedTuple):
     is_name: bool
 
 
+def _skip_char(source, position):
+    """Skip a Lean character literal such as `'a'`, `'\\''` or `'\\u{22}'`.
+
+    A quote that does not start a well-formed literal is rejected: otherwise
+    `'"'` would open a fake string that conceals the following tokens.
+    """
+    start = position
+    position += 1
+    if source.startswith("\\u{", position):
+        end = source.find("}", position)
+        position = len(source) if end < 0 else end + 1
+    elif source.startswith("\\x", position):
+        position += 4
+    elif source.startswith("\\", position):
+        position += 2
+    else:
+        position += 1
+    if not source.startswith("'", position) or "\n" in source[start:position]:
+        raise ValueError("unsupported Lean character literal")
+    return position + 1
+
+
+def _skip_string(source, position, line):
+    """Skip a string literal, including `s!` interpolations and nested strings.
+
+    Raw strings (`r"..."`, `r#"..."#`) are rejected rather than interpreted.
+    """
+    prefix = position
+    while prefix > 0 and source[prefix - 1] == "#":
+        prefix -= 1
+    if prefix > 0 and source[prefix - 1] == "r" and (
+            prefix == 1 or not (source[prefix - 2].isalnum() or source[prefix - 2] in "_'.")):
+        raise ValueError("unsupported Lean raw string")
+    interpolated = position > 0 and source[position - 1] == "!"
+    position += 1
+    while True:
+        if position >= len(source):
+            raise ValueError("unterminated Lean string")
+        character = source[position]
+        if character == '"':
+            return position + 1, line
+        if character == "\\":
+            line += source[position + 1:position + 2] == "\n"
+            position += 2
+            continue
+        if interpolated and character == "{":
+            position, line = _skip_interpolation(source, position + 1, line)
+            continue
+        line += character == "\n"
+        position += 1
+
+
+def _skip_interpolation(source, position, line):
+    """Skip a `{term}` inside an interpolated string, through its closing brace."""
+    depth = 1
+    while True:
+        if position >= len(source):
+            raise ValueError("unterminated Lean string interpolation")
+        character = source[position]
+        if character == '"':
+            position, line = _skip_string(source, position, line)
+        elif character == "'" and not (position > 0 and (source[position - 1].isalnum()
+                                                          or source[position - 1] in "_'")):
+            position = _skip_char(source, position)
+        elif character == "{":
+            depth += 1
+            position += 1
+        elif character == "}":
+            depth -= 1
+            position += 1
+            if depth == 0:
+                return position, line
+        else:
+            line += character == "\n"
+            position += 1
+
+
 def _header_tokens(source):
     """Lazily tokenize the header, skipping nested and line comments.
 
@@ -66,16 +143,13 @@ def _header_tokens(source):
             continue
         if source[position] == '"':
             start, start_line = position, line
-            position += 1
-            while position < len(source) and source[position] != '"':
-                line += source[position] == "\n"
-                if source[position] == "\\":
-                    position += 1
-                position += 1
-            if position >= len(source):
-                raise ValueError("unterminated Lean string")
-            position += 1
+            position, line = _skip_string(source, position, line)
             yield _Token(source[start:position], start_line, False)
+            continue
+        if source[position] == "'":
+            start = position
+            position = _skip_char(source, position)
+            yield _Token(source[start:position], line, False)
             continue
         match = _NAME.match(source, position)
         if match:
@@ -225,7 +299,8 @@ def check_executable_lake_dependencies(package, label, required, errors):
 
     These two trusted executable configs use one-line literal requirements.
     Reject unsupported forms instead of guessing at computed dependency paths.
-    Comments and strings cannot manufacture or conceal a require token.
+    Comments, strings, interpolations and character literals cannot manufacture
+    or conceal a require token.
     """
     try:
         lines = {}

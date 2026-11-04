@@ -1,6 +1,9 @@
 /* Observe explicit byte-copy operations in a private translation unit. This
  * checks block coalescing, not generated instruction counts or elapsed time. */
 #include <assert.h>
+#ifdef NDEBUG
+#error "these regressions are assert() checks; build without NDEBUG"
+#endif
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>

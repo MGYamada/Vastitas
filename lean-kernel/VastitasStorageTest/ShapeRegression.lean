@@ -6,7 +6,7 @@ namespace VastitasKernel.Storage.ShapeRegression
 private def ensure (label : String) (condition : Bool) : IO Unit :=
   unless condition do throw (IO.userError s!"runtime shapes: {label}")
 
-private def get (label : String) (result : Except Error α) : IO α :=
+private def get {α : Type} (label : String) (result : Except Error α) : IO α :=
   match result with
   | .ok value => pure value
   | .error problem => throw (IO.userError s!"runtime shapes: {label}: {repr problem}")

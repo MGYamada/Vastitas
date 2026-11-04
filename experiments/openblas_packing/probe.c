@@ -2,6 +2,9 @@
  * checks both transformations, complete input/padding preservation and output.
  * This does not grant public source authority or measure operation timings. */
 #include <assert.h>
+#ifdef NDEBUG
+#error "the probe checks its calls inside assert(); build without NDEBUG"
+#endif
 #include <cblas.h>
 #include <inttypes.h>
 #include <stdint.h>

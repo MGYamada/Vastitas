@@ -27,16 +27,15 @@ fn bounded(command: &mut Command) -> Output {
     child.wait_with_output().unwrap()
 }
 
-fn reject(s: &Scratch, args: &[&str], code: &str) -> String {
+#[track_caller]
+fn reject(s: &Scratch, args: &[&str], expected: &str) -> String {
     let output = bounded(
         cli()
             .current_dir(&s.0)
             .args(args)
             .env("VASTITAS_KERNEL", s.0.join("absent backend")),
     );
-    assert!(!output.status.success());
-    let error = String::from_utf8(output.stderr).unwrap();
-    assert!(error.contains(code), "{error}");
+    let error = common::expect_diagnostic(&output, expected);
     assert!(
         !error.contains("E_BACKEND"),
         "validation reached the backend: {error}"
@@ -143,11 +142,12 @@ fn reused_source_bytes_are_charged_for_each_logical_module() {
     for name in ["b.vast", "c.vast", "d.vast"] {
         symlink("a.vast", s.0.join(name)).unwrap();
     }
-    reject(
+    let error = reject(
         &s,
         &["check", "--manifest-path", "Vastitas.toml"],
-        "64 MiB compilation input budget",
+        "E_LIMIT",
     );
+    assert!(error.contains("64 MiB compilation input budget"), "{error}");
 }
 
 #[test]
@@ -176,5 +176,33 @@ fn symlink_module_fanout_is_bounded_across_the_package_closure() {
         &s,
         &["check", "--manifest-path", "Vastitas.toml"],
         "E_LIMIT: package closure exceeds 4096 logical modules",
+    );
+}
+
+// #557: the 8,192-input-file bound is exact and is enforced before the backend.
+#[test]
+fn input_file_count_is_bounded_before_the_backend() {
+    let s = Scratch::empty("input count");
+    s.write("main.vast", "fn main() -> Int { 42 }");
+    for index in 0..8192 {
+        s.write(&format!("libs/l{index}.vast"), "");
+    }
+    let arguments = |libraries: usize| {
+        let mut arguments = vec!["check".to_string(), "main.vast".to_string()];
+        for index in 0..libraries {
+            arguments.push("--lib".into());
+            arguments.push(format!("libs/l{index}.vast"));
+        }
+        arguments
+    };
+    // main.vast plus 8,191 libraries is exactly the bound.
+    let accepted = bounded(cli().current_dir(&s.0).args(arguments(8191)));
+    common::success(&accepted);
+    let over = arguments(8192);
+    let over: Vec<&str> = over.iter().map(String::as_str).collect();
+    let error = reject(&s, &over, "E_LIMIT");
+    assert!(
+        error.contains("compilation inputs exceed 8192 files"),
+        "{error}"
     );
 }

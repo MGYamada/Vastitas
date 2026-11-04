@@ -3,8 +3,8 @@
 This experiment extends the measurement conventions of
 [`storage_copy`](../storage_copy/README.md) to **public protocol 8** after #321.
 It adds no production API, performance threshold or package gate. A separate
-Linux smoke workflow validates changes to this experiment on both push and
-pull_request, and can also be dispatched manually. It does not close #222,
+Linux smoke workflow validates changes to this experiment on pushes to `main`,
+and can also be dispatched manually. It does not close #222,
 establish Stage 1 completion, prove native
 refinement, or establish general C/C++ performance equivalence.
 
@@ -46,7 +46,7 @@ All thread environment variables are set to one and the adapter rejects a
 non-sequential/incorrect-version/ILP64 backend. Actual backend configuration,
 parallel mode and thread count are also printed by native validation.
 
-The dedicated workflow keeps push and pull-request runs on `smoke`. Manual
+The dedicated workflow keeps `main` push runs on `smoke`. Manual
 dispatch accepts `profile=full` to execute all 24 cases with 12 three-arm groups
 per scope and a 5 ms calibration target, including the bulk dimensions. For
 example, select the reviewed revision explicitly:

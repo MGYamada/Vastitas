@@ -297,8 +297,8 @@ calls, not shortcut internals or all backend traffic. There are no operation
 timings, hardware-traffic measurements, whole-process peaks or controlled-host
 acceptance claims.
 
-The source-cost CI uses the schema-4 extension below on macOS and Linux for both push
-and pull_request. Superseded runs are cancelled within each event/branch; the
+The source-cost CI uses the schema-4 extension below on macOS and Linux for pull
+requests and pushes to `main`. Superseded runs are cancelled within each event/branch; the
 two current event runs remain independent. Retained schema-1/2 replay and mutation
 tests continue to run alongside the new address/route/footprint regressions.
 

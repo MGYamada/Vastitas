@@ -49,9 +49,8 @@ python3 experiments/tensor_packing/run.py \
   --samples 12 --target-ms 5
 ```
 
-The dedicated Linux workflow runs four-case smoke validation on both `push`
-and `pull_request` for changes to the harness and its selected native/checker
-dependencies. Manual dispatch accepts `profile=smoke` (default) or `profile=full`;
+The dedicated Linux workflow runs four-case smoke validation on pushes to `main`
+for changes to the harness and its selected native/checker dependencies. Manual dispatch accepts `profile=smoke` (default) or `profile=full`;
 the latter uses all twelve cases, twelve three-arm groups and the 5 ms target.
 Both retain ASan/UBSan/LSan, one backend thread and a 45-minute job limit.
 The target applies during calibration, not as a guarantee that later batches

@@ -159,10 +159,6 @@ fn affine_source_rejections_are_specific() {
             "E_AFFINE_COORDINATE",
         ),
         (
-            "indexed affine Bad(AffineQQ) = spec[e] relations(frac(1, 0)) over SpecQQ;",
-            "E_AFFINE_COORDINATE",
-        ),
-        (
             "indexed affine Bad(AffineQQ) = spec[e] relations(e^17) over SpecQQ;",
             "E_LIMIT",
         ),
@@ -194,6 +190,24 @@ fn affine_source_rejections_are_specific() {
         )),
         "E_LIMIT",
     );
+    // `frac(` is a fraction literal with its own diagnostics, even where
+    // `frac` is also a coordinate (#599).
+    for generator in ["e", "frac"] {
+        let relation = |relation: &str| {
+            with(&format!(
+                "indexed affine Bad(AffineQQ) = spec[{generator}] relations({relation}) over SpecQQ;"
+            ))
+        };
+        rejects(&relation("frac(1, 0)"), "E_AFFINE_COORDINATE");
+        let missing = rejects(&relation("frac(1)"), "E_PARSE");
+        assert!(missing.contains("expected `,`, found `)`"), "{missing}");
+        let inexact = rejects(&relation("frac(1.5, 2)"), "E_PARSE");
+        assert!(
+            inexact.contains("expected an unsigned decimal literal"),
+            "{inexact}"
+        );
+        rejects(&relation(&format!("frac({digits}, 2)")), "E_LIMIT");
+    }
     let nested = format!("{}e{}", "(".repeat(70), ")".repeat(70));
     rejects(
         &with(&format!(
@@ -211,6 +225,67 @@ fn degree_and_digit_boundaries_are_accepted() {
     success(&check(&fixture(&with(&format!(
         "indexed affine Edge(AffineQQ) = spec[e] relations(e^16 - {digits} * e + frac(-3, 7)) over SpecQQ;"
     )))));
+}
+
+/// #599: `frac` begins a fraction literal only when `(` follows it; otherwise
+/// it is a coordinate, unqualified or qualified.
+#[test]
+fn coordinates_named_frac_are_not_fraction_literals() {
+    // A same-length control name keeps every span equal, so the captured
+    // control wire with only the coordinate renamed is the expected request.
+    let minimal = |name: &str| {
+        format!(
+            "mod profile;\nuse profile::AffineQQ;\nuse profile::SpecQQ;\nindexed affine A(AffineQQ) = spec[{name}] relations({name}^2) over SpecQQ;\nfn main() -> Int {{ 0 }}\n"
+        )
+    };
+    let parsed = request(&fixture(&minimal("frac")));
+    let mut raw = request(&fixture(&minimal("trac")));
+    let a = declaration_pointer(&raw, "A");
+    *raw.pointer_mut(&format!("{a}/generators/0")).unwrap() = json!("frac");
+    *raw.pointer_mut(&format!("{a}/relations/0/base/name"))
+        .unwrap() = json!("frac");
+    assert_eq!(parsed.pointer(&a), raw.pointer(&a));
+    let expected = kernel(&raw, "emit");
+    assert_eq!(expected["ok"], true, "{expected}");
+    assert_eq!(kernel(&parsed, "emit"), expected);
+
+    // In pullback images: beside fraction literals, qualified by a factor
+    // (`Q::frac`) and as a factor name (`frac::t`).
+    let s = fixture(&with(
+        "indexed affine Q(AffineQQ) = spec[frac] relations(frac^2) over SpecQQ;\n\
+         indexed morphism toD: Over<Q, D, SpecQQ> = pullback(e -> frac);\n\
+         indexed morphism toLine: Over<Q, Line, SpecQQ> = pullback(t -> frac(1, 2) * frac + frac(-3, 4));\n\
+         indexed affine QL(AffineQQ) = fiber(Q, Line);\n\
+         indexed morphism fromQL: Over<QL, D, SpecQQ> = pullback(e -> Q::frac);\n\
+         indexed affine frac(AffineQQ) = spec[t] over SpecQQ;\n\
+         indexed affine FP(AffineQQ) = fiber(frac, Line);\n\
+         indexed morphism fromFP: Over<FP, Line, SpecQQ> = pullback(t -> frac::t * Line::t);",
+    ));
+    success(&check(&s));
+    let raw = request(&s);
+    let coordinate = |name: &str| json!({"op": "coordinate", "name": name});
+    let fraction = |numerator: &str, denominator: &str| json!({"op": "fraction", "numerator": numerator, "denominator": denominator});
+    for (morphism, image) in [
+        ("toD", coordinate("frac")),
+        (
+            "toLine",
+            json!({"op": "sum", "terms": [
+                {"op": "product", "factors": [fraction("1", "2"), coordinate("frac")]},
+                fraction("-3", "4"),
+            ]}),
+        ),
+        ("fromQL", coordinate("Q::frac")),
+        (
+            "fromFP",
+            json!({"op": "product", "factors": [coordinate("frac::t"), coordinate("Line::t")]}),
+        ),
+    ] {
+        let path = format!(
+            "{}/definition/images/0/image",
+            declaration_pointer(&raw, morphism)
+        );
+        assert_eq!(raw.pointer(&path), Some(&image), "{morphism}");
+    }
 }
 
 #[test]
@@ -346,6 +421,57 @@ fn morphism_declarations_reject_relation_variance_base_and_type_errors() {
         "fn bad() -> Bool { same(compose(toS(), toX()), p()) }",
     ] {
         rejects(&with(body), "E_ENDPOINT");
+    }
+}
+
+#[test]
+fn rejected_relative_primitives_name_the_disagreeing_objects() {
+    let extra = "indexed morphism overQQ: Over<X, X, SpecQQ> = identity;\nindexed primitive view = relative_view(Over, S, SpecQQ);";
+    success(&check(&fixture(&with(&format!(
+        "{extra}\nfn good() -> Bool {{ same(view(toX()), compose(overQQ(), view(toX()))) && same(lift(toX(), toOrigin()), lift(toX(), toOrigin())) }}"
+    )))));
+    for (body, message) in [
+        // Both the middle object and the base disagree; the middle is reported.
+        (
+            "same(compose(toX(), p()), p())",
+            "compose requires a second map with target DS (the first map's source), but the supplied second map has target Line",
+        ),
+        (
+            "same(compose(toS(), overQQ()), toS())",
+            "compose requires a second map with base S (the first map's base), but the supplied second map has base SpecQQ",
+        ),
+        (
+            "same(view(p()), p())",
+            "view requires a map with base S (the view's source base), but the supplied map has base SpecQQ",
+        ),
+        (
+            "same(p(), sq())",
+            "same requires a second map with source D (the first map's source), but the supplied second map has source Line",
+        ),
+        (
+            "same(lift(prX(), toOrigin()), lift(prX(), toOrigin()))",
+            "lift requires a second map with source Fiber (the first map's source), but the supplied second map has source DS",
+        ),
+        (
+            "same(lift(toX(), toX()), lift(toX(), toX()))",
+            "lift requires a second map with target Origin (the fiber's second factor), but the supplied second map has target X",
+        ),
+        (
+            "pair_first(eps(sq())) == 1",
+            "eps requires a map with source D (the primitive's declared source), but the supplied map has source Line",
+        ),
+    ] {
+        let stderr = rejects(
+            &with(&format!("{extra}\nfn bad() -> Bool {{ {body} }}")),
+            "E_ENDPOINT",
+        );
+        let (_, primary) = stderr
+            .lines()
+            .next()
+            .unwrap()
+            .split_once(": E_ENDPOINT: ")
+            .unwrap();
+        assert_eq!(primary, message, "{body}: {stderr}");
     }
 }
 

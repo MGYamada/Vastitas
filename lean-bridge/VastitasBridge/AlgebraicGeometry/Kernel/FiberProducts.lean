@@ -17,10 +17,15 @@ The kernel presents `L ×_B R` with `L`'s coordinates, then `R`'s, both bases, a
   - `isoTensor`: the presentation is isomorphic to `A ⊗[R] B`.
 * `pairHom_X` and `specMap_pair`: the kernel's `pair` concatenates image lists, and its `Spec`
   morphism is `pullback.lift` of the two factors.
+* `pullbackHom_identity`, `pullbackHom_inverse` and `equivOfImages`: kernel maps that compose to
+  the kernel's identity both ways are inverse isomorphisms of presented algebras.
+  `isoValid_bridge` applies this to a base isomorphism that the kernel's `checkIso` accepted.
 * `certificate_of_checkConstruction`: an accepted fiber declaration has exactly this
   presentation.
-* `Fiber.accepted`: in a valid environment, an accepted fiber over a common declared base is a
-  pullback of schemes, with every hypothesis coming from acceptance.
+* `Fiber.accepted`: in a valid environment, an accepted fiber is a pullback of schemes, with every
+  hypothesis coming from acceptance. This holds over a common declared base and through a chosen
+  base isomorphism (`via`). In the `via` case, the right structure map is the right factor's own
+  structure map followed by the isomorphism.
 -/
 
 noncomputable section
@@ -31,6 +36,78 @@ open VastitasKernel VastitasKernel.AlgebraRuntime VastitasKernel.AlgebraBasis
 open VastitasKernel.AlgebraDeclarations
 open MvPolynomial _root_.AlgebraicGeometry CategoryTheory
 open scoped TensorProduct
+
+/-! ## Chosen base isomorphisms -/
+
+/-- The kernel's identity images define the identity algebra map. -/
+theorem pullbackHom_identity {c : Certificate} (hc : Verified c) {images : List Poly}
+    (h : Images c c images) (hr : Respects c c images)
+    (hid : images = (Map.identity c.arity c.basis).images) :
+    pullbackHom c c images hc h hr = AlgHom.id ℚ (Presented c) := by
+  apply Ideal.Quotient.algHom_ext
+  rw [pullbackHom_comp_mkₐ]
+  apply MvPolynomial.algHom_ext
+  intro i
+  have hget : images.getD i [] = normalForm c.basis (Poly.var c.arity i) := by
+    simp [hid, Map.identity, List.getD_eq_getElem?_getD]
+  rw [evalHom, aeval_X, hget, hc.mk_normalForm canonical_var, mk, toMv_var i.isLt, AlgHom.comp_apply,
+    AlgHom.id_apply, Ideal.Quotient.mkₐ_eq_mk]
+
+/-- **Mutually inverse kernel maps are inverse ring maps.** Suppose two image lists respect the
+relations both ways, and their kernel composites are the kernel's identity both ways. Then their
+algebra maps are inverse to each other. -/
+theorem pullbackHom_inverse {cb cb' : Certificate} (hb : Verified cb) (hb' : Verified cb')
+    {forward inverse : List Poly} (hf : Images cb' cb forward) (hrf : Respects cb' cb forward)
+    (hi : Images cb cb' inverse) (hri : Respects cb cb' inverse)
+    (there : composeImages cb' forward inverse = (Map.identity cb'.arity cb'.basis).images)
+    (back : composeImages cb inverse forward = (Map.identity cb.arity cb.basis).images) :
+    (pullbackHom cb' cb forward hb hf hrf).comp (pullbackHom cb cb' inverse hb' hi hri) =
+        AlgHom.id ℚ (Presented cb') ∧
+      (pullbackHom cb cb' inverse hb' hi hri).comp (pullbackHom cb' cb forward hb hf hrf) =
+        AlgHom.id ℚ (Presented cb) := by
+  constructor
+  · rw [← pullbackHom_compose hb' hb hb' hf hrf hi hri]
+    exact pullbackHom_identity hb' _ _ there
+  · rw [← pullbackHom_compose hb hb' hb hi hri hf hrf]
+    exact pullbackHom_identity hb _ _ back
+
+/-- The isomorphism of presented algebras given by mutually inverse kernel maps. -/
+def equivOfImages {cb cb' : Certificate} (hb : Verified cb) (hb' : Verified cb')
+    {forward inverse : List Poly} (hf : Images cb' cb forward) (hrf : Respects cb' cb forward)
+    (hi : Images cb cb' inverse) (hri : Respects cb cb' inverse)
+    (there : composeImages cb' forward inverse = (Map.identity cb'.arity cb'.basis).images)
+    (back : composeImages cb inverse forward = (Map.identity cb.arity cb.basis).images) :
+    Presented cb ≃ₐ[ℚ] Presented cb' :=
+  AlgEquiv.ofAlgHom (pullbackHom cb' cb forward hb hf hrf) (pullbackHom cb cb' inverse hb' hi hri)
+    (pullbackHom_inverse hb hb' hf hrf hi hri there back).1
+    (pullbackHom_inverse hb hb' hf hrf hi hri there back).2
+
+/-- **An accepted base isomorphism is an isomorphism of presented algebras.** The facts that
+the Oracle's `checkIso_sound` records give two ring maps, and they are inverse to each other. -/
+theorem isoValid_bridge {b b' : AffineData} {forward inverse : List Poly}
+    (hb : Verified b.certificate) (hb' : Verified b'.certificate)
+    (hiso : VastitasOracle.AffineFibers.IsoValid b b' forward inverse) :
+    ∃ (hf : Images b'.certificate b.certificate forward)
+      (hrf : Respects b'.certificate b.certificate forward)
+      (hi : Images b.certificate b'.certificate inverse)
+      (hri : Respects b.certificate b'.certificate inverse),
+      (pullbackHom _ _ forward hb hf hrf).comp (pullbackHom _ _ inverse hb' hi hri) =
+          AlgHom.id ℚ (Presented b'.certificate) ∧
+        (pullbackHom _ _ inverse hb' hi hri).comp (pullbackHom _ _ forward hb hf hrf) =
+          AlgHom.id ℚ (Presented b.certificate) := by
+  have hf : Images b'.certificate b.certificate forward :=
+    ⟨fun g hg => canonical_iff.1 (hiso.forward_canonical g hg), hiso.forward_length⟩
+  have hi : Images b.certificate b'.certificate inverse :=
+    ⟨fun g hg => canonical_iff.1 (hiso.inverse_canonical g hg), hiso.inverse_length⟩
+  have hrf : Respects b'.certificate b.certificate forward := fun g hg => by
+    obtain ⟨qs, hq⟩ := hiso.forward_relations g hg
+    exact hb'.combination_mem hq (canonical_subst hf.canonical g).arity
+  have hri : Respects b.certificate b'.certificate inverse := fun g hg => by
+    obtain ⟨qs, hq⟩ := hiso.inverse_relations g hg
+    exact hb.combination_mem hq (canonical_subst hi.canonical g).arity
+  exact ⟨hf, hrf, hi, hri, pullbackHom_inverse hb hb' hf hrf hi hri hiso.there hiso.back⟩
+
+/-! ## Maps out of presented algebras -/
 
 /-- A ring map out of a presented algebra is evaluation at the images of the coordinates. -/
 lemma eval₂_presented {c : Certificate} {S : Type*} [CommRing S] (χ : Presented c →+* S)
@@ -402,7 +479,9 @@ end Universal
 
 /-- **An accepted fiber product is this presentation.** If the kernel's `checkConstruction`
 accepts a fiber declaration, its certificate is the fiber presentation of its resolved factors
-(`Fiber.rels`, in `l.arity + r.arity` coordinates), so its presented algebra is `Fiber.F`. -/
+(`Fiber.rels`, in `l.arity + r.arity` coordinates), so its presented algebra is `Fiber.F`. With a
+chosen base isomorphism, the right factor's declared base `b'` resolves, and the isomorphism
+between `b` and `b'` satisfies the Oracle's `IsoValid`. -/
 theorem certificate_of_checkConstruction {data : AffineData}
     {resolve : Namespace.Owner → Option AffineData} {left right : Namespace.Owner}
     {via : Option (List Poly × List Poly)} {relations : List Poly} {s s' : ℕ}
@@ -412,7 +491,9 @@ theorem certificate_of_checkConstruction {data : AffineData}
       l.base = some baseRef ∧ resolve baseRef = some b ∧
       (via = none → r.base = some baseRef ∧ rightImages = r.structureImages) ∧
       (∀ forward inverse, via = some (forward, inverse) →
-        rightImages = forward.map (Poly.subst r.arity r.structureImages)) ∧
+        ∃ baseRef' b', r.base = some baseRef' ∧ resolve baseRef' = some b' ∧
+          VastitasOracle.AffineFibers.IsoValid b b' forward inverse ∧
+          rightImages = forward.map (Poly.subst r.arity r.structureImages)) ∧
       data.certificate = ⟨l.arity + r.arity,
         rels l.certificate r.certificate l.structureImages rightImages, data.basis,
         data.cofactors⟩ := by
@@ -427,43 +508,85 @@ theorem certificate_of_checkConstruction {data : AffineData}
   simp only [AffineData.certificate, harity, hrels]
 
 /-- **Accepted fiber products are pullbacks, unconditionally.** In a valid environment, an
-accepted `fiber(L, R)` declaration over a common declared base `B` has exactly the fiber
-presentation of `L` and `R`, and its `Spec` is a pullback of the structure morphisms. All the
-hypotheses of `isPullback` (verified factors and base, canonical structure images respecting the
-base's relations) come from acceptance. -/
+accepted `fiber(L, R)` declaration has exactly the fiber presentation of `L` and `R` over the left
+factor's base `B`, and its `Spec` is a pullback of the structure morphisms. All the hypotheses of
+`isPullback` (verified factors and base, canonical structure images respecting the base's
+relations) come from acceptance.
+
+Without `via`, both factors have the declared base `B`, and the right structure map is `R`'s own.
+With `via(forward) inverse(inverse)`, `R` has a declared base `B'`. The two image lists are
+inverse ring maps between `B` and `B'`, and the right structure map is `R → B'` followed by
+`B' ≅ B`. -/
 theorem accepted {env : Indexed.Environment} (henv : env.Valid) {id implementation : Indexed.DeclId}
-    {data : AffineData} {left right : Namespace.Owner} {relations : List Poly}
-    (h : Indexed.validAffine env id implementation data = true)
-    (hc : data.construction = .fiber left right none relations) :
-    ∃ l r baseRef b, Indexed.affineData? env left = some l ∧
-      Indexed.affineData? env right = some r ∧ l.base = some baseRef ∧ r.base = some baseRef ∧
+    {data : AffineData} {left right : Namespace.Owner} {via : Option (List Poly × List Poly)}
+    {relations : List Poly} (h : Indexed.validAffine env id implementation data = true)
+    (hc : data.construction = .fiber left right via relations) :
+    ∃ l r baseRef b rightImages, Indexed.affineData? env left = some l ∧
+      Indexed.affineData? env right = some r ∧ l.base = some baseRef ∧
       Indexed.affineData? env baseRef = some b ∧
+      (via = none → r.base = some baseRef ∧ rightImages = r.structureImages) ∧
       data.certificate = ⟨l.arity + r.arity,
-        rels l.certificate r.certificate l.structureImages r.structureImages, data.basis,
+        rels l.certificate r.certificate l.structureImages rightImages, data.basis,
         data.cofactors⟩ ∧
       ∃ (hl : Verified l.certificate) (hr : Verified r.certificate) (hb : Verified b.certificate)
         (hsl : Images l.certificate b.certificate l.structureImages)
         (hrl : Respects l.certificate b.certificate l.structureImages)
-        (hsr : Images r.certificate b.certificate r.structureImages)
-        (hrr : Respects r.certificate b.certificate r.structureImages),
-        IsPullback (Spec.map (CommRingCat.ofHom (inl l.structureImages r.structureImages hl)))
-          (Spec.map (CommRingCat.ofHom (inr l.structureImages r.structureImages hr)))
+        (hsr : Images r.certificate b.certificate rightImages)
+        (hrr : Respects r.certificate b.certificate rightImages),
+        IsPullback (Spec.map (CommRingCat.ofHom (inl l.structureImages rightImages hl)))
+          (Spec.map (CommRingCat.ofHom (inr l.structureImages rightImages hr)))
           (Spec.map (CommRingCat.ofHom (phiL hb hsl hrl)))
-          (Spec.map (CommRingCat.ofHom (phiR hb hsr hrr))) := by
+          (Spec.map (CommRingCat.ofHom (phiR hb hsr hrr))) ∧
+        ∀ forward inverse, via = some (forward, inverse) →
+          ∃ baseRef' b', r.base = some baseRef' ∧ Indexed.affineData? env baseRef' = some b' ∧
+            rightImages = forward.map (Poly.subst r.arity r.structureImages) ∧
+            ∃ (hb' : Verified b'.certificate)
+              (hsr' : Images r.certificate b'.certificate r.structureImages)
+              (hrr' : Respects r.certificate b'.certificate r.structureImages)
+              (hf : Images b'.certificate b.certificate forward)
+              (hrf : Respects b'.certificate b.certificate forward)
+              (hi : Images b.certificate b'.certificate inverse)
+              (hri : Respects b.certificate b'.certificate inverse),
+              (pullbackHom _ _ forward hb hf hrf).comp (pullbackHom _ _ inverse hb' hi hri) =
+                  AlgHom.id ℚ (Presented b'.certificate) ∧
+                (pullbackHom _ _ inverse hb' hi hri).comp (pullbackHom _ _ forward hb hf hrf) =
+                  AlgHom.id ℚ (Presented b.certificate) ∧
+                pullbackHom _ _ rightImages hb hsr hrr =
+                  (pullbackHom _ _ r.structureImages hb' hsr' hrr').comp
+                    (pullbackHom _ _ forward hb hf hrf) := by
   have hcons := (VastitasOracle.AffineDeclarations.validAffine_sound h).2.2.2
   obtain ⟨_, hrun⟩ := VastitasOracle.AffineMorphisms.run_isOk hcons
-  obtain ⟨l, r, baseRef, b, rightImages, hlx, hrx, hlbase, hbx, hnone, -, hcert⟩ :=
+  obtain ⟨l, r, baseRef, b, rightImages, hlx, hrx, hlbase, hbx, hnone, hsome, hcert⟩ :=
     certificate_of_checkConstruction hc hrun
-  obtain ⟨hrbase, rfl⟩ := hnone rfl
   obtain ⟨limpl, hlv⟩ := validAffine_of_affineData henv hlx
   obtain ⟨rimpl, hrv⟩ := validAffine_of_affineData henv hrx
   have hl := verified_of_validAffine hlv
   have hr := verified_of_validAffine hrv
   have hb := verified_of_affineData henv hbx
   obtain ⟨hsl, hrl⟩ := validAffine_structure hlv hlbase hbx
-  obtain ⟨hsr, hrr⟩ := validAffine_structure hrv hrbase hbx
-  exact ⟨l, r, baseRef, b, hlx, hrx, hlbase, hrbase, hbx, hcert, hl, hr, hb, hsl, hrl, hsr, hrr,
-    isPullback hl hr hb hsl hrl hsr hrr⟩
+  refine ⟨l, r, baseRef, b, rightImages, hlx, hrx, hlbase, hbx, hnone, hcert, ?_⟩
+  cases via with
+  | none =>
+    obtain ⟨hrbase, rfl⟩ := hnone rfl
+    obtain ⟨hsr, hrr⟩ := validAffine_structure hrv hrbase hbx
+    exact ⟨hl, hr, hb, hsl, hrl, hsr, hrr, isPullback hl hr hb hsl hrl hsr hrr,
+      fun _ _ absurd => by cases absurd⟩
+  | some pair =>
+    obtain ⟨forward, inverse⟩ := pair
+    obtain ⟨baseRef', b', hrbase, hb'x, hiso, rfl⟩ := hsome forward inverse rfl
+    have hb' := verified_of_affineData henv hb'x
+    obtain ⟨hsr', hrr'⟩ := validAffine_structure hrv hrbase hb'x
+    obtain ⟨hf, hrf, hi, hri, hthere, hback⟩ := isoValid_bridge hb hb' hiso
+    have hsr : Images r.certificate b.certificate
+        (forward.map (Poly.subst r.arity r.structureImages)) := Images.subst hsr' hf
+    have hrr : Respects r.certificate b.certificate
+        (forward.map (Poly.subst r.arity r.structureImages)) :=
+      Respects.subst hb' hb hsr' hrr' hf hrf
+    refine ⟨hl, hr, hb, hsl, hrl, hsr, hrr, isPullback hl hr hb hsl hrl hsr hrr, ?_⟩
+    intro forward' inverse' same
+    cases same
+    exact ⟨baseRef', b', hrbase, hb'x, rfl, hb', hsr', hrr', hf, hrf, hi, hri, hthere, hback,
+      pullbackHom_subst hb' hb hsr' hrr' hf hrf⟩
 
 end Fiber
 

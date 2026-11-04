@@ -55,7 +55,7 @@ from `scripts/check_kernel_regressions.sh`. Rust tests are in
 | **A — exact algebra** | `AlgebraRuntime.lean` (degLex `Poly`, division, `Map`), `AlgebraBasis.lean` (budgeted Buchberger with cofactors, independent `verify`, budgeted `substitute`/`reduce`/`compose`) | `VastitasAlgebraTest/BasisRegression.lean` against the independent model `scripts/affine_algebra_reference.py` and `tests/fixtures/algebra-bases.json`; `degree_and_digit_boundaries_are_accepted`; budget cases in `AffineMorphismRegression` | `AlgebraBasis.verify_sound`, `certify_sound` (`CertificateValid`); `substitute_ok`, `reduce_ok`, `compose_ok`, `divide_ok` (a successful budgeted run equals the unbudgeted result) |
 | **O — objects and bases** | `AlgebraDeclarations.lean`, `Indexed.lean` (`presentedAffine`, `structural`, base chains), `IndexedAlgebraSource.lean` | `AffineDeclarationRegression`; `affine_example_checks_builds_and_executes`, `structural_applications_follow_declared_base_chains`, `affine_source_rejections_are_specific` | `AffineDeclarations.validAffine_sound`, `checkAffine_sound`, `chainOf_spec`, `structural_holds`, `presented_not_descriptor`, `sealed_families_exclude_presented` |
 | **M — morphisms over a base** | `IndexedPrimitives.lean` (`relativeConstant`, `relativeCompose`, `relativeView`, `relativeEqual`, `relativeCoefficient`, `relativeIntPoint`), `IndexedSemantics.lean`, `IndexedCodegen.lean` | `AffineMorphismRegression`; `morphism_declarations_reject_relation_variance_base_and_type_errors`, `mutated_observations_change_the_native_result` | `AffineMorphisms.relativeConstant_sound` (`MorphismValid`), `checkRelations_ok`, `checkTriangle_ok`, `compose_images`, `view_requires_chain`, `same_iff`; `IndexedSemantics.relativeConstant_total` … `relativeIntPoint_total`, `primitive_total_and_typed`, `primitive_runtime_erasure` |
-| **F — fiber products and evidence** | `Construction.fiber`, `fiberPresentation`, `checkIso`; `relativePair`, `relativeIso`, `relativeCartesian` | `AffineFiberRegression`; `fiber_products_reject_unchosen_bases_non_isomorphisms_and_forged_squares`, `fiber_and_evidence_records_reject_forged_wire` | `AffineFibers.checkConstruction_fiber`, `cartesian_sound`, `composesTo_sound`; `IndexedSemantics.relativePair_total` |
+| **F — fiber products and evidence** | `Construction.fiber`, `fiberPresentation`, `checkIso`; `relativePair`, `relativeIso`, `relativeCartesian` | `AffineFiberRegression`; `fiber_products_reject_unchosen_bases_non_isomorphisms_and_forged_squares`, `fiber_and_evidence_records_reject_forged_wire` | `AffineFibers.checkConstruction_fiber`, `checkIso_sound`, `cartesian_sound`, `composesTo_sound`; `IndexedSemantics.relativePair_total` |
 | **P — principal opens** | `Construction.localization`, `localizationPresentation`, `restrict` | `AffineOpenRegression`; `principal_opens_and_restrictions_reject_non_preimages_and_non_isomorphisms` | `AffineFibers.checkConstruction_localization` |
 | **W — wire and protocol** | `IndexedDeclarationProtocol.lean`, `ResourceProtocol.lean` (algebraic forms gated by protocol 9), `src/indexed.rs`, `src/frontend/indexed_parser.rs`, `src/packages.rs` | `affine_forms_select_protocol_nine_and_older_envelopes_reject_them`, `raw_wire_rejects_forged_affine_records`, `relative_forms_reject_downgrade_and_forged_wire`, `fiber_and_evidence_records_reject_forged_wire` | Tested only: raw-wire rejection is not a theorem |
 | **L — standard library** | `stdlib/src/geometry/scheme/affine/mod.vast` | `tests/stdlib_geometry.rs`: `presented_affine_geometry_is_usable_from_the_library` and the protocol-9 captures | Uses the same checker as application code |
@@ -74,10 +74,11 @@ The bridge proves what the kernel's identities mean in mathlib:
   - `verify_normalForm_eq_iff` and `verify_mem_iff`: equal normal forms exactly when two polynomials are congruent modulo the relations, and ideal membership exactly when the normal form is zero.
 - **S8b (proved).** About kernel data that `verify`, `checkAffine` and `checkConstruction` accepted:
   - *Presentations:* `toMv_subst` (kernel substitution is `aeval`), `Presented`, `Verified.normalForm_eq_iff`, `verified_of_validAffine`.
-  - *Morphisms:* `pullbackHom` (the `AlgHom`), `pullbackHom_compose` and `specMap_compose` (#362), `images_eq_iff` (`same` decides equality of ring maps), `MorphismValid.bridge`, `pullbackHom_triangle`.
+  - *Morphisms:* `pullbackHom` (the `AlgHom`), `pullbackHom_compose` and `specMap_compose` (#362), `pullbackHom_subst` (the same composite without reduction), `images_eq_iff` (`same` decides equality of ring maps), `MorphismValid.bridge`, `pullbackHom_triangle`.
   - *Dual numbers:* ε ≠ 0 and ε² = 0 in `ℚ[e]/(e²)` (`relationIdeal_dual`), `p_ne_q`, `closedPoint_comp`, `spec_base_eq`.
   - *Principal opens:* `equivAway` (`Localization.Away f`), `range_comap_toL` (image `D(f)`), `specMap_preimage_basicOpen`.
   - *Fiber products:* `Fiber.isPushout`, `Fiber.isPullback`, `isoTensor` (`A ⊗[R] B`), `specMap_pair` (`pair` is `pullback.lift`).
+  - *Base isomorphisms:* `isoValid_bridge` turns the facts of an accepted `checkIso` (`IsoValid`) into inverse ring maps (`pullbackHom_inverse`). `equivOfImages` is the resulting `AlgEquiv`.
   - `certificate_of_checkConstruction`: accepted fibers and principal opens have exactly these presentations.
 
 ## Acceptance conditions
@@ -98,8 +99,8 @@ distinct failure code, so a wrong result changes the output
 | 6. The triangle `structure ∘ toX = structure` over S | **Tested** (M): the example's `same(compose(toS(), toX()), dsToS())`; forged triangles rejected in `AffineMorphismRegression`. **Proved (oracle)**: `relativeConstant_sound`, whose `MorphismValid` includes the commuting triangle with both stored structure maps. **Proved (bridge)**: `pullbackHom_triangle`. |
 | 7. Principal opens D(f) = Spec A[u]/(uf − 1) and `restrict(φ)` give A_f → B_φ(f) | **Tested** (P): D(t), `restrict(t ↦ t²)` with u ↦ v, the open inclusion, the #104 transition D(x) ≅ D(y) and D(0) as the zero ring, in `AffineOpenRegression` and the example. **Proved (oracle)**: `checkConstruction_localization`. **Proved (bridge)**: `equivAway`, `range_comap_toL` and `specMap_preimage_basicOpen`; `PrincipalOpen.accepted` for accepted declarations. |
 | 8. Rejections | **Tested**, each with its specific code:<br>• diagrams over separately declared bases, and `fiber(X, Origin2)` without an isomorphism: `E_AFFINE_BASE`;<br>• swapped variance and foreign coordinates: `E_AFFINE_COORDINATE`;<br>• relation violations and forged inverses: `E_AFFINE_RELATION`;<br>• missing structure maps: `E_AFFINE_BASE`;<br>• base mismatches in types: `E_TYPE`;<br>• Stage 1 `Scheme` and `CInfScheme` objects as `Over` indices: `E_TYPE` (`presented_affine_geometry_is_usable_from_the_library`);<br>• algebraic forms in protocol 7 or 8: `E_PROTOCOL`;<br>• forged Core and wire: the tampered cases in every affine regression and the raw-wire tests;<br>• limits: 16/17 generators, degree 16/17 and 32/33 relations, and the work budget, including substitutions whose expansions are huge: `E_LIMIT`. |
-| 9. Accepted comparison: `fiber(X, Origin2) via(t -> t) inverse(t -> t)` | **Tested** (F): `Fiber2` in the example and `AffineFiberRegression`, with a non-isomorphic base map rejected. **Proved (oracle)**: `checkConstruction_fiber`, including the composed right structure images. **Proved (bridge)**: `certificate_of_checkConstruction`. |
-| 10. Non-regression of the two-index `Morphism`/`same_base` and `GeometryProfile` contracts | **Proved (oracle)**: `presented_not_descriptor` and `sealed_families_exclude_presented`; the `GeometryCompatibility` theorems still hold. **Tested**: every pre-existing test, including the stdlib geometry suite, which now runs on protocol 9. |
+| 9. Accepted comparison: `fiber(X, Origin2) via(t -> t) inverse(t -> t)` | **Tested** (F): `Fiber2` in the example and `AffineFiberRegression`, with a non-isomorphic base map rejected. **Proved (oracle)**: `checkConstruction_fiber`, including the composed right structure images, and `checkIso_sound` for the chosen isomorphism. **Proved (bridge)**: `certificate_of_checkConstruction`; `isoValid_bridge` (the chosen maps are inverse ring isomorphisms); `Fiber.accepted` (the fiber is a pullback through the isomorphism). |
+| 10. Non-regression of the two-index `Morphism`/`same_base` and `GeometryProfile` contracts | **Proved (oracle)**: `presented_not_descriptor` and `sealed_families_exclude_presented`; the `GeometryCompatibility` theorems still hold. **Tested**: every pre-existing test, including the stdlib geometry suite, which runs on protocol 9. |
 
 ## Proof boundary
 
@@ -110,13 +111,14 @@ distinct failure code, so a wrong result changes the output
   - Successful budgeted operations equal the pure ones.
   - Accepted certificates satisfy their cofactor identities and reduce every
     relation and S-pair to zero.
-  - The new primitives are total and typed, and erase to the runtime.
+  - The Stage 2 primitives are total and typed, and erase to the runtime.
   - Two-index non-regression.
 - **Proved (bridge).** S7, S8a and S8b above. The normal forms the kernel
   compares are canonical in `MvPolynomial (Fin n) ℚ`, so exact equality of
   stored images is equality in the presented ring.
-- **Bridge hypotheses discharged.** The bridge now takes the oracle fact and
-  no longer assumes canonical structure images for accepted declarations.
+- **Bridge hypotheses discharged.** The bridge takes these facts from the
+  oracle. It assumes neither canonical structure images nor the facts of a
+  chosen base isomorphism for accepted declarations.
   - `validAffine_structure` turns an accepted structure map into a ring map.
     The oracle's `validAffine_images_normal` shows that each stored image is
     the normal form of its binding. `validAffine_bindings_canonical` shows that
@@ -125,10 +127,16 @@ distinct failure code, so a wrong result changes the output
   - In a valid environment, `Fiber.accepted` and `PrincipalOpen.accepted`
     derive every hypothesis of the fiber and principal-open theorems from
     acceptance alone.
-  - **Still a hypothesis:** the `via` case of row 9. Its right structure map
-    is composed with the chosen base isomorphism, and the oracle does not
-    record `checkIso`'s facts. So `Fiber.isPullback` takes that map's
-    `Images` and `Respects` as hypotheses.
+  - This includes the `via` case of row 9. The oracle's `checkIso_sound`
+    records the facts that `checkIso` checks. The forward and inverse images
+    each respect the relations. They compose to the identity both ways.
+    `checkConstruction_fiber` exposes these facts for `via` fibers.
+  - `isoValid_bridge` turns these facts into inverse ring maps between the
+    two declared bases.
+  - The right structure map of a `via` fiber is the right factor's structure
+    map followed by the isomorphism (`pullbackHom_subst`).
+  - `Images.subst` and `Respects.subst` derive that map's `Images` and
+    `Respects` from acceptance. `Fiber.accepted` covers both cases.
 - **Tested only.**
   - Raw-wire rejection of protocols 7 and 8.
   - Parser fidelity.

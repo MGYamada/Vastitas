@@ -1056,7 +1056,14 @@ impl Parser {
             self.expect(")")?;
             return Ok(inner);
         }
-        if self.peek().is("frac") {
+        // `frac(` starts a fraction literal; any other `frac` is a coordinate,
+        // as in `frac^2` or `frac::t`.
+        if self.peek().is("frac")
+            && self
+                .tokens
+                .get(self.position + 1)
+                .is_some_and(|next| next.is("("))
+        {
             self.advance();
             self.expect("(")?;
             let negative = self.consume("-");

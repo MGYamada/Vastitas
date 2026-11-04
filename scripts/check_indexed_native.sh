@@ -12,17 +12,35 @@ lake build \
   VastitasKernel.IndexedFunctionRegression \
   VastitasKernel.IndexedDispatchRegression \
   VastitasKernel.IndexedAuthorityRegression \
+  VastitasKernel.SmoothObjectRegression \
   VastitasKernel.IndexedCodegen \
-  VastitasKernel.IndexedRuntime:c.o
+  VastitasKernel.IndexedRuntime:c.o \
+  VastitasKernel.AlgebraRuntime:c.o \
+  VastitasKernel.SmoothRuntime:c.o
 lake env lean --run ../scripts/check_indexed_codegen.lean "$work"
 
-# Each worker links only its own generated module and the shared runtime object.
+# Each worker links its own generated module with only the runtime objects that
+# module imports. SmoothRuntime imports AlgebraRuntime, so it also links it.
 lake env xargs -n 2 -P 4 bash -euc '
   work=$1
   fixture=$2
   expected=$3
+  runtime=.lake/build/ir/VastitasKernel
+  objects=("$runtime/IndexedRuntime.c.o.export")
+  smooth=false
+  if grep -q "^import VastitasKernel.SmoothRuntime$" "$work/$fixture.lean"; then smooth=true; fi
+  if $smooth || grep -q "^import VastitasKernel.AlgebraRuntime$" "$work/$fixture.lean"; then
+    objects+=("$runtime/AlgebraRuntime.c.o.export")
+  fi
+  if $smooth; then objects+=("$runtime/SmoothRuntime.c.o.export"); fi
+  case "$fixture:${#objects[@]}" in
+    smooth_*:3) ;;
+    smooth_*:*) echo "$fixture: expected the algebra and smooth runtimes" >&2; exit 1 ;;
+    *:1) ;;
+    *) echo "$fixture: a descriptor fixture imports an exact runtime" >&2; exit 1 ;;
+  esac
   lean -R "$work" -c "$work/$fixture.c" "$work/$fixture.lean"
-  leanc "$work/$fixture.c" .lake/build/ir/VastitasKernel/IndexedRuntime.c.o.export -o "$work/$fixture"
+  leanc "$work/$fixture.c" "${objects[@]}" -o "$work/$fixture"
   actual=$("$work/$fixture")
   if [[ "$actual" != "$expected" ]]; then
     echo "$fixture: expected $expected, got $actual" >&2
@@ -52,5 +70,6 @@ authority 42
 authority_transfer 42
 authority_repaired 42
 authority_empty 5
+smooth_programs 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

@@ -1,13 +1,15 @@
 import VastitasKernel.IndexedTypeAudit
 
 /-! Native lowering of the independently audited declaration-driven Core.
-Generated modules import only IndexedRuntime. Names and representation choices
-come from numeric positions and validated contracts, never source spellings. -/
+Generated modules import IndexedRuntime, and AlgebraRuntime or SmoothRuntime
+only when they use them. Names and representation choices come from numeric
+positions and validated contracts, never source spellings. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
 
 private def runtime (name : String) : String := "VastitasKernel.IndexedRuntime." ++ name
 private def algebra (name : String) : String := "VastitasKernel.AlgebraRuntime." ++ name
+private def smooth (name : String) : String := "VastitasKernel.SmoothRuntime." ++ name
 
 /-- Exact rational literals of the checked map data; no source spelling is used. -/
 private def renderRat (value : Rat) : String := s!"(mkRat ({value.num} : Int) {value.den})"
@@ -48,7 +50,7 @@ private def renderType (env : Declarations) : DataType → Except String String
   | .indexed application => match lookup env.indexed application.family with
     | some (.family family) => .ok (match family.representation with
         | .token => "Unit" | .point => runtime "Point" | .morphism => runtime "Morphism"
-        | .relative => algebra "Map")
+        | .relative => algebra "Map" | .smooth => smooth "Program")
     | _ => .error "indexed family missing from checked declarations"
   | .package application => do
       let some entry := (packageCases env).zipIdx.find? fun entry => entry.1.1 == application
@@ -77,6 +79,12 @@ private def renderPrimitive (env : Declarations) (binding : PrimitiveBinding) (a
   | .relativePair .., [left, right] => .ok (application (algebra "Map.pair") [left, right])
   | .relativeIntPoint .., coordinates =>
       .ok (application (algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"])
+  | .smoothConstant _ map, [] => .ok (application (smooth "Program.primitive") [renderMap env map])
+  | .smoothCompose _, [after, before] => .ok (application (smooth "Program.compose") [after, before])
+  | .smoothEqual _, [left, right] => .ok (application (smooth "same") [left, right])
+  | .smoothIntPoint .., coordinates =>
+      .ok (application (smooth "intPoint") [s!"[{String.intercalate ", " coordinates}]"])
+  | .smoothComposite _, [program] => .ok (application (smooth "composite") [program])
   | _, _ => .error "closed primitive arity mismatch"
 
 private def renderBinary (operator : BinaryOp) (left right : String) : String :=
@@ -151,10 +159,12 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     renderPackage module.declarations entry.2 index
   let functions ← (module.functions.filter (fun function => reachable.contains function.id)).mapM
     (renderFunction module.declarations)
-  -- Only programs that use exact algebra import its runtime.
+  -- Only programs that use exact algebra or smooth programs import those runtimes.
   let usesAlgebra := (packages ++ functions).any fun text => (text.splitOn (algebra "")).length > 1
+  let usesSmooth := (packages ++ functions).any fun text => (text.splitOn (smooth "")).length > 1
   let imports := "import VastitasKernel.IndexedRuntime\n" ++
-    (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "")
+    (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "") ++
+    (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "")
   let basisDefinitions := if usesAlgebra then
       (bases module.declarations).zipIdx.map fun (basis, index) =>
         s!"def {basisName index} : List {algebra "Poly"} :=\n  {renderPolys basis}\n"

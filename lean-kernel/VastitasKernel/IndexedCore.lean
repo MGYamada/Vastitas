@@ -74,6 +74,15 @@ inductive DataType where
   | package (application : Application)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- The type that an integer literal takes as operand `position` of a primitive:
+`Nat` for a descriptor's dimension and `Int` for a coordinate of a rational
+point. Other operands give no hint. -/
+def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint :
+    PrimitiveBinding → Nat → Option DataType
+  | .descriptor _, _ => some (.pure .nat)
+  | .relativeIntPoint .., _ | .smoothIntPoint .., _ => some (.pure .int)
+  | _, _ => none
+
 def DataType.Valid (env : Declarations) : DataType → Prop
   | .pure _ => True
   | .object type => type.Valid env.indexed

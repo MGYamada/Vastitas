@@ -15,6 +15,7 @@ fn main() {
         ("packageNesting", "MAX_PACKAGE_NESTING"),
         ("algebraNesting", "MAX_ALGEBRA_NESTING"),
         ("algebraCoefficientDigits", "MAX_ALGEBRA_DIGITS"),
+        ("algebraGenerators", "MAX_ALGEBRA_GENERATORS"),
     ] {
         let value = limits[key]
             .as_u64()

@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedSemantics
 import VastitasOracle.IndexedCore
 import VastitasOracle.IndexedPrimitives
+import VastitasOracle.SmoothPrimitives
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
 primitive registry. These lemmas do not yet prove whole-term typed evaluation,
@@ -59,6 +60,7 @@ theorem indexed_of_worldExtends {env : Indexed.Environment} {before after : Worl
   · intro ref member
     obtain ⟨object, denotes⟩ := typed ref member
     exact ⟨object, denotes_of_worldExtends extension denotes⟩
+  · exact typed
   · contradiction
 
 theorem value_of_worldExtends {env : Declarations} {before after : World}
@@ -514,6 +516,15 @@ theorem relativePair_total {env : Indexed.Environment} {world : World} {family f
   · exact global_refs_denote valid member global
   · exact leftDenotes _ (by simp [Application.refs])
 
+/-- A smooth primitive leaves the world unchanged. -/
+theorem smooth_outcome {env : Indexed.Environment} {world : World} {binding : PrimitiveBinding}
+    {values : List Value} {output : ValueType}
+    (unchanged : ∀ value, primitiveWorld world binding output value = world)
+    (outcome : SmoothPrimitives.SmoothOutcome env world binding values output) :
+    PrimitiveOutcome env world binding values output := by
+  obtain ⟨value, evaluated, typed⟩ := outcome
+  exact ⟨world, value, evaluated, worldExtends_refl world, typed, (unchanged value).symm⟩
+
 /-- Every accepted registry operation has a typed runtime value. The only
 world mutation is allocation of a fresh local object brand. Whole-term proofs
 must establish that freshness from the module's allocation audit. -/
@@ -540,6 +551,11 @@ theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {b
     | exact relativeCoefficient_total rule typed
     | exact relativeIntPoint_total rule typed
     | exact relativePair_total rule typed
+    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothConstant_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothCompose_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothEqual_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothIntPoint_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothComposite_total rule typed)
     | contradiction
 
 
@@ -593,6 +609,7 @@ theorem global_object_descriptor {env : Indexed.Environment} {id : DeclId} {obje
       cases declaration <;> simp [globalObject, entry, Declaration.objectImplementation?] at computed
       case global implementation => cases computed; rfl
       case affine implementation data => cases computed; rfl
+      case smoothAffine implementation coordinates => cases computed; rfl
 
 theorem integers_erase : ∀ {values : List Value} {coordinates : List Int},
     values.mapM Value.integer? = some coordinates →
@@ -674,6 +691,15 @@ theorem primitive_runtime_erasure {env : Indexed.Environment} {binding : Primiti
   · cases evaluated
     exact ⟨_, _, rfl, rfl, rfl⟩
   · exact intPoint_erasure evaluated
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · exact SmoothPrimitives.smoothPoint_erasure evaluated
   · cases evaluated
     exact ⟨_, _, rfl, rfl, rfl⟩
   · contradiction

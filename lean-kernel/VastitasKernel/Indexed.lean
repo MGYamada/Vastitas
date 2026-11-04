@@ -19,12 +19,15 @@ inductive GeometricSetting where
 
 /-- This is a backend representation, not an assertion of geometric axioms.
 `presentedAffine` objects are canonical declarations of presented exact
-algebras (Stage 2); they never satisfy descriptor-based contracts. -/
+algebras (Stage 2); they never satisfy descriptor-based contracts.
+`smoothAffine` objects are canonical declarations of the smooth real affine
+spaces `ℝⁿ` (Stage 3). They are disjoint from both other kinds of object. -/
 inductive Representation where
   | affineDescriptor
   | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
   | linearDescriptor (base : DeclId) (coefficient : CoefficientKind)
   | presentedAffine (field : AlgebraDeclarations.ExactField)
+  | smoothAffine
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The finite descriptor backend implements these two operations. Declaring a
@@ -40,20 +43,24 @@ inductive Parameter where
 
 /-- `structural object base` holds when both indices are canonical presented
 affine objects and `base` lies on the declared base chain of `object`. It
-compares object identities, never coefficient markers. -/
+compares object identities, never coefficient markers. `canonical object`
+holds when the index is a declared smooth object. It consults no chain. -/
 inductive Constraint where
   | sameObject (left right : Nat)
   | sameBase (left right : Nat)
   | over (object marker : Nat)
   | structural (object base : Nat)
+  | canonical (object : Nat)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- An indexed token retains every index, even when its runtime representation
 is empty. Endpoint representations are sealed and require an explicit contract.
 `relative` is the sealed three-index `MorphismOver(X, Y, S)` of presented
-objects (Stage 2); its runtime value is an exact pullback map. -/
+objects (Stage 2); its runtime value is an exact pullback map. `smooth` is the
+sealed two-index `Smooth(X, Y)` of smooth objects (Stage 3); its runtime value
+is a `SmoothRuntime.Program`. -/
 inductive FamilyRepresentation where
-  | token | point | morphism | relative
+  | token | point | morphism | relative | smooth
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -70,12 +77,14 @@ inductive Declaration where
   | global (implementation : DeclId)
   | family (contract : Family)
   | affine (implementation : DeclId) (data : AlgebraDeclarations.AffineData)
+  /-- The smooth real affine space with these coordinates, `Affine(n)[c₁, …, cₙ]`. -/
+  | smoothAffine (implementation : DeclId) (coordinates : List String)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
-/-- The implementation of a canonical global object: a descriptor global or a
-presented affine declaration. -/
+/-- The implementation of a canonical global object: a descriptor global, a
+presented affine declaration or a smooth affine declaration. -/
 def Declaration.objectImplementation? : Declaration → Option DeclId
-  | .global impl | .affine impl _ => some impl
+  | .global impl | .affine impl _ | .smoothAffine impl _ => some impl
   | _ => none
 
 structure Entry where
@@ -108,6 +117,21 @@ def affineData? (env : Environment) (id : DeclId) : Option AlgebraDeclarations.A
   match lookup env id with
   | some (.affine _ data) => some data
   | _ => none
+
+def smoothImplementation (env : Environment) (id : DeclId) : Bool :=
+  match lookup env id with
+  | some (.implementation _ .smoothAffine _) => true
+  | _ => false
+
+/-- The coordinates of a declared smooth object. -/
+def smoothCoordinates? (env : Environment) (id : DeclId) : Option (List String) :=
+  match lookup env id with
+  | some (.smoothAffine _ coordinates) => some coordinates
+  | _ => none
+
+/-- The dimension of a declared smooth object. -/
+def smoothDimension? (env : Environment) (id : DeclId) : Option Nat :=
+  (smoothCoordinates? env id).map List.length
 
 /-- The declared base chain `[id, base id, …]`, or `none` when it leaves the
 presented objects, is cyclic or exceeds `fuel`. -/
@@ -159,6 +183,7 @@ def scalarBaseProfile (env : Environment) (base : DeclId) :
 
 def Representation.coefficient : Representation → Option CoefficientKind
   | .affineDescriptor | .presentedAffine _ => none
+  | .smoothAffine => some .real
   | .scalarBase _ kind | .linearDescriptor _ kind => some kind
 
 /-- A nominal coefficient marker cannot denote both ideal coefficient kinds,
@@ -173,6 +198,7 @@ def Representation.Valid (env : Environment) (marker : DeclId) (capabilities : L
     Representation → Prop
   | .affineDescriptor => True
   | .presentedAffine _ => capabilities = []
+  | .smoothAffine => capabilities = [] ∧ coefficientConsistent env marker .real = true
   | .scalarBase setting coefficient =>
       capabilities = [] ∧ coefficientConsistent env marker coefficient = true ∧
       (setting = .smooth → coefficient = .real)
@@ -191,6 +217,7 @@ instance (env : Environment) (marker : DeclId) (capabilities : List Capability)
   cases representation with
   | affineDescriptor => unfold Representation.Valid; infer_instance
   | presentedAffine field => unfold Representation.Valid; infer_instance
+  | smoothAffine => unfold Representation.Valid; infer_instance
   | scalarBase setting coefficient => unfold Representation.Valid; infer_instance
   | linearDescriptor base coefficient =>
     unfold Representation.Valid
@@ -289,6 +316,8 @@ def Constraint.Holds (env : Environment) (indices : List Index) : Constraint →
   | .structural object base => ∃ x b,
       indices[object]? = some (.object (.global x)) ∧ indices[base]? = some (.object (.global b)) ∧
       onChain env x b = true
+  | .canonical object => ∃ x,
+      indices[object]? = some (.object (.global x)) ∧ (smoothDimension? env x).isSome = true
 
 /-- Executable counterpart of Holds. Its cases deliberately do not accept a
 coefficient marker where a canonical object is required. -/
@@ -309,6 +338,9 @@ def constraintHolds (env : Environment) (indices : List Index) : Constraint → 
   | .structural object base => match indices[object]?, indices[base]? with
     | some (.object (.global x)), some (.object (.global b)) => onChain env x b
     | _, _ => false
+  | .canonical object => match indices[object]? with
+    | some (.object (.global x)) => (smoothDimension? env x).isSome
+    | _ => false
 
 private def isObjectParameter : Option Parameter → Bool
   | some (.object _) => true | _ => false
@@ -318,6 +350,7 @@ def Constraint.WellFormed (parameters : List Parameter) : Constraint → Prop
       isObjectParameter parameters[l]? = true ∧ isObjectParameter parameters[r]? = true
   | .over object marker =>
       isObjectParameter parameters[object]? = true ∧ parameters[marker]? = some .marker
+  | .canonical object => isObjectParameter parameters[object]? = true
 
 instance (parameters : List Parameter) (c : Constraint) : Decidable (c.WellFormed parameters) := by
   cases c <;> unfold Constraint.WellFormed <;> infer_instance
@@ -346,6 +379,11 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
       f.constraints = [.structural 0 2, .structural 1 2] ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (presentedImplementation env)
+        | _ => false) = true
+  | .smooth => f.parameters.length = 2 ∧
+      f.constraints = [.canonical 0, .canonical 1] ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (smoothImplementation env)
         | _ => false) = true)
 
 instance (env : Environment) (f : Family) : Decidable (f.Valid env) := by
@@ -393,6 +431,12 @@ def validAffine (env : Environment) (id implementation : DeclId)
   AlgebraDeclarations.validAffineData data (data.base.bind (affineData? env)) &&
   AlgebraDeclarations.validConstruction data (affineData? env)
 
+/-- A smooth object: its implementation is a smooth representation and its
+coordinates are distinct and within the generator limit. -/
+def validSmoothAffine (env : Environment) (implementation : DeclId) (coordinates : List String) : Bool :=
+  smoothImplementation env implementation && decide (coordinates.length ≤ Limits.algebraGenerators) &&
+    decide coordinates.Nodup
+
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
@@ -407,9 +451,10 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
         (∀ id ∈ implementations, id ∈ ds) ∧
         classRank ranks parent < classRank ranks entry.id)
   | .global implementation => (implementationMarker env implementation).isSome = true ∧
-      presentedImplementation env implementation = false
+      presentedImplementation env implementation = false ∧ smoothImplementation env implementation = false
   | .family f => f.Valid env
   | .affine implementation data => validAffine env entry.id implementation data = true
+  | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -432,9 +477,10 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
       implementations.all (fun id => (implementationMarker env id).isSome) &&
       validParents env ranks entry parents implementations
   | .global implementation => (implementationMarker env implementation).isSome &&
-      !presentedImplementation env implementation
+      !presentedImplementation env implementation && !smoothImplementation env implementation
   | .family f => decide (f.Valid env)
   | .affine implementation data => validAffine env entry.id implementation data
+  | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096

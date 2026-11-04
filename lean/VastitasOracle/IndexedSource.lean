@@ -132,7 +132,7 @@ theorem checked_coefficient_unique (program : Source.Program) (checked : Checked
   have consistent : coefficientConsistent checked.resolved.declarations.indexed marker kind = true := by
     cases representation <;> simp only [Indexed.Representation.coefficient, Option.some.injEq] at coefficient <;>
       try contradiction
-    all_goals subst kind; exact valid.2.1
+    all_goals subst kind; first | exact valid.2.1 | exact valid.2
   have compatible := List.all_eq_true.mp consistent _ otherMember
   change (marker != marker || other.coefficient.all (· == kind)) = true at compatible
   have same : otherKind = kind := by simpa [otherCoefficient] using compatible

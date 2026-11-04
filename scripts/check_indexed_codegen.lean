@@ -7,6 +7,7 @@ import VastitasKernel.IndexedSourceBodyRegression
 import VastitasKernel.IndexedFunctionRegression
 import VastitasKernel.IndexedDispatchRegression
 import VastitasKernel.IndexedAuthorityRegression
+import VastitasKernel.SmoothObjectRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -54,7 +55,8 @@ def main (arguments : List String) : IO Unit := do
       ("global_witness", PackageSemanticRegression.globalWitnessFixture),
       ("opened_object", PackageSemanticRegression.escapedObjectFixture),
       ("multiple_fields", PackageSemanticRegression.multipleFieldsFixture),
-      ("source_declarations", sourceFixture), ("source_types", typeFixture)] ++ bodies do
+      ("source_declarations", sourceFixture), ("source_types", typeFixture),
+      ("smooth_programs", VastitasKernel.Indexed.SmoothObjectRegression.smoothFixture)] ++ bodies do
     let .ok checked := Typing.checkModule module true
       | throw (IO.userError s!"fixture {name} rejected")
     let .ok source := Codegen.generate checked

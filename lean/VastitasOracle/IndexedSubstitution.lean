@@ -44,6 +44,9 @@ theorem constraint_map {env : Environment} (mapping : ObjectRef → ObjectRef)
       obtain ⟨x, b, objectFound, baseFound, chain⟩ := holds
       exact ⟨x, b, globals x ▸ mapped_object_index mapping objectFound,
         globals b ▸ mapped_object_index mapping baseFound, chain⟩
+  | canonical object =>
+      obtain ⟨x, objectFound, smooth⟩ := holds
+      exact ⟨x, globals x ▸ mapped_object_index mapping objectFound, smooth⟩
 
 theorem application_map {env : Environment} (mapping : ObjectRef → ObjectRef)
     (types : ∀ ref, (mapping ref).type? env = ref.type? env)

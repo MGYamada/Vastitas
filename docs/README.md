@@ -39,11 +39,12 @@ Four further principles run through the book:
   body, including bodies that are never called, before code generation.
 - **Mathematical identity is nominal.** Two spaces with equal dimensions are
   still different spaces. A point remembers the object it lies on.
-- **Nothing implicit.** There are no implicit numeric conversions. Conjugation,
-  metrics, copies and allocations are never inserted for you.
+- **Nothing implicit.** There are no implicit numeric conversions. Numerical
+  and storage operations never insert a conjugation, metric, copy or
+  allocation for you.
 - **Bounded and finite.** The checker publishes limits on nesting,
   specialization, dispatch keys and checking work. An input that exceeds one is
-  rejected with `E_LIMIT`, never partially accepted. Some costs, such as total
+  rejected, usually with `E_LIMIT`, and never partially accepted. Some costs, such as total
   compiler wall time, are not bounded yet.
 
 ## What exists today
@@ -65,8 +66,9 @@ The book keeps four kinds of statement apart:
 ## How to read this book
 
 Chapters 1 to 11 teach the language in order. They use programs from
-[`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples), and each ends
-with a short **What is checked** note. That note links to the precise contract.
+[`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) and the
+test suite. Most chapters end with a short **What is checked** note that links
+to the precise contract.
 
 The later parts are references:
 

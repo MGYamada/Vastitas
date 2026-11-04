@@ -135,8 +135,9 @@ conversions.
 
 ## Abstract method contracts
 
-An `abstract method` has no body. It extends the callable domain and fixes the
-result type that the concrete winner must have.
+An `abstract method` has no executable body: its braces hold only a domain.
+It extends the callable domain and fixes the result type that the concrete
+winner must have.
 [`examples/abstract-contracts.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast):
 
 ```vast

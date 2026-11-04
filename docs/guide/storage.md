@@ -47,8 +47,9 @@ Read `make` line by line:
    and promises that this exact region is initialized.
 
 `layout(offset, rows, columns, leading, transposed)` gives a byte offset, the
-logical shape, an element leading dimension and a transpose flag. Here the view
-starts 8 bytes in and its rows are 4 elements apart.
+logical shape, an element leading dimension and a transpose flag. Storage is
+column-major: here the view starts 8 bytes in and consecutive columns start 4
+elements apart.
 
 ## Calling resource functions
 
@@ -127,9 +128,11 @@ fill(complex_output, complex(0x1.8p0, -0x1p1));  // 1.5 - 2i
 ```
 
 There is no rounding on acceptance: `f64(0.1)` is rejected and the diagnostic
-shows the two neighbouring binary64 values. Negative zero, infinities and NaN
-payloads use `f64_bits(bits)` or `complex_bits(real_bits, imaginary_bits)`, as
-in the example above. These are storage payloads only. Pure code still has no
+shows the two neighbouring binary64 values. `f64_bits(bits)` and
+`complex_bits(real_bits, imaginary_bits)` take raw unsigned IEEE binary64 bit
+patterns. The example above writes 3.0 this way. Use them for negative zero,
+infinities and NaN payloads, which have no exact literal form. These are
+storage payloads only. Pure code still has no
 floating-point values or arithmetic.
 
 ## Runtime shapes

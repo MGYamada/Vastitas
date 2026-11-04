@@ -13,7 +13,7 @@ defines four parts:
 
 | Part | Content | Files |
 | --- | --- | --- |
-| Introduction and chapters 1–11 | Teaching chapters in reading order, each ending in a short **What is checked** note | `README.md`, `guide/*.md`, `affine-geometry.md` |
+| Introduction and chapters 1–11 | Teaching chapters in reading order, with short **What is checked** notes that link to the reference parts | `README.md`, `guide/*.md`, `affine-geometry.md` |
 | Language reference | The complete contract for each language feature | `stage0.md`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
 | How the compiler is checked | Architecture, wire protocols, proof boundaries and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `adr/` |
 | Appendices A–F | CLI, diagnostics, reference models, limits, history and delivery records, contributing | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `development/` |

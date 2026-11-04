@@ -18,8 +18,8 @@ vastitas audit-lean LEAN4EXPORT.ndjson
   ([Chapter 1](stdlib.md#flat-mode-with---lib)).
 - **Manifest mode** takes one `Vastitas.toml` and cannot be mixed with flat mode.
 - `--openblas-prefix` and `--native-cc` apply only to builds whose checked entry
-  runs numerical operations; anywhere else they are rejected
-  ([Chapter 10](numerical.md)).
+  has numerical operations; anywhere else they are rejected. The prefix is
+  required only when that entry runs GEMM ([Chapter 10](numerical.md)).
 - `audit-lean` is an internal, non-authoritative cross-check of Lean proof
   exports. It does not check `.vast` programs.
 - `vastitas --help` prints the usage and `vastitas --version` the version and
@@ -53,7 +53,8 @@ signal number when it was interrupted.
 | Code | What it usually means | Where it is taught |
 | --- | --- | --- |
 | `E_TYPE` | A value has the wrong type | [Chapter 2](values-and-functions.md) |
-| `E_SHADOW` | A binding reuses an existing name | [Chapter 2](values-and-functions.md#bindings-and-blocks) |
+| `E_DUPLICATE` | A binding or declaration reuses a name in the same scope | [Chapter 2](values-and-functions.md#bindings-and-blocks) |
+| `E_SHADOW` | A binding reuses the name of a function or of an enclosing binding | [Chapter 2](values-and-functions.md#bindings-and-blocks) |
 | `E_RECURSION` | A function calls itself, directly or through others | [Chapter 2](values-and-functions.md#functions) |
 | `E_DISPATCH_AMBIGUOUS` | Two methods are equally specific for some argument tuple | [Chapter 4](dispatch.md#how-a-method-is-chosen) |
 | `E_CAPTURE` | A lambda refers to a value from outside its own scope | [Chapter 5](function-values.md#no-captures) |
@@ -71,13 +72,18 @@ the failing statement and names the allocation and any conflicting loan.
 
 ## After the build
 
-A program that passed every check can still fail at run time in two
-deliberate ways:
+A program that passed every check can still fail at run time. The common
+cases are:
 
 - An `expect` statement finds different bits in a cell and reports
   `E_NATIVE_EXPECT`.
 - The native runtime's physical preflight rejects a layout, bound or alias
   before a write, with another `E_NATIVE_*` code.
+- An allocation exceeds the live-byte budget (`E_NATIVE_ALLOCATION`), or the
+  linked OpenBLAS has the wrong version, ABI or threading (`E_NATIVE_ABI`).
+- A runtime extent is negative or too large (`E_RUNTIME_EXTENT`).
+
+[Appendix B](../appendix/diagnostics.md#native-runtime) lists every runtime code.
 
 Function bodies are not transactions: writes made before a native failure are
 not rolled back, and no initialized result is published.

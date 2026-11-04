@@ -68,7 +68,9 @@ root = "main.vast"
 std = { path = "../../../stdlib" }
 ```
 
-Generate the package form of the arithmetic library once, then build:
+Generate the standard library's package root, which combines the arithmetic
+sources with the geometry library. Run the script again after editing the
+standard library's sources. Then build:
 
 ```sh
 python3 scripts/build_stdlib_package.py

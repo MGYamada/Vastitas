@@ -8,7 +8,7 @@ Vastitas needs three toolchains:
 | Lean, with Lake | 4.35.0 | [`lean-kernel/lean-toolchain`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/lean-toolchain) |
 | A host C toolchain | — | On macOS, install the Xcode Command Line Tools |
 
-Programs with numerical operations also need sequential LP64 OpenBLAS 0.3.34.
+Builds of programs that run GEMM also need sequential LP64 OpenBLAS 0.3.34.
 You can skip it until [Chapter 10](numerical.md).
 
 ## Build from a checkout

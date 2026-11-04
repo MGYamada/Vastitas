@@ -10,11 +10,12 @@ GEMM need sequential LP64 OpenBLAS 0.3.34; `check` does not.
 
 ## Coefficient profiles
 
-A profile declares what the coefficients mean mathematically. The examples share
-one profile module:
+A profile declares what the coefficients mean mathematically. Each numerical
+example package has its own profile module. This excerpt shows the smooth
+profiles of the GEMM example:
 
 ```vast
-// examples/packages/numerical/src/profiles/mod.vast
+// examples/packages/numerical/src/profiles/mod.vast (first part)
 pub indexed marker RealCoefficients;
 pub indexed marker ComplexCoefficients;
 
@@ -23,6 +24,7 @@ pub indexed implementation SmoothScalar(RealCoefficients, scalar_base(smooth, re
 pub indexed global SmoothBase(SmoothScalar);
 pub indexed implementation RealSmooth(RealCoefficients, linear_descriptor(SmoothBase, real)) capabilities();
 pub indexed implementation ComplexSmooth(ComplexCoefficients, linear_descriptor(SmoothBase, complex)) capabilities();
+// ... the file continues with the corresponding scheme-based profiles ...
 ```
 
 The storage scalars `F64` and `Complex<F64>` are binary64 **realizations** of

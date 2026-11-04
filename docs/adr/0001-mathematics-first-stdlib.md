@@ -6,6 +6,7 @@
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
 - **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
+- **Stage 3 admission:** §10 admits `std::differential` and `std::geometry::metric` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
 
 ## Context and decision
 
@@ -195,6 +196,109 @@ Independent `VastitasMath`, conformance manifests and new correspondence proofs
 remain subsequent work under #285. The first separate pinned-Mathlib
 `VastitasBridge` package is the bounded mathematical increment described above.
 The oracle dependency boundary and the mathematical correspondence obligations are verified separately.
+
+### 10. Smooth affine differentials and metrics (amendment, 2026-11-04)
+
+This amendment admits two families through the §8 procedure:
+`std::differential` and `std::geometry::metric`. It covers the finite profile
+of historical Stage 3 ([tracker #604](https://github.com/MGYamada/Vastitas/issues/604)).
+It also records the decision of
+[#360](https://github.com/MGYamada/Vastitas/issues/360) for smooth objects.
+
+#### Contract and jurisdiction
+
+- **Smooth objects.** `std::geometry::smooth::affine` declares the smooth real
+  affine space `Affine(n)` with `n` named coordinates. Mathematically it is
+  `ℝⁿ`. A declaration is one canonical object, and two declarations of the same
+  dimension are different objects. Smooth objects have their own sealed
+  classification. They never index the ordinary `Scheme` families, and the
+  ordinary presented objects never index smooth families.
+- **Smooth maps.** In this profile, a smooth map `ℝⁿ → ℝᵐ` is given by `m`
+  polynomials with exact rational coefficients in the source coordinates. Its
+  meaning is the real polynomial map.
+- **No manifold type (#360).** A smooth manifold is a smooth object together
+  with checked evidence that it is one. There is no `Manifold` or `Variety`
+  type. Gluing and `IsSmoothManifold` evidence are separate work
+  ([#606](https://github.com/MGYamada/Vastitas/issues/606)).
+- **`std::differential`** owns the metric-free cotangent pullback of §6. For a
+  smooth map `f`, a point `x` and a covector `η` over `f(x)`, the pullback is
+  `η ∘ Df(x)`, a covector over `x`. A covector over another point has no
+  pullback; the operation returns a checked failure value. The differential of
+  a function `φ: X → ℝ` is the pullback of the unit covector.
+- **`std::geometry::metric`** owns explicitly selected constant metrics
+  `MetricForm<X>` on a smooth object, together with separately declared
+  evidence. `flat(g)` lowers a vector. `sharp(g)` raises a covector and requires
+  nondegeneracy evidence for `g`. The gradient of `φ` with respect to `g` is the
+  ordinary library composition `sharp_g(dφ)`. It is not a differential
+  primitive.
+- **Split.** Core supplies the generic indexed families, the checked
+  declarations, the evidence records and code generation. `std` supplies the
+  definitions. The reverse pass is a kernel runtime routine; the kernel checks
+  every declaration before code generation.
+
+#### Admission argument
+
+- **A, intrinsic denotation.** The pullback is the transpose of the Fréchet
+  derivative at the point, composed with the seed. It does not depend on the
+  algorithm. The saved-tape and recomputing reverse passes must give the same
+  covector. `flat` and `sharp` are the linear maps of the selected Gram matrix
+  and its inverse.
+- **B, foundational target.** These are the defining operations of the
+  cotangent bundle and of a chosen metric. There is no refinement parameter.
+- **C, no hidden numerical choice.** Arithmetic is exact over the rationals.
+  No metric is ever inferred, the Euclidean metric included. Nondegeneracy and
+  positivity are never inferred from a sample, a tolerance or a type name.
+- **D, contract.** Basepoints, objects and variance are explicit. A wrong
+  object or variance is a static error. A wrong basepoint gives the failure
+  value. The Stage 3 acceptance map records a proof boundary
+  that keeps three claims apart:
+  - the structural facts about the runtime (oracle);
+  - the Fréchet comparison (mathlib bridge);
+  - the polynomial Kähler comparison (mathlib bridge).
+
+#### Execution and evidence profile
+
+- **Executable profile.** Exact rational polynomial maps between declared
+  smooth affine spaces of dimension at most 16, at rational points, and
+  constant rational metrics.
+- **Independent conformance.** `scripts/metric_free_reference.py` and
+  `scripts/metric_reference.py` generate a fixture that the kernel must match.
+- **Certificates.** Metric evidence is an exact inverse, or an exact `L D Lᵀ`
+  factorization with positive `D`. The kernel computes each certificate and
+  checks it before acceptance. Certificates never come from the wire.
+- **Not claimed.**
+  - C∞-ring differentials as modules, and position-dependent metrics.
+  - Compiler-emitted reverse Core, forward mode and the Hessian-vector product
+    (#161).
+  - Floating-point realizations and performance.
+
+#### Negative tests
+
+The profile rejects all of the following, each with a specific diagnostic:
+- a covector over another object;
+- a vector where a covector is required;
+- map images in the target's coordinates;
+- smooth objects in ordinary-scheme families, and the reverse;
+- a singular metric claimed nondegenerate;
+- an indefinite metric claimed Riemannian;
+- `sharp` without evidence, or with evidence for another metric;
+- an ambiguous metric selection;
+- forged certificates on the wire and tampered Core.
+
+A covector over another point gives the failure value.
+
+#### Compatibility and public-name audit
+
+- **`MetricForm` versus `Metric`.** The mathematical `MetricForm` is
+  nominally distinct from the numerical protocol-8 diagonal Hermitian `Metric`.
+  Neither converts to the other. The rename of the protocol-8 type remains
+  open in #264.
+- **`Affine` versus `Affine(K, n)`.** The function-body builtin `Affine` keeps
+  its Stage 1 meaning. `Affine(n)` and `Affine(K, n)` appear in declarations
+  only.
+- **Packages.** The new `std::differential` package depends on the geometry
+  package. The geometry package does not depend on it.
+- **Implementation tracker:** #604.
 
 ## Consequences, validation and migration
 

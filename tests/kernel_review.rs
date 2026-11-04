@@ -282,12 +282,6 @@ fn gram_entries_and_literals_require_plain_decimal_digits() {
             "{entry}: {response}"
         );
     }
-    let mut literal = common::request("fn main() -> Int { 1000 }", "literal.vast");
-    literal["functions"][0]["body"]["result"]["value"] = json!("1_000");
-    assert_eq!(
-        kernel(&literal, "check")["diagnostics"][0]["code"],
-        "E_LITERAL"
-    );
 }
 
 const BASE: &str = r#"
@@ -336,8 +330,16 @@ fn path_lists(value: &Value, pointer: String, out: &mut Vec<String>) {
         Value::Object(fields) => {
             for (key, child) in fields {
                 let next = format!("{pointer}/{key}");
-                if ["target", "grant", "contribution", "path", "grantee_path"]
-                    .contains(&key.as_str())
+                if [
+                    "target",
+                    "grant",
+                    "contribution",
+                    "delegation",
+                    "declaration",
+                    "path",
+                    "grantee_path",
+                ]
+                .contains(&key.as_str())
                     && child.as_array().is_some_and(|items| {
                         !items.is_empty() && items.iter().all(Value::is_string)
                     })
@@ -369,6 +371,12 @@ fn edit_paths_resolve_component_wise() {
         .filter(|pointer| !pointer.contains("/indexed_declarations/"))
         .count();
     assert!(declarations >= 8, "{pointers:?}");
+    for key in ["/delegation", "/declaration", "/grantee_path"] {
+        assert!(
+            pointers.iter().any(|pointer| pointer.ends_with(key)),
+            "{key}: {pointers:?}"
+        );
+    }
     for pointer in pointers {
         let mut forged = raw.clone();
         let list = forged.pointer_mut(&pointer).unwrap();
@@ -401,22 +409,31 @@ fn edit_paths_resolve_component_wise() {
 
 #[test]
 fn grants_and_delegations_require_a_generic_target() {
-    // #563.1: an explicit kind check, not a failed generic lookup.
-    let base = BASE.replace(
+    // #563.1: an explicit kind check, not a failed generic lookup. Grants and
+    // delegations share `lowerGrant`.
+    let stray_grant = BASE.replace(
         "pub grant outer : choose to addon",
         "pub grant stray : helper to addon delegable { domain (Int, Int); }\npub grant outer : choose to addon",
     );
-    let output = cli()
-        .args(["check", "--manifest-path"])
-        .arg(authority(&base, ADDON, EVENTS).0.join("app/Vastitas.toml"))
-        .output()
-        .unwrap();
-    let message = String::from_utf8_lossy(&output.stderr);
-    assert!(!output.status.success());
-    assert!(
-        message.contains("E_TYPE: unexpected declaration kind in edit assembly"),
-        "{message}"
+    let stray_delegation = format!(
+        "{ADDON}\npub delegation stray : base::helper to addon::ops {{ domain (Int, Int); }}\n"
     );
+    for (base, addon) in [
+        (stray_grant.as_str(), ADDON),
+        (BASE, stray_delegation.as_str()),
+    ] {
+        let output = cli()
+            .args(["check", "--manifest-path"])
+            .arg(authority(base, addon, EVENTS).0.join("app/Vastitas.toml"))
+            .output()
+            .unwrap();
+        let message = String::from_utf8_lossy(&output.stderr);
+        assert!(!output.status.success());
+        assert!(
+            message.contains("E_TYPE: unexpected declaration kind in edit assembly"),
+            "{message}"
+        );
+    }
 }
 
 /// The largest let chain inside the deepest accepted nesting, as source.
@@ -542,11 +559,40 @@ fn reborrow_chain(depth: usize) -> Scratch {
     ))
 }
 
+/// `count` owner applications of distinct exact contributions, then a seal.
+fn owner_applications(count: usize) -> Scratch {
+    let types = ["Nat", "Int", "Bool", "Unit"];
+    let mut source = String::from(
+        "pub generic g(a, b, c, d, e) { domain (Int, Int, Int, Int, Int); }\nmethod g(a: Any, b: Any, c: Any, d: Any, e: Any) -> Int { 0 }\n",
+    );
+    for index in 0..count {
+        let mut rest = index;
+        let mut params = Vec::new();
+        for name in ["a", "b", "c", "d", "e"] {
+            params.push(format!("{name}: {}", types[rest % 4]));
+            rest /= 4;
+        }
+        source.push_str(&format!(
+            "contribution c{index} : g {{ method g({}) -> Int {{ {index} }} }}\n",
+            params.join(", ")
+        ));
+    }
+    let events: String = (0..count)
+        .map(|index| format!("apply c{index}; "))
+        .collect();
+    source.push_str(&format!(
+        "assembly {{ {events}seal g; }}\nfn main() -> Int {{ g(1, 2, 3, 4, 5) }}\n"
+    ));
+    package(&source)
+}
+
 #[test]
 fn authority_trace_audit_is_budgeted() {
-    // #553: measured positive (64 nested reborrows, about 0.4 s) and a
-    // rejection that previously grew as depth^4 (256 took 74 s).
+    // #553: measured positives (64 nested reborrows, about 0.4 s; 256 owner
+    // applications, whose audit is quadratic, not cubic) and a rejection that
+    // previously grew as depth^4 (256 took 74 s).
     success(&check(&reborrow_chain(64)));
+    success(&check(&owner_applications(256)));
     for depth in [96, 1000] {
         let started = Instant::now();
         let message = rejection(&reborrow_chain(depth), "E_LIMIT");

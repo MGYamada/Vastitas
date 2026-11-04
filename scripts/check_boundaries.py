@@ -249,12 +249,20 @@ def check_lake_dependencies(package, label, errors, *, oracle=False):
         errors.append(f"{label}: cannot check Lake dependencies: {error}")
 
 
+_BRIDGE_PATH_DEPENDENCIES = [
+    {"type": "path", "scope": "", "name": name, "manifestFile": "lake-manifest.json",
+     "inherited": False, "dir": directory, "copy": False, "configFile": "lakefile.toml"}
+    for name, directory in [("vastitas_kernel", "../lean-kernel"), ("vastitas_oracle", "../lean")]
+]
+
+
 def check_mathematical_bridge(root, kernel_toolchain, errors):
     """The optional theorem package has its own pinned Mathlib graph.
 
-    This does not admit any new dependency into the compiler or Oracle. The
-    initial bridge proves mathematics only; implementation correspondence will
-    require a separate, explicit extension of this policy.
+    The bridge may also read the actual kernel and Oracle sources through the
+    two local path dependencies ../lean-kernel and ../lean. The dependency is
+    one way: the compiler and Oracle checks above still forbid Mathlib and
+    VastitasBridge imports, and their own Lake graphs are unchanged.
     """
     bridge = root / "lean-bridge"
     if not bridge.exists():
@@ -268,27 +276,42 @@ def check_mathematical_bridge(root, kernel_toolchain, errors):
         manifest = json.loads((bridge / "lake-manifest.json").read_text())
         url = "https://github.com/leanprover-community/mathlib4.git"
         revision = "56a005855ea17e0b0958f73ec801ae140b0a1679"
-        if config.get("require", []) != [{"name": "mathlib", "git": url, "rev": revision}]:
-            errors.append("lean-bridge must require only the pinned Mathlib reference")
+        if config.get("require", []) != [
+            {"name": "mathlib", "git": url, "rev": revision},
+            {"name": "vastitas_kernel", "path": "../lean-kernel"},
+            {"name": "vastitas_oracle", "path": "../lean"},
+        ]:
+            errors.append("lean-bridge must require only the pinned Mathlib reference "
+                          "and the local ../lean-kernel and ../lean packages")
         packages = manifest.get("packages") if isinstance(manifest, dict) else None
         if not isinstance(packages, list) or not packages or any(
-            not isinstance(p, dict) or p.get("type") != "git"
+            not isinstance(p, dict) for p in packages
+        ):
+            errors.append("lean-bridge must lock every dependency to a Git commit; only Mathlib is direct")
+            return
+        local = [p for p in packages if p.get("type") == "path"]
+        remote = [p for p in packages if p.get("type") != "path"]
+        if sorted(local, key=lambda p: str(p.get("name"))) != _BRIDGE_PATH_DEPENDENCIES:
+            errors.append("lean-bridge path dependencies must be exactly ../lean-kernel and ../lean")
+        if not remote or any(
+            p.get("type") != "git"
             or not isinstance(p.get("name"), str)
             or not isinstance(p.get("rev"), str)
             or not re.fullmatch(r"[0-9a-f]{40}", p["rev"])
             or p.get("inherited") is not (p.get("name") != "mathlib")
-            for p in packages
+            for p in remote
         ):
             errors.append("lean-bridge must lock every dependency to a Git commit; only Mathlib is direct")
         else:
-            mathlib = [p for p in packages if p["name"] == "mathlib"]
+            mathlib = [p for p in remote if p["name"] == "mathlib"]
             if len(mathlib) != 1 or any(
                 p.get("url") != url or p["rev"] != revision or p.get("subDir") is not None
                 for p in mathlib
             ):
                 errors.append("lean-bridge manifest must contain the pinned Mathlib reference")
-            if len({p["name"] for p in packages}) != len(packages):
-                errors.append("lean-bridge manifest must not contain duplicate package names")
+        names = [p.get("name") for p in packages]
+        if len(set(map(str, names))) != len(names):
+            errors.append("lean-bridge manifest must not contain duplicate package names")
     except (OSError, ValueError) as error:
         errors.append(f"lean-bridge: cannot check pinned dependencies: {error}")
     for source in bridge.rglob("*.lean"):
@@ -300,7 +323,10 @@ def check_mathematical_bridge(root, kernel_toolchain, errors):
             errors.append(f"{source.relative_to(root)}: {error}")
             continue
         for name in imports:
-            if not module_allowed(name, {"Init", "Std", "Lean", "Mathlib", "VastitasBridge"}):
+            if not module_allowed(name, {
+                "Init", "Std", "Lean", "Mathlib", "VastitasBridge",
+                "VastitasKernel", "VastitasOracle",  # one-way implementation correspondence
+            }):
                 errors.append(f"{source.relative_to(root)}: forbidden import {name}")
 
 

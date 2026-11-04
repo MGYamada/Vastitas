@@ -27,7 +27,23 @@ run_cmd do
       `VastitasBridge.AlgebraicGeometry.Buchberger.isGroebnerBasis_of_certificate,
       `VastitasBridge.AlgebraicGeometry.Buchberger.list_isGroebnerBasis_of_certificate,
       `VastitasBridge.AlgebraicGeometry.Buchberger.sPairReduces_of_normalized,
-      `VastitasBridge.AlgebraicGeometry.Buchberger.degLex_lt_iff_exists] do
+      `VastitasBridge.AlgebraicGeometry.Buchberger.degLex_lt_iff_exists,
+      `VastitasBridge.AlgebraicGeometry.Kernel.compare_lt_iff,
+      `VastitasBridge.AlgebraicGeometry.Kernel.canonical_iff,
+      `VastitasBridge.AlgebraicGeometry.Kernel.toMv_add,
+      `VastitasBridge.AlgebraicGeometry.Kernel.toMv_mul,
+      `VastitasBridge.AlgebraicGeometry.Kernel.toMv_injective,
+      `VastitasBridge.AlgebraicGeometry.Kernel.canonicalEquiv,
+      `VastitasBridge.AlgebraicGeometry.Kernel.toMvN_combination,
+      `VastitasBridge.AlgebraicGeometry.Kernel.toMv_sPolynomial,
+      `VastitasBridge.AlgebraicGeometry.Kernel.encode_lt,
+      `VastitasBridge.AlgebraicGeometry.Kernel.divide_spec,
+      `VastitasBridge.AlgebraicGeometry.Kernel.normalForm_spec,
+      `VastitasBridge.AlgebraicGeometry.Kernel.budgeted_divide,
+      `VastitasBridge.AlgebraicGeometry.Kernel.verify_isGroebnerBasis,
+      `VastitasBridge.AlgebraicGeometry.Kernel.verify_normalForm,
+      `VastitasBridge.AlgebraicGeometry.Kernel.verify_normalForm_eq_iff,
+      `VastitasBridge.AlgebraicGeometry.Kernel.verify_mem_iff] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would

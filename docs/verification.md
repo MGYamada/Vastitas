@@ -101,10 +101,17 @@ the separate obligations for future AD/Core/native realization.
 This independent Lake package uses Lean v4.35.0 and Mathlib commit
 `56a005855ea17e0b0958f73ec801ae140b0a1679`, with every transitive package locked.
 The existing kernel/Oracle closed dependency graphs remain unchanged; neither
-may import `VastitasBridge` or Mathlib. The boundary checker additionally checks
-the optional bridge's toolchain, sole direct dependency, pinned Git manifest
-and current mathematical-only imports. Its negative regressions cover bridge
-leakage into kernel/Oracle, unpinned/redirected dependencies and Lake overrides.
+may import `VastitasBridge` or Mathlib. The bridge depends one way on the actual
+`../lean-kernel` and `../lean` packages by path, so it can prove the kernel
+correspondence below. The boundary checker additionally checks several things:
+
+- the bridge's toolchain;
+- its direct dependencies: the pinned Mathlib commit and exactly those two path packages;
+- its pinned Git manifest;
+- its imports: Mathlib, the bridge itself, the kernel and the Oracle.
+
+Its negative regressions cover bridge leakage into kernel/Oracle, unpinned or
+redirected dependencies, extra or redirected path packages and Lake overrides.
 
 `.github/workflows/lean-bridge.yml` builds and checks this package independently,
 using only the Mathlib cache needed by its imports. `lean-bridge/Audit.lean`
@@ -1846,4 +1853,12 @@ mathematical statement for the bridge.
 - **Canonical normal forms (proved).** Modulo a Gröbner basis of `I`, let `r` be fully reduced with `f - r ∈ I` (`IsNormalForm`). Then `r` is unique (`normalForm_unique`), `f - f' ∈ I` iff the two remainders agree (`sub_mem_iff_normalForm_eq`), and `f ∈ I` iff `r = 0` (`mem_iff_normalForm_eq_zero`). `exists_isNormalForm` takes `r` from Mathlib's division.
 - **Relations (proved).** `span_eq_of_cofactors` gives ideal equality from relations that reduce to zero and from cofactor rows. `list_isGroebnerBasis_of_certificate` states the kernel certificate's shape over lists, with S-pairs only for `i < j`. `sPairReduces_of_normalized` accepts the kernel's S-polynomial, which is Mathlib's divided by both leading coefficients.
 - **Orientation.** `degLex_lt_iff_exists` and `degLex_X_lt_X`: Mathlib's `degLex` on `Fin n` also makes coordinate 0 most significant, so kernel coordinate `i` is `X i` with no reversal.
-- **Not proved here.** The correspondence between kernel `Poly` operations, `CertificateValid` and these `MvPolynomial (Fin n) ℚ` statements is a separate step of [#571](https://github.com/MGYamada/Vastitas/issues/571).
+- **Kernel correspondence (proved).** `VastitasBridge.AlgebraicGeometry.Kernel` reads the actual kernel and Oracle definitions.
+  - `canonicalEquiv`: canonical kernel polynomials of arity `n` correspond to `MvPolynomial (Fin n) ℚ`.
+  - The kernel order is `degLex` (`compare_lt_iff`), and kernel arithmetic is polynomial arithmetic (`toMv_add`, `toMv_mul`).
+  - The kernel S-polynomial is `normalizedSPolynomial` (`toMv_sPolynomial`).
+  - `divide_spec` and `normalForm_spec`: kernel division keeps `p = Σ qᵢ gᵢ + r` and its fuel always suffices (`encode_lt`). `normalForm` is canonical and fully reduced.
+  - From `(verify c).run s = .ok ((), s')`, `verify_isGroebnerBasis` proves that the stored basis is a Gröbner basis of the relation ideal.
+  - `verify_normalForm_eq_iff`: two canonical polynomials have equal kernel normal forms iff they are congruent modulo the relations. `verify_mem_iff`: a polynomial lies in that ideal iff its normal form is `[]`.
+  - Cofactors and relation quotients may be any stored term lists. The S-pair representations are rederived from the kernel's own division, because `standard` reads only the first term of each quotient.
+- **Not proved here.** Presentations, `AlgHom` and `Spec.map` correspondences, dual numbers, fiber products and principal opens remain the later S8b step of [#571](https://github.com/MGYamada/Vastitas/issues/571).

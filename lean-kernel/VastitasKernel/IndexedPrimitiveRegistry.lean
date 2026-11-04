@@ -11,10 +11,11 @@ constructor, built from the binding's own data, in the single dispatch
 Derived from the arm below, with no case elsewhere: the validity contract
 (`PrimitiveBinding.Valid`, `validPrimitiveBinding`, `validPrimitiveBinding_iff`),
 the operand association, result inference, the operand count, the argument
-hints, the role table, whether a call allocates, and the two evaluators
-(`evalPrimitive`, `evalRuntimePrimitive`). The lowering and the decoder are
-migrated by the later steps of #622 and still take a case per constructor. A
-proof that unfolds a derived table at one constructor needs only
+hints, the role table, whether a call allocates, the two evaluators
+(`evalPrimitive`, `evalRuntimePrimitive`), the lowering of a call
+(`renderPrimitive`) and the literals a generated module shares (`bases`). The
+decoder is migrated by the next step of #622 and still takes a case per
+constructor. A proof that unfolds a derived table at one constructor needs only
 `PrimitiveBinding.contract` (and `PrimitiveDescriptor.ofBool` or
 `PrimitiveDescriptor.evidence`) in its `simp` set. Each arm names the exact
 checks of `Indexed`, `IndexedPrimitiveBinding` and `IndexedSmoothContracts`;
@@ -32,7 +33,13 @@ The evaluators of an entry match the operand values its shape admits and
 return `none` on any other list. The logical one builds the values of
 `IndexedPrimitiveValues`; the erased one applies the runtime operations that
 generated programs link, on erased values. The two agree up to erasure; the
-oracle proves it per entry (`VastitasOracle.IndexedPrimitiveSoundness.Sound`). -/
+oracle proves it per entry (`VastitasOracle.IndexedPrimitiveSoundness.Sound`).
+
+The lowering of an entry writes the generated Lean text of a call from its
+rendered operands, in the vocabulary of `Lowering`, and rejects any other
+operand list with the one arity error. A relative constant shares its basis:
+the module declares each distinct basis once as `basis_k`, and every map over
+it, relative or smooth, names it. -/
 namespace VastitasKernel.Indexed
 open VastitasKernel.Indexed.Audit (validApplication_iff)
 open VastitasKernel.Indexed.Core.Semantics (globalObject intPointValue smoothPointValue fiberVectorValue
@@ -71,7 +78,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.natural dim] => some (.object (IndexedRuntime.descriptor dim))
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [dim] => .ok (Lowering.application (Lowering.runtime "descriptor") [dim])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .global id =>
     { shape := { operands := [], result := .globalObject id }
       validProp env := affineGlobal env id = true ∧ ObjectRef.Valid env (.global id)
@@ -82,7 +93,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [] => some (.object IndexedRuntime.baseObject)
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [] => .ok (Lowering.runtime "baseObject")
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .origin domain family base =>
     { shape :=
         { operands := [.object "object" domain], relations := [.refines 0],
@@ -98,7 +113,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.object object] => some (.point (IndexedRuntime.origin object IndexedRuntime.baseObject))
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [object] => .ok (Lowering.application (Lowering.runtime "origin") [object, Lowering.runtime "baseObject"])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .identity domain family =>
     { shape :=
         { operands := [.object "object" domain], relations := [.refines 0],
@@ -112,7 +131,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.object object] => some (.morphism (IndexedRuntime.identity object))
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [object] => .ok (Lowering.application (Lowering.runtime "identity") [object])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .dimension domain =>
     { shape := { operands := [.object "object" domain], relations := [.refines 0], result := .natural }
       validProp env := domain.Supports env .dimension
@@ -123,7 +146,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.object object] => some (.natural object.dimension)
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [object] => .ok s!"({object}).dimension"
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .compose family =>
     { shape :=
         { operands := [mapOperand "first map" family, mapOperand "second map" family],
@@ -138,7 +165,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.morphism after, .morphism before] => some (.morphism (IndexedRuntime.compose after before))
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [after, before] => .ok (Lowering.application (Lowering.runtime "compose") [after, before])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .apply maps points =>
     { shape :=
         { operands := [mapOperand "map" maps, pointOperand "point" points],
@@ -154,7 +185,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.morphism map, .point point] => some (.point (IndexedRuntime.apply map point))
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [map, point] => .ok (Lowering.application (Lowering.runtime "apply") [map, point])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   /- Relative morphisms over a base (Stage 2). -/
   | .relativeConstant application affineMap =>
     .ofBool { operands := [], result := .constant application }
@@ -165,6 +200,10 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [] => some (.relative affineMap)
         | _ => none)
+      (fun ctx args => match args with
+        | [] => .ok (Lowering.renderMap ctx affineMap)
+        | _ => Lowering.arityMismatch)
+      (literals := [affineMap.basis])
   | .relativeCompose family =>
     .ofBool
       { operands := [relativeMapOperand "first map" family, relativeMapOperand "second map" family],
@@ -178,6 +217,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.relative after, .relative before] => some (.relative (AlgebraRuntime.Map.compose after before))
         | _ => none)
+      (fun _ args => match args with
+        | [after, before] => .ok (Lowering.application (Lowering.algebra "Map.compose") [after, before])
+        | _ => Lowering.arityMismatch)
   | .relativeView family source target =>
     { shape :=
         { operands := [.indexed "map" family
@@ -191,7 +233,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.relative map] => some (.relative map)
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [map] => .ok map
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .relativeEqual family =>
     .ofBool
       { operands := [.application "first map" family, .application "second map" family],
@@ -203,6 +249,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.relative left, .relative right] => some (.boolean (AlgebraRuntime.Map.same left right))
         | _ => none)
+      (fun _ args => match args with
+        | [left, right] => .ok (Lowering.application (Lowering.algebra "Map.same") [left, right])
+        | _ => Lowering.arityMismatch)
   | .relativeCoefficient family source target coordinate monomial =>
     { shape :=
         { operands := [.indexed "map" family
@@ -225,7 +274,12 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | [.relative map] =>
             let (numerator, denominator) := map.coefficient coordinate monomial
             some (.pairInt numerator denominator)
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [map] =>
+          .ok (Lowering.application (Lowering.algebra "Map.coefficient") [map, toString coordinate, toString monomial])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .relativeIntPoint family object base =>
     { shape :=
         { operands := [], tail := some fun env => affineArity env object,
@@ -235,7 +289,10 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       validBool env := isRelativeFamily env family && freeAffine env object && pointBase env base
       valid_iff env := by simp [Bool.and_eq_true, and_assoc]
       eval := fun _ values => intPointValue values
-      evalRuntime := intPointRuntime }
+      evalRuntime := intPointRuntime
+      render := fun _ coordinates =>
+        .ok (Lowering.application (Lowering.algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"])
+      literals := [] }
   | .relativePair family fiber =>
     { shape :=
         { operands := [relativeMapOperand "first map" family, relativeMapOperand "second map" family],
@@ -258,7 +315,11 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       evalRuntime := fun values => match values with
         | [.relative left, .relative right] => some (.relative (AlgebraRuntime.Map.pair left right))
-        | _ => none }
+        | _ => none
+      render := fun _ args => match args with
+        | [left, right] => .ok (Lowering.application (Lowering.algebra "Map.pair") [left, right])
+        | _ => Lowering.arityMismatch
+      literals := [] }
   | .relativeIso forward backward => .evidence fun env => relativeIsoValid env forward backward
   | .relativeCartesian first second inverse fiber =>
     .evidence fun env => relativeCartesianValid env first second inverse fiber
@@ -273,6 +334,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [] => some (.smooth (.primitive affineMap))
         | _ => none)
+      (fun ctx args => match args with
+        | [] => .ok (Lowering.application (Lowering.smooth "Program.primitive") [Lowering.renderMap ctx affineMap])
+        | _ => Lowering.arityMismatch)
   | .smoothCompose family =>
     .ofBool
       { operands := [mapOperand "first map" family, mapOperand "second map" family],
@@ -285,6 +349,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.smooth after, .smooth before] => some (.smooth (.compose after before))
         | _ => none)
+      (fun _ args => match args with
+        | [after, before] => .ok (Lowering.application (Lowering.smooth "Program.compose") [after, before])
+        | _ => Lowering.arityMismatch)
   | .smoothEqual family =>
     .ofBool
       { operands := [.application "first map" family, .application "second map" family],
@@ -296,6 +363,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.smooth left, .smooth right] => some (.boolean (SmoothRuntime.same left right))
         | _ => none)
+      (fun _ args => match args with
+        | [left, right] => .ok (Lowering.application (Lowering.smooth "same") [left, right])
+        | _ => Lowering.arityMismatch)
   | .smoothIntPoint family object point =>
     .ofBool
       { operands := [], tail := some fun env => smoothArity env object,
@@ -303,6 +373,8 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun env => smoothIntPointValid env family object point)
       (fun _ values => smoothPointValue values)
       smoothPointRuntime
+      (fun _ coordinates =>
+        .ok (Lowering.application (Lowering.smooth "intPoint") [s!"[{String.intercalate ", " coordinates}]"]))
   | .smoothComposite family =>
     .ofBool { operands := [.application "map" family], result := .application 0 }
       (fun env => isSmoothFamily env family)
@@ -312,6 +384,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.smooth program] => some (.smooth (SmoothRuntime.composite program))
         | _ => none)
+      (fun _ args => match args with
+        | [program] => .ok (Lowering.application (Lowering.smooth "composite") [program])
+        | _ => Lowering.arityMismatch)
   | .fiberVector family smooth object =>
     .ofBool
       { operands := [.indexed "point" smooth
@@ -325,6 +400,10 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | .smooth point :: components => fiberVectorRuntime point components
         | _ => none)
+      (fun _ args => match args with
+        | point :: components =>
+          .ok (Lowering.application (Lowering.smooth "vector") [point, s!"[{String.intercalate ", " components}]"])
+        | _ => Lowering.arityMismatch)
   | .fiberAt family smooth =>
     .ofBool
       { operands := [fiberOperand "element" family, smoothPointOperand smooth],
@@ -336,6 +415,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.fiber value, .smooth point] => some (.boolean (SmoothRuntime.fiberAt value point))
         | _ => none)
+      (fun _ args => match args with
+        | [value, point] => .ok (Lowering.application (Lowering.smooth "fiberAt") [value, point])
+        | _ => Lowering.arityMismatch)
   | .fiberEqual family =>
     .ofBool
       { operands := [.application "first element" family, .application "second element" family],
@@ -347,6 +429,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.fiber left, .fiber right] => some (.boolean (SmoothRuntime.fiberEqual left right))
         | _ => none)
+      (fun _ args => match args with
+        | [left, right] => .ok (Lowering.application (Lowering.smooth "fiberEqual") [left, right])
+        | _ => Lowering.arityMismatch)
   | .fiberComponent family object coordinate =>
     .ofBool
       { operands := [.indexed "element" family [.fixed (.global object) "object" "the primitive's declared object"]],
@@ -362,6 +447,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
             let (numerator, denominator) := SmoothRuntime.component value coordinate
             some (.pairInt numerator denominator)
         | _ => none)
+      (fun _ args => match args with
+        | [value] => .ok (Lowering.application (Lowering.smooth "component") [value, toString coordinate])
+        | _ => Lowering.arityMismatch)
   | .fiberPairing cotangent tangent =>
     .ofBool
       { operands := [fiberOperand "covector" cotangent, fiberOperand "vector" tangent],
@@ -377,6 +465,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
             let (numerator, denominator) := SmoothRuntime.pairing covector vector
             some (.pairInt numerator denominator)
         | _ => none)
+      (fun _ args => match args with
+        | [covector, vector] => .ok (Lowering.application (Lowering.smooth "pairing") [covector, vector])
+        | _ => Lowering.arityMismatch)
   | .cotangentPullback smooth cotangent mode =>
     .ofBool
       { operands := [mapOperand "map" smooth, smoothPointOperand smooth, fiberOperand "seed" cotangent],
@@ -390,6 +481,13 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.smooth map, .smooth point, .fiber seed] => some (.fiber (SmoothRuntime.pullback mode map point seed))
         | _ => none)
+      (fun _ args => match args with
+        | [map, point, seed] =>
+          let mode := match mode with
+            | .saved => Lowering.smooth "PullbackMode.saved"
+            | .recomputed => Lowering.smooth "PullbackMode.recomputed"
+          .ok (Lowering.application (Lowering.smooth "pullback") [mode, map, point, seed])
+        | _ => Lowering.arityMismatch)
   | .differential smooth cotangent line =>
     .ofBool
       { operands := [.indexed "function" smooth
@@ -403,6 +501,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.smooth function, .smooth point] => some (.fiber (SmoothRuntime.differential function point))
         | _ => none)
+      (fun _ args => match args with
+        | [function, point] => .ok (Lowering.application (Lowering.smooth "differential") [function, point])
+        | _ => Lowering.arityMismatch)
   | .linearize smooth tape =>
     .ofBool
       { operands := [mapOperand "map" smooth, smoothPointOperand smooth],
@@ -416,6 +517,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.smooth map, .smooth point] => some (.tape (SmoothRuntime.linearize map point))
         | _ => none)
+      (fun _ args => match args with
+        | [map, point] => .ok (Lowering.application (Lowering.smooth "linearize") [map, point])
+        | _ => Lowering.arityMismatch)
   | .cotangentBackward tape cotangent =>
     .ofBool
       { operands := [mapOperand "tape" tape, fiberOperand "seed" cotangent],
@@ -428,6 +532,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.tape record, .fiber seed] => some (.fiber (SmoothRuntime.backward record seed))
         | _ => none)
+      (fun _ args => match args with
+        | [record, seed] => .ok (Lowering.application (Lowering.smooth "backward") [record, seed])
+        | _ => Lowering.arityMismatch)
   | .metricFlat metric object gram tangent cotangent =>
     .ofBool
       { operands := [.indexed "vector" tangent [.fixed (.global object) "object" "the metric's object"]],
@@ -439,6 +546,9 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.fiber vector] => some (.fiber (SmoothRuntime.flat gram vector))
         | _ => none)
+      (fun _ args => match args with
+        | [vector] => .ok (Lowering.application (Lowering.smooth "flat") [Lowering.renderMatrix gram, vector])
+        | _ => Lowering.arityMismatch)
   | .metricSharp metric evidence object gram inverse cotangent tangent =>
     .ofBool
       { operands := [.indexed "covector" cotangent [.fixed (.global object) "object" "the metric's object"]],
@@ -450,5 +560,8 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       (fun values => match values with
         | [.fiber covector] => some (.fiber (SmoothRuntime.sharp inverse covector))
         | _ => none)
+      (fun _ args => match args with
+        | [covector] => .ok (Lowering.application (Lowering.smooth "sharp") [Lowering.renderMatrix inverse, covector])
+        | _ => Lowering.arityMismatch)
 
 end VastitasKernel.Indexed

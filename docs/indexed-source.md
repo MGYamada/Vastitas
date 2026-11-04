@@ -592,7 +592,8 @@ binding's operands, their agreements and its result,
 `IndexedPrimitives.lean` derives every binding's validity contract, operand
 association, result inference and operand count from it; the argument hints of
 `IndexedCore.lean` and the role table of `IndexedSourceDiagnostics.lean` come
-from the same shape.
+from the same shape, and the lowering of a call and the literals a generated
+module shares, in `IndexedCodegen.lean`, from the same entry.
 No source spelling, arbitrary native symbol, certificate string or `trusted` flag
 chooses an implementation. The binding IDs, operand annotations and result
 annotation are independently audited against the same checked environment.

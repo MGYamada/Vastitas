@@ -3,38 +3,17 @@ import VastitasKernel.IndexedTypeAudit
 /-! Native lowering of the independently audited declaration-driven Core.
 Generated modules import IndexedRuntime, and AlgebraRuntime or SmoothRuntime
 only when they use them. Names and representation choices come from numeric
-positions and validated contracts, never source spellings. -/
+positions and validated contracts, never source spellings. The text of a
+primitive call and the literals a module shares come from the registry entry
+of its binding (`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
+open VastitasKernel.Indexed.Lowering (runtime algebra smooth application renderPolys basisName)
 
-private def runtime (name : String) : String := "VastitasKernel.IndexedRuntime." ++ name
-private def algebra (name : String) : String := "VastitasKernel.AlgebraRuntime." ++ name
-private def smooth (name : String) : String := "VastitasKernel.SmoothRuntime." ++ name
-
-/-- Exact rational literals of the checked map data; no source spelling is used. -/
-private def renderRat (value : Rat) : String := s!"(mkRat ({value.num} : Int) {value.den})"
-private def renderTerm' (term : AlgebraRuntime.Term) : String :=
-  s!"({algebra "Term.mk"} {term.monomial} {renderRat term.coefficient})"
-private def renderPoly (p : AlgebraRuntime.Poly) : String :=
-  s!"([{String.intercalate ", " (p.map renderTerm')}] : {algebra "Poly"})"
-private def renderPolys (ps : List AlgebraRuntime.Poly) : String :=
-  s!"([{String.intercalate ", " (ps.map renderPoly)}] : List {algebra "Poly"})"
-/-- A checked metric matrix, row by row, with exact rational entries. -/
-private def renderMatrix (matrix : SmoothRuntime.Matrix) : String :=
-  let rows := matrix.map fun row => s!"[{String.intercalate ", " (row.map renderRat)}]"
-  s!"([{String.intercalate ", " rows}] : {smooth "Matrix"})"
-/-- The distinct bases of the checked relative constants, in declaration order.
-Each is emitted once as `basis_k` and shared by every map over that object. -/
-private def bases (env : Declarations) : List (List AlgebraRuntime.Poly) :=
-  env.primitives.foldl (fun found entry => match entry.binding with
-    | .relativeConstant _ map => if found.contains map.basis then found else found ++ [map.basis]
-    | _ => found) []
-private def basisName (index : Nat) : String := s!"basis_{index}"
-private def renderMap (env : Declarations) (map : AlgebraRuntime.Map) : String :=
-  let basis := match (bases env).idxOf? map.basis with
-    | some index => basisName index
-    | none => renderPolys map.basis
-  s!"({algebra "Map.mk"} {map.arity} {basis} {renderPolys map.images})"
+/-- The distinct literals the checked primitives share, in declaration order:
+each is emitted once as `basis_k` and named by every map over that basis. -/
+private def bases (env : Declarations) : List SharedLiteral :=
+  PrimitiveDescriptor.sharedLiterals (env.primitives.map fun entry => entry.binding.contract)
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"
@@ -64,105 +43,64 @@ private def renderType (env : Declarations) : DataType → Except String String
         | throw "existential case missing from checked declarations"
       return packageName entry.2
 
-private def application (name : String) (args : List String) : String :=
-  "(" ++ String.intercalate " " (name :: args) ++ ")"
-
-private def renderPrimitive (env : Declarations) (binding : PrimitiveBinding) (args : List String) :
+/-- The lowering of a call is its registry entry's. -/
+private def renderPrimitive (ctx : RenderContext) (binding : PrimitiveBinding) (args : List String) :
     Except String String :=
-  match binding, args with
-  | .descriptor _, [dimension] => .ok (application (runtime "descriptor") [dimension])
-  | .global _, [] => .ok (runtime "baseObject")
-  | .origin .., [object] => .ok (application (runtime "origin") [object, runtime "baseObject"])
-  | .identity .., [object] => .ok (application (runtime "identity") [object])
-  | .compose .., [after, before] => .ok (application (runtime "compose") [after, before])
-  | .apply .., [map, point] => .ok (application (runtime "apply") [map, point])
-  | .dimension .., [object] => .ok s!"({object}).dimension"
-  | .relativeConstant _ map, [] => .ok (renderMap env map)
-  | .relativeCompose _, [after, before] => .ok (application (algebra "Map.compose") [after, before])
-  | .relativeView .., [map] => .ok map
-  | .relativeEqual _, [left, right] => .ok (application (algebra "Map.same") [left, right])
-  | .relativeCoefficient _ _ _ coordinate monomial, [map] =>
-      .ok (application (algebra "Map.coefficient") [map, toString coordinate, toString monomial])
-  | .relativePair .., [left, right] => .ok (application (algebra "Map.pair") [left, right])
-  | .relativeIntPoint .., coordinates =>
-      .ok (application (algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"])
-  | .smoothConstant _ map, [] => .ok (application (smooth "Program.primitive") [renderMap env map])
-  | .smoothCompose _, [after, before] => .ok (application (smooth "Program.compose") [after, before])
-  | .smoothEqual _, [left, right] => .ok (application (smooth "same") [left, right])
-  | .smoothIntPoint .., coordinates =>
-      .ok (application (smooth "intPoint") [s!"[{String.intercalate ", " coordinates}]"])
-  | .smoothComposite _, [program] => .ok (application (smooth "composite") [program])
-  | .fiberVector .., point :: components =>
-      .ok (application (smooth "vector") [point, s!"[{String.intercalate ", " components}]"])
-  | .fiberAt .., [value, point] => .ok (application (smooth "fiberAt") [value, point])
-  | .fiberEqual _, [left, right] => .ok (application (smooth "fiberEqual") [left, right])
-  | .fiberComponent _ _ coordinate, [value] => .ok (application (smooth "component") [value, toString coordinate])
-  | .fiberPairing .., [covector, vector] => .ok (application (smooth "pairing") [covector, vector])
-  | .cotangentPullback _ _ mode, [map, point, seed] =>
-      let mode := match mode with
-        | .saved => smooth "PullbackMode.saved"
-        | .recomputed => smooth "PullbackMode.recomputed"
-      .ok (application (smooth "pullback") [mode, map, point, seed])
-  | .differential .., [function, point] => .ok (application (smooth "differential") [function, point])
-  | .linearize .., [map, point] => .ok (application (smooth "linearize") [map, point])
-  | .cotangentBackward .., [tape, seed] => .ok (application (smooth "backward") [tape, seed])
-  | .metricFlat _ _ gram _ _, [vector] => .ok (application (smooth "flat") [renderMatrix gram, vector])
-  | .metricSharp _ _ _ _ inverse _ _, [covector] =>
-      .ok (application (smooth "sharp") [renderMatrix inverse, covector])
-  | _, _ => .error "closed primitive arity mismatch"
+  binding.contract.render ctx args
 
 private def renderBinary (operator : BinaryOp) (left right : String) : String :=
   match operator with
   | .lt | .le | .gt | .ge => s!"(decide ({left} {operator.symbol} {right}))"
   | _ => s!"({left} {operator.symbol} {right})"
 
-private def renderTerm (env : Declarations) : Term → Except String String
+private def renderTerm (env : Declarations) (ctx : RenderContext) : Term → Except String String
   | .natural value => .ok s!"({value} : Nat)"
   | .integer value => .ok s!"({value} : Int)"
   | .boolean value => .ok (if value then "true" else "false")
   | .unit => .ok "()"
   | .variable symbol _ => .ok (variableName symbol)
   | .unary operator value _ => do
-      let value ← renderTerm env value
+      let value ← renderTerm env ctx value
       return match operator with | .neg => s!"(-{value})" | .not => s!"(!{value})"
   | .binary operator left right _ => do
-      return renderBinary operator (← renderTerm env left) (← renderTerm env right)
+      return renderBinary operator (← renderTerm env ctx left) (← renderTerm env ctx right)
   | .pair _ first second => do
-      return application "Prod.mk" [← renderTerm env first, ← renderTerm env second]
+      return application "Prod.mk" [← renderTerm env ctx first, ← renderTerm env ctx second]
   | .project _ first value => do
-      return application (if first then "Prod.fst" else "Prod.snd") [← renderTerm env value]
-  | .natToInt value => do return application "Int.ofNat" [← renderTerm env value]
-  | .ascribe _ value | .scope value => renderTerm env value
+      return application (if first then "Prod.fst" else "Prod.snd") [← renderTerm env ctx value]
+  | .natToInt value => do return application "Int.ofNat" [← renderTerm env ctx value]
+  | .ascribe _ value | .scope value => renderTerm env ctx value
   | .primitive id arguments _ => do
       let some binding := env.primitive? id | throw "missing checked primitive declaration"
-      renderPrimitive env binding (← arguments.mapM (renderTerm env))
+      renderPrimitive ctx binding (← arguments.mapM (renderTerm env ctx))
   | .call id arguments _ _ => do
-      return application (functionName id) (← arguments.mapM (renderTerm env))
+      return application (functionName id) (← arguments.mapM (renderTerm env ctx))
   | .branch condition yes no _ => do
-      return s!"(if {← renderTerm env condition} then {← renderTerm env yes} else {← renderTerm env no})"
+      return s!"(if {← renderTerm env ctx condition} then {← renderTerm env ctx yes} else {← renderTerm env ctx no})"
   | .pack id witness fields => do
       let name ← renderType env (.package id)
-      return application (name ++ ".mk") ((← renderTerm env witness) :: (← fields.mapM (renderTerm env)))
+      return application (name ++ ".mk") ((← renderTerm env ctx witness) :: (← fields.mapM (renderTerm env ctx)))
   | .unpack witnessSymbol fieldSymbols package body => do
       let name := s!"packed_{witnessSymbol}"
       let fields := fieldSymbols.zipIdx.map fun (symbol, index) =>
         s!"let {variableName symbol} := {name}.field_{index}; "
-      return s!"(let {name} := {← renderTerm env package}; let {variableName witnessSymbol} := {name}.witness; " ++
-        String.join fields ++ s!"{← renderTerm env body})"
+      return s!"(let {name} := {← renderTerm env ctx package}; let {variableName witnessSymbol} := {name}.witness; " ++
+        String.join fields ++ s!"{← renderTerm env ctx body})"
   | .letE symbol value body => do
-      return s!"(let {variableName symbol} := {← renderTerm env value}; {← renderTerm env body})"
+      return s!"(let {variableName symbol} := {← renderTerm env ctx value}; {← renderTerm env ctx body})"
 
 private def renderPackage (env : Declarations) (shape : PackageShape) (index : Nat) : Except String String := do
   let fields ← (shape.instantiate (.local shape.witnessType 0)).zipIdx.mapM fun (field, index) => do
     return s!"  field_{index} : {← renderType env (.indexed field)}\n"
   return s!"structure {packageName index} where\n  witness : {runtime "Object"}\n" ++ String.join fields
 
-private def renderFunction (env : Declarations) (function : Function) : Except String String := do
+private def renderFunction (env : Declarations) (ctx : RenderContext) (function : Function) :
+    Except String String := do
   let parameters ← function.parameters.mapM fun parameter => do
     return s!"({variableName parameter.symbol} : {← renderType env parameter.result.type})"
   let parameterText := if parameters.isEmpty then "" else " " ++ String.intercalate " " parameters
   return s!"def {functionName function.id}{parameterText} : {← renderType env function.returnType} :=\n  " ++
-    (← renderTerm env function.body) ++ "\n"
+    (← renderTerm env ctx function.body) ++ "\n"
 
 /-- Recheck all declarations, bodies, identities and actual dependencies at the
 last compiler boundary, including functions omitted by reachability lowering. -/
@@ -181,8 +119,9 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
         reachable := reachable.insert callee
   let packages ← (packageCases module.declarations).zipIdx.mapM fun (entry, index) =>
     renderPackage module.declarations entry.2 index
+  let literals := bases module.declarations
   let functions ← (module.functions.filter (fun function => reachable.contains function.id)).mapM
-    (renderFunction module.declarations)
+    (renderFunction module.declarations ⟨literals⟩)
   -- Only programs that use exact algebra or smooth programs import those runtimes.
   let usesAlgebra := (packages ++ functions).any fun text => (text.splitOn (algebra "")).length > 1
   let usesSmooth := (packages ++ functions).any fun text => (text.splitOn (smooth "")).length > 1
@@ -190,7 +129,7 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "") ++
     (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "")
   let basisDefinitions := if usesAlgebra then
-      (bases module.declarations).zipIdx.map fun (basis, index) =>
+      literals.zipIdx.map fun (basis, index) =>
         s!"def {basisName index} : List {algebra "Poly"} :=\n  {renderPolys basis}\n"
     else []
   return imports ++ "\nset_option maxRecDepth 32768\n" ++

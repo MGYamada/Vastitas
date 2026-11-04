@@ -51,7 +51,7 @@ private def renderBinary (operator : BinaryOp) (left right : String) : String :=
   | .lt | .le | .gt | .ge => s!"(decide ({left} {operator.symbol} {right}))"
   | _ => s!"({left} {operator.symbol} {right})"
 
-private partial def renderTerm (env : Declarations) : Term → Except String String
+private def renderTerm (env : Declarations) : Term → Except String String
   | .natural value => .ok s!"({value} : Nat)"
   | .integer value => .ok s!"({value} : Int)"
   | .boolean value => .ok (if value then "true" else "false")

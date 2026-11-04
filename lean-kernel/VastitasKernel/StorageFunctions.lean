@@ -76,7 +76,9 @@ inductive Statement where
   | call (callee : Nat) (arguments results : List Symbol)
   | callValue (callee : Nat) (arguments results : List Symbol) (value : Symbol) (type : Indexed.Core.PureType)
   | branch (condition : ValueFlow.Condition) (yes no : List Statement)
-  deriving Repr, BEq, Inhabited
+  -- No derived `BEq`: Lean derives it as `partial` for this nested type. `==`
+  -- uses the total `DecidableEq` below.
+  deriving Repr, Inhabited
 
 deriving instance DecidableEq for Numerical.Operation
 deriving instance DecidableEq for Tensor.Operation

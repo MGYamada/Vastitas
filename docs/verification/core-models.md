@@ -252,6 +252,8 @@ unproved axioms, `sorry` declarations or copied checker implementations.
 Semantic equality is conditional on
 `Interpretation profile capability arity M`. This supplies composition and the
 four explicit generating laws, with valid-position hypotheses at that arity.
+No field mentions `profile`; it is a nominal tag, so the theorems do not show
+that a model realizes the declarations of that profile.
 Its laws are about fixed word patterns, not about checker acceptance. Context
 preservation follows from composition; trace preservation follows by induction.
 The type `M` can represent an action on a family of ordered boundaries, but

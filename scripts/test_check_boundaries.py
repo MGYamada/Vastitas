@@ -64,7 +64,7 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.write("lean-kernel/lean-toolchain", "leanprover/lean4:v4.35.0\n")
-        self.write("lean-kernel/lakefile.toml", 'name = "vastitas_kernel"\n')
+        self.write("lean-kernel/lakefile.toml", 'name = "vastitas_kernel"\n[leanOptions]\nwarningAsError = true\n')
         self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": []}))
         self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Init\n")
 
@@ -230,6 +230,8 @@ require /- existing local dependency -/ vastitas_storage_native from "../native"
     def oracle_package(self):
         self.write("lean/lean-toolchain", "leanprover/lean4:v4.35.0\n")
         self.write("lean/lakefile.toml", '''name = "vastitas_oracle"
+[leanOptions]
+warningAsError = true
 [[require]]
 name = "vastitas_kernel"
 path = "../lean-kernel"
@@ -362,6 +364,22 @@ rev = "v4.35.0"
             path.unlink()
             self.assert_boundary_error("cannot check Lake dependencies")
             path.write_text(original)
+
+    def test_kernel_and_oracle_builds_turn_warnings_into_errors(self):
+        self.oracle_package()
+        self.assertEqual(check_boundaries(self.root), [])
+        for directory in ["lean", "lean-kernel"]:
+            with self.subTest(directory=directory):
+                path = self.root / directory / "lakefile.toml"
+                original = path.read_text()
+                for replacement in ["", "warningAsError = false\n", 'warningAsError = "true"\n']:
+                    path.write_text(original.replace("warningAsError = true\n", replacement))
+                    self.assert_boundary_error("must set leanOptions.warningAsError = true")
+                path.write_text(original.replace("[leanOptions]\nwarningAsError = true\n",
+                                                 "leanOptions = [\"warningAsError\"]\n"))
+                self.assert_boundary_error("must set leanOptions.warningAsError = true")
+                path.write_text(original)
+        self.assertEqual(check_boundaries(self.root), [])
 
     def test_missing_or_malformed_lake_configs_fail_closed(self):
         self.oracle_package()

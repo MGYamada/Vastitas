@@ -159,6 +159,10 @@ def check_lake_dependencies(package, label, errors, *, oracle=False):
                   else "no external Lake package dependencies")
         if config.get("require", []) != required:
             errors.append(f"{label} must have {policy} (lakefile.toml)")
+        options = config.get("leanOptions", {})
+        if not isinstance(options, dict) or options.get("warningAsError") is not True:
+            errors.append(f"{label} must set leanOptions.warningAsError = true, so that warnings "
+                          "such as a declaration using sorry fail the build")
         if not isinstance(manifest, dict) or manifest.get("packages") != locked:
             errors.append(f"{label} must have {policy} (complete manifest, including transitive dependencies)")
     except (OSError, ValueError) as error:

@@ -52,7 +52,7 @@ Trailing commas are accepted in argument lists and package fields.
 | --- | --- |
 | `Nat` | Arbitrary-precision unsigned literals, `+`, `-`, `*`, comparisons |
 | `Int` | Arbitrary-precision literals, unary `-`, `+`, `-`, `*`, comparisons |
-| `Bool` | `true`, `false`, `!`, `&&`, `||`, equality |
+| `Bool` | `true`, `false`, `!`, `&&`, `\|\|`, equality |
 | `Unit` | `()`, empty blocks, equality |
 
 Comparisons are `==`, `!=`, `<`, `<=`, `>`, `>=`. Ordering is integer-only.

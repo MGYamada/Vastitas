@@ -8,6 +8,8 @@ import VastitasOracle.SmoothMetrics
 import VastitasOracle.SmoothCanonical
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothDeclarations
+import VastitasOracle.SmoothFibers
+import VastitasOracle.SmoothReverse
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

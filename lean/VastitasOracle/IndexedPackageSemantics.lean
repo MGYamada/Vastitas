@@ -113,6 +113,50 @@ theorem smooth_field_transport {env : Environment} {before after : World}
   exact SmoothPrimitives.smooth_typed representation valid
     (by simp [BoundApplication.instantiate, fields, BoundIndex.instantiate]) hx hy welltyped
 
+/-- A field whose instantiation at a local witness names only global objects
+has no witness index, so its instantiation does not depend on the witness. -/
+theorem instantiate_global_fixed {old new : ObjectRef} (newLocal : new.isLocal = true)
+    (field : BoundApplication)
+    (global : ∀ index ∈ (field.instantiate new).indices, ∃ x, index = .object (.global x)) :
+    field.instantiate new = field.instantiate old := by
+  unfold BoundApplication.instantiate
+  congr 1
+  apply List.map_congr_left
+  intro index member
+  cases index with
+  | witness =>
+    obtain ⟨x, hx⟩ := global _ (List.mem_map.mpr ⟨.witness, member, rfl⟩)
+    simp only [BoundIndex.instantiate, Index.object.injEq] at hx
+    subst hx
+    cases newLocal
+  | global | domain | marker | natural => rfl
+
+/-- A fiber field names one declared smooth object, so it never binds a fresh
+local witness. -/
+theorem fiber_field_transport {env : Environment} {before after : World}
+    (envValid : env.Valid) {old new : ObjectRef} (newLocal : new.isLocal = true)
+    (field : BoundApplication) {variance : Variance} (value : VastitasKernel.SmoothRuntime.FiberValue)
+    (valid : (field.instantiate new).Valid env)
+    (typed : IndexedHasType env before (.fiber variance value) (field.instantiate old)) :
+    IndexedHasType env after (.fiber variance value) (field.instantiate new) := by
+  have representation := (SmoothFibers.fiber_has_type typed).1
+  obtain ⟨x, indices, _⟩ := SmoothFibers.fiber_application_indices envValid valid representation
+  rw [instantiate_global_fixed newLocal field (by rw [indices]; simp)]
+  exact SmoothFibers.fiber_world typed
+
+/-- A tape field names two declared smooth objects, so it never binds a fresh
+local witness. -/
+theorem tape_field_transport {env : Environment} {before after : World}
+    (envValid : env.Valid) {old new : ObjectRef} (newLocal : new.isLocal = true)
+    (field : BoundApplication) (tape : VastitasKernel.SmoothRuntime.Tape)
+    (valid : (field.instantiate new).Valid env)
+    (typed : IndexedHasType env before (.tape tape) (field.instantiate old)) :
+    IndexedHasType env after (.tape tape) (field.instantiate new) := by
+  have representation := (SmoothFibers.tape_has_type typed).1
+  obtain ⟨x, y, indices, _⟩ := SmoothFibers.tape_application_indices envValid valid representation
+  rw [instantiate_global_fixed newLocal field (by rw [indices]; simp)]
+  exact SmoothFibers.tape_world typed
+
 theorem bound_field_transport {env : Environment} {before after : World}
     (envValid : env.Valid) {old new : ObjectRef} {witness : Object} (newLocal : new.isLocal = true)
     (oldDenotes : RefDenotes env before old witness) (newDenotes : RefDenotes env after new witness)
@@ -156,6 +200,8 @@ theorem bound_field_transport {env : Environment} {before after : World}
       apply bound_token_transport newDenotes field
       simpa only [BoundApplication.instantiate, representation] using typed.2
   | smooth program => exact smooth_field_transport envValid newLocal field program valid typed
+  | fiber variance fiber => exact fiber_field_transport envValid newLocal field fiber valid typed
+  | tape tape => exact tape_field_transport envValid newLocal field tape valid typed
 
 theorem bound_fields_transport {env : Environment} {before after : World}
     (envValid : env.Valid) {old new : ObjectRef} {witness : Object} (newLocal : new.isLocal = true)

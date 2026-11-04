@@ -2,6 +2,7 @@ import VastitasKernel.IndexedSemantics
 import VastitasOracle.IndexedCore
 import VastitasOracle.IndexedPrimitives
 import VastitasOracle.SmoothPrimitives
+import VastitasOracle.SmoothFibers
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
 primitive registry. These lemmas do not yet prove whole-term typed evaluation,
@@ -60,6 +61,8 @@ theorem indexed_of_worldExtends {env : Indexed.Environment} {before after : Worl
   · intro ref member
     obtain ⟨object, denotes⟩ := typed ref member
     exact ⟨object, denotes_of_worldExtends extension denotes⟩
+  · exact typed
+  · exact typed
   · exact typed
   · contradiction
 
@@ -556,6 +559,15 @@ theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {b
     | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothEqual_total rule typed)
     | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothIntPoint_total rule typed)
     | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothComposite_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberVector_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberAt_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberEqual_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberComponent_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberPairing_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentPullback_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.differential_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.linearize_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentBackward_total rule typed)
     | contradiction
 
 
@@ -702,6 +714,9 @@ theorem primitive_runtime_erasure {env : Indexed.Environment} {binding : Primiti
   · exact SmoothPrimitives.smoothPoint_erasure evaluated
   · cases evaluated
     exact ⟨_, _, rfl, rfl, rfl⟩
-  · contradiction
+  · exact SmoothFibers.fiberVector_erasure evaluated
+  all_goals first
+    | contradiction
+    | (cases evaluated; exact ⟨_, _, rfl, rfl, rfl⟩)
 
 end VastitasOracle.IndexedSemantics

@@ -85,6 +85,15 @@ theorem indexed_rename_forward {env : Environment} {before after : World}
     obtain ⟨x, y, n, m, indices, hx, hy, welltyped⟩ := SmoothPrimitives.smooth_has_type representation typed
     exact SmoothPrimitives.smooth_typed representation valid
       (by simp [Application.rename, indices, renameRef]) hx hy welltyped
+  | fiber variance fiber =>
+    -- Fiber and tape indices are global objects too.
+    obtain ⟨representation, x, n, indices, hx, fiberTyped⟩ := SmoothFibers.fiber_has_type typed
+    exact SmoothFibers.fiber_typed representation valid
+      (by simp [Application.rename, indices, renameRef]) hx fiberTyped
+  | tape tape =>
+    obtain ⟨representation, x, y, n, m, indices, hx, hy, tapeTyped⟩ := SmoothFibers.tape_has_type typed
+    exact SmoothFibers.tape_typed representation valid
+      (by simp [Application.rename, indices, renameRef]) hx hy tapeTyped
 
 theorem renamed_two_objects {application : Application} {substitution : List (ObjectRef × ObjectRef)}
     {first second : ObjectRef} (shape : (application.rename substitution).indices = [.object first, .object second]) :
@@ -156,6 +165,29 @@ theorem indexed_rename_backward {env : Environment} {before after : World}
     simp only [List.cons.injEq, Index.object.injEq, ObjectRef.global.injEq, and_true] at indices
     obtain ⟨rfl, rfl⟩ := indices
     exact SmoothPrimitives.smooth_typed representation valid original hx hy welltyped
+  | fiber variance fiber =>
+    have renamedRepresentation := (SmoothFibers.fiber_has_type typed).1
+    have representation : familyRepresentation env application.family = some (.fiber variance) :=
+      renamedRepresentation
+    obtain ⟨x, original, _⟩ := SmoothFibers.fiber_application_indices envValid valid representation
+    obtain ⟨_, x', n, indices, hx, fiberTyped⟩ := SmoothFibers.fiber_has_type typed
+    have renamed : (application.rename substitution).indices = application.indices := by
+      simp [Application.rename, original, renameRef]
+    rw [renamed, original] at indices
+    simp only [List.cons.injEq, Index.object.injEq, ObjectRef.global.injEq, and_true] at indices
+    subst indices
+    exact SmoothFibers.fiber_typed representation valid original hx fiberTyped
+  | tape tape =>
+    have renamedRepresentation := (SmoothFibers.tape_has_type typed).1
+    have representation : familyRepresentation env application.family = some .tape := renamedRepresentation
+    obtain ⟨x, y, original, _, _⟩ := SmoothFibers.tape_application_indices envValid valid representation
+    obtain ⟨_, x', y', n, m, indices, hx, hy, tapeTyped⟩ := SmoothFibers.tape_has_type typed
+    have renamed : (application.rename substitution).indices = application.indices := by
+      simp [Application.rename, original, renameRef]
+    rw [renamed, original] at indices
+    simp only [List.cons.injEq, Index.object.injEq, ObjectRef.global.injEq, and_true] at indices
+    obtain ⟨rfl, rfl⟩ := indices
+    exact SmoothFibers.tape_typed representation valid original hx hy tapeTyped
 
 theorem package_rename_fixed {env : Declarations} {application : Application}
     (valid : (DataType.package application).Valid env) (substitution : List (ObjectRef × ObjectRef)) :

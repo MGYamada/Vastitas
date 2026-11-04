@@ -1,0 +1,22 @@
+// The finite smooth profile with explicit metrics. A metric form indexes the
+// metrics of a smooth object. It is a declared family, not a grammar keyword,
+// and no value has its type.
+pub indexed marker CInfReal;
+pub indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+pub indexed classification CInfAffine { parents(); domain(SmoothR); };
+pub indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+pub indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+pub indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+pub indexed family MetricForm(object(CInfAffine)) = metric_form constraints(canonical(0));
+pub indexed affine Pt(SmoothR) = Affine(0)[];
+pub indexed affine Line(SmoothR) = Affine(1)[t];
+pub indexed affine Plane(SmoothR) = Affine(2)[x, y];
+pub indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+pub indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+// The differential needs no metric.
+pub indexed primitive differential = differential(Smooth, Cotangent, Line);
+pub indexed primitive tangent_over = fiber_at(Tangent, Smooth);
+pub indexed primitive same_covector = fiber_equal(Cotangent);
+pub indexed primitive same_vector = fiber_equal(Tangent);
+pub indexed primitive pairing = fiber_pairing(Cotangent, Tangent);

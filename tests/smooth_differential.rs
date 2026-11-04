@@ -819,3 +819,481 @@ fn raw_wire_rejects_forged_fiber_and_tape_records() {
     let recomputed = forged(&format!("{pullback}/binding/mode"), json!("recomputed"));
     assert_eq!(kernel(recomputed, "emit")["ok"], true);
 }
+
+// Metrics, evidence, flat and sharp (protocol 9). The differential needs no
+// metric; a gradient is an ordinary function that applies sharp to it.
+
+const METRIC_PROFILE: &str = include_str!("../examples/packages/smooth-metric/src/profile.vast");
+const METRIC_MAIN: &str = include_str!("../examples/packages/smooth-metric/src/main.vast");
+
+fn metric_fixture_with(profile: &str, main: &str) -> Scratch {
+    let s = Scratch::empty("smooth metric");
+    s.write(
+        "Vastitas.toml",
+        include_str!("../examples/packages/smooth-metric/Vastitas.toml"),
+    );
+    s.write("src/main.vast", main);
+    s.write("src/profile.vast", profile);
+    s
+}
+
+fn metric_fixture(main: &str) -> Scratch {
+    metric_fixture_with(METRIC_PROFILE, main)
+}
+
+/// The metric example with extra items inserted before its helpers.
+fn with_metric(extra: &str) -> String {
+    assert!(METRIC_MAIN.contains("fn verdict("));
+    METRIC_MAIN.replacen("fn verdict(", &format!("{extra}\nfn verdict("), 1)
+}
+
+/// The metric example with one declaration replaced.
+fn replacing_metric(from: &str, to: &str) -> String {
+    common::checked_replace(METRIC_MAIN, from, to)
+}
+
+#[track_caller]
+fn rejects_metric(main: &str, code: &str) -> String {
+    expect_code(&check(&metric_fixture(main)), code)
+}
+
+#[test]
+fn metric_example_checks_builds_and_executes() {
+    let s = metric_fixture(METRIC_MAIN);
+    success(&check(&s));
+    assert_eq!(run(&s), b"42\n");
+}
+
+#[test]
+fn mutated_metric_observations_change_the_native_result() {
+    // Code 3: the Skew gradient is (1, 0), not (1, 1).
+    let main = common::checked_replace(
+        METRIC_MAIN,
+        "reads(gradient_skew(g(), p), 1, 0), 3)",
+        "reads(gradient_skew(g(), p), 1, 1), 3)",
+    );
+    // Code 9: another Gram matrix lowers (5, -7) to (3, -9). The gradient of
+    // dg is still (1, 0), so no other observation changes.
+    let main = common::checked_replace(&main, "gram((2, 1), (1, 1))", "gram((2, 1), (1, 2))");
+    // Code 4: with the Euclidean Gram matrix, Lorentz no longer flips dy.
+    let main = common::checked_replace(&main, "gram((1, 0), (0, -1))", "gram((1, 0), (0, 1))");
+    assert_eq!(run(&metric_fixture(&main)), b"58\n");
+}
+
+#[test]
+fn metric_programs_lower_to_the_shared_smooth_runtime() {
+    let raw = request(&metric_fixture(METRIC_MAIN));
+    let emitted = kernel(&raw, "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    let source = emitted["lean_source"].as_str().unwrap();
+    for expected in [
+        "import VastitasKernel.SmoothRuntime\n",
+        // flat applies the declared Gram matrix of Skew.
+        "(VastitasKernel.SmoothRuntime.flat ([[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)], [(mkRat (1 : Int) 1), (mkRat (1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
+        // sharp applies the inverse that the kernel certified.
+        "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
+        "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (-1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
+        "(VastitasKernel.SmoothRuntime.differential ",
+    ] {
+        assert!(source.contains(expected), "{expected}\n{source}");
+    }
+    // Neither a gradient operation nor the Riemannian certificate reaches
+    // the generated program.
+    assert!(!source.contains("gradient"), "{source}");
+    assert!(!source.contains("(mkRat (1 : Int) 2)"), "{source}");
+}
+
+#[test]
+fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes() {
+    for (from, to, code, message) in [
+        (
+            "gram((2, 1), (1, 1))",
+            "gram((2, 1), (0, 1))",
+            "E_METRIC",
+            "the metric `Skew` is not symmetric",
+        ),
+        (
+            "gram((2, 1), (1, 1))",
+            "gram((2, 1, 0), (1, 1, 0), (0, 0, 1))",
+            "E_METRIC",
+            "needs 2 rows of 2 entries, but it has 3 rows",
+        ),
+        (
+            "gram((2, 1), (1, 1))",
+            "gram((2, 1), (1))",
+            "E_METRIC",
+            "needs 2 entries in each row, but row 2 has 1",
+        ),
+        (
+            "gram((2, 1), (1, 1))",
+            "gram((2, x), (x, 1))",
+            "E_METRIC",
+            "the Gram entry in row 1, column 2 is not constant",
+        ),
+        (
+            "gram((2, 1), (1, 1))",
+            "gram((2, z), (z, 1))",
+            "E_AFFINE_COORDINATE",
+            "unknown coordinate z",
+        ),
+        // diag(1, -1) has an inverse but no positive LDLᵀ factorization.
+        (
+            "indexed evidence SkewPositive = riemannian(Skew);",
+            "indexed evidence SkewPositive = riemannian(Lorentz);",
+            "E_METRIC",
+            "the metric `Lorentz` is not positive definite, so it has no Riemannian evidence",
+        ),
+        (
+            "indexed evidence SkewInvertible = nondegenerate(Skew);",
+            "indexed evidence SkewInvertible = nondegenerate(Plane);",
+            "E_METRIC",
+            "evidence names a metric, but `Plane` is not a metric",
+        ),
+        // sharp with another metric's evidence, or with the wrong kind.
+        (
+            "using = Skew, evidence = SkewInvertible",
+            "using = Skew, evidence = EuclidInvertible",
+            "E_METRIC",
+            "`sharp` uses the metric `Skew`, but the evidence `EuclidInvertible` certifies `Euclid`",
+        ),
+        (
+            "using = Skew, evidence = SkewInvertible",
+            "using = Skew, evidence = SkewPositive",
+            "E_METRIC",
+            "`sharp` needs nondegenerate evidence, but `SkewPositive` is Riemannian evidence",
+        ),
+        (
+            "flat(Tangent, Cotangent, using = Skew)",
+            "flat(Tangent, Cotangent, using = SkewInvertible)",
+            "E_METRIC",
+            "`flat` needs a metric after `using =`, but `SkewInvertible` is not a metric",
+        ),
+        (
+            "flat(Tangent, Cotangent, using = Skew)",
+            "flat(Cotangent, Cotangent, using = Skew)",
+            "E_SMOOTH",
+            "`flat` needs a tangent family, but `Cotangent` is a cotangent family",
+        ),
+        (
+            "indexed metric Euclid: MetricForm<Plane> = euclidean;",
+            "indexed metric Euclid: Cotangent<Plane> = euclidean;",
+            "E_METRIC",
+            "a metric is declared at a `metric_form` family, but `Cotangent` is not one",
+        ),
+        (
+            "indexed metric Euclid: MetricForm<Plane> = euclidean;",
+            "indexed metric Euclid: MetricForm<Plane, Line> = euclidean;",
+            "E_METRIC",
+            "a metric names one object",
+        ),
+        // A missing metric or missing evidence is a parse error: nothing is
+        // ever selected by default, not even the Euclidean metric.
+        (
+            "flat(Tangent, Cotangent, using = Euclid)",
+            "flat(Tangent, Cotangent)",
+            "E_PARSE",
+            "`flat` needs an explicit metric: write `using = …`",
+        ),
+        (
+            "sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible)",
+            "sharp(Cotangent, Tangent, using = Euclid)",
+            "E_PARSE",
+            "`sharp` needs explicit nondegeneracy evidence: write `evidence = …`",
+        ),
+        (
+            "sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible)",
+            "sharp(Cotangent, Tangent, evidence = EuclidInvertible)",
+            "E_PARSE",
+            "`sharp` needs an explicit metric: write `using = …`",
+        ),
+        (
+            "indexed metric Euclid: MetricForm<Plane> = euclidean;",
+            "indexed metric Euclid: MetricForm<Plane> = identity;",
+            "E_TYPE",
+            "a metric is `euclidean` or `gram((…), …)`",
+        ),
+        (
+            "indexed evidence SkewPositive = riemannian(Skew);",
+            "indexed evidence SkewPositive = positive(Skew);",
+            "E_TYPE",
+            "evidence is nondegenerate(metric) or riemannian(metric)",
+        ),
+    ] {
+        let stderr = rejects_metric(&replacing_metric(from, to), code);
+        assert!(stderr.contains(message), "{to}: {stderr}");
+    }
+    // diag(1, 0) is singular: it has no nondegenerate evidence.
+    let stderr = rejects_metric(
+        &with_metric(
+            "indexed metric Diag10: MetricForm<Plane> = gram((1, 0), (0, 0));\nindexed evidence Bad = nondegenerate(Diag10);",
+        ),
+        "E_METRIC",
+    );
+    assert!(
+        stderr.contains("the metric `Diag10` is singular, so it has no nondegenerate evidence"),
+        "{stderr}"
+    );
+    // diag(1, -1) is accepted as nondegenerate: the example uses it.
+    success(&check(&metric_fixture(METRIC_MAIN)));
+    // A metric on a presented object is a foreign-object metric.
+    let stderr = rejects_metric(
+        &with_metric(&format!(
+            "{PRESENTED}\nindexed metric Foreign: MetricForm<QLine> = euclidean;"
+        )),
+        "E_METRIC",
+    );
+    assert!(
+        stderr.contains("the metric `Foreign` is on `QLine`, which is not a smooth object"),
+        "{stderr}"
+    );
+    // Metric forms range over smooth objects only.
+    rejects_metric(
+        &with_metric(&format!(
+            "{PRESENTED}\nindexed family BadForm(object(AffineScheme)) = metric_form constraints(canonical(0));"
+        )),
+        "E_TYPE",
+    );
+    rejects_metric(
+        &with_metric(
+            "indexed family BadForm(object(profile::CInfAffine)) = metric_form constraints();",
+        ),
+        "E_TYPE",
+    );
+}
+
+#[test]
+fn metric_selection_is_explicit_and_unambiguous() {
+    // Two modules declare a metric named `Skew`. Importing both makes the
+    // name ambiguous, so `using = Skew` is rejected before any metric is
+    // selected; importing one selects that one.
+    let profile = format!(
+        "{METRIC_PROFILE}\npub indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));"
+    );
+    let two_metrics = |imports: &str| {
+        let main = common::checked_replace(
+            METRIC_MAIN,
+            "indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));\n",
+            "mod alt { pub indexed metric Skew: super::profile::MetricForm<super::profile::Plane> = gram((2, 1), (1, 1)); }\n",
+        );
+        common::checked_replace(
+            &main,
+            "use profile::pairing;\n",
+            &format!("use profile::pairing;\n{imports}"),
+        )
+    };
+    success(&check(&metric_fixture_with(
+        &profile,
+        &two_metrics("use alt::Skew;\n"),
+    )));
+    success(&check(&metric_fixture_with(
+        &profile,
+        &two_metrics("use profile::Skew;\n"),
+    )));
+    let stderr = expect_code(
+        &check(&metric_fixture_with(
+            &profile,
+            &two_metrics("use profile::Skew;\nuse alt::Skew;\n"),
+        )),
+        "E_DUPLICATE",
+    );
+    assert!(stderr.contains("collision"), "{stderr}");
+    // A metric named by path is that metric: evidence for another metric
+    // with the same name does not certify it.
+    let s = metric_fixture_with(
+        &profile,
+        &common::checked_replace(
+            METRIC_MAIN,
+            "using = Skew, evidence = SkewInvertible);",
+            "using = profile::Skew, evidence = SkewInvertible);",
+        ),
+    );
+    let stderr = expect_code(&check(&s), "E_METRIC");
+    assert!(stderr.contains("certifies `Skew`"), "{stderr}");
+}
+
+#[test]
+fn metric_operations_reject_wrong_objects_and_variances() {
+    for (body, types) in [
+        (
+            "fn bad() -> Cotangent<Plane> { flat_skew(differential(g(), plane_at(1, 2))) }",
+            "Cotangent<Plane>",
+        ),
+        (
+            "fn bad() -> Tangent<Plane> { sharp_skew(vplane(plane_at(1, 2), 1, 0)) }",
+            "Tangent<Plane>",
+        ),
+        (
+            "indexed primitive vline = fiber_vector(Tangent, Smooth, Line);\nfn bad() -> Cotangent<Plane> { flat_skew(vline(line_at(1), 1)) }",
+            "Tangent<Line>",
+        ),
+    ] {
+        let stderr = rejects_metric(&with_metric(body), "E_ENDPOINT");
+        assert!(stderr.contains(types), "{body}: {stderr}");
+    }
+    // flat returns a covector and sharp a vector.
+    rejects_metric(
+        &with_metric("fn bad() -> Tangent<Plane> { flat_skew(vplane(plane_at(1, 2), 1, 0)) }"),
+        "E_TYPE",
+    );
+}
+
+#[test]
+fn metric_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+    let raw = request(&metric_fixture(METRIC_MAIN));
+    assert_eq!(raw["version"], 9);
+    assert_eq!(kernel(&raw, "emit")["ok"], true);
+    for version in [7, 8] {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
+    }
+}
+
+#[test]
+fn raw_wire_rejects_forged_metric_records() {
+    let raw = request(&metric_fixture(METRIC_MAIN));
+    let skew = declaration_pointer(&raw, "Skew");
+    let euclid = declaration_pointer(&raw, "Euclid");
+    let invertible = declaration_pointer(&raw, "SkewInvertible");
+    let positive = declaration_pointer(&raw, "SkewPositive");
+    let flat = declaration_pointer(&raw, "flat_skew");
+    let sharp = declaration_pointer(&raw, "sharp_skew");
+    assert_eq!(raw.pointer(&skew).unwrap()["kind"], "metric");
+    assert_eq!(raw.pointer(&skew).unwrap()["gram"]["kind"], "gram");
+    assert_eq!(raw.pointer(&euclid).unwrap()["gram"]["kind"], "euclidean");
+    assert_eq!(
+        raw.pointer(&invertible).unwrap()["evidence"],
+        "nondegenerate"
+    );
+    assert_eq!(raw.pointer(&positive).unwrap()["evidence"], "riemannian");
+    assert_eq!(raw.pointer(&flat).unwrap()["binding"]["op"], "flat");
+    assert_eq!(raw.pointer(&sharp).unwrap()["binding"]["op"], "sharp");
+    let identity = json!([["1", "0"], ["0", "1"]]);
+    // Certificates and matrices never come from the wire.
+    for (pointer, field) in [
+        (invertible.clone(), "inverse"),
+        (positive.clone(), "lower"),
+        (positive.clone(), "pivots"),
+        (skew.clone(), "inverse"),
+        (format!("{euclid}/gram"), "rows"),
+        (format!("{flat}/binding"), "gram"),
+        (format!("{sharp}/binding"), "inverse"),
+        (format!("{sharp}/binding"), "object"),
+    ] {
+        let mut extra = raw.clone();
+        extra.pointer_mut(&pointer).unwrap()[field] = identity.clone();
+        assert_wire_rejected(&kernel(extra, "emit"), "E_PROTOCOL");
+    }
+    let forged = |path: &str, value: Value| {
+        let mut changed = raw.clone();
+        *changed.pointer_mut(path).unwrap() = value;
+        changed
+    };
+    for (path, value) in [
+        (format!("{flat}/binding/op"), json!("gradient")),
+        (format!("{flat}/binding/op"), json!("flat_")),
+        (format!("{sharp}/binding/op"), json!("metric_sharp")),
+        (format!("{invertible}/evidence"), json!("positive")),
+        (format!("{euclid}/gram/kind"), json!("identity")),
+        (format!("{skew}/gram/rows/0/0"), json!("2")),
+    ] {
+        assert_wire_rejected(&kernel(forged(&path, value), "emit"), "E_PROTOCOL");
+    }
+    // Consistent but wrong data is rejected by the checker with its own code.
+    for (path, value, code) in [
+        (
+            format!("{skew}/gram/rows/1/0"),
+            json!({"op": "natural", "value": "0"}),
+            "E_METRIC",
+        ),
+        (
+            format!("{positive}/metric/path"),
+            json!(["Lorentz"]),
+            "E_METRIC",
+        ),
+        (
+            format!("{sharp}/binding/evidence/path"),
+            json!(["SkewPositive"]),
+            "E_METRIC",
+        ),
+        (
+            format!("{sharp}/binding/evidence/path"),
+            json!(["EuclidInvertible"]),
+            "E_METRIC",
+        ),
+        (
+            format!("{flat}/binding/metric/path"),
+            json!(["Plane"]),
+            "E_METRIC",
+        ),
+        (
+            format!("{flat}/binding/tangent/path"),
+            json!(["Cotangent"]),
+            "E_SMOOTH",
+        ),
+    ] {
+        assert_wire_rejected(&kernel(forged(&path, value), "emit"), code);
+    }
+}
+
+/// A program that uses only the differential, with and without metric
+/// declarations.
+fn differential_program(with_metrics: bool) -> Scratch {
+    let profile = if with_metrics {
+        METRIC_PROFILE.to_string()
+    } else {
+        common::checked_replace(
+            METRIC_PROFILE,
+            "pub indexed family MetricForm(object(CInfAffine)) = metric_form constraints(canonical(0));\n",
+            "",
+        )
+    };
+    let metrics = if with_metrics {
+        "use profile::MetricForm;
+indexed metric Euclid: MetricForm<Plane> = euclidean;
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed evidence EuclidInvertible = nondegenerate(Euclid);
+indexed evidence SkewInvertible = nondegenerate(Skew);
+indexed evidence SkewPositive = riemannian(Skew);
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+indexed primitive sharp_euclid = sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible);"
+    } else {
+        ""
+    };
+    let main = format!(
+        "mod profile;
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tangent;
+use profile::Plane;
+use profile::Line;
+use profile::plane_at;
+use profile::differential;
+use profile::same_covector;
+{metrics}
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+fn main() -> Int {{
+    if same_covector(differential(g(), plane_at(1, 2)), dplane(plane_at(1, 2), 2, 1)) {{ 42 }} else {{ 1 }}
+}}
+"
+    );
+    metric_fixture_with(&profile, &main)
+}
+
+#[test]
+fn differential_is_unchanged_by_metric_declarations() {
+    let free = differential_program(false);
+    let metric = differential_program(true);
+    let generated = |s: &Scratch| {
+        let emitted = kernel(request(s), "emit");
+        assert_eq!(emitted["ok"], true, "{emitted}");
+        emitted["lean_source"].as_str().unwrap().to_owned()
+    };
+    let free_source = generated(&free);
+    assert!(free_source.contains("(VastitasKernel.SmoothRuntime.differential "));
+    assert_eq!(free_source, generated(&metric));
+    assert_eq!(run(&free), b"42\n");
+    assert_eq!(run(&metric), b"42\n");
+}

@@ -108,6 +108,34 @@ covector, a vector, a tape or a coordinate index. The kernel resolves the
 coordinate of `fiber_component` to its index, and generated programs compute
 every fiber and tape at run time. Only `linearize` builds a tape.
 
+<a id="protocol-9-metric-forms"></a>
+
+**Protocol-9 metric forms.** Metrics, metric evidence, `flat` and `sharp` are
+validated optional fields of protocol 9. Any module that uses one selects
+protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
+
+- **Family representation.** A family may use the string `"metric_form"`.
+- **Metric.** `kind: "metric"` carries `family` (path), `indices` (paths) and
+  `gram`, besides the common `name`, `public` and `span`. `gram` is
+  `{"kind": "euclidean"}` or `{"kind": "gram", "rows": [[poly, …], …]}`, where
+  each entry is a polynomial expression in the form above.
+- **Evidence.** `kind: "evidence"` carries `metric` (path) and `evidence`, the
+  string `"nondegenerate"` or `"riemannian"`.
+- **Primitives.** The binding `op` may be `flat` with `tangent`, `cotangent`
+  and `metric`, or `sharp` with `cotangent`, `tangent`, `metric` and
+  `evidence`. Each value is a path.
+
+The wire never carries a Gram matrix in normal form, an inverse, an `L D Lᵀ`
+factorization or the object of a binding. A record with any other field is an
+error (`E_PROTOCOL`). The kernel evaluates every Gram entry in the
+coordinates of the metric's object, and it computes each certificate and
+checks it again before acceptance. It copies the metric's object and matrices
+into each `flat` and `sharp`, and the declaration audit checks that each copy
+equals its declaration. The list of primitive operations has no `gradient`
+operation: a gradient is an ordinary function that applies `sharp` to a
+differential. The [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the
+diagnostics reference lists the declaration errors.
+
 The kernel admits primitive operations from an explicit list. A spelling that
 only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
 wire carries names, a declared dimension and polynomial expressions. It never

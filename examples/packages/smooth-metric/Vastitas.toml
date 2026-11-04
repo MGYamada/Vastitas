@@ -1,0 +1,4 @@
+[package]
+name = "smooth_metric"
+version = "0.1.0"
+root = "src/main.vast"

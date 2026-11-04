@@ -464,6 +464,32 @@ impl Parser {
                     cotangent: self.type_path()?,
                 }
             }
+            "flat" => {
+                let tangent = self.type_path()?;
+                self.expect(",")?;
+                let cotangent = self.type_path()?;
+                Primitive::Flat {
+                    tangent,
+                    cotangent,
+                    metric: self.indexed_selection("flat", "using", "an explicit metric")?,
+                }
+            }
+            "sharp" => {
+                let cotangent = self.type_path()?;
+                self.expect(",")?;
+                let tangent = self.type_path()?;
+                let metric = self.indexed_selection("sharp", "using", "an explicit metric")?;
+                Primitive::Sharp {
+                    cotangent,
+                    tangent,
+                    metric,
+                    evidence: self.indexed_selection(
+                        "sharp",
+                        "evidence",
+                        "explicit nondegeneracy evidence",
+                    )?,
+                }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -545,10 +571,11 @@ impl Parser {
                     "cotangent" => indexed::FamilyRepresentation::Cotangent,
                     "tangent" => indexed::FamilyRepresentation::Tangent,
                     "tape" => indexed::FamilyRepresentation::Tape,
+                    "metric_form" => indexed::FamilyRepresentation::MetricForm,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent or tape",
+                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent, tape or metric_form",
                             span,
                         ));
                     }
@@ -577,6 +604,26 @@ impl Parser {
             }
             "affine" => self.indexed_affine()?,
             "morphism" => self.indexed_morphism()?,
+            "metric" => self.indexed_metric()?,
+            "evidence" => {
+                self.expect("=")?;
+                let span = self.peek().span;
+                let evidence = match self.indexed_tag()?.as_str() {
+                    "nondegenerate" => indexed::EvidenceKind::Nondegenerate,
+                    "riemannian" => indexed::EvidenceKind::Riemannian,
+                    _ => {
+                        return Err(diagnostic(
+                            "E_TYPE",
+                            "evidence is nondegenerate(metric) or riemannian(metric)",
+                            span,
+                        ));
+                    }
+                };
+                self.expect("(")?;
+                let metric = self.type_path()?;
+                self.expect(")")?;
+                DeclarationBody::Evidence { metric, evidence }
+            }
             "iso" => {
                 self.expect("=")?;
                 self.expect("forward")?;
@@ -858,6 +905,58 @@ impl Parser {
             indices,
             definition,
         })
+    }
+
+    /// `: Family<X> = euclidean` or `: Family<X> = gram((a, b), (c, d))`.
+    fn indexed_metric(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect(":")?;
+        let family = self.type_path()?;
+        self.expect("<")?;
+        let mut indices = vec![self.type_path()?];
+        while self.consume(",") {
+            indices.push(self.type_path()?);
+        }
+        self.type_close()?;
+        self.expect("=")?;
+        let span = self.peek().span;
+        let gram = match self.indexed_tag()?.as_str() {
+            "euclidean" => indexed::MetricGram::Euclidean,
+            "gram" => indexed::MetricGram::Gram {
+                rows: self.indexed_list("(", ")", |p| p.indexed_list("(", ")", |q| q.poly(0)))?,
+            },
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "a metric is `euclidean` or `gram((…), …)` with one row per coordinate",
+                    span,
+                ));
+            }
+        };
+        Ok(DeclarationBody::Metric {
+            family,
+            indices,
+            gram,
+        })
+    }
+
+    /// `, keyword = path`: the metric or evidence that `flat` and `sharp`
+    /// name explicitly. No default is ever selected.
+    fn indexed_selection(
+        &mut self,
+        operation: &str,
+        keyword: &str,
+        what: &str,
+    ) -> Result<TypePath, Diagnostic> {
+        let token = self.peek().clone();
+        if !(self.consume(",") && self.consume(keyword)) {
+            return Err(diagnostic(
+                "E_PARSE",
+                format!("`{operation}` needs {what}: write `{keyword} = …`"),
+                token.span,
+            ));
+        }
+        self.expect("=")?;
+        self.type_path()
     }
 
     fn poly_nesting(&self, depth: usize) -> Result<(), Diagnostic> {

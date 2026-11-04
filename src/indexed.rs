@@ -114,6 +114,39 @@ pub enum DeclarationBody {
         dimension: String,
         coordinates: Vec<String>,
     },
+    /// A metric `family<object>` with a constant Gram matrix (protocol 9).
+    /// The kernel evaluates and checks every entry.
+    Metric {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        gram: MetricGram,
+    },
+    /// Evidence for a metric (protocol 9). The kernel computes the
+    /// certificate; the wire never carries one.
+    Evidence {
+        metric: TypePath,
+        evidence: EvidenceKind,
+    },
+}
+
+/// The Gram matrix of a metric declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum MetricGram {
+    /// The identity matrix of the object's dimension.
+    Euclidean,
+    /// Rows of constant polynomial expressions.
+    Gram { rows: Vec<Vec<PolyExpr>> },
+}
+
+/// The kind of evidence that the kernel computes for a metric.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceKind {
+    /// An exact inverse of the Gram matrix.
+    Nondegenerate,
+    /// An exact `L D Lᵀ` factorization with positive `D`.
+    Riemannian,
 }
 
 /// A chosen isomorphism between separately declared fiber bases.
@@ -143,8 +176,8 @@ pub enum MorphismDefinition {
 }
 
 impl DeclarationBody {
-    /// Stage 2 algebraic and Stage 3 smooth forms. They exist only in
-    /// protocol 9.
+    /// Stage 2 algebraic and Stage 3 smooth and metric forms. They exist
+    /// only in protocol 9.
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -153,7 +186,9 @@ impl DeclarationBody {
             | DeclarationBody::AffineLocalization { .. }
             | DeclarationBody::Iso { .. }
             | DeclarationBody::Cartesian { .. }
-            | DeclarationBody::SmoothAffine { .. } => true,
+            | DeclarationBody::SmoothAffine { .. }
+            | DeclarationBody::Metric { .. }
+            | DeclarationBody::Evidence { .. } => true,
             DeclarationBody::Primitive { binding } => matches!(
                 binding,
                 Primitive::RelativeCompose { .. }
@@ -175,6 +210,8 @@ impl DeclarationBody {
                     | Primitive::Differential { .. }
                     | Primitive::Linearize { .. }
                     | Primitive::CotangentBackward { .. }
+                    | Primitive::Flat { .. }
+                    | Primitive::Sharp { .. }
             ),
             DeclarationBody::Implementation { representation, .. } => matches!(
                 representation,
@@ -192,6 +229,7 @@ impl DeclarationBody {
                         | FamilyRepresentation::Cotangent
                         | FamilyRepresentation::Tangent
                         | FamilyRepresentation::Tape
+                        | FamilyRepresentation::MetricForm
                 ) || constraints.iter().any(|c| {
                     matches!(
                         c,
@@ -304,6 +342,9 @@ pub enum FamilyRepresentation {
     /// `Tape(X, Y)`: the saved forward values of a smooth map at a point
     /// (protocol 9). Only `linearize` constructs a tape.
     Tape,
+    /// `MetricForm(X)`: indexes the metrics of a smooth object (protocol 9).
+    /// No value has this type.
+    MetricForm,
 }
 
 /// How a cotangent pullback obtains forward values.
@@ -480,6 +521,19 @@ pub enum Primitive {
         tape: TypePath,
         cotangent: TypePath,
     },
+    /// `flat(tangent, cotangent, using = metric)`.
+    Flat {
+        tangent: TypePath,
+        cotangent: TypePath,
+        metric: TypePath,
+    },
+    /// `sharp(cotangent, tangent, using = metric, evidence = evidence)`.
+    Sharp {
+        cotangent: TypePath,
+        tangent: TypePath,
+        metric: TypePath,
+        evidence: TypePath,
+    },
 }
 
 #[cfg(test)]
@@ -578,6 +632,37 @@ mod tests {
                 tape: path("Tape"),
                 cotangent: path("Cotangent"),
             }),
+            primitive(Primitive::Flat {
+                tangent: path("Tangent"),
+                cotangent: path("Cotangent"),
+                metric: path("Skew"),
+            }),
+            primitive(Primitive::Sharp {
+                cotangent: path("Cotangent"),
+                tangent: path("Tangent"),
+                metric: path("Skew"),
+                evidence: path("SkewInvertible"),
+            }),
+            DeclarationBody::Metric {
+                family: path("MetricForm"),
+                indices: vec![path("Plane")],
+                gram: MetricGram::Euclidean,
+            },
+            DeclarationBody::Metric {
+                family: path("MetricForm"),
+                indices: vec![path("Plane")],
+                gram: MetricGram::Gram {
+                    rows: vec![vec![PolyExpr::Natural { value: "1".into() }]],
+                },
+            },
+            DeclarationBody::Evidence {
+                metric: path("Skew"),
+                evidence: EvidenceKind::Nondegenerate,
+            },
+            DeclarationBody::Evidence {
+                metric: path("Skew"),
+                evidence: EvidenceKind::Riemannian,
+            },
         ];
         for form in &forms {
             assert!(form.is_algebraic(), "{form:?}");
@@ -586,6 +671,7 @@ mod tests {
             FamilyRepresentation::Cotangent,
             FamilyRepresentation::Tangent,
             FamilyRepresentation::Tape,
+            FamilyRepresentation::MetricForm,
         ] {
             let family = DeclarationBody::Family {
                 parameters: Vec::new(),

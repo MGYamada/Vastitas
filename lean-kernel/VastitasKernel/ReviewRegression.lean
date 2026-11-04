@@ -106,5 +106,15 @@ open Dispatch in
 #eval check "oversized family" (code (checkWith publicHierarchy 6 [] (family [0, 1, 2, 3, 4, 5] 5)) == "E_DISPATCH_LIMIT")
 open Dispatch in
 #eval check "table work" (tableWork 4096 7776 > Limits.dispatchWork ∧ tableWork 4096 1296 ≤ Limits.dispatchWork)
+-- Ranking is charged separately: 2187 broadly applicable methods (three
+-- requirement levels over a selector lattice) fit the table budget
+-- (13.7M units) but not the ranking budget (about 102M units).
+open Dispatch in
+private def leveled (methods : List Method) : List Method :=
+  (methods.flatMap fun method => [[], ["HasEq"], ["HasOrder"]].map fun requirements =>
+    { method with requirements }).zipIdx.map fun (method, id) => { method with id }
+open Dispatch in
+#eval check "ranking budget" (tableWork 4096 2187 ≤ Limits.dispatchWork &&
+  code (checkWith publicHierarchy 6 [] (leveled (family [5, 4, 1] 6))) == "E_DISPATCH_LIMIT")
 
 end VastitasKernel.ReviewRegression

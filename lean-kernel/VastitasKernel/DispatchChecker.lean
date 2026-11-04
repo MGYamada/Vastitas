@@ -209,20 +209,23 @@ def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (gen
 
 def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
   let nominals ← Abstract.prepare program.abstractTypes program.subtypes
-  let mut result := []
+  -- Group methods by generic once, in declaration order, and collect into
+  -- arrays, so family preparation stays linear before the dispatch budget.
+  let byGeneric : Std.HashMap String (List (Nat × RawMethod)) :=
+    program.methods.zipIdx.foldr (fun (method, id) table =>
+      table.insert method.name ((id, method) :: table.getD method.name [])) {}
+  let mut result : Array Family := #[]
   for generic in program.generics do
     let base ← generic.domain.mapM (fun key => key.mapM (fun ty => scalar ty generic.span))
     let mut seen : Std.HashSet Dispatch.Key := {}
     for key in base do
       if seen.contains key then fail generic.span "E_DUPLICATE" s!"duplicate domain key {keyLabel key}"
       seen := seen.insert key
-    -- An array keeps family collection linear before the dispatch budget.
     let mut collected : Array Dispatch.Method := #[]
-    for (id, method) in program.methods.zipIdx.map (fun pair => (pair.2, pair.1)) do
-      if method.name == generic.name then
-        let selectors ← method.params.mapM fun param => Abstract.selector nominals param.ty param.span
-        methodResult method.returnType method.span
-        collected := collected.push { id, selectors, requirements := method.requirements }
+    for (id, method) in byGeneric.getD generic.name [] do
+      let selectors ← method.params.mapM fun param => Abstract.selector nominals param.ty param.span
+      methodResult method.returnType method.span
+      collected := collected.push { id, selectors, requirements := method.requirements }
     let methods := collected.toList
     if generic.params.length > Limits.dispatchArity then fail generic.span "E_LIMIT" s!"dispatch key space exceeds {Limits.dispatchKeys}"
     let allKeys := Dispatch.keys nominals.hierarchy.concrete generic.params.length
@@ -237,16 +240,16 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
       | .error error => throw (dispatchDiagnostic nominals program generic error)
       | .ok checked =>
         if fulfilled : contracts.all (Contracts.satisfied program.methods checked) = true then
-          result := result ++ [{
+          result := result.push {
             nominals, raw := generic, domain, methods, sourceMethods := program.methods
-            contracts, included, checked, accepted, fulfilled }]
+            contracts, included, checked, accepted, fulfilled }
         else
           let contract := contracts.find? (fun contract => !Contracts.satisfied program.methods checked contract)
           fail (contract.map (·.raw.span) |>.getD generic.span) "E_CONTRACT_RESULT"
             "selected concrete method does not satisfy the abstract contract result type"
     else fail generic.span "E_INTERNAL_DISPATCH" "contract domain union lost a key"
 
-  pure result
+  pure result.toList
 
 def validateProgram (program : RawProgram) : CheckM Unit := do
   unless program.version == 2 || program.version == 4 do

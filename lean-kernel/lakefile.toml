@@ -4,6 +4,10 @@ license = "Apache-2.0"
 licenseFiles = ["../LICENSE"]
 defaultTargets = ["vastitas-kernel"]
 
+# Warnings fail the build; in particular a declaration that uses `sorry`.
+[leanOptions]
+warningAsError = true
+
 [[lean_lib]]
 name = "VastitasKernel"
 needs = ["compilerLimits"]

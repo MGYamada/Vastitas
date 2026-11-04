@@ -125,12 +125,17 @@ theorem contraction_gemm_operands {env numerical resources values leftName right
       leftLive.2.2.2.2.1, leftLive.2.2.2.2.2, View.rows, View.columns, View.extent,
       checked.grouping.1, packed]
 
-/-- A finite left fold fixes exactly the same summation order on both sides.
-No associativity, exact float field law, or contraction-order rewrite is used. -/
+/-- Oracle-local reference model with no kernel or native counterpart: the
+theorems compare accepted coordinates against it, and it does not claim to be
+the executable, generated or BLAS computation. A finite left fold fixes exactly
+the same summation order on both sides. No associativity, exact float field law,
+or contraction-order rewrite is used. -/
 def contractionReference (zero : α) (add mul : α → α → α)
     (left : Nat → Nat → Nat → α) (right : Nat → Nat → α) (count x y column : Nat) : α :=
   (List.range count).foldl (fun sum k => add sum (mul (left x k y) (right k column))) zero
 
+/-- Oracle-local GEMM reference model with no kernel or native counterpart, in
+the same fixed left-fold summation order as `contractionReference`. -/
 def gemmReference (zero : α) (add mul : α → α → α)
     (left right : Nat → Nat → α) (count row column : Nat) : α :=
   (List.range count).foldl (fun sum k => add sum (mul (left row k) (right k column))) zero

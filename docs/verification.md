@@ -29,19 +29,61 @@ locks and executable Lake overrides are rejected. Local wrapper modules are
 scanned as well. This deliberately closed graph must be amended when future
 packages are actually introduced; it is not a general Lake dependency resolver.
 CI checks the boundary before resolution and after the official build, disables
-Mathlib cache downloads, and preserves the allowed axiom set. The existing
-`audit_axioms.lean` additionally selects every imported declaration by its
-actual defining module in the Oracle, kernel and promotion-fixture libraries,
-including private declarations and declarations in other namespaces. Each
-required module group must be nonempty. It audits their transitive axioms and
-rejects project `extern`/`implemented_by` substitutions; proved `csimp`
-rewrites remain permitted. This deliberately excludes Lean distribution
-implementations and the separately built optional native/FFI packages.
-`scripts/check_axiom_audit.py` compiles isolated test modules and checks rejection
-of unused private axioms in each library, unrelated namespaces, external and
-implementation substitutions, and an empty audit scope. These are CI policy
-checks, not a native-refinement theorem. `check_oracle_core.lean` exercises
-nonempty/empty coordinate spaces, duplicate/Unicode names and positional lists.
+Mathlib cache downloads, and preserves the allowed axiom set.
+
+`scripts/audit_axioms.lean` does not depend on any import closure. It finds each
+project package from its `<package>/.lake/build/lib/lean` directory on the Lean
+search path and enumerates every `.lean` source module of `lean/` and
+`lean-kernel/`, skipping `.lake` and the nested native/numerical Lake packages.
+Every source module must belong to an audited group (`VastitasOracle`,
+`VastitasKernel`, `VastitasPromotion`, `VastitasPublicTest`,
+`VastitasStorageTest`, `VastitasAlgebraTest`, `Main`) and have a built `.olean`.
+All library modules, including the `*Regression` modules, are imported together.
+Each executable root (`Main`, `VastitasStorageTest.Emit`,
+`VastitasStorageTest.NumericalEmit`) defines `main`, so each gets its own
+environment. Every oracle module must also be imported by the `VastitasOracle`
+root. The audit then selects declarations by their actual defining module,
+including private declarations and declarations in other namespaces. It collects
+the axioms reachable from them through types, values and constructors in one
+exact search; only `propext`, `Classical.choice` and `Quot.sound` are allowed, so
+`sorry` (`sorryAx`) fails. It also rejects project declarations whose compiled
+code is not their logical definition: `extern`, `implemented_by`, `partial`,
+`unsafe` and `opaque`. Structural, well-founded and `partial_fixpoint`
+definitions remain permitted, as do proved `csimp` rewrites. The remaining
+exceptions are listed in the script with their reasons, and each must still
+exist:
+
+- `Main.readBounded`, the bounded stdin reader of the kernel process (#580);
+- `VastitasKernel.WireScan.digitRun`, `value`, `array` and `object`, the wire
+  pre-scan before `Lean.Json.parse`, which can only reject a request; and
+- the `partial` functions that Lean generates for `deriving Repr` on nested and
+  mutual inductive types. They return `Std.Format` and only render text.
+
+`IndexedCodegen.renderTerm` is now total, and the nested `Statement` types no longer
+derive a `partial` `BEq`; `==` uses their total `DecidableEq`. The audit excludes
+Lean distribution implementations and the separately built optional native/FFI
+packages. It also cannot see elaboration-time evaluation, such as the
+`Promotion` and `IndexedPromotion` fixture reifications (see the module headers
+and the Validation section below), or
+`example` bodies, which create no declaration (`warningAsError` still rejects a
+`sorry` there, but not `native_decide`). The derived-`Repr` rule matches by name
+and `Std.Format` result type. `partial_fixpoint` definitions (none exist today)
+would be accepted although their code may diverge where the logical value is the
+bottom element. The audit does not replay declarations through the Lean kernel,
+and it checks that each `.olean` exists, not that it is current, so the CI run
+from a clean checkout is the authoritative one. Both Lake packages set
+`leanOptions.warningAsError = true`, and `check_boundaries.py` requires it, so a
+warning such as a declaration using `sorry` fails the kernel and oracle builds.
+CI runs the oracle `lake env lean` checks with `-DwarningAsError=true`.
+`scripts/check_axiom_audit.py` builds isolated fixture packages and checks that the
+audit rejects: unused private axioms in each library; unrelated namespaces;
+`sorry`; `extern`, `implemented_by`, `partial`, `unsafe` and `opaque`
+declarations; a `partial` function that only looks like a derived `Repr`; a
+source module without an object file or outside the audited groups; an oracle
+module that the root does not import; a missing oracle package; and a stale
+exception. These are CI policy checks, not a
+native-refinement theorem. `check_oracle_core.lean` exercises nonempty/empty
+coordinate spaces, duplicate/Unicode names and positional lists.
 That dependency-removal increment added neither `VastitasMath` nor
 `VastitasBridge`, and claimed no new std correspondence or constitutional theorem.
 The subsequent, separately built mathematical bridge is described below.
@@ -88,11 +130,20 @@ wire composition. `VastitasOracle.EditRecipients.named_recipient_iff` characteri
 actual acceptance by exactly one root-reachable manifest-name candidate;
 `named_recipient_preserves_identity` retains the original package record.
 `lower_grant_resolves` and `lower_transfer_resolves` connect the real lowering
-functions to that resolver and their exact returned scope. The public
-`public_declaration_correspondence` theorem exposes complete grant/delegation/
-transfer reconstruction from the actual JSON checker's certificate. Legacy
-location lookup is characterized separately. These are decoded-input guarantees,
-not authentication of files/authors or a proof of Rust parsing/native refinement.
+functions to that resolver, their exact returned scope and their issuing module.
+`reconstruct_declared` is proved by induction over the actual `for` loops of
+`Authority.reconstruct`: every delegation and transfer it returns is the lowering
+of a raw entry that a module of the input declares. `reconstruct_grants_declared`
+proves the same for the `mapM` in `Edit.reconstructGrants`. The composed theorem
+`public_named_recipients` holds for every `ResourceSource.Wire.CheckedInput`.
+Each grant, delegation and transfer of the accepted certificate is issued by the
+declaring module. Its recipient is the declared module path in the resolved
+package; a manifest name resolves only to the unique root-reachable package with
+that name, and a source location resolves by location lookup. The certificate's
+`DeclarationsCorrespond` still replays `reconstruct` exactly as `prepare` runs it,
+so that conjunct is an executable consistency check, not independent evidence.
+These are decoded-input guarantees, not authentication of files/authors or a
+proof of Rust parsing/native refinement.
 
 The current pure Core typing and terminating-evaluation chain is
 `IndexedCore` → `IndexedEvaluationSafety` → `IndexedFunctionSafety` →
@@ -271,7 +322,8 @@ composition results:
   an exact lowered core module accepted by the actual `checkModule`.
 - `checkProgram_typed_and_ordered` establishes independent whole-module typing
   and an acyclic dependency order for the resulting checked core.
-- `checkProgram_total_for_arguments` proves that every function in that exact
+- `checkProgram_total_for_arguments` (retained `checkProgram`, not one of Main's
+  current entry points) proves that every function in that exact
   result evaluates to a value of its declared return type for all well-typed
   argument environments. This includes the core's runtime endpoint and
   package correspondence guarantees.
@@ -498,7 +550,12 @@ reuses the accepted source program. The internal component entry's
 `public_resource_plan` identifies the `Native.compile` call on the same
 accepted entry schedule and its audited closed native plan. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
-is no resource entry. These theorems establish acceptance and identify the exact
+is no resource entry. `generated_pure_entry_total` adds that this generated
+module is the certificate's `pureProgram.executable` module, that every function
+has typed, finite evaluation and that its `main` evaluates to an `Int`. `ResourceSource.pure_entry_functions_total` and
+`pure_entry_main_total` state the same for `checked.pureProgram.executable`,
+while `pure_value_functions_total` covers the value library of the mixed path.
+These theorems establish acceptance and identify the exact
 inputs to native generation. Native heap and floating-point refinement remain open.
 
 **Static numerical receipt coverage.** For protocols 8 and 9,
@@ -713,7 +770,11 @@ The [initial promotion contract](stage1a.md#promotion) documents the arbitrary-i
 numerical proofs in `VastitasOracle.IndexedPromotion`, reflection of the stdlib's
 actual public `Indexed.LegacySource.check` executable Core, frontend-fixture
 agreement, and the distinction between proof
-statements and executable fixture/namespace/native checks.
+statements and executable fixture/namespace/native checks. The reflection is a
+trusted build step: an elaborator runs the checker, prints the returned module
+with `reprStr` and elaborates the text, and a build-time `#eval` compares the
+renderings. The theorems are about that reflected module; equality with the
+checker's result is not proved from kernel-checked evidence.
 
 Run from the repository root:
 
@@ -944,11 +1005,9 @@ Signature-probe and executable passes have separate state. Type shape checks do
 not count a synthesized Fn wrapper toward the 64-level declared-type limit.
 See [the indexing regression and measurement notes](stage1b.md#stage1b-indexing).
 
-Run the transitive local axiom audit with:
-
-```sh
-(cd lean && lake env lean ../scripts/audit_axioms.lean)
-```
+Run the axiom audit of every kernel and oracle module with the build sequence in
+[Validate the compiler and proofs](development/validation.md); it needs every
+kernel library root, executable and regression module built first.
 
 `python3 scripts/benchmark_lowering.py` measures parameterized call chains. On
 the local macOS host, three-run medians for 2,000 / 4,000 / 8,000 functions were
@@ -1083,14 +1142,11 @@ The existing executable regressions exercise the hypotheses of the composition:
 | `TypeAuditRegression` | Forged operands, nominal endpoints, substitutions and dependency cycles exercise `typed`/`ordered`; codegen rejects forged legacy annotation certificates independently. |
 | `tests/edit_borrowing.rs` | Raw protocol-5 authority/target/stale-input mutations, unreturned loans, final footprints and unused/losing bodies exercise the actual source/IR route. These are executable regressions, not proofs of snapshot authenticity or full source correspondence. |
 
-Run the existing suites and the new proof-index regressions with:
+Run the existing suites and the new proof-index regressions with the audit
+sequence in [Validate the compiler and proofs](development/validation.md), then:
 
 ```sh
-lake -d lean build
-(cd lean && lake env lean ../scripts/audit_axioms.lean)
-(cd lean && lake env lean ../scripts/check_edit_acceptance.lean)
-lake -d lean-kernel build
-bash scripts/check_kernel_regressions.sh
+(cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean)
 cargo test --locked --test edit_borrowing
 python3 scripts/check_boundaries.py
 ```

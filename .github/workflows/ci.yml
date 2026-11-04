@@ -323,14 +323,21 @@ jobs:
           lake -d .ci-tools/axiom-audit build
           cd lean
           lake env ../.ci-tools/axiom-audit/.lake/build/bin/axiom-audit --root VastitasOracle --allow propext,Classical.choice,Quot.sound
-      - name: Audit transitive oracle and kernel axioms
-        run: cd lean && lake env lean ../scripts/audit_axioms.lean
-      - name: Axiom-audit provenance and substitution regressions
+      # The audit enumerates every kernel and oracle source module and needs
+      # each one built: library roots (nothing imports `VastitasKernel`),
+      # executable roots and regression modules.
+      - name: Build every kernel library and executable root for the audit
+        run: |
+          lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest VastitasStorageTest VastitasAlgebraTest vastitas-kernel storage-native-fixture numerical-native-fixture
+          bash scripts/check_kernel_regressions.sh
+      - name: Audit axioms and opaque code of every kernel and oracle module
+        run: cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean
+      - name: Axiom-audit coverage, provenance and substitution regressions
         run: lake -d lean env python3 scripts/check_axiom_audit.py
       - name: Core proof migration regressions
-        run: cd lean && lake env lean ../scripts/check_oracle_core.lean
+        run: cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean
       - name: Finite edit acceptance indices
-        run: cd lean && lake env lean ../scripts/check_edit_acceptance.lean
+        run: cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean
       - name: Dependency boundaries
         run: |
           lake -d lean update

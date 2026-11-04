@@ -116,8 +116,9 @@ independent alias check are quadratic in Fn parameter arity; the regression
 establishes linear instance counts for forwarding chains, not a general linear
 compiler bound or achieved native performance.
 
-Each pass permits at most 4096 higher-order instances in a compilation unit;
-plain first-order functions do not consume that budget. Limits report `E_LIMIT`.
+Each pass permits at most 4096 specialized instances in a compilation unit.
+Every lambda instance counts, as does every instance of a higher-order function;
+plain first-order named functions do not consume that budget. Limits report `E_LIMIT`.
 Recursive specialization is rejected, followed by the core dependency audit.
 
 The common indexed function compiler also has a **1,000,000-unit aggregate
@@ -139,7 +140,7 @@ one final completion step. The passes retain separate counters and target states
 Exceeding any budget rejects the entire input with `E_LIMIT`; it never licenses
 omitting an unused body or accepting a partial dispatch audit. The exact returned
 pass carries its accumulated work and independently checks the upper bound.
-Protocols 2–8 use this common pure-function path, including pure resource
+Protocols 2–9 use this common pure-function path, including pure resource
 fragments. This does not bound resource-plan expansion/replay, all namespace
 resolution, quadratic local-context operations, or total compiler wall time.
 Those remaining work limits and indexing costs are tracked in #422, #423 and

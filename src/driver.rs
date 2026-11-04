@@ -13,7 +13,11 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
-const USAGE: &str = "Vastitas Stage 1b\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n";
+const USAGE: &str = concat!(
+    "vastitas ",
+    env!("CARGO_PKG_VERSION"),
+    "\n\nUsage:\n  vastitas check INPUT.vast [--lib LIBRARY.vast]...\n  vastitas build INPUT.vast [--lib LIBRARY.vast]... -o OUTPUT\n  vastitas check --manifest-path Vastitas.toml\n  vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX] [--native-cc COMPILER]\n  vastitas audit-lean LEAN4EXPORT.ndjson\n\n--lib adds explicitly selected source libraries to the same checked compilation unit.\nManifest mode accepts local path packages and cannot be mixed with INPUT.vast or --lib.\nNumerical builds require pinned sequential LP64 OpenBLAS 0.3.34 via --openblas-prefix.\n--native-cc explicitly selects the compiler/linker for numerical builds (for example cc on Linux).\nBuild the backend first: lake -d lean-kernel build vastitas-kernel\n"
+);
 
 struct Options {
     mode: &'static str,

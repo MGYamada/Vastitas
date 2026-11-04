@@ -215,7 +215,9 @@ check the 64-bit platform profile. Each synchronous operation validates live
 allocation handles, scalar representations, full bounds, alignment, LP64
 narrowing and signed offset arithmetic before element access. Copy also checks
 logical shapes and separation before writing; an identical source/destination
-mapping is a no-op. `restrict` is confined to the copy kernel after these checks.
+mapping is a no-op. `restrict` appears only in the copy, rank-three packing
+(`pack3_kernel`) and block-regrouping (`regroup3_blocks`) kernels, each called
+after these checks.
 Empty views form no data pointer, while still validating metadata. No implicit
 packing occurs. A view's transpose swaps axes and does not conjugate values.
 

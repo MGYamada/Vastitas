@@ -4,9 +4,9 @@ Vastitas compiles mathematical programs written in `.vast` to native executables
 Its finite Stage 1 compiler supports static functions and dispatch, nominal
 affine geometry, scoped edit authority, checked storage ownership, real and
 complex GEMM, and finite contraction trees. An independent Lean kernel
-checks the program before generation. [Delivery record](docs/stage1-completion.md)
+checks the program before generation. [Delivery record](https://github.com/MGYamada/Vastitas/blob/main/docs/stage1-completion.md)
 Historical Stage 2 adds a checked finite profile of presented affine geometry
-over QQ. [Chapter](docs/affine-geometry.md) · [Acceptance map](docs/stage2-acceptance.md)
+over QQ. [Chapter](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage2-acceptance.md)
 
 ## Build and use
 
@@ -20,8 +20,8 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 ./target/pointed
 ```
 
-The program prints `42`. [Getting started](docs/guide/getting-started.md) ·
-[CLI reference](docs/guide/cli.md) · [Packages and manifests](docs/guide/stdlib.md)
+The program prints `42`. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
+[CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Packages and manifests](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/stdlib.md)
 
 ## Install the alpha
 
@@ -42,38 +42,55 @@ vastitas build examples/pointed.vast -o pointed
 ```
 
 The example prints `42`. Set `VASTITAS_KERNEL_ROOT` to this same absolute
-path in each new shell. For programs that import the combined standard
-library, run `python3 scripts/build_stdlib_package.py` once in the extracted
-crate. Numerical programs also require sequential LP64
-OpenBLAS 0.3.34. The optional `vastitas audit-lean` diagnostic needs Lean 4.35.0
-installed by elan and runs that toolchain's `nanoda_bin`. [Numerical build guide](https://github.com/MGYamada/Vastitas/blob/v0.1.0-alpha/docs/guide/cli.md)
+path in each new shell. The first build that needs the storage or numerical
+runtime compiles it inside that directory, so keep it writable. For programs
+that import the combined standard library, run
+`python3 scripts/build_stdlib_package.py` once in the extracted crate. The
+optional `vastitas audit-lean` diagnostic needs Lean 4.35.0 installed by elan
+and runs that toolchain's `nanoda_bin`.
+
+Programs that run GEMM or diagonal Hermitian pairing also need sequential LP64
+OpenBLAS 0.3.34, built with Python 3.12 or later, Make and the host C
+toolchain. The 0.1.0-alpha crate does not ship the build script, so fetch it
+from the release tag. On Linux, add `--native-cc cc` to the build command.
+
+```sh
+curl -fLsS https://raw.githubusercontent.com/MGYamada/Vastitas/v0.1.0-alpha/scripts/build_openblas.py -o build_openblas.py
+python3 build_openblas.py --prefix "$PWD/openblas-0.3.34" --jobs 4
+vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+  --openblas-prefix "$PWD/openblas-0.3.34" -o numerical
+./numerical
+```
+
+[Numerical builds](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md#numerical-builds) ·
+[Adapter contract](https://github.com/MGYamada/Vastitas/blob/main/docs/linalg/maps-and-gemm.md#numerical-adapter)
 
 ## Documentation
 
-Read the [English book](docs/README.md) or browse its [contents](docs/SUMMARY.md).
+Read the [English book](https://github.com/MGYamada/Vastitas/blob/main/docs/README.md) or browse its [contents](https://github.com/MGYamada/Vastitas/blob/main/docs/SUMMARY.md).
 It starts with Getting Started and teaches the language chapter by chapter;
 the language reference, the verification boundaries and the appendices follow.
-The [Stages 2–7 roadmap](docs/guide/historical-roadmap.md) follows current GitHub
+The [Stages 2–7 roadmap](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/historical-roadmap.md) follows current GitHub
 issue decisions and distinguishes planned work from the delivered compiler.
-[Build the book locally](docs/development/documentation.md)
+[Build the book locally](https://github.com/MGYamada/Vastitas/blob/main/docs/development/documentation.md)
 
 **Fast like C** is the primary performance goal. Explicit layout and alias
 checks, destination and scratch reuse, and visible allocation, packing and
 retention costs govern the numerical design. Stage 2 or later owns controlled
 Linux comparison with standalone C and outstanding tiny-call and total-cost
-acceptance. [Storage and performance contract](docs/storage-ownership.md)
+acceptance. [Storage and performance contract](https://github.com/MGYamada/Vastitas/blob/main/docs/storage-ownership.md)
 
 ## Architecture
 
 The Rust frontend supplies versioned input to the mathlib-independent Lean
 kernel. Optional native storage and numerical runtimes link when the checked
-entry needs them. [Compiler architecture](docs/development/architecture.md) ·
-[Wire protocols 2–9](docs/protocol.md) · [Contributor guidance](AGENTS.md)
+entry needs them. [Compiler architecture](https://github.com/MGYamada/Vastitas/blob/main/docs/development/architecture.md) ·
+[Wire protocols 2–9](https://github.com/MGYamada/Vastitas/blob/main/docs/protocol.md) · [Contributor guidance](https://github.com/MGYamada/Vastitas/blob/main/AGENTS.md)
 
 ## Validation
 
-The [validation guide](docs/development/validation.md) lists Rust, kernel,
-oracle, native and CI checks. The [proof reference](docs/verification.md)
+The [validation guide](https://github.com/MGYamada/Vastitas/blob/main/docs/development/validation.md) lists Rust, kernel,
+oracle, native and CI checks. The [proof reference](https://github.com/MGYamada/Vastitas/blob/main/docs/verification.md)
 identifies the exact accepted inputs, conclusions and assumptions.
 
 ## License

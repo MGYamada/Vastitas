@@ -30,7 +30,8 @@ The decisions behind the profile are:
 | S1: exact QQ polynomial core and verified Gröbner bases | [#572](https://github.com/MGYamada/Vastitas/pull/572), landed by [#580](https://github.com/MGYamada/Vastitas/pull/580) | `5d58a65` |
 | S2–S6: declarations, protocol-9 surface, morphisms, fiber products, principal opens; budgeted substitution | [#584](https://github.com/MGYamada/Vastitas/pull/584) (with #576, #577), landed by [#589](https://github.com/MGYamada/Vastitas/pull/589) | `55949b8` |
 | S7: Buchberger's criterion and canonical normal forms in the bridge | [#587](https://github.com/MGYamada/Vastitas/pull/587), landed by [#589](https://github.com/MGYamada/Vastitas/pull/589) | `55949b8` |
-| S8: kernel–mathlib correspondence in the bridge | 8a [#590](https://github.com/MGYamada/Vastitas/pull/590); 8b to follow | **pending** |
+| S8a: kernel polynomials, division and verified bases in mathlib | [#590](https://github.com/MGYamada/Vastitas/pull/590) | `8f0da2c` |
+| S8b: presentations, morphisms, dual numbers, fiber products and principal opens in mathlib | to follow | **pending** |
 | S9: `std::geometry::scheme::affine`, this map | this change | — |
 
 Status terms below:
@@ -66,9 +67,12 @@ The bridge proves what the kernel's identities mean in mathlib:
   - `normalForm_unique`, `sub_mem_iff_normalForm_eq`, `mem_iff_normalForm_eq_zero`: canonical normal forms;
   - `span_eq_of_cofactors` and `list_isGroebnerBasis_of_certificate`: the kernel certificate's shape;
   - `degLex_lt_iff_exists`: mathlib's degLex also makes coordinate 0 most significant.
-- **S8 (pending).**
-  - **8a (#590):** kernel `Poly` ≅ `MvPolynomial (Fin n) ℚ`, sound and complete division, and the end-to-end theorem that a successful `verify` gives a Gröbner basis with canonical normal forms.
-  - **8b (to follow):** presentations, `AlgHom` and `Spec.map` (#362), dual numbers, fiber products as `IsPullback`, and `Localization.Away`.
+- **S8a (proved).** In `VastitasBridge.AlgebraicGeometry.Kernel`, reading the actual kernel and oracle definitions:
+  - `canonicalEquiv`: canonical kernel polynomials of arity `n` correspond to `MvPolynomial (Fin n) ℚ`, with the degLex order (`compare_lt_iff`) and arithmetic (`toMv_add`, `toMv_mul`, `toMv_sPolynomial`);
+  - `divide_spec` and `normalForm_spec`: kernel division keeps its quotient identity, its fuel always suffices (`encode_lt`), and normal forms are canonical and fully reduced;
+  - `verify_isGroebnerBasis`: a successful `verify` proves that the stored basis is a Gröbner basis of the relation ideal;
+  - `verify_normalForm_eq_iff` and `verify_mem_iff`: equal normal forms exactly when two polynomials are congruent modulo the relations, and ideal membership exactly when the normal form is zero.
+- **S8b (pending).** Presentations, `AlgHom` and `Spec.map` (#362), dual numbers, fiber products as `IsPullback`, and `Localization.Away`.
 
 ## Acceptance conditions
 
@@ -102,7 +106,9 @@ distinct failure code, so a wrong result changes the output
     relation and S-pair to zero.
   - The new primitives are total and typed, and erase to the runtime.
   - Two-index non-regression.
-- **Proved (bridge).** S7 above, and S8 when it lands.
+- **Proved (bridge).** S7 and S8a above, and S8b when it lands. With S8a, the
+  normal forms the kernel compares are canonical in `MvPolynomial (Fin n) ℚ`,
+  so exact equality of stored images is equality in the presented ring.
 - **Tested only.**
   - Raw-wire rejection of protocols 7 and 8.
   - Parser fidelity.

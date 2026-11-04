@@ -1861,4 +1861,22 @@ mathematical statement for the bridge.
   - From `(verify c).run s = .ok ((), s')`, `verify_isGroebnerBasis` proves that the stored basis is a Gröbner basis of the relation ideal.
   - `verify_normalForm_eq_iff`: two canonical polynomials have equal kernel normal forms iff they are congruent modulo the relations. `verify_mem_iff`: a polynomial lies in that ideal iff its normal form is `[]`.
   - Cofactors and relation quotients may be any stored term lists. The S-pair representations are rederived from the kernel's own division, because `standard` reads only the first term of each quotient.
-- **Not proved here.** Presentations, `AlgHom` and `Spec.map` correspondences, dual numbers, fiber products and principal opens remain the later S8b step of [#571](https://github.com/MGYamada/Vastitas/issues/571).
+- **Affine objects and morphisms (proved).** These results are about kernel data that `verify`, `checkAffine` and `checkConstruction` accepted.
+  - *Presentations.* `toMv_subst`: kernel substitution is `aeval`. `Presented c` is `ℚ[x]/(relations)`. Classes are equal exactly when the kernel normal forms are (`Verified.normalForm_eq_iff`), and every accepted declaration is verified (`verified_of_validAffine`).
+  - *Morphisms.*
+    - `pullbackHom` gives an accepted map's `AlgHom`.
+    - `pullbackHom_compose` and `specMap_compose` ([#362](https://github.com/MGYamada/Vastitas/issues/362)): composition is reverse composition of ring maps, and the scheme morphisms compose in the written order.
+    - `images_eq_iff`: the kernel's `same` decides equality of the ring maps.
+    - `MorphismValid.bridge` and `pullbackHom_triangle` cover accepted morphisms and their triangle with the structure maps.
+  - *Dual numbers.* For `D = ℚ[e]/(e²)` (`relationIdeal_dual`), ε ≠ 0 and ε² = 0. The points `p : t ↦ ε` and `q : t ↦ 0` differ (`p_ne_q`). They agree after the closed point (`closedPoint_comp`), and their `Spec` maps have the same underlying continuous map (`spec_base_eq`).
+  - *Principal opens.*
+    - `equivAway`: the presentation `ℚ[x, u]/(I, u·f − 1)` is `Localization.Away f`.
+    - `range_comap_toL`: its `Spec` has image `D(f)`.
+    - `specMap_preimage_basicOpen` (`Scheme.preimage_basicOpen`): basic opens pull back to basic opens.
+  - *Fiber products.*
+    - `Fiber.isPushout`: the fiber presentation is a pushout of rings.
+    - `Fiber.isPullback`: its `Spec` is a pullback of schemes (`isPullback_SpecMap_of_isPushout`, the result behind `pullbackSpecIso`).
+    - `isoTensor`: it is `A ⊗[R] B`.
+    - `specMap_pair`: `pair` is `pullback.lift`.
+  - `certificate_of_checkConstruction`, for fibers and for principal opens: accepted constructions have exactly these presentations.
+- **Hypotheses.** The fiber and principal-open theorems take as hypotheses that the factors' structure images are canonical and respect the relations. `structureValid_bridge` derives the relation part from the Oracle's `StructureValid`. The kernel checks canonicity of stored images against the normal forms of the bindings, but the Oracle does not record it.

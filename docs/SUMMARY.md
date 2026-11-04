@@ -13,6 +13,7 @@
 - [Packages, modules and edit authority](guide/modules-and-authority.md)
 - [Indexed declarations and the geometry library](guide/indexed-geometry.md)
 - [Presented affine geometry (Stage 2)](affine-geometry.md)
+- [Smooth geometry and reverse pullbacks](guide/smooth-geometry.md)
 - [Storage and resource programs](guide/storage.md)
 - [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md)
 - [Diagnostics and the CLI](guide/diagnostics-and-cli.md)

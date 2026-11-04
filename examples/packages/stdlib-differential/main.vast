@@ -4,6 +4,7 @@
 // of g at (1, 2) is (2, 1), and its gradient under the metric Skew is (1, 0).
 // Each observation has its own failure code, so `main` prints 42 only when
 // all of them hold.
+// ANCHOR: imports
 use std::geometry::smooth::affine::SmoothR;
 use std::geometry::smooth::affine::Smooth;
 use std::geometry::smooth::affine::Cotangent;
@@ -21,13 +22,17 @@ use std::differential::pullback;
 use std::differential::differential;
 use std::differential::linearize;
 use std::differential::backward;
+// ANCHOR_END: imports
 
+// ANCHOR: objects
 // The application declares its own objects and maps over the library profile.
 indexed affine Plane(SmoothR) = Affine(2)[x, y];
 indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
 indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
 indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+// ANCHOR_END: objects
 
+// ANCHOR: fibers
 // A covector or vector at a point, and its components as reduced fractions.
 indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
 indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
@@ -36,10 +41,14 @@ indexed primitive dx = fiber_component(Cotangent, Plane, x);
 indexed primitive dy = fiber_component(Cotangent, Plane, y);
 indexed primitive vx = fiber_component(Tangent, Plane, x);
 indexed primitive vy = fiber_component(Tangent, Plane, y);
+// ANCHOR_END: fibers
 
+// ANCHOR: recomputed
 // The library exports no recomputing pullback; the application can bind one.
 indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, recomputed);
+// ANCHOR_END: recomputed
 
+// ANCHOR: metric
 // The metric, its evidence, flat and sharp name one metric, so they are
 // declared here, next to the metric.
 indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
@@ -51,6 +60,7 @@ indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence 
 fn gradient(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
     sharp_skew(differential(h, p))
 }
+// ANCHOR_END: metric
 
 fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 
@@ -59,6 +69,7 @@ fn reads(component: Pair<Int>, n: Int, d: Int) -> Bool {
     pair_first(component) == n && pair_second(component) == d
 }
 
+// ANCHOR: main
 fn main() -> Int {
     let x: Smooth<Pt, Line> = line_at(3);
     let seed: Cotangent<Line> = dline(line_at(18), 1);
@@ -84,3 +95,4 @@ fn main() -> Int {
        + verdict(reads(pairing(dg, grad), 2, 1), 10)
        + verdict(same_vector(grad, vplane(p, 1, 0)), 11)
 }
+// ANCHOR_END: main

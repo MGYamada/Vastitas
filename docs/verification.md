@@ -120,8 +120,11 @@ dependencies of every declaration defined in a `VastitasBridge` module,
 selected by defining module so private names are included; only `propext`,
 `Classical.choice` and `Quot.sound` are allowed. Official `leanchecker` replays
 the bridge modules against their imported environment. This is not a separate
-verifier or a fresh replay of all imported Mathlib declarations. No public
-`std` API, executable AD implementation or source/native refinement is claimed.
+verifier or a fresh replay of all imported Mathlib declarations. The
+Daleckii–Krein proofs claim no public `std` API, executable AD implementation
+or source/native refinement. The executable reverse pass of the smooth profile
+has its own section,
+[smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
 
 ## Current public checker routes
 

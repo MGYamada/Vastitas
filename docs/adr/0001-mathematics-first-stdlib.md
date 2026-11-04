@@ -382,7 +382,9 @@ that this section refers to.
 #### Negative tests
 
 The Stage 3 profile must reject each of the following with its own diagnostic.
-All of these tests are proposed; none has run.
+The [Stage 3 acceptance map](../stage3-acceptance.md#acceptance-conditions)
+records the test that runs each case. A case without a test there remains
+proposed.
 
 - **Objects:** an implementation mismatch, a dimension that differs from the
   coordinate count, `spec` under a smooth implementation, and a smooth global

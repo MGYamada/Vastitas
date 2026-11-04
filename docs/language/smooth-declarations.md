@@ -59,6 +59,16 @@ and of [metric forms](../appendix/glossary.md#metric-form) (`metric_form`).
 The other family representations are in
 [indexed source](../indexed-source.md#declarations-and-source-example).
 
+The standard library declares one smooth profile.
+`std::geometry::smooth::affine` declares the implementation `SmoothR`, the
+classification `CInfAffine`, the families `Smooth`, `Tape`, `Tangent` and
+`Cotangent`, the objects `Pt` and `Line`, and the profile-wide primitives.
+`std::geometry::metric` declares `MetricForm`. `std::differential` binds
+`pullback`, `differential`, `linearize` and `backward`. A program may use
+these declarations or declare a profile of its own. Each declaration is a
+distinct object or family, so an application's own `Affine(1)[t]` is not the
+library's `Line`.
+
 The constraint `canonical(i)` holds for an application when its index `i` is
 a declared smooth affine object. It compares declarations, never dimensions.
 A local object, such as one that `Affine(CInfReal, n)` builds in a function

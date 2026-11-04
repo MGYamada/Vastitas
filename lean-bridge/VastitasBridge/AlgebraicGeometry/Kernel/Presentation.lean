@@ -265,6 +265,30 @@ theorem verified_of_validAffine {env : Indexed.Environment} {id implementation :
   simp only [Bool.and_eq_true] at h
   exact verified_of_validAffineData h.1.2
 
+/-- In a valid environment, every presented entry is an accepted declaration. -/
+theorem validAffine_of_affineData {env : Indexed.Environment} (henv : env.Valid)
+    {x : Indexed.DeclId} {d : AffineData} (h : Indexed.affineData? env x = some d) :
+    ∃ implementation, Indexed.validAffine env x implementation d = true := by
+  unfold Indexed.affineData? at h
+  split at h
+  · rename_i implementation data hl
+    simp only [Option.some.injEq] at h
+    subst h
+    unfold Indexed.lookup at hl
+    obtain ⟨entry, hfind, hdecl⟩ := Option.map_eq_some_iff.1 hl
+    have hid : entry.id = x := by simpa using List.find?_some hfind
+    have hvalid := henv.declarations entry (List.mem_of_find?_eq_some hfind)
+    simp only [Indexed.Entry.Valid, hdecl] at hvalid
+    exact ⟨implementation, hid ▸ hvalid⟩
+  · cases h
+
+/-- In a valid environment, every presented entry has a verified certificate. -/
+theorem verified_of_affineData {env : Indexed.Environment} (henv : env.Valid)
+    {x : Indexed.DeclId} {d : AffineData} (h : Indexed.affineData? env x = some d) :
+    Verified d.certificate := by
+  obtain ⟨_, hv⟩ := validAffine_of_affineData henv h
+  exact verified_of_validAffine hv
+
 end Declarations
 
 end VastitasBridge.AlgebraicGeometry.Kernel

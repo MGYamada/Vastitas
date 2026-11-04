@@ -19,6 +19,8 @@ The kernel presents `L ×_B R` with `L`'s coordinates, then `R`'s, both bases, a
   morphism is `pullback.lift` of the two factors.
 * `certificate_of_checkConstruction`: an accepted fiber declaration has exactly this
   presentation.
+* `Fiber.accepted`: in a valid environment, an accepted fiber over a common declared base is a
+  pullback of schemes, with every hypothesis coming from acceptance.
 -/
 
 noncomputable section
@@ -423,6 +425,45 @@ theorem certificate_of_checkConstruction {data : AffineData}
     rw [AffineData.relations, hc]
     exact hrel
   simp only [AffineData.certificate, harity, hrels]
+
+/-- **Accepted fiber products are pullbacks, unconditionally.** In a valid environment, an
+accepted `fiber(L, R)` declaration over a common declared base `B` has exactly the fiber
+presentation of `L` and `R`, and its `Spec` is a pullback of the structure morphisms. All the
+hypotheses of `isPullback` (verified factors and base, canonical structure images respecting the
+base's relations) come from acceptance. -/
+theorem accepted {env : Indexed.Environment} (henv : env.Valid) {id implementation : Indexed.DeclId}
+    {data : AffineData} {left right : Namespace.Owner} {relations : List Poly}
+    (h : Indexed.validAffine env id implementation data = true)
+    (hc : data.construction = .fiber left right none relations) :
+    ∃ l r baseRef b, Indexed.affineData? env left = some l ∧
+      Indexed.affineData? env right = some r ∧ l.base = some baseRef ∧ r.base = some baseRef ∧
+      Indexed.affineData? env baseRef = some b ∧
+      data.certificate = ⟨l.arity + r.arity,
+        rels l.certificate r.certificate l.structureImages r.structureImages, data.basis,
+        data.cofactors⟩ ∧
+      ∃ (hl : Verified l.certificate) (hr : Verified r.certificate) (hb : Verified b.certificate)
+        (hsl : Images l.certificate b.certificate l.structureImages)
+        (hrl : Respects l.certificate b.certificate l.structureImages)
+        (hsr : Images r.certificate b.certificate r.structureImages)
+        (hrr : Respects r.certificate b.certificate r.structureImages),
+        IsPullback (Spec.map (CommRingCat.ofHom (inl l.structureImages r.structureImages hl)))
+          (Spec.map (CommRingCat.ofHom (inr l.structureImages r.structureImages hr)))
+          (Spec.map (CommRingCat.ofHom (phiL hb hsl hrl)))
+          (Spec.map (CommRingCat.ofHom (phiR hb hsr hrr))) := by
+  have hcons := (VastitasOracle.AffineDeclarations.validAffine_sound h).2.2.2
+  obtain ⟨_, hrun⟩ := VastitasOracle.AffineMorphisms.run_isOk hcons
+  obtain ⟨l, r, baseRef, b, rightImages, hlx, hrx, hlbase, hbx, hnone, -, hcert⟩ :=
+    certificate_of_checkConstruction hc hrun
+  obtain ⟨hrbase, rfl⟩ := hnone rfl
+  obtain ⟨limpl, hlv⟩ := validAffine_of_affineData henv hlx
+  obtain ⟨rimpl, hrv⟩ := validAffine_of_affineData henv hrx
+  have hl := verified_of_validAffine hlv
+  have hr := verified_of_validAffine hrv
+  have hb := verified_of_affineData henv hbx
+  obtain ⟨hsl, hrl⟩ := validAffine_structure hlv hlbase hbx
+  obtain ⟨hsr, hrr⟩ := validAffine_structure hrv hrbase hbx
+  exact ⟨l, r, baseRef, b, hlx, hrx, hlbase, hrbase, hbx, hcert, hl, hr, hb, hsl, hrl, hsr, hrr,
+    isPullback hl hr hb hsl hrl hsr hrr⟩
 
 end Fiber
 

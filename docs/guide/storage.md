@@ -46,10 +46,14 @@ Read `make` line by line:
 5. `returns (data: Owned<...> initialized [...])` hands the owner to the caller
    and promises that this exact region is initialized.
 
-`layout(offset, rows, columns, leading, transposed)` gives a byte offset, the
-logical shape, an element leading dimension and a transpose flag. Storage is
-column-major: here the view starts 8 bytes in and consecutive columns start 4
-elements apart.
+`layout(offset, rows, columns, leading, transposed)` describes a column-major
+**physical** rectangle: a byte offset, the physical numbers of rows and columns,
+the leading dimension in elements, and a transpose flag. Physical cell
+`(row, column)` lies at byte `offset + (row + column × leading) × element size`.
+In `layout(8, 2, 2, 4, false)` the view starts 8 bytes in, adjacent rows are
+one element apart and adjacent columns are 4 elements apart. Setting
+`transposed` to `true` swaps only the logical rows and columns of the view; no
+data moves.
 
 ## Calling resource functions
 

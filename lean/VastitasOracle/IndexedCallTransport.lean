@@ -79,6 +79,12 @@ theorem indexed_rename_forward {env : Environment} {before after : World}
     obtain ⟨original, originalMember, rfl⟩ := List.mem_map.mp member
     obtain ⟨object, denotes⟩ := known original originalMember
     exact ⟨object, transport original originalMember object denotes⟩
+  | smooth program =>
+    -- Smooth indices are global objects, which renaming never changes.
+    have representation := SmoothPrimitives.smooth_representation typed
+    obtain ⟨x, y, n, m, indices, hx, hy, welltyped⟩ := SmoothPrimitives.smooth_has_type representation typed
+    exact SmoothPrimitives.smooth_typed representation valid
+      (by simp [Application.rename, indices, renameRef]) hx hy welltyped
 
 theorem renamed_two_objects {application : Application} {substitution : List (ObjectRef × ObjectRef)}
     {first second : ObjectRef} (shape : (application.rename substitution).indices = [.object first, .object second]) :
@@ -92,7 +98,7 @@ theorem renamed_two_objects {application : Application} {substitution : List (Ob
 
 theorem indexed_rename_backward {env : Environment} {before after : World}
     {application : Application} {substitution : List (ObjectRef × ObjectRef)} {value : IndexedValue}
-    (valid : application.Valid env)
+    (envValid : env.Valid) (valid : application.Valid env)
     (transport : ∀ ref ∈ application.refs, ∀ object,
       RefDenotes env after (renameRef substitution ref) object → RefDenotes env before ref object)
     (typed : IndexedHasType env after value (application.rename substitution)) :
@@ -136,6 +142,20 @@ theorem indexed_rename_backward {env : Environment} {before after : World}
     obtain ⟨object, denotes⟩ := known (renameRef substitution ref)
       (by rw [rename_refs]; exact List.mem_map.mpr ⟨ref, member, rfl⟩)
     exact ⟨object, transport ref member object denotes⟩
+  | smooth program =>
+    -- In a valid environment a smooth application names global objects only,
+    -- so it is its own renaming.
+    have renamedRepresentation := SmoothPrimitives.smooth_representation typed
+    have representation : familyRepresentation env application.family = some .smooth := renamedRepresentation
+    obtain ⟨x, y, original, _, _⟩ := SmoothPrimitives.smooth_application_indices envValid valid representation
+    obtain ⟨x', y', n, m, indices, hx, hy, welltyped⟩ :=
+      SmoothPrimitives.smooth_has_type renamedRepresentation typed
+    have renamed : (application.rename substitution).indices = application.indices := by
+      simp [Application.rename, original, renameRef]
+    rw [renamed, original] at indices
+    simp only [List.cons.injEq, Index.object.injEq, ObjectRef.global.injEq, and_true] at indices
+    obtain ⟨rfl, rfl⟩ := indices
+    exact SmoothPrimitives.smooth_typed representation valid original hx hy welltyped
 
 theorem package_rename_fixed {env : Declarations} {application : Application}
     (valid : (DataType.package application).Valid env) (substitution : List (ObjectRef × ObjectRef)) :
@@ -189,7 +209,7 @@ theorem value_rename_forward {env : Declarations} {before after : World} {type :
 
 theorem value_rename_backward {env : Declarations} {before after : World} {type : DataType}
     {substitution : List (ObjectRef × ObjectRef)} {value : Value}
-    (valid : type.Valid env)
+    (envValid : env.indexed.Valid) (valid : type.Valid env)
     (transport : ∀ ref ∈ type.refs, ∀ object,
       RefDenotes env.indexed after (renameRef substitution ref) object → RefDenotes env.indexed before ref object)
     (typed : ValueHasType env after value (type.rename substitution)) : ValueHasType env before value type := by
@@ -200,7 +220,7 @@ theorem value_rename_backward {env : Declarations} {before after : World} {type 
   | object type => cases value <;> exact typed
   | indexed application =>
     cases value <;> try exact False.elim typed
-    exact indexed_rename_backward valid transport typed
+    exact indexed_rename_backward envValid valid transport typed
   | package application =>
     have fixed := package_rename_fixed valid substitution
     simp only [DataType.rename, fixed] at typed

@@ -350,11 +350,8 @@ mutual
         modify fun state => { state with references := ⟨scope, callee, target⟩ :: state.references }
         let arity := binding.arity input.declarations.indexed
         unless arguments.length == arity do fail span "E_ARITY" s!"primitive expects {arity} arguments"
-        let hint := match binding with
-          | .descriptor _ => some (Core.DataType.pure .nat)
-          | .relativeIntPoint .. => some (Core.DataType.pure .int)
-          | _ => none
-        let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
+        let values ← arguments.zipIdx.mapM fun (argument, position) =>
+          expression fuel input scope ctx argument (binding.argumentHint position)
         return ← emitPrimitive input ctx target.owner values span
       unless target.kind == .function do fail span "E_TYPE" "expected an ordinary function or declared primitive"
       let some signature := input.signatures[target.owner]? | fail span "E_NAME" "function has no source signature"

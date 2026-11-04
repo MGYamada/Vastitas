@@ -47,6 +47,10 @@ def constraint (j : Json) (algebraic : Bool := false) : Except String Constraint
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j ["kind", "object", "base"]
     return .structural (← j.getObjValAs? Nat "object") (← j.getObjValAs? Nat "base")
+  | "canonical" =>
+    unless algebraic do throw "smooth declarations require protocol 9"
+    fields j ["kind", "object"]
+    return .canonical (← j.getObjValAs? Nat "object")
   | _ => throw "unknown indexed constraint"
 
 def boundIndex (j : Json) : Except String Source.BoundIndex := do
@@ -108,7 +112,14 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["name", "image"]
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
-/-- Stage 2 relative primitives (protocol 9 only). -/
+/-- The Stage 2 relative and Stage 3 smooth primitive contracts. Only
+protocol 9 admits them; the list is explicit, so no other spelling with a
+shared prefix is admitted. -/
+def algebraicOperations : List String :=
+  ["relative_compose", "relative_equal", "relative_view", "relative_coefficient", "relative_int_point",
+   "relative_pair", "smooth_compose", "smooth_equal", "smooth_composite", "smooth_int_point"]
+
+/-- Stage 2 relative and Stage 3 smooth primitives (protocol 9 only). -/
 def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive := do
   match op with
   | "relative_compose" => fields j ["op", "family"]; return .relativeCompose (← path (← field j "family"))
@@ -126,6 +137,12 @@ def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive
   | "relative_pair" =>
     fields j ["op", "family", "fiber"]
     return .relativePair (← path (← field j "family")) (← path (← field j "fiber"))
+  | "smooth_compose" => fields j ["op", "family"]; return .smoothCompose (← path (← field j "family"))
+  | "smooth_equal" => fields j ["op", "family"]; return .smoothEqual (← path (← field j "family"))
+  | "smooth_composite" => fields j ["op", "family"]; return .smoothComposite (← path (← field j "family"))
+  | "smooth_int_point" =>
+    fields j ["op", "family", "object", "point"]
+    return .smoothIntPoint (← path (← field j "family")) (← path (← field j "object")) (← path (← field j "point"))
   | _ => throw "unknown indexed primitive contract"
 
 def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := do
@@ -165,7 +182,7 @@ def primitive (j : Json) (algebraic : Bool := false) : Except String Source.Prim
     fields j ["op", "map_family", "point_family"]
     return .apply (← path (← field j "map_family")) (← path (← field j "point_family"))
   | op =>
-    unless algebraic && op.startsWith "relative_" do throw "unknown indexed primitive contract"
+    unless algebraic && algebraicOperations.contains op do throw "unknown indexed primitive contract"
     algebraicPrimitive j op
 
 def coefficientKind (j : Json) : Except String CoefficientKind := do
@@ -183,6 +200,9 @@ def geometricSetting (j : Json) : Except String GeometricSetting := do
 def representation (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
     Except String Source.Representation := do
   if j == Json.str "affine_descriptor" then return .affineDescriptor
+  if j == Json.str "smooth_affine" then
+    unless algebraic do throw "smooth declarations require protocol 9"
+    return .smoothAffine
   if let .ok body := j.getObjVal? "presented_affine" then
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     if (← j.getObj?).size != 1 then throw "expected exactly one concrete representation"
@@ -216,6 +236,9 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
   | "relative" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     return .relative
+  | "smooth" =>
+    unless algebraic do throw "smooth declarations require protocol 9"
+    return .smooth
   | _ => throw "unsupported indexed family representation"
 
 def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
@@ -271,6 +294,11 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     fields j (common ++ ["family", "indices", "definition"])
     return .morphism (← path (← field j "family")) (← (← array j "indices").mapM path)
       (← morphismDefinition (← field j "definition"))
+  | "smooth_affine" =>
+    unless algebraic do throw "smooth declarations require protocol 9"
+    fields j (common ++ ["implementation", "dimension", "coordinates"])
+    return .smoothAffine (← path (← field j "implementation")) (← naturalString (← str j "dimension"))
+      (← (← array j "coordinates").mapM Json.getStr?)
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])

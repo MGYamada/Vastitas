@@ -14,3 +14,8 @@ import VastitasBridge.Differential.Prerequisites
 import VastitasBridge.Differential.Derivative
 import VastitasBridge.Differential.ChainRule
 import VastitasBridge.Differential.Frechet
+import VastitasBridge.Differential.KaehlerPrerequisites
+import VastitasBridge.Differential.Kaehler
+import VastitasBridge.Differential.MetricPrerequisites
+import VastitasBridge.Differential.Metric
+import VastitasBridge.Differential.Accepted

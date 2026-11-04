@@ -72,6 +72,33 @@ inductive PrimitiveBinding where
   | smoothIntPoint (family object point : DeclId)
   /-- The composite of a program, as one primitive map. -/
   | smoothComposite (family : DeclId)
+  /-- A fiber of `family` over `object` from a point in `smooth` and `dim object` integers. -/
+  | fiberVector (family smooth object : DeclId)
+  /-- Whether a fiber of `family` lies over a point in `smooth`. -/
+  | fiberAt (family smooth : DeclId)
+  /-- Equality of two fibers of `family`. The failure value equals nothing. -/
+  | fiberEqual (family : DeclId)
+  /-- The component of a fiber of `family` over `object` at the coordinate with
+  index `coordinate`, as a reduced fraction. -/
+  | fiberComponent (family object : DeclId) (coordinate : Nat)
+  /-- The metric-free pairing of a covector of `cotangent` with a vector of `tangent`. -/
+  | fiberPairing (cotangent tangent : DeclId)
+  /-- The pullback of a covector of `cotangent` along a map in `smooth` at a point. -/
+  | cotangentPullback (smooth cotangent : DeclId) (mode : SmoothRuntime.PullbackMode)
+  /-- The differential of a function to the 1-dimensional object `line`. -/
+  | differential (smooth cotangent line : DeclId)
+  /-- The saved forward values of a map in `smooth` at a point: the only tape constructor. -/
+  | linearize (smooth tape : DeclId)
+  /-- The reverse pass of a tape of `tape` on a covector of `cotangent`. -/
+  | cotangentBackward (tape cotangent : DeclId)
+  /-- `flat` with the metric `metric` on `object`: a vector of `tangent` to a
+  covector of `cotangent`, by the embedded Gram matrix. -/
+  | metricFlat (metric object : DeclId) (gram : SmoothRuntime.Matrix) (tangent cotangent : DeclId)
+  /-- `sharp` with the metric `metric` on `object` and its nondegenerate
+  evidence `evidence`: a covector of `cotangent` to a vector of `tangent`, by
+  the embedded inverse. The embedded Gram matrix identifies the metric. -/
+  | metricSharp (metric evidence object : DeclId) (gram inverse : SmoothRuntime.Matrix)
+      (cotangent tangent : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=
@@ -233,6 +260,19 @@ def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
   | .smoothConstant application map => smoothConstantValid env application map = true
   | .smoothCompose family | .smoothEqual family | .smoothComposite family => isSmoothFamily env family = true
   | .smoothIntPoint family object point => smoothIntPointValid env family object point = true
+  | .fiberVector family smooth object => fiberVectorValid env family smooth object = true
+  | .fiberAt family smooth => fiberAtValid env family smooth = true
+  | .fiberEqual family => fiberEqualValid env family = true
+  | .fiberComponent family object coordinate => fiberComponentValid env family object coordinate = true
+  | .fiberPairing cotangent tangent => fiberPairingValid env cotangent tangent = true
+  | .cotangentPullback smooth cotangent _ => cotangentPullbackValid env smooth cotangent = true
+  | .differential smooth cotangent line => differentialValid env smooth cotangent line = true
+  | .linearize smooth tape => linearizeValid env smooth tape = true
+  | .cotangentBackward tape cotangent => cotangentBackwardValid env tape cotangent = true
+  | .metricFlat metric object gram tangent cotangent =>
+      metricFlatValid env metric object gram tangent cotangent = true
+  | .metricSharp metric evidence object gram inverse cotangent tangent =>
+      metricSharpValid env metric evidence object gram inverse cotangent tangent = true
 
 def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .descriptor implementation => match implementationType env implementation with
@@ -260,14 +300,29 @@ def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .smoothConstant application map => smoothConstantValid env application map
   | .smoothCompose family | .smoothEqual family | .smoothComposite family => isSmoothFamily env family
   | .smoothIntPoint family object point => smoothIntPointValid env family object point
+  | .fiberVector family smooth object => fiberVectorValid env family smooth object
+  | .fiberAt family smooth => fiberAtValid env family smooth
+  | .fiberEqual family => fiberEqualValid env family
+  | .fiberComponent family object coordinate => fiberComponentValid env family object coordinate
+  | .fiberPairing cotangent tangent => fiberPairingValid env cotangent tangent
+  | .cotangentPullback smooth cotangent _ => cotangentPullbackValid env smooth cotangent
+  | .differential smooth cotangent line => differentialValid env smooth cotangent line
+  | .linearize smooth tape => linearizeValid env smooth tape
+  | .cotangentBackward tape cotangent => cotangentBackwardValid env tape cotangent
+  | .metricFlat metric object gram tangent cotangent => metricFlatValid env metric object gram tangent cotangent
+  | .metricSharp metric evidence object gram inverse cotangent tangent =>
+      metricSharpValid env metric evidence object gram inverse cotangent tangent
 
 /-- The operand count of each closed primitive. -/
 def PrimitiveBinding.arity (env : Environment) : PrimitiveBinding → Nat
   | .global _ | .relativeConstant .. | .relativeIso .. | .relativeCartesian .. | .smoothConstant .. => 0
   | .compose _ | .apply .. | .relativeCompose _ | .relativeEqual _ | .relativePair ..
-  | .smoothCompose _ | .smoothEqual _ => 2
+  | .smoothCompose _ | .smoothEqual _ | .fiberAt .. | .fiberEqual _ | .fiberPairing ..
+  | .differential .. | .linearize .. | .cotangentBackward .. => 2
+  | .cotangentPullback .. => 3
   | .relativeIntPoint _ object _ => affineArity env object
   | .smoothIntPoint _ object _ => smoothArity env object
+  | .fiberVector _ _ object => smoothArity env object + 1
   | _ => 1
 
 inductive ValueType where
@@ -344,6 +399,36 @@ def PrimitiveAssociation (env : Environment) (binding : PrimitiveBinding) (allow
         result = .indexed ⟨family, [.object (.global point), .object (.global object)]⟩
   | .smoothComposite family, [.indexed application] =>
       application.family = family ∧ result = .indexed application
+  | .fiberVector family smooth object, .indexed ⟨sf, [.object (.global point), .object x]⟩ :: components =>
+      sf = smooth ∧ x = .global object ∧ smoothDimension? env point = some 0 ∧
+        components = (List.range (smoothArity env object)).map (fun _ => .integer) ∧
+        result = .indexed ⟨family, [.object (.global object)]⟩
+  | .fiberAt family smooth, [.indexed ⟨ff, [.object x]⟩, .indexed ⟨sf, [.object (.global point), .object x']⟩] =>
+      ff = family ∧ sf = smooth ∧ x = x' ∧ smoothDimension? env point = some 0 ∧ result = .boolean
+  | .fiberEqual family, [.indexed left, .indexed right] =>
+      left.family = family ∧ left = right ∧ result = .boolean
+  | .fiberComponent family object _, [.indexed ⟨ff, [.object x]⟩] =>
+      ff = family ∧ x = .global object ∧ result = .integerPair
+  | .fiberPairing cotangent tangent, [.indexed ⟨cf, [.object x]⟩, .indexed ⟨tf, [.object x']⟩] =>
+      cf = cotangent ∧ tf = tangent ∧ x = x' ∧ result = .integerPair
+  | .cotangentPullback smooth cotangent _, [.indexed ⟨mf, [.object x, .object y]⟩,
+      .indexed ⟨pf, [.object (.global point), .object x']⟩, .indexed ⟨cf, [.object y']⟩] =>
+      mf = smooth ∧ pf = smooth ∧ cf = cotangent ∧ x = x' ∧ y = y' ∧ smoothDimension? env point = some 0 ∧
+        result = .indexed ⟨cotangent, [.object x]⟩
+  | .differential smooth cotangent line, [.indexed ⟨mf, [.object x, .object y]⟩,
+      .indexed ⟨pf, [.object (.global point), .object x']⟩] =>
+      mf = smooth ∧ pf = smooth ∧ y = .global line ∧ x = x' ∧ smoothDimension? env point = some 0 ∧
+        result = .indexed ⟨cotangent, [.object x]⟩
+  | .linearize smooth tape, [.indexed ⟨mf, [.object x, .object y]⟩,
+      .indexed ⟨pf, [.object (.global point), .object x']⟩] =>
+      mf = smooth ∧ pf = smooth ∧ x = x' ∧ smoothDimension? env point = some 0 ∧
+        result = .indexed ⟨tape, [.object x, .object y]⟩
+  | .cotangentBackward tape cotangent, [.indexed ⟨tf, [.object x, .object y]⟩, .indexed ⟨cf, [.object y']⟩] =>
+      tf = tape ∧ cf = cotangent ∧ y = y' ∧ result = .indexed ⟨cotangent, [.object x]⟩
+  | .metricFlat _ object _ tangent cotangent, [.indexed ⟨tf, [.object x]⟩] =>
+      tf = tangent ∧ x = .global object ∧ result = .indexed ⟨cotangent, [.object (.global object)]⟩
+  | .metricSharp _ _ object _ _ cotangent tangent, [.indexed ⟨cf, [.object x]⟩] =>
+      cf = cotangent ∧ x = .global object ∧ result = .indexed ⟨tangent, [.object (.global object)]⟩
   | _, _ => False
 
 instance (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
@@ -414,6 +499,18 @@ def inferPrimitiveResult (env : Environment) (binding : PrimitiveBinding) (brand
   | .smoothIntPoint family object point, _ =>
       some (.indexed ⟨family, [.object (.global point), .object (.global object)]⟩)
   | .smoothComposite _, [.indexed application] => some (.indexed application)
+  | .fiberVector family _ object, _ => some (.indexed ⟨family, [.object (.global object)]⟩)
+  | .fiberAt .., [.indexed _, .indexed _] | .fiberEqual _, [.indexed _, .indexed _] => some .boolean
+  | .fiberComponent .., [.indexed _] | .fiberPairing .., [.indexed _, .indexed _] => some .integerPair
+  | .cotangentPullback _ cotangent _, [.indexed ⟨_, [.object source, .object _]⟩, .indexed _, .indexed _]
+  | .differential _ cotangent _, [.indexed ⟨_, [.object source, .object _]⟩, .indexed _] =>
+      some (.indexed ⟨cotangent, [.object source]⟩)
+  | .linearize _ tape, [.indexed ⟨_, [.object source, .object target]⟩, .indexed _] =>
+      some (.indexed ⟨tape, [.object source, .object target]⟩)
+  | .cotangentBackward _ cotangent, [.indexed ⟨_, [.object source, .object _]⟩, .indexed _] =>
+      some (.indexed ⟨cotangent, [.object source]⟩)
+  | .metricFlat _ object _ _ cotangent, [.indexed _] => some (.indexed ⟨cotangent, [.object (.global object)]⟩)
+  | .metricSharp _ _ object _ _ _ tangent, [.indexed _] => some (.indexed ⟨tangent, [.object (.global object)]⟩)
   | _, _ => none
 
 def inferPrimitive (env : CheckedEnvironment) (binding : PrimitiveBinding) (allowed : List ObjectRef)

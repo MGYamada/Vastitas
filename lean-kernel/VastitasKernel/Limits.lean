@@ -51,4 +51,9 @@ def algebraWork : Nat := compiler_limit% "algebraWork"
 /-- Parenthesized nesting of one polynomial expression on the wire. -/
 def algebraNesting : Nat := compiler_limit% "algebraNesting"
 
+/-! Finite Stage 3 metrics: the size of one elaborated Gram entry. It bounds
+the exact inverse and `L D Lᵀ` computations and their checks. -/
+/-- Bits of the numerator and of the denominator of one Gram entry. -/
+def metricEntryBits : Nat := compiler_limit% "metricEntryBits"
+
 end VastitasKernel.Limits

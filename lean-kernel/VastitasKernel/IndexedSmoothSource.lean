@@ -82,9 +82,29 @@ def smoothMap (env : Environment) (span : Span) (application : Application)
   | .ok () => pure map
   | .error error => smoothProblem span error
 
-/-- Elaborate the declared morphisms of smooth families, and check the objects
-of every `smooth_int_point`. Declared morphisms of other families are left to
-the Stage 2 elaboration. -/
+private def varianceName : Variance → String
+  | .tangent => "tangent"
+  | .cotangent => "cotangent"
+
+/-- A family named in a fiber contract has the variance that the contract
+needs. A family that is not a fiber family is left to the declaration audit. -/
+def requireVariance (env : Environment) (span : Span) (operation : String) (family : DeclId)
+    (expected : Variance) : Namespace.Result Unit := do
+  if let some actual := fiberVariance? env family then
+    unless actual == expected do
+      smoothProblem span (.smooth <| s!"`{operation}` needs a {varianceName expected} family, but " ++
+        s!"`{family.name}` is a {varianceName actual} family")
+
+/-- The object of a fiber contract is a smooth object. -/
+def requireSmoothObject (env : Environment) (span : Span) (operation : String) (object : DeclId) :
+    Namespace.Result Unit := do
+  if (smoothDimension? env object).isNone then
+    smoothProblem span (.smooth s!"the object `{object.name}` of `{operation}` is not a smooth object")
+
+/-- Elaborate the declared morphisms of smooth families, resolve the
+coordinate of every `fiber_component`, and check the objects and variances of
+the smooth, fiber and tape contracts. Declared morphisms of other families are
+left to the Stage 2 elaboration. -/
 def elaborateSmooth (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
     Namespace.Result Core.Declarations := do
   let mut primitives := []
@@ -92,6 +112,34 @@ def elaborateSmooth (sources : List (DeclId × Span × Body)) (env : Core.Declar
     let span := spanIn sources entry.id
     let body : Option Body := (sources.find? (·.1 == entry.id)).map (·.2.2)
     match entry.binding, body with
+    | .fiberVector _ _ object, _ =>
+      requireSmoothObject env.indexed span "fiber_vector" object
+      primitives := primitives ++ [entry]
+    | .fiberComponent family object _, some (.primitive (.fiberComponent _ _ coordinate)) =>
+      let some coordinates := smoothCoordinates? env.indexed object
+        | smoothProblem span (.smooth s!"the object `{object.name}` of `fiber_component` is not a smooth object")
+      let some index := coordinates.idxOf? coordinate
+        | algebraProblem span (.coordinate s!"`{object.name}` has no coordinate {coordinate}")
+      primitives := primitives ++ [⟨entry.id, .fiberComponent family object index⟩]
+    | .fiberPairing cotangent tangent, _ =>
+      requireVariance env.indexed span "fiber_pairing" cotangent .cotangent
+      requireVariance env.indexed span "fiber_pairing" tangent .tangent
+      primitives := primitives ++ [entry]
+    | .cotangentPullback _ cotangent _, _ =>
+      requireVariance env.indexed span "cotangent_pullback" cotangent .cotangent
+      primitives := primitives ++ [entry]
+    | .cotangentBackward _ cotangent, _ =>
+      requireVariance env.indexed span "cotangent_backward" cotangent .cotangent
+      primitives := primitives ++ [entry]
+    | .differential _ cotangent line, _ =>
+      requireVariance env.indexed span "differential" cotangent .cotangent
+      match smoothDimension? env.indexed line with
+      | some 1 => primitives := primitives ++ [entry]
+      | some dimension =>
+        smoothProblem span (.smooth <| s!"the line object `{line.name}` of `differential` must be " ++
+          s!"1-dimensional, but it has dimension {dimension}")
+      | none =>
+        smoothProblem span (.smooth s!"the line object `{line.name}` of `differential` is not a smooth object")
     | .relativeConstant application _, some (.morphism _ _ definition) =>
       if isSmoothFamily env.indexed application.family then
         let map ← smoothMap env.indexed span application definition

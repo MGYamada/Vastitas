@@ -79,6 +79,14 @@ from the checked Core and checks it again. Storage operations are not part of
 Core. See
 [Verification boundaries](../verification.md#current-public-checker-routes).
 
+## Cotangent pullback
+
+The pullback of a covector along a [smooth map](#smooth-map) at a point. For a
+map `F` with Jacobian `J` at a point `x`, it sends a covector `η` at `F(x)` to
+the covector `Jᵀη` at `x`. A covector at any other point gives the
+[failure value](#failure-value). See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
+
 ## Delegation
 
 A `delegation` declaration by the recipient of a `delegable` grant or
@@ -145,11 +153,27 @@ source code. See
 [Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal) and
 [Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
 
+## Failure value
+
+The value of a [tangent or cotangent fiber](#tangent-or-cotangent-fiber) family
+that stands for no vector or covector. A cotangent pullback returns it for a
+covector that is not at the image point, and every pullback of the failure
+value is the failure value. It is at no point, and it equals no value, itself
+included. Its components and its pairings read `(0, 0)`, which no rational
+number reads. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
 ## Family
 
 A type former declared with `indexed family`. Its parameters are objects,
 markers, domains or natural numbers. `Point` and `Morphism` are families. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+
+## Fiber product
+
+The presented affine object `fiber(X, Y)` of two presented affine objects over
+a common base. It is unrelated to a
+[tangent or cotangent fiber](#tangent-or-cotangent-fiber). See
+[Fiber products and base change](../affine-geometry.md#fiber-products-and-base-change).
 
 ## Flat mode
 
@@ -251,6 +275,17 @@ One body of a generic. A method gives each parameter a selector, declares a
 result type and may require capabilities. See
 [Generics and methods](../guide/dispatch.md#generics-and-methods).
 
+## Metric form
+
+A family with the `metric_form` representation, such as `MetricForm<X>`, over
+a [smooth affine object](#smooth-affine-object) `X`. An `indexed metric`
+declaration names a metric form and gives a constant symmetric Gram matrix in
+the coordinates of `X`. No value has a metric form type. `flat` and `sharp`
+name their metric explicitly, and no metric is ever selected by default. A
+metric form is distinct from the diagonal Hermitian `Metric` of
+[transforms and metrics](../linalg/transforms-and-metrics.md). See
+[metric forms](../protocol.md#protocol-9-metric-forms).
+
 ## Module
 
 A namespace inside a package. The root source file is the package's root
@@ -271,6 +306,14 @@ identity. See [Identity is nominal](../guide/indexed-geometry.md#identity-is-nom
 An object with [nominal identity](#nominal-identity), such as the result of
 `Affine(QQ, 2)`. A point's type names the object that the point lies on. See
 [Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal).
+
+## Nondegenerate evidence
+
+An `indexed evidence` declaration `nondegenerate(g)` for a metric `g` with Gram
+matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
+`G B` and `B G` are the identity. A singular Gram matrix has no nondegenerate
+evidence. `sharp` requires nondegenerate evidence for its metric. See
+[metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Oracle
 
@@ -339,6 +382,17 @@ The word has two meanings:
 A function declared with `resource fn`. Its body is a sequence of storage
 statements followed by a pure `value { ... }` block. See
 [Resource functions](../guide/storage.md#resource-functions).
+
+## Riemannian evidence
+
+An `indexed evidence` declaration `riemannian(g)` for a metric `g` with Gram
+matrix `G`. The kernel computes a factorization `G = L D Lᵀ`, where `L` is unit
+lower triangular and every entry of the diagonal `D` is positive. It also
+computes an inverse of `L`, and it checks every identity again. Only a
+positive-definite Gram matrix has Riemannian evidence. It is the wrong kind of
+evidence for `sharp`, which requires
+[nondegenerate evidence](#nondegenerate-evidence). See
+[metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Scheme
 
@@ -424,6 +478,25 @@ Temporary access to a [region](#region) of storage that a storage
 exclusive. A storage loan grants no edit authority; compare
 [edit loan](#edit-loan). See
 [Affine ownership and explicit transitions](../storage-ownership.md#75-affine-ownership-and-explicit-transitions).
+
+## Tangent or cotangent fiber
+
+A value of a family with the `tangent` or `cotangent` representation, such as
+`Tangent<X>` or `Cotangent<X>`. It is a vector or covector at a rational point
+of the [smooth affine object](#smooth-affine-object) `X`. Its components are
+given in the coordinate frame or coframe. It may also be the
+[failure value](#failure-value). It is unrelated to a
+[fiber product](#fiber-product). See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Tape
+
+A value of a family with the `tape` representation, such as `Tape<X, Y>`: the
+forward values that one evaluation of a [smooth map](#smooth-map) saves at a
+point. Only `linearize` builds a tape; a tape has no source or wire form.
+`cotangent_backward` runs the reverse pass over a tape. It returns the
+[failure value](#failure-value) for a covector that is not at the tape's
+output point. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Transfer
 

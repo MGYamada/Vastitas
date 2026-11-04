@@ -59,6 +59,18 @@ isomorphisms and evidence composites — runs within `algebraWork` and
 | `algebraChain` | 16 | Length of a declared base chain |
 | `algebraNesting` | 64 | Nesting of a polynomial expression on the wire |
 
+### Smooth metrics
+
+The kernel evaluates all Gram entries of one metric within one `algebraWork`
+run. It then bounds the size of each entry. With at most `algebraGenerators`
+coordinates, the bound limits the work of the exact inverse, the `L D Lᵀ`
+factorization and their checks. A larger entry is an error (`E_LIMIT`). See
+[metric forms](../protocol.md#protocol-9-metric-forms).
+
+| Key | Value | What it bounds |
+| --- | --- | --- |
+| `metricEntryBits` | 512 | Bits of the numerator and of the denominator of one elaborated Gram entry |
+
 "Kernel source" means the limit is enforced in
 [`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)
 but not yet described elsewhere in this book.

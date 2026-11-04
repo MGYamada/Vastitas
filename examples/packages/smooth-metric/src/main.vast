@@ -1,0 +1,88 @@
+mod profile;
+
+// Gradients of g(x, y) = x^2 + y at (1, 2) under three named metrics.
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tangent;
+use profile::MetricForm;
+use profile::Pt;
+use profile::Line;
+use profile::Plane;
+use profile::line_at;
+use profile::plane_at;
+use profile::differential;
+use profile::tangent_over;
+use profile::same_covector;
+use profile::same_vector;
+use profile::pairing;
+
+// A covector or vector at a point, and its components as reduced fractions.
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+indexed primitive vx = fiber_component(Tangent, Plane, x);
+indexed primitive vy = fiber_component(Tangent, Plane, y);
+
+// Three metrics on the plane. Each is named; none is a default.
+indexed metric Euclid: MetricForm<Plane> = euclidean;
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed metric Lorentz: MetricForm<Plane> = gram((1, 0), (0, -1));
+// The kernel computes each certificate and checks it again.
+indexed evidence EuclidInvertible = nondegenerate(Euclid);
+indexed evidence SkewInvertible = nondegenerate(Skew);
+indexed evidence SkewPositive = riemannian(Skew);
+indexed evidence LorentzInvertible = nondegenerate(Lorentz);
+
+// flat names its metric; sharp also names nondegenerate evidence for it.
+indexed primitive flat_euclid = flat(Tangent, Cotangent, using = Euclid);
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_euclid = sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+indexed primitive sharp_lorentz = sharp(Cotangent, Tangent, using = Lorentz, evidence = LorentzInvertible);
+
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+
+// A gradient is an ordinary function: sharp applied to the differential.
+fn gradient_euclid(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_euclid(differential(h, p))
+}
+
+fn gradient_skew(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_skew(differential(h, p))
+}
+
+fn gradient_lorentz(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_lorentz(differential(h, p))
+}
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A vector on the plane reads (a, b), with integer components.
+fn reads(v: Tangent<Plane>, a: Int, b: Int) -> Bool {
+    pair_first(vx(v)) == a && pair_second(vx(v)) == 1 && pair_first(vy(v)) == b && pair_second(vy(v)) == 1
+}
+
+fn main() -> Int {
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    let dg: Cotangent<Plane> = differential(g(), p);
+    let v: Tangent<Plane> = vplane(p, 5, -7);
+    // dg = (2, 1) at (1, 2); no metric is involved.
+    42 + verdict(pair_first(dx(dg)) == 2 && pair_first(dy(dg)) == 1 && pair_second(dy(dg)) == 1, 1)
+       // Euclid gives (2, 1), Skew (1, 0) and Lorentz (2, -1).
+       + verdict(reads(gradient_euclid(g(), p), 2, 1), 2)
+       + verdict(reads(gradient_skew(g(), p), 1, 0), 3)
+       + verdict(reads(gradient_lorentz(g(), p), 2, -1), 4)
+       // Two metrics give two gradients of the same differential, and each lies over p.
+       + verdict(!same_vector(gradient_euclid(g(), p), gradient_skew(g(), p)), 5)
+       + verdict(tangent_over(gradient_skew(g(), p), p) && tangent_over(gradient_lorentz(g(), p), p), 6)
+       // sharp after flat is the identity; flat (5, -7) under Skew is (3, -2).
+       + verdict(same_vector(sharp_euclid(flat_euclid(v)), v), 7)
+       + verdict(same_vector(sharp_skew(flat_skew(v)), v), 8)
+       + verdict(same_covector(flat_skew(v), dplane(p, 3, -2)), 9)
+       // dg(grad) = 2, and it equals the metric's value g(grad, grad).
+       + verdict(pair_first(pairing(dg, gradient_skew(g(), p))) == 2 && pair_second(pairing(dg, gradient_skew(g(), p))) == 1, 10)
+       + verdict(pair_first(pairing(flat_skew(gradient_skew(g(), p)), gradient_skew(g(), p))) == 2, 11)
+       // flat of the gradient is the differential again.
+       + verdict(same_covector(flat_skew(gradient_skew(g(), p)), dg), 12)
+}

@@ -13,6 +13,9 @@ on:
       - 'lean/VastitasOracle/Algebra*.lean'
       - 'lean/VastitasOracle/Affine*.lean'
       - 'lean/VastitasOracle/Smooth*.lean'
+      # Differential/Accepted.lean reads the typed Core contract.
+      - 'lean/VastitasOracle/Indexed*.lean'
+      - 'lean/VastitasOracle/Dependency.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -35,6 +38,9 @@ on:
       - 'lean/VastitasOracle/Algebra*.lean'
       - 'lean/VastitasOracle/Affine*.lean'
       - 'lean/VastitasOracle/Smooth*.lean'
+      # Differential/Accepted.lean reads the typed Core contract.
+      - 'lean/VastitasOracle/Indexed*.lean'
+      - 'lean/VastitasOracle/Dependency.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -102,7 +108,11 @@ jobs:
             Mathlib.Algebra.Category.Ring.Constructions \
             Mathlib.Analysis.CStarAlgebra.Matrix \
             Mathlib.Algebra.MvPolynomial.PDeriv \
-            Mathlib.Analysis.Calculus.FDeriv.Prod
+            Mathlib.Analysis.Calculus.FDeriv.Prod \
+            Mathlib.RingTheory.Kaehler.Polynomial \
+            Mathlib.LinearAlgebra.Matrix.PosDef \
+            Mathlib.LinearAlgebra.Matrix.NonsingularInverse \
+            Mathlib.Algebra.Order.Star.Real
       - name: Build the mathematical bridge
         working-directory: lean-bridge
         run: lake build

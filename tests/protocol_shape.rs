@@ -214,6 +214,9 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         ("edit-borrow/app", 9),
         ("edit-authority/app", 9),
         ("smooth-objects", 9),
+        ("smooth-cotangent", 9),
+        ("smooth-metric", 9),
+        ("smooth-differential", 9),
     ] {
         let manifest = examples.join(package).join("Vastitas.toml");
         let mut command = common::cli();

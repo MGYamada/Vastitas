@@ -76,11 +76,13 @@ inductive DataType where
 
 /-- The type that an integer literal takes as operand `position` of a primitive:
 `Nat` for a descriptor's dimension and `Int` for a coordinate of a rational
-point. Other operands give no hint. -/
+point or a component of a fiber. The point operand of `fiber_vector` (position
+0) and other operands give no hint. -/
 def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint :
     PrimitiveBinding → Nat → Option DataType
   | .descriptor _, _ => some (.pure .nat)
   | .relativeIntPoint .., _ | .smoothIntPoint .., _ => some (.pure .int)
+  | .fiberVector .., position => if position = 0 then none else some (.pure .int)
   | _, _ => none
 
 def DataType.Valid (env : Declarations) : DataType → Prop

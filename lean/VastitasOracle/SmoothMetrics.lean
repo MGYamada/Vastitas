@@ -14,10 +14,12 @@ produced it:
 - a Gram matrix with a zero row has no nondegenerate evidence, so `diag(1, 0)`
   is rejected.
 
-That a two-sided inverse makes the form nondegenerate, and that a positive
-`L D Lᵀ` factorization makes it positive definite, are statements about real
-bilinear forms. They are planned for the mathlib bridge (Stage 3 step S7a,
-#604) and are not proved here. -/
+That a two-sided inverse makes the Gram matrix invertible, and that a positive
+`L D Lᵀ` factorization makes it positive definite, are statements about
+matrices over a field. They are not proved here. The mathlib bridge proves them
+in `VastitasBridge.Differential.Metric`: `isUnit_gram_of_nondegenerate` and
+`inverse_eq_of_nondegenerate` over ℚ, `posDef_of_riemannian` over ℝ, and
+`gradient_riesz` for the musical maps. -/
 namespace VastitasOracle.SmoothMetrics
 
 open VastitasKernel.SmoothRuntime VastitasKernel.SmoothDeclarations

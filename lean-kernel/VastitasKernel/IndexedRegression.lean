@@ -102,6 +102,8 @@ private def renameDeclaration : Declaration → Declaration
   | .family family => .family { family with parameters := family.parameters.map renameParameter }
   | .affine implementation data => .affine (renameId implementation) { data with base := data.base.map renameId }
   | .smoothAffine implementation coordinates => .smoothAffine (renameId implementation) coordinates
+  | .metric family object gram => .metric (renameId family) (renameId object) gram
+  | .metricEvidence metric evidence => .metricEvidence (renameId metric) evidence
 private def renamed : Environment := env.map fun e => ⟨renameId e.id, renameDeclaration e.declaration⟩
 #eval check "coherent library renaming preserves acceptance" (validEnvironment renamed &&
   validApplication renamed ⟨renameId (id "Position"), [

@@ -18,7 +18,8 @@ and the runtime's result is compared with Mathlib's Fréchet derivative `fderiv 
   `Σᵢ ηᵢ (Df(x) eⱼ)ᵢ`. Equivalently (`reverse_covector_eq_comp_fderiv`) the result, as a linear
   functional, is `η ∘ Df(x)`.
 * `pullback_covector_eq_comp_fderiv` states this for the checked `pullback` in both the saved
-  and the recomputed mode.
+  and the recomputed mode. `Accepted.lean` applies it to an accepted Core node
+  (`checked_pullback_frechet`, `checked_differential_frechet`).
 
 This file imports `Derivative` but not `ChainRule`: it does not use the kernel chain rule
 `cot_compose` or `backward_eq_cot`. The composite case is Mathlib's chain rule for Fréchet

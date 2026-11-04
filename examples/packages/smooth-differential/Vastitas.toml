@@ -1,0 +1,4 @@
+[package]
+name = "smooth_differential"
+version = "0.1.0"
+root = "src/main.vast"

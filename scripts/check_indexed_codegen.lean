@@ -8,6 +8,8 @@ import VastitasKernel.IndexedFunctionRegression
 import VastitasKernel.IndexedDispatchRegression
 import VastitasKernel.IndexedAuthorityRegression
 import VastitasKernel.SmoothObjectRegression
+import VastitasKernel.CotangentRegression
+import VastitasKernel.MetricFormRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -56,7 +58,9 @@ def main (arguments : List String) : IO Unit := do
       ("opened_object", PackageSemanticRegression.escapedObjectFixture),
       ("multiple_fields", PackageSemanticRegression.multipleFieldsFixture),
       ("source_declarations", sourceFixture), ("source_types", typeFixture),
-      ("smooth_programs", VastitasKernel.Indexed.SmoothObjectRegression.smoothFixture)] ++ bodies do
+      ("smooth_programs", VastitasKernel.Indexed.SmoothObjectRegression.smoothFixture),
+      ("smooth_cotangent_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture),
+      ("smooth_metric_programs", VastitasKernel.Indexed.MetricFormRegression.metricFixture)] ++ bodies do
     let .ok checked := Typing.checkModule module true
       | throw (IO.userError s!"fixture {name} rejected")
     let .ok source := Codegen.generate checked

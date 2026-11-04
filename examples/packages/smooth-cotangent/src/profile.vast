@@ -1,0 +1,31 @@
+// The finite smooth profile with fibers and tapes: covectors and vectors at
+// rational points of the smooth real affine spaces Affine(n), and the saved
+// forward values of a smooth map at a point.
+pub indexed marker CInfReal;
+pub indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+pub indexed classification CInfAffine { parents(); domain(SmoothR); };
+pub indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+pub indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+pub indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+pub indexed family Tape(object(CInfAffine), object(CInfAffine))
+    = tape constraints(canonical(0), canonical(1));
+pub indexed affine Pt(SmoothR) = Affine(0)[];
+pub indexed affine Line(SmoothR) = Affine(1)[t];
+pub indexed affine Plane(SmoothR) = Affine(2)[x, y];
+pub indexed primitive compose = smooth_compose(Smooth);
+pub indexed primitive composite = smooth_composite(Smooth);
+pub indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+pub indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+// The pullback of a covector along a map at a point; saved or recomputed forward values.
+pub indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);
+pub indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, recomputed);
+pub indexed primitive differential = differential(Smooth, Cotangent, Line);
+// linearize is the only way to build a tape.
+pub indexed primitive linearize = linearize(Smooth, Tape);
+pub indexed primitive backward = cotangent_backward(Tape, Cotangent);
+pub indexed primitive lies_over = fiber_at(Cotangent, Smooth);
+pub indexed primitive same_covector = fiber_equal(Cotangent);
+pub indexed primitive tangent_over = fiber_at(Tangent, Smooth);
+pub indexed primitive same_vector = fiber_equal(Tangent);
+pub indexed primitive pairing = fiber_pairing(Cotangent, Tangent);

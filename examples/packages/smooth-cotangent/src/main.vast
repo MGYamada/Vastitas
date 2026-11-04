@@ -1,0 +1,98 @@
+mod profile;
+
+// Covectors pulled back along smooth maps at rational points.
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tangent;
+use profile::Pt;
+use profile::Line;
+use profile::Plane;
+use profile::compose;
+use profile::composite;
+use profile::line_at;
+use profile::plane_at;
+use profile::pullback;
+use profile::pullback_recomputed;
+use profile::differential;
+use profile::linearize;
+use profile::backward;
+use profile::lies_over;
+use profile::same_covector;
+use profile::tangent_over;
+use profile::same_vector;
+use profile::pairing;
+
+// A covector or vector at a point, from one integer component per coordinate.
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+// A component as a reduced fraction (numerator, denominator); a failure reads (0, 0).
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+indexed morphism gf: Smooth<Line, Line> = pullback(t -> 2*t^2);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+indexed morphism idP: Smooth<Plane, Plane> = identity;
+indexed morphism idL: Smooth<Line, Line> = identity;
+// The shears A(x, y) = (x + y, y) and B(x, y) = (x, x + y).
+indexed morphism shearA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> y);
+indexed morphism shearB: Smooth<Plane, Plane> = pullback(x -> x, y -> x + y);
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// The component of a covector on the line is n / d.
+fn reads(value: Cotangent<Line>, n: Int, d: Int) -> Bool {
+    pair_first(dt(value)) == n && pair_second(dt(value)) == d
+}
+
+// Pull dt back along g at f(3) = (3, 9), then along f at 3.
+fn stepwise(seed: Cotangent<Line>) -> Cotangent<Line> {
+    pullback(f(), line_at(3), pullback(g(), compose(f(), line_at(3)), seed))
+}
+
+fn main() -> Int {
+    // dt at g(f(3)) = 18.
+    let seed: Cotangent<Line> = dline(line_at(18), 1);
+    let gAfterF: Smooth<Line, Line> = compose(g(), f());
+    let x: Smooth<Pt, Line> = line_at(3);
+    // A seed at 17, and a seed at g(f(2)) = 8 pulled back through the wrong intermediate point.
+    let wrong: Cotangent<Line> = pullback(gAfterF, x, dline(line_at(17), 1));
+    let detour: Cotangent<Line> = pullback(f(), x, pullback(g(), compose(f(), line_at(2)), dline(line_at(8), 1)));
+    let dg: Cotangent<Plane> = differential(g(), plane_at(1, 2));
+    let v: Tangent<Plane> = vplane(plane_at(1, 2), 3, 4);
+    // The roadmap identity: stepwise, composite program, one composite map, declared gf.
+    42 + verdict(reads(stepwise(seed), 12, 1), 1)
+       + verdict(same_covector(stepwise(seed), pullback(gAfterF, x, seed)), 2)
+       + verdict(same_covector(stepwise(seed), pullback(composite(gAfterF), x, seed)), 3)
+       + verdict(same_covector(stepwise(seed), pullback(gf(), x, seed)), 4)
+       // The result lies in the cotangent space at 3.
+       + verdict(lies_over(stepwise(seed), x), 5)
+       // Wrong seeds fail, and a failure's component reads (0, 0).
+       + verdict(!lies_over(wrong, x), 6)
+       + verdict(!same_covector(wrong, wrong), 7)
+       + verdict(reads(wrong, 0, 0), 8)
+       + verdict(!lies_over(detour, x) && reads(detour, 0, 0), 9)
+       // Saved, recomputed and the first-class tape agree; a tape from 3 rejects a seed at sq(4) = 16.
+       + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), pullback(gAfterF, x, seed)), 10)
+       + verdict(same_covector(backward(linearize(gAfterF, x), seed), pullback(gAfterF, x, seed)), 11)
+       + verdict(!lies_over(backward(linearize(sq(), x), dline(line_at(16), 1)), x), 12)
+       // The identity pulls back every covector to itself.
+       + verdict(same_covector(pullback(idP(), plane_at(1, 2), dplane(plane_at(1, 2), 5, 7)),
+           dplane(plane_at(1, 2), 5, 7)), 13)
+       // The shears at the origin: B after A pulls dx back to (1, 1), A after B to (2, 1).
+       + verdict(same_covector(pullback(compose(shearB(), shearA()), plane_at(0, 0), dplane(plane_at(0, 0), 1, 0)),
+           dplane(plane_at(0, 0), 1, 1)), 14)
+       + verdict(same_covector(pullback(compose(shearA(), shearB()), plane_at(0, 0), dplane(plane_at(0, 0), 1, 0)),
+           dplane(plane_at(0, 0), 2, 1)), 15)
+       // dg = (2, 1) at (1, 2), and its metric-free pairing with (3, 4) is 10.
+       + verdict(pair_first(dx(dg)) == 2 && pair_first(dy(dg)) == 1, 16)
+       + verdict(pair_first(pairing(dg, v)) == 10 && pair_second(pairing(dg, v)) == 1, 17)
+       + verdict(pair_second(pairing(dg, vplane(plane_at(0, 0), 3, 4))) == 0, 18)
+       + verdict(tangent_over(v, plane_at(1, 2)) && same_vector(v, vplane(plane_at(1, 2), 3, 4)), 19)
+       // The identity at 3 accepts every covector at 3, but a failure stays a failure.
+       + verdict(same_covector(pullback(idL(), x, stepwise(seed)), stepwise(seed)), 20)
+       + verdict(!lies_over(pullback(idL(), x, detour), x), 21)
+}

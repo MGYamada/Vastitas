@@ -6,8 +6,13 @@ import VastitasOracle.AffineFibers
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothMetrics
 import VastitasOracle.SmoothCanonical
+import VastitasOracle.SmoothCalculus
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothDeclarations
+import VastitasOracle.SmoothFibers
+import VastitasOracle.SmoothReverse
+import VastitasOracle.SmoothMetricForms
+import VastitasOracle.SmoothMetricWeakening
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

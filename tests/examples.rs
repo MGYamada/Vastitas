@@ -134,6 +134,20 @@ fn promotion_package() {
     );
 }
 
+// The Stage 3 acceptance program (#604), checked, built and run in place with
+// the commands of its acceptance checklist. tests/smooth_differential.rs runs
+// copies of it, mutated and tampered.
+#[test]
+fn smooth_differential_package() {
+    documented(
+        &[
+            "--manifest-path",
+            "examples/packages/smooth-differential/Vastitas.toml",
+        ],
+        "42",
+    );
+}
+
 // docs/storage/resource-programs.md: the scalar-flow example.
 #[test]
 fn resource_values_package() {

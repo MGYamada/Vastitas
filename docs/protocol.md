@@ -74,12 +74,14 @@ them. See [affine geometry](affine-geometry.md).
 
 <a id="protocol-9-smooth-forms"></a>
 
-**Protocol-9 smooth forms.** Smooth objects and smooth maps are validated
-optional fields of protocol 9. Any module that uses one selects protocol 9.
-Protocols 7 and 8 reject each form with `E_PROTOCOL`.
+**Protocol-9 smooth forms.** Smooth objects, smooth maps, tangent or cotangent
+fibers, and tapes are validated optional fields of protocol 9. Any module that
+uses one selects protocol 9. Protocols 7 and 8 reject each form with
+`E_PROTOCOL`.
 
 - **Representation.** An implementation may use the string `"smooth_affine"`.
-- **Family representation.** A family may use the string `"smooth"`.
+- **Family representation.** A family may use the string `"smooth"`,
+  `"cotangent"`, `"tangent"` or `"tape"`.
 - **Constraint.** `{"kind": "canonical", "object": i}`.
 - **Declaration.** `kind: "smooth_affine"` carries `implementation` (path),
   `dimension` (an unsigned decimal string) and `coordinates` (names), besides
@@ -90,6 +92,24 @@ Protocols 7 and 8 reject each form with `E_PROTOCOL`.
 - **Primitives.** The binding `op` may be `smooth_compose`, `smooth_equal` or
   `smooth_composite`, each with `family`, or `smooth_int_point` with `family`,
   `object` and `point`.
+- **Primitives on tangent or cotangent fibers and tapes.** Each binding names
+  its families as paths:
+  - `fiber_vector` with `family`, `map_family` and `object`;
+  - `fiber_at` with `family` and `map_family`;
+  - `fiber_equal` with `family`;
+  - `fiber_component` with `family`, `object` and `coordinate` (a name);
+  - `fiber_pairing` with `cotangent` and `tangent`;
+  - `cotangent_pullback` with `map_family`, `cotangent` and `mode`, the string
+    `"saved"` or `"recomputed"`;
+  - `differential` with `map_family`, `cotangent` and `line`;
+  - `linearize` with `map_family` and `tape`;
+  - `cotangent_backward` with `tape` and `cotangent`.
+
+Tangent or cotangent fibers and tapes have no record of their own. The wire
+never carries a covector, a vector, a [tape](appendix/glossary.md#tape) or a
+coordinate index. The kernel resolves the coordinate of `fiber_component` to
+its index. Generated programs compute every tangent or cotangent fiber and
+every tape at run time.
 
 The kernel admits primitive operations from an explicit list. A spelling that
 only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
@@ -97,9 +117,40 @@ wire carries names, a declared dimension and polynomial expressions. It never
 carries a map, a program or an image in normal form. The kernel elaborates
 every map, and it checks the declared dimension against the coordinates and
 the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
-the diagnostics reference lists the declaration errors. The frontend spelling
+the diagnostics reference lists the declaration errors. The
+[tangent or cotangent fiber row](appendix/diagnostics.md#e-smooth-fibers) lists
+the errors of the primitives on tangent or cotangent fibers and tapes. The frontend spelling
 `Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
 record of `spec[…] over K`.
+
+<a id="protocol-9-metric-forms"></a>
+
+**Protocol-9 metric forms.** Metrics, metric evidence, `flat` and `sharp` are
+validated optional fields of protocol 9. Any module that uses one selects
+protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
+
+- **Family representation.** A family may use the string `"metric_form"`.
+- **Metric.** `kind: "metric"` carries `family` (path), `indices` (paths) and
+  `gram`, besides the common `name`, `public` and `span`. `gram` is
+  `{"kind": "euclidean"}` or `{"kind": "gram", "rows": [[poly, …], …]}`, where
+  each entry is a polynomial expression in the form above.
+- **Evidence.** `kind: "evidence"` carries `metric` (path) and `evidence`, the
+  string `"nondegenerate"` or `"riemannian"`.
+- **Primitives.** The binding `op` may be `flat` with `tangent`, `cotangent`
+  and `metric`, or `sharp` with `cotangent`, `tangent`, `metric` and
+  `evidence`. Each value is a path.
+
+The wire never carries a Gram matrix in normal form, an inverse, an `L D Lᵀ`
+factorization or the object of a binding. A record with any other field is an
+error (`E_PROTOCOL`). The kernel evaluates every Gram entry in the
+coordinates of the metric's object, within the
+[metric limits](appendix/limits.md#smooth-metrics). It computes each
+certificate and checks it again before acceptance. It copies the metric's object and matrices
+into each `flat` and `sharp`, and the declaration audit checks that each copy
+equals its declaration. The list of primitive operations has no `gradient`
+operation: a gradient is an ordinary function that applies `sharp` to a
+differential. The [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the
+diagnostics reference lists the declaration errors.
 
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),

@@ -158,6 +158,60 @@ def roleTable (env : Environment) : PrimitiveBinding → List ValueType → List
        .object "first map" "target" (.global factor) left "the fiber's first factor",
        .object "second map" "target" (.global factor') right "the fiber's second factor"]
     | _, _, _ => []
+  | .smoothCompose family, [.indexed ⟨first, [.object middle, .object _]⟩,
+      .indexed ⟨second, [.object _, .object middle']⟩] =>
+    [.family "first map" family first, .family "second map" family second,
+     .object "second map" "target" middle middle' "the first map's source"]
+  | .smoothEqual family, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
+    [.family "first map" family first, .family "second map" family second] ++
+    match firstIndices, secondIndices with
+    | [.object source, .object target], [.object source', .object target'] =>
+      [.object "second map" "source" source source' "the first map's source",
+       .object "second map" "target" target target' "the first map's target"]
+    | _, _ => []
+  | .smoothComposite family, [.indexed ⟨map, _⟩] => [.family "map" family map]
+  | .fiberVector _ smooth object, .indexed ⟨point, [.object (.global _), .object x]⟩ :: _ =>
+    [.family "point" smooth point,
+     .object "point" "target" (.global object) x "the primitive's declared object"]
+  | .fiberAt family smooth, [.indexed ⟨element, [.object x]⟩,
+      .indexed ⟨point, [.object (.global _), .object x']⟩] =>
+    [.family "element" family element, .family "point" smooth point,
+     .object "point" "target" x x' "the element's object"]
+  | .fiberEqual family, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
+    [.family "first element" family first, .family "second element" family second] ++
+    match firstIndices, secondIndices with
+    | [.object x], [.object x'] => [.object "second element" "object" x x' "the first element's object"]
+    | _, _ => []
+  | .fiberComponent family object _, [.indexed ⟨element, [.object x]⟩] =>
+    [.family "element" family element,
+     .object "element" "object" (.global object) x "the primitive's declared object"]
+  | .fiberPairing cotangent tangent, [.indexed ⟨covector, [.object x]⟩, .indexed ⟨vector, [.object x']⟩] =>
+    [.family "covector" cotangent covector, .family "vector" tangent vector,
+     .object "vector" "object" x x' "the covector's object"]
+  | .cotangentPullback smooth cotangent _, [.indexed ⟨map, [.object x, .object y]⟩,
+      .indexed ⟨point, [.object (.global _), .object x']⟩, .indexed ⟨seed, [.object y']⟩] =>
+    [.family "map" smooth map, .family "point" smooth point, .family "seed" cotangent seed,
+     .object "point" "target" x x' "the map's source",
+     .object "seed" "object" y y' "the map's target"]
+  | .differential smooth _ line, [.indexed ⟨function, [.object x, .object y]⟩,
+      .indexed ⟨point, [.object (.global _), .object x']⟩] =>
+    [.family "function" smooth function, .family "point" smooth point,
+     .object "function" "target" (.global line) y "the primitive's declared line",
+     .object "point" "target" x x' "the function's source"]
+  | .linearize smooth _, [.indexed ⟨map, [.object x, .object _]⟩,
+      .indexed ⟨point, [.object (.global _), .object x']⟩] =>
+    [.family "map" smooth map, .family "point" smooth point,
+     .object "point" "target" x x' "the map's source"]
+  | .cotangentBackward tape cotangent, [.indexed ⟨recorded, [.object _, .object y]⟩,
+      .indexed ⟨seed, [.object y']⟩] =>
+    [.family "tape" tape recorded, .family "seed" cotangent seed,
+     .object "seed" "object" y y' "the tape's target"]
+  | .metricFlat _ object _ tangent _, [.indexed ⟨vector, [.object x]⟩] =>
+    [.family "vector" tangent vector,
+     .object "vector" "object" (.global object) x "the metric's object"]
+  | .metricSharp _ _ object _ _ cotangent _, [.indexed ⟨covector, [.object x]⟩] =>
+    [.family "covector" cotangent covector,
+     .object "covector" "object" (.global object) x "the metric's object"]
   | _, _ => []
 
 /-- Every requirement in the role table is part of the association contract, so

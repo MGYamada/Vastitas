@@ -278,6 +278,8 @@ private def presented : List Source.Declaration := [
       "E_METRIC" "row 1, column 2 is not constant")
 #eval check "a constant expression in the coordinates is a constant"
   (code (with' [metric "Zero" (.rows [[.sum [c "x", .neg (c "x")], n 0], [n 0, n 1]])]) == "accepted")
+#eval check "a Gram entry beyond the polynomial limits is E_LIMIT"
+  (code (with' [metric "Bad" (.rows [[.pow (n 2) (Limits.algebraDegree + 1), n 0], [n 0, n 1]])]) == "E_LIMIT")
 #eval check "an unknown name in a Gram entry is a coordinate error"
   (code (with' [metric "Bad" (.rows [[c "z", n 0], [n 0, n 1]])]) == "E_AFFINE_COORDINATE")
 #eval check "diag(1, 0) is not nondegenerate"

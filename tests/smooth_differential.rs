@@ -1409,15 +1409,34 @@ fn differential_is_unchanged_by_metric_declarations() {
     assert_eq!(run(&metric), b"42\n");
 }
 
-// The Stage 3 acceptance program (protocol 9). It checks the roadmap identity
-// and the observations C3-C14 of #604 natively, each with its own failure code.
+// The Stage 3 acceptance program (protocol 9). Each observation has its own
+// failure code. Natively, it checks the roadmap identity and these #604 rows:
+// C3, C4, C5, the runtime part of C6, C7, C9, C12 and the positive bullets of
+// C13. Other tests and proofs cover the remaining rows:
+// - C6's static part: cotangent_operations_reject_wrong_objects_variances_and_points
+//   and acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically.
+// - C8 (proof): the oracle's smoothCompose_reifies (SmoothDeclarations.lean)
+//   and core_cotangent_pullback (SmoothReverse.lean); the lowering tests
+//   smooth_programs_lower_to_the_shared_smooth_runtime and
+//   cotangent_programs_lower_to_the_shared_smooth_runtime.
+// - C10 (bridge): pullback_eq_fderiv_adjoint and
+//   pullback_getD_eq_fderiv_adjoint in lean-bridge Differential/Frechet.lean.
+// - C11 (bridge): pullback_eq_kaehler_fiber and cot_compose_kaehler in
+//   lean-bridge Differential/Kaehler.lean.
+// - C12's metric independence: differential_is_unchanged_by_metric_declarations
+//   and the oracle's smooth_differential_metric_free.
+// - C13's rejections, and C14 (the S5 static rejections):
+//   metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
+//   and metric_selection_is_explicit_and_unambiguous; for C14, also
+//   posDef_of_riemannian, not_posDef_lorentz and isUnit_gram_of_nondegenerate
+//   in lean-bridge Differential/Metric.lean.
 
 const ACCEPTANCE_PROFILE: &str =
     include_str!("../examples/packages/smooth-differential/src/profile.vast");
 const ACCEPTANCE_MAIN: &str =
     include_str!("../examples/packages/smooth-differential/src/main.vast");
 /// The acceptance program's failure codes are exactly `1..=CODES`.
-const CODES: u32 = 24;
+const CODES: u32 = 25;
 
 fn acceptance_fixture(main: &str) -> Scratch {
     let s = Scratch::empty("smooth differential");
@@ -1571,8 +1590,17 @@ fn mutated_observations_change_the_native_result() {
                 ),
                 // With the Euclidean Gram matrix, Lorentz no longer flips dy.
                 ("gram((1, 0), (0, -1))", "gram((1, 0), (0, 1))", &[21]),
+                // An outer map with value 324 at 18 and derivative 6 = sq'(3)
+                // there: the recomputed pullback reads 72, as it would if
+                // the recompute pass evaluated sq' at the input 3. The tape
+                // from 3 (code 14) still rejects the seed at 16.
+                (
+                    "sq: Smooth<Line, Line> = pullback(t -> t^2);",
+                    "sq: Smooth<Line, Line> = pullback(t -> 6*t + 216);",
+                    &[25],
+                ),
             ],
-            1_119_468,
+            17_896_684,
         ),
         (
             &[

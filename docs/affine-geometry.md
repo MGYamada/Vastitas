@@ -15,7 +15,7 @@ pub indexed marker QQ;
 pub indexed implementation AffineQQ(QQ, presented_affine(rational)) capabilities();
 pub indexed classification AffineScheme { parents(); domain(AffineQQ); };
 pub indexed family Over(object(AffineScheme), object(AffineScheme), object(AffineScheme))
-    = token constraints(structural(0, 2), structural(1, 2));
+    = relative constraints(structural(0, 2), structural(1, 2));
 pub indexed affine SpecQQ(AffineQQ) = spec[];
 ```
 

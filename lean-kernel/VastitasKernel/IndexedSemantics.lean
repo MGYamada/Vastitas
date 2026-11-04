@@ -224,6 +224,8 @@ def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value 
       let (numerator, denominator) := map.coefficient coordinate monomial
       some (.pairInt numerator denominator)
   | .relativeIntPoint .., values => intPointValue values
+  | .relativePair .., [.indexed (.relative left), .indexed (.relative right)] =>
+      some (.indexed (.relative (AlgebraRuntime.Map.pair left right)))
   | _, _ => none
 
 /-- The closed registry's erased operands/results use the actual runtime
@@ -276,6 +278,7 @@ def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → O
       let (numerator, denominator) := map.coefficient coordinate monomial
       some (.pairInt numerator denominator)
   | .relativeIntPoint .., values => intPointRuntime values
+  | .relativePair .., [.relative left, .relative right] => some (.relative (AlgebraRuntime.Map.pair left right))
   | _, _ => none
 
 def evalPair : PairElem → Value → Value → Option Value

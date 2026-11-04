@@ -144,11 +144,12 @@ theorem validAffine_sound {env : Environment} {id implementation : DeclId} {data
     (h : validAffine env id implementation data = true) :
     presentedImplementation env implementation = true ∧
       (∃ chain, chainOf env id = some chain ∧ chain.Nodup ∧ chain.length ≤ Limits.algebraChain) ∧
-      AffineValid data (data.base.bind (affineData? env)) := by
+      AffineValid data (data.base.bind (affineData? env)) ∧
+      validConstruction data (affineData? env) = true := by
   unfold validAffine at h
   simp only [Bool.and_eq_true] at h
-  obtain ⟨⟨⟨presented, chain⟩, _⟩, valid⟩ := h
-  refine ⟨presented, ?_, validAffineData_sound valid⟩
+  obtain ⟨⟨⟨⟨presented, chain⟩, _⟩, valid⟩, construction⟩ := h
+  refine ⟨presented, ?_, validAffineData_sound valid, construction⟩
   cases hchain : chainOf env id with
   | none => simp [hchain] at chain
   | some list =>

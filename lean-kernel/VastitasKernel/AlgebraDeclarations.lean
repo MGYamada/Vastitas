@@ -23,10 +23,15 @@ inductive ExactField where
   | rational
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
-/-- How a presented object is constructed. Fiber products and localizations
-extend this inductive in later increments. -/
+/-- How a presented object is constructed. -/
 inductive Construction where
   | presented (relations : List Poly)
+  /-- `left ×_B right` over `B = base left`. Without `via`, both factors have the
+  declared base `B`. With `via = (forward, inverse)`, `right` has a separately
+  declared base `B'`; `forward` gives `B`'s coordinates in `B'`'s ring and
+  `inverse` gives `B'`'s coordinates in `B`'s ring, a checked isomorphism.
+  `relations` are the derived relations, re-derived by the audit. -/
+  | fiber (left right : Namespace.Owner) (via : Option (List Poly × List Poly)) (relations : List Poly)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure AffineData where
@@ -47,7 +52,7 @@ def arity (data : AffineData) : Nat := data.generators.length
 
 def relations (data : AffineData) : List Poly :=
   match data.construction with
-  | .presented relations => relations
+  | .presented relations | .fiber _ _ _ relations => relations
 
 def certificate (data : AffineData) : Certificate :=
   ⟨data.arity, data.relations, data.basis, data.cofactors⟩
@@ -107,10 +112,86 @@ def checkAffine (data : AffineData) (base : Option AffineData) : Work Unit := do
 def validAffineData (data : AffineData) (base : Option AffineData) : Bool :=
   (run (checkAffine data base)).isOk
 
+/-! ## Fiber products -/
+
+/-- Embed a polynomial of some arity into `total` coordinates at `offset`. Zero
+padding preserves the degLex order, so canonical polynomials stay canonical. -/
+def embed (offset total : Nat) (p : Poly) : Poly :=
+  p.map fun t => ⟨List.replicate offset 0 ++ t.monomial ++
+    List.replicate (total - offset - t.monomial.length) 0, t.coefficient⟩
+
+def qualify (owner : Namespace.Owner) (generators : List String) : List String :=
+  generators.map (s!"{owner.name}::" ++ ·)
+
+/-- The derived presentation of `left ×_B right`: qualified coordinates, both
+bases embedded, the equalizer of both structure maps, and the left structure map. -/
+structure FiberPresentation where
+  generators : List String
+  relations : List Poly
+  base : Option Namespace.Owner
+  bindings : List (String × Poly)
+  deriving Repr, DecidableEq, BEq
+
+def fiberPresentation (left right : Namespace.Owner) (l r b : AffineData)
+    (via : Option (List Poly × List Poly)) : FiberPresentation :=
+  let total := l.arity + r.arity
+  let rightImages := match via with
+    | none => r.structureImages
+    | some (forward, _) => forward.map (Poly.subst r.arity r.structureImages)
+  let cross := (l.structureImages.zip rightImages).map fun (a, c) =>
+    Poly.sub (embed 0 total a) (embed l.arity total c)
+  { generators := qualify left l.generators ++ qualify right r.generators
+    relations := l.basis.map (embed 0 total) ++ r.basis.map (embed l.arity total) ++ cross
+    base := l.base
+    bindings := b.generators.zip (l.structureImages.map (embed 0 total)) }
+
+/-- A checked isomorphism between two declared base rings: images that respect
+relations both ways and compose to the identity both ways. -/
+def checkIso (b b' : AffineData) (forward inverse : List Poly) : Work Unit := do
+  ensure (forward.length == b.arity && inverse.length == b'.arity &&
+      forward.all (Poly.canonical b'.arity) && inverse.all (Poly.canonical b.arity))
+    (.base "a base isomorphism gives each coordinate exactly one image")
+  b.basis.forM fun g => checkMember b'.basis (Poly.subst b'.arity forward g)
+    (.relation "the base isomorphism does not respect the relations")
+  b'.basis.forM fun g => checkMember b.basis (Poly.subst b.arity inverse g)
+    (.relation "the inverse base isomorphism does not respect the relations")
+  ensure ((inverse.map fun image => normalForm b'.basis (Poly.subst b'.arity forward image)) ==
+      (Map.identity b'.arity b'.basis).images &&
+    (forward.map fun image => normalForm b.basis (Poly.subst b.arity inverse image)) ==
+      (Map.identity b.arity b.basis).images)
+    (.relation "the base maps are not mutually inverse")
+
+/-- Re-derive a constructed object's presentation from the stored data of the
+declarations it is built from. -/
+def checkConstruction (data : AffineData) (resolve : Namespace.Owner → Option AffineData) : Work Unit := do
+  match data.construction with
+  | .presented _ => pure ()
+  | .fiber left right via relations =>
+    let some l := resolve left | throw (.base "a fiber factor is not a presented affine object")
+    let some r := resolve right | throw (.base "a fiber factor is not a presented affine object")
+    let some baseRef := l.base | throw (.base "the left fiber factor has no declared base")
+    let some b := resolve baseRef | throw (.base "the fiber base is not a presented affine object")
+    match via with
+    | none =>
+      ensure (r.base == some baseRef)
+        (.base "the fiber factors have different declared bases and no chosen isomorphism")
+    | some (forward, inverse) =>
+      let some baseRef' := r.base | throw (.base "the right fiber factor has no declared base")
+      let some b' := resolve baseRef' | throw (.base "the right fiber base is not a presented affine object")
+      checkIso b b' forward inverse
+    let expected := fiberPresentation left right l r b via
+    ensure (data.generators == expected.generators && relations == expected.relations &&
+        data.base == expected.base && data.bindings == expected.bindings)
+      (.base "the stored fiber presentation is not derived from its factors")
+
+def validConstruction (data : AffineData) (resolve : Namespace.Owner → Option AffineData) : Bool :=
+  (run (checkConstruction data resolve)).isOk
+
 /-- Elaborate declared data: compute the basis, cofactors and ordered
 structure images. The result must still pass `checkAffine`. -/
 def elaborate (generators : List String) (relations : List Poly) (baseRef : Option Namespace.Owner)
-    (bindings : List (String × Poly)) (base : Option AffineData) : Except Error AffineData := run do
+    (bindings : List (String × Poly)) (base : Option AffineData)
+    (construction : Construction := .presented relations) : Except Error AffineData := run do
   let arity := generators.length
   ensure (decide generators.Nodup) (.coordinate "duplicate coordinate name")
   let certificate ← certify arity relations
@@ -121,7 +202,7 @@ def elaborate (generators : List String) (relations : List Poly) (baseRef : Opti
       | some image => pure (← divide certificate.basis image).remainder
       | none => throw (.base s!"no image for base coordinate {name}")
   let data : AffineData := {
-    generators, construction := .presented relations, base := baseRef, bindings,
+    generators, construction, base := baseRef, bindings,
     structureImages, basis := certificate.basis, cofactors := certificate.cofactors }
   checkAffine data base
   pure data

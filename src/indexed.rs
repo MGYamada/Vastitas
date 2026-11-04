@@ -81,6 +81,33 @@ pub enum DeclarationBody {
         indices: Vec<TypePath>,
         definition: MorphismDefinition,
     },
+    /// The fiber product `left ×_B right` over `left`'s base (protocol 9).
+    AffineFiber {
+        implementation: TypePath,
+        left: TypePath,
+        right: TypePath,
+        via: Option<FiberVia>,
+    },
+    /// Evidence that two declared morphisms are mutually inverse.
+    Iso {
+        forward: TypePath,
+        inverse: TypePath,
+    },
+    /// Evidence that a declared square is Cartesian.
+    Cartesian {
+        first: TypePath,
+        second: TypePath,
+        fiber: TypePath,
+        inverse: TypePath,
+    },
+}
+
+/// A chosen isomorphism between separately declared fiber bases.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiberVia {
+    pub forward: Vec<Binding>,
+    pub inverse: Vec<Binding>,
 }
 
 /// How a declared morphism `X → Y` over `S` is given.
@@ -93,13 +120,19 @@ pub enum MorphismDefinition {
     },
     Identity,
     Structure,
+    First,
+    Second,
 }
 
 impl DeclarationBody {
     /// Stage 2 algebraic forms. They exist only in protocol 9.
     pub fn is_algebraic(&self) -> bool {
         match self {
-            DeclarationBody::Affine { .. } | DeclarationBody::Morphism { .. } => true,
+            DeclarationBody::Affine { .. }
+            | DeclarationBody::Morphism { .. }
+            | DeclarationBody::AffineFiber { .. }
+            | DeclarationBody::Iso { .. }
+            | DeclarationBody::Cartesian { .. } => true,
             DeclarationBody::Primitive { binding } => matches!(
                 binding,
                 Primitive::RelativeCompose { .. }
@@ -107,6 +140,7 @@ impl DeclarationBody {
                     | Primitive::RelativeEqual { .. }
                     | Primitive::RelativeCoefficient { .. }
                     | Primitive::RelativeIntPoint { .. }
+                    | Primitive::RelativePair { .. }
             ),
             DeclarationBody::Implementation { representation, .. } => {
                 matches!(representation, Representation::PresentedAffine { .. })
@@ -321,5 +355,9 @@ pub enum Primitive {
         family: TypePath,
         object: TypePath,
         base: TypePath,
+    },
+    RelativePair {
+        family: TypePath,
+        fiber: TypePath,
     },
 }

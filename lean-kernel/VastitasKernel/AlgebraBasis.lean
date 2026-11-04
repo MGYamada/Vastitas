@@ -28,6 +28,7 @@ inductive Error where
   | invalid (reason : String)
   | base (reason : String)
   | coordinate (reason : String)
+  | relation (reason : String)
   deriving Repr, DecidableEq, Inhabited
 
 def Error.code : Error → String
@@ -35,10 +36,11 @@ def Error.code : Error → String
   | .invalid _ => "E_AFFINE_RELATION"
   | .base _ => "E_AFFINE_BASE"
   | .coordinate _ => "E_AFFINE_COORDINATE"
+  | .relation _ => "E_AFFINE_RELATION"
 
 def Error.message : Error → String
   | .limit resource => s!"algebraic {resource} limit exceeded"
-  | .invalid reason | .base reason | .coordinate reason => reason
+  | .invalid reason | .base reason | .coordinate reason | .relation reason => reason
 
 /-- Checker work: the state counts weighted term operations. -/
 abbrev Work := StateT Nat (Except Error)

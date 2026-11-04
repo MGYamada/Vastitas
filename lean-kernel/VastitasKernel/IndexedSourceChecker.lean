@@ -57,6 +57,7 @@ def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primiti
         (← resolveId p scope target) 0 []
   | .relativeIntPoint family object base =>
       return .relativeIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope base)
+  | .relativePair family fiber => return .relativePair (← resolveId p scope family) (← resolveId p scope fiber)
 
 def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
     Source.Representation → ResolveM Indexed.Representation
@@ -88,6 +89,26 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       let application : Application :=
         ⟨← resolveId p scope family, ← indices.mapM fun index => return .object (.global (← resolveId p scope index))⟩
       return { env with primitives := env.primitives ++ [⟨owner, .relativeConstant application ⟨0, [], []⟩⟩] }
+  | .affineFiber implementation left right _ => do
+      -- The presentation is derived once both factors are elaborated.
+      let implementation ← resolveId p scope implementation
+      let data : AlgebraDeclarations.AffineData := {
+        generators := [], construction := .fiber (← resolveId p scope left) (← resolveId p scope right) none [],
+        base := none, bindings := [], structureImages := [], basis := [], cofactors := [] }
+      return add (.affine implementation data)
+  | .iso forward backward => do
+      -- Placeholders name the referenced morphisms; elaboration copies their checked maps.
+      let reference (id : DeclId) : Application × AlgebraRuntime.Map := (⟨id, []⟩, ⟨0, [], []⟩)
+      return { env with primitives := env.primitives ++ [⟨owner,
+        .relativeIso (reference (← resolveId p scope forward)) (reference (← resolveId p scope backward))⟩] }
+  | .cartesian first second fiber inverse => do
+      let reference (id : DeclId) : Application × AlgebraRuntime.Map := (⟨id, []⟩, ⟨0, [], []⟩)
+      let first ← resolveId p scope first
+      let second ← resolveId p scope second
+      let fiber ← resolveId p scope fiber
+      let inverse ← resolveId p scope inverse
+      return { env with primitives := env.primitives ++ [⟨owner,
+        .relativeCartesian (reference first) (reference second) (reference inverse) fiber⟩] }
   | .affine implementation generators relations base bindings => do
       let implementation ← resolveId p scope implementation
       let base ← base.mapM (resolveId p scope)
@@ -126,7 +147,7 @@ def lower (p : Program) : Namespace.Result Resolved := do
   let action : ResolveM Core.Declarations := p.owned.foldlM (fun env entry =>
     resolveBody index entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
   let (declarations, references) ← action.run []
-  let declarations ← elaborateAffine (p.owned.map fun (owner, d) => (owner, d.span)) declarations
+  let declarations ← elaborateAffine (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
   let declarations ← elaborateRelative (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
   let (geometry, geometryReferences) ← (resolveGeometry p declarations).run []
   return ⟨declarations, references.reverse ++ geometryReferences.reverse, geometry⟩

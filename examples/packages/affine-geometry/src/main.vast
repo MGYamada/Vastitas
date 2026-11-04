@@ -27,6 +27,19 @@ indexed morphism toX: Over<DS, X, S> = pullback(t -> 0, x -> e);
 indexed morphism toS: Over<X, S, S> = structure;
 indexed morphism dsToS: Over<DS, S, S> = structure;
 
+// Base change: the fiber of X over the origin of S is Spec of the dual numbers.
+indexed affine Fiber(AffineQQ) = fiber(X, Origin);
+indexed morphism toOrigin: Over<DS, Origin, S> = pullback();
+indexed morphism prX: Over<Fiber, X, S> = first;
+indexed morphism back: Over<Fiber, DS, S> = pullback(e -> X::x);
+indexed cartesian fiberIsDual = square(toX, toOrigin) through Fiber inverse back;
+indexed primitive lift = relative_pair(Over, Fiber);
+indexed primitive fiberX = relative_coefficient(Over, DS, Fiber, X::x, e);
+// A separately declared copy of S is comparable only through a chosen isomorphism.
+indexed affine S2(AffineQQ) = spec[t] over SpecQQ;
+indexed affine Origin2(AffineQQ) = spec[] over S2 by(t -> 0);
+indexed affine Fiber2(AffineQQ) = fiber(X, Origin2) via(t -> t) inverse(t -> t);
+
 indexed primitive eps = relative_coefficient(Over, D, Line, t, e);
 indexed primitive slope = relative_coefficient(Over, Line, Line, t, t);
 // A rational point of the line from runtime integers, and its coordinate.
@@ -47,4 +60,7 @@ fn main() -> Int {
        + verdict(same(compose(toS(), toX()), dsToS()), 6)
        // Pulling t back along sq at the point 3 gives 9.
        + verdict(pair_first(value(compose(sq(), at(3)))) == 9, 7)
+       // The universal map into the fiber recovers both arrows.
+       + verdict(same(compose(prX(), lift(toX(), toOrigin())), toX()), 8)
+       + verdict(pair_first(fiberX(lift(toX(), toOrigin()))) == 1, 9)
 }

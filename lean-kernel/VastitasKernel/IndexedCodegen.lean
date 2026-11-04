@@ -63,6 +63,7 @@ private def renderPrimitive (binding : PrimitiveBinding) (args : List String) : 
   | .relativeEqual _, [left, right] => .ok (application (algebra "Map.same") [left, right])
   | .relativeCoefficient _ _ _ coordinate monomial, [map] =>
       .ok (application (algebra "Map.coefficient") [map, toString coordinate, toString monomial])
+  | .relativePair .., [left, right] => .ok (application (algebra "Map.pair") [left, right])
   | .relativeIntPoint .., coordinates =>
       .ok (application (algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"])
   | _, _ => .error "closed primitive arity mismatch"

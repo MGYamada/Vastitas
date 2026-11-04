@@ -85,17 +85,62 @@ def lowerAffineData (span : Span) (generators : List String) (relations : List P
     pure { generators, construction := .presented relations, base, bindings,
            structureImages := [], basis := [], cofactors := [] }
 
-/-- Elaborate every presented object in base-chain order. -/
-def elaborateAffine (spans : List (DeclId × Span)) (env : Core.Declarations) :
+/-- Images of `target` coordinates, given by name, as expressions in `source`'s
+coordinates. Each target coordinate is named exactly once. -/
+def namedImages (targetCoordinates sourceCoordinates : List String) (bindings : List (String × PolyExpr)) :
+    Except Error (List Poly) := do
+  let names := bindings.map (·.1)
+  unless names.length == targetCoordinates.length && names.Nodup && names.all (targetCoordinates.contains ·) do
+    throw (.base "an isomorphism gives each base coordinate exactly one image")
+  targetCoordinates.mapM fun name => do
+    let some e := (bindings.find? (·.1 == name)).map (·.2) | throw (.base s!"no image for coordinate {name}")
+    run (e.evaluate sourceCoordinates)
+
+/-- Elaborate one object once the objects it is built from are elaborated. -/
+def elaborateOne (finished : List (DeclId × AffineData)) (data : AffineData) (body : Option Body) :
+    Except Error AffineData := do
+  let find (id : DeclId) := (finished.find? (·.1 == id)).map (·.2)
+  match data.construction with
+  | .presented relations =>
+    AlgebraDeclarations.elaborate data.generators relations data.base data.bindings (data.base.bind find)
+  | .fiber left right _ _ =>
+    let some l := find left | throw (.base "a fiber factor is not a presented affine object")
+    let some r := find right | throw (.base "a fiber factor is not a presented affine object")
+    let some baseRef := l.base | throw (.base "the left fiber factor has no declared base")
+    let some b := find baseRef | throw (.base "the fiber base is not a presented affine object")
+    let via ← match body with
+      | some (.affineFiber _ _ _ (some (forward, inverse))) => do
+        let some baseRef' := r.base | throw (.base "the right fiber factor has no declared base")
+        let some b' := find baseRef' | throw (.base "the right fiber base is not a presented affine object")
+        let forward ← namedImages b.generators b'.generators forward
+        let inverse ← namedImages b'.generators b.generators inverse
+        run (AlgebraDeclarations.checkIso b b' forward inverse)
+        pure (some (forward, inverse))
+      | _ => do
+        unless r.base == some baseRef do
+          throw (.base "the fiber factors have different declared bases and no chosen isomorphism")
+        pure none
+    let presentation := AlgebraDeclarations.fiberPresentation left right l r b via
+    AlgebraDeclarations.elaborate presentation.generators presentation.relations presentation.base
+      presentation.bindings (some b) (.fiber left right via presentation.relations)
+
+def _root_.VastitasKernel.AlgebraDeclarations.AffineData.dependencies (data : AffineData) : List DeclId :=
+  match data.construction with
+  | .presented _ => data.base.toList
+  | .fiber left right _ _ => [left, right]
+
+/-- Elaborate every presented object in dependency order. -/
+def elaborateAffine (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
     Namespace.Result Core.Declarations := do
   let pending := env.indexed.filterMap fun entry => match entry.declaration with
     | .affine _ data => some (entry.id, data)
     | _ => none
-  let spanOf (id : DeclId) : Span := ((spans.find? (·.1 == id)).map (·.2)).getD {}
+  let spanOf (id : DeclId) : Span := ((sources.find? (·.1 == id)).map (·.2.1)).getD {}
+  let bodyOf (id : DeclId) : Option Body := (sources.find? (·.1 == id)).map (·.2.2)
   for (id, data) in pending do
-    if let some base := data.base then
-      unless pending.any (·.1 == base) do
-        Namespace.problem (spanOf id) "E_AFFINE_BASE" "the declared base is not a presented affine object"
+    for dependency in data.dependencies do
+      unless pending.any (·.1 == dependency) do
+        Namespace.problem (spanOf id) "E_AFFINE_BASE" "the declared base or factor is not a presented affine object"
   let rec loop : Nat → List (DeclId × AffineData) → List (DeclId × AffineData) →
       Namespace.Result (List (DeclId × AffineData))
     | _, done, [] => pure done
@@ -105,29 +150,28 @@ def elaborateAffine (spans : List (DeclId × Span)) (env : Core.Declarations) :
       let mut finished := done
       let mut waiting := []
       for (id, data) in remaining do
-        let base? := data.base.bind fun base => (finished.find? (·.1 == base)).map (·.2)
-        if data.base.isSome && base?.isNone then
-          waiting := waiting ++ [(id, data)]
-        else
-          match AlgebraDeclarations.elaborate data.generators data.relations data.base data.bindings base? with
+        if data.dependencies.all (fun d => finished.any (·.1 == d)) then
+          match elaborateOne finished data (bodyOf id) with
           | .error error => algebraProblem (spanOf id) error
           | .ok elaborated => finished := finished ++ [(id, elaborated)]
+        else
+          waiting := waiting ++ [(id, data)]
       if waiting.length == remaining.length then
         match waiting with
         | (id, _) :: _ => Namespace.problem (spanOf id) "E_AFFINE_BASE" "the declared base chain is cyclic"
         | [] => pure finished
       else loop fuel finished waiting
   let elaborated ← loop (pending.length + 1) [] pending
-  for (id, _) in elaborated do
-    match Indexed.chainOf env.indexed id with
-    | some _ => pure ()
-    | none => Namespace.problem (spanOf id) "E_LIMIT" "the declared base chain is too long"
   let indexed := env.indexed.map fun entry => match entry.declaration with
     | .affine implementation _ =>
       match elaborated.find? (·.1 == entry.id) with
       | some (_, data) => ⟨entry.id, .affine implementation data⟩
       | none => entry
     | _ => entry
+  for (id, _) in elaborated do
+    match Indexed.chainOf indexed id with
+    | some _ => pure ()
+    | none => Namespace.problem (spanOf id) "E_LIMIT" "the declared base chain is too long"
   pure { env with indexed }
 
 /-- The single monomial of a coefficient selector, with coefficient one. -/
@@ -153,6 +197,15 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
       match structureImages? env x y with
       | some images => pure images
       | none => throw (.base "the target is not on the source's base chain")
+    | .first | .second =>
+      let .fiber left right _ _ := dx.construction
+        | throw (.base "a projection's source must be a fiber product")
+      let some l := affineData? env left | throw (.base "a fiber factor is not a presented affine object")
+      let isFirst := match definition with | .first => true | _ => false
+      unless (if isFirst then y == left else y == right) do
+        throw (.base "a projection's target must be the corresponding fiber factor")
+      let offset := if isFirst then 0 else l.arity
+      pure ((List.range dy.arity).map fun index => normalForm dx.basis (Poly.var dx.arity (offset + index)))
     | .pullback bindings =>
       let names := bindings.map (·.1)
       unless names.length == dy.arity && names.Nodup && names.all (dy.generators.contains ·) do
@@ -194,6 +247,35 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
         primitives := primitives ++ [⟨entry.id, .relativeCoefficient family source target index exponents⟩]
       | .error error => algebraProblem span error
     | _, _ => primitives := primitives ++ [entry]
-  pure { env with primitives }
+  -- Evidence refers to declared morphisms, which are now elaborated.
+  let constant (id : DeclId) : Option (Application × Map) :=
+    match (primitives.find? (·.id == id)).map (·.binding) with
+    | some (PrimitiveBinding.relativeConstant application map) => some (application, map)
+    | _ => none
+  let mut evidence := []
+  for entry in primitives do
+    let span := ((sources.find? (·.1 == entry.id)).map (·.2.1)).getD {}
+    match entry.binding with
+    | .relativeIso (forward, _) (backward, _) =>
+      let (some f, some g) := (constant forward.family, constant backward.family)
+        | Namespace.problem span "E_TYPE" "an isomorphism names two declared morphisms"
+      unless relativeIsoValid env.indexed f g do
+        Namespace.problem span "E_AFFINE_RELATION" "the declared morphisms are not mutually inverse over one base"
+      evidence := evidence ++ [⟨entry.id, .relativeIso f g⟩]
+    | .relativeCartesian (first, _) (second, _) (inverse, _) fiber =>
+      let (some q1, some q2, some h) := (constant first.family, constant second.family, constant inverse.family)
+        | Namespace.problem span "E_TYPE" "a Cartesian square names three declared morphisms"
+      let some (left, right, base) := plainFiber? env.indexed fiber
+        | Namespace.problem span "E_AFFINE_BASE" "a Cartesian square needs a fiber product without a base isomorphism"
+      match objectsOf q1.1, objectsOf q2.1 with
+      | some (_, l, b), some (_, r, b') =>
+        unless l == left && r == right && b == base && b' == base do
+          Namespace.problem span "E_AFFINE_BASE" "the square's arrows do not map to the fiber's factors over its base"
+      | _, _ => Namespace.problem span "E_AFFINE_BASE" "the square's arrows are not morphisms over a base"
+      unless relativeCartesianValid env.indexed q1 q2 h fiber do
+        Namespace.problem span "E_AFFINE_RELATION" "the comparison map and the declared inverse are not mutually inverse"
+      evidence := evidence ++ [⟨entry.id, .relativeCartesian q1 q2 h fiber⟩]
+    | _ => evidence := evidence ++ [entry]
+  pure { env with primitives := evidence }
 
 end VastitasKernel.Indexed.Source

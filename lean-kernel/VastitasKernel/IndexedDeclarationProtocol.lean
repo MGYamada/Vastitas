@@ -123,6 +123,9 @@ def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive
   | "relative_int_point" =>
     fields j ["op", "family", "object", "base"]
     return .relativeIntPoint (← path (← field j "family")) (← path (← field j "object")) (← path (← field j "base"))
+  | "relative_pair" =>
+    fields j ["op", "family", "fiber"]
+    return .relativePair (← path (← field j "family")) (← path (← field j "fiber"))
   | _ => throw "unknown indexed primitive contract"
 
 def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := do
@@ -132,6 +135,8 @@ def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := d
     return .pullback (← (← array j "images").mapM binding)
   | "identity" => fields j ["kind"]; return .identity
   | "structure" => fields j ["kind"]; return .structureMap
+  | "first" => fields j ["kind"]; return .first
+  | "second" => fields j ["kind"]; return .second
   | _ => throw "unknown morphism definition"
 
 def primitive (j : Json) (algebraic : Bool := false) : Except String Source.Primitive := do
@@ -236,6 +241,25 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
   | "package" => fields j (common ++ ["cases"]); return .package (← (← array j "cases").mapM packageShape)
   | "primitive" =>
     fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding") algebraic)
+  | "affine_fiber" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j (common ++ ["implementation", "left", "right", "via"])
+    let via ← match ← field j "via" with
+      | .null => pure none
+      | value => do
+        fields value ["forward", "inverse"]
+        pure (some (← (← array value "forward").mapM binding, ← (← array value "inverse").mapM binding))
+    return .affineFiber (← path (← field j "implementation")) (← path (← field j "left"))
+      (← path (← field j "right")) via
+  | "iso" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j (common ++ ["forward", "inverse"])
+    return .iso (← path (← field j "forward")) (← path (← field j "inverse"))
+  | "cartesian" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j (common ++ ["first", "second", "fiber", "inverse"])
+    return .cartesian (← path (← field j "first")) (← path (← field j "second"))
+      (← path (← field j "fiber")) (← path (← field j "inverse"))
   | "morphism" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["family", "indices", "definition"])

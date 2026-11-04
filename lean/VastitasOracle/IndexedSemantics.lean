@@ -488,6 +488,32 @@ theorem relativeIntPoint_total {env : Indexed.Environment} {world : World} {fami
       simpa [Application.refs] using member
     rcases cases with global | global | global <;> exact global_refs_denote valid member global
 
+theorem relativePair_total {env : Indexed.Environment} {world : World} {family fiber lf rf : DeclId}
+    {source left base source' right base' : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativePair family fiber) allowed brand
+      [.indexed ⟨lf, [.object source, .object left, .object base]⟩,
+        .indexed ⟨rf, [.object source', .object right, .object base']⟩] output)
+    (typed : PrimitiveValuesHaveTypes env world values
+      [.indexed ⟨lf, [.object source, .object left, .object base]⟩,
+        .indexed ⟨rf, [.object source', .object right, .object base']⟩]) :
+    PrimitiveOutcome env world (.relativePair family fiber) values output := by
+  obtain ⟨rfl, rfl, rfl, rfl, _, rfl⟩ := rule.association
+  have relative := relative_family rule.bindingValid.1
+  obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := primitive_pair typed
+  obtain ⟨l, rfl, _, leftDenotes⟩ := primitive_relative relative firstTyped
+  obtain ⟨r, rfl, _, _⟩ := primitive_relative relative secondTyped
+  have valid := rule.resultValid
+  refine ⟨world, .indexed (.relative (AlgebraRuntime.Map.pair l r)), rfl, worldExtends_refl world,
+    relative_typed relative valid ?_, rfl⟩
+  intro ref member
+  have cases : ref = source ∨ ref = .global fiber ∨ ref = base := by
+    simpa [Application.refs] using member
+  rcases cases with rfl | global | rfl
+  · exact leftDenotes _ (by simp [Application.refs])
+  · exact global_refs_denote valid member global
+  · exact leftDenotes _ (by simp [Application.refs])
+
 /-- Every accepted registry operation has a typed runtime value. The only
 world mutation is allocation of a fresh local object brand. Whole-term proofs
 must establish that freshness from the module's allocation audit. -/
@@ -513,6 +539,7 @@ theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {b
     | exact relativeEqual_total rule typed
     | exact relativeCoefficient_total rule typed
     | exact relativeIntPoint_total rule typed
+    | exact relativePair_total rule typed
     | contradiction
 
 
@@ -647,6 +674,8 @@ theorem primitive_runtime_erasure {env : Indexed.Environment} {binding : Primiti
   · cases evaluated
     exact ⟨_, _, rfl, rfl, rfl⟩
   · exact intPoint_erasure evaluated
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
   · contradiction
 
 end VastitasOracle.IndexedSemantics

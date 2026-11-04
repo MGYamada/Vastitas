@@ -312,7 +312,7 @@ impl Parser {
                 self.expect(",")?;
                 let target = self.type_path()?;
                 self.expect(",")?;
-                let coordinate = self.name()?.0;
+                let coordinate = self.coordinate_name()?;
                 self.expect(",")?;
                 Primitive::RelativeCoefficient {
                     family,
@@ -320,6 +320,14 @@ impl Parser {
                     target,
                     coordinate,
                     monomial: self.poly(0)?,
+                }
+            }
+            "relative_pair" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                Primitive::RelativePair {
+                    family,
+                    fiber: self.type_path()?,
                 }
             }
             "relative_int_point" => {
@@ -442,6 +450,34 @@ impl Parser {
             }
             "affine" => self.indexed_affine()?,
             "morphism" => self.indexed_morphism()?,
+            "iso" => {
+                self.expect("=")?;
+                self.expect("forward")?;
+                let forward = self.type_path()?;
+                self.expect("inverse")?;
+                DeclarationBody::Iso {
+                    forward,
+                    inverse: self.type_path()?,
+                }
+            }
+            "cartesian" => {
+                self.expect("=")?;
+                self.expect("square")?;
+                self.expect("(")?;
+                let first = self.type_path()?;
+                self.expect(",")?;
+                let second = self.type_path()?;
+                self.expect(")")?;
+                self.expect("through")?;
+                let fiber = self.type_path()?;
+                self.expect("inverse")?;
+                DeclarationBody::Cartesian {
+                    first,
+                    second,
+                    fiber,
+                    inverse: self.type_path()?,
+                }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -510,6 +546,27 @@ impl Parser {
         let implementation = self.type_path()?;
         self.expect(")")?;
         self.expect("=")?;
+        if self.consume("fiber") {
+            self.expect("(")?;
+            let left = self.type_path()?;
+            self.expect(",")?;
+            let right = self.type_path()?;
+            self.expect(")")?;
+            let via = if self.consume("via") {
+                let forward = self.indexed_list("(", ")", Self::poly_binding)?;
+                self.expect("inverse")?;
+                let inverse = self.indexed_list("(", ")", Self::poly_binding)?;
+                Some(indexed::FiberVia { forward, inverse })
+            } else {
+                None
+            };
+            return Ok(DeclarationBody::AffineFiber {
+                implementation,
+                left,
+                right,
+                via,
+            });
+        }
         self.expect("spec")?;
         let generators = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
         let relations = if self.consume("relations") {
@@ -520,14 +577,7 @@ impl Parser {
         let (base, bindings) = if self.consume("over") {
             let base = self.type_path()?;
             let bindings = if self.consume("by") {
-                self.indexed_list("(", ")", |p| {
-                    let name = p.name()?.0;
-                    p.expect("->")?;
-                    Ok(indexed::Binding {
-                        name,
-                        image: p.poly(0)?,
-                    })
-                })?
+                self.indexed_list("(", ")", Self::poly_binding)?
             } else {
                 Vec::new()
             };
@@ -558,17 +608,12 @@ impl Parser {
         let span = self.peek().span;
         let definition = match self.indexed_tag()?.as_str() {
             "pullback" => indexed::MorphismDefinition::Pullback {
-                images: self.indexed_list("(", ")", |p| {
-                    let name = p.name()?.0;
-                    p.expect("->")?;
-                    Ok(indexed::Binding {
-                        name,
-                        image: p.poly(0)?,
-                    })
-                })?,
+                images: self.indexed_list("(", ")", Self::poly_binding)?,
             },
             "identity" => indexed::MorphismDefinition::Identity,
             "structure" => indexed::MorphismDefinition::Structure,
+            "first" => indexed::MorphismDefinition::First,
+            "second" => indexed::MorphismDefinition::Second,
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -698,7 +743,27 @@ impl Parser {
                 denominator,
             });
         }
-        let (name, _) = self.name()?;
-        Ok(indexed::PolyExpr::Coordinate { name })
+        Ok(indexed::PolyExpr::Coordinate {
+            name: self.coordinate_name()?,
+        })
+    }
+
+    /// A coordinate, optionally qualified by its fiber factor: `x` or `X::x`.
+    fn coordinate_name(&mut self) -> Result<String, Diagnostic> {
+        let (mut name, _) = self.name()?;
+        if self.consume("::") {
+            name = format!("{name}::{}", self.name()?.0);
+        }
+        Ok(name)
+    }
+
+    /// `name -> polynomial`, where the name may be qualified.
+    fn poly_binding(&mut self) -> Result<indexed::Binding, Diagnostic> {
+        let name = self.coordinate_name()?;
+        self.expect("->")?;
+        Ok(indexed::Binding {
+            name,
+            image: self.poly(0)?,
+        })
     }
 }

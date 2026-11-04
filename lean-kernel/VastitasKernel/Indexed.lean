@@ -384,7 +384,8 @@ def validAffine (env : Environment) (id implementation : DeclId)
       | some (.affine baseImplementation _) =>
           implementationMarker env baseImplementation == implementationMarker env implementation
       | _ => false) &&
-  AlgebraDeclarations.validAffineData data (data.base.bind (affineData? env))
+  AlgebraDeclarations.validAffineData data (data.base.bind (affineData? env)) &&
+  AlgebraDeclarations.validConstruction data (affineData? env)
 
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with

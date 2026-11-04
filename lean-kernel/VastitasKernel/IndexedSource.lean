@@ -80,6 +80,7 @@ inductive Primitive where
   source's coordinates, checked after elaboration. -/
   | relativeCoefficient (family source target : Path) (coordinate : String) (monomial : PolyExpr)
   | relativeIntPoint (family object base : Path)
+  | relativePair (family fiber : Path)
   deriving Repr, Inhabited
 
 /-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/
@@ -88,6 +89,9 @@ inductive MorphismDefinition where
   | pullback (images : List (String × PolyExpr))
   | identity
   | structureMap
+  /-- The projections of a fiber product onto its factors. -/
+  | first
+  | second
   deriving Repr, Inhabited
 
 inductive Body where
@@ -104,6 +108,13 @@ inductive Body where
       (base : Option Path) (bindings : List (String × PolyExpr))
   /-- `morphism name : family<X, Y, S> = definition` -/
   | morphism (family : Path) (indices : List Path) (definition : MorphismDefinition)
+  /-- `fiber(left, right) [via(b ↦ p, …) inverse(b' ↦ p, …)]` over `left`'s base. -/
+  | affineFiber (implementation : Path) (left right : Path)
+      (via : Option (List (String × PolyExpr) × List (String × PolyExpr)))
+  /-- `iso name = forward f inverse g`: two declared morphisms, mutually inverse. -/
+  | iso (forward backward : Path)
+  /-- `cartesian name = square(first, second) through fiber inverse h`. -/
+  | cartesian (first second fiber inverse : Path)
   deriving Repr, Inhabited
 
 structure Declaration where
@@ -231,7 +242,7 @@ def Program.indexed (p : Program) : Namespace.Indexed := {
 
 def Body.category : Body → Nat
   | .package _ => 1
-  | .primitive _ | .morphism .. => 2
+  | .primitive _ | .morphism .. | .iso .. | .cartesian .. => 2
   | _ => 0
 
 /-- Match the three ordered tables in Core.Declarations without sorting IDs or

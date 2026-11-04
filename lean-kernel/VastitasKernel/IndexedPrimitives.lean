@@ -54,6 +54,13 @@ inductive PrimitiveBinding where
   | relativeCoefficient (family source target : DeclId) (coordinate : Nat) (monomial : List Nat)
   /-- A rational point `base → object` of a free object over a coordinate-free base. -/
   | relativeIntPoint (family object base : DeclId)
+  /-- The universal map `T → left ×_B right` of a fiber product declared without `via`. -/
+  | relativePair (family fiber : DeclId)
+  /-- Evidence (never callable): two declared morphisms that are mutually inverse. -/
+  | relativeIso (forward backward : Application × AlgebraRuntime.Map)
+  /-- Evidence (never callable): `first`, `second` exhibit `T` as the fiber product,
+  with `inverse : fiber → T` inverse to `pair(first, second)`. -/
+  | relativeCartesian (first second inverse : Application × AlgebraRuntime.Map) (fiber : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=
@@ -79,6 +86,57 @@ def relativeConstantValid (env : Environment) (application : Application) (map :
         (AlgebraRuntime.Poly.subst dx.arity map.images image))
     | _, _, _, _ => false
   | _ => false
+
+/-- A fiber product declared without a base isomorphism: its factors and base. -/
+def plainFiber? (env : Environment) (id : DeclId) : Option (DeclId × DeclId × DeclId) := do
+  let data ← affineData? env id
+  let .fiber left right none _ := data.construction | none
+  let base ← data.base
+  pure (left, right, base)
+
+/-- The operands of `pair` target exactly the fiber's factors over its base. -/
+def pairFactors (env : Environment) (fiber : DeclId) (left right base : ObjectRef) : Bool :=
+  match plainFiber? env fiber with
+  | some (l, r, b) => left == .global l && right == .global r && base == .global b
+  | none => false
+
+def objectsOf (application : Application) : Option (DeclId × DeclId × DeclId) :=
+  match application.indices with
+  | [.object (.global x), .object (.global y), .object (.global s)] => some (x, y, s)
+  | _ => none
+
+/-- Two declared morphisms `A → B` and `B → A` over one base that compose to
+the identity both ways. -/
+def relativeIsoValid (env : Environment) (forward backward : Application × AlgebraRuntime.Map) : Bool :=
+  relativeConstantValid env forward.1 forward.2 && relativeConstantValid env backward.1 backward.2 &&
+  forward.1.family == backward.1.family &&
+  match objectsOf forward.1, objectsOf backward.1, affineData? env (objectsOf forward.1 |>.map (·.1) |>.getD default),
+    affineData? env (objectsOf backward.1 |>.map (·.1) |>.getD default) with
+  | some (a, b, s), some (b', a', s'), some da, some db =>
+    a == a' && b == b' && s == s' &&
+    AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose backward.2 forward.2) (AlgebraRuntime.Map.identity da.arity da.basis) &&
+    AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose forward.2 backward.2) (AlgebraRuntime.Map.identity db.arity db.basis)
+  | _, _, _, _ => false
+
+/-- A Cartesian square: `first : T → L` and `second : T → R` over the fiber's
+base, and `inverse : P → T`, inverse to `pair(first, second) : T → P`. -/
+def relativeCartesianValid (env : Environment) (first second inverse : Application × AlgebraRuntime.Map)
+    (fiber : DeclId) : Bool :=
+  relativeConstantValid env first.1 first.2 && relativeConstantValid env second.1 second.2 &&
+  relativeConstantValid env inverse.1 inverse.2 &&
+  first.1.family == second.1.family && first.1.family == inverse.1.family &&
+  match plainFiber? env fiber, objectsOf first.1, objectsOf second.1, objectsOf inverse.1 with
+  | some (left, right, base), some (t, l, b), some (t', r, b'), some (p, t'', b'') =>
+    l == left && r == right && b == base && b' == base && b'' == base && t == t' && t == t'' && p == fiber &&
+    match affineData? env t, affineData? env fiber with
+    | some dt, some dp =>
+      let comparison := AlgebraRuntime.Map.pair first.2 second.2
+      AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose inverse.2 comparison)
+          (AlgebraRuntime.Map.identity dt.arity dt.basis) &&
+        AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose comparison inverse.2)
+          (AlgebraRuntime.Map.identity dp.arity dp.basis)
+    | _, _ => false
+  | _, _, _, _ => false
 
 def freeAffine (env : Environment) (id : DeclId) : Bool :=
   match affineData? env id with
@@ -134,6 +192,9 @@ def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
       monomial.length = affineArity env source
   | .relativeIntPoint family object base =>
       isRelativeFamily env family = true ∧ freeAffine env object = true ∧ pointBase env base = true
+  | .relativePair family fiber => isRelativeFamily env family = true ∧ (plainFiber? env fiber).isSome = true
+  | .relativeIso forward backward => relativeIsoValid env forward backward = true
+  | .relativeCartesian first second inverse fiber => relativeCartesianValid env first second inverse fiber = true
 
 def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .descriptor implementation => match implementationType env implementation with
@@ -155,11 +216,14 @@ def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
       monomial.length == affineArity env source
   | .relativeIntPoint family object base =>
       isRelativeFamily env family && freeAffine env object && pointBase env base
+  | .relativePair family fiber => isRelativeFamily env family && (plainFiber? env fiber).isSome
+  | .relativeIso forward backward => relativeIsoValid env forward backward
+  | .relativeCartesian first second inverse fiber => relativeCartesianValid env first second inverse fiber
 
 /-- The operand count of each closed primitive. -/
 def PrimitiveBinding.arity (env : Environment) : PrimitiveBinding → Nat
-  | .global _ | .relativeConstant .. => 0
-  | .compose _ | .apply .. | .relativeCompose _ | .relativeEqual _ => 2
+  | .global _ | .relativeConstant .. | .relativeIso .. | .relativeCartesian .. => 0
+  | .compose _ | .apply .. | .relativeCompose _ | .relativeEqual _ | .relativePair .. => 2
   | .relativeIntPoint _ object _ => affineArity env object
   | _ => 1
 
@@ -220,6 +284,11 @@ def PrimitiveAssociation (env : Environment) (binding : PrimitiveBinding) (allow
   | .relativeIntPoint family object base, arguments =>
       arguments = (List.range (affineArity env object)).map (fun _ => .integer) ∧
         result = .indexed ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩
+  | .relativePair family fiber, [.indexed ⟨lf, [.object source, .object left, .object base]⟩,
+      .indexed ⟨rf, [.object source', .object right, .object base']⟩] =>
+      lf = family ∧ rf = family ∧ source = source' ∧ base = base' ∧
+        pairFactors env fiber left right base = true ∧
+        result = .indexed ⟨family, [.object source, .object (.global fiber), .object base]⟩
   | _, _ => False
 
 instance (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
@@ -281,6 +350,8 @@ def inferPrimitiveResult (env : Environment) (binding : PrimitiveBinding) (brand
   | .relativeCoefficient .., [.indexed _] => some .integerPair
   | .relativeIntPoint family object base, _ =>
       some (.indexed ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩)
+  | .relativePair family fiber, [.indexed ⟨_, [.object source, .object _, .object base]⟩, .indexed _] =>
+      some (.indexed ⟨family, [.object source, .object (.global fiber), .object base]⟩)
   | _, _ => none
 
 def inferPrimitive (env : CheckedEnvironment) (binding : PrimitiveBinding) (allowed : List ObjectRef)

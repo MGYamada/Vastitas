@@ -1053,21 +1053,35 @@ def rationalPoint : Point A := ⟨[2 / 3, 3 / 4], rfl⟩
 example : Cov.pullback rationalMap rationalPoint ⟨[3 / 2, -1 / 3], rfl⟩ = ⟨[1, -1 / 3], rfl⟩ :=
   Cov.ext (by decide +kernel)
 
--- A wrong middle object, a point of another space, a seed over another object
--- with the right coordinates, a seed over the source point instead of the image,
--- and a covector at another point of the same space all fail to elaborate.
+-- A wrong middle object, a point of another space, and a covector at another
+-- point of the same space fail to elaborate.
+--
+-- The two seed checks differ from the accepted transport above in one index
+-- only, so each fails for its stated reason. A seed over object `C` with the
+-- right coordinates cannot use `nonlinearF_p`, which is an equation in `B`. A
+-- seed over the source point `(2, 3)` cannot use it either, because the proved
+-- image is `(7, 6)`.
 example : True := by
   fail_if_success
     have : SmoothMap A B := nonlinearF.comp nonlinearF
   fail_if_success
     have : Point B := p
   fail_if_success
-    have : Cov p := Cov.pullback nonlinearF p (⟨[3, 5], rfl⟩ : Cov (⟨[7, 6], rfl⟩ : Point C))
+    have : Cov p := Cov.pullback nonlinearF p ((⟨[3, 5], rfl⟩ : Cov (⟨[7, 6], rfl⟩ : Point C)).transport
+      nonlinearF_p.symm)
   fail_if_success
-    have : Cov p := Cov.pullback nonlinearF p (⟨[3, 5], rfl⟩ : Cov (⟨[2, 3], rfl⟩ : Point B))
+    have : Cov p := Cov.pullback nonlinearF p ((⟨[3, 5], rfl⟩ : Cov (⟨[2, 3], rfl⟩ : Point B)).transport
+      nonlinearF_p.symm)
   fail_if_success
     have : Cov origin := (⟨[1, 0], rfl⟩ : Cov p)
   exact True.intro
+
+-- No equation can move a seed over the source point to the image point: the
+-- source point `(2, 3)` is not `f(p)`.
+theorem source_point_not_image : (⟨[2, 3], rfl⟩ : Point B) ≠ nonlinearF.applyPoint p := by
+  rw [nonlinearF_p]
+  intro h
+  exact absurd (congrArg Point.coordinates h) (by decide)
 
 -- The same holds for arbitrary maps and points.
 example (_f : SmoothMap A B) (_x : Point A) (y : Point B) (_seed : Cov y) : True := by

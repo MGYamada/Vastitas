@@ -31,7 +31,7 @@ The decisions behind the profile are:
 | S2–S6: declarations, protocol-9 surface, morphisms, fiber products, principal opens; budgeted substitution | [#584](https://github.com/MGYamada/Vastitas/pull/584) (with #576, #577), landed by [#589](https://github.com/MGYamada/Vastitas/pull/589) | `55949b8` |
 | S7: Buchberger's criterion and canonical normal forms in the bridge | [#587](https://github.com/MGYamada/Vastitas/pull/587), landed by [#589](https://github.com/MGYamada/Vastitas/pull/589) | `55949b8` |
 | S8a: kernel polynomials, division and verified bases in mathlib | [#590](https://github.com/MGYamada/Vastitas/pull/590) | `8f0da2c` |
-| S8b: presentations, morphisms, dual numbers, fiber products and principal opens in mathlib | to follow | **pending** |
+| S8b: presentations, morphisms, dual numbers, fiber products and principal opens in mathlib | [#592](https://github.com/MGYamada/Vastitas/pull/592) | `ae644bb` |
 | S9: `std::geometry::scheme::affine`, this map | this change | — |
 
 Status terms below:
@@ -72,7 +72,13 @@ The bridge proves what the kernel's identities mean in mathlib:
   - `divide_spec` and `normalForm_spec`: kernel division keeps its quotient identity, its fuel always suffices (`encode_lt`), and normal forms are canonical and fully reduced;
   - `verify_isGroebnerBasis`: a successful `verify` proves that the stored basis is a Gröbner basis of the relation ideal;
   - `verify_normalForm_eq_iff` and `verify_mem_iff`: equal normal forms exactly when two polynomials are congruent modulo the relations, and ideal membership exactly when the normal form is zero.
-- **S8b (pending).** Presentations, `AlgHom` and `Spec.map` (#362), dual numbers, fiber products as `IsPullback`, and `Localization.Away`.
+- **S8b (proved).** About kernel data that `verify`, `checkAffine` and `checkConstruction` accepted:
+  - *Presentations:* `toMv_subst` (kernel substitution is `aeval`), `Presented`, `Verified.normalForm_eq_iff`, `verified_of_validAffine`.
+  - *Morphisms:* `pullbackHom` (the `AlgHom`), `pullbackHom_compose` and `specMap_compose` (#362), `images_eq_iff` (`same` decides equality of ring maps), `MorphismValid.bridge`, `pullbackHom_triangle`.
+  - *Dual numbers:* ε ≠ 0 and ε² = 0 in `ℚ[e]/(e²)` (`relationIdeal_dual`), `p_ne_q`, `closedPoint_comp`, `spec_base_eq`.
+  - *Principal opens:* `equivAway` (`Localization.Away f`), `range_comap_toL` (image `D(f)`), `specMap_preimage_basicOpen`.
+  - *Fiber products:* `Fiber.isPushout`, `Fiber.isPullback`, `isoTensor` (`A ⊗[R] B`), `specMap_pair` (`pair` is `pullback.lift`).
+  - `certificate_of_checkConstruction`: accepted fibers and principal opens have exactly these presentations.
 
 ## Acceptance conditions
 
@@ -84,15 +90,15 @@ distinct failure code, so a wrong result changes the output
 
 | Condition | Status and evidence |
 | --- | --- |
-| 1. In D = QQ[e]/(e²), ε ≠ 0 and ε² = 0 | **Tested** (A): the basis `[e²]` in `BasisRegression` and the example's coefficient observation `eps(p()) = 1`. **Proved (oracle)** that the accepted basis satisfies its certificate. **Pending (bridge, 8b):** ε ≠ 0 in the quotient ring. |
-| 2. `p: t ↦ ε` and `q: t ↦ 0` are different D-valued points, equal after composing with the closed point | **Tested** (M): the example's `!same(p(), q())` and `same(compose(p(), closed()), compose(q(), closed()))`, natively and in `presented_affine_geometry_is_usable_from_the_library`. **Proved (oracle)**: `same_iff` compares exact normal-form images, and `compose_images` fixes the written order. **Pending (bridge, 8b):** equal underlying maps of points. |
-| 3. Variance: `compose(sq, shift)` is (t + 1)² and `compose(shift, sq)` is t² + 1 | **Tested** (M): slope observations in the example and the `compose` regression in `AffineMorphismRegression`. **Proved (oracle)**: `compose_images` (pullback substitutes `before` into `after`). **Pending (bridge, 8b):** `AlgHom` composition in reverse order. |
-| 4. The fiber of X = Spec QQ[t, x]/(x² − t) over t = 0 is isomorphic to Spec D | **Tested** (F): the basis `[x², t]` in `AffineFiberRegression` and the example's `cartesian fiberIsDual`. **Proved (oracle)**: `checkConstruction_fiber` (the stored presentation is derived from the factors) and `cartesian_sound` (the declared inverse composes with `pair` to the identity both ways). **Pending (bridge, 8b):** `IsPullback`. |
-| 5. Universal property: the projections of `pair(toX, toOrigin)` recover both arrows | **Tested** (F): the example's `same(compose(prX(), lift(toX(), toOrigin())), toX())` and `fiberX` observations. **Proved (oracle)**: `relativePair_total` and runtime erasure to `Map.pair`. **Pending (bridge, 8b):** `pullback.lift`. |
-| 6. The triangle `structure ∘ toX = structure` over S | **Tested** (M): the example's `same(compose(toS(), toX()), dsToS())`; forged triangles rejected in `AffineMorphismRegression`. **Proved (oracle)**: `relativeConstant_sound`, whose `MorphismValid` includes the commuting triangle with both stored structure maps. |
-| 7. Principal opens D(f) = Spec A[u]/(uf − 1) and `restrict(φ)` give A_f → B_φ(f) | **Tested** (P): D(t), `restrict(t ↦ t²)` with u ↦ v, the open inclusion, the #104 transition D(x) ≅ D(y) and D(0) as the zero ring, in `AffineOpenRegression` and the example. **Proved (oracle)**: `checkConstruction_localization`. **Pending (bridge, 8b):** `Localization.Away` and `preimage_basicOpen`. |
+| 1. In D = QQ[e]/(e²), ε ≠ 0 and ε² = 0 | **Tested** (A): the basis `[e²]` in `BasisRegression` and the example's coefficient observation `eps(p()) = 1`. **Proved (oracle)** that the accepted basis satisfies its certificate. **Proved (bridge)**: ε ≠ 0 and ε² = 0 in `ℚ[e]/(e²)` (`relationIdeal_dual`). |
+| 2. `p: t ↦ ε` and `q: t ↦ 0` are different D-valued points, equal after composing with the closed point | **Tested** (M): the example's `!same(p(), q())` and `same(compose(p(), closed()), compose(q(), closed()))`, natively and in `presented_affine_geometry_is_usable_from_the_library`. **Proved (oracle)**: `same_iff` compares exact normal-form images, and `compose_images` fixes the written order. **Proved (bridge)**: `p_ne_q`, `closedPoint_comp`, and `spec_base_eq` (equal underlying continuous maps). |
+| 3. Variance: `compose(sq, shift)` is (t + 1)² and `compose(shift, sq)` is t² + 1 | **Tested** (M): slope observations in the example and the `compose` regression in `AffineMorphismRegression`. **Proved (oracle)**: `compose_images` (pullback substitutes `before` into `after`). **Proved (bridge)**: `pullbackHom_compose` and `specMap_compose`. |
+| 4. The fiber of X = Spec QQ[t, x]/(x² − t) over t = 0 is isomorphic to Spec D | **Tested** (F): the basis `[x², t]` in `AffineFiberRegression` and the example's `cartesian fiberIsDual`. **Proved (oracle)**: `checkConstruction_fiber` (the stored presentation is derived from the factors) and `cartesian_sound` (the declared inverse composes with `pair` to the identity both ways). **Proved (bridge)**: `Fiber.isPushout`, `Fiber.isPullback` and `isoTensor`. |
+| 5. Universal property: the projections of `pair(toX, toOrigin)` recover both arrows | **Tested** (F): the example's `same(compose(prX(), lift(toX(), toOrigin())), toX())` and `fiberX` observations. **Proved (oracle)**: `relativePair_total` and runtime erasure to `Map.pair`. **Proved (bridge)**: `specMap_pair`. |
+| 6. The triangle `structure ∘ toX = structure` over S | **Tested** (M): the example's `same(compose(toS(), toX()), dsToS())`; forged triangles rejected in `AffineMorphismRegression`. **Proved (oracle)**: `relativeConstant_sound`, whose `MorphismValid` includes the commuting triangle with both stored structure maps. **Proved (bridge)**: `pullbackHom_triangle`. |
+| 7. Principal opens D(f) = Spec A[u]/(uf − 1) and `restrict(φ)` give A_f → B_φ(f) | **Tested** (P): D(t), `restrict(t ↦ t²)` with u ↦ v, the open inclusion, the #104 transition D(x) ≅ D(y) and D(0) as the zero ring, in `AffineOpenRegression` and the example. **Proved (oracle)**: `checkConstruction_localization`. **Proved (bridge)**: `equivAway`, `range_comap_toL` and `specMap_preimage_basicOpen`. |
 | 8. Rejections | **Tested**, each with its specific code:<br>• diagrams over separately declared bases, and `fiber(X, Origin2)` without an isomorphism: `E_AFFINE_BASE`;<br>• swapped variance and foreign coordinates: `E_AFFINE_COORDINATE`;<br>• relation violations and forged inverses: `E_AFFINE_RELATION`;<br>• missing structure maps: `E_AFFINE_BASE`;<br>• base mismatches in types: `E_TYPE`;<br>• Stage 1 `Scheme` and `CInfScheme` objects as `Over` indices: `E_TYPE` (`presented_affine_geometry_is_usable_from_the_library`);<br>• algebraic forms in protocol 7 or 8: `E_PROTOCOL`;<br>• forged Core and wire: the tampered cases in every affine regression and the raw-wire tests;<br>• limits: 16/17 generators, degree 16/17 and 32/33 relations, and the work budget, including substitutions whose expansions are huge: `E_LIMIT`. |
-| 9. Accepted comparison: `fiber(X, Origin2) via(t -> t) inverse(t -> t)` | **Tested** (F): `Fiber2` in the example and `AffineFiberRegression`, with a non-isomorphic base map rejected. **Proved (oracle)**: `checkConstruction_fiber`, including the composed right structure images. |
+| 9. Accepted comparison: `fiber(X, Origin2) via(t -> t) inverse(t -> t)` | **Tested** (F): `Fiber2` in the example and `AffineFiberRegression`, with a non-isomorphic base map rejected. **Proved (oracle)**: `checkConstruction_fiber`, including the composed right structure images. **Proved (bridge)**: `certificate_of_checkConstruction`. |
 | 10. Non-regression of the two-index `Morphism`/`same_base` and `GeometryProfile` contracts | **Proved (oracle)**: `presented_not_descriptor` and `sealed_families_exclude_presented`; the `GeometryCompatibility` theorems still hold. **Tested**: every pre-existing test, including the stdlib geometry suite, which now runs on protocol 9. |
 
 ## Proof boundary
@@ -106,9 +112,13 @@ distinct failure code, so a wrong result changes the output
     relation and S-pair to zero.
   - The new primitives are total and typed, and erase to the runtime.
   - Two-index non-regression.
-- **Proved (bridge).** S7 and S8a above, and S8b when it lands. With S8a, the
-  normal forms the kernel compares are canonical in `MvPolynomial (Fin n) ℚ`,
-  so exact equality of stored images is equality in the presented ring.
+- **Proved (bridge).** S7, S8a and S8b above. The normal forms the kernel
+  compares are canonical in `MvPolynomial (Fin n) ℚ`, so exact equality of
+  stored images is equality in the presented ring.
+- **Stated hypothesis (bridge).** The fiber and principal-open theorems assume
+  that the factors' structure images are canonical. The kernel's `checkImage`
+  enforces this, but the oracle's `StructureValid` does not record it.
+  `structureValid_bridge` derives the relation part.
 - **Tested only.**
   - Raw-wire rejection of protocols 7 and 8.
   - Parser fidelity.

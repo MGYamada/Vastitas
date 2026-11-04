@@ -37,10 +37,10 @@ presented objects, morphisms over a base with their triangles, fiber products
 with Cartesian evidence, and principal opens with the action on the structure
 sheaf ([chapter](../affine-geometry.md),
 [acceptance map](../stage2-acceptance.md), tracker #571). The acceptance example
-runs natively, and the bridge proves Buchberger's criterion. The
-remaining bridge correspondences (S8), module presentations (#259, #261), Ω
-(#381), ZZ and F_p coefficients (#251–#253), and gluing (#104, #151) remain
-open.
+runs natively. The mathlib bridge proves Buchberger's criterion and connects the
+accepted data to `MvPolynomial`, `Spec.map`, `IsPullback` and
+`Localization.Away`. Module presentations (#259, #261), Ω (#381), ZZ and F_p
+coefficients (#251–#253), and gluing (#104, #151) remain open.
 
 ## Stage 3. Smooth affine geometry and reverse AD
 

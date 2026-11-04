@@ -106,6 +106,11 @@ have fresh result identities; no interprocedural alias inference is promised.
 Identity diagnostics show source binding names and notes for the construction,
 parameter, call, unpack, or branch merge that introduced an identity. Aliases
 may share an introduction site; these names never determine type equality.
+A rejected `compose`, `apply`, `origin`, `id` or `dimension` call names the
+first failed requirement of its declared contract: an operand's family, then an
+endpoint, coefficient marker or domain, with the required and supplied value.
+For example, `apply(id(Y), p)` with `p: Point<X, Base(QQ)>` reports that `apply`
+requires a point with target `Y`, but the supplied point has target `X`.
 
 `Pointed<Scheme, QQ>` and `Pointed<CInfScheme, CInfReal>` hide an object with its
 base-valued point. `pack` checks the point's exact target and geometric base.

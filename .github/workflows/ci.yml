@@ -349,10 +349,12 @@ jobs:
       - name: Replay oracle and kernel declarations with the official kernel
         # leanchecker replays every built module with each prefix against its
         # imported environment; it is not an independent verifier (#567).
+        # scripts/replay_lean.sh bounds the replay's worker threads (#600).
+        env:
+          VASTITAS_REPLAY_THREADS: "4"
         run: |
-          cd lean
-          lake env leanchecker VastitasOracle
-          lake env leanchecker VastitasKernel
+          bash scripts/replay_lean.sh lean VastitasOracle
+          bash scripts/replay_lean.sh lean VastitasKernel
       - name: Axiom-audit coverage, provenance and substitution regressions
         run: lake -d lean env python3 scripts/check_axiom_audit.py
       - name: Core proof migration regressions

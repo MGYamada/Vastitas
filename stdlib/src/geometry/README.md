@@ -5,7 +5,7 @@ The existing finite ordinary/smooth affine profile is implemented by ordinary
 independent Lean checker as application declarations. This is the finite
 migration profile of #49/#58–63, not general scheme or manifold support. The
 child module `scheme::affine` adds the Stage 2
-[presented affine profile](../../../docs/affine-geometry.md#the-standard-library-profile).
+[presented affine profile](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md#the-standard-library-profile).
 Its algebraic forms put the whole package closure on public protocol 9, the
 current schema epoch (#533).
 
@@ -140,7 +140,7 @@ Copies of the library retain distinct package identities. Coherently renaming
 all declaration paths and the export works without changing legacy source.
 Protocols 2–6 and explicit `--lib` retain their existing audited adapter path.
 
-Twenty-four integration tests exercise both settings, original `pointed.vast` and
+Twenty-five integration tests exercise both settings, original `pointed.vast` and
 `smooth.vast` bytes, mixed syntax, alias/family/function identity, coherent
 renaming, dependent calls/repacking, fresh/unpacked/copied identities, missing
 capabilities, visibility, external method authority, Fn capture and unused-body

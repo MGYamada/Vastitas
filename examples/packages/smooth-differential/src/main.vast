@@ -1,0 +1,159 @@
+mod profile;
+
+// The Stage 3 acceptance program. f(t) = (t, t^2) and g(x, y) = x^2 + y, so
+// g(f(t)) = 2t^2. At x = 3 the seed is dt at g(f(3)) = 18. Pulling it back
+// along g at f(3) = (3, 9), then along f at 3, gives 12 dt. The observations
+// cover the runtime rows of the #604 checklist: C3, C4, C5, the runtime part
+// of C6, C7, C9, C12 and the positive bullets of C13. Each has its own failure
+// code, 1 to 25, so `main` prints 42 only when all of them hold.
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tangent;
+use profile::MetricForm;
+use profile::Pt;
+use profile::Line;
+use profile::Plane;
+use profile::compose;
+use profile::same;
+use profile::composite;
+use profile::line_at;
+use profile::plane_at;
+use profile::pullback;
+use profile::pullback_recomputed;
+use profile::differential;
+use profile::linearize;
+use profile::backward;
+use profile::lies_over;
+use profile::same_covector;
+use profile::same_vector;
+use profile::pairing;
+
+// A covector or vector at a point, from one integer component per coordinate.
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dplane = fiber_vector(Cotangent, Smooth, Plane);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+// A component as a reduced fraction (numerator, denominator); a failure reads (0, 0).
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+indexed primitive vx = fiber_component(Tangent, Plane, x);
+indexed primitive vy = fiber_component(Tangent, Plane, y);
+
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+// g after f, declared as one map.
+indexed morphism gf: Smooth<Line, Line> = pullback(t -> 2*t^2);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+indexed morphism idL: Smooth<Line, Line> = identity;
+indexed morphism idP: Smooth<Plane, Plane> = identity;
+// The shears A(x, y) = (x + y, y) and B(x, y) = (x, x + y) of #361.
+indexed morphism shearA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> y);
+indexed morphism shearB: Smooth<Plane, Plane> = pullback(x -> x, y -> x + y);
+
+// Three metrics on the plane. Each is named; none is a default.
+indexed metric Euclid: MetricForm<Plane> = euclidean;
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed metric Lorentz: MetricForm<Plane> = gram((1, 0), (0, -1));
+// The kernel computes each certificate and checks it again. diag(1, -1) is
+// nondegenerate but has no Riemannian evidence.
+indexed evidence EuclidInvertible = nondegenerate(Euclid);
+indexed evidence SkewInvertible = nondegenerate(Skew);
+indexed evidence SkewPositive = riemannian(Skew);
+indexed evidence LorentzInvertible = nondegenerate(Lorentz);
+// flat names its metric; sharp also names nondegenerate evidence for it.
+indexed primitive flat_euclid = flat(Tangent, Cotangent, using = Euclid);
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_euclid = sharp(Cotangent, Tangent, using = Euclid, evidence = EuclidInvertible);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+indexed primitive sharp_lorentz = sharp(Cotangent, Tangent, using = Lorentz, evidence = LorentzInvertible);
+
+// Pull a seed back along g at f(x), then along f at x.
+fn stepwise(x: Smooth<Pt, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {
+    pullback(f(), x, pullback(g(), compose(f(), x), seed))
+}
+
+// A gradient is an ordinary function: sharp applied to the metric-free differential.
+fn gradient_euclid(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_euclid(differential(h, p))
+}
+
+fn gradient_skew(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_skew(differential(h, p))
+}
+
+fn gradient_lorentz(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_lorentz(differential(h, p))
+}
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A covector on the line reads n / d.
+fn reads(value: Cotangent<Line>, n: Int, d: Int) -> Bool {
+    pair_first(dt(value)) == n && pair_second(dt(value)) == d
+}
+
+// A covector on the plane reads (a, b), with integer components.
+fn reads_covector(value: Cotangent<Plane>, a: Int, b: Int) -> Bool {
+    pair_first(dx(value)) == a && pair_second(dx(value)) == 1 && pair_first(dy(value)) == b && pair_second(dy(value)) == 1
+}
+
+// A vector on the plane reads (a, b), with integer components.
+fn reads_vector(v: Tangent<Plane>, a: Int, b: Int) -> Bool {
+    pair_first(vx(v)) == a && pair_second(vx(v)) == 1 && pair_first(vy(v)) == b && pair_second(vy(v)) == 1
+}
+
+fn main() -> Int {
+    let x: Smooth<Pt, Line> = line_at(3);
+    // dt at g(f(3)) = 18.
+    let seed: Cotangent<Line> = dline(line_at(18), 1);
+    let gAfterF: Smooth<Line, Line> = compose(g(), f());
+    let stepped: Cotangent<Line> = stepwise(x, seed);
+    // A seed at 17, and a seed at g(f(2)) = 8 pulled back through the wrong intermediate point f(2).
+    let wrong: Cotangent<Line> = pullback(gAfterF, x, dline(line_at(17), 1));
+    let detour: Cotangent<Line> = pullback(f(), x, pullback(g(), compose(f(), line_at(2)), dline(line_at(8), 1)));
+    let zero: Smooth<Pt, Plane> = plane_at(0, 0);
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    let dg: Cotangent<Plane> = differential(g(), p);
+    let v: Tangent<Plane> = vplane(p, 5, -7);
+    // The roadmap identity: stepwise, along the composite program, along the
+    // composite as one map, and along the declared gf.
+    42 + verdict(reads(stepped, 12, 1), 1)
+       + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 2)
+       + verdict(same_covector(stepped, pullback(composite(gAfterF), x, seed)), 3)
+       + verdict(same_covector(stepped, pullback(gf(), x, seed)), 4)
+       + verdict(same(gAfterF, gf()), 5)
+       // The result lies in the cotangent space at 3, not at g(f(3)) = 18.
+       + verdict(lies_over(stepped, x), 6)
+       + verdict(!lies_over(stepped, line_at(18)), 7)
+       // Wrong seeds fail. A failure stays a failure, even after the identity,
+       // and its component reads (0, 0).
+       + verdict(!lies_over(wrong, x), 8)
+       + verdict(!lies_over(detour, x), 9)
+       + verdict(!lies_over(pullback(idL(), x, detour), x), 10)
+       + verdict(reads(wrong, 0, 0), 11)
+       // Saved, recomputed and the first-class tape agree; a tape from 3
+       // rejects a seed at sq(4) = 16.
+       + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), pullback(gAfterF, x, seed)), 12)
+       + verdict(same_covector(backward(linearize(gAfterF, x), seed), pullback(gAfterF, x, seed)), 13)
+       + verdict(!lies_over(backward(linearize(sq(), x), dline(line_at(16), 1)), x), 14)
+       // Recomputing evaluates each outer map at its own forward point:
+       // sq'(18) = 36 times 12 is 432. sq' at the input 3 would give 6 times 12.
+       + verdict(reads(pullback_recomputed(compose(sq(), gAfterF), x, dline(line_at(324), 1)), 432, 1), 25)
+       // The identity of the plane pulls every covector back to itself.
+       + verdict(same_covector(pullback(idP(), p, dplane(p, 5, 7)), dplane(p, 5, 7)), 15)
+       // The shears at the origin: B after A pulls dx back to (1, 1), A after B to (2, 1).
+       + verdict(same_covector(pullback(compose(shearB(), shearA()), zero, dplane(zero, 1, 0)), dplane(zero, 1, 1)), 16)
+       + verdict(same_covector(pullback(compose(shearA(), shearB()), zero, dplane(zero, 1, 0)), dplane(zero, 2, 1)), 17)
+       // dg = (2, 1) at (1, 2); no metric is involved.
+       + verdict(reads_covector(dg, 2, 1), 18)
+       // Euclid gives the gradient (2, 1), Skew (1, 0) and Lorentz (2, -1).
+       + verdict(reads_vector(gradient_euclid(g(), p), 2, 1), 19)
+       + verdict(reads_vector(gradient_skew(g(), p), 1, 0), 20)
+       + verdict(reads_vector(gradient_lorentz(g(), p), 2, -1), 21)
+       // Two metrics give two gradients of the same differential.
+       + verdict(!same_vector(gradient_euclid(g(), p), gradient_skew(g(), p)), 22)
+       // sharp after flat is the identity.
+       + verdict(same_vector(sharp_euclid(flat_euclid(v)), v) && same_vector(sharp_skew(flat_skew(v)), v), 23)
+       // dg pairs with the Skew gradient to 2 = Skew(grad, grad).
+       + verdict(pair_first(pairing(dg, gradient_skew(g(), p))) == 2 && pair_second(pairing(dg, gradient_skew(g(), p))) == 1, 24)
+}

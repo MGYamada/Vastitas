@@ -2,7 +2,8 @@
 //! `Affine(n)[...]` declares a smooth real affine space; `Smooth<X, Y>` maps
 //! are exact QQ polynomial maps. The kernel elaborates and checks every map;
 //! these tests exercise acceptance, native execution, rejections, protocol
-//! selection and forged wire.
+//! selection and forged wire. The last section runs the Stage 3 acceptance
+//! program, `examples/packages/smooth-differential`.
 mod common;
 use common::{Scratch, assert_wire_rejected, cli, expect_code, kernel, remove_spans, success};
 use serde_json::{Value, json};
@@ -90,14 +91,14 @@ fn declaration_pointer(raw: &Value, name: &str) -> String {
 }
 
 #[test]
-fn smooth_example_checks_builds_and_executes() {
+fn objects_example_checks_builds_and_executes() {
     let s = fixture(MAIN);
     success(&check(&s));
     assert_eq!(run(&s), b"42\n");
 }
 
 #[test]
-fn mutated_observations_change_the_native_result() {
+fn mutated_object_observations_change_the_native_result() {
     let main = common::checked_replace(
         MAIN,
         "verdict(same(compose(g(), f()), gf()), 1)",
@@ -341,7 +342,7 @@ fn smooth_and_presented_objects_stay_disjoint() {
 }
 
 #[test]
-fn smooth_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+fn object_forms_select_protocol_nine_and_older_envelopes_reject_them() {
     let raw = request(&fixture(MAIN));
     assert_eq!(raw["version"], 9);
     let accepted = kernel(&raw, "emit");
@@ -1516,4 +1517,395 @@ fn differential_is_unchanged_by_metric_declarations() {
     assert_eq!(free_source, generated(&metric));
     assert_eq!(run(&free), b"42\n");
     assert_eq!(run(&metric), b"42\n");
+}
+
+// The Stage 3 acceptance program (protocol 9). Each observation has its own
+// failure code. Natively, it checks the roadmap identity and these #604 rows:
+// C3, C4, C5, the runtime part of C6, C7, C9, C12 and the positive bullets of
+// C13. Other tests and proofs cover the remaining rows:
+// - C6's static part: cotangent_operations_reject_wrong_objects_variances_and_points
+//   and acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically.
+// - C8 (proof): the oracle's smoothCompose_reifies (SmoothDeclarations.lean)
+//   and core_cotangent_pullback (SmoothReverse.lean); the lowering tests
+//   smooth_programs_lower_to_the_shared_smooth_runtime and
+//   cotangent_programs_lower_to_the_shared_smooth_runtime.
+// - C10 (bridge): pullback_eq_fderiv_adjoint and
+//   pullback_getD_eq_fderiv_adjoint in lean-bridge Differential/Frechet.lean.
+// - C11 (bridge): pullback_eq_kaehler_fiber and cot_compose_kaehler in
+//   lean-bridge Differential/Kaehler.lean.
+// - C12's metric independence: differential_is_unchanged_by_metric_declarations
+//   and the oracle's smooth_differential_metric_free.
+// - C13's rejections, and C14 (the S5 static rejections):
+//   metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
+//   and metric_selection_is_explicit_and_unambiguous; for C14, also
+//   posDef_of_riemannian, not_posDef_lorentz and isUnit_gram_of_nondegenerate
+//   in lean-bridge Differential/Metric.lean.
+
+const ACCEPTANCE_PROFILE: &str =
+    include_str!("../examples/packages/smooth-differential/src/profile.vast");
+const ACCEPTANCE_MAIN: &str =
+    include_str!("../examples/packages/smooth-differential/src/main.vast");
+/// The acceptance program's failure codes are exactly `1..=CODES`.
+const CODES: u32 = 25;
+
+fn acceptance_fixture(main: &str) -> Scratch {
+    let s = Scratch::empty("smooth differential");
+    s.write(
+        "Vastitas.toml",
+        include_str!("../examples/packages/smooth-differential/Vastitas.toml"),
+    );
+    s.write("src/main.vast", main);
+    s.write("src/profile.vast", ACCEPTANCE_PROFILE);
+    s
+}
+
+/// The acceptance program with extra items inserted before its helpers.
+fn with_acceptance(extra: &str) -> String {
+    assert!(ACCEPTANCE_MAIN.contains("fn verdict("));
+    ACCEPTANCE_MAIN.replacen("fn verdict(", &format!("{extra}\nfn verdict("), 1)
+}
+
+#[track_caller]
+fn rejects_acceptance(main: &str, code: &str) -> String {
+    expect_code(&check(&acceptance_fixture(main)), code)
+}
+
+/// `source` with its only occurrence of `from` replaced by `to`.
+#[track_caller]
+fn mutate(source: &str, from: &str, to: &str) -> String {
+    assert_eq!(source.matches(from).count(), 1, "{from:?} must occur once");
+    source.replacen(from, to, 1)
+}
+
+/// The program with the failure code `k` of every `verdict` call replaced by
+/// `2^(k - 1)`. Its native result `42 + m` then names exactly the failed
+/// observations, as the bits of `m`, so two sets of failures never print the
+/// same number. The codes must be exactly `1..=CODES`, each used once.
+fn bitmask(main: &str) -> String {
+    let mut masked = String::new();
+    let mut codes = Vec::new();
+    let mut rest = main;
+    while let Some(at) = rest.find("verdict(") {
+        let open = at + "verdict".len();
+        masked.push_str(&rest[..open]);
+        if rest[..at].ends_with("fn ") {
+            // The helper's definition, not a call.
+            rest = &rest[open..];
+            continue;
+        }
+        // The code is the last argument, before the call's closing parenthesis.
+        let (mut depth, mut comma, mut close) = (0, None, None);
+        for (i, c) in rest[open..].char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' if depth == 1 => {
+                    close = Some(open + i);
+                    break;
+                }
+                ')' => depth -= 1,
+                ',' if depth == 1 => comma = Some(open + i),
+                _ => {}
+            }
+        }
+        let (comma, close) = (comma.unwrap(), close.unwrap());
+        let code: u32 = rest[comma + 1..close].trim().parse().unwrap();
+        codes.push(code);
+        masked.push_str(&rest[open..=comma]);
+        masked.push_str(&format!(" {}", 1u64 << (code - 1)));
+        rest = &rest[close..];
+    }
+    masked.push_str(rest);
+    codes.sort_unstable();
+    assert_eq!(codes, (1..=CODES).collect::<Vec<_>>());
+    masked
+}
+
+#[test]
+fn smooth_example_checks_builds_and_executes() {
+    let s = acceptance_fixture(ACCEPTANCE_MAIN);
+    success(&check(&s));
+    assert_eq!(run(&s), b"42\n");
+}
+
+/// A source mutation and the codes of the observations it falsifies.
+type Mutation = (&'static str, &'static str, &'static [u32]);
+
+#[test]
+fn mutated_observations_change_the_native_result() {
+    // Within a group, the mutations falsify disjoint observations. Every
+    // code is falsified by some group.
+    let groups: [(&[Mutation], u64); 4] = [
+        (
+            &[
+                // 12 dt, not 13 dt.
+                (
+                    "reads(stepped, 12, 1), 1)",
+                    "reads(stepped, 13, 1), 1)",
+                    &[1],
+                ),
+                // The result does not lie over g(f(3)) = 18.
+                (
+                    "verdict(lies_over(stepped, x), 6)",
+                    "verdict(lies_over(stepped, line_at(18)), 6)",
+                    &[6],
+                ),
+                // A failure reads (0, 0), not the rational 0.
+                ("reads(wrong, 0, 0), 11)", "reads(wrong, 0, 1), 11)", &[11]),
+                // Recomputing from the seed 3 dt gives 36 dt.
+                (
+                    "pullback_recomputed(gAfterF, x, seed)",
+                    "pullback_recomputed(gAfterF, x, dline(line_at(18), 3))",
+                    &[12],
+                ),
+                // A after B instead of B after A.
+                (
+                    "pullback(compose(shearB(), shearA()), zero",
+                    "pullback(compose(shearA(), shearB()), zero",
+                    &[16],
+                ),
+                // diag(1, 2) for the Euclidean metric gives the gradient (2, 1/2).
+                (
+                    "Euclid: MetricForm<Plane> = euclidean;",
+                    "Euclid: MetricForm<Plane> = gram((1, 0), (0, 2));",
+                    &[19],
+                ),
+            ],
+            298_059,
+        ),
+        (
+            &[
+                // Along the composite program, 2 dt pulls back to 24 dt.
+                (
+                    "pullback(gAfterF, x, seed)), 2)",
+                    "pullback(gAfterF, x, dline(line_at(18), 2))), 2)",
+                    &[2],
+                ),
+                (
+                    "!lies_over(stepped, line_at(18)), 7)",
+                    "!lies_over(stepped, x), 7)",
+                    &[7],
+                ),
+                // A seed at 18 instead of 17 is accepted and reads 12.
+                ("dline(line_at(17), 1)", "dline(line_at(18), 1)", &[8, 11]),
+                // A tape from 2 rejects the seed at g(f(3)) = 18.
+                (
+                    "linearize(gAfterF, x)",
+                    "linearize(gAfterF, line_at(2))",
+                    &[13],
+                ),
+                (
+                    "pullback(compose(shearA(), shearB()), zero",
+                    "pullback(compose(shearB(), shearA()), zero",
+                    &[17],
+                ),
+                // With the Euclidean Gram matrix, Lorentz no longer flips dy.
+                ("gram((1, 0), (0, -1))", "gram((1, 0), (0, 1))", &[21]),
+                // An outer map with value 324 at 18 and derivative 6 = sq'(3)
+                // there: the recomputed pullback reads 72, as it would if
+                // the recompute pass evaluated sq' at the input 3. The tape
+                // from 3 (code 14) still rejects the seed at 16.
+                (
+                    "sq: Smooth<Line, Line> = pullback(t -> t^2);",
+                    "sq: Smooth<Line, Line> = pullback(t -> 6*t + 216);",
+                    &[25],
+                ),
+            ],
+            17_896_684,
+        ),
+        (
+            &[
+                // Along the composite as one map, -dt pulls back to -12 dt.
+                (
+                    "pullback(composite(gAfterF), x, seed)",
+                    "pullback(composite(gAfterF), x, dline(line_at(18), -1))",
+                    &[3],
+                ),
+                // The right intermediate point f(3) and seed at 18: the
+                // detour succeeds, also after the identity.
+                (
+                    "compose(f(), line_at(2)), dline(line_at(8), 1)",
+                    "compose(f(), line_at(3)), dline(line_at(18), 1)",
+                    &[9, 10],
+                ),
+                // A tape from 3 accepts a seed at sq(3) = 9.
+                ("dline(line_at(16), 1)", "dline(line_at(9), 1)", &[14]),
+                (
+                    "reads_covector(dg, 2, 1), 18)",
+                    "reads_covector(dg, 1, 2), 18)",
+                    &[18],
+                ),
+                (
+                    "gradient_euclid(g(), p), gradient_skew(g(), p)), 22)",
+                    "gradient_euclid(g(), p), gradient_euclid(g(), p)), 22)",
+                    &[22],
+                ),
+                // dg pairs with the Euclidean gradient (2, 1) to 5.
+                (
+                    "pair_first(pairing(dg, gradient_skew(g(), p))) == 2",
+                    "pair_first(pairing(dg, gradient_euclid(g(), p))) == 2",
+                    &[24],
+                ),
+            ],
+            10_625_838,
+        ),
+        (
+            &[
+                // A declared map with gf(3) = 18 but derivative 6 at 3.
+                ("pullback(t -> 2*t^2);", "pullback(t -> t^2 + 9);", &[4, 5]),
+                // The identity keeps a covector that is not a failure.
+                (
+                    "pullback(idL(), x, detour)",
+                    "pullback(idL(), x, stepped)",
+                    &[10],
+                ),
+                // A map that fixes (1, 2) but is not the identity.
+                (
+                    "idP: Smooth<Plane, Plane> = identity;",
+                    "idP: Smooth<Plane, Plane> = pullback(x -> x, y -> 2*y - 2);",
+                    &[15],
+                ),
+                // Another Skew metric gives the gradient (3, -1), which pairs
+                // with dg to 5.
+                ("gram((2, 1), (1, 1))", "gram((1, 1), (1, 2))", &[20, 24]),
+                // sharp under Skew after flat under Euclid.
+                (
+                    "sharp_skew(flat_skew(v))",
+                    "sharp_skew(flat_euclid(v))",
+                    &[23],
+                ),
+            ],
+            13_124_162,
+        ),
+    ];
+    let mut shown = std::collections::BTreeSet::new();
+    for (index, (mutations, expected)) in groups.iter().enumerate() {
+        let mut main = ACCEPTANCE_MAIN.to_string();
+        let mut flipped = std::collections::BTreeSet::new();
+        for (from, to, codes) in *mutations {
+            main = mutate(&main, from, to);
+            for code in *codes {
+                assert!(flipped.insert(*code), "group {index} repeats code {code}");
+            }
+        }
+        let bits: u64 = flipped.iter().map(|code| 1u64 << (code - 1)).sum();
+        assert_eq!(*expected, 42 + bits, "group {index}: {flipped:?}");
+        assert_eq!(
+            String::from_utf8(run(&acceptance_fixture(&bitmask(&main)))).unwrap(),
+            format!("{expected}\n"),
+            "group {index}: {flipped:?}"
+        );
+        if index == 0 {
+            // The shipped codes add up: 42 + 1 + 6 + 11 + 12 + 16 + 19.
+            assert_eq!(run(&acceptance_fixture(&main)), b"107\n");
+        }
+        shown.extend(flipped);
+    }
+    assert_eq!(shown, (1..=CODES).collect());
+}
+
+#[test]
+fn smooth_forms_select_protocol_nine_and_older_envelopes_reject_them() {
+    let raw = request(&acceptance_fixture(ACCEPTANCE_MAIN));
+    assert_eq!(raw["version"], 9);
+    let accepted = kernel(&raw, "emit");
+    assert_eq!(accepted["ok"], true, "{accepted}");
+    for version in [7, 8] {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
+    }
+    for version in 2..7 {
+        let mut changed = raw.clone();
+        changed["version"] = json!(version);
+        let rejected = kernel(changed, "emit");
+        assert_eq!(rejected["ok"], false, "version {version}: {rejected}");
+    }
+}
+
+#[test]
+fn acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically() {
+    // A seed over the plane for the composite program on the line.
+    let stderr = rejects_acceptance(
+        &with_acceptance(
+            "fn bad() -> Bool { lies_over(pullback(compose(g(), f()), line_at(3), dplane(plane_at(3, 9), 1, 0)), line_at(3)) }",
+        ),
+        "E_ENDPOINT",
+    );
+    assert!(
+        stderr.contains("Smooth<Line, Line>, Smooth<Pt, Line>, Cotangent<Plane>"),
+        "{stderr}"
+    );
+    // The stepwise pullback's signature fixes the seed's object.
+    let stderr = rejects_acceptance(
+        &with_acceptance(
+            "fn bad() -> Bool { lies_over(stepwise(line_at(3), dplane(plane_at(18, 0), 1, 0)), line_at(3)) }",
+        ),
+        "E_TYPE",
+    );
+    assert!(
+        stderr.contains("expected Cotangent<Line>, found Cotangent<Plane>"),
+        "{stderr}"
+    );
+    // There is no gradient primitive: a gradient is an ordinary function
+    // that applies sharp, with a named metric and evidence, to the differential.
+    let stderr = rejects_acceptance(
+        &with_acceptance(
+            "indexed primitive grad = gradient(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);",
+        ),
+        "E_TYPE",
+    );
+    assert!(
+        stderr.contains("unknown indexed primitive contract"),
+        "{stderr}"
+    );
+}
+
+/// JSON pointer to the result expression of a named function in the root module.
+fn result_pointer(raw: &Value, name: &str) -> String {
+    let functions = raw["packages"][0]["modules"][0]["functions"]
+        .as_array()
+        .unwrap();
+    let f = functions.iter().position(|f| f["name"] == name).unwrap();
+    format!("/packages/0/modules/0/functions/{f}/body/result")
+}
+
+#[test]
+fn tampered_acceptance_bodies_are_rejected_by_the_kernel() {
+    let raw = request(&acceptance_fixture(ACCEPTANCE_MAIN));
+    let stepwise = result_pointer(&raw, "stepwise");
+    let gradient = result_pointer(&raw, "gradient_skew");
+    assert_eq!(raw.pointer(&stepwise).unwrap()["callee"], "pullback");
+    assert_eq!(raw.pointer(&gradient).unwrap()["callee"], "sharp_skew");
+    let forged = |path: &str, value: Value| {
+        let mut changed = raw.clone();
+        *changed.pointer_mut(path).unwrap() = value;
+        changed
+    };
+    let mut swapped = raw.pointer(&format!("{stepwise}/args")).unwrap().clone();
+    swapped.as_array_mut().unwrap().swap(1, 2);
+    for (path, value, code) in [
+        // The inner pullback along f instead of g.
+        (
+            format!("{stepwise}/args/2/args/0/callee"),
+            json!("f"),
+            "E_ENDPOINT",
+        ),
+        // The point and the seed swapped.
+        (format!("{stepwise}/args"), swapped, "E_ENDPOINT"),
+        // flat where the gradient applies sharp.
+        (
+            format!("{gradient}/callee"),
+            json!("flat_skew"),
+            "E_ENDPOINT",
+        ),
+        // A gradient operation that the program does not declare.
+        (format!("{gradient}/callee"), json!("gradient"), "E_NAME"),
+        (
+            format!("{gradient}/args/0/callee"),
+            json!("pullback"),
+            "E_ARITY",
+        ),
+    ] {
+        assert_wire_rejected(&kernel(forged(&path, value), "emit"), code);
+    }
 }

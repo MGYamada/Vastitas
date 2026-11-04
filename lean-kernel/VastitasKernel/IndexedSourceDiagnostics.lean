@@ -107,112 +107,294 @@ def RoleRequirement.holds (env : Environment) : RoleRequirement → Bool
   | .domain _ _ expected actual =>
     decide (∀ id ∈ actual.implementations env, id ∈ expected.implementations env)
 
-/-- The role table of each primitive binding, for the actual operand types. Its
-order is the diagnostic precedence: the operands' families first, in operand
-order, then the object relations in the order listed. A binding or operand shape
-without an entry has no requirements. New primitives extend this table with
-their own entries. -/
-def roleTable (env : Environment) : PrimitiveBinding → List ValueType → List RoleRequirement
-  | .origin expected _ _, [.object actual reference]
-  | .identity expected _, [.object actual reference]
-  | .dimension expected, [.object actual reference] =>
-    [.marker "object" reference expected.marker actual.marker, .domain "object" reference expected actual]
-  | .compose family, [.indexed ⟨first, [.object middle, .object _]⟩,
-      .indexed ⟨second, [.object _, .object middle']⟩] =>
-    [.family "first map" family first, .family "second map" family second,
-     .object "second map" "target" middle middle' "the first map's source"]
-  | .apply maps points, [.indexed ⟨map, [.object source, .object _]⟩,
-      .indexed ⟨point, [.object target, .object _]⟩] =>
-    [.family "map" maps map, .family "point" points point,
-     .object "point" "target" source target "the map's source"]
-  | .relativeCompose family, [.indexed ⟨first, [.object middle, .object _, .object base]⟩,
-      .indexed ⟨second, [.object _, .object middle', .object base']⟩] =>
-    [.family "first map" family first, .family "second map" family second,
-     .object "second map" "target" middle middle' "the first map's source",
-     .object "second map" "base" base base' "the first map's base"]
-  | .relativeView family origin _, [.indexed ⟨map, [.object _, .object _, .object base]⟩] =>
-    [.family "map" family map, .object "map" "base" (.global origin) base "the view's source base"]
-  | .relativeEqual family, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
-    [.family "first map" family first, .family "second map" family second] ++
-    match firstIndices, secondIndices with
-    | [.object source, .object target, .object base], [.object source', .object target', .object base'] =>
-      [.object "second map" "source" source source' "the first map's source",
-       .object "second map" "target" target target' "the first map's target",
-       .object "second map" "base" base base' "the first map's base"]
-    | _, _ => []
-  | .relativeCoefficient family source target _ _, [.indexed ⟨map, indices⟩] =>
-    .family "map" family map ::
-    match indices with
-    | [.object source', .object target', .object _] =>
-      [.object "map" "source" (.global source) source' "the primitive's declared source",
-       .object "map" "target" (.global target) target' "the primitive's declared target"]
-    | _ => []
-  | .relativePair family fiber, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
-    [.family "first map" family first, .family "second map" family second] ++
-    match firstIndices, secondIndices, plainFiber? env fiber with
-    | [.object source, .object left, .object base], [.object source', .object right, .object base'],
-        some (factor, factor', fiberBase) =>
-      [.object "second map" "source" source source' "the first map's source",
-       .object "first map" "base" (.global fiberBase) base "the fiber's base",
-       .object "second map" "base" (.global fiberBase) base' "the fiber's base",
-       .object "first map" "target" (.global factor) left "the fiber's first factor",
-       .object "second map" "target" (.global factor') right "the fiber's second factor"]
-    | _, _, _ => []
-  | .smoothCompose family, [.indexed ⟨first, [.object middle, .object _]⟩,
-      .indexed ⟨second, [.object _, .object middle']⟩] =>
-    [.family "first map" family first, .family "second map" family second,
-     .object "second map" "target" middle middle' "the first map's source"]
-  | .smoothEqual family, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
-    [.family "first map" family first, .family "second map" family second] ++
-    match firstIndices, secondIndices with
-    | [.object source, .object target], [.object source', .object target'] =>
-      [.object "second map" "source" source source' "the first map's source",
-       .object "second map" "target" target target' "the first map's target"]
-    | _, _ => []
-  | .smoothComposite family, [.indexed ⟨map, _⟩] => [.family "map" family map]
-  | .fiberVector _ smooth object, .indexed ⟨point, [.object (.global _), .object x]⟩ :: _ =>
-    [.family "point" smooth point,
-     .object "point" "target" (.global object) x "the primitive's declared object"]
-  | .fiberAt family smooth, [.indexed ⟨element, [.object x]⟩,
-      .indexed ⟨point, [.object (.global _), .object x']⟩] =>
-    [.family "element" family element, .family "point" smooth point,
-     .object "point" "target" x x' "the element's object"]
-  | .fiberEqual family, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
-    [.family "first element" family first, .family "second element" family second] ++
-    match firstIndices, secondIndices with
-    | [.object x], [.object x'] => [.object "second element" "object" x x' "the first element's object"]
-    | _, _ => []
-  | .fiberComponent family object _, [.indexed ⟨element, [.object x]⟩] =>
-    [.family "element" family element,
-     .object "element" "object" (.global object) x "the primitive's declared object"]
-  | .fiberPairing cotangent tangent, [.indexed ⟨covector, [.object x]⟩, .indexed ⟨vector, [.object x']⟩] =>
-    [.family "covector" cotangent covector, .family "vector" tangent vector,
-     .object "vector" "object" x x' "the covector's object"]
-  | .cotangentPullback smooth cotangent _, [.indexed ⟨map, [.object x, .object y]⟩,
-      .indexed ⟨point, [.object (.global _), .object x']⟩, .indexed ⟨seed, [.object y']⟩] =>
-    [.family "map" smooth map, .family "point" smooth point, .family "seed" cotangent seed,
-     .object "point" "target" x x' "the map's source",
-     .object "seed" "object" y y' "the map's target"]
-  | .differential smooth _ line, [.indexed ⟨function, [.object x, .object y]⟩,
-      .indexed ⟨point, [.object (.global _), .object x']⟩] =>
-    [.family "function" smooth function, .family "point" smooth point,
-     .object "function" "target" (.global line) y "the primitive's declared line",
-     .object "point" "target" x x' "the function's source"]
-  | .linearize smooth _, [.indexed ⟨map, [.object x, .object _]⟩,
-      .indexed ⟨point, [.object (.global _), .object x']⟩] =>
-    [.family "map" smooth map, .family "point" smooth point,
-     .object "point" "target" x x' "the map's source"]
-  | .cotangentBackward tape cotangent, [.indexed ⟨recorded, [.object _, .object y]⟩,
-      .indexed ⟨seed, [.object y']⟩] =>
-    [.family "tape" tape recorded, .family "seed" cotangent seed,
-     .object "seed" "object" y y' "the tape's target"]
-  | .metricFlat _ object _ tangent _, [.indexed ⟨vector, [.object x]⟩] =>
-    [.family "vector" tangent vector,
-     .object "vector" "object" (.global object) x "the metric's object"]
-  | .metricSharp _ _ object _ _ cotangent _, [.indexed ⟨covector, [.object x]⟩] =>
-    [.family "covector" cotangent covector,
-     .object "covector" "object" (.global object) x "the metric's object"]
+/-! ### The role table, derived from the binding's shape
+
+The requirements of a shape, for the actual operand types, in the diagnostic
+precedence: the operands' families first, in operand order, then the fixed
+indices in operand and slot order, then the requirements of each relation in
+the order the shape lists them. The table applies once the operands have the
+shape's index pattern (`Shape.shaped`); before that a rejected call is a shape
+mismatch, which the generic endpoint message lists, except that a shape with
+`families := .early` reports the families as soon as each operand is of the
+expected kind. A binding or operand list without a requirement has none. -/
+end VastitasKernel.Indexed.Source.Diagnostics
+
+namespace VastitasKernel.Indexed.Shape
+open VastitasKernel.Indexed.Source.Diagnostics
+
+/-- The role and index field at a position of the shape. -/
+def roleField (shape : Shape) (position : Position) : Option (String × String) :=
+  match shape.operands[position.operand]? with
+  | some (.indexed role _ slots) => match slots[position.slot]? with
+    | some (.var field) => some (role, field)
+    | some (.fixed _ field _) => some (role, field)
+    | _ => none
+  | _ => none
+
+def operandRole : Operand → Option String
+  | .indexed role _ _ => some role
+  | .application role _ => some role
+  | _ => none
+
+/-- The families of the indexed operands, in operand order. -/
+def familyRequirements : List Operand → List ValueType → List RoleRequirement
+  | .indexed role family _ :: operands, .indexed application :: arguments =>
+      .family role family application.family :: familyRequirements operands arguments
+  | .application role family :: operands, .indexed application :: arguments =>
+      .family role family application.family :: familyRequirements operands arguments
+  | _ :: operands, _ :: arguments => familyRequirements operands arguments
   | _, _ => []
+
+/-- The fixed indices of one operand, in slot order. -/
+def fixedSlotRequirements (role : String) : List Slot → List Index → List RoleRequirement
+  | .fixed ref field reason :: slots, .object actual :: indices =>
+      .object role field ref actual reason :: fixedSlotRequirements role slots indices
+  | _ :: slots, _ :: indices => fixedSlotRequirements role slots indices
+  | _, _ => []
+
+/-- The fixed indices of the indexed operands, in operand order. -/
+def fixedRequirements : List Operand → List ValueType → List RoleRequirement
+  | .indexed role _ slots :: operands, .indexed application :: arguments =>
+      fixedSlotRequirements role slots application.indices ++ fixedRequirements operands arguments
+  | _ :: operands, _ :: arguments => fixedRequirements operands arguments
+  | _, _ => []
+
+/-- The object references of an index list whose indices are all objects. -/
+def objectIndices : List Index → Option (List ObjectRef)
+  | [] => some []
+  | .object ref :: indices => (objectIndices indices).map (ref :: ·)
+  | _ => none
+
+/-- The object references of an indexed argument whose indices are all objects. -/
+def indicesAt (arguments : List ValueType) (operand : Nat) : Option (List ObjectRef) :=
+  (applicationAt arguments operand).bind (objectIndices ·.indices)
+
+/-- The requirement that explains a failed relation, when the operands have
+the parts it compares. -/
+def _root_.VastitasKernel.Indexed.Relation.requirement (env : Environment) (shape : Shape)
+    (arguments : List ValueType) : Relation → List RoleRequirement
+  | .sameRef first second =>
+    match shape.roleField first, shape.roleField second, refAt arguments first, refAt arguments second with
+    | some (firstRole, firstField), some (secondRole, secondField), some expected, some actual =>
+      [.object secondRole secondField expected actual s!"the {firstRole}'s {firstField}"]
+    | _, _, _, _ => []
+  | .sameApplication first second fields =>
+    match (shape.operands[first]?).bind operandRole, (shape.operands[second]?).bind operandRole,
+        indicesAt arguments first, indicesAt arguments second with
+    | some firstRole, some secondRole, some expected, some actual =>
+      if expected.length == fields.length && actual.length == fields.length then
+        (fields.zip (expected.zip actual)).map fun (field, expected, actual) =>
+          .object secondRole field expected actual s!"the {firstRole}'s {field}"
+      else []
+    | _, _, _, _ => []
+  | .fixedFrom position lookup reason =>
+    match shape.roleField position, refAt arguments position, lookup env with
+    | some (role, field), some actual, some expected => [.object role field expected actual reason]
+    | _, _, _ => []
+  | .pointDimension _ _ => []
+  | .refines operand =>
+    match shape.operands[operand]?, objectAt arguments operand with
+    | some (.object role expected), some (actual, ref) =>
+      [.marker role ref expected.marker actual.marker, .domain role ref expected actual]
+    | _, _ => []
+  | .freshBrand => []
+
+/-- The slots of `operand` at which the shape fixes a point's dimension. -/
+def pointSlots (shape : Shape) (operand : Nat) : List Nat :=
+  shape.relations.filterMap fun
+    | .pointDimension position _ => if position.operand == operand then some position.slot else none
+    | _ => none
+
+/-- Whether an index list has the pattern of the slots: one object per slot,
+and a global object at the slots of `points`, since only a global object has
+a dimension. -/
+def slotsShaped (points : List Nat) : Nat → List Slot → List Index → Bool
+  | _, [], [] => true
+  | slot, _ :: slots, .object ref :: indices =>
+      (!points.contains slot || ref matches .global _) && slotsShaped points (slot + 1) slots indices
+  | _, _, _ => false
+
+/-- Whether each operand is of the kind the shape lists: as many operands as
+the shape lists, or more before a tail. -/
+def kindsMatch (tailed : Bool) : List Operand → List ValueType → Bool
+  | [], rest => tailed || rest.isEmpty
+  | .natural :: operands, .natural :: arguments => kindsMatch tailed operands arguments
+  | .object _ _ :: operands, .object _ _ :: arguments => kindsMatch tailed operands arguments
+  | .indexed _ _ _ :: operands, .indexed _ :: arguments => kindsMatch tailed operands arguments
+  | .application _ _ :: operands, .indexed _ :: arguments => kindsMatch tailed operands arguments
+  | _, _ => false
+
+/-- Whether the operands have the shape's index pattern: the kinds, and the
+pattern of each indexed operand's slots. Families, fixed references and the
+tail are not part of the pattern; they are what the table reports. -/
+def shaped (shape : Shape) : Nat → List Operand → List ValueType → Bool
+  | _, [], rest => shape.tail.isSome || rest.isEmpty
+  | index, .natural :: operands, .natural :: arguments => shaped shape (index + 1) operands arguments
+  | index, .object _ _ :: operands, .object _ _ :: arguments => shaped shape (index + 1) operands arguments
+  | index, .indexed _ _ slots :: operands, .indexed application :: arguments =>
+      slotsShaped (shape.pointSlots index) 0 slots application.indices &&
+        shaped shape (index + 1) operands arguments
+  | index, .application _ _ :: operands, .indexed _ :: arguments => shaped shape (index + 1) operands arguments
+  | _, _, _ => false
+
+/-- Whether the table reports the families, by the shape's precedence. -/
+def reportsFamilies (shape : Shape) (arguments : List ValueType) : Bool :=
+  match shape.families with
+  | .shaped => shape.shaped 0 shape.operands arguments
+  | .early => kindsMatch shape.tail.isSome shape.operands arguments
+
+def roles (env : Environment) (shape : Shape) (arguments : List ValueType) : List RoleRequirement :=
+  (if shape.reportsFamilies arguments then familyRequirements shape.operands arguments else []) ++
+    if shape.shaped 0 shape.operands arguments then
+      fixedRequirements shape.operands arguments ++
+        shape.relations.flatMap (Relation.requirement env shape arguments)
+    else []
+
+/-! #### Every requirement is part of the association -/
+
+theorem family_sound {env : Environment} {tail : Option (Environment → Nat)} :
+    ∀ {operands : List Operand} {arguments : List ValueType},
+      operandsMatch env tail operands arguments = true →
+      ∀ {requirement : RoleRequirement}, requirement ∈ familyRequirements operands arguments →
+        requirement.holds env = true
+  | [], _, _, _, member => by simp [familyRequirements] at member
+  | _ :: _, [], matched, _, _ => by simp [operandsMatch] at matched
+  | operand :: operands, argument :: arguments, matched, requirement, member => by
+    simp only [operandsMatch, Bool.and_eq_true] at matched
+    have rest := family_sound matched.2 (requirement := requirement)
+    cases operand <;> cases argument <;> simp only [familyRequirements, List.mem_cons] at member <;>
+      first
+      | exact rest member
+      | (rcases member with rfl | member
+         · simp only [RoleRequirement.holds, beq_iff_eq]
+           first
+           | exact (family_of_operandMatches matched.1).symm
+           | exact (family_of_application matched.1).symm
+         · exact rest member)
+
+theorem fixedSlot_sound {env : Environment} {role : String} :
+    ∀ {slots : List Slot} {indices : List Index}, slotsMatch slots indices = true →
+      ∀ {requirement : RoleRequirement}, requirement ∈ fixedSlotRequirements role slots indices →
+        requirement.holds env = true
+  | [], _, _, _, member => by simp [fixedSlotRequirements] at member
+  | _ :: _, [], matched, _, _ => by simp [slotsMatch] at matched
+  | slot :: slots, index :: indices, matched, requirement, member => by
+    have rest : slotsMatch slots indices = true := by
+      cases slot <;> cases index <;> simp_all [slotsMatch, Bool.and_eq_true]
+    cases slot <;> cases index <;> simp only [fixedSlotRequirements, List.mem_cons] at member <;>
+      first
+      | exact fixedSlot_sound rest member
+      | (rcases member with rfl | member
+         · simp only [slotsMatch, Bool.and_eq_true, beq_iff_eq] at matched
+           simp [RoleRequirement.holds, matched.1]
+         · exact fixedSlot_sound rest member)
+
+theorem fixed_sound {env : Environment} {tail : Option (Environment → Nat)} :
+    ∀ {operands : List Operand} {arguments : List ValueType},
+      operandsMatch env tail operands arguments = true →
+      ∀ {requirement : RoleRequirement}, requirement ∈ fixedRequirements operands arguments →
+        requirement.holds env = true
+  | [], _, _, _, member => by simp [fixedRequirements] at member
+  | _ :: _, [], matched, _, _ => by simp [operandsMatch] at matched
+  | operand :: operands, argument :: arguments, matched, requirement, member => by
+    simp only [operandsMatch, Bool.and_eq_true] at matched
+    have rest := fixed_sound matched.2 (requirement := requirement)
+    cases operand <;> cases argument <;> simp only [fixedRequirements, List.mem_append] at member <;>
+      first
+      | exact rest member
+      | (rcases member with member | member
+         · exact fixedSlot_sound (slots_of_operandMatches matched.1) member
+         · exact rest member)
+
+theorem zip_self_mem {α : Type} : ∀ {expected : List α} {pair : α × α},
+    pair ∈ expected.zip expected → pair.1 = pair.2
+  | [], _, member => by simp at member
+  | _ :: rest, pair, member => by
+    simp only [List.zip_cons_cons, List.mem_cons] at member
+    rcases member with rfl | member
+    · rfl
+    · exact zip_self_mem member
+
+theorem indicesAt_of_holds {env : Environment} {shape : Shape} {allowed : List ObjectRef} {brand : Nat}
+    {arguments : List ValueType} {first second : Nat} {fields : List String}
+    (holds : Relation.holds env shape allowed brand arguments (.sameApplication first second fields) = true) :
+    indicesAt arguments first = indicesAt arguments second := by
+  unfold indicesAt
+  cases firstApplication : applicationAt arguments first <;>
+    cases secondApplication : applicationAt arguments second <;>
+    simp [Relation.holds, firstApplication, secondApplication] at holds <;> simp [holds]
+
+theorem relation_sound {env : Environment} {shape : Shape} {allowed : List ObjectRef} {brand : Nat}
+    {arguments : List ValueType} {relation : Relation}
+    (holds : relation.holds env shape allowed brand arguments = true) :
+    ∀ {requirement : RoleRequirement}, requirement ∈ relation.requirement env shape arguments →
+      requirement.holds env = true := by
+  intro requirement member
+  cases relation with
+  | sameRef first second =>
+    simp only [Relation.requirement] at member
+    split at member
+    · simp only [List.mem_singleton] at member
+      subst member
+      rename_i expected actual _ _ foundExpected foundActual
+      simp only [Relation.holds, foundExpected, foundActual] at holds
+      simpa [RoleRequirement.holds] using holds
+    · simp at member
+  | sameApplication first second fields =>
+    have same := indicesAt_of_holds holds
+    simp only [Relation.requirement] at member
+    cases firstRole : (shape.operands[first]?).bind operandRole with
+    | none => simp [firstRole] at member
+    | some firstRole =>
+    cases secondRole : (shape.operands[second]?).bind operandRole with
+    | none => simp [firstRole, secondRole] at member
+    | some secondRole =>
+    cases expected : indicesAt arguments first with
+    | none => simp [firstRole, secondRole, expected] at member
+    | some expected =>
+    cases actual : indicesAt arguments second with
+    | none => simp [firstRole, secondRole, expected, actual] at member
+    | some actual =>
+    rw [expected, actual] at same
+    cases same
+    simp only [firstRole, secondRole, expected, actual] at member
+    split at member
+    · obtain ⟨⟨field, x, y⟩, pairMember, rfl⟩ := List.mem_map.mp member
+      have equal : x = y := zip_self_mem (List.of_mem_zip pairMember).2
+      simp [RoleRequirement.holds, equal]
+    · simp at member
+  | fixedFrom position lookup reason =>
+    simp only [Relation.requirement] at member
+    split at member
+    · simp only [List.mem_singleton] at member
+      subst member
+      rename_i actual expected _ _ foundActual foundExpected
+      simp only [Relation.holds, foundActual, foundExpected, beq_iff_eq] at holds
+      simp [RoleRequirement.holds, holds]
+    · simp at member
+  | pointDimension position dimension => simp [Relation.requirement] at member
+  | refines operand =>
+    simp only [Relation.requirement] at member
+    split at member
+    · rename_i role expected actual ref _ _ foundOperand foundObject
+      simp only [Relation.holds, foundOperand, foundObject, decide_eq_true_eq] at holds
+      obtain ⟨_, _, marker, domain⟩ := holds
+      simp only [List.mem_cons, List.mem_nil_iff, or_false] at member
+      rcases member with rfl | rfl
+      · simp [RoleRequirement.holds, marker]
+      · simpa [RoleRequirement.holds] using domain
+    · simp at member
+  | freshBrand => simp [Relation.requirement] at member
+
+end VastitasKernel.Indexed.Shape
+
+namespace VastitasKernel.Indexed.Source.Diagnostics
+
+/-- The role table of each primitive binding, for the actual operand types:
+the requirements of the binding's shape (`Shape.roles`). -/
+def roleTable (env : Environment) (binding : PrimitiveBinding) (operands : List ValueType) :
+    List RoleRequirement :=
+  Shape.roles env binding.contract.shape operands
 
 /-- Every requirement in the role table is part of the association contract, so
 a reported requirement is a genuine failure of that contract. -/
@@ -220,24 +402,19 @@ theorem roleTable_sound {env : Environment} {binding : PrimitiveBinding} {allowe
     {brand : Nat} {operands : List ValueType} {result : ValueType}
     (association : PrimitiveAssociation env binding allowed brand operands result) :
     ∀ requirement ∈ roleTable env binding operands, requirement.holds env = true := by
+  obtain ⟨matched, relations, -⟩ := association
   intro requirement member
-  unfold roleTable at member
-  split at member
-  all_goals try simp only [List.mem_nil_iff] at member
-  all_goals try simp only [List.mem_append] at member
-  all_goals try split at member
-  all_goals try simp only [List.mem_nil_iff, or_false] at member
-  all_goals simp only [PrimitiveAssociation, ObjectType.Refines, pairFactors, Application.mk.injEq,
-    List.cons.injEq, Index.object.injEq, and_true] at association
-  -- Shapes more general than the contract's own patterns: split the contract.
-  all_goals try split at association
-  all_goals simp only [List.mem_cons, List.mem_nil_iff, or_false, or_assoc] at member
-  all_goals repeat' rcases member with rfl | member
-  all_goals simp only [RoleRequirement.holds, beq_iff_eq, decide_eq_true_eq]
-  all_goals try simp only [and_assoc] at association
-  all_goals repeat obtain ⟨_, association⟩ := association
-  all_goals subst_vars
-  all_goals first | rfl | assumption | simp_all [Bool.and_eq_true, beq_iff_eq]
+  simp only [roleTable, Shape.roles, List.mem_append] at member
+  rcases member with member | member
+  · split at member
+    · exact Shape.family_sound matched member
+    · simp at member
+  · split at member
+    · simp only [List.mem_append, List.mem_flatMap] at member
+      rcases member with member | ⟨relation, relationMember, member⟩
+      · exact Shape.fixed_sound matched member
+      · exact Shape.relation_sound (relations relation relationMember) member
+    · simp at member
 
 /-- Why `validPrimitive` rejected a call. -/
 inductive PrimitiveFailure where

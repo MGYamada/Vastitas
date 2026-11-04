@@ -72,11 +72,8 @@ private theorem pullback_association {env : Indexed.Environment} {smooth cotange
         .indexed ⟨smooth, [.object (.global point), .object x]⟩,
         .indexed ⟨cotangent, [.object y]⟩] ∧
       smoothDimension? env point = some 0 ∧ output = .indexed ⟨cotangent, [.object x]⟩ := by
-  unfold PrimitiveAssociation at h
-  split at h <;> try contradiction
-  rename_i heq
-  cases heq
-  obtain ⟨rfl, rfl, rfl, rfl, rfl, pointZero, rfl⟩ := h
+  obtain ⟨x, y, point, x', y', rfl⟩ := VastitasOracle.IndexedAssociations.cotangentPullback_shape h
+  obtain ⟨-, -, -, rfl, rfl, pointZero, rfl⟩ := VastitasOracle.IndexedAssociations.cotangentPullback_association.mp h
   exact ⟨_, _, _, rfl, pointZero, rfl⟩
 
 private theorem differential_association {env : Indexed.Environment}
@@ -88,11 +85,8 @@ private theorem differential_association {env : Indexed.Environment}
       [.indexed ⟨smooth, [.object x, .object (.global line)]⟩,
         .indexed ⟨smooth, [.object (.global point), .object x]⟩] ∧
       smoothDimension? env point = some 0 ∧ output = .indexed ⟨cotangent, [.object x]⟩ := by
-  unfold PrimitiveAssociation at h
-  split at h <;> try contradiction
-  rename_i heq
-  cases heq
-  obtain ⟨rfl, rfl, rfl, rfl, pointZero, rfl⟩ := h
+  obtain ⟨x, point, x', rfl⟩ := VastitasOracle.IndexedAssociations.differential_shape h
+  obtain ⟨-, -, -, rfl, pointZero, rfl⟩ := VastitasOracle.IndexedAssociations.differential_association.mp h
   exact ⟨_, _, rfl, pointZero, rfl⟩
 
 private theorem sharp_association {env : Indexed.Environment}
@@ -104,11 +98,8 @@ private theorem sharp_association {env : Indexed.Environment}
       output) :
     operands = [.indexed ⟨cotangent, [.object (.global object)]⟩] ∧
       output = .indexed ⟨tangent, [.object (.global object)]⟩ := by
-  unfold PrimitiveAssociation at h
-  split at h <;> try contradiction
-  rename_i heq
-  cases heq
-  obtain ⟨rfl, rfl, rfl⟩ := h
+  obtain rfl := VastitasOracle.IndexedAssociations.metricSharp_shape h
+  obtain ⟨-, -, rfl⟩ := VastitasOracle.IndexedAssociations.metricSharp_association.mp h
   exact ⟨rfl, rfl⟩
 
 /-- The operand variance of a valid `sharp` binding. The Oracle's `sharp_valid_parts`, which

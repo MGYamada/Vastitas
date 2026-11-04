@@ -1,6 +1,8 @@
 import VastitasKernel.IndexedPackages
 import VastitasKernel.IndexedSmoothContracts
 
+set_option autoImplicit false
+
 /-! The closed primitive bindings and their validity helpers. `PrimitiveBinding`
 is the Core-level identity of a primitive call: family, base and object IDs and
 the embedded exact data (maps, matrices, coordinates). Its validity contract

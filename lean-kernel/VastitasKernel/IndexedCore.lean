@@ -75,15 +75,15 @@ inductive DataType where
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The type that an integer literal takes as operand `position` of a primitive:
-`Nat` for a descriptor's dimension and `Int` for a coordinate of a rational
-point or a component of a fiber. The point operand of `fiber_vector` (position
-0) and other operands give no hint. -/
-def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint :
-    PrimitiveBinding → Nat → Option DataType
-  | .descriptor _, _ => some (.pure .nat)
-  | .relativeIntPoint .., _ | .smoothIntPoint .., _ => some (.pure .int)
-  | .fiberVector .., position => if position = 0 then none else some (.pure .int)
-  | _, _ => none
+`Nat` for a dimension operand and `Int` for every position of the integer tail
+(a coordinate of a rational point or a component of a fiber), from the
+binding's shape. Other operands give no hint. -/
+def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint (binding : PrimitiveBinding) (position : Nat) :
+    Option DataType :=
+  match binding.contract.shape.operands[position]? with
+  | some .natural => some (.pure .nat)
+  | some _ => none
+  | none => if binding.contract.shape.tail.isSome then some (.pure .int) else none
 
 def DataType.Valid (env : Declarations) : DataType → Prop
   | .pure _ => True

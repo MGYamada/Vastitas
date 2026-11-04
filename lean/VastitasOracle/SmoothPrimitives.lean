@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSemantics
+import VastitasOracle.IndexedAssociations
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothCanonical
 
@@ -207,7 +208,7 @@ theorem smoothConstant_total {env : Indexed.Environment} {world : World} {applic
     SmoothOutcome env world (.smoothConstant application map) values output := by
   have empty := values_nil typed
   subst values
-  have association : output = .indexed application := rule.association
+  have association : output = .indexed application := (IndexedAssociations.smoothConstant_association.mp rule.association).symm
   subst association
   have valid : smoothConstantValid env application map = true := rule.bindingValid
   unfold smoothConstantValid at valid
@@ -229,7 +230,7 @@ theorem smoothCompose_total {env : Indexed.Environment} {world : World} {family 
     (typed : PrimitiveValuesHaveTypes env world values
       [.indexed ⟨gf, [.object middle, .object target]⟩, .indexed ⟨ff, [.object source, .object middle']⟩]) :
     SmoothOutcome env world (.smoothCompose family) values output := by
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := IndexedAssociations.smoothCompose_association.mp rule.association
   have smooth := smooth_family rule.bindingValid
   obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := values_pair typed
   obtain ⟨after, y, z, k, m, rfl, afterIndices, hy, hz, afterTyped⟩ := smooth_value smooth leftTyped
@@ -251,7 +252,7 @@ theorem smoothEqual_total {env : Indexed.Environment} {world : World} {family : 
     (rule : PrimitiveTyped env (.smoothEqual family) allowed brand [.indexed left, .indexed right] output)
     (typed : PrimitiveValuesHaveTypes env world values [.indexed left, .indexed right]) :
     SmoothOutcome env world (.smoothEqual family) values output := by
-  obtain ⟨familyEqual, rfl, rfl⟩ := rule.association
+  obtain ⟨familyEqual, _, rfl, rfl⟩ := IndexedAssociations.smoothEqual_association.mp rule.association
   have smooth : familyRepresentation env left.family = some .smooth :=
     familyEqual ▸ smooth_family (rule.bindingValid : isSmoothFamily env family = true)
   obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := values_pair typed
@@ -265,7 +266,7 @@ theorem smoothComposite_total {env : Indexed.Environment} {world : World} {famil
     (rule : PrimitiveTyped env (.smoothComposite family) allowed brand [.indexed application] output)
     (typed : PrimitiveValuesHaveTypes env world values [.indexed application]) :
     SmoothOutcome env world (.smoothComposite family) values output := by
-  obtain ⟨familyEqual, rfl⟩ := rule.association
+  obtain ⟨familyEqual, rfl⟩ := IndexedAssociations.smoothComposite_association.mp rule.association
   have smooth : familyRepresentation env application.family = some .smooth :=
     familyEqual ▸ smooth_family (rule.bindingValid : isSmoothFamily env family = true)
   obtain ⟨value, rfl, valueTyped⟩ := values_single typed
@@ -279,7 +280,7 @@ theorem smoothIntPoint_total {env : Indexed.Environment} {world : World} {family
     (rule : PrimitiveTyped env (.smoothIntPoint family object point) allowed brand arguments output)
     (typed : PrimitiveValuesHaveTypes env world values arguments) :
     SmoothOutcome env world (.smoothIntPoint family object point) values output := by
-  obtain ⟨rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl⟩ := IndexedAssociations.smoothIntPoint_association.mp rule.association
   have valid : smoothIntPointValid env family object point = true := rule.bindingValid
   unfold smoothIntPointValid at valid
   simp only [Bool.and_eq_true, beq_iff_eq] at valid

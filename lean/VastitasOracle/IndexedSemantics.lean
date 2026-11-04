@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedSemantics
 import VastitasOracle.IndexedCore
 import VastitasOracle.IndexedPrimitives
+import VastitasOracle.IndexedAssociations
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothFibers
 import VastitasOracle.SmoothMetricForms
@@ -218,7 +219,7 @@ theorem descriptor_total {env : Indexed.Environment} {world : World} {implementa
     PrimitiveOutcome env world (.descriptor implementation) values output := by
   obtain ⟨value, rfl, operandTyped⟩ := primitive_single typed
   obtain ⟨dimension, rfl⟩ := primitive_natural operandTyped
-  obtain ⟨type, found, _, rfl⟩ := rule.association
+  obtain ⟨type, found, _, rfl⟩ := IndexedAssociations.descriptor_association.mp rule.association
   have valid : type.Valid env := rule.resultValid.1
   have objectTyped := descriptor_typed found valid dimension
   refine ⟨bindLocal world brand ⟨implementation, IndexedRuntime.descriptor dimension⟩,
@@ -233,7 +234,7 @@ theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
     PrimitiveOutcome env world (.global id) values output := by
   have empty := primitive_nil typed
   subst values
-  obtain ⟨type, found, rfl⟩ := rule.association
+  obtain ⟨type, found, rfl⟩ := IndexedAssociations.global_association.mp rule.association
   obtain ⟨object, computed, denotes⟩ := global_denotes env world id rule.bindingValid.2
   obtain ⟨actual, actualFound, objectTyped⟩ := denotes.2
   have equal : actual = type := Option.some.inj (actualFound.symm.trans found)
@@ -248,7 +249,7 @@ theorem origin_total {env : Indexed.Environment} {world : World} {expected actua
     PrimitiveOutcome env world (.origin expected family base) values output := by
   obtain ⟨value, rfl, operandTyped⟩ := primitive_single typed
   obtain ⟨object, rfl, _, denotes⟩ := primitive_object operandTyped
-  obtain ⟨_, rfl⟩ := rule.association
+  obtain ⟨_, rfl⟩ := IndexedAssociations.origin_association.mp rule.association
   have baseValid := application_ref_valid rule.resultValid (ref := .global base) (by simp [Application.refs])
   obtain ⟨baseObject, computed, baseDenotes⟩ := global_denotes env world base baseValid
   refine ⟨world, .indexed (.point ⟨object, baseObject⟩), ?_, worldExtends_refl world, ?_, rfl⟩
@@ -263,7 +264,7 @@ theorem identity_total {env : Indexed.Environment} {world : World} {expected act
     PrimitiveOutcome env world (.identity expected family) values output := by
   obtain ⟨value, rfl, operandTyped⟩ := primitive_single typed
   obtain ⟨object, rfl, _, denotes⟩ := primitive_object operandTyped
-  obtain ⟨_, rfl⟩ := rule.association
+  obtain ⟨_, rfl⟩ := IndexedAssociations.identity_association.mp rule.association
   refine ⟨world, .indexed (.morphism ⟨object, object⟩), rfl, worldExtends_refl world, ⟨rule.resultValid, ?_⟩, rfl⟩
   simpa only [rule.bindingValid.2.1] using And.intro denotes denotes
 
@@ -274,7 +275,7 @@ theorem dimension_total {env : Indexed.Environment} {world : World} {expected ac
     PrimitiveOutcome env world (.dimension expected) values output := by
   obtain ⟨value, rfl, operandTyped⟩ := primitive_single typed
   obtain ⟨object, rfl, _, _⟩ := primitive_object operandTyped
-  obtain ⟨_, rfl⟩ := rule.association
+  obtain ⟨_, rfl⟩ := IndexedAssociations.dimension_association.mp rule.association
   exact ⟨world, .natural object.descriptor.dimension, rfl, worldExtends_refl world, True.intro, rfl⟩
 
 theorem compose_total {env : Indexed.Environment} {world : World} {family gf ff : DeclId}
@@ -285,7 +286,7 @@ theorem compose_total {env : Indexed.Environment} {world : World} {family gf ff 
     (typed : PrimitiveValuesHaveTypes env world values
       [.indexed ⟨gf, [.object middle, .object target]⟩, .indexed ⟨ff, [.object source, .object other]⟩]) :
     PrimitiveOutcome env world (.compose family) values output := by
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := IndexedAssociations.compose_association.mp rule.association
   obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := primitive_pair typed
   obtain ⟨after, rfl, _, targetDenotes⟩ := primitive_morphism rule.bindingValid leftTyped
   obtain ⟨before, rfl, sourceDenotes, _⟩ := primitive_morphism rule.bindingValid rightTyped
@@ -301,7 +302,7 @@ theorem apply_total {env : Indexed.Environment} {world : World} {maps points mf 
     (typed : PrimitiveValuesHaveTypes env world values
       [.indexed ⟨mf, [.object source, .object target]⟩, .indexed ⟨pf, [.object other, .object test]⟩]) :
     PrimitiveOutcome env world (.apply maps points) values output := by
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := IndexedAssociations.apply_association.mp rule.association
   obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := primitive_pair typed
   obtain ⟨map, rfl, _, targetDenotes⟩ := primitive_morphism rule.bindingValid.1 leftTyped
   obtain ⟨point, rfl, _, testDenotes⟩ := primitive_point rule.bindingValid.2 rightTyped
@@ -364,7 +365,7 @@ theorem relativeConstant_total {env : Indexed.Environment} {world : World} {appl
     PrimitiveOutcome env world (.relativeConstant application map) values output := by
   have empty := primitive_nil typed
   subst values
-  have association : output = .indexed application := rule.association
+  have association : output = .indexed application := (IndexedAssociations.relativeConstant_association.mp rule.association).symm
   subst association
   have bindingValid : relativeConstantValid env application map = true := rule.bindingValid
   have relative : isRelativeFamily env application.family = true := by
@@ -390,7 +391,7 @@ theorem relativeCompose_total {env : Indexed.Environment} {world : World} {famil
       [.indexed ⟨gf, [.object middle, .object target, .object base]⟩,
         .indexed ⟨ff, [.object source, .object middle', .object base']⟩]) :
     PrimitiveOutcome env world (.relativeCompose family) values output := by
-  obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := IndexedAssociations.relativeCompose_association.mp rule.association
   have relative := relative_family rule.bindingValid
   obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := primitive_pair typed
   obtain ⟨after, rfl, _, afterDenotes⟩ := primitive_relative relative leftTyped
@@ -413,7 +414,7 @@ theorem relativeView_total {env : Indexed.Environment} {world : World} {family o
     (typed : PrimitiveValuesHaveTypes env world values
       [.indexed ⟨f, [.object source, .object target, .object base]⟩]) :
     PrimitiveOutcome env world (.relativeView family origin to) values output := by
-  obtain ⟨rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl⟩ := IndexedAssociations.relativeView_association.mp rule.association
   have relative := relative_family rule.bindingValid.1
   obtain ⟨value, rfl, valueTyped⟩ := primitive_single typed
   obtain ⟨map, rfl, _, denotes⟩ := primitive_relative relative valueTyped
@@ -433,7 +434,7 @@ theorem relativeEqual_total {env : Indexed.Environment} {world : World} {family 
     (rule : PrimitiveTyped env (.relativeEqual family) allowed brand [.indexed left, .indexed right] output)
     (typed : PrimitiveValuesHaveTypes env world values [.indexed left, .indexed right]) :
     PrimitiveOutcome env world (.relativeEqual family) values output := by
-  obtain ⟨family_eq, rfl, rfl⟩ := rule.association
+  obtain ⟨family_eq, _, rfl, rfl⟩ := IndexedAssociations.relativeEqual_association.mp rule.association
   have relative : familyRepresentation env left.family = some .relative :=
     family_eq ▸ relative_family (rule.bindingValid : isRelativeFamily env family = true)
   obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := primitive_pair typed
@@ -450,7 +451,7 @@ theorem relativeCoefficient_total {env : Indexed.Environment} {world : World}
     (typed : PrimitiveValuesHaveTypes env world values
       [.indexed ⟨f, [.object (.global x), .object (.global y), .object base]⟩]) :
     PrimitiveOutcome env world (.relativeCoefficient family source target coordinate monomial) values output := by
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := IndexedAssociations.relativeCoefficient_association.mp rule.association
   have relative := relative_family rule.bindingValid.1
   obtain ⟨value, rfl, valueTyped⟩ := primitive_single typed
   obtain ⟨map, rfl, _⟩ := primitive_relative relative valueTyped
@@ -482,7 +483,7 @@ theorem relativeIntPoint_total {env : Indexed.Environment} {world : World} {fami
     (rule : PrimitiveTyped env (.relativeIntPoint family object base) allowed brand arguments output)
     (typed : PrimitiveValuesHaveTypes env world values arguments) :
     PrimitiveOutcome env world (.relativeIntPoint family object base) values output := by
-  obtain ⟨rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl⟩ := IndexedAssociations.relativeIntPoint_association.mp rule.association
   have relative := relative_family rule.bindingValid.1
   obtain ⟨coordinates, found⟩ := integer_values typed
   have valid := rule.resultValid
@@ -504,7 +505,7 @@ theorem relativePair_total {env : Indexed.Environment} {world : World} {family f
       [.indexed ⟨lf, [.object source, .object left, .object base]⟩,
         .indexed ⟨rf, [.object source', .object right, .object base']⟩]) :
     PrimitiveOutcome env world (.relativePair family fiber) values output := by
-  obtain ⟨rfl, rfl, rfl, rfl, _, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl, _, rfl⟩ := IndexedAssociations.relativePair_association.mp rule.association
   have relative := relative_family rule.bindingValid.1
   obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := primitive_pair typed
   obtain ⟨l, rfl, _, leftDenotes⟩ := primitive_relative relative firstTyped
@@ -537,42 +538,99 @@ theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {b
     (rule : PrimitiveTyped env binding allowed brand arguments output)
     (typed : PrimitiveValuesHaveTypes env world values arguments) (fresh : PrimitiveFresh binding world brand) :
     PrimitiveOutcome env world binding values output := by
-  have association := rule.association
-  unfold PrimitiveAssociation at association
-  split at association
-  all_goals first
-    | exact descriptor_total rule typed fresh
-    | exact global_total rule typed
-    | exact origin_total rule typed
-    | exact identity_total rule typed
-    | exact dimension_total rule typed
-    | exact compose_total rule typed
-    | exact apply_total rule typed
-    | exact relativeConstant_total rule typed
-    | exact relativeCompose_total rule typed
-    | exact relativeView_total rule typed
-    | exact relativeEqual_total rule typed
-    | exact relativeCoefficient_total rule typed
-    | exact relativeIntPoint_total rule typed
-    | exact relativePair_total rule typed
-    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothConstant_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothCompose_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothEqual_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothIntPoint_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothComposite_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberVector_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberAt_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberEqual_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberComponent_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberPairing_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentPullback_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.differential_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.linearize_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentBackward_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricFlat_total rule typed)
-    | exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricSharp_total rule typed)
-    | contradiction
-
+  cases binding with
+  | descriptor implementation =>
+    obtain rfl := IndexedAssociations.descriptor_shape rule.association
+    exact descriptor_total rule typed fresh
+  | global id =>
+    obtain rfl := IndexedAssociations.global_shape rule.association
+    exact global_total rule typed
+  | origin domain family base =>
+    obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.origin_shape rule.association
+    exact origin_total rule typed
+  | identity domain family =>
+    obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.identity_shape rule.association
+    exact identity_total rule typed
+  | dimension domain =>
+    obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.dimension_shape rule.association
+    exact dimension_total rule typed
+  | compose family =>
+    obtain ⟨middle, target, source, other, rfl⟩ := IndexedAssociations.compose_shape rule.association
+    exact compose_total rule typed
+  | apply maps points =>
+    obtain ⟨source, target, other, test, rfl⟩ := IndexedAssociations.apply_shape rule.association
+    exact apply_total rule typed
+  | relativeConstant application map =>
+    obtain rfl := IndexedAssociations.relativeConstant_shape rule.association
+    exact relativeConstant_total rule typed
+  | relativeCompose family =>
+    obtain ⟨middle, target, base, source, middle', base', rfl⟩ :=
+      IndexedAssociations.relativeCompose_shape rule.association
+    exact relativeCompose_total rule typed
+  | relativeView family origin to =>
+    obtain ⟨source, target, rfl⟩ := IndexedAssociations.relativeView_shape rule.association
+    exact relativeView_total rule typed
+  | relativeEqual family =>
+    obtain ⟨left, right, rfl⟩ := IndexedAssociations.relativeEqual_shape rule.association
+    exact relativeEqual_total rule typed
+  | relativeCoefficient family source target coordinate monomial =>
+    obtain ⟨base, rfl⟩ := IndexedAssociations.relativeCoefficient_shape rule.association
+    exact relativeCoefficient_total rule typed
+  | relativeIntPoint family object base => exact relativeIntPoint_total rule typed
+  | relativePair family fiber =>
+    obtain ⟨source, left, base, source', right, base', rfl⟩ :=
+      IndexedAssociations.relativePair_shape rule.association
+    exact relativePair_total rule typed
+  | relativeIso forward backward => exact absurd rule.association IndexedAssociations.relativeIso_association
+  | relativeCartesian first second inverse fiber =>
+    exact absurd rule.association IndexedAssociations.relativeCartesian_association
+  | smoothConstant application map =>
+    obtain rfl := IndexedAssociations.smoothConstant_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothConstant_total rule typed)
+  | smoothCompose family =>
+    obtain ⟨middle, target, source, other, rfl⟩ := IndexedAssociations.smoothCompose_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothCompose_total rule typed)
+  | smoothEqual family =>
+    obtain ⟨left, right, rfl⟩ := IndexedAssociations.smoothEqual_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothEqual_total rule typed)
+  | smoothIntPoint family object point =>
+    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothIntPoint_total rule typed)
+  | smoothComposite family =>
+    obtain ⟨application, rfl⟩ := IndexedAssociations.smoothComposite_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothComposite_total rule typed)
+  | fiberVector family smooth object =>
+    obtain ⟨point, x, components, rfl⟩ := IndexedAssociations.fiberVector_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberVector_total rule typed)
+  | fiberAt family smooth =>
+    obtain ⟨x, point, x', rfl⟩ := IndexedAssociations.fiberAt_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberAt_total rule typed)
+  | fiberEqual family =>
+    obtain ⟨left, right, rfl⟩ := IndexedAssociations.fiberEqual_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberEqual_total rule typed)
+  | fiberComponent family object coordinate =>
+    obtain rfl := IndexedAssociations.fiberComponent_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberComponent_total rule typed)
+  | fiberPairing cotangent tangent =>
+    obtain ⟨x, x', rfl⟩ := IndexedAssociations.fiberPairing_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberPairing_total rule typed)
+  | cotangentPullback smooth cotangent mode =>
+    obtain ⟨x, y, point, x', y', rfl⟩ := IndexedAssociations.cotangentPullback_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentPullback_total rule typed)
+  | differential smooth cotangent line =>
+    obtain ⟨x, point, x', rfl⟩ := IndexedAssociations.differential_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.differential_total rule typed)
+  | linearize smooth tape =>
+    obtain ⟨x, y, point, x', rfl⟩ := IndexedAssociations.linearize_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.linearize_total rule typed)
+  | cotangentBackward tape cotangent =>
+    obtain ⟨x, y, y', rfl⟩ := IndexedAssociations.cotangentBackward_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentBackward_total rule typed)
+  | metricFlat metric object gram tangent cotangent =>
+    obtain rfl := IndexedAssociations.metricFlat_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricFlat_total rule typed)
+  | metricSharp metric evidence object gram inverse cotangent tangent =>
+    obtain rfl := IndexedAssociations.metricSharp_shape rule.association
+    exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricSharp_total rule typed)
 
 /-- This corollary consumes the real primitive checker's accepted record, with
 the exact argument annotations and returned result. Runtime argument typing

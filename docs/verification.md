@@ -1454,7 +1454,10 @@ legacy distinctness soundness theorem now uses this same implementation.
 The first indexed evaluation fragment is in `VastitasOracle.IndexedSemantics`.
 It imports the actual Core semantics and proves domain upcasts, reference
 denotation and world-extension lemmas. `primitive_total_and_typed` covers every
-closed registry binding; `checked_primitive_semantics` and
+closed registry binding: it cases on the binding by name, reads the binding's
+operand list off its registry shape with the shape lemma of
+`VastitasOracle.IndexedAssociations`, and applies the binding's totality lemma.
+`checked_primitive_semantics` and
 `core_primitive_semantics` connect it to the real primitive checker and a real
 typed Core node. Typed runtime arguments and constructor-slot freshness are
 explicit premises, not inferred from an unrelated certificate. Composition's
@@ -1931,7 +1934,11 @@ All of these are Proved (oracle). Names are relative to `VastitasOracle`.
 
 `IndexedSemantics.primitive_total_and_typed` and
 `IndexedSemantics.primitive_runtime_erasure` dispatch to the totality and
-erasure lemmas above. The Stage 2 statements `validAffine_sound`,
+erasure lemmas above. `IndexedAssociations` states what each binding's registry
+shape amounts to: the association of each callable binding, the operand list
+of each binding with listed operands, and that the evidence bindings have no
+association; the totality lemmas and the bridge destructure those statements
+instead of the shape itself. The Stage 2 statements `validAffine_sound`,
 `presented_not_descriptor` and `sealed_families_exclude_presented` are
 unchanged.
 

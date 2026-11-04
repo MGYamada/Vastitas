@@ -360,6 +360,25 @@ fn library_primitives_explain_rejections_through_their_actual_binding() {
             expected("follow")
         );
     }
+    // Family failures use the library's own family names.
+    let respelled_families = |text: &str| {
+        text.replace("Point", "Position")
+            .replace("Morphism", "Arrow")
+    };
+    assert_eq!(
+        endpoint_message(
+            "fn main() -> Int { let X = Affine(QQ, 2); let p = apply(origin(X), origin(X)); 0 }",
+            respelled_families
+        ),
+        "apply requires a map of family Arrow, but the supplied map has family Position"
+    );
+    assert_eq!(
+        endpoint_message(
+            "fn main() -> Int { let X = geo::scheme::Affine(2); if geo::scheme::affine::same(geo::scheme::id(X), geo::scheme::id(X)) { 1 } else { 0 } }",
+            str::to_owned
+        ),
+        "same requires a first map of family Over, but the supplied first map has family Morphism"
+    );
     // A coefficient failure is named as such, under any coherent spelling.
     let source =
         "fn main() -> Int { let X = geo::scheme::Affine(2); let d = geo::smooth::dimension(X); 0 }";

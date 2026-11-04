@@ -190,7 +190,10 @@ private def extended (p : Source.Program) : Source.Program := withLibrary p fun 
     primitive "smoothDimension" (.dimension ⟨path "CInfScheme", path "CInfReal"⟩),
     ⟨"Grid2", .implementation (path "QQ") .affineDescriptor [.origin, .dimension], true, {}⟩,
     ⟨"Other", .classification [] [path "Grid2"], true, {}⟩,
-    primitive "otherDimension" (.dimension ⟨path "Other", path "QQ"⟩)] }
+    primitive "otherDimension" (.dimension ⟨path "Other", path "QQ"⟩),
+    ⟨"Wide", .classification [] [path "Grid", path "Grid2"], true, {}⟩,
+    ⟨"WideMap", .family ⟨[.object (path "Wide"), .object (path "Wide")], [.sameBase 0 1], .morphism⟩, true, {}⟩,
+    primitive "narrowApply" (.apply (path "WideMap") (path "Point"))] }
 private def crossed (callee : String) : Source.Program := extended (program [main (num 0) (objects ++
   [bind "point_x" (call "geo::origin" [var "X"]),
    bind "crossed" (call callee [call "geo::id" [var "Y"], var "point_x"])])])
@@ -215,6 +218,10 @@ private def apply602 : String := "apply requires a point with target Y (the map'
 #eval check "#602: then the second operand's family" (explains
   "apply requires a point of family Point, but the supplied point has family Morphism"
   (withObjects (bind "p" (call "geo::apply" [call "geo::id" [var "X"], call "geo::id" [var "Y"]]))) 2)
+#eval check "#602: then the endpoint relation" (explains
+  "apply requires a point with target X (the map's source), but the supplied point has target Y"
+  (withObjects (bind "p" (call "geo::apply" [call "geo::id" [var "X"], call "geo::origin" [var "Y"]]))) 2)
+-- Both the coefficient marker and the domain fail here; the marker is reported.
 #eval check "#602: a coefficient failure is named as such" (explains
   "smoothDimension requires an object with coefficient marker CInfReal, but the supplied object X has coefficient marker QQ"
   (extended (withObjects (bind "d" (call "geo::smoothDimension" [var "X"])))) 1)
@@ -224,6 +231,25 @@ private def apply602 : String := "apply requires a point with target Y (the map'
 #eval check "#602: matching objects remain accepted" (accepts (extended (program [main (num 0) (objects ++
   [bind "p" (call "geo::follow" [call "geo::after" [call "geo::id" [var "Y"], call "geo::id" [var "Y"]],
     call "geo::origin" [var "Y"]])])])))
+/-- A second copy of the library: equal names, distinct declarations. -/
+private def withCopy (p : Source.Program) : Source.Program :=
+  let root := p.packages[0]!
+  let library := p.packages[1]!
+  let copy := { library with id := { library.id with source := "/copy-lib/Vastitas.toml" } }
+  { p with packages := [{ root with dependencies := root.dependencies ++ [⟨"copy", copy.id.source⟩] }, library, copy] }
+#eval check "#602: equal declaration names are qualified until they differ" (explains
+  ("apply requires a point of family geometry::Point in /source-lib/Vastitas.toml, " ++
+    "but the supplied point has family geometry::Point in /copy-lib/Vastitas.toml")
+  (withCopy (program [main (num 0) [bind "X" (call "geo::Affine" [num 3]), bind "Y" (call "copy::Affine" [num 3]),
+    bind "p" (call "geo::apply" [call "geo::id" [var "X"], call "copy::origin" [var "Y"]])]])) 2)
+#eval check "#602: an invalid result is named after the operands pass" (explains
+  "narrowApply would produce Point<Z, Base>, which is not a valid type"
+  (extended (program [main (num 0), fn "narrow"
+    [⟨"X", object, {}⟩, ⟨"Z", .object ⟨path "geo::Wide", path "geo::QQ"⟩, {}⟩,
+     ⟨"f", .application (path "geo::WideMap") [arg "X", arg "Z"], {}⟩, ⟨"p", point "X", {}⟩] int
+    (block (num 0) [bind "q" (call "geo::narrowApply" [var "f", var "p"])])])) 2)
+-- Every rejection of a covered binding above is explained; only an uncovered
+-- contract, checked directly here, keeps the operand-type message.
 #eval check "#602: no cause is invented for an uncovered contract" (match Source.checkDeclarations Regression.declarationFixture with
   | .error _ => false
   | .ok checked =>
@@ -234,6 +260,15 @@ private def apply602 : String := "apply requires a point with target Y (the map'
       -- The binding is valid and has no role table; the result is wrong but valid.
       !validPrimitive env.indexed declaration.binding [] 0 [] .natural &&
         Diagnostics.explainPrimitive env.indexed declaration.binding [] 0 [] .natural == none)
+#eval check "#602: an invalid binding is named before any operand" (match Source.checkDeclarations Regression.declarationFixture with
+  | .error _ => false
+  | .ok checked =>
+    let env := checked.resolved.declarations
+    match env.primitives.find? (·.id.name == "origin") with
+    | some ⟨_, .origin _ point _⟩ =>
+      -- Checked declarations never bind `compose` to a point family.
+      Diagnostics.explainPrimitive env.indexed (.compose point) [] 0 [] .natural == some .binding
+    | _ => false)
 
 #eval check "source coverage rejects omissions and substituted owners" (match Bodies.checkProgram packageFixture true with
   | .error _ => false

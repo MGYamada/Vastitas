@@ -356,6 +356,7 @@ fn rejected_relative_primitives_name_the_disagreeing_objects() {
         "{extra}\nfn good() -> Bool {{ same(view(toX()), compose(overQQ(), view(toX()))) && same(lift(toX(), toOrigin()), lift(toX(), toOrigin())) }}"
     )))));
     for (body, message) in [
+        // Both the middle object and the base disagree; the middle is reported.
         (
             "same(compose(toX(), p()), p())",
             "compose requires a second map with target DS (the first map's source), but the supplied second map has target Line",
@@ -366,7 +367,7 @@ fn rejected_relative_primitives_name_the_disagreeing_objects() {
         ),
         (
             "same(view(p()), p())",
-            "view requires a map with base S (the base that the primitive views from), but the supplied map has base SpecQQ",
+            "view requires a map with base S (the view's source base), but the supplied map has base SpecQQ",
         ),
         (
             "same(p(), sq())",
@@ -379,6 +380,10 @@ fn rejected_relative_primitives_name_the_disagreeing_objects() {
         (
             "same(lift(toX(), toX()), lift(toX(), toX()))",
             "lift requires a second map with target Origin (the fiber's second factor), but the supplied second map has target X",
+        ),
+        (
+            "pair_first(eps(sq())) == 1",
+            "eps requires a map with source D (the primitive's declared source), but the supplied map has source Line",
         ),
     ] {
         let stderr = rejects(

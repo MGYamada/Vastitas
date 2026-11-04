@@ -41,22 +41,19 @@ def indexLabel (env : Core.Declarations) (geometry : Option (GeometryProfile Dec
   | .natural value => toString value
   | .object reference => objectLabel env geometry origins reference
 
-def familyLabel (geometry : Option (GeometryProfile DeclId)) (family : DeclId) : String :=
-  match geometry with
-  | some profile =>
-    if family == profile.point then "Point"
-    else if family == profile.morphism then "Morphism"
-    else if family == profile.pointed then "Pointed" else family.name
-  | none => family.name
-
 def typeLabel (env : Core.Declarations) (geometry : Option (GeometryProfile DeclId))
     (origins : Origins) : Core.DataType → String
   | .pure .nat => "Nat" | .pure .int => "Int" | .pure .bool => "Bool" | .pure .unit => "Unit"
   | .pure (.pair .nat) => "Pair<Nat>" | .pure (.pair .int) => "Pair<Int>"
   | .object type => objectTypeLabel env geometry type
   | .indexed app | .package app =>
-    familyLabel geometry app.family ++ "<" ++
-      String.intercalate ", " (app.indices.map (indexLabel env geometry origins)) ++ ">"
+    let name := match geometry with
+      | some profile =>
+        if app.family == profile.point then "Point"
+        else if app.family == profile.morphism then "Morphism"
+        else if app.family == profile.pointed then "Pointed" else app.family.name
+      | none => app.family.name
+    name ++ "<" ++ String.intercalate ", " (app.indices.map (indexLabel env geometry origins)) ++ ">"
 
 def objectNotes (env : Core.Declarations) (geometry : Option (GeometryProfile DeclId))
     (origins : Origins) (refs : List ObjectRef) : List DiagnosticNote := Id.run do
@@ -111,9 +108,10 @@ def RoleRequirement.holds (env : Environment) : RoleRequirement → Bool
     decide (∀ id ∈ actual.implementations env, id ∈ expected.implementations env)
 
 /-- The role table of each primitive binding, for the actual operand types. Its
-order is the diagnostic precedence: operand families first, in operand order,
-then the object relations. A binding or operand shape without an entry has no
-requirements. New primitives extend this table with their own entries. -/
+order is the diagnostic precedence: the operands' families first, in operand
+order, then the object relations in the order listed. A binding or operand shape
+without an entry has no requirements. New primitives extend this table with
+their own entries. -/
 def roleTable (env : Environment) : PrimitiveBinding → List ValueType → List RoleRequirement
   | .origin expected _ _, [.object actual reference]
   | .identity expected _, [.object actual reference]
@@ -133,25 +131,33 @@ def roleTable (env : Environment) : PrimitiveBinding → List ValueType → List
      .object "second map" "target" middle middle' "the first map's source",
      .object "second map" "base" base base' "the first map's base"]
   | .relativeView family origin _, [.indexed ⟨map, [.object _, .object _, .object base]⟩] =>
-    [.family "map" family map,
-     .object "map" "base" (.global origin) base "the base that the primitive views from"]
-  | .relativeEqual family, [.indexed ⟨first, [.object source, .object target, .object base]⟩,
-      .indexed ⟨second, [.object source', .object target', .object base']⟩] =>
-    [.family "first map" family first, .family "second map" family second,
-     .object "second map" "source" source source' "the first map's source",
-     .object "second map" "target" target target' "the first map's target",
-     .object "second map" "base" base base' "the first map's base"]
-  | .relativePair family fiber, [.indexed ⟨first, [.object source, .object left, .object base]⟩,
-      .indexed ⟨second, [.object source', .object right, .object base']⟩] =>
-    match plainFiber? env fiber with
-    | some (factor, factor', fiberBase) =>
-      [.family "first map" family first, .family "second map" family second,
-       .object "second map" "source" source source' "the first map's source",
+    [.family "map" family map, .object "map" "base" (.global origin) base "the view's source base"]
+  | .relativeEqual family, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
+    [.family "first map" family first, .family "second map" family second] ++
+    match firstIndices, secondIndices with
+    | [.object source, .object target, .object base], [.object source', .object target', .object base'] =>
+      [.object "second map" "source" source source' "the first map's source",
+       .object "second map" "target" target target' "the first map's target",
+       .object "second map" "base" base base' "the first map's base"]
+    | _, _ => []
+  | .relativeCoefficient family source target _ _, [.indexed ⟨map, indices⟩] =>
+    .family "map" family map ::
+    match indices with
+    | [.object source', .object target', .object _] =>
+      [.object "map" "source" (.global source) source' "the primitive's declared source",
+       .object "map" "target" (.global target) target' "the primitive's declared target"]
+    | _ => []
+  | .relativePair family fiber, [.indexed ⟨first, firstIndices⟩, .indexed ⟨second, secondIndices⟩] =>
+    [.family "first map" family first, .family "second map" family second] ++
+    match firstIndices, secondIndices, plainFiber? env fiber with
+    | [.object source, .object left, .object base], [.object source', .object right, .object base'],
+        some (factor, factor', fiberBase) =>
+      [.object "second map" "source" source source' "the first map's source",
        .object "first map" "base" (.global fiberBase) base "the fiber's base",
        .object "second map" "base" (.global fiberBase) base' "the fiber's base",
        .object "first map" "target" (.global factor) left "the fiber's first factor",
        .object "second map" "target" (.global factor') right "the fiber's second factor"]
-    | none => []
+    | _, _, _ => []
   | _, _ => []
 
 /-- Every requirement in the role table is part of the association contract, so
@@ -164,11 +170,14 @@ theorem roleTable_sound {env : Environment} {binding : PrimitiveBinding} {allowe
   unfold roleTable at member
   split at member
   all_goals try simp only [List.mem_nil_iff] at member
+  all_goals try simp only [List.mem_append] at member
   all_goals try split at member
-  all_goals try simp only [List.mem_nil_iff] at member
+  all_goals try simp only [List.mem_nil_iff, or_false] at member
   all_goals simp only [PrimitiveAssociation, ObjectType.Refines, pairFactors, Application.mk.injEq,
     List.cons.injEq, Index.object.injEq, and_true] at association
-  all_goals simp only [List.mem_cons, List.mem_nil_iff, or_false] at member
+  -- Shapes more general than the contract's own patterns: split the contract.
+  all_goals try split at association
+  all_goals simp only [List.mem_cons, List.mem_nil_iff, or_false, or_assoc] at member
   all_goals repeat' rcases member with rfl | member
   all_goals simp only [RoleRequirement.holds, beq_iff_eq, decide_eq_true_eq]
   all_goals try simp only [and_assoc] at association
@@ -206,6 +215,20 @@ theorem explainPrimitive_rejected {env : Environment} {binding : PrimitiveBindin
   · rfl
   · simp [explainPrimitive, accepted] at explained
 
+theorem explainPrimitive_binding {env : Environment} {binding : PrimitiveBinding}
+    {allowed : List ObjectRef} {brand : Nat} {operands : List ValueType} {result : ValueType}
+    (explained : explainPrimitive env binding allowed brand operands result = some .binding) :
+    validPrimitiveBinding env binding = false := by
+  unfold explainPrimitive at explained
+  revert explained
+  split
+  · simp
+  · split
+    · simp_all
+    · split
+      · simp
+      · split <;> simp
+
 theorem explainPrimitive_role {env : Environment} {binding : PrimitiveBinding}
     {allowed : List ObjectRef} {brand : Nat} {operands : List ValueType} {result : ValueType}
     {requirement : RoleRequirement}
@@ -227,31 +250,73 @@ theorem explainPrimitive_role {env : Environment} {binding : PrimitiveBinding}
     simp [roleTable_sound association requirement member] at fails
   · split at explained <;> cases explained
 
+theorem explainPrimitive_result {env : Environment} {binding : PrimitiveBinding}
+    {allowed : List ObjectRef} {brand : Nat} {operands : List ValueType} {result : ValueType}
+    (explained : explainPrimitive env binding allowed brand operands result = some .result) :
+    validValueType env result = false := by
+  unfold explainPrimitive at explained
+  revert explained
+  split
+  · simp
+  · split
+    · simp
+    · split
+      · simp
+      · split <;> simp_all
+
 private def withArticle (role : String) : String :=
   (if "aeiou".contains role.front then "an " else "a ") ++ role
+
+private def qualifiedName (id : DeclId) : String :=
+  String.intercalate "::" (id.scope.package.name :: id.scope.path ++ [id.name])
+
+/-- Labels for two declarations; equal short names are qualified until they differ. -/
+private def declarationLabels (expected actual : DeclId) : String × String :=
+  if expected == actual || expected.name != actual.name then (expected.name, actual.name)
+  else if qualifiedName expected != qualifiedName actual then (qualifiedName expected, qualifiedName actual)
+  else (s!"{qualifiedName expected} in {expected.scope.package.source}",
+    s!"{qualifiedName actual} in {actual.scope.package.source}")
+
+/-- Labels for two objects; distinct objects with equal labels are told apart
+by their declarations or introduction sites. -/
+private def objectLabels (env : Core.Declarations) (geometry : Option (GeometryProfile DeclId))
+    (origins : Origins) (expected actual : ObjectRef) : String × String :=
+  let label := objectLabel env geometry origins
+  if expected == actual || label expected != label actual then (label expected, label actual)
+  else match expected, actual with
+    | .global e, .global a => declarationLabels e a
+    | _, _ =>
+      let precise (reference : ObjectRef) := match reference with
+        | .global id => qualifiedName id
+        | .local _ brand => match origins[brand]? with
+          | some source => s!"{label reference} introduced at {source.span.line}:{source.span.column}"
+          | none => s!"{label reference} (object {brand})"
+      (precise expected, precise actual)
 
 /-- The primary message for an explained failure of the primitive `primitive`. -/
 def explainFailure (env : Core.Declarations) (geometry : Option (GeometryProfile DeclId))
     (origins : Origins) (primitive resultLabel : String) : PrimitiveFailure → String
-  | .binding => s!"primitive '{primitive}' is not bound to a valid capability or family contract"
-  | .result => s!"{primitive} would produce {resultLabel}, which is not a valid instance of its family"
+  | .binding => s!"{primitive} is not bound to a valid capability or family contract"
+  | .result => s!"{primitive} would produce {resultLabel}, which is not a valid type"
   | .role (.family role expected actual) =>
-    s!"{primitive} requires {withArticle role} of family {familyLabel geometry expected}, " ++
-      s!"but the supplied {role} has family {familyLabel geometry actual}"
+    let (wanted, found) := declarationLabels expected actual
+    s!"{primitive} requires {withArticle role} of family {wanted}, but the supplied {role} has family {found}"
   | .role (.object role field expected actual reason) =>
-    let label := objectLabel env geometry origins
+    let (wanted, found) := objectLabels env geometry origins expected actual
     let coefficient := match expected.type? env.indexed, actual.type? env.indexed with
-      | some wanted, some found =>
-        if wanted.marker == found.marker then ""
-        else s!", whose coefficient marker {found.marker.name} differs from {wanted.marker.name}"
+      | some wantedType, some foundType =>
+        if wantedType.marker == foundType.marker then ""
+        else s!", whose coefficient marker {foundType.marker.name} differs from {wantedType.marker.name}"
       | _, _ => ""
-    s!"{primitive} requires {withArticle role} with {field} {label expected} ({reason}), " ++
-      s!"but the supplied {role} has {field} {label actual}{coefficient}"
+    s!"{primitive} requires {withArticle role} with {field} {wanted} ({reason}), " ++
+      s!"but the supplied {role} has {field} {found}{coefficient}"
   | .role (.marker role reference expected actual) =>
-    s!"{primitive} requires {withArticle role} with coefficient marker {expected.name}, " ++
-      s!"but the supplied {role} {objectLabel env geometry origins reference} has coefficient marker {actual.name}"
+    let (wanted, found) := declarationLabels expected actual
+    s!"{primitive} requires {withArticle role} with coefficient marker {wanted}, " ++
+      s!"but the supplied {role} {objectLabel env geometry origins reference} has coefficient marker {found}"
   | .role (.domain role reference expected actual) =>
-    s!"{primitive} requires {withArticle role} whose domain lies within {expected.domain.name}, " ++
-      s!"but the supplied {role} {objectLabel env geometry origins reference} has domain {actual.domain.name}"
+    let (wanted, found) := declarationLabels expected.domain actual.domain
+    s!"{primitive} requires {withArticle role} whose domain lies within {wanted}, " ++
+      s!"but the supplied {role} {objectLabel env geometry origins reference} has domain {found}"
 
 end VastitasKernel.Indexed.Source.Diagnostics

@@ -15,8 +15,9 @@ produced it:
   is rejected.
 
 That a two-sided inverse makes the form nondegenerate, and that a positive
-`L D Lᵀ` factorization makes it positive definite, are proved in the mathlib
-bridge. -/
+`L D Lᵀ` factorization makes it positive definite, are statements about real
+bilinear forms. They are planned for the mathlib bridge (Stage 3 step S7a,
+#604) and are not proved here. -/
 namespace VastitasOracle.SmoothMetrics
 
 open VastitasKernel.SmoothRuntime VastitasKernel.SmoothDeclarations
@@ -88,6 +89,16 @@ theorem certifyRiemannian_sound {n : Nat} {gram lower lowerInverse : Matrix} {pi
         obtain ⟨rfl, rfl, rfl⟩ := h
         exact hc
       · simp [hc] at h; cases h
+
+/-- An accepted smooth map is well formed, and conversely: declaration
+acceptance discharges the bridge's `WellFormed` hypothesis. -/
+theorem checkMap_ok_iff (source target : Nat) (map : VastitasKernel.AlgebraRuntime.Map) :
+    checkMap source target map = .ok () ↔ wellFormed source target map = true := by
+  unfold checkMap wellFormed
+  by_cases ha : map.arity = source <;> by_cases hb : map.basis.isEmpty = true <;>
+    by_cases hl : map.images.length = target <;>
+    by_cases hc : map.images.all (VastitasKernel.AlgebraRuntime.Poly.canonical source) = true <;>
+    simp [ha, hb, hl, hc, bind, Except.bind, pure, Except.pure, throw, throwThe, MonadExceptOf.throw]
 
 theorem dot_replicate_zero : ∀ (n : Nat) (vector : List Rat), dot (List.replicate n 0) vector = 0
   | 0, _ => by simp [dot]

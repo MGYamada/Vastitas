@@ -383,12 +383,26 @@ rev = "v4.35.0"
 name = "mathlib"
 git = "{url}"
 rev = "{revision}"
+
+[[require]]
+name = "vastitas_kernel"
+path = "../lean-kernel"
+
+[[require]]
+name = "vastitas_oracle"
+path = "../lean"
 ''')
+        local = [{
+            "type": "path", "scope": "", "name": name,
+            "manifestFile": "lake-manifest.json", "inherited": False,
+            "dir": directory, "copy": False, "configFile": "lakefile.toml",
+        } for name, directory in [("vastitas_oracle", "../lean"),
+                                  ("vastitas_kernel", "../lean-kernel")]]
         self.write("lean-bridge/lake-manifest.json", json.dumps({"packages": [{
             "name": "mathlib", "type": "git", "url": url, "rev": revision,
             "inherited": False, "subDir": None,
-        }]}))
-        self.write("lean-bridge/VastitasBridge.lean", "module\npublic import Mathlib\n")
+        }] + local}))
+        self.write("lean-bridge/VastitasBridge.lean", "import Mathlib\n")
 
     def test_optional_bridge_does_not_relax_compiler_or_oracle_boundary(self):
         self.oracle_package()
@@ -401,8 +415,53 @@ rev = "{revision}"
                 self.assert_boundary_error(f"{path}: forbidden import VastitasBridge")
                 self.assert_boundary_error(f"{path}: forbidden import Mathlib")
                 (self.root / path).unlink()
-        self.write("lean-bridge/VastitasBridge.lean", "import VastitasKernel.Runtime\n")
-        self.assert_boundary_error("lean-bridge/VastitasBridge.lean: forbidden import")
+        for source in ["import VastitasPromotion.Fixture\n", "import Lake\n",
+                       "import VastitasBridgeExtra\n", "import VastitasOracleExtra\n"]:
+            with self.subTest(source=source):
+                self.write("lean-bridge/VastitasBridge.lean", source)
+                self.assert_boundary_error("lean-bridge/VastitasBridge.lean: forbidden import")
+
+    def test_bridge_may_read_kernel_and_oracle_one_way(self):
+        self.oracle_package()
+        self.bridge_package()
+        self.write("lean-bridge/VastitasBridge/Kernel.lean",
+                   "import VastitasKernel.AlgebraRuntime\nimport VastitasOracle.AlgebraBasis\n"
+                   "import Mathlib\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean/VastitasOracle/Leak.lean", "import VastitasBridge.Kernel\n")
+        self.assert_boundary_error("lean/VastitasOracle/Leak.lean: forbidden import VastitasBridge")
+
+    def test_bridge_path_dependencies_are_exactly_kernel_and_oracle(self):
+        self.oracle_package()
+        self.bridge_package()
+        path = self.root / "lean-bridge/lake-manifest.json"
+        original = path.read_text()
+        for index in [1, 2]:
+            for changes in [
+                {"dir": "../lean-bridge"}, {"dir": "../other"}, {"name": "wrapper"},
+                {"copy": True}, {"inherited": True}, {"configFile": "lakefile.lean"},
+                {"manifestFile": "unchecked.json"}, {"scope": "leanprover-community"},
+            ]:
+                with self.subTest(index=index, changes=changes):
+                    manifest = json.loads(original)
+                    manifest["packages"][index].update(changes)
+                    path.write_text(json.dumps(manifest))
+                    self.assert_boundary_error("path dependencies must be exactly")
+        for packages in [lambda p: p[:2], lambda p: p + [dict(p[1], name="vastitas_extra")]]:
+            with self.subTest(packages=packages):
+                manifest = json.loads(original)
+                manifest["packages"] = packages(manifest["packages"])
+                path.write_text(json.dumps(manifest))
+                self.assert_boundary_error("path dependencies must be exactly")
+        path.write_text(original)
+        config = self.root / "lean-bridge/lakefile.toml"
+        original = config.read_text()
+        for old, new in [('path = "../lean"\n', 'path = "../lean-bridge"\n'),
+                         ('name = "vastitas_oracle"\npath = "../lean"\n', ""),
+                         ('path = "../lean-kernel"', 'git = "https://example.org/kernel.git"')]:
+            with self.subTest(old=old):
+                config.write_text(original.replace(old, new))
+                self.assert_boundary_error("and the local ../lean-kernel and ../lean packages")
 
     def test_bridge_cannot_redirect_or_unpin_mathlib(self):
         self.bridge_package()
@@ -432,11 +491,14 @@ rev = "{revision}"
         manifest["packages"].append(inherited)
         path.write_text(json.dumps(manifest))
         self.assertEqual(check_boundaries(self.root), [])
-        for changes in [{"rev": "main"}, {"type": "path"}, {"inherited": False}]:
+        for changes in [{"rev": "main"}, {"type": "svn"}, {"inherited": False}]:
             with self.subTest(changes=changes):
                 manifest["packages"][-1] = inherited | changes
                 path.write_text(json.dumps(manifest))
                 self.assert_boundary_error("lock every dependency")
+        manifest["packages"][-1] = inherited | {"type": "path"}
+        path.write_text(json.dumps(manifest))
+        self.assert_boundary_error("path dependencies must be exactly")
         manifest["packages"][-1] = manifest["packages"][0]
         path.write_text(json.dumps(manifest))
         self.assert_boundary_error("duplicate package names")

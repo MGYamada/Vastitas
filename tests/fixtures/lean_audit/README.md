@@ -4,7 +4,8 @@ for the Lean proposition:
 theorem Vastitas.idProp : ∀ (P : Prop), P → P := fun _ h => h
 ```
 The nodes are hand-assembled from the documented NDJSON format and are
-checked against nanoda by the integration test. The header follows the
+checked by the integration test with the `nanoda_bin` shipped with the
+pinned Lean 4.35.0 toolchain. The header follows the
 format-3.1.0 example from ammkrn/nanoda_lib; its historical Lean version
 metadata is illustrative, not an attestation that this proof was exported
 by that compiler. Production users provide exports generated with

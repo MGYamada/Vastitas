@@ -322,47 +322,95 @@ across the remaining correspondence boundary. No new unproved axiom is used.
 
 ## Independent internal Lean export audit (v0.1.0 gate)
 
-The Rust compiler can use the third-party `nanoda_lib` library for an opt-in
-cross-check of an already generated `lean4export` NDJSON proof environment.
-`vastitas audit-lean EXPORT.ndjson` reads the export and invokes the linked
-Rust checker in a separate worker process. A completed receipt reports
-`internal_only`, scope `relative_to_supplied_environment`,
-`axiom_environment_authenticated: false`, and the counts of declarations and
-exported axioms in the actual parsed environment. It **must not**
-be interpreted as `kernel_verified` or as successful public source/IR
-acceptance, a completed constitutional theorem, or checked native refinement.
+`vastitas audit-lean EXPORT.ndjson` is an opt-in cross-check of an already
+generated `lean4export` NDJSON proof environment. It runs the third-party
+external checker `nanoda_bin` that the official Lean release toolchain
+distributes. Vastitas neither bundles nor builds a checker
+([#539](https://github.com/MGYamada/Vastitas/issues/539)). That Lean distributes
+nanoda does **not** make nanoda the official Lean kernel. A completed receipt
+names the checker, its toolchain and the declaration count, and states that the
+result is internal-only, conditional on the supplied environment, and not
+authenticated against the standard Lean axioms. It **must not** be interpreted
+as `kernel_verified` or `official_kernel_checked`, as successful public
+source/IR acceptance, a completed constitutional theorem, or checked native
+refinement.
 
-The policy in `config/nanoda-internal-audit.json` allows exactly three
-axiom **names**: `propext`, `Classical.choice`, and `Quot.sound`.
-It does not authenticate their statements or referenced environment as the
-standard Lean axioms. For example, a supplied `propext : ∀ P : Prop, P` can be
-well-typed as an assumption and pass this name policy, but proves nothing under
-the standard Lean assumptions. The CLI therefore reports a **conditional**
-check relative to the supplied environment, even for exports with no axioms;
-it never reports that the standard axiom environment was verified. The
-regression exercises this spoofed name and the actual worker receipt.
-`unpermitted_axiom_hard_error` is true, and `unsafe_permit_all_axioms`
-is false. This deliberately rejects even *unused* exported declarations of
-other axioms. `sorryAx` and `Lean.trustCompiler` are not whitelisted;
-any relaxation requires explicit constitutional review. In Lean 4.35.0,
-`Lean.trustCompiler` was removed. An ordinary Lean/Mathlib environment
-containing other declarations of axioms may fail this strict export policy
-even when the intended theorem does not use those axioms; prepare an
-appropriately scoped export instead of silently weakening the policy.
+**Distribution and identity.** The checker is the `bin/nanoda_bin` of the
+pinned `leanprover/lean4:v4.35.0` toolchain in the elan directory under
+`ELAN_HOME` (default `~/.elan`), as Lake locates its bundled checkers. It is
+never taken from `PATH`. Before checking an export, Vastitas requires:
 
-The compiler bundles nanoda_lib 0.4.31 at [its pinned revision](https://github.com/ammkrn/nanoda_lib/tree/8de7e0c4ed3052745a7f8725164efd9e76d84c56). It accepts the
-`lean4export` 3.1.x format. The included minimal theorem fixture is hand-assembled from documented
-format 3.1.0 nodes (with illustrative historical metadata); the compiler
-and official proof projects remain pinned to Lean 4.35.0. Building and invoking `audit-lean` does not require
-the `lean/` proof oracle project. Because nanoda's parser/checker may
-panic or exit on malformed or rejected exports, the driver supervises a
-separate worker and converts such outcomes into audit errors.
+- the toolchain directory exists, and its `lean` and `nanoda_bin` are regular
+  executable files in its own `bin` directory;
+- `lean --version` reports exactly version 4.35.0, release commit
+  `eb6cafb7290e8bd5f2937522d8d804f58f02bafc`, and this host's platform
+  (macOS or Linux, arm64/aarch64 or x86_64);
+- `nanoda_bin --help` reports `nanoda_bin 0.4.19`, the version Lean 4.35.0
+  builds from nanoda commit `3a24072` with upstream's release profile
+  (overflow checks on).
+
+Any other outcome is an `E_LEAN_AUDIT_CHECKER` error. There is no Cargo,
+source-download or alternate-checker fallback. These checks detect missing,
+stale, foreign-platform and mismatched installations. They rely on the
+binaries' own version reports and do not authenticate the files against local
+tampering: the installed toolchain is trusted exactly as the official-kernel
+path trusts it. The pinned identity lives in `src/internal_lean_audit.rs`, and a
+unit test requires it to match every checked-in `lean-toolchain` file, so a
+toolchain bump must update it.
+
+**Policy and protocol.** `config/nanoda-internal-audit.json` is an upstream
+nanoda configuration without its export path. Vastitas adds the absolute
+`export_file_path`, writes the file to a private temporary directory and runs
+`nanoda_bin CONFIG` there. Upstream ignores unknown configuration keys, so the
+driver rejects a policy with any key outside its reviewed set. The policy allows
+exactly three axiom **names**: `propext`, `Classical.choice`, and `Quot.sound`.
+`unpermitted_axiom_hard_error` is true, and `unsafe_permit_all_axioms` is false.
+This deliberately rejects even *unused* exported declarations of other axioms.
+`sorryAx` and `Lean.trustCompiler` are not whitelisted; any relaxation requires
+explicit constitutional review. In Lean 4.35.0, `Lean.trustCompiler` was
+removed. An ordinary Lean/Mathlib environment containing other declarations of
+axioms may fail this strict export policy even when the intended theorem does
+not use those axioms. Prepare an appropriately scoped export instead of
+silently weakening the policy.
+
+The name policy does not authenticate statements or the referenced
+environment. For example, a supplied `propext : ∀ P : Prop, P` is well-typed
+as an assumption and passes the policy, and a theorem that every proposition
+holds then checks against it. It proves nothing under the standard Lean
+assumptions. nanoda also compares rendered names, so a single-component name
+spelled `Classical.choice` passes as well. The CLI therefore reports a
+**conditional** check relative to the supplied environment, even for exports
+with no axioms. It never reports that the standard axiom environment was
+verified. Regressions exercise both spoofs, unsafe and duplicate declarations
+of allowed names, and unpermitted names.
+
+**Supervision.** nanoda runs in its own process group under the compiler's
+supervised capture. Rejection, panic, crash or an unexpected report becomes an
+`E_LEAN_AUDIT` error with the checker's exit status and a bounded diagnostic
+excerpt whose control and bidirectional formatting characters are escaped.
+Success requires nanoda's exact success message with at least one declaration
+and no diagnostics. An interrupt stops and reaps the checker. Like the compiler
+backend, a live checker has no wall-clock limit. The included minimal theorem
+fixture is hand-assembled from documented format 3.1.0 nodes (with illustrative
+historical metadata). Building and invoking `audit-lean` does not require the
+`lean/` proof oracle project or Mathlib.
+
+**Differences from the former bundled checker.** Until #539, Vastitas
+compiled a vendored copy of nanoda_lib 0.4.31. The maintainer accepted the
+toolchain's 0.4.19 without a parity gate. Known differences are findings, not
+gates: 0.4.19 has no `stack_size_bytes` option and checks serially on the main
+thread with the operating system's default stack, so a deeply nested but valid
+export can fail closed with a stack overflow. Later upstream hardening
+(quotients, recursors and projections) is absent until a Lean toolchain ships
+it.
 
 **Trust separation:**
 
 - GitHub CI proof/axiom audit, independent `lean-kernel/` compilation,
   the public `check`/`build` checker and the constitutional CS/MS/CF proof
   obligations retain the **official Lean kernel** as the sole authority.
+  The planned Official mode ([#282](https://github.com/MGYamada/Vastitas/issues/282))
+  still requires the official kernel; nanoda never satisfies it.
 - nanoda checks a *supplied* proof term for independent diagnostic feedback.
   It does not generate a proof or elaborate Mathlib source itself.
 - A future proof-carrying compilation path must bind the exported theorem,

@@ -300,49 +300,54 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
   cases binding with
   | metricFlat | metricSharp => exact absurd free id
   | origin domain family base =>
-    simp only [validPrimitiveBinding, originContract, supports_append ext,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, originContract, supports_append ext,
       familyRepresentation_append ext family (by decide : FamilyRepresentation.point ≠ _)]
     cases point : familyRepresentation small family == some .point
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_familyRepresentation point)]
   | identity domain family =>
-    simp only [validPrimitiveBinding, identityContract, objectTypeValid_append ext,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, identityContract, objectTypeValid_append ext,
       familyRepresentation_append ext family (by decide : FamilyRepresentation.morphism ≠ _)]
     cases morphism : familyRepresentation small family == some .morphism
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_familyRepresentation morphism)]
   | smoothConstant application map =>
-    simp only [validPrimitiveBinding, smoothConstantValid, isSmoothFamily_append ext,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+      smoothConstantValid, isSmoothFamily_append ext,
       smoothEndpoints_append ext]
     cases smooth : isSmoothFamily small application.family
     · simp
     · simp only [validApplication_of_found ext (application := application) (found_of_isSmoothFamily smooth)]
   | smoothIntPoint family object point =>
-    simp only [validPrimitiveBinding, smoothIntPointValid, isSmoothFamily_append ext,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+      smoothIntPointValid, isSmoothFamily_append ext,
       smoothDimension_append ext]
     cases smooth : isSmoothFamily small family
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_isSmoothFamily smooth)]
   | fiberVector family smooth object =>
-    simp only [validPrimitiveBinding, fiberVectorValid, fiberVariance_append ext, isSmoothFamily_append ext,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+      fiberVectorValid, fiberVariance_append ext, isSmoothFamily_append ext,
       smoothDimension_append ext]
     cases fiber : (fiberVariance? small family).isSome
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_fiberVariance fiber)]
   | fiberComponent family object coordinate =>
-    simp only [validPrimitiveBinding, fiberComponentValid, fiberVariance_append ext, smoothArity_append ext]
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+      fiberComponentValid, fiberVariance_append ext, smoothArity_append ext]
     cases fiber : (fiberVariance? small family).isSome
     · simp
     · simp only [validApplication_mk_of_found ext (found_of_fiberVariance fiber)]
   | compose family =>
-    simp only [validPrimitiveBinding,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract,
       familyRepresentation_append ext family (by decide : FamilyRepresentation.morphism ≠ _)]
   | apply maps points =>
-    simp only [validPrimitiveBinding,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract,
       familyRepresentation_append ext maps (by decide : FamilyRepresentation.morphism ≠ _),
       familyRepresentation_append ext points (by decide : FamilyRepresentation.point ≠ _)]
   | _ =>
-    simp only [validPrimitiveBinding, implementationType_append ext, affineImplementation_append ext,
+    simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+      implementationType_append ext, affineImplementation_append ext,
       objectTypeValid_append ext, affineGlobal_append ext, refValid_append ext, supports_append ext,
       relativeConstantValid_append ext, isRelativeFamily_append ext, onChain_append ext,
       affineData_append ext, affineArity_append ext, freeAffine_append ext, pointBase_append ext,

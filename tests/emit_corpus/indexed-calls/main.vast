@@ -1,0 +1,18 @@
+mod geo;
+
+// The Stage 1 example with the two primitives it declares but never calls:
+// the global base object and the composite of two morphisms. The emit golden
+// pins their lowering.
+fn make(n: Nat) -> geo::Pointed<geo::Scheme, geo::QQ> {
+    let X = geo::affine(n);
+    pack geo::Pointed<geo::Scheme, geo::QQ> { witness: X, fields: [geo::origin(X)] }
+}
+
+fn main() -> Int {
+    let packed = make(41);
+    unpack packed as { witness: Y, fields: [p] };
+    let base = geo::baseObject();
+    let q: geo::Point<Y, geo::Base> = geo::apply(geo::compose(geo::identity(Y), geo::identity(Y)), p);
+    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
+    increment(int(geo::dimension(Y))) + int(geo::dimension(base))
+}

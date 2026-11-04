@@ -1866,7 +1866,8 @@ fn smooth_forms_select_protocol_nine_and_older_envelopes_reject_them() {
 
 #[test]
 fn acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically() {
-    // A seed over the plane for the composite program on the line.
+    // A seed over the plane for the composite program on the line. The
+    // message names the seed's role and the expected and actual objects.
     let stderr = rejects_acceptance(
         &with_acceptance(
             "fn bad() -> Bool { lies_over(pullback(compose(g(), f()), line_at(3), dplane(plane_at(3, 9), 1, 0)), line_at(3)) }",
@@ -1874,7 +1875,7 @@ fn acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically() {
         "E_ENDPOINT",
     );
     assert!(
-        stderr.contains("Smooth<Line, Line>, Smooth<Pt, Line>, Cotangent<Plane>"),
+        stderr.contains("pullback requires a seed with object Line (the map's target), but the supplied seed has object Plane"),
         "{stderr}"
     );
     // The stepwise pullback's signature fixes the seed's object.

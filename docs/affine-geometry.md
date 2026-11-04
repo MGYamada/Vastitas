@@ -5,8 +5,8 @@ over QQ ([tracker #571](https://github.com/MGYamada/Vastitas/issues/571)). A
 presented affine object stands for an exact QQ-algebra `QQ[g₁, …, gₙ]/I`. The
 compiler parses its polynomial syntax. The independent Lean kernel expands it,
 computes a reduced Gröbner basis and verifies that basis before any code is
-generated. This chapter describes objects and morphisms over a base. Fiber
-products and principal opens follow in later increments of the same tracker.
+generated. This chapter describes objects, morphisms over a base and fiber
+products. Principal opens follow in a later increment of the same tracker.
 
 ## Declaring the profile
 
@@ -118,13 +118,34 @@ checks, builds and prints `42` after confirming:
 - the commuting triangle over `S`;
 - that `sq` at the integer point 3 gives 9.
 
+## Fiber products and base change
+
+```vast
+// X = Spec QQ[t, x]/(x^2 - t) over S = Spec QQ[t], and its fiber over t = 0.
+indexed affine Fiber(AffineQQ) = fiber(X, Origin);
+indexed morphism prX: Over<Fiber, X, S> = first;
+indexed morphism back: Over<Fiber, DS, S> = pullback(e -> X::x);
+indexed cartesian fiberIsDual = square(toX, toOrigin) through Fiber inverse back;
+indexed primitive lift = relative_pair(Over, Fiber);   // the universal map
+```
+
+- **Presentation.** `fiber(L, R)` presents `L ×_B R` over `B`, the base of `L`.
+  - Coordinates are qualified by their factor, for example `X::x`.
+  - The relations are both factors' bases, plus the equation of the two structure maps for each coordinate of `B`.
+  - The kernel derives this presentation, computes its basis, and re-derives it on every audit.
+  - `first` and `second` are the projections.
+- **Universal map.** `relative_pair(Over, P)` combines `Over<T, L, B>` and `Over<T, R, B>` into the universal `Over<T, P, B>`. Both arrows must have the same source and the fiber's base, or the compiler reports `E_ENDPOINT`.
+- **Cartesian squares.** A `cartesian` declaration records that `T` is the fiber product. Its two arrows must target the factors over the fiber's base, and the declared inverse must compose with `pair(first, second)` to the identity both ways. In the example, the fiber of `x² = t` over the origin is `Spec QQ[e]/(e²)`.
+- **Separately declared bases.** Two factors over separately declared bases (here `S` and a copy `S2`) are rejected with `E_AFFINE_BASE` unless the fiber names a checked base isomorphism: `fiber(X, Origin2) via(t -> t) inverse(t -> t)`. Such products have no `pair`.
+- **Isomorphisms.** `indexed iso e = forward f inverse g;` records two declared morphisms that compose to the identity both ways.
+
 ## Diagnostics
 
 | Code | Meaning |
 | --- | --- |
 | `E_AFFINE_BASE` | Missing, cyclic or non-presented base; missing or extra base-coordinate images; a structure map that does not respect the base relations |
 | `E_AFFINE_COORDINATE` | Unknown or duplicate coordinate; zero denominator |
-| `E_AFFINE_RELATION` | A morphism does not respect the target's relations, or a stored basis or certificate fails verification (forged Core) |
+| `E_AFFINE_RELATION` | A morphism does not respect the target's relations; an isomorphism, base isomorphism or Cartesian inverse does not compose to the identity; or a stored basis or certificate fails verification (forged Core) |
 | `E_ENDPOINT` | `compose` or `same` applied to morphisms whose objects or bases do not match |
 | `E_LIMIT` | A bound above was exceeded |
 | `E_PROTOCOL` | An algebraic form in a protocol-7 or protocol-8 envelope, or a malformed record |

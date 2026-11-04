@@ -2,6 +2,7 @@ import VastitasOracle.Core
 import VastitasOracle.AlgebraBasis
 import VastitasOracle.AffineDeclarations
 import VastitasOracle.AffineMorphisms
+import VastitasOracle.AffineFibers
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

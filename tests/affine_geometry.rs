@@ -374,3 +374,63 @@ fn relative_forms_reject_downgrade_and_forged_wire() {
         "E_AFFINE_RELATION",
     );
 }
+
+#[test]
+fn fiber_products_reject_unchosen_bases_non_isomorphisms_and_forged_squares() {
+    for (declaration, code) in [
+        (
+            "indexed affine Bad(AffineQQ) = fiber(X, Origin2);",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed affine Bad(AffineQQ) = fiber(X, Origin2) via(t -> t^2) inverse(t -> t);",
+            "E_AFFINE_RELATION",
+        ),
+        (
+            "indexed morphism badBack: Over<Fiber, DS, S> = pullback(e -> 0);\nindexed cartesian bad = square(toX, toOrigin) through Fiber inverse badBack;",
+            "E_AFFINE_RELATION",
+        ),
+        (
+            "indexed cartesian bad = square(toOrigin, toX) through Fiber inverse back;",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed morphism bad: Over<X, S, S> = first;",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed primitive bad = relative_pair(Over, Fiber2);",
+            "E_TYPE",
+        ),
+    ] {
+        rejects(&with(declaration), code);
+    }
+    // `pair` needs both arrows over the fiber's base with one source.
+    rejects(
+        &with("fn bad() -> Bool { same(lift(toX(), toX()), lift(toX(), toOrigin())) }"),
+        "E_ENDPOINT",
+    );
+}
+
+#[test]
+fn fiber_and_evidence_records_reject_forged_wire() {
+    let raw = request(&fixture(MAIN));
+    let fiber2 = declaration_pointer(&raw, "Fiber2");
+    let square = declaration_pointer(&raw, "fiberIsDual");
+    let mut extra = raw.clone();
+    extra.pointer_mut(&fiber2).unwrap()["basis"] = json!([]);
+    rejected_with(extra, "E_PROTOCOL");
+    let mut extra = raw.clone();
+    extra.pointer_mut(&square).unwrap()["comparison"] = json!([]);
+    rejected_with(extra, "E_PROTOCOL");
+    let mut changed = raw.clone();
+    *changed.pointer_mut(&format!("{fiber2}/via")).unwrap() =
+        json!({"forward": [], "inverse": [], "checked": true});
+    rejected_with(changed, "E_PROTOCOL");
+    // A consistent but non-invertible base map is a mathematical rejection.
+    let mut changed = raw.clone();
+    *changed
+        .pointer_mut(&format!("{fiber2}/via/forward/0/image"))
+        .unwrap() = json!({"op": "natural", "value": "0"});
+    rejected_with(changed, "E_AFFINE_RELATION");
+}

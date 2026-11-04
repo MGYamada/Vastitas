@@ -1660,3 +1660,48 @@ this profile:
   a mutation that changes the native result, endpoint errors, and forged wire.
 
 Native execution is tested, not proved.
+
+### Fiber products and Cartesian evidence (Stage 2 S5)
+
+`fiber(L, R)` stores a `Construction.fiber` whose presentation the audit
+re-derives from the factors' stored data on every check (`checkConstruction`).
+The presentation consists of:
+
+- the qualified coordinates;
+- both bases, embedded;
+- the equation of the two structure maps;
+- the left structure map.
+
+A product over separately declared bases needs a `via` isomorphism, which is
+checked to respect relations and to compose to the identity both ways
+(`checkIso`).
+
+Evidence bindings are never callable:
+
+- `relativeIso` records two valid declared morphisms that are mutually
+  inverse.
+- `relativeCartesian` records two arrows that target the fiber's factors over
+  its base, and a declared inverse of `pair(first, second)` on both sides.
+
+`relativePair` is total and typed, and erases to `Map.pair`.
+
+The following oracle theorems hold:
+
+- `VastitasOracle.AffineFibers.checkConstruction_fiber`: accepted fiber data
+  is the derived presentation.
+- `AffineFibers.cartesian_sound`: the exact identities above.
+- `relativePair_total`, together with the extended erasure theorem.
+
+`AffineFiberRegression` covers:
+
+- the fiber of `x² = t` over 0, with basis `[x², t]`;
+- the projections;
+- a `via` product;
+- `pair`;
+- eleven rejections;
+- five tampered-Core cases.
+
+`tests/affine_geometry.rs` executes `pair` and the projections natively, and
+rejects forged fiber and evidence wire. That the presented fiber is the
+categorical pullback, `IsPullback` for `Spec`, is a mathematical statement for
+the bridge.

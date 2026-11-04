@@ -92,6 +92,9 @@ inductive MorphismDefinition where
   /-- The projections of a fiber product onto its factors. -/
   | first
   | second
+  /-- `D(φ^#(f)) → D(f)` for a declared morphism `φ : Y → X` and `D(f) ⊂ X`:
+  the action of `φ` on the structure sheaf over a principal open. -/
+  | restrict (morphism : Path)
   deriving Repr, Inhabited
 
 inductive Body where
@@ -111,6 +114,8 @@ inductive Body where
   /-- `fiber(left, right) [via(b ↦ p, …) inverse(b' ↦ p, …)]` over `left`'s base. -/
   | affineFiber (implementation : Path) (left right : Path)
       (via : Option (List (String × PolyExpr) × List (String × PolyExpr)))
+  /-- `localize(object, element) inverse u`: the principal open `D(element)`. -/
+  | affineLocalization (implementation : Path) (object : Path) (element : PolyExpr) (inverse : String)
   /-- `iso name = forward f inverse g`: two declared morphisms, mutually inverse. -/
   | iso (forward backward : Path)
   /-- `cartesian name = square(first, second) through fiber inverse h`. -/

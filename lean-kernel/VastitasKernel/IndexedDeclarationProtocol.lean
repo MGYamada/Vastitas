@@ -137,6 +137,7 @@ def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := d
   | "structure" => fields j ["kind"]; return .structureMap
   | "first" => fields j ["kind"]; return .first
   | "second" => fields j ["kind"]; return .second
+  | "restrict" => fields j ["kind", "morphism"]; return .restrict (← path (← field j "morphism"))
   | _ => throw "unknown morphism definition"
 
 def primitive (j : Json) (algebraic : Bool := false) : Except String Source.Primitive := do
@@ -251,6 +252,11 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
         pure (some (← (← array value "forward").mapM binding, ← (← array value "inverse").mapM binding))
     return .affineFiber (← path (← field j "implementation")) (← path (← field j "left"))
       (← path (← field j "right")) via
+  | "affine_localization" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j (common ++ ["implementation", "object", "element", "inverse"])
+    return .affineLocalization (← path (← field j "implementation")) (← path (← field j "object"))
+      (← polyExpr Limits.algebraNesting (← field j "element")) (← str j "inverse")
   | "iso" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["forward", "inverse"])

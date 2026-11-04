@@ -123,11 +123,20 @@ def elaborateOne (finished : List (DeclId × AffineData)) (data : AffineData) (b
     let presentation := AlgebraDeclarations.fiberPresentation left right l r b via
     AlgebraDeclarations.elaborate presentation.generators presentation.relations presentation.base
       presentation.bindings (some b) (.fiber left right via presentation.relations)
+  | .localization object _ inverse _ =>
+    let some x := find object | throw (.base "a principal open needs a presented affine object")
+    let some (.affineLocalization _ _ element _) := body
+      | throw (.base "missing principal open source")
+    let element ← run (element.evaluate x.generators)
+    let presentation := AlgebraDeclarations.localizationPresentation object x element inverse
+    AlgebraDeclarations.elaborate presentation.generators presentation.relations presentation.base
+      presentation.bindings (some x) (.localization object element inverse presentation.relations)
 
 def _root_.VastitasKernel.AlgebraDeclarations.AffineData.dependencies (data : AffineData) : List DeclId :=
   match data.construction with
   | .presented _ => data.base.toList
   | .fiber left right _ _ => [left, right]
+  | .localization object _ _ _ => [object]
 
 /-- Elaborate every presented object in dependency order. -/
 def elaborateAffine (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
@@ -183,8 +192,8 @@ def monomialOf (coordinates : List String) (e : PolyExpr) : Except Error (List N
   | _ => throw (.coordinate "a coefficient selector must be a single monomial with coefficient one")
 
 /-- Compute the exact pullback map of a declared morphism `X → Y` over `S`. -/
-def morphismMap (env : Environment) (application : Application) (definition : MorphismDefinition) :
-    Except Error Map := do
+def morphismMap (env : Environment) (application : Application) (definition : MorphismDefinition)
+    (restricted : Option (Application × Map) := none) : Except Error Map := do
   let [.object (.global x), .object (.global y), .object (.global s)] := application.indices
     | throw (.base "a morphism over a base names three declared objects")
   let some dx := affineData? env x | throw (.base "the source is not a presented affine object")
@@ -197,6 +206,20 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
       match structureImages? env x y with
       | some images => pure images
       | none => throw (.base "the target is not on the source's base chain")
+    | .restrict _ =>
+      let some (phiType, phi) := restricted | throw (.base "restrict names a declared morphism")
+      let .localization y g _ _ := dx.construction
+        | throw (.base "restrict needs a principal open as its source")
+      let .localization x f _ _ := dy.construction
+        | throw (.base "restrict needs a principal open as its target")
+      let some (phiSource, phiTarget, _) := objectsOf phiType
+        | throw (.base "restrict names a morphism over a base")
+      unless phiSource == y && phiTarget == x do
+        throw (.base "the restricted morphism must map the source's object to the target's object")
+      let some ySource := affineData? env y | throw (.base "the source object is not presented")
+      unless normalForm ySource.basis (Poly.subst ySource.arity phi.images f) == normalForm ySource.basis g do
+        throw (.base "the source open is not the preimage of the target open")
+      pure ((phi.images.map (AlgebraDeclarations.embed 0 dx.arity)) ++ [Poly.var dx.arity ySource.arity])
     | .first | .second =>
       let .fiber left right _ _ := dx.construction
         | throw (.base "a projection's source must be a fiber product")
@@ -225,12 +248,13 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
   pure map
 
 /-- Elaborate declared morphisms and coefficient selectors once objects are known. -/
-def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
-    Namespace.Result Core.Declarations := do
+def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Declarations)
+    (restrictTargets : List (DeclId × DeclId) := []) : Namespace.Result Core.Declarations := do
   let mut primitives := []
   for entry in env.primitives do
     let some (_, span, body) := sources.find? (·.1 == entry.id) | primitives := primitives ++ [entry]; continue
     match entry.binding, body with
+    | .relativeConstant _ _, .morphism _ _ (.restrict _) => primitives := primitives ++ [entry]
     | .relativeConstant application _, .morphism _ _ definition =>
       match morphismMap env.indexed application definition with
       | .ok map => primitives := primitives ++ [⟨entry.id, .relativeConstant application map⟩]
@@ -247,11 +271,27 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
         primitives := primitives ++ [⟨entry.id, .relativeCoefficient family source target index exponents⟩]
       | .error error => algebraProblem span error
     | _, _ => primitives := primitives ++ [entry]
-  -- Evidence refers to declared morphisms, which are now elaborated.
-  let constant (id : DeclId) : Option (Application × Map) :=
-    match (primitives.find? (·.id == id)).map (·.binding) with
+  -- Restrictions and evidence refer to declared morphisms, which are now elaborated.
+  let constantIn (table : List Core.NamedPrimitive) (id : DeclId) : Option (Application × Map) :=
+    match (table.find? (·.id == id)).map (·.binding) with
     | some (PrimitiveBinding.relativeConstant application map) => some (application, map)
     | _ => none
+  let declared := primitives
+  let mut restricted := []
+  for entry in primitives do
+    let span := ((sources.find? (·.1 == entry.id)).map (·.2.1)).getD {}
+    match entry.binding, (sources.find? (·.1 == entry.id)).map (·.2.2) with
+    | .relativeConstant application _, some (Body.morphism _ _ (.restrict _)) =>
+      let some target := (restrictTargets.find? (·.1 == entry.id)).map (·.2)
+        | Namespace.problem span "E_TYPE" "restrict names a declared morphism"
+      let some phi := constantIn declared target
+        | Namespace.problem span "E_TYPE" "restrict names a declared, non-restricted morphism"
+      match morphismMap env.indexed application (.restrict ⟨[], {}⟩) (some phi) with
+      | .ok map => restricted := restricted ++ [⟨entry.id, .relativeConstant application map⟩]
+      | .error error => algebraProblem span error
+    | _, _ => restricted := restricted ++ [entry]
+  primitives := restricted
+  let constant := constantIn primitives
   let mut evidence := []
   for entry in primitives do
     let span := ((sources.find? (·.1 == entry.id)).map (·.2.1)).getD {}

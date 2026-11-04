@@ -40,6 +40,21 @@ indexed affine S2(AffineQQ) = spec[t] over SpecQQ;
 indexed affine Origin2(AffineQQ) = spec[] over S2 by(t -> 0);
 indexed affine Fiber2(AffineQQ) = fiber(X, Origin2) via(t -> t) inverse(t -> t);
 
+// Principal opens: D(t) and D(t^2) of the line, and the structure-sheaf action of sq.
+indexed affine Dt(AffineQQ) = localize(Line, t) inverse u;
+indexed affine Dt2(AffineQQ) = localize(Line, t^2) inverse v;
+indexed morphism onOpens: Over<Dt2, Dt, SpecQQ> = restrict(sq);
+indexed primitive inverseImage = relative_coefficient(Over, Dt2, Dt, u, v);
+// The transition D(x) = D(y) of two affine lines by y = 1/x (#104).
+indexed affine L1(AffineQQ) = spec[x] over SpecQQ;
+indexed affine L2(AffineQQ) = spec[y] over SpecQQ;
+indexed affine U1(AffineQQ) = localize(L1, x) inverse xi;
+indexed affine U2(AffineQQ) = localize(L2, y) inverse yi;
+indexed morphism glue: Over<U1, U2, SpecQQ> = pullback(y -> xi, yi -> x);
+indexed morphism unglue: Over<U2, U1, SpecQQ> = pullback(x -> yi, xi -> y);
+indexed iso transition = forward glue inverse unglue;
+indexed affine Nothing(AffineQQ) = localize(Line, 0) inverse z;
+
 indexed primitive eps = relative_coefficient(Over, D, Line, t, e);
 indexed primitive slope = relative_coefficient(Over, Line, Line, t, t);
 // A rational point of the line from runtime integers, and its coordinate.
@@ -63,4 +78,7 @@ fn main() -> Int {
        // The universal map into the fiber recovers both arrows.
        + verdict(same(compose(prX(), lift(toX(), toOrigin())), toX()), 8)
        + verdict(pair_first(fiberX(lift(toX(), toOrigin()))) == 1, 9)
+       // On opens, u pulls back to v: 1/t pulls back to 1/t^2.
+       + verdict(pair_first(inverseImage(onOpens())) == 1, 10)
+       + verdict(same(compose(unglue(), glue()), compose(unglue(), glue())), 11)
 }

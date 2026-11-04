@@ -1705,3 +1705,29 @@ The following oracle theorems hold:
 rejects forged fiber and evidence wire. That the presented fiber is the
 categorical pullback, `IsPullback` for `Spec`, is a mathematical statement for
 the bridge.
+
+### Principal opens and restriction (Stage 2 S6)
+
+`localize(X, f)` stores a `Construction.localization`. The audit re-derives
+its presentation from `X`: `X`'s coordinates and the inverse coordinate, `X`'s
+basis and `u·f − 1`, over `X` by the inclusion.
+
+`restrict(φ)` elaborates the induced map `D(φ^#(f)) → D(f)`. The kernel checks
+that the source open is the preimage, and the generic morphism audit then
+checks relations and both structure maps.
+
+`VastitasOracle.AffineFibers.checkConstruction_localization` proves that an
+accepted open is the derived presentation.
+
+`AffineOpenRegression` covers:
+
+- `D(t)`;
+- `restrict` along `t ↦ t²`;
+- the open inclusion;
+- the #104 transition `D(x) ≅ D(y)`;
+- `D(0)` as the zero ring;
+- seven rejections and three tampered opens.
+
+The example executes `restrict` natively. That `D(f)` is the basic open
+`Scheme.basicOpen`, with `IsLocalization.Away` and preimages, is a
+mathematical statement for the bridge.

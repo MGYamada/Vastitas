@@ -5,8 +5,8 @@ over QQ ([tracker #571](https://github.com/MGYamada/Vastitas/issues/571)). A
 presented affine object stands for an exact QQ-algebra `QQ[g₁, …, gₙ]/I`. The
 compiler parses its polynomial syntax. The independent Lean kernel expands it,
 computes a reduced Gröbner basis and verifies that basis before any code is
-generated. This chapter describes objects, morphisms over a base and fiber
-products. Principal opens follow in a later increment of the same tracker.
+generated. This chapter describes objects, morphisms over a base, fiber products
+and principal opens.
 
 ## Declaring the profile
 
@@ -138,6 +138,27 @@ indexed primitive lift = relative_pair(Over, Fiber);   // the universal map
 - **Cartesian squares.** A `cartesian` declaration records that `T` is the fiber product. Its two arrows must target the factors over the fiber's base, and the declared inverse must compose with `pair(first, second)` to the identity both ways. In the example, the fiber of `x² = t` over the origin is `Spec QQ[e]/(e²)`.
 - **Separately declared bases.** Two factors over separately declared bases (here `S` and a copy `S2`) are rejected with `E_AFFINE_BASE` unless the fiber names a checked base isomorphism: `fiber(X, Origin2) via(t -> t) inverse(t -> t)`. Such products have no `pair`.
 - **Isomorphisms.** `indexed iso e = forward f inverse g;` records two declared morphisms that compose to the identity both ways.
+
+## Principal opens and the structure sheaf
+
+```vast
+indexed affine Dt(AffineQQ) = localize(Line, t) inverse u;      // D(t) = Spec QQ[t, u]/(t u - 1)
+indexed affine Dt2(AffineQQ) = localize(Line, t^2) inverse v;
+indexed morphism onOpens: Over<Dt2, Dt, SpecQQ> = restrict(sq); // D(sq^#(t)) -> D(t)
+```
+
+- **Principal opens.** `localize(X, f) inverse u` presents the principal open
+  `D(f) = Spec A[u]/(u·f − 1)` of `X`. It lies over `X` by the open inclusion,
+  so `Over<Dt, Line, Line> = structure` is that inclusion. `D(0)` is accepted
+  as the zero ring (basis `[1]`).
+- **`restrict(φ)`.** For a declared `φ : Y → X` and `D(f) ⊂ X`, `restrict(φ)`
+  is the induced map `D(φ^#(f)) → D(f)`, with `u ↦ v`. This is the action of
+  `φ` on the structure sheaf over a principal open. The source open must be
+  the preimage `D(φ^#(f))`, otherwise the kernel reports `E_AFFINE_BASE`.
+- **Transitions.** Checked isomorphisms between opens express gluing data. For
+  example, the transition `D(x) ≅ D(y)` given by `y = 1/x`, with
+  `indexed iso transition = forward glue inverse unglue`. Gluing itself,
+  including covers, cocycles and ℙ¹, is not part of this profile (#104, #151).
 
 ## Diagnostics
 

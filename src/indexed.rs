@@ -88,6 +88,13 @@ pub enum DeclarationBody {
         right: TypePath,
         via: Option<FiberVia>,
     },
+    /// The principal open `D(element)` of `object` (protocol 9).
+    AffineLocalization {
+        implementation: TypePath,
+        object: TypePath,
+        element: PolyExpr,
+        inverse: String,
+    },
     /// Evidence that two declared morphisms are mutually inverse.
     Iso {
         forward: TypePath,
@@ -122,6 +129,10 @@ pub enum MorphismDefinition {
     Structure,
     First,
     Second,
+    /// `D(φ^#(f)) → D(f)` for a declared morphism `φ`.
+    Restrict {
+        morphism: TypePath,
+    },
 }
 
 impl DeclarationBody {
@@ -131,6 +142,7 @@ impl DeclarationBody {
             DeclarationBody::Affine { .. }
             | DeclarationBody::Morphism { .. }
             | DeclarationBody::AffineFiber { .. }
+            | DeclarationBody::AffineLocalization { .. }
             | DeclarationBody::Iso { .. }
             | DeclarationBody::Cartesian { .. } => true,
             DeclarationBody::Primitive { binding } => matches!(

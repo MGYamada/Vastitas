@@ -62,17 +62,10 @@ theorem lowered_profile {program : Source.Program} {resolved : Source.Resolved}
     ∃ references, (Source.resolveGeometry program resolved.declarations).run [] =
       .ok (resolved.geometry, references) := by
   simp only [Source.lower, bind, Except.bind] at lowered
-  split at lowered
-  · contradiction
-  · split at lowered
-    · contradiction
-    · split at lowered
-      · contradiction
-      · split at lowered
-        · contradiction
-        · rename_i pair declarationsFrom declarations elaborated relative related geometry geometryFrom
-          cases lowered
-          exact ⟨_, geometryFrom⟩
+  -- Every elaboration step before the geometry export either fails or passes on.
+  repeat' (split at lowered <;> try contradiction)
+  cases lowered
+  exact ⟨_, by assumption⟩
 
 theorem compiler_uses_checked_profile {json : Lean.Json} (accepted : Wire.CheckedInput json requireMain) :
     accepted.checked.compiler.input.body.geometry =

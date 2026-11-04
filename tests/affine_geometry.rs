@@ -434,3 +434,39 @@ fn fiber_and_evidence_records_reject_forged_wire() {
         .unwrap() = json!({"op": "natural", "value": "0"});
     rejected_with(changed, "E_AFFINE_RELATION");
 }
+
+#[test]
+fn principal_opens_and_restrictions_reject_non_preimages_and_non_isomorphisms() {
+    for (declaration, code) in [
+        (
+            "indexed morphism bad: Over<Dt, Dt, SpecQQ> = restrict(sq);",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed morphism bad: Over<Line, Dt, SpecQQ> = restrict(sq);",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed morphism bad: Over<U1, U2, SpecQQ> = pullback(y -> xi, yi -> x^2);\nindexed iso badIso = forward bad inverse unglue;",
+            "E_AFFINE_RELATION",
+        ),
+        (
+            "indexed affine Bad(AffineQQ) = localize(Line, x) inverse w;",
+            "E_AFFINE_COORDINATE",
+        ),
+        (
+            "indexed affine Bad(AffineQQ) = localize(Line, t) inverse t;",
+            "E_AFFINE_COORDINATE",
+        ),
+    ] {
+        rejects(&with(declaration), code);
+    }
+    let raw = request(&fixture(MAIN));
+    let open = declaration_pointer(&raw, "Dt");
+    let mut extra = raw.clone();
+    extra.pointer_mut(&open).unwrap()["basis"] = json!([]);
+    rejected_with(extra, "E_PROTOCOL");
+    let mut changed = raw.clone();
+    changed["version"] = json!(8);
+    rejected_with(changed, "E_PROTOCOL");
+}

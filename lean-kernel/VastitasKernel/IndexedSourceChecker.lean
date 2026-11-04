@@ -84,7 +84,9 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       return { env with packages := env.packages ++ [⟨owner, ← cases.mapM (resolveShape p scope)⟩] }
   | .primitive binding =>
       return { env with primitives := env.primitives ++ [⟨owner, ← resolvePrimitive p scope binding⟩] }
-  | .morphism family indices _ => do
+  | .morphism family indices definition => do
+      if let .restrict morphism := definition then
+        let _ ← resolveId p scope morphism
       -- The exact map is elaborated once objects are known.
       let application : Application :=
         ⟨← resolveId p scope family, ← indices.mapM fun index => return .object (.global (← resolveId p scope index))⟩
@@ -94,6 +96,13 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       let implementation ← resolveId p scope implementation
       let data : AlgebraDeclarations.AffineData := {
         generators := [], construction := .fiber (← resolveId p scope left) (← resolveId p scope right) none [],
+        base := none, bindings := [], structureImages := [], basis := [], cofactors := [] }
+      return add (.affine implementation data)
+  | .affineLocalization implementation object _ inverse => do
+      -- The element is expanded once the object is elaborated.
+      let implementation ← resolveId p scope implementation
+      let data : AlgebraDeclarations.AffineData := {
+        generators := [], construction := .localization (← resolveId p scope object) [] inverse [],
         base := none, bindings := [], structureImages := [], basis := [], cofactors := [] }
       return add (.affine implementation data)
   | .iso forward backward => do
@@ -148,7 +157,13 @@ def lower (p : Program) : Namespace.Result Resolved := do
     resolveBody index entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
   let (declarations, references) ← action.run []
   let declarations ← elaborateAffine (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
+  let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
+    | .morphism _ _ (.restrict morphism) => do
+      let target ← Namespace.resolve index owner.scope morphism.path morphism.span
+      pure (some (owner, target.owner))
+    | _ => pure none
   let declarations ← elaborateRelative (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
+    restrictTargets
   let (geometry, geometryReferences) ← (resolveGeometry p declarations).run []
   return ⟨declarations, references.reverse ++ geometryReferences.reverse, geometry⟩
 

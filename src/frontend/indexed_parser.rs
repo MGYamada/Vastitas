@@ -553,6 +553,20 @@ impl Parser {
         let implementation = self.type_path()?;
         self.expect(")")?;
         self.expect("=")?;
+        if self.consume("localize") {
+            self.expect("(")?;
+            let object = self.type_path()?;
+            self.expect(",")?;
+            let element = self.poly(0)?;
+            self.expect(")")?;
+            self.expect("inverse")?;
+            return Ok(DeclarationBody::AffineLocalization {
+                implementation,
+                object,
+                element,
+                inverse: self.name()?.0,
+            });
+        }
         if self.consume("fiber") {
             self.expect("(")?;
             let left = self.type_path()?;
@@ -621,6 +635,12 @@ impl Parser {
             "structure" => indexed::MorphismDefinition::Structure,
             "first" => indexed::MorphismDefinition::First,
             "second" => indexed::MorphismDefinition::Second,
+            "restrict" => {
+                self.expect("(")?;
+                let morphism = self.type_path()?;
+                self.expect(")")?;
+                indexed::MorphismDefinition::Restrict { morphism }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",

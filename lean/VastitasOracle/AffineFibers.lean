@@ -1,6 +1,7 @@
 import VastitasOracle.AffineMorphisms
 
-/-! Structural soundness of fiber products and Cartesian evidence (Stage 2).
+/-! Structural soundness of fiber products, principal opens and Cartesian
+evidence (Stage 2).
 
 **Fiber products.** An accepted fiber product's stored presentation is exactly
 the one derived from its factors' stored data. Its coordinates are the
@@ -75,6 +76,30 @@ theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner �
     simp only [Bool.and_eq_true, beq_iff_eq] at hc
     exact ⟨l, r, baseRef, b, rfl, rfl, hbase, (by simp [hb]), (fun absurd => by cases absurd),
       hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
+
+/-- An accepted principal open `D(f) ⊂ X` is the presentation derived from `X`:
+`X`'s coordinates and the inverse, `X`'s basis and `u·f − 1`, over `X` by the
+inclusion. -/
+theorem checkConstruction_localization {data : AffineData} {resolve : Namespace.Owner → Option AffineData}
+    {object : Namespace.Owner} {element : Poly} {inverse : String} {relations : List Poly}
+    {s s' : Nat} (construction : data.construction = .localization object element inverse relations)
+    (h : (checkConstruction data resolve).run s = .ok ((), s')) :
+    ∃ x, resolve object = some x ∧
+      data.generators = (localizationPresentation object x element inverse).generators ∧
+      relations = (localizationPresentation object x element inverse).relations ∧
+      data.base = some object ∧
+      data.bindings = (localizationPresentation object x element inverse).bindings := by
+  unfold checkConstruction at h
+  rw [construction] at h
+  simp only at h
+  cases hx : resolve object with
+  | none => simp only [hx] at h; exact (throw_not_ok h).elim
+  | some x =>
+  simp only [hx] at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  have hc := ensure_ok h
+  simp only [Bool.and_eq_true, beq_iff_eq] at hc
+  exact ⟨x, rfl, hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
 
 /-- The exact facts recorded by accepted Cartesian evidence. -/
 theorem cartesian_sound {env : Environment} {first second inverse : Application × Map} {fiber : DeclId}

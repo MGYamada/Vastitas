@@ -32,6 +32,9 @@ inductive Construction where
   `inverse` gives `B'`'s coordinates in `B`'s ring, a checked isomorphism.
   `relations` are the derived relations, re-derived by the audit. -/
   | fiber (left right : Namespace.Owner) (via : Option (List Poly × List Poly)) (relations : List Poly)
+  /-- The principal open `D(f) = Spec A[u]/(u·f − 1)` of `object`, over `object`.
+  `inverse` names the new coordinate `u`. -/
+  | localization (object : Namespace.Owner) (element : Poly) (inverse : String) (relations : List Poly)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure AffineData where
@@ -52,7 +55,7 @@ def arity (data : AffineData) : Nat := data.generators.length
 
 def relations (data : AffineData) : List Poly :=
   match data.construction with
-  | .presented relations | .fiber _ _ _ relations => relations
+  | .presented relations | .fiber _ _ _ relations | .localization _ _ _ relations => relations
 
 def certificate (data : AffineData) : Certificate :=
   ⟨data.arity, data.relations, data.basis, data.cofactors⟩
@@ -161,6 +164,17 @@ def checkIso (b b' : AffineData) (forward inverse : List Poly) : Work Unit := do
       (Map.identity b.arity b.basis).images)
     (.relation "the base maps are not mutually inverse")
 
+/-- The derived presentation of a principal open `D(f) ⊂ X`: `X`'s coordinates and
+the inverse `u`, `X`'s basis and `u·f − 1`, over `X` by the inclusion. -/
+def localizationPresentation (owner : Namespace.Owner) (x : AffineData) (element : Poly) (inverse : String) :
+    FiberPresentation :=
+  let total := x.arity + 1
+  { generators := x.generators ++ [inverse]
+    relations := x.basis.map (embed 0 total) ++
+      [Poly.sub (Poly.mul (Poly.var total x.arity) (embed 0 total element)) (Poly.one total)]
+    base := some owner
+    bindings := x.generators.zip ((List.range x.arity).map (Poly.var total)) }
+
 /-- Re-derive a constructed object's presentation from the stored data of the
 declarations it is built from. -/
 def checkConstruction (data : AffineData) (resolve : Namespace.Owner → Option AffineData) : Work Unit := do
@@ -183,6 +197,13 @@ def checkConstruction (data : AffineData) (resolve : Namespace.Owner → Option 
     ensure (data.generators == expected.generators && relations == expected.relations &&
         data.base == expected.base && data.bindings == expected.bindings)
       (.base "the stored fiber presentation is not derived from its factors")
+  | .localization object element inverse relations =>
+    let some x := resolve object | throw (.base "a principal open needs a presented affine object")
+    ensure (Poly.canonical x.arity element) (.coordinate "the localized element is not a polynomial in the object's coordinates")
+    let expected := localizationPresentation object x element inverse
+    ensure (data.generators == expected.generators && relations == expected.relations &&
+        data.base == expected.base && data.bindings == expected.bindings)
+      (.base "the stored principal open is not derived from its object")
 
 def validConstruction (data : AffineData) (resolve : Namespace.Owner → Option AffineData) : Bool :=
   (run (checkConstruction data resolve)).isOk

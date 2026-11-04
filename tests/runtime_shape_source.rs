@@ -2,7 +2,6 @@ mod common;
 
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const PROFILES: &str = include_str!("../examples/packages/numerical/src/profiles/mod.vast");
@@ -191,20 +190,7 @@ fn command(scratch: &Scratch, mode: &str) -> Command {
 }
 
 fn request(scratch: &Scratch) -> Value {
-    let capture = scratch.write(
-        "capture",
-        "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n",
-    );
-    std::fs::set_permissions(&capture, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = command(scratch, "check")
-        .env("VASTITAS_KERNEL", capture)
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    serde_json::from_slice(&std::fs::read(scratch.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(command(scratch, "check"), 8)
 }
 
 fn functions(raw: &Value) -> &Value {
@@ -215,16 +201,14 @@ fn functions_mut(raw: &mut Value) -> &mut Value {
     &mut raw["packages"][0]["modules"][0]["resource_functions"]
 }
 
-fn rejected(source: &str) {
+#[track_caller]
+fn rejected(source: &str, code: &str) -> String {
     let result = command(&fixture(source), "check").output().unwrap();
     assert!(
         !result.status.success(),
         "accepted invalid source: {source}"
     );
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_"),
-        "missing diagnostic: {result:?}"
-    );
+    common::expect_code(&result, code)
 }
 
 const LITERAL_SHAPES: &str = "mod profiles;
@@ -289,7 +273,7 @@ fn literal_runtime_guards_reject_contradictions_and_erase_true_checks() {
         let result = command(&fixture(&invalid), "check").output().unwrap();
         assert!(!result.status.success(), "{invalid}");
         let error = String::from_utf8_lossy(&result.stderr);
-        assert!(error.contains("E_RUNTIME_GUARD"), "{error}");
+        common::assert_first_code(&error, "E_RUNTIME_GUARD");
         assert!(error.contains("main.vast:"), "{error}");
     }
     // The kernel independently rechecks literal map dimensions in raw wire IR.
@@ -368,27 +352,48 @@ fn parser_preserves_runtime_slots_whole_layouts_access_and_both_arms() {
 #[test]
 fn source_rejects_implicit_layouts_inline_extent_arithmetic_and_duplicate_coefficients() {
     let good = source(false, 2, 3, 2, 1);
-    for bad in [
-        good.replace(
+    // Each case names its exact code and diagnostic, so an unrelated parse
+    // error from a drifted replacement cannot satisfy it.
+    for (from, to, code, message) in [
+        (
             "runtime_layout(m, k, lda, false)",
             "runtime_layout(0, m, k, lda, false)",
+            "E_RESOURCE_TYPE",
+            "requires a literal condition",
         ),
-        good.replace(
+        (
             "runtime_borrow a = read(data_a)",
             "runtime_borrow a = read(data_a, runtime_layout(m, k, lda, false))",
+            "E_PARSE",
+            "expected `)`, found `,`",
         ),
-        good.replace("F64[cap_a]", "F64[lda * k]"),
-        good.replace(
+        (
+            "F64[cap_a]",
+            "F64[lda * k]",
+            "E_PARSE",
+            "expected `]`, found `*`",
+        ),
+        (
             "runtime_layout(m, k, lda, false)",
             "runtime_layout(m, k, lda, flag)",
+            "E_RESOURCE_TYPE",
+            "requires a literal condition",
         ),
-        good.replace(
+        (
             "overwrite, NativeFast)",
             "overwrite, NativeFast, alpha=f64_bits(0), alpha=f64_bits(0))",
+            "E_DUPLICATE",
+            "",
         ),
-        good.replace("RealSmooth, m>", "RealSmooth, 18446744073709551616>"),
+        (
+            "RealSmooth, m>",
+            "RealSmooth, 18446744073709551616>",
+            "E_RESOURCE_LIMIT",
+            "exceeds 64 bits",
+        ),
     ] {
-        rejected(&bad);
+        let error = rejected(&common::checked_replace(&good, from, to), code);
+        assert!(error.contains(message), "{error}");
     }
 }
 
@@ -396,16 +401,17 @@ fn source_rejects_implicit_layouts_inline_extent_arithmetic_and_duplicate_coeffi
 fn checker_preserves_runtime_call_identity_permissions_and_static_separation() {
     let good = source(false, 2, 3, 2, 1);
     success(&command(&fixture(&good), "check").output().unwrap());
-    for bad in [
-        good.replace("view(b, bw, bv)", "view(b, bu, bv)"),
-        good.replace("runtime_release(c);", "runtime_release(c);\ncall forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();"),
-        good.replace("runtime_fill(init_a, f64_bits(4607182418800017408));", ""),
-        good.replace("runtime_borrow a = read(data_a)", "borrow a = read(data_a)"),
-        good.replace("runtime_drop(moved_a)", "runtime_drop(data_a)"),
-        good.replace("let m: Nat = value { 2 };", "let m: Bool = value { true };"),
-        good.replace("call forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();", "if true { call forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> (); } else {}"),
+    for (bad, code) in [
+        (good.replace("view(b, bw, bv)", "view(b, bu, bv)"), "E_RUNTIME_CALL"),
+        (good.replace("runtime_release(c);", "runtime_release(c);\ncall forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();"), "E_RUNTIME_CALL"),
+        (good.replace("runtime_fill(init_a, f64_bits(4607182418800017408));", ""), "E_RUNTIME_SHAPE"),
+        (good.replace("runtime_borrow a = read(data_a)", "borrow a = read(data_a)"), "E_RUNTIME_TYPE"),
+        (good.replace("runtime_drop(moved_a)", "runtime_drop(data_a)"), "E_RUNTIME_SHAPE"),
+        (good.replace("let m: Nat = value { 2 };", "let m: Bool = value { true };"), "E_RUNTIME_EXTENT"),
+        (good.replace("call forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();", "if true { call forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> (); } else {}"), "E_RUNTIME_BRANCH"),
     ] {
-        rejected(&bad);
+        assert_ne!(bad, good, "ineffective mutation for {code}");
+        rejected(&bad, code);
     }
     let hidden = r#"
 resource fn leaf(n: Nat) -> Unit {
@@ -423,10 +429,7 @@ resource fn main() -> Int {
 "#;
     let output = command(&fixture(hidden), "check").output().unwrap();
     assert!(!output.status.success());
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_RUNTIME_BRANCH"),
-        "{output:?}"
-    );
+    common::expect_code(&output, "E_RUNTIME_BRANCH");
 }
 
 #[test]
@@ -465,19 +468,19 @@ fn kernel_rejects_forged_runtime_metadata_and_old_protocol_envelopes() {
         .find(|s| s["action"]["op"] == "allocate")
         .unwrap();
     allocation["action"]["layout"]["offset"] = json!(8);
-    assert_eq!(kernel(&forged, "check")["ok"], false);
+    common::assert_wire_rejected(&kernel(&forged, "check"), "E_PROTOCOL");
     let mut forged = raw.clone();
     functions_mut(&mut forged)[0]["parameters"][3]["dimension"] =
         json!({"kind":"slot","name":"missing"});
-    assert_eq!(kernel(&forged, "check")["ok"], false);
+    common::assert_wire_rejected(&kernel(&forged, "check"), "E_RESOURCE_NAME");
     let mut forged = raw.clone();
     functions_mut(&mut forged)[0]["body"][0]["operation"]["alpha"] =
         json!({"kind":"loan","loan":"left"});
-    assert_eq!(kernel(&forged, "check")["ok"], false);
+    common::assert_wire_rejected(&kernel(&forged, "check"), "E_RUNTIME_COEFFICIENT");
     for version in 2..8 {
         let mut legacy = raw.clone();
         legacy["version"] = json!(version);
-        assert_eq!(kernel(&legacy, "check")["ok"], false, "protocol {version}");
+        common::assert_wire_rejected(&kernel(&legacy, "check"), "E_PROTOCOL");
     }
 }
 
@@ -527,16 +530,39 @@ fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failur
         success(&output);
         assert_eq!(String::from_utf8(output.stdout).unwrap().trim(), "42");
     }
-    for source in [
-        source(false, 2, 3, 2, 0).replace("value { m + 0 }", "value { 1 }"),
-        source(false, 2, 3, 2, 0).replace("value { lda * k }", "value { 0 }"),
-        source(false, 2, 3, 2, 0).replace("value { 2 };", "value { 18446744073709551616 };"),
-        source(false, 2, 3, 2, 1)
-            .replace(": Nat", ": Int")
-            .replace("let m: Int = value { 2 };", "let m: Int = value { -1 };"),
-        source(false, 2, 3, 2, 1).replace(
-            "call forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();",
-            "let wrong_m: Nat = value { m + 1 };\ncall forward(wrong_m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();",
+    // Each invalid caller shape must stop in physical preflight, before any
+    // write. A missing preflight would let GEMM write with the wrong shape and
+    // fail later in runtime_expect with E_NATIVE_EXPECT, so that code is refused.
+    let valid = source(false, 2, 3, 2, 0);
+    let padded = source(false, 2, 3, 2, 1);
+    for (source, code) in [
+        (
+            common::checked_replace(&valid, "value { m + 0 }", "value { 1 }"),
+            "E_RUNTIME_GUARD",
+        ),
+        (
+            common::checked_replace(&valid, "value { lda * k }", "value { 0 }"),
+            "E_RUNTIME_GUARD",
+        ),
+        (
+            common::checked_replace(&valid, "value { 2 };", "value { 18446744073709551616 };"),
+            "E_RUNTIME_EXTENT",
+        ),
+        (
+            common::checked_replace(
+                &padded.replace(": Nat", ": Int"),
+                "let m: Int = value { 2 };",
+                "let m: Int = value { -1 };",
+            ),
+            "E_RUNTIME_EXTENT",
+        ),
+        (
+            common::checked_replace(
+                &padded,
+                "call forward(m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();",
+                "let wrong_m: Nat = value { m + 1 };\ncall forward(wrong_m, k, n, u, v, w, bu, bv, bw, left, right, output) -> ();",
+            ),
+            "E_RUNTIME_GUARD",
         ),
     ] {
         let scratch = fixture(&source);
@@ -549,9 +575,12 @@ fn runtime_native_executes_caller_shapes_padding_empty_axes_and_preflight_failur
                 .unwrap(),
         );
         let output = Command::new(program).output().unwrap();
-        assert!(!output.status.success());
-        assert!(output.stdout.is_empty());
-        assert!(String::from_utf8_lossy(&output.stderr).contains("E_"));
+        assert!(output.stdout.is_empty(), "{output:?}");
+        let error = common::expect_code(&output, code);
+        assert!(
+            !common::diagnostic_codes(&error).contains(&"E_NATIVE_EXPECT".to_string()),
+            "a write happened before the shape failure: {error}"
+        );
     }
 }
 

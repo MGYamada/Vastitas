@@ -29,6 +29,12 @@ theorem token_representation {env : Environment} {world : World} {application : 
   have relation := typed.2
   split at relation <;> simp_all
 
+theorem relative_representation {env : Environment} {world : World} {application : Application}
+    {map : VastitasKernel.AlgebraRuntime.Map} (typed : IndexedHasType env world (.relative map) application) :
+    familyRepresentation env application.family = some .relative := by
+  have relation := typed.2
+  split at relation <;> simp_all
+
 theorem indexed_rename_forward {env : Environment} {before after : World}
     {application : Application} {substitution : List (ObjectRef × ObjectRef)} {value : IndexedValue}
     (valid : (application.rename substitution).Valid env)
@@ -61,6 +67,18 @@ theorem indexed_rename_forward {env : Environment} {before after : World}
     simpa only [Application.rename, indices, List.map_cons, List.map_nil, representation] using
       And.intro (transport source (by simp [Application.refs, indices]) map.source sourceDenotes)
         (transport target (by simp [Application.refs, indices]) map.target targetDenotes)
+  | relative map =>
+    have representation := relative_representation typed
+    have known : ∀ ref ∈ application.refs, ∃ object, RefDenotes env before ref object := by
+      simpa only [representation] using typed.2
+    refine ⟨valid, ?_⟩
+    simp only [Application.rename, representation]
+    change ∀ ref ∈ (application.rename substitution).refs, ∃ object, RefDenotes env after ref object
+    intro ref member
+    rw [rename_refs] at member
+    obtain ⟨original, originalMember, rfl⟩ := List.mem_map.mp member
+    obtain ⟨object, denotes⟩ := known original originalMember
+    exact ⟨object, transport original originalMember object denotes⟩
 
 theorem renamed_two_objects {application : Application} {substitution : List (ObjectRef × ObjectRef)}
     {first second : ObjectRef} (shape : (application.rename substitution).indices = [.object first, .object second]) :
@@ -107,6 +125,17 @@ theorem indexed_rename_backward {env : Environment} {before after : World}
     simp only [representation, originalIndices]
     exact ⟨transport originalSource (by simp [Application.refs, originalIndices]) map.source sourceDenotes,
       transport originalTarget (by simp [Application.refs, originalIndices]) map.target targetDenotes⟩
+  | relative map =>
+    have representation := relative_representation typed
+    change familyRepresentation env application.family = some .relative at representation
+    have known : ∀ ref ∈ (application.rename substitution).refs, ∃ object, RefDenotes env after ref object := by
+      simpa only [Application.rename, representation] using typed.2
+    refine ⟨valid, ?_⟩
+    simp only [representation]
+    intro ref member
+    obtain ⟨object, denotes⟩ := known (renameRef substitution ref)
+      (by rw [rename_refs]; exact List.mem_map.mpr ⟨ref, member, rfl⟩)
+    exact ⟨object, transport ref member object denotes⟩
 
 theorem package_rename_fixed {env : Declarations} {application : Application}
     (valid : (DataType.package application).Valid env) (substitution : List (ObjectRef × ObjectRef)) :

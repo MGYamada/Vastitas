@@ -152,7 +152,9 @@ cannot capture values or object names appearing in indexed annotations.
 Separate signature probes audit unused bodies and cannot enter executable targets.
 
 No indexed array allocation, storage loan, linear-algebra operation, new affine
-map construction or general recursive function is introduced here. Source and
+map construction or general recursive function is introduced here. Presented
+affine objects and their maps arrive later, through the separate Stage 2
+profile in [affine geometry](affine-geometry.md). Source and
 type depth bounds, 4096 specialization/key limits, arbitrary-precision integers
 and nominal identity checks remain in force.
 
@@ -697,7 +699,10 @@ and rejection of mutated actual wire contracts by both checking and emission.
 The combined and pointed examples return `42`; the smooth example preserves
 its explicit abstract annotation and returns `2` after unpacking. The implementation still uses the finite descriptor
 representation; no general polynomial map, chart, tensor or numerical buffer is
-added. Primitive/package proofs retain their original stated scope.
+added. Primitive/package proofs retain their original stated scope. Historical
+Stage 2 later adds presented objects and polynomial maps as a separate,
+separately checked profile ([affine geometry](affine-geometry.md)). It does not
+change this migration's descriptor objects or two-index families.
 
 The original `stdlib` entrypoint now supplies both libraries; the temporary
 `stdlib/indexed` facade is removed. The geometry manifest explicitly exports

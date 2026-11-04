@@ -1,5 +1,8 @@
 #include "gemm.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "these regressions are assert() checks; build without NDEBUG"
+#endif
 #include <cblas.h>
 #include <limits.h>
 #include <math.h>

@@ -560,8 +560,15 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         .flat_map(|p| &p.modules)
         .any(|m| m.uses_indexed)
         || loader.packages.iter().any(|p| p.geometry_compat.is_some());
+    // Stage 2 algebraic forms exist only in the current schema epoch (#533).
+    let algebraic = loader
+        .packages
+        .iter()
+        .flat_map(|p| &p.modules)
+        .flat_map(|m| &m.indexed_declarations)
+        .any(|d| d.declaration.body.is_algebraic());
     let program = Program {
-        version: if named_recipients {
+        version: if named_recipients || algebraic {
             NAMED_RECIPIENT_PROTOCOL
         } else if loader.packages.iter().flat_map(|p| &p.modules).any(|m| {
             !m.resource_functions.is_empty()

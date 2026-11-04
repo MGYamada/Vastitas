@@ -1,5 +1,8 @@
 #include "storage.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "these regressions are assert() checks; build without NDEBUG"
+#endif
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>

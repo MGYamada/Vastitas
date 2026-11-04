@@ -8,6 +8,8 @@ on:
       - 'lean-kernel/lean-toolchain'
       - 'scripts/check_boundaries.py'
       - 'scripts/test_check_boundaries.py'
+      - 'scripts/install_ci_elan.py'
+      - 'scripts/test_ci_bootstrap.py'
       - '.github/workflows/lean-bridge.yml'
   pull_request:
     paths:
@@ -16,6 +18,8 @@ on:
       - 'lean-kernel/lean-toolchain'
       - 'scripts/check_boundaries.py'
       - 'scripts/test_check_boundaries.py'
+      - 'scripts/install_ci_elan.py'
+      - 'scripts/test_ci_bootstrap.py'
       - '.github/workflows/lean-bridge.yml'
   workflow_dispatch:
 
@@ -50,16 +54,11 @@ jobs:
         run: |
           python3 scripts/check_boundaries.py
           python3 -m unittest discover -s scripts -p 'test_check_boundaries.py'
+      - name: Install checksum-pinned elan
+        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
       - name: Install the pinned Lean toolchain
-        uses: leanprover/lean-action@24581d74d674803a25a81b10b059c5c0cdd344c6 # v1
-        with:
-          lake-package-directory: lean-bridge
-          auto-config: false
-          build: false
-          test: false
-          lint: false
-          use-mathlib-cache: false
-          use-github-cache: false
+        working-directory: lean-bridge
+        run: lake --version
       - name: Fetch only the required Mathlib cache
         working-directory: lean-bridge
         run: |
@@ -69,6 +68,9 @@ jobs:
             Mathlib.Analysis.Calculus.DSlope \
             Mathlib.Analysis.Calculus.FDeriv.Mul \
             Mathlib.Analysis.Matrix.HermitianFunctionalCalculus \
+            Mathlib.Data.Set.List \
+            Mathlib.RingTheory.MvPolynomial.Groebner \
+            Mathlib.RingTheory.MvPolynomial.MonomialOrder.DegLex \
             Mathlib.Analysis.CStarAlgebra.Matrix
       - name: Build the mathematical bridge
         working-directory: lean-bridge

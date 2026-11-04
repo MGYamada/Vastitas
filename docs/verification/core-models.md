@@ -114,17 +114,9 @@ on native evaluation of the checker's internal hashing. Separate executable
 regressions exercise stage acceptance, wrong signatures, an absent function
 and an invalid unused branch; these tests do not provide proof authority.
 
-Relevant checks:
-
-```sh
-lake -d lean-kernel build
-lake -d lean build
-bash scripts/check_kernel_regressions.sh
-python3 scripts/check_boundaries.py
-cd lean
-lake env lean ../scripts/audit_axioms.lean
-lake env lean ../scripts/check_oracle_core.lean
-```
+Relevant checks: the kernel, oracle and audit sequence in
+[Validate the compiler and proofs](../development/validation.md), and
+`python3 scripts/check_boundaries.py`.
 
 ### Remaining obligations
 
@@ -252,6 +244,8 @@ unproved axioms, `sorry` declarations or copied checker implementations.
 Semantic equality is conditional on
 `Interpretation profile capability arity M`. This supplies composition and the
 four explicit generating laws, with valid-position hypotheses at that arity.
+No field mentions `profile`; it is a nominal tag, so the theorems do not show
+that a model realizes the declarations of that profile.
 Its laws are about fixed word patterns, not about checker acceptance. Context
 preservation follows from composition; trace preservation follows by induction.
 The type `M` can represent an action on a family of ordered boundaries, but
@@ -299,11 +293,10 @@ These runtime checks are distinct from the conditional general theorems.
 ```sh
 python3 -m unittest discover -s scripts -p 'test_*.py'
 python3 scripts/demo_graph_reference.py
-lake -d lean-kernel build
-bash scripts/check_kernel_regressions.sh
-lake -d lean build
-cd lean && lake env lean ../scripts/audit_axioms.lean
 ```
+
+Then run the kernel, oracle and audit sequence in
+[Validate the compiler and proofs](../development/validation.md).
 
 Existing CI discovers the Python tests, runs `GraphRegression` through the
 kernel regression script, and builds/audits `VastitasOracle.Graph` through the

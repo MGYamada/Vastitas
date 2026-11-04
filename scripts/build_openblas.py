@@ -29,6 +29,18 @@ int main(void) {
 """
 
 
+# Make imports every environment variable as a variable, and OpenBLAS reads
+# many of them (NO_AVX2, NUM_THREADS, BUFFERSIZE, LDFLAGS, CPPFLAGS, ...). The
+# supported profile is therefore built from an allow-list, not by removing
+# known names. CC stays selectable; check_profile verifies the result.
+BUILD_ENVIRONMENT = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "CC", "SDKROOT", "DEVELOPER_DIR",
+                     "MACOSX_DEPLOYMENT_TARGET")
+
+
+def build_environment(source) -> dict[str, str]:
+    return {name: source[name] for name in BUILD_ENVIRONMENT if name in source}
+
+
 def check_profile(prefix: Path, work: Path, env: dict[str, str]) -> str:
     """Fail closed unless the installed archive is sequential, locked and LP64.
 
@@ -67,12 +79,7 @@ def build(prefix: Path, archive: Path | None, jobs: int, target: str | None) -> 
         with tarfile.open(archive) as source:
             source.extractall(root, filter="data")
         source = root / f"OpenBLAS-{VERSION}"
-        env = os.environ.copy()
-        # The supported profile is explicit, not inherited from a user's Make flags.
-        for name in ("MAKEFLAGS", "MFLAGS", "GNUMAKEFLAGS", "USE_OPENMP", "SYMBOLSUFFIX", "SYMBOLPREFIX",
-                     "LIBNAMESUFFIX", "LIBPREFIX", "TARGET", "TARGET_CORE", "NO_CBLAS", "NO_STATIC",
-                     "CFLAGS", "COMMON_OPT", "FC"):
-            env.pop(name, None)
+        env = build_environment(os.environ)
         options = OPTIONS + ([f"TARGET={target}"] if target else [])
         subprocess.run(["make", f"-j{jobs}", *options], cwd=source, env=env, check=True)
         subprocess.run(["make", *options, f"PREFIX={prefix}", "install"], cwd=source, env=env, check=True)

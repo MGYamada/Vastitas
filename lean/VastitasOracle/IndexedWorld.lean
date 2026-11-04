@@ -97,6 +97,14 @@ theorem indexed_agreement {env : Environment} {before after : World} {value : In
     simp only [representation, indices]
     exact ⟨denotes_agreement (agree source (by simp [Application.refs, indices])) sourceDenotes,
       denotes_agreement (agree target (by simp [Application.refs, indices])) targetDenotes⟩
+  | relative map =>
+    refine ⟨typed.1, ?_⟩
+    have relation := typed.2
+    split at relation <;> first
+      | contradiction
+      | intro ref member
+        obtain ⟨object, denotes⟩ := relation ref member
+        exact ⟨object, denotes_agreement (agree ref member) denotes⟩
 
 theorem value_agreement {env : Declarations} {before after : World} {value : Value} {type : DataType}
     (agree : ∀ ref ∈ type.refs, interpretRef env.indexed before ref = interpretRef env.indexed after ref)

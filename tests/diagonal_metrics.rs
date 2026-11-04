@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const REAL: &str = include_str!("../examples/packages/diagonal-metrics/src/real/mod.vast");
@@ -32,17 +31,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     c
 }
 fn captured(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = command(s, "check")
-        .env("VASTITAS_KERNEL", stub)
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(command(s, "check"), 8)
 }
 fn rejection(source: &str, code: &str) {
     let output = command(&fixture(source, COMPLEX), "check")
@@ -52,10 +41,7 @@ fn rejection(source: &str, code: &str) {
         !output.status.success(),
         "accepted invalid diagonal operation"
     );
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains(code),
-        "{output:?}"
-    );
+    common::expect_code(&output, code);
 }
 fn adjoint_only(source: &str) -> String {
     format!(

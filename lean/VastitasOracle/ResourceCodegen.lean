@@ -136,4 +136,26 @@ theorem generated_pure_entry {program : VastitasKernel.ResourceSource.Program}
   · rename_i id selected
     simp [found] at selected
 
+/-- The module that the pure-entry emit path actually generates is the accepted
+certificate's `pureProgram.executable` module. It has typed, finite evaluation
+for every function, and its `main` evaluates to an `Int`. This concerns the
+checked Core, not the generated text or native code. -/
+theorem generated_pure_entry_total {program : VastitasKernel.ResourceSource.Program}
+    {generated : VastitasKernel.ResourceSource.Codegen.Generated}
+    (found : program.entry = none)
+    (emitted : VastitasKernel.ResourceSource.Codegen.generate program = .ok generated) :
+    ∃ checked : VastitasKernel.ResourceSource.Checked program true,
+      VastitasKernel.ResourceSource.check program true = .ok checked ∧
+    ∃ core : Core.Typing.CheckedModule true,
+      core.module = checked.pureProgram.executable.core.module ∧
+      Core.Codegen.generate core = .ok generated.source ∧
+      (∀ function ∈ core.module.functions, IndexedFunctionSafety.FunctionReturns core.module function) ∧
+      ∃ id function result,
+        core.module.main = some id ∧
+        core.module.functions.find? (fun function => function.id == id) = some function ∧
+        IndexedEvaluation.Evaluates core.module (fun _ => none) function.body (.integer result) := by
+  obtain ⟨checked, accepted, core, same, compiled, _, _⟩ := generated_pure_entry found emitted
+  exact ⟨checked, accepted, core, same, compiled,
+    IndexedProgramSafety.checked_functions_total_and_typed core, IndexedProgramSafety.checked_main_total core⟩
+
 end VastitasOracle.ResourceCodegen

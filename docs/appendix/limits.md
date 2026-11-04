@@ -40,20 +40,24 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 
 ### Exact affine algebra (Stage 2)
 
-These budgets belong to the internal exact QQ polynomial core of
-[historical Stage 2](../verification.md#exact-affine-algebra-checker-stage-2-571).
-No source syntax reaches that core until the protocol-9 surface lands.
+These budgets belong to the exact QQ polynomial core of
+[presented affine geometry](../affine-geometry.md) (historical Stage 2), reached
+through protocol 9. Source polynomials are bounded before they are expanded.
+Every check-time substitution — structure maps, pullbacks, base chains, base
+isomorphisms and evidence composites — runs within `algebraWork` and
+`algebraTerms`, in the checker and the audit alike.
 
 | Key | Value | What it bounds |
 | --- | --- | --- |
 | `algebraGenerators` | 16 | Generators of one presented algebra |
 | `algebraRelations` | 32 | Relations of one presented algebra |
-| `algebraTerms` | 512 | Terms of every produced polynomial |
+| `algebraTerms` | 512 | Terms of every produced polynomial, including intermediate products |
 | `algebraBasis` | 64 | Elements of a stored or computed basis |
-| `algebraWork` | 8,000,000 | Work shared by basis computation and verification |
-| `algebraDegree` | 16 | Declared for the source surface; not yet consulted by the kernel at this revision |
-| `algebraCoefficientDigits` | 64 | Declared for the source surface; not yet consulted by the kernel at this revision |
-| `algebraChain` | 16 | Declared for the source surface; not yet consulted by the kernel at this revision |
+| `algebraWork` | 8,000,000 | Work of one budgeted run: basis computation and verification, or one substitution check |
+| `algebraDegree` | 16 | Degree and exponents of a source polynomial |
+| `algebraCoefficientDigits` | 64 | Digits of a source literal |
+| `algebraChain` | 16 | Length of a declared base chain |
+| `algebraNesting` | 64 | Nesting of a polynomial expression on the wire |
 
 "Kernel source" means the limit is enforced in
 [`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)

@@ -37,9 +37,10 @@ fn request(source: &str) -> Value {
 fn backend(raw: &Value) -> Value {
     common::kernel(raw, "check")
 }
-fn rejects(raw: Value) {
+#[track_caller]
+fn rejects(raw: Value, code: &str) {
     let result = backend(&raw);
-    assert_eq!(result["ok"], false, "{result}");
+    common::assert_wire_rejected(&result, code);
 }
 
 #[test]
@@ -69,29 +70,38 @@ fn pairs_preserve_values_arguments_results_branches_and_lambda_bodies() {
 
 #[test]
 fn pair_construction_infers_operands_without_conversion_or_expected_type_selection() {
-    for source in [
-        "fn f() -> Pair<Nat> { pair(1, 2) }",
-        "fn f(n: Nat) -> Pair<Int> { pair(n, 2) }",
-        "fn f() -> Pair<Int> { pair(true, false) }",
-        "fn f() -> Pair<Int> { pair((), ()) }",
-        "fn f() -> Pair<Int> { pair(pair(1, 2), pair(3, 4)) }",
-        "fn f() -> Pair<Int> { let x = Affine(QQ, 1); pair(x, x) }",
-        "fn f() -> Pair<Int> { pair(1) }",
-        "fn f() -> Int { pair_first(1) }",
-        "fn f() -> Int { pair_second(pair(1, 2), 3) }",
-        "fn f(n: Nat) -> Pair<Int> { if true { pair(n, n) } else { pair(1, 2) } }",
-        "fn f(p: Fn<Pair<Int>, Int>) -> Int { 0 }",
-        "fn f() -> Int { let p = fn() -> Pair<Int> { pair(1, 2) }; 0 }",
+    for (source, code) in [
+        ("fn f() -> Pair<Nat> { pair(1, 2) }", "E_TYPE"),
+        ("fn f(n: Nat) -> Pair<Int> { pair(n, 2) }", "E_TYPE"),
+        ("fn f() -> Pair<Int> { pair(true, false) }", "E_TYPE"),
+        ("fn f() -> Pair<Int> { pair((), ()) }", "E_TYPE"),
+        (
+            "fn f() -> Pair<Int> { pair(pair(1, 2), pair(3, 4)) }",
+            "E_TYPE",
+        ),
+        (
+            "fn f() -> Pair<Int> { let x = Affine(QQ, 1); pair(x, x) }",
+            "E_TYPE",
+        ),
+        ("fn f() -> Pair<Int> { pair(1) }", "E_ARITY"),
+        ("fn f() -> Int { pair_first(1) }", "E_TYPE"),
+        ("fn f() -> Int { pair_second(pair(1, 2), 3) }", "E_ARITY"),
+        (
+            "fn f(n: Nat) -> Pair<Int> { if true { pair(n, n) } else { pair(1, 2) } }",
+            "E_TYPE",
+        ),
+        ("fn f(p: Fn<Pair<Int>, Int>) -> Int { 0 }", "E_TYPE"),
+        (
+            "fn f() -> Int { let p = fn() -> Pair<Int> { pair(1, 2) }; 0 }",
+            "E_TYPE",
+        ),
     ] {
         let scratch = Scratch::new(source);
         let output = scratch.cli("check", false).output().unwrap();
         assert!(!output.status.success(), "accepted: {source}");
         let error = String::from_utf8_lossy(&output.stderr);
-        assert!(
-            error.contains("E_TYPE") || error.contains("E_ARITY"),
-            "{source}: {error}"
-        );
-        rejects(request(source));
+        common::assert_first_code(&error, code);
+        rejects(request(source), code);
     }
 }
 
@@ -107,11 +117,11 @@ fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
     ] {
         let mut raw = request("fn f() -> Pair<Int> { pair(1, 2) }");
         raw["functions"][0]["return_type"]["element"] = json!(element);
-        rejects(raw);
+        rejects(raw, "E_TYPE");
     }
     let mut raw = request("fn f() -> Pair<Int> { pair(1, 2) }");
     raw["functions"][0]["return_type"]["element"] = json!({"kind":"named","name":"Int"});
-    rejects(raw);
+    rejects(raw, "E_PROTOCOL");
     for field in ["domain", "selector", "result"] {
         let mut raw = request("generic f(x) { domain (Int); } method f(x: Int) -> Int { 0 }");
         let pair = json!({"kind":"pair","element":"Int"});
@@ -120,7 +130,7 @@ fn malformed_pair_types_and_dispatch_uses_are_rejected_independently() {
             "selector" => raw["methods"][0]["params"][0]["ty"] = pair,
             _ => raw["methods"][0]["return_type"] = pair,
         }
-        rejects(raw);
+        rejects(raw, "E_TYPE");
     }
     for source in [
         "fn f(p: Pair<Bool>) -> Int { 0 }",
@@ -198,18 +208,15 @@ fn pair_results_do_not_change_selection_or_whole_body_audits() {
             let source = format!("{source}\n{extra}");
             let response = backend(&request(&source));
             assert_eq!(response["ok"], false, "{source}: {response}");
-            assert!(
-                response.to_string().contains(expected),
+            assert_eq!(
+                response["diagnostics"][0]["code"], expected,
                 "{source}: {response}"
             );
             let scratch = Scratch::new(&source);
             for package in [false, true] {
                 let output = scratch.cli("check", package).output().unwrap();
                 assert!(!output.status.success());
-                assert!(
-                    String::from_utf8_lossy(&output.stderr).contains(expected),
-                    "{source}: {output:?}"
-                );
+                common::expect_code(&output, expected);
             }
         }
     }

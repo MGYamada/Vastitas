@@ -60,10 +60,41 @@ theorem pure_value_bodies_typed {program : Program} (checked : Checked program r
   ⟨(IndexedFunctions.checked_pass checked.values.audit).2.2.1,
     (IndexedFunctions.checked_pass checked.values.executable).2.2.1⟩
 
+/-- Pure value bodies called from a resource entry. The mixed emit path generates
+their library from `checked.values.executable.core`. -/
 theorem pure_value_functions_total {program : Program} (checked : Checked program requireMain) :
     ∀ function ∈ checked.values.executable.core.module.functions,
       IndexedFunctionSafety.FunctionReturns checked.values.executable.core.module function :=
   IndexedProgramSafety.checked_functions_total_and_typed checked.values.executable.core
+
+/-- Without a resource entry, the emit path generates code from
+`checked.pureProgram.executable.core` (see `ResourceCodegen.generated_pure_entry`).
+Every function of that module has typed, finite evaluation. -/
+theorem pure_entry_functions_total {program : Program} (checked : Checked program requireMain) :
+    ∀ function ∈ checked.pureProgram.executable.core.module.functions,
+      IndexedFunctionSafety.FunctionReturns checked.pureProgram.executable.core.module function :=
+  IndexedProgramSafety.checked_functions_total_and_typed checked.pureProgram.executable.core
+
+private theorem main_total_of {required : Bool} (core : Core.Typing.CheckedModule required)
+    (same : required = true) :
+    ∃ id function result,
+      core.module.main = some id ∧
+      core.module.functions.find? (fun function => function.id == id) = some function ∧
+      IndexedEvaluation.Evaluates core.module (fun _ => none) function.body (.integer result) := by
+  subst same
+  exact IndexedProgramSafety.checked_main_total core
+
+/-- A pure-entry program accepted with a required `main` has a parameterless
+`main` whose body evaluates to an `Int` in the actual indexed evaluator. -/
+theorem pure_entry_main_total {program : Program} (checked : Checked program true)
+    (found : program.entry = none) :
+    ∃ id function result,
+      checked.pureProgram.executable.core.module.main = some id ∧
+      checked.pureProgram.executable.core.module.functions.find? (fun function => function.id == id) =
+        some function ∧
+      IndexedEvaluation.Evaluates checked.pureProgram.executable.core.module (fun _ => none)
+        function.body (.integer result) :=
+  main_total_of checked.pureProgram.executable.core (by simp [found])
 
 /-- The accepted public entry uses the original library's complete probe list
 and starts executable expansion from the actual closed program. -/

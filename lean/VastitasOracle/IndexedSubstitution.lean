@@ -23,6 +23,7 @@ theorem mapped_object_index (mapping : ObjectRef → ObjectRef) {indices : List 
 
 theorem constraint_map {env : Environment} (mapping : ObjectRef → ObjectRef)
     (types : ∀ ref, (mapping ref).type? env = ref.type? env)
+    (globals : ∀ id, mapping (.global id) = .global id)
     {indices : List Index} {constraint : Constraint} (holds : constraint.Holds env indices) :
     constraint.Holds env (indices.map (mapIndexRefs mapping)) := by
   cases constraint with
@@ -39,9 +40,14 @@ theorem constraint_map {env : Environment} (mapping : ObjectRef → ObjectRef)
       obtain ⟨ref, type, id, found, markerFound, typeFound, equal⟩ := holds
       exact ⟨mapping ref, type, id, mapped_object_index mapping found,
         by simp [List.getElem?_map, markerFound, mapIndexRefs], (types ref).trans typeFound, equal⟩
+  | structural object base =>
+      obtain ⟨x, b, objectFound, baseFound, chain⟩ := holds
+      exact ⟨x, b, globals x ▸ mapped_object_index mapping objectFound,
+        globals b ▸ mapped_object_index mapping baseFound, chain⟩
 
 theorem application_map {env : Environment} (mapping : ObjectRef → ObjectRef)
     (types : ∀ ref, (mapping ref).type? env = ref.type? env)
+    (globals : ∀ id, mapping (.global id) = .global id)
     {application : Application} (valid : application.Valid env) :
     Application.Valid env ⟨application.family, application.indices.map (mapIndexRefs mapping)⟩ := by
   obtain ⟨family, found, arity, parameters, constraints⟩ := valid
@@ -51,7 +57,7 @@ theorem application_map {env : Environment} (mapping : ObjectRef → ObjectRef)
     obtain ⟨original, originalMember, rfl⟩ := List.mem_map.mp member
     exact parameter_map mapping types (parameters original originalMember)
   · intro constraint member
-    exact constraint_map mapping types (constraints constraint member)
+    exact constraint_map mapping types globals (constraints constraint member)
 
 def rebrand (brand : Nat) : ObjectRef → ObjectRef
   | .global id => .global id
@@ -74,7 +80,7 @@ theorem bound_application_rebrand {env : Environment} {field : BoundApplication}
     {old : Nat} (new : Nat) (valid : (field.instantiate (.local type old)).Valid env) :
     (field.instantiate (.local type new)).Valid env := by
   rw [bound_rebrand field type old new]
-  exact application_map (rebrand new) (rebrand_type env new) valid
+  exact application_map (rebrand new) (rebrand_type env new) (fun _ => rfl) valid
 
 theorem valid_opening_of_shape {env : Environment} {shape : PackageShape}
     (valid : shape.Valid env) {allowed : List ObjectRef} {brand : Nat} (fresh : FreshBrand allowed brand) :

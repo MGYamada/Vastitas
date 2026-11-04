@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const REAL: &str = include_str!("../examples/packages/tensor-packing/src/real/mod.vast");
@@ -33,17 +32,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     command
 }
 fn captured(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = command(s, "check")
-        .env("VASTITAS_KERNEL", stub)
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(command(s, "check"), 8)
 }
 fn operation<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
     &mut raw["packages"][0]["modules"]
@@ -58,7 +47,8 @@ fn operation<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
         .find(|statement| statement["operation"]["name"] == name)
         .unwrap()["operation"]
 }
-fn rejection(source: &str) {
+#[track_caller]
+fn rejection(source: &str, code: &str) {
     let result = command(&fixture(source, COMPLEX), "check")
         .output()
         .unwrap();
@@ -66,6 +56,7 @@ fn rejection(source: &str) {
         !result.status.success(),
         "accepted invalid tensor source: {source}"
     );
+    common::expect_code(&result, code);
 }
 fn branched(source: &str, condition: bool) -> String {
     source.replace("    pack3(t, destination);", &format!("    if {condition} {{ pack3(t, destination); }} else {{ pack3(t, destination); }}"))
@@ -180,7 +171,7 @@ fn generative_package_targets_supply_actual_contracted_axes_in_both_branches() {
         ] {
             let output = command(&fixture(&bad, &complex), "check").output().unwrap();
             assert!(!output.status.success(), "invalid package/tensor combination accepted");
-            assert!(String::from_utf8_lossy(&output.stderr).contains(code), "{output:?}");
+            common::expect_code(&output, code);
         }
     }
 }
@@ -221,6 +212,7 @@ fn tensor_source_checks_real_axes_explicit_packing_and_ordered_boundaries() {
                 "basis bv = basis(v); basis other = basis(v);",
             )
             .replace("view2(input_b, bv, bxd)", "view2(input_b, other, bxd)"),
+        "E_TENSOR",
     );
     let already_grouped = |complex| {
         constant_source(complex, [2, 3, 2, 2]).replace(
@@ -241,31 +233,43 @@ fn tensor_source_checks_real_axes_explicit_packing_and_ordered_boundaries() {
             .unwrap()
             .contains("pack3 arena")
     );
-    for (old, new) in [
-        ("view3(output, bu, bw, bxd", "view3(output, bw, bu, bxd"),
-        ("view3(input_t, bu, bvd, bw", "view3(input_t, bu, bv, bw"),
+    for (old, new, code) in [
+        (
+            "view3(output, bu, bw, bxd",
+            "view3(output, bw, bu, bxd",
+            "E_TENSOR",
+        ),
+        (
+            "view3(input_t, bu, bvd, bw",
+            "view3(input_t, bu, bv, bw",
+            "E_TENSOR",
+        ),
         (
             "space vd = dual(v);",
             "involution sigma = canonical(v); space vd = conjugate(v, sigma);",
+            "E_TENSOR",
         ),
-        ("axes(0, 2, 1), 2", "axes(0, 0, 1), 2"),
-        ("pack3(t, destination);", ""),
-        ("release(packing);", ""),
+        ("axes(0, 2, 1), 2", "axes(0, 0, 1), 2", "E_TENSOR"),
+        ("pack3(t, destination);", "", "E_RESOURCE_INIT"),
+        ("release(packing);", "", "E_RESOURCE_ALIAS"),
         (
             "pack3(t, destination);",
             "release(input_t); pack3(t, destination);",
+            "E_TENSOR",
         ),
         (
             "contract3(packed, b, c, NativeFast);",
             "contract3(t, b, c, NativeFast);",
+            "E_TENSOR",
         ),
         (
             "write(scratch, layout(8, 4, 3, 5, false))",
             "write(original, layout(8, 4, 3, 5, false))",
+            "E_RESOURCE_ALIAS",
         ),
     ] {
         assert!(REAL.contains(old), "ineffective mutation: {old}");
-        rejection(&REAL.replace(old, new));
+        rejection(&REAL.replace(old, new), code);
     }
 }
 
@@ -299,7 +303,7 @@ fn tensor_wire_rejects_forged_axes_groupings_authority_and_old_envelopes() {
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
-        assert_eq!(kernel(changed, "emit")["ok"], false);
+        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
     }
 }
 

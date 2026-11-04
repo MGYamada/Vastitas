@@ -52,6 +52,21 @@ impl Parser {
                 self.expect(")")?;
                 Ok(indexed::Representation::LinearDescriptor { base, coefficient })
             }
+            "presented_affine" => {
+                self.expect("(")?;
+                let token = self.peek().clone();
+                if self.indexed_tag()? != "rational" {
+                    return Err(diagnostic(
+                        "E_TYPE",
+                        "presented affine objects use the rational field",
+                        token.span,
+                    ));
+                }
+                self.expect(")")?;
+                Ok(indexed::Representation::PresentedAffine {
+                    field: indexed::ExactField::Rational,
+                })
+            }
             _ => Err(diagnostic(
                 "E_TYPE",
                 "unsupported concrete object representation",
@@ -186,6 +201,10 @@ impl Parser {
                 object: left,
                 marker: right,
             }),
+            "structural" => Ok(Constraint::Structural {
+                object: left,
+                base: right,
+            }),
             _ => Err(diagnostic("E_TYPE", "unknown indexed constraint", span)),
         }
     }
@@ -276,6 +295,59 @@ impl Parser {
                     point_family: self.type_path()?,
                 }
             }
+            "relative_compose" => Primitive::RelativeCompose {
+                family: self.type_path()?,
+            },
+            "relative_equal" => Primitive::RelativeEqual {
+                family: self.type_path()?,
+            },
+            "relative_view" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let source = self.type_path()?;
+                self.expect(",")?;
+                Primitive::RelativeView {
+                    family,
+                    source,
+                    target: self.type_path()?,
+                }
+            }
+            "relative_coefficient" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let source = self.type_path()?;
+                self.expect(",")?;
+                let target = self.type_path()?;
+                self.expect(",")?;
+                let coordinate = self.coordinate_name()?;
+                self.expect(",")?;
+                Primitive::RelativeCoefficient {
+                    family,
+                    source,
+                    target,
+                    coordinate,
+                    monomial: self.poly(0)?,
+                }
+            }
+            "relative_pair" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                Primitive::RelativePair {
+                    family,
+                    fiber: self.type_path()?,
+                }
+            }
+            "relative_int_point" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let object = self.type_path()?;
+                self.expect(",")?;
+                Primitive::RelativeIntPoint {
+                    family,
+                    object,
+                    base: self.type_path()?,
+                }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -352,10 +424,11 @@ impl Parser {
                     "token" => indexed::FamilyRepresentation::Token,
                     "point" => indexed::FamilyRepresentation::Point,
                     "morphism" => indexed::FamilyRepresentation::Morphism,
+                    "relative" => indexed::FamilyRepresentation::Relative,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, or morphism",
+                            "family representation requires token, point, morphism or relative",
                             span,
                         ));
                     }
@@ -380,6 +453,36 @@ impl Parser {
                 self.expect("=")?;
                 DeclarationBody::Primitive {
                     binding: self.indexed_primitive()?,
+                }
+            }
+            "affine" => self.indexed_affine()?,
+            "morphism" => self.indexed_morphism()?,
+            "iso" => {
+                self.expect("=")?;
+                self.expect("forward")?;
+                let forward = self.type_path()?;
+                self.expect("inverse")?;
+                DeclarationBody::Iso {
+                    forward,
+                    inverse: self.type_path()?,
+                }
+            }
+            "cartesian" => {
+                self.expect("=")?;
+                self.expect("square")?;
+                self.expect("(")?;
+                let first = self.type_path()?;
+                self.expect(",")?;
+                let second = self.type_path()?;
+                self.expect(")")?;
+                self.expect("through")?;
+                let fiber = self.type_path()?;
+                self.expect("inverse")?;
+                DeclarationBody::Cartesian {
+                    first,
+                    second,
+                    fiber,
+                    inverse: self.type_path()?,
                 }
             }
             _ => {
@@ -439,6 +542,256 @@ impl Parser {
         Ok(Type::IndexedApply {
             family: Box::new(family),
             arguments,
+        })
+    }
+}
+
+impl Parser {
+    /// `(Impl) = spec[g, ...] [relations(p, ...)] [over Base [by(b -> p, ...)]]`
+    fn indexed_affine(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect("(")?;
+        let implementation = self.type_path()?;
+        self.expect(")")?;
+        self.expect("=")?;
+        if self.consume("localize") {
+            self.expect("(")?;
+            let object = self.type_path()?;
+            self.expect(",")?;
+            let element = self.poly(0)?;
+            self.expect(")")?;
+            self.expect("inverse")?;
+            return Ok(DeclarationBody::AffineLocalization {
+                implementation,
+                object,
+                element,
+                inverse: self.name()?.0,
+            });
+        }
+        if self.consume("fiber") {
+            self.expect("(")?;
+            let left = self.type_path()?;
+            self.expect(",")?;
+            let right = self.type_path()?;
+            self.expect(")")?;
+            let via = if self.consume("via") {
+                let forward = self.indexed_list("(", ")", Self::poly_binding)?;
+                self.expect("inverse")?;
+                let inverse = self.indexed_list("(", ")", Self::poly_binding)?;
+                Some(indexed::FiberVia { forward, inverse })
+            } else {
+                None
+            };
+            return Ok(DeclarationBody::AffineFiber {
+                implementation,
+                left,
+                right,
+                via,
+            });
+        }
+        self.expect("spec")?;
+        let generators = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
+        let relations = if self.consume("relations") {
+            self.indexed_list("(", ")", |p| p.poly(0))?
+        } else {
+            Vec::new()
+        };
+        let (base, bindings) = if self.consume("over") {
+            let base = self.type_path()?;
+            let bindings = if self.consume("by") {
+                self.indexed_list("(", ")", Self::poly_binding)?
+            } else {
+                Vec::new()
+            };
+            (Some(base), bindings)
+        } else {
+            (None, Vec::new())
+        };
+        Ok(DeclarationBody::Affine {
+            implementation,
+            generators,
+            relations,
+            base,
+            bindings,
+        })
+    }
+
+    /// `: Family<X, Y, S> = pullback(y -> p, ...) | identity | structure`
+    fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect(":")?;
+        let family = self.type_path()?;
+        self.expect("<")?;
+        let mut indices = vec![self.type_path()?];
+        while self.consume(",") {
+            indices.push(self.type_path()?);
+        }
+        self.type_close()?;
+        self.expect("=")?;
+        let span = self.peek().span;
+        let definition = match self.indexed_tag()?.as_str() {
+            "pullback" => indexed::MorphismDefinition::Pullback {
+                images: self.indexed_list("(", ")", Self::poly_binding)?,
+            },
+            "identity" => indexed::MorphismDefinition::Identity,
+            "structure" => indexed::MorphismDefinition::Structure,
+            "first" => indexed::MorphismDefinition::First,
+            "second" => indexed::MorphismDefinition::Second,
+            "restrict" => {
+                self.expect("(")?;
+                let morphism = self.type_path()?;
+                self.expect(")")?;
+                indexed::MorphismDefinition::Restrict { morphism }
+            }
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "a morphism is a pullback, identity or structure map",
+                    span,
+                ));
+            }
+        };
+        Ok(DeclarationBody::Morphism {
+            family,
+            indices,
+            definition,
+        })
+    }
+
+    fn poly_nesting(&self, depth: usize) -> Result<(), Diagnostic> {
+        if depth >= crate::limits::MAX_ALGEBRA_NESTING {
+            Err(diagnostic(
+                "E_LIMIT",
+                "polynomial expression is nested too deeply",
+                self.peek().span,
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Sums and differences of terms. Kept n-ary on the wire.
+    fn poly(&mut self, depth: usize) -> Result<indexed::PolyExpr, Diagnostic> {
+        self.poly_nesting(depth)?;
+        let mut terms = vec![self.poly_term(depth)?];
+        loop {
+            if self.consume("+") {
+                terms.push(self.poly_term(depth)?);
+            } else if self.consume("-") {
+                terms.push(indexed::PolyExpr::Neg {
+                    operand: Box::new(self.poly_term(depth)?),
+                });
+            } else {
+                break;
+            }
+        }
+        Ok(if terms.len() == 1 {
+            terms.pop().unwrap()
+        } else {
+            indexed::PolyExpr::Sum { terms }
+        })
+    }
+
+    fn poly_term(&mut self, depth: usize) -> Result<indexed::PolyExpr, Diagnostic> {
+        let mut factors = vec![self.poly_unary(depth)?];
+        while self.consume("*") {
+            factors.push(self.poly_unary(depth)?);
+        }
+        Ok(if factors.len() == 1 {
+            factors.pop().unwrap()
+        } else {
+            indexed::PolyExpr::Product { factors }
+        })
+    }
+
+    fn poly_unary(&mut self, depth: usize) -> Result<indexed::PolyExpr, Diagnostic> {
+        if self.consume("-") {
+            self.poly_nesting(depth + 1)?;
+            return Ok(indexed::PolyExpr::Neg {
+                operand: Box::new(self.poly_unary(depth + 1)?),
+            });
+        }
+        let base = self.poly_atom(depth)?;
+        if self.consume("^") {
+            let exponent = self.poly_literal()?;
+            return Ok(indexed::PolyExpr::Pow {
+                base: Box::new(base),
+                exponent,
+            });
+        }
+        Ok(base)
+    }
+
+    fn poly_literal(&mut self) -> Result<String, Diagnostic> {
+        let token = self.advance();
+        match token.kind {
+            TokenKind::Number(value) if value.len() <= crate::limits::MAX_ALGEBRA_DIGITS => {
+                Ok(value)
+            }
+            TokenKind::Number(_) => Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "polynomial literals have at most {} decimal digits",
+                    crate::limits::MAX_ALGEBRA_DIGITS
+                ),
+                token.span,
+            )),
+            _ => Err(diagnostic(
+                "E_PARSE",
+                "expected an unsigned decimal literal",
+                token.span,
+            )),
+        }
+    }
+
+    fn poly_atom(&mut self, depth: usize) -> Result<indexed::PolyExpr, Diagnostic> {
+        if matches!(self.peek().kind, TokenKind::Number(_)) {
+            return Ok(indexed::PolyExpr::Natural {
+                value: self.poly_literal()?,
+            });
+        }
+        if self.consume("(") {
+            let inner = self.poly(depth + 1)?;
+            self.expect(")")?;
+            return Ok(inner);
+        }
+        if self.peek().is("frac") {
+            self.advance();
+            self.expect("(")?;
+            let negative = self.consume("-");
+            let numerator = self.poly_literal()?;
+            self.expect(",")?;
+            let denominator = self.poly_literal()?;
+            self.expect(")")?;
+            return Ok(indexed::PolyExpr::Fraction {
+                numerator: if negative {
+                    format!("-{numerator}")
+                } else {
+                    numerator
+                },
+                denominator,
+            });
+        }
+        Ok(indexed::PolyExpr::Coordinate {
+            name: self.coordinate_name()?,
+        })
+    }
+
+    /// A coordinate, qualified by its fiber factors: `x`, `X::x`, or
+    /// `Fiber::X::x` for a fiber product that is itself a factor.
+    fn coordinate_name(&mut self) -> Result<String, Diagnostic> {
+        let (mut name, _) = self.name()?;
+        while self.consume("::") {
+            name = format!("{name}::{}", self.name()?.0);
+        }
+        Ok(name)
+    }
+
+    /// `name -> polynomial`, where the name may be qualified.
+    fn poly_binding(&mut self) -> Result<indexed::Binding, Diagnostic> {
+        let name = self.coordinate_name()?;
+        self.expect("->")?;
+        Ok(indexed::Binding {
+            name,
+            image: self.poly(0)?,
         })
     }
 }

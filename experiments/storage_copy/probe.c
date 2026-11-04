@@ -4,6 +4,9 @@
 #include "../../lean-kernel/native/storage.c"
 #include "bench.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "the probe checks its calls inside assert(); build without NDEBUG"
+#endif
 #include <stdio.h>
 
 /* Independent conventional C loop, with the same logical column/row order,

@@ -13,8 +13,7 @@ const NUMERIC: &str = "abstract type Numeric; subtype Nat <: Numeric; subtype In
 #[test]
 fn inherited_memberships_require_every_ancestor_owners_support() {
     let s = Scratch::empty("inherited authority");
-    package(
-        &s,
+    s.write_package(
         "lib",
         "pub abstract type Small <: Number; subtype Int <: Small;
 pub generic choose(x) { domain (Nat), (Int); }
@@ -22,7 +21,7 @@ method choose(x: Number) -> Int { 2 }
 method choose(x: Small) -> Int { 1 }",
         "",
     );
-    package(&s, "app", "", "lib={path='../lib'}");
+    s.write_package("app", "", "lib={path='../lib'}");
     for (members, accepted) in [("Int", true), ("Nat", false)] {
         s.write(
             "app/main.vast",
@@ -37,7 +36,7 @@ fn main() -> Int {{ lib::choose(1) }}"
         if accepted {
             success(&result);
         } else {
-            assert!(String::from_utf8_lossy(&result.stderr).contains("E_OWNER"));
+            common::expect_code(&result, "E_OWNER");
         }
     }
     // Same package still has separate module owners. A public alias cannot
@@ -60,13 +59,12 @@ fn main() -> Int {{ 0 }}"
             String::from_utf8_lossy(&result.stderr)
         );
         if !accepted {
-            assert!(String::from_utf8_lossy(&result.stderr).contains("E_OWNER"));
+            common::expect_code(&result, "E_OWNER");
         }
     }
     // Unauthorized memberships cannot introduce new ambiguity or enlarge a
     // contract's domain behind the owner's back.
-    package(
-        &s,
+    s.write_package(
         "lib",
         "pub abstract type Small <: Number; subtype Int <: Small;
 pub abstract type Other; subtype Nat <: Other;
@@ -81,7 +79,7 @@ method choose(x: Other) -> Bool { true }",
         "abstract type Attack <: lib::Small; subtype Nat <: Attack; fn main() -> Int { 0 }",
     );
     let result = package_check(&s);
-    assert!(String::from_utf8_lossy(&result.stderr).contains("E_OWNER"));
+    common::expect_code(&result, "E_OWNER");
 }
 
 #[test]
@@ -292,7 +290,7 @@ fn protocol_four_is_explicit_and_legacy_requests_stay_unchanged() {
             "path" => bad["subtypes"][0]["target"]["path"] = json!([]),
             _ => bad["abstract_types"][0]["span"]["line"] = json!(0),
         }
-        assert_eq!(kernel(bad, "check")["ok"], false, "{mutation}");
+        common::assert_wire_rejected(&kernel(bad, "check"), "E_PROTOCOL");
     }
     let legacy = request("fn main() -> Int { 42 }", "legacy.vast");
     assert_eq!(legacy["version"], 2);
@@ -301,15 +299,6 @@ fn protocol_four_is_explicit_and_legacy_requests_stay_unchanged() {
     assert_eq!(kernel(legacy, "check")["ok"], true);
 }
 
-fn package(s: &Scratch, name: &str, source: &str, deps: &str) {
-    s.write(
-        &format!("{name}/Vastitas.toml"),
-        &format!(
-            "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{deps}\n"
-        ),
-    );
-    s.write(&format!("{name}/main.vast"), source);
-}
 fn package_check(s: &Scratch) -> std::process::Output {
     cli()
         .current_dir(&s.0)
@@ -321,14 +310,12 @@ fn package_check(s: &Scratch) -> std::process::Output {
 #[test]
 fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authority() {
     let s = Scratch::empty("abstract packages");
-    package(
-        &s,
-        "lib",
+    s.write_package("lib",
         "pub mod types { pub abstract type Numeric; subtype Int <: Numeric; } pub use types::Numeric as Exported;",
         "",
     );
     let app = "use dep::Exported as N; generic f(x) { domain (Int); } method f(x: N) -> Int { 42 } fn main() -> Int { f(1) }";
-    package(&s, "app", app, "dep={path='../lib'}");
+    s.write_package("app", app, "dep={path='../lib'}");
     success(&package_check(&s));
     success(
         &cli()
@@ -353,11 +340,11 @@ fn package_aliases_preserve_nominal_identity_and_exact_module_membership_authori
         s.write("app/main.vast", &source);
         let output = package_check(&s);
         assert!(!output.status.success());
-        assert!(String::from_utf8_lossy(&output.stderr).contains("E_OWNER"));
+        common::expect_code(&output, "E_OWNER");
     }
     s.write("app/main.vast", "mod a { abstract type Hidden; } generic f(x) { domain; } method f(x: a::Hidden) -> Int { 0 }");
     let output = package_check(&s);
-    assert!(String::from_utf8_lossy(&output.stderr).contains("E_VISIBILITY"));
+    common::expect_code(&output, "E_VISIBILITY");
 }
 
 fn raw_module(source: &str) -> serde_json::Value {

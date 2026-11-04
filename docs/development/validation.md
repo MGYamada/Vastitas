@@ -9,13 +9,25 @@ cargo test --locked --all-targets
 python3 scripts/check_boundaries.py
 ```
 
-To build the separate proof oracle:
+To build the separate proof oracle and audit every kernel and oracle module
+(the audit needs every kernel library root, executable and regression module
+built first; it checks that each `.olean` exists, not that it is current):
 
 ```sh
+lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest VastitasStorageTest VastitasAlgebraTest \
+  vastitas-kernel storage-native-fixture numerical-native-fixture
+bash scripts/check_kernel_regressions.sh
 lake -d lean build VastitasOracle
-(cd lean && lake env lean ../scripts/audit_axioms.lean)
-(cd lean && lake env lean ../scripts/check_oracle_core.lean)
+(cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean)
+lake -d lean env python3 scripts/check_axiom_audit.py
+(cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean)
+(cd lean && lake env leanchecker VastitasOracle && lake env leanchecker VastitasKernel)
 ```
+
+The last line replays every built Oracle and kernel module with the official
+`leanchecker` against its imported environment, as CI does. It is not an
+independent verifier, and it also reads stale `.olean` files left in `.lake`
+by renamed modules, so run it on a clean build.
 
 Both Lean packages pin Lean v4.35.0. The oracle manifest contains only the
 local kernel; Mathlib and its transitive packages are forbidden in both packages.

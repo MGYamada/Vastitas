@@ -66,6 +66,42 @@ theorem ensure_ok {c : Bool} {e : Error} {s s' : Nat} {u : Unit}
   · simp [StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift, bind, Except.bind] at h
   · rfl
 
+theorem pure_ok {a b : α} {s s' : Nat} (h : (pure a : Work α).run s = .ok (b, s')) : b = a := by
+  simp [StateT.run, pure, StateT.pure, Except.pure] at h
+  exact h.1.symm
+
+theorem throw_not_ok {e : Error} {s s' : Nat} {a : α}
+    (h : (throw e : Work α).run s = .ok (a, s')) : False := by
+  simp [StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift, bind, Except.bind] at h
+
+theorem foldlM_ok {l : List α} {f : β → α → Work β} {g : β → α → β} {init r : β} {s s' : Nat}
+    (hf : ∀ acc x s s' r, (f acc x).run s = .ok (r, s') → r = g acc x)
+    (h : (l.foldlM f init).run s = .ok (r, s')) : r = l.foldl g init := by
+  induction l generalizing init s with
+  | nil => exact pure_ok h
+  | cons x xs ih =>
+    simp only [List.foldlM] at h
+    obtain ⟨acc, _, hacc, h⟩ := bind_ok h
+    have step := hf _ _ _ _ _ hacc
+    subst step
+    exact ih h
+
+theorem mapM_ok {l : List α} {f : α → Work β} {g : α → β} {r : List β} {s s' : Nat}
+    (hf : ∀ x ∈ l, ∀ s s' r, (f x).run s = .ok (r, s') → r = g x)
+    (h : (l.mapM f).run s = .ok (r, s')) : r = l.map g := by
+  induction l generalizing r s s' with
+  | nil =>
+    simp only [List.mapM_nil] at h
+    simpa using pure_ok h
+  | cons x xs ih =>
+    simp only [List.mapM_cons] at h
+    obtain ⟨y, _, hy, h⟩ := bind_ok h
+    obtain ⟨ys, _, hys, h⟩ := bind_ok h
+    have h1 := pure_ok h
+    have h2 := hf x (by simp) _ _ _ hy
+    have h3 := ih (fun x hx => hf x (by simp [hx])) hys
+    simp [h1, h2, h3]
+
 theorem forM_ok {l : List α} {g : α → Work Unit} {s s' : Nat} {u : Unit}
     (h : (l.forM g).run s = .ok (u, s')) :
     ∀ x ∈ l, ∃ s₁ s₂, (g x).run s₁ = .ok ((), s₂) := by
@@ -80,6 +116,101 @@ theorem forM_ok {l : List α} {g : α → Work Unit} {s s' : Nat} {u : Unit}
     · exact ih htail x hx
 
 end Monad
+
+/-! The budgeted operations compute exactly the unbudgeted ones whenever they
+succeed. The budget only adds the possibility of `E_LIMIT`. -/
+
+theorem mul_ok {p q r : Poly} {s s' : Nat} (h : (mul p q).run s = .ok (r, s')) : r = Poly.mul p q := by
+  unfold mul at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  exact bounded_ok h
+
+theorem add_ok {p q r : Poly} {s s' : Nat} (h : (add p q).run s = .ok (r, s')) : r = Poly.add p q := by
+  unfold add at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  exact bounded_ok h
+
+theorem power_ok {arity n : Nat} {p r : Poly} {s s' : Nat}
+    (h : (power arity p n).run s = .ok (r, s')) : r = Poly.pow arity p n := by
+  induction n generalizing r s s' with
+  | zero => exact pure_ok h
+  | succ n ih =>
+    simp only [power] at h
+    obtain ⟨q, _, hq, h⟩ := bind_ok h
+    have h1 := mul_ok h
+    have h2 := ih hq
+    subst h1 h2
+    rfl
+
+theorem monomialImage_ok {arity : Nat} {images : List Poly} {m : Monomial} {r : Poly} {s s' : Nat}
+    (h : (monomialImage arity images m).run s = .ok (r, s')) : r = Poly.evalMonomial arity images m := by
+  unfold monomialImage at h
+  unfold Poly.evalMonomial
+  refine foldlM_ok (fun acc pair s s' r hr => ?_) h
+  obtain ⟨exponent, image⟩ := pair
+  obtain ⟨q, _, hq, hr⟩ := bind_ok hr
+  have h1 := mul_ok hr
+  have h2 := power_ok hq
+  subst h1 h2
+  rfl
+
+theorem substitute_ok {arity : Nat} {images : List Poly} {p r : Poly} {s s' : Nat}
+    (h : (substitute arity images p).run s = .ok (r, s')) : r = Poly.subst arity images p := by
+  unfold substitute at h
+  unfold Poly.subst
+  refine foldlM_ok (fun acc t s s' r hr => ?_) h
+  obtain ⟨m, _, hm, hr⟩ := bind_ok hr
+  have h1 := add_ok hr
+  have h2 := monomialImage_ok hm
+  subst h1 h2
+  rfl
+
+theorem divide_go_ok {divisors : List Poly} {fuel : Nat} {state d : Division} {s s' : Nat}
+    (h : (VastitasKernel.AlgebraBasis.divide.go divisors fuel state).run s = .ok (d, s')) :
+    d = divideWith fuel divisors state := by
+  induction fuel generalizing state s with
+  | zero => exact pure_ok h
+  | succ fuel ih =>
+    simp only [VastitasKernel.AlgebraBasis.divide.go] at h
+    obtain ⟨_, _, _, h⟩ := bind_ok h
+    unfold divideWith
+    cases hstep : Division.step divisors state with
+    | none =>
+      simp only [hstep] at h ⊢
+      exact pure_ok h
+    | some next =>
+      simp only [hstep] at h ⊢
+      split at h
+      · exact (throw_not_ok h).elim
+      · exact ih h
+
+theorem divide_ok {divisors : List Poly} {p : Poly} {d : Division} {s s' : Nat}
+    (h : (VastitasKernel.AlgebraBasis.divide divisors p).run s = .ok (d, s')) :
+    d = AlgebraRuntime.divide divisors p :=
+  divide_go_ok h
+
+theorem reduce_ok {basis : List Poly} {p r : Poly} {s s' : Nat}
+    (h : (reduce basis p).run s = .ok (r, s')) : r = normalForm basis p := by
+  unfold reduce at h
+  obtain ⟨d, _, hd, h⟩ := bind_ok h
+  have h1 := pure_ok h
+  have h2 := divide_ok hd
+  subst h1 h2
+  rfl
+
+theorem compose_ok {after before r : Map} {s s' : Nat}
+    (h : (VastitasKernel.AlgebraBasis.compose after before).run s = .ok (r, s')) :
+    r = Map.compose after before := by
+  unfold VastitasKernel.AlgebraBasis.compose at h
+  obtain ⟨images, _, himages, h⟩ := bind_ok h
+  have h1 := pure_ok h
+  have h2 : images = after.images.map fun image =>
+      normalForm before.basis (Poly.subst before.arity before.images image) := by
+    refine mapM_ok (fun image _ s s' q hq => ?_) himages
+    obtain ⟨p, _, hp, hq⟩ := bind_ok hq
+    rw [reduce_ok hq, substitute_ok hp]
+  subst h1 h2
+  rfl
 
 theorem checkRelation_ok {basis : List Poly} {f : Poly} {s s' : Nat}
     (h : (checkRelation basis f).run s = .ok ((), s')) :

@@ -15,6 +15,20 @@ inductive Representation where
   | affineDescriptor
   | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
   | linearDescriptor (base : Path) (coefficient : CoefficientKind)
+  | presentedAffine (field : AlgebraDeclarations.ExactField)
+  deriving Repr, Inhabited
+
+/-- Unexpanded polynomial syntax. Sums and products are n-ary, so long
+polynomials stay shallow. The kernel bounds degree, exponents and digits
+before expanding. Rust parses and never evaluates. -/
+inductive PolyExpr where
+  | natural (value : Nat)
+  | fraction (numerator : Int) (denominator : Nat)
+  | coordinate (name : String)
+  | neg (operand : PolyExpr)
+  | sum (terms : List PolyExpr)
+  | product (factors : List PolyExpr)
+  | pow (base : PolyExpr) (exponent : Nat)
   deriving Repr, Inhabited
 
 inductive Parameter where
@@ -59,6 +73,28 @@ inductive Primitive where
   | dimension (domain : ObjectType)
   | compose (mapFamily : Path)
   | apply (mapFamily pointFamily : Path)
+  | relativeCompose (family : Path)
+  | relativeView (family source target : Path)
+  | relativeEqual (family : Path)
+  /-- `coordinate` names a target coordinate; `monomial` is a monomial in the
+  source's coordinates, checked after elaboration. -/
+  | relativeCoefficient (family source target : Path) (coordinate : String) (monomial : PolyExpr)
+  | relativeIntPoint (family object base : Path)
+  | relativePair (family fiber : Path)
+  deriving Repr, Inhabited
+
+/-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/
+inductive MorphismDefinition where
+  /-- The images of `Y`'s coordinates, as polynomials in `X`'s coordinates. -/
+  | pullback (images : List (String × PolyExpr))
+  | identity
+  | structureMap
+  /-- The projections of a fiber product onto its factors. -/
+  | first
+  | second
+  /-- `D(φ^#(f)) → D(f)` for a declared morphism `φ : Y → X` and `D(f) ⊂ X`:
+  the action of `φ` on the structure sheaf over a principal open. -/
+  | restrict (morphism : Path)
   deriving Repr, Inhabited
 
 inductive Body where
@@ -70,6 +106,20 @@ inductive Body where
   | family (contract : Family)
   | package (cases : List PackageShape)
   | primitive (binding : Primitive)
+  /-- `spec[generators] relations(…) over base by(name ↦ image, …)` -/
+  | affine (implementation : Path) (generators : List String) (relations : List PolyExpr)
+      (base : Option Path) (bindings : List (String × PolyExpr))
+  /-- `morphism name : family<X, Y, S> = definition` -/
+  | morphism (family : Path) (indices : List Path) (definition : MorphismDefinition)
+  /-- `fiber(left, right) [via(b ↦ p, …) inverse(b' ↦ p, …)]` over `left`'s base. -/
+  | affineFiber (implementation : Path) (left right : Path)
+      (via : Option (List (String × PolyExpr) × List (String × PolyExpr)))
+  /-- `localize(object, element) inverse u`: the principal open `D(element)`. -/
+  | affineLocalization (implementation : Path) (object : Path) (element : PolyExpr) (inverse : String)
+  /-- `iso name = forward f inverse g`: two declared morphisms, mutually inverse. -/
+  | iso (forward backward : Path)
+  /-- `cartesian name = square(first, second) through fiber inverse h`. -/
+  | cartesian (first second fiber inverse : Path)
   deriving Repr, Inhabited
 
 structure Declaration where
@@ -197,7 +247,7 @@ def Program.indexed (p : Program) : Namespace.Indexed := {
 
 def Body.category : Body → Nat
   | .package _ => 1
-  | .primitive _ => 2
+  | .primitive _ | .morphism .. | .iso .. | .cartesian .. => 2
   | _ => 0
 
 /-- Match the three ordered tables in Core.Declarations without sorting IDs or

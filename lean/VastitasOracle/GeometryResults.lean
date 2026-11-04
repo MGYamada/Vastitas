@@ -4,8 +4,10 @@ import VastitasKernel.Runtime
 
 /-! Finite geometry result compatibility at the actual declared primitive
 boundary. The erased results agree with the retained Stage 0 runtime operations.
-This does not identify nominal objects, assert arbitrary geometric axioms, or
-prove whole-source rewriting or native compiler correctness. -/
+`eraseObject` is an oracle-local reference map that keeps only an object's
+dimension and forgets its setting and base, so agreement holds only up to that
+erasure. This does not identify nominal objects, assert arbitrary geometric
+axioms, or prove whole-source rewriting or native compiler correctness. -/
 namespace VastitasOracle.GeometryResults
 open VastitasKernel VastitasKernel.Indexed Core.Semantics
 

@@ -66,6 +66,148 @@ pub enum DeclarationBody {
     Primitive {
         binding: Primitive,
     },
+    /// A presented affine object `spec[generators] relations(...) over base by(...)`
+    /// (protocol 9). The kernel expands, bounds and checks every polynomial.
+    Affine {
+        implementation: TypePath,
+        generators: Vec<String>,
+        relations: Vec<PolyExpr>,
+        base: Option<TypePath>,
+        bindings: Vec<Binding>,
+    },
+    /// A declared morphism `family<X, Y, S>` over a base (protocol 9).
+    Morphism {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        definition: MorphismDefinition,
+    },
+    /// The fiber product `left ×_B right` over `left`'s base (protocol 9).
+    AffineFiber {
+        implementation: TypePath,
+        left: TypePath,
+        right: TypePath,
+        via: Option<FiberVia>,
+    },
+    /// The principal open `D(element)` of `object` (protocol 9).
+    AffineLocalization {
+        implementation: TypePath,
+        object: TypePath,
+        element: PolyExpr,
+        inverse: String,
+    },
+    /// Evidence that two declared morphisms are mutually inverse.
+    Iso {
+        forward: TypePath,
+        inverse: TypePath,
+    },
+    /// Evidence that a declared square is Cartesian.
+    Cartesian {
+        first: TypePath,
+        second: TypePath,
+        fiber: TypePath,
+        inverse: TypePath,
+    },
+}
+
+/// A chosen isomorphism between separately declared fiber bases.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FiberVia {
+    pub forward: Vec<Binding>,
+    pub inverse: Vec<Binding>,
+}
+
+/// How a declared morphism `X → Y` over `S` is given.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum MorphismDefinition {
+    /// The images of the target's coordinates in the source's coordinates.
+    Pullback {
+        images: Vec<Binding>,
+    },
+    Identity,
+    Structure,
+    First,
+    Second,
+    /// `D(φ^#(f)) → D(f)` for a declared morphism `φ`.
+    Restrict {
+        morphism: TypePath,
+    },
+}
+
+impl DeclarationBody {
+    /// Stage 2 algebraic forms. They exist only in protocol 9.
+    pub fn is_algebraic(&self) -> bool {
+        match self {
+            DeclarationBody::Affine { .. }
+            | DeclarationBody::Morphism { .. }
+            | DeclarationBody::AffineFiber { .. }
+            | DeclarationBody::AffineLocalization { .. }
+            | DeclarationBody::Iso { .. }
+            | DeclarationBody::Cartesian { .. } => true,
+            DeclarationBody::Primitive { binding } => matches!(
+                binding,
+                Primitive::RelativeCompose { .. }
+                    | Primitive::RelativeView { .. }
+                    | Primitive::RelativeEqual { .. }
+                    | Primitive::RelativeCoefficient { .. }
+                    | Primitive::RelativeIntPoint { .. }
+                    | Primitive::RelativePair { .. }
+            ),
+            DeclarationBody::Implementation { representation, .. } => {
+                matches!(representation, Representation::PresentedAffine { .. })
+            }
+            DeclarationBody::Family {
+                constraints,
+                representation,
+                ..
+            } => {
+                *representation == FamilyRepresentation::Relative
+                    || constraints
+                        .iter()
+                        .any(|c| matches!(c, Constraint::Structural { .. }))
+            }
+            _ => false,
+        }
+    }
+}
+
+/// The image of one base coordinate under a structure map.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Binding {
+    pub name: String,
+    pub image: PolyExpr,
+}
+
+/// Unexpanded polynomial syntax. Literals stay decimal strings; sums and
+/// products are n-ary so long polynomials stay shallow.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "op", rename_all = "snake_case", deny_unknown_fields)]
+pub enum PolyExpr {
+    Natural {
+        value: String,
+    },
+    Fraction {
+        numerator: String,
+        denominator: String,
+    },
+    Coordinate {
+        name: String,
+    },
+    Neg {
+        operand: Box<PolyExpr>,
+    },
+    Sum {
+        terms: Vec<PolyExpr>,
+    },
+    Product {
+        factors: Vec<PolyExpr>,
+    },
+    Pow {
+        base: Box<PolyExpr>,
+        exponent: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,6 +222,16 @@ pub enum Representation {
         base: TypePath,
         coefficient: CoefficientKind,
     },
+    PresentedAffine {
+        field: ExactField,
+    },
+}
+
+/// Exact coefficient fields of presented affine objects.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExactField {
+    Rational,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -109,6 +261,7 @@ pub enum FamilyRepresentation {
     Token,
     Point,
     Morphism,
+    Relative,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,6 +279,7 @@ pub enum Constraint {
     SameObject { left: u32, right: u32 },
     SameBase { left: u32, right: u32 },
     Over { object: u32, marker: u32 },
+    Structural { object: u32, base: u32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -190,5 +344,32 @@ pub enum Primitive {
     Apply {
         map_family: TypePath,
         point_family: TypePath,
+    },
+    RelativeCompose {
+        family: TypePath,
+    },
+    RelativeView {
+        family: TypePath,
+        source: TypePath,
+        target: TypePath,
+    },
+    RelativeEqual {
+        family: TypePath,
+    },
+    RelativeCoefficient {
+        family: TypePath,
+        source: TypePath,
+        target: TypePath,
+        coordinate: String,
+        monomial: PolyExpr,
+    },
+    RelativeIntPoint {
+        family: TypePath,
+        object: TypePath,
+        base: TypePath,
+    },
+    RelativePair {
+        family: TypePath,
+        fiber: TypePath,
     },
 }

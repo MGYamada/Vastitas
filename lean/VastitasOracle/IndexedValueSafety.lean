@@ -136,6 +136,17 @@ theorem project_total {env : Declarations} {world : World} {element : PairElem} 
   cases element <;> cases value
   all_goals first | exact False.elim typed | simp [ValueHasType, evalProject]
 
+/-- The pure results that the closed registry exchanges. -/
+theorem primitiveType_pure {type : PureType} {reference : Option ObjectRef} {output : ValueType}
+    (converted : Result.primitiveType? ⟨.pure type, reference⟩ = some output) :
+    reference = none ∧ ((type = .nat ∧ output = .natural) ∨ (type = .bool ∧ output = .boolean) ∨
+      (type = .int ∧ output = .integer) ∨ (type = .pair .int ∧ output = .integerPair)) := by
+  cases type with
+  | pair element =>
+    cases element <;> cases reference <;> simp [Result.primitiveType?] at converted
+    exact ⟨rfl, by simp [converted]⟩
+  | _ => cases reference <;> simp [Result.primitiveType?] at converted <;> simp [converted]
+
 theorem result_primitive_iff {env : Declarations} {world : World} {value : Value} {result : Result}
     {output : ValueType} (converted : result.primitiveType? = some output) :
     PrimitiveValueHasType env.indexed world value output ↔ ValueHasResult env world value result := by
@@ -143,9 +154,9 @@ theorem result_primitive_iff {env : Declarations} {world : World} {value : Value
   | mk type reference =>
     cases type with
     | pure type =>
-      cases type <;> cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
-      cases converted
-      cases value <;> simp [PrimitiveValueHasType, ValueHasResult, ValueHasType, ValueHasRef]
+      obtain ⟨rfl, cases⟩ := primitiveType_pure converted
+      rcases cases with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩ <;>
+        cases value <;> simp [PrimitiveValueHasType, ValueHasResult, ValueHasType, ValueHasRef]
     | object type =>
       cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
       cases converted
@@ -189,9 +200,8 @@ theorem primitive_frame {world : World} {binding : PrimitiveBinding} {result : R
     | mk type reference =>
       cases type with
       | pure type =>
-        cases type <;> cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
-        cases converted
-        exact unchanged_refl _ _
+        obtain ⟨rfl, cases⟩ := primitiveType_pure converted
+        rcases cases with ⟨_, rfl⟩ | ⟨_, rfl⟩ | ⟨_, rfl⟩ | ⟨_, rfl⟩ <;> exact unchanged_refl _ _
       | object type =>
         cases reference with
         | none => contradiction
@@ -227,7 +237,9 @@ theorem descriptor_serial {result : Result} {type : ObjectType} {brand : Nat}
   cases result with
   | mk data reference =>
     cases data with
-    | pure data => cases data <;> cases reference <;> simp [Result.primitiveType?] at converted
+    | pure data =>
+      obtain ⟨_, cases⟩ := primitiveType_pure converted
+      rcases cases with ⟨_, h⟩ | ⟨_, h⟩ | ⟨_, h⟩ | ⟨_, h⟩ <;> cases h
     | object actual =>
       cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
       cases converted

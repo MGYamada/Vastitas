@@ -244,8 +244,9 @@ theorem actual_selected_coordinates {env numerical resources left right output l
     selected_right_coordinate right ra rightIndices inner checked.rightValid.1
       (selected_bounds checked).2 rightLength checked.grouping.2.1⟩
 
-/-- A finite tensor-coordinate reference using actual loan-coordinate readers.
-No commutativity or associativity assumptions appear in this statement. -/
+/-- Oracle-local tensor-coordinate reference model with no kernel or native
+counterpart, built from the actual loan-coordinate readers. No commutativity or
+associativity assumptions appear in this statement. -/
 def coordinateReference (zero : α) (add mul : α → α → α)
     (left right : View) (leftCells rightCells : Nat → Nat → α)
     (la ra : Nat) (leftIndices rightIndices : List Nat) : α :=

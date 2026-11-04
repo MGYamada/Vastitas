@@ -26,6 +26,7 @@ def generatedLets : Nat := compiler_limit% "generatedLets"
 def specializations : Nat := compiler_limit% "specializations"
 def dispatchKeys : Nat := compiler_limit% "dispatchKeys"
 def dispatchArity : Nat := compiler_limit% "dispatchArity"
+def dispatchWork : Nat := compiler_limit% "dispatchWork"
 def nominalTypes : Nat := compiler_limit% "nominalTypes"
 def namespaceResolution : Nat := compiler_limit% "namespaceResolution"
 def namespaceImportWork : Nat := compiler_limit% "namespaceImportWork"
@@ -33,6 +34,19 @@ def namespaceProgramWork : Nat := compiler_limit% "namespaceProgramWork"
 def dependencyGraph : Nat := compiler_limit% "dependencyGraph"
 
 def assemblyEvents : Nat := compiler_limit% "assemblyEvents"
+def authorityTraceWork : Nat := compiler_limit% "authorityTraceWork"
 def contributionMethods : Nat := compiler_limit% "contributionMethods"
+
+/-! Finite Stage 2 algebra: generators per ring, declared relations, source
+degree, polynomial terms, reduced basis size, decimal digits per source
+integer, base-chain length and weighted checker work. -/
+def algebraGenerators : Nat := compiler_limit% "algebraGenerators"
+def algebraRelations : Nat := compiler_limit% "algebraRelations"
+def algebraDegree : Nat := compiler_limit% "algebraDegree"
+def algebraTerms : Nat := compiler_limit% "algebraTerms"
+def algebraBasis : Nat := compiler_limit% "algebraBasis"
+def algebraCoefficientDigits : Nat := compiler_limit% "algebraCoefficientDigits"
+def algebraChain : Nat := compiler_limit% "algebraChain"
+def algebraWork : Nat := compiler_limit% "algebraWork"
 
 end VastitasKernel.Limits

@@ -22,7 +22,7 @@ def Scope (ctx : Context) (value : Term) : Prop :=
 
 mutual
   inductive Expr (signatures : Signatures) : Context → RawExpr → Term → Prop
-    | integer {value span ty n} : value.toNat? = some n →
+    | integer {value span ty n} : decimalNat? value = some n →
         (ty = .nat ∨ ty = .int) → Expr signatures ctx (.integer value span) (.literal ty n)
     | boolean (value span) : Expr signatures ctx (.boolean value span) (.boolean value)
     | unit (span) : Expr signatures ctx (.unit span) .unit

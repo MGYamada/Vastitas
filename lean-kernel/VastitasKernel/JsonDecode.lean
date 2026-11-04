@@ -18,6 +18,14 @@ def optionalArray (j : Json) (key : String) : Except String (List Json) := do
   | .error _ => return []
   | .ok value => return (← value.getArr?).toList
 
+/-- Structured path components. A component never contains `:`, so joining
+components with `::` for a string lookup always splits back into the same list. -/
+def segments (j : Json) (key : String) : Except String (List String) := do
+  let parts ← (← array j key).mapM Json.getStr?
+  if parts.any fun part => part.isEmpty || part.contains ':' then
+    throw s!"'{key}' path components must be nonempty and contain no ':'"
+  return parts
+
 def fields (j : Json) (allowed : List String) : Except String Unit := do
   for (key, _) in (← j.getObj?).toArray do
     if !allowed.contains key then throw s!"unknown protocol field '{key}'"

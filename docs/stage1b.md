@@ -254,7 +254,8 @@ Resource values are defined in
 Cargo generates frontend constants from it; Lean reifies the kernel's values
 as transparent natural-number definitions in `VastitasKernel.Limits`. Both build
 systems track changes to the file. Parsing depth, source traversal, body checking,
-generated lets, aggregate elaboration work, specialization count, dispatch keys and namespace resolution
+generated lets, aggregate elaboration work, specialization count, dispatch keys, dispatch-table
+work, authority-trace work and namespace resolution
 retain separate named budgets even when their numeric values coincide.
 
 <a id="stage1b-indexing"></a>

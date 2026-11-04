@@ -911,6 +911,24 @@ theorem atSite_success (function : Nat) (place : ErrorPlace)
 def atFunction (function : Nat) (place : ErrorPlace) (work : M α) : M α := fun context =>
   atSite function place (work context)
 
+/-- Like `atStatement`, the error arm alone resolves pending diagnostic
+subjects (for example leaked owners) to this function's lexical names. -/
+def atResult (function : Nat) (frame : Frame) (work : M α) : M α := fun context =>
+  match work context with
+  | .ok result => .ok result
+  | .error error =>
+    let names := error.context.subjects.filterMap fun entry =>
+      (frame.find? (fun binding => binding.2 == entry.name)).map fun binding =>
+        {entry with name := binding.1}
+    let site : ErrorSite := ⟨function, .result, names⟩
+    .error {error with context := {sites := (error.context.sites ++ [site]).take 32}}
+
+theorem atResult_success (function : Nat) (frame : Frame) (work : M α)
+    (context : Context) (result : α × Context) :
+    atResult function frame work context = .ok result ↔ work context = .ok result := by
+  simp only [atResult]
+  cases work context <;> simp
+
 theorem atStatement_success (stack path : List Nat) (position : Nat) (frame : Frame)
     (statement : Statement) (work : M α) (context : Context) (result : α × Context) :
     atStatement stack path position frame statement work context = .ok result ↔
@@ -1628,10 +1646,19 @@ def finish (before : State) (frame : Frame) (borrowed : List BorrowedArgument)
       throw {code := "E_RESOURCE_ESCAPE", message := "owned result cannot carry outstanding loans"}
     returned := returned ++ [result]
   let state := (← get).resources
-  if state.loans != before.loans then throw {code := "E_RESOURCE_ESCAPE", message := "local loans escape the resource function"}
+  if state.loans != before.loans then
+    -- Diagnostic subjects only; the decision above is unchanged.
+    let escaped := state.loans.filter fun loan => !before.loans.contains loan
+    throw {
+      code := "E_RESOURCE_ESCAPE", message := "local loans escape the resource function"
+      context := {subjects := (escaped.reverse.take 8).map fun loan => ⟨"escaping loan", loan.name, .binding⟩}}
   if state.allocations.any (fun allocation =>
       !(before.owner? allocation.owner).isSome && !returned.any (·.owner == allocation.owner)) then
-    throw {code := "E_RESOURCE_ESCAPE", message := "local owner was neither dropped nor returned"}
+    let leaked := state.allocations.filter fun allocation =>
+      !(before.owner? allocation.owner).isSome && !returned.any (·.owner == allocation.owner)
+    throw {
+      code := "E_RESOURCE_ESCAPE", message := "local owner was neither dropped nor returned"
+      context := {subjects := (leaked.reverse.take 8).map fun allocation => ⟨"leaked owner", allocation.owner, .binding⟩}}
   return returned
 
 def tensorOperation (site : NumericalSourceSite) (frame : Frame) (operation : Tensor.Operation) : M Frame := do
@@ -1976,7 +2003,7 @@ mutual
       let before ← get
       let (frame, borrowed, runtimeBorrowed) ← arguments function.parameters actuals
       let frame ← expandAt fuel functions (callee :: stack) [] 0 frame function.body
-      atFunction callee .result do
+      atResult callee frame do
         cleanupDependencies before.resources
         let returned ← finish before.resources frame borrowed function.results
         let runtimeContext ← get

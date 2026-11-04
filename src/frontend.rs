@@ -29,6 +29,25 @@ const BUILTINS: &[&str] = &[
     "pair_first",
     "pair_second",
 ];
+// Reserved spellings that may name actual indexed declarations, as in
+// `pub use super::Point;`. Mirrors `indexedSpelling` in the kernel's
+// NamespaceChecker, which validates such imports.
+const INDEXED_SPELLINGS: &[&str] = &[
+    "Scheme",
+    "CInfScheme",
+    "Point",
+    "Morphism",
+    "Pointed",
+    "QQ",
+    "CInfReal",
+    "Affine",
+    "Base",
+    "origin",
+    "id",
+    "compose",
+    "apply",
+    "dimension",
+];
 const KEYWORDS: &[&str] = &[
     "fn", "let", "unpack", "as", "pack", "if", "else", "true", "false", "return", "while", "for",
     "loop", "mut", "generic", "method", "domain", "requires", "abstract", "type", "subtype",
@@ -70,6 +89,22 @@ pub(crate) fn reserved(name: &str) -> bool {
         || matches!(name, "QQ" | "CInfReal")
 }
 
+// Levenshtein distance over bytes; only used for short ASCII keyword hints.
+fn edit_distance(left: &str, right: &str) -> usize {
+    let right = right.as_bytes();
+    let mut row: Vec<usize> = (0..=right.len()).collect();
+    for (i, a) in left.bytes().enumerate() {
+        let mut diagonal = row[0];
+        row[0] = i + 1;
+        for (j, &b) in right.iter().enumerate() {
+            let substitution = diagonal + usize::from(a != b);
+            diagonal = row[j + 1];
+            row[j + 1] = substitution.min(row[j] + 1).min(diagonal + 1);
+        }
+    }
+    row[right.len()]
+}
+
 fn unsupported_keyword(name: &str) -> Option<&'static str> {
     match name {
         "return" => {
@@ -81,12 +116,60 @@ fn unsupported_keyword(name: &str) -> Option<&'static str> {
     }
 }
 
+// Unicode 16.0 Default_Ignorable_Code_Point
+// (scripts/identifier_data/DerivedCoreProperties-16.0.0.txt).
+fn default_ignorable(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x00AD
+            | 0x034F
+            | 0x061C
+            | 0x115F..=0x1160
+            | 0x17B4..=0x17B5
+            | 0x180B..=0x180F
+            | 0x200B..=0x200F
+            | 0x202A..=0x202E
+            | 0x2060..=0x206F
+            | 0x3164
+            | 0xFE00..=0xFE0F
+            | 0xFEFF
+            | 0xFFA0
+            | 0xFFF0..=0xFFF8
+            | 0x1BCA0..=0x1BCA3
+            | 0x1D173..=0x1D17A
+            | 0xE0000..=0xE0FFF
+    )
+}
+
+// Characters that can make a comment display differently from how the source
+// is parsed: every Bidi_Control character (Trojan Source), and invisible
+// characters with no text-shaping role. Joiners, variation selectors and tag
+// characters remain allowed, since prose and emoji sequences use them.
+fn deceptive_in_comment(ch: char) -> bool {
+    matches!(
+        ch as u32,
+        0x061C | 0x200B | 0x200E | 0x200F | 0x202A..=0x202E | 0x2060..=0x206F | 0xFEFF
+    )
+}
+
+// Name a source character in a diagnostic without echoing control, format or
+// whitespace characters to the terminal.
+fn character(ch: char) -> String {
+    if ch.is_control() || ch.is_whitespace() || default_ignorable(ch) {
+        format!("U+{:04X}", ch as u32)
+    } else {
+        format!("`{ch}` (U+{:04X})", ch as u32)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TokenKind {
     Name(String),
     Number(String),
     Floating(String),
-    Text(String),
+    // An undecoded string literal. No grammar rule accepts one; the token only
+    // lets the parser explain the removed `module("…")` recipient form.
+    Text,
     Symbol(String),
     Eof,
 }
@@ -107,11 +190,13 @@ impl Token {
 
     fn description(&self) -> String {
         match &self.kind {
+            // The lexer admits only ASCII spellings, so tokens never carry
+            // control or format characters into diagnostics.
             TokenKind::Name(s)
             | TokenKind::Number(s)
             | TokenKind::Floating(s)
-            | TokenKind::Symbol(s)
-            | TokenKind::Text(s) => format!("`{s}`"),
+            | TokenKind::Symbol(s) => format!("`{s}`"),
+            TokenKind::Text => "a string literal".into(),
             TokenKind::Eof => "end of file".into(),
         }
     }
@@ -254,6 +339,19 @@ impl<'a> Lexer<'a> {
             if self.source[self.offset..].starts_with("//") {
                 while let Some(ch) = self.peek().filter(|ch| *ch != '\n') {
                     self.check_line_break(ch)?;
+                    if deceptive_in_comment(ch) {
+                        return Err(diagnostic(
+                            "E_LEX",
+                            format!(
+                                "comments cannot contain the bidirectional control or invisible character U+{:04X}; it can make source display differently from how it is parsed",
+                                ch as u32
+                            ),
+                            Span {
+                                end: self.offset + ch.len_utf8(),
+                                ..self.span()
+                            },
+                        ));
+                    }
                     self.advance();
                 }
                 continue;
@@ -288,6 +386,8 @@ impl<'a> Lexer<'a> {
                 let name = &self.source[span.start..self.offset];
                 TokenKind::Name(name.into())
             } else if ch == '"' {
+                // Never decode the literal: its escapes must not reach
+                // diagnostics or terminal output.
                 self.advance();
                 let mut escaped = false;
                 while let Some(c) = self.peek() {
@@ -298,11 +398,7 @@ impl<'a> Lexer<'a> {
                     }
                     escaped = !escaped && c == '\\';
                 }
-                let value =
-                    serde_json::from_str(&self.source[span.start..self.offset]).map_err(|_| {
-                        diagnostic("E_LEX", "invalid quoted manifest or module path", span)
-                    })?;
-                TokenKind::Text(value)
+                TokenKind::Text
             } else if self.source[self.offset..].starts_with("0x")
                 || self.source[self.offset..].starts_with("0X")
             {
@@ -369,7 +465,8 @@ impl<'a> Lexer<'a> {
                     return Err(diagnostic(
                         "E_LEX",
                         format!(
-                            "unsupported character `{ch}`; use ASCII identifiers and integer literals"
+                            "unsupported character {}; use ASCII identifiers and integer literals",
+                            character(ch)
                         ),
                         span,
                     ));
@@ -401,7 +498,8 @@ struct Parser {
     nesting: usize,
     packages: bool,
     indexed: bool,
-    expression_depths: HashMap<(usize, usize), usize>,
+    // Open `else if` links. Each consumes one level of the nesting budget.
+    else_if_links: usize,
 }
 
 impl Parser {
@@ -436,7 +534,7 @@ impl Parser {
             nesting: 0,
             packages,
             indexed: false,
-            expression_depths: HashMap::new(),
+            else_if_links: 0,
         })
     }
 
@@ -531,13 +629,18 @@ impl Parser {
 
     fn binding_name(&mut self) -> Result<(String, Span), Diagnostic> {
         let (name, span) = self.name()?;
-        if reserved(&name)
-            || (self.packages && ["mod", "use", "pub", "self", "super"].contains(&name.as_str()))
+        self.check_binding_name(&name, span)?;
+        Ok((name, span))
+    }
+
+    fn check_binding_name(&self, name: &str, span: Span) -> Result<(), Diagnostic> {
+        if reserved(name)
+            || (self.packages && ["mod", "use", "pub", "self", "super"].contains(&name))
         {
             Err(diagnostic(
                 "E_RESERVED",
-                if BUILTINS.contains(&name.as_str()) {
-                    let reason = match name.as_str() {
+                if BUILTINS.contains(&name) {
+                    let reason = match name {
                         "int" => "Nat-to-Int conversion",
                         "pair" | "pair_first" | "pair_second" => "Pair construction or projection",
                         _ => "geometry operations",
@@ -553,7 +656,7 @@ impl Parser {
                 span,
             ))
         } else {
-            Ok((name, span))
+            Ok(())
         }
     }
 
@@ -572,14 +675,70 @@ impl Parser {
             } else if self.peek().is("subtype") {
                 module.subtypes.push(self.subtype()?);
             } else {
-                return Err(diagnostic(
-                    "E_UNSUPPORTED",
-                    "modules contain named `fn`, `generic`, and `method` declarations",
-                    self.peek().span,
-                ));
+                return Err(self.flat_declaration_error());
             }
         }
         Ok(())
+    }
+
+    // Name package-only syntax precisely; anything else is an unexpected token.
+    fn flat_declaration_error(&self) -> Diagnostic {
+        let token = self.peek();
+        let next_is = |value| {
+            self.tokens
+                .get(self.position + 1)
+                .is_some_and(|next| next.is(value))
+        };
+        let package_only = if token.is("resource") && next_is("fn") {
+            Some("`resource fn` declarations require")
+        } else if token.is("mod") {
+            Some("`mod` declarations require")
+        } else if token.is("use") {
+            Some("`use` imports require")
+        } else if token.is("pub") {
+            Some("`pub` visibility requires")
+        } else if token.is("indexed") {
+            Some("`indexed` declarations require")
+        } else if [
+            "grant",
+            "delegation",
+            "transfer",
+            "contribution",
+            "assembly",
+        ]
+        .iter()
+        .any(|keyword| token.is(keyword))
+        {
+            Some("edit-authority declarations require")
+        } else {
+            None
+        };
+        if let Some(subject) = package_only {
+            return diagnostic(
+                "E_UNSUPPORTED",
+                format!(
+                    "{subject} manifest mode; put the source in a package and run `vastitas check --manifest-path Vastitas.toml`"
+                ),
+                token.span,
+            );
+        }
+        const FLAT: [&str; 5] = ["fn", "generic", "method", "abstract", "subtype"];
+        let hint = match &token.kind {
+            TokenKind::Name(name) => FLAT
+                .iter()
+                .find(|keyword| edit_distance(name, keyword) <= 1 + keyword.len() / 4)
+                .map(|keyword| format!("; help: did you mean `{keyword}`?"))
+                .unwrap_or_default(),
+            _ => String::new(),
+        };
+        diagnostic(
+            "E_PARSE",
+            format!(
+                "expected a top-level `fn`, `generic`, `method`, `abstract type`, `subtype` or `abstract method` declaration, found {}{hint}",
+                token.description()
+            ),
+            token.span,
+        )
     }
 
     fn reference_path(&mut self) -> Result<(String, Span), Diagnostic> {
@@ -736,11 +895,19 @@ impl Parser {
             } else if self.consume("use") {
                 let start = self.previous().span;
                 let (name, _) = self.reference_path()?;
+                let last = self.previous().span;
                 let components: Vec<String> = name.split("::").map(str::to_owned).collect();
                 let alias = if self.consume("as") {
                     self.binding_name()?.0
                 } else {
-                    components.last().unwrap().clone()
+                    let alias = components.last().unwrap().clone();
+                    // An implicit alias binds like `as`. Compatibility
+                    // spellings may still name imported indexed declarations;
+                    // the kernel decides those.
+                    if !INDEXED_SPELLINGS.contains(&alias.as_str()) {
+                        self.check_binding_name(&alias, last)?;
+                    }
+                    alias
                 };
                 let end = self.expect(";")?.span;
                 module.imports.push(Import {
@@ -1218,13 +1385,7 @@ impl Parser {
 
     fn ty(&mut self) -> Result<Type, Diagnostic> {
         if self.nesting >= MAX_PARSE_NESTING {
-            return Err(diagnostic(
-                "E_LIMIT",
-                format!(
-                    "combined type/expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"
-                ),
-                self.peek().span,
-            ));
+            return Err(self.nesting_limit());
         }
         self.nesting += 1;
         let result = self.ty_inner();
@@ -1374,24 +1535,36 @@ impl Parser {
         }
     }
 
+    // For root bodies only. A block nested in an expression must contribute
+    // its depth through block_with_depth.
     fn block(&mut self) -> Result<Block, Diagnostic> {
+        Ok(self.block_with_depth()?.0)
+    }
+
+    // A block is one level deeper than its result and its statement values;
+    // each statement value also counts its statement edge.
+    fn block_with_depth(&mut self) -> Result<(Block, usize), Diagnostic> {
         let start = self.expect("{")?.span;
         let mut statements = Vec::new();
+        let mut depth = 0;
         while self.peek().is("let") || self.peek().is("unpack") {
-            statements.push(self.statement()?);
+            let (statement, value) = self.statement()?;
+            depth = depth.max(value + 1);
+            statements.push(statement);
         }
         if self.peek().is("}") {
             let end = self.advance().span;
-            return Ok(Block {
+            let block = Block {
                 statements,
                 result: Box::new(Expr {
                     kind: ExprKind::Unit,
                     span: end,
                 }),
                 span: start.through(end),
-            });
+            };
+            return Ok((block, 1 + depth.max(1)));
         }
-        let result = self.expression(0)?;
+        let (result, result_depth) = self.expression_with_depth(0)?;
         if self.peek().is("as")
             && self
                 .tokens
@@ -1412,14 +1585,16 @@ impl Parser {
             ));
         }
         let end = self.expect("}")?.span;
-        Ok(Block {
+        let block = Block {
             statements,
             result: Box::new(result),
             span: start.through(end),
-        })
+        };
+        Ok((block, 1 + depth.max(result_depth)))
     }
 
-    fn statement(&mut self) -> Result<Statement, Diagnostic> {
+    // Also returns the depth of the statement's value expression.
+    fn statement(&mut self) -> Result<(Statement, usize), Diagnostic> {
         let token = self.advance();
         if token.is("let") {
             if self.peek().is("mut")
@@ -1441,18 +1616,19 @@ impl Parser {
                 None
             };
             self.expect("=")?;
-            let value = self.expression(0)?;
+            let (value, depth) = self.expression_with_depth(0)?;
             let end = self.expect(";")?.span;
-            Ok(Statement {
+            let statement = Statement {
                 kind: StatementKind::Let {
                     name,
                     annotation,
                     value,
                 },
                 span: token.span.through(end),
-            })
+            };
+            Ok((statement, depth))
         } else {
-            let value = self.expression(0)?;
+            let (value, depth) = self.expression_with_depth(0)?;
             self.expect("as")?;
             self.expect("{")?;
             if self.packages && self.peek().is("witness") {
@@ -1467,14 +1643,15 @@ impl Parser {
                 self.consume(",");
                 self.expect("}")?;
                 let end = self.expect(";")?.span;
-                return Ok(Statement {
+                let statement = Statement {
                     kind: StatementKind::UnpackFields {
                         value,
                         witness,
                         fields,
                     },
                     span: token.span.through(end),
-                });
+                };
+                return Ok((statement, depth));
             }
             self.package_field("scheme")?;
             self.expect(":")?;
@@ -1486,106 +1663,55 @@ impl Parser {
             self.consume(",");
             self.expect("}")?;
             let end = self.expect(";")?.span;
-            Ok(Statement {
+            let statement = Statement {
                 kind: StatementKind::Unpack {
                     value,
                     scheme,
                     point,
                 },
                 span: token.span.through(end),
-            })
+            };
+            Ok((statement, depth))
         }
     }
 
-    fn expression_depth(&self, expr: &Expr) -> usize {
-        match expr.kind {
-            ExprKind::Integer { .. }
-            | ExprKind::Boolean { .. }
-            | ExprKind::Unit
-            | ExprKind::Variable { .. } => 1,
-            _ => self.expression_depths[&(expr.span.start, expr.span.end)],
-        }
-    }
-
-    fn block_depth(&self, block: &Block) -> usize {
-        let result = self.expression_depth(&block.result);
-        let statements = block
-            .statements
-            .iter()
-            .map(|statement| match &statement.kind {
-                StatementKind::Let { value, .. }
-                | StatementKind::Unpack { value, .. }
-                | StatementKind::UnpackFields { value, .. } => 1 + self.expression_depth(value),
-            })
-            .max()
-            .unwrap_or(0);
-        1 + result.max(statements)
-    }
-
-    // Children were checked when constructed. Only inspect this node's direct
-    // edges; parser-private span keys never enter the wire representation.
-    fn check_expression_depth(&mut self, expr: &Expr) -> Result<(), Diagnostic> {
-        let child = match &expr.kind {
-            ExprKind::Lambda { body, .. } | ExprKind::Block { body } => self.block_depth(body),
-            ExprKind::Call { args, .. } => args
-                .iter()
-                .map(|arg| self.expression_depth(arg))
-                .max()
-                .unwrap_or(0),
-            ExprKind::Invoke { callee, args } => self.expression_depth(callee).max(
-                args.iter()
-                    .map(|arg| self.expression_depth(arg))
-                    .max()
-                    .unwrap_or(0),
-            ),
-            ExprKind::Unary { operand, .. } => self.expression_depth(operand),
-            ExprKind::Binary { left, right, .. } => self
-                .expression_depth(left)
-                .max(self.expression_depth(right)),
-            ExprKind::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => self
-                .expression_depth(condition)
-                .max(self.block_depth(then_branch))
-                .max(self.block_depth(else_branch)),
-            ExprKind::Pack { scheme, point } => self
-                .expression_depth(scheme)
-                .max(self.expression_depth(point)),
-            ExprKind::IndexedPack {
-                witness, fields, ..
-            } => self.expression_depth(witness).max(
-                fields
-                    .iter()
-                    .map(|field| self.expression_depth(field))
-                    .max()
-                    .unwrap_or(0),
-            ),
-            _ => 0,
-        };
-        let depth = child + 1;
+    // Every node returns its depth with it, so parents combine checked child
+    // depths directly. Leaves have depth 1.
+    fn tree_depth(children: usize, span: Span) -> Result<usize, Diagnostic> {
+        let depth = children + 1;
         if depth > MAX_AST_DEPTH {
             return Err(diagnostic(
                 "E_LIMIT",
                 format!("expression tree exceeds the supported depth limit of {MAX_AST_DEPTH}"),
-                expr.span,
+                span,
             ));
         }
-        self.expression_depths
-            .insert((expr.span.start, expr.span.end), depth);
-        Ok(())
+        Ok(depth)
     }
 
-    fn expression(&mut self, min_binding_power: u8) -> Result<Expr, Diagnostic> {
+    // The message is chosen from parser state, not from another diagnostic:
+    // an `else if` chain is named only when its open links consume most of the
+    // exhausted budget.
+    fn nesting_limit(&self) -> Diagnostic {
+        let message = if 2 * self.else_if_links > MAX_PARSE_NESTING {
+            format!(
+                "`else if` chain exceeds the supported nesting limit; a standalone chain supports at most {} conditions, and enclosing expressions also consume nesting budget",
+                MAX_PARSE_NESTING - 2
+            )
+        } else {
+            format!(
+                "combined type/expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"
+            )
+        };
+        diagnostic("E_LIMIT", message, self.peek().span)
+    }
+
+    fn expression_with_depth(
+        &mut self,
+        min_binding_power: u8,
+    ) -> Result<(Expr, usize), Diagnostic> {
         if self.nesting >= MAX_PARSE_NESTING {
-            return Err(diagnostic(
-                "E_LIMIT",
-                format!(
-                    "combined type/expression nesting exceeds the supported limit of {MAX_PARSE_NESTING}"
-                ),
-                self.peek().span,
-            ));
+            return Err(self.nesting_limit());
         }
         self.nesting += 1;
         let result = self.expression_inner(min_binding_power);
@@ -1593,12 +1719,11 @@ impl Parser {
         result
     }
 
-    fn expression_inner(&mut self, min_binding_power: u8) -> Result<Expr, Diagnostic> {
-        let mut left = self.prefix()?;
+    fn expression_inner(&mut self, min_binding_power: u8) -> Result<(Expr, usize), Diagnostic> {
+        let (mut left, mut depth) = self.prefix()?;
         // A prefix may contain a parenthesized comparison, which is a valid
         // operand. Only comparisons consumed by this Pratt invocation chain.
         let mut comparison = false;
-        self.check_expression_depth(&left)?;
         while let TokenKind::Symbol(op) = &self.peek().kind {
             if op == "(" {
                 // Else-if parsing requests only the conditional prefix; leave
@@ -1607,31 +1732,7 @@ impl Parser {
                     break;
                 }
                 self.advance();
-                let mut args = Vec::new();
-                if !self.consume(")") {
-                    loop {
-                        args.push(self.expression(0)?);
-                        if self.consume(")") {
-                            break;
-                        }
-                        self.expect(",")?;
-                        if self.consume(")") {
-                            break;
-                        }
-                    }
-                }
-                let span = left.span.through(self.previous().span);
-                left = Expr {
-                    kind: match left.kind {
-                        ExprKind::Variable { name } => ExprKind::Call { callee: name, args },
-                        _ => ExprKind::Invoke {
-                            callee: Box::new(left),
-                            args,
-                        },
-                    },
-                    span,
-                };
-                self.check_expression_depth(&left)?;
+                (left, depth) = self.call(left, depth)?;
                 continue;
             }
             let op = op.as_str();
@@ -1656,7 +1757,7 @@ impl Parser {
             }
             let op = op.to_string();
             self.advance();
-            let right = self.expression(power + 1)?;
+            let (right, right_depth) = self.expression_with_depth(power + 1)?;
             let span = left.span.through(right.span);
             left = Expr {
                 kind: ExprKind::Binary {
@@ -1667,15 +1768,61 @@ impl Parser {
                 span,
             };
             comparison = next_comparison;
-            self.check_expression_depth(&left)?;
+            depth = Self::tree_depth(depth.max(right_depth), span)?;
         }
-        Ok(left)
+        Ok((left, depth))
     }
 
-    fn prefix(&mut self) -> Result<Expr, Diagnostic> {
+    // Parse the arguments after a consumed `(` and build the call node.
+    #[inline(never)]
+    fn call(&mut self, callee: Expr, callee_depth: usize) -> Result<(Expr, usize), Diagnostic> {
+        let mut args = Vec::new();
+        let mut children = 0;
+        if !self.consume(")") {
+            loop {
+                let (arg, arg_depth) = self.expression_with_depth(0)?;
+                children = children.max(arg_depth);
+                args.push(arg);
+                if self.consume(")") {
+                    break;
+                }
+                self.expect(",")?;
+                if self.consume(")") {
+                    break;
+                }
+            }
+        }
+        let span = callee.span.through(self.previous().span);
+        let kind = match callee.kind {
+            // A named callee is part of the call node, not a child.
+            ExprKind::Variable { name } => ExprKind::Call { callee: name, args },
+            _ => {
+                children = children.max(callee_depth);
+                ExprKind::Invoke {
+                    callee: Box::new(callee),
+                    args,
+                }
+            }
+        };
+        let depth = Self::tree_depth(children, span)?;
+        Ok((Expr { kind, span }, depth))
+    }
+
+    // Compound forms are parsed out of line, so the recursive path through
+    // prefix keeps a small frame and the nesting limit is reached before stack
+    // exhaustion, also in unoptimized builds.
+    fn prefix(&mut self) -> Result<(Expr, usize), Diagnostic> {
         let token = self.advance();
         let start = token.span;
-        let kind = match token.kind {
+        // The node's kind and its deepest child; zero for a leaf.
+        let (kind, children) = match token.kind {
+            TokenKind::Text => {
+                return Err(diagnostic(
+                    "E_UNSUPPORTED",
+                    "string literals are not supported",
+                    token.span,
+                ));
+            }
             TokenKind::Floating(_) => {
                 return Err(diagnostic(
                     "E_UNSUPPORTED",
@@ -1692,73 +1839,28 @@ impl Parser {
             }
             TokenKind::Number(value) => {
                 let stripped = value.trim_start_matches('0');
-                ExprKind::Integer {
-                    value: if stripped.is_empty() {
-                        "0".into()
-                    } else {
-                        stripped.into()
-                    },
-                }
-            }
-            TokenKind::Name(ref name) if name == "true" || name == "false" => ExprKind::Boolean {
-                value: name == "true",
-            },
-            TokenKind::Name(ref name) if name == "if" => {
-                let condition = Box::new(self.expression(0)?);
-                let then_branch = self.block()?;
-                self.expect("else")?;
-                let else_branch = if self.peek().is("if") {
-                    // Parse just the conditional prefix with the usual depth
-                    // guard. Operators after its final block still belong to
-                    // the surrounding expression, not the synthetic block.
-                    let result = self.expression(u8::MAX).map_err(|mut error| {
-                        if error.code == "E_LIMIT" && (error.message.starts_with("combined type/expression nesting") || error.message.starts_with("expression tree")) {
-                            error.message = format!("`else if` chain exceeds the supported nesting limit; a standalone chain supports at most {} conditions, and enclosing expressions also consume nesting budget", MAX_PARSE_NESTING - 2);
-                        }
-                        error
-                    })?;
-                    Block {
-                        span: result.span,
-                        statements: Vec::new(),
-                        result: Box::new(result),
-                    }
+                let value = if stripped.is_empty() {
+                    "0".into()
                 } else {
-                    self.block()?
+                    stripped.into()
                 };
-                ExprKind::If {
-                    condition,
-                    then_branch,
-                    else_branch,
-                }
+                (ExprKind::Integer { value }, 0)
             }
+            TokenKind::Name(ref name) if name == "true" || name == "false" => (
+                ExprKind::Boolean {
+                    value: name == "true",
+                },
+                0,
+            ),
+            TokenKind::Name(ref name) if name == "if" => self.conditional()?,
             TokenKind::Name(ref name) if name == "pack" => {
                 if self.packages && !self.peek().is("{") {
                     self.indexed_pack()?
                 } else {
-                    self.expect("{")?;
-                    self.package_field("scheme")?;
-                    self.expect(":")?;
-                    let scheme = Box::new(self.expression(0)?);
-                    self.expect(",")?;
-                    self.package_field("point")?;
-                    self.expect(":")?;
-                    let point = Box::new(self.expression(0)?);
-                    self.consume(",");
-                    self.expect("}")?;
-                    ExprKind::Pack { scheme, point }
+                    self.pack()?
                 }
             }
-            TokenKind::Name(ref name) if name == "fn" => {
-                let params = self.parameters(false)?;
-                self.expect("->")?;
-                let return_type = self.ty()?;
-                let body = self.block()?;
-                ExprKind::Lambda {
-                    params,
-                    return_type,
-                    body,
-                }
-            }
+            TokenKind::Name(ref name) if name == "fn" => self.lambda()?,
             TokenKind::Name(mut name)
                 if !KEYWORDS.contains(&name.as_str())
                     || (self.packages && name == "generic" && self.peek().is("::")) =>
@@ -1770,29 +1872,19 @@ impl Parser {
                         name.push_str(&component);
                     }
                 }
-                ExprKind::Variable { name }
+                (ExprKind::Variable { name }, 0)
             }
-            TokenKind::Symbol(ref op) if op == "-" || op == "!" => ExprKind::Unary {
-                op: op.clone(),
-                operand: Box::new(self.expression(13)?),
-            },
+            TokenKind::Symbol(op) if op == "-" || op == "!" => self.unary(op)?,
             TokenKind::Symbol(ref symbol) if symbol == "(" => {
                 if self.consume(")") {
-                    ExprKind::Unit
+                    (ExprKind::Unit, 0)
                 } else {
-                    let inner = self.expression(0)?;
-                    self.expect(")")?;
-                    return Ok(Expr {
-                        span: start.through(self.previous().span),
-                        ..inner
-                    });
+                    return self.parenthesized(start);
                 }
             }
             TokenKind::Symbol(ref symbol) if symbol == "{" => {
                 self.position -= 1;
-                ExprKind::Block {
-                    body: self.block()?,
-                }
+                self.block_expression()?
             }
             _ => {
                 return Err(diagnostic(
@@ -1802,10 +1894,144 @@ impl Parser {
                 ));
             }
         };
-        Ok(Expr {
-            kind,
+        let span = start.through(self.previous().span);
+        let depth = Self::tree_depth(children, span)?;
+        Ok((Expr { kind, span }, depth))
+    }
+
+    #[inline(never)]
+    fn conditional(&mut self) -> Result<(ExprKind, usize), Diagnostic> {
+        let (condition, condition_depth) = self.expression_with_depth(0)?;
+        let (then_branch, then_depth) = self.block_with_depth()?;
+        self.expect("else")?;
+        let (else_branch, else_depth) = if self.peek().is("if") {
+            // Parse just the conditional prefix with the usual depth guard.
+            // Operators after its final block still belong to the surrounding
+            // expression, not the synthetic block.
+            self.else_if_links += 1;
+            let result = self.expression_with_depth(u8::MAX);
+            self.else_if_links -= 1;
+            let (result, result_depth) = result?;
+            let block = Block {
+                span: result.span,
+                statements: Vec::new(),
+                result: Box::new(result),
+            };
+            (block, 1 + result_depth)
+        } else {
+            self.block_with_depth()?
+        };
+        let kind = ExprKind::If {
+            condition: Box::new(condition),
+            then_branch,
+            else_branch,
+        };
+        Ok((kind, condition_depth.max(then_depth).max(else_depth)))
+    }
+
+    #[inline(never)]
+    fn pack(&mut self) -> Result<(ExprKind, usize), Diagnostic> {
+        self.expect("{")?;
+        self.package_field("scheme")?;
+        self.expect(":")?;
+        let (scheme, scheme_depth) = self.expression_with_depth(0)?;
+        self.expect(",")?;
+        self.package_field("point")?;
+        self.expect(":")?;
+        let (point, point_depth) = self.expression_with_depth(0)?;
+        self.consume(",");
+        self.expect("}")?;
+        let kind = ExprKind::Pack {
+            scheme: Box::new(scheme),
+            point: Box::new(point),
+        };
+        Ok((kind, scheme_depth.max(point_depth)))
+    }
+
+    #[inline(never)]
+    fn lambda(&mut self) -> Result<(ExprKind, usize), Diagnostic> {
+        let params = self.parameters(false)?;
+        self.expect("->")?;
+        let return_type = self.ty()?;
+        let (body, depth) = self.block_with_depth()?;
+        let kind = ExprKind::Lambda {
+            params,
+            return_type,
+            body,
+        };
+        Ok((kind, depth))
+    }
+
+    #[inline(never)]
+    fn unary(&mut self, op: String) -> Result<(ExprKind, usize), Diagnostic> {
+        let (operand, depth) = self.expression_with_depth(13)?;
+        let kind = ExprKind::Unary {
+            op,
+            operand: Box::new(operand),
+        };
+        Ok((kind, depth))
+    }
+
+    // Parentheses widen the span but add no tree node.
+    #[inline(never)]
+    fn parenthesized(&mut self, start: Span) -> Result<(Expr, usize), Diagnostic> {
+        let (inner, depth) = self.expression_with_depth(0)?;
+        self.expect(")")?;
+        let expr = Expr {
             span: start.through(self.previous().span),
-        })
+            ..inner
+        };
+        Ok((expr, depth))
+    }
+
+    #[inline(never)]
+    fn block_expression(&mut self) -> Result<(ExprKind, usize), Diagnostic> {
+        let (body, depth) = self.block_with_depth()?;
+        Ok((ExprKind::Block { body }, depth))
+    }
+}
+
+/// Lexical bindings, kept as one stack so that entering a block or lambda never
+/// copies the enclosing scope. Each lambda opens a frame; bindings of enclosing
+/// frames are visible only as capture/shadowing errors.
+#[derive(Default)]
+struct Scope<'a> {
+    names: Vec<&'a str>,
+    // The frames that currently bind each name, innermost last.
+    frames: HashMap<&'a str, Vec<usize>>,
+    frame: usize,
+}
+
+impl<'a> Scope<'a> {
+    fn contains(&self, name: &str) -> bool {
+        self.frames.get(name).and_then(|frames| frames.last()) == Some(&self.frame)
+    }
+
+    fn enclosing(&self, name: &str) -> bool {
+        self.frames
+            .get(name)
+            .and_then(|frames| frames.first())
+            .is_some_and(|&frame| frame < self.frame)
+    }
+
+    fn push(&mut self, name: &'a str) {
+        self.names.push(name);
+        self.frames.entry(name).or_default().push(self.frame);
+    }
+
+    fn mark(&self) -> usize {
+        self.names.len()
+    }
+
+    fn truncate(&mut self, mark: usize) {
+        while self.names.len() > mark {
+            let name = self.names.pop().unwrap();
+            let frames = self.frames.get_mut(name).unwrap();
+            frames.pop();
+            if frames.is_empty() {
+                self.frames.remove(name);
+            }
+        }
     }
 }
 
@@ -1815,7 +2041,7 @@ struct Resolver<'a> {
     abstract_types: HashSet<&'a str>,
     errors: Vec<Diagnostic>,
     calls: Vec<Vec<usize>>,
-    forbidden: Vec<HashSet<&'a str>>,
+    scope: Scope<'a>,
 }
 
 impl<'a> Resolver<'a> {
@@ -1826,7 +2052,7 @@ impl<'a> Resolver<'a> {
             abstract_types: HashSet::new(),
             errors: Vec::new(),
             calls: vec![Vec::new(); module.functions.len()],
-            forbidden: Vec::new(),
+            scope: Scope::default(),
         };
         for (i, function) in module.functions.iter().enumerate() {
             if this.functions.insert(&function.name, i).is_some() {
@@ -1871,19 +2097,19 @@ impl<'a> Resolver<'a> {
             }
         }
         for generic in &module.generics {
-            let mut scope = HashSet::new();
             for param in &generic.params {
-                this.bind(&param.name, &mut scope, param.span);
+                this.bind(&param.name, param.span);
             }
+            this.scope.truncate(0);
         }
         for (i, function) in module.functions.iter().enumerate() {
-            let mut scope = HashSet::new();
             for param in &function.params {
-                this.ty(&param.ty, &scope, param.span);
-                this.bind(&param.name, &mut scope, param.span);
+                this.ty(&param.ty, param.span);
+                this.bind(&param.name, param.span);
             }
-            this.ty(&function.return_type, &scope, function.span);
-            this.block(&function.body, &scope, Some(i));
+            this.ty(&function.return_type, function.span);
+            this.block(&function.body, Some(i));
+            this.scope.truncate(0);
         }
         for method in &module.methods {
             if !this.generics.contains(method.name.as_str()) {
@@ -1896,14 +2122,14 @@ impl<'a> Resolver<'a> {
                     method.span,
                 ));
             }
-            let mut scope = HashSet::new();
             for param in &method.params {
-                this.bind(&param.name, &mut scope, param.span);
+                this.bind(&param.name, param.span);
             }
             // The backend resolves generic calls after specialization. Adding
             // family-name edges here could invent cycles between disjoint
             // concrete method instances.
-            this.block(&method.body, &scope, None);
+            this.block(&method.body, None);
+            this.scope.truncate(0);
         }
         for contract in &module.abstract_methods {
             if !this.generics.contains(contract.name.as_str()) {
@@ -1916,10 +2142,10 @@ impl<'a> Resolver<'a> {
                     contract.span,
                 ));
             }
-            let mut scope = HashSet::new();
             for param in &contract.params {
-                this.bind(&param.name, &mut scope, param.span);
+                this.bind(&param.name, param.span);
             }
+            this.scope.truncate(0);
         }
         let mut marks = vec![0; module.functions.len()];
         for i in 0..module.functions.len() {
@@ -1974,7 +2200,7 @@ impl<'a> Resolver<'a> {
         None
     }
 
-    fn bind(&mut self, name: &'a str, scope: &mut HashSet<&'a str>, span: Span) {
+    fn bind(&mut self, name: &'a str, span: Span) {
         if self.functions.contains_key(name)
             || self.generics.contains(name)
             || self.abstract_types.contains(name)
@@ -1985,14 +2211,14 @@ impl<'a> Resolver<'a> {
                 span,
             ));
         }
-        if self.forbidden.iter().any(|outer| outer.contains(name)) {
+        if self.scope.enclosing(name) {
             self.errors.push(diagnostic(
                 "E_SHADOW",
                 format!("binding `{name}` shadows an enclosing binding; use a distinct name"),
                 span,
             ));
         }
-        if !scope.insert(name) {
+        if self.scope.contains(name) {
             self.errors.push(diagnostic(
                 "E_DUPLICATE",
                 format!(
@@ -2001,9 +2227,10 @@ impl<'a> Resolver<'a> {
                 span,
             ));
         }
+        self.scope.push(name);
     }
 
-    fn index(&mut self, index: &Index, scope: &HashSet<&str>, span: Span) {
+    fn index(&mut self, index: &Index, span: Span) {
         if let Index::Name { name } = index
             && name.starts_with("__vastitas_")
         {
@@ -2015,13 +2242,9 @@ impl<'a> Resolver<'a> {
             return;
         }
         if let Index::Name { name } = index
-            && !scope.contains(name.as_str())
+            && !self.scope.contains(name)
         {
-            if self
-                .forbidden
-                .iter()
-                .any(|outer| outer.contains(name.as_str()))
-            {
+            if self.scope.enclosing(name) {
                 self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture endpoint `{name}`; pass it as an explicit parameter"), span));
                 return;
             }
@@ -2029,27 +2252,27 @@ impl<'a> Resolver<'a> {
         }
     }
 
-    fn ty(&mut self, ty: &Type, scope: &HashSet<&str>, span: Span) {
+    fn ty(&mut self, ty: &Type, span: Span) {
         match ty {
             Type::Function {
                 params,
                 return_type,
             } => {
                 for param in params {
-                    self.ty(param, scope, span);
+                    self.ty(param, span);
                 }
-                self.ty(return_type, scope, span);
+                self.ty(return_type, span);
             }
             Type::Point { target, source } | Type::Morphism { target, source } => {
-                self.index(target, scope, span);
-                self.index(source, scope, span);
+                self.index(target, span);
+                self.index(source, span);
             }
             _ => {}
         }
     }
 
-    fn block(&mut self, block: &'a Block, outer: &HashSet<&'a str>, function: Option<usize>) {
-        let mut scope = outer.clone();
+    fn block(&mut self, block: &'a Block, function: Option<usize>) {
+        let mark = self.scope.mark();
         for statement in &block.statements {
             match &statement.kind {
                 StatementKind::Let {
@@ -2058,66 +2281,62 @@ impl<'a> Resolver<'a> {
                     value,
                 } => {
                     if let Some(ty) = annotation {
-                        self.ty(ty, &scope, statement.span);
+                        self.ty(ty, statement.span);
                     }
-                    self.expr(value, &scope, function, false);
-                    self.bind(name, &mut scope, statement.span);
+                    self.expr(value, function, false);
+                    self.bind(name, statement.span);
                 }
                 StatementKind::Unpack {
                     value,
                     scheme,
                     point,
                 } => {
-                    self.expr(value, &scope, function, false);
-                    self.bind(scheme, &mut scope, statement.span);
-                    self.bind(point, &mut scope, statement.span);
+                    self.expr(value, function, false);
+                    self.bind(scheme, statement.span);
+                    self.bind(point, statement.span);
                 }
                 StatementKind::UnpackFields {
                     value,
                     witness,
                     fields,
                 } => {
-                    self.expr(value, &scope, function, false);
-                    self.bind(witness, &mut scope, statement.span);
+                    self.expr(value, function, false);
+                    self.bind(witness, statement.span);
                     for field in fields {
-                        self.bind(field, &mut scope, statement.span);
+                        self.bind(field, statement.span);
                     }
                 }
             }
         }
-        self.expr(&block.result, &scope, function, false);
+        self.expr(&block.result, function, false);
+        self.scope.truncate(mark);
     }
 
-    fn expr(
-        &mut self,
-        expr: &'a Expr,
-        scope: &HashSet<&'a str>,
-        function: Option<usize>,
-        ring_position: bool,
-    ) {
+    fn expr(&mut self, expr: &'a Expr, function: Option<usize>, ring_position: bool) {
         match &expr.kind {
             ExprKind::Lambda {
                 params,
                 return_type,
                 body,
             } => {
-                self.forbidden.push(scope.clone());
-                let mut local = HashSet::new();
+                let mark = self.scope.mark();
+                self.scope.frame += 1;
                 for param in params {
-                    self.ty(&param.ty, &local, param.span);
-                    self.bind(&param.name, &mut local, param.span);
+                    self.ty(&param.ty, param.span);
+                    self.bind(&param.name, param.span);
                 }
-                self.ty(return_type, &local, expr.span);
+                self.ty(return_type, expr.span);
                 // The lambda is an independent definition. Its calls are not
                 // edges from the enclosing function; Lean checks them after
                 // lifting and static specialization.
-                self.block(body, &local, None);
-                self.forbidden.pop();
+                self.block(body, None);
+                self.scope.truncate(mark);
+                self.scope.frame -= 1;
             }
             ExprKind::Invoke { callee, args } => {
-                self.expr(callee, scope, function, false);
+                self.expr(callee, function, false);
                 for arg in args {
-                    self.expr(arg, scope, function, false);
+                    self.expr(arg, function, false);
                 }
             }
             ExprKind::Variable { name } => {
@@ -2131,14 +2350,9 @@ impl<'a> Resolver<'a> {
                     if !ring_position {
                         self.errors.push(diagnostic("E_RING", format!("`{name}` is a coefficient-ring marker, usable only in Affine or Base"), expr.span));
                     }
-                } else if !scope.contains(name.as_str())
-                    && !self.functions.contains_key(name.as_str())
+                } else if !self.scope.contains(name) && !self.functions.contains_key(name.as_str())
                 {
-                    if self
-                        .forbidden
-                        .iter()
-                        .any(|outer| outer.contains(name.as_str()))
-                    {
+                    if self.scope.enclosing(name) {
                         self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{name}`; pass it as an explicit parameter"), expr.span));
                         return;
                     }
@@ -2164,13 +2378,9 @@ impl<'a> Resolver<'a> {
                     if let Some(function) = function {
                         self.calls[function].push(target);
                     }
-                } else if scope.contains(callee.as_str()) {
+                } else if self.scope.contains(callee) {
                     // Function-valued bindings are checked independently by Lean.
-                } else if self
-                    .forbidden
-                    .iter()
-                    .any(|outer| outer.contains(callee.as_str()))
-                {
+                } else if self.scope.enclosing(callee) {
                     self.errors.push(diagnostic("E_CAPTURE", format!("independent lambda cannot capture `{callee}`; pass it as an explicit parameter"), expr.span));
                 } else if !self.generics.contains(callee.as_str())
                     && !BUILTINS.contains(&callee.as_str())
@@ -2185,40 +2395,39 @@ impl<'a> Resolver<'a> {
                 for (i, arg) in args.iter().enumerate() {
                     self.expr(
                         arg,
-                        scope,
                         function,
                         i == 0 && matches!(callee.as_str(), "Affine" | "Base"),
                     );
                 }
             }
-            ExprKind::Unary { operand, .. } => self.expr(operand, scope, function, false),
+            ExprKind::Unary { operand, .. } => self.expr(operand, function, false),
             ExprKind::Binary { left, right, .. } => {
-                self.expr(left, scope, function, false);
-                self.expr(right, scope, function, false);
+                self.expr(left, function, false);
+                self.expr(right, function, false);
             }
             ExprKind::If {
                 condition,
                 then_branch,
                 else_branch,
             } => {
-                self.expr(condition, scope, function, false);
-                self.block(then_branch, scope, function);
-                self.block(else_branch, scope, function);
+                self.expr(condition, function, false);
+                self.block(then_branch, function);
+                self.block(else_branch, function);
             }
-            ExprKind::Block { body } => self.block(body, scope, function),
+            ExprKind::Block { body } => self.block(body, function),
             ExprKind::Pack { scheme, point } => {
-                self.expr(scheme, scope, function, false);
-                self.expr(point, scope, function, false);
+                self.expr(scheme, function, false);
+                self.expr(point, function, false);
             }
             ExprKind::IndexedPack {
                 package,
                 witness,
                 fields,
             } => {
-                self.ty(package, scope, expr.span);
-                self.expr(witness, scope, function, false);
+                self.ty(package, expr.span);
+                self.expr(witness, function, false);
                 for field in fields {
-                    self.expr(field, scope, function, false);
+                    self.expr(field, function, false);
                 }
             }
             ExprKind::Integer { .. } | ExprKind::Boolean { .. } | ExprKind::Unit => {}

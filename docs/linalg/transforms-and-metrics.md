@@ -294,8 +294,9 @@ escape branch scope. Owned vector/tensor packaging and general vector operations
 remain separate work; raw owned buffers retain existing return rules.
 
 Evaluation/conjugation introduce no data allocation, copy or packing buffer.
-The example reuses one output allocation. BLAS-internal workspace and full
-runtime remain part of the [Fast like C gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+The example reuses one output allocation. Its scalar results use the adapter's
+[fused scalar loop](maps-and-gemm.md#numerical-adapter--scalar-outputs) rather
+than BLAS. Full runtime remains part of the [Fast like C gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
 
 ### Independent checking and evidence
 
@@ -427,7 +428,9 @@ caller arguments and the final schedule are independently checked.
 
 `adjoint_into` executes one O(mn) pass and writes mn scalar-width bytes.
 `hermitian_diagonal` executes one O(n) weighting pass and one existing GEMM,
-writing (n+1) scalar-width bytes, or just the zero scalar when n=0. Both reuse
+writing (n+1) scalar-width bytes, or just the zero scalar when n=0. The adapter
+runs that 1×1 GEMM as its [fused scalar loop](maps-and-gemm.md#numerical-adapter--scalar-outputs)
+over the scratch vector, without a BLAS driver call. Both reuse
 caller storage and add no data allocation or data copy. They perform explicit
 `NativeFast` multiplication/division, with normal floating rounding, overflow
 and nonfinite propagation; exact metric coefficients do not imply exact results.

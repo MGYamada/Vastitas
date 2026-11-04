@@ -30,6 +30,7 @@ lake -d lean-kernel build \
   VastitasKernel.IndexedAuthorityRegression \
   VastitasKernel.IndexedWireRegression \
   VastitasKernel.GeometryCompatibilityRegression \
+  VastitasKernel.ReviewRegression \
   VastitasKernel.LegacySourceRegression \
   VastitasPublicTest.AuthorityRegression \
   VastitasKernel.StorageRegression \
@@ -50,5 +51,6 @@ lake -d lean-kernel build \
   VastitasStorageTest.DependencyRegression \
   VastitasStorageTest.MetricRegression \
   VastitasStorageTest.OwnedPackageRegression \
+  VastitasAlgebraTest.BasisRegression \
   VastitasPromotion.Regression \
   VastitasPromotion.IndexedRegression

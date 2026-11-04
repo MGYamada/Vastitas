@@ -106,16 +106,27 @@ theorem checkConstruction_localization {data : AffineData} {resolve : Namespace.
   simp only [Bool.and_eq_true, beq_iff_eq] at hc
   exact ⟨x, rfl, hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
 
+theorem guardE_ok {c : Bool} {e : Error} {u : Unit} (h : guardE c e = .ok u) : c = true := by
+  unfold guardE at h
+  exact except_unless_ok h
+
+theorem guardE_isOk {c : Bool} {e : Error} (h : (guardE c e).isOk = true) : c = true := by
+  unfold guardE at h
+  exact except_unless_isOk h
+
 /-- A budgeted composite check establishes the unbudgeted equation. -/
-theorem composesTo_sound {after before target : Map} (h : composesTo after before target = true) :
+theorem checkComposite_sound {after before target : Map} {error : Error}
+    (h : (checkComposite after before target error).isOk = true) :
     Map.same (Map.compose after before) target = true := by
-  unfold composesTo run at h
-  cases hc : (VastitasKernel.AlgebraBasis.compose after before).run 0 with
-  | error e => simp [hc, Except.map] at h
-  | ok pair =>
-    simp only [hc, Except.map] at h
-    rw [← compose_ok (r := pair.1) (s' := pair.2) hc]
-    exact h
+  unfold checkComposite at h
+  obtain ⟨composite, hc, h⟩ := except_bind_isOk h
+  obtain ⟨_, hrun⟩ := run_ok hc
+  rw [← compose_ok hrun]
+  exact guardE_isOk h
+
+theorem composesTo_sound {after before target : Map} (h : composesTo after before target = true) :
+    Map.same (Map.compose after before) target = true :=
+  checkComposite_sound h
 
 /-- The exact facts recorded by accepted Cartesian evidence. -/
 theorem cartesian_sound {env : Environment} {first second inverse : Application × Map} {fiber : DeclId}
@@ -128,36 +139,46 @@ theorem cartesian_sound {env : Environment} {first second inverse : Application 
         affineData? env t = some dt ∧ affineData? env fiber = some dp ∧
         Map.same (Map.compose inverse.2 (Map.pair first.2 second.2)) (Map.identity dt.arity dt.basis) = true ∧
         Map.same (Map.compose (Map.pair first.2 second.2) inverse.2) (Map.identity dp.arity dp.basis) = true := by
-  unfold relativeCartesianValid at h
-  simp only [Bool.and_eq_true] at h
-  obtain ⟨⟨⟨⟨⟨hf, hs⟩, hi⟩, _⟩, _⟩, h⟩ := h
+  unfold relativeCartesianValid relativeCartesianCheck at h
+  obtain ⟨_, hvalid, h⟩ := except_bind_isOk h
+  have hvalid := guardE_ok hvalid
+  simp only [Bool.and_eq_true] at hvalid
+  obtain ⟨⟨⟨⟨hf, hs⟩, hi⟩, _⟩, _⟩ := hvalid
   refine ⟨relativeConstant_sound hf, relativeConstant_sound hs, relativeConstant_sound hi, ?_⟩
+  have fails : ∀ {e : Error}, (throw e : Except Error Unit).isOk = true → False := by
+    intro e absurd
+    simp [throw, throwThe, MonadExceptOf.throw, Except.isOk, Except.toBool] at absurd
   cases hfiber : plainFiber? env fiber with
-  | none => simp [hfiber] at h
+  | none => simp only [hfiber] at h; exact (fails h).elim
   | some triple =>
   obtain ⟨left, right, base⟩ := triple
   cases hfirst : objectsOf first.1 with
-  | none => simp [hfiber, hfirst] at h
+  | none => simp only [hfiber, hfirst] at h; exact (fails h).elim
   | some q1 =>
   obtain ⟨t, l, b⟩ := q1
   cases hsecond : objectsOf second.1 with
-  | none => simp [hfiber, hfirst, hsecond] at h
+  | none => simp only [hfiber, hfirst, hsecond] at h; exact (fails h).elim
   | some q2 =>
   obtain ⟨t', r, b'⟩ := q2
   cases hinverse : objectsOf inverse.1 with
-  | none => simp [hfiber, hfirst, hsecond, hinverse] at h
+  | none => simp only [hfiber, hfirst, hsecond, hinverse] at h; exact (fails h).elim
   | some q3 =>
   obtain ⟨p, t'', b''⟩ := q3
-  simp only [hfiber, hfirst, hsecond, hinverse, Bool.and_eq_true, beq_iff_eq] at h
-  obtain ⟨⟨⟨⟨⟨⟨⟨⟨rfl, rfl⟩, rfl⟩, rfl⟩, rfl⟩, rfl⟩, rfl⟩, rfl⟩, h⟩ := h
+  simp only [hfiber, hfirst, hsecond, hinverse] at h
+  obtain ⟨_, hstruct, rest⟩ := except_bind_isOk h
+  clear h
+  have hstruct := guardE_ok hstruct
+  simp only [Bool.and_eq_true, beq_iff_eq] at hstruct
+  obtain ⟨⟨⟨⟨⟨⟨⟨rfl, rfl⟩, rfl⟩, rfl⟩, rfl⟩, rfl⟩, rfl⟩, rfl⟩ := hstruct
   cases hdt : affineData? env t with
-  | none => simp [hdt] at h
+  | none => simp only [hdt] at rest; exact (fails rest).elim
   | some dt =>
   cases hdp : affineData? env p with
-  | none => simp [hdt, hdp] at h
+  | none => simp only [hdt, hdp] at rest; exact (fails rest).elim
   | some dp =>
-  simp only [hdt, hdp, Bool.and_eq_true] at h
+  simp only [hdt, hdp] at rest
+  obtain ⟨_, h1, h2⟩ := except_bind_isOk rest
   exact ⟨l, r, b'', t, dt, dp, rfl, rfl, rfl, rfl, (by simp [hdt]), (by simp),
-    composesTo_sound h.1, composesTo_sound h.2⟩
+    checkComposite_sound (by rw [h1]; rfl), checkComposite_sound h2⟩
 
 end VastitasOracle.AffineFibers

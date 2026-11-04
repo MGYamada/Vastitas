@@ -49,7 +49,11 @@ private def declarations : List Source.Declaration := [
   -- D(1) is the whole line, where the inverse reduces to 1.
   morphism "lineId" "Line" "Line" "SpecQQ" .identity,
   localize "One" "Line" (n 1) "w",
-  morphism "oneId" "One" "One" "SpecQQ" (.restrict (path "lineId")) ]
+  morphism "oneId" "One" "One" "SpecQQ" (.restrict (path "lineId")),
+  -- An open of an open, restricted along a restriction.
+  localize "E1" "Dt" (.sum [c "t", n 1]) "a",
+  localize "E2" "Dt2" (.sum [.pow (c "t") 2, n 1]) "b",
+  morphism "deeper" "E2" "E1" "SpecQQ" (.restrict (path "onOpens")) ]
 
 private def program (ds := declarations) : Source.Program := {
   file := "affine opens", root := pkg.source,
@@ -89,6 +93,8 @@ private def mapOf (name : String) : Option Map :=
   ((mapOf "onOpens").map (·.images) == some [Poly.pow 2 (Poly.var 2 0) 2, Poly.var 2 1])
 #eval check "the open inclusion is the structure map" ((mapOf "inclusion").map (·.images) == some [Poly.var 2 0])
 #eval check "D(0) is the zero ring" ((data "Empty").map (·.basis) == some [Poly.one 2])
+#eval check "a restriction of a restriction: t ↦ t², u ↦ v, a ↦ b"
+  ((mapOf "deeper").map (·.images) == some [Poly.pow 3 (Poly.var 3 0) 2, Poly.var 3 1, Poly.var 3 2])
 #eval check "restricted images are normal forms in the source open: w ↦ 1"
   ((mapOf "oneId").map (·.images) == some [Poly.var 2 0, Poly.one 2])
 
@@ -102,6 +108,15 @@ private def mapOf (name : String) : Option Map :=
 #eval check "a transition that is not an isomorphism"
   (code (with' [morphism "glue2" "U1" "U2" "SpecQQ" (.pullback [("y", c "xi"), ("yi", .pow (c "x") 2)])])
     == "E_AFFINE_RELATION")
+#eval check "restrictions that form a cycle"
+  (code (with' [morphism "loopA" "Dt2" "Dt" "SpecQQ" (.restrict (path "loopB")),
+    morphism "loopB" "Dt2" "Dt" "SpecQQ" (.restrict (path "loopA"))]) == "E_TYPE")
+private def coordinates : List String := (List.range 15).map (s!"x{·}")
+#eval check "the restrict preimage substitution is budgeted"
+  (code (with' [affine "Y15" coordinates [] "SpecQQ",
+    morphism "spread" "Y15" "Line" "SpecQQ" (.pullback [("t", .sum (coordinates.map c))]),
+    localize "U15" "Y15" (c "x0") "w15", localize "V16" "Line" (.pow (c "t") 16) "z16",
+    morphism "bad" "U15" "V16" "SpecQQ" (.restrict (path "spread"))]) == "E_LIMIT")
 #eval check "the localized element uses the object's coordinates"
   (code (with' [localize "Bad" "Line" (c "x") "w"]) == "E_AFFINE_COORDINATE")
 #eval check "the inverse coordinate is fresh" (code (with' [localize "Bad" "Line" (c "t") "t"]) == "E_AFFINE_COORDINATE")

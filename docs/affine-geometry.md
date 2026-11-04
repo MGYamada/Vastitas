@@ -28,6 +28,27 @@ pub indexed affine SpecQQ(AffineQQ) = spec[];
   object identity, never coefficient markers or shapes. A local object brand
   never satisfies it.
 
+### The standard-library profile
+
+`std::geometry::scheme::affine`
+([`stdlib/src/geometry/scheme/affine/mod.vast`](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/scheme/affine/mod.vast))
+declares this profile once, on the library's `QQ` coefficient marker:
+
+- `AffineQQ`, `AffineScheme` and the `Over` family;
+- the objects `SpecQQ`, `Line` (`spec[t]`) and `DualNumbers` (`spec[e] relations(e^2)`), each over `SpecQQ`;
+- the primitives `compose` and `same`.
+
+An application declares its own objects and morphisms against these
+declarations, for example
+`indexed morphism p: affine::Over<affine::DualNumbers, affine::Line, affine::SpecQQ> = pullback(t -> e);`.
+The library's objects keep their identity. An application's own `spec[t]` is a
+different object from `Line`, comparable only through a checked isomorphism.
+
+Because the library declares algebraic forms, every program that depends on
+the stdlib geometry package uses protocol 9, the current schema epoch (#533).
+Legacy flat inputs on protocols 2–6 and explicit `--lib` keep their adapter
+path.
+
 ## Objects and bases
 
 ```vast
@@ -159,6 +180,9 @@ indexed morphism onOpens: Over<Dt2, Dt, SpecQQ> = restrict(sq); // D(sq^#(t)) ->
   is the induced map `D(φ^#(f)) → D(f)`, with `u ↦ v`. This is the action of
   `φ` on the structure sheaf over a principal open. The source open must be
   the preimage `D(φ^#(f))`, otherwise the kernel reports `E_AFFINE_BASE`.
+  `φ` may itself be a restriction, so an open of an open restricts along it.
+  Restrictions are elaborated in dependency order, and a cycle of
+  restrictions is `E_TYPE`.
 - **Transitions.** Checked isomorphisms between opens express gluing data. For
   example, the transition `D(x) ≅ D(y)` given by `y = 1/x`, with
   `indexed iso transition = forward glue inverse unglue`. Gluing itself,

@@ -21,11 +21,11 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `sourceNesting` | 512 | Recursive decoding steps in the protocol decoder | [Core language](../stage0.md#compiler-behavior-and-limits) |
 | `namespaceNesting` | 1024 | Recursion of the namespace checker through a function body | Kernel source |
 | `captureDiagnostic` | 8192 | Traversal used to locate a capture violation for its diagnostic | Kernel source |
-| `bodyChecking` | 4096 | Fuel for checking one function body, or one function instance | [Core language](../stage0.md#compiler-behavior-and-limits) · [Specialization](../stage1b.md#checking-and-specialization) |
+| `bodyChecking` | 4096 | Depth of one checking path through a function body or function instance | [Core language](../stage0.md#compiler-behavior-and-limits) · [Specialization](../stage1b.md#checking-and-specialization) |
 | `elaborationWork` | 1,000,000 | Aggregate elaboration units per pass | [Specialization](../stage1b.md#checking-and-specialization) |
 | `resourceWork` | 32,000,000 | Weighted units across all resource probes and the executable entry | [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work) |
 | `generatedLets` | 4096 | Generated Lean `let` bindings per function | [Core language](../stage0.md#compiler-behavior-and-limits) |
-| `specializations` | 4096 | Higher-order instances per pass | [Specialization](../stage1b.md#checking-and-specialization) |
+| `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Specialization](../stage1b.md#checking-and-specialization) |
 | `dispatchKeys` | 4096 | Argument tuples enumerated for one generic | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
 | `dispatchArity` | 6 | Generic arity; the seventh argument would exceed 4,096 tuples | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
 | `dispatchWork` | 16,000,000 | Dispatch-table work for one generic family, charged before the work runs | [Wire protocols](../protocol.md) |

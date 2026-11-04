@@ -93,8 +93,10 @@ the function value erased. Unused functions and
 lambdas are still checked, in a separate signature-probe pass that never
 reaches the generated code.
 
-Specialization is bounded. Each pass allows at most 4,096 higher-order instances
-in a compilation unit, and each instance has its own body-checking budget.
+Specialization is bounded. Each pass allows at most 4,096 specialized
+instances in a compilation unit, counting every lambda instance and every
+instance of a higher-order function. Each instance has its own body-checking
+budget.
 Exceeding a limit is `E_LIMIT`, and the whole input is rejected.
 
 > **What is checked.** The static target rule, both checking passes and every

@@ -34,8 +34,9 @@ vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/de
 
 There is no implicit manifest search. Positional `.vast` plus explicit `--lib`
 remains the protocol-2 compatibility mode; it cannot be mixed with manifest
-mode. `check` needs no main. `build` requires an ordinary `fn main() -> Int`
-declared in the selected package's root module. Importing another package's
+mode. `check` needs no main. `build` requires a `main` returning `Int`, either
+an ordinary `fn main() -> Int` or a `resource fn main() -> Int` with no resource
+inputs or owned outputs, declared in the selected package's root module. Importing another package's
 main or declaring a main in a child module does not supply that entrypoint.
 
 Only local path dependencies are supported. There is no registry, Git fetch,
@@ -75,9 +76,11 @@ merge owners or exempt a source from the bound. Nonregular inputs are rejected.
   implicitly imported; their package must explicitly expose the desired API.
 - Bare names resolve in the current module's declarations/imports and local
   bindings. Parent names require an explicit path. Builtins remain available.
-- `use` accepts a module, ordinary function or generic, optionally followed by
-  `as`. No wildcard imports are implemented. Import/declaration order does not
-  select an owner or change resolution.
+- `use` accepts any named declaration: a module, ordinary or resource function,
+  generic, abstract type, indexed declaration, grant, contribution, delegation or
+  transfer, optionally followed by `as`. An alias keeps the original identity
+  and grants no authority. No wildcard imports are implemented.
+  Import/declaration order does not select an owner or change resolution.
 
 Declaration names and local bindings obey the existing reserved-name and
 shadowing rules; package mode additionally reserves `mod`, `use`, `pub`,
@@ -170,7 +173,14 @@ the abstract type's exact defining module; an abstract contract is editable
 only by the generic's exact defining module. Public exposure, child modules and
 imports grant neither permission. Abstract parents and contract-domain selectors
 may refer to visible types in other modules without editing those declarations.
-Existing package sources without abstract or edit declarations still use protocol 3. New grants, contributions or an assembly select protocol 5; see [edit borrowing](#edit-borrowing).
+The driver selects the protocol from the declarations present. Any grant,
+delegation or transfer selects protocol 9. Otherwise resource functions, or an
+indexed implementation other than an affine descriptor, select protocol 8; other
+indexed declarations or a `geometry_compat` export select protocol 7; reborrow
+or transfer events in an assembly select protocol 6; contributions or an
+assembly select protocol 5; abstract declarations select protocol 4; and
+package sources with none of these use protocol 3. See
+[edit borrowing](#edit-borrowing) and [protocol 9 recipients](protocol.md).
 The root may omit its assembly, which selects an empty edit trace without
 skipping grant validation or checking of unapplied contributions.
 

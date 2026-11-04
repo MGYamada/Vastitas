@@ -5,9 +5,11 @@ pass through the same Rust frontend and independent Lean checker as application
 code. They do not require the proof oracle during compilation.
 
 The [geometry library](src/geometry/README.md) exposes the existing finite affine
-profile through `std::geometry::scheme` and `std::geometry::smooth`. Select
+profile through `std::geometry::scheme` and `std::geometry::smooth`, and the
+Stage 2 presented affine profile through `std::geometry::scheme::affine`. Select
 `stdlib` as the `std` dependency for the combined geometry/arithmetic
-entrypoint. It re-exports the canonical declarations and uses protocol 7.
+entrypoint. It re-exports the canonical declarations and uses protocol 9, the
+current schema epoch (#533), because the affine module declares algebraic forms.
 An explicit, checked library export maps legacy geometry syntax to those same
 declarations. The temporary `stdlib/indexed` entrypoint has been removed.
 Whole-term and legacy semantic correspondence remain pending.
@@ -108,7 +110,7 @@ Int-to-Nat conversion or conversion-path search. Negative and arbitrary-size
 values are preserved. Expected results never change selection; bare literals
 select Int. The library's intended value preservation, identity, reversal and
 idempotence contracts are stronger than typing: ordinary user code returning
-`pair(0, 0)` can typecheck. The [numerical oracle contracts](../docs/stage1a.md#promotion)
+`pair(0, 0)` can typecheck. The [numerical oracle contracts](https://github.com/MGYamada/Vastitas/blob/main/docs/stage1a.md#promotion)
 prove the actual checked stdlib bodies for arbitrary inputs; CI compares their
 fixture with real frontend output. Contract regressions reject value-changing
 or wrong-policy mutations separately from compiler type errors.
@@ -148,5 +150,5 @@ missing or stale output without writing. A clean checkout needs this explicit
 generation step before manifest-mode stdlib use; flat `--lib` needs no generation.
 Tests and CI prepare the package automatically. The compiler itself loads the
 fixed manifest inputs and contains no special stdlib generation or resolver path.
-See [packages](../docs/packages.md). Neither mode supplies an automatic prelude
+See [packages](https://github.com/MGYamada/Vastitas/blob/main/docs/packages.md). Neither mode supplies an automatic prelude
 or a registry package manager.

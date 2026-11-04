@@ -9,6 +9,10 @@ const LIBRARY: &[(&str, &str)] = &[
         include_str!("../stdlib/src/geometry/scheme/mod.vast"),
     ),
     (
+        "scheme/affine/mod.vast",
+        include_str!("../stdlib/src/geometry/scheme/affine/mod.vast"),
+    ),
+    (
         "smooth/mod.vast",
         include_str!("../stdlib/src/geometry/smooth/mod.vast"),
     ),
@@ -487,7 +491,7 @@ fn main() -> Int {{
 }}
 "#
         );
-        // Both legacy flat protocol 2 and the explicit protocol-7 stdlib adapter.
+        // Both legacy flat protocol 2 and the explicit stdlib adapter.
         common::native(&source, &[], "42", "opened-object.vast");
         native(&fixture(&source, str::to_owned));
         let mismatched = source.replace("let A = open(make(1));", &format!(
@@ -495,6 +499,50 @@ fn main() -> Int {{
         ));
         common::reject(&mismatched, "E_TYPE", "opened-object.vast");
         reject(&mismatched, "E_TYPE");
+    }
+}
+
+#[test]
+fn presented_affine_geometry_is_usable_from_the_library() {
+    // An application declares morphisms over the library's presented objects:
+    // two D-valued points of the line differ, yet agree on the closed point.
+    let source = r#"
+use geo::scheme::affine as affine;
+use geo::scheme::affine::Over;
+use geo::scheme::affine::SpecQQ;
+use geo::scheme::affine::Line;
+use geo::scheme::affine::DualNumbers;
+indexed morphism p: Over<DualNumbers, Line, SpecQQ> = pullback(t -> e);
+indexed morphism q: Over<DualNumbers, Line, SpecQQ> = pullback(t -> 0);
+indexed morphism closed: Over<SpecQQ, DualNumbers, SpecQQ> = pullback(e -> 0);
+fn main() -> Int {
+    if affine::same(p(), q()) {
+        1
+    } else if affine::same(affine::compose(p(), closed()), affine::compose(q(), closed())) {
+        42
+    } else {
+        2
+    }
+}
+"#;
+    native(&fixture(source, str::to_owned));
+    // The library's objects keep their identity: a copy of `Line` is not `Line`.
+    reject(
+        &source.replace(
+            "indexed morphism q: Over<DualNumbers, Line, SpecQQ> = pullback(t -> 0);",
+            "indexed affine Copy(geo::scheme::affine::AffineQQ) = spec[t] over SpecQQ;\nindexed morphism q: Over<DualNumbers, Copy, SpecQQ> = pullback(t -> 0);",
+        ),
+        "E_ENDPOINT",
+    );
+    // Neither the Stage 1 `Scheme` base nor a `CInfScheme` object is a
+    // presented affine object, so neither can index `Over`.
+    for object in ["geo::scheme::BaseQQ", "geo::smooth::BaseSmooth"] {
+        reject(
+            &format!(
+                "fn probe(arrow: geo::scheme::affine::Over<geo::scheme::affine::Line, {object}, geo::scheme::affine::SpecQQ>) -> Int {{ 0 }}\nfn main() -> Int {{ 42 }}"
+            ),
+            "E_TYPE",
+        );
     }
 }
 
@@ -517,7 +565,7 @@ fn copying_the_library_package_does_not_copy_its_nominal_identity() {
 }
 
 #[test]
-fn geometry_and_arithmetic_share_the_checked_protocol_seven_closure() {
+fn geometry_and_arithmetic_share_one_checked_closure() {
     let s = fixture(
         "fn main() -> Int { let X = geo::scheme::Affine(20); arithmetic::arithmetic::generic::add(int(geo::scheme::dimension(X)), 22) }",
         str::to_owned,
@@ -616,7 +664,9 @@ fn captured_wire(s: &Scratch) -> Value {
         cli()
             .current_dir(&s.0)
             .args(["check", "--manifest-path", "app/Vastitas.toml"]),
-        7,
+        // The library declares Stage 2 presented affine geometry, so its
+        // closure uses the current schema epoch (#533).
+        9,
     )
 }
 

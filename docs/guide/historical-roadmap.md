@@ -32,6 +32,16 @@ two-index, same-base `Morphism`. A Cartesian square needs the corresponding
 universal property. Reject a candidate square over a different base.
 [Relative morphisms and base change, #385](https://github.com/MGYamada/Vastitas/issues/385)
 
+**Status.** A finite, checked profile over QQ implements these examples:
+presented objects, morphisms over a base with their triangles, fiber products
+with Cartesian evidence, and principal opens with the action on the structure
+sheaf ([chapter](../affine-geometry.md),
+[acceptance map](../stage2-acceptance.md), tracker #571). The acceptance example
+runs natively. The mathlib bridge proves Buchberger's criterion and connects the
+accepted data to `MvPolynomial`, `Spec.map`, `IsPullback` and
+`Localization.Away`. Module presentations (#259, #261), Ω (#381), ZZ and F_p
+coefficients (#251–#253), and gluing (#104, #151) remain open.
+
 ## Stage 3. Smooth affine geometry and reverse AD
 
 The draft uses `Affine(CInfReal, n)` in examples. The planned public spelling

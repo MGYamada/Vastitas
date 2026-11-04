@@ -115,6 +115,35 @@ theorem forM_ok {l : List α} {g : α → Work Unit} {s s' : Nat} {u : Unit}
     · exact ⟨s, s₁, hhead⟩
     · exact ih htail x hx
 
+theorem run_ok {action : Work α} {v : α} (h : run action = .ok v) :
+    ∃ s', action.run 0 = .ok (v, s') := by
+  unfold run at h
+  cases result : action.run 0 with
+  | error e => simp [result, Except.map] at h
+  | ok pair =>
+    obtain ⟨a, s'⟩ := pair
+    simp [result, Except.map] at h
+    subst h
+    exact ⟨s', rfl⟩
+
+theorem except_bind_isOk {ε : Type} {x : Except ε α} {f : α → Except ε β} (h : (x >>= f).isOk = true) :
+    ∃ a, x = .ok a ∧ (f a).isOk = true := by
+  cases x with
+  | error e => simp [bind, Except.bind, Except.isOk, Except.toBool] at h
+  | ok a => exact ⟨a, rfl, by simpa [bind, Except.bind] using h⟩
+
+theorem except_unless_ok {ε : Type} {c : Bool} {e : ε} {u : Unit}
+    (h : (if c = true then pure () else throw e : Except ε Unit) = .ok u) : c = true := by
+  cases c
+  · simp [throw, throwThe, MonadExceptOf.throw] at h
+  · rfl
+
+theorem except_unless_isOk {ε : Type} {c : Bool} {e : ε}
+    (h : (if c = true then pure () else throw e : Except ε Unit).isOk = true) : c = true := by
+  cases c
+  · simp [throw, throwThe, MonadExceptOf.throw, Except.isOk, Except.toBool] at h
+  · rfl
+
 end Monad
 
 /-! The budgeted operations compute exactly the unbudgeted ones whenever they

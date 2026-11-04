@@ -17,7 +17,9 @@ and explicit `--lib` retain their existing geometry syntax and wire formats.
 with a separately validated closed compatibility declaration package.
 [Protocol 8 resource functions](storage/resource-programs.md#resource-source) and
 [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations) compose with this same
-checker. Public numerical arrays/maps and performance acceptance remain pending.
+checker. Public numerical maps are available inside resource functions
+([numerical values](linalg/maps-and-gemm.md#numerical-values)); general public
+numerical arrays and Fast like C performance acceptance remain pending.
 
 ## Legacy geometry syntax in packages
 
@@ -645,7 +647,9 @@ a full source/native refinement theorem. References already present inside an
 outer indexed value remain in scope even when that object's original binding
 was anonymous. Packages use an
 explicit finite case table indexed by domain and coefficient marker, at most
-64 cases per declaration. Cases cannot overlap. Runtime objects and dimensions
+64 cases per declaration. Two cases cannot share a witness type, that is the
+same domain and coefficient marker. Lookup uses that exact pair, so cases whose
+domains are nominally related stay distinct and unambiguous. Runtime objects and dimensions
 are never case or dispatch keys. Fields use the single-witness templates above.
 
 `VastitasOracle.IndexedCore.checkModule_acceptance` identifies the exact input
@@ -679,8 +683,9 @@ correspondence and native refinement remain outside the migration's claims.
 
 ### Geometry standard-library declarations
 
-`stdlib/src/geometry` is an explicit path package using the public protocol-7 source
-checker. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
+`stdlib/src/geometry` is an explicit path package using the public source
+checker; since its `scheme::affine` module declares
+[presented affine geometry](affine-geometry.md), its closure uses protocol 9. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
 finite classifications in sibling `scheme`/`smooth` modules, actual global base
 objects, shared indexed Point/Morphism families with same-base constraints, and
 the two finite Pointed package cases. `stdlib` re-exports these canonical
@@ -690,7 +695,7 @@ All existing affine descriptor/origin/identity/dimension/composition/application
 operations use ordinary declared primitive contracts. Each module's `pointed`
 is an ordinary `.vast` function that constructs and packages data.
 
-Twenty-one integration tests exercise both settings, alias identity, coherent renaming,
+Twenty-four integration tests exercise both settings, alias identity, coherent renaming,
 separately generated/opened/copied nominal objects, coefficient versus test-object
 distinction, missing capabilities, dependent morphism calls with retained test
 objects/repacking, composition with arithmetic in the same protocol-7 closure,

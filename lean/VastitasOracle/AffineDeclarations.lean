@@ -106,6 +106,65 @@ theorem validAffineData_sound {data : AffineData} {base : Option AffineData}
   | error e => simp [result, Except.map, Except.isOk, Except.toBool] at h
   | ok pair => exact checkAffine_sound (s' := pair.2) (by simpa using result)
 
+/-- A stored structure image is the normal form of its declared binding. -/
+theorem checkImage_ok {data : AffineData} {entry : String × Poly} {s s' : Nat}
+    (h : (checkImage data entry).run s = .ok ((), s')) :
+    ∃ declared, data.binding? entry.1 = some declared ∧ normalForm data.basis declared = entry.2 := by
+  unfold checkImage at h
+  cases hb : data.binding? entry.1 with
+  | none => simp only [hb] at h; exact (throw_not_ok h).elim
+  | some declared =>
+    simp only [hb] at h
+    obtain ⟨division, _, hd, h⟩ := bind_ok h
+    have he := ensure_ok h
+    simp only [beq_iff_eq] at he
+    refine ⟨declared, rfl, ?_⟩
+    rw [← he, divide_ok hd]
+    rfl
+
+/-- Accepted structure maps store canonical images: each is the normal form of
+its binding (which `StructureValid` does not record). -/
+theorem checkStructure_images_normal {data base : AffineData} {s s' : Nat}
+    (h : (checkStructure data base).run s = .ok ((), s')) :
+    ∀ entry ∈ base.generators.zip data.structureImages,
+      ∃ declared, data.binding? entry.1 = some declared ∧ normalForm data.basis declared = entry.2 := by
+  unfold checkStructure at h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  obtain ⟨_, _, _, h⟩ := bind_ok h
+  obtain ⟨_, _, himages, _⟩ := bind_ok h
+  intro entry member
+  obtain ⟨_, _, he⟩ := forM_ok himages entry member
+  exact checkImage_ok he
+
+theorem validAffineData_images_normal {data base : AffineData} (h : validAffineData data (some base) = true) :
+    ∀ entry ∈ base.generators.zip data.structureImages,
+      ∃ declared, data.binding? entry.1 = some declared ∧ normalForm data.basis declared = entry.2 := by
+  unfold validAffineData run at h
+  cases result : (checkAffine data (some base)).run 0 with
+  | error e => simp [result, Except.map, Except.isOk, Except.toBool] at h
+  | ok pair =>
+    have hc : (checkAffine data (some base)).run 0 = .ok ((), pair.2) := by simpa using result
+    unfold checkAffine at hc
+    obtain ⟨_, _, _, hc⟩ := bind_ok hc
+    obtain ⟨_, _, _, hc⟩ := bind_ok hc
+    obtain ⟨_, _, _, hc⟩ := bind_ok hc
+    cases hbase : data.base <;> simp only [hbase] at hc
+    · simp [StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift, bind, Except.bind] at hc
+    · exact checkStructure_images_normal hc
+
+/-- Every accepted declaration over a presented base stores canonical structure images. -/
+theorem validAffine_images_normal {env : Environment} {id implementation baseRef : DeclId}
+    {data base : AffineData} (h : validAffine env id implementation data = true)
+    (hbase : data.base = some baseRef) (hdata : affineData? env baseRef = some base) :
+    ∀ entry ∈ base.generators.zip data.structureImages,
+      ∃ declared, data.binding? entry.1 = some declared ∧ normalForm data.basis declared = entry.2 := by
+  unfold validAffine at h
+  simp only [Bool.and_eq_true] at h
+  obtain ⟨⟨⟨⟨_, _⟩, _⟩, valid⟩, _⟩ := h
+  simp only [hbase, Option.bind, hdata] at valid
+  exact validAffineData_images_normal valid
+
 /-- A declared chain starts at the object, is bounded by its fuel, and stays
 within presented objects. -/
 theorem affineChain_spec {env : Environment} :

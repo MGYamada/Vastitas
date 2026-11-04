@@ -12,7 +12,7 @@ may raise limits.
 
 - Develop `.vast`; status: [README](README.md), tests and
   [acceptance](docs/stage1-acceptance.md)/[completion](docs/stage1-completion.md).
-  Stage 1b is not full Stage 1 completion.
+  Stage 1b is not full Stage 1 completion. Stage 2: [affine acceptance](docs/stage2-acceptance.md).
 - [Roadmap](docs/guide/historical-roadmap.md) follows current issues. Separate
   implemented, tested, proved and planned work.
 - **Fast like C is the primary goal.** Follow [storage ownership](docs/storage-ownership.md):

@@ -1,9 +1,13 @@
 # `std::geometry::scheme` and `std::geometry::smooth`
 
 The existing finite ordinary/smooth affine profile is implemented by ordinary
-`.vast` indexed declarations under two sibling modules. Both use public protocol
-7 and the same independent Lean checker as application declarations. This is the
-finite migration profile of #49/#58–63, not general scheme or manifold support.
+`.vast` indexed declarations under two sibling modules. They use the same
+independent Lean checker as application declarations. This is the finite
+migration profile of #49/#58–63, not general scheme or manifold support. The
+child module `scheme::affine` adds the Stage 2
+[presented affine profile](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md#the-standard-library-profile).
+Its algebraic forms put the whole package closure on public protocol 9, the
+current schema epoch (#533).
 
 The canonical source tree mirrors the public module hierarchy. Each module has
 its own directory and a `mod.vast` entrypoint:
@@ -12,7 +16,9 @@ its own directory and a `mod.vast` entrypoint:
 stdlib/src/geometry/
 ├── mod.vast
 ├── scheme/
-│   └── mod.vast
+│   ├── mod.vast
+│   └── affine/
+│       └── mod.vast
 └── smooth/
     └── mod.vast
 ```
@@ -109,7 +115,7 @@ declarations, even when its name, version and source bytes are unchanged.
 | Indexed arity/sorts, endpoints, same-base constraints and substitution | Generic indexed declaration/type/Core checker |
 | Fresh objects, existential witnesses and escape rejection | Generic indexed scope/package/body checker |
 | Descriptor, origin, identity, dimension, compose and apply execution | Explicit finite primitive contracts and `IndexedRuntime` |
-| Primitive/package typing and bounded semantic evidence | Existing scoped theorems in [verification](../../../docs/verification.md) |
+| Primitive/package typing and bounded semantic evidence | Existing scoped theorems in [verification](https://github.com/MGYamada/Vastitas/blob/main/docs/verification.md) |
 | Old source syntax on protocols 2–6 | Existing elaborator followed by the independently audited `LegacyIndexed` adapter |
 
 The single `stdlib/Vastitas.toml` entrypoint re-exports geometry and arithmetic.
@@ -134,7 +140,7 @@ Copies of the library retain distinct package identities. Coherently renaming
 all declaration paths and the export works without changing legacy source.
 Protocols 2–6 and explicit `--lib` retain their existing audited adapter path.
 
-Twenty-one integration tests exercise both settings, original `pointed.vast` and
+Twenty-five integration tests exercise both settings, original `pointed.vast` and
 `smooth.vast` bytes, mixed syntax, alias/family/function identity, coherent
 renaming, dependent calls/repacking, fresh/unpacked/copied identities, missing
 capabilities, visibility, external method authority, Fn capture and unused-body
@@ -151,7 +157,7 @@ The exact returned Core has typed total evaluation through `IndexedProgramSafety
 `GeometryResults` proves that the validated primitive roles preserve finite
 legacy runtime results after erasure. These results do not prove general scheme
 mathematics, complete surface operational correspondence or native correctness.
-See the [migration acceptance map](../../../docs/indexed-source.md#geometry-migration) for the
+See the [migration acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/indexed-source.md#geometry-migration) for the
 inventory, regression matrix and remaining trust boundaries.
 
 ## Representation and future design
@@ -174,5 +180,5 @@ facades are aliases rather than runtime forwarding functions. This increment
 uses finite descriptors and introduces no numerical coordinate arrays or storage
 ownership. Future computational representations must expose layout, aliasing,
 allocation/copy and residual-lifetime contracts under the
-[revised storage design](../../../docs/storage-ownership.md). No C performance result
+[revised storage design](https://github.com/MGYamada/Vastitas/blob/main/docs/storage-ownership.md). No C performance result
 is claimed from the descriptor examples or their regression tests.

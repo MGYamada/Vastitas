@@ -54,6 +54,7 @@
     - [Historical Stages 2–7](guide/historical-roadmap.md)
     - [Stage 1 delivery and performance handoff](stage1-completion.md)
     - [Finite-profile acceptance and evidence](stage1-acceptance.md)
+    - [Stage 2 finite affine geometry acceptance](stage2-acceptance.md)
   - [F: Contributing and validation](appendix/contributing.md)
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)

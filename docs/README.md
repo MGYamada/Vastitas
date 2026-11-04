@@ -51,8 +51,10 @@ Four further principles run through the book:
 
 The current compiler implements the finite Stage 1 profile, with the standard
 library in `stdlib/` and the programs in `examples/`. Historical Stage 2 (finite affine geometry over
-QQ, [tracker #571](https://github.com/MGYamada/Vastitas/issues/571)) is in
-progress. Its chapter joins the book when its first source increment lands.
+QQ, [tracker #571](https://github.com/MGYamada/Vastitas/issues/571)) adds
+[presented affine geometry](affine-geometry.md), also available as
+`std::geometry::scheme::affine`. Its [acceptance map](stage2-acceptance.md)
+separates what is proved, tested and still pending.
 
 The book keeps four kinds of statement apart:
 

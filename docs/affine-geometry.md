@@ -73,8 +73,10 @@ indexed affine Origin(AffineQQ) = spec[] over S by(t -> 0);
   increment adds.
 
 Polynomial syntax uses `+`, `-`, `*`, unary `-`, `^` with a literal exponent,
-decimal literals, `frac(n, d)` and parentheses. The `^` token exists only in
-this syntax. Before expansion, the kernel bounds:
+decimal literals, `frac(n, d)` and parentheses. Only `frac` followed by `(`
+is a fraction; otherwise `frac` is a coordinate name, as in `frac^2` or
+`frac::t`. The `^` token exists only in this syntax. Before expansion, the
+kernel bounds:
 
 - degree and exponents to 16;
 - literals to 64 digits;

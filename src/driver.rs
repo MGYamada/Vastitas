@@ -124,12 +124,6 @@ pub fn run(args: impl Iterator<Item = OsString>) -> Result<(), String> {
     if args.first().is_some_and(|command| command == "audit-lean") {
         return crate::internal_lean_audit::run_cli(&args[1..]);
     }
-    if args
-        .first()
-        .is_some_and(|command| command == crate::internal_lean_audit::WORKER_COMMAND)
-    {
-        return crate::internal_lean_audit::run_worker(&args[1..]);
-    }
     let Options {
         mode,
         input,

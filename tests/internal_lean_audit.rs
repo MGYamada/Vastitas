@@ -1,151 +1,400 @@
+//! `audit-lean` through the `nanoda_bin` shipped with the pinned Lean toolchain.
+//! Positive and export-rejection cases run the real toolchain checker (located
+//! through `ELAN_HOME` as in CI, or `~/.elan`). Resolution failures use fake
+//! elan homes so they never depend on, or modify, the real installation.
 use std::ffi::OsStr;
 use std::fs;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-static NEXT_EXPORT: AtomicU64 = AtomicU64::new(0);
+static NEXT_PATH: AtomicU64 = AtomicU64::new(0);
+const TOOLCHAIN_DIRECTORY: &str = "leanprover--lean4---v4.35.0";
+const FIXTURE: &str = include_str!("fixtures/lean_audit/id_prop.ndjson");
 
 fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/lean_audit/id_prop.ndjson")
 }
 
+fn header() -> &'static str {
+    FIXTURE.lines().next().unwrap()
+}
+
+fn audit_command(path: &Path) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_vastitas"));
+    command.arg("audit-lean").arg(path);
+    command
+}
+
 fn run_audit(path: &Path) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_vastitas"))
-        .arg("audit-lean")
-        .arg(path)
+    audit_command(path)
         .output()
         .expect("run Vastitas audit-lean")
 }
 
-fn temporary_path() -> PathBuf {
+fn temporary_path(kind: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_nanos();
     std::env::temp_dir().join(format!(
-        "vastitas-nanoda-{}-{nanos}-{}.ndjson",
+        "vastitas-audit-test-{}-{nanos}-{}{kind}",
         std::process::id(),
         // SystemTime resolution can give simultaneous test threads the same
-        // timestamp. Their worker inputs and cleanup must remain independent.
-        NEXT_EXPORT.fetch_add(1, Ordering::Relaxed)
+        // timestamp. Their inputs and cleanup must remain independent.
+        NEXT_PATH.fetch_add(1, Ordering::Relaxed)
     ))
 }
 
-fn temporary_export(contents: &str) -> (PathBuf, Output) {
-    let path = temporary_path();
+fn temporary_export(contents: &str) -> Output {
+    let path = temporary_path(".ndjson");
     fs::write(&path, contents).expect("write temporary Lean export");
     let output = run_audit(&path);
     fs::remove_file(&path).expect("remove temporary Lean export");
-    (path, output)
+    output
+}
+
+fn export(lines: &[&str]) -> String {
+    let mut lines = lines.to_vec();
+    lines.insert(0, header());
+    lines.join("\n")
+}
+
+fn accepted(output: &Output) -> String {
+    assert!(output.status.success(), "unexpected rejection: {output:?}");
+    let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+    for required in [
+        "internal-only conditional Lean audit completed (nanoda_bin 0.4.19 from the Lean 4.35.0 toolchain)",
+        "commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc",
+        "Result is relative to the supplied environment",
+        "NOT authenticated as the standard Lean axioms",
+        "nanoda is not the official Lean kernel",
+        "NOT official Lean-kernel verification",
+        "no Vastitas Core or constitutional acceptance",
+    ] {
+        assert!(stdout.contains(required), "missing {required:?}: {stdout}");
+    }
+    for forbidden in ["kernel_verified", "official_kernel_checked", "audit passed"] {
+        assert!(!stdout.contains(forbidden), "{stdout}");
+    }
+    stdout
 }
 
 fn rejected(output: &Output) -> String {
     assert!(!output.status.success(), "unexpected success: {output:?}");
+    assert_eq!(output.status.code(), Some(1), "{output:?}");
+    assert!(output.stdout.is_empty(), "{output:?}");
     let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
     assert!(
         stderr.contains("E_LEAN_AUDIT"),
-        "audit rejection did not reach the parent driver: {stderr}"
+        "audit rejection did not reach the driver: {stderr}"
     );
     stderr
 }
 
-#[test]
-fn checked_export_returns_internal_only_receipt() {
-    let output = run_audit(&fixture());
+fn checker_rejected(output: &Output) -> String {
+    let stderr = rejected(output);
     assert!(
-        output.status.success(),
-        "nanoda rejected reference fixture: {output:?}"
+        stderr.contains("E_LEAN_AUDIT: nanoda_bin 0.4.19 rejected"),
+        "{stderr}"
     );
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("internal-only conditional Lean audit completed"));
-    assert!(stdout.contains("0 exported axioms"));
-    assert!(stdout.contains("axiom statements and environment are NOT authenticated"));
-    assert!(stdout.contains("NOT official Lean-kernel verification"));
-    assert!(stdout.contains("no Vastitas Core or constitutional acceptance"));
+    stderr
+}
+
+/// The real elan home, as `audit-lean` resolves it without overrides.
+fn real_toolchain() -> PathBuf {
+    let home = std::env::var_os("ELAN_HOME")
+        .filter(|home| !home.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(std::env::var_os("HOME").unwrap()).join(".elan"));
+    home.join("toolchains").join(TOOLCHAIN_DIRECTORY)
+}
+
+/// A fake elan home whose pinned toolchain contains the given `bin` scripts.
+struct FakeElan(PathBuf);
+
+impl FakeElan {
+    fn new(scripts: &[(&str, String)]) -> Self {
+        let home = temporary_path("-elan");
+        let bin = home
+            .join("toolchains")
+            .join(TOOLCHAIN_DIRECTORY)
+            .join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        for (name, body) in scripts {
+            let path = bin.join(name);
+            fs::write(&path, format!("#!/bin/sh\n{body}\n")).unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        Self(home)
+    }
+
+    fn bin(&self) -> PathBuf {
+        self.0
+            .join("toolchains")
+            .join(TOOLCHAIN_DIRECTORY)
+            .join("bin")
+    }
+
+    fn audit(&self, path: &Path) -> Output {
+        audit_command(path)
+            .env("ELAN_HOME", &self.0)
+            .output()
+            .expect("run Vastitas audit-lean")
+    }
+}
+
+impl Drop for FakeElan {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+/// A fake `lean` that delegates to the real pinned one, so the toolchain
+/// identity check passes and only the checker under test differs.
+fn real_lean() -> (&'static str, String) {
+    let lean = real_toolchain().join("bin/lean");
+    ("lean", format!("exec '{}' \"$@\"", lean.display()))
+}
+
+/// A fake checker reporting the pinned identity and otherwise running `body`.
+fn identified_checker(body: &str) -> (&'static str, String) {
+    (
+        "nanoda_bin",
+        format!("if [ \"$1\" = --help ]; then echo 'nanoda_bin 0.4.19'; exit 0; fi\n{body}"),
+    )
 }
 
 #[test]
-fn standard_axiom_name_cannot_authenticate_an_arbitrary_statement() {
-    let header = include_str!("fixtures/lean_audit/id_prop.ndjson")
-        .lines()
-        .next()
+fn checked_export_returns_conditional_receipt_with_checker_identity() {
+    let stdout = accepted(&run_audit(&fixture()));
+    assert!(stdout.contains(": 1 declarations in "), "{stdout}");
+    let checker = real_toolchain()
+        .join("bin/nanoda_bin")
+        .canonicalize()
         .unwrap();
+    assert!(
+        stdout.contains(&format!("Checker: {}", checker.display())),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn standard_axiom_names_cannot_authenticate_arbitrary_statements() {
     // Well-typed but inconsistent assumption: propext : forall P : Prop, P.
-    // It has the allowed name, but is not Lean's propositional extensionality.
-    let input = [
-        header,
+    // It has an allowed name, but is not Lean's propositional extensionality,
+    // and a theorem that every proposition holds checks against it.
+    let spoofed = export(&[
         r#"{"in":1,"str":{"pre":0,"str":"propext"}}"#,
         r#"{"in":2,"str":{"pre":0,"str":"P"}}"#,
+        r#"{"in":3,"str":{"pre":0,"str":"everything"}}"#,
         r#"{"ie":0,"sort":0}"#,
         r#"{"ie":1,"bvar":0}"#,
         r#"{"ie":2,"forallE":{"binderInfo":"default","body":1,"name":2,"type":0}}"#,
+        r#"{"ie":3,"const":{"name":1,"us":[]}}"#,
         r#"{"axiom":{"name":1,"levelParams":[],"type":2,"isUnsafe":false}}"#,
-    ]
-    .join("\n");
-    let (_, output) = temporary_export(&input);
-    assert!(output.status.success(), "{output:?}");
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout.contains("conditional Lean audit completed"),
-        "{stdout}"
-    );
-    assert!(
-        stdout.contains("relative to the supplied environment (1 exported axioms)"),
-        "{stdout}"
-    );
-    assert!(
-        stdout.contains("NOT authenticated as the standard Lean axioms"),
-        "{stdout}"
-    );
-    assert!(!stdout.contains("Lean audit passed"), "{stdout}");
+        r#"{"thm":{"name":3,"levelParams":[],"type":2,"value":3}}"#,
+    ]);
+    let stdout = accepted(&temporary_export(&spoofed));
+    assert!(stdout.contains(": 2 declarations in "), "{stdout}");
 
-    let path = temporary_path();
-    fs::write(&path, &input).unwrap();
-    let worker = Command::new(env!("CARGO_BIN_EXE_vastitas"))
-        .arg("__internal-nanoda-worker")
-        .arg(&path)
-        .output()
-        .unwrap();
-    fs::remove_file(path).unwrap();
-    assert!(worker.status.success(), "{worker:?}");
-    let receipt: serde_json::Value = serde_json::from_slice(&worker.stdout).unwrap();
-    assert_eq!(receipt["status"], "internal_only");
-    assert_eq!(receipt["scope"], "relative_to_supplied_environment");
-    assert_eq!(receipt["axiom_environment_authenticated"], false);
-    assert_eq!(receipt["exported_axioms"], 1);
-}
-
-#[test]
-fn invalid_proof_term_is_rejected_without_crashing_the_parent() {
-    // Replace the identity proof lambda with Prop itself (a wrong type).
-    let original = include_str!("fixtures/lean_audit/id_prop.ndjson");
-    let modified = original.replacen(r#""type":4,"value":6}}"#, r#""type":4,"value":0}}"#, 1);
-    assert_ne!(original, modified);
-    rejected(&temporary_export(&modified).1);
-}
-
-#[test]
-fn undeclared_axiom_is_a_hard_error_even_if_unused() {
-    let original = include_str!("fixtures/lean_audit/id_prop.ndjson");
-    let header = original.lines().next().unwrap();
-    let input = [
-        header,
-        r#"{"in":1,"str":{"pre":0,"str":"NotPermitted"}}"#,
+    // Finding (#539): nanoda compares rendered names, so a single-component
+    // name spelled `Classical.choice` also passes the name policy. The result
+    // stays conditional because no name is authenticated.
+    let dotted = export(&[
+        r#"{"in":1,"str":{"pre":0,"str":"Classical.choice"}}"#,
         r#"{"ie":0,"sort":0}"#,
         r#"{"axiom":{"name":1,"levelParams":[],"type":0,"isUnsafe":false}}"#,
-    ]
-    .join("\n");
-    let stderr = rejected(&temporary_export(&input).1);
-    assert!(stderr.contains("unpermitted axiom"), "{stderr}");
+    ]);
+    accepted(&temporary_export(&dotted));
 }
 
 #[test]
-fn malformed_and_empty_exports_are_rejected() {
-    rejected(&temporary_export("not-json\n").1);
-    let original = include_str!("fixtures/lean_audit/id_prop.ndjson");
-    rejected(&temporary_export(original.lines().next().unwrap()).1);
+fn invalid_proof_term_is_rejected_with_the_checker_status() {
+    // Replace the identity proof lambda with Prop itself (a wrong type).
+    let modified = FIXTURE.replacen(r#""type":4,"value":6}}"#, r#""type":4,"value":0}}"#, 1);
+    assert_ne!(FIXTURE, modified);
+    let stderr = checker_rejected(&temporary_export(&modified));
+    assert!(stderr.contains("exit status: 101"), "{stderr}");
+}
+
+#[test]
+fn unauthorized_axioms_are_hard_errors_even_if_unused() {
+    for name in [
+        "NotPermitted",
+        "sorryAx",
+        "Lean.trustCompiler",
+        "Classical.propext",
+    ] {
+        let input = export(&[
+            &format!(r#"{{"in":1,"str":{{"pre":0,"str":"{name}"}}}}"#),
+            r#"{"ie":0,"sort":0}"#,
+            r#"{"axiom":{"name":1,"levelParams":[],"type":0,"isUnsafe":false}}"#,
+        ]);
+        let stderr = checker_rejected(&temporary_export(&input));
+        assert!(stderr.contains("unpermitted axiom"), "{name}: {stderr}");
+    }
+}
+
+#[test]
+fn spoofed_axiom_environments_are_rejected() {
+    // An unsafe declaration with an allowed name.
+    let unsafe_axiom = export(&[
+        r#"{"in":1,"str":{"pre":0,"str":"propext"}}"#,
+        r#"{"ie":0,"sort":0}"#,
+        r#"{"axiom":{"name":1,"levelParams":[],"type":0,"isUnsafe":true}}"#,
+    ]);
+    checker_rejected(&temporary_export(&unsafe_axiom));
+    // Two declarations of one allowed name.
+    let axiom = r#"{"axiom":{"name":1,"levelParams":[],"type":0,"isUnsafe":false}}"#;
+    let duplicate = export(&[
+        r#"{"in":1,"str":{"pre":0,"str":"propext"}}"#,
+        r#"{"ie":0,"sort":0}"#,
+        axiom,
+        axiom,
+    ]);
+    checker_rejected(&temporary_export(&duplicate));
+}
+
+#[test]
+fn checker_diagnostics_cannot_drive_the_terminal() {
+    let input = export(&[
+        r#"{"in":1,"str":{"pre":0,"str":"Evil\u001b[2J\u202e"}}"#,
+        r#"{"ie":0,"sort":0}"#,
+        r#"{"axiom":{"name":1,"levelParams":[],"type":0,"isUnsafe":false}}"#,
+    ]);
+    let output = temporary_export(&input);
+    checker_rejected(&output);
+    assert!(!output.stderr.contains(&0x1b), "{output:?}");
+    assert!(!String::from_utf8_lossy(&output.stderr).contains('\u{202e}'));
+}
+
+#[test]
+fn malformed_empty_and_missing_exports_are_rejected() {
+    checker_rejected(&temporary_export("not-json\n"));
+    let truncated = FIXTURE.trim_end().strip_suffix("}}").unwrap();
+    checker_rejected(&temporary_export(truncated));
+    let stderr = rejected(&temporary_export(header()));
+    assert!(stderr.contains("without declarations"), "{stderr}");
+    let stderr = rejected(&run_audit(&temporary_path("-missing.ndjson")));
+    assert!(stderr.contains("E_LEAN_AUDIT: cannot read"), "{stderr}");
+    let stderr = rejected(&run_audit(&std::env::temp_dir()));
+    assert!(stderr.contains("is a directory"), "{stderr}");
+}
+
+#[test]
+fn missing_toolchain_or_checker_fails_closed_without_path_fallback() {
+    // An accepting `nanoda_bin` on PATH must never be used.
+    let decoy = FakeElan::new(&[identified_checker(
+        "echo 'Checked 1 declarations with no errors'",
+    )]);
+    let path = format!("{}:/usr/bin:/bin", decoy.bin().display());
+
+    let empty = temporary_path("-empty-elan");
+    fs::create_dir(&empty).unwrap();
+    let output = audit_command(&fixture())
+        .env("ELAN_HOME", &empty)
+        .env("PATH", &path)
+        .output()
+        .unwrap();
+    fs::remove_dir(&empty).unwrap();
+    let stderr = rejected(&output);
+    assert!(
+        stderr.contains("E_LEAN_AUDIT_CHECKER: the pinned Lean toolchain leanprover/lean4:v4.35.0 is not installed"),
+        "{stderr}"
+    );
+
+    let without_checker = FakeElan::new(&[real_lean()]);
+    let output = audit_command(&fixture())
+        .env("ELAN_HOME", &without_checker.0)
+        .env("PATH", &path)
+        .output()
+        .unwrap();
+    let stderr = rejected(&output);
+    assert!(stderr.contains("provides no nanoda_bin"), "{stderr}");
+    assert!(stderr.contains("no fallback checker"), "{stderr}");
+}
+
+#[test]
+fn mismatched_toolchain_or_checker_identity_fails_closed() {
+    let accept = "echo 'Checked 1 declarations with no errors'";
+    let newer = FakeElan::new(&[
+        real_lean(),
+        (
+            "nanoda_bin",
+            format!("[ \"$1\" = --help ] && echo 'nanoda_bin 0.4.31' && exit 0\n{accept}"),
+        ),
+    ]);
+    let stderr = rejected(&newer.audit(&fixture()));
+    assert!(
+        stderr.contains("does not identify as nanoda_bin 0.4.19") && stderr.contains("0.4.31"),
+        "{stderr}"
+    );
+
+    let older_lean = FakeElan::new(&[
+        (
+            "lean",
+            "echo 'Lean (version 4.34.1, arm64-apple-darwin24.6.0, commit eb6cafb7290e8bd5f2937522d8d804f58f02bafc, Release)'".into(),
+        ),
+        identified_checker(accept),
+    ]);
+    let stderr = rejected(&older_lean.audit(&fixture()));
+    assert!(
+        stderr.contains("is not the official Lean 4.35.0 release"),
+        "{stderr}"
+    );
+
+    // The toolchain's own regular file is required, not a link to elsewhere.
+    let linked = FakeElan::new(&[real_lean()]);
+    std::os::unix::fs::symlink(
+        real_toolchain().join("bin/nanoda_bin"),
+        linked.bin().join("nanoda_bin"),
+    )
+    .unwrap();
+    let stderr = rejected(&linked.audit(&fixture()));
+    assert!(stderr.contains("not a regular executable file"), "{stderr}");
+}
+
+#[test]
+fn checker_uses_upstream_configuration_and_its_report_is_validated() {
+    // Record the configuration the checker receives, then exit with a status
+    // or report chosen by the test.
+    let record = temporary_path("-config.json");
+    let checker = |tail: &str| {
+        identified_checker(&format!(
+            "cp \"$1\" '{}' || exit 9\ntest -f nanoda-config.json || exit 8\n{tail}",
+            record.display()
+        ))
+    };
+    let elan = FakeElan::new(&[real_lean(), checker("exit 3")]);
+    let stderr = rejected(&elan.audit(&fixture()));
+    assert!(stderr.contains("nanoda_bin 0.4.19 rejected"), "{stderr}");
+    assert!(stderr.contains("exit status: 3"), "{stderr}");
+    let config: serde_json::Value = serde_json::from_slice(&fs::read(&record).unwrap()).unwrap();
+    fs::remove_file(&record).unwrap();
+    let mut expected: serde_json::Value =
+        serde_json::from_str(include_str!("../config/nanoda-internal-audit.json")).unwrap();
+    expected["export_file_path"] = fixture().to_str().unwrap().into();
+    assert_eq!(config, expected);
+
+    for (tail, message) in [
+        ("exit 0", "unexpected nanoda_bin 0.4.19 success report"),
+        (
+            "echo 'Checked 1 declarations with no errors, skipping exported but unpermitted axioms [\"x\"]'",
+            "unexpected nanoda_bin 0.4.19 success report",
+        ),
+        (
+            "echo 'Checked 1 declarations with no errors'; echo warning >&2",
+            "reported diagnostics despite success",
+        ),
+    ] {
+        let elan = FakeElan::new(&[real_lean(), checker(tail)]);
+        let stderr = rejected(&elan.audit(&fixture()));
+        assert!(stderr.contains(message), "{tail}: {stderr}");
+    }
+    let _ = fs::remove_file(&record);
 }
 
 #[test]
@@ -159,7 +408,7 @@ fn ordinary_compiler_help_is_unchanged() {
 }
 
 #[test]
-fn interrupted_audit_terminates_and_reaps_its_worker() {
+fn interrupted_audit_terminates_and_reaps_the_checker() {
     use nix::errno::Errno;
     use nix::sys::signal::{Signal, kill};
     use nix::sys::stat::Mode;
@@ -169,19 +418,17 @@ fn interrupted_audit_terminates_and_reaps_its_worker() {
     use std::time::{Duration, Instant};
 
     for (signal, code) in [(Signal::SIGINT, 130), (Signal::SIGTERM, 143)] {
-        let fifo = temporary_path();
+        let fifo = temporary_path(".fifo");
         mkfifo(&fifo, Mode::S_IRUSR | Mode::S_IWUSR).unwrap();
-        let mut child = Command::new(env!("CARGO_BIN_EXE_vastitas"))
-            .arg("audit-lean")
-            .arg(&fifo)
+        let mut child = audit_command(&fifo)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        // Opening a nonblocking writer succeeds only once the actual audit
-        // worker is opening the FIFO. Keep it open without bytes so checking
-        // cannot finish by itself, and signal only the parent process.
-        let deadline = Instant::now() + Duration::from_secs(5);
+        // Opening a nonblocking writer succeeds only once the toolchain checker
+        // is opening the FIFO. Keep it open without bytes so checking cannot
+        // finish by itself, and signal only the Vastitas process.
+        let deadline = Instant::now() + Duration::from_secs(10);
         let writer = loop {
             match fs::OpenOptions::new()
                 .write(true)
@@ -190,7 +437,7 @@ fn interrupted_audit_terminates_and_reaps_its_worker() {
             {
                 Ok(writer) => break writer,
                 Err(error) if error.raw_os_error() == Some(Errno::ENXIO as i32) => {
-                    assert!(Instant::now() < deadline, "audit worker did not open input");
+                    assert!(Instant::now() < deadline, "checker did not open input");
                     assert!(child.try_wait().unwrap().is_none());
                     std::thread::sleep(Duration::from_millis(10));
                 }
@@ -214,7 +461,7 @@ fn interrupted_audit_terminates_and_reaps_its_worker() {
         assert!(
             String::from_utf8_lossy(&output.stderr).contains("E_LEAN_AUDIT: audit interrupted")
         );
-        // No FIFO reader may survive the parent. A leaked checker would make
+        // No FIFO reader may survive Vastitas. A leaked checker would make
         // this open succeed even though it emits no output.
         let reopened = fs::OpenOptions::new()
             .write(true)

@@ -526,10 +526,10 @@ A declaration has `{kind,name,public,span,...}` with these additional fields:
 | Kind | Fields |
 | --- | --- |
 | `marker` | None |
-| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"|"dimension"]` |
+| `implementation` | `marker:TypePath`, `representation:"affine_descriptor"`, `capabilities:["origin"\|"dimension"]` |
 | `classification` | `parents:[TypePath]`, `domain:[TypePath]` |
 | `global` | `implementation:TypePath` |
-| `family` | `parameters:[Parameter]`, `constraints:[Constraint]`, `representation:"token"|"point"|"morphism"` |
+| `family` | `parameters:[Parameter]`, `constraints:[Constraint]`, `representation:"token"\|"point"\|"morphism"` |
 | `package` | `cases:[{witness_type:ObjectType,fields:[BoundApplication]}]` |
 | `primitive` | `binding:Primitive` |
 

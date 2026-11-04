@@ -5,6 +5,8 @@ Its finite Stage 1 compiler supports static functions and dispatch, nominal
 affine geometry, scoped edit authority, checked storage ownership, real and
 complex GEMM, and finite contraction trees. An independent Lean kernel
 checks the program before generation. [Delivery record](docs/stage1-completion.md)
+Historical Stage 2 adds a checked finite profile of presented affine geometry
+over QQ. [Chapter](docs/affine-geometry.md) · [Acceptance map](docs/stage2-acceptance.md)
 
 ## Build and use
 

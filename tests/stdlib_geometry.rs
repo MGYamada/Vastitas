@@ -534,6 +534,16 @@ fn main() -> Int {
         ),
         "E_ENDPOINT",
     );
+    // Neither the Stage 1 `Scheme` base nor a `CInfScheme` object is a
+    // presented affine object, so neither can index `Over`.
+    for object in ["geo::scheme::BaseQQ", "geo::smooth::BaseSmooth"] {
+        reject(
+            &format!(
+                "fn probe(arrow: geo::scheme::affine::Over<geo::scheme::affine::Line, {object}, geo::scheme::affine::SpecQQ>) -> Int {{ 0 }}\nfn main() -> Int {{ 42 }}"
+            ),
+            "E_TYPE",
+        );
+    }
 }
 
 #[test]

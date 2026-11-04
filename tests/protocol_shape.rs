@@ -128,6 +128,60 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     );
 }
 
+/// The promotion example against a copy of the stdlib without its Stage 2
+/// `scheme::affine` module. That closure still uses protocol 7, so the
+/// Indexed.Wire sweep keeps the geometry-compatibility, dependency and
+/// function-body records that only the stdlib supplies.
+fn promotion_without_affine() -> Value {
+    let root = common::root();
+    let stdlib = root.join("stdlib");
+    let s = common::Scratch::empty("protocol seven stdlib");
+    let copy = |from: &str, to: &str| {
+        s.write(to, &std::fs::read_to_string(stdlib.join(from)).unwrap());
+    };
+    copy("Vastitas.toml", "stdlib/Vastitas.toml");
+    for name in [
+        "lib.vast",
+        "arithmetic.vast",
+        "arithmetic/generic.vast",
+        "arithmetic/integers.vast",
+        "arithmetic/naturals.vast",
+    ] {
+        copy(
+            &format!("target/package/{name}"),
+            &format!("stdlib/target/package/{name}"),
+        );
+    }
+    for name in ["Vastitas.toml", "mod.vast", "smooth/mod.vast"] {
+        copy(
+            &format!("src/geometry/{name}"),
+            &format!("stdlib/src/geometry/{name}"),
+        );
+    }
+    let scheme = std::fs::read_to_string(stdlib.join("src/geometry/scheme/mod.vast")).unwrap();
+    assert!(scheme.contains("pub mod affine;\n"));
+    s.write(
+        "stdlib/src/geometry/scheme/mod.vast",
+        &scheme.replace("pub mod affine;\n", ""),
+    );
+    let example = root.join("examples/packages/promotion");
+    s.write(
+        "app/Vastitas.toml",
+        &std::fs::read_to_string(example.join("Vastitas.toml"))
+            .unwrap()
+            .replace("../../../stdlib", "../stdlib"),
+    );
+    s.write(
+        "app/main.vast",
+        &std::fs::read_to_string(example.join("main.vast")).unwrap(),
+    );
+    let mut command = common::cli();
+    command
+        .args(["check", "--manifest-path"])
+        .arg(s.0.join("app/Vastitas.toml"));
+    common::captured_wire(command, 7)
+}
+
 // #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire
 // (8/9) decoders, using wires the actual frontend sends for indexed, resource,
 // numerical, tree, network, storage and named-recipient edit programs.
@@ -139,7 +193,8 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     let mut cases = Vec::new();
     for (package, version) in [
         ("indexed", 7),
-        ("promotion", 7),
+        // Its stdlib dependency declares Stage 2 presented affine geometry.
+        ("promotion", 9),
         ("resource-values", 8),
         ("numerical", 8),
         ("runtime-shapes", 8),
@@ -155,6 +210,7 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
         command.args(["check", "--manifest-path"]).arg(manifest);
         cases.push((package, common::captured_wire(command, version)));
     }
+    cases.push(("promotion on protocol 7", promotion_without_affine()));
     let recipients: Value =
         serde_json::from_str(include_str!("fixtures/edit-recipients.json")).unwrap();
     assert_eq!(recipients["version"], 9);

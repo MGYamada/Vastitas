@@ -32,7 +32,7 @@ The internal declaration-driven source adapters now compose independent
 functions, finite scalar dispatch and edit-authority assemblies, including
 applied and unapplied contribution bodies. [Public protocol 7](../indexed-source.md)
 connects the Rust declaration/body syntax to that same combined checker and
-returned Core. Legacy geometry syntax in protocol 7 uses the library’s explicit,
+returned Core. Legacy geometry syntax in protocols 7–9 uses the library’s explicit,
 independently checked compatibility export. `IndexedProgramSafety` proves finite
 typed evaluation for all functions and main in the exact returned Core, including
 dependent calls and package openings. Finite geometry primitive results agree

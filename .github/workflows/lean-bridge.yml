@@ -7,11 +7,11 @@ on:
       - 'lean-toolchain'
       - 'lean-kernel/lean-toolchain'
       # The implementation correspondence reads these kernel and Oracle sources.
-      - 'lean-kernel/VastitasKernel/Algebra*.lean'
-      - 'lean-kernel/VastitasKernel/Limits.lean'
+      - 'lean-kernel/VastitasKernel/**'
       - 'lean-kernel/compiler-limits.json'
       - 'lean-kernel/lakefile.toml'
       - 'lean/VastitasOracle/Algebra*.lean'
+      - 'lean/VastitasOracle/Affine*.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -26,11 +26,11 @@ on:
       - 'lean-toolchain'
       - 'lean-kernel/lean-toolchain'
       # The implementation correspondence reads these kernel and Oracle sources.
-      - 'lean-kernel/VastitasKernel/Algebra*.lean'
-      - 'lean-kernel/VastitasKernel/Limits.lean'
+      - 'lean-kernel/VastitasKernel/**'
       - 'lean-kernel/compiler-limits.json'
       - 'lean-kernel/lakefile.toml'
       - 'lean/VastitasOracle/Algebra*.lean'
+      - 'lean/VastitasOracle/Affine*.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -89,6 +89,11 @@ jobs:
             Mathlib.Data.Set.List \
             Mathlib.RingTheory.MvPolynomial.Groebner \
             Mathlib.RingTheory.MvPolynomial.MonomialOrder.DegLex \
+            Mathlib.RingTheory.Ideal.Quotient.Operations \
+            Mathlib.RingTheory.Localization.Away.Basic \
+            Mathlib.AlgebraicGeometry.Scheme \
+            Mathlib.AlgebraicGeometry.Pullbacks \
+            Mathlib.Algebra.Category.Ring.Constructions \
             Mathlib.Analysis.CStarAlgebra.Matrix
       - name: Build the mathematical bridge
         working-directory: lean-bridge

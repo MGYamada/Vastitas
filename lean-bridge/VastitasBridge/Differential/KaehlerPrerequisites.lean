@@ -11,8 +11,8 @@ comparison in `Kaehler.lean` imports them; it cannot be a module itself because 
 non-module kernel sources.
 
 * `kaehlerD_aeval`: the **Kähler chain rule** for substitution. For `g : τ → R[σ]` and
-  `q : R[τ]`, `d(q ∘ g) = Σⱼ (∂ⱼ q ∘ g) • d(gⱼ)` in `Ω[R[σ]⁄R]`. Its proof uses only the Leibniz
-  rule of the universal derivation `d`, not the formal chain rule `pderiv_aeval`.
+  `q : R[τ]`, `d(q ∘ g) = Σⱼ (∂ⱼ q ∘ g) • d(gⱼ)` in `Ω[R[σ]⁄R]`. Its proof is an induction on
+  `q` using the Leibniz rules of `d` and `pderiv`; it does not use the constant `pderiv_aeval`.
 * `pullbackForm g`: the pullback `Ω[R[τ]⁄R] → Ω[R[σ]⁄R]` along `g`, written in the basis:
   `Σⱼ cⱼ dXⱼ ↦ Σⱼ (cⱼ ∘ g) d(gⱼ)`. It needs no `Algebra R[τ] R[σ]` instance.
   `pullbackForm_D` says it commutes with `d`, `pullbackForm_comp` that it is functorial, and

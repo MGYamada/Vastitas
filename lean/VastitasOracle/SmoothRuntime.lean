@@ -17,10 +17,11 @@ They need no calculus:
 - the failure value is absorbing and observably distinct from every fiber.
 
 That the reverse pass is the transpose of the derivative of the composite map
-(the chain rule) is a statement about calculus. It is not proved here: the
-mathlib bridge proves it in `VastitasBridge.Differential.ChainRule`
-(`backward_eq_cot`, `pullback_composite`). The theorems below unfold the
-implementation; they do not compare it with a derivative. -/
+(the chain rule) is a statement about calculus. It is not proved here:
+`VastitasOracle.SmoothCalculus` proves it without mathlib (`cot_compose`,
+`backward_eq_cot`, `pullback_composite`), and the mathlib bridge proves it
+independently in `VastitasBridge.Differential.ChainRule`. The theorems below
+unfold the implementation; they do not compare it with a derivative. -/
 namespace VastitasOracle.SmoothRuntime
 
 open VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime

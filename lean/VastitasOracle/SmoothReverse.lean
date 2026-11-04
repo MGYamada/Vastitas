@@ -25,8 +25,9 @@ Together with `SmoothDeclarations.smoothCompose_reifies` and
 `IndexedSemantics.primitive_runtime_erasure`, these state that the reverse pass
 runs on the program that checked Core builds. They need no chain rule: that
 the pass computes the transpose of the derivative is a statement about
-calculus, proved in the bridge (`VastitasBridge.Differential.ChainRule`:
-`backward_eq_cot`, `pullback_composite`).
+calculus, proved without mathlib in `VastitasOracle.SmoothCalculus`
+(`backward_eq_cot`, `pullback_composite`) and independently in the bridge
+(`VastitasBridge.Differential.ChainRule`).
 
 `smooth_differential_metric_free` states that the differential and the
 cotangent pullback never consult the declarations: their Core semantics is the

@@ -1944,15 +1944,17 @@ All of these are Proved (bridge), in `VastitasBridge.Differential`.
 | `Derivative.lean` | `npow_eq_pow`, `evalAt_eq_eval`, `evalAt_eq_eval_evalPoint`, `toMv_partial`, `canonical_partial`, `wellFormed_iff`, `toMv_compose`, `cot_getD` | The runtime's evaluation, partial derivative and composition are `MvPolynomial.eval`, `pderiv` and `aeval`; component `j` of `cot map x η` is `Σᵢ ηᵢ (∂ⱼ fᵢ)(x)` |
 | `ChainRule.lean` | `cot_compose`, `eval_denote`, `backward_eq_cot`, `backward_eq_cot_saved`, `pullback_composite`, `pullback_eq_composite`, `smoothEqual_iff`, `pullback_comp`, `Cov.reverse_eq_pullback` | The chain rule through `pderiv_aeval`; `same` is equality of the denoted polynomial maps |
 | `Frechet.lean` | `hasFDerivAt_realProgram`, `realProgram_realPoint`, `reverse_covector_eq_comp_fderiv`, `pullback_eq_fderiv_adjoint`, `pullback_covector_eq_comp_fderiv`, `pullback_getD_eq_fderiv_adjoint` | The runtime pullback, in both modes, is `η ∘ Df(x)` for mathlib's `fderiv ℝ` of the program's real map, built node by node with `HasFDerivAt.comp`; the file does not use `ChainRule.lean` |
-| `Kaehler.lean` | `kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler` | The runtime pullback is the fiber at `x` of the Kähler pullback Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases; a second chain rule by functoriality, independent of `ChainRule.lean` and `Frechet.lean` |
+| `Kaehler.lean` | `kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler` | The runtime pullback is the fiber at `x` of the Kähler pullback Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases, for one map; a second chain rule for two maps by functoriality, independent of `ChainRule.lean` and `Frechet.lean` |
 | `Metric.lean` | `isUnit_gram_of_nondegenerate`, `inverse_eq_of_nondegenerate`, `sharp_flat`, `flat_sharp`, `gradient_riesz`, `posDef_of_riemannian`, `not_isUnit_diag_one_zero`, `not_posDef_lorentz`, `checkNondegenerate_lorentz` | Nondegenerate evidence makes the Gram matrix invertible; `flat` and `sharp` are inverse; `sharp` is the Riesz representation for g(v, w) = vᵀGw; Riemannian evidence makes G positive definite over ℝ |
 | `Accepted.lean` | `checked_pullback_frechet`, `checked_pullback_kaehler`, `checked_differential_frechet`, `checked_gradient_riesz`, `checked_riemannian_posDef`, `checked_flat_sharp` | The comparisons above for an accepted Core node or an accepted declaration |
 
-The theorems of `Accepted.lean` derive every hypothesis of the other files
-from the checker's typing of one node (`Typing.HasType`) and, for metrics,
-from `env.Valid`. Operand evaluation and operand typing
-(`PrimitiveValuesHaveTypes`) stay premises, as in the oracle's `core_*`
-theorems. These theorems are not composed with whole-term preservation,
+The theorems of `Accepted.lean` derive the hypotheses of the other files
+from the checker's typing of one node (`Typing.HasType`) together with the
+types of its operand values and, for metrics, from `env.Valid`. Operand
+evaluation and operand typing (`PrimitiveValuesHaveTypes`) stay premises, as
+in the oracle's `core_*` theorems. The Kähler comparison is stated for one
+map; `checked_pullback_kaehler` reaches programs through the kernel chain rule
+`ChainRule.backward_eq_cot`. These theorems are not composed with whole-term preservation,
 `IndexedEvaluationSafety.evaluation_total_and_typed`, which keeps its callee
 contracts (`CallReturns`), allocation uniqueness and freshness as premises.
 The [acceptance map](stage3-acceptance.md#bridge-hypotheses-discharged)

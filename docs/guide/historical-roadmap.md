@@ -48,9 +48,10 @@ The draft uses `Affine(CInfReal, n)` in examples. In function bodies that
 spelling keeps its Stage 1 meaning, a descriptor of the smooth setting, and
 the Stage 1 compatibility adapter continues to resolve its historical inputs.
 Smooth real affine space is declared as `Affine(n)[c₁, …, cₙ]`, and ordinary
-affine space over an explicit algebraic base as `Affine(K, n)[…]`. A smooth
-manifold is a `CInfScheme` with checked local and topological evidence; it has
-no type of its own. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../indexed-source.md#geometry-migration)
+affine space over an explicit algebraic base as `Affine(K, n)[…]`. ADR 0001
+decides that a smooth manifold is a `CInfScheme` with checked local and
+topological evidence and has no type of its own; that evidence and gluing are
+planned. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../indexed-source.md#geometry-migration)
 
 **Acceptance example.** Given smooth maps f and g, start with a covector at
 g(f(x)). Pull it back first along g at f(x), then along f at x. Check that
@@ -58,10 +59,10 @@ the result agrees with the pullback along the composite and belongs to the
 cotangent space at x. A seed from a different point must fail. The mathematical
 operation belongs to `std::differential`. A reverse pass for admitted smooth
 primitives must agree with it on the actual checked program, including any
-saved or recomputed forward values. Where the draft writes `grad(loss)`, the
-current plan derives `gradient(f, using = g)` by applying the inverse metric
-map to the differential. This requires a selected metric and evidence of
-nondegeneracy, even in Euclidean coordinates. The comparison with analytic Fréchet
+saved or recomputed forward values. Where the draft writes `grad(loss)`, a
+gradient is an ordinary function that applies a declared `sharp` to the
+differential. `sharp` names a metric and evidence of its nondegeneracy, even
+in Euclidean coordinates. The comparison with analytic Fréchet
 derivatives and the comparison with polynomial Kähler differentials are
 distinct proof obligations. [Cotangent semantics, #381](https://github.com/MGYamada/Vastitas/issues/381) · [Compiled pullbacks, #361](https://github.com/MGYamada/Vastitas/issues/361) · [Explicit metric operations, #264](https://github.com/MGYamada/Vastitas/issues/264)
 

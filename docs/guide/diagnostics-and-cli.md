@@ -26,7 +26,7 @@ vastitas audit-lean LEAN4EXPORT.ndjson
   needs the numerical runtime: one that runs GEMM or diagonal Hermitian
   pairing. Such a build requires the prefix (`E_BUILD` without it). For any
   other entry the two flags are rejected with `E_USAGE`
-  ([Chapter 10](numerical.md)).
+  ([Chapter 11](numerical.md)).
 - `audit-lean` is an opt-in, non-authoritative cross-check of Lean proof
   exports with the Lean toolchain's `nanoda_bin`. It does not check `.vast`
   programs.

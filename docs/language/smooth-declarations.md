@@ -56,8 +56,10 @@ range. The five representations give the families of
 tangent [fibers](../appendix/glossary.md#tangent-or-cotangent-fiber)
 (`cotangent`, `tangent`), of [tapes](../appendix/glossary.md#tape) (`tape`)
 and of [metric forms](../appendix/glossary.md#metric-form) (`metric_form`).
-The other family representations are in
-[indexed source](../indexed-source.md#declarations-and-source-example).
+The `token`, `point` and `morphism` representations are in
+[indexed source](../indexed-source.md#declarations-and-source-example), and
+the `relative` representation is in
+[presented affine geometry](../affine-geometry.md#morphisms-over-a-base).
 
 The standard library declares one smooth profile.
 `std::geometry::smooth::affine` declares the implementation `SmoothR`, the
@@ -274,8 +276,11 @@ E_AFFINE_COORDINATE: unknown coordinate x
 `indexed primitive p = binding;` declares a function `p` whose operands and
 result the binding fixes. In the tables of this chapter, `S` is a smooth
 family, and `P` is any 0-dimensional smooth affine object. A *point* of `X` is
-a value of `S<P, X>`: a rational point of `X`. The primitive bindings of other
-families are in [indexed source](../indexed-source.md#declarations-and-source-example).
+a value of `S<P, X>`: a rational point of `X`. The primitive bindings of the
+`token`, `point` and `morphism` families are in
+[indexed source](../indexed-source.md#declarations-and-source-example), and
+the `relative_*` bindings are in
+[presented affine geometry](../affine-geometry.md#morphisms-over-a-base).
 
 | Binding | Operands | Result | Value |
 | --- | --- | --- | --- |
@@ -402,8 +407,9 @@ Rules:
 - The object `L` of `differential` must be a 1-dimensional smooth affine
   object. Otherwise it is an error (`E_SMOOTH`).
 - `linearize` is the only way to build a tape. A tape has no literal or
-  declaration form, so an expression of another type where a tape is expected
-  is an error (`E_TYPE`).
+  declaration form, so a value of another type annotated, bound or returned as
+  a tape is an error (`E_TYPE`). In the tape slot of `cotangent_backward`, the
+  [operand checks](#operand-checks) apply.
 - The operand rules of [operand checks](#operand-checks) apply.
 
 > **Implementation note.** The reverse pass is a runtime routine over the
@@ -613,16 +619,21 @@ These rules apply to every call of a primitive of this chapter.
 
 - A call must have the number of operands that the binding fixes. Otherwise it
   is an error (`E_ARITY`).
-- An operand from the wrong family or over the wrong object is an error
-  (`E_ENDPOINT`). Examples are a `Tangent` value where a `Cotangent` value is
-  required, a seed over the wrong object, and two maps whose middle objects
-  differ. The message names the first failed requirement: the operand, and
-  the family or object that it requires and the one supplied. Families are
-  checked before objects. When no such requirement fails, as for a point whose
-  source object is not 0-dimensional, the message lists the operand types.
-- An operand with one index in the map slot of `cotangent_pullback`,
-  `differential` or `linearize`, or in the tape slot of `cotangent_backward`,
-  is an error (`E_TYPE`).
+- An operand whose shape does not fit its slot is an error (`E_TYPE`). This
+  covers a value that is not a family application, such as an `Int` or a
+  `Bool`, where a map, point, fiber or tape is required. It also covers a value
+  with one object index in a map slot of `smooth_compose`,
+  `cotangent_pullback`, `differential` or `linearize`, or in the tape slot of
+  `cotangent_backward`.
+- Any other operand from the wrong family or over the wrong object is an
+  error (`E_ENDPOINT`). Examples are a `Tangent` value where a `Cotangent`
+  value is required, a seed over the wrong object, and two maps whose middle
+  objects differ. For the requirements in its role table, the message names
+  the first failed requirement: the operand, and the family or object that it
+  requires and the one supplied. Families are checked before objects. Other
+  failures list the operand types instead. Examples are a point whose source
+  object is not 0-dimensional, and a covector in the point slot of
+  `fiber_vector`.
 
 For example, `pullback(g(), plane_at(3, 9), dplane(plane_at(3, 9), 1, 0))`
 pulls back a seed on `Plane` along a map to `Line`. It is rejected with:

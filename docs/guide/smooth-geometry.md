@@ -11,9 +11,14 @@ The program is
 Run it from the repository root:
 
 ```sh
+python3 scripts/build_stdlib_package.py
 target/debug/vastitas build --manifest-path examples/packages/stdlib-differential/Vastitas.toml -o target/stdlib-differential
 ./target/stdlib-differential
 ```
+
+The first command generates the standard library's package root. Run it again
+after you change the standard library's sources; see
+[using the standard library](stdlib.md#using-the-standard-library).
 
 ## The smooth profile from the standard library
 
@@ -81,8 +86,10 @@ The observations in `main` read as follows:
 - Code 2: the stepwise pullback equals the pullback along the composite.
 - Code 3: the stepwise pullback lies over the point 3.
 - Codes 4 and 5: the pullback that recomputes intermediate points agrees with
-  it, and so does the reverse pass over a saved tape.
-- Code 6: a seed over another point gives the failure value.
+  it, and so does the reverse pass over saved forward values (a tape,
+  described below).
+- Code 6: a seed over another point gives the failure value, which stands
+  for "no covector" and is described below.
 - Code 7: the differential of `g` at (1, 2) is (2, 1).
 - Codes 8 to 11: the gradient under the metric `Skew` is (1, 0), and flat maps
   it back to the differential.
@@ -162,6 +169,16 @@ The metric, its evidence, `flat`, `sharp` and `gradient` live in the program,
 next to the metric that they name. A library function cannot take the
 program's object or metric as a parameter, so the standard library does not
 export a `gradient`.
+
+> **What is checked.** The checker rejects a seed, point or map over the wrong
+> object before any code is generated, and the compiler runs only programs
+> that it has checked. The [proofs](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+> cover the reverse pass on the checked program, the chain rule, the agreement
+> of the saved and recomputing passes, the comparison with the derivative of
+> real analysis, and the meaning of metric evidence. Tests cover native
+> execution, the diagnostics, and agreement with independent reference
+> programs. A seed over the wrong point of the right object is a run-time
+> failure value, not a compile-time error.
 
 ## See also
 

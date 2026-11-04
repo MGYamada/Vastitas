@@ -89,7 +89,7 @@ target/debug/vastitas check target/manual-bad.vast
 ```
 
 The process exits unsuccessfully and reports `E_TYPE`. Source diagnostics have
-the form `FILE:LINE:COLUMN: CODE: message`. [Chapter 11](diagnostics-and-cli.md)
+the form `FILE:LINE:COLUMN: CODE: message`. [Chapter 12](diagnostics-and-cli.md)
 explains how to read them.
 
 > **What is checked.** A missing backend, a protocol mismatch, a semantic error

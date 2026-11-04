@@ -59,15 +59,14 @@ into executable checks. The decisions behind the profile are:
 | S1: kernel `SmoothRuntime`, exact `invert?`/`ldl?`, reference fixture, structural oracle theorems | [#610](https://github.com/MGYamada/Vastitas/pull/610) | `02f1e2b` |
 | S2: bridge derivative correspondence, kernel chain rule, Fréchet comparison | [#612](https://github.com/MGYamada/Vastitas/pull/612) | into #610 |
 | S3: smooth objects and maps end to end | [#614](https://github.com/MGYamada/Vastitas/pull/614) | into #610 |
-| S4: fibers, tapes, `cotangent_pullback`, `differential`, `linearize`, `backward` | [#617](https://github.com/MGYamada/Vastitas/pull/617) | batch 2 |
-| S5: metrics, evidence, `flat` and `sharp` | [#619](https://github.com/MGYamada/Vastitas/pull/619) | batch 2 |
-| S6: mathlib-free oracle chain rule, porting PR #377 | [#620](https://github.com/MGYamada/Vastitas/pull/620) | batch 2 |
-| S7a: bridge Kähler comparison and metric meaning | [#618](https://github.com/MGYamada/Vastitas/pull/618) | batch 2 |
-| S7b: bridge corollaries for accepted Core | [#624](https://github.com/MGYamada/Vastitas/pull/624) | batch 2 |
-| S8: the acceptance example and its native evidence | [#621](https://github.com/MGYamada/Vastitas/pull/621) | batch 2 |
-| `E_ENDPOINT` roles for the smooth, fiber and metric primitives | [#625](https://github.com/MGYamada/Vastitas/pull/625) | batch 2 |
-| S9a: `std::geometry::smooth::affine`, `std::geometry::metric`, `std::differential` | branch `claude/stage3-s9a-stdlib`, `351268b` | — |
-| S9b: this map, the reference chapter, status pages | this change | — |
+| S4: fibers, tapes, `cotangent_pullback`, `differential`, `linearize`, `backward` | [#617](https://github.com/MGYamada/Vastitas/pull/617) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| S5: metrics, evidence, `flat` and `sharp` | [#619](https://github.com/MGYamada/Vastitas/pull/619) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| S6: mathlib-free oracle chain rule, porting PR #377 | [#620](https://github.com/MGYamada/Vastitas/pull/620) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| S7a: bridge Kähler comparison and metric meaning | [#618](https://github.com/MGYamada/Vastitas/pull/618) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| S7b: bridge corollaries for accepted Core | [#624](https://github.com/MGYamada/Vastitas/pull/624) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| S8: the acceptance example and its native evidence | [#621](https://github.com/MGYamada/Vastitas/pull/621) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| `E_ENDPOINT` roles for the smooth, fiber and metric primitives | [#625](https://github.com/MGYamada/Vastitas/pull/625) | batch 2, [#617](https://github.com/MGYamada/Vastitas/pull/617), `d17b699` |
+| S9: `std::geometry::smooth::affine`, `std::geometry::metric`, `std::differential`; this map, the reference and guide chapters, status pages | this change | — |
 
 Status terms below:
 
@@ -159,35 +158,44 @@ observation.
 | <a id="c8"></a>C8. The actual checked program: the reverse pass runs on the program value that checked Core builds, not on an expanded composite | **Proved (oracle)**: `SmoothDeclarations.smoothCompose_reifies` and `core_compose_reifies`; `SmoothReverse.core_cotangent_pullback` (an accepted node evaluates to `SmoothRuntime.pullback mode F x η` of its operand values) and `core_pullback_compose` (a pullback whose map operand is a Core `compose` node runs on `Program.compose`); `IndexedSemantics.primitive_runtime_erasure`. **Tested** (S, D): `smooth_programs_lower_to_the_shared_smooth_runtime` and `cotangent_programs_lower_to_the_shared_smooth_runtime` (generated code calls `SmoothRuntime.Program.compose` and `SmoothRuntime.pullback`); the native fixtures `smooth_programs` and `smooth_cotangent_programs` of `scripts/check_indexed_native.sh`. **Not claimed**: native refinement of the generated C. |
 | <a id="c9"></a>C9. Identity: pullback along the identity is the identity | **Tested** (D): codes 10 and 15. **Proved (oracle)**: `SmoothRuntime.cot_identity`, `pullback_identity`; `SmoothCalculus.Cov.pullback_id`. |
 | <a id="c10"></a>C10. Fréchet comparison: the runtime pullback, in both modes, is the adjoint of `fderiv ℝ` of the program's real function, through `HasFDerivAt.comp` and independently of the kernel chain rule | **Proved (bridge)**: `Frechet.hasFDerivAt_realProgram`, `realProgram_realPoint`, `reverse_covector_eq_comp_fderiv`, `pullback_eq_fderiv_adjoint`, `pullback_covector_eq_comp_fderiv`, `pullback_getD_eq_fderiv_adjoint`; for accepted Core, `Accepted.checked_pullback_frechet` and `checked_differential_frechet`. `Frechet.lean` does not import `ChainRule.lean`. |
-| <a id="c11"></a>C11. Kähler comparison: the pullback is the fiber at x of Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases | **Proved (bridge)**: `Kaehler.kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler`; `KaehlerPrerequisites.map_eq_pullbackForm`; for accepted Core, `Accepted.checked_pullback_kaehler`. `Kaehler.lean` imports neither `ChainRule.lean` nor `Frechet.lean`. |
+| <a id="c11"></a>C11. Kähler comparison: the pullback is the fiber at x of Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases | **Proved (bridge)**: `Kaehler.kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler`; `KaehlerPrerequisites.map_eq_pullbackForm`; for accepted Core, `Accepted.checked_pullback_kaehler`, which reaches programs through the kernel chain rule `ChainRule.backward_eq_cot`. The single-map comparison in `Kaehler.lean` imports neither `ChainRule.lean` nor `Frechet.lean`. |
 | <a id="c12"></a>C12. Metric-free differential: dg = (2, 1) at (1, 2); adding or removing metric declarations changes neither the validity of any other binding (oracle) nor the generated code of a `differential` caller (byte identity) | **Tested** (M): code 18; `differential_is_unchanged_by_metric_declarations` (byte-identical generated Lean source with and without the metric, evidence, `flat` and `sharp` declarations, and both print `42`); the same check in `MetricFormRegression`. **Proved (oracle)**: `SmoothMetricWeakening.validPrimitiveBinding_metric_insertion_of_valid` and `evalPrimitive_metric_insertion_of_valid` (metric declarations at any position of a valid environment change neither the validity nor the value of any binding other than `flat` and `sharp`), `validPrimitiveBinding_metric_weakening`, `differential_metric_free`, `cotangentPullback_metric_free`; `SmoothReverse.smooth_differential_metric_free` (the semantics of `differential` and `cotangent_pullback` takes no environment). **Proved (bridge)**: `checked_differential_frechet`. Byte identity of generated code is tested, not proved. |
 | <a id="c13"></a>C13. Gradient: `sharp_g(df)` needs a named metric and nondegeneracy evidence, even for the Euclidean metric; Euclid gives (2, 1), Skew (1, 0) and Lorentz (2, −1); two metrics give two gradients; sharp∘flat = id and dg(∇g) = g(∇g, ∇g); missing, wrong-kind, foreign and ambiguous evidence are rejected | **Tested** (M): codes 19–24; `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` (`flat` without `using =` and `sharp` without `evidence =`, for `Euclid` too: `E_PARSE`; Riemannian evidence and evidence for another metric: `E_METRIC`); `metric_selection_is_explicit_and_unambiguous` (two imports of `Skew`: `E_DUPLICATE`; a metric named by path is that metric); `acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically` (there is no `gradient` contract); `tampered_acceptance_bodies_are_rejected_by_the_kernel`. **Proved (oracle)**: `SmoothMetricForms.sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_uses_declared_gram`, `metricFlat_total`, `metricSharp_total`, `flat_fiberAt`, `sharp_fiberAt`. **Proved (bridge)**: `Metric.gradient_riesz` (`sharp B α` is the unique `v` with `g(v, w) = α(w)` for every `w`; at `w = v` this is dg(∇g) = g(∇g, ∇g)), `sharp_flat`, `flat_sharp`; `Accepted.checked_gradient_riesz`, `checked_flat_sharp`. The gradient is application code in the library profile too: `std::differential` exports no `gradient`, because a library function can take neither the application's object nor its `sharp`. `a_library_gradient_can_take_neither_the_object_nor_sharp` pins the errors (**Tested**): an object-generic signature (`E_TYPE`, `invalid indexed annotation Smooth<X, Line>`), `let s = sharp_skew;` (`E_TYPE`, `expected an ordinary function; generic families are not Fn values`), a gradient wrapper used as a value (`E_TYPE`, `Fn values require scalar/Fn signatures; indexed and Pair functions are direct-call only`), a lambda (`E_TYPE`, `lambda signatures require scalar/Fn types`), and an `Fn` parameter over indexed types (`E_PROTOCOL`, `Fn signatures contain only scalars and recursive Fn types`). The roadmap sentence still holds: `sharp` requires named nondegenerate evidence, in the acceptance example and in the library example. |
 | <a id="c14"></a>C14. Evidence: diag(1, 0) as nondegenerate is rejected (`E_METRIC`); diag(1, −1) is accepted as nondegenerate and rejected as Riemannian; asymmetric, wrong-size, non-constant and foreign-object metrics are rejected | **Tested** (M): `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` (asymmetric, three rows, a short row, a non-constant entry, `riemannian(Lorentz)`, evidence naming an object, `diag(1, 0)`, a metric on `QLine`: `E_METRIC`; an unknown coordinate: `E_AFFINE_COORDINATE`); the example's `LorentzInvertible`; `oversized_gram_entries_are_rejected_before_any_certificate` (`E_LIMIT` at `metricEntryBits`); `a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound`; `MetricFormRegression`; the 2 × 2 reference cases. **Proved (oracle)**: `SmoothMetrics.certifyNondegenerate_sound`, `certifyRiemannian_sound`, `checkGram_sound`, `zero_row_not_nondegenerate`, `diag_one_zero_rejected`; `SmoothMetricForms.metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`. **Proved (bridge)**: `isUnit_gram_of_nondegenerate`, `inverse_eq_of_nondegenerate`, `posDef_of_riemannian`, `not_isUnit_diag_one_zero`, `checkNondegenerate_diag_one_zero`, `not_posDef_lorentz`, `checkRiemannian_lorentz`, `checkNondegenerate_lorentz`; `Accepted.checked_riemannian_posDef`. **Tested, not proved**: that `invert?` and `ldl?` find a certificate for every invertible or positive-definite Gram matrix. |
 | <a id="c15"></a>C15. Wire: protocol 9 only; protocols 7 and 8 give `E_PROTOCOL`; forged wire and tampered Core are rejected | **Tested** (W): `smooth_forms_select_protocol_nine_and_older_envelopes_reject_them` (7 and 8: `E_PROTOCOL`; 2–6 rejected) and the object, cotangent and metric variants; `raw_wire_rejects_forged_smooth_records`, `raw_wire_rejects_forged_fiber_and_tape_records`, `raw_wire_rejects_forged_metric_records` (stored maps, tapes, fibers, inverses, factorizations and binding objects on the wire, unknown operations and modes: `E_PROTOCOL`; consistent but wrong data: the checker's own code); `tampered_acceptance_bodies_are_rejected_by_the_kernel`; the tampered-Core sections of `SmoothObjectRegression`, `CotangentRegression` and `MetricFormRegression`. Tested only. |
 | <a id="c16"></a>C16. Independent reference: the kernel agrees with a fixture generated from `scripts/metric_free_reference.py` and `scripts/metric_reference.py` | **Tested** (R): `VastitasAlgebraTest.SmoothReferenceRegression` compares `SmoothRuntime` and `SmoothDeclarations` with `tests/fixtures/smooth-differential.json`, which `scripts/smooth_differential_reference.py` writes from the two references; `scripts/test_smooth_differential_reference.py` (`test_fixture_is_current` runs `--check`) and `scripts/test_metric_reference.py`. The references cover the real plane only: maps ℝ² → ℝ², functions ℝ² → ℝ and 2 × 2 Gram matrices. |
-| <a id="c17"></a>C17. Library: `std::geometry::smooth::affine`, `std::geometry::metric` and `std::differential` are usable from a path package | **Tested** (L): `examples/packages/stdlib-differential/` uses the three modules through the `std` path package and prints `42` natively (`library_profile_checks_builds_and_runs_from_a_path_package`, `stdlib_differential_package`). Its observations are the stepwise pullback 12 dt; the saved, recomputed and tape pullbacks agreeing; ⊥ for a seed at 17; dg = (2, 1); and the Skew gradient (1, 0) with flat(∇g) = dg. `mutated_observations_change_the_native_result` changes its output. The name audit (`smooth_operations_are_not_ambiguous_with_stage_one_geometry`): importing `compose`, `id`, `same`, `apply` or `Morphism` from `std::geometry::smooth::affine` is `E_NAME`, and a smooth map in a Stage 1 operation or the reverse is `E_ENDPOINT`. `library_objects_keep_their_identity_and_classification`: an application's own line is not the library's `Line`, Stage 1 and smooth objects do not index each other's families (`E_TYPE`), and `Metric` and `MetricSpace` are not `std::geometry::metric` names (`E_NAME`). `geometry_package_does_not_depend_on_differential`: the geometry package has no dependencies, and a reverse dependency is `E_CYCLE`. `metric_free_programs_need_no_metric_module`: a metric-free program runs with the metric module deleted. A program that depends on the std geometry package uses protocol 9. The public names: `std::geometry::smooth::affine` declares `SmoothR` (on the `CInfReal` marker of `std::geometry::smooth`), `CInfAffine`, `Smooth`, `Tape`, `Tangent`, `Cotangent`, `Pt = Affine(0)[]`, `Line = Affine(1)[t]`, `compose_smooth`, `composite`, `same_smooth`, `line_at`, `lies_over`, `tangent_over`, `same_covector`, `same_vector` and `pairing`; the smooth identity is the declaration form `= identity`. `std::geometry::metric` declares `MetricForm` only; metrics, evidence, `flat` and `sharp` stay in the application, next to the metric they name. `std::differential` exports `pullback` (saved), `differential`, `linearize` and `backward`; an application binds `cotangent_pullback(Smooth, Cotangent, recomputed)` over the std families. **Deviation from ADR 0001 §10**: `std::differential` does not export `gradient`; see C13 and [gaps](#gaps). Landed on branch `claude/stage3-s9a-stdlib` at `351268b`. |
+| <a id="c17"></a>C17. Library: `std::geometry::smooth::affine`, `std::geometry::metric` and `std::differential` are usable from a path package | **Tested** (L): `examples/packages/stdlib-differential/` uses the three modules through the `std` path package and prints `42` natively (`library_profile_checks_builds_and_runs_from_a_path_package`, `stdlib_differential_package`). Its observations are the stepwise pullback 12 dt; the saved, recomputed and tape pullbacks agreeing; ⊥ for a seed at 17; dg = (2, 1); and the Skew gradient (1, 0) with flat(∇g) = dg. `mutated_observations_change_the_native_result` changes its output. The name audit (`smooth_operations_are_not_ambiguous_with_stage_one_geometry`): importing `compose`, `id`, `same`, `apply` or `Morphism` from `std::geometry::smooth::affine` is `E_NAME`, and a smooth map in a Stage 1 operation or the reverse is `E_ENDPOINT`. `library_objects_keep_their_identity_and_classification`: an application's own line is not the library's `Line`, Stage 1 and smooth objects do not index each other's families (`E_TYPE`), and `Metric` and `MetricSpace` are not `std::geometry::metric` names (`E_NAME`). `geometry_package_does_not_depend_on_differential`: the geometry package has no dependencies, and a reverse dependency is `E_CYCLE`. `metric_free_programs_need_no_metric_module`: a metric-free program runs with the metric module deleted. A program that depends on the std geometry package uses protocol 9. The public names: `std::geometry::smooth::affine` declares `SmoothR` (on the `CInfReal` marker of `std::geometry::smooth`), `CInfAffine`, `Smooth`, `Tape`, `Tangent`, `Cotangent`, `Pt = Affine(0)[]`, `Line = Affine(1)[t]`, `compose_smooth`, `composite`, `same_smooth`, `line_at`, `lies_over`, `tangent_over`, `same_covector`, `same_vector` and `pairing`; the smooth identity is the declaration form `= identity`. `std::geometry::metric` declares `MetricForm` only; metrics, evidence, `flat` and `sharp` stay in the application, next to the metric they name. `std::differential` exports `pullback` (saved), `differential`, `linearize` and `backward`; an application binds `cotangent_pullback(Smooth, Cotangent, recomputed)` over the std families. **Deviation from ADR 0001 §10**: `std::differential` does not export `gradient`; see C13 and [gaps](#gaps). `library_bindings_are_the_documented_operations` pins each public binding, including the saved mode of `pullback`; `library_fiber_and_map_operations_work_from_an_application` uses `tangent_over`, `composite`, `same_smooth` and `Tape`. |
 | <a id="c18"></a>C18. Native: the example checks, builds and prints `42`; a mutation test flips each of its 25 codes | **Tested**: `smooth_example_checks_builds_and_executes`; `mutated_observations_change_the_native_result` (four groups of source mutations; a bitmask copy of the program maps code k to 2^(k−1), so each output names the failed set exactly; every code 1–25 is flipped by some group); the native fixtures `smooth_programs`, `smooth_cotangent_programs` and `smooth_metric_programs` of `scripts/check_indexed_native.sh`. **Assumed**: the Lean-to-C toolchain and the C compiler. **Not claimed**: performance. |
-| <a id="c19"></a>C19. CI: green, with OS coverage recorded per job | The jobs that run the Stage 3 evidence: `ci.yml` "Rust formatting and lint" (ubuntu-latest: `cargo fmt`, `clippy`, `scripts/check_docs.py`, the Python reference tests); "Native compiler (ubuntu-latest, no mathlib)" and "Native compiler (macos-latest, no mathlib)" (kernel build, `check_kernel_regressions.sh`, `check_indexed_native.sh`, `cargo test`); "Lean proofs and axiom audit" (ubuntu-latest: `VastitasOracle`, the axiom audits, leanchecker replay); `lean-bridge.yml` "Daleckii–Krein proof and axiom audit" (ubuntu-latest: the bridge build, `Audit.lean`, leanchecker replay); `documentation.yml` "book" (ubuntu-latest). Run links: TODO(batch2-CI). |
+| <a id="c19"></a>C19. CI: green, with OS coverage recorded per job | The jobs that run the Stage 3 evidence: `ci.yml` "Rust formatting and lint" (ubuntu-latest: `cargo fmt`, `clippy`, `scripts/check_docs.py`, the Python reference tests); "Native compiler (ubuntu-latest, no mathlib)" and "Native compiler (macos-latest, no mathlib)" (kernel build, `check_kernel_regressions.sh`, `check_indexed_native.sh`, `cargo test`); "Lean proofs and axiom audit" (ubuntu-latest: `VastitasOracle`, the axiom audits, leanchecker replay); `lean-bridge.yml` "Daleckii–Krein proof and axiom audit" (ubuntu-latest: the bridge build, `Audit.lean`, leanchecker replay); `documentation.yml` "book" (ubuntu-latest). **Tested** (CI): batch 2 at `aca4ddf`, every job green: [CI](https://github.com/MGYamada/Vastitas/actions/runs/41833154471) (both native compiler jobs, both GEMM adapter jobs, Rust formatting and lint, Lean proofs and axiom audit), [Mathematical bridge](https://github.com/MGYamada/Vastitas/actions/runs/41833154215) and [Documentation book](https://github.com/MGYamada/Vastitas/actions/runs/41833154162). S9's pull request runs the same jobs. macOS bridge and oracle evidence is local only. |
 
 <a id="bridge-hypotheses-discharged"></a>
 
 ## Bridge hypotheses discharged
 
-The theorems of `Frechet.lean`, `Kaehler.lean` and `Metric.lean` are stated
-for programs, points, seeds and matrices with stated properties: a program
-well typed as `ℝⁿ → ℝᵐ`, a point with `n` coordinates, a seed with `m`
-components, a symmetric Gram matrix, and an inverse that nondegenerate
-evidence certifies. `Accepted.lean` derives these properties from acceptance:
+The theorems of `Frechet.lean` are stated for a program well typed as
+`ℝⁿ → ℝᵐ`, a point with `n` coordinates and a seed with `m` components. Those
+of `Kaehler.lean` are stated for one map well formed as `ℝⁿ → ℝᵐ`; for a
+program, `Accepted.checked_pullback_kaehler` first reduces the reverse pass
+to the cotangent map of the composite with `ChainRule.backward_eq_cot`, the
+kernel chain rule. Those of `Metric.lean` are stated for a symmetric Gram
+matrix and an inverse that nondegenerate evidence certifies. `Accepted.lean`
+derives these properties from acceptance and from the operand-typing premise
+described below:
 
 - `checked_pullback_frechet`, `checked_pullback_kaehler` and
   `checked_differential_frechet` take an accepted Core node
   `.primitive id [operands…] result`: its binding (`found`), its operand and
   result types (`input`, `outputType`) and the checker's typing of the node
-  (`Typing.HasType`). From these, through `accepted_pullback_operands` and
-  `accepted_differential_operands`, they derive that the map operand is a
-  program well typed as `ℝⁿ → ℝᵐ`, that the point has `n` coordinates, that
-  the seed is a covector with `m` components or ⊥, and that the line of a
-  differential is 1-dimensional.
+  (`Typing.HasType`). Acceptance fixes the operand types (`Smooth<X, Y>`,
+  `Smooth<Pt, X>` and `Cotangent<Y>`), the binding's validity, a 0-dimensional
+  point object and a 1-dimensional line. The value-level facts are what
+  operand typing (`PrimitiveValuesHaveTypes`) means at those types. From both,
+  through `accepted_pullback_operands` and `accepted_differential_operands`,
+  the theorems derive that the map operand is a program well typed as
+  `ℝⁿ → ℝᵐ`, that the point has `n` coordinates, that the seed is a covector
+  with `m` components or ⊥, and that the line of a differential is
+  1-dimensional. These hypotheses are therefore discharged up to operand
+  typing.
 - `checked_gradient_riesz` also takes `env.Valid`
   (`module.declarations.indexed.Valid`). It derives that the binding's metric
   is declared on an `n`-dimensional object, that its Gram matrix is
@@ -288,8 +296,9 @@ for every callee of the term, uniqueness of the term's allocated serials
   - Metric declarations at any position leave every other binding unchanged.
   - Stage 1 and Stage 2 non-regression.
 - **Proved (bridge).** The derivative correspondence, the chain rule, the
-  Fréchet comparison, the Kähler comparison, the meaning of metric evidence,
-  and their statements for accepted Core.
+  Fréchet comparison, the Kähler comparison and the meaning of metric
+  evidence. `Accepted.lean` states the Fréchet and Kähler comparisons, the
+  gradient (Riesz) and metric evidence for accepted Core.
 - **Tested only.**
   - Raw-wire and tampered-Core rejection, and protocols 7 and 8.
   - Parser fidelity and diagnostic messages, including the `E_ENDPOINT`
@@ -326,10 +335,25 @@ for every callee of the term, uniqueness of the term's allocated serials
 
 ## Validation
 
-Batch 2 (S4–S8 and the `E_ENDPOINT` roles) is validated locally, one step at
-a time, before one CI run on `main` (C19). The commands are those of
-[validation](development/validation.md): kernel and oracle builds, the axiom
-audit and its coverage check, leanchecker, kernel regressions, indexed native
-tests, the Python scripts, docs and book checks, and `cargo fmt`, `clippy`
-and `test`. The bridge additionally runs its build, `Audit.lean` and
-leanchecker.
+Batch 2 (S4–S8 and the `E_ENDPOINT` roles) and S9 were each validated
+locally, one step at a time, on a 16 GiB machine, before their CI runs (C19).
+The commands:
+
+- `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`
+  and `cargo test --locked --all-targets --no-fail-fast` (batch 2: 517
+  passed; S9: 528 passed; none failed).
+- `lake -d lean-kernel build` with every library, executable and regression
+  library; `bash scripts/check_kernel_regressions.sh`;
+  `bash scripts/check_indexed_native.sh`.
+- `lake -d lean build VastitasOracle` and
+  `lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean`.
+- In `lean-bridge/`: `lake build`, `lake env lean Audit.lean` (1054
+  declarations) and `bash scripts/replay_lean.sh lean-bridge VastitasBridge`
+  (one thread; about 50 s and 2.9 GB).
+- `python3 scripts/check_boundaries.py` and
+  `python3 -m unittest discover -s scripts -p 'test_*.py'`.
+- `python3 scripts/check_docs.py`, `mdbook build` and
+  `python3 scripts/check_book.py`.
+
+CI also runs `python3 scripts/check_axiom_audit.py` and the leanchecker replay
+of the oracle and the kernel.

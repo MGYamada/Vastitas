@@ -128,6 +128,78 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     );
 }
 
+// #557: the same sweep over the public Indexed.Wire (7) and ResourceSource.Wire
+// (8/9) decoders, using wires the actual frontend sends for indexed, resource,
+// numerical, tree, network, storage and named-recipient edit programs.
+#[test]
+fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape() {
+    // The promotion example depends on the generated stdlib package.
+    common::prepare_stdlib_package();
+    let examples = common::root().join("examples/packages");
+    let mut cases = Vec::new();
+    for (package, version) in [
+        ("indexed", 7),
+        ("promotion", 7),
+        ("resource-values", 8),
+        ("numerical", 8),
+        ("runtime-shapes", 8),
+        ("tensor-packing", 8),
+        ("contraction-tree", 8),
+        ("finite_network", 8),
+        ("storage/app", 8),
+        ("edit-borrow/app", 9),
+        ("edit-authority/app", 9),
+    ] {
+        let manifest = examples.join(package).join("Vastitas.toml");
+        let mut command = common::cli();
+        command.args(["check", "--manifest-path"]).arg(manifest);
+        cases.push((package, common::captured_wire(command, version)));
+    }
+    let recipients: Value =
+        serde_json::from_str(include_str!("fixtures/edit-recipients.json")).unwrap();
+    assert_eq!(recipients["version"], 9);
+    cases.push(("edit-recipients fixture", recipients));
+    let mut forgeries = Vec::new();
+    for (name, raw) in &cases {
+        let baseline = kernel(raw, "check");
+        assert_eq!(baseline["ok"], true, "{name}: {baseline}");
+        let mut records = BTreeMap::new();
+        record_paths(raw, "", &mut records);
+        for path in records.into_values() {
+            let mut changed = raw.clone();
+            changed.pointer_mut(&path).unwrap()["forged_authority"] = json!("untrusted");
+            forgeries.push((*name, raw["version"].clone(), path, changed));
+        }
+    }
+    assert!(
+        forgeries.len() >= 400,
+        "only {} record shapes were exercised",
+        forgeries.len()
+    );
+    // The kernel runs are independent; share them across a few threads.
+    let workers = std::thread::available_parallelism().map_or(4, |n| n.get().min(8));
+    let chunk = forgeries.len().div_ceil(workers);
+    std::thread::scope(|scope| {
+        for part in forgeries.chunks(chunk) {
+            scope.spawn(move || {
+                for (name, version, path, changed) in part {
+                    let response = kernel(changed, "emit");
+                    assert_eq!(&response["version"], version, "{name} {path}: {response}");
+                    common::assert_wire_rejected(&response, "E_PROTOCOL");
+                    let message = response["diagnostics"][0]["message"].as_str().unwrap();
+                    // A one-key tagged union reports the extra key as a second tag.
+                    let tagged = path.ends_with("/representation")
+                        && message == "expected exactly one concrete representation";
+                    assert!(
+                        message.contains("forged_authority") || tagged,
+                        "{name} {path}: {response}"
+                    );
+                }
+            });
+        }
+    });
+}
+
 #[test]
 fn legacy_hint_tolerance_is_limited_to_the_v2_envelope() {
     let mut raw = request("fn main() -> Int { 0 }", "shape.vast");

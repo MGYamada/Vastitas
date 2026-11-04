@@ -1,4 +1,5 @@
 import VastitasKernel.Identity
+import VastitasKernel.AlgebraDeclarations
 
 /-! Finite declaration and index foundations used by public protocol 7 through
 `Indexed.Wire.check`, and by the protocol-8 resource composition.
@@ -16,11 +17,14 @@ inductive GeometricSetting where
   | scheme | smooth
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
-/-- This is a backend representation, not an assertion of geometric axioms. -/
+/-- This is a backend representation, not an assertion of geometric axioms.
+`presentedAffine` objects are canonical declarations of presented exact
+algebras (Stage 2); they never satisfy descriptor-based contracts. -/
 inductive Representation where
   | affineDescriptor
   | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
   | linearDescriptor (base : DeclId) (coefficient : CoefficientKind)
+  | presentedAffine (field : AlgebraDeclarations.ExactField)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The finite descriptor backend implements these two operations. Declaring a
@@ -34,16 +38,22 @@ inductive Parameter where
   | object (domain : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- `structural object base` holds when both indices are canonical presented
+affine objects and `base` lies on the declared base chain of `object`. It
+compares object identities, never coefficient markers. -/
 inductive Constraint where
   | sameObject (left right : Nat)
   | sameBase (left right : Nat)
   | over (object marker : Nat)
+  | structural (object base : Nat)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- An indexed token retains every index, even when its runtime representation
-is empty. Endpoint representations are sealed and require an explicit contract. -/
+is empty. Endpoint representations are sealed and require an explicit contract.
+`relative` is the sealed three-index `MorphismOver(X, Y, S)` of presented
+objects (Stage 2); its runtime value is an exact pullback map. -/
 inductive FamilyRepresentation where
-  | token | point | morphism
+  | token | point | morphism | relative
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -59,7 +69,14 @@ inductive Declaration where
   | classification (parents domain : List DeclId)
   | global (implementation : DeclId)
   | family (contract : Family)
+  | affine (implementation : DeclId) (data : AlgebraDeclarations.AffineData)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- The implementation of a canonical global object: a descriptor global or a
+presented affine declaration. -/
+def Declaration.objectImplementation? : Declaration → Option DeclId
+  | .global impl | .affine impl _ => some impl
+  | _ => none
 
 structure Entry where
   id : DeclId
@@ -82,6 +99,57 @@ def affineImplementation (env : Environment) (id : DeclId) : Bool :=
   | some (.implementation _ .affineDescriptor _) => true
   | _ => false
 
+def presentedImplementation (env : Environment) (id : DeclId) : Bool :=
+  match lookup env id with
+  | some (.implementation _ (.presentedAffine _) _) => true
+  | _ => false
+
+def affineData? (env : Environment) (id : DeclId) : Option AlgebraDeclarations.AffineData :=
+  match lookup env id with
+  | some (.affine _ data) => some data
+  | _ => none
+
+/-- The declared base chain `[id, base id, …]`, or `none` when it leaves the
+presented objects, is cyclic or exceeds `fuel`. -/
+def affineChain (env : Environment) : Nat → DeclId → Option (List DeclId)
+  | 0, _ => none
+  | fuel + 1, id => do
+    let data ← affineData? env id
+    match data.base with
+    | none => pure [id]
+    | some base => return id :: (← affineChain env fuel base)
+
+def chainOf (env : Environment) (id : DeclId) : Option (List DeclId) :=
+  affineChain env Limits.algebraChain id
+
+def onChain (env : Environment) (object base : DeclId) : Bool :=
+  match chainOf env object with
+  | some chain => chain.contains base
+  | none => false
+
+/-- The structure map from `object` to a base on its chain, as the normal
+forms in `object`'s ring of the base's coordinates. Composing along the chain
+substitutes within the work budget, so a chain whose composite would expand
+past the term or work limit fails with `E_LIMIT`. -/
+def chainImages (env : Environment) : Nat → DeclId → DeclId → AlgebraBasis.Work (List AlgebraRuntime.Poly)
+  | 0, _, _ => throw (.base "the base is not on the declared base chain")
+  | fuel + 1, object, base => do
+    let some data := affineData? env object | throw (.base "the base chain leaves the presented objects")
+    if object == base then
+      pure (AlgebraRuntime.Map.identity data.arity data.basis).images
+    else
+      let some next := data.base | throw (.base "the base is not on the declared base chain")
+      let images ← chainImages env fuel next base
+      images.mapM fun image => do
+        AlgebraBasis.reduce data.basis (← AlgebraBasis.substitute data.arity data.structureImages image)
+
+def structureImagesWithin (env : Environment) (object base : DeclId) :
+    Except AlgebraBasis.Error (List AlgebraRuntime.Poly) :=
+  AlgebraBasis.run (chainImages env Limits.algebraChain object base)
+
+def structureImages? (env : Environment) (object base : DeclId) : Option (List AlgebraRuntime.Poly) :=
+  (structureImagesWithin env object base).toOption
+
 /-- The base is an actual global object, not its coefficient marker. -/
 def scalarBaseProfile (env : Environment) (base : DeclId) :
     Option (DeclId × GeometricSetting × CoefficientKind) := do
@@ -90,7 +158,7 @@ def scalarBaseProfile (env : Environment) (base : DeclId) :
   return (marker, setting, coefficient)
 
 def Representation.coefficient : Representation → Option CoefficientKind
-  | .affineDescriptor => none
+  | .affineDescriptor | .presentedAffine _ => none
   | .scalarBase _ kind | .linearDescriptor _ kind => some kind
 
 /-- A nominal coefficient marker cannot denote both ideal coefficient kinds,
@@ -104,6 +172,7 @@ def coefficientConsistent (env : Environment) (marker : DeclId) (kind : Coeffici
 def Representation.Valid (env : Environment) (marker : DeclId) (capabilities : List Capability) :
     Representation → Prop
   | .affineDescriptor => True
+  | .presentedAffine _ => capabilities = []
   | .scalarBase setting coefficient =>
       capabilities = [] ∧ coefficientConsistent env marker coefficient = true ∧
       (setting = .smooth → coefficient = .real)
@@ -121,6 +190,7 @@ instance (env : Environment) (marker : DeclId) (capabilities : List Capability)
     (representation : Representation) : Decidable (representation.Valid env marker capabilities) := by
   cases representation with
   | affineDescriptor => unfold Representation.Valid; infer_instance
+  | presentedAffine field => unfold Representation.Valid; infer_instance
   | scalarBase setting coefficient => unfold Representation.Valid; infer_instance
   | linearDescriptor base coefficient =>
     unfold Representation.Valid
@@ -167,7 +237,7 @@ inductive ObjectRef where
 def ObjectRef.type? (env : Environment) : ObjectRef → Option ObjectType
   | .local ty _ => some ty
   | .global id => do
-    let .global implementation ← lookup env id | none
+    let implementation ← (lookup env id).bind Declaration.objectImplementation?
     let marker ← implementationMarker env implementation
     pure ⟨implementation, marker⟩
 
@@ -216,6 +286,9 @@ def Constraint.Holds (env : Environment) (indices : List Index) : Constraint →
   | .over object marker => ∃ ref ty id,
       indices[object]? = some (.object ref) ∧ indices[marker]? = some (.marker id) ∧
       ref.type? env = some ty ∧ ty.marker = id
+  | .structural object base => ∃ x b,
+      indices[object]? = some (.object (.global x)) ∧ indices[base]? = some (.object (.global b)) ∧
+      onChain env x b = true
 
 /-- Executable counterpart of Holds. Its cases deliberately do not accept a
 coefficient marker where a canonical object is required. -/
@@ -233,12 +306,15 @@ def constraintHolds (env : Environment) (indices : List Index) : Constraint → 
       | some ty => ty.marker == id
       | none => false
     | _, _ => false
+  | .structural object base => match indices[object]?, indices[base]? with
+    | some (.object (.global x)), some (.object (.global b)) => onChain env x b
+    | _, _ => false
 
 private def isObjectParameter : Option Parameter → Bool
   | some (.object _) => true | _ => false
 
 def Constraint.WellFormed (parameters : List Parameter) : Constraint → Prop
-  | .sameObject l r | .sameBase l r =>
+  | .sameObject l r | .sameBase l r | .structural l r =>
       isObjectParameter parameters[l]? = true ∧ isObjectParameter parameters[r]? = true
   | .over object marker =>
       isObjectParameter parameters[object]? = true ∧ parameters[marker]? = some .marker
@@ -265,7 +341,12 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
       Constraint.sameBase 0 1 ∈ f.constraints ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (affineImplementation env)
-        | _ => true) = true)
+        | _ => true) = true
+  | .relative => f.parameters.length = 3 ∧
+      f.constraints = [.structural 0 2, .structural 1 2] ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (presentedImplementation env)
+        | _ => false) = true)
 
 instance (env : Environment) (f : Family) : Decidable (f.Valid env) := by
   unfold Family.Valid
@@ -296,6 +377,22 @@ def classRanks (env : Environment) : List (DeclId × Nat) :=
 def classRank (ranks : List (DeclId × Nat)) (id : DeclId) : Nat :=
   ((ranks.find? fun pair => pair.1 == id).map Prod.snd).getD 0
 
+/-- A presented object: its implementation is a presented representation, its
+base chain is finite and stays within presented objects of the same marker,
+and its stored data verifies against its base's stored data. -/
+def validAffine (env : Environment) (id implementation : DeclId)
+    (data : AlgebraDeclarations.AffineData) : Bool :=
+  presentedImplementation env implementation &&
+  (match chainOf env id with | some chain => decide chain.Nodup | none => false) &&
+  (match data.base with
+    | none => true
+    | some base => match lookup env base with
+      | some (.affine baseImplementation _) =>
+          implementationMarker env baseImplementation == implementationMarker env implementation
+      | _ => false) &&
+  AlgebraDeclarations.validAffineData data (data.base.bind (affineData? env)) &&
+  AlgebraDeclarations.validConstruction data (affineData? env)
+
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
@@ -309,8 +406,10 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
         lookup env parent = some (.classification ps ds) ∧
         (∀ id ∈ implementations, id ∈ ds) ∧
         classRank ranks parent < classRank ranks entry.id)
-  | .global implementation => (implementationMarker env implementation).isSome = true
+  | .global implementation => (implementationMarker env implementation).isSome = true ∧
+      presentedImplementation env implementation = false
   | .family f => f.Valid env
+  | .affine implementation data => validAffine env entry.id implementation data = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -332,8 +431,10 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
       implementations.length ≤ 64 &&
       implementations.all (fun id => (implementationMarker env id).isSome) &&
       validParents env ranks entry parents implementations
-  | .global implementation => (implementationMarker env implementation).isSome
+  | .global implementation => (implementationMarker env implementation).isSome &&
+      !presentedImplementation env implementation
   | .family f => decide (f.Valid env)
+  | .affine implementation data => validAffine env entry.id implementation data
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096

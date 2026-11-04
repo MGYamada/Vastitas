@@ -343,6 +343,8 @@ result and independently check its indexed Core typing/dependency audits. Lake t
 JSON as an input dependency of this separate test/proof library; it is not a
 dependency of ordinary compiler builds. Concrete fixture acceptance and this
 reflection agreement are executable checks, not a new general decoder proof.
+The reflection runs the checker and `reprStr` at elaboration time, so the
+agreement rests on compiled evaluation that the axiom audit cannot see.
 
 `VastitasOracle.IndexedPromotion` proves `IndexedEvaluation.Evaluates` on those
 exact indexed Core bodies for arbitrary Nat/Int arguments. This states an equation

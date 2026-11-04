@@ -1,6 +1,9 @@
 #define _POSIX_C_SOURCE 200809L
 #include "bench.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "the driver times and checks calls inside assert(); build without NDEBUG"
+#endif
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -18,8 +18,8 @@ target/debug/vastitas build examples/pointed.vast -o target/pointed
 ./target/pointed
 ```
 
-The program prints `42`. [Quick start](docs/guide/getting-started.md) ·
-[CLI and diagnostics](docs/guide/cli.md) · [Packages and stdlib](docs/guide/stdlib.md)
+The program prints `42`. [Getting started](docs/guide/getting-started.md) ·
+[CLI reference](docs/guide/cli.md) · [Packages and manifests](docs/guide/stdlib.md)
 
 ## Install the alpha
 
@@ -49,6 +49,8 @@ installed by elan and runs that toolchain's `nanoda_bin`. [Numerical build guide
 ## Documentation
 
 Read the [English book](docs/README.md) or browse its [contents](docs/SUMMARY.md).
+It starts with Getting Started and teaches the language chapter by chapter;
+the language reference, the verification boundaries and the appendices follow.
 The [Stages 2–7 roadmap](docs/guide/historical-roadmap.md) follows current GitHub
 issue decisions and distinguishes planned work from the delivered compiler.
 [Build the book locally](docs/development/documentation.md)

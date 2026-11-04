@@ -60,7 +60,7 @@ end Monomial
 structure Term where
   monomial : Monomial
   coefficient : Rat
-  deriving Repr, DecidableEq, Inhabited
+  deriving Repr, DecidableEq, Inhabited, BEq, ReflBEq, LawfulBEq
 
 /-- A sparse polynomial. Canonical form: strictly decreasing monomials in
 `Monomial.compare`, nonzero coefficients and one common arity. -/
@@ -198,7 +198,7 @@ structure Map where
   arity : Nat
   basis : List Poly
   images : List Poly
-  deriving Repr, DecidableEq, Inhabited
+  deriving Repr, DecidableEq, Inhabited, BEq, ReflBEq, LawfulBEq
 
 namespace Map
 

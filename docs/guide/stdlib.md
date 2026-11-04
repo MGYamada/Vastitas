@@ -1,9 +1,76 @@
-# Use a package and the standard library
+# Packages and manifests
 
-A package manifest names a root source file and its local path dependencies.
-The dependency alias is the first component of the import path. For example,
-the geometry demo declares `std` as a dependency on the repository's
-`stdlib` package. Run the commands from the repository root.
+A single `.vast` file is enough for small programs. Larger programs are
+**packages**: a directory with a `Vastitas.toml` manifest, a root source file and
+modules. This section builds two packages and then shows the older flat mode.
+
+## A manifest
+
+[`examples/packages/demo`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/demo)
+depends on a sibling package called `arithmetic`:
+
+```toml
+[package]
+name = "demo"
+version = "0.1.0"
+root = "src/main.vast"
+
+[dependencies]
+arithmetic = { path = "../arithmetic" }
+```
+
+All `[package]` fields are required. `root` names a `.vast` file inside the
+package directory. Each dependency is a local path to a directory with its own
+`Vastitas.toml`, relative to the declaring manifest. The dependency alias,
+here `arithmetic`, is the first component of an import path:
+
+```vast
+use arithmetic::increment as next;
+mod pipeline {
+    use arithmetic::invoke;
+    pub fn twice(f: Fn<Int, Int>, x: Int) -> Int { invoke(f, invoke(f, x)) }
+}
+fn main() -> Int {
+    let package = 40;
+    let callback: Fn<Int, Int> = if true { next } else { arithmetic::increment };
+    pipeline::twice(callback, package)
+}
+```
+
+Pass the manifest explicitly with `--manifest-path`:
+
+```sh
+target/debug/vastitas check --manifest-path examples/packages/demo/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
+./target/demo
+```
+
+The program prints `42`. There is no implicit manifest search. `check` needs no
+`main`; `build` requires `main` in the root module of the selected package.
+
+Only local path dependencies exist. There is no registry, Git fetch, version
+solving or compilation cache: every build rereads and checks all packages,
+including unused ones. [Chapter 6](modules-and-authority.md) covers modules,
+visibility and imports.
+
+## Using the standard library
+
+The geometry demo declares `std` as a dependency on the repository's `stdlib`
+package:
+
+```toml
+[package]
+name = "stdlib_geometry_demo"
+version = "0.1.0"
+root = "main.vast"
+
+[dependencies]
+std = { path = "../../../stdlib" }
+```
+
+Generate the standard library's package root, which combines the arithmetic
+sources with the geometry library. Run the script again after editing the
+standard library's sources. Then build:
 
 ```sh
 python3 scripts/build_stdlib_package.py
@@ -13,27 +80,35 @@ target/debug/vastitas build --manifest-path examples/packages/stdlib-geometry/Va
 ```
 
 The program prints `42`. It imports `std::geometry::scheme` and
-`std::geometry::smooth`, constructs one object in each setting, opens each
-point package, and adds the two dimensions through
-`std::arithmetic::generic::add`. A matching dimension grants no right to
-use a point from one space in the other.
-[Demo manifest](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/Vastitas.toml) · [Demo source](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast) · [Geometry contracts](../indexed-source.md#geometry-migration)
+`std::geometry::smooth`, constructs one object in each setting, opens each point
+package and adds the two dimensions through `std::arithmetic::generic::add`.
+A matching dimension grants no right to use a point from one space in the
+other. [Demo source](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast)
 
-An import permits calls. To contribute methods to a function in another
-module, the package needs the corresponding grant and checked assembly.
-Public declarations retain their logical package and module owners when the
-source layout changes. [Packages and visibility](../packages.md) · [Edit borrowing](../packages.md#edit-borrowing)
+An import permits calls and nothing more. To contribute methods to a function
+in another module, a package needs the corresponding grant and a checked
+assembly. Public declarations keep their logical package and module owners when
+the source layout changes. [Chapter 6](modules-and-authority.md#edit-authority)
+explains both.
 
-The arithmetic library also supports explicit `--lib` inputs in flat-source
-mode. Natural subtraction saturates at zero, integers are arbitrary precision,
-and mixed Nat/Int operations have four explicit promotion cases.
-[Standard-library sources and flat examples](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md) · [Promotion and its proofs](../stage1a.md#promotion)
+## Flat mode with `--lib`
 
-## Arithmetic examples
+Before packages, the compiler took one entry file plus explicitly selected
+source libraries. This **flat mode** remains supported. The
+[arithmetic library](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)
+has `.vast` definitions for `Int` and `Nat` addition, subtraction,
+multiplication, minimum and maximum, plus integer negation and absolute value:
 
-The [arithmetic library](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md) contains `.vast` definitions for
-`Int` and `Nat` addition, subtraction, multiplication, minimum and maximum,
-plus integer negation and absolute value. Include the source files explicitly:
+```vast
+// Compile with --lib stdlib/src/arithmetic/int.vast
+//              --lib stdlib/src/arithmetic/nat.vast
+fn main() -> Int {
+    let answer = int_sub(int_mul(int_add(10, 5), 3), 3);
+    let magnitude = int_abs(int_neg(answer));
+    let remaining: Nat = nat_sub(nat_add(2, 3), 8);
+    if remaining == 0 { magnitude } else { -1 }
+}
+```
 
 ```sh
 cargo run --locked -- build examples/stdlib-arithmetic.vast \
@@ -43,25 +118,19 @@ cargo run --locked -- build examples/stdlib-arithmetic.vast \
 # 42
 ```
 
-`--lib` also works with `check` and may be repeated. Libraries and the entry
-file are checked together by Lean. Each file keeps its own diagnostic locations;
-this protocol-2 `--lib` mode has no implicit prelude or module/import syntax.
-Use [manifest mode](../packages.md) for path packages and imports.
+Natural subtraction saturates at zero, so `nat_sub(5, 8)` is `0`. Integers are
+arbitrary precision.
 
-The generic `add` and `maximum` wrappers use the same prefixed functions:
+`--lib` also works with `check` and may be repeated. The libraries and the entry
+file are checked together by Lean, and each file keeps its own diagnostic
+locations. Flat mode has no implicit prelude and no module or import syntax, and
+it cannot be mixed with `--manifest-path`. Use a manifest for path packages and
+imports. Mixed Nat/Int arithmetic through the generic library is in
+[Chapter 4](dispatch.md).
 
-```sh
-cargo run --locked -- build examples/dispatch-arithmetic.vast \
-  --lib stdlib/src/arithmetic/int.vast \
-  --lib stdlib/src/arithmetic/nat.vast \
-  --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
-./target/dispatch-arithmetic
-# 42
-```
-
-Their domains are all four Nat/Int pairs. Mixed methods bind `promote` once and
-delegate through its projections to the Int/Int method. Nat/Nat retains Nat.
-Generic arguments determine selection, so bare literals choose Int.
-There is no implicit conversion or selection using the expected result type.
-See [the Stage 1a specification](../stage1a.md) for selectors, capabilities,
-the 4096-key bound, and examples of ambiguity.
+> **What is checked.** The manifest, module and visibility rules are specified in
+> [Path packages and logical modules](../packages.md#manifest-and-commands), and
+> flat source libraries in the
+> [core language reference](../stage0.md#source-libraries). The
+> [standard-library sources](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)
+> list the flat examples and the package entrypoint.

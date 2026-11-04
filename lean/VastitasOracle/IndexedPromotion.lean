@@ -2,10 +2,19 @@ import VastitasPromotion.IndexedFixture
 import VastitasOracle.IndexedEvaluation
 import VastitasOracle.LegacySource
 
-/-! Numerical contracts on the executable indexed Core returned by the public
-protocol-2 checker for the actual Rust stdlib fixture. Evaluates refers to the
-actual indexed evaluator at every sufficiently large bound. It does not prove
-Rust parsing, source specialization or native-toolchain refinement. -/
+/-! Numerical contracts on `IndexedPromotionFixture.checked`, the indexed Core
+module of the actual Rust stdlib fixture. Evaluates refers to the actual
+indexed evaluator at every sufficiently large bound.
+
+Trusted step: `checked` is not proved equal to the Core that the public
+protocol-2 checker returns. The `stdlib_indexed_checked%` elaborator runs
+`Indexed.LegacySource.check` at elaboration time, prints the returned module
+with `reprStr`, and elaborates that text as `checked`; a build-time `#eval`
+compares the two `reprStr` renderings. That agreement rests on compiled
+evaluation (comparable to `native_decide`) and on `Repr` being faithful, which
+the axiom audit cannot see. These theorems therefore concern the reflected
+module; they do not prove Rust parsing, source specialization or
+native-toolchain refinement. -/
 namespace VastitasOracle.IndexedPromotion
 open VastitasKernel (PairElem)
 open VastitasKernel.Indexed.Core VastitasKernel.Indexed.Core.Semantics

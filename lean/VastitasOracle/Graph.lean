@@ -9,11 +9,15 @@ open VastitasKernel.Graph
 
 universe u
 
-/-- A profile-indexed interpretation of oriented words, with explicit generating
-laws and composition. For a typed categorical interpretation, M can encode an
-action on the family of ordered boundaries. Constructing that interpretation,
-including associator lifts, remains a separate integration obligation.
-The laws below refer to fixed word patterns, never checker acceptance. -/
+/-- An interpretation of oriented words, with explicit generating laws and
+composition. For a typed categorical interpretation, M can encode an action on
+the family of ordered boundaries. Constructing that interpretation, including
+associator lifts, remains a separate integration obligation.
+The laws below refer to fixed word patterns, never checker acceptance.
+The `profile` parameter is only a nominal tag: no field mentions it, so the
+soundness theorems below hold for every interpretation with the right capability
+and arity, and they do not show that a model realizes the declarations named by
+that profile. The checked binding of the profile itself is `checked_rewrite_binding`. -/
 structure Interpretation (profile : Profile) (capability : Capability) (arity : Nat) (M : Type u) where
   denote : List Op → M
   compose : M → M → M

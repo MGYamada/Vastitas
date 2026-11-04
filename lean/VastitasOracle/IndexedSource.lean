@@ -130,8 +130,8 @@ theorem checked_coefficient_unique (program : Source.Program) (checked : Checked
     (otherCoefficient : other.coefficient = some otherKind) : kind = otherKind := by
   have valid := (checked_implementation_contract program checked id marker representation capabilities member).2.2
   have consistent : coefficientConsistent checked.resolved.declarations.indexed marker kind = true := by
-    cases representation <;> simp only [Indexed.Representation.coefficient, Option.some.injEq] at coefficient
-    · contradiction
+    cases representation <;> simp only [Indexed.Representation.coefficient, Option.some.injEq] at coefficient <;>
+      try contradiction
     all_goals subst kind; exact valid.2.1
   have compatible := List.all_eq_true.mp consistent _ otherMember
   change (marker != marker || other.coefficient.all (· == kind)) = true at compatible

@@ -56,6 +56,9 @@ theorem indexed_of_worldExtends {env : Indexed.Environment} {before after : Worl
     exact ⟨object, denotes_of_worldExtends extension denotes⟩
   · exact ⟨denotes_of_worldExtends extension typed.1, denotes_of_worldExtends extension typed.2⟩
   · exact ⟨denotes_of_worldExtends extension typed.1, denotes_of_worldExtends extension typed.2⟩
+  · intro ref member
+    obtain ⟨object, denotes⟩ := typed ref member
+    exact ⟨object, denotes_of_worldExtends extension denotes⟩
   · contradiction
 
 theorem value_of_worldExtends {env : Declarations} {before after : World}
@@ -74,32 +77,36 @@ theorem result_of_worldExtends {env : Declarations} {before after : World}
       obtain ⟨object, equal, denotes⟩ := (show ValueHasRef env.indexed before value (some ref) from reference ▸ typed.2)
       exact ⟨object, equal, denotes_of_worldExtends extension denotes⟩
 
+private theorem implementation_member {env : Indexed.Environment} {implementation base : DeclId}
+    (marker : implementationMarker env implementation = some base) :
+    implementation ∈ ObjectType.implementations env ⟨implementation, base⟩ := by
+  unfold implementationMarker at marker
+  cases concrete : Indexed.lookup env implementation <;> simp only [concrete] at marker <;> try contradiction
+  case some decl =>
+    cases decl <;> simp only at marker <;> try contradiction
+    case implementation coefficient representation capabilities =>
+      cases marker
+      simp [ObjectType.implementations, Indexed.domain, concrete, implementationMarker]
+
 theorem global_denotes (env : Indexed.Environment) (world : World) (id : DeclId)
     (valid : ObjectRef.Valid env (.global id)) :
     ∃ object, globalObject env id = some object ∧ RefDenotes env world (.global id) object := by
   obtain ⟨type, found, typeValid⟩ := valid
   change ObjectRef.type? env (.global id) = some type at found
   unfold ObjectRef.type? at found
-  cases entry : Indexed.lookup env id <;> simp only [entry] at found
-  · contradiction
-  case some declaration =>
-    cases declaration <;> try contradiction
-    case global implementation =>
-      simp only [Bind.bind, Option.bind, Pure.pure] at found
-      cases marker : implementationMarker env implementation <;> simp only [marker] at found
-      · contradiction
-      case some base =>
-        cases found
-        refine ⟨⟨implementation, IndexedRuntime.baseObject⟩, by simp [globalObject, entry], ?_⟩
-        refine ⟨by simp [interpretRef, globalObject, entry], ⟨implementation, base⟩, ?_, typeValid, ?_⟩
-        · simp [ObjectRef.type?, entry, marker]
-        · unfold implementationMarker at marker
-          cases concrete : Indexed.lookup env implementation <;> simp only [concrete] at marker <;> try contradiction
-          case some decl =>
-            cases decl <;> simp only at marker <;> try contradiction
-            case implementation coefficient representation capabilities =>
-              cases marker
-              simp [ObjectType.implementations, Indexed.domain, concrete, implementationMarker]
+  cases impl : (Indexed.lookup env id).bind Declaration.objectImplementation? with
+  | none => simp [impl] at found
+  | some implementation =>
+    cases marker : implementationMarker env implementation with
+    | none => simp [impl, marker] at found
+    | some base =>
+      simp [impl, marker, Bind.bind, Pure.pure] at found
+      subst found
+      have object : globalObject env id = some ⟨implementation, IndexedRuntime.baseObject⟩ := by
+        simp [globalObject, impl]
+      refine ⟨_, object, by simp [interpretRef, object], ⟨implementation, base⟩, ?_, typeValid,
+        implementation_member marker⟩
+      simp [ObjectRef.type?, impl, marker]
 
 theorem descriptor_typed {env : Indexed.Environment} {implementation : DeclId} {type : ObjectType}
     (found : implementationType env implementation = some type) (valid : type.Valid env) (dimension : Nat) :
@@ -295,6 +302,218 @@ theorem apply_total {env : Indexed.Environment} {world : World} {maps points mf 
   refine ⟨world, .indexed (.point ⟨map.target, point.source⟩), rfl, worldExtends_refl world, ⟨rule.resultValid, ?_⟩, rfl⟩
   simpa only [rule.bindingValid.2] using And.intro targetDenotes testDenotes
 
+/-! ### Relative morphisms over a base (Stage 2)
+
+A relative value is an exact pullback map. Its typing obligation is that
+every object index denotes, as for tokens. The checked map identities live in
+the declaration audit (`VastitasOracle.AffineMorphisms`). -/
+
+theorem relative_family {env : Indexed.Environment} {family : DeclId}
+    (relative : isRelativeFamily env family = true) : familyRepresentation env family = some .relative := by
+  simpa [isRelativeFamily] using relative
+
+theorem primitive_relative {env : Indexed.Environment} {world : World} {value : Value}
+    {application : Application} (representation : familyRepresentation env application.family = some .relative)
+    (typed : PrimitiveValueHasType env world value (.indexed application)) :
+    ∃ map, value = .indexed (.relative map) ∧ application.Valid env ∧
+      ∀ ref ∈ application.refs, ∃ object, RefDenotes env world ref object := by
+  cases value <;> simp only [PrimitiveValueHasType] at typed <;> try contradiction
+  case indexed value =>
+    obtain ⟨valid, typed⟩ := typed
+    cases value <;> simp only [representation] at typed <;> try contradiction
+    case relative map => exact ⟨map, rfl, valid, typed⟩
+
+theorem relative_typed {env : Indexed.Environment} {world : World} {application : Application}
+    {map : AlgebraRuntime.Map} (representation : familyRepresentation env application.family = some .relative)
+    (valid : application.Valid env) (denote : ∀ ref ∈ application.refs, ∃ object, RefDenotes env world ref object) :
+    PrimitiveValueHasType env world (.indexed (.relative map)) (.indexed application) := by
+  refine ⟨valid, ?_⟩
+  simp only [representation]
+  exact denote
+
+/-- Global indices of a valid application denote in every world. -/
+theorem global_refs_denote {env : Indexed.Environment} {world : World} {application : Application}
+    (valid : application.Valid env) {ref : Indexed.ObjectRef} (member : ref ∈ application.refs)
+    {id : DeclId} (global : ref = .global id) : ∃ object, RefDenotes env world ref object := by
+  subst global
+  obtain ⟨object, _, denotes⟩ := global_denotes env world id (application_ref_valid valid member)
+  exact ⟨object, denotes⟩
+
+theorem relativeConstant_indices {env : Indexed.Environment} {application : Application}
+    {map : AlgebraRuntime.Map} (valid : relativeConstantValid env application map = true) :
+    ∃ x y s, application.indices = [.object (.global x), .object (.global y), .object (.global s)] := by
+  unfold relativeConstantValid at valid
+  simp only [Bool.and_eq_true] at valid
+  obtain ⟨_, valid⟩ := valid
+  split at valid
+  · rename_i x y s indices
+    exact ⟨x, y, s, indices⟩
+  · simp at valid
+
+theorem relativeConstant_total {env : Indexed.Environment} {world : World} {application : Application}
+    {map : AlgebraRuntime.Map} {allowed : List Indexed.ObjectRef} {brand : Nat} {output : ValueType}
+    {values : List Value}
+    (rule : PrimitiveTyped env (.relativeConstant application map) allowed brand [] output)
+    (typed : PrimitiveValuesHaveTypes env world values []) :
+    PrimitiveOutcome env world (.relativeConstant application map) values output := by
+  have empty := primitive_nil typed
+  subst values
+  have association : output = .indexed application := rule.association
+  subst association
+  have bindingValid : relativeConstantValid env application map = true := rule.bindingValid
+  have relative : isRelativeFamily env application.family = true := by
+    unfold relativeConstantValid at bindingValid
+    simp only [Bool.and_eq_true] at bindingValid
+    exact bindingValid.1.1
+  obtain ⟨x, y, s, indices⟩ := relativeConstant_indices bindingValid
+  have valid : application.Valid env := rule.resultValid
+  refine ⟨world, .indexed (.relative map), rfl, worldExtends_refl world,
+    relative_typed (relative_family relative) valid ?_, rfl⟩
+  intro ref member
+  have global : ref = .global x ∨ ref = .global y ∨ ref = .global s := by
+    simpa [Application.refs, indices] using member
+  rcases global with global | global | global <;> exact global_refs_denote valid member global
+
+theorem relativeCompose_total {env : Indexed.Environment} {world : World} {family gf ff : DeclId}
+    {middle target base source middle' base' : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativeCompose family) allowed brand
+      [.indexed ⟨gf, [.object middle, .object target, .object base]⟩,
+        .indexed ⟨ff, [.object source, .object middle', .object base']⟩] output)
+    (typed : PrimitiveValuesHaveTypes env world values
+      [.indexed ⟨gf, [.object middle, .object target, .object base]⟩,
+        .indexed ⟨ff, [.object source, .object middle', .object base']⟩]) :
+    PrimitiveOutcome env world (.relativeCompose family) values output := by
+  obtain ⟨rfl, rfl, rfl, rfl, rfl⟩ := rule.association
+  have relative := relative_family rule.bindingValid
+  obtain ⟨left, right, rfl, leftTyped, rightTyped⟩ := primitive_pair typed
+  obtain ⟨after, rfl, _, afterDenotes⟩ := primitive_relative relative leftTyped
+  obtain ⟨before, rfl, _, beforeDenotes⟩ := primitive_relative relative rightTyped
+  refine ⟨world, .indexed (.relative (AlgebraRuntime.Map.compose after before)), rfl, worldExtends_refl world,
+    relative_typed relative rule.resultValid ?_, rfl⟩
+  intro ref member
+  simp only [Application.refs, List.filterMap_cons, List.filterMap_nil, List.mem_cons,
+    List.not_mem_nil, or_false] at member
+  rcases member with rfl | rfl | rfl
+  · exact beforeDenotes _ (by simp [Application.refs])
+  · exact afterDenotes _ (by simp [Application.refs])
+  · exact afterDenotes _ (by simp [Application.refs])
+
+theorem relativeView_total {env : Indexed.Environment} {world : World} {family origin to f : DeclId}
+    {source target base : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativeView family origin to) allowed brand
+      [.indexed ⟨f, [.object source, .object target, .object base]⟩] output)
+    (typed : PrimitiveValuesHaveTypes env world values
+      [.indexed ⟨f, [.object source, .object target, .object base]⟩]) :
+    PrimitiveOutcome env world (.relativeView family origin to) values output := by
+  obtain ⟨rfl, rfl, rfl⟩ := rule.association
+  have relative := relative_family rule.bindingValid.1
+  obtain ⟨value, rfl, valueTyped⟩ := primitive_single typed
+  obtain ⟨map, rfl, _, denotes⟩ := primitive_relative relative valueTyped
+  have valid := rule.resultValid
+  refine ⟨world, .indexed (.relative map), rfl, worldExtends_refl world, relative_typed relative valid ?_, rfl⟩
+  intro ref member
+  have cases : ref = source ∨ ref = target ∨ ref = .global to := by
+    simpa [Application.refs] using member
+  rcases cases with rfl | rfl | global
+  · exact denotes _ (by simp [Application.refs])
+  · exact denotes _ (by simp [Application.refs])
+  · exact global_refs_denote valid member global
+
+theorem relativeEqual_total {env : Indexed.Environment} {world : World} {family : DeclId}
+    {left right : Application} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativeEqual family) allowed brand [.indexed left, .indexed right] output)
+    (typed : PrimitiveValuesHaveTypes env world values [.indexed left, .indexed right]) :
+    PrimitiveOutcome env world (.relativeEqual family) values output := by
+  obtain ⟨family_eq, rfl, rfl⟩ := rule.association
+  have relative : familyRepresentation env left.family = some .relative :=
+    family_eq ▸ relative_family (rule.bindingValid : isRelativeFamily env family = true)
+  obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := primitive_pair typed
+  obtain ⟨a, rfl, _⟩ := primitive_relative relative firstTyped
+  obtain ⟨b, rfl, _⟩ := primitive_relative relative secondTyped
+  exact ⟨world, .boolean (AlgebraRuntime.Map.same a b), rfl, worldExtends_refl world, trivial, rfl⟩
+
+theorem relativeCoefficient_total {env : Indexed.Environment} {world : World}
+    {family source target f x y : DeclId} {coordinate : Nat} {monomial : List Nat}
+    {base : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativeCoefficient family source target coordinate monomial) allowed brand
+      [.indexed ⟨f, [.object (.global x), .object (.global y), .object base]⟩] output)
+    (typed : PrimitiveValuesHaveTypes env world values
+      [.indexed ⟨f, [.object (.global x), .object (.global y), .object base]⟩]) :
+    PrimitiveOutcome env world (.relativeCoefficient family source target coordinate monomial) values output := by
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  have relative := relative_family rule.bindingValid.1
+  obtain ⟨value, rfl, valueTyped⟩ := primitive_single typed
+  obtain ⟨map, rfl, _⟩ := primitive_relative relative valueTyped
+  exact ⟨world, .pairInt (map.coefficient coordinate monomial).1 (map.coefficient coordinate monomial).2,
+    rfl, worldExtends_refl world, trivial, rfl⟩
+
+theorem integer_values {env : Indexed.Environment} {world : World} :
+    ∀ {values : List Value} {count : Nat},
+      PrimitiveValuesHaveTypes env world values ((List.range count).map fun _ => .integer) →
+      ∃ coordinates, values.mapM Value.integer? = some coordinates
+  | [], _, _ => ⟨[], rfl⟩
+  | value :: rest, count, typed => by
+    cases count with
+    | zero => simp [PrimitiveValuesHaveTypes] at typed
+    | succ n =>
+      rw [List.range_succ_eq_map, List.map_cons, List.map_map] at typed
+      obtain ⟨head, tail⟩ := typed
+      cases value <;> simp only [PrimitiveValueHasType] at head
+      case integer v =>
+        have shifted : ((List.range n).map ((fun _ => ValueType.integer) ∘ Nat.succ)) =
+            (List.range n).map fun _ => ValueType.integer := by simp [Function.comp_def]
+        rw [shifted] at tail
+        obtain ⟨coordinates, found⟩ := integer_values tail
+        exact ⟨v :: coordinates, by simp [found, Value.integer?]⟩
+
+theorem relativeIntPoint_total {env : Indexed.Environment} {world : World} {family object base : DeclId}
+    {arguments : List ValueType} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativeIntPoint family object base) allowed brand arguments output)
+    (typed : PrimitiveValuesHaveTypes env world values arguments) :
+    PrimitiveOutcome env world (.relativeIntPoint family object base) values output := by
+  obtain ⟨rfl, rfl⟩ := rule.association
+  have relative := relative_family rule.bindingValid.1
+  obtain ⟨coordinates, found⟩ := integer_values typed
+  have valid := rule.resultValid
+  refine ⟨world, .indexed (.relative (AlgebraRuntime.Map.intPoint coordinates)), ?_, worldExtends_refl world,
+    relative_typed relative valid ?_, rfl⟩
+  · simp [evalPrimitive, intPointValue, found]
+  · intro ref member
+    have cases : ref = .global base ∨ ref = .global object ∨ ref = .global base := by
+      simpa [Application.refs] using member
+    rcases cases with global | global | global <;> exact global_refs_denote valid member global
+
+theorem relativePair_total {env : Indexed.Environment} {world : World} {family fiber lf rf : DeclId}
+    {source left base source' right base' : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
+    {brand : Nat} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env (.relativePair family fiber) allowed brand
+      [.indexed ⟨lf, [.object source, .object left, .object base]⟩,
+        .indexed ⟨rf, [.object source', .object right, .object base']⟩] output)
+    (typed : PrimitiveValuesHaveTypes env world values
+      [.indexed ⟨lf, [.object source, .object left, .object base]⟩,
+        .indexed ⟨rf, [.object source', .object right, .object base']⟩]) :
+    PrimitiveOutcome env world (.relativePair family fiber) values output := by
+  obtain ⟨rfl, rfl, rfl, rfl, _, rfl⟩ := rule.association
+  have relative := relative_family rule.bindingValid.1
+  obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := primitive_pair typed
+  obtain ⟨l, rfl, _, leftDenotes⟩ := primitive_relative relative firstTyped
+  obtain ⟨r, rfl, _, _⟩ := primitive_relative relative secondTyped
+  have valid := rule.resultValid
+  refine ⟨world, .indexed (.relative (AlgebraRuntime.Map.pair l r)), rfl, worldExtends_refl world,
+    relative_typed relative valid ?_, rfl⟩
+  intro ref member
+  have cases : ref = source ∨ ref = .global fiber ∨ ref = base := by
+    simpa [Application.refs] using member
+  rcases cases with rfl | global | rfl
+  · exact leftDenotes _ (by simp [Application.refs])
+  · exact global_refs_denote valid member global
+  · exact leftDenotes _ (by simp [Application.refs])
+
 /-- Every accepted registry operation has a typed runtime value. The only
 world mutation is allocation of a fresh local object brand. Whole-term proofs
 must establish that freshness from the module's allocation audit. -/
@@ -314,6 +533,13 @@ theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {b
     | exact dimension_total rule typed
     | exact compose_total rule typed
     | exact apply_total rule typed
+    | exact relativeConstant_total rule typed
+    | exact relativeCompose_total rule typed
+    | exact relativeView_total rule typed
+    | exact relativeEqual_total rule typed
+    | exact relativeCoefficient_total rule typed
+    | exact relativeIntPoint_total rule typed
+    | exact relativePair_total rule typed
     | contradiction
 
 
@@ -364,8 +590,43 @@ theorem global_object_descriptor {env : Indexed.Environment} {id : DeclId} {obje
   cases entry : Indexed.lookup env id with
   | none => simp [globalObject, entry] at computed
   | some declaration =>
-      cases declaration <;> simp [globalObject, entry] at computed
+      cases declaration <;> simp [globalObject, entry, Declaration.objectImplementation?] at computed
       case global implementation => cases computed; rfl
+      case affine implementation data => cases computed; rfl
+
+theorem integers_erase : ∀ {values : List Value} {coordinates : List Int},
+    values.mapM Value.integer? = some coordinates →
+      ∃ inputs, values.mapM erasePrimitiveValue = some inputs ∧
+        inputs.mapM PrimitiveRuntimeValue.integer? = some coordinates
+  | [], coordinates, found => by
+    simp at found
+    subst found
+    exact ⟨[], rfl, rfl⟩
+  | value :: rest, coordinates, found => by
+    cases value <;> simp [Value.integer?] at found
+    case integer v =>
+      cases tailFound : rest.mapM Value.integer? with
+      | none => simp [tailFound] at found
+      | some tail =>
+        simp [tailFound] at found
+        subst found
+        obtain ⟨inputs, erased, runtime⟩ := integers_erase tailFound
+        exact ⟨.integer v :: inputs, by simp [erasePrimitiveValue, erased],
+          by simp [PrimitiveRuntimeValue.integer?, runtime]⟩
+
+theorem intPoint_erasure {family object base : DeclId} {values : List Value} {value : Value}
+    (evaluated : intPointValue values = some value) :
+    ∃ inputs output, values.mapM erasePrimitiveValue = some inputs ∧
+      erasePrimitiveValue value = some output ∧
+      evalRuntimePrimitive (.relativeIntPoint family object base) inputs = some output := by
+  unfold intPointValue at evaluated
+  cases coordinates : values.mapM Value.integer? with
+  | none => simp [coordinates] at evaluated
+  | some list =>
+    simp [coordinates] at evaluated
+    subst evaluated
+    obtain ⟨inputs, erased, runtime⟩ := integers_erase coordinates
+    exact ⟨inputs, _, erased, rfl, by simp [evalRuntimePrimitive, intPointRuntime, runtime]⟩
 
 /-- Successful logical registry evaluation erases to the actual IndexedRuntime
 operations. This is an operation-level commuting theorem, not a proof about
@@ -400,6 +661,19 @@ theorem primitive_runtime_erasure {env : Indexed.Environment} {binding : Primiti
     exact ⟨_, _, rfl, rfl, rfl⟩
   · cases evaluated
     exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · cases evaluated
+    exact ⟨_, _, rfl, rfl, rfl⟩
+  · exact intPoint_erasure evaluated
   · cases evaluated
     exact ⟨_, _, rfl, rfl, rfl⟩
   · contradiction

@@ -129,20 +129,21 @@ def prepare (p : Indexed) : Result (Prepared p) := do
     -- through the same preparation and completion checks below.
     let assembly := rootAssembly.getD { events := [], span := (moduleAt p rootScope).map (·.span) |>.getD {} }
     let action : Namespace.M (List GrantEntry × List ContributionEntry) := do
-      let mut grants := []
-      let mut contributions := []
+      -- Arrays keep preparation linear in the number of declarations.
+      let mut grants : Array GrantEntry := #[]
+      let mut contributions : Array ContributionEntry := #[]
       let mut methodCount := 0
       for pkg in p.packages do
         for m in pkg.modules do
           let scope : Scope := ⟨pkg.id, m.path⟩
           for grant in m.grants do
-            grants := grants ++ [← lowerGrant p scope grant]
+            grants := grants.push (← lowerGrant p scope grant)
           for contribution in m.contributions do
             if contribution.methods.isEmpty then problem contribution.span "E_ASSEMBLY" "a contribution must contain methods"
             methodCount := methodCount + contribution.methods.length
             if methodCount > Limits.contributionMethods then problem contribution.span "E_LIMIT" "contribution method limit exceeded"
-            contributions := contributions ++ [← lowerContribution p scope contribution]
-      return (grants, contributions)
+            contributions := contributions.push (← lowerContribution p scope contribution)
+      return (grants.toList, contributions.toList)
     let ((grants, contributions), references) ← action.run []
     return { base, baseFrom, grants, contributions, references := base.references ++ references, rootScope, assembly }
 

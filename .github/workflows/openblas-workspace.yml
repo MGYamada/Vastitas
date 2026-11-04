@@ -83,6 +83,7 @@ jobs:
             sudo apt-get install -y libc++-dev libc++abi-dev
           fi
           python3 experiments/lean_allocation_diagnostic/run.py --out "$RUNNER_TEMP/lean-allocator-record"
+          python3 experiments/lean_allocation_diagnostic/verify.py "$RUNNER_TEMP/lean-allocator-record"
       - name: Calibrate private Lean block lifetimes and peaks
         run: |
           python3 experiments/lean_allocation_lifetimes/run.py --out "$RUNNER_TEMP/lean-heap-record" --mimalloc-archive "$RUNNER_TEMP/lean-allocator-record/inputs/mimalloc-v3.4.5.tar.gz"

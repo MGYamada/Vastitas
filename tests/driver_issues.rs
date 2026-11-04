@@ -391,7 +391,7 @@ fn explicit_kernel_check_does_not_require_a_kernel_root() {
         .output()
         .unwrap();
     assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("E_BACKEND:"));
+    common::expect_code(&result, "E_BACKEND");
 }
 
 #[test]

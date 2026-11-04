@@ -1,5 +1,8 @@
 #include "gemm.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "these regressions are assert() checks; build without NDEBUG"
+#endif
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>

@@ -6,6 +6,29 @@ current GitHub issue decisions. The [delivery ledger](../stage1-completion.md)
 records accepted revisions. Use the [verification reference](../verification.md)
 for theorem statements, assumptions and native boundaries.
 
+## Book structure
+
+The book follows the shape of *The Rust Programming Language*. `SUMMARY.md`
+defines four parts:
+
+| Part | Content | Files |
+| --- | --- | --- |
+| Introduction and chapters 1–11 | Teaching chapters in reading order, with short **What is checked** notes that link to the reference parts | `README.md`, `guide/*.md`, `affine-geometry.md` |
+| Language reference | The complete contract for each language feature | `stage0.md`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
+| How the compiler is checked | Architecture, wire protocols, proof boundaries and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `adr/` |
+| Appendices A–F | CLI, diagnostics, reference models, limits, history and delivery records, contributing | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `development/` |
+
+File paths stay stable when a chapter moves between parts, because tests,
+scripts, experiment records and external links name them. The teaching chapters
+keep evidence ledgers, revision hashes and proof-boundary lists out of their
+text and link to the reference parts instead. `scripts/check_book.py` requires
+the Introduction as an unnumbered prefix chapter followed by Getting Started.
+
+Chapter 8 is reserved for `affine-geometry.md`, the historical Stage 2 chapter.
+Until that file exists on `main`, `SUMMARY.md` lists it as an mdBook draft
+chapter with an empty link. Replace `()` with `(affine-geometry.md)` when the
+file lands.
+
 ## Build, check and preview
 
 Run from the repository root with the documentation version pinned in
@@ -34,9 +57,12 @@ The book is built with mdBook 0.5.4 and its MathML is checked in the generated H
 
 ## Author and retire a chapter
 
-1. Put user procedures under `guide/` and contributor procedures under
-   `development/`. Link each retained chapter once from `docs/SUMMARY.md`.
-   The opening page links to the historical-stage guide and the main reader paths.
+1. Put teaching chapters under `guide/`, appendix landing pages under
+   `appendix/` and contributor procedures under `development/`. Link each
+   retained chapter once from `docs/SUMMARY.md`. The Introduction links to the
+   historical-stage guide and the main reader paths. A new teaching chapter
+   uses working programs from `examples/` and ends with a **What is checked**
+   note.
 2. Link other book chapters and bundled assets with relative paths. Link
    repository source, examples and external experiment records to their
    GitHub locations. Use specific revisions when attributing measurements

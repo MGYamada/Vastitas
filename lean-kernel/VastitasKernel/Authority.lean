@@ -30,16 +30,17 @@ def lowerTransfer (p : Indexed) (scope : Scope) (raw : Namespace.Transfer) : Nam
   return { id := ⟨scope, raw.name⟩, target, recipient, span := raw.span }
 
 def reconstruct (p : Indexed) : Namespace.M (List GrantEntry × List TransferEntry) := do
-  let mut delegations := []
-  let mut transfers := []
+  -- Arrays keep reconstruction linear in the number of declarations.
+  let mut delegations : Array GrantEntry := #[]
+  let mut transfers : Array TransferEntry := #[]
   for pkg in p.packages do
     for m in pkg.modules do
       let scope : Scope := ⟨pkg.id, m.path⟩
       for raw in m.delegations do
-        delegations := delegations ++ [← Edit.lowerGrant p scope raw]
+        delegations := delegations.push (← Edit.lowerGrant p scope raw)
       for raw in m.transfers do
-        transfers := transfers ++ [← lowerTransfer p scope raw]
-  return (delegations, transfers)
+        transfers := transfers.push (← lowerTransfer p scope raw)
+  return (delegations.toList, transfers.toList)
 
 def prepare (p : Indexed) : Result (Prepared p) := do
   unless p.authority do problem {} "E_PROTOCOL" "authority assembly requires protocol 6"

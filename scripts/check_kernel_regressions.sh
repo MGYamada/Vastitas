@@ -22,6 +22,10 @@ lake -d lean-kernel build \
   VastitasKernel.IndexedPackageSemanticRegression \
   VastitasKernel.IndexedSourceRegression \
   VastitasKernel.IndexedNumericalRegression \
+  VastitasKernel.AffineDeclarationRegression \
+  VastitasKernel.AffineMorphismRegression \
+  VastitasKernel.AffineFiberRegression \
+  VastitasKernel.AffineOpenRegression \
   VastitasKernel.IndexedSourceTypeRegression \
   VastitasKernel.IndexedSourceBodyRegression \
   VastitasKernel.IndexedFunctionRegression \

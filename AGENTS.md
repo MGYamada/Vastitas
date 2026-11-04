@@ -75,7 +75,8 @@ may raise limits.
   and `python3 scripts/check_book.py`. Add meaningful behavior regressions.
 - Rust: `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings`,
   `cargo test --locked --all-targets`. Kernel: `lake -d lean-kernel build`.
-  Oracle: `lake -d lean build` and `lake -d lean env lean scripts/audit_axioms.lean`.
+  Oracle: `lake -d lean build` and `lake -d lean env lean scripts/audit_axioms.lean`
+  (audits every kernel/oracle module: first build all kernel libs, exes and regressions).
 - Build the kernel before integration tests. Exercise `check`, `build`, executables
   and invalid source/tampered IR. Preserve no-mathlib tests; distinguish public/retired paths.
 - Kernel/checker/dispatch/Fn/authority: `bash scripts/check_kernel_regressions.sh`.

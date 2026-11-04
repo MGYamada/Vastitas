@@ -2,6 +2,9 @@
 #include "direct.h"
 #include "gemm.h"
 #include <assert.h>
+#ifdef NDEBUG
+#error "the probe times and checks calls inside assert(); build without NDEBUG"
+#endif
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -48,5 +48,7 @@ def algebraBasis : Nat := compiler_limit% "algebraBasis"
 def algebraCoefficientDigits : Nat := compiler_limit% "algebraCoefficientDigits"
 def algebraChain : Nat := compiler_limit% "algebraChain"
 def algebraWork : Nat := compiler_limit% "algebraWork"
+/-- Parenthesized nesting of one polynomial expression on the wire. -/
+def algebraNesting : Nat := compiler_limit% "algebraNesting"
 
 end VastitasKernel.Limits

@@ -943,7 +943,9 @@ def checkAction (state : State) (action : Action) : Except Error State :=
 inductive Statement where
   | action (action : Action)
   | branch (condition : Bool) (yes no : List Statement)
-  deriving Repr, BEq, Inhabited
+  -- No derived `BEq`: Lean derives it as `partial` for this nested type. `==`
+  -- uses the total `DecidableEq` below.
+  deriving Repr, Inhabited
 
 mutual
   def Statement.decEq (left right : Statement) : Decidable (left = right) :=

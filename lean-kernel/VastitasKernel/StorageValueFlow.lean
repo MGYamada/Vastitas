@@ -37,7 +37,9 @@ inductive Statement where
   | runtime (operation : Shapes.Event)
   | value (name fragment : Nat) (arguments : List Symbol)
   | branch (condition : Condition) (yes no : List Statement)
-  deriving Repr, BEq, Inhabited
+  -- No derived `BEq`: Lean derives it as `partial` for this nested type. `==`
+  -- uses the total `DecidableEq` below.
+  deriving Repr, Inhabited
 
 mutual
   def Statement.decEq (left right : Statement) : Decidable (left = right) :=

@@ -34,6 +34,9 @@ theorem validPrimitiveBinding_iff (env : Environment) (binding : PrimitiveBindin
       Bool.and_eq_true, validApplication_iff, and_assoc]
   | dimension | compose | apply =>
     simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true]
+  | relativeConstant | relativeCompose | relativeView | relativeEqual | relativeCoefficient
+    | relativeIntPoint | relativePair | relativeIso | relativeCartesian =>
+    simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true, and_assoc]
 
 theorem validValueType_iff (env : Environment) (type : ValueType) :
     validValueType env type = true ↔ type.Valid env := by

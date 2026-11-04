@@ -64,7 +64,7 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.write("lean-kernel/lean-toolchain", "leanprover/lean4:v4.35.0\n")
-        self.write("lean-kernel/lakefile.toml", 'name = "vastitas_kernel"\n')
+        self.write("lean-kernel/lakefile.toml", 'name = "vastitas_kernel"\n[leanOptions]\nwarningAsError = true\n')
         self.write("lean-kernel/lake-manifest.json", json.dumps({"packages": []}))
         self.write("lean-kernel/VastitasKernel/Runtime.lean", "import Init\n")
 
@@ -219,6 +219,37 @@ require /- existing local dependency -/ vastitas_storage_native from "../native"
 ''')
         self.assertEqual(check_boundaries(self.root), [])
 
+    def test_char_literals_and_interpolations_cannot_conceal_a_require(self):
+        # A quote character literal once opened a fake string that hid the
+        # following require from the scanner (#567).
+        self.numerical_package()
+        required = 'require vastitas_storage_native from "../native"'
+        for hiding in ["def q : Char := '\"'\nrequire evil from \"../../elsewhere\"\ndef r : Char := '\"'",
+                       "def q := '\\''\nrequire evil from \"../../elsewhere\"",
+                       "def q := '\\u{22}'\nrequire evil from \"../../elsewhere\"",
+                       'def q := s!"{"\\""}"\nrequire evil from "../../elsewhere"',
+                       'def q := s!"-I{pkg.dir / "../native"}"\nrequire evil from "../../elsewhere"']:
+            with self.subTest(hiding=hiding):
+                self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{required}\n{hiding}\n')
+                self.assertTrue(any('unsupported dependency in lakefile.lean' in e
+                                    for e in check_boundaries(self.root)))
+        for unsupported in ["def q := 'ab'", "def q := '", 'def q := r#"x"#', 'def q := r"x"',
+                            'def q := s!"{"', 'def q := "unmatched { brace"',
+                            # Without `!` a brace is ambiguous: an ordinary literal or a
+                            # prefixless interpolation could each conceal a require.
+                            'def x := "{"\nrequire evil from "../../evil"\ndef y := "}"',
+                            'def q := throwError "{"\\""}"\nrequire evil from "../../elsewhere"']:
+            with self.subTest(unsupported=unsupported):
+                self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{required}\n{unsupported}\n')
+                self.assertTrue(any('cannot check lakefile.lean dependencies' in e
+                                    for e in check_boundaries(self.root)))
+        self.write('lean-kernel/numerical/lakefile.lean', f"""import Lake
+def q : Char := '"'
+def p' := s!"-I{{pkg.dir / "../native"}} {{'}}'}}"
+{required}
+""")
+        self.assertEqual(check_boundaries(self.root), [])
+
     def test_root_and_oracle_toolchains_must_match_kernel(self):
         self.oracle_package()
         self.write("lean-toolchain", "leanprover/lean4:v4.34.0\n")
@@ -230,6 +261,8 @@ require /- existing local dependency -/ vastitas_storage_native from "../native"
     def oracle_package(self):
         self.write("lean/lean-toolchain", "leanprover/lean4:v4.35.0\n")
         self.write("lean/lakefile.toml", '''name = "vastitas_oracle"
+[leanOptions]
+warningAsError = true
 [[require]]
 name = "vastitas_kernel"
 path = "../lean-kernel"
@@ -362,6 +395,22 @@ rev = "v4.35.0"
             path.unlink()
             self.assert_boundary_error("cannot check Lake dependencies")
             path.write_text(original)
+
+    def test_kernel_and_oracle_builds_turn_warnings_into_errors(self):
+        self.oracle_package()
+        self.assertEqual(check_boundaries(self.root), [])
+        for directory in ["lean", "lean-kernel"]:
+            with self.subTest(directory=directory):
+                path = self.root / directory / "lakefile.toml"
+                original = path.read_text()
+                for replacement in ["", "warningAsError = false\n", 'warningAsError = "true"\n']:
+                    path.write_text(original.replace("warningAsError = true\n", replacement))
+                    self.assert_boundary_error("must set leanOptions.warningAsError = true")
+                path.write_text(original.replace("[leanOptions]\nwarningAsError = true\n",
+                                                 "leanOptions = [\"warningAsError\"]\n"))
+                self.assert_boundary_error("must set leanOptions.warningAsError = true")
+                path.write_text(original)
+        self.assertEqual(check_boundaries(self.root), [])
 
     def test_missing_or_malformed_lake_configs_fail_closed(self):
         self.oracle_package()

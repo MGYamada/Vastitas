@@ -5,7 +5,10 @@ import VastitasOracle.Namespaces
 checkSurfaceProgram/legacy Core pipeline. Current public indexed-Core numerical
 contracts are in VastitasOracle.IndexedPromotion. The fixture is
 produced by Rust from the canonical .vast files; its actual decoded/checker
-output is reflected as a transparent Term and rechecked at build time.
+output is reflected as a transparent Term and rechecked at build time. The
+reflection is a trusted build step, as in `IndexedPromotion`: an elaborator
+runs the checker, prints its result with `reprStr` and elaborates the text, and
+a build-time `#eval` compares the renderings.
 These are contracts of those bodies, not compiler magic for the name promote.
 These legacy Eval derivations are not current public acceptance corollaries. -/
 namespace VastitasOracle.Promotion
@@ -14,43 +17,46 @@ open VastitasKernel VastitasKernel.Semantics VastitasKernel.PromotionFixture
 set_option maxRecDepth 10000
 set_option maxHeartbeats 1000000
 
-/-- Actual argument binding and big-step evaluation, including all helper calls. -/
+/-- The named function exists in the reflected checked module (`function` alone
+would fall back to `default`), and actual argument binding and big-step
+evaluation of its body return `value`, including all helper calls. -/
 def Returns (name : String) (args : List Value) (value : Value) : Prop :=
-  ∃ env, bindArguments (function name).params args = some env ∧
+  ∃ env, checked.functions.find? (·.name == name) = some (function name) ∧
+    bindArguments (function name).params args = some env ∧
     Eval checked.functions env (function name).body value
 
 theorem promote_nn (a b : Nat) :
     Returns "__vastitas_m0_0_0" [.nat a, .nat b] (.pairNat a b) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact .builtin (.cons (.variable rfl) (.cons (.variable rfl) (.nil _))) rfl
 
 theorem promote_ni (a : Nat) (b : Int) :
     Returns "__vastitas_m1_0_1" [.nat a, .int b] (.pairInt (Int.ofNat a) b) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact .builtin (.cons (.builtin (.cons (.variable rfl) (.nil _)) rfl)
     (.cons (.variable rfl) (.nil _))) rfl
 
 theorem promote_in (a : Int) (b : Nat) :
     Returns "__vastitas_m2_1_0" [.int a, .nat b] (.pairInt a (Int.ofNat b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact .builtin (.cons (.variable rfl)
     (.cons (.builtin (.cons (.variable rfl) (.nil _)) rfl) (.nil _))) rfl
 
 theorem promote_ii (a b : Int) :
     Returns "__vastitas_m3_1_1" [.int a, .int b] (.pairInt a b) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact .builtin (.cons (.variable rfl) (.cons (.variable rfl) (.nil _))) rfl
 
 theorem int_add (a b : Int) : Returns "int_add" [.int a, .int b] (.int (a + b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact .binary (.variable rfl) (.variable rfl) rfl
 
 theorem nat_add (a b : Nat) : Returns "nat_add" [.nat a, .nat b] (.nat (a + b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact .binary (.variable rfl) (.variable rfl) rfl
 
 theorem int_maximum (a b : Int) : Returns "int_max" [.int a, .int b] (.int (max a b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   by_cases h : b ≤ a
   · rw [Int.max_eq_left h]
     exact .branchTrue (.binary (.variable rfl) (.variable rfl)
@@ -60,7 +66,7 @@ theorem int_maximum (a b : Int) : Returns "int_max" [.int a, .int b] (.int (max 
       (by simp [evalBinary, evalIntBinary, h])) (.variable rfl)
 
 theorem nat_maximum (a b : Nat) : Returns "nat_max" [.nat a, .nat b] (.nat (max a b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   by_cases h : b ≤ a
   · rw [Nat.max_eq_left h]
     exact .branchTrue (.binary (.variable rfl) (.variable rfl)
@@ -75,28 +81,28 @@ private theorem call_return (name : String) {env : Environment} {args : List Ter
     (found : lookupFunction checked.functions (function name).id = some (function name))
     (arguments : EvalArgs checked.functions env args values) :
     Eval checked.functions env (.call (function name).id args [] result) value := by
-  obtain ⟨argEnv, bindings, body⟩ := returned
+  obtain ⟨argEnv, _, bindings, body⟩ := returned
   exact .call found arguments bindings body
 
 theorem add_ii (a b : Int) : Returns "__vastitas_m4_1_1" [.int a, .int b] (.int (a + b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact call_return "int_add" (int_add a b) rfl (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))
 
 theorem add_nn (a b : Nat) : Returns "__vastitas_m5_0_0" [.nat a, .nat b] (.nat (a + b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact call_return "nat_add" (nat_add a b) rfl (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))
 
 theorem maximum_ii (a b : Int) : Returns "__vastitas_m8_1_1" [.int a, .int b] (.int (max a b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact call_return "int_max" (int_maximum a b) rfl (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))
 
 theorem maximum_nn (a b : Nat) : Returns "__vastitas_m9_0_0" [.nat a, .nat b] (.nat (max a b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   exact call_return "nat_max" (nat_maximum a b) rfl (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))
 
 theorem add_ni (a : Nat) (b : Int) :
     Returns "__vastitas_m6_0_1" [.nat a, .int b] (.int (Int.ofNat a + b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   refine .letE (call_return "__vastitas_m1_0_1" (promote_ni a b) rfl
     (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))) ?_
   exact call_return "__vastitas_m4_1_1" (add_ii (Int.ofNat a) b) rfl
@@ -105,7 +111,7 @@ theorem add_ni (a : Nat) (b : Int) :
 
 theorem add_in (a : Int) (b : Nat) :
     Returns "__vastitas_m7_1_0" [.int a, .nat b] (.int (a + Int.ofNat b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   refine .letE (call_return "__vastitas_m2_1_0" (promote_in a b) rfl
     (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))) ?_
   exact call_return "__vastitas_m4_1_1" (add_ii a (Int.ofNat b)) rfl
@@ -114,7 +120,7 @@ theorem add_in (a : Int) (b : Nat) :
 
 theorem maximum_ni (a : Nat) (b : Int) :
     Returns "__vastitas_m10_0_1" [.nat a, .int b] (.int (max (Int.ofNat a) b)) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   refine .letE (call_return "__vastitas_m1_0_1" (promote_ni a b) rfl
     (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))) ?_
   exact call_return "__vastitas_m8_1_1" (maximum_ii (Int.ofNat a) b) rfl
@@ -123,7 +129,7 @@ theorem maximum_ni (a : Nat) (b : Int) :
 
 theorem maximum_in (a : Int) (b : Nat) :
     Returns "__vastitas_m11_1_0" [.int a, .nat b] (.int (max a (Int.ofNat b))) := by
-  refine ⟨_, rfl, ?_⟩
+  refine ⟨_, rfl, rfl, ?_⟩
   refine .letE (call_return "__vastitas_m2_1_0" (promote_in a b) rfl
     (.cons (.variable rfl) (.cons (.variable rfl) (.nil _)))) ?_
   exact call_return "__vastitas_m8_1_1" (maximum_ii a (Int.ofNat b)) rfl

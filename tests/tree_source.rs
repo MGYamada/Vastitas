@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const REAL: &str = include_str!("../examples/packages/contraction-tree/src/real/mod.vast");
@@ -33,23 +32,12 @@ fn command(s: &Scratch, mode: &str) -> Command {
     command
 }
 fn captured(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = command(s, "check")
-        .env("VASTITAS_KERNEL", stub)
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(command(s, "check"), 8)
 }
 
-fn wire_rejected(raw: Value) {
-    let response = kernel(raw, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert!(response.get("lean_source").is_none());
+#[track_caller]
+fn wire_rejected(raw: Value, code: &str) {
+    common::assert_wire_rejected(&kernel(raw, "emit"), code);
 }
 fn tree(raw: &mut Value) -> &mut Value {
     raw["packages"][0]["modules"]
@@ -64,15 +52,13 @@ fn tree(raw: &mut Value) -> &mut Value {
         .find(|statement| statement["kind"] == "tree")
         .unwrap()
 }
+#[track_caller]
 fn rejection(source: &str, code: &str) {
     let result = command(&fixture(source, COMPLEX), "check")
         .output()
         .unwrap();
     assert!(!result.status.success(), "accepted invalid tree: {source}");
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains(code),
-        "{result:?}"
-    );
+    common::expect_code(&result, code);
 }
 fn branched(source: &str, condition: bool) -> String {
     let start = source.find("    contract_tree").unwrap();
@@ -648,17 +634,20 @@ fn explicit_trees_preserve_order_reuse_scratch_and_audit_both_branches() {
         );
         assert!(!code.contains("copy arena"));
     }
-    let reordered = REAL
-        .replace(
+    let reordered = common::checked_replace(
+        &common::checked_replace(
+            REAL,
             "occurrence t = t; occurrence a = right_a; occurrence b = right_b;",
             "occurrence b = right_b; occurrence t = t; occurrence a = right_a;",
-        )
-        .replace(
-            "edge ev = (t[1], a[0]); edge ew = (t[2], b[0]);",
-            "edge ew = (t[2], b[0]); edge ev = (t[1], a[0]);",
-        );
+        ),
+        "edge ev = (t[1], a[0]); edge ew = (t[2], b[0]);",
+        "edge ew = (t[2], b[0]); edge ev = (t[1], a[0]);",
+    );
     let original = kernel(captured(&fixture(REAL, COMPLEX)), "emit");
     let reordered = kernel(captured(&fixture(&reordered, COMPLEX)), "emit");
+    // Two rejections would also have equal (absent) sources.
+    assert_eq!(original["ok"], true, "{original}");
+    assert_eq!(reordered["ok"], true, "{reordered}");
     assert_eq!(original["lean_source"], reordered["lean_source"]);
 }
 
@@ -683,27 +672,33 @@ fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
             .contains("does not connect the selected active component legs"),
         "{rejected:?}"
     );
-    for (from, to) in [
-        ("t[1], a[0]", "t[1], a[1]"),
-        ("t[2], b[0]", "t[1], b[0]"),
-        ("t[1], a[0]", "unknown[1], a[0]"),
-        ("boundary(t[0], a[1], b[1])", "boundary(a[1], t[0], b[1])"),
-        ("(ew, ta, b, c)", "(ev, ta, b, c)"),
-        ("(ev, t, a, intermediate)", "(ev, a, t, intermediate)"),
-        ("(ev, t, a, intermediate)", "(ev, t, t, intermediate)"),
-        ("join ta =", "join t ="),
-        ("rebind(t, first_read);", ""),
-        ("release(packed_write);", ""),
-        ("release(repacked_read);", ""),
+    for (from, to, code) in [
+        ("t[1], a[0]", "t[1], a[1]", "E_TENSOR_TREE"),
+        ("t[2], b[0]", "t[1], b[0]", "E_TENSOR_TREE"),
+        ("t[1], a[0]", "unknown[1], a[0]", "E_TENSOR_TREE"),
+        (
+            "boundary(t[0], a[1], b[1])",
+            "boundary(a[1], t[0], b[1])",
+            "E_TENSOR_TREE",
+        ),
+        ("(ew, ta, b, c)", "(ev, ta, b, c)", "E_TENSOR_TREE"),
+        // Destination axis order is the contraction's own rule.
+        (
+            "(ev, t, a, intermediate)",
+            "(ev, a, t, intermediate)",
+            "E_TENSOR",
+        ),
+        (
+            "(ev, t, a, intermediate)",
+            "(ev, t, t, intermediate)",
+            "E_TENSOR_TREE",
+        ),
+        ("join ta =", "join t =", "E_TENSOR_TREE"),
+        ("rebind(t, first_read);", "", "E_TENSOR_TREE"),
+        ("release(packed_write);", "", "E_RESOURCE_ALIAS"),
+        ("release(repacked_read);", "", "E_TENSOR_TREE"),
     ] {
-        rejection(
-            &REAL.replace(from, to),
-            if from == "release(packed_write);" {
-                "E_RESOURCE_ALIAS"
-            } else {
-                "E_TENSOR"
-            },
-        );
+        rejection(&common::checked_replace(REAL, from, to), code);
     }
     rejection(&REAL.replace("basis bv = basis(v);", "basis bv = basis(v); space alien = linear(super::profiles::RealSmooth, 3); basis alien_basis = basis(alien);")
         .replace("view2(input_a, bv, bad)", "view2(input_a, alien_basis, bad)"), "E_TENSOR_TREE");
@@ -728,7 +723,7 @@ fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
     // Invalid dead arms and uncalled bodies are still audited.
     rejection(
         &branched(REAL, false).replacen("(ew, ta, b, c)", "(ev, ta, b, c)", 1),
-        "E_TENSOR",
+        "E_TENSOR_TREE",
     );
     rejection(
         &format!(
@@ -736,7 +731,7 @@ fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
             REAL.replace("pub resource fn product()", "resource fn unused()")
                 .replace("(ew, ta, b, c)", "(ev, ta, b, c)")
         ),
-        "E_TENSOR",
+        "E_TENSOR_TREE",
     );
 }
 
@@ -746,12 +741,12 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     for version in 2..8 {
         let mut changed = original.clone();
         changed["version"] = json!(version);
-        wire_rejected(changed);
+        wire_rejected(changed, "E_PROTOCOL");
     }
     for extra in ["checked", "proof", "allocation", "flags"] {
         let mut raw = original.clone();
         tree(&mut raw)[extra] = json!(true);
-        wire_rejected(raw);
+        wire_rejected(raw, "E_PROTOCOL");
     }
     let real_body = original["packages"][0]["modules"]
         .as_array()
@@ -788,12 +783,12 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     for field in ["occurrences", "edges", "boundary"] {
         let mut raw = original.clone();
         tree(&mut raw)["graph"][field] = json!([]);
-        wire_rejected(raw);
+        wire_rejected(raw, "E_PROTOCOL");
     }
     let mut raw = original.clone();
     let step = tree(&mut raw)["plan"][0].clone();
     tree(&mut raw)["plan"] = json!(vec![step; 1025]);
-    wire_rejected(raw);
+    wire_rejected(raw, "E_PROTOCOL");
     // Each plan is below the per-tree bound, but its steps also consume the
     // global source budget before lowering names or reconstructing the graph.
     let mut raw = original.clone();
@@ -815,10 +810,10 @@ fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     assert!(response.get("lean_source").is_none());
     let mut raw = original.clone();
     tree(&mut raw)["graph"]["edges"][0]["dual"]["axis"] = json!(3);
-    wire_rejected(raw);
+    wire_rejected(raw, "E_PROTOCOL");
     let mut raw = original.clone();
     tree(&mut raw)["plan"][2]["component"] = json!("forged");
-    wire_rejected(raw);
+    wire_rejected(raw, "E_TENSOR_TREE");
 }
 
 #[test]

@@ -227,26 +227,14 @@ fn raw_contract_ir_cannot_bypass_result_domain_or_protocol_checks() {
     }
 }
 
-fn package(s: &Scratch, name: &str, source: &str, deps: &str) {
-    s.write(
-        &format!("{name}/Vastitas.toml"),
-        &format!(
-            "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{deps}\n"
-        ),
-    );
-    s.write(&format!("{name}/main.vast"), source);
-}
 #[test]
 fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
     let s = Scratch::empty("contract packages");
-    package(
-        &s,
-        "lib",
+    s.write_package("lib",
         "pub mod types { pub abstract type Numeric; subtype Int <: Numeric; } pub use types::Numeric as N; pub generic f(x) { domain; } abstract method f(x: N) -> Int { domain (N); } method f(x: Int) -> Int { x }",
         "",
     );
-    package(
-        &s,
+    s.write_package(
         "app",
         "use dep::f as call; fn main() -> Int { call(42) }",
         "dep={path='../lib'}",
@@ -286,10 +274,7 @@ fn package_contracts_resolve_aliases_but_keep_exact_generic_owner_authority() {
             .output()
             .unwrap();
         assert!(!output.status.success());
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains("E_OWNER"),
-            "{output:?}"
-        );
+        common::expect_code(&output, "E_OWNER");
     }
 }
 

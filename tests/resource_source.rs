@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const MAIN: &str = include_str!("../examples/packages/storage/app/src/main.vast");
@@ -34,19 +33,12 @@ fn check(s: &Scratch) -> std::process::Output {
         .unwrap()
 }
 fn request(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let result = cli()
-        .env("VASTITAS_KERNEL", stub)
-        .args(["check", "--manifest-path"])
-        .arg(s.0.join("app/Vastitas.toml"))
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_CAPTURED"),
-        "{result:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(
+        cli()
+            .args(["check", "--manifest-path"])
+            .arg(s.0.join("app/Vastitas.toml")),
+        8,
+    )
 }
 fn module(raw: &Value, name: &str, path: Value) -> String {
     let package = raw["packages"]
@@ -66,10 +58,7 @@ fn module(raw: &Value, name: &str, path: Value) -> String {
 fn rejected(main: &str, operations: &str, code: &str) {
     let output = check(&fixture(main, operations));
     assert!(!output.status.success(), "accepted {main}\n{operations}");
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains(code),
-        "expected {code}: {output:?}"
-    );
+    common::expect_code(&output, code);
 }
 
 const SELF_COPY: &str = "resource fn main() -> Int {
@@ -359,9 +348,7 @@ fn initialized_self_copy_is_checked_and_erased_before_native_generation() {
     assert_eq!(action["op"], "copy");
     action["source"] = json!("w");
     action["target"] = json!("w");
-    let response = kernel(changed, "emit");
-    assert_eq!(response["ok"], false, "{response}");
-    assert!(response.get("lean_source").is_none());
+    common::assert_wire_rejected(&kernel(changed, "emit"), "E_RESOURCE_LOAN");
 }
 
 #[test]
@@ -620,10 +607,7 @@ fn package_resource_entry_builds_owned_returns_and_pure_fn_dispatch_together() {
     );
     let result = Command::new(failed).output().unwrap();
     assert!(!result.status.success());
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_NATIVE_EXPECT"),
-        "{result:?}"
-    );
+    common::expect_code(&result, "E_NATIVE_EXPECT");
     assert!(result.stdout.is_empty());
 }
 
@@ -644,12 +628,12 @@ fn resource_wire_preserves_unresolved_names_and_rejects_older_versions() {
         let mut old = raw.clone();
         old["version"] = json!(version);
         let response = kernel(old, "check");
-        assert_eq!(response["ok"], false, "{version}: {response}");
+        common::assert_wire_rejected(&response, "E_PROTOCOL");
         assert_eq!(response["version"], version);
     }
     let mut flat = common::request("fn main() -> Int { 42 }", "legacy.vast");
     flat["resource_functions"] = json!([]);
-    assert_eq!(kernel(flat, "check")["ok"], false);
+    common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
 }
 
 #[test]

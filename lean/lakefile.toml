@@ -4,6 +4,10 @@ license = "Apache-2.0"
 licenseFiles = ["../LICENSE"]
 defaultTargets = ["VastitasOracle"]
 
+# Warnings fail the build; in particular a declaration that uses `sorry`.
+[leanOptions]
+warningAsError = true
+
 [[require]]
 name = "vastitas_kernel"
 path = "../lean-kernel"

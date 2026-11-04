@@ -1,22 +1,11 @@
 name: Documentation book
 
 on:
+  # check_book.py checks blob/main links to files outside docs/, so a rename
+  # anywhere can break the book. Run on every pull request and on main (#567).
   push:
-    paths:
-      - 'book.toml'
-      - 'config/mdbook-version'
-      - 'config/mdbook-katex-version'
-      - 'docs/**'
-      - 'scripts/check_book.py'
-      - '.github/workflows/documentation.yml'
+    branches: [main]
   pull_request:
-    paths:
-      - 'book.toml'
-      - 'config/mdbook-version'
-      - 'config/mdbook-katex-version'
-      - 'docs/**'
-      - 'scripts/check_book.py'
-      - '.github/workflows/documentation.yml'
   workflow_dispatch:
 
 permissions:

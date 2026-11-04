@@ -68,8 +68,10 @@ theorem checkProgram_typed_and_ordered (program : RawProgram) (requireMain : Boo
   obtain ⟨_, _, typed, ordered⟩ := checkModule_typed_and_ordered core.module requireMain certified checked
   exact ⟨typed, ordered⟩
 
-/-- Public Stage 1 acceptance establishes termination and endpoint preservation
-of every generated core function for all well-typed argument environments. -/
+/-- Retained Stage 1 `checkProgram` acceptance (not one of Main's current entry
+points; see the public routes in `docs/verification.md`) establishes termination
+and endpoint preservation of every generated core function for all well-typed
+argument environments. -/
 theorem checkProgram_total_for_arguments (program : RawProgram) (requireMain : Bool)
     (certified : CertifiedModule) (accepted : checkProgram program requireMain = .ok certified)
     (function : CheckedFunction) (member : function ∈ certified.val.functions)

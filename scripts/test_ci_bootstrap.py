@@ -44,6 +44,19 @@ class BootstrapTests(unittest.TestCase):
                     self.assertIn("Python ", result.stdout)
                     self.assertEqual(target.read_text(), "preserved=value\nLD_LIBRARY_PATH=\n")
 
+    def test_workflows_install_lean_only_through_the_pinned_bootstrap(self):
+        # Third-party Lean actions fetch elan's unpinned master installer.
+        workflows = Path(__file__).resolve().parents[1] / ".github" / "workflows"
+        paths = sorted(workflows.glob("*.yml"))
+        self.assertTrue(paths)
+        for path in paths:
+            with self.subTest(workflow=path.name):
+                text = path.read_text(encoding="utf-8")
+                self.assertNotIn("leanprover/lean-action", text)
+                self.assertNotIn("elan-init.sh", text)
+                if "lake " in text:
+                    self.assertIn("scripts/install_ci_elan.py", text)
+
     def test_platforms_are_explicit(self):
         self.assertEqual(bootstrap.host_target("Darwin", "arm64"), "aarch64-apple-darwin")
         self.assertEqual(bootstrap.host_target("Linux", "x86_64"), "x86_64-unknown-linux-gnu")

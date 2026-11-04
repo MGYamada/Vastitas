@@ -225,14 +225,14 @@ theorem checkWith_sound (hierarchy : Hierarchy) (arity : Nat) (domain : List Key
         | ok methods =>
             simp only [normalized, bind, Except.bind] at accepted
             split at accepted
-            · simp [throw, bind, Except.bind] at accepted
+            · simp [throw] at accepted
             cases validated : validateMethods hierarchy (keys hierarchy.concrete arity) methods with
             | error error => simp [validated] at accepted
             | ok result =>
                 cases result
                 simp only [validated] at accepted
                 split at accepted
-                · simp [throw, bind, Except.bind] at accepted
+                · simp [throw] at accepted
                 cases selected : selectRows hierarchy domain methods (keys hierarchy.concrete arity) with
                 | error error => simp [selected] at accepted
                 | ok rows =>
@@ -494,7 +494,7 @@ theorem checkWith_budgets (hierarchy : Hierarchy) (arity : Nat) (domain : List K
         | ok methods =>
             simp only [normalized, bind, Except.bind] at accepted
             split at accepted
-            · simp [throw, bind, Except.bind] at accepted
+            · simp [throw] at accepted
             rename_i table
             cases validated : validateMethods hierarchy (keys hierarchy.concrete arity) methods with
             | error error => simp [validated] at accepted
@@ -502,7 +502,7 @@ theorem checkWith_budgets (hierarchy : Hierarchy) (arity : Nat) (domain : List K
                 cases result
                 simp only [validated] at accepted
                 split at accepted
-                · simp [throw, bind, Except.bind] at accepted
+                · simp [throw] at accepted
                 rename_i ranking
                 cases selected : selectRows hierarchy domain methods (keys hierarchy.concrete arity) with
                 | error error => simp [selected] at accepted

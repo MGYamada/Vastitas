@@ -117,10 +117,8 @@ fn library_identity_notes_keep_library_source_locations() {
         .unwrap();
     assert!(!output.status.success());
     let message = String::from_utf8(output.stderr).unwrap();
-    assert!(
-        message.contains("E_TYPE") && message.contains("library.vast:2:"),
-        "{message}"
-    );
+    common::assert_first_code(&message, "E_TYPE");
+    assert!(message.contains("library.vast:2:"), "{message}");
     let notes: Vec<_> = message
         .lines()
         .filter(|line| line.contains(": note:"))

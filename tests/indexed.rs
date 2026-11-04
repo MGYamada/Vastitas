@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 
 const GEO: &str = include_str!("../examples/packages/indexed/geo.vast");
 const MAIN: &str = include_str!("../examples/packages/indexed/main.vast");
@@ -26,28 +25,19 @@ fn check(s: &Scratch) -> std::process::Output {
 }
 
 fn request(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":7,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let result = cli()
-        .current_dir(&s.0)
-        .env("VASTITAS_KERNEL", stub)
-        .args(["check", "--manifest-path", "Vastitas.toml"])
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_CAPTURED"),
-        "{result:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(
+        cli()
+            .current_dir(&s.0)
+            .args(["check", "--manifest-path", "Vastitas.toml"]),
+        7,
+    )
 }
 
-fn rejected(source: &str, code: &str) {
+#[track_caller]
+fn rejected(source: &str, code: &str) -> String {
     let result = check(&fixture(source));
     assert!(!result.status.success(), "accepted {source}");
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains(code),
-        "{result:?}"
-    );
+    common::expect_code(&result, code)
 }
 
 #[test]
@@ -76,14 +66,16 @@ fn declaration_package_and_static_fn_compile_to_native() {
 
 #[test]
 fn indexed_calls_explain_missing_conversion_and_literal_pair_inference() {
-    for (source, hint) in [
+    for (source, hint, code) in [
         (
             "mod geo; fn main() -> Int { nat_to_int(1) }",
             "arithmetic standard library",
+            "E_NAME",
         ),
         (
             "mod geo; fn first(p: Pair<Nat>) -> Nat { pair_first(p) } fn main() -> Int { int(first(pair(0, 1))) }",
             "pair infers its operands independently",
+            "E_TYPE",
         ),
     ] {
         let result = check(&fixture(source));
@@ -91,7 +83,7 @@ fn indexed_calls_explain_missing_conversion_and_literal_pair_inference() {
         let message = String::from_utf8_lossy(&result.stderr);
         assert!(message.contains(hint), "{message}");
         let response = kernel(request(&fixture(source)), "check");
-        assert_eq!(response["ok"], false);
+        common::assert_wire_rejected(&response, code);
         assert!(
             response["diagnostics"][0]["notes"]
                 .as_array()
@@ -112,12 +104,12 @@ fn actual_rust_wire_is_seven_and_older_envelopes_reject_declarations() {
         let mut raw = original.clone();
         raw["version"] = json!(version);
         let result = kernel(raw, "check");
-        assert_eq!(result["ok"], false, "{version}: {result}");
+        common::assert_wire_rejected(&result, "E_PROTOCOL");
         assert_eq!(result["version"], version);
     }
     let mut flat = common::request("fn main() -> Int { 42 }", "old.vast");
     flat["indexed_declarations"] = json!([]);
-    assert_eq!(kernel(flat, "check")["ok"], false);
+    common::assert_wire_rejected(&kernel(flat, "check"), "E_PROTOCOL");
 }
 
 #[test]
@@ -154,7 +146,7 @@ fn forged_wire_metadata_never_becomes_checked_authority() {
     }
     let mut raw = original;
     raw["input"] = json!("flat");
-    assert_eq!(kernel(raw, "check")["ok"], false);
+    common::assert_wire_rejected(&kernel(raw, "check"), "E_PROTOCOL");
 }
 
 #[test]
@@ -175,9 +167,13 @@ fn indexed_annotations_and_lambdas_preserve_scope() {
         "mod geo; fn main() -> Int { let escaped = { let X = geo::affine(2); let packed = pack geo::Pointed<geo::Scheme, geo::QQ> { witness: X, fields: [geo::origin(X)] }; unpack packed as { witness: Y, fields: [p] }; p }; 0 }",
         "E_ESCAPE",
     );
-    rejected(
+    let message = rejected(
         "mod geo; fn bad(f: Fn<geo::Point<geo::Base, geo::Base>, Int>) -> Int { 0 } fn main() -> Int { 0 }",
-        "Fn",
+        "E_PROTOCOL",
+    );
+    assert!(
+        message.contains("Fn signatures contain only scalars and recursive Fn types"),
+        "{message}"
     );
 }
 

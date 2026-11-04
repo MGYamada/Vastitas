@@ -29,25 +29,12 @@ fn command(s: &Scratch, mode: &str) -> Command {
     command
 }
 fn captured(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = command(s, "check")
-        .env("VASTITAS_KERNEL", stub)
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(command(s, "check"), 8)
 }
 fn rejection(s: &Scratch, code: &str) {
     let output = command(s, "check").output().unwrap();
     assert!(!output.status.success(), "unexpected acceptance");
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains(code),
-        "expected {code}: {output:?}"
-    );
+    common::expect_code(&output, code);
 }
 fn module<'a>(raw: &'a mut Value, name: &str) -> &'a mut Value {
     raw["packages"][0]["modules"]
@@ -233,17 +220,27 @@ fn owned_numerical_results_preserve_identity_storage_and_reject_forged_contracts
         assert!(source.contains(before), "ineffective mutation: {before}");
         rejection(&fixture(&source.replace(before, after)), code);
     }
-    for replacement in [
-        json!({"kind":"owned_map", "source":"bu", "target":"bw", "checked":true}),
-        json!({"kind":"owned_map", "source":"bu", "target":"input"}),
-        json!({"kind":"owned_map", "source":"bu", "target":"missing"}),
-        json!({"kind":"owned_map", "source":"bu", "target":"bw", "allocation":0}),
+    for (replacement, code) in [
+        (
+            json!({"kind":"owned_map", "source":"bu", "target":"bw", "checked":true}),
+            "E_PROTOCOL",
+        ),
+        (
+            json!({"kind":"owned_map", "source":"bu", "target":"input"}),
+            "E_NUMERICAL_TYPE",
+        ),
+        (
+            json!({"kind":"owned_map", "source":"bu", "target":"missing"}),
+            "E_RESOURCE_NAME",
+        ),
+        (
+            json!({"kind":"owned_map", "source":"bu", "target":"bw", "allocation":0}),
+            "E_PROTOCOL",
+        ),
     ] {
         let mut altered = raw.clone();
         module(&mut altered, "real")["resource_functions"][3]["results"][0]["type"] = replacement;
-        let response = kernel(&altered, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(&altered, "emit"), code);
     }
     let local_basis = source.replace(
         "map result = owned(buffer, layout(8, 1, 1, 3, false), bu, bw);",
@@ -454,18 +451,22 @@ fn numerical_coefficients_check_actual_computed_scalar_loans_and_strict_wire() {
     assert_eq!(generated.matches("gemmScaled arena").count(), 6);
     assert_eq!(generated.matches("allocate arena").count(), 8);
     assert!(!generated.contains("copy arena"));
-    for value in [
-        json!(null),
-        json!({"kind":"loan", "loan":"output"}),
-        json!({"kind":"literal", "value":{"kind":"complex_f64", "real":0, "imaginary":0}}),
-        json!({"kind":"loan", "loan":"factor", "checked":true}),
+    for (value, code) in [
+        (json!(null), "E_PROTOCOL"),
+        (json!({"kind":"loan", "loan":"output"}), "E_RESOURCE_LOAN"),
+        (
+            json!({"kind":"literal", "value":{"kind":"complex_f64", "real":0, "imaginary":0}}),
+            "E_RESOURCE_COEFFICIENT",
+        ),
+        (
+            json!({"kind":"loan", "loan":"factor", "checked":true}),
+            "E_PROTOCOL",
+        ),
     ] {
         let mut altered = raw.clone();
         module(&mut altered, "real")["resource_functions"][1]["body"][0]["operation"]["alpha"] =
             value;
-        let response = kernel(altered, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(altered, "emit"), code);
     }
     let source = coefficient_source(false);
     for (before, after, code) in [
@@ -912,9 +913,7 @@ fn raw_numerical_wire_rejects_forged_ids_flags_and_old_envelopes() {
     for version in 2..8 {
         let mut old = raw.clone();
         old["version"] = json!(version);
-        let response = kernel(old, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(old, "emit"), "E_PROTOCOL");
     }
     for (op, key, value) in [
         ("space", "implementation", json!(0)),
@@ -1009,7 +1008,7 @@ fn numerical_build_flags_are_explicit_and_failure_preserves_existing_output() {
             .output()
             .unwrap();
         assert!(!output.status.success());
-        assert!(String::from_utf8_lossy(&output.stderr).contains("E_PROTOCOL"));
+        common::expect_code(&output, "E_PROTOCOL");
         assert_eq!(
             std::fs::read(s.0.join("program")).unwrap(),
             b"existing artifact"
@@ -1109,10 +1108,7 @@ fn public_real_complex_products_build_execute_and_keep_output_protection() {
     success(&build("failure"));
     let result = Command::new(s.0.join("failure")).output().unwrap();
     assert!(!result.status.success());
-    assert!(
-        String::from_utf8_lossy(&result.stderr).contains("E_NATIVE_EXPECT"),
-        "{result:?}"
-    );
+    common::expect_code(&result, "E_NATIVE_EXPECT");
     assert!(result.stdout.is_empty());
     let existing = std::fs::read(s.0.join("program")).unwrap();
     s.write(
@@ -1266,9 +1262,7 @@ fn typed_linear_transform_wire_rejects_forged_evidence_and_old_protocols() {
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
-        let response = kernel(changed, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
     }
     for (name, key, value, expected) in [
         ("vd", "parent", json!("w"), "E_NUMERICAL_TYPE"),
@@ -1734,7 +1728,7 @@ fn finite_network_wire_is_independently_checked_and_fails_closed() {
     for version in [2, 3, 4, 5, 6, 7] {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
-        assert_eq!(kernel(&changed, "check")["ok"], false);
+        common::assert_wire_rejected(&kernel(&changed, "check"), "E_PROTOCOL");
     }
 }
 
@@ -2017,22 +2011,18 @@ fn vector_evaluation_wire_rejects_injected_authority_and_downgrades() {
     for version in 2..8 {
         let mut changed = raw.clone();
         changed["version"] = json!(version);
-        let response = kernel(changed, "emit");
-        assert_eq!(response["ok"], false, "{response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(changed, "emit"), "E_PROTOCOL");
     }
-    for (name, key, value) in [
-        ("phi", "basis", json!("bv")),
-        ("x", "conjugate", json!(true)),
-        ("x", "origin", json!({"kind":"dual"})),
-        ("x", "allocation", json!(0)),
-        ("x", "checked", json!(true)),
+    for (name, key, value, code) in [
+        ("phi", "basis", json!("bv"), "E_NUMERICAL_TYPE"),
+        ("x", "conjugate", json!(true), "E_PROTOCOL"),
+        ("x", "origin", json!({"kind":"dual"}), "E_PROTOCOL"),
+        ("x", "allocation", json!(0), "E_PROTOCOL"),
+        ("x", "checked", json!(true), "E_PROTOCOL"),
     ] {
         let mut changed = raw.clone();
         local_operation(transform_body(&mut changed), name)[key] = value;
-        let response = kernel(changed, "emit");
-        assert_eq!(response["ok"], false, "{name}/{key}: {response}");
-        assert!(response.get("lean_source").is_none());
+        common::assert_wire_rejected(&kernel(changed, "emit"), code);
     }
     for field in ["conjugate_left", "loan", "checked", "metric"] {
         let mut changed = raw.clone();

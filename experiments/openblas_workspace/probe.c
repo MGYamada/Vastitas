@@ -4,6 +4,9 @@
 #include "gemm.h"
 #include <cblas.h>
 #include <assert.h>
+#ifdef NDEBUG
+#error "the probe checks its calls inside assert(); build without NDEBUG"
+#endif
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>

@@ -6,7 +6,7 @@
 - **Decision issue:** [#107](https://github.com/MGYamada/Vastitas/issues/107)
 - **Implementation tracker:** [#160](https://github.com/MGYamada/Vastitas/issues/160)
 - **Dependency boundary:** §9 records the merged local-kernel-only oracle and the separate mathematical bridge. [#285](https://github.com/MGYamada/Vastitas/issues/285) tracks the broader alignment work.
-- **Stage 3 admission:** §10 admits `std::differential` and `std::geometry::metric` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
+- **Stage 3 admission:** §10 admits `std::differential`, `std::geometry::metric` and `std::geometry::smooth::affine` for the finite smooth affine profile ([#604](https://github.com/MGYamada/Vastitas/issues/604)).
 
 ## Context and decision
 
@@ -200,105 +200,253 @@ The oracle dependency boundary and the mathematical correspondence obligations a
 ### 10. Smooth affine differentials and metrics (amendment, 2026-11-04)
 
 This amendment admits two families through the §8 procedure:
-`std::differential` and `std::geometry::metric`. It covers the finite profile
-of historical Stage 3 ([tracker #604](https://github.com/MGYamada/Vastitas/issues/604)).
-It also records the decision of
-[#360](https://github.com/MGYamada/Vastitas/issues/360) for smooth objects.
+`std::differential` and `std::geometry::metric`. It also admits the module
+`std::geometry::smooth::affine` under the `std::geometry` family of §4. All
+three serve the finite profile of historical Stage 3
+([tracker #604](https://github.com/MGYamada/Vastitas/issues/604)). The
+amendment records the decision of
+[#360](https://github.com/MGYamada/Vastitas/issues/360). It admits these
+contracts; it does not claim that they are implemented or proved. #604 tracks
+the implementation.
+
+#### Terms
+
+- A *smooth affine object* is a declared smooth real affine space
+  `Affine(n)[c₁, …, cₙ]` with named coordinates. It denotes `ℝⁿ`.
+- A *sealed classification* is a classification whose members are fixed by its
+  declaration. The smooth affine objects form the sealed classification
+  `CInfAffine`.
+- A *seed* is the covector that a pullback starts from.
+- *Executable kernel* means the Lean compiler kernel in `lean-kernel/`. It is
+  distinct from the official Lean kernel of §9.
+- The *wire* is the JSON request from the Rust frontend to the executable
+  kernel.
 
 #### Contract and jurisdiction
 
-- **Smooth objects.** `std::geometry::smooth::affine` declares the smooth real
-  affine space `Affine(n)` with `n` named coordinates. Mathematically it is
-  `ℝⁿ`. A declaration is one canonical object, and two declarations of the same
-  dimension are different objects. Smooth objects have their own sealed
-  classification. They never index the ordinary `Scheme` families, and the
-  ordinary presented objects never index smooth families.
-- **Smooth maps.** In this profile, a smooth map `ℝⁿ → ℝᵐ` is given by `m`
-  polynomials with exact rational coefficients in the source coordinates. Its
-  meaning is the real polynomial map.
-- **No manifold type (#360).** A smooth manifold is a smooth object together
-  with checked evidence that it is one. There is no `Manifold` or `Variety`
-  type. Gluing and `IsSmoothManifold` evidence are separate work
-  ([#606](https://github.com/MGYamada/Vastitas/issues/606)).
-- **`std::differential`** owns the metric-free cotangent pullback of §6. For a
-  smooth map `f`, a point `x` and a covector `η` over `f(x)`, the pullback is
-  `η ∘ Df(x)`, a covector over `x`. A covector over another point has no
-  pullback; the operation returns a checked failure value. The differential of
-  a function `φ: X → ℝ` is the pullback of the unit covector.
-- **`std::geometry::metric`** owns explicitly selected constant metrics
-  `MetricForm<X>` on a smooth object, together with separately declared
-  evidence. `flat(g)` lowers a vector. `sharp(g)` raises a covector and requires
-  nondegeneracy evidence for `g`. The gradient of `φ` with respect to `g` is the
-  ordinary library composition `sharp_g(dφ)`. It is not a differential
-  primitive.
-- **Split.** Core supplies the generic indexed families, the checked
-  declarations, the evidence records and code generation. `std` supplies the
-  definitions. The reverse pass is a kernel runtime routine; the kernel checks
-  every declaration before code generation.
+- **Smooth affine objects.**
+  - Each declaration introduces one object. Two declarations of the same
+    dimension introduce different objects.
+  - Smooth affine objects belong to `CInfAffine`. They must not index the
+    Stage 1 `Scheme` or `CInfScheme` families, or the Stage 2 presented
+    families. Objects of those families must not index the smooth families.
+  - Reconciling `CInfAffine` with the Stage 1 `CInfScheme` stays open in
+    [#103](https://github.com/MGYamada/Vastitas/issues/103).
+- **Smooth maps.**
+  - A smooth map `ℝⁿ → ℝᵐ` is given by `m` polynomials with exact rational
+    coefficients in the source coordinates. It denotes the real polynomial
+    map.
+  - Two smooth maps are equal when their coordinate polynomials are equal.
+    Over ℝ this is equality of the real maps.
+- **No manifold type (#360).**
+  - A smooth manifold is a `CInfScheme` object together with checked
+    `IsSmoothManifold(X, n)` evidence. That evidence requires Hausdorffness,
+    second countability and locally standard C∞ charts.
+  - There is no `Manifold`, `CInfManifold` or `Variety` type, and no
+    `std::geometry::smooth::manifold` module.
+  - Gluing and `IsSmoothManifold` evidence are tracked in
+    [#606](https://github.com/MGYamada/Vastitas/issues/606).
+- **`std::differential`** owns metric-free differentiation, the
+  `pullback(f, x, eta)` of §6. This supersedes the line in
+  [#264](https://github.com/MGYamada/Vastitas/issues/264) §1 that places
+  metric-free differentiation in `std::geometry::smooth`.
+  - For a smooth map `f`, a point `x` and a seed `η` over `f(x)`, the pullback
+    is the covector `η ∘ Df(x)` over `x`.
+  - In this profile, points are run-time values, so the basepoint index of §6
+    is checked at run time. A seed over another point gives the failure value
+    ⊥. ⊥ is absorbing, and it equals no covector.
+  - The differential `dφ` at `x` of a smooth function `φ: X → Affine(1)` is the
+    pullback of the coordinate covector `dt` at `φ(x)`.
+  - `std::differential` also owns `gradient(φ, using = g, evidence = e)`, the
+    `grad` of §4 and §6. It is the ordinary library composition
+    `sharp(dφ, using = g, evidence = e)`, not a differentiation primitive.
+- **`std::geometry::metric`.**
+  - A metric `MetricForm<X>` is a symmetric bilinear form on a smooth affine
+    object. It is given by a symmetric rational Gram matrix `G` in the declared
+    coordinates of `X`.
+  - Evidence is declared separately. It has two kinds, `nondegenerate(g)` and
+    `riemannian(g)`, and it names the metric it certifies.
+  - `flat(v, using = g)` maps a vector `v` at `x` to the covector `Gv` at `x`.
+  - `sharp(α, using = g, evidence = e)` maps a covector `α` at `x` to the
+    vector `G⁻¹α` at `x`. `e` must be nondegeneracy evidence for `g`.
+  - #264's general base requires `IsSmoothManifold` evidence. This profile uses
+    declared smooth affine objects only.
+- **Split between Core, `std` and backends.**
+  - Core supplies generic indexed families, checked declarations, evidence
+    records and code generation. Core gains no rule keyed by a type name.
+  - `std` declarations bind the kernel routines as primitives, as the Stage 2
+    presented-algebra profile does.
+  - The reverse pass is a runtime routine of the executable kernel. The
+    compiler emits no reverse Core in this profile.
+  - The executable kernel checks every declaration before code generation.
+  - There is no selectable backend. Floating-point backends are outside this
+    profile.
+
+#### Laws
+
+- The pullback is linear in the seed.
+- Pullback along the identity is the identity.
+- Pullback along `g ∘ f` at `x` equals pullback along `g` at `f(x)` followed by
+  pullback along `f` at `x`.
+- `sharp(flat(v)) = v` and `flat(sharp(α)) = α` for a metric with
+  nondegeneracy evidence.
 
 #### Admission argument
 
-- **A, intrinsic denotation.** The pullback is the transpose of the Fréchet
-  derivative at the point, composed with the seed. It does not depend on the
-  algorithm. The saved-tape and recomputing reverse passes must give the same
-  covector. `flat` and `sharp` are the linear maps of the selected Gram matrix
-  and its inverse.
-- **B, foundational target.** These are the defining operations of the
-  cotangent bundle and of a chosen metric. There is no refinement parameter.
-- **C, no hidden numerical choice.** Arithmetic is exact over the rationals.
-  No metric is ever inferred, the Euclidean metric included. Nondegeneracy and
-  positivity are never inferred from a sample, a tolerance or a type name.
-- **D, contract.** Basepoints, objects and variance are explicit. A wrong
-  object or variance is a static error. A wrong basepoint gives the failure
-  value. The Stage 3 acceptance map records a proof boundary
-  that keeps three claims apart:
-  - the structural facts about the runtime (oracle);
-  - the Fréchet comparison (mathlib bridge);
-  - the polynomial Kähler comparison (mathlib bridge).
+- **A, intrinsic denotation.**
+  - The pullback of a seed `η` is `Df(x)ᵀη = η ∘ Df(x)`, where `Df(x)` is the
+    Fréchet derivative of the real polynomial map at `x`. It does not depend on
+    the algorithm that computes it.
+  - Two covectors over one point are equal when their components in the dual
+    basis of the declared coordinates are equal.
+  - `flat` and `sharp` are the linear maps given by `G` and `G⁻¹`.
+- **B, foundational target.**
+  - The pullback is the action of the cotangent functor on a smooth map at a
+    point.
+  - `flat` and `sharp` are the musical isomorphisms of a selected metric.
+  - Finite differences and floating-point AD are realizations, not this
+    denotation.
+- **C, no hidden numerical choice.**
+  - Arithmetic is exact over the rationals.
+  - The profile infers no metric, including the Euclidean metric.
+  - Nondegeneracy and positivity are never inferred from a sample, a tolerance
+    or a type name.
+- **D, contract.**
+  - Basepoints, objects and variance (vector or covector) are explicit.
+  - A wrong object, a wrong variance or a wrong metric selection is a static
+    error. A wrong basepoint gives ⊥.
+  - Polynomial maps are smooth on all of ℝⁿ, so the profile has no domain or
+    regularity hypothesis.
+  - The Stage 3 acceptance map, planned in #604, must keep four kinds of claim
+    apart:
+    - structural facts about the runtime, proved in the oracle;
+    - the Fréchet comparison, proved in the mathlib bridge;
+    - the polynomial Kähler comparison, proved in the mathlib bridge;
+    - tests, which are evidence but not proofs.
 
 #### Execution and evidence profile
 
-- **Executable profile.** Exact rational polynomial maps between declared
-  smooth affine spaces of dimension at most 16, at rational points, and
-  constant rational metrics.
-- **Independent conformance.** `scripts/metric_free_reference.py` and
-  `scripts/metric_reference.py` generate a fixture that the kernel must match.
-- **Certificates.** Metric evidence is an exact inverse, or an exact `L D Lᵀ`
-  factorization with positive `D`. The kernel computes each certificate and
-  checks it before acceptance. Certificates never come from the wire.
-- **Not claimed.**
-  - C∞-ring differentials as modules, and position-dependent metrics.
-  - Compiler-emitted reverse Core, forward mode and the Hessian-vector product
-    (#161).
-  - Floating-point realizations and performance.
+- **Executable profile.** The profile consists of:
+  - exact rational polynomial maps between smooth affine objects of dimension
+    at most 16, the `algebraGenerators` [limit](../appendix/limits.md);
+  - rational points;
+  - constant rational metrics.
+- **Saved and recomputed forward values.**
+  - The *saved-tape* reverse pass stores every intermediate point during a
+    forward pass.
+  - The *recomputing* reverse pass evaluates each intermediate point again.
+  - Both passes must give the same covector.
+- **Scalars.** Exact rationals stay inside the runtime. They surface as `Int`
+  inputs and `Pair<Int>` observations.
+- **Wire.** The profile uses protocol 9 only. Protocols 7 and 8 are an error
+  (`E_PROTOCOL`).
+- **Independent reference.**
+  - The executable kernel must match a fixture generated from
+    `scripts/metric_free_reference.py` and `scripts/metric_reference.py`
+    (#604, C16).
+  - These references cover the real plane only: maps ℝ² → ℝ², functions
+    ℝ² → ℝ and 2 × 2 Gram matrices. Dimensions 3 to 16 have no independent
+    reference.
+- **Certificates.**
+  - Nondegenerate evidence is an exact inverse. Riemannian evidence is an exact
+    `L D Lᵀ` factorization with positive `D`.
+  - The executable kernel must compute each certificate and check it again
+    before acceptance. Certificates never come from the wire.
+  - Evidence is sound because the kernel re-checks it. That the search finds a
+    certificate for every invertible or positive-definite form is tested, not
+    proved.
+- **Trust.** Native tests are evidence, not proofs. Native refinement of the
+  runtime is not claimed.
+
+#### Outside this admission
+
+- Compiler-emitted reverse Core
+  ([#361](https://github.com/MGYamada/Vastitas/issues/361),
+  [#290](https://github.com/MGYamada/Vastitas/issues/290),
+  [#164](https://github.com/MGYamada/Vastitas/issues/164)).
+- The forward-over-reverse Hessian-vector product that §6 requires, with its
+  Weil-lift semantics ([#161](https://github.com/MGYamada/Vastitas/issues/161),
+  [#381](https://github.com/MGYamada/Vastitas/issues/381)). This profile does
+  not discharge that requirement. Forward mode stays a third-party
+  interpretation (§6).
+- C∞-ring differentials as modules (#381). They stay specification-only.
+- Custom derivative rules and non-polynomial primitives
+  ([#163](https://github.com/MGYamada/Vastitas/issues/163)). Without custom
+  rules, authority escalation does not apply.
+- Complex AD ([#71](https://github.com/MGYamada/Vastitas/issues/71)), closures
+  ([#570](https://github.com/MGYamada/Vastitas/issues/570)) and checkpointing
+  beyond save-all and recompute-all
+  ([#544](https://github.com/MGYamada/Vastitas/issues/544)).
+- Gluing and `IsSmoothManifold` evidence (#606).
+- Position-dependent metrics, `signature`, `causal_kind` and orthogonal
+  complements (#264 §3).
+- Floating-point realizations and performance
+  ([#222](https://github.com/MGYamada/Vastitas/issues/222)).
 
 #### Negative tests
 
-The profile rejects all of the following, each with a specific diagnostic:
-- a covector over another object;
-- a vector where a covector is required;
-- map images in the target's coordinates;
-- smooth objects in ordinary-scheme families, and the reverse;
-- a singular metric claimed nondegenerate;
-- an indefinite metric claimed Riemannian;
-- `sharp` without evidence, or with evidence for another metric;
-- an ambiguous metric selection;
-- forged certificates on the wire and tampered Core.
+The Stage 3 profile must reject each of the following with its own diagnostic.
+All of these tests are proposed; none has run yet (#604, C1, C6 and C12–C15).
 
-A covector over another point gives the failure value.
+- **Objects:** an implementation mismatch, a dimension that differs from the
+  coordinate count, `spec` under a smooth implementation, and a smooth global
+  (`E_SMOOTH`).
+- **Families:** smooth objects in Stage 1 or Stage 2 families, and the reverse.
+- **Maps:** a map whose image polynomials use the target's coordinates instead
+  of the source's.
+- **Pullbacks:**
+  - a seed over another object;
+  - a vector where a covector is required;
+  - a tape from another point.
+- **Metrics:**
+  - an asymmetric, wrong-size, non-constant or foreign-object metric;
+  - an omitted metric, including an implicit Euclidean default;
+  - an ambiguous metric selection.
+- **Evidence:**
+  - a singular metric claimed nondegenerate;
+  - an indefinite metric claimed Riemannian;
+  - `sharp` without evidence, with wrong-kind evidence, or with evidence for
+    another metric.
+- **Inputs and transport:** floating-point inputs, protocols 7 and 8, a wire
+  payload that carries a certificate, and tampered Core.
+
+A seed over another point gives ⊥, and ⊥ propagates through a wrong
+intermediate basepoint.
 
 #### Compatibility and public-name audit
 
-- **`MetricForm` versus `Metric`.** The mathematical `MetricForm` is
-  nominally distinct from the numerical protocol-8 diagonal Hermitian `Metric`.
-  Neither converts to the other. The rename of the protocol-8 type remains
-  open in #264.
-- **`Affine` versus `Affine(K, n)`.** The function-body builtin `Affine` keeps
-  its Stage 1 meaning. `Affine(n)` and `Affine(K, n)` appear in declarations
-  only.
-- **Packages.** The new `std::differential` package depends on the geometry
-  package. The geometry package does not depend on it.
-- **Implementation tracker:** #604.
+- **Operation names.**
+  - The intended `std::differential` operations are `pullback`, `differential`,
+    `linearize`, `backward` and `gradient`. `pullback` is the operation of §6,
+    and `gradient` is its `grad`.
+  - The implementation fixes the final names in #604, and they must not shadow
+    existing names. Smooth-map `compose` and the identity must not be ambiguous
+    with `std::geometry::compose` and `std::geometry::smooth::id`.
+- **`MetricForm`.**
+  - `MetricForm` is nominally distinct from the protocol-8 diagonal Hermitian
+    `Metric`. Neither converts to the other.
+  - `MetricForm` is also distinct from `MetricSpace`
+    ([#382](https://github.com/MGYamada/Vastitas/issues/382)).
+- **`Affine` forms.**
+  - The declaration forms `Affine(n)[c₁, …, cₙ]` and `Affine(K, n)[…]` appear
+    in declarations only. `Affine(K, n)[…]` is sugar for the Stage 2
+    `spec[…] over K`.
+  - In function bodies, `Affine(n)` keeps its Stage 1 meaning as the
+    descriptor primitive of `std::geometry::scheme` or `std::geometry::smooth`.
+  - `geometry_compat` still resolves `Affine(QQ, n)` and `Affine(CInfReal, n)`.
+  - A smooth affine declaration still names its implementation, for example
+    `SmoothR`. So #103's "no public CInfReal ceremony" is met only partly.
+- **Packages.**
+  - The `std::differential` package depends on the geometry package, including
+    `std::geometry::metric`.
+  - The geometry package does not depend on `std::differential`.
+  - The pullback and `differential` do not depend on any metric declaration
+    (#604, C12).
+- **Versions and migration.**
+  - The profile adds no protocol
+    ([#533](https://github.com/MGYamada/Vastitas/issues/533)).
+  - Existing programs keep their meaning.
+  - The protocol-8 `Metric` keeps its name until #264 decides the rename.
 
 ## Consequences, validation and migration
 

@@ -72,6 +72,6 @@ authority_transfer 42
 authority_repaired 42
 authority_empty 5
 smooth_programs 42
-cotangent_programs 42
+smooth_cotangent_programs 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

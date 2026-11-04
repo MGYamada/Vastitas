@@ -58,7 +58,7 @@ def main (arguments : List String) : IO Unit := do
       ("multiple_fields", PackageSemanticRegression.multipleFieldsFixture),
       ("source_declarations", sourceFixture), ("source_types", typeFixture),
       ("smooth_programs", VastitasKernel.Indexed.SmoothObjectRegression.smoothFixture),
-      ("cotangent_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture)] ++ bodies do
+      ("smooth_cotangent_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture)] ++ bodies do
     let .ok checked := Typing.checkModule module true
       | throw (IO.userError s!"fixture {name} rejected")
     let .ok source := Codegen.generate checked

@@ -539,9 +539,60 @@ mod tests {
                 object: path("Line"),
                 point: path("Pt"),
             }),
+            primitive(Primitive::FiberVector {
+                family: path("Cotangent"),
+                map_family: path("Smooth"),
+                object: path("Line"),
+            }),
+            primitive(Primitive::FiberAt {
+                family: path("Cotangent"),
+                map_family: path("Smooth"),
+            }),
+            primitive(Primitive::FiberEqual {
+                family: path("Cotangent"),
+            }),
+            primitive(Primitive::FiberComponent {
+                family: path("Cotangent"),
+                object: path("Line"),
+                coordinate: "t".into(),
+            }),
+            primitive(Primitive::FiberPairing {
+                cotangent: path("Cotangent"),
+                tangent: path("Tangent"),
+            }),
+            primitive(Primitive::CotangentPullback {
+                map_family: path("Smooth"),
+                cotangent: path("Cotangent"),
+                mode: PullbackMode::Recomputed,
+            }),
+            primitive(Primitive::Differential {
+                map_family: path("Smooth"),
+                cotangent: path("Cotangent"),
+                line: path("Line"),
+            }),
+            primitive(Primitive::Linearize {
+                map_family: path("Smooth"),
+                tape: path("Tape"),
+            }),
+            primitive(Primitive::CotangentBackward {
+                tape: path("Tape"),
+                cotangent: path("Cotangent"),
+            }),
         ];
         for form in &forms {
             assert!(form.is_algebraic(), "{form:?}");
+        }
+        for representation in [
+            FamilyRepresentation::Cotangent,
+            FamilyRepresentation::Tangent,
+            FamilyRepresentation::Tape,
+        ] {
+            let family = DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: Vec::new(),
+                representation,
+            };
+            assert!(family.is_algebraic(), "{family:?}");
         }
     }
 

@@ -61,13 +61,7 @@ may raise limits.
 
 - [Book contents](docs/SUMMARY.md) list the active specifications, proof boundaries,
   reference models and maintenance procedures. Track decisions in current Issues.
-- [Dispatch and contracts](docs/stage1a.md), [functions](docs/stage1b.md),
-  [packages and edit authority](docs/packages.md), [indexed types](docs/indexed-source.md).
-- [Storage checker](docs/storage/checked-storage.md), [resource programs](docs/storage/resource-programs.md),
-  [GEMM](docs/linalg/maps-and-gemm.md), [transforms](docs/linalg/transforms-and-metrics.md),
-  [networks and packing](docs/linalg/networks-and-packing.md).
-- [Core and graph proofs](docs/verification/core-models.md), [verification](docs/verification.md).
-  See [documentation maintenance](docs/development/documentation.md) for book changes.
+  Write book changes by the [style guide](docs/development/documentation.md#style-guide).
 
 ## Validation
 

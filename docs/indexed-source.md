@@ -584,7 +584,15 @@ The Core layer below additionally checks actual field terms; the later
 
 ### Closed primitive binding inventory
 
-`IndexedPrimitives.lean` represents explicit bindings to a closed finite registry.
+`IndexedPrimitiveBinding.lean` declares the explicit bindings of a closed finite
+registry. `IndexedPrimitiveShapes.lean` defines the shape that describes a
+binding's operands, their agreements and its result,
+`IndexedPrimitiveDescriptors.lean` what a binding's descriptor holds,
+`IndexedPrimitiveRegistry.lean` holds one descriptor per binding, and
+`IndexedPrimitives.lean` derives every binding's validity contract, operand
+association, result inference and operand count from it; the argument hints of
+`IndexedCore.lean` and the role table of `IndexedSourceDiagnostics.lean` come
+from the same shape.
 No source spelling, arbitrary native symbol, certificate string or `trusted` flag
 chooses an implementation. The binding IDs, operand annotations and result
 annotation are independently audited against the same checked environment.
@@ -916,7 +924,7 @@ not an alternative semantic acceptance rule.
 | Calls named Affine/Base/origin/id/dimension/compose/apply: kernel `IndexedSourceBodies.lean`, `IndexedFunctionBodies.lean` | Adapter chooses profile declaration IDs, then invokes the same primitive emitter as qualified calls. Fallback is permitted only for an unresolved legacy name (`E_NAME`); a resolved declaration or visibility error never falls back. Operands execute once, in source order. |
 | Capture and global-name handling: kernel `IndexedFunctionScope.lean`, `IndexedFunctionBodies.lean` | General mechanism plus adapter names: traverse type indices and package fields as well as expressions; distinguish global declarations from local bindings. Independent lambdas cannot capture outer bindings. Scalar/Fn signature limits remain unchanged. |
 | Object identity, substitution and escape: kernel `IndexedCore.lean`, `IndexedTyping.lean`, `IndexedTypeAudit.lean` | General mechanism: unique allocation serials, fixed globals, dependent substitution, generative ordinary object returns/branch merges/openings, and traversal of every free type index, including tokens. Equal descriptors are not identity evidence. |
-| Primitive behavior: kernel `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean` | Closed explicit registry; see the table below. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
+| Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean` | Closed explicit registry; see the table below. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
 | Diagnostic names/locations: kernel `IndexedSourceDiagnostics.lean`, `IndexedSourceBodies.lean` | Presentation only. “Affine” introduction notes do not choose implementation, merge identities or authorize an operation. |
 | Native lowering: kernel `IndexedCodegen.lean` | General Core lowering selected by validated binding/representation tags, not source spelling. Rechecks all declarations, types, scopes, freshness and actual dependencies before emitting reachable functions. Generated modules import only `IndexedRuntime`. Mutable storage is not yet represented. |
 | Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionChecker`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |

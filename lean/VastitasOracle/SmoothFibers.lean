@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedSemantics
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothPrimitives
+import VastitasOracle.IndexedAssociations
 
 set_option autoImplicit false
 
@@ -286,7 +287,7 @@ theorem fiberVector_total {env : Indexed.Environment} {world : World} {family sm
       (.indexed ⟨sf, [.object (.global point), .object x]⟩ :: components)) :
     SmoothOutcome env world (.fiberVector family smooth object) values output := by
   have valid : fiberVectorValid env family smooth object = true := rule.bindingValid
-  obtain ⟨rfl, rfl, pointZero, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, pointZero, rfl⟩ := IndexedAssociations.fiberVector_association.mp rule.association
   unfold fiberVectorValid at valid
   simp only [Bool.and_eq_true] at valid
   obtain ⟨⟨⟨fiberSome, smoothFamily⟩, objectSome⟩, _⟩ := valid
@@ -315,7 +316,7 @@ theorem fiberAt_total {env : Indexed.Environment} {world : World} {family smooth
       [.indexed ⟨ff, [.object x]⟩, .indexed ⟨sf, [.object (.global point), .object x']⟩]) :
     SmoothOutcome env world (.fiberAt family smooth) values output := by
   have valid : fiberAtValid env family smooth = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl, _, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, _, rfl⟩ := IndexedAssociations.fiberAt_association.mp rule.association
   unfold fiberAtValid at valid
   simp only [Bool.and_eq_true] at valid
   obtain ⟨variance, representation⟩ := fiber_family_some valid.1
@@ -331,7 +332,7 @@ theorem fiberEqual_total {env : Indexed.Environment} {world : World} {family : D
     (typed : PrimitiveValuesHaveTypes env world values [.indexed left, .indexed right]) :
     SmoothOutcome env world (.fiberEqual family) values output := by
   have valid : fiberEqualValid env family = true := rule.bindingValid
-  obtain ⟨familyEqual, rfl, rfl⟩ := rule.association
+  obtain ⟨familyEqual, _, rfl, rfl⟩ := IndexedAssociations.fiberEqual_association.mp rule.association
   obtain ⟨variance, representation⟩ := fiber_family_some valid
   rw [← familyEqual] at representation
   obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := values_pair typed
@@ -347,7 +348,7 @@ theorem fiberComponent_total {env : Indexed.Environment} {world : World} {family
     (typed : PrimitiveValuesHaveTypes env world values [.indexed ⟨ff, [.object x]⟩]) :
     SmoothOutcome env world (.fiberComponent family object coordinate) values output := by
   have valid : fiberComponentValid env family object coordinate = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl⟩ := IndexedAssociations.fiberComponent_association.mp rule.association
   unfold fiberComponentValid at valid
   simp only [Bool.and_eq_true] at valid
   obtain ⟨variance, representation⟩ := fiber_family_some valid.1.1
@@ -364,7 +365,7 @@ theorem fiberPairing_total {env : Indexed.Environment} {world : World} {cotangen
     (typed : PrimitiveValuesHaveTypes env world values [.indexed ⟨cf, [.object x]⟩, .indexed ⟨tf, [.object x']⟩]) :
     SmoothOutcome env world (.fiberPairing cotangent tangent) values output := by
   have valid : fiberPairingValid env cotangent tangent = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := IndexedAssociations.fiberPairing_association.mp rule.association
   unfold fiberPairingValid at valid
   simp only [Bool.and_eq_true] at valid
   obtain ⟨first, second, rfl, firstTyped, secondTyped⟩ := values_pair typed
@@ -414,7 +415,7 @@ theorem cotangentPullback_total {env : Indexed.Environment} {world : World}
         .indexed ⟨cf, [.object y']⟩]) :
     SmoothOutcome env world (.cotangentPullback smooth cotangent mode) values output := by
   have valid : cotangentPullbackValid env smooth cotangent = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl, rfl, rfl, pointZero, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl, rfl, pointZero, rfl⟩ := IndexedAssociations.cotangentPullback_association.mp rule.association
   unfold cotangentPullbackValid at valid
   simp only [Bool.and_eq_true] at valid
   have smoothRepresentation := smooth_family valid.1
@@ -435,7 +436,7 @@ theorem differential_total {env : Indexed.Environment} {world : World}
       [.indexed ⟨mf, [.object x, .object y]⟩, .indexed ⟨pf, [.object (.global point), .object x']⟩]) :
     SmoothOutcome env world (.differential smooth cotangent line) values output := by
   have valid : differentialValid env smooth cotangent line = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl, rfl, pointZero, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl, pointZero, rfl⟩ := IndexedAssociations.differential_association.mp rule.association
   unfold differentialValid at valid
   simp only [Bool.and_eq_true] at valid
   have smoothRepresentation := smooth_family valid.1.1
@@ -455,7 +456,7 @@ theorem linearize_total {env : Indexed.Environment} {world : World} {smooth tape
       [.indexed ⟨mf, [.object x, .object y]⟩, .indexed ⟨pf, [.object (.global point), .object x']⟩]) :
     SmoothOutcome env world (.linearize smooth tape) values output := by
   have valid : linearizeValid env smooth tape = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl, pointZero, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, pointZero, rfl⟩ := IndexedAssociations.linearize_association.mp rule.association
   unfold linearizeValid at valid
   simp only [Bool.and_eq_true] at valid
   obtain ⟨mapValue, pointValue, rfl, mapTyped, pointTyped⟩ := values_pair typed
@@ -473,7 +474,7 @@ theorem cotangentBackward_total {env : Indexed.Environment} {world : World} {tap
       [.indexed ⟨tf, [.object x, .object y]⟩, .indexed ⟨cf, [.object y']⟩]) :
     SmoothOutcome env world (.cotangentBackward tape cotangent) values output := by
   have valid : cotangentBackwardValid env tape cotangent = true := rule.bindingValid
-  obtain ⟨rfl, rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl, rfl⟩ := IndexedAssociations.cotangentBackward_association.mp rule.association
   unfold cotangentBackwardValid at valid
   simp only [Bool.and_eq_true] at valid
   have cotangentRepresentation := fiber_family_cotangent valid.2

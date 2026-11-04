@@ -255,11 +255,9 @@ theorem primitive_fresh {env : Declarations} {world : World} {binding : Primitiv
     PrimitiveFresh binding world (primitiveBrand result) := by
   cases binding <;> try trivial
   case descriptor implementation =>
-    have association := rule.association
-    unfold PrimitiveAssociation at association
-    split at association <;> try contradiction
-    · obtain ⟨type, _, _, rfl⟩ := association
-      exact fresh _ (by simp [primitiveSlots, (descriptor_serial converted).1])
+    obtain rfl := IndexedAssociations.descriptor_shape rule.association
+    obtain ⟨type, _, _, rfl⟩ := IndexedAssociations.descriptor_association.mp rule.association
+    exact fresh _ (by simp [primitiveSlots, (descriptor_serial converted).1])
 
 def branchSlots (yes no result : Result) : List Nat :=
   if yes.reference = no.reference then [] else resultSerials result

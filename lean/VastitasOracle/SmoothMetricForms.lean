@@ -1,6 +1,7 @@
 import VastitasKernel.IndexedSemantics
 import VastitasOracle.SmoothMetrics
 import VastitasOracle.SmoothFibers
+import VastitasOracle.IndexedAssociations
 
 set_option autoImplicit false
 
@@ -285,7 +286,7 @@ theorem metricFlat_total {env : Indexed.Environment} {world : World}
     SmoothPrimitives.SmoothOutcome env world (.metricFlat metric object gram tangent cotangent) values output := by
   obtain ⟨_, n, _, dimension, isSquare, tangentVariance, cotangentVariance⟩ :=
     flat_uses_declared_gram rule.bindingValid
-  obtain ⟨rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl⟩ := IndexedAssociations.metricFlat_association.mp rule.association
   obtain ⟨value, rfl, valueTyped⟩ := SmoothPrimitives.values_single typed
   obtain ⟨fiber, x', n', rfl, indices, hx, fiberTyped⟩ :=
     SmoothFibers.fiber_value (SmoothFibers.fiber_family tangentVariance) valueTyped
@@ -308,7 +309,7 @@ theorem metricSharp_total {env : Indexed.Environment} {world : World}
   obtain ⟨_, n, _, dimension, _, isSquare, cotangentVariance, tangentVariance⟩ :=
     sharp_valid_parts (rule.bindingValid : metricSharpValid env metric evidence object gram inverse cotangent
       tangent = true)
-  obtain ⟨rfl, rfl, rfl⟩ := rule.association
+  obtain ⟨rfl, rfl, rfl⟩ := IndexedAssociations.metricSharp_association.mp rule.association
   obtain ⟨value, rfl, valueTyped⟩ := SmoothPrimitives.values_single typed
   obtain ⟨fiber, x', n', rfl, indices, hx, fiberTyped⟩ :=
     SmoothFibers.fiber_value (SmoothFibers.fiber_family cotangentVariance) valueTyped

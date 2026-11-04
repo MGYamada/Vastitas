@@ -22,24 +22,11 @@ theorem validPackageOpening_iff (env : Environment) (shape : PackageShape) (allo
   simp [validPackageOpening, PackageOpening.Valid, Bool.and_eq_true, List.all_eq_true,
     validApplication_iff, and_assoc]
 
+/-- The executable contract decides the propositional one: each registry entry
+carries the agreement of its own `Bool` and `Prop`, so no binding needs a case here. -/
 theorem validPrimitiveBinding_iff (env : Environment) (binding : PrimitiveBinding) :
-    validPrimitiveBinding env binding = true ↔ binding.Valid env := by
-  cases binding with
-  | descriptor implementation =>
-    simp only [validPrimitiveBinding, PrimitiveBinding.Valid]
-    cases implementationType env implementation <;> simp [Bool.and_eq_true]
-  | global => simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true]
-  | origin | identity =>
-    simp [validPrimitiveBinding, PrimitiveBinding.Valid, originContract, identityContract,
-      Bool.and_eq_true, validApplication_iff, and_assoc]
-  | dimension | compose | apply =>
-    simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true]
-  | relativeConstant | relativeCompose | relativeView | relativeEqual | relativeCoefficient
-    | relativeIntPoint | relativePair | relativeIso | relativeCartesian
-    | smoothConstant | smoothCompose | smoothEqual | smoothIntPoint | smoothComposite
-    | fiberVector | fiberAt | fiberEqual | fiberComponent | fiberPairing | cotangentPullback
-    | differential | linearize | cotangentBackward | metricFlat | metricSharp =>
-    simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true, and_assoc]
+    validPrimitiveBinding env binding = true ↔ binding.Valid env :=
+  binding.contract.valid_iff env
 
 theorem validValueType_iff (env : Environment) (type : ValueType) :
     validValueType env type = true ↔ type.Valid env := by

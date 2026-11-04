@@ -30,6 +30,24 @@ The last two lines replay every built Oracle and kernel module with the official
 independent verifier, and it also reads stale `.olean` files left in `.lake`
 by renamed modules, so run it on a clean build.
 
+## Pinned generated code
+
+`tests/emit_golden.rs` compares the Lean that the kernel emits for a fixed
+set of packages with `tests/fixtures/emit/*.lean`. Together those packages
+declare every wire primitive and lower each one from an entry point; the test
+asserts both. A change to code generation must regenerate the fixtures and
+review their diff:
+
+```sh
+VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
+```
+
+Regeneration is refused under CI. For every example and manifest,
+`scripts/capture_emit.py` records the wire request, the `check` and `emit`
+responses and the generated Lean, and `--compare` reports every byte that
+differs from an earlier capture. A change that promises identical generated
+code runs it before and after.
+
 ## Memory budget for local verification
 
 Run the heavy checks one at a time, and not while another process builds

@@ -1,0 +1,16 @@
+pub indexed marker QQ;
+pub indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+pub indexed classification Scheme { parents(); domain(Grid); };
+pub indexed global Base(Grid);
+pub indexed family Point(object(Scheme), object(Scheme)) = point constraints(same_base(0, 1));
+pub indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));
+pub indexed package Pointed {
+    case(Scheme, QQ) { Point(witness, global(Base)); }
+};
+pub indexed primitive affine = descriptor(Grid);
+pub indexed primitive baseObject = global(Base);
+pub indexed primitive origin = origin((Scheme, QQ), Point, Base);
+pub indexed primitive identity = identity((Scheme, QQ), Morphism);
+pub indexed primitive dimension = dimension((Scheme, QQ));
+pub indexed primitive compose = compose(Morphism);
+pub indexed primitive apply = apply(Morphism, Point);

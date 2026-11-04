@@ -33,7 +33,8 @@ int main(void) {
 # many of them (NO_AVX2, NUM_THREADS, BUFFERSIZE, LDFLAGS, CPPFLAGS, ...). The
 # supported profile is therefore built from an allow-list, not by removing
 # known names. CC stays selectable; check_profile verifies the result.
-BUILD_ENVIRONMENT = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "CC", "SDKROOT", "DEVELOPER_DIR")
+BUILD_ENVIRONMENT = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "LC_CTYPE", "CC", "SDKROOT", "DEVELOPER_DIR",
+                     "MACOSX_DEPLOYMENT_TARGET")
 
 
 def build_environment(source) -> dict[str, str]:

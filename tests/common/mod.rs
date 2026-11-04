@@ -118,11 +118,12 @@ pub fn reject(source: &str, code: &str, filename: &str) -> String {
 /// The diagnostic codes in rendered compiler or executable output, in order.
 /// A diagnostic line is `<path>:<line>:<column>: CODE: message`, `CODE: message`
 /// or `<prefix>: CODE: message` (for example Lean's `uncaught exception:`).
-/// Each line contributes at most its first code; notes, usage text and message
-/// continuations contribute none.
+/// Each line contributes at most its first code; notes (which may quote other
+/// codes), usage text and message continuations contribute none.
 pub fn diagnostic_codes(stderr: &str) -> Vec<String> {
     stderr
         .lines()
+        .filter(|line| !line.starts_with("note: ") && !line.contains(": note: "))
         .filter_map(|line| {
             let starts = std::iter::once(0).chain(line.match_indices(": ").map(|(at, _)| at + 2));
             starts

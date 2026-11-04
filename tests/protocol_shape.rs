@@ -133,6 +133,8 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
 // numerical, tree, network, storage and named-recipient edit programs.
 #[test]
 fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape() {
+    // The promotion example depends on the generated stdlib package.
+    common::prepare_stdlib_package();
     let examples = common::root().join("examples/packages");
     let mut cases = Vec::new();
     for (package, version) in [

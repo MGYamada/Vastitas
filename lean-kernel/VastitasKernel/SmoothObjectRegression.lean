@@ -42,10 +42,17 @@ private def declarations : List Source.Declaration := [
   morphism "gf" "Line" "Line" (.pullback [("t", .product [n 2, .pow (c "t") 2])]),
   morphism "idP" "Plane" "Plane" .identity,
   morphism "eighteen" "Pt" "Line" (.pullback [("t", n 18)]),
+  morphism "three" "Pt" "Line" (.pullback [("t", n 3)]),
+  morphism "minusThree" "Pt" "Line" (.pullback [("t", .neg (n 3))]),
+  morphism "onePlusTwo" "Pt" "Plane" (.pullback [("x", n 1), ("y", n 2)]),
+  -- A shear of the plane, written y-first: (x, y) ↦ (x + y, y).
+  morphism "shearA" "Plane" "Plane" (.pullback [("x", .sum [c "x", c "y"]), ("y", c "y")]),
+  morphism "shearYFirst" "Plane" "Plane" (.pullback [("y", c "y"), ("x", .sum [c "x", c "y"])]),
   decl "compose" (.primitive (.smoothCompose (path "Smooth"))),
   decl "same" (.primitive (.smoothEqual (path "Smooth"))),
   decl "composite" (.primitive (.smoothComposite (path "Smooth"))),
-  decl "line_at" (.primitive (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt"))) ]
+  decl "line_at" (.primitive (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt"))),
+  decl "plane_at" (.primitive (.smoothIntPoint (path "Smooth") (path "Plane") (path "Pt"))) ]
 
 /-- The Stage 2 profile, to check that the two kinds of object stay apart. -/
 private def presented : List Source.Declaration := [
@@ -110,9 +117,22 @@ private def mapOf (name : String) : Option Map :=
      SmoothRuntime.same (.compose (.primitive g) (.primitive f)) (.primitive gf) &&
        SmoothRuntime.composite (.compose (.primitive g) (.primitive f)) == .primitive gf
    | _, _, _ => false)
+private def mapIn (p : Source.Program) (name : String) : Option Map :=
+  match Source.checkDeclarations p with
+  | .ok checked => match checked.resolved.declarations.primitive? (id name) with
+    | some (.smoothConstant _ map) => some map
+    | _ => none
+  | .error _ => none
 #eval check "pullback images are stored in target-coordinate order"
-  (code (program (declarations.map fun d => if d.name == "f" then
-    morphism "f" "Line" "Plane" (.pullback [("y", .pow (c "t") 2), ("x", c "t")]) else d)) == "accepted")
+  ((mapIn (with' [morphism "fYFirst" "Line" "Plane" (.pullback [("y", .pow (c "t") 2), ("x", c "t")])])
+    "fYFirst").isSome &&
+   mapIn (with' [morphism "fYFirst" "Line" "Plane" (.pullback [("y", .pow (c "t") 2), ("x", c "t")])])
+    "fYFirst" == mapOf "f")
+#eval check "a shear written y-first stores the images in target order"
+  (mapOf "shearYFirst" == some ⟨2, [], [Poly.add (Poly.var 2 0) (Poly.var 2 1), Poly.var 2 1]⟩)
+#eval check "integer points keep their sign and coordinate order"
+  (mapOf "minusThree" == some (Map.intPoint [-3]) && mapOf "onePlusTwo" == some (Map.intPoint [1, 2]) &&
+    mapOf "onePlusTwo" != some (Map.intPoint [2, 1]))
 
 -- An executable Core module over the checked declarations, also compiled by
 -- the native fixture script.
@@ -136,7 +156,16 @@ private def smoothMain : Core.Function := {
       (constant "eighteen" "Pt" "Line")) 3 <|
     guarded (sameTerm (composeTerm (constant "idP" "Plane" "Plane") (constant "f" "Line" "Plane") "Line" "Plane")
       (constant "f" "Line" "Plane")) 4 <|
-    .integer 42 }
+    guarded (sameTerm (.primitive (id "line_at") [.integer 3] (smoothType "Pt" "Line"))
+      (constant "three" "Pt" "Line")) 5 <|
+    guarded (sameTerm (.primitive (id "line_at") [.integer (-3)] (smoothType "Pt" "Line"))
+      (constant "minusThree" "Pt" "Line")) 6 <|
+    guarded (sameTerm (.primitive (id "plane_at") [.integer 1, .integer 2] (smoothType "Pt" "Plane"))
+      (constant "onePlusTwo" "Pt" "Plane")) 7 <|
+    .branch (sameTerm (.primitive (id "plane_at") [.integer 2, .integer 1] (smoothType "Pt" "Plane"))
+      (constant "onePlusTwo" "Pt" "Plane")) (.integer 8) (
+    guarded (sameTerm (constant "shearYFirst" "Plane" "Plane") (constant "shearA" "Plane" "Plane")) 9 <|
+    .integer 42) ⟨.pure .int, none⟩ }
 
 /-- The smooth programs of this regression as one audited Core module. -/
 def smoothFixture : Core.Module := ⟨resolved.getD default, [smoothMain], some 0⟩
@@ -246,10 +275,118 @@ private def tamperIndexed (edit : Environment → Environment) : Bool :=
   | some env => !Core.validDeclarations { env with primitives := env.primitives ++
       [⟨id "bad", .smoothIntPoint (id "Smooth") (id "Plane") (id "Line")⟩] }
   | none => false)
-#eval check "forged smooth constant on a relative application" (match resolved with
+#eval check "forged smooth constant on a one-index Smooth application" (match resolved with
   | some env => !Core.validDeclarations { env with primitives := env.primitives ++
       [⟨id "bad", .smoothConstant ⟨id "Smooth", [.object (.global (id "Line"))]⟩ ⟨1, [], []⟩⟩] }
   | none => false)
+
+-- Cross-family tampering: smooth bindings never accept a token or relative
+-- family, and relative bindings never accept a smooth family.
+private def crossFamilies : List Source.Declaration := presented ++ [
+  decl "Tokens" (.family ⟨[.object (path "CInfAffine"), .object (path "CInfAffine")],
+    [.canonical 0, .canonical 1], .token⟩),
+  decl "QLineId" (.morphism (path "Over") [path "QLine", path "QLine", path "SpecQQ"] .identity) ]
+private def crossResolved : Option Core.Declarations :=
+  match Source.checkDeclarations (with' crossFamilies) with
+  | .ok checked => some checked.resolved.declarations
+  | .error _ => none
+#eval check "a token family with canonical constraints is itself valid" crossResolved.isSome
+private def rejectsBinding (binding : PrimitiveBinding) : Bool :=
+  match crossResolved with
+  | some env => Core.validDeclarations env &&
+      !Core.validDeclarations { env with primitives := env.primitives ++ [⟨id "forged", binding⟩] }
+  | none => false
+private def line : Index := .object (.global (id "Line"))
+private def qline : Index := .object (.global (id "QLine"))
+private def specQQ : Index := .object (.global (id "SpecQQ"))
+private def lineMap : Map := SmoothRuntime.identity 1
+#eval check "smooth bindings reject a two-index token family over smooth objects"
+  ([PrimitiveBinding.smoothConstant ⟨id "Tokens", [line, line]⟩ lineMap, .smoothCompose (id "Tokens"),
+    .smoothEqual (id "Tokens"), .smoothComposite (id "Tokens"),
+    .smoothIntPoint (id "Tokens") (id "Line") (id "Pt")].all rejectsBinding)
+#eval check "smooth bindings reject the presented relative family"
+  ([PrimitiveBinding.smoothConstant ⟨id "Over", [qline, qline, specQQ]⟩ ⟨1, [], [Poly.var 1 0]⟩,
+    .smoothConstant ⟨id "Over", [line, line]⟩ lineMap, .smoothCompose (id "Over"),
+    .smoothEqual (id "Over"), .smoothComposite (id "Over"),
+    .smoothIntPoint (id "Over") (id "Line") (id "Pt")].all rejectsBinding)
+#eval check "relative bindings reject the smooth family"
+  ([PrimitiveBinding.relativeConstant ⟨id "Smooth", [line, line]⟩ lineMap,
+    .relativeConstant ⟨id "Smooth", [line, line, .object (.global (id "Pt"))]⟩ lineMap,
+    .relativeCompose (id "Smooth"), .relativeEqual (id "Smooth"),
+    .relativeView (id "Smooth") (id "Line") (id "Pt"),
+    .relativeCoefficient (id "Smooth") (id "Line") (id "Line") 0 [1],
+    .relativeIntPoint (id "Smooth") (id "Line") (id "Pt"),
+    .relativePair (id "Smooth") (id "Plane")].all rejectsBinding)
+
+-- Every E_SMOOTH branch of the smooth elaboration has a source that reaches it.
+private def smoothMessage (extra : List Source.Declaration) (fragment : String) : Bool :=
+  code (with' extra) == "E_SMOOTH" && ((message (with' extra)).splitOn fragment).length > 1
+#eval check "a smooth map with three indices"
+  (smoothMessage [decl "bad" (.morphism (path "Smooth") [path "Line", path "Line", path "Line"] .identity)]
+    "names a source object and a target object")
+#eval check "a smooth map from a presented object"
+  (smoothMessage (presented ++ [morphism "bad" "QLine" "Line" .identity]) "the source `QLine`")
+#eval check "a smooth map to a presented object"
+  (smoothMessage (presented ++ [morphism "bad" "Line" "QLine" (.pullback [("t", c "t")])]) "the target `QLine`")
+#eval check "a smooth_int_point whose object is not smooth"
+  (smoothMessage (presented ++ [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "SpecQQ")
+    (path "Pt")))]) "the object `SpecQQ`")
+#eval check "a smooth_int_point whose point object is not smooth"
+  (smoothMessage (presented ++ [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "Line")
+    (path "SpecQQ")))]) "the point object `SpecQQ`")
+#eval check "a smooth_int_point whose point object is not 0-dimensional"
+  (smoothMessage [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "Plane") (path "Line")))]
+    "must be 0-dimensional, but it has dimension 1")
+#eval check "a fiber product under a smooth implementation"
+  (smoothMessage (presented ++ [decl "Bad" (.affineFiber (path "SmoothR") (path "QLine") (path "QLine") none)])
+    "is a smooth implementation")
+#eval check "spec under a smooth implementation names the implementation"
+  (smoothMessage [decl "Bad" (.affine (path "SmoothR") ["t"] [] none [])] "`SmoothR` is a smooth implementation")
+#eval check "Affine(n) under a descriptor implementation"
+  (smoothMessage [decl "Grid" (.implementation (path "CInfReal") .affineDescriptor []),
+    space "Bad" 1 ["t"] "Grid"] "needs a `smooth_affine` implementation, but `Grid` is not one")
+#eval check "a smooth global"
+  (smoothMessage [decl "G" (.global (path "SmoothR"))] "cannot use the smooth implementation `SmoothR`")
+#eval check "an identity between different objects"
+  (smoothMessage [morphism "bad" "Line" "Plane" .identity] "needs the same source and target object")
+#eval check "a structure map on a smooth family"
+  (smoothMessage [morphism "bad" "Line" "Line" .structureMap] "is given by `pullback(…)` or `identity`")
+#eval check "a dimension that differs from the coordinates"
+  (smoothMessage [space "Bad" 2 ["t"]] "Affine(2) needs 2 coordinates, but 1 are given")
+#eval check "duplicate smooth coordinates" (smoothMessage [space "Bad" 2 ["t", "t"]] "must be distinct")
+
+-- Byte-exact lowering: compose is a program node and composite collapses it.
+private def gText : String :=
+  "(VastitasKernel.SmoothRuntime.Program.primitive (VastitasKernel.AlgebraRuntime.Map.mk 2 " ++
+  "([] : List VastitasKernel.AlgebraRuntime.Poly) " ++
+  "([([(VastitasKernel.AlgebraRuntime.Term.mk [2, 0] (mkRat (1 : Int) 1)), " ++
+  "(VastitasKernel.AlgebraRuntime.Term.mk [0, 1] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] " ++
+  ": List VastitasKernel.AlgebraRuntime.Poly)))"
+private def fText : String :=
+  "(VastitasKernel.SmoothRuntime.Program.primitive (VastitasKernel.AlgebraRuntime.Map.mk 1 " ++
+  "([] : List VastitasKernel.AlgebraRuntime.Poly) " ++
+  "([([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), " ++
+  "([(VastitasKernel.AlgebraRuntime.Term.mk [2] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] " ++
+  ": List VastitasKernel.AlgebraRuntime.Poly)))"
+private def composeText : String := "(VastitasKernel.SmoothRuntime.Program.compose " ++ gText ++ " " ++ fText ++ ")"
+private def loweredModule : Core.Module := ⟨resolved.getD default, [
+  { id := 0, definition := id "node", parameters := [], returnType := (smoothType "Line" "Line").type,
+    body := gAfterF },
+  { id := 1, definition := id "collapsed", parameters := [], returnType := (smoothType "Line" "Line").type,
+    body := .primitive (id "composite") [gAfterF] (smoothType "Line" "Line") }], none⟩
+private def lowered : Option String :=
+  match Core.Typing.checkModule loweredModule false with
+  | .ok checked => (Core.Codegen.generateLibrary checked [0, 1]).toOption
+  | .error _ => none
+private def occurs (text fragment : String) : Bool := (text.splitOn fragment).length == 2
+#eval check "compose(g, f) lowers to exactly one Program.compose node"
+  (lowered.any (occurs · ("def f_0 : VastitasKernel.SmoothRuntime.Program :=\n  " ++ composeText ++ "\n")))
+#eval check "composite(compose(g, f)) lowers to composite of that node"
+  (lowered.any (occurs · ("def f_1 : VastitasKernel.SmoothRuntime.Program :=\n  " ++
+    "(VastitasKernel.SmoothRuntime.composite " ++ composeText ++ ")\n")))
+#eval check "the lowered module imports both runtimes once"
+  (lowered.any fun text => occurs text "import VastitasKernel.SmoothRuntime\n" &&
+    occurs text "import VastitasKernel.AlgebraRuntime\n")
 
 -- Protocols 7 and 8 do not admit the smooth forms; protocol 9 does.
 open Lean in
@@ -275,6 +412,10 @@ open Lean in
 private def primitiveJson (op : String) : Json := Json.mkObj (common "primitive" ++
   [("binding", Json.mkObj [("op", Json.str op), ("family", pathJson "Smooth")])])
 open Lean in
+private def intPointJson : Json := Json.mkObj (common "primitive" ++
+  [("binding", Json.mkObj [("op", Json.str "smooth_int_point"), ("family", pathJson "Smooth"),
+    ("object", pathJson "Line"), ("point", pathJson "Pt")])])
+open Lean in
 private def familyJson (representation : String) (constraint : Json) : Json := Json.mkObj (common "family" ++
   [("parameters", Json.arr #[]), ("constraints", Json.arr #[constraint]),
    ("representation", Json.str representation)])
@@ -295,6 +436,12 @@ private def sameObjectJson : Json :=
   (["smooth_compose", "smooth_equal", "smooth_composite"].all fun op => decodes (primitiveJson op) true)
 #eval check "protocols 7 and 8 reject each smooth primitive"
   (["smooth_compose", "smooth_equal", "smooth_composite"].all fun op => !decodes (primitiveJson op) false)
+#eval check "protocol 9 decodes smooth_int_point" (decodes intPointJson true)
+#eval check "protocols 7 and 8 reject smooth_int_point" (!decodes intPointJson false)
+open Lean in
+#eval check "smooth_int_point rejects extra and missing fields"
+  (!decodes (intPointJson.setObjVal! "binding" (Json.mkObj [("op", Json.str "smooth_int_point"),
+    ("family", pathJson "Smooth"), ("object", pathJson "Line")])) true)
 #eval check "the primitive allow-list rejects unlisted spellings"
   (["smooth_gradient", "relative_gradient", "relative_", "smooth_"].all fun op => !decodes (primitiveJson op) true)
 open Lean in
@@ -303,6 +450,17 @@ open Lean in
 open Lean in
 #eval check "a smooth dimension is a decimal string"
   (!decodes (smoothObject.setObjVal! "dimension" (Json.str "-1")) true &&
-    !decodes (smoothObject.setObjVal! "dimension" (1 : Nat)) true)
+    !decodes (smoothObject.setObjVal! "dimension" (1 : Nat)) true &&
+    !decodes (smoothObject.setObjVal! "dimension" (Json.str "")) true)
+open Lean in
+#eval check "a smooth dimension has a bounded number of digits"
+  (decodes (smoothObject.setObjVal! "dimension" (Json.str (String.ofList (List.replicate 64 '9')))) true &&
+    !decodes (smoothObject.setObjVal! "dimension" (Json.str (String.ofList (List.replicate 65 '9')))) true)
+open Lean in
+#eval check "the smooth dimension decoder has its own message"
+  (match Wire.declarationBody (smoothObject.setObjVal! "dimension" (Json.str "1e3")) (numerical := true)
+      (algebraic := true) with
+   | .error message => (message.splitOn "smooth dimension").length > 1
+   | .ok _ => false)
 
 end VastitasKernel.Indexed.SmoothObjectRegression

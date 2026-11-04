@@ -342,8 +342,10 @@ statements followed by a pure `value { ... }` block. See
 
 ## Scheme
 
-`Scheme` classifies ordinary affine objects, and `CInfScheme` classifies smooth
-ones. No implicit bridge connects the two settings. See
+`Scheme` classifies ordinary affine descriptor objects, and `CInfScheme`
+classifies smooth descriptor objects. A descriptor object records only its
+dimension. No implicit bridge connects the two settings. A `CInfScheme` object
+is not a [smooth affine object](#smooth-affine-object). See
 [Objects, points and morphisms](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
 ## Seal
@@ -366,6 +368,24 @@ the signature-probe pass. That pass checks every definition, including unused
 higher-order functions and lambdas. A separate pass specializes executable
 calls, and signature probes never enter it or the generated code. See
 [Checking and specialization](../stage1b.md#checking-and-specialization).
+
+## Smooth affine object
+
+An object declared as `Affine(n)[c₁, …, cₙ]` under an implementation with the
+`smooth_affine` representation. It stands for the smooth real affine space
+ℝⁿ with the named coordinates. Each declaration is one canonical object. A
+smooth affine object is distinct from a descriptor object, such as a
+`CInfScheme` object, and from a presented affine object. See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Smooth map
+
+A value of a family with the `smooth` representation, such as
+`Smooth<X, Y>`, between two [smooth affine objects](#smooth-affine-object). It
+is a polynomial map with exact rational coefficients. A declared smooth map
+gives each target coordinate as a polynomial in the source coordinates.
+`compose` builds a program from smooth maps and does not expand it. See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Space
 

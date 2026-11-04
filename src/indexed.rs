@@ -410,3 +410,89 @@ pub enum Primitive {
         point: TypePath,
     },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn path(name: &str) -> TypePath {
+        TypePath {
+            path: vec![name.to_string()],
+            span: Span {
+                start: 0,
+                end: 0,
+                line: 1,
+                column: 1,
+            },
+        }
+    }
+
+    fn primitive(binding: Primitive) -> DeclarationBody {
+        DeclarationBody::Primitive { binding }
+    }
+
+    #[test]
+    fn every_smooth_form_is_algebraic() {
+        let forms = [
+            DeclarationBody::SmoothAffine {
+                implementation: path("SmoothR"),
+                dimension: "1".into(),
+                coordinates: vec!["t".into()],
+            },
+            DeclarationBody::Implementation {
+                marker: path("CInfReal"),
+                representation: Representation::SmoothAffine,
+                capabilities: Vec::new(),
+            },
+            DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: Vec::new(),
+                representation: FamilyRepresentation::Smooth,
+            },
+            DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: vec![Constraint::Canonical { object: 0 }],
+                representation: FamilyRepresentation::Token,
+            },
+            primitive(Primitive::SmoothCompose {
+                family: path("Smooth"),
+            }),
+            primitive(Primitive::SmoothEqual {
+                family: path("Smooth"),
+            }),
+            primitive(Primitive::SmoothComposite {
+                family: path("Smooth"),
+            }),
+            primitive(Primitive::SmoothIntPoint {
+                family: path("Smooth"),
+                object: path("Line"),
+                point: path("Pt"),
+            }),
+        ];
+        for form in &forms {
+            assert!(form.is_algebraic(), "{form:?}");
+        }
+    }
+
+    #[test]
+    fn descriptor_forms_are_not_algebraic() {
+        let forms = [
+            DeclarationBody::Implementation {
+                marker: path("CInfReal"),
+                representation: Representation::AffineDescriptor,
+                capabilities: Vec::new(),
+            },
+            DeclarationBody::Family {
+                parameters: Vec::new(),
+                constraints: vec![Constraint::SameBase { left: 0, right: 1 }],
+                representation: FamilyRepresentation::Morphism,
+            },
+            primitive(Primitive::Compose {
+                map_family: path("Morphism"),
+            }),
+        ];
+        for form in &forms {
+            assert!(!form.is_algebraic(), "{form:?}");
+        }
+    }
+}

@@ -671,6 +671,29 @@ impl Parser {
                 ));
             }
         };
+        if dimension.len() > crate::limits::MAX_ALGEBRA_DIGITS {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "an `Affine` dimension has at most {} decimal digits",
+                    crate::limits::MAX_ALGEBRA_DIGITS
+                ),
+                token.span,
+            ));
+        }
+        if !dimension
+            .parse::<usize>()
+            .is_ok_and(|value| value <= crate::limits::MAX_ALGEBRA_GENERATORS)
+        {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "`Affine({dimension})` exceeds the limit of {} coordinates",
+                    crate::limits::MAX_ALGEBRA_GENERATORS
+                ),
+                token.span,
+            ));
+        }
         self.expect(")")?;
         let coordinates = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
         let Some(base) = base else {

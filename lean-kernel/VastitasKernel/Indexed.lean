@@ -518,9 +518,10 @@ def isMetricFamily (env : Environment) (family : DeclId) : Bool :=
 
 /-- A metric `MetricForm<object>`: an application of a `metric_form` family
 to a declared smooth object, and a Gram matrix that `checkGram` accepts at the
-object's dimension. -/
+object's dimension, with entries within `Limits.metricEntryBits`. -/
 def validMetric (env : Environment) (family object : DeclId) (gram : SmoothRuntime.Matrix) : Bool :=
   isMetricFamily env family && validApplication env ⟨family, [.object (.global object)]⟩ &&
+    SmoothDeclarations.gramBounded gram &&
     match smoothDimension? env object with
     | some n => (SmoothDeclarations.checkGram n gram).isOk
     | none => false

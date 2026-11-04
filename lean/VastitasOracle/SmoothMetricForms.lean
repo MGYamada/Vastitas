@@ -28,10 +28,15 @@ two-sided inverse of the embedded Gram matrix (`sharp_inverse_certified`).
 Riemannian evidence never validates a `sharp` (`sharp_rejects_riemannian`).
 
 **Typed totality.** `flat` maps a vector of `Tangent<X>` to a covector of
-`Cotangent<X>` at the same point, and `sharp` the reverse; each keeps
-`dim X` components (`metricFlat_total`, `metricSharp_total`).
+`Cotangent<X>`, and `sharp` the reverse; each keeps `dim X` components
+(`metricFlat_total`, `metricSharp_total`).
 `IndexedSemantics.primitive_total_and_typed` and
 `IndexedSemantics.primitive_runtime_erasure` dispatch to these lemmas.
+
+**Basepoints.** `flat` and `sharp` keep the point of a vector or covector and
+change only its components, and they send the failure value to the failure
+value (`flat_point`, `sharp_point`). So the result lies over the same point as
+the operand (`flat_fiberAt`, `sharp_fiberAt`).
 
 That `G` and `G⁻¹` are the musical isomorphisms of a nondegenerate real
 bilinear form, and that positive pivots make it positive definite, are
@@ -90,7 +95,7 @@ theorem metric_sound {env : Indexed.Environment} (envValid : env.Valid) {id fami
   change validMetric env family object gram = true at valid
   unfold validMetric at valid
   simp only [Bool.and_eq_true] at valid
-  obtain ⟨⟨metricFamily, application⟩, gramOk⟩ := valid
+  obtain ⟨⟨⟨metricFamily, application⟩, _⟩, gramOk⟩ := valid
   refine ⟨metricFamily, (Audit.validApplication_iff env _).1 application, ?_⟩
   cases dimension : smoothDimension? env object with
   | none => simp [dimension] at gramOk
@@ -226,6 +231,35 @@ theorem sharp_inverse_certified {env : Indexed.Environment} (envValid : env.Vali
   exact ⟨n, dimension, checked, right, left⟩
 
 /-! ## Typed totality -/
+
+/-- A matrix applied to a vector or covector keeps its point, and it keeps the
+failure value. -/
+theorem transform_point (matrix : SmoothRuntime.Matrix) (value : SmoothRuntime.FiberValue) :
+    (SmoothRuntime.transform matrix value).map SmoothRuntime.Fiber.point =
+      value.map SmoothRuntime.Fiber.point := by
+  cases value <;> rfl
+
+/-- **`flat` keeps the point.** Only the components change. -/
+theorem flat_point (gram : SmoothRuntime.Matrix) (value : SmoothRuntime.FiberValue) :
+    (SmoothRuntime.flat gram value).map SmoothRuntime.Fiber.point = value.map SmoothRuntime.Fiber.point :=
+  transform_point gram value
+
+/-- **`sharp` keeps the point.** Only the components change. -/
+theorem sharp_point (inverse : SmoothRuntime.Matrix) (value : SmoothRuntime.FiberValue) :
+    (SmoothRuntime.sharp inverse value).map SmoothRuntime.Fiber.point = value.map SmoothRuntime.Fiber.point :=
+  transform_point inverse value
+
+/-- The result of `flat` lies over a point exactly when its operand does. -/
+theorem flat_fiberAt (gram : SmoothRuntime.Matrix) (value : SmoothRuntime.FiberValue)
+    (point : SmoothRuntime.Program) :
+    SmoothRuntime.fiberAt (SmoothRuntime.flat gram value) point = SmoothRuntime.fiberAt value point := by
+  cases value <;> rfl
+
+/-- The result of `sharp` lies over a point exactly when its operand does. -/
+theorem sharp_fiberAt (inverse : SmoothRuntime.Matrix) (value : SmoothRuntime.FiberValue)
+    (point : SmoothRuntime.Program) :
+    SmoothRuntime.fiberAt (SmoothRuntime.sharp inverse value) point = SmoothRuntime.fiberAt value point := by
+  cases value <;> rfl
 
 theorem transform_typed {n : Nat} {matrix : SmoothRuntime.Matrix} (isSquare : square n matrix = true)
     {value : SmoothRuntime.FiberValue} (typed : FiberTyped n value) :

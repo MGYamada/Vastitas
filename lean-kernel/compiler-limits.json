@@ -31,5 +31,6 @@
   "algebraCoefficientDigits": 64,
   "algebraChain": 16,
   "algebraWork": 8000000,
-  "algebraNesting": 64
+  "algebraNesting": 64,
+  "metricEntryBits": 512
 }

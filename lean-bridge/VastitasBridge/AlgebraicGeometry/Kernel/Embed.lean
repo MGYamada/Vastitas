@@ -6,7 +6,8 @@ import VastitasBridge.AlgebraicGeometry.Kernel.Morphisms
 `AlgebraDeclarations.embed a total` pads the monomials of an `n`-coordinate polynomial with `a`
 leading and enough trailing zeros to have `total` coordinates. The fiber-product and
 principal-open presentations use it. `toMv_embed` shows that this is Mathlib's `rename` along
-`i ↦ a + i`. `toMv_var` identifies the kernel variable `Poly.var total i` with `X i`.
+`i ↦ a + i`. `toMv_var` identifies the kernel variable `Poly.var total i` with `X i`, and
+`canonical_var` shows that it is canonical.
 -/
 
 noncomputable section
@@ -91,5 +92,8 @@ lemma arity_var {total i : ℕ} : Arity total (Poly.var total i) := by
   intro t ht
   simp [Poly.var, Monomial.var] at ht
   simp [ht]
+
+lemma canonical_var {total i : ℕ} : Canonical total (Poly.var total i) :=
+  ⟨arity_var, by simp [Poly.var], List.pairwise_singleton _ _⟩
 
 end VastitasBridge.AlgebraicGeometry.Kernel

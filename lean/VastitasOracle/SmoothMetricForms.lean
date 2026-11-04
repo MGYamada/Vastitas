@@ -2,6 +2,7 @@ import VastitasKernel.IndexedSemantics
 import VastitasOracle.SmoothMetrics
 import VastitasOracle.SmoothFibers
 import VastitasOracle.IndexedAssociations
+import VastitasOracle.IndexedPrimitiveSoundness
 
 set_option autoImplicit false
 
@@ -51,6 +52,7 @@ namespace VastitasOracle.SmoothMetricForms
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics
+open VastitasOracle.IndexedPrimitiveSoundness
 open VastitasKernel.SmoothDeclarations (square symmetric checkNondegenerate checkRiemannian matMul identityMatrix
   diagonal transpose unitLower)
 
@@ -335,5 +337,30 @@ theorem flat_sharp_erasure (env : Indexed.Environment) (variance : Variance) (va
       some (.indexed (.fiber .tangent (SmoothRuntime.sharp inverse value))) ∧
     evalRuntimePrimitive (.metricSharp metric evidence object gram inverse cotangent tangent) [.fiber value] =
       some (.fiber (SmoothRuntime.sharp inverse value)) := ⟨rfl, rfl, rfl, rfl⟩
+
+/-! ## Soundness instances -/
+
+theorem metricFlat_sound (metric object : DeclId) (gram : SmoothRuntime.Matrix) (tangent cotangent : DeclId) :
+    Sound (PrimitiveBinding.metricFlat metric object gram tangent cotangent).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain rfl := IndexedAssociations.metricFlat_shape rule.association
+      exact metricFlat_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem metricSharp_sound (metric evidence object : DeclId) (gram inverse : SmoothRuntime.Matrix)
+    (cotangent tangent : DeclId) :
+    Sound (PrimitiveBinding.metricSharp metric evidence object gram inverse cotangent tangent).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain rfl := IndexedAssociations.metricSharp_shape rule.association
+      exact metricSharp_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
 
 end VastitasOracle.SmoothMetricForms

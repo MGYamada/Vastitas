@@ -347,7 +347,7 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
       familyRepresentation_append ext points (by decide : FamilyRepresentation.point ≠ _)]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-      implementationType_append ext, affineImplementation_append ext,
+      PrimitiveDescriptor.evidence, implementationType_append ext, affineImplementation_append ext,
       objectTypeValid_append ext, affineGlobal_append ext, refValid_append ext, supports_append ext,
       relativeConstantValid_append ext, isRelativeFamily_append ext, onChain_append ext,
       affineData_append ext, affineArity_append ext, freeAffine_append ext, pointBase_append ext,
@@ -371,8 +371,8 @@ of any primitive. Only `global`, `origin` and `fiber_vector` consult the
 environment, and none of them reads a metric declaration. -/
 theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List Value) :
     evalPrimitive big binding values = evalPrimitive small binding values := by
-  unfold evalPrimitive
-  simp only [globalObject_append ext, fiberVectorValue_append ext]
+  cases binding <;> simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+    PrimitiveDescriptor.evidence, globalObject_append ext, fiberVectorValue_append ext]
 
 end Extension
 

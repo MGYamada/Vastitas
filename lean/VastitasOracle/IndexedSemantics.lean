@@ -5,6 +5,7 @@ import VastitasOracle.IndexedAssociations
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothFibers
 import VastitasOracle.SmoothMetricForms
+import VastitasOracle.IndexedPrimitiveSoundness
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
 primitive registry. These lemmas do not yet prove whole-term typed evaluation,
@@ -12,6 +13,7 @@ source refinement, native code generation or mathematical geometric axioms. -/
 namespace VastitasOracle.IndexedSemantics
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics
+open VastitasOracle.IndexedPrimitiveSoundness
 
 theorem object_upcast {env : Indexed.Environment} {object : Object} {actual expected : ObjectType}
     (typed : ObjectHasType env object actual) (refines : actual.Refines env expected) :
@@ -200,12 +202,23 @@ theorem primitive_morphism {env : Indexed.Environment} {world : World} {value : 
   cases value <;> simp only [PrimitiveValueHasType] at typed <;> try contradiction
   case indexed value => cases value <;> simp_all [IndexedHasType]
 
-/-- Logical world update of the closed registry. Runtime execution does not
-inspect these brands; the update records only a descriptor's declared fresh slot. -/
+/-- Logical world update of the closed registry: the registry entry's. Runtime
+execution does not inspect these brands; the update records only an allocating
+call's declared fresh slot. -/
 def primitiveWorld (world : World) (binding : PrimitiveBinding) (output : ValueType) (value : Value) : World :=
-  match binding, output, value with
-  | .descriptor _, .object _ (.local _ brand), .object object => bindLocal world brand object
-  | _, _, _ => world
+  descriptorWorld binding.contract world output value
+
+theorem primitiveWorld_pure {binding : PrimitiveBinding} (pure : binding.allocates = false)
+    (world : World) (output : ValueType) (value : Value) : primitiveWorld world binding output value = world :=
+  descriptorWorld_pure pure world output value
+
+theorem primitiveWorld_allocating {binding : PrimitiveBinding} (allocates : binding.allocates = true)
+    (world : World) (output : ValueType) (value : Value) :
+    primitiveWorld world binding output value =
+      match output, value with
+      | .object _ (.local _ brand), .object object => bindLocal world brand object
+      | _, _ => world :=
+  descriptorWorld_allocating allocates world output value
 
 def PrimitiveOutcome (env : Indexed.Environment) (world : World) (binding : PrimitiveBinding)
     (values : List Value) (output : ValueType) : Prop :=
@@ -239,7 +252,7 @@ theorem global_total {env : Indexed.Environment} {world : World} {id : DeclId}
   obtain ⟨actual, actualFound, objectTyped⟩ := denotes.2
   have equal : actual = type := Option.some.inj (actualFound.symm.trans found)
   subst actual
-  exact ⟨world, .object object, by simp [evalPrimitive, computed], worldExtends_refl world, ⟨objectTyped, denotes⟩, rfl⟩
+  exact ⟨world, .object object, by simp [evalPrimitive, PrimitiveBinding.contract, computed], worldExtends_refl world, ⟨objectTyped, denotes⟩, rfl⟩
 
 theorem origin_total {env : Indexed.Environment} {world : World} {expected actual : ObjectType}
     {family base : DeclId} {ref : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef}
@@ -253,7 +266,7 @@ theorem origin_total {env : Indexed.Environment} {world : World} {expected actua
   have baseValid := application_ref_valid rule.resultValid (ref := .global base) (by simp [Application.refs])
   obtain ⟨baseObject, computed, baseDenotes⟩ := global_denotes env world base baseValid
   refine ⟨world, .indexed (.point ⟨object, baseObject⟩), ?_, worldExtends_refl world, ?_, rfl⟩
-  · simp [evalPrimitive, computed]
+  · simp [evalPrimitive, PrimitiveBinding.contract, computed]
   · exact ⟨rule.resultValid, by simpa only [rule.bindingValid.2.1] using And.intro denotes baseDenotes⟩
 
 theorem identity_total {env : Indexed.Environment} {world : World} {expected actual : ObjectType}
@@ -489,7 +502,7 @@ theorem relativeIntPoint_total {env : Indexed.Environment} {world : World} {fami
   have valid := rule.resultValid
   refine ⟨world, .indexed (.relative (AlgebraRuntime.Map.intPoint coordinates)), ?_, worldExtends_refl world,
     relative_typed relative valid ?_, rfl⟩
-  · simp [evalPrimitive, intPointValue, found]
+  · simp [evalPrimitive, PrimitiveBinding.contract, intPointValue, found]
   · intro ref member
     have cases : ref = .global base ∨ ref = .global object ∨ ref = .global base := by
       simpa [Application.refs] using member
@@ -521,143 +534,7 @@ theorem relativePair_total {env : Indexed.Environment} {world : World} {family f
   · exact global_refs_denote valid member global
   · exact leftDenotes _ (by simp [Application.refs])
 
-/-- A smooth primitive leaves the world unchanged. -/
-theorem smooth_outcome {env : Indexed.Environment} {world : World} {binding : PrimitiveBinding}
-    {values : List Value} {output : ValueType}
-    (unchanged : ∀ value, primitiveWorld world binding output value = world)
-    (outcome : SmoothPrimitives.SmoothOutcome env world binding values output) :
-    PrimitiveOutcome env world binding values output := by
-  obtain ⟨value, evaluated, typed⟩ := outcome
-  exact ⟨world, value, evaluated, worldExtends_refl world, typed, (unchanged value).symm⟩
 
-/-- Every accepted registry operation has a typed runtime value. The only
-world mutation is allocation of a fresh local object brand. Whole-term proofs
-must establish that freshness from the module's allocation audit. -/
-theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {binding : PrimitiveBinding}
-    {allowed : List Indexed.ObjectRef} {brand : Nat} {arguments : List ValueType} {output : ValueType} {values : List Value}
-    (rule : PrimitiveTyped env binding allowed brand arguments output)
-    (typed : PrimitiveValuesHaveTypes env world values arguments) (fresh : PrimitiveFresh binding world brand) :
-    PrimitiveOutcome env world binding values output := by
-  cases binding with
-  | descriptor implementation =>
-    obtain rfl := IndexedAssociations.descriptor_shape rule.association
-    exact descriptor_total rule typed fresh
-  | global id =>
-    obtain rfl := IndexedAssociations.global_shape rule.association
-    exact global_total rule typed
-  | origin domain family base =>
-    obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.origin_shape rule.association
-    exact origin_total rule typed
-  | identity domain family =>
-    obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.identity_shape rule.association
-    exact identity_total rule typed
-  | dimension domain =>
-    obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.dimension_shape rule.association
-    exact dimension_total rule typed
-  | compose family =>
-    obtain ⟨middle, target, source, other, rfl⟩ := IndexedAssociations.compose_shape rule.association
-    exact compose_total rule typed
-  | apply maps points =>
-    obtain ⟨source, target, other, test, rfl⟩ := IndexedAssociations.apply_shape rule.association
-    exact apply_total rule typed
-  | relativeConstant application map =>
-    obtain rfl := IndexedAssociations.relativeConstant_shape rule.association
-    exact relativeConstant_total rule typed
-  | relativeCompose family =>
-    obtain ⟨middle, target, base, source, middle', base', rfl⟩ :=
-      IndexedAssociations.relativeCompose_shape rule.association
-    exact relativeCompose_total rule typed
-  | relativeView family origin to =>
-    obtain ⟨source, target, rfl⟩ := IndexedAssociations.relativeView_shape rule.association
-    exact relativeView_total rule typed
-  | relativeEqual family =>
-    obtain ⟨left, right, rfl⟩ := IndexedAssociations.relativeEqual_shape rule.association
-    exact relativeEqual_total rule typed
-  | relativeCoefficient family source target coordinate monomial =>
-    obtain ⟨base, rfl⟩ := IndexedAssociations.relativeCoefficient_shape rule.association
-    exact relativeCoefficient_total rule typed
-  | relativeIntPoint family object base => exact relativeIntPoint_total rule typed
-  | relativePair family fiber =>
-    obtain ⟨source, left, base, source', right, base', rfl⟩ :=
-      IndexedAssociations.relativePair_shape rule.association
-    exact relativePair_total rule typed
-  | relativeIso forward backward => exact absurd rule.association IndexedAssociations.relativeIso_association
-  | relativeCartesian first second inverse fiber =>
-    exact absurd rule.association IndexedAssociations.relativeCartesian_association
-  | smoothConstant application map =>
-    obtain rfl := IndexedAssociations.smoothConstant_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothConstant_total rule typed)
-  | smoothCompose family =>
-    obtain ⟨middle, target, source, other, rfl⟩ := IndexedAssociations.smoothCompose_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothCompose_total rule typed)
-  | smoothEqual family =>
-    obtain ⟨left, right, rfl⟩ := IndexedAssociations.smoothEqual_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothEqual_total rule typed)
-  | smoothIntPoint family object point =>
-    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothIntPoint_total rule typed)
-  | smoothComposite family =>
-    obtain ⟨application, rfl⟩ := IndexedAssociations.smoothComposite_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothPrimitives.smoothComposite_total rule typed)
-  | fiberVector family smooth object =>
-    obtain ⟨point, x, components, rfl⟩ := IndexedAssociations.fiberVector_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberVector_total rule typed)
-  | fiberAt family smooth =>
-    obtain ⟨x, point, x', rfl⟩ := IndexedAssociations.fiberAt_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberAt_total rule typed)
-  | fiberEqual family =>
-    obtain ⟨left, right, rfl⟩ := IndexedAssociations.fiberEqual_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberEqual_total rule typed)
-  | fiberComponent family object coordinate =>
-    obtain rfl := IndexedAssociations.fiberComponent_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberComponent_total rule typed)
-  | fiberPairing cotangent tangent =>
-    obtain ⟨x, x', rfl⟩ := IndexedAssociations.fiberPairing_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.fiberPairing_total rule typed)
-  | cotangentPullback smooth cotangent mode =>
-    obtain ⟨x, y, point, x', y', rfl⟩ := IndexedAssociations.cotangentPullback_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentPullback_total rule typed)
-  | differential smooth cotangent line =>
-    obtain ⟨x, point, x', rfl⟩ := IndexedAssociations.differential_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.differential_total rule typed)
-  | linearize smooth tape =>
-    obtain ⟨x, y, point, x', rfl⟩ := IndexedAssociations.linearize_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.linearize_total rule typed)
-  | cotangentBackward tape cotangent =>
-    obtain ⟨x, y, y', rfl⟩ := IndexedAssociations.cotangentBackward_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentBackward_total rule typed)
-  | metricFlat metric object gram tangent cotangent =>
-    obtain rfl := IndexedAssociations.metricFlat_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricFlat_total rule typed)
-  | metricSharp metric evidence object gram inverse cotangent tangent =>
-    obtain rfl := IndexedAssociations.metricSharp_shape rule.association
-    exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricSharp_total rule typed)
-
-/-- This corollary consumes the real primitive checker's accepted record, with
-the exact argument annotations and returned result. Runtime argument typing
-and dynamic freshness remain explicit semantic premises. -/
-theorem checked_primitive_semantics {env : CheckedEnvironment} {world : World}
-    {binding : PrimitiveBinding} {allowed : List Indexed.ObjectRef} {brand : Nat} {arguments : List ValueType}
-    (checked : CheckedPrimitive env binding allowed brand arguments) {values : List Value}
-    (typed : PrimitiveValuesHaveTypes env.environment world values arguments)
-    (fresh : PrimitiveFresh binding world brand) :
-    PrimitiveOutcome env.environment world binding values checked.result :=
-  primitive_total_and_typed (VastitasOracle.Indexed.checked_primitive_typed checked) typed fresh
-
-/-- The operation theorem also applies to an actual well-typed Core node,
-using that node's declaration lookup and operand/result conversions. -/
-theorem core_primitive_semantics {env : Declarations} {functions : Typing.Signatures} {ctx : Typing.Context}
-    {world : World} {id : DeclId} {arguments : List Core.Term} {result : Result} {binding : PrimitiveBinding}
-    {operands : List ValueType} {output : ValueType} {values : List Value}
-    (found : env.primitive? id = some binding)
-    (input : (arguments.map Core.Term.result).mapM Result.primitiveType? = some operands)
-    (outputType : result.primitiveType? = some output)
-    (accepted : Typing.HasType env functions ctx (.primitive id arguments result))
-    (typed : PrimitiveValuesHaveTypes env.indexed world values operands)
-    (fresh : PrimitiveFresh binding world (Typing.primitiveBrand result)) :
-    PrimitiveOutcome env.indexed world binding values output :=
-  primitive_total_and_typed
-    (IndexedCore.typed_primitive_contract env functions ctx id arguments result binding operands output
-      found input outputType accepted) typed fresh
 
 /-- Runtime endpoints agree at a checked composition boundary, even though
 different static references may denote equal descriptors in a noninjective world. -/
@@ -716,7 +593,270 @@ theorem intPoint_erasure {family object base : DeclId} {values : List Value} {va
     simp [coordinates] at evaluated
     subst evaluated
     obtain ⟨inputs, erased, runtime⟩ := integers_erase coordinates
-    exact ⟨inputs, _, erased, rfl, by simp [evalRuntimePrimitive, intPointRuntime, runtime]⟩
+    exact ⟨inputs, _, erased, rfl, by simp [evalRuntimePrimitive, PrimitiveBinding.contract, intPointRuntime, runtime]⟩
+
+/-! ## The soundness instance of each Stage 1 and Stage 2 entry
+
+Each instance is the entry's totality lemma, applied after the shape lemma of
+`IndexedAssociations` has read the operand list off the association, and its
+erasure, by computation on the matched operand values. -/
+
+theorem descriptor_sound (implementation : DeclId) : Sound (PrimitiveBinding.descriptor implementation).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed fresh
+      obtain rfl := IndexedAssociations.descriptor_shape rule.association
+      exact descriptor_total rule typed (fresh rfl))
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem global_sound (id : DeclId) : Sound (PrimitiveBinding.global id).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain rfl := IndexedAssociations.global_shape rule.association
+      exact global_total rule typed)
+    (by
+      intro env values value evaluated
+      simp only [evalPrimitive, PrimitiveBinding.contract] at evaluated
+      split at evaluated
+      · cases computed : globalObject env id with
+        | none => simp [computed] at evaluated
+        | some object =>
+          simp only [computed, Option.map_some, Option.some.injEq] at evaluated
+          subst value
+          exact ⟨[], .object IndexedRuntime.baseObject, rfl,
+            by simp [erasePrimitiveValue, global_object_descriptor computed], rfl⟩
+      · contradiction)
+
+theorem origin_sound (domain : ObjectType) (family base : DeclId) :
+    Sound (PrimitiveBinding.origin domain family base).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.origin_shape rule.association
+      exact origin_total rule typed)
+    (by
+      intro env values value evaluated
+      simp only [evalPrimitive, PrimitiveBinding.contract] at evaluated
+      split at evaluated
+      · rename_i object
+        cases computed : globalObject env base with
+        | none => simp [computed] at evaluated
+        | some baseObject =>
+          simp [computed] at evaluated
+          subst value
+          exact ⟨_, _, rfl, rfl, by simp [evalRuntimePrimitive, PrimitiveBinding.contract, Point.erase,
+            IndexedRuntime.origin, global_object_descriptor computed]⟩
+      · contradiction)
+
+theorem identity_sound (domain : ObjectType) (family : DeclId) :
+    Sound (PrimitiveBinding.identity domain family).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.identity_shape rule.association
+      exact identity_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem dimension_sound (domain : ObjectType) : Sound (PrimitiveBinding.dimension domain).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨actual, ref, rfl⟩ := IndexedAssociations.dimension_shape rule.association
+      exact dimension_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem compose_sound (family : DeclId) : Sound (PrimitiveBinding.compose family).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨middle, target, source, other, rfl⟩ := IndexedAssociations.compose_shape rule.association
+      exact compose_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem apply_sound (maps points : DeclId) : Sound (PrimitiveBinding.apply maps points).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨source, target, other, test, rfl⟩ := IndexedAssociations.apply_shape rule.association
+      exact apply_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeConstant_sound (application : Application) (map : AlgebraRuntime.Map) :
+    Sound (PrimitiveBinding.relativeConstant application map).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain rfl := IndexedAssociations.relativeConstant_shape rule.association
+      exact relativeConstant_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeCompose_sound (family : DeclId) : Sound (PrimitiveBinding.relativeCompose family).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨middle, target, base, source, middle', base', rfl⟩ :=
+        IndexedAssociations.relativeCompose_shape rule.association
+      exact relativeCompose_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeView_sound (family origin to : DeclId) :
+    Sound (PrimitiveBinding.relativeView family origin to).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨source, target, rfl⟩ := IndexedAssociations.relativeView_shape rule.association
+      exact relativeView_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeEqual_sound (family : DeclId) : Sound (PrimitiveBinding.relativeEqual family).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨left, right, rfl⟩ := IndexedAssociations.relativeEqual_shape rule.association
+      exact relativeEqual_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeCoefficient_sound (family source target : DeclId) (coordinate : Nat) (monomial : List Nat) :
+    Sound (PrimitiveBinding.relativeCoefficient family source target coordinate monomial).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨base, rfl⟩ := IndexedAssociations.relativeCoefficient_shape rule.association
+      exact relativeCoefficient_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeIntPoint_sound (family object base : DeclId) :
+    Sound (PrimitiveBinding.relativeIntPoint family object base).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      exact relativeIntPoint_total rule typed)
+    (by
+      intro env values value evaluated
+      simp only [evalPrimitive, PrimitiveBinding.contract] at evaluated
+      exact intPoint_erasure evaluated)
+
+theorem relativePair_sound (family fiber : DeclId) : Sound (PrimitiveBinding.relativePair family fiber).contract :=
+  .ofBinding
+    (by
+      intro env world allowed brand arguments output values rule typed _
+      obtain ⟨source, left, base, source', right, base', rfl⟩ :=
+        IndexedAssociations.relativePair_shape rule.association
+      exact relativePair_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem relativeIso_sound (forward backward : Application × AlgebraRuntime.Map) :
+    Sound (PrimitiveBinding.relativeIso forward backward).contract where
+  total _ _ _ association _ _ := absurd association IndexedAssociations.relativeIso_association
+  erasure evaluated := by
+    simp [PrimitiveBinding.contract, PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool] at evaluated
+
+theorem relativeCartesian_sound (first second inverse : Application × AlgebraRuntime.Map) (fiber : DeclId) :
+    Sound (PrimitiveBinding.relativeCartesian first second inverse fiber).contract where
+  total _ _ _ association _ _ := absurd association IndexedAssociations.relativeCartesian_association
+  erasure evaluated := by
+    simp [PrimitiveBinding.contract, PrimitiveDescriptor.evidence, PrimitiveDescriptor.ofBool] at evaluated
+
+/-! ## Every registry entry -/
+
+/-- Every registry entry is sound, by its own instance. A new binding adds its
+case here. -/
+theorem registry_sound : ∀ binding : PrimitiveBinding, Sound binding.contract
+  | .descriptor implementation => descriptor_sound implementation
+  | .global id => global_sound id
+  | .origin domain family base => origin_sound domain family base
+  | .identity domain family => identity_sound domain family
+  | .dimension domain => dimension_sound domain
+  | .compose family => compose_sound family
+  | .apply maps points => apply_sound maps points
+  | .relativeConstant application map => relativeConstant_sound application map
+  | .relativeCompose family => relativeCompose_sound family
+  | .relativeView family origin to => relativeView_sound family origin to
+  | .relativeEqual family => relativeEqual_sound family
+  | .relativeCoefficient family source target coordinate monomial =>
+    relativeCoefficient_sound family source target coordinate monomial
+  | .relativeIntPoint family object base => relativeIntPoint_sound family object base
+  | .relativePair family fiber => relativePair_sound family fiber
+  | .relativeIso forward backward => relativeIso_sound forward backward
+  | .relativeCartesian first second inverse fiber => relativeCartesian_sound first second inverse fiber
+  | .smoothConstant application map => SmoothPrimitives.smoothConstant_sound application map
+  | .smoothCompose family => SmoothPrimitives.smoothCompose_sound family
+  | .smoothEqual family => SmoothPrimitives.smoothEqual_sound family
+  | .smoothIntPoint family object point => SmoothPrimitives.smoothIntPoint_sound family object point
+  | .smoothComposite family => SmoothPrimitives.smoothComposite_sound family
+  | .fiberVector family smooth object => SmoothFibers.fiberVector_sound family smooth object
+  | .fiberAt family smooth => SmoothFibers.fiberAt_sound family smooth
+  | .fiberEqual family => SmoothFibers.fiberEqual_sound family
+  | .fiberComponent family object coordinate => SmoothFibers.fiberComponent_sound family object coordinate
+  | .fiberPairing cotangent tangent => SmoothFibers.fiberPairing_sound cotangent tangent
+  | .cotangentPullback smooth cotangent mode => SmoothFibers.cotangentPullback_sound smooth cotangent mode
+  | .differential smooth cotangent line => SmoothFibers.differential_sound smooth cotangent line
+  | .linearize smooth tape => SmoothFibers.linearize_sound smooth tape
+  | .cotangentBackward tape cotangent => SmoothFibers.cotangentBackward_sound tape cotangent
+  | .metricFlat metric object gram tangent cotangent =>
+    SmoothMetricForms.metricFlat_sound metric object gram tangent cotangent
+  | .metricSharp metric evidence object gram inverse cotangent tangent =>
+    SmoothMetricForms.metricSharp_sound metric evidence object gram inverse cotangent tangent
+
+/-- Every accepted registry operation has a typed runtime value. The only
+world mutation is allocation of a fresh local object brand. Whole-term proofs
+must establish that freshness from the module's allocation audit. -/
+theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {binding : PrimitiveBinding}
+    {allowed : List Indexed.ObjectRef} {brand : Nat} {arguments : List ValueType} {output : ValueType} {values : List Value}
+    (rule : PrimitiveTyped env binding allowed brand arguments output)
+    (typed : PrimitiveValuesHaveTypes env world values arguments) (fresh : PrimitiveFresh binding world brand) :
+    PrimitiveOutcome env world binding values output :=
+  (registry_sound binding).total rule.bindingValid rule.argumentsValid rule.resultValid rule.association typed fresh
+
+/-- This corollary consumes the real primitive checker's accepted record, with
+the exact argument annotations and returned result. Runtime argument typing
+and dynamic freshness remain explicit semantic premises. -/
+theorem checked_primitive_semantics {env : CheckedEnvironment} {world : World}
+    {binding : PrimitiveBinding} {allowed : List Indexed.ObjectRef} {brand : Nat} {arguments : List ValueType}
+    (checked : CheckedPrimitive env binding allowed brand arguments) {values : List Value}
+    (typed : PrimitiveValuesHaveTypes env.environment world values arguments)
+    (fresh : PrimitiveFresh binding world brand) :
+    PrimitiveOutcome env.environment world binding values checked.result :=
+  primitive_total_and_typed (VastitasOracle.Indexed.checked_primitive_typed checked) typed fresh
+
+/-- The operation theorem also applies to an actual well-typed Core node,
+using that node's declaration lookup and operand/result conversions. -/
+theorem core_primitive_semantics {env : Declarations} {functions : Typing.Signatures} {ctx : Typing.Context}
+    {world : World} {id : DeclId} {arguments : List Core.Term} {result : Result} {binding : PrimitiveBinding}
+    {operands : List ValueType} {output : ValueType} {values : List Value}
+    (found : env.primitive? id = some binding)
+    (input : (arguments.map Core.Term.result).mapM Result.primitiveType? = some operands)
+    (outputType : result.primitiveType? = some output)
+    (accepted : Typing.HasType env functions ctx (.primitive id arguments result))
+    (typed : PrimitiveValuesHaveTypes env.indexed world values operands)
+    (fresh : PrimitiveFresh binding world (Typing.primitiveBrand result)) :
+    PrimitiveOutcome env.indexed world binding values output :=
+  primitive_total_and_typed
+    (IndexedCore.typed_primitive_contract env functions ctx id arguments result binding operands output
+      found input outputType accepted) typed fresh
 
 /-- Successful logical registry evaluation erases to the actual IndexedRuntime
 operations. This is an operation-level commuting theorem, not a proof about
@@ -724,60 +864,7 @@ generated source, Lean/C compilation, linking or hardware. -/
 theorem primitive_runtime_erasure {env : Indexed.Environment} {binding : PrimitiveBinding}
     {values : List Value} {value : Value} (evaluated : evalPrimitive env binding values = some value) :
     ∃ inputs output, values.mapM erasePrimitiveValue = some inputs ∧
-      erasePrimitiveValue value = some output ∧ evalRuntimePrimitive binding inputs = some output := by
-  unfold evalPrimitive at evaluated
-  split at evaluated
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · rename_i id
-    cases computed : globalObject env id with
-    | none => simp [computed] at evaluated
-    | some object =>
-        simp only [computed, Option.map_some, Option.some.injEq] at evaluated
-        subst value
-        have descriptor := global_object_descriptor computed
-        exact ⟨[], .object IndexedRuntime.baseObject, rfl, by simp [erasePrimitiveValue, descriptor], rfl⟩
-  · rename_i domain family base object
-    cases computed : globalObject env base with
-    | none => simp [computed] at evaluated
-    | some baseObject =>
-        simp [computed] at evaluated
-        subst value
-        have descriptor := global_object_descriptor computed
-        exact ⟨_, _, rfl, rfl, by simp [evalRuntimePrimitive, Point.erase, IndexedRuntime.origin, descriptor]⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · exact intPoint_erasure evaluated
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · exact SmoothPrimitives.smoothPoint_erasure evaluated
-  · cases evaluated
-    exact ⟨_, _, rfl, rfl, rfl⟩
-  · exact SmoothFibers.fiberVector_erasure evaluated
-  all_goals first
-    | contradiction
-    | (cases evaluated; exact ⟨_, _, rfl, rfl, rfl⟩)
+      erasePrimitiveValue value = some output ∧ evalRuntimePrimitive binding inputs = some output :=
+  (registry_sound binding).erasure evaluated
 
 end VastitasOracle.IndexedSemantics

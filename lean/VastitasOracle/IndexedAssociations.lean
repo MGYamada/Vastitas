@@ -23,7 +23,8 @@ one operand list. -/
 local syntax "association_simp" : tactic
 local macro_rules
   | `(tactic| association_simp) => `(tactic| simp only [PrimitiveAssociation, Shape.Association,
-      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, Shape.accepts, Shape.operandsMatch,
+      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence, Shape.accepts,
+      Shape.operandsMatch,
       Shape.operandMatches, Shape.slotsMatch, Shape.tailMatches_none_iff, Shape.tailMatches_some_iff,
       Relation.holds, Shape.refAt, Shape.applicationAt, Shape.objectAt, ResultTemplate.instantiate,
       Shape.templateSlot, List.forall_mem_cons, List.not_mem_nil, false_implies, implies_true,
@@ -152,13 +153,13 @@ theorem relativeIso_association {env : Environment} {forward backward : Applicat
     {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType} {result : ValueType} :
     ¬ PrimitiveAssociation env (.relativeIso forward backward) allowed brand arguments result := by
   simp [PrimitiveAssociation, Shape.Association, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    Shape.uncallable, ResultTemplate.instantiate]
+    PrimitiveDescriptor.evidence, Shape.uncallable, ResultTemplate.instantiate]
 
 theorem relativeCartesian_association {env : Environment} {first second inverse : Application × AlgebraRuntime.Map}
     {fiber : DeclId} {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType} {result : ValueType} :
     ¬ PrimitiveAssociation env (.relativeCartesian first second inverse fiber) allowed brand arguments result := by
   simp [PrimitiveAssociation, Shape.Association, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    Shape.uncallable, ResultTemplate.instantiate]
+    PrimitiveDescriptor.evidence, Shape.uncallable, ResultTemplate.instantiate]
 
 /-! ## Smooth maps, fibers, tapes and metrics (Stage 3) -/
 
@@ -756,5 +757,13 @@ theorem metricSharp_shape {env : Environment} {metric evidence object cotangent 
   slot_fixed sa
   slots_end sa
   rfl
+
+/-! ## Allocation -/
+
+/-- `descriptor` is the one binding whose registry entry allocates. -/
+theorem allocates_iff {binding : PrimitiveBinding} :
+    binding.allocates = true ↔ ∃ implementation, binding = .descriptor implementation := by
+  cases binding <;> simp [PrimitiveBinding.allocates, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+    PrimitiveDescriptor.evidence, Shape.allocates, Shape.uncallable]
 
 end VastitasOracle.IndexedAssociations

@@ -211,7 +211,9 @@ and aliases do not allocate. Numeric freshness is independent of claimed types. 
 def allocatedSerials (env : Declarations) : Term → List Nat
   | .natural _ | .integer _ | .boolean _ | .unit | .variable .. => []
   | .primitive id arguments result => arguments.flatMap (allocatedSerials env) ++
-      (match env.primitive? id with | some (.descriptor _) => (resultSerials result) | _ => [])
+      (match env.primitive? id with
+        | some binding => if binding.allocates then resultSerials result else []
+        | none => [])
   | .call _ arguments _ result => arguments.flatMap (allocatedSerials env) ++ (resultSerials result)
   | .unary _ operand _ | .project _ _ operand | .natToInt operand | .scope operand | .ascribe _ operand => allocatedSerials env operand
   | .binary _ left right _ | .pair _ left right => allocatedSerials env left ++ allocatedSerials env right

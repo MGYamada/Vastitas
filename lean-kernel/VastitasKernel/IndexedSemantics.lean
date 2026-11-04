@@ -2,25 +2,19 @@ import VastitasKernel.IndexedTyping
 import VastitasKernel.IndexedRuntime
 import VastitasKernel.SmoothRuntime
 
-/-! Operational values for the actual declaration-driven Core. Implementation
-IDs are logical tags erased before native execution; they are not dispatch keys
-or runtime equality tests. Worlds are activation-local and need not be injective.
-The executable evaluator is a bounded semantic test oracle, not a public language
-interpreter. Whole-program typed totality and source/native refinement require
-separate proofs; the definitions alone do not establish those properties. -/
+/-! Operational semantics of the actual declaration-driven Core over the values
+of `IndexedPrimitiveValues`: the typing of values against worlds, the primitive
+evaluators, which read each registry entry's own evaluators, and the bounded
+term evaluator. Implementation IDs are logical tags erased before native
+execution; they are not dispatch keys or runtime equality tests. Worlds are
+activation-local and need not be injective. The executable evaluator is a
+bounded semantic test oracle, not a public language interpreter. Whole-program
+typed totality and source/native refinement require separate proofs; the
+definitions alone do not establish those properties. -/
 namespace VastitasKernel.Indexed.Core.Semantics
-
-structure Object where
-  implementation : DeclId
-  descriptor : IndexedRuntime.Object
-  deriving Repr, DecidableEq
 
 def ObjectHasType (env : Indexed.Environment) (object : Object) (type : ObjectType) : Prop :=
   type.Valid env ∧ object.implementation ∈ type.implementations env
-
-def globalObject (env : Indexed.Environment) (id : DeclId) : Option Object := do
-  let implementation ← (Indexed.lookup env id).bind Declaration.objectImplementation?
-  pure ⟨implementation, IndexedRuntime.baseObject⟩
 
 /-- Numeric serials, not claimed type metadata, identify local world slots. -/
 abbrev World := Nat → Option Object
@@ -40,37 +34,6 @@ def WorldExtends (before after : World) : Prop :=
   ∀ brand object, before brand = some object → after brand = some object
 
 def witnessWorld (witness : Object) : World := bindLocal (fun _ => none) 0 witness
-
-structure Point where
-  target : Object
-  source : Object
-  deriving Repr, DecidableEq
-
-def Point.erase (point : Point) : IndexedRuntime.Point :=
-  ⟨point.target.descriptor, point.source.descriptor⟩
-
-structure Morphism where
-  source : Object
-  target : Object
-  deriving Repr, DecidableEq
-
-def Morphism.erase (map : Morphism) : IndexedRuntime.Morphism :=
-  ⟨map.source.descriptor, map.target.descriptor⟩
-
-inductive IndexedValue where
-  | token
-  | point (value : Point)
-  | morphism (value : Morphism)
-  /-- A morphism over a base between presented objects: its exact pullback map. -/
-  | relative (value : AlgebraRuntime.Map)
-  /-- A smooth map between smooth objects: the program that checked Core builds. -/
-  | smooth (value : SmoothRuntime.Program)
-  /-- A vector or covector at a point of a smooth object, or the failure value
-  `none`. The variance is the variance of its family. -/
-  | fiber (variance : Variance) (value : SmoothRuntime.FiberValue)
-  /-- The saved forward values of a smooth program at a point. -/
-  | tape (value : SmoothRuntime.Tape)
-  deriving Repr, DecidableEq
 
 /-- A fiber over a smooth object of dimension `dimension`: the failure value,
 or a point and components with `dimension` entries each. -/
@@ -104,18 +67,6 @@ def IndexedHasType (env : Indexed.Environment) (world : World)
       ∃ n m, smoothDimension? env source = some n ∧ smoothDimension? env target = some m ∧
         TapeTyped n m tape
   | _, _, _ => False
-
-inductive Value where
-  | natural (value : Nat)
-  | integer (value : Int)
-  | boolean (value : Bool)
-  | unit
-  | pairNat (first second : Nat)
-  | pairInt (first second : Int)
-  | object (value : Object)
-  | indexed (value : IndexedValue)
-  | package (witness : Object) (fields : List IndexedValue)
-  deriving Repr, DecidableEq
 
 def FieldsHaveTypes (env : Indexed.Environment) (world : World) : List IndexedValue → List Application → Prop
   | [], [] => True
@@ -157,8 +108,10 @@ def PrimitiveValuesHaveTypes (env : Indexed.Environment) (world : World) : List 
       PrimitiveValueHasType env world value type ∧ PrimitiveValuesHaveTypes env world values types
   | _, _ => False
 
+/-- The fresh slot an allocating call needs: its brand is unbound. Every other
+call needs none. -/
 def PrimitiveFresh (binding : PrimitiveBinding) (world : World) (brand : Nat) : Prop :=
-  match binding with | .descriptor _ => world brand = none | _ => True
+  binding.allocates = true → world brand = none
 
 abbrev Values := Nat → Option Value
 
@@ -221,173 +174,16 @@ def evalBinary (operator : BinaryOp) : Value → Value → Option Value
     | .eq => some (.boolean true) | .ne => some (.boolean false) | _ => none
   | _, _ => none
 
-def Value.integer? : Value → Option Int
-  | .integer value => some value
-  | _ => none
+/-- The logical evaluator of the closed registry: the registry entry's, on the
+values of `IndexedPrimitiveValues`. -/
+def evalPrimitive (env : Indexed.Environment) (binding : PrimitiveBinding) (values : List Value) : Option Value :=
+  binding.contract.eval env values
 
-def intPointValue (values : List Value) : Option Value := do
-  let coordinates ← values.mapM Value.integer?
-  pure (.indexed (.relative (AlgebraRuntime.Map.intPoint coordinates)))
-
-def smoothPointValue (values : List Value) : Option Value := do
-  let coordinates ← values.mapM Value.integer?
-  pure (.indexed (.smooth (SmoothRuntime.intPoint coordinates)))
-
-/-- A fiber of `family` at `point` from integer components. Its variance is
-the declared variance of `family`. -/
-def fiberVectorValue (env : Indexed.Environment) (family : DeclId) (point : SmoothRuntime.Program)
-    (values : List Value) : Option Value := do
-  let variance ← fiberVariance? env family
-  let components ← values.mapM Value.integer?
-  pure (.indexed (.fiber variance (SmoothRuntime.vector point components)))
-
-def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value → Option Value
-  | .descriptor implementation, [.natural dimension] =>
-      some (.object ⟨implementation, IndexedRuntime.descriptor dimension⟩)
-  | .global id, [] => (globalObject env id).map Value.object
-  | .origin _ _ base, [.object object] => do
-      let baseObject ← globalObject env base
-      pure (.indexed (.point ⟨object, baseObject⟩))
-  | .identity _ _, [.object object] => some (.indexed (.morphism ⟨object, object⟩))
-  | .dimension _, [.object object] => some (.natural object.descriptor.dimension)
-  | .compose _, [.indexed (.morphism after), .indexed (.morphism before)] =>
-      some (.indexed (.morphism ⟨before.source, after.target⟩))
-  | .apply _ _, [.indexed (.morphism map), .indexed (.point point)] =>
-      some (.indexed (.point ⟨map.target, point.source⟩))
-  | .relativeConstant _ map, [] => some (.indexed (.relative map))
-  | .relativeCompose _, [.indexed (.relative after), .indexed (.relative before)] =>
-      some (.indexed (.relative (AlgebraRuntime.Map.compose after before)))
-  | .relativeView .., [.indexed (.relative map)] => some (.indexed (.relative map))
-  | .relativeEqual _, [.indexed (.relative left), .indexed (.relative right)] =>
-      some (.boolean (AlgebraRuntime.Map.same left right))
-  | .relativeCoefficient _ _ _ coordinate monomial, [.indexed (.relative map)] =>
-      let (numerator, denominator) := map.coefficient coordinate monomial
-      some (.pairInt numerator denominator)
-  | .relativeIntPoint .., values => intPointValue values
-  | .relativePair .., [.indexed (.relative left), .indexed (.relative right)] =>
-      some (.indexed (.relative (AlgebraRuntime.Map.pair left right)))
-  | .smoothConstant _ map, [] => some (.indexed (.smooth (.primitive map)))
-  | .smoothCompose _, [.indexed (.smooth after), .indexed (.smooth before)] =>
-      some (.indexed (.smooth (.compose after before)))
-  | .smoothEqual _, [.indexed (.smooth left), .indexed (.smooth right)] =>
-      some (.boolean (SmoothRuntime.same left right))
-  | .smoothIntPoint .., values => smoothPointValue values
-  | .smoothComposite _, [.indexed (.smooth program)] =>
-      some (.indexed (.smooth (SmoothRuntime.composite program)))
-  | .fiberVector family .., .indexed (.smooth point) :: components => fiberVectorValue env family point components
-  | .fiberAt .., [.indexed (.fiber _ value), .indexed (.smooth point)] =>
-      some (.boolean (SmoothRuntime.fiberAt value point))
-  | .fiberEqual _, [.indexed (.fiber _ left), .indexed (.fiber _ right)] =>
-      some (.boolean (SmoothRuntime.fiberEqual left right))
-  | .fiberComponent _ _ coordinate, [.indexed (.fiber _ value)] =>
-      let (numerator, denominator) := SmoothRuntime.component value coordinate
-      some (.pairInt numerator denominator)
-  | .fiberPairing .., [.indexed (.fiber _ covector), .indexed (.fiber _ vector)] =>
-      let (numerator, denominator) := SmoothRuntime.pairing covector vector
-      some (.pairInt numerator denominator)
-  | .cotangentPullback _ _ mode, [.indexed (.smooth map), .indexed (.smooth point), .indexed (.fiber _ seed)] =>
-      some (.indexed (.fiber .cotangent (SmoothRuntime.pullback mode map point seed)))
-  | .differential .., [.indexed (.smooth function), .indexed (.smooth point)] =>
-      some (.indexed (.fiber .cotangent (SmoothRuntime.differential function point)))
-  | .linearize .., [.indexed (.smooth map), .indexed (.smooth point)] =>
-      some (.indexed (.tape (SmoothRuntime.linearize map point)))
-  | .cotangentBackward .., [.indexed (.tape tape), .indexed (.fiber _ seed)] =>
-      some (.indexed (.fiber .cotangent (SmoothRuntime.backward tape seed)))
-  | .metricFlat _ _ gram _ _, [.indexed (.fiber _ vector)] =>
-      some (.indexed (.fiber .cotangent (SmoothRuntime.flat gram vector)))
-  | .metricSharp _ _ _ _ inverse _ _, [.indexed (.fiber _ covector)] =>
-      some (.indexed (.fiber .tangent (SmoothRuntime.sharp inverse covector)))
-  | _, _ => none
-
-/-- The closed registry's erased operands/results use the actual runtime
-structures linked into generated programs. Other value shapes are not registry
-operands; this is not a dynamic fallback for unsupported indexed families. -/
-inductive PrimitiveRuntimeValue where
-  | natural (value : Nat)
-  | object (value : IndexedRuntime.Object)
-  | point (value : IndexedRuntime.Point)
-  | morphism (value : IndexedRuntime.Morphism)
-  | relative (value : AlgebraRuntime.Map)
-  | smooth (value : SmoothRuntime.Program)
-  | fiber (value : SmoothRuntime.FiberValue)
-  | tape (value : SmoothRuntime.Tape)
-  | boolean (value : Bool)
-  | integer (value : Int)
-  | pairInt (first second : Int)
-  deriving Repr, DecidableEq
-
-def erasePrimitiveValue : Value → Option PrimitiveRuntimeValue
-  | .natural value => some (.natural value)
-  | .boolean value => some (.boolean value)
-  | .integer value => some (.integer value)
-  | .pairInt first second => some (.pairInt first second)
-  | .indexed (.relative map) => some (.relative map)
-  | .object object => some (.object object.descriptor)
-  | .indexed (.point point) => some (.point point.erase)
-  | .indexed (.morphism map) => some (.morphism map.erase)
-  | .indexed (.smooth program) => some (.smooth program)
-  | .indexed (.fiber _ value) => some (.fiber value)
-  | .indexed (.tape tape) => some (.tape tape)
-  | _ => none
-
-def PrimitiveRuntimeValue.integer? : PrimitiveRuntimeValue → Option Int
-  | .integer value => some value
-  | _ => none
-
-def intPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRuntimeValue := do
-  let coordinates ← values.mapM PrimitiveRuntimeValue.integer?
-  pure (.relative (AlgebraRuntime.Map.intPoint coordinates))
-
-def smoothPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRuntimeValue := do
-  let coordinates ← values.mapM PrimitiveRuntimeValue.integer?
-  pure (.smooth (SmoothRuntime.intPoint coordinates))
-
-def fiberVectorRuntime (point : SmoothRuntime.Program) (values : List PrimitiveRuntimeValue) :
-    Option PrimitiveRuntimeValue := do
-  let components ← values.mapM PrimitiveRuntimeValue.integer?
-  pure (.fiber (SmoothRuntime.vector point components))
-
-def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue
-  | .descriptor _, [.natural dimension] => some (.object (IndexedRuntime.descriptor dimension))
-  | .global _, [] => some (.object IndexedRuntime.baseObject)
-  | .origin _ _ _, [.object object] => some (.point (IndexedRuntime.origin object IndexedRuntime.baseObject))
-  | .identity _ _, [.object object] => some (.morphism (IndexedRuntime.identity object))
-  | .dimension _, [.object object] => some (.natural object.dimension)
-  | .compose _, [.morphism after, .morphism before] => some (.morphism (IndexedRuntime.compose after before))
-  | .apply _ _, [.morphism map, .point point] => some (.point (IndexedRuntime.apply map point))
-  | .relativeConstant _ map, [] => some (.relative map)
-  | .relativeCompose _, [.relative after, .relative before] =>
-      some (.relative (AlgebraRuntime.Map.compose after before))
-  | .relativeView .., [.relative map] => some (.relative map)
-  | .relativeEqual _, [.relative left, .relative right] => some (.boolean (AlgebraRuntime.Map.same left right))
-  | .relativeCoefficient _ _ _ coordinate monomial, [.relative map] =>
-      let (numerator, denominator) := map.coefficient coordinate monomial
-      some (.pairInt numerator denominator)
-  | .relativeIntPoint .., values => intPointRuntime values
-  | .relativePair .., [.relative left, .relative right] => some (.relative (AlgebraRuntime.Map.pair left right))
-  | .smoothConstant _ map, [] => some (.smooth (.primitive map))
-  | .smoothCompose _, [.smooth after, .smooth before] => some (.smooth (.compose after before))
-  | .smoothEqual _, [.smooth left, .smooth right] => some (.boolean (SmoothRuntime.same left right))
-  | .smoothIntPoint .., values => smoothPointRuntime values
-  | .smoothComposite _, [.smooth program] => some (.smooth (SmoothRuntime.composite program))
-  | .fiberVector .., .smooth point :: components => fiberVectorRuntime point components
-  | .fiberAt .., [.fiber value, .smooth point] => some (.boolean (SmoothRuntime.fiberAt value point))
-  | .fiberEqual _, [.fiber left, .fiber right] => some (.boolean (SmoothRuntime.fiberEqual left right))
-  | .fiberComponent _ _ coordinate, [.fiber value] =>
-      let (numerator, denominator) := SmoothRuntime.component value coordinate
-      some (.pairInt numerator denominator)
-  | .fiberPairing .., [.fiber covector, .fiber vector] =>
-      let (numerator, denominator) := SmoothRuntime.pairing covector vector
-      some (.pairInt numerator denominator)
-  | .cotangentPullback _ _ mode, [.smooth map, .smooth point, .fiber seed] =>
-      some (.fiber (SmoothRuntime.pullback mode map point seed))
-  | .differential .., [.smooth function, .smooth point] =>
-      some (.fiber (SmoothRuntime.differential function point))
-  | .linearize .., [.smooth map, .smooth point] => some (.tape (SmoothRuntime.linearize map point))
-  | .cotangentBackward .., [.tape tape, .fiber seed] => some (.fiber (SmoothRuntime.backward tape seed))
-  | .metricFlat _ _ gram _ _, [.fiber vector] => some (.fiber (SmoothRuntime.flat gram vector))
-  | .metricSharp _ _ _ _ inverse _ _, [.fiber covector] => some (.fiber (SmoothRuntime.sharp inverse covector))
-  | _, _ => none
+/-- The erased evaluator of the closed registry: the registry entry's, on the
+actual runtime structures linked into generated programs. -/
+def evalRuntimePrimitive (binding : PrimitiveBinding) (values : List PrimitiveRuntimeValue) :
+    Option PrimitiveRuntimeValue :=
+  binding.contract.evalRuntime values
 
 def evalPair : PairElem → Value → Value → Option Value
   | .nat, .natural first, .natural second => some (.pairNat first second)

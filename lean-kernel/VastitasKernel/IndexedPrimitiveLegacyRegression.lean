@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSourceDiagnostics
+import VastitasKernel.IndexedSemantics
 
 /-! Frozen copies of the primitive tables as they were before the registry
 (#622), with the proof that the derived tables agree with them on every
@@ -7,11 +8,12 @@ pre-registry definition here until the migration is complete. The validity
 contracts agree by definitional unfolding; the operand count agrees by a
 theorem, and so do the argument hints at every position below the operand
 count, which are all the elaborators consult (the pre-registry `descriptor`
-hint also answered the positions beyond it); the association, result
-inference, the role table and the explanation of a rejected call are compared
-on an enumerated corpus of operand lists, well shaped and malformed, at the
-end of this module. The module is deleted at the end of the migration; the
-emit goldens (`tests/fixtures/emit`) stay. -/
+hint also answered the positions beyond it); the two evaluators and the fresh
+slot agree by theorem; the association, result inference, the role table and
+the explanation of a rejected call are compared on an enumerated corpus of
+operand lists, well shaped and malformed, and the evaluators on a corpus of
+value lists, at the end of this module. The module is deleted at the end of
+the migration; the emit goldens (`tests/fixtures/emit`) stay. -/
 namespace VastitasKernel.Indexed.PrimitiveLegacyRegression
 open VastitasKernel.Indexed.Source.Diagnostics (RoleRequirement PrimitiveFailure explainPrimitive roleTable)
 
@@ -374,7 +376,7 @@ def legacyRoleTable (env : Environment) : PrimitiveBinding → List ValueType �
 theorem arity_agrees (env : Environment) (binding : PrimitiveBinding) :
     binding.arity env = legacyArity env binding := by
   cases binding <;> simp [PrimitiveBinding.arity, Shape.arity, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    Shape.uncallable, legacyArity] <;> omega
+    PrimitiveDescriptor.evidence, Shape.uncallable, legacyArity] <;> omega
 
 /-- The hints agree at every operand position; the elaborators check the
 operand count first, so no other position is consulted. -/
@@ -383,7 +385,144 @@ theorem argumentHint_agrees (env : Environment) (binding : PrimitiveBinding) (po
     binding.argumentHint position = legacyArgumentHint binding position := by
   cases binding <;> rcases position with _ | _ | _ | position <;>
     simp_all [PrimitiveBinding.argumentHint, legacyArgumentHint, PrimitiveBinding.arity, Shape.arity,
-      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, Shape.uncallable] <;> omega
+      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence, Shape.uncallable] <;> omega
+
+/-! ## The evaluators before the registry (step 3) -/
+
+open VastitasKernel.Indexed.Core.Semantics (Value PrimitiveRuntimeValue World globalObject intPointValue
+  smoothPointValue fiberVectorValue intPointRuntime smoothPointRuntime fiberVectorRuntime evalPrimitive
+  evalRuntimePrimitive PrimitiveFresh)
+
+def legacyEvalPrimitive (env : Environment) : PrimitiveBinding → List Value → Option Value
+  | .descriptor implementation, [.natural dimension] =>
+      some (.object ⟨implementation, IndexedRuntime.descriptor dimension⟩)
+  | .global id, [] => (globalObject env id).map Value.object
+  | .origin _ _ base, [.object object] => do
+      let baseObject ← globalObject env base
+      pure (.indexed (.point ⟨object, baseObject⟩))
+  | .identity _ _, [.object object] => some (.indexed (.morphism ⟨object, object⟩))
+  | .dimension _, [.object object] => some (.natural object.descriptor.dimension)
+  | .compose _, [.indexed (.morphism after), .indexed (.morphism before)] =>
+      some (.indexed (.morphism ⟨before.source, after.target⟩))
+  | .apply _ _, [.indexed (.morphism map), .indexed (.point point)] =>
+      some (.indexed (.point ⟨map.target, point.source⟩))
+  | .relativeConstant _ map, [] => some (.indexed (.relative map))
+  | .relativeCompose _, [.indexed (.relative after), .indexed (.relative before)] =>
+      some (.indexed (.relative (AlgebraRuntime.Map.compose after before)))
+  | .relativeView .., [.indexed (.relative map)] => some (.indexed (.relative map))
+  | .relativeEqual _, [.indexed (.relative left), .indexed (.relative right)] =>
+      some (.boolean (AlgebraRuntime.Map.same left right))
+  | .relativeCoefficient _ _ _ coordinate monomial, [.indexed (.relative map)] =>
+      let (numerator, denominator) := map.coefficient coordinate monomial
+      some (.pairInt numerator denominator)
+  | .relativeIntPoint .., values => intPointValue values
+  | .relativePair .., [.indexed (.relative left), .indexed (.relative right)] =>
+      some (.indexed (.relative (AlgebraRuntime.Map.pair left right)))
+  | .smoothConstant _ map, [] => some (.indexed (.smooth (.primitive map)))
+  | .smoothCompose _, [.indexed (.smooth after), .indexed (.smooth before)] =>
+      some (.indexed (.smooth (.compose after before)))
+  | .smoothEqual _, [.indexed (.smooth left), .indexed (.smooth right)] =>
+      some (.boolean (SmoothRuntime.same left right))
+  | .smoothIntPoint .., values => smoothPointValue values
+  | .smoothComposite _, [.indexed (.smooth program)] =>
+      some (.indexed (.smooth (SmoothRuntime.composite program)))
+  | .fiberVector family .., .indexed (.smooth point) :: components => fiberVectorValue env family point components
+  | .fiberAt .., [.indexed (.fiber _ value), .indexed (.smooth point)] =>
+      some (.boolean (SmoothRuntime.fiberAt value point))
+  | .fiberEqual _, [.indexed (.fiber _ left), .indexed (.fiber _ right)] =>
+      some (.boolean (SmoothRuntime.fiberEqual left right))
+  | .fiberComponent _ _ coordinate, [.indexed (.fiber _ value)] =>
+      let (numerator, denominator) := SmoothRuntime.component value coordinate
+      some (.pairInt numerator denominator)
+  | .fiberPairing .., [.indexed (.fiber _ covector), .indexed (.fiber _ vector)] =>
+      let (numerator, denominator) := SmoothRuntime.pairing covector vector
+      some (.pairInt numerator denominator)
+  | .cotangentPullback _ _ mode, [.indexed (.smooth map), .indexed (.smooth point), .indexed (.fiber _ seed)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.pullback mode map point seed)))
+  | .differential .., [.indexed (.smooth function), .indexed (.smooth point)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.differential function point)))
+  | .linearize .., [.indexed (.smooth map), .indexed (.smooth point)] =>
+      some (.indexed (.tape (SmoothRuntime.linearize map point)))
+  | .cotangentBackward .., [.indexed (.tape tape), .indexed (.fiber _ seed)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.backward tape seed)))
+  | .metricFlat _ _ gram _ _, [.indexed (.fiber _ vector)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.flat gram vector)))
+  | .metricSharp _ _ _ _ inverse _ _, [.indexed (.fiber _ covector)] =>
+      some (.indexed (.fiber .tangent (SmoothRuntime.sharp inverse covector)))
+  | _, _ => none
+
+def legacyEvalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue
+  | .descriptor _, [.natural dimension] => some (.object (IndexedRuntime.descriptor dimension))
+  | .global _, [] => some (.object IndexedRuntime.baseObject)
+  | .origin _ _ _, [.object object] => some (.point (IndexedRuntime.origin object IndexedRuntime.baseObject))
+  | .identity _ _, [.object object] => some (.morphism (IndexedRuntime.identity object))
+  | .dimension _, [.object object] => some (.natural object.dimension)
+  | .compose _, [.morphism after, .morphism before] => some (.morphism (IndexedRuntime.compose after before))
+  | .apply _ _, [.morphism map, .point point] => some (.point (IndexedRuntime.apply map point))
+  | .relativeConstant _ map, [] => some (.relative map)
+  | .relativeCompose _, [.relative after, .relative before] =>
+      some (.relative (AlgebraRuntime.Map.compose after before))
+  | .relativeView .., [.relative map] => some (.relative map)
+  | .relativeEqual _, [.relative left, .relative right] => some (.boolean (AlgebraRuntime.Map.same left right))
+  | .relativeCoefficient _ _ _ coordinate monomial, [.relative map] =>
+      let (numerator, denominator) := map.coefficient coordinate monomial
+      some (.pairInt numerator denominator)
+  | .relativeIntPoint .., values => intPointRuntime values
+  | .relativePair .., [.relative left, .relative right] => some (.relative (AlgebraRuntime.Map.pair left right))
+  | .smoothConstant _ map, [] => some (.smooth (.primitive map))
+  | .smoothCompose _, [.smooth after, .smooth before] => some (.smooth (.compose after before))
+  | .smoothEqual _, [.smooth left, .smooth right] => some (.boolean (SmoothRuntime.same left right))
+  | .smoothIntPoint .., values => smoothPointRuntime values
+  | .smoothComposite _, [.smooth program] => some (.smooth (SmoothRuntime.composite program))
+  | .fiberVector .., .smooth point :: components => fiberVectorRuntime point components
+  | .fiberAt .., [.fiber value, .smooth point] => some (.boolean (SmoothRuntime.fiberAt value point))
+  | .fiberEqual _, [.fiber left, .fiber right] => some (.boolean (SmoothRuntime.fiberEqual left right))
+  | .fiberComponent _ _ coordinate, [.fiber value] =>
+      let (numerator, denominator) := SmoothRuntime.component value coordinate
+      some (.pairInt numerator denominator)
+  | .fiberPairing .., [.fiber covector, .fiber vector] =>
+      let (numerator, denominator) := SmoothRuntime.pairing covector vector
+      some (.pairInt numerator denominator)
+  | .cotangentPullback _ _ mode, [.smooth map, .smooth point, .fiber seed] =>
+      some (.fiber (SmoothRuntime.pullback mode map point seed))
+  | .differential .., [.smooth function, .smooth point] =>
+      some (.fiber (SmoothRuntime.differential function point))
+  | .linearize .., [.smooth map, .smooth point] => some (.tape (SmoothRuntime.linearize map point))
+  | .cotangentBackward .., [.tape tape, .fiber seed] => some (.fiber (SmoothRuntime.backward tape seed))
+  | .metricFlat _ _ gram _ _, [.fiber vector] => some (.fiber (SmoothRuntime.flat gram vector))
+  | .metricSharp _ _ _ _ inverse _ _, [.fiber covector] => some (.fiber (SmoothRuntime.sharp inverse covector))
+  | _, _ => none
+
+def legacyPrimitiveFresh (binding : PrimitiveBinding) (world : World) (brand : Nat) : Prop :=
+  match binding with | .descriptor _ => world brand = none | _ => True
+
+/-- `descriptor` is the one allocating binding, as before. -/
+theorem allocates_agrees (binding : PrimitiveBinding) :
+    binding.allocates = true ↔ ∃ implementation, binding = .descriptor implementation := by
+  cases binding <;> simp [PrimitiveBinding.allocates, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+    PrimitiveDescriptor.evidence, Shape.allocates, Shape.uncallable]
+
+/-- The fresh slot every binding needs is the pre-registry one. -/
+theorem primitiveFresh_agrees (binding : PrimitiveBinding) (world : World) (brand : Nat) :
+    PrimitiveFresh binding world brand ↔ legacyPrimitiveFresh binding world brand := by
+  cases binding <;> simp [PrimitiveFresh, legacyPrimitiveFresh, PrimitiveBinding.allocates, PrimitiveBinding.contract,
+    PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence, Shape.allocates, Shape.uncallable]
+
+/-- The logical evaluator of every binding is the pre-registry one: on every
+operand list, the registry entry's match and the frozen row either both match
+it, with the same value, or both reject it. -/
+theorem evalPrimitive_agrees (env : Environment) (binding : PrimitiveBinding) (values : List Value) :
+    evalPrimitive env binding values = legacyEvalPrimitive env binding values := by
+  cases binding <;> simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+    PrimitiveDescriptor.evidence] <;> unfold legacyEvalPrimitive <;>
+    first | rfl | (split <;> first | rfl | (split <;> first | rfl | ((try simp_all); try (rename_i h; apply h <;> rfl))))
+
+/-- The erased evaluator of every binding is the pre-registry one. -/
+theorem evalRuntimePrimitive_agrees (binding : PrimitiveBinding) (values : List PrimitiveRuntimeValue) :
+    evalRuntimePrimitive binding values = legacyEvalRuntimePrimitive binding values := by
+  cases binding <;> simp only [evalRuntimePrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+    PrimitiveDescriptor.evidence] <;> unfold legacyEvalRuntimePrimitive <;>
+    first | rfl | (split <;> first | rfl | (split <;> first | rfl | ((try simp_all); try (rename_i h; apply h <;> rfl))))
 
 /-! ## The derived tables on an enumerated corpus
 
@@ -526,13 +665,48 @@ private def compare (tally : Tally) (binding : PrimitiveBinding) (arguments : Li
           s!"{reprStr result}: before {reprStr old}, now {reprStr new}"))
       tally := { tally with explained := tally.explained + 1 }
   pure tally
+/-! ### The evaluators on value lists
+
+Every list of at most three values from a pool with one value of each kind,
+logical and erased, for every binding of the seeds. -/
+private def object (dimension : Nat) : Core.Semantics.Object := ⟨id "Grid", IndexedRuntime.descriptor dimension⟩
+private def valuePool : List Value :=
+  [.natural 0, .natural 3, .integer 2, .integer (-1), .boolean true, .unit, .pairNat 1 2, .pairInt 1 (-2),
+   .object (object 2), .object (object 0), .indexed .token, .indexed (.point ⟨object 2, object 0⟩),
+   .indexed (.morphism ⟨object 1, object 2⟩), .indexed (.relative (AlgebraRuntime.Map.intPoint [1, 2])),
+   .indexed (.smooth (SmoothRuntime.intPoint [1, 2])), .indexed (.fiber .tangent none),
+   .indexed (.fiber .cotangent (SmoothRuntime.vector (SmoothRuntime.intPoint [1]) [3])),
+   .indexed (.tape (SmoothRuntime.linearize (SmoothRuntime.intPoint [1]) (SmoothRuntime.intPoint [2]))),
+   .package (object 1) [.token]]
+private def runtimePool : List PrimitiveRuntimeValue :=
+  [.natural 0, .natural 3, .object (IndexedRuntime.descriptor 2), .point ⟨⟨2⟩, ⟨0⟩⟩, .morphism ⟨⟨1⟩, ⟨2⟩⟩,
+   .relative (AlgebraRuntime.Map.intPoint [1, 2]), .smooth (SmoothRuntime.intPoint [1, 2]), .fiber none,
+   .fiber (SmoothRuntime.vector (SmoothRuntime.intPoint [1]) [3]),
+   .tape (SmoothRuntime.linearize (SmoothRuntime.intPoint [1]) (SmoothRuntime.intPoint [2])),
+   .boolean true, .integer 2, .integer (-1), .pairInt 1 (-2)]
+private def lists {α : Type} (pool : List α) : List (List α) :=
+  [[]] ++ pool.map (fun a => [a]) ++ (pool.flatMap fun a => pool.map fun b => [a, b]) ++
+    (pool.flatMap fun a => pool.flatMap fun b => pool.map fun c => [a, b, c])
+private def compareEvaluators : IO Nat := do
+  let mut cases := 0
+  for (binding, _) in seeds do
+    for values in lists valuePool do
+      unless evalPrimitive env binding values == legacyEvalPrimitive env binding values do
+        throw (IO.userError s!"the logical evaluator differs for {reprStr binding} on {reprStr values}")
+      cases := cases + 1
+    for values in lists runtimePool do
+      unless evalRuntimePrimitive binding values == legacyEvalRuntimePrimitive binding values do
+        throw (IO.userError s!"the erased evaluator differs for {reprStr binding} on {reprStr values}")
+      cases := cases + 1
+  pure cases
 private def run : IO Unit := do
   let mut tally : Tally := {}
   for (binding, seed) in seeds do
     for arguments in mutations seed ++ shortLists do
       tally ← compare tally binding arguments
+  let evaluated ← compareEvaluators
   IO.println (s!"legacy tables: {tally.cases} operand lists agree on inference, association and the role " ++
-    s!"table; {tally.explained} explanations agree")
+    s!"table; {tally.explained} explanations agree; {evaluated} value lists agree on both evaluators")
 #eval run
 
 end VastitasKernel.Indexed.PrimitiveLegacyRegression

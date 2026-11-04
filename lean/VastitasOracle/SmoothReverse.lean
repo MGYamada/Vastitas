@@ -51,7 +51,7 @@ theorem cotangentPullback_inv {env : Indexed.Environment} {smooth cotangent : De
     ∃ map point variance seed,
       values = [.indexed (.smooth map), .indexed (.smooth point), .indexed (.fiber variance seed)] ∧
       value = .indexed (.fiber .cotangent (SmoothRuntime.pullback mode map point seed)) := by
-  unfold evalPrimitive at h
+  simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool] at h
   split at h <;> simp_all <;> (subst h; exact ⟨_, _, _, _, ⟨rfl, rfl, rfl, rfl⟩, rfl⟩)
 
 theorem differential_inv {env : Indexed.Environment} {smooth cotangent line : DeclId}
@@ -59,14 +59,14 @@ theorem differential_inv {env : Indexed.Environment} {smooth cotangent line : De
     (h : evalPrimitive env (.differential smooth cotangent line) values = some value) :
     ∃ function point, values = [.indexed (.smooth function), .indexed (.smooth point)] ∧
       value = .indexed (.fiber .cotangent (SmoothRuntime.differential function point)) := by
-  unfold evalPrimitive at h
+  simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool] at h
   split at h <;> simp_all <;> (subst h; exact ⟨_, _, ⟨rfl, rfl⟩, rfl⟩)
 
 theorem linearize_inv {env : Indexed.Environment} {smooth tape : DeclId} {values : List Value} {value : Value}
     (h : evalPrimitive env (.linearize smooth tape) values = some value) :
     ∃ map point, values = [.indexed (.smooth map), .indexed (.smooth point)] ∧
       value = .indexed (.tape (SmoothRuntime.linearize map point)) := by
-  unfold evalPrimitive at h
+  simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool] at h
   split at h <;> simp_all <;> (subst h; exact ⟨_, _, ⟨rfl, rfl⟩, rfl⟩)
 
 theorem cotangentBackward_inv {env : Indexed.Environment} {tape cotangent : DeclId}
@@ -74,7 +74,7 @@ theorem cotangentBackward_inv {env : Indexed.Environment} {tape cotangent : Decl
     (h : evalPrimitive env (.cotangentBackward tape cotangent) values = some value) :
     ∃ record variance seed, values = [.indexed (.tape record), .indexed (.fiber variance seed)] ∧
       value = .indexed (.fiber .cotangent (SmoothRuntime.backward record seed)) := by
-  unfold evalPrimitive at h
+  simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool] at h
   split at h <;> simp_all <;> (subst h; exact ⟨_, _, _, ⟨rfl, rfl, rfl⟩, rfl⟩)
 
 /-! ## Accepted Core nodes -/
@@ -104,16 +104,17 @@ theorem core_outcome {module : Module} {functions : Typing.Signatures} {ctx : Ty
     ∃ value, evalPrimitive module.declarations.indexed binding argumentValues = some value ∧
       eval module (fuel + 1) values (.primitive id arguments result) = some value ∧
       PrimitiveValueHasType module.declarations.indexed world value output := by
-  have fresh : PrimitiveFresh binding world (Typing.primitiveBrand result) := by
-    cases binding <;> first | trivial | exact absurd rfl (notDescriptor _)
+  have pure : binding.allocates = false := by
+    cases allocates : binding.allocates
+    · rfl
+    · obtain ⟨implementation, rfl⟩ := IndexedAssociations.allocates_iff.mp allocates
+      exact absurd rfl (notDescriptor implementation)
+  have fresh : PrimitiveFresh binding world (Typing.primitiveBrand result) := fun allocates => by
+    rw [pure] at allocates
+    contradiction
   obtain ⟨after, value, primitive, _, valueTyped, afterEq⟩ :=
     IndexedSemantics.core_primitive_semantics found input outputType accepted typed fresh
-  have unchanged : IndexedSemantics.primitiveWorld world binding output value = world := by
-    unfold IndexedSemantics.primitiveWorld
-    split
-    · exact absurd rfl (notDescriptor _)
-    · rfl
-  rw [unchanged] at afterEq
+  rw [IndexedSemantics.primitiveWorld_pure pure] at afterEq
   subst afterEq
   refine ⟨value, primitive, ?_, valueTyped⟩
   simp [eval, found, evaluated, primitive]

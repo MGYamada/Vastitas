@@ -141,7 +141,8 @@ issues name work a version must ship.
 - **v0.1.0** calls for one static family per named `fn`. Its planned production
   path runs from accepted Lean Core through a single MidIR with optimization
   and execution phases to the exact LLVM IR bytes passed to the native backend.
-  The default Fast mode audits evidence bound to those artifacts with nanoda.
+  The default Fast mode audits evidence bound to those artifacts with the
+  nanoda checker shipped with the pinned Lean toolchain.
   Official mode and release proof claims require the pinned official Lean
   kernel. [Function families, #462](https://github.com/MGYamada/Vastitas/issues/462) · [LLVM gate, #417](https://github.com/MGYamada/Vastitas/issues/417) · [Verification modes, #282](https://github.com/MGYamada/Vastitas/issues/282)
 - **v0.2.0** requires a Lean-native production frontend and CLI, authenticated

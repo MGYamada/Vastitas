@@ -1,5 +1,7 @@
 import VastitasKernel.IndexedSourceChecker
 import VastitasKernel.IndexedDeclarationProtocol
+import VastitasKernel.IndexedCodegen
+import VastitasKernel.IndexedSemantics
 
 set_option autoImplicit false
 
@@ -39,6 +41,7 @@ private def declarations : List Source.Declaration := [
   morphism "g" "Plane" "Line" (.pullback [("t", .sum [.pow (c "x") 2, c "y"])]),
   morphism "gf" "Line" "Line" (.pullback [("t", .product [n 2, .pow (c "t") 2])]),
   morphism "idP" "Plane" "Plane" .identity,
+  morphism "eighteen" "Pt" "Line" (.pullback [("t", n 18)]),
   decl "compose" (.primitive (.smoothCompose (path "Smooth"))),
   decl "same" (.primitive (.smoothEqual (path "Smooth"))),
   decl "composite" (.primitive (.smoothComposite (path "Smooth"))),
@@ -110,6 +113,48 @@ private def mapOf (name : String) : Option Map :=
 #eval check "pullback images are stored in target-coordinate order"
   (code (program (declarations.map fun d => if d.name == "f" then
     morphism "f" "Line" "Plane" (.pullback [("y", .pow (c "t") 2), ("x", c "t")]) else d)) == "accepted")
+
+-- An executable Core module over the checked declarations, also compiled by
+-- the native fixture script.
+private def smoothType (x y : String) : Core.Result :=
+  ⟨.indexed ⟨id "Smooth", [.object (.global (id x)), .object (.global (id y))]⟩, none⟩
+private def constant (name x y : String) : Core.Term := .primitive (id name) [] (smoothType x y)
+private def composeTerm (after before : Core.Term) (x y : String) : Core.Term :=
+  .primitive (id "compose") [after, before] (smoothType x y)
+private def sameTerm (left right : Core.Term) : Core.Term := .primitive (id "same") [left, right] ⟨.pure .bool, none⟩
+private def guarded (condition : Core.Term) (code : Int) (rest : Core.Term) : Core.Term :=
+  .branch condition rest (.integer code) ⟨.pure .int, none⟩
+private def gAfterF : Core.Term := composeTerm (constant "g" "Plane" "Line") (constant "f" "Line" "Plane") "Line" "Line"
+private def smoothMain : Core.Function := {
+  id := 0, definition := id "main", parameters := [], returnType := .pure .int
+  body :=
+    guarded (sameTerm gAfterF (constant "gf" "Line" "Line")) 1 <|
+    guarded (sameTerm (.primitive (id "composite") [gAfterF] (smoothType "Line" "Line"))
+      (constant "gf" "Line" "Line")) 2 <|
+    guarded (sameTerm (composeTerm (constant "gf" "Line" "Line")
+        (.primitive (id "line_at") [.integer 3] (smoothType "Pt" "Line")) "Pt" "Line")
+      (constant "eighteen" "Pt" "Line")) 3 <|
+    guarded (sameTerm (composeTerm (constant "idP" "Plane" "Plane") (constant "f" "Line" "Plane") "Line" "Plane")
+      (constant "f" "Line" "Plane")) 4 <|
+    .integer 42 }
+
+/-- The smooth programs of this regression as one audited Core module. -/
+def smoothFixture : Core.Module := ⟨resolved.getD default, [smoothMain], some 0⟩
+
+#eval check "the smooth Core module is accepted" (Core.Typing.checkModule smoothFixture true).isOk
+#eval check "the smooth Core module evaluates to 42"
+  (Core.Semantics.eval smoothFixture 64 (fun _ => none) smoothMain.body == some (Core.Semantics.Value.integer 42))
+#eval check "the smooth Core module imports the smooth runtime" (match Core.Typing.checkModule smoothFixture true with
+  | .ok checked => match Core.Codegen.generate checked with
+    | .ok source => (source.splitOn "import VastitasKernel.SmoothRuntime\n").length == 2
+    | .error _ => false
+  | .error _ => false)
+private def wrongMiddle : Core.Term :=
+  guarded (sameTerm (composeTerm (constant "f" "Line" "Plane") (constant "f" "Line" "Plane") "Line" "Plane")
+    (constant "f" "Line" "Plane")) 1 (.integer 42)
+#eval check "a wrong middle object is rejected by the Core audit"
+  (!(Core.Typing.checkModule ⟨resolved.getD default, [{ smoothMain with body := wrongMiddle }], some 0⟩
+    true).isOk)
 
 -- Source rejections with specific codes.
 #eval check "spec under a smooth implementation"

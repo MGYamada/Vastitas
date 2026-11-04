@@ -107,6 +107,13 @@ pub enum DeclarationBody {
         fiber: TypePath,
         inverse: TypePath,
     },
+    /// A smooth object `Affine(dimension)[coordinates]` (protocol 9). The
+    /// kernel checks the dimension against the coordinates.
+    SmoothAffine {
+        implementation: TypePath,
+        dimension: String,
+        coordinates: Vec<String>,
+    },
 }
 
 /// A chosen isomorphism between separately declared fiber bases.
@@ -136,7 +143,8 @@ pub enum MorphismDefinition {
 }
 
 impl DeclarationBody {
-    /// Stage 2 algebraic forms. They exist only in protocol 9.
+    /// Stage 2 algebraic and Stage 3 smooth forms. They exist only in
+    /// protocol 9.
     pub fn is_algebraic(&self) -> bool {
         match self {
             DeclarationBody::Affine { .. }
@@ -144,7 +152,8 @@ impl DeclarationBody {
             | DeclarationBody::AffineFiber { .. }
             | DeclarationBody::AffineLocalization { .. }
             | DeclarationBody::Iso { .. }
-            | DeclarationBody::Cartesian { .. } => true,
+            | DeclarationBody::Cartesian { .. }
+            | DeclarationBody::SmoothAffine { .. } => true,
             DeclarationBody::Primitive { binding } => matches!(
                 binding,
                 Primitive::RelativeCompose { .. }
@@ -153,19 +162,29 @@ impl DeclarationBody {
                     | Primitive::RelativeCoefficient { .. }
                     | Primitive::RelativeIntPoint { .. }
                     | Primitive::RelativePair { .. }
+                    | Primitive::SmoothCompose { .. }
+                    | Primitive::SmoothEqual { .. }
+                    | Primitive::SmoothComposite { .. }
+                    | Primitive::SmoothIntPoint { .. }
             ),
-            DeclarationBody::Implementation { representation, .. } => {
-                matches!(representation, Representation::PresentedAffine { .. })
-            }
+            DeclarationBody::Implementation { representation, .. } => matches!(
+                representation,
+                Representation::PresentedAffine { .. } | Representation::SmoothAffine
+            ),
             DeclarationBody::Family {
                 constraints,
                 representation,
                 ..
             } => {
-                *representation == FamilyRepresentation::Relative
-                    || constraints
-                        .iter()
-                        .any(|c| matches!(c, Constraint::Structural { .. }))
+                matches!(
+                    representation,
+                    FamilyRepresentation::Relative | FamilyRepresentation::Smooth
+                ) || constraints.iter().any(|c| {
+                    matches!(
+                        c,
+                        Constraint::Structural { .. } | Constraint::Canonical { .. }
+                    )
+                })
             }
             _ => false,
         }
@@ -225,6 +244,8 @@ pub enum Representation {
     PresentedAffine {
         field: ExactField,
     },
+    /// The smooth real affine spaces `Affine(n)` (protocol 9).
+    SmoothAffine,
 }
 
 /// Exact coefficient fields of presented affine objects.
@@ -262,6 +283,7 @@ pub enum FamilyRepresentation {
     Point,
     Morphism,
     Relative,
+    Smooth,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -280,6 +302,7 @@ pub enum Constraint {
     SameBase { left: u32, right: u32 },
     Over { object: u32, marker: u32 },
     Structural { object: u32, base: u32 },
+    Canonical { object: u32 },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -371,5 +394,19 @@ pub enum Primitive {
     RelativePair {
         family: TypePath,
         fiber: TypePath,
+    },
+    SmoothCompose {
+        family: TypePath,
+    },
+    SmoothEqual {
+        family: TypePath,
+    },
+    SmoothComposite {
+        family: TypePath,
+    },
+    SmoothIntPoint {
+        family: TypePath,
+        object: TypePath,
+        point: TypePath,
     },
 }

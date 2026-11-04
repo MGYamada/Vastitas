@@ -1,0 +1,45 @@
+mod profile;
+
+// Smooth real affine spaces and polynomial smooth maps between them.
+// A pullback gives each target coordinate as a polynomial in the source coordinates.
+use profile::SmoothR;
+use profile::Smooth;
+use profile::Pt;
+use profile::Line;
+use profile::compose;
+use profile::same;
+use profile::composite;
+use profile::line_at;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+indexed morphism gf: Smooth<Line, Line> = pullback(t -> 2*t^2);
+indexed morphism idP: Smooth<Plane, Plane> = identity;
+// The shears A(x, y) = (x + y, y) and B(x, y) = (x, x + y), and B after A.
+indexed morphism shearA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> y);
+indexed morphism shearB: Smooth<Plane, Plane> = pullback(x -> x, y -> x + y);
+indexed morphism shearBA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> x + 2*y);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+indexed morphism quartic: Smooth<Line, Line> = pullback(t -> t^4);
+indexed morphism nine: Smooth<Pt, Line> = pullback(t -> 9);
+
+fn twice(map: Smooth<Line, Line>) -> Smooth<Line, Line> { compose(map, map) }
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+fn main() -> Int {
+    // g after f is t |-> t^2 + t^2.
+    42 + verdict(same(compose(g(), f()), gf()), 1)
+       // The shears do not commute.
+       + verdict(!same(compose(shearA(), shearB()), compose(shearB(), shearA())), 2)
+       + verdict(same(compose(shearB(), shearA()), shearBA()), 3)
+       // The composite as one map denotes the same map as the program.
+       + verdict(same(composite(compose(g(), f())), gf()), 4)
+       + verdict(same(compose(idP(), f()), f()), 5)
+       // The integer point 3 of the line, then t |-> t^2, is the point 9.
+       + verdict(same(compose(sq(), line_at(3)), nine()), 6)
+       + verdict(!same(line_at(3), nine()), 7)
+       + verdict(same(twice(sq()), quartic()), 8)
+}

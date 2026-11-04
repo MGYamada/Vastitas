@@ -1,0 +1,14 @@
+// The finite smooth profile: the smooth real affine spaces Affine(n) and the
+// exact QQ polynomial maps between them, `Smooth<X, Y>`.
+pub indexed marker CInfReal;
+pub indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+pub indexed classification CInfAffine { parents(); domain(SmoothR); };
+pub indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+pub indexed affine Pt(SmoothR) = Affine(0)[];
+pub indexed affine Line(SmoothR) = Affine(1)[t];
+// compose(after, before) builds a program node; it never expands the composite.
+pub indexed primitive compose = smooth_compose(Smooth);
+pub indexed primitive same = smooth_equal(Smooth);
+pub indexed primitive composite = smooth_composite(Smooth);
+pub indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);

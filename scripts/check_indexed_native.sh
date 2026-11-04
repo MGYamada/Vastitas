@@ -12,17 +12,22 @@ lake build \
   VastitasKernel.IndexedFunctionRegression \
   VastitasKernel.IndexedDispatchRegression \
   VastitasKernel.IndexedAuthorityRegression \
+  VastitasKernel.SmoothObjectRegression \
   VastitasKernel.IndexedCodegen \
-  VastitasKernel.IndexedRuntime:c.o
+  VastitasKernel.IndexedRuntime:c.o \
+  VastitasKernel.AlgebraRuntime:c.o \
+  VastitasKernel.SmoothRuntime:c.o
 lake env lean --run ../scripts/check_indexed_codegen.lean "$work"
 
-# Each worker links only its own generated module and the shared runtime object.
+# Each worker links only its own generated module and the shared runtime objects.
 lake env xargs -n 2 -P 4 bash -euc '
   work=$1
   fixture=$2
   expected=$3
   lean -R "$work" -c "$work/$fixture.c" "$work/$fixture.lean"
-  leanc "$work/$fixture.c" .lake/build/ir/VastitasKernel/IndexedRuntime.c.o.export -o "$work/$fixture"
+  leanc "$work/$fixture.c" .lake/build/ir/VastitasKernel/IndexedRuntime.c.o.export \
+    .lake/build/ir/VastitasKernel/AlgebraRuntime.c.o.export \
+    .lake/build/ir/VastitasKernel/SmoothRuntime.c.o.export -o "$work/$fixture"
   actual=$("$work/$fixture")
   if [[ "$actual" != "$expected" ]]; then
     echo "$fixture: expected $expected, got $actual" >&2
@@ -52,5 +57,6 @@ authority 42
 authority_transfer 42
 authority_repaired 42
 authority_empty 5
+smooth_programs 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

@@ -111,6 +111,18 @@ coordinate index. The kernel resolves the coordinate of `fiber_component` to
 its index. Generated programs compute every tangent or cotangent fiber and
 every tape at run time.
 
+The kernel admits primitive operations from an explicit list. A spelling that
+only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
+wire carries names, a declared dimension and polynomial expressions. It never
+carries a map, a program or an image in normal form. The kernel elaborates
+every map, and it checks the declared dimension against the coordinates and
+the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
+the diagnostics reference lists the declaration errors. The
+[tangent or cotangent fiber row](appendix/diagnostics.md#e-smooth-fibers) lists
+the errors of the primitives on tangent or cotangent fibers and tapes. The frontend spelling
+`Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
+record of `spec[…] over K`.
+
 <a id="protocol-9-metric-forms"></a>
 
 **Protocol-9 metric forms.** Metrics, metric evidence, `flat` and `sharp` are
@@ -138,18 +150,6 @@ equals its declaration. The list of primitive operations has no `gradient`
 operation: a gradient is an ordinary function that applies `sharp` to a
 differential. The [`E_METRIC` row](appendix/diagnostics.md#e-metric) of the
 diagnostics reference lists the declaration errors.
-
-The kernel admits primitive operations from an explicit list. A spelling that
-only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
-wire carries names, a declared dimension and polynomial expressions. It never
-carries a map, a program or an image in normal form. The kernel elaborates
-every map, and it checks the declared dimension against the coordinates and
-the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
-the diagnostics reference lists the declaration errors. The
-[tangent or cotangent fiber row](appendix/diagnostics.md#e-smooth-fibers) lists
-the errors of the primitives on tangent or cotangent fibers and tapes. The frontend spelling
-`Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
-record of `spec[…] over K`.
 
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),

@@ -83,6 +83,18 @@ def decimal (text : String) (signed : Bool := false) : Except String Int := do
 def naturalString (text : String) : Except String Nat := do
   return (← decimal text).toNat
 
+/-- The declared dimension of a smooth object: an unsigned decimal string with
+at most `algebraCoefficientDigits` digits. The kernel checks it against the
+coordinates and the generator limit. -/
+def smoothDimension (text : String) : Except String Nat := do
+  if text.isEmpty || !text.toList.all (fun c => '0' ≤ c && c ≤ '9') then
+    throw "a smooth dimension is an unsigned decimal string"
+  if text.length > Limits.algebraCoefficientDigits then
+    throw s!"a smooth dimension has at most {Limits.algebraCoefficientDigits} decimal digits"
+  match text.toNat? with
+  | some n => return n
+  | none => throw "a smooth dimension is an unsigned decimal string"
+
 def polyExpr : Nat → Json → Except String Source.PolyExpr
   | 0, _ => throw "polynomial expression is nested too deeply"
   | depth + 1, j => do
@@ -341,7 +353,7 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
   | "smooth_affine" =>
     unless algebraic do throw "smooth declarations require protocol 9"
     fields j (common ++ ["implementation", "dimension", "coordinates"])
-    return .smoothAffine (← path (← field j "implementation")) (← naturalString (← str j "dimension"))
+    return .smoothAffine (← path (← field j "implementation")) (← smoothDimension (← str j "dimension"))
       (← (← array j "coordinates").mapM Json.getStr?)
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"

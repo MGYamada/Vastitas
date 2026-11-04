@@ -113,7 +113,23 @@ fn mutated_observations_change_the_native_result() {
         "line_at(3)), nine()), 6)",
         "line_at(2)), nine()), 6)",
     );
-    assert_eq!(run(&fixture(&main)), b"51\n");
+    // Written order, sign and coordinate order each change an observation.
+    let main = common::checked_replace(
+        &main,
+        "pullback(y -> y, x -> x + y);",
+        "pullback(y -> x + y, x -> y);",
+    );
+    let main = common::checked_replace(
+        &main,
+        "same(line_at(-3), minusThree())",
+        "same(line_at(3), minusThree())",
+    );
+    let main = common::checked_replace(
+        &main,
+        "same(plane_at(1, 2), onePlusTwo())",
+        "same(plane_at(2, 1), onePlusTwo())",
+    );
+    assert_eq!(run(&fixture(&main)), b"83\n");
 }
 
 #[test]
@@ -211,6 +227,36 @@ fn smooth_declarations_reject_mismatched_forms_with_specific_codes() {
     rejects(
         &with("indexed affine Bad(SmoothR) = Affine(t)[t];"),
         "E_PARSE",
+    );
+    // The frontend bounds the dimension before the kernel sees it.
+    let digits = rejects(
+        &with(&format!(
+            "indexed affine Big(SmoothR) = Affine({})[t];",
+            "9".repeat(65)
+        )),
+        "E_LIMIT",
+    );
+    assert!(
+        digits.contains("an `Affine` dimension has at most 64 decimal digits"),
+        "{digits}"
+    );
+    let large = rejects(
+        &with("indexed affine Big(SmoothR) = Affine(99999999999999999999)[t];"),
+        "E_LIMIT",
+    );
+    assert!(
+        large.contains("`Affine(99999999999999999999)` exceeds the limit of 16 coordinates"),
+        "{large}"
+    );
+    let sugar = rejects(
+        &with(&format!(
+            "{PRESENTED}\nindexed affine Big(AffineQQ) = Affine(SpecQQ, 17)[t];"
+        )),
+        "E_LIMIT",
+    );
+    assert!(
+        sugar.contains("exceeds the limit of 16 coordinates"),
+        "{sugar}"
     );
 }
 

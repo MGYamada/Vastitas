@@ -70,15 +70,18 @@ theorem chainOf_smooth_none {env : Environment} {id : DeclId} {coordinates : Lis
   | zero => rfl
   | succ fuel => simp [affineChain, affineData_smooth_none h]
 
-/-- `canonical object` holds exactly for a declared smooth object. -/
-theorem canonical_holds {env : Environment} {indices : List Index} {object : Nat}
-    (h : (Constraint.canonical object).Holds env indices) :
-    ∃ x coordinates, indices[object]? = some (.object (.global x)) ∧
-      smoothCoordinates? env x = some coordinates := by
-  obtain ⟨x, found, smooth⟩ := h
-  unfold smoothDimension? at smooth
-  obtain ⟨coordinates, hc⟩ := Option.isSome_iff_exists.mp (by simpa using smooth)
-  exact ⟨x, coordinates, found, hc⟩
+/-- `canonical object` holds exactly when that index is a declared smooth object. -/
+theorem canonical_holds {env : Environment} {indices : List Index} {object : Nat} :
+    (Constraint.canonical object).Holds env indices ↔
+      ∃ x coordinates, indices[object]? = some (.object (.global x)) ∧
+        smoothCoordinates? env x = some coordinates := by
+  constructor
+  · rintro ⟨x, found, smooth⟩
+    unfold smoothDimension? at smooth
+    obtain ⟨coordinates, hc⟩ := Option.isSome_iff_exists.mp (by simpa using smooth)
+    exact ⟨x, coordinates, found, hc⟩
+  · rintro ⟨x, coordinates, found, hc⟩
+    exact ⟨x, found, by simp [smoothDimension?, hc]⟩
 
 private theorem domain_all {env : Environment} {f : Family} {predicate : DeclId → Bool}
     (all : f.parameters.all (fun p => match p with

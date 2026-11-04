@@ -92,13 +92,14 @@ Protocols 7 and 8 reject each form with `E_PROTOCOL`.
   `object` and `point`.
 
 The kernel admits primitive operations from an explicit list. A spelling that
-only shares a prefix with a listed operation is `E_PROTOCOL`. The wire carries
-names and polynomial expressions only. It never carries a map, a program, an
-image in normal form or a checked dimension: the kernel elaborates and checks
-them. A dimension that differs from the number of coordinates, a repeated
-coordinate and a form that does not match its implementation are `E_SMOOTH`.
-The frontend spelling `Affine(K, n)[…]` has no record of its own: it produces
-the `kind: "affine"` record of `spec[…] over K`.
+only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
+wire carries names, a declared dimension and polynomial expressions. It never
+carries a map, a program or an image in normal form. The kernel elaborates
+every map, and it checks the declared dimension against the coordinates and
+the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
+the diagnostics reference lists the declaration errors. The frontend spelling
+`Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
+record of `spec[…] over K`.
 
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),

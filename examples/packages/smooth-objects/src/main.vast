@@ -21,9 +21,16 @@ indexed morphism idP: Smooth<Plane, Plane> = identity;
 indexed morphism shearA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> y);
 indexed morphism shearB: Smooth<Plane, Plane> = pullback(x -> x, y -> x + y);
 indexed morphism shearBA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> x + 2*y);
+// The shear A again, written y-first. Images are stored in the target's coordinate order.
+indexed morphism shearAYFirst: Smooth<Plane, Plane> = pullback(y -> y, x -> x + y);
 indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
 indexed morphism quartic: Smooth<Line, Line> = pullback(t -> t^4);
 indexed morphism nine: Smooth<Pt, Line> = pullback(t -> 9);
+indexed morphism three: Smooth<Pt, Line> = pullback(t -> 3);
+indexed morphism minusThree: Smooth<Pt, Line> = pullback(t -> -3);
+indexed morphism onePlusTwo: Smooth<Pt, Plane> = pullback(x -> 1, y -> 2);
+// A rational point of the plane from runtime integers, in coordinate order.
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
 
 fn twice(map: Smooth<Line, Line>) -> Smooth<Line, Line> { compose(map, map) }
 
@@ -42,4 +49,10 @@ fn main() -> Int {
        + verdict(same(compose(sq(), line_at(3)), nine()), 6)
        + verdict(!same(line_at(3), nine()), 7)
        + verdict(same(twice(sq()), quartic()), 8)
+       + verdict(same(shearAYFirst(), shearA()), 9)
+       // Integer points keep their sign and their coordinate order.
+       + verdict(same(line_at(3), three()), 10)
+       + verdict(same(line_at(-3), minusThree()), 11)
+       + verdict(same(plane_at(1, 2), onePlusTwo()), 12)
+       + verdict(!same(plane_at(2, 1), onePlusTwo()), 13)
 }

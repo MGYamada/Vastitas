@@ -54,12 +54,13 @@ def _skip_char(source, position):
 
 
 def _skip_string(source, position, line):
-    """Skip a string literal, including `{term}` interpolations and nested strings.
+    """Skip a string literal, including `s!`-style interpolations and nested strings.
 
-    Every string is scanned as possibly interpolated: besides `s!`/`m!`/`f!`,
-    macros such as `throwError` take interpolated strings with no prefix. A
-    literal brace must be escaped (`\\{`); an unmatched one fails closed. Raw
-    strings (`r"..."`, `r#"..."#`) are rejected rather than interpreted.
+    A string after `!` (`s!`, `m!`, `f!`) is scanned as interpolated. Any other
+    string with an unescaped `{` is rejected: it could be an ordinary literal
+    (`"{"`) or a prefixless interpolation (`throwError "{…}"`), and guessing
+    either way lets a later or nested quote conceal tokens. Raw strings
+    (`r"..."`, `r#"..."#`) are rejected rather than interpreted.
     """
     prefix = position
     while prefix > 0 and source[prefix - 1] == "#":
@@ -67,6 +68,7 @@ def _skip_string(source, position, line):
     if prefix > 0 and source[prefix - 1] == "r" and (
             prefix == 1 or not (source[prefix - 2].isalnum() or source[prefix - 2] in "_'.")):
         raise ValueError("unsupported Lean raw string")
+    interpolated = position > 0 and source[position - 1] == "!"
     position += 1
     while True:
         if position >= len(source):
@@ -79,6 +81,8 @@ def _skip_string(source, position, line):
             position += 2
             continue
         if character == "{":
+            if not interpolated:
+                raise ValueError("unescaped brace in a Lean string; escape it or use s!")
             position, line = _skip_interpolation(source, position + 1, line)
             continue
         line += character == "\n"

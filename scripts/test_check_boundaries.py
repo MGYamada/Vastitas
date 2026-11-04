@@ -228,14 +228,17 @@ require /- existing local dependency -/ vastitas_storage_native from "../native"
                        "def q := '\\''\nrequire evil from \"../../elsewhere\"",
                        "def q := '\\u{22}'\nrequire evil from \"../../elsewhere\"",
                        'def q := s!"{"\\""}"\nrequire evil from "../../elsewhere"',
-                       'def q := s!"-I{pkg.dir / "../native"}"\nrequire evil from "../../elsewhere"',
-                       'def q := throwError "{"\\""}"\nrequire evil from "../../elsewhere"']:
+                       'def q := s!"-I{pkg.dir / "../native"}"\nrequire evil from "../../elsewhere"']:
             with self.subTest(hiding=hiding):
                 self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{required}\n{hiding}\n')
                 self.assertTrue(any('unsupported dependency in lakefile.lean' in e
                                     for e in check_boundaries(self.root)))
         for unsupported in ["def q := 'ab'", "def q := '", 'def q := r#"x"#', 'def q := r"x"',
-                            'def q := s!"{"', 'def q := "unmatched { brace"']:
+                            'def q := s!"{"', 'def q := "unmatched { brace"',
+                            # Without `!` a brace is ambiguous: an ordinary literal or a
+                            # prefixless interpolation could each conceal a require.
+                            'def x := "{"\nrequire evil from "../../evil"\ndef y := "}"',
+                            'def q := throwError "{"\\""}"\nrequire evil from "../../elsewhere"']:
             with self.subTest(unsupported=unsupported):
                 self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{required}\n{unsupported}\n')
                 self.assertTrue(any('cannot check lakefile.lean dependencies' in e

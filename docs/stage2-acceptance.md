@@ -93,10 +93,10 @@ distinct failure code, so a wrong result changes the output
 | 1. In D = QQ[e]/(e²), ε ≠ 0 and ε² = 0 | **Tested** (A): the basis `[e²]` in `BasisRegression` and the example's coefficient observation `eps(p()) = 1`. **Proved (oracle)** that the accepted basis satisfies its certificate. **Proved (bridge)**: ε ≠ 0 and ε² = 0 in `ℚ[e]/(e²)` (`relationIdeal_dual`). |
 | 2. `p: t ↦ ε` and `q: t ↦ 0` are different D-valued points, equal after composing with the closed point | **Tested** (M): the example's `!same(p(), q())` and `same(compose(p(), closed()), compose(q(), closed()))`, natively and in `presented_affine_geometry_is_usable_from_the_library`. **Proved (oracle)**: `same_iff` compares exact normal-form images, and `compose_images` fixes the written order. **Proved (bridge)**: `p_ne_q`, `closedPoint_comp`, and `spec_base_eq` (equal underlying continuous maps). |
 | 3. Variance: `compose(sq, shift)` is (t + 1)² and `compose(shift, sq)` is t² + 1 | **Tested** (M): slope observations in the example and the `compose` regression in `AffineMorphismRegression`. **Proved (oracle)**: `compose_images` (pullback substitutes `before` into `after`). **Proved (bridge)**: `pullbackHom_compose` and `specMap_compose`. |
-| 4. The fiber of X = Spec QQ[t, x]/(x² − t) over t = 0 is isomorphic to Spec D | **Tested** (F): the basis `[x², t]` in `AffineFiberRegression` and the example's `cartesian fiberIsDual`. **Proved (oracle)**: `checkConstruction_fiber` (the stored presentation is derived from the factors) and `cartesian_sound` (the declared inverse composes with `pair` to the identity both ways). **Proved (bridge)**: `Fiber.isPushout`, `Fiber.isPullback` and `isoTensor`. |
+| 4. The fiber of X = Spec QQ[t, x]/(x² − t) over t = 0 is isomorphic to Spec D | **Tested** (F): the basis `[x², t]` in `AffineFiberRegression` and the example's `cartesian fiberIsDual`. **Proved (oracle)**: `checkConstruction_fiber` (the stored presentation is derived from the factors) and `cartesian_sound` (the declared inverse composes with `pair` to the identity both ways). **Proved (bridge)**: `Fiber.isPushout`, `Fiber.isPullback` and `isoTensor`; `Fiber.accepted` for accepted declarations. |
 | 5. Universal property: the projections of `pair(toX, toOrigin)` recover both arrows | **Tested** (F): the example's `same(compose(prX(), lift(toX(), toOrigin())), toX())` and `fiberX` observations. **Proved (oracle)**: `relativePair_total` and runtime erasure to `Map.pair`. **Proved (bridge)**: `specMap_pair`. |
 | 6. The triangle `structure ∘ toX = structure` over S | **Tested** (M): the example's `same(compose(toS(), toX()), dsToS())`; forged triangles rejected in `AffineMorphismRegression`. **Proved (oracle)**: `relativeConstant_sound`, whose `MorphismValid` includes the commuting triangle with both stored structure maps. **Proved (bridge)**: `pullbackHom_triangle`. |
-| 7. Principal opens D(f) = Spec A[u]/(uf − 1) and `restrict(φ)` give A_f → B_φ(f) | **Tested** (P): D(t), `restrict(t ↦ t²)` with u ↦ v, the open inclusion, the #104 transition D(x) ≅ D(y) and D(0) as the zero ring, in `AffineOpenRegression` and the example. **Proved (oracle)**: `checkConstruction_localization`. **Proved (bridge)**: `equivAway`, `range_comap_toL` and `specMap_preimage_basicOpen`. |
+| 7. Principal opens D(f) = Spec A[u]/(uf − 1) and `restrict(φ)` give A_f → B_φ(f) | **Tested** (P): D(t), `restrict(t ↦ t²)` with u ↦ v, the open inclusion, the #104 transition D(x) ≅ D(y) and D(0) as the zero ring, in `AffineOpenRegression` and the example. **Proved (oracle)**: `checkConstruction_localization`. **Proved (bridge)**: `equivAway`, `range_comap_toL` and `specMap_preimage_basicOpen`; `PrincipalOpen.accepted` for accepted declarations. |
 | 8. Rejections | **Tested**, each with its specific code:<br>• diagrams over separately declared bases, and `fiber(X, Origin2)` without an isomorphism: `E_AFFINE_BASE`;<br>• swapped variance and foreign coordinates: `E_AFFINE_COORDINATE`;<br>• relation violations and forged inverses: `E_AFFINE_RELATION`;<br>• missing structure maps: `E_AFFINE_BASE`;<br>• base mismatches in types: `E_TYPE`;<br>• Stage 1 `Scheme` and `CInfScheme` objects as `Over` indices: `E_TYPE` (`presented_affine_geometry_is_usable_from_the_library`);<br>• algebraic forms in protocol 7 or 8: `E_PROTOCOL`;<br>• forged Core and wire: the tampered cases in every affine regression and the raw-wire tests;<br>• limits: 16/17 generators, degree 16/17 and 32/33 relations, and the work budget, including substitutions whose expansions are huge: `E_LIMIT`. |
 | 9. Accepted comparison: `fiber(X, Origin2) via(t -> t) inverse(t -> t)` | **Tested** (F): `Fiber2` in the example and `AffineFiberRegression`, with a non-isomorphic base map rejected. **Proved (oracle)**: `checkConstruction_fiber`, including the composed right structure images. **Proved (bridge)**: `certificate_of_checkConstruction`. |
 | 10. Non-regression of the two-index `Morphism`/`same_base` and `GeometryProfile` contracts | **Proved (oracle)**: `presented_not_descriptor` and `sealed_families_exclude_presented`; the `GeometryCompatibility` theorems still hold. **Tested**: every pre-existing test, including the stdlib geometry suite, which now runs on protocol 9. |
@@ -115,11 +115,20 @@ distinct failure code, so a wrong result changes the output
 - **Proved (bridge).** S7, S8a and S8b above. The normal forms the kernel
   compares are canonical in `MvPolynomial (Fin n) ℚ`, so exact equality of
   stored images is equality in the presented ring.
-- **Stated hypothesis (bridge).** The fiber and principal-open theorems assume
-  that the factors' structure images are canonical. The oracle discharges it
-  for every accepted declaration (`validAffine_images_normal`), and
-  `structureValid_bridge` derives the relation part. The bridge statements
-  will take the oracle fact in place of the hypothesis.
+- **Bridge hypotheses discharged.** The bridge now takes the oracle fact and
+  no longer assumes canonical structure images for accepted declarations.
+  - `validAffine_structure` turns an accepted structure map into a ring map.
+    The oracle's `validAffine_images_normal` shows that each stored image is
+    the normal form of its binding. `validAffine_bindings_canonical` shows that
+    the binding is canonical (the kernel's structure check), so the image is
+    canonical by `normalForm_spec`.
+  - In a valid environment, `Fiber.accepted` and `PrincipalOpen.accepted`
+    derive every hypothesis of the fiber and principal-open theorems from
+    acceptance alone.
+  - **Still a hypothesis:** the `via` case of row 9. Its right structure map
+    is composed with the chosen base isomorphism, and the oracle does not
+    record `checkIso`'s facts. So `Fiber.isPullback` takes that map's
+    `Images` and `Respects` as hypotheses.
 - **Tested only.**
   - Raw-wire rejection of protocols 7 and 8.
   - Parser fidelity.

@@ -10,7 +10,9 @@ coordinates first and the inverse `u` last (`rels`, `localizationPresentation_re
 * `equivAway`: `L ≃+* Localization.Away f`, compatibly with the inclusion (`equivAway_comp_toL`).
 * `range_comap_toL`: the image of `Spec L → Spec (Presented X)` is the basic open set `D(f)`.
 * `certificate_of_checkConstruction`: an accepted `localize(X, f)` declaration has exactly this
-  presentation.
+  presentation, with a canonical element `f`.
+* `PrincipalOpen.accepted`: in a valid environment, every hypothesis of these theorems comes from
+  acceptance.
 * `specMap_preimage_basicOpen` (`Scheme.preimage_basicOpen`): the preimage of `D(a)` under
   `Spec.map φ` is `D(φ a)`, which makes `restrict(φ)` a map of principal opens.
 -/
@@ -253,6 +255,24 @@ theorem range_comap_toL (hx : Verified cx) (hf : Canonical cx.arity f) :
   exact (hs.range_comp _).symm
 
 
+open VastitasOracle.AlgebraBasis (bind_ok ensure_ok throw_not_ok) in
+/-- The kernel checks that the localized element is a canonical polynomial of the object. -/
+theorem checkConstruction_localization_element {data : AffineData}
+    {resolve : Namespace.Owner → Option AffineData} {object : Namespace.Owner} {element : Poly}
+    {inverse : String} {relations : List Poly} {s s' : ℕ}
+    (hc : data.construction = .localization object element inverse relations)
+    (h : (checkConstruction data resolve).run s = .ok ((), s')) :
+    ∃ x, resolve object = some x ∧ Canonical x.arity element := by
+  unfold checkConstruction at h
+  rw [hc] at h
+  simp only at h
+  cases hx : resolve object with
+  | none => simp only [hx] at h; exact (throw_not_ok h).elim
+  | some x =>
+    simp only [hx] at h
+    obtain ⟨_, _, hcan, _⟩ := bind_ok h
+    exact ⟨x, rfl, canonical_iff.1 (ensure_ok hcan)⟩
+
 /-- **An accepted principal open is this presentation.** If the kernel's `checkConstruction`
 accepts `localize(X, f)`, its certificate presents `L` in `X.arity + 1` coordinates, and its base
 is `X`. -/
@@ -261,17 +281,42 @@ theorem certificate_of_checkConstruction {data : AffineData}
     {inverse : String} {relations : List Poly} {s s' : ℕ}
     (hc : data.construction = .localization object element inverse relations)
     (h : (checkConstruction data resolve).run s = .ok ((), s')) :
-    ∃ x, resolve object = some x ∧ data.base = some object ∧
+    ∃ x, resolve object = some x ∧ data.base = some object ∧ Canonical x.arity element ∧
       data.certificate = ⟨x.arity + 1, rels x.certificate element, data.basis, data.cofactors⟩ := by
   obtain ⟨x, hx, hgen, hrel, hbase, -⟩ :=
     VastitasOracle.AffineFibers.checkConstruction_localization hc h
-  refine ⟨x, hx, hbase, ?_⟩
-  have harity : data.arity = x.arity + 1 := by
-    simp [AffineData.arity, hgen, localizationPresentation]
-  have hrels : data.relations = rels x.certificate element := by
-    rw [AffineData.relations, hc]
-    exact hrel
-  simp only [AffineData.certificate, harity, hrels]
+  refine ⟨x, hx, hbase, ?_, ?_⟩
+  · obtain ⟨x', hx', hcan⟩ := checkConstruction_localization_element hc h
+    rw [hx] at hx'
+    cases hx'
+    exact hcan
+  · have harity : data.arity = x.arity + 1 := by
+      simp [AffineData.arity, hgen, localizationPresentation]
+    have hrels : data.relations = rels x.certificate element := by
+      rw [AffineData.relations, hc]
+      exact hrel
+    simp only [AffineData.certificate, harity, hrels]
+
+/-- **Accepted principal opens are localizations, unconditionally.** In a valid environment, an
+accepted `localize(X, f)` declaration has a verified object `X`, a canonical element `f` and
+exactly the presentation `L`, whose `Spec` has image `D(f)`; `equivAway` then identifies `L`
+with `Localization.Away f`. -/
+theorem accepted {env : Indexed.Environment} (henv : env.Valid) {id implementation : Indexed.DeclId}
+    {data : AffineData} {object : Namespace.Owner} {element : Poly} {inverse : String}
+    {relations : List Poly} (h : Indexed.validAffine env id implementation data = true)
+    (hc : data.construction = .localization object element inverse relations) :
+    ∃ x, Indexed.affineData? env object = some x ∧ data.base = some object ∧
+      data.certificate = ⟨x.arity + 1, rels x.certificate element, data.basis, data.cofactors⟩ ∧
+      ∃ (hx : Verified x.certificate) (hf : Canonical x.arity element),
+        Set.range (PrimeSpectrum.comap (toL element hx)) =
+          PrimeSpectrum.basicOpen (mk x.certificate element) ∧
+        (equivAway hx hf).toRingHom.comp (toL element hx) =
+          algebraMap (Presented x.certificate) (Away x.certificate element) := by
+  have hcons := (VastitasOracle.AffineDeclarations.validAffine_sound h).2.2.2
+  obtain ⟨_, hrun⟩ := VastitasOracle.AffineMorphisms.run_isOk hcons
+  obtain ⟨x, hx, hbase, hf, hcert⟩ := certificate_of_checkConstruction hc hrun
+  have hvx := verified_of_affineData henv hx
+  exact ⟨x, hx, hbase, hcert, hvx, hf, range_comap_toL hvx hf, equivAway_comp_toL hvx hf⟩
 
 end PrincipalOpen
 

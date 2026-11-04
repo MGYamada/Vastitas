@@ -77,7 +77,14 @@ run_cmd do
       `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.desc_unique,
       `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.pairHom_X,
       `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.specMap_pair,
-      `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.certificate_of_checkConstruction] do
+      `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.certificate_of_checkConstruction,
+      `VastitasBridge.AlgebraicGeometry.Kernel.validAffine_of_affineData,
+      `VastitasBridge.AlgebraicGeometry.Kernel.validAffine_bindings_canonical,
+      `VastitasBridge.AlgebraicGeometry.Kernel.validAffine_structureImages_canonical,
+      `VastitasBridge.AlgebraicGeometry.Kernel.validAffine_structure,
+      `VastitasBridge.AlgebraicGeometry.Kernel.PrincipalOpen.checkConstruction_localization_element,
+      `VastitasBridge.AlgebraicGeometry.Kernel.PrincipalOpen.accepted,
+      `VastitasBridge.AlgebraicGeometry.Kernel.Fiber.accepted] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would

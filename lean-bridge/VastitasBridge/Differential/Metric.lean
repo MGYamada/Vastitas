@@ -19,6 +19,9 @@ what those identities mean for the bilinear form.
   the only such vector.
 * **`posDef_of_riemannian`**: Riemannian evidence makes the Gram matrix positive definite over
   `ℝ`.
+* `Accepted.lean` discharges the hypotheses of these theorems from accepted declarations and
+  accepted `sharp` nodes (`checked_gradient_riesz`, `checked_riemannian_posDef`,
+  `checked_flat_sharp`).
 * `not_isUnit_diag_one_zero` and `not_posDef_lorentz`: `diag(1, 0)` is singular and
   `diag(1, -1)` is not positive definite, so no evidence of those kinds exists for them
   (`checkNondegenerate_diag_one_zero`, `checkRiemannian_lorentz`). `diag(1, -1)` still has

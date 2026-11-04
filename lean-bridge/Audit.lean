@@ -149,7 +149,16 @@ run_cmd do
       `VastitasBridge.Differential.checkNondegenerate_diag_one_zero,
       `VastitasBridge.Differential.not_posDef_lorentz,
       `VastitasBridge.Differential.checkRiemannian_lorentz,
-      `VastitasBridge.Differential.checkNondegenerate_lorentz] do
+      `VastitasBridge.Differential.checkNondegenerate_lorentz,
+      `VastitasBridge.Differential.accepted_pullback_operands,
+      `VastitasBridge.Differential.accepted_differential_operands,
+      `VastitasBridge.Differential.accepted_sharp_operands,
+      `VastitasBridge.Differential.checked_pullback_frechet,
+      `VastitasBridge.Differential.checked_pullback_kaehler,
+      `VastitasBridge.Differential.checked_differential_frechet,
+      `VastitasBridge.Differential.checked_gradient_riesz,
+      `VastitasBridge.Differential.checked_riemannian_posDef,
+      `VastitasBridge.Differential.checked_flat_sharp] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would

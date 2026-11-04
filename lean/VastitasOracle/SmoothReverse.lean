@@ -31,8 +31,11 @@ calculus, proved in the bridge (`VastitasBridge.Differential.ChainRule`:
 `smooth_differential_metric_free` states that the differential and the
 cotangent pullback never consult the declarations: their Core semantics is the
 same in every environment, and their runtime operation takes no environment.
-The checker-level weakening theorem, that adding metric declarations leaves the
-validity of other bindings unchanged, is planned for S5. -/
+The checker-level weakening theorems,
+`SmoothMetricWeakening.validPrimitiveBinding_metric_weakening` and
+`SmoothMetricWeakening.evalPrimitive_metric_weakening`, state that appending
+metric declarations leaves the validity and the value of every binding other
+than `flat` and `sharp` unchanged. -/
 namespace VastitasOracle.SmoothReverse
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
@@ -306,7 +309,9 @@ bindings never consult the declarations. Their Core semantics is the same in
 every pair of environments, so adding or removing a declaration leaves it
 unchanged. Their runtime operation takes no environment: it is
 `SmoothRuntime.differential` and `SmoothRuntime.pullback` of the erased
-operands. The checker-level weakening theorem is planned for S5. -/
+operands. For the validity of these bindings when metric declarations are
+appended, see `SmoothMetricWeakening.differential_metric_free` and
+`SmoothMetricWeakening.cotangentPullback_metric_free`. -/
 theorem smooth_differential_metric_free (env env' : Indexed.Environment) (values : List Value) :
     (∀ smooth cotangent line,
       evalPrimitive env (.differential smooth cotangent line) values =

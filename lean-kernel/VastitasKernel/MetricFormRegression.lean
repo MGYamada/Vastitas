@@ -161,8 +161,9 @@ private def q (numerator : Int) (denominator : Nat := 1) : Rat := mkRat numerato
     (·.arity env.indexed))) == some (some 1, some 1) &&
     (binding "sharp_skew").map (·.argumentHint 0) == some none)
 #eval check "a metric form family is not a fiber family"
-  ((resolved.map fun env => (isMetricFamily env.indexed (id "MetricForm"), fiberVariance? env.indexed (id "MetricForm")))
-    == some (true, none))
+  ((resolved.map fun env =>
+      (isMetricFamily env.indexed (id "MetricForm"), fiberVariance? env.indexed (id "MetricForm"))) ==
+    some (true, none))
 
 /-! ## An executable Core module
 

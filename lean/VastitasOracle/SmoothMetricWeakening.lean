@@ -51,7 +51,8 @@ theorem lookup_append (env extra : Environment) (id : DeclId) :
   rw [List.find?_append]
   cases env.find? (fun entry => entry.id == id) <;> rfl
 
-theorem found_of_isSmoothFamily {env : Environment} {id : DeclId} (h : isSmoothFamily env id = true) : (lookup env id).isSome = true := by
+theorem found_of_isSmoothFamily {env : Environment} {id : DeclId} (h : isSmoothFamily env id = true) :
+    (lookup env id).isSome = true := by
   unfold isSmoothFamily at h
   split at h <;> simp_all
 

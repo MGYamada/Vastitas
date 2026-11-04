@@ -275,6 +275,17 @@ One body of a generic. A method gives each parameter a selector, declares a
 result type and may require capabilities. See
 [Generics and methods](../guide/dispatch.md#generics-and-methods).
 
+## Metric form
+
+A family with the `metric_form` representation, such as `MetricForm<X>`, over
+a [smooth affine object](#smooth-affine-object) `X`. An `indexed metric`
+declaration names a metric form and gives a constant symmetric Gram matrix in
+the coordinates of `X`. No value has a metric form type. `flat` and `sharp`
+name their metric explicitly, and no metric is ever selected by default. A
+metric form is distinct from the diagonal Hermitian `Metric` of
+[transforms and metrics](../linalg/transforms-and-metrics.md). See
+[metric forms](../protocol.md#protocol-9-metric-forms).
+
 ## Module
 
 A namespace inside a package. The root source file is the package's root
@@ -295,6 +306,14 @@ identity. See [Identity is nominal](../guide/indexed-geometry.md#identity-is-nom
 An object with [nominal identity](#nominal-identity), such as the result of
 `Affine(QQ, 2)`. A point's type names the object that the point lies on. See
 [Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal).
+
+## Nondegenerate evidence
+
+An `indexed evidence` declaration `nondegenerate(g)` for a metric `g` with Gram
+matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
+`G B` and `B G` are the identity. A singular Gram matrix has no nondegenerate
+evidence. `sharp` requires nondegenerate evidence for its metric. See
+[metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Oracle
 
@@ -363,6 +382,17 @@ The word has two meanings:
 A function declared with `resource fn`. Its body is a sequence of storage
 statements followed by a pure `value { ... }` block. See
 [Resource functions](../guide/storage.md#resource-functions).
+
+## Riemannian evidence
+
+An `indexed evidence` declaration `riemannian(g)` for a metric `g` with Gram
+matrix `G`. The kernel computes a factorization `G = L D Lᵀ`, where `L` is unit
+lower triangular and every entry of the diagonal `D` is positive. It also
+computes an inverse of `L`, and it checks every identity again. Only a
+positive-definite Gram matrix has Riemannian evidence. It is the wrong kind of
+evidence for `sharp`, which requires
+[nondegenerate evidence](#nondegenerate-evidence). See
+[metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Scheme
 

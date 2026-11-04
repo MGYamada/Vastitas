@@ -17,8 +17,9 @@
 - [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md)
 - [Diagnostics and the CLI](guide/diagnostics-and-cli.md)
 
-# Language reference
+# Vastitas Reference
 
+- [Notation](language/notation.md)
 - [Core language and compatible geometry syntax](stage0.md)
 - [Finite dispatch, abstract contracts and promotion](stage1a.md)
 - [Lambdas and static higher-order functions](stage1b.md)
@@ -58,3 +59,4 @@
   - [F: Contributing and validation](appendix/contributing.md)
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)
+  - [G: Glossary](appendix/glossary.md)

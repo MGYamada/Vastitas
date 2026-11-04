@@ -15,7 +15,7 @@ const POLICY: &str = include_str!("../config/nanoda-internal-audit.json");
 
 /// The pinned official Lean toolchain, its release identity, and the checker
 /// version that release distributes. A toolchain bump updates all four together;
-/// a unit test compares the name with every checked-in `lean-toolchain` file.
+/// a unit test compares the name with the checked-in `lean-toolchain` files.
 const LEAN_TOOLCHAIN: &str = "leanprover/lean4:v4.35.0";
 const LEAN_VERSION: &str = "4.35.0";
 const LEAN_COMMIT: &str = "eb6cafb7290e8bd5f2937522d8d804f58f02bafc";
@@ -74,7 +74,8 @@ fn policy() -> Result<Map<String, Value>, String> {
         || config["unsafe_permit_all_axioms"] != Value::Bool(false)
         || config["use_stdin"] != Value::Bool(false)
         || config["print_success_message"] != Value::Bool(true)
-        // Its default (true) turns into a pretty-printer error on success.
+        // nanoda 0.4.19 defaults this to true, and without a pretty-printer
+        // destination that replaces the success message with an error report.
         || config["print_axioms"] != Value::Bool(false)
     {
         return Err("E_LEAN_AUDIT_POLICY: internal policy must allow exactly the three configured axiom names, fail on any other name, forbid permit-all, read the export file and report success".into());
@@ -379,13 +380,14 @@ mod tests {
     #[test]
     fn identity_matches_every_checked_in_toolchain_pin() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        for file in [
-            "lean-toolchain",
-            "lean-kernel/lean-toolchain",
-            "lean/lean-toolchain",
-        ] {
+        // The packaged crate and the no-mathlib CI checkout omit the proof-only
+        // `lean/` project; the compiler and kernel pins are always present.
+        for file in ["lean-toolchain", "lean-kernel/lean-toolchain"] {
             let pin = fs::read_to_string(root.join(file)).unwrap();
             assert_eq!(pin.trim(), LEAN_TOOLCHAIN, "{file}");
+        }
+        if let Ok(pin) = fs::read_to_string(root.join("lean/lean-toolchain")) {
+            assert_eq!(pin.trim(), LEAN_TOOLCHAIN, "lean/lean-toolchain");
         }
         assert_eq!(
             LEAN_TOOLCHAIN.strip_prefix("leanprover/lean4:v"),

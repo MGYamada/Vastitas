@@ -40,27 +40,40 @@ when explicitly selected; `build` also needs the package and uses its pinned
 
 ### Internal Lean proof audit (v0.1.0 gate)
 
-The Rust compiler also offers an opt-in, **non-authoritative** cross-check of
-Lean proof exports using the pinned [`nanoda_lib`](https://github.com/ammkrn/nanoda_lib)
-crate. Generate an NDJSON file with `lean4export`, then run:
+The CLI also offers an opt-in, **non-authoritative** cross-check of Lean proof
+exports. It runs the external checker `nanoda_bin` that the pinned official
+Lean 4.35.0 toolchain ships (nanoda 0.4.19). Vastitas does not build or bundle
+a checker of its own. Generate an NDJSON file with `lean4export`, then run:
 
 ```sh
 cargo run --locked -- audit-lean path/to/lean4export.ndjson
 ```
 
-`audit-lean` uses the checked-in [axiom-name policy](https://github.com/MGYamada/Vastitas/blob/main/config/nanoda-internal-audit.json):
-only the names `propext`, `Classical.choice`, and `Quot.sound` are allowed, with hard
-rejection of all other exported axiom names. Their statements and dependencies
-are not authenticated against the standard Lean environment. Every result is
-explicitly conditional on the supplied environment and reports its exported
-axiom count; renaming an arbitrary assumption does not validate it as a standard
-Lean axiom. In particular, `sorryAx` and
-`Lean.trustCompiler` are not permitted. The internal checker runs in an
-isolated worker because rejection in upstream nanoda may panic or exit.
+The command needs that toolchain installed by elan
+(`elan toolchain install leanprover/lean4:v4.35.0`). It locates the toolchain
+directory under `ELAN_HOME` (default `~/.elan`), never a `nanoda_bin` on `PATH`.
+Before checking, it requires that the toolchain's `lean --version` reports the
+official 4.35.0 release (commit `eb6cafb`) for this platform and that the
+toolchain's own `nanoda_bin` reports version 0.4.19. A missing or mismatched
+toolchain or checker is an `E_LEAN_AUDIT_CHECKER` error. There is no Cargo,
+download or alternate-checker fallback.
+
+`audit-lean` passes nanoda an upstream configuration file built from the
+checked-in [policy](https://github.com/MGYamada/Vastitas/blob/main/config/nanoda-internal-audit.json).
+Only the names `propext`, `Classical.choice`, and `Quot.sound` are allowed,
+and every other exported axiom name is a hard error, including `sorryAx` and
+`Lean.trustCompiler`. Their statements and dependencies are not authenticated
+against the standard Lean environment, so every result is explicitly
+conditional on the supplied environment. Renaming an arbitrary assumption does
+not validate it as a standard Lean axiom. nanoda runs as a separate supervised
+process: a rejection, panic or crash is an `E_LEAN_AUDIT` error that shows its
+exit status and a bounded, escaped excerpt of its diagnostics, and an interrupt
+stops and reaps it.
 
 This command **rechecks an existing proof term**; it does not elaborate Lean
 source, discover proofs, authorize `.vast` source/IR, or discharge any
-constitutional theorem. The official Lean kernel remains the sole authority
-for CI proofs, kernel compilation, and CS/MS/CF proof obligations. See
+constitutional theorem. nanoda is not the official Lean kernel. The official
+Lean kernel remains the sole authority for CI proofs, kernel compilation, and
+CS/MS/CF proof obligations. See
 [the exact trust boundary](../verification.md#independent-internal-lean-export-audit-v010-gate)
 and [v0.1.0 gate #282](https://github.com/MGYamada/Vastitas/issues/282).

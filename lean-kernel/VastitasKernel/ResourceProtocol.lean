@@ -159,7 +159,7 @@ private def runtimeNumerical (j : Json) : Except String RuntimeNumerical := do
   | _ => throw "unknown runtime numerical operation"
 
 private def exactInteger (value : String) : Except String Int :=
-  match value.toInt? with | some integer => pure integer | none => throw "Gram entries require exact decimal integers"
+  match decimalInt? value with | some integer => pure integer | none => throw "Gram entries require exact decimal integers"
 
 private def gram (j : Json) : Except String Storage.Numerical.Gram := do
   match ← str j "kind" with

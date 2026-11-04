@@ -287,7 +287,16 @@ def from_kernel_response(response, expected_version):
     semantic-role claims and never derives identities from prose, spans or paths.
     All diagnostics/notes survive; successful responses cannot become failures.
     """
-    _fields(response, "version ok diagnostics")
+    envelope = "version ok diagnostics"
+    if type(response) is dict and "kernel" in response:
+        # Every kernel response carries its build identity (protocol.md). It is
+        # build-consistency metadata, never semantic evidence, so it is checked
+        # for shape and not imported into any record.
+        envelope += " kernel"
+        _fields(response["kernel"], "sources lean")
+        _require(all(type(response["kernel"][key]) is str for key in ("sources", "lean")),
+                 "kernel build identity fields must be strings")
+    _fields(response, envelope)
     _require(type(expected_version) is int and expected_version in range(2, 10),
              "unsupported expected wire version")
     _require(type(response["version"]) is int and response["version"] == expected_version,

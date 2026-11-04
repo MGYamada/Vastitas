@@ -2,22 +2,8 @@ name: Tensor packing experiment
 
 on:
   push:
-    paths:
-      - 'experiments/tensor_packing/**'
-      - 'experiments/storage_copy/run.py'
-      - 'lean-kernel/native/**'
-      - 'lean-kernel/numerical/**'
-      - 'lean-kernel/VastitasKernel/StorageCodegen.lean'
-      - 'lean-kernel/VastitasKernel/Tensor*.lean'
-      - 'experiments/plain_c/**'
-      - 'experiments/native_cleanup.py'
-      - 'scripts/native_sanitizers.py'
-      - 'scripts/check_plain_c_baselines.py'
-      - 'scripts/test_plain_c_measurements.py'
-      - 'scripts/install_ci_elan.py'
-      - 'scripts/check_ci_python.sh'
-      - '.github/workflows/tensor-packing-experiment.yml'
-  pull_request:
+    # Heavy OpenBLAS observations run on main and on demand, not on every PR (#571).
+    branches: [main]
     paths:
       - 'experiments/tensor_packing/**'
       - 'experiments/storage_copy/run.py'

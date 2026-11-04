@@ -339,6 +339,8 @@ No event contains an asserted owner, body replacement, accepted flag or winner.
 Inputs without new declarations retain protocol 2, 3 or 4 and `--lib`
 compatibility. Resource bounds are in `lean-kernel/compiler-limits.json`: 4096 events, 4096
 contribution methods, and 4096 ground instances in the unapplied-body audit.
+Every per-event state and transition audit still runs; one trace shares a
+200,000,000-unit audit budget charged before each audit, and exhaustion reports `E_LIMIT`.
 See [current routes and proof boundaries](verification.md#current-public-checker-routes)
 for the public `LegacySource`/`IndexedAuthority` connection and
 [the retained protocol-5 composition](verification.md#scoped-edit-assembly-acceptance-protocol-5)

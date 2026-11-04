@@ -1,6 +1,6 @@
 //! Shared optional Lake packages are build-time resources, not runtime locks.
 mod common;
-use common::{Scratch, cli, kernel_path, root, success};
+use common::{Scratch, cli, kernel_identity, kernel_path, root, success};
 use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
 use std::fs;
@@ -123,7 +123,7 @@ fn mocked(s: &Scratch, kernel: &Path, name: &str) -> Command {
             r#"#!/bin/sh
 cat >/dev/null
 if [ -n "$BUILD_TEST_READY" ]; then : > "$BUILD_TEST_READY"; fi
-printf '%s\n' "{\"version\":8,\"ok\":true,\"lean_source\":\"def main : IO Unit := pure ()\",\"storage_runtime\":true,\"numerical_runtime\":${BUILD_TEST_NUMERICAL:-false}}"
+printf '%s\n' "{\"version\":8,\"ok\":true,\"kernel\":$BUILD_TEST_IDENTITY,\"lean_source\":\"def main : IO Unit := pure ()\",\"storage_runtime\":true,\"numerical_runtime\":${BUILD_TEST_NUMERICAL:-false}}"
 "#,
         );
         let lake = s.write("bin/lake", "");
@@ -144,6 +144,7 @@ chmod +x .lake/build/bin/program
     let mut command = build(s, kernel, name);
     command
         .env("VASTITAS_KERNEL", backend)
+        .env("BUILD_TEST_IDENTITY", kernel_identity())
         .env("PATH", mock_path(s));
     command
 }
@@ -173,7 +174,10 @@ fn same_optional_package_serializes_but_independent_roots_do_not() {
     let pure_backend = s.0.join("pure backend");
     executable(
         &pure_backend,
-        "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{\"version\":2,\"ok\":true,\"lean_source\":\"def main : IO Unit := pure ()\"}'\n",
+        &format!(
+            "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":2,\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\"}}'\n",
+            kernel_identity()
+        ),
     );
     let mut pure = cli();
     pure.arg("build")

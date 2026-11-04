@@ -77,24 +77,31 @@ impl Parser {
 
     // Keep the ordinary recursive prefix parser's frame small. The existing
     // source-depth limit must diagnose excessive nesting before stack exhaustion.
-    pub(super) fn indexed_pack(&mut self) -> Result<ExprKind, Diagnostic> {
+    // Returns the node kind with its deepest child expression depth.
+    #[inline(never)]
+    pub(super) fn indexed_pack(&mut self) -> Result<(ExprKind, usize), Diagnostic> {
         self.indexed = true;
         let package = Box::new(self.ty()?);
         self.expect("{")?;
         self.expect("witness")?;
         self.expect(":")?;
-        let witness = Box::new(self.expression(0)?);
+        let (witness, mut depth) = self.expression_with_depth(0)?;
         self.expect(",")?;
         self.expect("fields")?;
         self.expect(":")?;
-        let fields = self.indexed_list("[", "]", |p| p.expression(0))?;
+        let fields = self.indexed_list("[", "]", |p| {
+            let (field, field_depth) = p.expression_with_depth(0)?;
+            depth = depth.max(field_depth);
+            Ok(field)
+        })?;
         self.consume(",");
         self.expect("}")?;
-        Ok(ExprKind::IndexedPack {
+        let kind = ExprKind::IndexedPack {
             package,
-            witness,
+            witness: Box::new(witness),
             fields,
-        })
+        };
+        Ok((kind, depth))
     }
 
     pub(super) fn indexed_list<T>(

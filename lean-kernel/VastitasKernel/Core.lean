@@ -22,6 +22,16 @@ structure Diagnostic where
   notes : List DiagnosticNote := []
   deriving Repr, Inhabited
 
+/-- The one wire/literal decimal reader: a nonempty run of ASCII digits.
+`String.toNat?` alone also accepts `_` digit separators. -/
+def decimalNat? (value : String) : Option Nat :=
+  if !value.isEmpty && value.all (fun c => '0' ≤ c && c ≤ '9') then value.toNat? else none
+
+/-- An optional leading `-` followed by `decimalNat?` digits. -/
+def decimalInt? (value : String) : Option Int :=
+  if value.startsWith "-" then (decimalNat? (value.drop 1).toString).map fun n => -Int.ofNat n
+  else (decimalNat? value).map Int.ofNat
+
 inductive BaseKind where
   | qq
   | cinfReal

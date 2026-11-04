@@ -2,22 +2,8 @@ name: OpenBLAS packing observation
 
 on:
   push:
-    paths:
-      - '.github/workflows/**'
-      - 'scripts/**'
-      - 'experiments/**'
-      - 'src/**'
-      - 'tests/**'
-      - 'lean-kernel/**'
-      - 'stdlib/**'
-      - 'examples/**'
-      - 'config/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'build.rs'
-      - 'rust-toolchain.toml'
-      - 'lean-toolchain'
-  pull_request:
+    # Heavy OpenBLAS observations run on main and on demand, not on every PR (#571).
+    branches: [main]
     paths:
       - '.github/workflows/**'
       - 'scripts/**'

@@ -113,11 +113,12 @@ def atLeastSpecific (hierarchy : Hierarchy) (a b : NormalizedMethod) : Bool :=
 def moreSpecific (hierarchy : Hierarchy) (a b : NormalizedMethod) : Bool :=
   atLeastSpecific hierarchy a b && !atLeastSpecific hierarchy b a
 
+/-- Applicability is decided once per method and key; only the methods
+applicable at this key are compared with each other. -/
 def optimalCandidates (hierarchy : Hierarchy) (methods : List NormalizedMethod)
     (key : Key) : List NormalizedMethod :=
-  methods.filter fun method => applicable hierarchy key method &&
-    !methods.any (fun other => applicable hierarchy key other &&
-      moreSpecific hierarchy other method)
+  let candidates := methods.filter (applicable hierarchy key)
+  candidates.filter fun method => !candidates.any (fun other => moreSpecific hierarchy other method)
 
 /-- Declarative candidate condition; it does not mention the executable checker. -/
 def Optimal (hierarchy : Hierarchy) (methods : List NormalizedMethod)
@@ -194,6 +195,19 @@ def allApplicablePairs (hierarchy : Hierarchy) (methods : List NormalizedMethod)
   allKeys.flatMap fun key =>
     (methods.filter (applicable hierarchy key)).map (fun method => (method.id, key))
 
+/-- Admission units for one family, charged before the work they bound:
+applicability of every method at every key plus pairwise signature checks
+(`tableWork`), then the specificity comparisons among the methods applicable
+at each key (`rankingWork`). Units are a policy, not elapsed time. -/
+def tableWork (keyCount methodCount : Nat) : Nat :=
+  keyCount * methodCount + methodCount * methodCount
+
+def rankingWork (hierarchy : Hierarchy) (methods : List NormalizedMethod) (allKeys : List Key) : Nat :=
+  (allKeys.map fun key => (methods.filter (applicable hierarchy key)).length ^ 2).sum
+
+def workLimitError : Error :=
+  { code := "E_DISPATCH_LIMIT", message := s!"dispatch family exceeds the {Limits.dispatchWork}-unit table budget" }
+
 def checkWith (hierarchy : Hierarchy) (arity : Nat) (domain : List Key)
     (methods : List Method) : Except Error Checked := do
   if !hierarchyValid hierarchy then
@@ -204,7 +218,9 @@ def checkWith (hierarchy : Hierarchy) (arity : Nat) (domain : List Key)
   if !domain.all allKeys.contains then
     throw { code := "E_DISPATCH_DOMAIN", message := "domain contains a nonconcrete key or wrong arity" }
   let normalized ← methods.mapM (normalizeMethod hierarchy arity)
+  if tableWork allKeys.length normalized.length > Limits.dispatchWork then throw workLimitError
   validateMethods hierarchy allKeys normalized
+  if rankingWork hierarchy normalized allKeys > Limits.dispatchWork then throw workLimitError
   let rows ← selectRows hierarchy domain normalized allKeys
   return { keys := allKeys, methods := normalized, rows, applicablePairs := allApplicablePairs hierarchy normalized allKeys }
 

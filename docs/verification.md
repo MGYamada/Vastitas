@@ -63,7 +63,8 @@ exist:
 derive a `partial` `BEq`; `==` uses their total `DecidableEq`. The audit excludes
 Lean distribution implementations and the separately built optional native/FFI
 packages. It also cannot see elaboration-time evaluation, such as the
-`Promotion` and `IndexedPromotion` fixture reifications described below, or
+`Promotion` and `IndexedPromotion` fixture reifications (see the module headers
+and the Validation section below), or
 `example` bodies, which create no declaration (`warningAsError` still rejects a
 `sorry` there, but not `native_decide`). The derived-`Repr` rule matches by name
 and `Std.Format` result type. `partial_fixpoint` definitions (none exist today)
@@ -1004,11 +1005,9 @@ Signature-probe and executable passes have separate state. Type shape checks do
 not count a synthesized Fn wrapper toward the 64-level declared-type limit.
 See [the indexing regression and measurement notes](stage1b.md#stage1b-indexing).
 
-Run the transitive local axiom audit with:
-
-```sh
-(cd lean && lake env lean ../scripts/audit_axioms.lean)
-```
+Run the axiom audit of every kernel and oracle module with the build sequence in
+[Validate the compiler and proofs](development/validation.md); it needs every
+kernel library root, executable and regression module built first.
 
 `python3 scripts/benchmark_lowering.py` measures parameterized call chains. On
 the local macOS host, three-run medians for 2,000 / 4,000 / 8,000 functions were
@@ -1143,14 +1142,11 @@ The existing executable regressions exercise the hypotheses of the composition:
 | `TypeAuditRegression` | Forged operands, nominal endpoints, substitutions and dependency cycles exercise `typed`/`ordered`; codegen rejects forged legacy annotation certificates independently. |
 | `tests/edit_borrowing.rs` | Raw protocol-5 authority/target/stale-input mutations, unreturned loans, final footprints and unused/losing bodies exercise the actual source/IR route. These are executable regressions, not proofs of snapshot authenticity or full source correspondence. |
 
-Run the existing suites and the new proof-index regressions with:
+Run the existing suites and the new proof-index regressions with the audit
+sequence in [Validate the compiler and proofs](development/validation.md), then:
 
 ```sh
-lake -d lean build
-(cd lean && lake env lean ../scripts/audit_axioms.lean)
-(cd lean && lake env lean ../scripts/check_edit_acceptance.lean)
-lake -d lean-kernel build
-bash scripts/check_kernel_regressions.sh
+(cd lean && lake env lean -DwarningAsError=true ../scripts/check_edit_acceptance.lean)
 cargo test --locked --test edit_borrowing
 python3 scripts/check_boundaries.py
 ```

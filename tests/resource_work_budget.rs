@@ -80,8 +80,9 @@ fn unused_probes_share_the_request_budget_under_check_and_build() {
         let output = command.output().unwrap();
         assert!(!output.status.success());
         let diagnostic = String::from_utf8_lossy(&output.stderr);
+        common::assert_first_code(&diagnostic, "E_LIMIT");
         assert!(
-            diagnostic.contains("E_LIMIT") && diagnostic.contains("program-wide resource checking"),
+            diagnostic.contains("program-wide resource checking"),
             "{diagnostic}"
         );
         assert_eq!(std::fs::read(product).unwrap(), b"existing output");

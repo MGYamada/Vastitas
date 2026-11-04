@@ -23,8 +23,12 @@ path = "../tests/fixtures/promotion.json"
 text = true
 
 # Test/proof fixtures are separate from the ordinary compiler library.
+# Targets with `autoImplicit = false` reject an undeclared name instead of
+# silently binding it; VastitasKernel itself still relies on auto-bound
+# implicits in 36 modules (#568).
 [[lean_lib]]
 name = "VastitasPromotion"
+leanOptions = { autoImplicit = false }
 roots = ["VastitasPromotion.Fixture", "VastitasPromotion.Regression", "VastitasPromotion.IndexedFixture", "VastitasPromotion.IndexedRegression"]
 needs = ["promotionFixture"]
 
@@ -33,13 +37,20 @@ name = "authorityFixture"
 path = "../tests/fixtures/edit-authority.json"
 text = true
 
+[[input_file]]
+name = "recipientFixture"
+path = "../tests/fixtures/edit-recipients.json"
+text = true
+
 [[lean_lib]]
 name = "VastitasPublicTest"
+leanOptions = { autoImplicit = false }
 roots = ["VastitasPublicTest.AuthorityRegression"]
-needs = ["authorityFixture"]
+needs = ["authorityFixture", "recipientFixture"]
 
 [[lean_exe]]
 name = "vastitas-kernel"
+leanOptions = { autoImplicit = false }
 root = "Main"
 
 [[input_file]]
@@ -50,6 +61,7 @@ text = true
 # Independent Python-reference cross-check for exact algebra; not compiler code.
 [[lean_lib]]
 name = "VastitasAlgebraTest"
+leanOptions = { autoImplicit = false }
 roots = ["VastitasAlgebraTest.BasisRegression"]
 needs = ["compilerLimits", "algebraFixture"]
 
@@ -60,6 +72,7 @@ text = true
 
 [[lean_lib]]
 name = "VastitasStorageTest"
+leanOptions = { autoImplicit = false }
 roots = ["VastitasStorageTest.Regression", "VastitasStorageTest.NativeRegression", "VastitasStorageTest.FunctionRegression", "VastitasStorageTest.SourceRegression", "VastitasStorageTest.ValueFlowRegression", "VastitasStorageTest.ShapeRegression", "VastitasStorageTest.GemmRegression", "VastitasStorageTest.NumericalRegression", "VastitasStorageTest.NumericalCoverageRegression", "VastitasStorageTest.TransformRegression", "VastitasStorageTest.NetworkRegression", "VastitasStorageTest.EvaluationRegression", "VastitasStorageTest.TensorRegression", "VastitasStorageTest.TreeRegression", "VastitasStorageTest.DependencyRegression", "VastitasStorageTest.MetricRegression", "VastitasStorageTest.OwnedPackageRegression", "VastitasStorageTest.NumericalFixture"]
 needs = ["storageFixture", "storageFunctionFixture", "storageGemmFixture"]
 
@@ -75,8 +88,10 @@ text = true
 
 [[lean_exe]]
 name = "storage-native-fixture"
+leanOptions = { autoImplicit = false }
 root = "VastitasStorageTest.Emit"
 
 [[lean_exe]]
 name = "numerical-native-fixture"
+leanOptions = { autoImplicit = false }
 root = "VastitasStorageTest.NumericalEmit"

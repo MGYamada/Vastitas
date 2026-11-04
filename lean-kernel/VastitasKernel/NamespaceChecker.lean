@@ -464,21 +464,22 @@ mutual
     | 0, _, _, _, .mk _ _ span => problem span "E_LIMIT" "namespace block nesting limit exceeded"
     | fuel + 1, p, scope, bound, .mk statements result span => do
       let mut bound := bound
-      let mut output := []
+      -- An array keeps rewriting linear in the number of statements.
+      let mut output : Array Stmt := #[]
       for statement in statements do
         match statement with
         | .letE name annotation value s =>
           let renamed ← binder p scope name s
           let value ← expression fuel p scope bound value
-          output := output ++ [.letE renamed (annotation.map type) value s]
+          output := output.push (.letE renamed (annotation.map type) value s)
           bound := name :: bound
         | .unpack value scheme point s =>
           let value ← expression fuel p scope bound value
           let scheme' ← binder p scope scheme s
           let point' ← binder p scope point s
-          output := output ++ [.unpack value scheme' point' s]
+          output := output.push (.unpack value scheme' point' s)
           bound := point :: scheme :: bound
-      return .mk output (← expression fuel p scope bound result) span
+      return .mk output.toList (← expression fuel p scope bound result) span
 end
 
 def function (p : Indexed) (scope : Scope) (f : Surface.Function) (target : Target) : M Surface.Function := do

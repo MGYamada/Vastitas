@@ -219,6 +219,34 @@ require /- existing local dependency -/ vastitas_storage_native from "../native"
 ''')
         self.assertEqual(check_boundaries(self.root), [])
 
+    def test_char_literals_and_interpolations_cannot_conceal_a_require(self):
+        # A quote character literal once opened a fake string that hid the
+        # following require from the scanner (#567).
+        self.numerical_package()
+        required = 'require vastitas_storage_native from "../native"'
+        for hiding in ["def q : Char := '\"'\nrequire evil from \"../../elsewhere\"\ndef r : Char := '\"'",
+                       "def q := '\\''\nrequire evil from \"../../elsewhere\"",
+                       "def q := '\\u{22}'\nrequire evil from \"../../elsewhere\"",
+                       'def q := s!"{"\\""}"\nrequire evil from "../../elsewhere"',
+                       'def q := s!"-I{pkg.dir / "../native"}"\nrequire evil from "../../elsewhere"',
+                       'def q := throwError "{"\\""}"\nrequire evil from "../../elsewhere"']:
+            with self.subTest(hiding=hiding):
+                self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{required}\n{hiding}\n')
+                self.assertTrue(any('unsupported dependency in lakefile.lean' in e
+                                    for e in check_boundaries(self.root)))
+        for unsupported in ["def q := 'ab'", "def q := '", 'def q := r#"x"#', 'def q := r"x"',
+                            'def q := s!"{"', 'def q := "unmatched { brace"']:
+            with self.subTest(unsupported=unsupported):
+                self.write('lean-kernel/numerical/lakefile.lean', f'import Lake\n{required}\n{unsupported}\n')
+                self.assertTrue(any('cannot check lakefile.lean dependencies' in e
+                                    for e in check_boundaries(self.root)))
+        self.write('lean-kernel/numerical/lakefile.lean', f"""import Lake
+def q : Char := '"'
+def p' := s!"-I{{pkg.dir / "../native"}} {{'}}'}}"
+{required}
+""")
+        self.assertEqual(check_boundaries(self.root), [])
+
     def test_root_and_oracle_toolchains_must_match_kernel(self):
         self.oracle_package()
         self.write("lean-toolchain", "leanprover/lean4:v4.34.0\n")

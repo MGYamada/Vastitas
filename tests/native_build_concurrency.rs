@@ -237,7 +237,7 @@ fn waiting_for_either_package_is_interruptible_and_failure_releases_locks() {
         child.interrupt();
         let result = child.finish();
         assert_eq!(result.status.code(), Some(130));
-        assert!(String::from_utf8_lossy(&result.stderr).contains("E_INTERRUPTED"));
+        common::expect_code(&result, "E_INTERRUPTED");
         assert_eq!(fs::read(&output).unwrap(), b"existing artifact");
         // Release the fixture's lock even if an inherited descriptor is still
         // open. Dropping only this handle need not release the shared flock.

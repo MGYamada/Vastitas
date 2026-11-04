@@ -105,10 +105,10 @@ fn internal_resource_components_cannot_bypass_public_protocol_acceptance() {
     let mut request = common::request("fn main() -> Int { 0 }", "resource-envelope.vast");
     request["resources"] = fixture();
     let response = common::kernel(&request, "check");
-    assert_eq!(response["ok"], false, "{response}");
+    common::assert_wire_rejected(&response, "E_PROTOCOL");
     request["version"] = json!(8);
     let response = common::kernel(&request, "check");
-    assert_eq!(response["ok"], false, "{response}");
+    common::assert_wire_rejected(&response, "E_PROTOCOL");
     assert_eq!(response["version"], 8);
 }
 

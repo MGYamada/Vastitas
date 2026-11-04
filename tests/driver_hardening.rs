@@ -155,7 +155,7 @@ fn build_directory_is_private_under_a_permissive_umask() {
         .env("MODES", &modes)
         .output()
         .unwrap();
-    assert!(stderr(&result).contains("E_BUILD"), "{}", stderr(&result));
+    common::expect_code(&result, "E_BUILD");
     assert_eq!(fs::read_to_string(&modes).unwrap().trim(), "0o700");
     assert_eq!(fs::read_dir(&temp).unwrap().count(), 0);
 }
@@ -279,7 +279,7 @@ fn module_files_must_match_module_names_exactly() {
             .unwrap();
         let error = stderr(&result);
         assert!(!result.status.success(), "accepted {root} with {files:?}");
-        assert!(error.contains("E_INPUT:"), "{error}");
+        common::assert_first_code(&error, "E_INPUT");
     }
     // The exact spelling still loads.
     let s = Scratch::empty("driver_hardening modules");
@@ -351,7 +351,7 @@ fn generated_manifests_escape_paths_for_their_own_syntax() {
         .env("CAPTURE", &capture)
         .output()
         .unwrap();
-    assert!(stderr(&result).contains("E_BUILD"), "{}", stderr(&result));
+    common::expect_code(&result, "E_BUILD");
     let manifest: toml::Value =
         toml::from_str(&fs::read_to_string(capture.join("lakefile.toml")).unwrap()).unwrap();
     assert_eq!(manifest["require"][0]["path"].as_str(), Some(root_text));
@@ -388,7 +388,7 @@ fn generated_manifests_escape_paths_for_their_own_syntax() {
         .env("CAPTURE", &capture)
         .output()
         .unwrap();
-    assert!(stderr(&result).contains("E_BUILD"), "{}", stderr(&result));
+    common::expect_code(&result, "E_BUILD");
     let lakefile = fs::read_to_string(capture.join("lakefile.lean")).unwrap();
     assert!(
         !lakefile.contains("\\b") && !lakefile.contains("\\f"),
@@ -534,4 +534,134 @@ fn lean_toolchain_mismatch_fails_before_lake() {
     );
     assert!(!ran.exists(), "Lake ran with a mismatched toolchain");
     assert_eq!(fs::read_to_string(s.0.join("program")).unwrap(), "existing");
+}
+
+// #557: building over an existing regular output replaces its bytes and mode
+// and leaves no staging file behind.
+#[test]
+fn existing_output_is_replaced_with_new_bytes_and_mode() {
+    let s = fixture();
+    successful_lake(&s);
+    let output = s.0.join("program");
+    fs::write(&output, "previous output\n").unwrap();
+    fs::set_permissions(&output, fs::Permissions::from_mode(0o600)).unwrap();
+    for text in ["first", "second"] {
+        let result = cli(&s)
+            .args(["build", "main.vast", "-o", "program"])
+            .env("NATIVE_TEXT", text)
+            .output()
+            .unwrap();
+        assert!(result.status.success(), "{}", stderr(&result));
+        let metadata = fs::symlink_metadata(&output).unwrap();
+        assert!(metadata.file_type().is_file());
+        assert_eq!(
+            metadata.permissions().mode() & 0o100,
+            0o100,
+            "not executable"
+        );
+        assert_eq!(
+            fs::read_to_string(&output).unwrap(),
+            format!("#!/bin/sh\necho {text}\n")
+        );
+        let ran = Command::new(&output).output().unwrap();
+        assert_eq!(String::from_utf8_lossy(&ran.stdout).trim(), text);
+        assert!(leftovers(&s.0).is_empty(), "{:?}", leftovers(&s.0));
+    }
+}
+
+// #557: native-runtime options are refused for a program without checked
+// numerical operations, before Lake runs and without touching the output.
+#[test]
+fn native_options_require_a_numerical_program() {
+    let s = fixture();
+    let lake_ran = s.0.join("lake-ran");
+    executable(
+        &s.0.join("bin/lake"),
+        &format!("#!/bin/sh\n: > '{}'\nexit 1\n", lake_ran.display()),
+    );
+    s.write("program", "previous output");
+    for options in [
+        vec!["--openblas-prefix", "openblas"],
+        vec!["--native-cc", "cc"],
+    ] {
+        let result = cli(&s)
+            .args(["build", "main.vast", "-o", "program"])
+            .args(&options)
+            .output()
+            .unwrap();
+        let error = common::expect_code(&result, "E_USAGE");
+        assert!(
+            error.contains("require a program with checked numerical operations"),
+            "{options:?}: {error}"
+        );
+        assert!(!lake_ran.exists(), "{options:?} reached Lake");
+        assert_eq!(fs::read(s.0.join("program")).unwrap(), b"previous output");
+    }
+}
+
+// #557: only protocols 8 and 9 may ask for the optional native runtimes; an
+// older success response that carries either flag is a protocol error.
+#[test]
+fn optional_runtime_flags_are_refused_for_protocols_before_eight() {
+    let s = fixture();
+    successful_lake(&s);
+    s.write(
+        "pkg/Vastitas.toml",
+        "[package]\nname = 'plain'\nversion = '0.1.0'\nroot = 'main.vast'\n",
+    );
+    s.write("pkg/main.vast", "fn main() -> Int { 42 }");
+    let indexed = common::root().join("examples/packages/indexed/Vastitas.toml");
+    let backend = s.0.join("old-backend");
+    // Echo the request's own protocol version, so only the flags are wrong.
+    executable(
+        &backend,
+        &format!(
+            "#!/bin/sh\nrequest=$(cat)\nversion=$(printf '%s' \"$request\" | sed -n 's/^{{\"version\":\\([0-9]*\\),.*/\\1/p')\nprintf '{{\"version\":%s,\"ok\":true,\"kernel\":{},\"lean_source\":\"def main : IO Unit := pure ()\",%s}}\\n' \"$version\" \"$FLAGS\"\n",
+            kernel_identity()
+        ),
+    );
+    for (inputs, version) in [
+        (vec!["main.vast".to_string()], 2),
+        (
+            vec!["--manifest-path".into(), "pkg/Vastitas.toml".into()],
+            3,
+        ),
+        (
+            vec!["--manifest-path".into(), indexed.display().to_string()],
+            7,
+        ),
+    ] {
+        let wire = common::captured_wire(cli(&s).arg("check").args(&inputs), version);
+        assert_eq!(wire["version"], version);
+        for (flags, message) in [
+            (
+                "\"storage_runtime\":true",
+                "invalid optional storage runtime requirement",
+            ),
+            (
+                "\"storage_runtime\":false",
+                "invalid optional storage runtime requirement",
+            ),
+            (
+                "\"numerical_runtime\":true",
+                "invalid optional numerical runtime requirement",
+            ),
+        ] {
+            let result = cli(&s)
+                .arg("build")
+                .args(&inputs)
+                .args(["-o", "program"])
+                .env("VASTITAS_KERNEL", &backend)
+                .env("FLAGS", flags)
+                .env("NATIVE_TEXT", "never")
+                .output()
+                .unwrap();
+            let error = common::expect_code(&result, "E_PROTOCOL");
+            assert!(error.contains(message), "v{version} {flags}: {error}");
+            assert!(
+                !s.0.join("program").exists(),
+                "v{version} {flags} installed"
+            );
+        }
+    }
 }

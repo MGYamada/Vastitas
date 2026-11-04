@@ -6,7 +6,6 @@ mod common;
 use common::{Scratch, cli, kernel, kernel_path, root, success};
 use serde_json::{Value, json};
 use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
@@ -63,25 +62,11 @@ fn assert_note(message: &str, source: &str, marker: &str, note: &str) {
 
 /// Capture the frontend's actual request for a manifest without running the
 /// kernel; the stub has no acceptance authority.
-fn captured(manifest: &std::path::Path) -> Value {
-    let scratch = Scratch::empty("kernel review capture");
-    let wire = scratch.0.join("wire.json");
-    let backend = scratch.write(
-        "capture",
-        &format!(
-            "#!/bin/sh\ncat > '{}'\nprintf '%s\\n' '{{\"version\":9,\"ok\":false,\"diagnostics\":[{{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}}]}}'\nexit 1\n",
-            wire.display()
-        ),
-    );
-    std::fs::set_permissions(&backend, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = cli()
-        .env("VASTITAS_KERNEL", &backend)
-        .args(["check", "--manifest-path"])
-        .arg(manifest)
-        .output()
-        .unwrap();
-    assert!(String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"));
-    serde_json::from_slice(&std::fs::read(wire).unwrap()).unwrap()
+fn captured(manifest: &std::path::Path, version: u64) -> Value {
+    common::captured_wire(
+        cli().args(["check", "--manifest-path"]).arg(manifest),
+        version,
+    )
 }
 
 /// Send raw bytes, as a tampered or truncated request would arrive.
@@ -256,7 +241,7 @@ fn wire_numbers_duplicate_keys_nesting_and_encoding_fail_closed() {
 fn gram_entries_and_literals_require_plain_decimal_digits() {
     // #562.3: `_` separators are rejected; the unmodified request is accepted.
     let manifest = root().join("examples/packages/diagonal-metrics/Vastitas.toml");
-    let raw = captured(&manifest);
+    let raw = captured(&manifest, 8);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for entry in ["2_0", "-4_0", "+2", "", "-"] {
         let mut forged = raw.clone();
@@ -362,7 +347,7 @@ fn path_lists(value: &Value, pointer: String, out: &mut Vec<String>) {
 fn edit_paths_resolve_component_wise() {
     // #562.4: a component containing `:` is never re-split into a path.
     let s = authority(BASE, ADDON, EVENTS);
-    let raw = captured(&s.0.join("app/Vastitas.toml"));
+    let raw = captured(&s.0.join("app/Vastitas.toml"), 9);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     let mut pointers = Vec::new();
     path_lists(&raw, String::new(), &mut pointers);
@@ -429,6 +414,7 @@ fn grants_and_delegations_require_a_generic_target() {
             .unwrap();
         let message = String::from_utf8_lossy(&output.stderr);
         assert!(!output.status.success());
+        common::assert_first_code(&message, "E_TYPE");
         assert!(
             message.contains("E_TYPE: unexpected declaration kind in edit assembly"),
             "{message}"
@@ -457,7 +443,7 @@ fn generated_code_at_the_source_check_bounds_builds() {
     let accepted = scratch.write("bound.vast", &nested_chain(62, 3907));
     let over = scratch.write("over.vast", &nested_chain(62, 3908));
     let output = cli().arg("check").arg(&over).output().unwrap();
-    assert!(String::from_utf8_lossy(&output.stderr).contains("E_LIMIT"));
+    common::expect_code(&output, "E_LIMIT");
     let program = scratch.0.join("bound program");
     success(
         &cli()

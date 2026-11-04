@@ -486,7 +486,7 @@ fn backend_is_required_and_failure_has_no_frontend_fallback() {
         .output()
         .unwrap();
     assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("E_BACKEND"));
+    common::expect_code(&result, "E_BACKEND");
 }
 
 #[test]
@@ -498,7 +498,7 @@ fn excessive_source_nesting_is_a_diagnostic_not_a_process_abort() {
     );
     let result = check(&source);
     assert_eq!(result.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&result.stderr).contains("E_LIMIT"));
+    common::expect_code(&result, "E_LIMIT");
 }
 
 #[test]
@@ -527,6 +527,6 @@ fn native_toolchain_failure_preserves_existing_output() {
         .output()
         .unwrap();
     assert!(!result.status.success());
-    assert!(String::from_utf8_lossy(&result.stderr).contains("E_BUILD"));
+    common::expect_code(&result, "E_BUILD");
     assert_eq!(fs::read(output).unwrap(), b"previous artifact");
 }

@@ -160,20 +160,20 @@ fn stdlib_rules_are_independently_checked_and_result_expectations_do_not_select(
     let mut wrong = raw;
     wrong["methods"][indices[1]]["return_type"]["element"] = json!("Nat");
     rejects(&wrong, "E_TYPE");
-    for source in [
-        "fn bad(n: Nat) -> Pair<Nat> { promote(n, -1) }",
-        "fn bad() -> Pair<Nat> { promote(1, 2) }",
-        "fn bad() -> Int { pair_first(promote(true, false)) }",
+    for (source, code) in [
+        ("fn bad(n: Nat) -> Pair<Nat> { promote(n, -1) }", "E_TYPE"),
+        ("fn bad() -> Pair<Nat> { promote(1, 2) }", "E_TYPE"),
+        (
+            "fn bad() -> Int { pair_first(promote(true, false)) }",
+            "E_DISPATCH_DOMAIN",
+        ),
     ] {
         let scratch = Scratch::new(source);
         for package in [false, true] {
             let output = scratch.cli("check", package).output().unwrap();
             assert!(!output.status.success());
             let message = String::from_utf8_lossy(&output.stderr);
-            assert!(
-                message.contains("E_TYPE") || message.contains("E_DISPATCH_DOMAIN"),
-                "{message}"
-            );
+            common::assert_first_code(&message, code);
         }
     }
 }
@@ -220,7 +220,7 @@ fn package_promote_owner_is_exact_and_imports_only_grant_calls() {
     .unwrap();
     let output = scratch.cli("check", true).output().unwrap();
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("E_OWNER"));
+    common::expect_code(&output, "E_OWNER");
 }
 
 #[test]
@@ -297,10 +297,7 @@ fn source_children_and_siblings_cannot_extend_the_promote_owner() {
         .unwrap();
         let output = scratch.cli("check", true).output().unwrap();
         assert!(!output.status.success());
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains("E_OWNER"),
-            "{output:?}"
-        );
+        common::expect_code(&output, "E_OWNER");
     }
 }
 
@@ -379,10 +376,7 @@ fn promotion_does_not_hide_specialized_cycles_or_bad_applicable_bodies() {
             let scratch = Scratch::new(&source);
             let output = scratch.cli("check", false).output().unwrap();
             assert!(!output.status.success());
-            assert!(
-                String::from_utf8_lossy(&output.stderr).contains(code),
-                "{output:?}"
-            );
+            common::expect_code(&output, code);
         }
     }
 }
@@ -421,9 +415,7 @@ fn missing_homogeneous_delegation_is_an_error() {
 fn stdlib_ir_matches_proof_fixture() {
     let actual = flat_request("");
     let path = root().join("tests/fixtures/promotion.json");
-    if std::env::var_os("VASTITAS_UPDATE_PROMOTION_FIXTURE").as_deref()
-        == Some(std::ffi::OsStr::new("1"))
-    {
+    if common::regenerate_fixture("VASTITAS_UPDATE_PROMOTION_FIXTURE") {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, serde_json::to_string(&actual).unwrap() + "\n").unwrap();
     }

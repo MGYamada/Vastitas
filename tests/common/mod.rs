@@ -27,6 +27,16 @@ impl Scratch {
         fs::write(&path, source).unwrap();
         path
     }
+    /// Writes package `name` as `<name>/Vastitas.toml` with root `main.vast`.
+    pub fn write_package(&self, name: &str, source: &str, dependencies: &str) {
+        self.write(
+            &format!("{name}/Vastitas.toml"),
+            &format!(
+                "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}\n"
+            ),
+        );
+        self.write(&format!("{name}/main.vast"), source);
+    }
 }
 impl Drop for Scratch {
     fn drop(&mut self) {
@@ -91,22 +101,135 @@ pub fn check(source: &str, filename: &str) -> Output {
         .output()
         .unwrap()
 }
+#[track_caller]
 pub fn reject(source: &str, code: &str, filename: &str) -> String {
     let output = check(source, filename);
     assert!(
         !output.status.success(),
         "accepted invalid source: {source}"
     );
-    let message = String::from_utf8(output.stderr).unwrap();
-    assert!(
-        message.contains(&format!(": {code}: ")),
-        "expected {code}: {message}"
-    );
+    let message = expect_code(&output, code);
     assert!(
         message.contains(&format!("{filename}:")),
         "missing source location: {message}"
     );
     message
+}
+/// The diagnostic codes in rendered compiler or executable output, in order.
+/// A diagnostic line is `<path>:<line>:<column>: CODE: message`, `CODE: message`
+/// or `<prefix>: CODE: message` (for example Lean's `uncaught exception:`).
+/// Each line contributes at most its first code; notes (which may quote other
+/// codes), usage text and message continuations contribute none.
+pub fn diagnostic_codes(stderr: &str) -> Vec<String> {
+    stderr
+        .lines()
+        .filter(|line| !line.starts_with("note: ") && !line.contains(": note: "))
+        .filter_map(|line| {
+            let starts = std::iter::once(0).chain(line.match_indices(": ").map(|(at, _)| at + 2));
+            starts
+                .filter_map(|start| {
+                    let rest = &line[start..];
+                    let end = rest
+                        .find(|c: char| !(c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_'))
+                        .unwrap_or(rest.len());
+                    let code = &rest[..end];
+                    (code.len() > 2 && code.starts_with("E_") && rest[end..].starts_with(": "))
+                        .then(|| code.to_string())
+                })
+                .next()
+        })
+        .collect()
+}
+/// Asserts that `output` failed and that its first diagnostic code is exactly
+/// `code`. A substring match would let `E_TYPE` accept `E_RESOURCE_TYPE` and an
+/// unrelated parse error accept any expected rejection. Returns stderr.
+#[track_caller]
+pub fn expect_code(output: &Output, code: &str) -> String {
+    let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+    assert!(
+        !output.status.success(),
+        "expected {code}, but the command succeeded\nstdout:\n{}\nstderr:\n{stderr}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_first_code(&stderr, code);
+    stderr
+}
+/// Asserts that the first diagnostic code in rendered output is exactly `code`.
+#[track_caller]
+pub fn assert_first_code(stderr: &str, code: &str) {
+    let codes = diagnostic_codes(stderr);
+    assert_eq!(
+        codes.first().map(String::as_str),
+        Some(code),
+        "expected first diagnostic {code}; found {codes:?}\nstderr:\n{stderr}"
+    );
+}
+/// Like [`expect_code`], for `expected` written as `CODE` or `CODE: message
+/// prefix`: the code must match exactly and the whole text must appear.
+#[track_caller]
+pub fn expect_diagnostic(output: &Output, expected: &str) -> String {
+    let code = expected.split(':').next().unwrap();
+    let stderr = expect_code(output, code);
+    assert!(stderr.contains(expected), "expected {expected:?}: {stderr}");
+    stderr
+}
+/// Asserts that a kernel response is a failure whose first diagnostic has
+/// exactly `code` and that no generated Lean source escaped with it.
+#[track_caller]
+pub fn assert_wire_rejected(response: &Value, code: &str) {
+    assert_eq!(response["ok"], false, "{response}");
+    assert_eq!(response["diagnostics"][0]["code"], code, "{response}");
+    assert!(response.get("lean_source").is_none(), "{response}");
+}
+/// True when `variable=1` asks a golden test to rewrite its fixture. Refused
+/// under CI: the test would then compare the fixture only with itself.
+pub fn regenerate_fixture(variable: &str) -> bool {
+    let requested = std::env::var_os(variable).as_deref() == Some(std::ffi::OsStr::new("1"));
+    assert!(
+        !(requested && std::env::var_os("CI").is_some()),
+        "{variable}=1 is refused under CI; regenerate fixtures locally and commit them"
+    );
+    requested
+}
+/// Replaces `from` with `to`, failing if `from` is absent. A silent no-op
+/// replacement would turn a mutation or equivalence test vacuous.
+#[track_caller]
+pub fn checked_replace(source: &str, from: &str, to: &str) -> String {
+    assert!(
+        source.contains(from),
+        "replacement target is absent: {from:?}"
+    );
+    source.replace(from, to)
+}
+/// Runs `command` against a capture backend and returns the exact wire request
+/// the frontend sent. The stub answers with a protocol-`version` failure and
+/// has no acceptance authority; callers mutate the captured wire and submit it
+/// to the real kernel. The captured request must use `version`.
+#[track_caller]
+pub fn captured_wire(mut command: impl std::borrow::BorrowMut<Command>, version: u64) -> Value {
+    use std::os::unix::fs::PermissionsExt;
+    let capture = Scratch::empty("capture");
+    let stub = capture.write(
+        "capture",
+        &format!(
+            "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{{\"version\":{version},\"ok\":false,\"diagnostics\":[{{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}}]}}'\nexit 1\n"
+        ),
+    );
+    fs::set_permissions(&stub, fs::Permissions::from_mode(0o755)).unwrap();
+    let output = command
+        .borrow_mut()
+        .env("VASTITAS_KERNEL", &stub)
+        .output()
+        .unwrap();
+    let stderr = expect_code(&output, "E_CAPTURED");
+    assert!(
+        !stderr.contains("incompatible backend protocol version"),
+        "captured request does not use protocol {version}: {stderr}"
+    );
+    let wire: Value = serde_json::from_slice(&fs::read(capture.0.join("wire.json")).unwrap())
+        .expect("captured wire request");
+    assert_eq!(wire["version"], version, "captured protocol version");
+    wire
 }
 pub fn native(source: &str, libraries: &[PathBuf], expected: &str, filename: &str) {
     let scratch = Scratch::empty("native");

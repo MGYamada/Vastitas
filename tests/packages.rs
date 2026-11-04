@@ -27,12 +27,7 @@ impl Scratch {
     fn rejects(&self, code: &str) -> String {
         let output = self.check();
         assert!(!output.status.success(), "accepted invalid package");
-        let error = String::from_utf8(output.stderr).unwrap();
-        assert!(
-            error.contains(&format!("{code}:")),
-            "expected {code}: {error}"
-        );
-        error
+        common::expect_code(&output, code)
     }
     fn native(&self, expected: &str) {
         success(&self.check());
@@ -225,7 +220,7 @@ fn manifest_validation_and_cli_modes_are_explicit() {
         ])
         .output()
         .unwrap();
-    assert!(String::from_utf8_lossy(&out.stderr).contains("E_MAIN"));
+    common::expect_code(&out, "E_MAIN");
     for args in [
         vec!["check"],
         vec![
@@ -250,7 +245,7 @@ fn manifest_validation_and_cli_modes_are_explicit() {
         ],
     ] {
         let out = s.cli().args(args).output().unwrap();
-        assert!(String::from_utf8_lossy(&out.stderr).contains("E_USAGE"));
+        common::expect_code(&out, "E_USAGE");
     }
     for text in [
         "[package]\nname='test'\nroot='src/main.vast'",
@@ -279,7 +274,7 @@ fn dependency_cycles_collisions_and_main_selection_are_checked() {
         ])
         .output()
         .unwrap();
-    assert!(String::from_utf8_lossy(&out.stderr).contains("E_MAIN"));
+    common::expect_code(&out, "E_MAIN");
     s.write("app/src/main.vast", "mod dep {} ");
     s.rejects("E_DUPLICATE");
     s.package("lib", "", "app = { path = '../app' }");
@@ -471,7 +466,7 @@ fn package_requests_do_not_fall_back_to_a_protocol_two_backend() {
         .output()
         .unwrap();
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("E_PROTOCOL:"));
+    common::expect_code(&out, "E_PROTOCOL");
 }
 
 #[test]

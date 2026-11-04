@@ -1,6 +1,9 @@
 /* Check the actual unchanged packing kernels, positive dimensions and tails.
  * The harness is also sanitized; upstream objects are not recompiled with it. */
 #include <assert.h>
+#ifdef NDEBUG
+#error "the calibration checks its calls inside assert(); build without NDEBUG"
+#endif
 #include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>

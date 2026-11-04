@@ -537,7 +537,7 @@ fn lambda_cycle_diagnostics_use_source_locations_in_flat_and_package_modes() {
         let output = command.output().unwrap();
         let message = String::from_utf8(output.stderr).unwrap();
         assert!(!output.status.success());
-        assert!(message.contains("E_RECURSION"), "{message}");
+        common::assert_first_code(&message, "E_RECURSION");
         assert!(message.contains("lambda at 2:40"), "{message}");
         assert!(
             message.contains(":2:40: note: lambda defined here"),

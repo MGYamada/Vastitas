@@ -1,7 +1,6 @@
 mod common;
 use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
-use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 const REAL: &str = include_str!("../examples/packages/generative-owned-map/src/real/mod.vast");
@@ -37,17 +36,7 @@ fn command(s: &Scratch, mode: &str) -> Command {
     c
 }
 fn capture(s: &Scratch) -> Value {
-    let stub = s.write("capture", "#!/bin/sh\ncat > \"$(dirname \"$0\")/wire.json\"\nprintf '%s\\n' '{\"version\":8,\"ok\":false,\"diagnostics\":[{\"code\":\"E_CAPTURED\",\"message\":\"captured\"}]}'\nexit 1\n");
-    std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
-    let output = command(s, "check")
-        .env("VASTITAS_KERNEL", stub)
-        .output()
-        .unwrap();
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains("E_CAPTURED"),
-        "{output:?}"
-    );
-    serde_json::from_slice(&std::fs::read(s.0.join("wire.json")).unwrap()).unwrap()
+    common::captured_wire(command(s, "check"), 8)
 }
 fn functions(raw: &mut Value) -> &mut Vec<Value> {
     raw["packages"][0]["modules"]
@@ -69,10 +58,7 @@ fn reject(real: &str, expected: &str) {
     let s = fixture(real, COMPLEX);
     let output = command(&s, "check").output().unwrap();
     assert!(!output.status.success(), "invalid package accepted");
-    assert!(
-        String::from_utf8_lossy(&output.stderr).contains(expected),
-        "expected {expected}: {output:?}"
-    );
+    common::expect_code(&output, expected);
 }
 
 #[test]

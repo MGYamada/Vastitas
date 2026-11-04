@@ -70,8 +70,19 @@ jobs:
         run: python3 experiments/allocation_audit/verify.py experiments/allocation_audit/results/2026-11-01-macos-production/evidence.zip
       - name: Dependency boundaries
         run: python3 scripts/check_boundaries.py
+      - name: Runtime-shape verifier and mutation tests
+        run: python3 -m unittest discover -s experiments/runtime_shapes -p 'test_*.py'
+      - name: Iterator-prefix protocol model tests
+        run: python3 -m unittest discover -s experiments/iterator_prefix -p 'test_*.py'
       - name: Generate and check the standard-library package
+        # The package is ignored by Git, so a clean checkout has none: --check
+        # must first reject its absence, then accept a fresh deterministic build.
+        # Stale and extra files are covered by scripts/test_build_stdlib_package.py.
         run: |
+          if python3 scripts/build_stdlib_package.py --check; then
+            echo "::error::--check accepted a missing standard-library package"
+            exit 1
+          fi
           python3 scripts/build_stdlib_package.py
           python3 scripts/build_stdlib_package.py --check
 
@@ -332,6 +343,16 @@ jobs:
           bash scripts/check_kernel_regressions.sh
       - name: Audit axioms and opaque code of every kernel and oracle module
         run: cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean
+      - name: Iterator-prefix Lean draft and axiom audit
+        # The compiler job's sparse checkout has no experiments/.
+        run: bash experiments/iterator_prefix/check_lean.sh
+      - name: Replay oracle and kernel declarations with the official kernel
+        # leanchecker replays every built module with each prefix against its
+        # imported environment; it is not an independent verifier (#567).
+        run: |
+          cd lean
+          lake env leanchecker VastitasOracle
+          lake env leanchecker VastitasKernel
       - name: Axiom-audit coverage, provenance and substitution regressions
         run: lake -d lean env python3 scripts/check_axiom_audit.py
       - name: Core proof migration regressions

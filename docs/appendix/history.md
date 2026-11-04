@@ -17,4 +17,4 @@ and where it is going.
   and native evidence at the recorded revisions.
 
 These records cite exact revisions and measurements. The teaching chapters and
-the language reference describe the behaviour of the current compiler.
+the Vastitas Reference describe the behaviour of the current compiler.

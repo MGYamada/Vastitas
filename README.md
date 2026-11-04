@@ -7,6 +7,9 @@ complex GEMM, and finite contraction trees. An independent Lean kernel
 checks the program before generation. [Delivery record](https://github.com/MGYamada/Vastitas/blob/main/docs/stage1-completion.md)
 Historical Stage 2 adds a checked finite profile of presented affine geometry
 over QQ. [Chapter](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage2-acceptance.md)
+Historical Stage 3 adds a checked finite profile of smooth real affine geometry
+over QQ: polynomial smooth maps, covectors and vectors at rational points, the
+metric-free reverse cotangent pullback, and named metrics with checked evidence. [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/smooth-declarations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage3-acceptance.md)
 
 ## Build and use
 

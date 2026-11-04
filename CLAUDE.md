@@ -55,7 +55,7 @@ may raise limits.
   packing, versions and invalidation. Keep optional runtimes outside the oracle.
 
 - [Mathlib bridge](docs/daleckii-krein.md) stays outside compiler/oracle dependencies.
-  For changes run its build, `Audit.lean`, official `leanchecker` and boundary tests.
+  For changes run its build, `Audit.lean`, `scripts/replay_lean.sh` and boundary tests.
 
 ## Read relevant contracts before editing
 

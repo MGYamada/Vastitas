@@ -19,6 +19,8 @@ on:
       - 'scripts/test_check_boundaries.py'
       - 'scripts/install_ci_elan.py'
       - 'scripts/test_ci_bootstrap.py'
+      - 'scripts/replay_lean.sh'
+      - 'scripts/test_replay_lean.py'
       - '.github/workflows/lean-bridge.yml'
   pull_request:
     paths:
@@ -38,6 +40,8 @@ on:
       - 'scripts/test_check_boundaries.py'
       - 'scripts/install_ci_elan.py'
       - 'scripts/test_ci_bootstrap.py'
+      - 'scripts/replay_lean.sh'
+      - 'scripts/test_replay_lean.py'
       - '.github/workflows/lean-bridge.yml'
   workflow_dispatch:
 
@@ -102,8 +106,11 @@ jobs:
         working-directory: lean-bridge
         run: lake env lean Audit.lean
       - name: Replay bridge proof declarations with the official kernel
-        working-directory: lean-bridge
-        run: lake env leanchecker -v VastitasBridge
+        # leanchecker replays each module as a task holding its own Mathlib
+        # environment; the runner bounds the worker threads (#600).
+        env:
+          VASTITAS_REPLAY_THREADS: "2"
+        run: bash scripts/replay_lean.sh lean-bridge -v VastitasBridge
       - name: Recheck boundaries and dependency lockfiles
         run: |
           python3 scripts/check_boundaries.py

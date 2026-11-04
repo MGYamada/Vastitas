@@ -88,6 +88,7 @@ theorem relativeConstant_sound {env : Environment} {application : Application} {
       simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true] at h
       obtain ⟨⟨⟨⟨arity, basis⟩, length⟩, canonical⟩, checks⟩ := h
       obtain ⟨_, ran⟩ := run_isOk checks
+      unfold checkMorphism at ran
       obtain ⟨_, _, hnormal, ran⟩ := bind_ok ran
       obtain ⟨_, _, hrelations, htriangle⟩ := bind_ok ran
       refine ⟨x, y, s, dx, dy, sx, sy, indices, hx, hy, hsx, hsy, arity, basis, length,

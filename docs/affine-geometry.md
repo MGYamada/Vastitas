@@ -180,6 +180,9 @@ indexed morphism onOpens: Over<Dt2, Dt, SpecQQ> = restrict(sq); // D(sq^#(t)) ->
   is the induced map `D(φ^#(f)) → D(f)`, with `u ↦ v`. This is the action of
   `φ` on the structure sheaf over a principal open. The source open must be
   the preimage `D(φ^#(f))`, otherwise the kernel reports `E_AFFINE_BASE`.
+  `φ` may itself be a restriction, so an open of an open restricts along it.
+  Restrictions are elaborated in dependency order, and a cycle of
+  restrictions is `E_TYPE`.
 - **Transitions.** Checked isomorphisms between opens express gluing data. For
   example, the transition `D(x) ≅ D(y)` given by `y = 1/x`, with
   `indexed iso transition = forward glue inverse unglue`. Gluing itself,

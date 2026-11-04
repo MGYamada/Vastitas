@@ -116,9 +116,10 @@ distinct failure code, so a wrong result changes the output
   compares are canonical in `MvPolynomial (Fin n) ℚ`, so exact equality of
   stored images is equality in the presented ring.
 - **Stated hypothesis (bridge).** The fiber and principal-open theorems assume
-  that the factors' structure images are canonical. The kernel's `checkImage`
-  enforces this, but the oracle's `StructureValid` does not record it.
-  `structureValid_bridge` derives the relation part.
+  that the factors' structure images are canonical. The oracle discharges it
+  for every accepted declaration (`validAffine_images_normal`), and
+  `structureValid_bridge` derives the relation part. The bridge statements
+  will take the oracle fact in place of the hypothesis.
 - **Tested only.**
   - Raw-wire rejection of protocols 7 and 8.
   - Parser fidelity.

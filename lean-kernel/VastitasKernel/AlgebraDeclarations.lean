@@ -169,6 +169,14 @@ def checkTriangle (dx : AffineData) (sx sy images : List Poly) : Work Unit := do
   let pulled ← sy.mapM fun image => do reduce dx.basis (← substitute dx.arity images image)
   ensure (sx == pulled) (.base "the morphism does not commute with the structure maps to the base")
 
+/-- Every audited check of a pullback map `Y → X` over a base, in one budget.
+Elaboration runs exactly this action after computing the images, so a map it
+accepts never exceeds the audit's budget. -/
+def checkMorphism (dx dy : AffineData) (sx sy images : List Poly) : Work Unit := do
+  checkNormal dx.basis images
+  checkRelations dx dy images
+  checkTriangle dx sx sy images
+
 /-- The right factor's structure map to the left factor's base: its own
 structure images, or those composed with the chosen base isomorphism. -/
 def fiberImages (r : AffineData) (via : Option (List Poly × List Poly)) : Work (List Poly) :=

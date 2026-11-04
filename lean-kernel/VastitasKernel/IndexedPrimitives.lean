@@ -78,10 +78,7 @@ def relativeConstantValid (env : Environment) (application : Application) (map :
     | some dx, some dy, some sx, some sy =>
       map.arity == dx.arity && map.basis == dx.basis && map.images.length == dy.arity &&
       map.images.all (AlgebraRuntime.Poly.canonical dx.arity) &&
-      (AlgebraBasis.run do
-        AlgebraDeclarations.checkNormal dx.basis map.images
-        AlgebraDeclarations.checkRelations dx dy map.images
-        AlgebraDeclarations.checkTriangle dx sx sy map.images).isOk
+      (AlgebraBasis.run (AlgebraDeclarations.checkMorphism dx dy sx sy map.images)).isOk
     | _, _, _, _ => false
   | _ => false
 
@@ -103,42 +100,67 @@ def objectsOf (application : Application) : Option (DeclId × DeclId × DeclId) 
   | [.object (.global x), .object (.global y), .object (.global s)] => some (x, y, s)
   | _ => none
 
-/-- `after ∘ before` is `target`, composed within the work budget. -/
+/-- `pure ()` when `condition` holds, and `error` otherwise. -/
+def guardE (condition : Bool) (error : AlgebraBasis.Error) : Except AlgebraBasis.Error Unit :=
+  if condition then pure () else throw error
+
+/-- `after ∘ before` is `target`, composed within the work budget. A budget
+failure is `E_LIMIT`; a different composite is `error`. -/
+def checkComposite (after before target : AlgebraRuntime.Map) (error : AlgebraBasis.Error) :
+    Except AlgebraBasis.Error Unit := do
+  let composite ← AlgebraBasis.run (AlgebraBasis.compose after before)
+  guardE (AlgebraRuntime.Map.same composite target) error
+
 def composesTo (after before target : AlgebraRuntime.Map) : Bool :=
-  match AlgebraBasis.run (AlgebraBasis.compose after before) with
-  | .ok composite => AlgebraRuntime.Map.same composite target
-  | .error _ => false
+  (checkComposite after before target (.relation "the composite is not the expected map")).isOk
 
 /-- Two declared morphisms `A → B` and `B → A` over one base that compose to
-the identity both ways. -/
-def relativeIsoValid (env : Environment) (forward backward : Application × AlgebraRuntime.Map) : Bool :=
-  relativeConstantValid env forward.1 forward.2 && relativeConstantValid env backward.1 backward.2 &&
-  forward.1.family == backward.1.family &&
+the identity both ways, with the exact error otherwise. -/
+def relativeIsoCheck (env : Environment) (forward backward : Application × AlgebraRuntime.Map) :
+    Except AlgebraBasis.Error Unit := do
+  guardE (relativeConstantValid env forward.1 forward.2 && relativeConstantValid env backward.1 backward.2 &&
+      forward.1.family == backward.1.family)
+    (.base "an isomorphism names two valid declared morphisms of one family")
   match objectsOf forward.1, objectsOf backward.1, affineData? env (objectsOf forward.1 |>.map (·.1) |>.getD default),
     affineData? env (objectsOf backward.1 |>.map (·.1) |>.getD default) with
   | some (a, b, s), some (b', a', s'), some da, some db =>
-    a == a' && b == b' && s == s' &&
-    composesTo backward.2 forward.2 (AlgebraRuntime.Map.identity da.arity da.basis) &&
-    composesTo forward.2 backward.2 (AlgebraRuntime.Map.identity db.arity db.basis)
-  | _, _, _, _ => false
+    guardE (a == a' && b == b' && s == s') (.base "an isomorphism needs opposite morphisms over one base")
+    checkComposite backward.2 forward.2 (AlgebraRuntime.Map.identity da.arity da.basis)
+      (.relation "the declared morphisms are not mutually inverse over one base")
+    checkComposite forward.2 backward.2 (AlgebraRuntime.Map.identity db.arity db.basis)
+      (.relation "the declared morphisms are not mutually inverse over one base")
+  | _, _, _, _ => throw (.base "an isomorphism names two morphisms between presented objects")
+
+def relativeIsoValid (env : Environment) (forward backward : Application × AlgebraRuntime.Map) : Bool :=
+  (relativeIsoCheck env forward backward).isOk
 
 /-- A Cartesian square: `first : T → L` and `second : T → R` over the fiber's
-base, and `inverse : P → T`, inverse to `pair(first, second) : T → P`. -/
-def relativeCartesianValid (env : Environment) (first second inverse : Application × AlgebraRuntime.Map)
-    (fiber : DeclId) : Bool :=
-  relativeConstantValid env first.1 first.2 && relativeConstantValid env second.1 second.2 &&
-  relativeConstantValid env inverse.1 inverse.2 &&
-  first.1.family == second.1.family && first.1.family == inverse.1.family &&
+base, and `inverse : P → T`, inverse to `pair(first, second) : T → P`, with the
+exact error otherwise. -/
+def relativeCartesianCheck (env : Environment) (first second inverse : Application × AlgebraRuntime.Map)
+    (fiber : DeclId) : Except AlgebraBasis.Error Unit := do
+  guardE (relativeConstantValid env first.1 first.2 && relativeConstantValid env second.1 second.2 &&
+      relativeConstantValid env inverse.1 inverse.2 &&
+      first.1.family == second.1.family && first.1.family == inverse.1.family)
+    (.base "a Cartesian square names three valid declared morphisms of one family")
   match plainFiber? env fiber, objectsOf first.1, objectsOf second.1, objectsOf inverse.1 with
   | some (left, right, base), some (t, l, b), some (t', r, b'), some (p, t'', b'') =>
-    l == left && r == right && b == base && b' == base && b'' == base && t == t' && t == t'' && p == fiber &&
+    guardE (l == left && r == right && b == base && b' == base && b'' == base && t == t' && t == t'' &&
+        p == fiber) (.base "the square's arrows do not map to the fiber's factors over its base")
     match affineData? env t, affineData? env fiber with
     | some dt, some dp =>
       let comparison := AlgebraRuntime.Map.pair first.2 second.2
-      composesTo inverse.2 comparison (AlgebraRuntime.Map.identity dt.arity dt.basis) &&
-        composesTo comparison inverse.2 (AlgebraRuntime.Map.identity dp.arity dp.basis)
-    | _, _ => false
-  | _, _, _, _ => false
+      checkComposite inverse.2 comparison (AlgebraRuntime.Map.identity dt.arity dt.basis)
+        (.relation "the comparison map and the declared inverse are not mutually inverse")
+      checkComposite comparison inverse.2 (AlgebraRuntime.Map.identity dp.arity dp.basis)
+        (.relation "the comparison map and the declared inverse are not mutually inverse")
+    | _, _ => throw (.base "a Cartesian square relates presented objects")
+  | none, _, _, _ => throw (.base "a Cartesian square needs a fiber product without a base isomorphism")
+  | _, _, _, _ => throw (.base "the square's arrows are not morphisms over a base")
+
+def relativeCartesianValid (env : Environment) (first second inverse : Application × AlgebraRuntime.Map)
+    (fiber : DeclId) : Bool :=
+  (relativeCartesianCheck env first second inverse fiber).isOk
 
 def freeAffine (env : Environment) (id : DeclId) : Bool :=
   match affineData? env id with

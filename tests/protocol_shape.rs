@@ -140,23 +140,32 @@ fn promotion_without_affine() -> Value {
         s.write(to, &std::fs::read_to_string(stdlib.join(from)).unwrap());
     };
     copy("Vastitas.toml", "stdlib/Vastitas.toml");
-    for name in [
-        "lib.vast",
-        "arithmetic.vast",
-        "arithmetic/generic.vast",
-        "arithmetic/integers.vast",
-        "arithmetic/naturals.vast",
-    ] {
-        copy(
-            &format!("target/package/{name}"),
-            &format!("stdlib/target/package/{name}"),
-        );
-    }
-    for name in ["Vastitas.toml", "mod.vast", "smooth/mod.vast"] {
-        copy(
-            &format!("src/geometry/{name}"),
-            &format!("stdlib/src/geometry/{name}"),
-        );
+    // Copy the generated package and every geometry source except the Stage 2
+    // module, so new stdlib modules are picked up without editing this list.
+    for directory in ["target/package", "src/geometry"] {
+        let mut stack = vec![stdlib.join(directory)];
+        while let Some(path) = stack.pop() {
+            if path.ends_with("src/geometry/scheme/affine") {
+                continue;
+            }
+            for entry in std::fs::read_dir(&path).unwrap() {
+                let entry = entry.unwrap().path();
+                if entry.is_dir() {
+                    stack.push(entry);
+                } else if entry
+                    .extension()
+                    .is_some_and(|extension| extension == "vast" || extension == "toml")
+                {
+                    let relative = entry
+                        .strip_prefix(&stdlib)
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_owned();
+                    copy(&relative, &format!("stdlib/{relative}"));
+                }
+            }
+        }
     }
     let scheme = std::fs::read_to_string(stdlib.join("src/geometry/scheme/mod.vast")).unwrap();
     assert!(scheme.contains("pub mod affine;\n"));

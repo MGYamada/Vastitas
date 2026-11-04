@@ -17,8 +17,18 @@ private def renderPoly (p : AlgebraRuntime.Poly) : String :=
   s!"([{String.intercalate ", " (p.map renderTerm')}] : {algebra "Poly"})"
 private def renderPolys (ps : List AlgebraRuntime.Poly) : String :=
   s!"([{String.intercalate ", " (ps.map renderPoly)}] : List {algebra "Poly"})"
-private def renderMap (map : AlgebraRuntime.Map) : String :=
-  s!"({algebra "Map.mk"} {map.arity} {renderPolys map.basis} {renderPolys map.images})"
+/-- The distinct bases of the checked relative constants, in declaration order.
+Each is emitted once as `basis_k` and shared by every map over that object. -/
+private def bases (env : Declarations) : List (List AlgebraRuntime.Poly) :=
+  env.primitives.foldl (fun found entry => match entry.binding with
+    | .relativeConstant _ map => if found.contains map.basis then found else found ++ [map.basis]
+    | _ => found) []
+private def basisName (index : Nat) : String := s!"basis_{index}"
+private def renderMap (env : Declarations) (map : AlgebraRuntime.Map) : String :=
+  let basis := match (bases env).idxOf? map.basis with
+    | some index => basisName index
+    | none => renderPolys map.basis
+  s!"({algebra "Map.mk"} {map.arity} {basis} {renderPolys map.images})"
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"
@@ -48,7 +58,8 @@ private def renderType (env : Declarations) : DataType → Except String String
 private def application (name : String) (args : List String) : String :=
   "(" ++ String.intercalate " " (name :: args) ++ ")"
 
-private def renderPrimitive (binding : PrimitiveBinding) (args : List String) : Except String String :=
+private def renderPrimitive (env : Declarations) (binding : PrimitiveBinding) (args : List String) :
+    Except String String :=
   match binding, args with
   | .descriptor _, [dimension] => .ok (application (runtime "descriptor") [dimension])
   | .global _, [] => .ok (runtime "baseObject")
@@ -57,7 +68,7 @@ private def renderPrimitive (binding : PrimitiveBinding) (args : List String) : 
   | .compose .., [after, before] => .ok (application (runtime "compose") [after, before])
   | .apply .., [map, point] => .ok (application (runtime "apply") [map, point])
   | .dimension .., [object] => .ok s!"({object}).dimension"
-  | .relativeConstant _ map, [] => .ok (renderMap map)
+  | .relativeConstant _ map, [] => .ok (renderMap env map)
   | .relativeCompose _, [after, before] => .ok (application (algebra "Map.compose") [after, before])
   | .relativeView .., [map] => .ok map
   | .relativeEqual _, [left, right] => .ok (application (algebra "Map.same") [left, right])
@@ -92,7 +103,7 @@ private def renderTerm (env : Declarations) : Term → Except String String
   | .ascribe _ value | .scope value => renderTerm env value
   | .primitive id arguments _ => do
       let some binding := env.primitive? id | throw "missing checked primitive declaration"
-      renderPrimitive binding (← arguments.mapM (renderTerm env))
+      renderPrimitive env binding (← arguments.mapM (renderTerm env))
   | .call id arguments _ _ => do
       return application (functionName id) (← arguments.mapM (renderTerm env))
   | .branch condition yes no _ => do
@@ -144,9 +155,13 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
   let usesAlgebra := (packages ++ functions).any fun text => (text.splitOn (algebra "")).length > 1
   let imports := "import VastitasKernel.IndexedRuntime\n" ++
     (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "")
+  let basisDefinitions := if usesAlgebra then
+      (bases module.declarations).zipIdx.map fun (basis, index) =>
+        s!"def {basisName index} : List {algebra "Poly"} :=\n  {renderPolys basis}\n"
+    else []
   return imports ++ "\nset_option maxRecDepth 32768\n" ++
     "set_option maxHeartbeats 2000000\nset_option linter.unusedVariables false\n\n" ++
-    "namespace VastitasGenerated\n\n" ++ String.intercalate "\n" (packages ++ functions) ++
+    "namespace VastitasGenerated\n\n" ++ String.intercalate "\n" (basisDefinitions ++ packages ++ functions) ++
     "\nend VastitasGenerated\n"
 
 def functionReference (id : Nat) : String := "VastitasGenerated." ++ functionName id

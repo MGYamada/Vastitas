@@ -140,6 +140,31 @@ private def mapOf (name : String) : Option Map :=
 #eval check "a fiber factor must be a presented object"
   (code (with' [fiber "Bad" "X" "Missing"]) != "accepted")
 
+-- Budget paths of base isomorphisms and evidence composites: E_LIMIT, never expansion.
+private def sumOf (k : Nat) : Poly := (List.range k).foldl (fun p i => Poly.add p (Poly.var k i)) []
+private def t16 : Poly := Poly.pow 1 (Poly.var 1 0) 16
+private def free (k : Nat) (basis : List Poly := []) (structureImages : List Poly := []) :
+    AlgebraDeclarations.AffineData :=
+  { generators := (List.range k).map (s!"x{·}"), construction := .presented [], base := none, bindings := [],
+    structureImages, basis, cofactors := [] }
+private def codeOf (r : Except AlgebraBasis.Error α) : String :=
+  match r with
+  | .ok _ => "ok"
+  | .error e => e.code
+#eval check "a base isomorphism into t^16 is budgeted"
+  (codeOf (AlgebraBasis.run (AlgebraDeclarations.checkIso (free 1 [t16]) (free 15) [sumOf 15]
+    ((List.range 15).map fun _ => Poly.var 1 0))) == "E_LIMIT")
+#eval check "composing a right structure map with a base isomorphism is budgeted"
+  (codeOf (AlgebraBasis.run (AlgebraDeclarations.fiberImages (free 15 [] [sumOf 15]) (some ([t16], []))))
+    == "E_LIMIT")
+#eval check "evidence composites are budgeted, and the validator rejects them"
+  (codeOf (checkComposite ⟨1, [], [t16]⟩ ⟨15, [], [sumOf 15]⟩ ⟨15, [], []⟩ (.relation "")) == "E_LIMIT" &&
+    !composesTo ⟨1, [], [t16]⟩ ⟨15, [], [sumOf 15]⟩ ⟨15, [], []⟩)
+#eval check "evidence errors are specific"
+  (code (with' [cartesian "bad" "toX" "toOrigin" "Fiber2" "back"]) == "E_AFFINE_BASE" &&
+    code (with' [morphism "sq2" "S" "S2" "SpecQQ" (.pullback [("t", sq "t")]),
+      decl "bad" (.iso (path "sq2") (path "fromS2"))]) == "E_AFFINE_RELATION")
+
 -- Tampered Core: the audit re-derives every fiber presentation.
 private def tamper (name : String) (edit : AlgebraDeclarations.AffineData → AlgebraDeclarations.AffineData) :
     Bool :=

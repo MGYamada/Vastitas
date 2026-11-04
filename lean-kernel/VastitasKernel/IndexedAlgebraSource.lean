@@ -38,10 +38,6 @@ def PolyExpr.digitsBounded : PolyExpr → Bool
   | .sum es | .product es => es.attach.all fun ⟨e, _⟩ => e.digitsBounded
   | .pow e _ => e.digitsBounded
 
-def powWork (arity : Nat) (p : Poly) : Nat → Work Poly
-  | 0 => pure (Poly.one arity)
-  | k + 1 => do AlgebraBasis.mul (← powWork arity p k) p
-
 /-- Expand bounded syntax in the given coordinates. -/
 def PolyExpr.expand (coordinates : List String) : PolyExpr → Work Poly
   | .natural value => pure (Poly.const coordinates.length value)
@@ -57,7 +53,7 @@ def PolyExpr.expand (coordinates : List String) : PolyExpr → Work Poly
       AlgebraBasis.add total (← e.expand coordinates)) []
   | .product factors => factors.attach.foldlM (fun total ⟨e, _⟩ => do
       AlgebraBasis.mul total (← e.expand coordinates)) (Poly.one coordinates.length)
-  | .pow e k => do powWork coordinates.length (← e.expand coordinates) k
+  | .pow e k => do AlgebraBasis.power coordinates.length (← e.expand coordinates) k
 
 def PolyExpr.evaluate (coordinates : List String) (e : PolyExpr) : Work Poly := do
   ensure (e.degree ≤ Limits.algebraDegree && e.exponentsBounded) (.limit "degree")
@@ -114,13 +110,19 @@ def elaborateOne (finished : List (DeclId × AffineData)) (data : AffineData) (b
         let some b' := find baseRef' | throw (.base "the right fiber base is not a presented affine object")
         let forward ← namedImages b.generators b'.generators forward
         let inverse ← namedImages b'.generators b.generators inverse
-        run (AlgebraDeclarations.checkIso b b' forward inverse)
         pure (some (forward, inverse))
       | _ => do
         unless r.base == some baseRef do
           throw (.base "the fiber factors have different declared bases and no chosen isomorphism")
         pure none
-    let rightImages ← run (AlgebraDeclarations.fiberImages r via)
+    -- The base isomorphism and the composed right images share one budget,
+    -- as in the audit's `checkConstruction`.
+    let rightImages ← run do
+      if let some (forward, inverse) := via then
+        let some baseRef' := r.base | throw (.base "the right fiber factor has no declared base")
+        let some b' := find baseRef' | throw (.base "the right fiber base is not a presented affine object")
+        AlgebraDeclarations.checkIso b b' forward inverse
+      AlgebraDeclarations.fiberImages r via
     let presentation := AlgebraDeclarations.fiberPresentation left right l r b rightImages
     AlgebraDeclarations.elaborate presentation.generators presentation.relations presentation.base
       presentation.bindings (some b) (.fiber left right via presentation.relations)
@@ -202,11 +204,7 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
     | .identity =>
       unless x == y do throw (.base "an identity morphism needs the same source and target")
       pure (Map.identity dx.arity dx.basis).images
-    | .structureMap =>
-      match structureImagesWithin env x y with
-      | .ok images => pure images
-      | .error (.limit resource) => throw (.limit resource)
-      | .error _ => throw (.base "the target is not on the source's base chain")
+    | .structureMap => chainTo x y "the target is not on the source's base chain"
     | .restrict _ =>
       let some (phiType, phi) := restricted | throw (.base "restrict names a declared morphism")
       let .localization y g _ _ := dx.construction
@@ -241,12 +239,11 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
         let some e := (bindings.find? (·.1 == name)).map (·.2)
           | throw (.coordinate s!"no image for target coordinate {name}")
         run do reduce dx.basis (← e.evaluate dx.generators)
-  let map : Map := ⟨dx.arity, dx.basis, images⟩
-  run (AlgebraDeclarations.checkRelations dx dy images)
   let sx ← chainTo x s "the base is not on the source's base chain"
   let sy ← chainTo y s "the base is not on the target's base chain"
-  run (AlgebraDeclarations.checkTriangle dx sx sy images)
-  pure map
+  -- Exactly the audit's check and budget (`relativeConstantValid`).
+  run (AlgebraDeclarations.checkMorphism dx dy sx sy images)
+  pure ⟨dx.arity, dx.basis, images⟩
 where
   /-- Structure images to the base, keeping a budget failure as `E_LIMIT`. -/
   chainTo (object base : DeclId) (missing : String) : Except Error (List Poly) :=
@@ -254,14 +251,6 @@ where
     | .ok images => pure images
     | .error (.limit resource) => throw (.limit resource)
     | .error _ => throw (.base missing)
-
-/-- Report a budget failure of an evidence composition as `E_LIMIT`. The
-validators themselves only reject it. -/
-def within (span : Span) (pairs : List (Map × Map)) : Namespace.Result Unit :=
-  pairs.forM fun (after, before) =>
-    match run (compose after before) with
-    | .error (.limit resource) => algebraProblem span (.limit resource)
-    | _ => pure ()
 
 /-- Elaborate declared morphisms and coefficient selectors once objects are known. -/
 def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Declarations)
@@ -292,21 +281,35 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
     match (table.find? (·.id == id)).map (·.binding) with
     | some (PrimitiveBinding.relativeConstant application map) => some (application, map)
     | _ => none
-  let declared := primitives
-  let mut restricted := []
+  -- A restriction may restrict another restriction (an open of an open), so
+  -- they are elaborated in dependency order; a cycle is rejected.
+  let mut pending : List (DeclId × Application × DeclId × Span) := []
   for entry in primitives do
     let span := ((sources.find? (·.1 == entry.id)).map (·.2.1)).getD {}
     match entry.binding, (sources.find? (·.1 == entry.id)).map (·.2.2) with
     | .relativeConstant application _, some (Body.morphism _ _ (.restrict _)) =>
       let some target := (restrictTargets.find? (·.1 == entry.id)).map (·.2)
         | Namespace.problem span "E_TYPE" "restrict names a declared morphism"
-      let some phi := constantIn declared target
-        | Namespace.problem span "E_TYPE" "restrict names a declared, non-restricted morphism"
-      match morphismMap env.indexed application (.restrict ⟨[], {}⟩) (some phi) with
-      | .ok map => restricted := restricted ++ [⟨entry.id, .relativeConstant application map⟩]
-      | .error error => algebraProblem span error
-    | _, _ => restricted := restricted ++ [entry]
-  primitives := restricted
+      pending := pending ++ [(entry.id, application, target, span)]
+    | _, _ => pure ()
+  for _ in List.range (pending.length + 1) do
+    if pending.isEmpty then break
+    let mut waiting := []
+    for (id, application, target, span) in pending do
+      if pending.any (·.1 == target) then
+        waiting := waiting ++ [(id, application, target, span)]
+      else
+        let some phi := constantIn primitives target
+          | Namespace.problem span "E_TYPE" "restrict names a declared morphism"
+        match morphismMap env.indexed application (.restrict ⟨[], {}⟩) (some phi) with
+        | .ok map => primitives := primitives.map fun entry =>
+            if entry.id == id then ⟨id, .relativeConstant application map⟩ else entry
+        | .error error => algebraProblem span error
+    if waiting.length == pending.length then
+      match waiting with
+      | (_, _, _, span) :: _ => Namespace.problem span "E_TYPE" "restrictions form a cycle"
+      | [] => pure ()
+    pending := waiting
   let constant := constantIn primitives
   let mut evidence := []
   for entry in primitives do
@@ -315,25 +318,15 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
     | .relativeIso (forward, _) (backward, _) =>
       let (some f, some g) := (constant forward.family, constant backward.family)
         | Namespace.problem span "E_TYPE" "an isomorphism names two declared morphisms"
-      within span [(g.2, f.2), (f.2, g.2)]
-      unless relativeIsoValid env.indexed f g do
-        Namespace.problem span "E_AFFINE_RELATION" "the declared morphisms are not mutually inverse over one base"
-      evidence := evidence ++ [⟨entry.id, .relativeIso f g⟩]
+      match relativeIsoCheck env.indexed f g with
+      | .ok () => evidence := evidence ++ [⟨entry.id, .relativeIso f g⟩]
+      | .error error => algebraProblem span error
     | .relativeCartesian (first, _) (second, _) (inverse, _) fiber =>
       let (some q1, some q2, some h) := (constant first.family, constant second.family, constant inverse.family)
         | Namespace.problem span "E_TYPE" "a Cartesian square names three declared morphisms"
-      let some (left, right, base) := plainFiber? env.indexed fiber
-        | Namespace.problem span "E_AFFINE_BASE" "a Cartesian square needs a fiber product without a base isomorphism"
-      match objectsOf q1.1, objectsOf q2.1 with
-      | some (_, l, b), some (_, r, b') =>
-        unless l == left && r == right && b == base && b' == base do
-          Namespace.problem span "E_AFFINE_BASE" "the square's arrows do not map to the fiber's factors over its base"
-      | _, _ => Namespace.problem span "E_AFFINE_BASE" "the square's arrows are not morphisms over a base"
-      let comparison := Map.pair q1.2 q2.2
-      within span [(h.2, comparison), (comparison, h.2)]
-      unless relativeCartesianValid env.indexed q1 q2 h fiber do
-        Namespace.problem span "E_AFFINE_RELATION" "the comparison map and the declared inverse are not mutually inverse"
-      evidence := evidence ++ [⟨entry.id, .relativeCartesian q1 q2 h fiber⟩]
+      match relativeCartesianCheck env.indexed q1 q2 h fiber with
+      | .ok () => evidence := evidence ++ [⟨entry.id, .relativeCartesian q1 q2 h fiber⟩]
+      | .error error => algebraProblem span error
     | _ => evidence := evidence ++ [entry]
   pure { env with primitives := evidence }
 

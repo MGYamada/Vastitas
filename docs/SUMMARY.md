@@ -1,26 +1,29 @@
 # Summary
 
-[Vastitas](README.md)
+[Introduction](README.md)
 
-- [Historical Stages 2–7](guide/historical-roadmap.md)
+- [Getting Started](guide/getting-started.md)
+  - [Installation](guide/installation.md)
+  - [Hello, Vastitas](guide/hello-vastitas.md)
+  - [Packages and manifests](guide/stdlib.md)
+- [Values and functions](guide/values-and-functions.md)
+- [Control flow and pairs](guide/control-flow-and-pairs.md)
+- [Dispatch and abstract contracts](guide/dispatch.md)
+- [Independent functions and specialization](guide/function-values.md)
+- [Packages, modules and edit authority](guide/modules-and-authority.md)
+- [Indexed declarations and the geometry library](guide/indexed-geometry.md)
+- [Presented affine geometry (Stage 2)](affine-geometry.md)
+- [Storage and resource programs](guide/storage.md)
+- [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md)
+- [Diagnostics and the CLI](guide/diagnostics-and-cli.md)
 
-# Using the compiler
-
-- [Build and run your first program](guide/getting-started.md)
-- [CLI, native outputs and diagnostics](guide/cli.md)
-- [Packages and the standard library](guide/stdlib.md)
-
-# Language and packages
+# Language reference
 
 - [Core language and compatible geometry syntax](stage0.md)
 - [Finite dispatch, abstract contracts and promotion](stage1a.md)
-- [Independent functions and specialization](stage1b.md)
+- [Lambdas and static higher-order functions](stage1b.md)
 - [Packages, edit loans and transfer](packages.md)
-- [Indexed declarations and the geometry library](indexed-source.md)
-- [Presented affine geometry (Stage 2)](affine-geometry.md)
-
-# Storage and numerical computing
-
+- [Declaration-driven indexed source](indexed-source.md)
 - [Storage, ownership and residual retention](storage-ownership.md)
   - [Checked storage and resource calls](storage/checked-storage.md)
   - [Resource programs and runtime shapes](storage/resource-programs.md)
@@ -28,7 +31,7 @@
   - [Transforms, evaluation and metrics](linalg/transforms-and-metrics.md)
   - [Networks, packing and contraction trees](linalg/networks-and-packing.md)
 
-# Implementation and verification
+# How the compiler is checked
 
 - [Compiler architecture](development/architecture.md)
 - [Wire protocols 2–9](protocol.md)
@@ -36,16 +39,21 @@
   - [Pure evaluation and graph proofs](verification/core-models.md)
   - [Daleckii–Krein mathematical bridge](daleckii-krein.md)
 - [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
-- [Stage 1 delivery and performance handoff](stage1-completion.md)
-  - [Finite-profile acceptance and evidence](stage1-acceptance.md)
 
-# Reference models
+# Appendices
 
-- [Diagnostics, doctests and identifiers](reference/compiler-tools.md)
-- [Analysis, certificates and random supplies](reference/analysis-and-effects.md)
-- [Exact geometry reference models](reference/geometry.md)
-
-# Contributing
-
-- [Run compiler, proof and native checks](development/validation.md)
-- [Maintain the documentation](development/documentation.md)
+- [Appendix](appendix/README.md)
+  - [A: CLI reference](guide/cli.md)
+  - [B: Diagnostics reference](appendix/diagnostics.md)
+  - [C: Reference models](appendix/reference-models.md)
+    - [Diagnostics, doctests and identifiers](reference/compiler-tools.md)
+    - [Analysis, certificates and random supplies](reference/analysis-and-effects.md)
+    - [Exact geometry reference models](reference/geometry.md)
+  - [D: Compiler limits](appendix/limits.md)
+  - [E: Historical roadmap and Stage 1 records](appendix/history.md)
+    - [Historical Stages 2–7](guide/historical-roadmap.md)
+    - [Stage 1 delivery and performance handoff](stage1-completion.md)
+    - [Finite-profile acceptance and evidence](stage1-acceptance.md)
+  - [F: Contributing and validation](appendix/contributing.md)
+    - [Run compiler, proof and native checks](development/validation.md)
+    - [Maintain the documentation](development/documentation.md)

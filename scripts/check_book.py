@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def check_contents(source, output):
     summary = source / "SUMMARY.md"
-    links = re.findall(r"^\s*(?:[-*]\s+)?\[[^\]]+\]\(([^ )]+)\)\s*$", summary.read_text(encoding="utf-8"), re.M)
+    text = summary.read_text(encoding="utf-8")
+    links = re.findall(r"^\s*(?:[-*]\s+)?\[[^\]]+\]\(([^ )]+)\)\s*$", text, re.M)
     chapters = Counter(links)
     expected = {p.relative_to(source).as_posix() for p in source.rglob("*.md") if p != summary}
     missing = sorted(expected - chapters.keys())
@@ -21,8 +22,12 @@ def check_contents(source, output):
     repeated = sorted(name for name, count in chapters.items() if count != 1)
     if missing or unknown or repeated:
         raise ValueError(f"contents mismatch: unlisted={missing}, absent={unknown}, duplicates={repeated}")
-    if links[:2] != ["README.md", "guide/historical-roadmap.md"]:
-        raise ValueError("the opening navigation must begin with the entrypoint and roadmap")
+    if links[:2] != ["README.md", "guide/getting-started.md"]:
+        raise ValueError("the contents must begin with the Introduction and then Getting Started")
+    if not re.search(r"^\[Introduction\]\(README\.md\)\s*$", text, re.M):
+        raise ValueError("the Introduction must be an unnumbered prefix chapter")
+    if not re.search(r"^- \[Getting Started\]\(guide/getting-started\.md\)\s*$", text, re.M):
+        raise ValueError("Getting Started must be the first numbered chapter")
     for name in chapters:
         path = Path(name)
         rendered = (path.with_name("index.html") if path.name == "README.md" else path.with_suffix(".html"))

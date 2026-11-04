@@ -1,6 +1,6 @@
 # Compiler commands and diagnostics
 
-Use `vastitas check INPUT` to validate a source and `vastitas build INPUT -o OUTPUT` to produce a native executable. Run the [quick start](getting-started.md) first or pass an explicit package manifest as described in the [package guide](stdlib.md).
+Use `vastitas check INPUT` to validate a source and `vastitas build INPUT -o OUTPUT` to produce a native executable. Work through [Hello, Vastitas](hello-vastitas.md) first, or pass an explicit package manifest as described in the [package guide](stdlib.md).
 
 `check` also accepts a library without `main`. `build` requires
 `fn main() -> Int`; the generated entrypoint prints the integer and exits

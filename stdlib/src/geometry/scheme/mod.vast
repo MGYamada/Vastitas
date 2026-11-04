@@ -1,4 +1,5 @@
 // Ordinary affine geometry over QQ. These are finite implementation contracts.
+pub mod affine;
 pub indexed marker QQ;
 pub indexed implementation GridQQ(QQ, affine_descriptor) capabilities(origin, dimension);
 pub indexed classification Scheme { parents(super::Objects); domain(GridQQ); };

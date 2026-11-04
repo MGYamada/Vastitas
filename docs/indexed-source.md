@@ -679,8 +679,9 @@ correspondence and native refinement remain outside the migration's claims.
 
 ### Geometry standard-library declarations
 
-`stdlib/src/geometry` is an explicit path package using the public protocol-7 source
-checker. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
+`stdlib/src/geometry` is an explicit path package using the public source
+checker; since its `scheme::affine` module declares
+[presented affine geometry](affine-geometry.md), its closure uses protocol 9. It declares separate `QQ`/`CInfReal` markers and `Scheme`/`CInfScheme`
 finite classifications in sibling `scheme`/`smooth` modules, actual global base
 objects, shared indexed Point/Morphism families with same-base constraints, and
 the two finite Pointed package cases. `stdlib` re-exports these canonical

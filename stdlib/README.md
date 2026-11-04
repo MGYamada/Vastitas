@@ -5,9 +5,11 @@ pass through the same Rust frontend and independent Lean checker as application
 code. They do not require the proof oracle during compilation.
 
 The [geometry library](src/geometry/README.md) exposes the existing finite affine
-profile through `std::geometry::scheme` and `std::geometry::smooth`. Select
+profile through `std::geometry::scheme` and `std::geometry::smooth`, and the
+Stage 2 presented affine profile through `std::geometry::scheme::affine`. Select
 `stdlib` as the `std` dependency for the combined geometry/arithmetic
-entrypoint. It re-exports the canonical declarations and uses protocol 7.
+entrypoint. It re-exports the canonical declarations and uses protocol 9, the
+current schema epoch (#533), because the affine module declares algebraic forms.
 An explicit, checked library export maps legacy geometry syntax to those same
 declarations. The temporary `stdlib/indexed` entrypoint has been removed.
 Whole-term and legacy semantic correspondence remain pending.

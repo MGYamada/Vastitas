@@ -1,0 +1,19 @@
+// Presented affine geometry over QQ (historical Stage 2): exact presented
+// QQ-algebras and morphisms over a base, checked by the kernel. Each
+// declaration is one canonical object; separately declared presentations are
+// compared only through a checked isomorphism. See docs/affine-geometry.md.
+pub indexed implementation AffineQQ(super::QQ, presented_affine(rational)) capabilities();
+pub indexed classification AffineScheme { parents(); domain(AffineQQ); };
+pub indexed family Over(object(AffineScheme), object(AffineScheme), object(AffineScheme))
+    = relative constraints(structural(0, 2), structural(1, 2));
+
+// Spec QQ, the base of every object here.
+pub indexed affine SpecQQ(AffineQQ) = spec[];
+// The affine line Spec QQ[t].
+pub indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
+// The dual numbers Spec QQ[e]/(e^2).
+pub indexed affine DualNumbers(AffineQQ) = spec[e] relations(e^2) over SpecQQ;
+
+// compose(after, before) composes in the written order; same compares exact maps.
+pub indexed primitive compose = relative_compose(Over);
+pub indexed primitive same = relative_equal(Over);

@@ -1,9 +1,13 @@
 # `std::geometry::scheme` and `std::geometry::smooth`
 
 The existing finite ordinary/smooth affine profile is implemented by ordinary
-`.vast` indexed declarations under two sibling modules. Both use public protocol
-7 and the same independent Lean checker as application declarations. This is the
-finite migration profile of #49/#58–63, not general scheme or manifold support.
+`.vast` indexed declarations under two sibling modules. They use the same
+independent Lean checker as application declarations. This is the finite
+migration profile of #49/#58–63, not general scheme or manifold support. The
+child module `scheme::affine` adds the Stage 2
+[presented affine profile](../../../docs/affine-geometry.md#the-standard-library-profile).
+Its algebraic forms put the whole package closure on public protocol 9, the
+current schema epoch (#533).
 
 The canonical source tree mirrors the public module hierarchy. Each module has
 its own directory and a `mod.vast` entrypoint:
@@ -12,7 +16,9 @@ its own directory and a `mod.vast` entrypoint:
 stdlib/src/geometry/
 ├── mod.vast
 ├── scheme/
-│   └── mod.vast
+│   ├── mod.vast
+│   └── affine/
+│       └── mod.vast
 └── smooth/
     └── mod.vast
 ```

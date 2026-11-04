@@ -60,6 +60,8 @@ inductive IndexedValue where
   | token
   | point (value : Point)
   | morphism (value : Morphism)
+  /-- A morphism over a base between presented objects: its exact pullback map. -/
+  | relative (value : AlgebraRuntime.Map)
   deriving Repr, DecidableEq
 
 /-- Tokens also retain every object-index obligation through the world. Empty
@@ -72,6 +74,7 @@ def IndexedHasType (env : Indexed.Environment) (world : World)
       RefDenotes env world target point.target ∧ RefDenotes env world source point.source
   | .morphism map, some .morphism, [.object source, .object target] =>
       RefDenotes env world source map.source ∧ RefDenotes env world target map.target
+  | .relative _, some .relative, _ => ∀ ref ∈ application.refs, ∃ object, RefDenotes env world ref object
   | _, _, _ => False
 
 inductive Value where
@@ -115,7 +118,7 @@ def ValueHasResult (env : Declarations) (world : World) (value : Value) (result 
   ValueHasType env world value result.type ∧ ValueHasRef env.indexed world value result.reference
 
 def PrimitiveValueHasType (env : Indexed.Environment) (world : World) : Value → ValueType → Prop
-  | .natural _, .natural => True
+  | .natural _, .natural | .boolean _, .boolean | .integer _, .integer | .pairInt _ _, .integerPair => True
   | .object object, .object type ref => ObjectHasType env object type ∧ RefDenotes env world ref object
   | .indexed value, .indexed application => IndexedHasType env world value application
   | _, _ => False
@@ -190,6 +193,14 @@ def evalBinary (operator : BinaryOp) : Value → Value → Option Value
     | .eq => some (.boolean true) | .ne => some (.boolean false) | _ => none
   | _, _ => none
 
+def Value.integer? : Value → Option Int
+  | .integer value => some value
+  | _ => none
+
+def intPointValue (values : List Value) : Option Value := do
+  let coordinates ← values.mapM Value.integer?
+  pure (.indexed (.relative (AlgebraRuntime.Map.intPoint coordinates)))
+
 def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value → Option Value
   | .descriptor implementation, [.natural dimension] =>
       some (.object ⟨implementation, IndexedRuntime.descriptor dimension⟩)
@@ -203,6 +214,16 @@ def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value 
       some (.indexed (.morphism ⟨before.source, after.target⟩))
   | .apply _ _, [.indexed (.morphism map), .indexed (.point point)] =>
       some (.indexed (.point ⟨map.target, point.source⟩))
+  | .relativeConstant _ map, [] => some (.indexed (.relative map))
+  | .relativeCompose _, [.indexed (.relative after), .indexed (.relative before)] =>
+      some (.indexed (.relative (AlgebraRuntime.Map.compose after before)))
+  | .relativeView .., [.indexed (.relative map)] => some (.indexed (.relative map))
+  | .relativeEqual _, [.indexed (.relative left), .indexed (.relative right)] =>
+      some (.boolean (AlgebraRuntime.Map.same left right))
+  | .relativeCoefficient _ _ _ coordinate monomial, [.indexed (.relative map)] =>
+      let (numerator, denominator) := map.coefficient coordinate monomial
+      some (.pairInt numerator denominator)
+  | .relativeIntPoint .., values => intPointValue values
   | _, _ => none
 
 /-- The closed registry's erased operands/results use the actual runtime
@@ -213,14 +234,30 @@ inductive PrimitiveRuntimeValue where
   | object (value : IndexedRuntime.Object)
   | point (value : IndexedRuntime.Point)
   | morphism (value : IndexedRuntime.Morphism)
+  | relative (value : AlgebraRuntime.Map)
+  | boolean (value : Bool)
+  | integer (value : Int)
+  | pairInt (first second : Int)
   deriving Repr, DecidableEq
 
 def erasePrimitiveValue : Value → Option PrimitiveRuntimeValue
   | .natural value => some (.natural value)
+  | .boolean value => some (.boolean value)
+  | .integer value => some (.integer value)
+  | .pairInt first second => some (.pairInt first second)
+  | .indexed (.relative map) => some (.relative map)
   | .object object => some (.object object.descriptor)
   | .indexed (.point point) => some (.point point.erase)
   | .indexed (.morphism map) => some (.morphism map.erase)
   | _ => none
+
+def PrimitiveRuntimeValue.integer? : PrimitiveRuntimeValue → Option Int
+  | .integer value => some value
+  | _ => none
+
+def intPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRuntimeValue := do
+  let coordinates ← values.mapM PrimitiveRuntimeValue.integer?
+  pure (.relative (AlgebraRuntime.Map.intPoint coordinates))
 
 def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue
   | .descriptor _, [.natural dimension] => some (.object (IndexedRuntime.descriptor dimension))
@@ -230,6 +267,15 @@ def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → O
   | .dimension _, [.object object] => some (.natural object.dimension)
   | .compose _, [.morphism after, .morphism before] => some (.morphism (IndexedRuntime.compose after before))
   | .apply _ _, [.morphism map, .point point] => some (.point (IndexedRuntime.apply map point))
+  | .relativeConstant _ map, [] => some (.relative map)
+  | .relativeCompose _, [.relative after, .relative before] =>
+      some (.relative (AlgebraRuntime.Map.compose after before))
+  | .relativeView .., [.relative map] => some (.relative map)
+  | .relativeEqual _, [.relative left, .relative right] => some (.boolean (AlgebraRuntime.Map.same left right))
+  | .relativeCoefficient _ _ _ coordinate monomial, [.relative map] =>
+      let (numerator, denominator) := map.coefficient coordinate monomial
+      some (.pairInt numerator denominator)
+  | .relativeIntPoint .., values => intPointRuntime values
   | _, _ => none
 
 def evalPair : PairElem → Value → Value → Option Value

@@ -66,79 +66,6 @@ def packageShape (j : Json) : Except String Source.PackageShape := do
   fields j ["witness_type", "fields"]
   return ⟨← objectType (← field j "witness_type"), ← (← array j "fields").mapM boundApplication⟩
 
-def primitive (j : Json) : Except String Source.Primitive := do
-  match ← str j "op" with
-  | "descriptor" =>
-    fields j ["op", "implementation"]
-    return .descriptor (← path (← field j "implementation"))
-  | "global" =>
-    fields j ["op", "declaration"]
-    return .global (← path (← field j "declaration"))
-  | "origin" =>
-    fields j ["op", "domain", "point_family", "base_object"]
-    return .origin (← objectType (← field j "domain"))
-      (← path (← field j "point_family")) (← path (← field j "base_object"))
-  | "identity" =>
-    fields j ["op", "domain", "map_family"]
-    return .identity (← objectType (← field j "domain")) (← path (← field j "map_family"))
-  | "dimension" =>
-    fields j ["op", "domain"]
-    return .dimension (← objectType (← field j "domain"))
-  | "compose" =>
-    fields j ["op", "map_family"]
-    return .compose (← path (← field j "map_family"))
-  | "apply" =>
-    fields j ["op", "map_family", "point_family"]
-    return .apply (← path (← field j "map_family")) (← path (← field j "point_family"))
-  | _ => throw "unknown indexed primitive contract"
-
-def coefficientKind (j : Json) : Except String CoefficientKind := do
-  match ← j.getStr? with
-  | "real" => return .real
-  | "complex" => return .complex
-  | _ => throw "expected ideal coefficient kind real or complex"
-
-def geometricSetting (j : Json) : Except String GeometricSetting := do
-  match ← j.getStr? with
-  | "scheme" => return .scheme
-  | "smooth" => return .smooth
-  | _ => throw "expected scheme or smooth setting"
-
-def representation (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
-    Except String Source.Representation := do
-  if j == Json.str "affine_descriptor" then return .affineDescriptor
-  if let .ok body := j.getObjVal? "presented_affine" then
-    unless algebraic do throw "algebraic affine declarations require protocol 9"
-    if (← j.getObj?).size != 1 then throw "expected exactly one concrete representation"
-    fields body ["field"]
-    unless (← str body "field") == "rational" do throw "presented objects use the rational field"
-    return .presentedAffine .rational
-  unless numerical do throw "numerical declarations require protocol 8"
-  let entries ← j.getObj?
-  if entries.size != 1 then throw "expected exactly one concrete representation"
-  if let .ok body := j.getObjVal? "scalar_base" then
-    fields body ["setting", "coefficient"]
-    return .scalarBase (← geometricSetting (← field body "setting"))
-      (← coefficientKind (← field body "coefficient"))
-  if let .ok body := j.getObjVal? "linear_descriptor" then
-    fields body ["base", "coefficient"]
-    return .linearDescriptor (← path (← field body "base"))
-      (← coefficientKind (← field body "coefficient"))
-  throw "unsupported concrete object representation"
-
-def capability (j : Json) : Except String Capability := do
-  match ← j.getStr? with
-  | "origin" => return .origin
-  | "dimension" => return .dimension
-  | _ => throw "unsupported implementation capability"
-
-def familyRepresentation (j : Json) : Except String FamilyRepresentation := do
-  match ← j.getStr? with
-  | "token" => return .token
-  | "point" => return .point
-  | "morphism" => return .morphism
-  | _ => throw "unsupported indexed family representation"
-
 /-- A bounded decimal string, optionally signed. -/
 def decimal (text : String) (signed : Bool := false) : Except String Int := do
   let (negative, digits) := if signed && text.startsWith "-" then (true, (text.drop 1).toString) else (false, text)
@@ -181,6 +108,110 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["name", "image"]
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
+/-- Stage 2 relative primitives (protocol 9 only). -/
+def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive := do
+  match op with
+  | "relative_compose" => fields j ["op", "family"]; return .relativeCompose (← path (← field j "family"))
+  | "relative_equal" => fields j ["op", "family"]; return .relativeEqual (← path (← field j "family"))
+  | "relative_view" =>
+    fields j ["op", "family", "source", "target"]
+    return .relativeView (← path (← field j "family")) (← path (← field j "source")) (← path (← field j "target"))
+  | "relative_coefficient" =>
+    fields j ["op", "family", "source", "target", "coordinate", "monomial"]
+    return .relativeCoefficient (← path (← field j "family")) (← path (← field j "source"))
+      (← path (← field j "target")) (← str j "coordinate") (← polyExpr Limits.algebraNesting (← field j "monomial"))
+  | "relative_int_point" =>
+    fields j ["op", "family", "object", "base"]
+    return .relativeIntPoint (← path (← field j "family")) (← path (← field j "object")) (← path (← field j "base"))
+  | _ => throw "unknown indexed primitive contract"
+
+def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := do
+  match ← str j "kind" with
+  | "pullback" =>
+    fields j ["kind", "images"]
+    return .pullback (← (← array j "images").mapM binding)
+  | "identity" => fields j ["kind"]; return .identity
+  | "structure" => fields j ["kind"]; return .structureMap
+  | _ => throw "unknown morphism definition"
+
+def primitive (j : Json) (algebraic : Bool := false) : Except String Source.Primitive := do
+  match ← str j "op" with
+  | "descriptor" =>
+    fields j ["op", "implementation"]
+    return .descriptor (← path (← field j "implementation"))
+  | "global" =>
+    fields j ["op", "declaration"]
+    return .global (← path (← field j "declaration"))
+  | "origin" =>
+    fields j ["op", "domain", "point_family", "base_object"]
+    return .origin (← objectType (← field j "domain"))
+      (← path (← field j "point_family")) (← path (← field j "base_object"))
+  | "identity" =>
+    fields j ["op", "domain", "map_family"]
+    return .identity (← objectType (← field j "domain")) (← path (← field j "map_family"))
+  | "dimension" =>
+    fields j ["op", "domain"]
+    return .dimension (← objectType (← field j "domain"))
+  | "compose" =>
+    fields j ["op", "map_family"]
+    return .compose (← path (← field j "map_family"))
+  | "apply" =>
+    fields j ["op", "map_family", "point_family"]
+    return .apply (← path (← field j "map_family")) (← path (← field j "point_family"))
+  | op =>
+    unless algebraic && op.startsWith "relative_" do throw "unknown indexed primitive contract"
+    algebraicPrimitive j op
+
+def coefficientKind (j : Json) : Except String CoefficientKind := do
+  match ← j.getStr? with
+  | "real" => return .real
+  | "complex" => return .complex
+  | _ => throw "expected ideal coefficient kind real or complex"
+
+def geometricSetting (j : Json) : Except String GeometricSetting := do
+  match ← j.getStr? with
+  | "scheme" => return .scheme
+  | "smooth" => return .smooth
+  | _ => throw "expected scheme or smooth setting"
+
+def representation (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
+    Except String Source.Representation := do
+  if j == Json.str "affine_descriptor" then return .affineDescriptor
+  if let .ok body := j.getObjVal? "presented_affine" then
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    if (← j.getObj?).size != 1 then throw "expected exactly one concrete representation"
+    fields body ["field"]
+    unless (← str body "field") == "rational" do throw "presented objects use the rational field"
+    return .presentedAffine .rational
+  unless numerical do throw "numerical declarations require protocol 8"
+  let entries ← j.getObj?
+  if entries.size != 1 then throw "expected exactly one concrete representation"
+  if let .ok body := j.getObjVal? "scalar_base" then
+    fields body ["setting", "coefficient"]
+    return .scalarBase (← geometricSetting (← field body "setting"))
+      (← coefficientKind (← field body "coefficient"))
+  if let .ok body := j.getObjVal? "linear_descriptor" then
+    fields body ["base", "coefficient"]
+    return .linearDescriptor (← path (← field body "base"))
+      (← coefficientKind (← field body "coefficient"))
+  throw "unsupported concrete object representation"
+
+def capability (j : Json) : Except String Capability := do
+  match ← j.getStr? with
+  | "origin" => return .origin
+  | "dimension" => return .dimension
+  | _ => throw "unsupported implementation capability"
+
+def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String FamilyRepresentation := do
+  match ← j.getStr? with
+  | "token" => return .token
+  | "point" => return .point
+  | "morphism" => return .morphism
+  | "relative" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    return .relative
+  | _ => throw "unsupported indexed family representation"
+
 def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
     Except String Source.Body := do
   let common := ["kind", "name", "public", "span"]
@@ -201,9 +232,15 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     fields j (common ++ ["parameters", "constraints", "representation"])
     return .family ⟨← (← array j "parameters").mapM parameter,
       ← (← array j "constraints").mapM (constraint · algebraic),
-      ← familyRepresentation (← field j "representation")⟩
+      ← familyRepresentation (← field j "representation") algebraic⟩
   | "package" => fields j (common ++ ["cases"]); return .package (← (← array j "cases").mapM packageShape)
-  | "primitive" => fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding"))
+  | "primitive" =>
+    fields j (common ++ ["binding"]); return .primitive (← primitive (← field j "binding") algebraic)
+  | "morphism" =>
+    unless algebraic do throw "algebraic affine declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "definition"])
+    return .morphism (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← morphismDefinition (← field j "definition"))
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])

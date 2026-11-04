@@ -288,6 +288,51 @@ impl Parser {
                     point_family: self.type_path()?,
                 }
             }
+            "relative_compose" => Primitive::RelativeCompose {
+                family: self.type_path()?,
+            },
+            "relative_equal" => Primitive::RelativeEqual {
+                family: self.type_path()?,
+            },
+            "relative_view" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let source = self.type_path()?;
+                self.expect(",")?;
+                Primitive::RelativeView {
+                    family,
+                    source,
+                    target: self.type_path()?,
+                }
+            }
+            "relative_coefficient" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let source = self.type_path()?;
+                self.expect(",")?;
+                let target = self.type_path()?;
+                self.expect(",")?;
+                let coordinate = self.name()?.0;
+                self.expect(",")?;
+                Primitive::RelativeCoefficient {
+                    family,
+                    source,
+                    target,
+                    coordinate,
+                    monomial: self.poly(0)?,
+                }
+            }
+            "relative_int_point" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let object = self.type_path()?;
+                self.expect(",")?;
+                Primitive::RelativeIntPoint {
+                    family,
+                    object,
+                    base: self.type_path()?,
+                }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -364,10 +409,11 @@ impl Parser {
                     "token" => indexed::FamilyRepresentation::Token,
                     "point" => indexed::FamilyRepresentation::Point,
                     "morphism" => indexed::FamilyRepresentation::Morphism,
+                    "relative" => indexed::FamilyRepresentation::Relative,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, or morphism",
+                            "family representation requires token, point, morphism or relative",
                             span,
                         ));
                     }
@@ -395,6 +441,7 @@ impl Parser {
                 }
             }
             "affine" => self.indexed_affine()?,
+            "morphism" => self.indexed_morphism()?,
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -494,6 +541,46 @@ impl Parser {
             relations,
             base,
             bindings,
+        })
+    }
+
+    /// `: Family<X, Y, S> = pullback(y -> p, ...) | identity | structure`
+    fn indexed_morphism(&mut self) -> Result<DeclarationBody, Diagnostic> {
+        self.expect(":")?;
+        let family = self.type_path()?;
+        self.expect("<")?;
+        let mut indices = vec![self.type_path()?];
+        while self.consume(",") {
+            indices.push(self.type_path()?);
+        }
+        self.type_close()?;
+        self.expect("=")?;
+        let span = self.peek().span;
+        let definition = match self.indexed_tag()?.as_str() {
+            "pullback" => indexed::MorphismDefinition::Pullback {
+                images: self.indexed_list("(", ")", |p| {
+                    let name = p.name()?.0;
+                    p.expect("->")?;
+                    Ok(indexed::Binding {
+                        name,
+                        image: p.poly(0)?,
+                    })
+                })?,
+            },
+            "identity" => indexed::MorphismDefinition::Identity,
+            "structure" => indexed::MorphismDefinition::Structure,
+            _ => {
+                return Err(diagnostic(
+                    "E_TYPE",
+                    "a morphism is a pullback, identity or structure map",
+                    span,
+                ));
+            }
+        };
+        Ok(DeclarationBody::Morphism {
+            family,
+            indices,
+            definition,
         })
     }
 

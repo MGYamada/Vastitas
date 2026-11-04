@@ -68,9 +68,11 @@ theorem lowered_profile {program : Source.Program} {resolved : Source.Resolved}
     · contradiction
     · split at lowered
       · contradiction
-      · rename_i pair declarationsFrom declarations elaborated geometry geometryFrom
-        cases lowered
-        exact ⟨_, geometryFrom⟩
+      · split at lowered
+        · contradiction
+        · rename_i pair declarationsFrom declarations elaborated relative related geometry geometryFrom
+          cases lowered
+          exact ⟨_, geometryFrom⟩
 
 theorem compiler_uses_checked_profile {json : Lean.Json} (accepted : Wire.CheckedInput json requireMain) :
     accepted.checked.compiler.input.body.geometry =

@@ -1630,3 +1630,33 @@ The declaration audit re-verifies all stored data (`validAffine`).
   range over presented objects.
 
 No public wire field reaches these declarations yet.
+
+### Morphisms over a base (Stage 2 S4)
+
+The sealed three-index `relative` family carries exact pullback maps between
+presented objects. There are six new closed bindings: `relativeConstant`,
+`relativeCompose`, `relativeView`, `relativeEqual`, `relativeCoefficient` and
+`relativeIntPoint`, with Bool, Int and Pair<Int> operand and result types.
+`VastitasOracle.AffineMorphisms.relativeConstant_sound` proves that an accepted
+morphism has its source's arity and basis, normal-form images of exactly the
+target's coordinates, exact quotient identities for every target basis element
+and the commuting triangle with both stored structure maps.
+
+The following theorems hold for every new binding:
+
+- the per-binding totality theorems (`relativeConstant_total` …
+  `relativeIntPoint_total`) in `VastitasOracle.IndexedSemantics`;
+- the extended `primitive_total_and_typed` and `primitive_runtime_erasure`;
+- typed value transport through package fields, renaming and world agreement.
+
+`compose_images` states the written pullback order, and `view_requires_chain`
+the chain condition for base views. The following regressions and tests cover
+this profile:
+
+- `AffineMorphismRegression`: elaboration and specific rejections (relation,
+  variance, coordinates, triangle, identity, structure, coefficients, views,
+  family contracts) and six tampered-map rejections;
+- `tests/affine_geometry.rs`: native execution of the acceptance observations,
+  a mutation that changes the native result, endpoint errors, and forged wire.
+
+Native execution is tested, not proved.

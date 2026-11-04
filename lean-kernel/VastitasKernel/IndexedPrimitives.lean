@@ -43,7 +43,56 @@ inductive PrimitiveBinding where
   | dimension (domain : ObjectType)
   | compose (mapFamily : DeclId)
   | apply (mapFamily pointFamily : DeclId)
+  /-- A declared morphism over a base, with its exact pullback map (Stage 2). -/
+  | relativeConstant (application : Application) (map : AlgebraRuntime.Map)
+  | relativeCompose (family : DeclId)
+  /-- Regard a morphism over `source` as one over `target`, a base on its chain. -/
+  | relativeView (family source target : DeclId)
+  | relativeEqual (family : DeclId)
+  /-- The coefficient of `monomial` (in the source's coordinates) in the image
+  of the target's coordinate `coordinate`. -/
+  | relativeCoefficient (family source target : DeclId) (coordinate : Nat) (monomial : List Nat)
+  /-- A rational point `base → object` of a free object over a coordinate-free base. -/
+  | relativeIntPoint (family object base : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=
+  familyRepresentation env family == some .relative
+
+/-- Exact checks of a declared morphism `X → Y` over `S`: the map lives in `X`'s
+ring with `X`'s basis, its images are normal forms, it sends `Y`'s relations into
+`X`'s ideal (exact quotient identities), and it commutes with both structure maps
+to `S`. -/
+def relativeConstantValid (env : Environment) (application : Application) (map : AlgebraRuntime.Map) : Bool :=
+  isRelativeFamily env application.family && validApplication env application &&
+  match application.indices with
+  | [.object (.global x), .object (.global y), .object (.global s)] =>
+    match affineData? env x, affineData? env y, structureImages? env x s, structureImages? env y s with
+    | some dx, some dy, some sx, some sy =>
+      map.arity == dx.arity && map.basis == dx.basis && map.images.length == dy.arity &&
+      map.images.all (fun image => AlgebraRuntime.Poly.canonical dx.arity image &&
+        AlgebraRuntime.normalForm dx.basis image == image) &&
+      (AlgebraBasis.run (dy.basis.forM fun g =>
+        AlgebraDeclarations.checkMember dx.basis (AlgebraRuntime.Poly.subst dx.arity map.images g)
+          (.invalid "the map does not respect the target relations"))).isOk &&
+      sx == sy.map (fun image => AlgebraRuntime.normalForm dx.basis
+        (AlgebraRuntime.Poly.subst dx.arity map.images image))
+    | _, _, _, _ => false
+  | _ => false
+
+def freeAffine (env : Environment) (id : DeclId) : Bool :=
+  match affineData? env id with
+  | some data => data.basis == []
+  | none => false
+
+/-- A nonzero coordinate-free presented object: its ring is QQ itself. -/
+def pointBase (env : Environment) (id : DeclId) : Bool :=
+  match affineData? env id with
+  | some data => data.arity == 0 && data.basis == []
+  | none => false
+
+def affineArity (env : Environment) (id : DeclId) : Nat :=
+  ((affineData? env id).map AlgebraDeclarations.AffineData.arity).getD 0
 
 def implementationType (env : Environment) (id : DeclId) : Option ObjectType :=
   (implementationMarker env id).map fun marker => ⟨id, marker⟩
@@ -75,6 +124,16 @@ def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
   | .compose family => familyRepresentation env family = some .morphism
   | .apply maps points => familyRepresentation env maps = some .morphism ∧
       familyRepresentation env points = some .point
+  | .relativeConstant application map => relativeConstantValid env application map = true
+  | .relativeCompose family | .relativeEqual family => isRelativeFamily env family = true
+  | .relativeView family source target =>
+      isRelativeFamily env family = true ∧ onChain env source target = true
+  | .relativeCoefficient family source target coordinate monomial =>
+      isRelativeFamily env family = true ∧ (affineData? env source).isSome = true ∧
+      coordinate < affineArity env target ∧ (affineData? env target).isSome = true ∧
+      monomial.length = affineArity env source
+  | .relativeIntPoint family object base =>
+      isRelativeFamily env family = true ∧ freeAffine env object = true ∧ pointBase env base = true
 
 def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .descriptor implementation => match implementationType env implementation with
@@ -87,20 +146,39 @@ def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .compose family => familyRepresentation env family == some .morphism
   | .apply maps points => familyRepresentation env maps == some .morphism &&
       familyRepresentation env points == some .point
+  | .relativeConstant application map => relativeConstantValid env application map
+  | .relativeCompose family | .relativeEqual family => isRelativeFamily env family
+  | .relativeView family source target => isRelativeFamily env family && onChain env source target
+  | .relativeCoefficient family source target coordinate monomial =>
+      isRelativeFamily env family && (affineData? env source).isSome &&
+      decide (coordinate < affineArity env target) && (affineData? env target).isSome &&
+      monomial.length == affineArity env source
+  | .relativeIntPoint family object base =>
+      isRelativeFamily env family && freeAffine env object && pointBase env base
+
+/-- The operand count of each closed primitive. -/
+def PrimitiveBinding.arity (env : Environment) : PrimitiveBinding → Nat
+  | .global _ | .relativeConstant .. => 0
+  | .compose _ | .apply .. | .relativeCompose _ | .relativeEqual _ => 2
+  | .relativeIntPoint _ object _ => affineArity env object
+  | _ => 1
 
 inductive ValueType where
   | natural
   | object (type : ObjectType) (reference : ObjectRef)
   | indexed (application : Application)
+  | boolean
+  | integer
+  | integerPair
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def ValueType.Valid (env : Environment) : ValueType → Prop
-  | .natural => True
+  | .natural | .boolean | .integer | .integerPair => True
   | .object type reference => WitnessFits env type reference
   | .indexed application => application.Valid env
 
 def validValueType (env : Environment) : ValueType → Bool
-  | .natural => true
+  | .natural | .boolean | .integer | .integerPair => true
   | .object type reference => decide (WitnessFits env type reference)
   | .indexed application => validApplication env application
 
@@ -126,6 +204,22 @@ def PrimitiveAssociation (env : Environment) (binding : PrimitiveBinding) (allow
       .indexed ⟨pf, [.object target', .object test]⟩] =>
       mf = maps ∧ pf = points ∧ source = target' ∧
         result = .indexed ⟨points, [.object target, .object test]⟩
+  | .relativeConstant application _, [] => result = .indexed application
+  | .relativeCompose family, [.indexed ⟨gf, [.object middle, .object target, .object base]⟩,
+      .indexed ⟨ff, [.object source, .object middle', .object base']⟩] =>
+      gf = family ∧ ff = family ∧ middle = middle' ∧ base = base' ∧
+        result = .indexed ⟨family, [.object source, .object target, .object base]⟩
+  | .relativeView family origin to, [.indexed ⟨f, [.object source, .object target, .object base]⟩] =>
+      f = family ∧ base = .global origin ∧
+        result = .indexed ⟨family, [.object source, .object target, .object (.global to)]⟩
+  | .relativeEqual family, [.indexed left, .indexed right] =>
+      left.family = family ∧ left = right ∧ result = .boolean
+  | .relativeCoefficient family source target _ _,
+      [.indexed ⟨f, [.object (.global x), .object (.global y), .object _]⟩] =>
+      f = family ∧ x = source ∧ y = target ∧ result = .integerPair
+  | .relativeIntPoint family object base, arguments =>
+      arguments = (List.range (affineArity env object)).map (fun _ => .integer) ∧
+        result = .indexed ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩
   | _, _ => False
 
 instance (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
@@ -177,6 +271,16 @@ def inferPrimitiveResult (env : Environment) (binding : PrimitiveBinding) (brand
       .indexed ⟨_, [.object source, .object _]⟩] => some (.indexed ⟨family, [.object source, .object target]⟩)
   | .apply _ points, [.indexed ⟨_, [.object _, .object target]⟩,
       .indexed ⟨_, [.object _, .object test]⟩] => some (.indexed ⟨points, [.object target, .object test]⟩)
+  | .relativeConstant application _, [] => some (.indexed application)
+  | .relativeCompose family, [.indexed ⟨_, [.object _, .object target, .object base]⟩,
+      .indexed ⟨_, [.object source, .object _, .object _]⟩] =>
+      some (.indexed ⟨family, [.object source, .object target, .object base]⟩)
+  | .relativeView family _ to, [.indexed ⟨_, [.object source, .object target, .object _]⟩] =>
+      some (.indexed ⟨family, [.object source, .object target, .object (.global to)]⟩)
+  | .relativeEqual _, [.indexed _, .indexed _] => some .boolean
+  | .relativeCoefficient .., [.indexed _] => some .integerPair
+  | .relativeIntPoint family object base, _ =>
+      some (.indexed ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩)
   | _, _ => none
 
 def inferPrimitive (env : CheckedEnvironment) (binding : PrimitiveBinding) (allowed : List ObjectRef)

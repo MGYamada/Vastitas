@@ -128,6 +128,9 @@ contract. No geometric function name or inferred native implementation is used. 
 def Result.primitiveType? (result : Result) : Option ValueType :=
   match result.type, result.reference with
   | .pure .nat, none => some .natural
+  | .pure .bool, none => some .boolean
+  | .pure .int, none => some .integer
+  | .pure (.pair .int), none => some .integerPair
   | .object type, some ref => some (.object type ref)
   | .indexed application, none => some (.indexed application)
   | _, _ => none

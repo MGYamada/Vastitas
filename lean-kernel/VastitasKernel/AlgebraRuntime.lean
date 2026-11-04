@@ -198,7 +198,7 @@ structure Map where
   arity : Nat
   basis : List Poly
   images : List Poly
-  deriving Repr, DecidableEq, Inhabited
+  deriving Repr, DecidableEq, Inhabited, BEq, ReflBEq, LawfulBEq
 
 namespace Map
 

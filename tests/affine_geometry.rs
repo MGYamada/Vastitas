@@ -28,9 +28,10 @@ fn check(s: &Scratch) -> std::process::Output {
         .unwrap()
 }
 
+/// The example with extra items inserted before its helper and entrypoint.
 fn with(extra: &str) -> String {
-    format!("{}\n{extra}\n", MAIN.replace("fn main() -> Int { 42 }", ""))
-        + "fn main() -> Int { 42 }\n"
+    assert!(MAIN.contains("fn verdict("));
+    MAIN.replacen("fn verdict(", &format!("{extra}\nfn verdict("), 1)
 }
 
 fn rejects(main: &str, code: &str) -> String {
@@ -118,21 +119,19 @@ fn affine_forms_select_protocol_nine_and_older_envelopes_reject_them() {
 #[test]
 fn structural_applications_follow_declared_base_chains() {
     for probe in [
-        "fn probe(p: Over<X, X, S>) -> Int { 0 }",
-        "fn probe(p: Over<DS, X, S>) -> Int { 0 }",
-        "fn probe(p: Over<D, Line, SpecQQ>) -> Int { 0 }",
-        "fn probe(p: Over<X, X, SpecQQ>) -> Int { 0 }",
+        "fn probe(arrow: Over<X, X, S>) -> Int { 0 }",
+        "fn probe(arrow: Over<DS, X, S>) -> Int { 0 }",
+        "fn probe(arrow: Over<D, Line, SpecQQ>) -> Int { 0 }",
+        "fn probe(arrow: Over<X, X, SpecQQ>) -> Int { 0 }",
     ] {
-        success(&check(&fixture(&with(&format!(
-            "use profile::Over;\n{probe}"
-        )))));
+        success(&check(&fixture(&with(probe))));
     }
     for probe in [
-        "fn probe(p: Over<X, D, S>) -> Int { 0 }",
-        "fn probe(p: Over<S, X, X>) -> Int { 0 }",
-        "fn probe(p: Over<Line, Line, S>) -> Int { 0 }",
+        "fn probe(arrow: Over<X, D, S>) -> Int { 0 }",
+        "fn probe(arrow: Over<S, X, X>) -> Int { 0 }",
+        "fn probe(arrow: Over<Line, Line, S>) -> Int { 0 }",
     ] {
-        rejects(&with(&format!("use profile::Over;\n{probe}")), "E_TYPE");
+        rejects(&with(probe), "E_TYPE");
     }
 }
 
@@ -265,4 +264,113 @@ fn raw_wire_rejects_forged_affine_records() {
         "E_AFFINE_COORDINATE",
     );
     rejected_with(forged(&format!("{x}/base"), json!(null)), "E_AFFINE_BASE");
+}
+
+#[test]
+fn morphism_declarations_reject_relation_variance_base_and_type_errors() {
+    for (declaration, code) in [
+        (
+            "indexed morphism bad: Over<D, X, SpecQQ> = pullback(t -> 1, x -> e);",
+            "E_AFFINE_RELATION",
+        ),
+        (
+            "indexed morphism bad: Over<D, Line, SpecQQ> = pullback(e -> t);",
+            "E_AFFINE_COORDINATE",
+        ),
+        (
+            "indexed morphism bad: Over<D, Line, SpecQQ> = pullback(t -> t);",
+            "E_AFFINE_COORDINATE",
+        ),
+        (
+            "indexed morphism bad: Over<D, Line, SpecQQ> = identity;",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed morphism bad: Over<D, S, SpecQQ> = structure;",
+            "E_AFFINE_BASE",
+        ),
+        (
+            "indexed primitive bad = relative_coefficient(Over, D, Line, u, e);",
+            "E_AFFINE_COORDINATE",
+        ),
+        (
+            "indexed primitive bad = relative_coefficient(Over, D, Line, t, e + 1);",
+            "E_AFFINE_COORDINATE",
+        ),
+        (
+            "indexed implementation Grid(profile::QQ, affine_descriptor) capabilities();\nindexed classification Grids { parents(); domain(Grid); };\nindexed family Bad(object(Grids), object(Grids), object(Grids)) = relative constraints(structural(0, 2), structural(1, 2));",
+            "E_TYPE",
+        ),
+        (
+            "indexed family Bad(object(profile::AffineScheme), object(profile::AffineScheme), object(profile::AffineScheme)) = relative constraints(structural(0, 2));",
+            "E_TYPE",
+        ),
+    ] {
+        rejects(&with(declaration), code);
+    }
+    // Composition and equality need matching endpoints and the same base.
+    for body in [
+        "fn bad() -> Bool { same(compose(toX(), p()), compose(toX(), p())) }",
+        "fn bad() -> Bool { same(p(), sq()) }",
+        "fn bad() -> Bool { same(compose(toS(), toX()), p()) }",
+    ] {
+        rejects(&with(body), "E_ENDPOINT");
+    }
+}
+
+#[test]
+fn mutated_observations_change_the_native_result() {
+    let s = fixture(
+        &MAIN
+            .replace("verdict(!same(p(), q()), 1)", "verdict(same(p(), q()), 1)")
+            .replace("== 9, 7)", "== 3, 7)"),
+    );
+    let output = s.0.join("program");
+    success(
+        &cli()
+            .current_dir(&s.0)
+            .args(["build", "--manifest-path", "Vastitas.toml", "-o"])
+            .arg(&output)
+            .output()
+            .unwrap(),
+    );
+    let result = std::process::Command::new(output).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"50\n");
+}
+
+#[test]
+fn relative_forms_reject_downgrade_and_forged_wire() {
+    let raw = request(&fixture(MAIN));
+    let p = declaration_pointer(&raw, "p");
+    let to_x = declaration_pointer(&raw, "toX");
+    let forged = |path: &str, value: Value| {
+        let mut changed = raw.clone();
+        *changed.pointer_mut(path).unwrap() = value;
+        changed
+    };
+    for (path, value) in [
+        (format!("{p}/definition"), json!({"kind": "pullback"})),
+        (
+            format!("{p}/definition"),
+            json!({"kind": "cached", "images": []}),
+        ),
+        (
+            format!("{p}/definition"),
+            json!({"kind": "identity", "map": []}),
+        ),
+    ] {
+        rejected_with(forged(&path, value), "E_PROTOCOL");
+    }
+    let mut extra = raw.clone();
+    extra.pointer_mut(&p).unwrap()["map"] = json!({"images": []});
+    rejected_with(extra, "E_PROTOCOL");
+    // x |-> 1 sends x^2 - t to 1, which is not in the ideal (e^2).
+    rejected_with(
+        forged(
+            &format!("{to_x}/definition/images/1/image"),
+            json!({"op": "natural", "value": "1"}),
+        ),
+        "E_AFFINE_RELATION",
+    );
 }

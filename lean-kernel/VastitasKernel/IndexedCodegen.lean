@@ -7,6 +7,18 @@ namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
 
 private def runtime (name : String) : String := "VastitasKernel.IndexedRuntime." ++ name
+private def algebra (name : String) : String := "VastitasKernel.AlgebraRuntime." ++ name
+
+/-- Exact rational literals of the checked map data; no source spelling is used. -/
+private def renderRat (value : Rat) : String := s!"(mkRat ({value.num} : Int) {value.den})"
+private def renderTerm' (term : AlgebraRuntime.Term) : String :=
+  s!"({algebra "Term.mk"} {term.monomial} {renderRat term.coefficient})"
+private def renderPoly (p : AlgebraRuntime.Poly) : String :=
+  s!"([{String.intercalate ", " (p.map renderTerm')}] : {algebra "Poly"})"
+private def renderPolys (ps : List AlgebraRuntime.Poly) : String :=
+  s!"([{String.intercalate ", " (ps.map renderPoly)}] : List {algebra "Poly"})"
+private def renderMap (map : AlgebraRuntime.Map) : String :=
+  s!"({algebra "Map.mk"} {map.arity} {renderPolys map.basis} {renderPolys map.images})"
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"
@@ -25,7 +37,8 @@ private def renderType (env : Declarations) : DataType → Except String String
   | .object _ => .ok (runtime "Object")
   | .indexed application => match lookup env.indexed application.family with
     | some (.family family) => .ok (match family.representation with
-        | .token => "Unit" | .point => runtime "Point" | .morphism => runtime "Morphism")
+        | .token => "Unit" | .point => runtime "Point" | .morphism => runtime "Morphism"
+        | .relative => algebra "Map")
     | _ => .error "indexed family missing from checked declarations"
   | .package application => do
       let some entry := (packageCases env).zipIdx.find? fun entry => entry.1.1 == application
@@ -44,6 +57,14 @@ private def renderPrimitive (binding : PrimitiveBinding) (args : List String) : 
   | .compose .., [after, before] => .ok (application (runtime "compose") [after, before])
   | .apply .., [map, point] => .ok (application (runtime "apply") [map, point])
   | .dimension .., [object] => .ok s!"({object}).dimension"
+  | .relativeConstant _ map, [] => .ok (renderMap map)
+  | .relativeCompose _, [after, before] => .ok (application (algebra "Map.compose") [after, before])
+  | .relativeView .., [map] => .ok map
+  | .relativeEqual _, [left, right] => .ok (application (algebra "Map.same") [left, right])
+  | .relativeCoefficient _ _ _ coordinate monomial, [map] =>
+      .ok (application (algebra "Map.coefficient") [map, toString coordinate, toString monomial])
+  | .relativeIntPoint .., coordinates =>
+      .ok (application (algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"])
   | _, _ => .error "closed primitive arity mismatch"
 
 private def renderBinary (operator : BinaryOp) (left right : String) : String :=
@@ -118,7 +139,11 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     renderPackage module.declarations entry.2 index
   let functions ← (module.functions.filter (fun function => reachable.contains function.id)).mapM
     (renderFunction module.declarations)
-  return "import VastitasKernel.IndexedRuntime\n\nset_option maxRecDepth 32768\n" ++
+  -- Only programs that use exact algebra import its runtime.
+  let usesAlgebra := (packages ++ functions).any fun text => (text.splitOn (algebra "")).length > 1
+  let imports := "import VastitasKernel.IndexedRuntime\n" ++
+    (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "")
+  return imports ++ "\nset_option maxRecDepth 32768\n" ++
     "set_option maxHeartbeats 2000000\nset_option linter.unusedVariables false\n\n" ++
     "namespace VastitasGenerated\n\n" ++ String.intercalate "\n" (packages ++ functions) ++
     "\nend VastitasGenerated\n"

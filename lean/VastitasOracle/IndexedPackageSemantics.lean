@@ -112,6 +112,14 @@ theorem bound_field_transport {env : Environment} {before after : World}
       refine ⟨valid, ?_⟩
       simpa only [BoundApplication.instantiate, fields, List.map_cons, List.map_nil, fstNew, sndNew, representation]
         using And.intro sourceNew targetNew
+  | relative map =>
+      have representation : familyRepresentation env field.family = some .relative := by
+        cases found : familyRepresentation env field.family <;> simp [IndexedHasType, BoundApplication.instantiate, found] at typed
+        case some rep => cases rep <;> simp_all [BoundApplication.instantiate]
+      refine ⟨valid, ?_⟩
+      simp only [BoundApplication.instantiate, representation]
+      apply bound_token_transport newDenotes field
+      simpa only [BoundApplication.instantiate, representation] using typed.2
 
 theorem bound_fields_transport {env : Environment} {before after : World}
     {old new : ObjectRef} {witness : Object}

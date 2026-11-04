@@ -47,6 +47,16 @@ def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primiti
   | .dimension domain => return .dimension (← resolveType p scope domain)
   | .compose family => return .compose (← resolveId p scope family)
   | .apply maps points => return .apply (← resolveId p scope maps) (← resolveId p scope points)
+  | .relativeCompose family => return .relativeCompose (← resolveId p scope family)
+  | .relativeView family source target =>
+      return .relativeView (← resolveId p scope family) (← resolveId p scope source) (← resolveId p scope target)
+  | .relativeEqual family => return .relativeEqual (← resolveId p scope family)
+  | .relativeCoefficient family source target _ _ =>
+      -- The coordinate index and monomial are elaborated once objects are known.
+      return .relativeCoefficient (← resolveId p scope family) (← resolveId p scope source)
+        (← resolveId p scope target) 0 []
+  | .relativeIntPoint family object base =>
+      return .relativeIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope base)
 
 def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
     Source.Representation → ResolveM Indexed.Representation
@@ -73,6 +83,11 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       return { env with packages := env.packages ++ [⟨owner, ← cases.mapM (resolveShape p scope)⟩] }
   | .primitive binding =>
       return { env with primitives := env.primitives ++ [⟨owner, ← resolvePrimitive p scope binding⟩] }
+  | .morphism family indices _ => do
+      -- The exact map is elaborated once objects are known.
+      let application : Application :=
+        ⟨← resolveId p scope family, ← indices.mapM fun index => return .object (.global (← resolveId p scope index))⟩
+      return { env with primitives := env.primitives ++ [⟨owner, .relativeConstant application ⟨0, [], []⟩⟩] }
   | .affine implementation generators relations base bindings => do
       let implementation ← resolveId p scope implementation
       let base ← base.mapM (resolveId p scope)
@@ -112,6 +127,7 @@ def lower (p : Program) : Namespace.Result Resolved := do
     resolveBody index entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
   let (declarations, references) ← action.run []
   let declarations ← elaborateAffine (p.owned.map fun (owner, d) => (owner, d.span)) declarations
+  let declarations ← elaborateRelative (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
   let (geometry, geometryReferences) ← (resolveGeometry p declarations).run []
   return ⟨declarations, references.reverse ++ geometryReferences.reverse, geometry⟩
 

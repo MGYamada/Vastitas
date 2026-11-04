@@ -75,19 +75,52 @@ pub enum DeclarationBody {
         base: Option<TypePath>,
         bindings: Vec<Binding>,
     },
+    /// A declared morphism `family<X, Y, S>` over a base (protocol 9).
+    Morphism {
+        family: TypePath,
+        indices: Vec<TypePath>,
+        definition: MorphismDefinition,
+    },
+}
+
+/// How a declared morphism `X → Y` over `S` is given.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum MorphismDefinition {
+    /// The images of the target's coordinates in the source's coordinates.
+    Pullback {
+        images: Vec<Binding>,
+    },
+    Identity,
+    Structure,
 }
 
 impl DeclarationBody {
     /// Stage 2 algebraic forms. They exist only in protocol 9.
     pub fn is_algebraic(&self) -> bool {
         match self {
-            DeclarationBody::Affine { .. } => true,
+            DeclarationBody::Affine { .. } | DeclarationBody::Morphism { .. } => true,
+            DeclarationBody::Primitive { binding } => matches!(
+                binding,
+                Primitive::RelativeCompose { .. }
+                    | Primitive::RelativeView { .. }
+                    | Primitive::RelativeEqual { .. }
+                    | Primitive::RelativeCoefficient { .. }
+                    | Primitive::RelativeIntPoint { .. }
+            ),
             DeclarationBody::Implementation { representation, .. } => {
                 matches!(representation, Representation::PresentedAffine { .. })
             }
-            DeclarationBody::Family { constraints, .. } => constraints
-                .iter()
-                .any(|c| matches!(c, Constraint::Structural { .. })),
+            DeclarationBody::Family {
+                constraints,
+                representation,
+                ..
+            } => {
+                *representation == FamilyRepresentation::Relative
+                    || constraints
+                        .iter()
+                        .any(|c| matches!(c, Constraint::Structural { .. }))
+            }
             _ => false,
         }
     }
@@ -182,6 +215,7 @@ pub enum FamilyRepresentation {
     Token,
     Point,
     Morphism,
+    Relative,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -264,5 +298,28 @@ pub enum Primitive {
     Apply {
         map_family: TypePath,
         point_family: TypePath,
+    },
+    RelativeCompose {
+        family: TypePath,
+    },
+    RelativeView {
+        family: TypePath,
+        source: TypePath,
+        target: TypePath,
+    },
+    RelativeEqual {
+        family: TypePath,
+    },
+    RelativeCoefficient {
+        family: TypePath,
+        source: TypePath,
+        target: TypePath,
+        coordinate: String,
+        monomial: PolyExpr,
+    },
+    RelativeIntPoint {
+        family: TypePath,
+        object: TypePath,
+        base: TypePath,
     },
 }

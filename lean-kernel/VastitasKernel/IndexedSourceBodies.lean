@@ -145,6 +145,9 @@ def primitiveResult : ValueType → Core.Result
   | .natural => ⟨.pure .nat, none⟩
   | .object type reference => ⟨.object type, some reference⟩
   | .indexed application => ⟨.indexed application, none⟩
+  | .boolean => ⟨.pure .bool, none⟩
+  | .integer => ⟨.pure .int, none⟩
+  | .integerPair => ⟨.pure (.pair .int), none⟩
 
 /-- Both declared calls and the legacy syntax adapter use this same primitive
 contract check. The final independent Core audit remains mandatory. -/
@@ -332,9 +335,12 @@ mutual
         let some binding := input.declarations.primitive? target.owner
           | fail span "E_TYPE" "this indexed declaration is not a primitive function"
         modify fun state => { state with references := ⟨scope, callee, target⟩ :: state.references }
-        let arity := match binding with | .global _ => 0 | .compose _ | .apply .. => 2 | _ => 1
+        let arity := binding.arity input.declarations.indexed
         unless arguments.length == arity do fail span "E_ARITY" s!"primitive expects {arity} arguments"
-        let hint := match binding with | .descriptor _ => some (Core.DataType.pure .nat) | _ => none
+        let hint := match binding with
+          | .descriptor _ => some (Core.DataType.pure .nat)
+          | .relativeIntPoint .. => some (Core.DataType.pure .int)
+          | _ => none
         let values ← arguments.mapM fun argument => expression fuel input scope ctx argument hint
         return ← emitPrimitive input ctx target.owner values span
       unless target.kind == .function do fail span "E_TYPE" "expected an ordinary function or declared primitive"

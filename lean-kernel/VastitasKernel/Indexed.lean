@@ -49,9 +49,11 @@ inductive Constraint where
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- An indexed token retains every index, even when its runtime representation
-is empty. Endpoint representations are sealed and require an explicit contract. -/
+is empty. Endpoint representations are sealed and require an explicit contract.
+`relative` is the sealed three-index `MorphismOver(X, Y, S)` of presented
+objects (Stage 2); its runtime value is an exact pullback map. -/
 inductive FamilyRepresentation where
-  | token | point | morphism
+  | token | point | morphism | relative
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -124,6 +126,23 @@ def onChain (env : Environment) (object base : DeclId) : Bool :=
   match chainOf env object with
   | some chain => chain.contains base
   | none => false
+
+/-- The structure map from `object` to a base on its chain, as the normal
+forms in `object`'s ring of the base's coordinates. -/
+def chainImages (env : Environment) : Nat → DeclId → DeclId → Option (List AlgebraRuntime.Poly)
+  | 0, _, _ => none
+  | fuel + 1, object, base => do
+    let data ← affineData? env object
+    if object == base then
+      pure (AlgebraRuntime.Map.identity data.arity data.basis).images
+    else
+      let next ← data.base
+      let images ← chainImages env fuel next base
+      pure (images.map fun image =>
+        AlgebraRuntime.normalForm data.basis (AlgebraRuntime.Poly.subst data.arity data.structureImages image))
+
+def structureImages? (env : Environment) (object base : DeclId) : Option (List AlgebraRuntime.Poly) :=
+  chainImages env Limits.algebraChain object base
 
 /-- The base is an actual global object, not its coefficient marker. -/
 def scalarBaseProfile (env : Environment) (base : DeclId) :
@@ -316,7 +335,12 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
       Constraint.sameBase 0 1 ∈ f.constraints ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (affineImplementation env)
-        | _ => true) = true)
+        | _ => true) = true
+  | .relative => f.parameters.length = 3 ∧
+      f.constraints = [.structural 0 2, .structural 1 2] ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (presentedImplementation env)
+        | _ => false) = true)
 
 instance (env : Environment) (f : Family) : Decidable (f.Valid env) := by
   unfold Family.Valid

@@ -130,4 +130,70 @@ def elaborateAffine (spans : List (DeclId × Span)) (env : Core.Declarations) :
     | _ => entry
   pure { env with indexed }
 
+/-- The single monomial of a coefficient selector, with coefficient one. -/
+def monomialOf (coordinates : List String) (e : PolyExpr) : Except Error (List Nat) := do
+  let p ← run (e.evaluate coordinates)
+  match p with
+  | [⟨exponents, 1⟩] => pure exponents
+  | [] => pure (Monomial.one coordinates.length)
+  | _ => throw (.coordinate "a coefficient selector must be a single monomial with coefficient one")
+
+/-- Compute the exact pullback map of a declared morphism `X → Y` over `S`. -/
+def morphismMap (env : Environment) (application : Application) (definition : MorphismDefinition) :
+    Except Error Map := do
+  let [.object (.global x), .object (.global y), .object (.global s)] := application.indices
+    | throw (.base "a morphism over a base names three declared objects")
+  let some dx := affineData? env x | throw (.base "the source is not a presented affine object")
+  let some dy := affineData? env y | throw (.base "the target is not a presented affine object")
+  let images ← match definition with
+    | .identity =>
+      unless x == y do throw (.base "an identity morphism needs the same source and target")
+      pure (Map.identity dx.arity dx.basis).images
+    | .structureMap =>
+      match structureImages? env x y with
+      | some images => pure images
+      | none => throw (.base "the target is not on the source's base chain")
+    | .pullback bindings =>
+      let names := bindings.map (·.1)
+      unless names.length == dy.arity && names.Nodup && names.all (dy.generators.contains ·) do
+        throw (.coordinate "a pullback gives each target coordinate exactly one image")
+      dy.generators.mapM fun name => do
+        let some e := (bindings.find? (·.1 == name)).map (·.2)
+          | throw (.coordinate s!"no image for target coordinate {name}")
+        let image ← run (e.evaluate dx.generators)
+        pure (normalForm dx.basis image)
+  let map : Map := ⟨dx.arity, dx.basis, images⟩
+  run (dy.basis.forM fun g => AlgebraDeclarations.checkMember dx.basis (Poly.subst dx.arity images g)
+    (.invalid "the map does not respect the target's relations"))
+  let some sx := structureImages? env x s | throw (.base "the base is not on the source's base chain")
+  let some sy := structureImages? env y s | throw (.base "the base is not on the target's base chain")
+  unless sx == sy.map (fun image => normalForm dx.basis (Poly.subst dx.arity images image)) do
+    throw (.base "the morphism does not commute with the structure maps to the base")
+  pure map
+
+/-- Elaborate declared morphisms and coefficient selectors once objects are known. -/
+def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Declarations) :
+    Namespace.Result Core.Declarations := do
+  let mut primitives := []
+  for entry in env.primitives do
+    let some (_, span, body) := sources.find? (·.1 == entry.id) | primitives := primitives ++ [entry]; continue
+    match entry.binding, body with
+    | .relativeConstant application _, .morphism _ _ definition =>
+      match morphismMap env.indexed application definition with
+      | .ok map => primitives := primitives ++ [⟨entry.id, .relativeConstant application map⟩]
+      | .error error => algebraProblem span error
+    | .relativeCoefficient family source target _ _, .primitive (.relativeCoefficient _ _ _ coordinate monomial) =>
+      let some dx := affineData? env.indexed source
+        | Namespace.problem span "E_AFFINE_BASE" "the source is not a presented affine object"
+      let some dy := affineData? env.indexed target
+        | Namespace.problem span "E_AFFINE_BASE" "the target is not a presented affine object"
+      let some index := dy.generators.idxOf? coordinate
+        | Namespace.problem span "E_AFFINE_COORDINATE" s!"unknown target coordinate {coordinate}"
+      match monomialOf dx.generators monomial with
+      | .ok exponents =>
+        primitives := primitives ++ [⟨entry.id, .relativeCoefficient family source target index exponents⟩]
+      | .error error => algebraProblem span error
+    | _, _ => primitives := primitives ++ [entry]
+  pure { env with primitives }
+
 end VastitasKernel.Indexed.Source

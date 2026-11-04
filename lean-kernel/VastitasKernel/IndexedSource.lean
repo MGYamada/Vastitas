@@ -73,6 +73,21 @@ inductive Primitive where
   | dimension (domain : ObjectType)
   | compose (mapFamily : Path)
   | apply (mapFamily pointFamily : Path)
+  | relativeCompose (family : Path)
+  | relativeView (family source target : Path)
+  | relativeEqual (family : Path)
+  /-- `coordinate` names a target coordinate; `monomial` is a monomial in the
+  source's coordinates, checked after elaboration. -/
+  | relativeCoefficient (family source target : Path) (coordinate : String) (monomial : PolyExpr)
+  | relativeIntPoint (family object base : Path)
+  deriving Repr, Inhabited
+
+/-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/
+inductive MorphismDefinition where
+  /-- The images of `Y`'s coordinates, as polynomials in `X`'s coordinates. -/
+  | pullback (images : List (String × PolyExpr))
+  | identity
+  | structureMap
   deriving Repr, Inhabited
 
 inductive Body where
@@ -87,6 +102,8 @@ inductive Body where
   /-- `spec[generators] relations(…) over base by(name ↦ image, …)` -/
   | affine (implementation : Path) (generators : List String) (relations : List PolyExpr)
       (base : Option Path) (bindings : List (String × PolyExpr))
+  /-- `morphism name : family<X, Y, S> = definition` -/
+  | morphism (family : Path) (indices : List Path) (definition : MorphismDefinition)
   deriving Repr, Inhabited
 
 structure Declaration where
@@ -214,7 +231,7 @@ def Program.indexed (p : Program) : Namespace.Indexed := {
 
 def Body.category : Body → Nat
   | .package _ => 1
-  | .primitive _ => 2
+  | .primitive _ | .morphism .. => 2
   | _ => 0
 
 /-- Match the three ordered tables in Core.Declarations without sorting IDs or

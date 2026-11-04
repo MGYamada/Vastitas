@@ -45,7 +45,11 @@ private def declarations : List Source.Declaration := [
   morphism "unglue" "U2" "U1" "SpecQQ" (.pullback [("x", c "yi"), ("xi", c "y")]),
   decl "transition" (.iso (path "glue") (path "unglue")),
   -- D(0) is the zero ring.
-  localize "Empty" "Line" (n 0) "z" ]
+  localize "Empty" "Line" (n 0) "z",
+  -- D(1) is the whole line, where the inverse reduces to 1.
+  morphism "lineId" "Line" "Line" "SpecQQ" .identity,
+  localize "One" "Line" (n 1) "w",
+  morphism "oneId" "One" "One" "SpecQQ" (.restrict (path "lineId")) ]
 
 private def program (ds := declarations) : Source.Program := {
   file := "affine opens", root := pkg.source,
@@ -85,6 +89,8 @@ private def mapOf (name : String) : Option Map :=
   ((mapOf "onOpens").map (·.images) == some [Poly.pow 2 (Poly.var 2 0) 2, Poly.var 2 1])
 #eval check "the open inclusion is the structure map" ((mapOf "inclusion").map (·.images) == some [Poly.var 2 0])
 #eval check "D(0) is the zero ring" ((data "Empty").map (·.basis) == some [Poly.one 2])
+#eval check "restricted images are normal forms in the source open: w ↦ 1"
+  ((mapOf "oneId").map (·.images) == some [Poly.var 2 0, Poly.one 2])
 
 -- Rejections with specific codes.
 #eval check "restrict needs the preimage open"

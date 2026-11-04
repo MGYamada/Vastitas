@@ -101,6 +101,18 @@ private def mapOf (name : String) : Option Map :=
     | some f, some g => (Map.pair f g).images == f.images
     | _, _ => false)
 
+#eval check "a self-product qualifies coordinates by occurrence"
+  (match Source.checkDeclarations (with' [fiber "XX" "X" "X"]) with
+    | .ok checked => (affineData? checked.resolved.declarations.indexed (id "XX")).map (·.generators) ==
+        some ["first::t", "first::x", "second::t", "second::x"]
+    | .error _ => false)
+#eval check "a nested fiber nests its qualifiers"
+  (match Source.checkDeclarations (with' [fiber "Nested" "Fiber" "Origin",
+      decl "nx" (.primitive (.relativeCoefficient (path "Over") (path "DS") (path "Nested") "Fiber::X::x" (c "e")))]) with
+    | .ok checked => (affineData? checked.resolved.declarations.indexed (id "Nested")).map (·.generators) ==
+        some ["Fiber::X::t", "Fiber::X::x"]
+    | .error _ => false)
+
 -- Rejections with specific codes.
 #eval check "different bases need a chosen isomorphism"
   (code (with' [fiber "Bad" "X" "Origin2"]) == "E_AFFINE_BASE")

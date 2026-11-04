@@ -221,7 +221,9 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
       let preimage ← run do reduce ySource.basis (← substitute ySource.arity phi.images f)
       unless preimage == (← run (reduce ySource.basis g)) do
         throw (.base "the source open is not the preimage of the target open")
-      pure ((phi.images.map (AlgebraDeclarations.embed 0 dx.arity)) ++ [Poly.var dx.arity ySource.arity])
+      -- Localization can add reductions, so every image is normalized in the source open.
+      run (((phi.images.map (AlgebraDeclarations.embed 0 dx.arity)) ++ [Poly.var dx.arity ySource.arity]).mapM
+        (reduce dx.basis))
     | .first | .second =>
       let .fiber left right _ _ := dx.construction
         | throw (.base "a projection's source must be a fiber product")

@@ -123,8 +123,15 @@ def embed (offset total : Nat) (p : Poly) : Poly :=
   p.map fun t => ⟨List.replicate offset 0 ++ t.monomial ++
     List.replicate (total - offset - t.monomial.length) 0, t.coefficient⟩
 
-def qualify (owner : Namespace.Owner) (generators : List String) : List String :=
-  generators.map (s!"{owner.name}::" ++ ·)
+/-- The qualifier of each factor occurrence: the factor's name, or `first` and
+`second` when both factors have the same name (a self-product, or same-named
+declarations in different modules). Declaration names are single identifiers,
+so distinct qualifiers never produce colliding coordinates. -/
+def fiberQualifiers (left right : Namespace.Owner) : String × String :=
+  if left.name == right.name then ("first", "second") else (left.name, right.name)
+
+def qualify (qualifier : String) (generators : List String) : List String :=
+  generators.map (s!"{qualifier}::" ++ ·)
 
 /-- The derived presentation of `left ×_B right`: qualified coordinates, both
 bases embedded, the equalizer of both structure maps, and the left structure map. -/
@@ -140,7 +147,8 @@ def fiberPresentation (left right : Namespace.Owner) (l r b : AffineData) (right
   let total := l.arity + r.arity
   let cross := (l.structureImages.zip rightImages).map fun (a, c) =>
     Poly.sub (embed 0 total a) (embed l.arity total c)
-  { generators := qualify left l.generators ++ qualify right r.generators
+  { generators := qualify (fiberQualifiers left right).1 l.generators ++
+      qualify (fiberQualifiers left right).2 r.generators
     relations := l.basis.map (embed 0 total) ++ r.basis.map (embed l.arity total) ++ cross
     base := l.base
     bindings := b.generators.zip (l.structureImages.map (embed 0 total)) }

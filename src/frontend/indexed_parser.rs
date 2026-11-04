@@ -775,10 +775,11 @@ impl Parser {
         })
     }
 
-    /// A coordinate, optionally qualified by its fiber factor: `x` or `X::x`.
+    /// A coordinate, qualified by its fiber factors: `x`, `X::x`, or
+    /// `Fiber::X::x` for a fiber product that is itself a factor.
     fn coordinate_name(&mut self) -> Result<String, Diagnostic> {
         let (mut name, _) = self.name()?;
-        if self.consume("::") {
+        while self.consume("::") {
             name = format!("{name}::{}", self.name()?.0);
         }
         Ok(name)

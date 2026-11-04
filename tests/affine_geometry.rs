@@ -436,6 +436,20 @@ fn fiber_products_reject_unchosen_bases_non_isomorphisms_and_forged_squares() {
     ] {
         rejects(&with(declaration), code);
     }
+    // Self-products are qualified by occurrence, and nested fiber coordinates
+    // keep every qualifier through the parser.
+    success(&check(&fixture(&with(
+        "indexed affine Plane(AffineQQ) = fiber(Line, Line);\nindexed morphism diagonal: Over<Line, Plane, SpecQQ> = pullback(first::t -> t, second::t -> t);",
+    ))));
+    success(&check(&fixture(&with(
+        "indexed affine Nested(AffineQQ) = fiber(Fiber, Origin);\nindexed primitive nx = relative_coefficient(Over, DS, Nested, Fiber::X::x, e);",
+    ))));
+    rejects(
+        &with(
+            "indexed affine Nested(AffineQQ) = fiber(Fiber, Origin);\nindexed primitive nx = relative_coefficient(Over, DS, Nested, X::x, e);",
+        ),
+        "E_AFFINE_COORDINATE",
+    );
     // `pair` needs both arrows over the fiber's base with one source.
     rejects(
         &with("fn bad() -> Bool { same(lift(toX(), toX()), lift(toX(), toOrigin())) }"),

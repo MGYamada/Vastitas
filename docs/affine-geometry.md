@@ -130,7 +130,11 @@ indexed primitive lift = relative_pair(Over, Fiber);   // the universal map
 ```
 
 - **Presentation.** `fiber(L, R)` presents `L ×_B R` over `B`, the base of `L`.
-  - Coordinates are qualified by their factor, for example `X::x`.
+  - Coordinates are qualified by their factor, for example `X::x`. When both
+    factors have the same name, as in the self-product `fiber(Line, Line)` or
+    same-named declarations from different modules, they are qualified by
+    occurrence instead: `first::t` and `second::t`. A fiber product that is
+    itself a factor nests its qualifiers, for example `Fiber::X::x`.
   - The relations are both factors' bases, plus the equation of the two structure maps for each coordinate of `B`.
   - The kernel derives this presentation, computes its basis, and re-derives it on every audit.
   - `first` and `second` are the projections.

@@ -79,6 +79,13 @@ from the checked Core and checks it again. Storage operations are not part of
 Core. See
 [Verification boundaries](../verification.md#current-public-checker-routes).
 
+## Cotangent pullback
+
+The pullback of a covector along a [smooth map](#smooth-map) at a point. For a
+map `F` with Jacobian `J` at `x`, it sends a covector `η` at `F(x)` to the
+covector `Jᵀη` at `x`. A seed that does not lie over `F(x)` gives the failure
+value. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
 ## Delegation
 
 A `delegation` declaration by the recipient of a `delegable` grant or
@@ -150,6 +157,16 @@ source code. See
 A type former declared with `indexed family`. Its parameters are objects,
 markers, domains or natural numbers. `Point` and `Morphism` are families. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+
+## Fiber
+
+A value of a family with the `cotangent` or `tangent` representation, such as
+`Cotangent<X>` or `Tangent<X>`: a covector or vector at a rational point of the
+[smooth affine object](#smooth-affine-object) `X`, given by its components in
+the coordinate coframe or frame. A fiber may also be the failure value. The
+failure value lies over no point and equals no fiber, and its components read
+`(0, 0)`. See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Flat mode
 
@@ -424,6 +441,13 @@ Temporary access to a [region](#region) of storage that a storage
 exclusive. A storage loan grants no edit authority; compare
 [edit loan](#edit-loan). See
 [Affine ownership and explicit transitions](../storage-ownership.md#75-affine-ownership-and-explicit-transitions).
+
+## Tape
+
+A value of a family with the `tape` representation, such as `Tape<X, Y>`: the
+forward values that one evaluation of a [smooth map](#smooth-map) saves at a
+point. Only `linearize` builds a tape, and `cotangent_backward` runs the
+reverse pass over it. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Transfer
 

@@ -21,7 +21,7 @@ this is the cotangent pullback along the composite polynomial map that the progr
 * `smoothEqual_iff`: the runtime's `same` is equality of the denoted polynomial maps.
 * `Cov x`: covectors whose basepoint is part of their type, a basepoint-only fragment after the
   polynomial cotangent proof of PR #377. It has no nominal objects or endpoints; the oracle port
-  of PR #377 (Stage 3 step S6) carries those. `pullback_comp` is the typed chain rule; a typed
+  `VastitasOracle.SmoothCalculus.Cov`, with `Space`, `Point` and `SmoothMap`, carries those. `pullback_comp` is the typed chain rule; a typed
   seed is accepted only at its own index.
 
 Checked with Lean 4.35.0 and Mathlib commit

@@ -98,7 +98,11 @@ jobs:
             Mathlib.Algebra.Category.Ring.Constructions \
             Mathlib.Analysis.CStarAlgebra.Matrix \
             Mathlib.Algebra.MvPolynomial.PDeriv \
-            Mathlib.Analysis.Calculus.FDeriv.Prod
+            Mathlib.Analysis.Calculus.FDeriv.Prod \
+            Mathlib.RingTheory.Kaehler.Polynomial \
+            Mathlib.LinearAlgebra.Matrix.PosDef \
+            Mathlib.LinearAlgebra.Matrix.NonsingularInverse \
+            Mathlib.Algebra.Order.Star.Real
       - name: Build the mathematical bridge
         working-directory: lean-bridge
         run: lake build

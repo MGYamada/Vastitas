@@ -68,8 +68,8 @@ The rules of a construct use these words:
 - **must** and **must not** state a requirement on a program.
 - **may** states a permission.
 - **is an error (`E_CODE`)** states that a program that breaks the rule fails
-  with a diagnostic whose code is `E_CODE`. The compiler reports the error
-  before it generates code, unless the rule says that the generated program
+  with a diagnostic whose code is `E_CODE`. The compiler reports the error and
+  produces no executable, unless the rule says that the generated program
   checks it at run time.
 
 [Appendix B](../appendix/diagnostics.md) lists the diagnostic codes and the

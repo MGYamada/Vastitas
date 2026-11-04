@@ -14,7 +14,7 @@ that each concrete winning method must have. See
 
 A nominal selector declared with `abstract type`. A `subtype` declaration places
 a concrete scalar type under it. An abstract type has no values and adds no
-conversions. It cannot be the parameter or result type of an ordinary function.
+conversions.
 See [Abstract types](../guide/dispatch.md#abstract-types).
 
 ## Assembly
@@ -44,7 +44,7 @@ The word has two meanings:
 
 1. In dispatch, a capability is a static fact about argument types that a
    method may require with `requires`. `HasEq` holds for every scalar type, and
-   `HasOrder` holds for `Nat` and `Int`. Programs cannot declare capabilities.
+   `HasOrder` holds for `Nat` and `Int`.
    See [Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
 2. In an `indexed implementation` declaration, a capability is a tag in the
    `capabilities(...)` list, from the closed set `origin` and `dimension`. The
@@ -79,6 +79,14 @@ from the checked Core and checks it again. Storage operations are not part of
 Core. See
 [Verification boundaries](../verification.md#current-public-checker-routes).
 
+## Delegation
+
+A `delegation` declaration by the recipient of a `delegable` grant or
+delegation. It names a recipient module and a region inside the parent loan's
+region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
+parent loan stays suspended until the nested loan returns. See
+[Explicit delegation](../packages.md#explicit-delegation).
+
 ## Dispatch
 
 The static selection of one method of a generic from the argument types. The
@@ -90,22 +98,16 @@ happens at run time. Expected results never influence the choice. See
 
 A tuple of argument types from `Nat`, `Int`, `Bool` and `Unit`, of the
 generic's arity. The checker examines every key for ambiguity, including keys
-outside the domain. Every key in the domain needs exactly one winning method.
-See [Selection and whole-program checking](../stage1a.md#selection-and-whole-program-checking).
-
-## Delegation
-
-A `delegation` declaration by the recipient of a `delegable` grant. It names a recipient module and a region inside the parent loan's
-region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
-parent loan stays suspended until the nested loan returns. See
-[Explicit delegation](../packages.md#explicit-delegation).
+outside the [domain](#domain). See
+[Selection and whole-program checking](../stage1a.md#selection-and-whole-program-checking).
 
 ## Domain
 
 The word has two meanings:
 
 1. The domain of a generic is the set of argument-type tuples that callers may
-   use. A `domain` clause declares it. See
+   use. A `domain` clause declares it, and [abstract methods](#abstract-method)
+   extend it. See
    [Generics and methods](../guide/dispatch.md#generics-and-methods).
 2. The domain of an `indexed classification` is the complete finite list of
    implementations that it classifies. See
@@ -118,8 +120,8 @@ holds it first, and a [transfer](#transfer) moves it to another module.
 Imports, `pub`, qualified names and child modules do not grant it. A
 [grant](#grant) lets an assembly borrow it for a region as an edit loan, which
 the recipient's contribution uses.
-Authority over abstract-type membership and abstract-method contracts stays
-with the defining module. See
+A transfer does not move authority over abstract-type membership or
+abstract-method contracts. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority) and
 [Permanent transfer](../packages.md#permanent-transfer).
 
@@ -127,7 +129,7 @@ with the defining module. See
 
 Temporary, exclusive edit authority over a region of a generic. An assembly
 takes it from a grant with `borrow` and gives it back with `return`. A loan from
-a `delegable` grant can be lent on as a nested loan through a
+a `delegable` grant or delegation can be lent on as a nested loan through a
 [delegation](#delegation). An edit loan grants no access to storage; compare
 [storage loan](#storage-loan).
 See [Scoped edit borrowing](../packages.md#edit-borrowing).
@@ -166,7 +168,7 @@ kernel trusts none of its names or annotations. See
 ## Function value
 
 A value of a type `Fn<A, R>`: a named function or a [lambda](#lambda).
-Function values are independent: a lambda cannot capture a binding from its
+Function values are independent: they capture nothing from their
 surroundings. Every call of a function value resolves to one static target,
 and [specialization](#specialization) erases function values. See
 [Independent functions and specialization](../guide/function-values.md).
@@ -180,11 +182,12 @@ function value. See
 
 ## Grant
 
-A `grant` declaration in the module that holds edit authority over a generic.
-It offers a [region](#region) to one recipient module. The grant names the
-recipient by its package's manifest `[package] name` and its module path. A
-grant is a permission, not a loan: an assembly borrows it to obtain an edit
-loan. See [Scoped edit borrowing](../packages.md#edit-borrowing).
+A `grant` declaration offers a [region](#region) of edit authority over a
+generic to one recipient module. It becomes usable once its module has received
+that authority. The grant names the recipient by its package's manifest
+`[package] name` and its module path. A grant is a permission, not a loan: an
+assembly borrows it to obtain an edit loan. See
+[Scoped edit borrowing](../packages.md#edit-borrowing).
 
 ## Implementation
 
@@ -231,7 +234,7 @@ dependencies. See [A manifest](../guide/stdlib.md#a-manifest).
 
 The compiler mode that takes one manifest with `--manifest-path`. Modules,
 imports, resource functions, indexed declarations and edit-authority
-declarations require it. Compare [flat mode](#flat-mode). See
+declarations appear only in this mode. Compare [flat mode](#flat-mode). See
 [The commands](../guide/diagnostics-and-cli.md#the-commands).
 
 ## Marker
@@ -300,8 +303,8 @@ Compare [existential package](#existential-package). See
 
 An `indexed primitive` declaration. It binds a name, such as `origin` or
 `compose`, to one of a closed set of primitive contracts. The checker audits
-each primitive against its declared representation, domain, arity and
-capabilities. See
+each primitive's representation, domain, arity, capabilities and family shapes.
+See
 [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
 ## Profile
@@ -334,8 +337,8 @@ The word has two meanings:
 ## Resource function
 
 A function declared with `resource fn`. Its body is a sequence of storage
-statements followed by a pure `value { ... }` block. Resource functions require
-manifest mode. See [Resource functions](../guide/storage.md#resource-functions).
+statements followed by a pure `value { ... }` block. See
+[Resource functions](../guide/storage.md#resource-functions).
 
 ## Scheme
 
@@ -373,11 +376,12 @@ different spaces. See
 
 ## Specialization
 
-The compilation step that erases function values. Each call with concrete
-function arguments becomes its own checked instance. Lambda instances and
-instances of higher-order functions count toward a limit that
+The compilation step that erases function values. Each definition, together
+with the function values passed to it, becomes one checked instance. Lambda
+instances and instances of higher-order functions count toward a limit that
 [Appendix D](limits.md) gives. See
-[Specialization](../guide/function-values.md#specialization).
+[Specialization](../guide/function-values.md#specialization) and
+[Checking and specialization](../stage1b.md#checking-and-specialization).
 
 ## Stage
 
@@ -396,7 +400,7 @@ them.
 Temporary access to a [region](#region) of storage that a storage
 [owner](#owner) holds.
 `borrow` takes a `read`, `write` or `read_write` loan on a layout, and
-`release` returns it. Read loans may share a region, and a write loan is
+`release` returns it. Read loans are shared, and a write loan is
 exclusive. A storage loan grants no edit authority; compare
 [edit loan](#edit-loan). See
 [Affine ownership and explicit transitions](../storage-ownership.md#75-affine-ownership-and-explicit-transitions).
@@ -404,8 +408,8 @@ exclusive. A storage loan grants no edit authority; compare
 ## Transfer
 
 A `transfer` declaration names an operation that permanently moves edit
-authority over a generic to a recipient module. An assembly performs it after
-every edit loan has returned. The generic keeps its identity. See
+authority over a generic to a recipient module. An assembly performs the
+transfer, and the generic keeps its identity. See
 [Permanent transfer](../packages.md#permanent-transfer).
 
 ## View
@@ -418,7 +422,7 @@ that its [layout](#layout) describes. See
 ## Wire protocol
 
 The versioned JSON request that the frontend sends to the kernel, and the
-kernel's response. The kernel accepts versions 2 to 9. See
+kernel's response. Each request carries a protocol version. See
 [Compiler protocols](../protocol.md).
 
 ## Witness

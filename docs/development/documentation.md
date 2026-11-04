@@ -58,7 +58,8 @@ The book is built with mdBook 0.5.4 and its MathML is checked in the generated H
    `stage1a.md` and `packages.md`, keep their paths. Link each retained
    chapter once from `docs/SUMMARY.md`. The Introduction links to the
    historical-stage guide and the main reader paths. A teaching chapter uses
-   working programs from `examples/` and ends with a **What is checked** note.
+   working programs from `examples/`, as [Examples](#examples) describes, and
+   ends with a **What is checked** note.
    Write every chapter by the [style guide](#style-guide).
 2. Link other book chapters and bundled assets with relative paths. Link the
    Introduction as `index.md`, because mdBook renders `README.md` as
@@ -86,8 +87,8 @@ Git retains the earlier revisions.
 
 These rules govern the text of every chapter. The archived delivery records,
 `stage1-completion.md` and the `stage*-acceptance.md` files, are exempt and keep
-their original wording. A chapter written before this guide adopts it when the
-chapter is rewritten.
+their original wording. A chapter written before this guide adopts it in its
+next rewrite.
 
 ### Voice
 
@@ -110,9 +111,9 @@ chapter is rewritten.
 
 ### Rules and their placement
 
-- Write normative text with the rule words that
-  [Notation](../language/notation.md#rules) defines: "must", "must not", "may"
-  and "is an error (`E_CODE`)". Never write "should".
+- Write normative text with the rule words "must", "must not", "may" and "is
+  an error (`E_CODE`)". [Notation](../language/notation.md#rules) defines what
+  they mean. Normative text never uses "should".
 - Every rule lives in one place, normally a section of the Vastitas Reference.
   Other chapters link to that section instead of restating the rule. The guide
   may describe a rule informally next to such a link.

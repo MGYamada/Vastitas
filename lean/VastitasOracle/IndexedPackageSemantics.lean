@@ -78,8 +78,43 @@ theorem bound_token_transport {env : Environment} {before after : World}
       exact ⟨object, denotes⟩
   | domain | marker | natural => simp [BoundIndex.instantiate] at projection
 
+/-- A smooth field names declared smooth objects, so it never binds a fresh
+local witness: its instantiation does not depend on the witness reference. -/
+theorem smooth_field_transport {env : Environment} {before after : World}
+    (envValid : env.Valid) {old new : ObjectRef} (newLocal : new.isLocal = true)
+    (field : BoundApplication) (program : VastitasKernel.SmoothRuntime.Program)
+    (valid : (field.instantiate new).Valid env)
+    (typed : IndexedHasType env before (.smooth program) (field.instantiate old)) :
+    IndexedHasType env after (.smooth program) (field.instantiate new) := by
+  have representation : familyRepresentation env field.family = some .smooth :=
+    SmoothPrimitives.smooth_representation typed
+  obtain ⟨x, y, n, m, indices, hx, hy, welltyped⟩ :=
+    SmoothPrimitives.smooth_has_type representation typed
+  obtain ⟨x', y', newIndices, _, _⟩ :=
+    SmoothPrimitives.smooth_application_indices envValid valid representation
+  obtain ⟨first, second, fields, fstIndex, sndIndex⟩ := map_two indices
+  have fixed : ∀ (index : BoundIndex) (z z' : DeclId), index.instantiate old = .object (.global z) →
+      index.instantiate new = .object (.global z') → index = .global z := by
+    intro index z z' oldIndex newIndex
+    cases index with
+    | witness =>
+      simp only [BoundIndex.instantiate, Index.object.injEq] at newIndex
+      subst newIndex
+      cases newLocal
+    | global id => simpa [BoundIndex.instantiate] using oldIndex
+    | domain | marker | natural => simp [BoundIndex.instantiate] at oldIndex
+  have newMapped : (field.instantiate new).indices = [first.instantiate new, second.instantiate new] := by
+    simp [BoundApplication.instantiate, fields]
+  rw [newMapped] at newIndices
+  simp only [List.cons.injEq, and_true] at newIndices
+  have firstGlobal := fixed first x x' fstIndex newIndices.1
+  have secondGlobal := fixed second y y' sndIndex newIndices.2
+  subst firstGlobal secondGlobal
+  exact SmoothPrimitives.smooth_typed representation valid
+    (by simp [BoundApplication.instantiate, fields, BoundIndex.instantiate]) hx hy welltyped
+
 theorem bound_field_transport {env : Environment} {before after : World}
-    {old new : ObjectRef} {witness : Object}
+    (envValid : env.Valid) {old new : ObjectRef} {witness : Object} (newLocal : new.isLocal = true)
     (oldDenotes : RefDenotes env before old witness) (newDenotes : RefDenotes env after new witness)
     (field : BoundApplication) (value : IndexedValue)
     (valid : (field.instantiate new).Valid env)
@@ -120,9 +155,10 @@ theorem bound_field_transport {env : Environment} {before after : World}
       simp only [BoundApplication.instantiate, representation]
       apply bound_token_transport newDenotes field
       simpa only [BoundApplication.instantiate, representation] using typed.2
+  | smooth program => exact smooth_field_transport envValid newLocal field program valid typed
 
 theorem bound_fields_transport {env : Environment} {before after : World}
-    {old new : ObjectRef} {witness : Object}
+    (envValid : env.Valid) {old new : ObjectRef} {witness : Object} (newLocal : new.isLocal = true)
     (oldDenotes : RefDenotes env before old witness) (newDenotes : RefDenotes env after new witness)
     (fields : List BoundApplication) (values : List IndexedValue)
     (valid : ∀ field ∈ fields, (field.instantiate new).Valid env)
@@ -134,7 +170,8 @@ theorem bound_fields_transport {env : Environment} {before after : World}
       cases values with
       | nil => contradiction
       | cons value values =>
-          exact ⟨bound_field_transport oldDenotes newDenotes field value (valid field (by simp)) typed.1,
+          exact ⟨bound_field_transport envValid newLocal oldDenotes newDenotes field value
+              (valid field (by simp)) typed.1,
             ih values (fun field member => valid field (by simp [member])) typed.2⟩
 
 
@@ -149,6 +186,7 @@ theorem witness_fits_object {env : Environment} {world : World} {expected : Obje
 
 theorem pack_payload_semantics {env : Declarations} {world : World} {application : Application}
     {shape : PackageShape} {payload : PackagePayload} {witness : Object} {fields : List IndexedValue}
+    (envValid : env.indexed.Valid)
     (found : env.package? application = some shape) (validShape : shape.Valid env.indexed)
     (validPayload : payload.Valid env.indexed shape)
     (denotes : RefDenotes env.indexed world payload.witness witness)
@@ -157,7 +195,7 @@ theorem pack_payload_semantics {env : Declarations} {world : World} {application
   have typedWitness := witness_fits_object validPayload.1 denotes
   refine ⟨shape, found, typedWitness, ?_⟩
   rw [validPayload.2.1] at typedFields
-  exact bound_fields_transport denotes
+  exact bound_fields_transport envValid rfl denotes
     (bindLocal_denotes env.indexed (fun _ => none) 0 witness shape.witnessType typedWitness)
     shape.fields fields (fun field member => validShape.2.2 _ (List.mem_map.mpr ⟨field, member, rfl⟩)) typedFields
 
@@ -177,8 +215,9 @@ theorem opening_fields_semantics {env : CheckedEnvironment} {shape : CheckedPack
     rw [valid.2.1]
     exact bindLocal_denotes env.environment world brand witness shape.shape.witnessType typedWitness
   refine ⟨newDenotes, ?_⟩
+  have newLocal : opening.opening.witness.isLocal = true := by rw [valid.2.1]; rfl
   rw [valid.2.2.1]
-  exact bound_fields_transport
+  exact bound_fields_transport (VastitasOracle.Indexed.checked_environment_valid env) newLocal
     (bindLocal_denotes env.environment (fun _ => none) 0 witness shape.shape.witnessType typedWitness)
     newDenotes shape.shape.fields fields
     (fun field member => (valid.2.2.2 _ (by rw [valid.2.2.1]; exact List.mem_map.mpr ⟨field, member, rfl⟩)).1)
@@ -229,7 +268,8 @@ theorem core_pack_semantics {env : Declarations} {functions : Typing.Signatures}
   have denotes := typedWitness.2
   rw [witnessRef] at denotes
   obtain ⟨witness, equal, denotes⟩ := denotes
-  exact ⟨witness, equal, pack_payload_semantics found (package_lookup_valid valid found) relation denotes typedFields⟩
+  exact ⟨witness, equal,
+    pack_payload_semantics valid.indexed found (package_lookup_valid valid found) relation denotes typedFields⟩
 
 /-- This uses the actual accepted unpack node, its exact package case and its
 actual runtime payload. The source of dynamic slot freshness and preservation

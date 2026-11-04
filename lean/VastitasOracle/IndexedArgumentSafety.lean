@@ -181,7 +181,7 @@ retains runtime endpoints even when an actual object domain refines its formal
 parameter domain. Neither equal descriptors nor equal dimensions supply it. -/
 theorem call_activation {env : Declarations} {world : World} {parameters : Context}
     {arguments : List Result} {values : List Value} {substitution : List (ObjectRef × ObjectRef)}
-    (formed : ParametersValid env [] parameters)
+    (envValid : env.indexed.Valid) (formed : ParametersValid env [] parameters)
     (matched : FinalArgumentsMatch env parameters arguments substitution)
     (typed : ResultsHaveTypes env world values arguments) :
     ∃ activation, bindArguments parameters values = some activation ∧
@@ -197,7 +197,7 @@ theorem call_activation {env : Declarations} {world : World} {parameters : Conte
   have matchedPair := matched.2 (parameter, argument) pairMember
   have facts := parameter_formed formed member
   refine ⟨value, present, ?_, ?_⟩
-  · exact value_rename_backward facts.1.1
+  · exact value_rename_backward envValid facts.1.1
       (fun ref refMember object denotes =>
         (transport ref (List.mem_flatMap.mpr ⟨parameter, member, List.mem_append_right _ refMember⟩) object).mpr denotes)
       (value_compatible matchedPair.1 operandTyped.1)

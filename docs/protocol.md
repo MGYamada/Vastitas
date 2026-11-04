@@ -72,6 +72,35 @@ most 64. Unknown fields and operations are rejected. The wire never carries a
 basis, cofactor, normal form or structure image: Lean computes and verifies
 them. See [affine geometry](affine-geometry.md).
 
+<a id="protocol-9-smooth-forms"></a>
+
+**Protocol-9 smooth forms.** Smooth objects and smooth maps are validated
+optional fields of protocol 9. Any module that uses one selects protocol 9.
+Protocols 7 and 8 reject each form with `E_PROTOCOL`.
+
+- **Representation.** An implementation may use the string `"smooth_affine"`.
+- **Family representation.** A family may use the string `"smooth"`.
+- **Constraint.** `{"kind": "canonical", "object": i}`.
+- **Declaration.** `kind: "smooth_affine"` carries `implementation` (path),
+  `dimension` (an unsigned decimal string) and `coordinates` (names), besides
+  the common `name`, `public` and `span`.
+- **Maps.** A declared smooth map is an ordinary `kind: "morphism"` record whose
+  family has the `smooth` representation. Its `definition` is
+  `{"kind": "pullback", "images": [{name, image}]}` or `{"kind": "identity"}`.
+- **Primitives.** The binding `op` may be `smooth_compose`, `smooth_equal` or
+  `smooth_composite`, each with `family`, or `smooth_int_point` with `family`,
+  `object` and `point`.
+
+The kernel admits primitive operations from an explicit list. A spelling that
+only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
+wire carries names, a declared dimension and polynomial expressions. It never
+carries a map, a program or an image in normal form. The kernel elaborates
+every map, and it checks the declared dimension against the coordinates and
+the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
+the diagnostics reference lists the declaration errors. The frontend spelling
+`Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
+record of `spec[…] over K`.
+
 Scalar parameters use `kind: "value"` with `name`, `type` and `span`. Resource
 statements add `kind: "value"` (`name`, `type`, pure `body`, `span`),
 `kind: "call_value"` (`callee`, named `arguments`, owned `results`, scalar `value`,

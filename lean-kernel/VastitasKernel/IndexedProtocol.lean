@@ -6,7 +6,7 @@ declaration/authority/dispatch/Fn/Core check. No checked IDs are deserialized. -
 namespace VastitasKernel.Indexed.Wire
 open Lean JsonDecode
 
-/-- `algebraic` admits the Stage 2 affine forms. Only protocol 9 sets it. -/
+/-- `algebraic` admits the Stage 2 affine and Stage 3 smooth forms. Only protocol 9 sets it. -/
 def module (j : Json) (numerical : Bool := false) (namedRecipients : Bool := false)
     (algebraic : Bool := false) : Except String DispatchSource.Module := do
   fields j ["path", "public", "span", "imports", "functions", "generics", "methods",

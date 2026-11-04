@@ -29,6 +29,17 @@ theorem compose_endpoints {env : CheckedEnvironment} {allowed : List ObjectRef} 
   have relation := (checked_primitive_typed checked).association
   exact ⟨relation.2.2.1, relation.2.2.2⟩
 
+/-- `compose` of smooth maps needs the after-map's source to be the
+before-map's target, and builds a map from the before-map's source to the
+after-map's target. -/
+theorem smoothCompose_endpoints {env : CheckedEnvironment} {allowed : List ObjectRef} {brand : Nat}
+    {family gf ff : DeclId} {middle target source other : ObjectRef}
+    (checked : CheckedPrimitive env (.smoothCompose family) allowed brand
+      [.indexed ⟨gf, [.object middle, .object target]⟩, .indexed ⟨ff, [.object source, .object other]⟩]) :
+    gf = family ∧ ff = family ∧ middle = other ∧
+      checked.result = .indexed ⟨family, [.object source, .object target]⟩ :=
+  (checked_primitive_typed checked).association
+
 theorem origin_requires_entire_domain {env : CheckedEnvironment} {domain : ObjectType}
     {family base : DeclId} {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType}
     (checked : CheckedPrimitive env (.origin domain family base) allowed brand arguments) :

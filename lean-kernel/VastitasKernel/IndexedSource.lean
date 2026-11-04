@@ -16,6 +16,7 @@ inductive Representation where
   | scalarBase (setting : GeometricSetting) (coefficient : CoefficientKind)
   | linearDescriptor (base : Path) (coefficient : CoefficientKind)
   | presentedAffine (field : AlgebraDeclarations.ExactField)
+  | smoothAffine
   deriving Repr, Inhabited
 
 /-- Unexpanded polynomial syntax. Sums and products are n-ary, so long
@@ -81,6 +82,12 @@ inductive Primitive where
   | relativeCoefficient (family source target : Path) (coordinate : String) (monomial : PolyExpr)
   | relativeIntPoint (family object base : Path)
   | relativePair (family fiber : Path)
+  /-- Stage 3 smooth programs (protocol 9). -/
+  | smoothCompose (family : Path)
+  | smoothEqual (family : Path)
+  | smoothComposite (family : Path)
+  /-- A rational point of `object` from runtime integers; `point` is 0-dimensional. -/
+  | smoothIntPoint (family object point : Path)
   deriving Repr, Inhabited
 
 /-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/
@@ -120,6 +127,9 @@ inductive Body where
   | iso (forward backward : Path)
   /-- `cartesian name = square(first, second) through fiber inverse h`. -/
   | cartesian (first second fiber inverse : Path)
+  /-- `Affine(dimension)[coordinates]`: a smooth object (Stage 3). The kernel
+  checks the dimension against the coordinates; only the coordinates are kept. -/
+  | smoothAffine (implementation : Path) (dimension : Nat) (coordinates : List String)
   deriving Repr, Inhabited
 
 structure Declaration where

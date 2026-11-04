@@ -5,6 +5,9 @@ import VastitasOracle.AffineMorphisms
 import VastitasOracle.AffineFibers
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothMetrics
+import VastitasOracle.SmoothCanonical
+import VastitasOracle.SmoothPrimitives
+import VastitasOracle.SmoothDeclarations
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

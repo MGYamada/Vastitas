@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedPackages
+import VastitasKernel.IndexedSmoothContracts
 
 /-! Closed primitive signature/binding contracts for the finite descriptor
 representation. These internal audits do not accept arbitrary native primitives
@@ -61,6 +62,16 @@ inductive PrimitiveBinding where
   /-- Evidence (never callable): `first`, `second` exhibit `T` as the fiber product,
   with `inverse : fiber → T` inverse to `pair(first, second)`. -/
   | relativeCartesian (first second inverse : Application × AlgebraRuntime.Map) (fiber : DeclId)
+  /-- A declared smooth map `X → Y` with its exact polynomial images (Stage 3). -/
+  | smoothConstant (application : Application) (map : AlgebraRuntime.Map)
+  /-- `compose(after, before)`: a program node, never the expanded composite. -/
+  | smoothCompose (family : DeclId)
+  /-- Equality of the maps that two programs denote. -/
+  | smoothEqual (family : DeclId)
+  /-- A rational point `point → object` from runtime integers. -/
+  | smoothIntPoint (family object point : DeclId)
+  /-- The composite of a program, as one primitive map. -/
+  | smoothComposite (family : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=
@@ -219,6 +230,9 @@ def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
   | .relativePair family fiber => isRelativeFamily env family = true ∧ (plainFiber? env fiber).isSome = true
   | .relativeIso forward backward => relativeIsoValid env forward backward = true
   | .relativeCartesian first second inverse fiber => relativeCartesianValid env first second inverse fiber = true
+  | .smoothConstant application map => smoothConstantValid env application map = true
+  | .smoothCompose family | .smoothEqual family | .smoothComposite family => isSmoothFamily env family = true
+  | .smoothIntPoint family object point => smoothIntPointValid env family object point = true
 
 def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .descriptor implementation => match implementationType env implementation with
@@ -243,12 +257,17 @@ def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .relativePair family fiber => isRelativeFamily env family && (plainFiber? env fiber).isSome
   | .relativeIso forward backward => relativeIsoValid env forward backward
   | .relativeCartesian first second inverse fiber => relativeCartesianValid env first second inverse fiber
+  | .smoothConstant application map => smoothConstantValid env application map
+  | .smoothCompose family | .smoothEqual family | .smoothComposite family => isSmoothFamily env family
+  | .smoothIntPoint family object point => smoothIntPointValid env family object point
 
 /-- The operand count of each closed primitive. -/
 def PrimitiveBinding.arity (env : Environment) : PrimitiveBinding → Nat
-  | .global _ | .relativeConstant .. | .relativeIso .. | .relativeCartesian .. => 0
-  | .compose _ | .apply .. | .relativeCompose _ | .relativeEqual _ | .relativePair .. => 2
+  | .global _ | .relativeConstant .. | .relativeIso .. | .relativeCartesian .. | .smoothConstant .. => 0
+  | .compose _ | .apply .. | .relativeCompose _ | .relativeEqual _ | .relativePair ..
+  | .smoothCompose _ | .smoothEqual _ => 2
   | .relativeIntPoint _ object _ => affineArity env object
+  | .smoothIntPoint _ object _ => smoothArity env object
   | _ => 1
 
 inductive ValueType where
@@ -313,6 +332,18 @@ def PrimitiveAssociation (env : Environment) (binding : PrimitiveBinding) (allow
       lf = family ∧ rf = family ∧ source = source' ∧ base = base' ∧
         pairFactors env fiber left right base = true ∧
         result = .indexed ⟨family, [.object source, .object (.global fiber), .object base]⟩
+  | .smoothConstant application _, [] => result = .indexed application
+  | .smoothCompose family, [.indexed ⟨gf, [.object middle, .object target]⟩,
+      .indexed ⟨ff, [.object source, .object middle']⟩] =>
+      gf = family ∧ ff = family ∧ middle = middle' ∧
+        result = .indexed ⟨family, [.object source, .object target]⟩
+  | .smoothEqual family, [.indexed left, .indexed right] =>
+      left.family = family ∧ left = right ∧ result = .boolean
+  | .smoothIntPoint family object point, arguments =>
+      arguments = (List.range (smoothArity env object)).map (fun _ => .integer) ∧
+        result = .indexed ⟨family, [.object (.global point), .object (.global object)]⟩
+  | .smoothComposite family, [.indexed application] =>
+      application.family = family ∧ result = .indexed application
   | _, _ => False
 
 instance (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
@@ -376,6 +407,13 @@ def inferPrimitiveResult (env : Environment) (binding : PrimitiveBinding) (brand
       some (.indexed ⟨family, [.object (.global base), .object (.global object), .object (.global base)]⟩)
   | .relativePair family fiber, [.indexed ⟨_, [.object source, .object _, .object base]⟩, .indexed _] =>
       some (.indexed ⟨family, [.object source, .object (.global fiber), .object base]⟩)
+  | .smoothConstant application _, [] => some (.indexed application)
+  | .smoothCompose family, [.indexed ⟨_, [.object _, .object target]⟩,
+      .indexed ⟨_, [.object source, .object _]⟩] => some (.indexed ⟨family, [.object source, .object target]⟩)
+  | .smoothEqual _, [.indexed _, .indexed _] => some .boolean
+  | .smoothIntPoint family object point, _ =>
+      some (.indexed ⟨family, [.object (.global point), .object (.global object)]⟩)
+  | .smoothComposite _, [.indexed application] => some (.indexed application)
   | _, _ => none
 
 def inferPrimitive (env : CheckedEnvironment) (binding : PrimitiveBinding) (allowed : List ObjectRef)

@@ -59,11 +59,16 @@ path = "../tests/fixtures/algebra-bases.json"
 text = true
 
 # Independent Python-reference cross-check for exact algebra; not compiler code.
+[[input_file]]
+name = "smoothFixture"
+path = "../tests/fixtures/smooth-differential.json"
+text = true
+
 [[lean_lib]]
 name = "VastitasAlgebraTest"
 leanOptions = { autoImplicit = false }
-roots = ["VastitasAlgebraTest.BasisRegression"]
-needs = ["compilerLimits", "algebraFixture"]
+roots = ["VastitasAlgebraTest.BasisRegression", "VastitasAlgebraTest.SmoothReferenceRegression"]
+needs = ["compilerLimits", "algebraFixture", "smoothFixture"]
 
 [[input_file]]
 name = "storageFixture"

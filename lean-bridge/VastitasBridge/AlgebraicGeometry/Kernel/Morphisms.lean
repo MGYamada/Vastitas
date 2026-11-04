@@ -10,7 +10,8 @@ coordinate of `Y`.
   `Presented Y →ₐ[ℚ] Presented X` that sends each coordinate to its image (`pullbackHom_mk`).
 * `pullbackHom_compose`: the pullback of `Map.compose after before` is the pullback of `before`
   after the pullback of `after`. `specMap_compose` (#362): its `Spec` morphism is `before`
-  followed by `after`, in the written order.
+  followed by `after`, in the written order. `pullbackHom_subst` states the same composite for
+  substitution without reduction.
 * `images_eq_iff`: for normal-form images, the kernel's `Map.same` (list equality of images)
   holds iff the two algebra maps are equal.
 * `MorphismValid.bridge`: an accepted morphism over a base has canonical, normal-form images that
@@ -172,6 +173,49 @@ theorem specMap_compose (hx : Verified cx) (hy : Verified cy) (hz : Verified cz)
     (pullbackHom cy cz after hz ha hra).toRingHom)) = _
   rw [CommRingCat.ofHom_comp, Spec.map_comp]
   rfl
+
+/-! ### Composition without reduction
+
+The kernel composes a right structure map with a chosen base isomorphism by substitution alone
+(`fiberImages`), without reducing the result. The ring map is the same composite. -/
+
+lemma Images.subst {before after : List Poly} (hb : Images cx cy before)
+    (ha : Images cy cz after) : Images cx cz (after.map (Poly.subst cx.arity before)) := by
+  refine ⟨fun g hg => ?_, by simp [ha.length]⟩
+  obtain ⟨image, -, rfl⟩ := List.mem_map.1 hg
+  exact canonical_subst hb.canonical image
+
+lemma evalHom_subst (hy : Verified cy) {before after : List Poly} (hb : Images cx cy before)
+    (hrb : Respects cx cy before) (ha : Images cy cz after) :
+    evalHom cx cz (after.map (Poly.subst cx.arity before)) =
+      (pullbackHom cx cy before hy hb hrb).comp (evalHom cy cz after) := by
+  apply MvPolynomial.algHom_ext
+  intro k
+  have hk : (k : ℕ) < after.length := by rw [ha.length]; exact k.isLt
+  rw [AlgHom.comp_apply, evalHom, evalHom, aeval_X, aeval_X, getD_map_of_lt hk,
+    pullbackHom_mk hy hb hrb (ha.arity_getD k)]
+
+lemma Respects.subst (hy : Verified cy) (hz : Verified cz) {before after : List Poly}
+    (hb : Images cx cy before) (hrb : Respects cx cy before) (ha : Images cy cz after)
+    (hra : Respects cy cz after) : Respects cx cz (after.map (Poly.subst cx.arity before)) := by
+  intro g hg
+  have hgc := hz.basis_canonical g hg
+  rw [← Ideal.Quotient.eq_zero_iff_mem, ← mk, ← evalHom_toMv (Images.subst hb ha) hgc.arity,
+    evalHom_subst hy hb hrb ha, AlgHom.comp_apply, evalHom_toMv ha hgc.arity]
+  rw [show mk cy (Poly.subst cy.arity after g) = 0 from
+    (Ideal.Quotient.eq_zero_iff_mem).2 (hra g hg), map_zero]
+
+/-- **Unreduced composition is reverse composition of ring maps.** Substituting `before`'s
+images into `after`'s, without reducing, gives the pullback of `before` after the pullback of
+`after`, as `pullbackHom_compose` does for the reduced images. -/
+theorem pullbackHom_subst (hy : Verified cy) (hz : Verified cz) {before after : List Poly}
+    (hb : Images cx cy before) (hrb : Respects cx cy before) (ha : Images cy cz after)
+    (hra : Respects cy cz after) :
+    pullbackHom cx cz (after.map (Poly.subst cx.arity before)) hz (Images.subst hb ha)
+        (Respects.subst hy hz hb hrb ha hra) =
+      (pullbackHom cx cy before hy hb hrb).comp (pullbackHom cy cz after hz ha hra) := by
+  apply Ideal.Quotient.algHom_ext
+  rw [pullbackHom_comp_mkₐ, AlgHom.comp_assoc, pullbackHom_comp_mkₐ, evalHom_subst hy hb hrb ha]
 
 
 /-! ## Equality of maps -/

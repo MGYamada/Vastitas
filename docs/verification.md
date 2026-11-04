@@ -1801,7 +1801,12 @@ Evidence bindings are never callable:
 The following oracle theorems hold:
 
 - `VastitasOracle.AffineFibers.checkConstruction_fiber`: accepted fiber data
-  is the derived presentation.
+  is the derived presentation. For a `via` fiber, it also exposes the
+  declared base of the right factor and the checked isomorphism.
+- `AffineFibers.checkIso_sound`: an accepted base isomorphism gives one
+  canonical image for each coordinate on both sides. The forward and inverse
+  images each respect the relations. The two maps compose to the identity
+  both ways (`IsoValid`).
 - `AffineFibers.cartesian_sound`: the exact identities above.
 - `relativePair_total`, together with the extended erasure theorem.
 
@@ -1866,6 +1871,7 @@ mathematical statement for the bridge.
   - *Morphisms.*
     - `pullbackHom` gives an accepted map's `AlgHom`.
     - `pullbackHom_compose` and `specMap_compose` ([#362](https://github.com/MGYamada/Vastitas/issues/362)): composition is reverse composition of ring maps, and the scheme morphisms compose in the written order.
+    - `pullbackHom_subst`: substitution without reduction gives the same composite ring map.
     - `images_eq_iff`: the kernel's `same` decides equality of the ring maps.
     - `MorphismValid.bridge` and `pullbackHom_triangle` cover accepted morphisms and their triangle with the structure maps.
   - *Dual numbers.* For `D = ℚ[e]/(e²)` (`relationIdeal_dual`), ε ≠ 0 and ε² = 0. The points `p : t ↦ ε` and `q : t ↦ 0` differ (`p_ne_q`). They agree after the closed point (`closedPoint_comp`), and their `Spec` maps have the same underlying continuous map (`spec_base_eq`).
@@ -1878,8 +1884,12 @@ mathematical statement for the bridge.
     - `Fiber.isPullback`: its `Spec` is a pullback of schemes (`isPullback_SpecMap_of_isPushout`, the result behind `pullbackSpecIso`).
     - `isoTensor`: it is `A ⊗[R] B`.
     - `specMap_pair`: `pair` is `pullback.lift`.
+  - *Base isomorphisms.*
+    - `pullbackHom_inverse`: two kernel maps whose composites are the kernel's identity both ways are inverse ring maps. `pullbackHom_identity` identifies the kernel's identity images with the identity map.
+    - `equivOfImages`: such maps give an `AlgEquiv` of the presented algebras.
+    - `isoValid_bridge`: the facts of an accepted `checkIso` (`IsoValid`) give such a pair of maps.
   - `certificate_of_checkConstruction`, for fibers and for principal opens: accepted constructions have exactly these presentations.
 - **Hypotheses discharged.** The fiber and principal-open theorems are stated for given structure maps (`Images`, `Respects`).
   - For accepted declarations, `validAffine_structure` supplies both. Canonicity combines the Oracle's `validAffine_images_normal` (each stored image is the normal form of its binding), `validAffine_bindings_canonical` (the kernel's structure check makes bindings canonical) and `normalForm_spec`. `structureValid_bridge` gives the relation part.
   - In a valid environment, `Fiber.accepted` and `PrincipalOpen.accepted` derive every hypothesis of `Fiber.isPullback`, `equivAway` and `range_comap_toL` from acceptance. That includes the canonical localized element, from `checkConstruction_localization_element`.
-  - **Still a hypothesis:** a fiber declared `via` a base isomorphism. Its composed right structure images keep `Images` and `Respects` as hypotheses, because the Oracle does not record `checkIso`'s facts.
+  - This includes a fiber declared `via` a base isomorphism. The Oracle's `checkIso_sound` records `checkIso`'s facts. `checkConstruction_fiber` exposes them for `via` fibers. `isoValid_bridge` makes the chosen maps inverse ring maps. The composed right structure map is the right factor's structure map followed by the isomorphism (`pullbackHom_subst`). `Images.subst` and `Respects.subst` derive its `Images` and `Respects` from acceptance.

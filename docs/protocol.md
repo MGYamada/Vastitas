@@ -143,8 +143,9 @@ protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
 The wire never carries a Gram matrix in normal form, an inverse, an `L D Lᵀ`
 factorization or the object of a binding. A record with any other field is an
 error (`E_PROTOCOL`). The kernel evaluates every Gram entry in the
-coordinates of the metric's object, and it computes each certificate and
-checks it again before acceptance. It copies the metric's object and matrices
+coordinates of the metric's object, within the
+[metric limits](appendix/limits.md#smooth-metrics). It computes each
+certificate and checks it again before acceptance. It copies the metric's object and matrices
 into each `flat` and `sharp`, and the declaration audit checks that each copy
 equals its declaration. The list of primitive operations has no `gradient`
 operation: a gradient is an ordinary function that applies `sharp` to a

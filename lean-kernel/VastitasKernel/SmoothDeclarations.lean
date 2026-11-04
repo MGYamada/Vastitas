@@ -156,6 +156,15 @@ def ldl? (n : Nat) (gram : Matrix) : Option (Matrix × List Rat × Matrix) := do
 
 /-! ## Declaration checks -/
 
+/-- The numerator and the denominator of `value` each have at most
+`Limits.metricEntryBits` bits. -/
+def entryBounded (value : Rat) : Bool :=
+  value.num.natAbs < 2 ^ Limits.metricEntryBits && value.den < 2 ^ Limits.metricEntryBits
+
+/-- Every entry of the matrix is bounded. With at most `algebraGenerators`
+rows, this bounds the work of `invert?`, `ldl?` and the certificate checks. -/
+def gramBounded (gram : Matrix) : Bool := gram.all fun row => row.all entryBounded
+
 /-- A Gram matrix on an object of dimension `n`. -/
 def checkGram (n : Nat) (gram : Matrix) : Except Error Unit := do
   if n > Limits.algebraGenerators then throw (.limit "dimension")

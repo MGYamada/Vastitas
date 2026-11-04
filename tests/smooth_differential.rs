@@ -1020,7 +1020,7 @@ fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
             "gram((2, 1), (1, 1))",
             "gram((2, 1), (0, 1))",
             "E_METRIC",
-            "the metric `Skew` is not symmetric",
+            "the metric `smooth_metric::Skew` is not symmetric",
         ),
         (
             "gram((2, 1), (1, 1))",
@@ -1051,32 +1051,32 @@ fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
             "indexed evidence SkewPositive = riemannian(Skew);",
             "indexed evidence SkewPositive = riemannian(Lorentz);",
             "E_METRIC",
-            "the metric `Lorentz` is not positive definite, so it has no Riemannian evidence",
+            "the metric `smooth_metric::Lorentz` is not positive definite, so it has no Riemannian evidence",
         ),
         (
             "indexed evidence SkewInvertible = nondegenerate(Skew);",
             "indexed evidence SkewInvertible = nondegenerate(Plane);",
             "E_METRIC",
-            "evidence names a metric, but `Plane` is not a metric",
+            "evidence names a metric, but `smooth_metric::profile::Plane` is not a metric",
         ),
         // sharp with another metric's evidence, or with the wrong kind.
         (
             "using = Skew, evidence = SkewInvertible",
             "using = Skew, evidence = EuclidInvertible",
             "E_METRIC",
-            "`sharp` uses the metric `Skew`, but the evidence `EuclidInvertible` certifies `Euclid`",
+            "`sharp` uses the metric `smooth_metric::Skew`, but the evidence `smooth_metric::EuclidInvertible` certifies `smooth_metric::Euclid`",
         ),
         (
             "using = Skew, evidence = SkewInvertible",
             "using = Skew, evidence = SkewPositive",
             "E_METRIC",
-            "`sharp` needs nondegenerate evidence, but `SkewPositive` is Riemannian evidence",
+            "`sharp` needs nondegenerate evidence, but `smooth_metric::SkewPositive` is Riemannian evidence",
         ),
         (
             "flat(Tangent, Cotangent, using = Skew)",
             "flat(Tangent, Cotangent, using = SkewInvertible)",
             "E_METRIC",
-            "`flat` needs a metric after `using =`, but `SkewInvertible` is not a metric",
+            "`flat` needs a metric after `using =`, but `smooth_metric::SkewInvertible` is not a metric",
         ),
         (
             "flat(Tangent, Cotangent, using = Skew)",
@@ -1084,11 +1084,19 @@ fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
             "E_SMOOTH",
             "`flat` needs a tangent family, but `Cotangent` is a cotangent family",
         ),
+        // A family that is not a tangent or cotangent family fails the
+        // declaration audit.
+        (
+            "flat(Tangent, Cotangent, using = Skew)",
+            "flat(Smooth, Cotangent, using = Skew)",
+            "E_TYPE",
+            "",
+        ),
         (
             "indexed metric Euclid: MetricForm<Plane> = euclidean;",
             "indexed metric Euclid: Cotangent<Plane> = euclidean;",
             "E_METRIC",
-            "a metric is declared at a `metric_form` family, but `Cotangent` is not one",
+            "a metric is declared at a `metric_form` family, but `smooth_metric::profile::Cotangent` is not one",
         ),
         (
             "indexed metric Euclid: MetricForm<Plane> = euclidean;",
@@ -1140,7 +1148,9 @@ fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
         "E_METRIC",
     );
     assert!(
-        stderr.contains("the metric `Diag10` is singular, so it has no nondegenerate evidence"),
+        stderr.contains(
+            "the metric `smooth_metric::Diag10` is singular, so it has no nondegenerate evidence"
+        ),
         "{stderr}"
     );
     // diag(1, -1) is accepted as nondegenerate: the example uses it.
@@ -1153,7 +1163,9 @@ fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
         "E_METRIC",
     );
     assert!(
-        stderr.contains("the metric `Foreign` is on `QLine`, which is not a smooth object"),
+        stderr.contains(
+            "the metric `smooth_metric::Foreign` is on `smooth_metric::QLine`, which is not a smooth object"
+        ),
         "{stderr}"
     );
     // Metric forms range over smooth objects only.
@@ -1171,34 +1183,106 @@ fn metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes
     );
 }
 
+/// A 64-digit decimal literal.
+const BIG: &str = "1000000000000000000000000000000000000000000000000000000000000007";
+
+#[test]
+fn oversized_gram_entries_are_rejected_before_any_certificate() {
+    // (L^16)^16 has about 54,000 bits. The kernel bounds each entry before
+    // it computes the inverse and the L D L^T factorization.
+    let started = std::time::Instant::now();
+    let stderr = rejects_metric(
+        &replacing_metric(
+            "gram((2, 1), (1, 1))",
+            &format!("gram((({BIG}^16)^16, 1), (1, 1))"),
+        ),
+        "E_LIMIT",
+    );
+    assert!(
+        stderr.contains("the Gram entry in row 1, column 1 has more than 512 bits"),
+        "{stderr}"
+    );
+    assert!(started.elapsed() < std::time::Duration::from_secs(30));
+}
+
+#[test]
+fn a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound() {
+    // Entries L * L and 1 / L are within the bound. The matrix is diagonally
+    // dominant, so it is positive definite and has both kinds of evidence.
+    let coordinates: Vec<String> = (0..16).map(|i| format!("c{i}")).collect();
+    let rows: Vec<String> = (0..16)
+        .map(|i| {
+            let entries: Vec<String> = (0..16)
+                .map(|j| {
+                    if i == j {
+                        format!("{BIG} * {BIG}")
+                    } else {
+                        format!("frac(1, {BIG})")
+                    }
+                })
+                .collect();
+            format!("({})", entries.join(", "))
+        })
+        .collect();
+    let declarations = format!(
+        "indexed affine Big(profile::SmoothR) = Affine(16)[{}];
+indexed metric Dense: MetricForm<Big> = gram({});
+indexed evidence DenseInvertible = nondegenerate(Dense);
+indexed evidence DensePositive = riemannian(Dense);",
+        coordinates.join(", "),
+        rows.join(", ")
+    );
+    let started = std::time::Instant::now();
+    success(&check(&metric_fixture(&with_metric(&declarations))));
+    assert!(started.elapsed() < std::time::Duration::from_secs(60));
+}
+
 #[test]
 fn metric_selection_is_explicit_and_unambiguous() {
-    // Two modules declare a metric named `Skew`. Importing both makes the
-    // name ambiguous, so `using = Skew` is rejected before any metric is
-    // selected; importing one selects that one.
-    let profile = format!(
-        "{METRIC_PROFILE}\npub indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));"
-    );
+    // Two modules declare a metric named `Skew`: the profile's is Euclidean,
+    // and `alt`'s has the Gram matrix ((2, 1), (1, 1)). Importing one selects
+    // that one, so the gradient of x^2 + y at (1, 2) is (2, 1) or (1, 0).
+    // Importing both makes `using = Skew` ambiguous, and it is rejected
+    // before any metric is selected.
+    let profile =
+        format!("{METRIC_PROFILE}\npub indexed metric Skew: MetricForm<Plane> = euclidean;");
     let two_metrics = |imports: &str| {
         let main = common::checked_replace(
             METRIC_MAIN,
             "indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));\n",
             "mod alt { pub indexed metric Skew: super::profile::MetricForm<super::profile::Plane> = gram((2, 1), (1, 1)); }\n",
         );
-        common::checked_replace(
+        let main = common::checked_replace(
             &main,
             "use profile::pairing;\n",
             &format!("use profile::pairing;\n{imports}"),
+        );
+        // The program prints the Skew gradient as 10 for (1, 0) or 21 for (2, 1).
+        common::checked_replace(
+            &main,
+            "fn main() -> Int {",
+            "fn main() -> Int {
+    let probe: Tangent<Plane> = gradient_skew(g(), plane_at(1, 2));
+    if reads(probe, 1, 0) { 10 } else { if reads(probe, 2, 1) { 21 } else { 0 } }
+}
+
+fn observations() -> Int {",
         )
     };
-    success(&check(&metric_fixture_with(
-        &profile,
-        &two_metrics("use alt::Skew;\n"),
-    )));
-    success(&check(&metric_fixture_with(
-        &profile,
-        &two_metrics("use profile::Skew;\n"),
-    )));
+    assert_eq!(
+        run(&metric_fixture_with(
+            &profile,
+            &two_metrics("use alt::Skew;\n")
+        )),
+        b"10\n"
+    );
+    assert_eq!(
+        run(&metric_fixture_with(
+            &profile,
+            &two_metrics("use profile::Skew;\n")
+        )),
+        b"21\n"
+    );
     let stderr = expect_code(
         &check(&metric_fixture_with(
             &profile,
@@ -1207,8 +1291,9 @@ fn metric_selection_is_explicit_and_unambiguous() {
         "E_DUPLICATE",
     );
     assert!(stderr.contains("collision"), "{stderr}");
-    // A metric named by path is that metric: evidence for another metric
-    // with the same name does not certify it.
+    // A metric named by path is that metric: evidence for the other metric
+    // with the same short name does not certify it, and the message tells
+    // the two apart by their full names.
     let s = metric_fixture_with(
         &profile,
         &common::checked_replace(
@@ -1218,7 +1303,13 @@ fn metric_selection_is_explicit_and_unambiguous() {
         ),
     );
     let stderr = expect_code(&check(&s), "E_METRIC");
-    assert!(stderr.contains("certifies `Skew`"), "{stderr}");
+    assert!(
+        stderr.contains(
+            "`sharp` uses the metric `smooth_metric::profile::Skew`, but the evidence \
+             `smooth_metric::SkewInvertible` certifies `smooth_metric::Skew`"
+        ),
+        "{stderr}"
+    );
 }
 
 #[test]
@@ -1293,6 +1384,25 @@ fn raw_wire_rejects_forged_metric_records() {
         let mut extra = raw.clone();
         extra.pointer_mut(&pointer).unwrap()[field] = identity.clone();
         assert_wire_rejected(&kernel(extra, "emit"), "E_PROTOCOL");
+    }
+    // A record without its metric, evidence or Gram matrix selects nothing
+    // by default: it is rejected.
+    for (pointer, field) in [
+        (format!("{flat}/binding"), "metric"),
+        (format!("{sharp}/binding"), "metric"),
+        (format!("{sharp}/binding"), "evidence"),
+        (skew.clone(), "gram"),
+        (invertible.clone(), "metric"),
+        (invertible.clone(), "evidence"),
+    ] {
+        let mut missing = raw.clone();
+        let record = missing
+            .pointer_mut(&pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        assert!(record.remove(field).is_some(), "{pointer} has no {field}");
+        assert_wire_rejected(&kernel(missing, "emit"), "E_PROTOCOL");
     }
     let forged = |path: &str, value: Value| {
         let mut changed = raw.clone();

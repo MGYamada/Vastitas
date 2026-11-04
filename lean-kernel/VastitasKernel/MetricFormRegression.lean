@@ -51,10 +51,15 @@ private def metricFree : List Source.Declaration := [
   space "Pt" 0 [],
   space "Line" 1 ["t"],
   space "Plane" 2 ["x", "y"],
+  space "Space" 3 ["u", "v", "w"],
   morphism "g" "Plane" "Line" (.pullback [("t", .sum [.pow (c "x") 2, c "y"])]),
   primitive "plane_at" (.smoothIntPoint (path "Smooth") (path "Plane") (path "Pt")),
   primitive "line_at" (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt")),
   primitive "vline" (.fiberVector (path "Tangent") (path "Smooth") (path "Line")),
+  primitive "dline" (.fiberVector (path "Cotangent") (path "Smooth") (path "Line")),
+  primitive "space_at" (.smoothIntPoint (path "Smooth") (path "Space") (path "Pt")),
+  primitive "dspace" (.fiberVector (path "Cotangent") (path "Smooth") (path "Space")),
+  primitive "vspace" (.fiberVector (path "Tangent") (path "Smooth") (path "Space")),
   primitive "differential" (.differential (path "Smooth") (path "Cotangent") (path "Line")),
   primitive "tangent_over" (.fiberAt (path "Tangent") (path "Smooth")),
   primitive "same_vector" (.fiberEqual (path "Tangent")),
@@ -83,7 +88,18 @@ private def metrics : List Source.Declaration := [
   flat "flat_skew" "Skew",
   sharp "sharp_euclid" "Euclid" "EuclidInvertible",
   sharp "sharp_skew" "Skew" "SkewInvertible",
-  sharp "sharp_lorentz" "Lorentz" "LorentzInvertible" ]
+  sharp "sharp_lorentz" "Lorentz" "LorentzInvertible",
+  -- `euclidean` on objects of dimension 1 and 3.
+  metric "EuclidLine" .euclidean "Line",
+  metric "Euclid3" .euclidean "Space",
+  metric "Diag3" (.rows [[n 2, n 0, n 0], [n 0, n 3, n 0], [n 0, n 0, n 4]]) "Space",
+  evidence "EuclidLinePositive" "EuclidLine" .riemannian,
+  evidence "EuclidLineInvertible" "EuclidLine" .nondegenerate,
+  evidence "Euclid3Invertible" "Euclid3" .nondegenerate,
+  evidence "Diag3Invertible" "Diag3" .nondegenerate,
+  sharp "sharp_line" "EuclidLine" "EuclidLineInvertible",
+  sharp "sharp_space" "Euclid3" "Euclid3Invertible",
+  sharp "sharp_diag3" "Diag3" "Diag3Invertible" ]
 
 private def declarations : List Source.Declaration := metricFree ++ metrics
 
@@ -151,6 +167,12 @@ private def q (numerator : Int) (denominator : Nat := 1) : Rat := mkRat numerato
 #eval check "the stored certificates pass the kernel's checks"
   (SmoothDeclarations.checkNondegenerate 2 [[2, 1], [1, 1]] [[1, -1], [-1, 2]] &&
     SmoothDeclarations.checkRiemannian 2 [[2, 1], [1, 1]] [[1, 0], [q 1 2, 1]] [2, q 1 2] [[1, 0], [q (-1) 2, 1]])
+#eval check "euclidean on objects of dimension 1 and 3 is the identity of that dimension"
+  (lookupIn "EuclidLine" == some (.metric (id "MetricForm") (id "Line") [[1]]) &&
+    lookupIn "Euclid3" == some (.metric (id "MetricForm") (id "Space") [[1, 0, 0], [0, 1, 0], [0, 0, 1]]) &&
+    lookupIn "EuclidLinePositive" == some (.metricEvidence (id "EuclidLine") (.riemannian [[1]] [1] [[1]])) &&
+    lookupIn "Diag3Invertible" ==
+      some (.metricEvidence (id "Diag3") (.nondegenerate [[q 1 2, 0, 0], [0, q 1 3, 0], [0, 0, q 1 4]])))
 #eval check "flat embeds the metric's object and Gram matrix"
   (binding "flat_skew" == some (.metricFlat (id "Skew") (id "Plane") [[2, 1], [1, 1]] (id "Tangent") (id "Cotangent")))
 #eval check "sharp embeds the metric's Gram matrix and the evidence's inverse"
@@ -230,6 +252,22 @@ def metricFixture : Core.Module := ⟨resolved.getD default, [metricMain], some 
 #eval check "the Skew gradient is the vector (1, 0) at (1, 2)"
   (Core.Semantics.eval metricFixture 64 (fun _ => none) (gradient "sharp_skew") ==
     some (.indexed (.fiber .tangent (some ⟨[1, 2], [1, 0]⟩))))
+private def spaceAt (u v w : Int) : Core.Term :=
+  prim "space_at" [.integer u, .integer v, .integer w] (smoothType "Pt" "Space")
+private def evaluate (term : Core.Term) : Option Core.Semantics.Value :=
+  Core.Semantics.eval metricFixture 64 (fun _ => none) term
+#eval check "sharp with euclidean on a 3-dimensional object is the identity on components"
+  (evaluate (prim "sharp_space" [prim "dspace" [spaceAt 1 2 3, .integer 4, .integer 5, .integer (-6)]
+    (cotangentType "Space")] (tangentType "Space")) ==
+    some (.indexed (.fiber .tangent (some ⟨[1, 2, 3], [4, 5, -6]⟩))))
+#eval check "sharp with diag(2, 3, 4) divides each component"
+  (evaluate (prim "sharp_diag3" [prim "dspace" [spaceAt 1 2 3, .integer 4, .integer 5, .integer (-6)]
+    (cotangentType "Space")] (tangentType "Space")) ==
+    some (.indexed (.fiber .tangent (some ⟨[1, 2, 3], [2, q 5 3, q (-3) 2]⟩))))
+#eval check "sharp with euclidean on a line is the identity"
+  (evaluate (prim "sharp_line" [prim "dline" [prim "line_at" [.integer 7] (smoothType "Pt" "Line"), .integer 5]
+    (cotangentType "Line")] (tangentType "Line")) ==
+    some (.indexed (.fiber .tangent (some ⟨[7], [5]⟩))))
 #eval check "flat and sharp lower to the shared smooth runtime with rendered matrices"
   (match Core.Typing.checkModule metricFixture true with
   | .ok checked => match Core.Codegen.generate checked with
@@ -264,7 +302,7 @@ private def presented : List Source.Declaration := [
 
 #eval check "an asymmetric Gram matrix is E_METRIC"
   (rejectsWith (with' [metric "Bad" (.rows [[n 1, n 2], [n 3, n 4]])]) "E_METRIC"
-    "the metric `Bad` is not symmetric: the entries in row 1, column 2 and in row 2, column 1 differ")
+    "the metric `metric::Bad` is not symmetric: the entries in row 1, column 2 and in row 2, column 1 differ")
 #eval check "a Gram matrix of the wrong size is E_METRIC"
   (rejectsWith (with' [metric "Bad" (.rows [[n 1, n 0, n 0], [n 0, n 1, n 0], [n 0, n 0, n 1]])]) "E_METRIC"
     "needs 2 rows of 2 entries, but it has 3 rows" &&
@@ -280,21 +318,36 @@ private def presented : List Source.Declaration := [
   (code (with' [metric "Zero" (.rows [[.sum [c "x", .neg (c "x")], n 0], [n 0, n 1]])]) == "accepted")
 #eval check "a Gram entry beyond the polynomial limits is E_LIMIT"
   (code (with' [metric "Bad" (.rows [[.pow (n 2) (Limits.algebraDegree + 1), n 0], [n 0, n 1]])]) == "E_LIMIT")
+/-- A 64-digit literal. -/
+private def big : Nat := 10 ^ 63 + 7
+#eval check "an entry like (L^16)^16 with a 64-digit L is E_LIMIT before any certificate"
+  (rejectsWith (with' [metric "Bad" (.rows [[.pow (.pow (n big) 16) 16, n 0], [n 0, n 1]]),
+    evidence "E" "Bad" .nondegenerate]) "E_LIMIT"
+    s!"the Gram entry in row 1, column 1 has more than {Limits.metricEntryBits} bits")
+#eval check "the entry bound is 2^512 on the numerator and on the denominator"
+  (let power := Source.PolyExpr.pow (.pow (.pow (n 2) 16) 16) 2
+   code (with' [metric "Bad" (.rows [[power, n 0], [n 0, n 1]])]) == "E_LIMIT" &&
+    code (with' [metric "Edge" (.rows [[.sum [power, .neg (n 1)], n 0], [n 0, n 1]]),
+      evidence "E" "Edge" .nondegenerate, evidence "R" "Edge" .riemannian]) == "accepted" &&
+    code (with' [metric "Bad" (.rows [[.product [.fraction 1 big, .fraction 1 big, .fraction 1 big], n 0],
+      [n 0, n 1]])]) == "E_LIMIT" &&
+    code (with' [metric "Edge" (.rows [[.product [n big, n big], .fraction 1 big], [.fraction 1 big, n 1]]),
+      evidence "E" "Edge" .nondegenerate]) == "accepted")
 #eval check "an unknown name in a Gram entry is a coordinate error"
   (code (with' [metric "Bad" (.rows [[c "z", n 0], [n 0, n 1]])]) == "E_AFFINE_COORDINATE")
 #eval check "diag(1, 0) is not nondegenerate"
   (rejectsWith (with' [metric "Diag10" (.rows [[n 1, n 0], [n 0, n 0]]), evidence "E" "Diag10" .nondegenerate])
-    "E_METRIC" "the metric `Diag10` is singular, so it has no nondegenerate evidence")
+    "E_METRIC" "the metric `metric::Diag10` is singular, so it has no nondegenerate evidence")
 #eval check "diag(1, 0) is also not Riemannian"
   (rejectsWith (with' [metric "Diag10" (.rows [[n 1, n 0], [n 0, n 0]]), evidence "E" "Diag10" .riemannian])
     "E_METRIC" "is not positive definite")
 #eval check "diag(1, -1) is nondegenerate but not Riemannian"
   (rejectsWith (with' [evidence "E" "Lorentz" .riemannian]) "E_METRIC"
-    "the metric `Lorentz` is not positive definite, so it has no Riemannian evidence" &&
+    "the metric `metric::Lorentz` is not positive definite, so it has no Riemannian evidence" &&
     code (with' [evidence "E" "Lorentz" .nondegenerate]) == "accepted")
 #eval check "a metric on a presented object is a foreign-object metric"
   (rejectsWith (with' (presented ++ [metric "Bad" .euclidean "QLine"])) "E_METRIC"
-    "the metric `Bad` is on `QLine`, which is not a smooth object")
+    "the metric `metric::Bad` is on `metric::QLine`, which is not a smooth object")
 #eval check "a metric on a marker is a foreign-object metric"
   (rejectsWith (with' [metric "Bad" .euclidean "CInfReal"]) "E_METRIC" "which is not a smooth object")
 #eval check "a metric names one object"
@@ -302,17 +355,17 @@ private def presented : List Source.Declaration := [
     "E_METRIC" "a metric names one object")
 #eval check "a metric is declared at a metric_form family"
   (rejectsWith (with' [metric "Bad" .euclidean "Plane" "Cotangent"]) "E_METRIC"
-    "a metric is declared at a `metric_form` family, but `Cotangent` is not one")
+    "a metric is declared at a `metric_form` family, but `metric::Cotangent` is not one")
 #eval check "evidence names a metric"
-  (rejectsWith (with' [evidence "E" "Plane" .nondegenerate]) "E_METRIC" "`Plane` is not a metric")
+  (rejectsWith (with' [evidence "E" "Plane" .nondegenerate]) "E_METRIC" "`metric::Plane` is not a metric")
 #eval check "sharp with evidence for another metric is E_METRIC"
   (rejectsWith (with' [sharp "bad" "Skew" "EuclidInvertible"]) "E_METRIC"
-    "`sharp` uses the metric `Skew`, but the evidence `EuclidInvertible` certifies `Euclid`")
+    "`sharp` uses the metric `metric::Skew`, but the evidence `metric::EuclidInvertible` certifies `metric::Euclid`")
 #eval check "sharp with Riemannian evidence is the wrong kind"
   (rejectsWith (with' [sharp "bad" "Skew" "SkewPositive"]) "E_METRIC"
-    "`sharp` needs nondegenerate evidence, but `SkewPositive` is Riemannian evidence")
+    "`sharp` needs nondegenerate evidence, but `metric::SkewPositive` is Riemannian evidence")
 #eval check "sharp with a non-evidence is E_METRIC"
-  (rejectsWith (with' [sharp "bad" "Skew" "Skew"]) "E_METRIC" "`Skew` is not evidence")
+  (rejectsWith (with' [sharp "bad" "Skew" "Skew"]) "E_METRIC" "`metric::Skew` is not evidence")
 #eval check "flat and sharp need a metric after using ="
   (rejectsWith (with' [flat "bad" "Plane"]) "E_METRIC" "`flat` needs a metric after `using =`" &&
     rejectsWith (with' [sharp "bad" "SkewInvertible" "SkewInvertible"]) "E_METRIC"
@@ -322,6 +375,11 @@ private def presented : List Source.Declaration := [
     "`flat` needs a tangent family" &&
     rejectsWith (with' [primitive "bad" (.sharp (path "Cotangent") (path "Cotangent") (path "Skew")
       (path "SkewInvertible"))]) "E_SMOOTH" "`sharp` needs a tangent family")
+#eval check "flat and sharp that name a family that is not a tangent or cotangent family are E_TYPE"
+  (code (with' [primitive "bad" (.flat (path "Smooth") (path "Cotangent") (path "Skew"))]) == "E_TYPE" &&
+    code (with' [primitive "bad" (.flat (path "Tangent") (path "MetricForm") (path "Skew"))]) == "E_TYPE" &&
+    code (with' [primitive "bad" (.sharp (path "Smooth") (path "Tangent") (path "Skew") (path "SkewInvertible"))])
+      == "E_TYPE")
 #eval check "metric form families need exactly one canonical constraint over smooth objects"
   (code (replacing "MetricForm" (family "MetricForm" .metricForm 1 [])) == "E_TYPE" &&
     code (replacing "MetricForm" (family "MetricForm" .metricForm 2 [.canonical 0, .canonical 1])) == "E_TYPE" &&
@@ -362,26 +420,32 @@ private def forged (name : String) (declaration : Declaration) (env : Environmen
       (id "Tangent") (id "Cotangent")))
 #eval check "flat naming evidence instead of a metric is rejected"
   (tamper (.metricFlat (id "SkewInvertible") (id "Plane") [[2, 1], [1, 1]] (id "Tangent") (id "Cotangent")))
+/-- Append one forged entry with a fresh id. No binding names it, so only the
+entry's own check in the declaration audit can reject it. -/
+private def appended (declaration : Declaration) : Bool :=
+  tamperIndexed (· ++ [⟨id "Forged", declaration⟩])
+#eval check "a fresh, correct metric and certificate are accepted, so the forgeries below fail on their data"
+  (!appended (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2]])) &&
+    !appended (.metricEvidence (id "Skew") (.riemannian [[1, 0], [q 1 2, 1]] [2, q 1 2] [[1, 0], [q (-1) 2, 1]])) &&
+    !appended (.metric (id "MetricForm") (id "Plane") [[2, 1], [1, 1]]))
 #eval check "evidence whose inverse fails G B = I is rejected"
-  (tamperIndexed (forged "SkewInvertible" (.metricEvidence (id "Skew") (.nondegenerate [[1, 0], [0, 1]]))) &&
-    tamperIndexed (forged "SkewInvertible" (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2], [0, 0]]))))
+  (appended (.metricEvidence (id "Skew") (.nondegenerate [[1, 0], [0, 1]])) &&
+    appended (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2], [0, 0]])))
 #eval check "singular evidence is rejected"
-  (tamperIndexed (forged "EuclidInvertible" (.metricEvidence (id "Euclid") (.nondegenerate [[1, 0], [0, 0]]))))
+  (appended (.metricEvidence (id "Euclid") (.nondegenerate [[1, 0], [0, 0]])))
 #eval check "Riemannian evidence with a pivot that is not positive is rejected"
-  (tamperIndexed (forged "SkewPositive" (.metricEvidence (id "Lorentz")
-    (.riemannian [[1, 0], [0, 1]] [1, -1] [[1, 0], [0, 1]]))) &&
-    tamperIndexed (forged "SkewPositive" (.metricEvidence (id "Skew")
-      (.riemannian [[1, 0], [q 1 2, 1]] [2, 0] [[1, 0], [q (-1) 2, 1]]))))
+  (appended (.metricEvidence (id "Lorentz") (.riemannian [[1, 0], [0, 1]] [1, -1] [[1, 0], [0, 1]])) &&
+    appended (.metricEvidence (id "Skew") (.riemannian [[1, 0], [q 1 2, 1]] [2, 0] [[1, 0], [q (-1) 2, 1]])))
 #eval check "Riemannian evidence whose factors do not multiply to G is rejected"
-  (tamperIndexed (forged "SkewPositive" (.metricEvidence (id "Skew")
-    (.riemannian [[1, 0], [0, 1]] [2, 1] [[1, 0], [0, 1]]))))
+  (appended (.metricEvidence (id "Skew") (.riemannian [[1, 0], [0, 1]] [2, 1] [[1, 0], [0, 1]])))
 #eval check "evidence that names a non-metric is rejected"
-  (tamperIndexed (forged "SkewInvertible" (.metricEvidence (id "Plane") (.nondegenerate [[1, 0], [0, 1]]))))
-#eval check "a forged asymmetric, wrong-size or foreign metric is rejected"
-  (tamperIndexed (forged "Skew" (.metric (id "MetricForm") (id "Plane") [[2, 1], [0, 1]])) &&
-    tamperIndexed (forged "Skew" (.metric (id "MetricForm") (id "Plane") [[2]])) &&
-    tamperIndexed (forged "Skew" (.metric (id "MetricForm") (id "CInfReal") [[2, 1], [1, 1]])) &&
-    tamperIndexed (forged "Skew" (.metric (id "Cotangent") (id "Plane") [[2, 1], [1, 1]])))
+  (appended (.metricEvidence (id "Plane") (.nondegenerate [[1, 0], [0, 1]])))
+#eval check "a forged asymmetric, wrong-size, unbounded or foreign metric is rejected"
+  (appended (.metric (id "MetricForm") (id "Plane") [[2, 1], [0, 1]]) &&
+    appended (.metric (id "MetricForm") (id "Plane") [[2]]) &&
+    appended (.metric (id "MetricForm") (id "Plane") [[(2 ^ 512 : Nat), 0], [0, 1]]) &&
+    appended (.metric (id "MetricForm") (id "CInfReal") [[2, 1], [1, 1]]) &&
+    appended (.metric (id "Cotangent") (id "Plane") [[2, 1], [1, 1]]))
 #eval check "a forged metric form family is rejected"
   (tamperIndexed (forged "MetricForm" (.family ⟨[.object (id "CInfAffine")], [], .metricForm⟩)))
 
@@ -464,6 +528,20 @@ open Lean in
     !decodes (flatJson [("gram", matrixJson)]) true &&
     !decodes (sharpJson [("inverse", matrixJson)]) true &&
     !decodes (sharpJson [("object", pathJson "Plane")]) true)
+open Lean in
+#eval check "flat and sharp records name their metric and evidence"
+  (!decodes (primitiveJson [("op", Json.str "flat"), ("tangent", pathJson "Tangent"),
+      ("cotangent", pathJson "Cotangent")]) true &&
+    !decodes (primitiveJson [("op", Json.str "sharp"), ("cotangent", pathJson "Cotangent"),
+      ("tangent", pathJson "Tangent"), ("evidence", pathJson "SkewInvertible")]) true &&
+    !decodes (primitiveJson [("op", Json.str "sharp"), ("cotangent", pathJson "Cotangent"),
+      ("tangent", pathJson "Tangent"), ("metric", pathJson "Skew")]) true)
+open Lean in
+#eval check "metric and evidence records carry their Gram matrix and metric"
+  (!decodes (Json.mkObj (common "metric" ++ [("family", pathJson "MetricForm"),
+      ("indices", Json.arr #[pathJson "Plane"])])) true &&
+    !decodes (Json.mkObj (common "evidence" ++ [("evidence", Json.str "nondegenerate")])) true &&
+    !decodes (Json.mkObj (common "evidence" ++ [("metric", pathJson "Skew")])) true)
 #eval check "evidence is nondegenerate or riemannian"
   (["positive", "lorentzian", "nondegenerate_", ""].all fun kind => !decodes (evidenceJson kind) true)
 open Lean in

@@ -132,8 +132,6 @@ jobs:
           python3 scripts/check_boundaries.py
       - name: Checked-IR, dispatch, and function regressions
         run: bash scripts/check_kernel_regressions.sh
-      - name: Iterator-prefix Lean draft and axiom audit
-        run: bash experiments/iterator_prefix/check_lean.sh
       - name: Declaration-driven Core native regressions
         run: bash scripts/check_indexed_native.sh
       - name: Checked storage native adapter and failure cleanup (no BLAS)
@@ -338,6 +336,9 @@ jobs:
           lake env ../.ci-tools/axiom-audit/.lake/build/bin/axiom-audit --root VastitasOracle --allow propext,Classical.choice,Quot.sound
       - name: Audit transitive oracle and kernel axioms
         run: cd lean && lake env lean ../scripts/audit_axioms.lean
+      - name: Iterator-prefix Lean draft and axiom audit
+        # The compiler job's sparse checkout has no experiments/.
+        run: bash experiments/iterator_prefix/check_lean.sh
       - name: Replay oracle and kernel declarations with the official kernel
         # leanchecker replays every built module with each prefix against its
         # imported environment; it is not an independent verifier (#567).

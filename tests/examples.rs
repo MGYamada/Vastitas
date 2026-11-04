@@ -148,6 +148,21 @@ fn smooth_differential_package() {
     );
 }
 
+// stdlib/src/geometry/README.md: the smooth affine profile from the standard
+// library, run in place. tests/stdlib_differential.rs runs copies of it,
+// mutated.
+#[test]
+fn stdlib_differential_package() {
+    common::prepare_stdlib_package();
+    documented(
+        &[
+            "--manifest-path",
+            "examples/packages/stdlib-differential/Vastitas.toml",
+        ],
+        "42",
+    );
+}
+
 // docs/storage/resource-programs.md: the scalar-flow example.
 #[test]
 fn resource_values_package() {

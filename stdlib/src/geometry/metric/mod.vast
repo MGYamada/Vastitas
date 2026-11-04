@@ -1,0 +1,8 @@
+// Constant metrics on smooth affine objects (historical Stage 3). MetricForm<X>
+// indexes the symmetric bilinear forms on X. It is a declared family: no value
+// has its type, and it is distinct from the protocol-8 Metric. A metric's
+// evidence, flat and sharp each name one metric. Any package that can name the
+// metric may declare them; this library declares none, because it cannot name
+// an application's metric.
+pub indexed family MetricForm(object(super::smooth::affine::CInfAffine))
+    = metric_form constraints(canonical(0));

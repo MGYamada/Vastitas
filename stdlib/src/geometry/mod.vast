@@ -1,6 +1,7 @@
 // Shared finite indexed contracts. The public mathematical settings are siblings.
 pub mod scheme;
 pub mod smooth;
+pub mod metric;
 
 indexed classification Objects {
     parents(); domain(scheme::GridQQ, smooth::GridSmooth);

@@ -120,8 +120,11 @@ dependencies of every declaration defined in a `VastitasBridge` module,
 selected by defining module so private names are included; only `propext`,
 `Classical.choice` and `Quot.sound` are allowed. Official `leanchecker` replays
 the bridge modules against their imported environment. This is not a separate
-verifier or a fresh replay of all imported Mathlib declarations. No public
-`std` API, executable AD implementation or source/native refinement is claimed.
+verifier or a fresh replay of all imported Mathlib declarations. The
+Daleckii–Krein proofs claim no public `std` API, executable AD implementation
+or source/native refinement. The executable reverse pass of the smooth profile
+has its own section,
+[smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
 
 ## Current public checker routes
 
@@ -1893,3 +1896,84 @@ mathematical statement for the bridge.
   - For accepted declarations, `validAffine_structure` supplies both. Canonicity combines the Oracle's `validAffine_images_normal` (each stored image is the normal form of its binding), `validAffine_bindings_canonical` (the kernel's structure check makes bindings canonical) and `normalForm_spec`. `structureValid_bridge` gives the relation part.
   - In a valid environment, `Fiber.accepted` and `PrincipalOpen.accepted` derive every hypothesis of `Fiber.isPullback`, `equivAway` and `range_comap_toL` from acceptance. That includes the canonical localized element, from `checkConstruction_localization_element`.
   - This includes a fiber declared `via` a base isomorphism. The Oracle's `checkIso_sound` records `checkIso`'s facts. `checkConstruction_fiber` exposes them for `via` fibers. `isoValid_bridge` makes the chosen maps inverse ring maps. The composed right structure map is the right factor's structure map followed by the isomorphism (`pullbackHom_subst`). `Images.subst` and `Respects.subst` derive its `Images` and `Respects` from acceptance.
+
+<a id="smooth-affine-geometry-and-reverse-pullbacks"></a>
+
+## Smooth affine geometry and reverse pullbacks
+
+[Smooth affine declarations](language/smooth-declarations.md) run on
+`lean-kernel/VastitasKernel/SmoothRuntime.lean`, which the checker and
+generated programs share, and on the certificate checks of
+`SmoothDeclarations.lean`. The runtime imports only `AlgebraRuntime`. The
+[acceptance map](stage3-acceptance.md) links each acceptance condition to the
+evidence below. **Proved (oracle)** means a mathlib-free theorem in
+`lean/VastitasOracle/`; `scripts/audit_axioms.lean` audits every such module
+and admits only `propext`, `Classical.choice` and `Quot.sound`. **Proved
+(bridge)** means a mathlib theorem in `lean-bridge/`, which `lean-bridge/Audit.lean`
+requires by name. **Tested** means a regression or native test.
+
+### Oracle theorems
+
+All of these are Proved (oracle). Names are relative to `VastitasOracle`.
+
+| Module | Theorems | Statement |
+| --- | --- | --- |
+| `SmoothDeclarations` | `smoothAffine_sound`, `smooth_objects_are_declared`, `sealed_families_exclude_smooth`, `smooth_families_exclude_foreign`, `smoothCompose_reifies`, `core_compose_reifies` | An accepted smooth object has a smooth implementation and distinct coordinates within the generator limit; in a valid environment there is no smooth global; the Stage 1 point and morphism families and the Stage 2 relative family never range over smooth objects; `compose` evaluates to the program node `Program.compose`, in Core and at run time |
+| `SmoothPrimitives` | `smoothConstant_total`, `smoothCompose_total`, `smoothEqual_total`, `smoothComposite_total`, `smoothIntPoint_total`, `smoothPoint_erasure` | Each smooth map primitive returns a value of its checked type and erases to the runtime |
+| `SmoothCanonical` | `add_canonical`, `mul_canonical`, `subst_canonical`, `compose_wellFormed`, `composite_wellTyped` | Canonical sparse polynomials are closed under the runtime operations, so the composite of a well-typed program is well typed |
+| `SmoothFibers` | `fiberVector_total`, `fiberAt_total`, `fiberEqual_total`, `fiberComponent_total`, `fiberPairing_total`, `cotangentPullback_total`, `differential_total`, `linearize_total`, `cotangentBackward_total`, `fiberVector_erasure` | Each fiber and tape primitive returns a value of its checked type; a tape satisfies its residual relation |
+| `SmoothRuntime` | `pullback_spec`, `pullback_saved_eq_recomputed`, `backward_forward`, `forward_residual`, `backward_linearize`, `backward_foreign_seed`, `pullback_wrong_point`, `pullback_none`, `pullback_mem_of_wellTyped`, `pullback_stepwise`, `pullback_identity`, `fiberEqual_none_left`, `component_ne_failure` | Structural facts that unfold the implementation: the two modes and the tape agree, a seed over another point gives the failure value, the failure value is absorbing and observably distinct, a result lies over the input point, a composite pulls back stepwise, the identity pulls back to itself |
+| `SmoothCalculus` | `evalIn_subst`, `dual_tangent`, `evalAt_partial_subst`, `cot_compose`, `eval_denote`, `backward_eq_cot`, `backward_eq_cot_saved`, `pullback_composite`, `pullback_eq_composite`, `Cov.pullback_comp`, `Cov.pullback_id`, `Cov.pullback_runtime`, `Regression.shear_correct_order`, `Regression.shear_reversed_order` | The chain rule without mathlib: evaluation in any commutative ring that receives `ℚ`, the directional derivative in the dual numbers, and the reverse pass of a well-typed program as the cotangent pullback `cot` along its denoted map, in both modes; the typed covector fragment ported from the polynomial cotangent proof, with the noncommuting shears |
+| `SmoothReverse` | `core_cotangent_pullback`, `core_differential`, `core_linearize`, `core_cotangent_backward`, `core_backward_linearize`, `core_pullback_compose`, `smooth_differential_metric_free` | An accepted Core node of each reverse-pass binding evaluates to the runtime operation on its operand values, with its checked type; a pullback along a Core `compose` node runs on the program node; `differential` and `cotangent_pullback` take no environment |
+| `SmoothMetrics` | `checkNondegenerate_spec`, `checkGram_sound`, `certifyNondegenerate_sound`, `checkRiemannian_spec`, `certifyRiemannian_sound`, `zero_row_not_nondegenerate`, `diag_one_zero_rejected` | An accepted certificate is an exact two-sided inverse, or an exact `L D Lᵀ` factorization with positive pivots and an inverse of `L`, whatever search produced it; diag(1, 0) has no nondegenerate evidence |
+| `SmoothMetricForms` | `metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`, `flat_uses_declared_gram`, `sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_fiberAt`, `sharp_fiberAt`, `metricFlat_total`, `metricSharp_total`, `flat_sharp_erasure` | In a valid environment, metrics and evidence satisfy their checks; `flat` embeds its metric's Gram matrix and `sharp` the certified inverse of nondegenerate evidence for its metric; both keep the basepoint |
+| `SmoothMetricWeakening` | `validPrimitiveBinding_metric_insertion_of_valid`, `evalPrimitive_metric_insertion_of_valid`, `validPrimitiveBinding_metric_weakening`, `evalPrimitive_metric_weakening`, `differential_metric_free`, `cotangentPullback_metric_free` | Metric declarations at any position of a valid environment change neither the validity nor the value of any binding other than `flat` and `sharp` |
+
+`IndexedSemantics.primitive_total_and_typed` and
+`IndexedSemantics.primitive_runtime_erasure` dispatch to the totality and
+erasure lemmas above. The Stage 2 statements `validAffine_sound`,
+`presented_not_descriptor` and `sealed_families_exclude_presented` are
+unchanged.
+
+### Bridge theorems
+
+All of these are Proved (bridge), in `VastitasBridge.Differential`.
+
+| File | Theorems | Statement |
+| --- | --- | --- |
+| `Derivative.lean` | `npow_eq_pow`, `evalAt_eq_eval`, `evalAt_eq_eval_evalPoint`, `toMv_partial`, `canonical_partial`, `wellFormed_iff`, `toMv_compose`, `cot_getD` | The runtime's evaluation, partial derivative and composition are `MvPolynomial.eval`, `pderiv` and `aeval`; component `j` of `cot map x η` is `Σᵢ ηᵢ (∂ⱼ fᵢ)(x)` |
+| `ChainRule.lean` | `cot_compose`, `eval_denote`, `backward_eq_cot`, `backward_eq_cot_saved`, `pullback_composite`, `pullback_eq_composite`, `smoothEqual_iff`, `pullback_comp`, `Cov.reverse_eq_pullback` | The chain rule through `pderiv_aeval`; `same` is equality of the denoted polynomial maps |
+| `Frechet.lean` | `hasFDerivAt_realProgram`, `realProgram_realPoint`, `reverse_covector_eq_comp_fderiv`, `pullback_eq_fderiv_adjoint`, `pullback_covector_eq_comp_fderiv`, `pullback_getD_eq_fderiv_adjoint` | The runtime pullback, in both modes, is `η ∘ Df(x)` for mathlib's `fderiv ℝ` of the program's real map, built node by node with `HasFDerivAt.comp`; the file does not use `ChainRule.lean` |
+| `Kaehler.lean` | `kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler` | The runtime pullback is the fiber at `x` of the Kähler pullback Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases, for one map; a second chain rule for two maps by functoriality, independent of `ChainRule.lean` and `Frechet.lean` |
+| `Metric.lean` | `isUnit_gram_of_nondegenerate`, `inverse_eq_of_nondegenerate`, `sharp_flat`, `flat_sharp`, `gradient_riesz`, `posDef_of_riemannian`, `not_isUnit_diag_one_zero`, `not_posDef_lorentz`, `checkNondegenerate_lorentz` | Nondegenerate evidence makes the Gram matrix invertible; `flat` and `sharp` are inverse; `sharp` is the Riesz representation for g(v, w) = vᵀGw; Riemannian evidence makes G positive definite over ℝ |
+| `Accepted.lean` | `checked_pullback_frechet`, `checked_pullback_kaehler`, `checked_differential_frechet`, `checked_gradient_riesz`, `checked_riemannian_posDef`, `checked_flat_sharp` | The comparisons above for an accepted Core node or an accepted declaration |
+
+The theorems of `Accepted.lean` derive the hypotheses of the other files
+from the checker's typing of one node (`Typing.HasType`) together with the
+types of its operand values and, for metrics, from `env.Valid`. Operand
+evaluation and operand typing (`PrimitiveValuesHaveTypes`) stay premises, as
+in the oracle's `core_*` theorems. The Kähler comparison is stated for one
+map; `checked_pullback_kaehler` reaches programs through the kernel chain rule
+`ChainRule.backward_eq_cot`. These theorems are not composed with whole-term preservation,
+`IndexedEvaluationSafety.evaluation_total_and_typed`, which keeps its callee
+contracts (`CallReturns`), allocation uniqueness and freshness as premises.
+The [acceptance map](stage3-acceptance.md#bridge-hypotheses-discharged)
+states the premises of each theorem.
+
+### Tested, not proved
+
+- The source checker's diagnostics, including the `E_ENDPOINT` roles, and
+  raw-wire and tampered-Core rejection: `tests/smooth_differential.rs` and the
+  kernel regressions `SmoothObjectRegression`, `CotangentRegression`,
+  `MetricFormRegression` and `SmoothRuntimeRegression`.
+- Byte identity of the generated code of a `differential` caller with and
+  without metric declarations.
+- Agreement with the independent Python references in the real plane:
+  `VastitasAlgebraTest.SmoothReferenceRegression` with
+  `tests/fixtures/smooth-differential.json`.
+- That `invert?` and `ldl?` find a certificate for every invertible or
+  positive-definite Gram matrix. Soundness does not depend on it.
+- Native execution of the acceptance example and its mutations.
+
+Native refinement of generated code, the Rust parser and the Lean-to-C
+toolchain are outside these claims, as for the rest of the compiler.

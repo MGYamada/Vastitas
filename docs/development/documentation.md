@@ -14,10 +14,10 @@ parts:
 
 | Part | Content | Files |
 | --- | --- | --- |
-| Introduction and chapters 1–11 | Teaching chapters in reading order, with short **What is checked** notes that link to the reference parts | `README.md`, `guide/*.md`, `affine-geometry.md` |
+| Introduction and chapters 1–12 | Teaching chapters in reading order, with short **What is checked** notes that link to the reference parts | `README.md`, `guide/*.md`, `affine-geometry.md` |
 | Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage0.md`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
 | How the compiler is checked | Architecture, wire protocols, proof boundaries and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `adr/` |
-| Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `development/` |
+| Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `development/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
 scripts, experiment records and external links name them.
@@ -125,7 +125,8 @@ next rewrite.
 
 ### Examples
 
-- Put every complete program in a file under `examples/book/`. Pull it into
+- Put every complete program in a file under `examples/book/`, or use a
+  tested package under `examples/packages/`. Pull it into
   the chapter with the mdBook
   [`include` directive](https://rust-lang.github.io/mdBook/format/mdbook.html#including-files),
   so that the book shows the tested text. Step 3 of

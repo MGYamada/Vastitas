@@ -16,8 +16,27 @@ const LIBRARY: &[(&str, &str)] = &[
         "smooth/mod.vast",
         include_str!("../stdlib/src/geometry/smooth/mod.vast"),
     ),
+    (
+        "smooth/affine/mod.vast",
+        include_str!("../stdlib/src/geometry/smooth/affine/mod.vast"),
+    ),
+    (
+        "metric/mod.vast",
+        include_str!("../stdlib/src/geometry/metric/mod.vast"),
+    ),
 ];
 const MANIFEST: &str = include_str!("../stdlib/src/geometry/Vastitas.toml");
+/// The `std::differential` package, which the `std` entrypoint re-exports.
+const DIFFERENTIAL: &[(&str, &str)] = &[
+    (
+        "Vastitas.toml",
+        include_str!("../stdlib/src/differential/Vastitas.toml"),
+    ),
+    (
+        "mod.vast",
+        include_str!("../stdlib/src/differential/mod.vast"),
+    ),
+];
 const DEMO: &str = include_str!("../examples/packages/stdlib-geometry/main.vast");
 
 fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
@@ -40,7 +59,11 @@ fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
                 .unwrap(),
         );
     }
-    s.write("standard/Vastitas.toml", "[package]\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\n");
+    for (name, source) in DIFFERENTIAL {
+        let source = source.replace("\"../geometry\"", "\"../geo\"");
+        s.write(&format!("differential/{name}"), &rewrite(&source));
+    }
+    s.write("standard/Vastitas.toml", "[package]\nname='vastitas_std'\nversion='0.1.0'\nroot='lib.vast'\n[dependencies]\ngeometry_library={path='../geo'}\ndifferential_library={path='../differential'}\n");
     s.write("app/Vastitas.toml", "[package]\nname='app'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\nstd={path='../standard'}\ngeo={path='../geo'}\nsame={path='../geo'}\n");
     s.write("app/main.vast", source);
     s

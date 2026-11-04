@@ -382,7 +382,9 @@ that this section refers to.
 #### Negative tests
 
 The Stage 3 profile must reject each of the following with its own diagnostic.
-All of these tests are proposed; none has run.
+The [Stage 3 acceptance map](../stage3-acceptance.md#acceptance-conditions)
+records the test that runs each case. A case without a test there remains
+proposed.
 
 - **Objects:** an implementation mismatch, a dimension that differs from the
   coordinate count, `spec` under a smooth implementation, and a smooth global
@@ -412,9 +414,10 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
 #### Compatibility and public-name audit
 
 - **Operation names.**
-  - `std::differential` exports `pullback`, `differential`, `linearize`,
+  - `std::differential` admits `pullback`, `differential`, `linearize`,
     `backward` and `gradient`. `pullback` is the operation of §6, and its wire
     operation is `cotangent_pullback`. `gradient` is the `grad` of §4 and §6.
+    The standard library exports the first four; see the deviation below.
   - The smooth map type is `Smooth<X, Y>`, and the tape type is `Tape<X, Y>`.
   - These names must not shadow existing names. Smooth-map `compose` and the identity must not be ambiguous
     with `std::geometry::compose` and `std::geometry::smooth::id`.
@@ -441,6 +444,17 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
   - The profile adds no wire protocol version.
   - Existing programs keep their meaning.
   - The protocol-8 `Metric` keeps its name. A rename is a separate decision.
+
+#### Deviation: no `gradient` export
+
+The standard library implements this amendment without a `gradient` export.
+A library function cannot be generic over the application's smooth affine
+object, because the smooth families take declared objects only. It also cannot
+take a metric, its evidence or `sharp` as a parameter. An application
+therefore writes `gradient` as an ordinary function that applies its own
+`sharp` to `differential`. This meets the contract above, because `sharp`
+requires a named metric and nondegenerate evidence. The admission of
+`gradient` stands. The History section names the follow-up.
 
 ## Consequences, validation and migration
 
@@ -482,6 +496,9 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
     [#570](https://github.com/MGYamada/Vastitas/issues/570),
     [#544](https://github.com/MGYamada/Vastitas/issues/544);
   - performance: [#222](https://github.com/MGYamada/Vastitas/issues/222).
+- **Gradient export.** Exporting a generic `gradient` from
+  `std::differential` needs object-polymorphic signatures and metric
+  parameters: [#626](https://github.com/MGYamada/Vastitas/issues/626).
 - **Names and protocol.** `MetricSpace` belongs to
   [#382](https://github.com/MGYamada/Vastitas/issues/382), and the single-protocol policy
   to [#533](https://github.com/MGYamada/Vastitas/issues/533).

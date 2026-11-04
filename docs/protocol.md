@@ -135,7 +135,8 @@ protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
   `{"kind": "euclidean"}` or `{"kind": "gram", "rows": [[poly, …], …]}`, where
   each entry is a polynomial expression in the form above.
 - **Evidence.** `kind: "evidence"` carries `metric` (path) and `evidence`, the
-  string `"nondegenerate"` or `"riemannian"`.
+  string `"nondegenerate"` or `"riemannian"`, besides the common `name`,
+  `public` and `span`.
 - **Primitives.** The binding `op` may be `flat` with `tangent`, `cotangent`
   and `metric`, or `sharp` with `cotangent`, `tangent`, `metric` and
   `evidence`. Each value is a path.

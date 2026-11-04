@@ -10,7 +10,7 @@ Vastitas needs three toolchains:
 
 Builds of programs that run GEMM or diagonal Hermitian pairing also need
 sequential LP64 OpenBLAS 0.3.34. You can skip it until
-[Chapter 10](numerical.md). The optional `vastitas audit-lean` diagnostic needs
+[Chapter 11](numerical.md). The optional `vastitas audit-lean` diagnostic needs
 Lean 4.35.0 installed by elan and runs that toolchain's `nanoda_bin`.
 
 ## Build from a checkout

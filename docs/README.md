@@ -55,6 +55,11 @@ QQ, [tracker #571](https://github.com/MGYamada/Vastitas/issues/571)) adds
 [presented affine geometry](affine-geometry.md), also available as
 `std::geometry::scheme::affine`. Its [acceptance map](stage2-acceptance.md)
 separates what is proved, tested and still pending.
+Historical Stage 3 (finite smooth affine geometry over QQ) adds
+[smooth affine declarations](language/smooth-declarations.md): smooth maps,
+covectors and vectors at rational points, the metric-free reverse cotangent
+pullback, and named metrics with checked evidence. Its
+[acceptance map](stage3-acceptance.md) separates the same kinds of statement.
 
 The book keeps four kinds of statement apart:
 
@@ -67,7 +72,7 @@ The book keeps four kinds of statement apart:
 
 ## How to read this book
 
-Chapters 1 to 11 teach the language in order. They use programs from
+Chapters 1 to 12 teach the language in order. They use programs from
 [`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) and the
 test suite. Most chapters end with a short **What is checked** note that links
 to the precise contract.

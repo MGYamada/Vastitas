@@ -6,10 +6,14 @@ code. They do not require the proof oracle during compilation.
 
 The [geometry library](src/geometry/README.md) exposes the existing finite affine
 profile through `std::geometry::scheme` and `std::geometry::smooth`, and the
-Stage 2 presented affine profile through `std::geometry::scheme::affine`. Select
-`stdlib` as the `std` dependency for the combined geometry/arithmetic
-entrypoint. It re-exports the canonical declarations and uses protocol 9, the
-current schema epoch (#533), because the affine module declares algebraic forms.
+Stage 2 presented affine profile through `std::geometry::scheme::affine`. It
+exposes the smooth affine profile through `std::geometry::smooth::affine` and
+`std::geometry::metric`. The [differential library](#differentiation)
+`std::differential` is a separate package that depends on the geometry package.
+Select `stdlib` as the `std` dependency for the combined
+geometry/differential/arithmetic entrypoint. It re-exports the canonical
+declarations and uses protocol 9, the current schema epoch (#533), because the
+affine modules declare algebraic and smooth forms.
 An explicit, checked library export maps legacy geometry syntax to those same
 declarations. The temporary `stdlib/indexed` entrypoint has been removed.
 Whole-term and legacy semantic correspondence remain pending.
@@ -23,6 +27,50 @@ Use a directory per module and `mod.vast` as its entrypoint, for example
 Declarations keep their logical package/module owners when source files move
 between supported layouts. The current arithmetic flat-source generator remains
 a compatibility path; its layout is not the template for new stdlib modules.
+
+## Differentiation
+
+[`src/differential/mod.vast`](src/differential/mod.vast) is the package
+`std::differential`. It differentiates the smooth maps of
+`std::geometry::smooth::affine` at rational points, with exact rational
+arithmetic.
+
+| Name | Contract |
+| --- | --- |
+| `pullback(f, x, eta)` | The covector `eta ∘ Df(x)` at `x`, with saved forward values |
+| `differential(phi, x)` | The pullback of `dt` at `phi(x)`, for `phi` into `Line` |
+| `linearize(f, x)` | The saved forward values of `f` at `x`, a `Tape` |
+| `backward(tape, eta)` | The pullback of `eta` through a tape |
+
+A seed over a point other than `f(x)` gives the failure value. The failure
+value lies over no point and equals no covector. None of these operations
+names a metric, so a program that uses only them needs no metric module.
+
+The package depends on the geometry package. The geometry package must not
+depend on it; a dependency in that direction is a cycle (`E_CYCLE`). The
+package exports no recomputing pullback. An application may bind one over the
+library's families:
+
+```vast
+indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, recomputed);
+```
+
+A gradient is `sharp` applied to a differential. `sharp` names one metric and
+its evidence, and the library cannot name an application's metric. So an
+application declares `sharp` and writes the gradient as an ordinary function:
+
+```vast
+fn gradient(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_skew(differential(h, p))
+}
+```
+
+The package exports no `gradient` function. A library function cannot take
+the object or the metric as an argument: an annotation such as
+`Smooth<X, Line>` requires a declared object `X` (`E_TYPE`), and a `Fn`
+signature must not contain an indexed type. The
+[metric example](src/geometry/README.md#metrics-belong-to-the-application)
+declares `Skew` and `sharp_skew`.
 
 ## Arithmetic
 
@@ -133,6 +181,8 @@ that package identity. Aliases and public reexports permit calls, not method
 edits. The public prefixed kernels are in `arithmetic::integers` and
 `arithmetic::naturals`; the generic module imports them through ordinary
 visibility checks. No stdlib-specific resolver or authority bypass is used.
+The generated entrypoint also re-exports the geometry package as
+`std::geometry` and the differential package as `std::differential`.
 
 ```sh
 python3 scripts/build_stdlib_package.py
@@ -143,7 +193,8 @@ cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o 
 ```
 
 The tracked arithmetic `.vast` definitions are the flat sources under `src/arithmetic`;
-geometry sources are loaded directly from their canonical module directories.
+geometry and differential sources are loaded directly from their canonical
+module directories.
 The build script adds package visibility and explicit imports without rewriting
 bodies. Rerun it after editing the canonical sources; use `--check` to detect
 missing or stale output without writing. A clean checkout needs this explicit

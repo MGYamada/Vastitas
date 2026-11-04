@@ -129,8 +129,9 @@ fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
 }
 
 /// The promotion example against a copy of the stdlib without its Stage 2
-/// `scheme::affine` module. That closure still uses protocol 7, so the
-/// Indexed.Wire sweep keeps the geometry-compatibility, dependency and
+/// `scheme::affine` module and its Stage 3 `smooth::affine` and `metric`
+/// modules and `differential` package. That closure still uses protocol 7, so
+/// the Indexed.Wire sweep keeps the geometry-compatibility, dependency and
 /// function-body records that only the stdlib supplies.
 fn promotion_without_affine() -> Value {
     let root = common::root();
@@ -139,13 +140,30 @@ fn promotion_without_affine() -> Value {
     let copy = |from: &str, to: &str| {
         s.write(to, &std::fs::read_to_string(stdlib.join(from)).unwrap());
     };
-    copy("Vastitas.toml", "stdlib/Vastitas.toml");
+    // Remove the line `line` of the copied file `path`, which must have it.
+    let strip = |path: &str, line: &str| {
+        let text = std::fs::read_to_string(stdlib.join(path)).unwrap();
+        assert!(text.contains(line), "{path} lacks {line:?}");
+        s.write(&format!("stdlib/{path}"), &text.replace(line, ""));
+    };
+    strip(
+        "Vastitas.toml",
+        "differential_library = { path = \"src/differential\" }\n",
+    );
     // Copy the generated package and every geometry source except the Stage 2
-    // module, so new stdlib modules are picked up without editing this list.
+    // and Stage 3 modules, so new stdlib modules are picked up without editing
+    // this list.
     for directory in ["target/package", "src/geometry"] {
         let mut stack = vec![stdlib.join(directory)];
         while let Some(path) = stack.pop() {
-            if path.ends_with("src/geometry/scheme/affine") {
+            if [
+                "src/geometry/scheme/affine",
+                "src/geometry/smooth/affine",
+                "src/geometry/metric",
+            ]
+            .iter()
+            .any(|module| path.ends_with(module))
+            {
                 continue;
             }
             for entry in std::fs::read_dir(&path).unwrap() {
@@ -167,11 +185,12 @@ fn promotion_without_affine() -> Value {
             }
         }
     }
-    let scheme = std::fs::read_to_string(stdlib.join("src/geometry/scheme/mod.vast")).unwrap();
-    assert!(scheme.contains("pub mod affine;\n"));
-    s.write(
-        "stdlib/src/geometry/scheme/mod.vast",
-        &scheme.replace("pub mod affine;\n", ""),
+    strip("src/geometry/scheme/mod.vast", "pub mod affine;\n");
+    strip("src/geometry/smooth/mod.vast", "pub mod affine;\n");
+    strip("src/geometry/mod.vast", "pub mod metric;\n");
+    strip(
+        "target/package/lib.vast",
+        "pub use differential_library as differential;\n",
     );
     let example = root.join("examples/packages/promotion");
     s.write(

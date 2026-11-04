@@ -93,6 +93,13 @@ milestone supports only `QQ` and `CInfReal`, respectively; no implicit bridge
 between them exists. `QQ` and `CInfReal` are reserved static markers, not
 first-class ring values. The base object's dimension is zero.
 
+`Affine(CInfReal, n)` builds a descriptor object, which records only its
+dimension. It is not a smooth affine object: a smooth real affine space with
+coordinates, smooth maps and covectors is declared with
+`indexed affine X(Impl) = Affine(n)[c₁, …, cₙ]`, as
+[smooth affine declarations](language/smooth-declarations.md#smooth-affine-objects)
+describes.
+
 `Point<X, S>` denotes an `S`-valued point; its indices are geometric objects.
 `Morphism<X, Y>` carries source and target indices. Named object parameters can
 be used in later parameter types and the result type. Calls substitute the

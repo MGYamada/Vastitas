@@ -40,8 +40,12 @@ the operand (`flat_fiberAt`, `sharp_fiberAt`).
 
 That `G` and `G⁻¹` are the musical isomorphisms of a nondegenerate real
 bilinear form, and that positive pivots make it positive definite, are
-statements about real forms. They are planned for the mathlib bridge
-(Stage 3 step S7a, #604) and are not proved here. -/
+statements about real forms. They are not proved here. The mathlib bridge
+proves them in `VastitasBridge.Differential.Metric` (`sharp_flat`,
+`flat_sharp`, `gradient_riesz`, `posDef_of_riemannian`) and states them for
+accepted declarations and `sharp` nodes in
+`VastitasBridge.Differential.Accepted` (`checked_gradient_riesz`,
+`checked_riemannian_posDef`, `checked_flat_sharp`). -/
 namespace VastitasOracle.SmoothMetricForms
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core

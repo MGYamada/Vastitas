@@ -409,6 +409,13 @@ table: no ambiguity, full domain coverage, and winning methods only inside each
 grant's region. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority).
 
+## Seed
+
+The covector that a [cotangent pullback](#cotangent-pullback) or a reverse pass
+starts from. A seed must lie over the image of the point; any other seed gives
+the [failure value](#failure-value). See
+[reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives).
+
 ## Selector
 
 The type that a method gives a parameter for dispatch: a concrete scalar type,

@@ -1,0 +1,98 @@
+// The Stage 3 profile from the standard library. f(t) = (t, t^2) and
+// g(x, y) = x^2 + y, so g(f(t)) = 2t^2. At x = 3 the seed is dt at
+// g(f(3)) = 18, and its pullback along g, then f, is 12 dt. The differential
+// of g at (1, 2) is (2, 1), and its gradient under the metric Skew is (1, 0).
+// Each observation has its own failure code, so `main` prints 42 only when
+// all of them hold.
+// ANCHOR: imports
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Pt;
+use std::geometry::smooth::affine::Line;
+use std::geometry::smooth::affine::compose_smooth;
+use std::geometry::smooth::affine::line_at;
+use std::geometry::smooth::affine::lies_over;
+use std::geometry::smooth::affine::same_covector;
+use std::geometry::smooth::affine::same_vector;
+use std::geometry::smooth::affine::pairing;
+use std::geometry::metric::MetricForm;
+use std::differential::pullback;
+use std::differential::differential;
+use std::differential::linearize;
+use std::differential::backward;
+// ANCHOR_END: imports
+
+// ANCHOR: objects
+// The application declares its own objects and maps over the library profile.
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed primitive plane_at = smooth_int_point(Smooth, Plane, Pt);
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+// ANCHOR_END: objects
+
+// ANCHOR: fibers
+// A covector or vector at a point, and its components as reduced fractions.
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive vplane = fiber_vector(Tangent, Smooth, Plane);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+indexed primitive dx = fiber_component(Cotangent, Plane, x);
+indexed primitive dy = fiber_component(Cotangent, Plane, y);
+indexed primitive vx = fiber_component(Tangent, Plane, x);
+indexed primitive vy = fiber_component(Tangent, Plane, y);
+// ANCHOR_END: fibers
+
+// ANCHOR: recomputed
+// The library exports no recomputing pullback; the application can bind one.
+indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, recomputed);
+// ANCHOR_END: recomputed
+
+// ANCHOR: metric
+// The metric, its evidence, flat and sharp name one metric, so they are
+// declared here, next to the metric.
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed evidence SkewInvertible = nondegenerate(Skew);
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+
+// The gradient under Skew: sharp applied to the metric-free differential.
+fn gradient(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {
+    sharp_skew(differential(h, p))
+}
+// ANCHOR_END: metric
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A component reads n / d.
+fn reads(component: Pair<Int>, n: Int, d: Int) -> Bool {
+    pair_first(component) == n && pair_second(component) == d
+}
+
+// ANCHOR: main
+fn main() -> Int {
+    let x: Smooth<Pt, Line> = line_at(3);
+    let seed: Cotangent<Line> = dline(line_at(18), 1);
+    let gAfterF: Smooth<Line, Line> = compose_smooth(g(), f());
+    // Pull the seed back along g at f(3) = (3, 9), then along f at 3.
+    let stepped: Cotangent<Line> = pullback(f(), x, pullback(g(), compose_smooth(f(), x), seed));
+    let p: Smooth<Pt, Plane> = plane_at(1, 2);
+    let dg: Cotangent<Plane> = differential(g(), p);
+    let grad: Tangent<Plane> = gradient(g(), p);
+    42 + verdict(reads(dt(stepped), 12, 1), 1)
+       + verdict(same_covector(stepped, pullback(gAfterF, x, seed)), 2)
+       + verdict(lies_over(stepped, x), 3)
+       // Saved, recomputed and tape-based pullbacks agree.
+       + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), stepped), 4)
+       + verdict(same_covector(backward(linearize(gAfterF, x), seed), stepped), 5)
+       // A seed over another point gives the failure value.
+       + verdict(!lies_over(pullback(gAfterF, x, dline(line_at(17), 1)), x), 6)
+       // dg = (2, 1) at (1, 2); no metric is involved.
+       + verdict(reads(dx(dg), 2, 1) && reads(dy(dg), 1, 1), 7)
+       // The Skew gradient is (1, 0), flat of it is dg, and dg(grad) = 2.
+       + verdict(reads(vx(grad), 1, 1) && reads(vy(grad), 0, 1), 8)
+       + verdict(same_covector(flat_skew(grad), dg), 9)
+       + verdict(reads(pairing(dg, grad), 2, 1), 10)
+       + verdict(same_vector(grad, vplane(p, 1, 0)), 11)
+}
+// ANCHOR_END: main

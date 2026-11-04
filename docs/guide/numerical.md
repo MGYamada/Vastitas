@@ -1,6 +1,6 @@
 # Numerical maps, GEMM, metrics and tensor networks
 
-[Chapter 9](storage.md) gave you buffers and loans. This chapter gives those
+[Chapter 10](storage.md) gave you buffers and loans. This chapter gives those
 buffers a mathematical meaning: a coordinate matrix becomes a linear map between
 nominal spaces, in named bases. Then the compiler can check that a product
 makes sense before it calls BLAS.

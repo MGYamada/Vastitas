@@ -93,7 +93,13 @@ def failure_wire(wire):
     return raw
 
 
-def wrapper(generated, failure):
+# Since #536 the mismatch message names its cell and payloads, so only its head
+# is fixed. Retained records before that change used the legacy exact check.
+EXPECT_CHECK = 'if !error.toString.startsWith "E_NATIVE_EXPECT: stored bit pattern differs at cell (" then throw error'
+LEGACY_EXPECT_CHECK = 'if error.toString != "E_NATIVE_EXPECT: stored bit pattern differs" then throw error'
+
+
+def wrapper(generated, failure, check=EXPECT_CHECK):
     text = fixtures.driver(generated)
     _, arena, setup, operation, cleanup = fixtures.split_generated(failure)
     function = '@[noinline] def generatedFailure : IO Unit := do\n' + arena + '\n  try\n'
@@ -108,7 +114,7 @@ def wrapper(generated, failure):
       generatedFailure
       pure false
     catch error =>
-      if error.toString != "E_NATIVE_EXPECT: stored bit pattern differs" then throw error
+      ''' + check + '''
       pure true
     if !caught then throw (IO.userError "expected injected native failure")
     benchStop

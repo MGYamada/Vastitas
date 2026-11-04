@@ -4,8 +4,8 @@ import VastitasKernel.SurfaceProtocol
 namespace VastitasKernel
 open Lean JsonDecode
 
-private def path3 (j : Json) (key : String) : Except String (List String) := do
-  (← array j key).mapM Json.getStr?
+private def path3 (j : Json) (key : String) : Except String (List String) :=
+  segments j key
 
 -- In particular, claimed owner/target IDs are not accepted wire fields.
 private def fields3 (j : Json) (allowed : List String) : Except String Unit := do

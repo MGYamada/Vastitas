@@ -1001,7 +1001,7 @@ fn numerical_build_flags_are_explicit_and_failure_preserves_existing_output() {
     let stub = s.write("backend", "#!/bin/sh\ncat >/dev/null\ncat \"$RESPONSE\"\n");
     std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
     for (storage, numerical) in [(json!(false), json!(true)), (json!(true), json!("yes"))] {
-        let response = s.write("response.json", &json!({"version":8,"ok":true,"lean_source":"", "storage_runtime":storage, "numerical_runtime":numerical}).to_string());
+        let response = s.write("response.json", &json!({"version":8,"ok":true,"kernel":serde_json::from_str::<serde_json::Value>(&common::kernel_identity()).unwrap(),"lean_source":"", "storage_runtime":storage, "numerical_runtime":numerical}).to_string());
         let output = command(&s, "build")
             .env("VASTITAS_KERNEL", &stub)
             .env("RESPONSE", response)

@@ -395,14 +395,41 @@ fn explicit_kernel_check_does_not_require_a_kernel_root() {
 }
 
 #[test]
+fn unbuilt_default_kernel_names_its_absolute_root() {
+    let scratch = Scratch::new();
+    let root = scratch.0.join("kernel-root");
+    fs::create_dir(&root).unwrap();
+    let result = scratch
+        .cli()
+        .args(["check", "main.vast"])
+        .env_remove("VASTITAS_KERNEL")
+        .env("VASTITAS_KERNEL_ROOT", &root)
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    let root = root.canonicalize().unwrap();
+    assert!(error.contains("is not built"), "{error}");
+    assert!(
+        error.contains(&format!("lake -d {} build vastitas-kernel", root.display())),
+        "{error}"
+    );
+    assert!(
+        !error.contains("VASTITAS_KERNEL_ROOT is not set"),
+        "{error}"
+    );
+}
+
+#[test]
 fn native_project_uses_the_selected_kernel_toolchain() {
     let scratch = Scratch::new();
     let root = scratch.0.join("selected kernel");
     fs::create_dir(&root).unwrap();
-    // A sentinel version demonstrates copying from the selected root, without
-    // depending on an additional installed Lean toolchain.
-    let expected = "leanprover/lean4:v99.98.97\n";
-    fs::write(root.join("lean-toolchain"), expected).unwrap();
+    // The selected root's file is copied verbatim (sentinel blank lines), but its
+    // pin must be the toolchain this compiler was built for (#550).
+    let pinned = include_str!("../lean-kernel/lean-toolchain").trim();
+    let expected = format!("{pinned}\n\n\n");
+    fs::write(root.join("lean-toolchain"), &expected).unwrap();
     let bin = scratch.0.join("bin");
     fs::create_dir(&bin).unwrap();
     executable(
@@ -430,11 +457,41 @@ fn native_project_uses_the_selected_kernel_toolchain() {
         "{}",
         String::from_utf8_lossy(&result.stderr)
     );
-    assert_eq!(fs::read_to_string(captured).unwrap(), expected);
+    assert_eq!(fs::read_to_string(&captured).unwrap(), expected);
     assert_eq!(
         fs::read(scratch.0.join("program")).unwrap(),
-        fs::read(native).unwrap()
+        fs::read(&native).unwrap()
     );
+    // A root pinned to another Lean fails closed before Lake can rebuild the
+    // shared kernel artifacts with it.
+    fs::remove_file(&captured).unwrap();
+    fs::write(root.join("lean-toolchain"), "leanprover/lean4:v99.98.97\n").unwrap();
+    let result = scratch
+        .cli()
+        .args(["build", "main.vast", "-o", "other"])
+        .env("VASTITAS_KERNEL_ROOT", &root)
+        .env("PATH", std::env::join_paths(paths_with(&scratch)).unwrap())
+        .env("VASTITAS_TEST_TOOLCHAIN", &captured)
+        .env("VASTITAS_TEST_NATIVE", &native)
+        .output()
+        .unwrap();
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(!result.status.success());
+    assert!(
+        error.starts_with("E_BUILD: kernel root")
+            && error.contains("pins leanprover/lean4:v99.98.97")
+            && error.contains(&format!("built for {pinned}")),
+        "{error}"
+    );
+    assert!(!captured.exists() && !scratch.0.join("other").exists());
+}
+
+fn paths_with(scratch: &Scratch) -> Vec<std::path::PathBuf> {
+    let mut paths = vec![scratch.0.join("bin")];
+    paths.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    paths
 }
 
 #[test]

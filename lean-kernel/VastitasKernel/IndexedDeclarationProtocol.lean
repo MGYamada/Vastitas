@@ -8,7 +8,7 @@ open Lean JsonDecode
 
 def path (j : Json) : Except String Source.Path := do
   fields j ["path", "span"]
-  let parts ← (← array j "path").mapM Json.getStr?
+  let parts ← segments j "path"
   if parts.isEmpty then throw "indexed reference requires a nonempty path"
   return ⟨parts, ← decodeSpan j⟩
 
@@ -16,7 +16,7 @@ def natural (j : Json) : Except String Nat := do
   let value ← str j "value"
   if value.isEmpty || !value.toList.all (fun c => '0' ≤ c && c ≤ '9') then
     throw "natural index requires an unsigned decimal string"
-  match value.toNat? with
+  match decimalNat? value with
   | some n => return n
   | none => throw "invalid natural index"
 

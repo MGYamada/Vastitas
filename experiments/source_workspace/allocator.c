@@ -33,7 +33,9 @@ void source_allocator_error(b_lean_obj_arg value) {
     assert(!lean_is_scalar(value) && lean_is_ctor(value) && lean_ctor_num_objs(value) == 1);
     lean_object *message = lean_ctor_get(value, 0);
     assert(!lean_is_scalar(message) && lean_is_string(message));
-    assert(strcmp(lean_string_cstr(message), "E_NATIVE_EXPECT: stored bit pattern differs") == 0);
+    /* The mismatch diagnostic names its cell and payloads, so only its head is fixed. */
+    static const char head[] = "E_NATIVE_EXPECT: stored bit pattern differs at cell (";
+    assert(strncmp(lean_string_cstr(message), head, sizeof(head) - 1) == 0);
     errors[error_count++] = (ErrorObjects){lean_object_byte_size(value), mi_usable_size(value),
         lean_string_byte_size(message), mi_usable_size(message), lean_string_size(message)};
 }

@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
+#include <string.h>
 
 static const uint64_t one = UINT64_C(0x3ff0000000000000);
 static const uint64_t two = UINT64_C(0x4000000000000000);
@@ -554,7 +555,74 @@ static void element_boundaries(void) {
     }
 }
 
+static void expect_message(uint8_t scalar, uint64_t row, uint64_t column,
+                           const uint64_t observed[2], const uint64_t expected[2], const char *message) {
+    char buffer[VSTORAGE_EXPECT_MESSAGE_BYTES];
+    size_t length = vstorage_expect_message(buffer, sizeof(buffer), row, column, scalar, observed, expected);
+    if (length != strlen(message) || strcmp(buffer, message) != 0) {
+        fprintf(stderr, "got:  %s\nwant: %s\n", buffer, message);
+        assert(0);
+    }
+    /* Bounded: a capacity one byte short yields no partial message. */
+    char short_buffer[VSTORAGE_EXPECT_MESSAGE_BYTES];
+    assert(vstorage_expect_message(short_buffer, length, row, column, scalar, observed, expected) == 0);
+    assert(short_buffer[0] == 0);
+    assert(vstorage_expect_message(short_buffer, length + 1, row, column, scalar, observed, expected) == length);
+}
+
+/* A failed expect reports its view-relative cell and both payloads, using the
+ * frontend's exact source spelling plus decimal bits. Status precedence and the
+ * success path are unchanged, and observed bits are written only on mismatch. */
+static void expect_failures(void) {
+    VStorageArena *a = vstorage_new(4096);
+    assert(a);
+    assert(vstorage_allocate(a,0,0,8) == VS_OK);
+    assert(vstorage_allocate(a,1,1,8) == VS_OK);
+    VStorageLayout real = {8,2,3,2,0}, complex = {16,2,2,3,1};
+    const uint64_t f25 = UINT64_C(4612811918334230528), f35 = UINT64_C(4615063718147915776);
+    const uint64_t negative_zero = UINT64_C(0x8000000000000000), nan = UINT64_C(0x7ff8000000000001);
+    assert(vstorage_store(a,0,real,1,2,0,f25,0) == VS_OK);
+    assert(vstorage_store(a,1,complex,1,0,1,negative_zero,nan) == VS_OK);
+    uint64_t observed[2] = {11, 13};
+    assert(vstorage_expect_observed(a,0,real,1,2,0,f25,99,observed) == VS_OK);
+    assert(observed[0] == 11 && observed[1] == 13);
+    assert(vstorage_expect_observed(a,0,real,2,0,0,f25,0,observed) == VS_BOUNDS);
+    assert(vstorage_expect_observed(a,0,real,1,2,1,f35,0,observed) == VS_SCALAR);
+    assert(vstorage_expect_observed(a,7,real,1,2,0,f35,0,observed) == VS_HANDLE);
+    assert(observed[0] == 11 && observed[1] == 13);
+    assert(vstorage_expect_observed(a,0,real,1,2,0,f35,0,observed) == VS_EXPECT);
+    assert(observed[0] == f25 && observed[1] == 0);
+    const uint64_t expected_real[2] = {f35, 0};
+    expect_message(0, 1, 2, observed, expected_real,
+        "E_NATIVE_EXPECT: stored bit pattern differs at cell (1, 2): holds f64(0x1.4p1) "
+        "[bits 4612811918334230528]; expected f64(0x1.cp1) [bits 4615063718147915776]");
+    /* Only one complex component differs: both are reported. */
+    const uint64_t expected_complex[2] = {0, nan};
+    assert(vstorage_expect_observed(a,1,complex,1,0,1,0,nan,observed) == VS_EXPECT);
+    assert(observed[0] == negative_zero && observed[1] == nan);
+    expect_message(1, 1, 0, observed, expected_complex,
+        "E_NATIVE_EXPECT: stored bit pattern differs at cell (1, 0): holds complex("
+        "f64_bits(9223372036854775808), f64_bits(9221120237041090561)); expected complex("
+        "f64_bits(0), f64_bits(9221120237041090561))");
+    assert(vstorage_expect_observed(a,1,complex,1,0,1,negative_zero,UINT64_C(0x7ff8000000000000),observed) == VS_EXPECT);
+    assert(vstorage_expect(a,1,complex,1,0,1,negative_zero,nan) == VS_OK);
+    /* Subnormal, infinity, negative exponent and the bounded worst case. */
+    const uint64_t subnormal[2] = {UINT64_C(0x800fffffffffffff), UINT64_C(1)};
+    const uint64_t infinite[2] = {UINT64_C(0xfff0000000000000), UINT64_C(0x3fe0000000000000)};
+    expect_message(1, 0, 1, subnormal, infinite,
+        "E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 1): holds complex("
+        "f64(-0x0.fffffffffffffp-1022) [bits 9227875636482146303], f64(0x0.0000000000001p-1022) [bits 1]); "
+        "expected complex(f64_bits(18442240474082181120), f64(0x1p-1) [bits 4602678819172646912])");
+    const uint64_t widest[2] = {UINT64_C(0x800fffffffffffff), UINT64_C(0x800fffffffffffff)};
+    char buffer[VSTORAGE_EXPECT_MESSAGE_BYTES];
+    size_t length = vstorage_expect_message(buffer, sizeof(buffer), UINT64_MAX, UINT64_MAX, 1, widest, widest);
+    assert(length == 361 && strlen(buffer) == length);
+    assert(vstorage_expect_message(buffer, sizeof(buffer), 0, 0, 2, widest, widest) == 0);
+    vstorage_delete(a);
+}
+
 int main(void) {
+    expect_failures();
     layouts(0);
     layouts(1);
     element_boundaries();
@@ -582,6 +650,6 @@ int main(void) {
     regroup_failures(1);
     regroup_empty(0);
     regroup_empty(1);
-    puts("native storage preflight, layout, alias, payload, pack3, all 144 regroup3 pairs, failure and cleanup checks passed");
+    puts("native storage preflight, layout, alias, payload, expect diagnostics, pack3, all 144 regroup3 pairs, failure and cleanup checks passed");
     return 0;
 }

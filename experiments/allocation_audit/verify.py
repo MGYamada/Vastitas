@@ -43,7 +43,10 @@ def cleanup_style(read, prefix):
     style, _ = runner.fixtures.cleanup_envelope.split(generated.splitlines(), 'arena')
     failed_style, _ = runner.fixtures.cleanup_envelope.split(failure.splitlines(), 'arena')
     assert style == failed_style
-    assert runner.wrapper(generated, failure).encode() == read(prefix+'Main.lean')
+    # Records retained before #536 use the fixed-message check; new runs use the
+    # current head check. Either must match the trusted wrapper byte for byte.
+    assert read(prefix+'Main.lean') in {runner.wrapper(generated, failure, check).encode()
+                                        for check in (runner.EXPECT_CHECK, runner.LEGACY_EXPECT_CHECK)}
     return style
 
 

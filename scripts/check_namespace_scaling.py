@@ -40,19 +40,28 @@ def main():
     parser.add_argument("--compiler", type=Path, default=ROOT / "target/debug/vastitas")
     parser.add_argument("--kernel-root", type=Path, default=ROOT / "lean-kernel")
     parser.add_argument("--baseline-kernel-root", type=Path)
+    # The driver rejects a kernel built from other sources (#550), so a baseline
+    # kernel from another checkout runs with that checkout's own compiler.
+    parser.add_argument("--baseline-compiler", type=Path)
     parser.add_argument("--runs", type=int, default=3)
     parser.add_argument("--timeout", type=float, default=60)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.runs < 1 or not math.isfinite(args.timeout) or args.timeout <= 0:
         parser.error("runs and timeout must be positive and finite")
+    if args.baseline_compiler and not args.baseline_kernel_root:
+        parser.error("--baseline-compiler requires --baseline-kernel-root")
     compiler = binary(args.compiler)
     kernels = {"candidate": binary(args.kernel_root / ".lake/build/bin/vastitas-kernel")}
+    compilers = {"candidate": compiler}
     if args.baseline_kernel_root:
         kernels = {"baseline": binary(args.baseline_kernel_root / ".lake/build/bin/vastitas-kernel"),
                    **kernels}
+        compilers = {"baseline": binary(args.baseline_compiler) if args.baseline_compiler
+                     else compiler, **compilers}
     report = dict(host=platform.platform(), controlled_host=False, compiler=compiler,
-                  kernels=kernels, runs=args.runs, timeout_seconds=args.timeout, cases=[])
+                  compilers=compilers, kernels=kernels, runs=args.runs,
+                  timeout_seconds=args.timeout, cases=[])
     accepted = True
     with tempfile.TemporaryDirectory(prefix="vastitas-namespace-scaling-") as directory:
         directory = Path(directory)
@@ -66,9 +75,8 @@ def main():
                         source_sha256=hashlib.sha256(program.encode()).hexdigest(),
                         warmups={}, samples={label: [] for label in kernels})
             report["cases"].append(case)
-            command = [compiler["path"], "check", "--manifest-path", str(manifest)]
-
             def measure(label):
+                command = [compilers[label]["path"], "check", "--manifest-path", str(manifest)]
                 return observe(command, {**os.environ, "VASTITAS_KERNEL": kernels[label]["path"]},
                                args.timeout)
 

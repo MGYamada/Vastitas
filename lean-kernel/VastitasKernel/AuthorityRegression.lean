@@ -89,5 +89,12 @@ private def auditActive (test : Prepared program.indexed → State → Bool) : B
   | .ok prepared =>
     let transfer := { prepared.transfers.head! with id := ⟨⟨addon, []⟩, "forged"⟩ }
     rejects (runTrace program.indexed prepared [] { history := [transfer] }) "E_INTERNAL_AUTHORITY")
+#eval check "trace audit work is charged before each audit (#553)" (match prepare program.indexed with
+  | .error _ => false
+  | .ok prepared =>
+    -- The empty initial state alone costs more than one unit.
+    rejects (runTraceWith program.indexed prepared events {} 1) "E_LIMIT" &&
+      rejects (runTraceWith program.indexed prepared [] {} 1) "E_LIMIT" &&
+      (runTraceWith program.indexed prepared events {} Limits.authorityTraceWork).isOk)
 
 end VastitasKernel.Authority.Regression

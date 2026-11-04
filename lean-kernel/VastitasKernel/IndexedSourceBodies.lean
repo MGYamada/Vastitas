@@ -185,10 +185,23 @@ def legacyPackage (input : Input) (witness : Core.Term) (span : Span) : M Applic
 def legacyOperation (path : List String) : Bool :=
   [["Affine"], ["Base"], ["origin"], ["id"], ["dimension"], ["compose"], ["apply"]].contains path
 
+/-- Decided from the structured name tables, never from a diagnostic code. -/
 def legacyFallback (input : Input) (scope : Namespace.Scope) (path : Path) : Bool :=
-  legacyOperation path.path && match Namespace.resolve input.index scope path.path path.span with
-    | .error diagnostic => diagnostic.code == "E_NAME"
-    | .ok _ => false
+  match path.path with
+  | [name] => legacyOperation [name] && Namespace.unboundName input.index scope name
+  | _ => false
+
+theorem legacyFallback_unresolved (input : Input) (scope : Namespace.Scope) (path : Path)
+    (fallback : legacyFallback input scope path = true) :
+    ∃ diagnostic, Namespace.resolve input.index scope path.path path.span = .error diagnostic := by
+  unfold legacyFallback at fallback
+  split at fallback
+  · rename_i name single
+    rw [single]
+    simp only [Bool.and_eq_true] at fallback
+    obtain ⟨diagnostic, failed, _⟩ := Namespace.resolve_unboundName _ _ _ path.span fallback.2
+    exact ⟨diagnostic, failed⟩
+  · cases fallback
 
 def legacyMarker (name : String) (span : Span) : M BaseKind :=
   match name with
@@ -230,7 +243,7 @@ mutual
       | .integer value _ => do
           unless !value.isEmpty && value.toList.all (fun c => c >= '0' && c <= '9') do
             fail span "E_LITERAL" "integer literal must contain only decimal digits"
-          let some value := value.toNat? | fail span "E_LITERAL" "invalid decimal integer"
+          let some value := decimalNat? value | fail span "E_LITERAL" "invalid decimal integer"
           pure (if expected == some (.pure .nat) then .natural value else .integer (Int.ofNat value))
       | .boolean value _ => pure (.boolean value)
       | .unit _ => pure .unit

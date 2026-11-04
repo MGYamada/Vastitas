@@ -118,10 +118,11 @@ fn source_reserved_keywords_are_also_rejected_in_forged_ir() {
 fn named_endpoint_notes_are_deduplicated_and_aliases_keep_identity() {
     let source = "fn main() -> Int {\n let X = Affine(QQ, 2);\n let Alias = X;\n let Y = Affine(QQ, 2);\n let p = apply(id(Alias), origin(Y));\n 0\n}";
     let d = diagnostic(&check(&request(source)), "E_ENDPOINT");
-    let message = d["message"].as_str().unwrap();
-    assert!(message.contains("Morphism<X, X>"), "{d}");
-    assert!(message.contains("Point<Y, Base(QQ)>"), "{d}");
-    assert!(!message.contains("Scheme#"), "{d}");
+    assert_eq!(
+        d["message"],
+        "apply requires a point with target X (the map's source), but the supplied point has target Y",
+        "{d}"
+    );
     let notes = d["notes"].as_array().unwrap();
     assert_eq!(notes.len(), 2, "{d}");
     assert_eq!(notes[0]["span"]["line"], 2);
@@ -209,4 +210,116 @@ fn dependent_parameter_notes_refer_to_the_parameter_declarations() {
         assert!(note["message"].as_str().unwrap().contains("parameter"));
         assert_eq!(note["span"]["start"], source.find(name).unwrap());
     }
+}
+
+fn explained(source: &str) -> Value {
+    diagnostic(&check(&request(source)), "E_ENDPOINT")
+}
+
+#[test]
+fn rejected_apply_names_the_point_target_and_the_map_source() {
+    // The #602 reproduction: equal dimensions never identify X and Y.
+    let source = "fn main() -> Int {\n    let X = Affine(QQ, 3);\n    let Y = Affine(QQ, 3);\n    let point_x = origin(X);\n    let crossed = apply(id(Y), point_x);\n    0\n}";
+    let d = explained(source);
+    assert_eq!(
+        d["message"],
+        "apply requires a point with target Y (the map's source), but the supplied point has target X",
+        "{d}"
+    );
+    assert_eq!(d["span"]["line"], 5, "{d}");
+    assert_eq!(d["span"]["column"], 19, "{d}");
+    let notes = d["notes"].as_array().unwrap();
+    assert_eq!(notes.len(), 2, "{d}");
+    for (note, (name, line)) in notes.iter().zip([("Y", 3), ("X", 2)]) {
+        assert_eq!(note["span"]["line"], line, "{d}");
+        assert_eq!(
+            note["message"],
+            format!("object {name} was introduced here by Affine"),
+            "{d}"
+        );
+    }
+    assert_eq!(
+        check(&request(&source.replace("id(Y)", "id(X)")))["ok"],
+        true
+    );
+}
+
+#[test]
+fn rejected_compose_names_the_disagreeing_intermediate_endpoints() {
+    let d = explained(
+        "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let f = compose(id(X), id(Y)); 0 }",
+    );
+    assert_eq!(
+        d["message"],
+        "compose requires a second map with target X (the first map's source), but the supplied second map has target Y",
+        "{d}"
+    );
+    assert_eq!(d["notes"].as_array().unwrap().len(), 2, "{d}");
+    // Objects over different coefficient markers also name that difference.
+    let d = explained(
+        "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(CInfReal, 2); let f = compose(id(X), id(Y)); 0 }",
+    );
+    assert_eq!(
+        d["message"],
+        "compose requires a second map with target X (the first map's source), but the supplied second map has target Y, whose coefficient marker CInfReal differs from QQ",
+        "{d}"
+    );
+}
+
+#[test]
+fn family_failures_are_not_reported_as_endpoint_disagreements() {
+    for (call, message, notes) in [
+        (
+            "apply(origin(X), origin(X))",
+            "apply requires a map of family Morphism, but the supplied map has family Point",
+            1,
+        ),
+        // Every check fails here; the first operand's family is reported first.
+        (
+            "apply(origin(X), id(Y))",
+            "apply requires a map of family Morphism, but the supplied map has family Point",
+            2,
+        ),
+        (
+            "apply(id(X), id(Y))",
+            "apply requires a point of family Point, but the supplied point has family Morphism",
+            2,
+        ),
+        (
+            "compose(id(X), origin(Y))",
+            "compose requires a second map of family Morphism, but the supplied second map has family Point",
+            2,
+        ),
+    ] {
+        let d = explained(&format!(
+            "fn main() -> Int {{ let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = {call}; 0 }}"
+        ));
+        assert_eq!(d["message"], message, "{d}");
+        assert_eq!(d["notes"].as_array().unwrap().len(), notes, "{d}");
+    }
+}
+
+#[test]
+fn tampered_primitive_calls_remain_rejected_with_the_same_explanation() {
+    let mut raw = request(
+        "fn main() -> Int { let X = Affine(QQ, 2); let Y = Affine(QQ, 2); let p = apply(id(X), origin(X)); 0 }",
+    );
+    assert_eq!(check(&raw)["ok"], true);
+    let call = "/functions/0/body/statements/2/value";
+    let point = raw.pointer_mut(&format!("{call}/args/1/args/0")).unwrap();
+    assert_eq!(point["name"], "X");
+    point["name"] = json!("Y");
+    let d = diagnostic(&check(&raw), "E_ENDPOINT");
+    assert_eq!(
+        d["message"],
+        "apply requires a point with target X (the map's source), but the supplied point has target Y",
+        "{d}"
+    );
+    raw.pointer_mut(call).unwrap()["callee"] = json!("compose");
+    let d = diagnostic(&check(&raw), "E_ENDPOINT");
+    assert_eq!(
+        d["message"],
+        "compose requires a second map of family Morphism, but the supplied second map has family Point",
+        "{d}"
+    );
 }

@@ -19,7 +19,7 @@ The expression on the right uses the following notation.
 | --- | --- | --- |
 | UpperCamelCase | `UseDeclaration`, `UsePath` | A nonterminal, defined by its own production |
 | UPPER_CASE | `IDENTIFIER`, `INTEGER_LITERAL` | A token class that the lexer produces |
-| `` `text` `` | `` `use` ``, `` `::` ``, `` `;` `` | A keyword or punctuation token, spelled exactly as shown |
+| `` `text` `` | `` `use` ``, `` `::` ``, `` `;` `` | A keyword or punctuation token, spelled as shown |
 | x y | `` `use` UsePath `` | Sequence: x followed by y |
 | x \| y | `` IDENTIFIER \| `generic` `` | Either x or y |
 | x? | `` `pub`? `` | Zero or one x |

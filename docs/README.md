@@ -80,7 +80,7 @@ The later parts are references:
   the proof boundary and the standard-library admission rules.
 - **Appendices** collect the CLI and diagnostics references, the independent
   reference models, the compiler limits, the historical roadmap with the Stage 1
-  delivery records, and the contributor checks.
+  delivery records, the contributor checks and a glossary.
 
 | Task | Where to start |
 | --- | --- |

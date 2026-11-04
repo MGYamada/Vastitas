@@ -197,20 +197,6 @@ inductive PullbackMode where
 /-- The coordinates of a point, given as a program from the point object. -/
 def coordinates (point : Program) : List Rat := point.eval []
 
-/-- The pullback of `seed` along `map` at `point`. It is `none` unless the seed
-lies over the image of the point and has one component per target
-coordinate. -/
-def pullback (mode : PullbackMode) (map point : Program) (seed : FiberValue) : FiberValue :=
-  match seed with
-  | none => none
-  | some seed =>
-    let source := coordinates point
-    if seed.point == map.eval source && seed.components.length == map.outputArity then
-      some ⟨source, match mode with
-        | .saved => backwardSteps (map.forward source).steps seed.components
-        | .recomputed => map.reverse source seed.components⟩
-    else none
-
 /-- Save the forward values of `map` at `point`. -/
 def linearize (map point : Program) : Tape := map.forward (coordinates point)
 
@@ -224,10 +210,29 @@ def backward (tape : Tape) (seed : FiberValue) : FiberValue :=
       some ⟨tape.input, backwardSteps tape.steps seed.components⟩
     else none
 
-/-- The differential of a smooth function `φ : X → ℝ` at `point`: the pullback
-of the unit covector at `φ(point)`. -/
+/-- The pullback of `seed` along `map` at `point`. It is `none` unless the seed
+lies over the image of the point and has one component per target
+coordinate. The saved mode runs the forward pass once and checks the seed
+against the tape's output; the recomputing mode evaluates forward values
+again during the reverse pass. -/
+def pullback (mode : PullbackMode) (map point : Program) (seed : FiberValue) : FiberValue :=
+  match mode with
+  | .saved => backward (linearize map point) seed
+  | .recomputed =>
+    match seed with
+    | none => none
+    | some seed =>
+      let source := coordinates point
+      if seed.point == map.eval source && seed.components.length == map.outputArity then
+        some ⟨source, map.reverse source seed.components⟩
+      else none
+
+/-- The differential of a smooth function `φ : X → Affine(1)` at `point`: the
+pullback of the coordinate covector `dt` at `φ(point)`. It runs the forward
+pass once. -/
 def differential (function point : Program) : FiberValue :=
-  pullback .saved function point (some ⟨function.eval (coordinates point), [1]⟩)
+  let tape := linearize function point
+  backward tape (some ⟨tape.output, [1]⟩)
 
 /-- A fiber at `point` from integer components. -/
 def vector (point : Program) (components : List Int) : FiberValue :=
@@ -277,8 +282,10 @@ def sharp (inverse : Matrix) (value : FiberValue) : FiberValue := transform inve
 /-- A rational point of `ℝⁿ` from integer coordinates: a map from `ℝ⁰`. -/
 def intPoint (values : List Int) : Program := .primitive (Map.intPoint values)
 
-/-- Equality of the maps two programs denote. Canonical polynomials make this
-exact equality of polynomial maps. -/
+/-- Equality of the maps two programs denote, for two programs checked at one
+type `Smooth<X, Y>`. It compares images only: maps with different sources
+can have equal images. Canonical polynomials make this exact equality of
+polynomial maps. -/
 def same (left right : Program) : Bool := left.denote.images == right.denote.images
 
 /-- The composite as one primitive. -/

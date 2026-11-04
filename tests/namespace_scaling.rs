@@ -138,3 +138,55 @@ fn alias_queries_in_unused_functions_share_the_request_budget() {
     );
     assert_eq!(std::fs::read(previous).unwrap(), b"previous output");
 }
+
+// A root with many dependencies that all depend on one shared package. Each
+// manifest is loaded once, with a constant-time loaded-package lookup (#532).
+#[test]
+fn wide_diamond_dependency_closures_load_shared_packages_once() {
+    let width = 1000;
+    let s = Scratch::empty("diamond scaling");
+    let manifest = |name: &str, dependencies: &str| {
+        format!(
+            "[package]\nname='{name}'\nversion='0.1.0'\nroot='main.vast'\n[dependencies]\n{dependencies}"
+        )
+    };
+    s.write("shared/Vastitas.toml", &manifest("shared", ""));
+    s.write("shared/main.vast", "pub fn one() -> Int { 1 }\n");
+    let mut dependencies = String::new();
+    for i in 0..width {
+        s.write(
+            &format!("d{i}/Vastitas.toml"),
+            &manifest(&format!("d{i}"), "shared = { path = '../shared' }\n"),
+        );
+        s.write(
+            &format!("d{i}/main.vast"),
+            &format!("pub fn value() -> Int {{ shared::one() + {i} }}\n"),
+        );
+        dependencies.push_str(&format!("d{i} = {{ path = '../d{i}/.' }}\n"));
+    }
+    s.write("app/Vastitas.toml", &manifest("app", &dependencies));
+    s.write(
+        "app/main.vast",
+        &format!(
+            "fn main() -> Int {{ d0::value() + d{}::value() - {} }}\n",
+            width - 1,
+            width - 41
+        ),
+    );
+    let start = std::time::Instant::now();
+    success(
+        &cli()
+            .args(["build", "--manifest-path"])
+            .arg(s.0.join("app/Vastitas.toml"))
+            .arg("-o")
+            .arg(s.0.join("program"))
+            .output()
+            .unwrap(),
+    );
+    eprintln!("built a {width}-wide diamond in {:?}", start.elapsed());
+    let output = std::process::Command::new(s.0.join("program"))
+        .output()
+        .unwrap();
+    success(&output);
+    assert_eq!(output.stdout, b"42\n");
+}

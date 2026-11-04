@@ -8,7 +8,8 @@ use crate::ir::{
 use crate::limits::{MAX_MODULE_NESTING, MAX_PACKAGE_NESTING};
 use crate::sources::{OutputIdentity, Sources};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::ffi::OsString;
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 
@@ -209,14 +210,57 @@ struct PathDependency {
 struct Loader {
     sources: Sources,
     packages: Vec<Package>,
+    // Sources of `packages`, so a shared dependency is found in constant time.
+    loaded: HashSet<String>,
     active: HashSet<PathBuf>,
     output: Option<OutputIdentity>,
     module_count: usize,
+    /// On-disk entry names per directory, read once for exact-name lookup.
+    listings: HashMap<PathBuf, HashSet<OsString>>,
 }
 
 // Count logical modules across the selected closure, including inline modules
 // and independent uses of the same file. A depth limit alone cannot bound fanout.
 const MAX_LOADED_MODULES: usize = 4096;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Existence {
+    Missing,
+    Exact,
+    /// The path resolves, but some component's on-disk name differs (in case).
+    CaseMismatch,
+}
+
+/// Whether `base` joined with `names` exists with exactly these entry names.
+/// Case-insensitive filesystems (default macOS APFS) would otherwise resolve
+/// `mod Math;` to `math.vast`, or load one file for both `mod a;` and `mod A;`.
+/// Directory listings are cached, so sibling modules cost one `read_dir`.
+fn existence(
+    listings: &mut HashMap<PathBuf, HashSet<OsString>>,
+    base: &Path,
+    names: &[OsString],
+) -> std::io::Result<Existence> {
+    let path = names
+        .iter()
+        .fold(base.to_path_buf(), |path, name| path.join(name));
+    if !path.try_exists()? {
+        return Ok(Existence::Missing);
+    }
+    let mut directory = base.to_path_buf();
+    for name in names {
+        if !listings.contains_key(&directory) {
+            let entries = std::fs::read_dir(&directory)?
+                .map(|entry| entry.map(|entry| entry.file_name()))
+                .collect::<std::io::Result<HashSet<_>>>()?;
+            listings.insert(directory.clone(), entries);
+        }
+        if !listings[&directory].contains(name) {
+            return Ok(Existence::CaseMismatch);
+        }
+        directory.push(name);
+    }
+    Ok(Existence::Exact)
+}
 
 fn canonical(path: &Path) -> Result<PathBuf, String> {
     path.canonicalize()
@@ -250,7 +294,7 @@ impl Loader {
                 manifest.display()
             ));
         }
-        if self.packages.iter().any(|package| package.source == source) {
+        if self.loaded.contains(&source) {
             return Ok(source);
         }
         if self.active.len() >= MAX_PACKAGE_NESTING {
@@ -311,6 +355,7 @@ impl Loader {
             &mut seen,
             &mut modules,
         )?;
+        self.loaded.insert(source.clone());
         self.packages.push(Package {
             source: source.clone(),
             name: parsed.package.name,
@@ -392,10 +437,43 @@ impl Loader {
                 .fold(base.to_path_buf(), |dir, part| dir.join(part));
             let flat = logical.with_extension("vast");
             let nested = logical.join("mod.vast");
-            let file = match (flat.try_exists(), nested.try_exists()) {
-                (Ok(true), Ok(false)) => flat,
-                (Ok(false), Ok(true)) => nested,
-                (Ok(true), Ok(true)) => {
+            let (leaf, parents) = external.path.split_last().expect("module path");
+            let flat_names: Vec<OsString> = parents
+                .iter()
+                .map(OsString::from)
+                .chain([OsString::from(format!("{leaf}.vast"))])
+                .collect();
+            let nested_names: Vec<OsString> = external
+                .path
+                .iter()
+                .map(OsString::from)
+                .chain([OsString::from("mod.vast")])
+                .collect();
+            use Existence::{CaseMismatch, Exact, Missing};
+            let file = match (
+                existence(&mut self.listings, base, &flat_names).ok(),
+                existence(&mut self.listings, base, &nested_names).ok(),
+            ) {
+                (Some(Exact), Some(Missing | CaseMismatch)) => flat,
+                (Some(Missing | CaseMismatch), Some(Exact)) => nested,
+                (Some(flat_state), Some(nested_state))
+                    if flat_state == CaseMismatch || nested_state == CaseMismatch =>
+                {
+                    let spelled = if flat_state == CaseMismatch {
+                        &flat
+                    } else {
+                        &nested
+                    };
+                    return Err(self.sources.diagnostic(
+                        "E_INPUT",
+                        &format!(
+                            "module path {} matches a file only case-insensitively; module names are case-sensitive",
+                            spelled.display()
+                        ),
+                        external.span,
+                    ));
+                }
+                (Some(Exact), Some(Exact)) => {
                     return Err(self.sources.diagnostic(
                         "E_INPUT",
                         &format!(
@@ -406,7 +484,7 @@ impl Loader {
                         external.span,
                     ));
                 }
-                (Ok(false), Ok(false)) => {
+                (Some(Missing), Some(Missing)) => {
                     return Err(self.sources.diagnostic(
                         "E_INPUT",
                         &format!("module requires {} or {}", flat.display(), nested.display()),
@@ -441,9 +519,11 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
     let mut loader = Loader {
         sources: Sources::empty(),
         packages: Vec::new(),
+        loaded: HashSet::new(),
         active: HashSet::new(),
         output: output.map(OutputIdentity::inspect).transpose()?.flatten(),
         module_count: 0,
+        listings: HashMap::new(),
     };
     let root = loader.package(manifest)?;
     // Preserve recipient names verbatim. The kernel alone resolves them in the

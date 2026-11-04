@@ -203,6 +203,10 @@ already-tracked error result: one 16-byte `IO.Error` constructor and a string wi
 76 requested / 80 usable bytes (44 UTF-8 bytes including its terminator). Their
 two allocations / 96 binned bytes are separate from the selected error-result
 object and explain the additional channel in the retained checked failure runs.
+Since #536 the mismatch message names its cell and both payloads, so a new run's
+string has a case-dependent length of at most 362 bytes including its terminator.
+The verifier then requires its 32-byte string header and mimalloc bin exactly and
+takes the payload bytes from those actual objects.
 The verifier retains any further unattributed allocation explicitly. Counts and
 bytes from overlapping channels must never be added together as separate costs.
 

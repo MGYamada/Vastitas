@@ -37,6 +37,8 @@ const POLICY_KEYS: [&str; 9] = [
 ];
 /// Checker diagnostics shown to the user, in characters.
 const DIAGNOSTIC_CHARS: usize = 2000;
+/// Standard output retained from the toolchain binaries, in bytes.
+const STDOUT_LIMIT: usize = 64 * 1024;
 
 static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
@@ -162,14 +164,20 @@ fn toolchain_executable(directory: &Path, name: &str) -> Result<PathBuf, String>
 }
 
 fn run(command: Command, program: &str) -> Result<Output, String> {
-    use crate::process::CaptureError;
-    crate::process::capture(command, None).map_err(|error| match error {
+    use crate::process::{CaptureError, Retention};
+    // Standard output holds only a version line, the help text or the success
+    // message; `capture` keeps a bounded tail of standard error.
+    let stdout = Retention::Complete(STDOUT_LIMIT);
+    crate::process::capture(command, None, stdout).map_err(|error| match error {
         CaptureError::Interrupted => "E_LEAN_AUDIT: audit interrupted".into(),
         CaptureError::Spawn(error) => {
             format!("E_LEAN_AUDIT_CHECKER: cannot start {program}: {error}")
         }
         CaptureError::Wait(error) => format!("E_LEAN_AUDIT: waiting for {program} failed: {error}"),
         CaptureError::Io(error) => format!("E_LEAN_AUDIT: {program} I/O failed: {error}"),
+        CaptureError::OutputLimit(limit) => {
+            format!("E_LEAN_AUDIT: {program} wrote more than {limit} bytes to standard output")
+        }
     })
 }
 

@@ -16,11 +16,16 @@ and remove the temporary project and staging output. Existing output is kept
 until the final atomic replacement. SIGKILL or a host crash cannot run cleanup.
 Ctrl-Z suspends the driver only; its separate child process group may continue.
 
-At the pre-book revision, validation of an existing output symlink concerns
-its target, while final replacement affects the link itself. The native
-manifest path escaping and process-group cleanup limits are tracked
-separately. The version banner reports the package version and supported wire protocols 2–9.
-[Output links, #519](https://github.com/MGYamada/Vastitas/issues/519) · [Process cleanup, #520](https://github.com/MGYamada/Vastitas/issues/520) · [Version banner, #521](https://github.com/MGYamada/Vastitas/issues/521) · [Native manifest paths, #522](https://github.com/MGYamada/Vastitas/issues/522)
+An existing output symlink to a regular file is written through: the binary is
+staged beside the link's final target and atomically replaces it, so the link
+survives, and input protection compares that target. The output directory must
+accept a staging file before the backend runs. The temporary Lake project is
+private (mode 0700) whatever the umask. Generated Lake manifests escape paths
+for TOML or Lean syntax; non-UTF-8 kernel, runtime or OpenBLAS paths are
+rejected by name. Diagnostics keep the last 1 MiB of each child stream, and a
+backend response may not exceed 256 MiB. Once the direct child has exited and
+its process group is empty, cleanup no longer signals that group ID.
+The version banner reports the package version and supported wire protocols 2–9.
 
 Storage and numerical builds coordinate access to their shared optional native
 packages, including aliased paths. Waiting is interruptible; builds using only
@@ -37,6 +42,14 @@ trusted backend executable and kernel package directory for development.
 The backend build includes the native runtime. `check` needs only the executable
 when explicitly selected; `build` also needs the package and uses its pinned
 `lean-toolchain` for the generated project.
+
+Every backend response reports the kernel's build identity: a digest of the
+kernel sources it was compiled from and its Lean version. The driver rejects a
+backend built from other sources or with another Lean (`E_BACKEND: incompatible
+kernel`), so rebuild the kernel (`lake -d <root> build vastitas-kernel`) after
+updating the compiler or its sources. `build` also requires the package's
+`lean-toolchain` to equal the compiler's pin and `lean --version`, resolved as
+Lake resolves it, to report that version; otherwise it stops before Lake runs.
 
 ### Internal Lean proof audit (v0.1.0 gate)
 

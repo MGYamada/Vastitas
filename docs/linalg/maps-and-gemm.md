@@ -750,7 +750,11 @@ programs do not invoke this builder or link OpenBLAS. The numerical CI job is
 separate from both no-mathlib compiler jobs. The adapter includes the installed
 CBLAS header and checks the linked library's version, integer ABI and threading
 before any GEMM. It rejects ILP64 and unsupported threaded builds; it never changes
-process-wide thread settings inside an operation. The linked static backend is
+process-wide thread settings inside an operation. A sequential build must also
+report `USE_LOCKING` in its configuration: OpenBLAS 0.3.34 serializes its shared
+buffer pool only in locked or threaded builds, and concurrent operations on
+distinct arenas rely on that lock. The builder checks the installed archive's
+reported profile and fails closed before recording a prefix. The linked static backend is
 validated once with `pthread_once`; both success and failure statuses are cached.
 `vgemm_configuration` shares that initialization and returns an immutable copy,
 avoiding repeated writes to OpenBLAS's global configuration buffer during
@@ -806,7 +810,8 @@ alias one another; output must be disjoint from both. Disjoint views in one
 allocation are permitted only when their physical bounding byte intervals do not
 overlap. Unsupported layouts are rejected; no implicit packing or alias-repair
 copy is introduced. CBLAS receives column-major buffers through one direct
-`dgemm` or `zgemm` call for nondegenerate compatible operands.
+`dgemm` or `zgemm` call for nondegenerate compatible operands, except that a
+1×1 output uses the [fused scalar path](#numerical-adapter--scalar-outputs).
 
 Transpose and conjugation are independent input operations. Complex inputs use
 N (neither), T (transpose), R (conjugation without transpose), or C (both).
@@ -833,6 +838,22 @@ and other beta values scale C in place, without a BLAS call. Any preflight failu
 bytes, write counters and the returned operation report unchanged. The native
 BLAS routine has no recoverable partial-write result; crashes and violations of
 its contract are outside this guarantee.
+
+<a id="numerical-adapter--scalar-outputs"></a>
+A 1×1 output with a nonzero inner dimension, as in vector evaluation and the
+diagonal Hermitian pairing, does not enter the BLAS driver. The adapter computes
+`beta*C + alpha*sum_p op(A[0,p]) op(B[p,0])` in one native loop over the same
+checked views, strides and conjugation flags, with no packing or BLAS workspace.
+The sum starts at +0 and adds each product in increasing p. Every product,
+difference and sum is separately rounded, with no FMA contraction, so the result
+does not depend on the host's BLAS kernel. It can differ in the last bits from
+the former `dgemm`/`zgemm` call, whose kernels may use FMA and their own order.
+As in the pinned level-3 driver, zero beta reads no old output, one beta
+preserves it, and zero alpha reads neither input; an alpha of one is applied
+exactly. Preflight, write accounting and the returned report are unchanged; the
+loop counts as the operation's one kernel call. When every product and partial
+sum is exactly representable, the result equals the former call bit for bit;
+the adapter tests check this for every orientation, conjugation and coefficient form.
 
 ### Evidence and remaining obligations
 

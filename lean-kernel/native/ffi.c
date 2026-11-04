@@ -74,10 +74,19 @@ LEAN_EXPORT lean_obj_res vastitas_storage_store(b_lean_obj_arg arena, uint32_t i
         uint64_t row, uint64_t column, uint8_t scalar, uint64_t real, uint64_t imaginary) {
     return result(vstorage_store(arena_data(arena), id, (VStorageLayout){offset,rows,columns,leading,transposed}, row, column, scalar, real, imaginary));
 }
+/* Success keeps the shared result. A bit mismatch reports the compared cell's
+ * stored and expected payloads; every other status keeps its fixed message. */
 LEAN_EXPORT lean_obj_res vastitas_storage_expect(b_lean_obj_arg arena, uint32_t id,
         uint64_t offset, uint64_t rows, uint64_t columns, uint64_t leading, uint8_t transposed,
         uint64_t row, uint64_t column, uint8_t scalar, uint64_t real, uint64_t imaginary) {
-    return result(vstorage_expect(arena_data(arena), id, (VStorageLayout){offset,rows,columns,leading,transposed}, row, column, scalar, real, imaginary));
+    uint64_t observed[2], expected[2] = {real, imaginary};
+    VStorageStatus status = vstorage_expect_observed(arena_data(arena), id,
+        (VStorageLayout){offset,rows,columns,leading,transposed}, row, column, scalar, real, imaginary, observed);
+    char message[VSTORAGE_EXPECT_MESSAGE_BYTES];
+    if (status != VS_EXPECT ||
+        !vstorage_expect_message(message, sizeof(message), row, column, scalar, observed, expected))
+        return result(status);
+    return lean_io_result_mk_error(lean_mk_io_user_error(lean_mk_string(message)));
 }
 LEAN_EXPORT lean_obj_res vastitas_storage_copy(b_lean_obj_arg arena, uint32_t source,
         uint64_t source_offset, uint64_t source_rows, uint64_t source_columns, uint64_t source_leading, uint8_t source_transposed,

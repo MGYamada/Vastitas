@@ -450,7 +450,8 @@ fn interrupted_audit_terminates_and_reaps_the_checker() {
             }
         };
         kill(Pid::from_raw(child.id() as i32), signal).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let signalled = Instant::now();
+        let deadline = signalled + Duration::from_secs(5);
         while child.try_wait().unwrap().is_none() {
             if Instant::now() >= deadline {
                 drop(writer);
@@ -461,6 +462,14 @@ fn interrupted_audit_terminates_and_reaps_the_checker() {
             }
             std::thread::sleep(Duration::from_millis(10));
         }
+        // #564 (4): the checker keeps default signal dispositions, so the
+        // forwarded signal itself stops it; escalation would take the 1 s
+        // TERM grace period before SIGKILL.
+        let stopped = signalled.elapsed();
+        assert!(
+            stopped < Duration::from_millis(900),
+            "{signal}: {stopped:?}"
+        );
         let output = child.wait_with_output().unwrap();
         assert_eq!(output.status.code(), Some(code));
         assert!(

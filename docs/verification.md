@@ -1613,3 +1613,24 @@ unrelated buffer contains a matrix product or that NativeFast arithmetic refines
 the ideal formulas. No mathlib, custom axiom, numerical error bound, or native
 refinement claim is added. Native bit/cost and failure-preservation tests are
 separate evidence.
+
+## Exact affine algebra checker (Stage 2, #571)
+
+Stage 2's finite affine-geometry profile ([tracker](https://github.com/MGYamada/Vastitas/issues/571)) rests on an exact QQ polynomial core. It is internal for now: no source syntax or wire field reaches it until the protocol-9 surface lands.
+
+- **Runtime arithmetic.** `lean-kernel/VastitasKernel/AlgebraRuntime.lean` imports only Init, and `scripts/check_boundaries.py` enforces this as a runtime boundary. It keeps sparse polynomials canonical: exact core `Rat` coefficients, nonzero terms, and strictly decreasing monomials in degLex order (total degree first, then lexicographic with coordinate 0 most significant). Division takes fuel from an order embedding of the dividend's leading monomial, so evaluation is total and the exact invariant `dividend = Σ qᵢgᵢ + remainder + rest` holds at every step. Maps between presented objects carry their source ring's basis, so composition, pairing, equality and coefficient reads need no environment.
+- **Bases.** In `AlgebraBasis.lean`, `compute` runs Buchberger's algorithm with cofactor tracking. It is untrusted. `verify` independently checks a stored certificate:
+  - the basis is canonical, monic, strictly ordered and reduced;
+  - each basis element is its cofactor combination of the relations;
+  - each relation and each S-pair divides to remainder zero, with the quotient identity, and for S-pairs the standard-representation bound, checked exactly.
+
+  Both phases share the `algebraWork` budget, and every produced polynomial is bounded by `algebraTerms`. A violation is `E_LIMIT`; a failed identity is `E_AFFINE_RELATION`.
+- **Proved.** `VastitasOracle.AlgebraBasis.verify_sound` and `certify_sound` show that a successful verification establishes every recorded identity (`CertificateValid`). These are identities between kernel `Poly` operations. The correspondence of those operations with `MvPolynomial (Fin n) ℚ`, and the canonical normal forms given by Buchberger's criterion, belong to the mathlib bridge and are not claimed here.
+- **Tested.** `VastitasAlgebraTest.BasisRegression`, run by `scripts/check_kernel_regressions.sh`, compares the kernel's bases and normal forms with the independent Python model `scripts/affine_algebra_reference.py`, using the shared fixture `tests/fixtures/algebra-bases.json`. It also checks:
+  - that ε survives, and ε² vanishes, in QQ[e]/(e²);
+  - the written order of pullback composition;
+  - forged, unordered, non-reduced and incomplete certificates;
+  - the 16/17-generator and 32/33-relation boundaries;
+  - the term and work budgets.
+
+  `python3 scripts/affine_algebra_reference.py --check` keeps the fixture current, and `scripts/test_affine_algebra_reference.py` checks the Python model's own Buchberger, reducedness and divisor-order invariants.

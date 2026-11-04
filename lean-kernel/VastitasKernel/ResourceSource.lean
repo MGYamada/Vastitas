@@ -185,20 +185,6 @@ def Program.entry (program : Program) : Option Nat :=
   ((program.owned.zipIdx).find? fun ((owner, _), _) => owner.name == "main" &&
     owner.scope.package.source == program.root && owner.scope.path.isEmpty).map Prod.snd
 
-def Function.resourceNames (function : Function) : List String :=
-  function.parameters.map Parameter.name ++ function.body.flatMap fun statement =>
-    match statement with
-    | .runtime (.allocate name ..) _ | .runtime (.move _ name) _ | .runtime (.borrow name ..) _ => [name]
-    | .runtimeNumerical (.space name ..) _ | .runtimeNumerical (.basis name ..) _
-      | .runtimeNumerical (.map name ..) _ => [name]
-    | .action (.allocate name ..) _ | .action (.move _ name) _ | .action (.borrow name ..) _ => [name]
-    | .numerical (.space name ..) _ | .numerical (.basis name ..) _ | .numerical (.map name ..) _
-    | .numerical (.ownedMap name ..) _ | .numerical (.ownedView name ..) _
-    | .numerical (.borrowOwned name ..) _ => [name]
-    | .tensor (.view name ..) _ | .tensor (.cachedPack name ..) _ => [name]
-    | .call _ _ results _ => results
-    | _ => []
-
 inductive BindingKind where
   | owner | loan | numerical | scalar (type : Indexed.Core.PureType)
   | runtimeOwner | runtimeLoan | runtimeNumerical
@@ -920,13 +906,18 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
                 | _ => "within this resource statement"
             unless notes.any (fun note => note.message == message && decide (note.span = location)) do
               notes := notes ++ [⟨message, location⟩]
-      if let some function := lowered.functions.find? (·.id == primary.function) then
-        let bindings := functionBindings source function
-        for entry in primary.subjects do
-          if let some (_, name, introduced) := bindings.find? (·.1 == entry.name) then
-            let message := s!"{entry.role} is `{name}`, introduced here"
-            unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
-              notes := notes ++ [⟨message, introduced⟩]
+      -- Function-exit subjects (leaked owners or loans) stay with the callee
+      -- whose result failed, even when the primary span is its caller.
+      let subjectSites := primary :: sites.filter fun site => site.place == .result && site != primary
+      for site in subjectSites do
+        if let some (_, original) := owned[site.function]? then
+          if let some function := lowered.functions.find? (·.id == site.function) then
+            let bindings := functionBindings original function
+            for entry in site.subjects do
+              if let some (_, name, introduced) := bindings.find? (·.1 == entry.name) then
+                let message := s!"{entry.role} is `{name}`, introduced here"
+                unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
+                  notes := notes ++ [⟨message, introduced⟩]
       return ⟨error.code, error.message, span, notes.take 32⟩
   -- Header-only failures have no expanded statement. Never re-run every body
   -- probe merely to decorate a diagnostic.

@@ -131,7 +131,8 @@ The inspected base is main `e01fe1d51fa5faf089e52a7b5a07223031db1b7c`.
 
 `from_kernel_response(response, expected_version)` accepts the actual failure
 envelope shape, checks the matching wire version, preserves all diagnostics,
-and refuses an accepted response. It does **not** parse provenance out of message
+and refuses an accepted response. It checks the shape of the response's
+`kernel` build identity but imports nothing from it. It does **not** parse provenance out of message
 text, import aliases, local paths or supplied hashes. Saved JSON itself is not an
 authenticated checker receipt. With no ledger, phase/obligation ID/participants/
 holder/environment remain unresolved and both identity keys are null. The CLI

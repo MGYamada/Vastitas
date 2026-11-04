@@ -46,7 +46,7 @@ def genericArity (p : Indexed) (target : Namespace.Target) (span : Span) : Resul
 scope. The full resulting method syntax is retained, not merely a call ledger. -/
 def lowerContribution (p : Indexed) (scope : Scope) (contribution : Namespace.Contribution) :
     Namespace.M ContributionEntry := do
-  let target ← Namespace.lookup p scope (String.intercalate "::" contribution.target) contribution.span
+  let target ← Namespace.lookupPath p scope contribution.target contribution.span
   requireKind target .generic contribution.span
   let methods ← contribution.methods.mapM fun method => do
     let actual ← Namespace.lookup p scope method.name method.span
@@ -74,7 +74,8 @@ def ContributionsCorrespond (p : Indexed) (prepared : Prepared p) : Prop :=
 instance : Decidable (ContributionsCorrespond p prepared) := inferInstanceAs (Decidable (_ = _))
 
 def lowerGrant (p : Indexed) (scope : Scope) (grant : Namespace.Grant) : Namespace.M GrantEntry := do
-  let target ← Namespace.lookup p scope (String.intercalate "::" grant.target) grant.span (!p.authority)
+  let target ← Namespace.lookupPath p scope grant.target grant.span (!p.authority)
+  requireKind target .generic grant.span
   let arity ← genericArity p target grant.span
   let granteePackage ← recipientPackage p grant.granteePackage grant.span
   let grantee : Scope := ⟨granteePackage.id, grant.granteePath⟩

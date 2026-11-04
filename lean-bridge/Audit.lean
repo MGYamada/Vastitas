@@ -14,7 +14,20 @@ run_cmd do
       `VastitasBridge.Analysis.DaleckiiKrein.hasFDerivAt_cfc,
       `VastitasBridge.Analysis.DaleckiiKrein.matrix_hasFDerivAt_cfc,
       `VastitasBridge.Analysis.DaleckiiKrein.matrix_fderiv_cfc_apply,
-      `VastitasBridge.Analysis.DaleckiiKrein.fderiv_cfc_scalar] do
+      `VastitasBridge.Analysis.DaleckiiKrein.fderiv_cfc_scalar,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.exists_isStandardRep,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.isGroebnerBasis_of_sPairReduces,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.span_leadingTerm,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.normalForm_unique,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.sub_mem_iff_normalForm_eq,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.mem_iff_normalForm_eq_zero,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.exists_isNormalForm,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.IsGroebnerBasis.span_eq,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.span_eq_of_cofactors,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.isGroebnerBasis_of_certificate,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.list_isGroebnerBasis_of_certificate,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.sPairReduces_of_normalized,
+      `VastitasBridge.AlgebraicGeometry.Buchberger.degLex_lt_iff_exists] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would

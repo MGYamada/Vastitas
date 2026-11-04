@@ -16,6 +16,9 @@ initialization and actual-call checks. Static shapes retain their original contr
 scalar values flow between checked pure computations, resource calls and runtime branches.
 This bounded profile does not complete [Stage 1](../stage1-completion.md).
 
+Resource functions exist only in manifest mode. A flat-mode file that declares
+`resource fn` is rejected with `E_UNSUPPORTED`.
+
 The [complete example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/app/src/main.vast) imports
 resource functions from a separate directory-aligned package, receives an owned
 buffer, borrows it for inspection, moves it through another function, drops it,

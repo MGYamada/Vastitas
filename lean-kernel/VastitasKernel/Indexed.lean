@@ -58,9 +58,19 @@ is empty. Endpoint representations are sealed and require an explicit contract.
 `relative` is the sealed three-index `MorphismOver(X, Y, S)` of presented
 objects (Stage 2); its runtime value is an exact pullback map. `smooth` is the
 sealed two-index `Smooth(X, Y)` of smooth objects (Stage 3); its runtime value
-is a `SmoothRuntime.Program`. -/
+is a `SmoothRuntime.Program`. `fiber` is the sealed one-index `Tangent(X)` or
+`Cotangent(X)` of a smooth object: its runtime value is a vector or covector at
+a point of `X`, or the failure value. `tape` is the sealed two-index
+`Tape(X, Y)`: the saved forward values of a smooth program `X → Y` at a point.
+Only `linearize` constructs a tape. -/
+inductive Variance where
+  | tangent | cotangent
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
+  | fiber (variance : Variance)
+  | tape
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
@@ -381,6 +391,16 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
         | .object id => (domain env id).all (presentedImplementation env)
         | _ => false) = true
   | .smooth => f.parameters.length = 2 ∧
+      f.constraints = [.canonical 0, .canonical 1] ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (smoothImplementation env)
+        | _ => false) = true
+  | .fiber _ => f.parameters.length = 1 ∧
+      f.constraints = [.canonical 0] ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (smoothImplementation env)
+        | _ => false) = true
+  | .tape => f.parameters.length = 2 ∧
       f.constraints = [.canonical 0, .canonical 1] ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)

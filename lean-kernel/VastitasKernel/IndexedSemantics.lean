@@ -65,7 +65,24 @@ inductive IndexedValue where
   | relative (value : AlgebraRuntime.Map)
   /-- A smooth map between smooth objects: the program that checked Core builds. -/
   | smooth (value : SmoothRuntime.Program)
+  /-- A vector or covector at a point of a smooth object, or the failure value
+  `none`. The variance is the variance of its family. -/
+  | fiber (variance : Variance) (value : SmoothRuntime.FiberValue)
+  /-- The saved forward values of a smooth program at a point. -/
+  | tape (value : SmoothRuntime.Tape)
   deriving Repr, DecidableEq
+
+/-- A fiber over a smooth object of dimension `dimension`: the failure value,
+or a point and components with `dimension` entries each. -/
+def FiberTyped (dimension : Nat) : SmoothRuntime.FiberValue → Prop
+  | none => True
+  | some fiber => fiber.point.length = dimension ∧ fiber.components.length = dimension
+
+/-- The residual relation of a tape `ℝⁿ → ℝᵐ`: it is the forward record of a
+program checked as `ℝⁿ → ℝᵐ` at a point with `n` coordinates. -/
+def TapeTyped (source target : Nat) (tape : SmoothRuntime.Tape) : Prop :=
+  ∃ (program : SmoothRuntime.Program) (point : List Rat),
+    program.wellTyped source target = true ∧ point.length = source ∧ tape = program.forward point
 
 /-- Tokens also retain every object-index obligation through the world. Empty
 runtime representation does not permit an undefined or ill-typed local brand. -/
@@ -81,6 +98,11 @@ def IndexedHasType (env : Indexed.Environment) (world : World)
   | .smooth program, some .smooth, [.object (.global source), .object (.global target)] =>
       ∃ n m, smoothDimension? env source = some n ∧ smoothDimension? env target = some m ∧
         program.wellTyped n m = true
+  | .fiber variance value, some (.fiber variance'), [.object (.global object)] =>
+      variance = variance' ∧ ∃ n, smoothDimension? env object = some n ∧ FiberTyped n value
+  | .tape tape, some .tape, [.object (.global source), .object (.global target)] =>
+      ∃ n m, smoothDimension? env source = some n ∧ smoothDimension? env target = some m ∧
+        TapeTyped n m tape
   | _, _, _ => False
 
 inductive Value where
@@ -211,6 +233,14 @@ def smoothPointValue (values : List Value) : Option Value := do
   let coordinates ← values.mapM Value.integer?
   pure (.indexed (.smooth (SmoothRuntime.intPoint coordinates)))
 
+/-- A fiber of `family` at `point` from integer components. Its variance is
+the declared variance of `family`. -/
+def fiberVectorValue (env : Indexed.Environment) (family : DeclId) (point : SmoothRuntime.Program)
+    (values : List Value) : Option Value := do
+  let variance ← fiberVariance? env family
+  let components ← values.mapM Value.integer?
+  pure (.indexed (.fiber variance (SmoothRuntime.vector point components)))
+
 def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value → Option Value
   | .descriptor implementation, [.natural dimension] =>
       some (.object ⟨implementation, IndexedRuntime.descriptor dimension⟩)
@@ -244,6 +274,25 @@ def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value 
   | .smoothIntPoint .., values => smoothPointValue values
   | .smoothComposite _, [.indexed (.smooth program)] =>
       some (.indexed (.smooth (SmoothRuntime.composite program)))
+  | .fiberVector family .., .indexed (.smooth point) :: components => fiberVectorValue env family point components
+  | .fiberAt .., [.indexed (.fiber _ value), .indexed (.smooth point)] =>
+      some (.boolean (SmoothRuntime.fiberAt value point))
+  | .fiberEqual _, [.indexed (.fiber _ left), .indexed (.fiber _ right)] =>
+      some (.boolean (SmoothRuntime.fiberEqual left right))
+  | .fiberComponent _ _ coordinate, [.indexed (.fiber _ value)] =>
+      let (numerator, denominator) := SmoothRuntime.component value coordinate
+      some (.pairInt numerator denominator)
+  | .fiberPairing .., [.indexed (.fiber _ covector), .indexed (.fiber _ vector)] =>
+      let (numerator, denominator) := SmoothRuntime.pairing covector vector
+      some (.pairInt numerator denominator)
+  | .cotangentPullback _ _ mode, [.indexed (.smooth map), .indexed (.smooth point), .indexed (.fiber _ seed)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.pullback mode map point seed)))
+  | .differential .., [.indexed (.smooth function), .indexed (.smooth point)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.differential function point)))
+  | .linearize .., [.indexed (.smooth map), .indexed (.smooth point)] =>
+      some (.indexed (.tape (SmoothRuntime.linearize map point)))
+  | .cotangentBackward .., [.indexed (.tape tape), .indexed (.fiber _ seed)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.backward tape seed)))
   | _, _ => none
 
 /-- The closed registry's erased operands/results use the actual runtime
@@ -256,6 +305,8 @@ inductive PrimitiveRuntimeValue where
   | morphism (value : IndexedRuntime.Morphism)
   | relative (value : AlgebraRuntime.Map)
   | smooth (value : SmoothRuntime.Program)
+  | fiber (value : SmoothRuntime.FiberValue)
+  | tape (value : SmoothRuntime.Tape)
   | boolean (value : Bool)
   | integer (value : Int)
   | pairInt (first second : Int)
@@ -271,6 +322,8 @@ def erasePrimitiveValue : Value → Option PrimitiveRuntimeValue
   | .indexed (.point point) => some (.point point.erase)
   | .indexed (.morphism map) => some (.morphism map.erase)
   | .indexed (.smooth program) => some (.smooth program)
+  | .indexed (.fiber _ value) => some (.fiber value)
+  | .indexed (.tape tape) => some (.tape tape)
   | _ => none
 
 def PrimitiveRuntimeValue.integer? : PrimitiveRuntimeValue → Option Int
@@ -284,6 +337,11 @@ def intPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRunt
 def smoothPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRuntimeValue := do
   let coordinates ← values.mapM PrimitiveRuntimeValue.integer?
   pure (.smooth (SmoothRuntime.intPoint coordinates))
+
+def fiberVectorRuntime (point : SmoothRuntime.Program) (values : List PrimitiveRuntimeValue) :
+    Option PrimitiveRuntimeValue := do
+  let components ← values.mapM PrimitiveRuntimeValue.integer?
+  pure (.fiber (SmoothRuntime.vector point components))
 
 def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue
   | .descriptor _, [.natural dimension] => some (.object (IndexedRuntime.descriptor dimension))
@@ -308,6 +366,21 @@ def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → O
   | .smoothEqual _, [.smooth left, .smooth right] => some (.boolean (SmoothRuntime.same left right))
   | .smoothIntPoint .., values => smoothPointRuntime values
   | .smoothComposite _, [.smooth program] => some (.smooth (SmoothRuntime.composite program))
+  | .fiberVector .., .smooth point :: components => fiberVectorRuntime point components
+  | .fiberAt .., [.fiber value, .smooth point] => some (.boolean (SmoothRuntime.fiberAt value point))
+  | .fiberEqual _, [.fiber left, .fiber right] => some (.boolean (SmoothRuntime.fiberEqual left right))
+  | .fiberComponent _ _ coordinate, [.fiber value] =>
+      let (numerator, denominator) := SmoothRuntime.component value coordinate
+      some (.pairInt numerator denominator)
+  | .fiberPairing .., [.fiber covector, .fiber vector] =>
+      let (numerator, denominator) := SmoothRuntime.pairing covector vector
+      some (.pairInt numerator denominator)
+  | .cotangentPullback _ _ mode, [.smooth map, .smooth point, .fiber seed] =>
+      some (.fiber (SmoothRuntime.pullback mode map point seed))
+  | .differential .., [.smooth function, .smooth point] =>
+      some (.fiber (SmoothRuntime.differential function point))
+  | .linearize .., [.smooth map, .smooth point] => some (.tape (SmoothRuntime.linearize map point))
+  | .cotangentBackward .., [.tape tape, .fiber seed] => some (.fiber (SmoothRuntime.backward tape seed))
   | _, _ => none
 
 def evalPair : PairElem → Value → Value → Option Value

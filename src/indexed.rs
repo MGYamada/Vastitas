@@ -166,6 +166,15 @@ impl DeclarationBody {
                     | Primitive::SmoothEqual { .. }
                     | Primitive::SmoothComposite { .. }
                     | Primitive::SmoothIntPoint { .. }
+                    | Primitive::FiberVector { .. }
+                    | Primitive::FiberAt { .. }
+                    | Primitive::FiberEqual { .. }
+                    | Primitive::FiberComponent { .. }
+                    | Primitive::FiberPairing { .. }
+                    | Primitive::CotangentPullback { .. }
+                    | Primitive::Differential { .. }
+                    | Primitive::Linearize { .. }
+                    | Primitive::CotangentBackward { .. }
             ),
             DeclarationBody::Implementation { representation, .. } => matches!(
                 representation,
@@ -178,7 +187,11 @@ impl DeclarationBody {
             } => {
                 matches!(
                     representation,
-                    FamilyRepresentation::Relative | FamilyRepresentation::Smooth
+                    FamilyRepresentation::Relative
+                        | FamilyRepresentation::Smooth
+                        | FamilyRepresentation::Cotangent
+                        | FamilyRepresentation::Tangent
+                        | FamilyRepresentation::Tape
                 ) || constraints.iter().any(|c| {
                     matches!(
                         c,
@@ -284,6 +297,21 @@ pub enum FamilyRepresentation {
     Morphism,
     Relative,
     Smooth,
+    /// `Cotangent(X)`: covectors at points of a smooth object (protocol 9).
+    Cotangent,
+    /// `Tangent(X)`: vectors at points of a smooth object (protocol 9).
+    Tangent,
+    /// `Tape(X, Y)`: the saved forward values of a smooth map at a point
+    /// (protocol 9). Only `linearize` constructs a tape.
+    Tape,
+}
+
+/// How a cotangent pullback obtains forward values.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PullbackMode {
+    Saved,
+    Recomputed,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -408,5 +436,48 @@ pub enum Primitive {
         family: TypePath,
         object: TypePath,
         point: TypePath,
+    },
+    /// A fiber of `family` over `object` from a point in `map_family` and
+    /// one integer per coordinate.
+    FiberVector {
+        family: TypePath,
+        map_family: TypePath,
+        object: TypePath,
+    },
+    FiberAt {
+        family: TypePath,
+        map_family: TypePath,
+    },
+    FiberEqual {
+        family: TypePath,
+    },
+    /// The component of a fiber at the coordinate `coordinate` of `object`.
+    FiberComponent {
+        family: TypePath,
+        object: TypePath,
+        coordinate: String,
+    },
+    FiberPairing {
+        cotangent: TypePath,
+        tangent: TypePath,
+    },
+    CotangentPullback {
+        map_family: TypePath,
+        cotangent: TypePath,
+        mode: PullbackMode,
+    },
+    /// `line` is a 1-dimensional smooth object.
+    Differential {
+        map_family: TypePath,
+        cotangent: TypePath,
+        line: TypePath,
+    },
+    Linearize {
+        map_family: TypePath,
+        tape: TypePath,
+    },
+    CotangentBackward {
+        tape: TypePath,
+        cotangent: TypePath,
     },
 }

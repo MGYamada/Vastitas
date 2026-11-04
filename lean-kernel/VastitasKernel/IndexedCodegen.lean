@@ -50,7 +50,8 @@ private def renderType (env : Declarations) : DataType → Except String String
   | .indexed application => match lookup env.indexed application.family with
     | some (.family family) => .ok (match family.representation with
         | .token => "Unit" | .point => runtime "Point" | .morphism => runtime "Morphism"
-        | .relative => algebra "Map" | .smooth => smooth "Program")
+        | .relative => algebra "Map" | .smooth => smooth "Program"
+        | .fiber _ => s!"(Option {smooth "Fiber"})" | .tape => smooth "Tape")
     | _ => .error "indexed family missing from checked declarations"
   | .package application => do
       let some entry := (packageCases env).zipIdx.find? fun entry => entry.1.1 == application
@@ -85,6 +86,20 @@ private def renderPrimitive (env : Declarations) (binding : PrimitiveBinding) (a
   | .smoothIntPoint .., coordinates =>
       .ok (application (smooth "intPoint") [s!"[{String.intercalate ", " coordinates}]"])
   | .smoothComposite _, [program] => .ok (application (smooth "composite") [program])
+  | .fiberVector .., point :: components =>
+      .ok (application (smooth "vector") [point, s!"[{String.intercalate ", " components}]"])
+  | .fiberAt .., [value, point] => .ok (application (smooth "fiberAt") [value, point])
+  | .fiberEqual _, [left, right] => .ok (application (smooth "fiberEqual") [left, right])
+  | .fiberComponent _ _ coordinate, [value] => .ok (application (smooth "component") [value, toString coordinate])
+  | .fiberPairing .., [covector, vector] => .ok (application (smooth "pairing") [covector, vector])
+  | .cotangentPullback _ _ mode, [map, point, seed] =>
+      let mode := match mode with
+        | .saved => smooth "PullbackMode.saved"
+        | .recomputed => smooth "PullbackMode.recomputed"
+      .ok (application (smooth "pullback") [mode, map, point, seed])
+  | .differential .., [function, point] => .ok (application (smooth "differential") [function, point])
+  | .linearize .., [map, point] => .ok (application (smooth "linearize") [map, point])
+  | .cotangentBackward .., [tape, seed] => .ok (application (smooth "backward") [tape, seed])
   | _, _ => .error "closed primitive arity mismatch"
 
 private def renderBinary (operator : BinaryOp) (left right : String) : String :=

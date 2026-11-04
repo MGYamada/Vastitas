@@ -88,6 +88,19 @@ inductive Primitive where
   | smoothComposite (family : Path)
   /-- A rational point of `object` from runtime integers; `point` is 0-dimensional. -/
   | smoothIntPoint (family object point : Path)
+  /-- Stage 3 fibers and tapes (protocol 9). `family` is a `Tangent` or
+  `Cotangent` family, `smooth` a `Smooth` family and `tape` a `Tape` family. -/
+  | fiberVector (family smooth object : Path)
+  | fiberAt (family smooth : Path)
+  | fiberEqual (family : Path)
+  /-- `coordinate` names a coordinate of `object`, resolved to its index after elaboration. -/
+  | fiberComponent (family object : Path) (coordinate : String)
+  | fiberPairing (cotangent tangent : Path)
+  | cotangentPullback (smooth cotangent : Path) (mode : SmoothRuntime.PullbackMode)
+  /-- `line` is a 1-dimensional smooth object. -/
+  | differential (smooth cotangent line : Path)
+  | linearize (smooth tape : Path)
+  | cotangentBackward (tape cotangent : Path)
   deriving Repr, Inhabited
 
 /-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/

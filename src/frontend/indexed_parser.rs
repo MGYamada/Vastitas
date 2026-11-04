@@ -373,6 +373,97 @@ impl Parser {
                     point: self.type_path()?,
                 }
             }
+            "fiber_vector" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let map_family = self.type_path()?;
+                self.expect(",")?;
+                Primitive::FiberVector {
+                    family,
+                    map_family,
+                    object: self.type_path()?,
+                }
+            }
+            "fiber_at" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                Primitive::FiberAt {
+                    family,
+                    map_family: self.type_path()?,
+                }
+            }
+            "fiber_equal" => Primitive::FiberEqual {
+                family: self.type_path()?,
+            },
+            "fiber_component" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let object = self.type_path()?;
+                self.expect(",")?;
+                Primitive::FiberComponent {
+                    family,
+                    object,
+                    coordinate: self.coordinate_name()?,
+                }
+            }
+            "fiber_pairing" => {
+                let cotangent = self.type_path()?;
+                self.expect(",")?;
+                Primitive::FiberPairing {
+                    cotangent,
+                    tangent: self.type_path()?,
+                }
+            }
+            "cotangent_pullback" => {
+                let map_family = self.type_path()?;
+                self.expect(",")?;
+                let cotangent = self.type_path()?;
+                self.expect(",")?;
+                let token = self.peek().clone();
+                let mode = match self.indexed_tag()?.as_str() {
+                    "saved" => indexed::PullbackMode::Saved,
+                    "recomputed" => indexed::PullbackMode::Recomputed,
+                    _ => {
+                        return Err(diagnostic(
+                            "E_TYPE",
+                            "a cotangent pullback mode is saved or recomputed",
+                            token.span,
+                        ));
+                    }
+                };
+                Primitive::CotangentPullback {
+                    map_family,
+                    cotangent,
+                    mode,
+                }
+            }
+            "differential" => {
+                let map_family = self.type_path()?;
+                self.expect(",")?;
+                let cotangent = self.type_path()?;
+                self.expect(",")?;
+                Primitive::Differential {
+                    map_family,
+                    cotangent,
+                    line: self.type_path()?,
+                }
+            }
+            "linearize" => {
+                let map_family = self.type_path()?;
+                self.expect(",")?;
+                Primitive::Linearize {
+                    map_family,
+                    tape: self.type_path()?,
+                }
+            }
+            "cotangent_backward" => {
+                let tape = self.type_path()?;
+                self.expect(",")?;
+                Primitive::CotangentBackward {
+                    tape,
+                    cotangent: self.type_path()?,
+                }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -451,10 +542,13 @@ impl Parser {
                     "morphism" => indexed::FamilyRepresentation::Morphism,
                     "relative" => indexed::FamilyRepresentation::Relative,
                     "smooth" => indexed::FamilyRepresentation::Smooth,
+                    "cotangent" => indexed::FamilyRepresentation::Cotangent,
+                    "tangent" => indexed::FamilyRepresentation::Tangent,
+                    "tape" => indexed::FamilyRepresentation::Tape,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism, relative or smooth",
+                            "family representation requires token, point, morphism, relative, smooth, cotangent, tangent or tape",
                             span,
                         ));
                     }

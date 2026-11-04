@@ -64,6 +64,22 @@ def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primiti
   | .smoothComposite family => return .smoothComposite (← resolveId p scope family)
   | .smoothIntPoint family object point =>
       return .smoothIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope point)
+  | .fiberVector family smooth object =>
+      return .fiberVector (← resolveId p scope family) (← resolveId p scope smooth) (← resolveId p scope object)
+  | .fiberAt family smooth => return .fiberAt (← resolveId p scope family) (← resolveId p scope smooth)
+  | .fiberEqual family => return .fiberEqual (← resolveId p scope family)
+  | .fiberComponent family object _ =>
+      -- The coordinate index is elaborated once objects are known.
+      return .fiberComponent (← resolveId p scope family) (← resolveId p scope object) 0
+  | .fiberPairing cotangent tangent =>
+      return .fiberPairing (← resolveId p scope cotangent) (← resolveId p scope tangent)
+  | .cotangentPullback smooth cotangent mode =>
+      return .cotangentPullback (← resolveId p scope smooth) (← resolveId p scope cotangent) mode
+  | .differential smooth cotangent line =>
+      return .differential (← resolveId p scope smooth) (← resolveId p scope cotangent) (← resolveId p scope line)
+  | .linearize smooth tape => return .linearize (← resolveId p scope smooth) (← resolveId p scope tape)
+  | .cotangentBackward tape cotangent =>
+      return .cotangentBackward (← resolveId p scope tape) (← resolveId p scope cotangent)
 
 def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
     Source.Representation → ResolveM Indexed.Representation

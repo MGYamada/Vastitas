@@ -112,12 +112,21 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["name", "image"]
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
-/-- The Stage 2 relative and Stage 3 smooth primitive contracts. Only
-protocol 9 admits them; the list is explicit, so no other spelling with a
-shared prefix is admitted. -/
+/-- The Stage 2 relative and Stage 3 smooth, fiber and tape primitive
+contracts. Only protocol 9 admits them; the list is explicit, so no other
+spelling with a shared prefix is admitted. -/
 def algebraicOperations : List String :=
   ["relative_compose", "relative_equal", "relative_view", "relative_coefficient", "relative_int_point",
-   "relative_pair", "smooth_compose", "smooth_equal", "smooth_composite", "smooth_int_point"]
+   "relative_pair", "smooth_compose", "smooth_equal", "smooth_composite", "smooth_int_point",
+   "fiber_vector", "fiber_at", "fiber_equal", "fiber_component", "fiber_pairing", "cotangent_pullback",
+   "differential", "linearize", "cotangent_backward"]
+
+/-- How a cotangent pullback obtains forward values. -/
+def pullbackMode (j : Json) : Except String SmoothRuntime.PullbackMode := do
+  match ← j.getStr? with
+  | "saved" => return .saved
+  | "recomputed" => return .recomputed
+  | _ => throw "expected pullback mode saved or recomputed"
 
 /-- Stage 2 relative and Stage 3 smooth primitives (protocol 9 only). -/
 def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive := do
@@ -143,6 +152,32 @@ def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive
   | "smooth_int_point" =>
     fields j ["op", "family", "object", "point"]
     return .smoothIntPoint (← path (← field j "family")) (← path (← field j "object")) (← path (← field j "point"))
+  | "fiber_vector" =>
+    fields j ["op", "family", "map_family", "object"]
+    return .fiberVector (← path (← field j "family")) (← path (← field j "map_family")) (← path (← field j "object"))
+  | "fiber_at" =>
+    fields j ["op", "family", "map_family"]
+    return .fiberAt (← path (← field j "family")) (← path (← field j "map_family"))
+  | "fiber_equal" => fields j ["op", "family"]; return .fiberEqual (← path (← field j "family"))
+  | "fiber_component" =>
+    fields j ["op", "family", "object", "coordinate"]
+    return .fiberComponent (← path (← field j "family")) (← path (← field j "object")) (← str j "coordinate")
+  | "fiber_pairing" =>
+    fields j ["op", "cotangent", "tangent"]
+    return .fiberPairing (← path (← field j "cotangent")) (← path (← field j "tangent"))
+  | "cotangent_pullback" =>
+    fields j ["op", "map_family", "cotangent", "mode"]
+    return .cotangentPullback (← path (← field j "map_family")) (← path (← field j "cotangent"))
+      (← pullbackMode (← field j "mode"))
+  | "differential" =>
+    fields j ["op", "map_family", "cotangent", "line"]
+    return .differential (← path (← field j "map_family")) (← path (← field j "cotangent")) (← path (← field j "line"))
+  | "linearize" =>
+    fields j ["op", "map_family", "tape"]
+    return .linearize (← path (← field j "map_family")) (← path (← field j "tape"))
+  | "cotangent_backward" =>
+    fields j ["op", "tape", "cotangent"]
+    return .cotangentBackward (← path (← field j "tape")) (← path (← field j "cotangent"))
   | _ => throw "unknown indexed primitive contract"
 
 def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := do
@@ -239,6 +274,15 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
   | "smooth" =>
     unless algebraic do throw "smooth declarations require protocol 9"
     return .smooth
+  | "cotangent" =>
+    unless algebraic do throw "smooth declarations require protocol 9"
+    return .fiber .cotangent
+  | "tangent" =>
+    unless algebraic do throw "smooth declarations require protocol 9"
+    return .fiber .tangent
+  | "tape" =>
+    unless algebraic do throw "smooth declarations require protocol 9"
+    return .tape
   | _ => throw "unsupported indexed family representation"
 
 def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :

@@ -13,6 +13,7 @@ lake build \
   VastitasKernel.IndexedDispatchRegression \
   VastitasKernel.IndexedAuthorityRegression \
   VastitasKernel.SmoothObjectRegression \
+  VastitasKernel.CotangentRegression \
   VastitasKernel.IndexedCodegen \
   VastitasKernel.IndexedRuntime:c.o \
   VastitasKernel.AlgebraRuntime:c.o \
@@ -58,5 +59,6 @@ authority_transfer 42
 authority_repaired 42
 authority_empty 5
 smooth_programs 42
+cotangent_programs 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

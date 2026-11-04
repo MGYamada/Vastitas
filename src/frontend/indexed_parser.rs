@@ -67,6 +67,7 @@ impl Parser {
                     field: indexed::ExactField::Rational,
                 })
             }
+            "smooth_affine" => Ok(indexed::Representation::SmoothAffine),
             _ => Err(diagnostic(
                 "E_TYPE",
                 "unsupported concrete object representation",
@@ -191,6 +192,10 @@ impl Parser {
         let kind = self.indexed_tag()?;
         self.expect("(")?;
         let left = self.indexed_slot()?;
+        if kind == "canonical" {
+            self.expect(")")?;
+            return Ok(Constraint::Canonical { object: left });
+        }
         self.expect(",")?;
         let right = self.indexed_slot()?;
         self.expect(")")?;
@@ -348,6 +353,26 @@ impl Parser {
                     base: self.type_path()?,
                 }
             }
+            "smooth_compose" => Primitive::SmoothCompose {
+                family: self.type_path()?,
+            },
+            "smooth_equal" => Primitive::SmoothEqual {
+                family: self.type_path()?,
+            },
+            "smooth_composite" => Primitive::SmoothComposite {
+                family: self.type_path()?,
+            },
+            "smooth_int_point" => {
+                let family = self.type_path()?;
+                self.expect(",")?;
+                let object = self.type_path()?;
+                self.expect(",")?;
+                Primitive::SmoothIntPoint {
+                    family,
+                    object,
+                    point: self.type_path()?,
+                }
+            }
             _ => {
                 return Err(diagnostic(
                     "E_TYPE",
@@ -425,10 +450,11 @@ impl Parser {
                     "point" => indexed::FamilyRepresentation::Point,
                     "morphism" => indexed::FamilyRepresentation::Morphism,
                     "relative" => indexed::FamilyRepresentation::Relative,
+                    "smooth" => indexed::FamilyRepresentation::Smooth,
                     _ => {
                         return Err(diagnostic(
                             "E_TYPE",
-                            "family representation requires token, point, morphism or relative",
+                            "family representation requires token, point, morphism, relative or smooth",
                             span,
                         ));
                     }
@@ -547,12 +573,17 @@ impl Parser {
 }
 
 impl Parser {
-    /// `(Impl) = spec[g, ...] [relations(p, ...)] [over Base [by(b -> p, ...)]]`
+    /// `(Impl) = spec[g, ...] [relations(p, ...)] [over Base [by(b -> p, ...)]]`,
+    /// the smooth object `(Impl) = Affine(n)[c, ...]`, or `(Impl) = Affine(K, n)[g, ...]`,
+    /// which is sugar for `spec[g, ...] over K`.
     fn indexed_affine(&mut self) -> Result<DeclarationBody, Diagnostic> {
         self.expect("(")?;
         let implementation = self.type_path()?;
         self.expect(")")?;
         self.expect("=")?;
+        if self.peek().is("Affine") {
+            return self.indexed_affine_space(implementation);
+        }
         if self.consume("localize") {
             self.expect("(")?;
             let object = self.type_path()?;
@@ -612,6 +643,85 @@ impl Parser {
             relations,
             base,
             bindings,
+        })
+    }
+
+    /// `Affine(n)[c, ...]` or `Affine(K, n)[g, ...]` after `=`.
+    fn indexed_affine_space(
+        &mut self,
+        implementation: TypePath,
+    ) -> Result<DeclarationBody, Diagnostic> {
+        let start = self.expect("Affine")?.span;
+        self.expect("(")?;
+        let base = if matches!(self.peek().kind, TokenKind::Number(_)) {
+            None
+        } else {
+            let base = self.type_path()?;
+            self.expect(",")?;
+            Some(base)
+        };
+        let token = self.advance();
+        let dimension = match token.kind {
+            TokenKind::Number(value) => value,
+            _ => {
+                return Err(diagnostic(
+                    "E_PARSE",
+                    "`Affine` needs a dimension, written as an unsigned integer",
+                    token.span,
+                ));
+            }
+        };
+        if dimension.len() > crate::limits::MAX_ALGEBRA_DIGITS {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "an `Affine` dimension has at most {} decimal digits",
+                    crate::limits::MAX_ALGEBRA_DIGITS
+                ),
+                token.span,
+            ));
+        }
+        if !dimension
+            .parse::<usize>()
+            .is_ok_and(|value| value <= crate::limits::MAX_ALGEBRA_GENERATORS)
+        {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "`Affine({dimension})` exceeds the limit of {} coordinates",
+                    crate::limits::MAX_ALGEBRA_GENERATORS
+                ),
+                token.span,
+            ));
+        }
+        self.expect(")")?;
+        let coordinates = self.indexed_list("[", "]", |p| Ok(p.name()?.0))?;
+        let Some(base) = base else {
+            return Ok(DeclarationBody::SmoothAffine {
+                implementation,
+                dimension,
+                coordinates,
+            });
+        };
+        // The algebraic spelling has no wire form of its own, so its
+        // dimension is checked here.
+        if dimension.parse::<usize>().ok() != Some(coordinates.len()) {
+            return Err(diagnostic(
+                "E_AFFINE_COORDINATE",
+                format!(
+                    "Affine({}, {dimension}) needs {dimension} coordinates, but {} are given",
+                    base.path.join("::"),
+                    coordinates.len()
+                ),
+                start.through(self.previous().span),
+            ));
+        }
+        Ok(DeclarationBody::Affine {
+            implementation,
+            generators: coordinates,
+            relations: Vec::new(),
+            base: Some(base),
+            bindings: Vec::new(),
         })
     }
 
@@ -753,7 +863,14 @@ impl Parser {
             self.expect(")")?;
             return Ok(inner);
         }
-        if self.peek().is("frac") {
+        // `frac(` starts a fraction literal; any other `frac` is a coordinate,
+        // as in `frac^2` or `frac::t`.
+        if self.peek().is("frac")
+            && self
+                .tokens
+                .get(self.position + 1)
+                .is_some_and(|next| next.is("("))
+        {
             self.advance();
             self.expect("(")?;
             let negative = self.consume("-");

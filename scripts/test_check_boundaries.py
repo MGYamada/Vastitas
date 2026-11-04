@@ -104,6 +104,14 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertTrue(any("no external Lake" in error for error in errors))
         self.assertEqual(sum("runtime must not import" in error for error in errors), 4)
 
+    def test_runtime_may_import_only_other_runtimes(self):
+        self.write("lean-kernel/VastitasKernel/SmoothRuntime.lean", "import VastitasKernel.AlgebraRuntime\n")
+        self.assertEqual(check_boundaries(self.root), [])
+        self.write("lean-kernel/VastitasKernel/SmoothRuntime.lean",
+                   "import VastitasKernel.AlgebraRuntime\nimport VastitasKernel.SmoothDeclarations\n")
+        errors = check_boundaries(self.root)
+        self.assertEqual(errors, ["runtime must not import compiler module VastitasKernel.SmoothDeclarations"])
+
     def test_algebra_fixture_library_cannot_enter_the_compiler(self):
         self.write("lean-kernel/VastitasAlgebraTest/BasisRegression.lean",
                    "import VastitasKernel.AlgebraBasis\nimport Lean.Data.Json\n")

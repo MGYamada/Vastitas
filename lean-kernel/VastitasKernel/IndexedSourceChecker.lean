@@ -2,6 +2,7 @@ import VastitasKernel.IndexedSource
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedAlgebraSource
+import VastitasKernel.IndexedSmoothSource
 
 namespace VastitasKernel.Indexed.Source
 
@@ -58,6 +59,11 @@ def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primiti
   | .relativeIntPoint family object base =>
       return .relativeIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope base)
   | .relativePair family fiber => return .relativePair (← resolveId p scope family) (← resolveId p scope fiber)
+  | .smoothCompose family => return .smoothCompose (← resolveId p scope family)
+  | .smoothEqual family => return .smoothEqual (← resolveId p scope family)
+  | .smoothComposite family => return .smoothComposite (← resolveId p scope family)
+  | .smoothIntPoint family object point =>
+      return .smoothIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope point)
 
 def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
     Source.Representation → ResolveM Indexed.Representation
@@ -65,6 +71,7 @@ def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
   | .scalarBase setting coefficient => pure (.scalarBase setting coefficient)
   | .linearDescriptor base coefficient => return .linearDescriptor (← resolveId p scope base) coefficient
   | .presentedAffine field => pure (.presentedAffine field)
+  | .smoothAffine => pure .smoothAffine
 
 def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : Body)
     (env : Core.Declarations) : ResolveM Core.Declarations := do
@@ -123,6 +130,11 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       let base ← base.mapM (resolveId p scope)
       let data ← lowerAffineData span generators relations base bindings
       return add (.affine implementation data)
+  | .smoothAffine implementation dimension coordinates => do
+      let implementation ← resolveId p scope implementation
+      match SmoothDeclarations.checkObject dimension coordinates with
+      | .ok () => return add (.smoothAffine implementation coordinates)
+      | .error error => smoothProblem span error
 
 def resolveGeometrySetting (p : Namespace.Indexed) (scope : Namespace.Scope)
     (setting : GeometrySetting Path) : ResolveM (GeometrySetting DeclId) := do
@@ -156,14 +168,16 @@ def lower (p : Program) : Namespace.Result Resolved := do
   let action : ResolveM Core.Declarations := p.owned.foldlM (fun env entry =>
     resolveBody index entry.1 entry.2.span entry.2.body env) ⟨[], [], []⟩
   let (declarations, references) ← action.run []
-  let declarations ← elaborateAffine (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
+  let sources := p.owned.map fun (owner, d) => (owner, d.span, d.body)
+  checkSmoothImplementations sources declarations
+  let declarations ← elaborateAffine sources declarations
+  let declarations ← elaborateSmooth sources declarations
   let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
     | .morphism _ _ (.restrict morphism) => do
       let target ← Namespace.resolve index owner.scope morphism.path morphism.span
       pure (some (owner, target.owner))
     | _ => pure none
-  let declarations ← elaborateRelative (p.owned.map fun (owner, d) => (owner, d.span, d.body)) declarations
-    restrictTargets
+  let declarations ← elaborateRelative sources declarations restrictTargets
   let (geometry, geometryReferences) ← (resolveGeometry p declarations).run []
   return ⟨declarations, references.reverse ++ geometryReferences.reverse, geometry⟩
 

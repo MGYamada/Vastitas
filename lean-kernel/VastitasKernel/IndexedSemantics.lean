@@ -1,5 +1,6 @@
 import VastitasKernel.IndexedTyping
 import VastitasKernel.IndexedRuntime
+import VastitasKernel.SmoothRuntime
 
 /-! Operational values for the actual declaration-driven Core. Implementation
 IDs are logical tags erased before native execution; they are not dispatch keys
@@ -62,6 +63,8 @@ inductive IndexedValue where
   | morphism (value : Morphism)
   /-- A morphism over a base between presented objects: its exact pullback map. -/
   | relative (value : AlgebraRuntime.Map)
+  /-- A smooth map between smooth objects: the program that checked Core builds. -/
+  | smooth (value : SmoothRuntime.Program)
   deriving Repr, DecidableEq
 
 /-- Tokens also retain every object-index obligation through the world. Empty
@@ -75,6 +78,9 @@ def IndexedHasType (env : Indexed.Environment) (world : World)
   | .morphism map, some .morphism, [.object source, .object target] =>
       RefDenotes env world source map.source ∧ RefDenotes env world target map.target
   | .relative _, some .relative, _ => ∀ ref ∈ application.refs, ∃ object, RefDenotes env world ref object
+  | .smooth program, some .smooth, [.object (.global source), .object (.global target)] =>
+      ∃ n m, smoothDimension? env source = some n ∧ smoothDimension? env target = some m ∧
+        program.wellTyped n m = true
   | _, _, _ => False
 
 inductive Value where
@@ -201,6 +207,10 @@ def intPointValue (values : List Value) : Option Value := do
   let coordinates ← values.mapM Value.integer?
   pure (.indexed (.relative (AlgebraRuntime.Map.intPoint coordinates)))
 
+def smoothPointValue (values : List Value) : Option Value := do
+  let coordinates ← values.mapM Value.integer?
+  pure (.indexed (.smooth (SmoothRuntime.intPoint coordinates)))
+
 def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value → Option Value
   | .descriptor implementation, [.natural dimension] =>
       some (.object ⟨implementation, IndexedRuntime.descriptor dimension⟩)
@@ -226,6 +236,14 @@ def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value 
   | .relativeIntPoint .., values => intPointValue values
   | .relativePair .., [.indexed (.relative left), .indexed (.relative right)] =>
       some (.indexed (.relative (AlgebraRuntime.Map.pair left right)))
+  | .smoothConstant _ map, [] => some (.indexed (.smooth (.primitive map)))
+  | .smoothCompose _, [.indexed (.smooth after), .indexed (.smooth before)] =>
+      some (.indexed (.smooth (.compose after before)))
+  | .smoothEqual _, [.indexed (.smooth left), .indexed (.smooth right)] =>
+      some (.boolean (SmoothRuntime.same left right))
+  | .smoothIntPoint .., values => smoothPointValue values
+  | .smoothComposite _, [.indexed (.smooth program)] =>
+      some (.indexed (.smooth (SmoothRuntime.composite program)))
   | _, _ => none
 
 /-- The closed registry's erased operands/results use the actual runtime
@@ -237,6 +255,7 @@ inductive PrimitiveRuntimeValue where
   | point (value : IndexedRuntime.Point)
   | morphism (value : IndexedRuntime.Morphism)
   | relative (value : AlgebraRuntime.Map)
+  | smooth (value : SmoothRuntime.Program)
   | boolean (value : Bool)
   | integer (value : Int)
   | pairInt (first second : Int)
@@ -251,6 +270,7 @@ def erasePrimitiveValue : Value → Option PrimitiveRuntimeValue
   | .object object => some (.object object.descriptor)
   | .indexed (.point point) => some (.point point.erase)
   | .indexed (.morphism map) => some (.morphism map.erase)
+  | .indexed (.smooth program) => some (.smooth program)
   | _ => none
 
 def PrimitiveRuntimeValue.integer? : PrimitiveRuntimeValue → Option Int
@@ -260,6 +280,10 @@ def PrimitiveRuntimeValue.integer? : PrimitiveRuntimeValue → Option Int
 def intPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRuntimeValue := do
   let coordinates ← values.mapM PrimitiveRuntimeValue.integer?
   pure (.relative (AlgebraRuntime.Map.intPoint coordinates))
+
+def smoothPointRuntime (values : List PrimitiveRuntimeValue) : Option PrimitiveRuntimeValue := do
+  let coordinates ← values.mapM PrimitiveRuntimeValue.integer?
+  pure (.smooth (SmoothRuntime.intPoint coordinates))
 
 def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue
   | .descriptor _, [.natural dimension] => some (.object (IndexedRuntime.descriptor dimension))
@@ -279,6 +303,11 @@ def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → O
       some (.pairInt numerator denominator)
   | .relativeIntPoint .., values => intPointRuntime values
   | .relativePair .., [.relative left, .relative right] => some (.relative (AlgebraRuntime.Map.pair left right))
+  | .smoothConstant _ map, [] => some (.smooth (.primitive map))
+  | .smoothCompose _, [.smooth after, .smooth before] => some (.smooth (.compose after before))
+  | .smoothEqual _, [.smooth left, .smooth right] => some (.boolean (SmoothRuntime.same left right))
+  | .smoothIntPoint .., values => smoothPointRuntime values
+  | .smoothComposite _, [.smooth program] => some (.smooth (SmoothRuntime.composite program))
   | _, _ => none
 
 def evalPair : PairElem → Value → Value → Option Value

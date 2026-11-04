@@ -201,11 +201,8 @@ mutual
         let some binding := input.body.declarations.primitive? resolved.owner | error span "E_TYPE" "declaration is not a primitive"
         let arity := binding.arity input.body.declarations.indexed
         unless arguments.length == arity do error span "E_ARITY" "wrong primitive argument count"
-        let hint := match binding with
-          | .descriptor _ => some (Core.DataType.pure .nat)
-          | .relativeIntPoint .. => some (Core.DataType.pure .int)
-          | _ => none
-        let values ← arguments.mapM fun argument => do data (← expression fuel input scope ctx argument hint) span
+        let values ← arguments.zipIdx.mapM fun (argument, position) => do
+          data (← expression fuel input scope ctx argument (binding.argumentHint position)) span
         modify fun state => { state with body := { state.body with references := ⟨scope, path, resolved⟩ :: state.body.references } }
         return ⟨← body (Source.Bodies.emitPrimitive input.body ctx.data resolved.owner values span), none⟩
       let id ← resolve input scope path

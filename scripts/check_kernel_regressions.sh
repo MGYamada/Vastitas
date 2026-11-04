@@ -26,6 +26,8 @@ lake -d lean-kernel build \
   VastitasKernel.AffineMorphismRegression \
   VastitasKernel.AffineFiberRegression \
   VastitasKernel.AffineOpenRegression \
+  VastitasKernel.SmoothRuntimeRegression \
+  VastitasKernel.SmoothObjectRegression \
   VastitasKernel.IndexedSourceTypeRegression \
   VastitasKernel.IndexedSourceBodyRegression \
   VastitasKernel.IndexedFunctionRegression \
@@ -56,5 +58,6 @@ lake -d lean-kernel build \
   VastitasStorageTest.MetricRegression \
   VastitasStorageTest.OwnedPackageRegression \
   VastitasAlgebraTest.BasisRegression \
+  VastitasAlgebraTest.SmoothReferenceRegression \
   VastitasPromotion.Regression \
   VastitasPromotion.IndexedRegression

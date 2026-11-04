@@ -33,7 +33,8 @@ theorem function_call_returns (checked : CheckedModule requireMain) (function : 
   have signatureFound := IndexedCore.signatures_member checked.module checked.typed.uniqueFunctions function member
   simp only [CallTyping, signatureFound, signatureOf] at rule
   have functionTyped := checked.typed.functions function member
-  obtain ⟨activation, bound, context, transport⟩ := call_activation functionTyped.1 rule.2.1 argumentsTyped
+  obtain ⟨activation, bound, context, transport⟩ := call_activation checked.typed.declarations.indexed functionTyped.1 rule.2.1
+    argumentsTyped
   obtain ⟨value, evaluated, valueTyped⟩ := returns (objectWorld activation) activation context
   have called : Called checked.module function.id operands value :=
     ⟨function, activation, function_lookup checked.typed.uniqueFunctions member, bound, evaluated⟩

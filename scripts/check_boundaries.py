@@ -357,7 +357,11 @@ def check_boundaries(root):
     check_lake_dependencies(kernel, "lean-kernel", errors)
     runtime = kernel / "VastitasKernel" / "Runtime.lean"
     runtimes = {runtime, kernel / "VastitasKernel" / "IndexedRuntime.lean",
-                kernel / "VastitasKernel" / "AlgebraRuntime.lean"}
+                kernel / "VastitasKernel" / "AlgebraRuntime.lean",
+                kernel / "VastitasKernel" / "SmoothRuntime.lean"}
+    # Runtime modules may import each other, but nothing else from the compiler.
+    runtime_modules = {"VastitasKernel." + source.stem for source in runtimes
+                       if source.parent == kernel / "VastitasKernel"}
     native = kernel / "native"
     numerical = kernel / "numerical"
     if native.exists():
@@ -410,7 +414,7 @@ def check_boundaries(root):
             if not module_allowed(name, allowed):
                 errors.append(f"{source.relative_to(root)}: forbidden import {name}")
             if source in runtimes:
-                if not module_allowed(name, {"Init", "Std"}):
+                if not module_allowed(name, {"Init", "Std"}) and name not in runtime_modules:
                     errors.append(f"runtime must not import compiler module {name}")
     kernel_toolchain = (kernel / "lean-toolchain").read_text().strip()
     root_toolchain = root / "lean-toolchain"

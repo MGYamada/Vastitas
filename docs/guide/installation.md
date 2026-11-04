@@ -61,8 +61,13 @@ Two environment variables select the backend for development:
 - `VASTITAS_KERNEL` names a trusted backend executable. With it, `check` needs
   no kernel package directory.
 - `VASTITAS_KERNEL_ROOT` names the kernel package directory. `build` needs it
-  (or this checkout's default package) and copies its `lean-toolchain` into the
-  temporary project it generates.
+  (or this checkout's default package) and copies its `lean-toolchain`, which
+  must equal the compiler's pin, into the temporary project it generates.
+
+Every kernel response carries a build identity: a digest of the kernel sources
+and the Lean version. The driver rejects a kernel built from other sources with
+`E_BACKEND: incompatible kernel`. After updating the compiler or its sources,
+rebuild the kernel with `lake -d lean-kernel build vastitas-kernel`.
 
 A relocatable installation and cross-compilation are not provided. The
 compiler uses the built backend and runtime of one checkout or one extracted

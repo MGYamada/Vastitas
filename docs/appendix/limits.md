@@ -28,13 +28,32 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `specializations` | 4096 | Higher-order instances per pass | [Specialization](../stage1b.md#checking-and-specialization) |
 | `dispatchKeys` | 4096 | Argument tuples enumerated for one generic | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
 | `dispatchArity` | 6 | Generic arity; the seventh argument would exceed 4,096 tuples | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
+| `dispatchWork` | 16,000,000 | Dispatch-table work for one generic family, charged before the work runs | [Wire protocols](../protocol.md) |
 | `nominalTypes` | 64 | Nominal types, including `Nat`, `Int`, `Bool`, `Unit`, `Number` and `Any` | [Abstract selectors](../stage1a.md#abstract-types) |
 | `namespaceResolution` | 4096 | Member work for one path resolution | [Modules and paths](../packages.md#modules-and-paths) |
 | `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Modules and paths](../packages.md#modules-and-paths) |
 | `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Modules and paths](../packages.md#modules-and-paths) |
 | `dependencyGraph` | 4096 | Units for traversing the package dependency graph | Kernel source |
-| `assemblyEvents` | 4096 | Events in an edit assembly | Kernel source |
-| `contributionMethods` | 4096 | Methods in one contribution | Kernel source |
+| `assemblyEvents` | 4096 | Events in an edit assembly | [Wire extension](../packages.md#wire-extension) |
+| `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Wire extension](../packages.md#wire-extension) |
+| `contributionMethods` | 4096 | Methods in one contribution | [Wire extension](../packages.md#wire-extension) |
+
+### Exact affine algebra (Stage 2)
+
+These budgets belong to the internal exact QQ polynomial core of
+[historical Stage 2](../verification.md#exact-affine-algebra-checker-stage-2-571).
+No source syntax reaches that core until the protocol-9 surface lands.
+
+| Key | Value | What it bounds |
+| --- | --- | --- |
+| `algebraGenerators` | 16 | Generators of one presented algebra |
+| `algebraRelations` | 32 | Relations of one presented algebra |
+| `algebraTerms` | 512 | Terms of every produced polynomial |
+| `algebraBasis` | 64 | Elements of a stored or computed basis |
+| `algebraWork` | 8,000,000 | Work shared by basis computation and verification |
+| `algebraDegree` | 16 | Declared for the source surface; not yet consulted by the kernel at this revision |
+| `algebraCoefficientDigits` | 64 | Declared for the source surface; not yet consulted by the kernel at this revision |
+| `algebraChain` | 16 | Declared for the source surface; not yet consulted by the kernel at this revision |
 
 "Kernel source" means the limit is enforced in
 [`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)

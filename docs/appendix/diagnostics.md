@@ -35,7 +35,7 @@ codes come from the lexer, parser and lexical resolver.
 | `E_MANIFEST` | A `Vastitas.toml` is malformed or has unsupported fields |
 | `E_LIBRARY` | A flat-mode `--lib` library declares `main`, which only the entry file may do |
 | `E_OUTPUT` | The `-o` path is unusable, for example not a regular file or an alias of an input |
-| `E_BACKEND` | The kernel cannot be located, started or trusted |
+| `E_BACKEND` | The kernel cannot be located or started, or reports a build identity other than this compiler's (`incompatible kernel`) |
 | `E_BUILD` | The native build cannot be prepared or fails, including a missing `--openblas-prefix` |
 | `E_INTERRUPTED` | A signal cancelled the compilation |
 | `E_LEX`, `E_PARSE`, `E_UNSUPPORTED` | The source cannot be tokenized or parsed, or uses unimplemented syntax |
@@ -60,6 +60,7 @@ rules again independently.
 | Resource programs | `E_RESOURCE_ACCESS`, `E_RESOURCE_ALIAS`, `E_RESOURCE_ARITY`, `E_RESOURCE_BOUNDS`, `E_RESOURCE_CODEGEN`, `E_RESOURCE_COEFFICIENT`, `E_RESOURCE_DEPENDENCY`, `E_RESOURCE_DIAGONAL`, `E_RESOURCE_ESCAPE`, `E_RESOURCE_FUNCTION`, `E_RESOURCE_GEMM`, `E_RESOURCE_INIT`, `E_RESOURCE_JOIN`, `E_RESOURCE_LAYOUT`, `E_RESOURCE_LIMIT`, `E_RESOURCE_LOAN`, `E_RESOURCE_MOVE`, `E_RESOURCE_NAME`, `E_RESOURCE_OVERFLOW`, `E_RESOURCE_PACK`, `E_RESOURCE_PROVENANCE`, `E_RESOURCE_RECURSION`, `E_RESOURCE_REGION`, `E_RESOURCE_STATE`, `E_RESOURCE_TYPE`, `E_RESOURCE_VALUE` | [Checked storage](../storage/checked-storage.md), [resource diagnostics](../storage/resource-programs.md#resource-diagnostics) |
 | Runtime shapes | `E_RUNTIME_BRANCH`, `E_RUNTIME_CALL`, `E_RUNTIME_CODEGEN`, `E_RUNTIME_COEFFICIENT`, `E_RUNTIME_ESCAPE`, `E_RUNTIME_EXTENT`, `E_RUNTIME_GUARD`, `E_RUNTIME_NUMERICAL`, `E_RUNTIME_RETURN`, `E_RUNTIME_SHAPE`, `E_RUNTIME_TYPE` | [Runtime extents](../storage/resource-programs.md#runtime-shapes) |
 | Numerical values and tensors | `E_NUMERICAL_METRIC`, `E_NUMERICAL_ORIGIN`, `E_NUMERICAL_PACKAGE`, `E_NUMERICAL_TYPE`, `E_NETWORK`, `E_TENSOR`, `E_TENSOR_CACHE`, `E_TENSOR_TREE` | [Maps and GEMM](../linalg/maps-and-gemm.md), [networks and packing](../linalg/networks-and-packing.md) |
+| Exact affine algebra (Stage 2, internal) | `E_AFFINE_RELATION` | A stored basis certificate fails verification; [algebra checker](../verification.md#exact-affine-algebra-checker-stage-2-571) |
 | Limits | `E_LIMIT` | [Appendix D](limits.md) |
 | Wire and generation | `E_PROTOCOL`, `E_ARGUMENT`, `E_CODEGEN` | [Wire protocols](../protocol.md) |
 | Internal audits | `E_INTERNAL_ASSEMBLY`, `E_INTERNAL_AUTHORITY`, `E_INTERNAL_DISPATCH`, `E_INTERNAL_FUNCTION`, `E_INTERNAL_GRAPH`, `E_INTERNAL_NAMESPACE`, `E_INTERNAL_TYPE` | Independent audits of the checker's own results; [verification](../verification.md) |
@@ -88,6 +89,8 @@ reports one of these messages from
 | `E_NATIVE_OPERATION` | unsupported numerical operation or layout |
 | `E_NATIVE_STATUS` | unknown status |
 
+A failed `expect` reports the cell and both payloads:
+`E_NATIVE_EXPECT: stored bit pattern differs at cell (ROW, COLUMN): holds …; expected …`.
 The runtime-shape profile also reports `E_RUNTIME_EXTENT` when a runtime extent
 is negative or exceeds the signed native size range.
 

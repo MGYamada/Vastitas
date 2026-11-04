@@ -143,7 +143,14 @@ def _decision(expectation, result):
         if version not in range(2, 10):
             return "failed", "unsupported_protocol"
         response = backend["response"]
-        _fields(response, "version ok diagnostics")
+        envelope = "version ok diagnostics"
+        if type(response) is dict and "kernel" in response:
+            # The kernel build identity (protocol.md) is checked for shape only.
+            envelope += " kernel"
+            _fields(response["kernel"], "sources lean")
+            _require(all(type(response["kernel"][key]) is str for key in ("sources", "lean")),
+                     "invalid kernel build identity")
+        _fields(response, envelope)
         _require(type(response["version"]) is int and type(response["ok"]) is bool,
                  "invalid response version/ok types")
         if response["version"] != version:

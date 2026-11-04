@@ -265,7 +265,7 @@ mutual
         unless !value.isEmpty && value.toList.all (fun c => c >= '0' && c <= '9') do
           fail span "E_LITERAL" "integer IR literal must contain only decimal digits"
         let ty := match expected with | some .nat => Ty.nat | _ => Ty.int
-        let some n := value.toNat? | fail span "E_LITERAL" "invalid decimal integer"
+        let some n := decimalNat? value | fail span "E_LITERAL" "invalid decimal integer"
         pure { term := .literal ty n }
       | .boolean value _ => pure { term := .boolean value }
       | .unit _ => pure { term := .unit }

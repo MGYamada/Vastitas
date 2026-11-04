@@ -32,25 +32,50 @@ def main : IO Unit := do
   -- Results owning arenas remain fresh, and physical errors retain their data.
   let first ← VastitasStorageNative.newArena 8
   let second ← VastitasStorageNative.newArena 8
+  let third ← VastitasStorageNative.newArena 64
+  -- A failed expect names its view-relative cell and both exact payloads.
+  let failsWith (action : IO Unit) (message : String) : IO Unit := do
+    let failed ← try
+      action
+      pure false
+    catch error =>
+      unless error.toString == message do throw error
+      pure true
+    unless failed do throw (IO.userError "native error was lost")
   try
     VastitasStorageNative.allocate first 0 0 1
     VastitasStorageNative.allocate second 0 0 1
+    VastitasStorageNative.allocate third 0 1 4
     VastitasStorageNative.fill first 0 0 1 1 1 false 0 4607182418800017408 0
     VastitasStorageNative.fill second 0 0 1 1 1 false 0 4611686018427387904 0
     VastitasStorageNative.expect first 0 0 1 1 1 false 0 0 0 4607182418800017408 0
     VastitasStorageNative.expect second 0 0 1 1 1 false 0 0 0 4611686018427387904 0
-    let failed ← try
-      VastitasStorageNative.expect first 0 0 1 1 1 false 0 0 0 0 0
-      pure false
-    catch error =>
-      unless error.toString == "E_NATIVE_EXPECT: stored bit pattern differs" do throw error
-      pure true
-    unless failed do throw (IO.userError "native error was lost")
+    failsWith (VastitasStorageNative.expect first 0 0 1 1 1 false 0 0 0 0 0)
+      ("E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 0): holds f64(0x1p0) " ++
+        "[bits 4607182418800017408]; expected f64_bits(0)")
+    -- Complex: signed zero and a NaN payload in a padded transposed view.
+    VastitasStorageNative.store third 0 16 2 1 3 true 0 1 1 9223372036854775808 9221120237041090561
+    VastitasStorageNative.expect third 0 16 2 1 3 true 0 1 1 9223372036854775808 9221120237041090561
+    failsWith (VastitasStorageNative.expect third 0 16 2 1 3 true 0 1 1 0 9221120237041090561)
+      ("E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 1): holds complex(" ++
+        "f64_bits(9223372036854775808), f64_bits(9221120237041090561)); expected complex(" ++
+        "f64_bits(0), f64_bits(9221120237041090561))")
+    failsWith (VastitasStorageNative.expect third 0 16 2 1 3 true 0 1 1 9223372036854775808 4602678819172646912)
+      ("E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 1): holds complex(" ++
+        "f64_bits(9223372036854775808), f64_bits(9221120237041090561)); expected complex(" ++
+        "f64_bits(9223372036854775808), f64(0x1p-1) [bits 4602678819172646912])")
+    -- Other statuses keep their fixed messages and precedence.
+    failsWith (VastitasStorageNative.expect third 0 16 2 1 3 true 1 0 1 0 0)
+      "E_NATIVE_BOUNDS: cell index is outside the view"
+    failsWith (VastitasStorageNative.expect third 0 16 2 1 3 true 0 1 0 0 0)
+      "E_NATIVE_SCALAR: scalar representation mismatch"
   finally
     VastitasStorageNative.close first
     VastitasStorageNative.close second
+    VastitasStorageNative.close third
   unless (← VastitasStorageNative.stats first)[2]! == 0 &&
-      (← VastitasStorageNative.stats second)[2]! == 0 do
+      (← VastitasStorageNative.stats second)[2]! == 0 &&
+      (← VastitasStorageNative.stats third)[2]! == 0 do
     throw (IO.userError "closed arena retained data")
   validate 16001
   IO.println "shared FFI Unit: concurrent first use, value continuation, error/finally and fresh arenas passed"

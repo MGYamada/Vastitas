@@ -8,6 +8,9 @@ use crate::storage::{
     },
 };
 
+// Optional `alpha` and `beta` GEMM coefficients.
+type GemmCoefficients = (Option<Coefficient<String>>, Option<Coefficient<String>>);
+
 impl Parser {
     fn resource_number(&mut self) -> Result<u64, Diagnostic> {
         let token = self.advance();
@@ -39,7 +42,9 @@ impl Parser {
         }
     }
 
-    fn runtime_access(&mut self) -> Result<Access, Diagnostic> {
+    // Static `borrow` and the runtime forms share one spelling table; only
+    // their established diagnostic codes and wording differ.
+    fn access_mode(&mut self, code: &str, subject: &str) -> Result<Access, Diagnostic> {
         if self.consume("read") {
             Ok(Access::Read)
         } else if self.consume("write") {
@@ -48,11 +53,15 @@ impl Parser {
             Ok(Access::ReadWrite)
         } else {
             Err(diagnostic(
-                "E_RESOURCE_TYPE",
-                "runtime access requires read, write or read_write",
+                code,
+                format!("{subject} requires read, write or read_write"),
                 self.peek().span,
             ))
         }
+    }
+
+    fn runtime_access(&mut self) -> Result<Access, Diagnostic> {
+        self.access_mode("E_RESOURCE_TYPE", "runtime access")
     }
 
     fn runtime_layout(&mut self) -> Result<RuntimeLayout, Diagnostic> {
@@ -466,8 +475,14 @@ impl Parser {
             .map_err(|message| diagnostic("E_RESOURCE_LITERAL", message, span))
     }
 
+    // Call arguments refer to existing resources.
     fn resource_names(&mut self) -> Result<Vec<String>, Diagnostic> {
         self.indexed_list("(", ")", |p| Ok(p.name()?.0))
+    }
+
+    // Call results introduce resources, so they obey binding-name rules.
+    fn resource_binders(&mut self) -> Result<Vec<String>, Diagnostic> {
+        self.indexed_list("(", ")", |p| Ok(p.binding_name()?.0))
     }
 
     fn runtime_action(&mut self) -> Result<RuntimeAction, Diagnostic> {
@@ -607,30 +622,7 @@ impl Parser {
         };
         self.expect(",")?;
         self.expect("NativeFast")?;
-        let mut alpha = None;
-        let mut beta = None;
-        while self.consume(",") {
-            let coefficient = if self.consume("alpha") {
-                &mut alpha
-            } else if self.consume("beta") {
-                &mut beta
-            } else {
-                return Err(diagnostic(
-                    "E_NUMERICAL_TYPE",
-                    "expected alpha or beta coefficient",
-                    self.peek().span,
-                ));
-            };
-            if coefficient.is_some() {
-                return Err(diagnostic(
-                    "E_DUPLICATE",
-                    "runtime GEMM coefficient is specified twice",
-                    self.previous().span,
-                ));
-            }
-            self.expect("=")?;
-            *coefficient = Some(self.numerical_coefficient()?);
-        }
+        let (alpha, beta) = self.gemm_coefficients("runtime GEMM")?;
         self.expect(")")?;
         Ok(RuntimeNumerical::Gemm {
             left,
@@ -724,19 +716,7 @@ impl Parser {
         let start = self.expect("borrow")?.span;
         let name = self.binding_name()?.0;
         self.expect("=")?;
-        let access = if self.consume("read") {
-            Access::Read
-        } else if self.consume("write") {
-            Access::Write
-        } else if self.consume("read_write") {
-            Access::ReadWrite
-        } else {
-            return Err(diagnostic(
-                "E_TYPE",
-                "borrow requires read, write or read_write",
-                self.peek().span,
-            ));
-        };
+        let access = self.access_mode("E_TYPE", "borrow")?;
         self.expect("(")?;
         let source = self.name()?.0;
         let layout = if self.consume(",") {
@@ -779,6 +759,36 @@ impl Parser {
                 value: self.resource_literal()?,
             })
         }
+    }
+
+    // Static GEMM/evaluation and runtime GEMM accept the same optional
+    // `, alpha = …` / `, beta = …` suffix, each at most once.
+    fn gemm_coefficients(&mut self, subject: &str) -> Result<GemmCoefficients, Diagnostic> {
+        let mut alpha = None;
+        let mut beta = None;
+        while self.consume(",") {
+            let coefficient = if self.consume("alpha") {
+                &mut alpha
+            } else if self.consume("beta") {
+                &mut beta
+            } else {
+                return Err(diagnostic(
+                    "E_NUMERICAL_TYPE",
+                    "expected alpha or beta coefficient",
+                    self.peek().span,
+                ));
+            };
+            if coefficient.is_some() {
+                return Err(diagnostic(
+                    "E_DUPLICATE",
+                    format!("{subject} coefficient is specified twice"),
+                    self.previous().span,
+                ));
+            }
+            self.expect("=")?;
+            *coefficient = Some(self.numerical_coefficient()?);
+        }
+        Ok((alpha, beta))
     }
 
     fn numerical_operation(&mut self) -> Result<Numerical, Diagnostic> {
@@ -1103,30 +1113,7 @@ impl Parser {
         };
         self.expect(",")?;
         self.expect("NativeFast")?;
-        let mut alpha = None;
-        let mut beta = None;
-        while self.consume(",") {
-            let target = if self.consume("alpha") {
-                &mut alpha
-            } else if self.consume("beta") {
-                &mut beta
-            } else {
-                return Err(diagnostic(
-                    "E_NUMERICAL_TYPE",
-                    "expected alpha or beta coefficient",
-                    self.peek().span,
-                ));
-            };
-            if target.is_some() {
-                return Err(diagnostic(
-                    "E_DUPLICATE",
-                    "GEMM coefficient is specified twice",
-                    self.previous().span,
-                ));
-            }
-            self.expect("=")?;
-            *target = Some(self.numerical_coefficient()?);
-        }
+        let (alpha, beta) = self.gemm_coefficients("GEMM")?;
         self.expect(")")?;
         if let Some(operation) = operation {
             return Ok(Numerical::Evaluate {
@@ -1199,7 +1186,7 @@ impl Parser {
                 grouping,
             })
         } else if self.consume("cache") {
-            let name = self.name()?.0;
+            let name = self.binding_name()?.0;
             self.expect("=")?;
             self.expect("pack3")?;
             self.expect("(")?;
@@ -1523,18 +1510,28 @@ impl Parser {
         })
     }
 
-    fn resource_statements(
-        &mut self,
-        depth: usize,
-    ) -> Result<Vec<crate::storage::source::Statement>, Diagnostic> {
-        use crate::storage::source::Statement;
-        if depth > MAX_PARSE_NESTING {
+    // Like a nested block expression, each resource branch consumes one level
+    // of the combined type/expression nesting budget; the body does not.
+    fn resource_branch(&mut self) -> Result<Vec<crate::storage::source::Statement>, Diagnostic> {
+        if self.nesting >= MAX_PARSE_NESTING {
             return Err(diagnostic(
                 "E_LIMIT",
-                "resource branch nesting exceeds the parser limit",
+                format!(
+                    "resource branch nesting exceeds the supported limit of {MAX_PARSE_NESTING}; branches, types and expressions share this budget"
+                ),
                 self.peek().span,
             ));
         }
+        self.nesting += 1;
+        let result = self.resource_statements();
+        self.nesting -= 1;
+        result
+    }
+
+    fn resource_statements(
+        &mut self,
+    ) -> Result<Vec<crate::storage::source::Statement>, Diagnostic> {
+        use crate::storage::source::Statement;
         let mut body = Vec::new();
         while !self.peek().is("}") && !self.peek().is("value") {
             let start = self.peek().span;
@@ -1557,7 +1554,7 @@ impl Parser {
                     let callee = self.reference_path()?.0;
                     let arguments = self.resource_names()?;
                     self.expect("->")?;
-                    let results = self.resource_names()?;
+                    let results = self.resource_binders()?;
                     self.expect(";")?;
                     Statement::CallValue {
                         callee,
@@ -1627,11 +1624,11 @@ impl Parser {
                     None
                 };
                 self.expect("{")?;
-                let yes = self.resource_statements(depth + 1)?;
+                let yes = self.resource_branch()?;
                 self.expect("}")?;
                 self.expect("else")?;
                 self.expect("{")?;
-                let no = self.resource_statements(depth + 1)?;
+                let no = self.resource_branch()?;
                 self.expect("}")?;
                 let span = start.through(self.previous().span);
                 if let Some(condition) = condition {
@@ -1653,7 +1650,7 @@ impl Parser {
                 let callee = self.reference_path()?.0;
                 let arguments = self.resource_names()?;
                 self.expect("->")?;
-                let results = self.resource_names()?;
+                let results = self.resource_binders()?;
                 self.expect(";")?;
                 crate::storage::source::Statement::Call {
                     callee,
@@ -1708,7 +1705,7 @@ impl Parser {
         let parameters = self.indexed_list("(", ")", Self::resource_parameter)?;
         let results = if self.consume("returns") {
             self.indexed_list("(", ")", |p| {
-                let name = p.name()?.0;
+                let name = p.binding_name()?.0;
                 p.expect(":")?;
                 let ty = if p.consume("OwnedMapTo") {
                     p.expect("<")?;
@@ -1735,7 +1732,7 @@ impl Parser {
         self.expect("->")?;
         let value_type = self.ty()?;
         self.expect("{")?;
-        let body = self.resource_statements(0)?;
+        let body = self.resource_statements()?;
         self.expect("value")?;
         let value_body = self.block()?;
         self.expect("}")?;

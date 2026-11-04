@@ -125,7 +125,7 @@ tests call the real helper; they do not compile or count the pthread prototype.
 
 The native failure fixture changes one expected output bit in the captured wire,
 then passes that wire through the actual kernel checker/emitter again. The
-instrumented wrapper must receive the exact `E_NATIVE_EXPECT` error, complete
+instrumented wrapper must receive the `E_NATIVE_EXPECT` bit-mismatch error, complete
 the emitted cleanup, finalize the arena, free all six data allocations, and leave no
 unexpected tracked object. It is a runtime-error test, not a source typing
 rejection or an alternative semantic checker.

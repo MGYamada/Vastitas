@@ -1,6 +1,7 @@
 #ifndef VASTITAS_STORAGE_H
 #define VASTITAS_STORAGE_H
 
+#include <stddef.h>
 #include <stdint.h>
 
 /* Synchronous CPU adapter. Initialized reads and loan permissions are supplied
@@ -50,6 +51,18 @@ VStorageStatus vstorage_store(VStorageArena *arena, uint32_t id, VStorageLayout 
 VStorageStatus vstorage_expect(VStorageArena *arena, uint32_t id, VStorageLayout view,
                               uint64_t row, uint64_t column, uint8_t scalar,
                               uint64_t real, uint64_t imaginary);
+/* As vstorage_expect. Only when it returns VS_EXPECT, observed receives the
+ * cell's stored component bits (imaginary 0 for F64); otherwise it is unchanged. */
+VStorageStatus vstorage_expect_observed(VStorageArena *arena, uint32_t id, VStorageLayout view,
+                                       uint64_t row, uint64_t column, uint8_t scalar,
+                                       uint64_t real, uint64_t imaginary, uint64_t observed[2]);
+/* Deterministic, host-independent ASCII diagnostic for a VS_EXPECT failure at a
+ * view-relative cell. It names the cell and both payloads in source spelling
+ * with their decimal bits. Every message fits this capacity, including the NUL.
+ * Returns its length, or 0 if capacity is smaller and buffer must not be used. */
+enum { VSTORAGE_EXPECT_MESSAGE_BYTES = 512 };
+size_t vstorage_expect_message(char *buffer, size_t capacity, uint64_t row, uint64_t column,
+                               uint8_t scalar, const uint64_t observed[2], const uint64_t expected[2]);
 VStorageStatus vstorage_copy(VStorageArena *arena, uint32_t source, VStorageLayout input,
                             uint32_t target, VStorageLayout output);
 /* Pack the nontransposed i-by-(k*j) view into (i*j)-by-k without allocation:

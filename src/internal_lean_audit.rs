@@ -79,7 +79,9 @@ pub fn run_cli(args: &[OsString]) -> Result<(), String> {
         .map_err(|error| format!("E_LEAN_AUDIT: cannot locate audit worker: {error}"))?;
     let mut command = Command::new(executable);
     command.arg(WORKER_COMMAND).arg(&path);
-    let output = crate::process::capture(command, None).map_err(|error| match error {
+    // The receipt is one small JSON object; diagnostics keep a bounded tail.
+    let receipt = crate::process::Retention::Complete(1024 * 1024);
+    let output = crate::process::capture(command, None, receipt).map_err(|error| match error {
         crate::process::CaptureError::Interrupted => "E_LEAN_AUDIT: audit interrupted".into(),
         error => format!("E_LEAN_AUDIT: cannot run audit worker: {error:?}"),
     })?;

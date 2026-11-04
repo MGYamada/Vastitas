@@ -152,8 +152,9 @@ mathematical restrictions or a guarantee against environmental build failures.
 
 When `VASTITAS_KERNEL` explicitly selects an executable, `check` needs no
 kernel package directory. Native builds still require `VASTITAS_KERNEL_ROOT`
-(or this checkout's default package), and copy that package's `lean-toolchain`
-into the temporary Lake project.
+(or this checkout's default package), and copy that package's `lean-toolchain`,
+which must equal the compiler's pin, into the temporary Lake project. Any
+selected executable must report the kernel build identity of this compiler.
 
 Unimplemented syntax or operations are rejected. Beyond this Stage 0 core,
 [Stage 1a](stage1a.md) adds scalar dispatch, [Stage 1b](stage1b.md) adds independent

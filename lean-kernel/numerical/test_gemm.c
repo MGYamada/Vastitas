@@ -1,5 +1,6 @@
 #include "gemm.h"
 #include <assert.h>
+#include <cblas.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -373,10 +374,102 @@ static void diagonal_pairing(void) {
     }
 }
 
+static uint64_t component(VStorageArena *arena, uint32_t id, VStorageLayout view, unsigned part) {
+    VStorageDense actual;
+    assert(vstorage_prepare_dense(arena,id,view,&actual) == VS_OK);
+    return bits(actual.data[part]);
+}
+
+/* 1x1 outputs use the fused dot path. With exactly representable sums it agrees
+ * bit for bit with the former M = N = 1 BLAS call, for every orientation,
+ * conjugation, padding and coefficient form, and keeps the same report. */
+static void scalar_outputs(void) {
+    enum { K = 5 };
+    const double xr[K]={1,-2,3,0.5,-4}, xi[K]={2,1,-1,0.25,3};
+    const double yr[K]={-3,2,0.5,8,1}, yi[K]={1,-1,4,2,-0.5};
+    for (uint8_t scalar=0;scalar<2;++scalar) for (int ta=0;ta<2;++ta) for (int tb=0;tb<2;++tb)
+    for (int pad=0;pad<2;++pad) for (uint8_t ca=0;ca<2;++ca) for (uint8_t cb=0;cb<2;++cb) {
+        VStorageArena *arena=vstorage_new(4096); assert(arena);
+        VStorageLayout a=layout(1,K,ta,pad), b=layout(K,1,tb,pad), c=layout(1,1,0,pad);
+        allocate(arena,0,scalar,a); allocate(arena,1,scalar,b);
+        allocate(arena,2,scalar,c); allocate(arena,3,scalar,c);
+        for (int p=0;p<K;++p) { put(arena,0,a,0,p,scalar,xr[p],xi[p]); put(arena,1,b,p,0,scalar,yr[p],yi[p]); }
+        VStorageDense da, db, reference;
+        assert(vstorage_prepare_dense(arena,0,a,&da)==VS_OK && vstorage_prepare_dense(arena,1,b,&db)==VS_OK);
+        assert(vstorage_prepare_dense(arena,3,c,&reference)==VS_OK);
+        enum CBLAS_TRANSPOSE oa = scalar && ca ? (ta ? CblasConjTrans : CblasConjNoTrans) : (ta ? CblasTrans : CblasNoTrans);
+        enum CBLAS_TRANSPOSE ob = scalar && cb ? (tb ? CblasConjTrans : CblasConjNoTrans) : (tb ? CblasTrans : CblasNoTrans);
+        const double alphas[3][2]={{1,0},{-1.5,0},{0.5,-2}}, betas[3][2]={{0,0},{1,0},{0.5,0.25}};
+        for (unsigned ai=0;ai<3;++ai) for (unsigned bi=0;bi<3;++bi) {
+            const double *alpha=alphas[ai], *beta=betas[bi];
+            if (!scalar && (alpha[1] || beta[1])) continue;
+            VGemmMode mode = bi ? VGEMM_ACCUMULATE : VGEMM_OVERWRITE;
+            VGemmCoefficient alpha_input=literal(scalar,alpha[0],alpha[1]);
+            VGemmCoefficient beta_input=bi ? literal(scalar,beta[0],beta[1]) : (VGemmCoefficient){VGEMM_DEFAULT,0,0,0,0,0};
+            put(arena,2,c,0,0,scalar,bi?6:NAN,scalar?(bi?-2:NAN):0);
+            put(arena,3,c,0,0,scalar,bi?6:NAN,scalar?(bi?-2:NAN):0);
+            if (!scalar) cblas_dgemm(CblasColMajor,oa,ob,1,1,K,alpha[0],da.data,(blasint)da.leading,
+                db.data,(blasint)db.leading,beta[0],reference.data,(blasint)reference.leading);
+            else cblas_zgemm(CblasColMajor,oa,ob,1,1,K,alpha,da.data,(blasint)da.leading,
+                db.data,(blasint)db.leading,beta,reference.data,(blasint)reference.leading);
+            VStorageStats before=vstorage_stats(arena);
+            VGemmReport report={99,99};
+            assert(vgemm_execute_scaled(arena,0,a,ca,1,b,cb,2,c,mode,alpha_input,beta_input,&report)==VS_OK);
+            assert(report.kernel_calls==1 && report.written_bytes==(scalar?16:8));
+            VStorageStats after=vstorage_stats(arena);
+            assert(after.written_bytes-before.written_bytes==(scalar?16:8));
+            assert(after.data_allocations==before.data_allocations && after.copied_bytes==before.copied_bytes);
+            for (unsigned part=0;part<=(unsigned)scalar;++part)
+                assert(component(arena,2,c,part)==component(arena,3,c,part));
+        }
+        cleanup(arena);
+    }
+}
+
+/* The fused order is documented: sequential from +0, separately rounded. */
+static void scalar_output_order(void) {
+    for (uint8_t scalar=0;scalar<2;++scalar) {
+        VStorageArena *arena=vstorage_new(4096); assert(arena);
+        VStorageLayout a=layout(1,4,0,0), b=layout(4,1,0,0), c=layout(1,1,0,0);
+        allocate(arena,0,scalar,a); allocate(arena,1,scalar,b); allocate(arena,2,scalar,c);
+        /* 2^53 + 1 + 1 - 2^53: sequential addition gives 0; pairwise gives 1. */
+        const double x[4]={9007199254740992.0,1,1,-9007199254740992.0};
+        for (int p=0;p<4;++p) { put(arena,0,a,0,p,scalar,x[p],0); put(arena,1,b,p,0,scalar,1,0); }
+        assert(vgemm_execute(arena,0,a,0,1,b,0,2,c,VGEMM_OVERWRITE,NULL)==VS_OK);
+        assert(component(arena,2,c,0)==bits(0.0));
+        /* -1 + (1+2^-30)(1-2^-30): a rounded product gives 0; FMA gives -2^-60. */
+        VStorageLayout a2=layout(1,2,0,0), b2=layout(2,1,0,0);
+        put(arena,0,a2,0,0,scalar,-1,0); put(arena,0,a2,0,1,scalar,1+0x1p-30,0);
+        put(arena,1,b2,0,0,scalar,1,0); put(arena,1,b2,1,0,scalar,1-0x1p-30,0);
+        assert(vgemm_execute(arena,0,a2,0,1,b2,0,2,c,VGEMM_OVERWRITE,NULL)==VS_OK);
+        assert(component(arena,2,c,0)==bits(0.0));
+        if (scalar) assert(component(arena,2,c,1)==bits(0.0));
+        /* Zero alpha reads neither input; zero beta reads no old output and
+         * yields +0 even for a negative alpha times a zero sum. */
+        put(arena,0,a2,0,0,scalar,NAN,scalar?INFINITY:0);
+        put(arena,2,c,0,0,scalar,6,scalar?-2:0);
+        assert(vgemm_execute_scaled(arena,0,a2,0,1,b2,0,2,c,VGEMM_ACCUMULATE,literal(scalar,0,0),
+            literal(scalar,0.5,0),NULL)==VS_OK);
+        expect(arena,2,c,0,0,3,scalar?-1:0);
+        put(arena,2,c,0,0,scalar,NAN,NAN);
+        assert(vgemm_execute_scaled(arena,0,a2,0,1,b2,0,2,c,VGEMM_OVERWRITE,literal(scalar,0,0),
+            (VGemmCoefficient){VGEMM_DEFAULT,0,0,0,0,0},NULL)==VS_OK);
+        assert(component(arena,2,c,0)==bits(0.0));
+        put(arena,0,a2,0,0,scalar,0,0); put(arena,0,a2,0,1,scalar,0,0);
+        put(arena,2,c,0,0,scalar,NAN,NAN);
+        assert(vgemm_execute_scaled(arena,0,a2,0,1,b2,0,2,c,VGEMM_OVERWRITE,literal(scalar,-1,0),
+            (VGemmCoefficient){VGEMM_DEFAULT,0,0,0,0,0},NULL)==VS_OK);
+        assert(component(arena,2,c,0)==bits(0.0));
+        if (scalar) assert(component(arena,2,c,1)==bits(0.0));
+        cleanup(arena);
+    }
+}
+
 int main(void) {
     assert(vgemm_backend_check()==VS_OK);
+    scalar_outputs(); scalar_output_order();
     real_orientations(); complex_product(); conjugation_and_nonfinite();
     degenerate(); nonfinite_inputs(); failures_preserve_output(); complex_element_boundaries(); coefficients(); diagonal_pairing();
     puts(vgemm_configuration());
-    puts("GEMM: real/complex N/T/R/C layouts, reuse, empty dimensions and failure-before-write passed");
+    puts("GEMM: real/complex N/T/R/C layouts, fused 1x1 outputs matching the former BLAS call, reuse, empty dimensions and failure-before-write passed");
 }

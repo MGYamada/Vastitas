@@ -231,6 +231,17 @@ class DiagnosticReferenceTests(unittest.TestCase):
             response[key] = value
             with self.assertRaises(dr.Invalid):
                 dr.from_kernel_response(response, 5)
+        identity = {"sources": "0123456789abcdef", "lean": "4.35.0"}
+        response = failure()
+        response["kernel"] = identity
+        records = dr.from_kernel_response(response, 5)
+        self.assertEqual(records, dr.from_kernel_response(failure(), 5))
+        for kernel in ({**identity, "verified": True}, {"sources": "x"},
+                       {"sources": 1, "lean": "4.35.0"}, "identity"):
+            response = failure()
+            response["kernel"] = kernel
+            with self.assertRaises(dr.Invalid):
+                dr.from_kernel_response(response, 5)
         response = failure()
         response["diagnostics"][0]["holder"] = {"status": "verified"}
         with self.assertRaises(dr.Invalid):

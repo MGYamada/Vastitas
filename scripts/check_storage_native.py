@@ -62,7 +62,9 @@ def main():
 
         for name, budget, failure, expected in [
             ("success", 128, None, [3, 3, 0, 128, 176, 64]),
-            ("assertion_failure", 128, "E_NATIVE_EXPECT", [1, 1, 0, 64, 32, 0]),
+            # The diagnostic names the view-relative cell and both exact payloads.
+            ("assertion_failure", 128, "E_NATIVE_EXPECT: stored bit pattern differs at cell (1, 1): "
+             "holds f64(0x1.8p1) [bits 4613937818241073152]; expected f64_bits(0)\n", [1, 1, 0, 64, 32, 0]),
             ("allocation_failure", 64, "E_NATIVE_ALLOCATION", [2, 2, 0, 64, 112, 0]),
         ]:
             source = copy.deepcopy(fixture)
@@ -114,7 +116,8 @@ def main : IO Unit := do
         functions = json.loads((ROOT / "tests/fixtures/storage-functions.json").read_text())
         for name, budget, failure, expected in [
             ("functions", 128, None, [3, 3, 0, 128, 128, 64]),
-            ("function_assertion_failure", 128, "E_NATIVE_EXPECT", [2, 2, 0, 128, 96, 64]),
+            ("function_assertion_failure", 128, "E_NATIVE_EXPECT: stored bit pattern differs at cell (1, 0): "
+             "holds f64(0x1.8p1) [bits 4613937818241073152]; expected f64_bits(0)\n", [2, 2, 0, 128, 96, 64]),
             ("function_allocation_failure", 64, "E_NATIVE_ALLOCATION", [1, 1, 0, 64, 32, 0]),
         ]:
             source = copy.deepcopy(functions)

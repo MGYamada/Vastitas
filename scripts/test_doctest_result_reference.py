@@ -77,6 +77,15 @@ class ResultTests(unittest.TestCase):
         self.result["backend"]["response"]["version"] = 99
         self.assert_judgment("failed", "unsupported_protocol")
 
+    def test_kernel_build_identity_is_checked_but_not_judged(self):
+        identity = {"sources": "0123456789abcdef", "lean": "4.35.0"}
+        self.result["backend"]["response"]["kernel"] = identity
+        self.assert_judgment("passed", "expected_rejection")
+        for kernel in ({**identity, "verified": True}, {"lean": "4.35.0"},
+                       {"sources": None, "lean": "4.35.0"}):
+            self.result["backend"]["response"]["kernel"] = kernel
+            self.assert_judgment("failed", "invalid_contract")
+
     def test_kernel_ok_false_does_not_override_abnormal_termination(self):
         for code in (None, 0, 2, -9, -11, 130, 143):
             with self.subTest(code=code):

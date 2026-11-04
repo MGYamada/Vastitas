@@ -102,6 +102,35 @@ def combine (coefficients generators : List Poly) : Work Poly := do
   charge (combinationCost coefficients generators)
   bounded (combination coefficients generators)
 
+/-- Budgeted `Poly.pow`: the same multiplications in the same order. -/
+def power (arity : Nat) (p : Poly) : Nat → Work Poly
+  | 0 => pure (Poly.one arity)
+  | n + 1 => do mul (← power arity p n) p
+
+/-- Budgeted `Poly.evalMonomial`. -/
+def monomialImage (arity : Nat) (images : List Poly) (m : Monomial) : Work Poly :=
+  (m.zip images).foldlM (fun product (exponent, image) => do mul product (← power arity image exponent))
+    (Poly.one arity)
+
+/-- Budgeted `Poly.subst`. Every intermediate product is charged and bounded,
+so substituting into a high-degree polynomial fails with `E_LIMIT` before the
+expansion is materialized. -/
+def substitute (arity : Nat) (images : List Poly) (p : Poly) : Work Poly :=
+  p.foldlM (fun result t => do
+    let image ← monomialImage arity images t.monomial
+    add result (Poly.scale t.coefficient image)) []
+
+/-- Budgeted `normalForm`. -/
+def reduce (basis : List Poly) (p : Poly) : Work Poly := do
+  let division ← divide basis p
+  pure division.remainder
+
+/-- Budgeted `Map.compose`. -/
+def compose (after before : Map) : Work Map := do
+  let images ← after.images.mapM fun image => do
+    reduce before.basis (← substitute before.arity before.images image)
+  pure ⟨before.arity, before.basis, images⟩
+
 def leadingMonomials (basis : List Poly) : List Monomial :=
   basis.filterMap fun g => g.leading?.map (·.monomial)
 

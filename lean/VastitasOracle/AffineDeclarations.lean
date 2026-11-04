@@ -54,6 +54,8 @@ theorem checkPullback_ok {data : AffineData} {g : Poly} {s s' : Nat}
     ∃ quotients, combination quotients data.basis = Poly.subst data.arity data.structureImages g := by
   unfold checkPullback at h
   obtain ⟨_, _, _, h⟩ := bind_ok h
+  obtain ⟨q, _, hq, h⟩ := bind_ok h
+  rw [← substitute_ok hq]
   exact checkMember_ok h
 
 theorem checkStructure_sound {data base : AffineData} {s s' : Nat}

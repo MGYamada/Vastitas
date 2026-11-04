@@ -83,7 +83,7 @@ def checkImage (data : AffineData) (entry : String × Poly) : Work Unit := do
 /-- One base basis element pulls back into this object's ideal. -/
 def checkPullback (data : AffineData) (g : Poly) : Work Unit := do
   charge (cost g + 1)
-  checkMember data.basis (Poly.subst data.arity data.structureImages g)
+  checkMember data.basis (← substitute data.arity data.structureImages g)
     (.base "the structure map does not respect the base relations")
 
 /-- The structure map to a base: one binding per base coordinate, normalized
@@ -135,12 +135,9 @@ structure FiberPresentation where
   bindings : List (String × Poly)
   deriving Repr, DecidableEq, BEq
 
-def fiberPresentation (left right : Namespace.Owner) (l r b : AffineData)
-    (via : Option (List Poly × List Poly)) : FiberPresentation :=
+def fiberPresentation (left right : Namespace.Owner) (l r b : AffineData) (rightImages : List Poly) :
+    FiberPresentation :=
   let total := l.arity + r.arity
-  let rightImages := match via with
-    | none => r.structureImages
-    | some (forward, _) => forward.map (Poly.subst r.arity r.structureImages)
   let cross := (l.structureImages.zip rightImages).map fun (a, c) =>
     Poly.sub (embed 0 total a) (embed l.arity total c)
   { generators := qualify left l.generators ++ qualify right r.generators
@@ -148,20 +145,45 @@ def fiberPresentation (left right : Namespace.Owner) (l r b : AffineData)
     base := l.base
     bindings := b.generators.zip (l.structureImages.map (embed 0 total)) }
 
+/-- Morphism images are normal forms in the source ring. -/
+def checkNormal (basis : List Poly) (images : List Poly) : Work Unit :=
+  images.forM fun image => do
+    ensure ((← reduce basis image) == image) (.coordinate "a morphism image is not a normal form")
+
+/-- A pullback map `Y → X` sends every basis element of `Y` into `X`'s ideal. -/
+def checkRelations (dx dy : AffineData) (images : List Poly) : Work Unit :=
+  dy.basis.forM fun g => do
+    checkMember dx.basis (← substitute dx.arity images g)
+      (.relation "the map does not respect the target's relations")
+
+/-- A pullback map commutes with the structure maps `sx` and `sy` to the base. -/
+def checkTriangle (dx : AffineData) (sx sy images : List Poly) : Work Unit := do
+  let pulled ← sy.mapM fun image => do reduce dx.basis (← substitute dx.arity images image)
+  ensure (sx == pulled) (.base "the morphism does not commute with the structure maps to the base")
+
+/-- The right factor's structure map to the left factor's base: its own
+structure images, or those composed with the chosen base isomorphism. -/
+def fiberImages (r : AffineData) (via : Option (List Poly × List Poly)) : Work (List Poly) :=
+  match via with
+  | none => pure r.structureImages
+  | some (forward, _) => forward.mapM (substitute r.arity r.structureImages)
+
 /-- A checked isomorphism between two declared base rings: images that respect
 relations both ways and compose to the identity both ways. -/
 def checkIso (b b' : AffineData) (forward inverse : List Poly) : Work Unit := do
   ensure (forward.length == b.arity && inverse.length == b'.arity &&
       forward.all (Poly.canonical b'.arity) && inverse.all (Poly.canonical b.arity))
     (.base "a base isomorphism gives each coordinate exactly one image")
-  b.basis.forM fun g => checkMember b'.basis (Poly.subst b'.arity forward g)
-    (.relation "the base isomorphism does not respect the relations")
-  b'.basis.forM fun g => checkMember b.basis (Poly.subst b.arity inverse g)
-    (.relation "the inverse base isomorphism does not respect the relations")
-  ensure ((inverse.map fun image => normalForm b'.basis (Poly.subst b'.arity forward image)) ==
-      (Map.identity b'.arity b'.basis).images &&
-    (forward.map fun image => normalForm b.basis (Poly.subst b.arity inverse image)) ==
-      (Map.identity b.arity b.basis).images)
+  b.basis.forM fun g => do
+    checkMember b'.basis (← substitute b'.arity forward g)
+      (.relation "the base isomorphism does not respect the relations")
+  b'.basis.forM fun g => do
+    checkMember b.basis (← substitute b.arity inverse g)
+      (.relation "the inverse base isomorphism does not respect the relations")
+  let there ← compose ⟨b.arity, b.basis, inverse⟩ ⟨b'.arity, b'.basis, forward⟩
+  let back ← compose ⟨b'.arity, b'.basis, forward⟩ ⟨b.arity, b.basis, inverse⟩
+  ensure (there.images == (Map.identity b'.arity b'.basis).images &&
+      back.images == (Map.identity b.arity b.basis).images)
     (.relation "the base maps are not mutually inverse")
 
 /-- The derived presentation of a principal open `D(f) ⊂ X`: `X`'s coordinates and
@@ -193,7 +215,7 @@ def checkConstruction (data : AffineData) (resolve : Namespace.Owner → Option 
       let some baseRef' := r.base | throw (.base "the right fiber factor has no declared base")
       let some b' := resolve baseRef' | throw (.base "the right fiber base is not a presented affine object")
       checkIso b b' forward inverse
-    let expected := fiberPresentation left right l r b via
+    let expected := fiberPresentation left right l r b (← fiberImages r via)
     ensure (data.generators == expected.generators && relations == expected.relations &&
         data.base == expected.base && data.bindings == expected.bindings)
       (.base "the stored fiber presentation is not derived from its factors")

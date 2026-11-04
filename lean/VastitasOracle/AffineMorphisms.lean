@@ -43,6 +43,38 @@ theorem run_isOk {action : Work Unit} (h : (run action).isOk = true) :
   | error e => simp [result, Except.map, Except.isOk, Except.toBool] at h
   | ok pair => exact ⟨pair.2, by simp⟩
 
+theorem checkNormal_ok {basis images : List Poly} {s s' : Nat}
+    (h : (checkNormal basis images).run s = .ok ((), s')) :
+    ∀ image ∈ images, normalForm basis image = image := by
+  intro image member
+  obtain ⟨_, _, hi⟩ := forM_ok h image member
+  obtain ⟨q, _, hq, hi⟩ := bind_ok hi
+  have same := ensure_ok hi
+  simp only [beq_iff_eq] at same
+  rw [← reduce_ok hq]
+  exact same
+
+theorem checkRelations_ok {dx dy : AffineData} {images : List Poly} {s s' : Nat}
+    (h : (checkRelations dx dy images).run s = .ok ((), s')) :
+    ∀ g ∈ dy.basis, ∃ quotients, combination quotients dx.basis = Poly.subst dx.arity images g := by
+  intro g member
+  obtain ⟨_, _, hg⟩ := forM_ok h g member
+  obtain ⟨q, _, hq, hg⟩ := bind_ok hg
+  rw [← substitute_ok hq]
+  exact checkMember_ok hg
+
+theorem checkTriangle_ok {dx : AffineData} {sx sy images : List Poly} {s s' : Nat}
+    (h : (checkTriangle dx sx sy images).run s = .ok ((), s')) :
+    sx = sy.map (fun image => normalForm dx.basis (Poly.subst dx.arity images image)) := by
+  unfold checkTriangle at h
+  obtain ⟨pulled, _, hpulled, h⟩ := bind_ok h
+  have same := ensure_ok h
+  simp only [beq_iff_eq] at same
+  rw [same]
+  refine mapM_ok (fun image _ s s' r hr => ?_) hpulled
+  obtain ⟨q, _, hq, hr⟩ := bind_ok hr
+  rw [reduce_ok hr, substitute_ok hq]
+
 theorem relativeConstant_sound {env : Environment} {application : Application} {map : Map}
     (h : relativeConstantValid env application map = true) : MorphismValid env application map := by
   unfold relativeConstantValid at h
@@ -54,14 +86,13 @@ theorem relativeConstant_sound {env : Environment} {application : Application} {
     split at h
     · rename_i dx dy sx sy hx hy hsx hsy
       simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true] at h
-      obtain ⟨⟨⟨⟨⟨arity, basis⟩, length⟩, images⟩, members⟩, triangle⟩ := h
-      obtain ⟨s', ran⟩ := run_isOk members
-      refine ⟨x, y, s, dx, dy, sx, sy, indices, hx, hy, hsx, hsy, arity, basis, length, ?_, ?_, triangle⟩
-      · intro image member
-        simpa [Bool.and_eq_true] using images image member
-      · intro g member
-        obtain ⟨_, _, hg⟩ := forM_ok ran g member
-        exact checkMember_ok hg
+      obtain ⟨⟨⟨⟨arity, basis⟩, length⟩, canonical⟩, checks⟩ := h
+      obtain ⟨_, ran⟩ := run_isOk checks
+      obtain ⟨_, _, hnormal, ran⟩ := bind_ok ran
+      obtain ⟨_, _, hrelations, htriangle⟩ := bind_ok ran
+      refine ⟨x, y, s, dx, dy, sx, sy, indices, hx, hy, hsx, hsy, arity, basis, length,
+        fun image member => ⟨canonical image member, checkNormal_ok hnormal image member⟩,
+        checkRelations_ok hrelations, checkTriangle_ok htriangle⟩
     · simp at h
   · simp at h
 

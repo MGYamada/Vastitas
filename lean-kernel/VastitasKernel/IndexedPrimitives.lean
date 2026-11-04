@@ -77,13 +77,11 @@ def relativeConstantValid (env : Environment) (application : Application) (map :
     match affineData? env x, affineData? env y, structureImages? env x s, structureImages? env y s with
     | some dx, some dy, some sx, some sy =>
       map.arity == dx.arity && map.basis == dx.basis && map.images.length == dy.arity &&
-      map.images.all (fun image => AlgebraRuntime.Poly.canonical dx.arity image &&
-        AlgebraRuntime.normalForm dx.basis image == image) &&
-      (AlgebraBasis.run (dy.basis.forM fun g =>
-        AlgebraDeclarations.checkMember dx.basis (AlgebraRuntime.Poly.subst dx.arity map.images g)
-          (.invalid "the map does not respect the target relations"))).isOk &&
-      sx == sy.map (fun image => AlgebraRuntime.normalForm dx.basis
-        (AlgebraRuntime.Poly.subst dx.arity map.images image))
+      map.images.all (AlgebraRuntime.Poly.canonical dx.arity) &&
+      (AlgebraBasis.run do
+        AlgebraDeclarations.checkNormal dx.basis map.images
+        AlgebraDeclarations.checkRelations dx dy map.images
+        AlgebraDeclarations.checkTriangle dx sx sy map.images).isOk
     | _, _, _, _ => false
   | _ => false
 
@@ -105,6 +103,12 @@ def objectsOf (application : Application) : Option (DeclId × DeclId × DeclId) 
   | [.object (.global x), .object (.global y), .object (.global s)] => some (x, y, s)
   | _ => none
 
+/-- `after ∘ before` is `target`, composed within the work budget. -/
+def composesTo (after before target : AlgebraRuntime.Map) : Bool :=
+  match AlgebraBasis.run (AlgebraBasis.compose after before) with
+  | .ok composite => AlgebraRuntime.Map.same composite target
+  | .error _ => false
+
 /-- Two declared morphisms `A → B` and `B → A` over one base that compose to
 the identity both ways. -/
 def relativeIsoValid (env : Environment) (forward backward : Application × AlgebraRuntime.Map) : Bool :=
@@ -114,8 +118,8 @@ def relativeIsoValid (env : Environment) (forward backward : Application × Alge
     affineData? env (objectsOf backward.1 |>.map (·.1) |>.getD default) with
   | some (a, b, s), some (b', a', s'), some da, some db =>
     a == a' && b == b' && s == s' &&
-    AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose backward.2 forward.2) (AlgebraRuntime.Map.identity da.arity da.basis) &&
-    AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose forward.2 backward.2) (AlgebraRuntime.Map.identity db.arity db.basis)
+    composesTo backward.2 forward.2 (AlgebraRuntime.Map.identity da.arity da.basis) &&
+    composesTo forward.2 backward.2 (AlgebraRuntime.Map.identity db.arity db.basis)
   | _, _, _, _ => false
 
 /-- A Cartesian square: `first : T → L` and `second : T → R` over the fiber's
@@ -131,10 +135,8 @@ def relativeCartesianValid (env : Environment) (first second inverse : Applicati
     match affineData? env t, affineData? env fiber with
     | some dt, some dp =>
       let comparison := AlgebraRuntime.Map.pair first.2 second.2
-      AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose inverse.2 comparison)
-          (AlgebraRuntime.Map.identity dt.arity dt.basis) &&
-        AlgebraRuntime.Map.same (AlgebraRuntime.Map.compose comparison inverse.2)
-          (AlgebraRuntime.Map.identity dp.arity dp.basis)
+      composesTo inverse.2 comparison (AlgebraRuntime.Map.identity dt.arity dt.basis) &&
+        composesTo comparison inverse.2 (AlgebraRuntime.Map.identity dp.arity dp.basis)
     | _, _ => false
   | _, _, _, _ => false
 

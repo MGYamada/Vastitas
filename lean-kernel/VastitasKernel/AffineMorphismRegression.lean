@@ -103,6 +103,29 @@ private def mapOf (name : String) : Option Map :=
 #eval check "coefficient selector must be a monomial"
   (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t"
     (.sum [c "e", n 1])))]) == "E_AFFINE_COORDINATE")
+#eval check "a zero coefficient selector"
+  (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t" (n 0)))])
+    == "E_AFFINE_COORDINATE")
+#eval check "a coefficient selector that cancels to zero"
+  (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t"
+    (.sum [c "e", .neg (c "e")])))]) == "E_AFFINE_COORDINATE")
+#eval check "the constant coefficient selector is one"
+  (code (with' [decl "constant" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t"
+    (n 1)))]) == "accepted")
+
+-- Substitution is budgeted: small sources whose expansions are huge fail with E_LIMIT.
+private def coordinates : List String := (List.range 16).map (s!"x{·}")
+#eval check "substituting a 16-term image into t^16 exceeds the budget"
+  (code (with' [affine "Free" coordinates [] "SpecQQ", affine "T16" ["t"] [.pow (c "t") 16] "SpecQQ",
+    morphism "bad" "Free" "T16" "SpecQQ" (.pullback [("t", .sum (coordinates.map c))])]) == "E_LIMIT")
+private def level (k : Nat) : Source.Declaration :=
+  affine s!"S{k + 1}" [s!"a{k + 1}"] [] s!"S{k}" [(s!"a{k}", .pow (.sum [c s!"a{k + 1}", n 1]) 16)]
+#eval check "composing structure maps along a base chain exceeds the budget"
+  (code (with' ([affine "S0" ["a0"] []] ++ (List.range 3).map level ++
+    [morphism "bad" "S3" "S0" "S0" .structureMap])) == "E_LIMIT")
+#eval check "a shorter chain composes within the budget"
+  (code (with' ([affine "S0" ["a0"] []] ++ (List.range 2).map level ++
+    [morphism "fine" "S2" "S0" "S0" .structureMap])) == "accepted")
 #eval check "a view needs the target base on the chain"
   (code (with' [decl "bad" (.primitive (.relativeView (path "Over") (path "SpecQQ") (path "S")))]) != "accepted")
 #eval check "relative families need exactly the structural constraints"

@@ -120,7 +120,8 @@ def elaborateOne (finished : List (DeclId × AffineData)) (data : AffineData) (b
         unless r.base == some baseRef do
           throw (.base "the fiber factors have different declared bases and no chosen isomorphism")
         pure none
-    let presentation := AlgebraDeclarations.fiberPresentation left right l r b via
+    let rightImages ← run (AlgebraDeclarations.fiberImages r via)
+    let presentation := AlgebraDeclarations.fiberPresentation left right l r b rightImages
     AlgebraDeclarations.elaborate presentation.generators presentation.relations presentation.base
       presentation.bindings (some b) (.fiber left right via presentation.relations)
   | .localization object _ inverse _ =>
@@ -188,7 +189,6 @@ def monomialOf (coordinates : List String) (e : PolyExpr) : Except Error (List N
   let p ← run (e.evaluate coordinates)
   match p with
   | [⟨exponents, 1⟩] => pure exponents
-  | [] => pure (Monomial.one coordinates.length)
   | _ => throw (.coordinate "a coefficient selector must be a single monomial with coefficient one")
 
 /-- Compute the exact pullback map of a declared morphism `X → Y` over `S`. -/
@@ -203,9 +203,10 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
       unless x == y do throw (.base "an identity morphism needs the same source and target")
       pure (Map.identity dx.arity dx.basis).images
     | .structureMap =>
-      match structureImages? env x y with
-      | some images => pure images
-      | none => throw (.base "the target is not on the source's base chain")
+      match structureImagesWithin env x y with
+      | .ok images => pure images
+      | .error (.limit resource) => throw (.limit resource)
+      | .error _ => throw (.base "the target is not on the source's base chain")
     | .restrict _ =>
       let some (phiType, phi) := restricted | throw (.base "restrict names a declared morphism")
       let .localization y g _ _ := dx.construction
@@ -217,7 +218,8 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
       unless phiSource == y && phiTarget == x do
         throw (.base "the restricted morphism must map the source's object to the target's object")
       let some ySource := affineData? env y | throw (.base "the source object is not presented")
-      unless normalForm ySource.basis (Poly.subst ySource.arity phi.images f) == normalForm ySource.basis g do
+      let preimage ← run do reduce ySource.basis (← substitute ySource.arity phi.images f)
+      unless preimage == (← run (reduce ySource.basis g)) do
         throw (.base "the source open is not the preimage of the target open")
       pure ((phi.images.map (AlgebraDeclarations.embed 0 dx.arity)) ++ [Poly.var dx.arity ySource.arity])
     | .first | .second =>
@@ -236,16 +238,28 @@ def morphismMap (env : Environment) (application : Application) (definition : Mo
       dy.generators.mapM fun name => do
         let some e := (bindings.find? (·.1 == name)).map (·.2)
           | throw (.coordinate s!"no image for target coordinate {name}")
-        let image ← run (e.evaluate dx.generators)
-        pure (normalForm dx.basis image)
+        run do reduce dx.basis (← e.evaluate dx.generators)
   let map : Map := ⟨dx.arity, dx.basis, images⟩
-  run (dy.basis.forM fun g => AlgebraDeclarations.checkMember dx.basis (Poly.subst dx.arity images g)
-    (.invalid "the map does not respect the target's relations"))
-  let some sx := structureImages? env x s | throw (.base "the base is not on the source's base chain")
-  let some sy := structureImages? env y s | throw (.base "the base is not on the target's base chain")
-  unless sx == sy.map (fun image => normalForm dx.basis (Poly.subst dx.arity images image)) do
-    throw (.base "the morphism does not commute with the structure maps to the base")
+  run (AlgebraDeclarations.checkRelations dx dy images)
+  let sx ← chainTo x s "the base is not on the source's base chain"
+  let sy ← chainTo y s "the base is not on the target's base chain"
+  run (AlgebraDeclarations.checkTriangle dx sx sy images)
   pure map
+where
+  /-- Structure images to the base, keeping a budget failure as `E_LIMIT`. -/
+  chainTo (object base : DeclId) (missing : String) : Except Error (List Poly) :=
+    match structureImagesWithin env object base with
+    | .ok images => pure images
+    | .error (.limit resource) => throw (.limit resource)
+    | .error _ => throw (.base missing)
+
+/-- Report a budget failure of an evidence composition as `E_LIMIT`. The
+validators themselves only reject it. -/
+def within (span : Span) (pairs : List (Map × Map)) : Namespace.Result Unit :=
+  pairs.forM fun (after, before) =>
+    match run (compose after before) with
+    | .error (.limit resource) => algebraProblem span (.limit resource)
+    | _ => pure ()
 
 /-- Elaborate declared morphisms and coefficient selectors once objects are known. -/
 def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Declarations)
@@ -299,6 +313,7 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
     | .relativeIso (forward, _) (backward, _) =>
       let (some f, some g) := (constant forward.family, constant backward.family)
         | Namespace.problem span "E_TYPE" "an isomorphism names two declared morphisms"
+      within span [(g.2, f.2), (f.2, g.2)]
       unless relativeIsoValid env.indexed f g do
         Namespace.problem span "E_AFFINE_RELATION" "the declared morphisms are not mutually inverse over one base"
       evidence := evidence ++ [⟨entry.id, .relativeIso f g⟩]
@@ -312,6 +327,8 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
         unless l == left && r == right && b == base && b' == base do
           Namespace.problem span "E_AFFINE_BASE" "the square's arrows do not map to the fiber's factors over its base"
       | _, _ => Namespace.problem span "E_AFFINE_BASE" "the square's arrows are not morphisms over a base"
+      let comparison := Map.pair q1.2 q2.2
+      within span [(h.2, comparison), (comparison, h.2)]
       unless relativeCartesianValid env.indexed q1 q2 h fiber do
         Namespace.problem span "E_AFFINE_RELATION" "the comparison map and the declared inverse are not mutually inverse"
       evidence := evidence ++ [⟨entry.id, .relativeCartesian q1 q2 h fiber⟩]

@@ -165,10 +165,10 @@ indexed morphism onOpens: Over<Dt2, Dt, SpecQQ> = restrict(sq); // D(sq^#(t)) ->
 | Code | Meaning |
 | --- | --- |
 | `E_AFFINE_BASE` | Missing, cyclic or non-presented base; missing or extra base-coordinate images; a structure map that does not respect the base relations |
-| `E_AFFINE_COORDINATE` | Unknown or duplicate coordinate; zero denominator |
+| `E_AFFINE_COORDINATE` | Unknown or duplicate coordinate; zero denominator; a coefficient selector that is not a single monomial with coefficient one, including `0` and expressions that cancel to zero |
 | `E_AFFINE_RELATION` | A morphism does not respect the target's relations; an isomorphism, base isomorphism or Cartesian inverse does not compose to the identity; or a stored basis or certificate fails verification (forged Core) |
 | `E_ENDPOINT` | `compose` or `same` applied to morphisms whose objects or bases do not match |
-| `E_LIMIT` | A bound above was exceeded |
+| `E_LIMIT` | A bound above was exceeded, including the work or term budget of a substitution: pullbacks, structure maps composed along a base chain, base isomorphisms and evidence composites all substitute within the budget, so a small declaration whose expansion is huge fails here instead of exhausting the checker |
 | `E_PROTOCOL` | An algebraic form in a protocol-7 or protocol-8 envelope, or a malformed record |
 
 ## What is checked, tested and proved

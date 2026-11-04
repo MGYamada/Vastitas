@@ -6,7 +6,8 @@ evidence (Stage 2).
 **Fiber products.** An accepted fiber product's stored presentation is exactly
 the one derived from its factors' stored data. Its coordinates are the
 qualified factor coordinates, and its relations are both factors' bases
-followed by the equalizer of the two structure maps. Its base is the left
+followed by the equalizer of the two structure maps. The right structure map
+is composed with the chosen base isomorphism when there is one. Its base is the left
 factor's base, and its structure map is the left structure map. When there is
 no chosen base isomorphism, both factors have the same declared base.
 
@@ -23,21 +24,19 @@ open VastitasKernel VastitasKernel.Indexed VastitasKernel.AlgebraRuntime
 open VastitasKernel.AlgebraBasis VastitasKernel.AlgebraDeclarations
 open VastitasOracle.AlgebraBasis VastitasOracle.AffineMorphisms
 
-theorem throw_not_ok {α : Type} {e : Error} {s s' : Nat} {a : α}
-    (h : (throw e : Work α).run s = .ok (a, s')) : False := by
-  simp [StateT.run, throw, throwThe, MonadExceptOf.throw, StateT.lift, bind, Except.bind] at h
-
 /-- An accepted fiber construction is the presentation derived from its factors. -/
 theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner → Option AffineData}
     {left right : Namespace.Owner} {via : Option (List Poly × List Poly)} {relations : List Poly}
     {s s' : Nat} (construction : data.construction = .fiber left right via relations)
     (h : (checkConstruction data resolve).run s = .ok ((), s')) :
-    ∃ l r baseRef b, resolve left = some l ∧ resolve right = some r ∧ l.base = some baseRef ∧
-      resolve baseRef = some b ∧ (via = none → r.base = some baseRef) ∧
-      data.generators = (fiberPresentation left right l r b via).generators ∧
-      relations = (fiberPresentation left right l r b via).relations ∧
-      data.base = (fiberPresentation left right l r b via).base ∧
-      data.bindings = (fiberPresentation left right l r b via).bindings := by
+    ∃ l r baseRef b rightImages, resolve left = some l ∧ resolve right = some r ∧ l.base = some baseRef ∧
+      resolve baseRef = some b ∧ (via = none → r.base = some baseRef ∧ rightImages = r.structureImages) ∧
+      (∀ forward inverse, via = some (forward, inverse) →
+        rightImages = forward.map (Poly.subst r.arity r.structureImages)) ∧
+      data.generators = (fiberPresentation left right l r b rightImages).generators ∧
+      relations = (fiberPresentation left right l r b rightImages).relations ∧
+      data.base = (fiberPresentation left right l r b rightImages).base ∧
+      data.bindings = (fiberPresentation left right l r b rightImages).bindings := by
   unfold checkConstruction at h
   rw [construction] at h
   simp only at h
@@ -57,10 +56,13 @@ theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner �
   cases via with
   | none =>
     obtain ⟨_, _, hvia, h⟩ := bind_ok h
+    obtain ⟨rightImages, _, himages, h⟩ := bind_ok h
     have hc := ensure_ok h
     have hsame := ensure_ok hvia
+    have himages : rightImages = r.structureImages := pure_ok himages
     simp only [Bool.and_eq_true, beq_iff_eq] at hc hsame
-    exact ⟨l, r, baseRef, b, rfl, rfl, hbase, (by simp [hb]), fun _ => hsame, hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
+    exact ⟨l, r, baseRef, b, rightImages, rfl, rfl, hbase, (by simp [hb]), fun _ => ⟨hsame, himages⟩,
+      (fun _ _ absurd => by cases absurd), hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
   | some pair =>
     obtain ⟨forward, inverse⟩ := pair
     simp only at h
@@ -72,10 +74,13 @@ theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner �
     | some b' =>
     simp only [hr', hb'] at h
     obtain ⟨_, _, _, h⟩ := bind_ok h
+    obtain ⟨rightImages, _, himages, h⟩ := bind_ok h
     have hc := ensure_ok h
+    have himages : rightImages = forward.map (Poly.subst r.arity r.structureImages) :=
+      mapM_ok (fun _ _ _ _ _ hq => substitute_ok hq) himages
     simp only [Bool.and_eq_true, beq_iff_eq] at hc
-    exact ⟨l, r, baseRef, b, rfl, rfl, hbase, (by simp [hb]), (fun absurd => by cases absurd),
-      hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
+    exact ⟨l, r, baseRef, b, rightImages, rfl, rfl, hbase, (by simp [hb]), (fun absurd => by cases absurd),
+      (fun _ _ same => by cases same; exact himages), hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
 
 /-- An accepted principal open `D(f) ⊂ X` is the presentation derived from `X`:
 `X`'s coordinates and the inverse, `X`'s basis and `u·f − 1`, over `X` by the
@@ -100,6 +105,17 @@ theorem checkConstruction_localization {data : AffineData} {resolve : Namespace.
   have hc := ensure_ok h
   simp only [Bool.and_eq_true, beq_iff_eq] at hc
   exact ⟨x, rfl, hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
+
+/-- A budgeted composite check establishes the unbudgeted equation. -/
+theorem composesTo_sound {after before target : Map} (h : composesTo after before target = true) :
+    Map.same (Map.compose after before) target = true := by
+  unfold composesTo run at h
+  cases hc : (VastitasKernel.AlgebraBasis.compose after before).run 0 with
+  | error e => simp [hc, Except.map] at h
+  | ok pair =>
+    simp only [hc, Except.map] at h
+    rw [← compose_ok (r := pair.1) (s' := pair.2) hc]
+    exact h
 
 /-- The exact facts recorded by accepted Cartesian evidence. -/
 theorem cartesian_sound {env : Environment} {first second inverse : Application × Map} {fiber : DeclId}
@@ -141,6 +157,7 @@ theorem cartesian_sound {env : Environment} {first second inverse : Application 
   | none => simp [hdt, hdp] at h
   | some dp =>
   simp only [hdt, hdp, Bool.and_eq_true] at h
-  exact ⟨l, r, b'', t, dt, dp, rfl, rfl, rfl, rfl, (by simp [hdt]), (by simp), h.1, h.2⟩
+  exact ⟨l, r, b'', t, dt, dp, rfl, rfl, rfl, rfl, (by simp [hdt]), (by simp),
+    composesTo_sound h.1, composesTo_sound h.2⟩
 
 end VastitasOracle.AffineFibers

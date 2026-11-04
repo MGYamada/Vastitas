@@ -128,21 +128,27 @@ def onChain (env : Environment) (object base : DeclId) : Bool :=
   | none => false
 
 /-- The structure map from `object` to a base on its chain, as the normal
-forms in `object`'s ring of the base's coordinates. -/
-def chainImages (env : Environment) : Nat → DeclId → DeclId → Option (List AlgebraRuntime.Poly)
-  | 0, _, _ => none
+forms in `object`'s ring of the base's coordinates. Composing along the chain
+substitutes within the work budget, so a chain whose composite would expand
+past the term or work limit fails with `E_LIMIT`. -/
+def chainImages (env : Environment) : Nat → DeclId → DeclId → AlgebraBasis.Work (List AlgebraRuntime.Poly)
+  | 0, _, _ => throw (.base "the base is not on the declared base chain")
   | fuel + 1, object, base => do
-    let data ← affineData? env object
+    let some data := affineData? env object | throw (.base "the base chain leaves the presented objects")
     if object == base then
       pure (AlgebraRuntime.Map.identity data.arity data.basis).images
     else
-      let next ← data.base
+      let some next := data.base | throw (.base "the base is not on the declared base chain")
       let images ← chainImages env fuel next base
-      pure (images.map fun image =>
-        AlgebraRuntime.normalForm data.basis (AlgebraRuntime.Poly.subst data.arity data.structureImages image))
+      images.mapM fun image => do
+        AlgebraBasis.reduce data.basis (← AlgebraBasis.substitute data.arity data.structureImages image)
+
+def structureImagesWithin (env : Environment) (object base : DeclId) :
+    Except AlgebraBasis.Error (List AlgebraRuntime.Poly) :=
+  AlgebraBasis.run (chainImages env Limits.algebraChain object base)
 
 def structureImages? (env : Environment) (object base : DeclId) : Option (List AlgebraRuntime.Poly) :=
-  chainImages env Limits.algebraChain object base
+  (structureImagesWithin env object base).toOption
 
 /-- The base is an actual global object, not its coefficient marker. -/
 def scalarBaseProfile (env : Environment) (base : DeclId) :

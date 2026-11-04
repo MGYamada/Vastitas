@@ -308,6 +308,37 @@ fn morphism_declarations_reject_relation_variance_base_and_type_errors() {
     ] {
         rejects(&with(declaration), code);
     }
+    // A zero selector is not the constant monomial.
+    for selector in ["0", "e - e"] {
+        rejects(
+            &with(&format!(
+                "indexed primitive bad = relative_coefficient(Over, D, Line, t, {selector});"
+            )),
+            "E_AFFINE_COORDINATE",
+        );
+    }
+    // Substitution is budgeted: small declarations whose expansions are huge
+    // fail with E_LIMIT instead of exhausting the checker.
+    let coordinates: Vec<String> = (0..16).map(|i| format!("x{i}")).collect();
+    rejects(
+        &with(&format!(
+            "indexed affine Free(AffineQQ) = spec[{}] over SpecQQ;\nindexed affine T16(AffineQQ) = spec[t] relations(t^16) over SpecQQ;\nindexed morphism bad: Over<Free, T16, SpecQQ> = pullback(t -> {});",
+            coordinates.join(", "),
+            coordinates.join(" + ")
+        )),
+        "E_LIMIT",
+    );
+    let mut chain = String::from("indexed affine C0(AffineQQ) = spec[a0];\n");
+    for k in 0..3 {
+        chain += &format!(
+            "indexed affine C{n}(AffineQQ) = spec[a{n}] over C{k} by(a{k} -> (a{n} + 1)^16);\n",
+            n = k + 1
+        );
+    }
+    rejects(
+        &with(&(chain + "indexed morphism bad: Over<C3, C0, C0> = structure;")),
+        "E_LIMIT",
+    );
     // Composition and equality need matching endpoints and the same base.
     for body in [
         "fn bad() -> Bool { same(compose(toX(), p()), compose(toX(), p())) }",

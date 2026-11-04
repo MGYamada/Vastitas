@@ -2,26 +2,8 @@ name: Contraction tree experiment
 
 on:
   push:
-    paths:
-      - 'experiments/contraction_trees/**'
-      - 'experiments/storage_copy/run.py'
-      - 'src/**'
-      - 'lean-kernel/native/**'
-      - 'lean-kernel/numerical/**'
-      - 'lean-kernel/VastitasKernel/Resource*.lean'
-      - 'lean-kernel/VastitasKernel/Storage*.lean'
-      - 'lean-kernel/VastitasKernel/Tensor*.lean'
-      - 'lean-kernel/lean-toolchain'
-      - 'scripts/build_openblas.py'
-      - 'experiments/plain_c/**'
-      - 'experiments/native_cleanup.py'
-      - 'scripts/native_sanitizers.py'
-      - 'scripts/check_plain_c_baselines.py'
-      - 'scripts/test_plain_c_measurements.py'
-      - 'scripts/install_ci_elan.py'
-      - 'scripts/check_ci_python.sh'
-      - '.github/workflows/contraction-tree-experiment.yml'
-  pull_request:
+    # Heavy OpenBLAS observations run on main and on demand, not on every PR (#571).
+    branches: [main]
     paths:
       - 'experiments/contraction_trees/**'
       - 'experiments/storage_copy/run.py'

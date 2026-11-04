@@ -60,8 +60,8 @@ three fills and six sparse patches initialize the inputs, plus six full-allocati
 sentinel fills. Three coordinate assertions also execute in the canonical program.
 
 The [Linux workflow](../../.github/workflows/contraction-tree-experiment.yml) runs
-four-case smoke validation on both push and pull-request events affecting the
-harness or its compiler/runtime dependencies. Manual dispatch also offers the full
+four-case smoke validation on pushes to `main` affecting the harness or its
+compiler/runtime dependencies (pull requests no longer trigger it). Manual dispatch also offers the full
 twelve-case profile with twelve three-arm groups per scope and a 5 ms calibration target:
 
 ```sh

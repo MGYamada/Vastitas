@@ -597,9 +597,13 @@ theorem intPoint_erasure {family object base : DeclId} {values : List Value} {va
 
 /-! ## The soundness instance of each Stage 1 and Stage 2 entry
 
-Each instance is the entry's totality lemma, applied after the shape lemma of
-`IndexedAssociations` has read the operand list off the association, and its
-erasure, by computation on the matched operand values. -/
+Each instance applies the entry's totality lemma, after the shape lemma of
+`IndexedAssociations` has read the operand list off the association when the
+entry lists its operands, and proves its erasure: by computation on the matched
+operand values, by a case on the global object that `global` and `origin` look
+up, or with `intPoint_erasure` for the variadic entry. The two evidence entries
+have no totality lemma; their instances follow from the absence of any
+association and from their `none` evaluators. -/
 
 theorem descriptor_sound (implementation : DeclId) : Sound (PrimitiveBinding.descriptor implementation).contract :=
   .ofBinding

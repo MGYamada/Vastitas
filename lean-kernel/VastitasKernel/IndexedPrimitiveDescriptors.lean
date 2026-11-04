@@ -12,16 +12,18 @@ derives the binding validity contract, the operand association, result
 inference, the operand count and whether a call allocates from it,
 `IndexedCore` the argument hints, `IndexedSourceDiagnostics` the role table
 and `IndexedSemantics` the two evaluators. Lowering and the wire decoder are
-still per-constructor tables; the later steps of #622 move them here, so a
-new constructor today still needs a case in each of them.
+per-constructor tables until the later steps of #622 move them here; a new
+constructor needs a case in each of them.
 
 The validity contract is a `Bool` that the checker runs together with the
 `Prop` that the proofs use; the descriptor carries the proof that they agree,
 so the two cannot drift apart. The association is a `Shape`, one datum for the
-contract, the inference and the diagnostics. The evaluators take the operand
-values the shape admits and return `none` on any other list: the logical one
-builds the values of `IndexedPrimitiveValues`, the erased one the runtime
-structures of generated programs. The oracle states their obligations once,
+contract, the inference and the diagnostics. The evaluators match the operand
+pattern of the shape and return `none` on any other pattern; a variadic entry
+accepts any number of integer operands, and the checked operand count, not the
+evaluator, fixes it. The logical evaluator builds the values of
+`IndexedPrimitiveValues`, the erased one the runtime structures of generated
+programs. The oracle states their obligations once,
 for any descriptor (`VastitasOracle.IndexedPrimitiveSoundness`). A descriptor
 grants no authority: the all-body audits and the public acceptance path are
 unchanged. -/
@@ -38,7 +40,7 @@ structure PrimitiveDescriptor where
   /-- The two contracts agree; the registry entry proves it once. -/
   valid_iff : ∀ env, validBool env = true ↔ validProp env
   /-- The logical evaluator: the value of a call on operand values of the Core
-  semantics, or `none` outside the shape. -/
+  semantics, or `none` when they do not match the shape's operand pattern. -/
   eval : Environment → List Value → Option Value
   /-- The erased evaluator: the same call on the runtime structures that
   generated programs link. -/

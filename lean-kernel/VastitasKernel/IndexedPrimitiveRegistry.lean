@@ -12,8 +12,8 @@ Derived from the arm below, with no case elsewhere: the validity contract
 (`PrimitiveBinding.Valid`, `validPrimitiveBinding`, `validPrimitiveBinding_iff`),
 the operand association, result inference, the operand count, the argument
 hints, the role table, whether a call allocates, and the two evaluators
-(`evalPrimitive`, `evalRuntimePrimitive`). The lowering and the decoder are
-migrated by the later steps of #622 and still take a case per constructor. A
+(`evalPrimitive`, `evalRuntimePrimitive`). The lowering and the decoder take
+a case per constructor until the later steps of #622 migrate them. A
 proof that unfolds a derived table at one constructor needs only
 `PrimitiveBinding.contract` (and `PrimitiveDescriptor.ofBool` or
 `PrimitiveDescriptor.evidence`) in its `simp` set. Each arm names the exact
@@ -28,8 +28,10 @@ reports a shape's families once the operands have its index pattern;
 `families := .early` keeps the precedence of the two primitives that report
 them as soon as the operands are applications.
 
-The evaluators of an entry match the operand values its shape admits and
-return `none` on any other list. The logical one builds the values of
+The evaluators of an entry match the operand pattern of its shape and return
+`none` on any other pattern; a variadic entry accepts any number of integer
+operands, as the pre-registry tables did, and the checked operand count fixes
+it. The logical one builds the values of
 `IndexedPrimitiveValues`; the erased one applies the runtime operations that
 generated programs link, on erased values. The two agree up to erasure; the
 oracle proves it per entry (`VastitasOracle.IndexedPrimitiveSoundness.Sound`). -/

@@ -5,8 +5,9 @@ buffers a mathematical meaning: a coordinate matrix becomes a linear map between
 nominal spaces, in named bases. Then the compiler can check that a product
 makes sense before it calls BLAS.
 
-All numerical statements live inside `resource fn` bodies. Programs that execute
-GEMM need sequential LP64 OpenBLAS 0.3.34; `check` does not.
+All numerical statements live inside `resource fn` bodies. Builds of programs
+that execute GEMM or diagonal Hermitian pairing need sequential LP64 OpenBLAS
+0.3.34; `check` does not.
 
 ## Coefficient profiles
 
@@ -76,7 +77,8 @@ cargo run --locked -- build --manifest-path examples/packages/numerical/Vastitas
 On Linux, add `--native-cc cc`. The prefix must contain the pinned OpenBLAS
 headers and static archive; see
 [the adapter contract](../linalg/maps-and-gemm.md#numerical-adapter). A program
-whose checked entry runs no GEMM never links OpenBLAS.
+whose checked entry runs neither GEMM nor diagonal Hermitian pairing never
+links OpenBLAS.
 
 ## Duals, conjugates, adjoints and metrics
 

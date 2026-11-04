@@ -17,9 +17,11 @@ vastitas audit-lean LEAN4EXPORT.ndjson
 - **Flat mode** takes one entry file plus repeated `--lib` libraries
   ([Chapter 1](stdlib.md#flat-mode-with---lib)).
 - **Manifest mode** takes one `Vastitas.toml` and cannot be mixed with flat mode.
-- `--openblas-prefix` and `--native-cc` apply only to builds whose checked entry
-  has numerical operations; anywhere else they are rejected. The prefix is
-  required only when that entry runs GEMM ([Chapter 10](numerical.md)).
+- `--openblas-prefix` and `--native-cc` are for builds whose checked entry
+  needs the numerical runtime: one that runs GEMM or diagonal Hermitian
+  pairing. Such a build requires the prefix (`E_BUILD` without it). For any
+  other entry the two flags are rejected with `E_USAGE`
+  ([Chapter 10](numerical.md)).
 - `audit-lean` is an internal, non-authoritative cross-check of Lean proof
   exports. It does not check `.vast` programs.
 - `vastitas --help` prints the usage and `vastitas --version` the version and
@@ -53,8 +55,8 @@ signal number when it was interrupted.
 | Code | What it usually means | Where it is taught |
 | --- | --- | --- |
 | `E_TYPE` | A value has the wrong type | [Chapter 2](values-and-functions.md) |
-| `E_DUPLICATE` | A binding or declaration reuses a name in the same scope | [Chapter 2](values-and-functions.md#bindings-and-blocks) |
-| `E_SHADOW` | A binding reuses the name of a function or of an enclosing binding | [Chapter 2](values-and-functions.md#bindings-and-blocks) |
+| `E_DUPLICATE` | A binding or declaration reuses a name that is already in scope | [Chapter 2](values-and-functions.md#bindings-and-blocks) |
+| `E_SHADOW` | A binding reuses the name of a function, or a lambda's binding reuses a name from outside the lambda | [Chapter 5](function-values.md#no-captures) |
 | `E_RECURSION` | A function calls itself, directly or through others | [Chapter 2](values-and-functions.md#functions) |
 | `E_DISPATCH_AMBIGUOUS` | Two methods are equally specific for some argument tuple | [Chapter 4](dispatch.md#how-a-method-is-chosen) |
 | `E_CAPTURE` | A lambda refers to a value from outside its own scope | [Chapter 5](function-values.md#no-captures) |

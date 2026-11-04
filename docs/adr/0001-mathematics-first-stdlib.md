@@ -202,12 +202,11 @@ The oracle dependency boundary and the mathematical correspondence obligations a
 This amendment admits two families through the §8 procedure:
 `std::differential` and `std::geometry::metric`. It also admits the module
 `std::geometry::smooth::affine` under the `std::geometry` family of §4. All
-three serve the finite profile of historical Stage 3
-([tracker #604](https://github.com/MGYamada/Vastitas/issues/604)). The
-amendment records the decision of
-[#360](https://github.com/MGYamada/Vastitas/issues/360). It admits these
-contracts; it does not claim that they are implemented or proved. #604 tracks
-the implementation.
+three serve the finite profile of historical Stage 3. The amendment also
+records the decision that a smooth manifold has no type of its own. It admits
+these contracts; it does not claim that they are implemented or proved. The
+History section at the end of this chapter links the tracker and the issues
+that this section refers to.
 
 #### Terms
 
@@ -231,26 +230,23 @@ the implementation.
   - Smooth affine objects belong to `CInfAffine`. They must not index the
     Stage 1 `Scheme` or `CInfScheme` families, or the Stage 2 presented
     families. Objects of those families must not index the smooth families.
-  - Reconciling `CInfAffine` with the Stage 1 `CInfScheme` stays open in
-    [#103](https://github.com/MGYamada/Vastitas/issues/103).
+  - Reconciling `CInfAffine` with the Stage 1 `CInfScheme` remains open.
 - **Smooth maps.**
   - A smooth map `ℝⁿ → ℝᵐ` is given by `m` polynomials with exact rational
     coefficients in the source coordinates. It denotes the real polynomial
     map.
   - Two smooth maps are equal when their coordinate polynomials are equal.
     Over ℝ this is equality of the real maps.
-- **No manifold type (#360).**
+- **No manifold type.**
   - A smooth manifold is a `CInfScheme` object together with checked
     `IsSmoothManifold(X, n)` evidence. That evidence requires Hausdorffness,
     second countability and locally standard C∞ charts.
   - There is no `Manifold`, `CInfManifold` or `Variety` type, and no
     `std::geometry::smooth::manifold` module.
-  - Gluing and `IsSmoothManifold` evidence are tracked in
-    [#606](https://github.com/MGYamada/Vastitas/issues/606).
+  - Gluing and `IsSmoothManifold` evidence are outside this amendment.
 - **`std::differential`** owns metric-free differentiation, the
-  `pullback(f, x, eta)` of §6. This supersedes the line in
-  [#264](https://github.com/MGYamada/Vastitas/issues/264) §1 that places
-  metric-free differentiation in `std::geometry::smooth`.
+  `pullback(f, x, eta)` of §6. This supersedes the earlier assignment of metric-free
+  differentiation to `std::geometry::smooth`.
   - For a smooth map `f`, a point `x` and a seed `η` over `f(x)`, the pullback
     is the covector `η ∘ Df(x)` over `x`.
   - In this profile, points are run-time values, so the basepoint index of §6
@@ -261,8 +257,8 @@ the implementation.
   - `std::differential` also owns `gradient(φ, x, using = g, evidence = e)`,
     the `grad` of §4 and §6. It is the ordinary library composition
     `sharp(dφ_x, using = g, evidence = e)`, not a differentiation primitive.
-    This also supersedes #264 §2, which lists `gradient` in
-    `std::geometry::metric`.
+    This also supersedes the earlier assignment of `gradient`
+    to `std::geometry::metric`.
 - **`std::geometry::metric`.**
   - A metric `MetricForm<X>` is a symmetric bilinear form on a smooth affine
     object. It is given by a symmetric rational Gram matrix `G` in the declared
@@ -273,7 +269,8 @@ the implementation.
   - `sharp(α, using = g, evidence = e)` maps a covector `α` at `x` to the
     vector `G⁻¹α` at `x`. `e` must be `nondegenerate(g)` evidence;
     `riemannian(g)` evidence is the wrong kind for `sharp`.
-  - #264's general base requires `IsSmoothManifold` evidence. This profile uses
+  - The general metric design requires `IsSmoothManifold` evidence for its
+    base. This profile uses
     declared smooth affine objects only.
 - **Split between Core, `std` and backends.**
   - Core supplies generic indexed families, checked declarations, evidence
@@ -321,7 +318,7 @@ the implementation.
     error. A wrong basepoint gives ⊥.
   - Polynomial maps are smooth on all of ℝⁿ, so the profile has no domain or
     regularity hypothesis.
-  - The Stage 3 acceptance map, planned in #604, must keep four kinds of claim
+  - The planned Stage 3 acceptance map must keep four kinds of claim
     apart:
     - structural facts about the runtime, whose proofs belong in the oracle;
     - the Fréchet comparison, whose proof belongs in the mathlib bridge;
@@ -349,8 +346,7 @@ the implementation.
   (`E_PROTOCOL`).
 - **Independent reference.**
   - The executable kernel must match a fixture generated from
-    `scripts/metric_free_reference.py` and `scripts/metric_reference.py`
-    (#604, C16).
+    `scripts/metric_free_reference.py` and `scripts/metric_reference.py`.
   - These references cover the real plane only: maps ℝ² → ℝ², functions
     ℝ² → ℝ and 2 × 2 Gram matrices. Dimensions 3 to 16 have no independent
     reference.
@@ -367,35 +363,26 @@ the implementation.
 
 #### Outside this admission
 
-- Compiler-emitted reverse Core
-  ([#361](https://github.com/MGYamada/Vastitas/issues/361),
-  [#290](https://github.com/MGYamada/Vastitas/issues/290),
-  [#164](https://github.com/MGYamada/Vastitas/issues/164)).
+- Compiler-emitted reverse Core.
 - The forward-over-reverse Hessian-vector product that §6 requires, with its
-  Weil-lift semantics ([#161](https://github.com/MGYamada/Vastitas/issues/161),
-  [#381](https://github.com/MGYamada/Vastitas/issues/381)). This profile does
+  Weil-lift semantics. This profile does
   not discharge that requirement. Forward mode stays a third-party
   interpretation (§6).
-- C∞-ring differentials as modules (#381). This amendment does not admit
+- C∞-ring differentials as modules. This amendment does not admit
   them.
-- Custom derivative rules and non-polynomial primitives
-  ([#163](https://github.com/MGYamada/Vastitas/issues/163)). Without custom
+- Custom derivative rules and non-polynomial primitives. Without custom
   rules, authority escalation does not apply.
-- Complex AD ([#71](https://github.com/MGYamada/Vastitas/issues/71)), closures
-  ([#570](https://github.com/MGYamada/Vastitas/issues/570)) and checkpointing
-  beyond save-all and recompute-all
-  ([#544](https://github.com/MGYamada/Vastitas/issues/544)).
-- Gluing and `IsSmoothManifold` evidence (#606).
+- Complex AD, closures and checkpointing
+  beyond save-all and recompute-all.
+- Gluing and `IsSmoothManifold` evidence.
 - Position-dependent metrics, `signature`, `causal_kind` and orthogonal
-  complements (#264 §3).
-- Floating-point realizations and performance
-  ([#222](https://github.com/MGYamada/Vastitas/issues/222)).
+  complements.
+- Floating-point realizations and performance.
 
 #### Negative tests
 
 The Stage 3 profile must reject each of the following with its own diagnostic.
-All of these tests are proposed; none has run (#604, C1, C2, C6, C7 and
-C13–C15).
+All of these tests are proposed; none has run.
 
 - **Objects:** an implementation mismatch, a dimension that differs from the
   coordinate count, `spec` under a smooth implementation, and a smooth global
@@ -420,7 +407,7 @@ C13–C15).
   payload that carries a certificate, and tampered Core.
 
 The profile must also show failure semantics: a seed over another point
-gives ⊥, and ⊥ propagates through a wrong intermediate basepoint (#604, C6).
+gives ⊥, and ⊥ propagates through a wrong intermediate basepoint.
 
 #### Compatibility and public-name audit
 
@@ -434,8 +421,7 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint (#604, C6).
 - **`MetricForm`.**
   - `MetricForm` is nominally distinct from the protocol-8 diagonal Hermitian
     `Metric`. Neither converts to the other.
-  - `MetricForm` is also distinct from `MetricSpace`
-    ([#382](https://github.com/MGYamada/Vastitas/issues/382)).
+  - `MetricForm` is also distinct from `MetricSpace`.
 - **`Affine` forms.**
   - The declaration forms `Affine(n)[c₁, …, cₙ]` and `Affine(K, n)[…]` appear
     in declarations only. `Affine(K, n)[…]` is sugar for the Stage 2
@@ -444,18 +430,17 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint (#604, C6).
     descriptor primitive of `std::geometry::scheme` or `std::geometry::smooth`.
   - `geometry_compat` resolves `Affine(QQ, n)` and `Affine(CInfReal, n)`.
   - A smooth affine declaration names its implementation, for example
-    `SmoothR`. So #103's "no public CInfReal ceremony" is met only partly.
+    `SmoothR`. So the goal of declaring smooth space without naming a `CInfReal`
+    implementation is met only partly.
 - **Packages.**
   - The `std::differential` package depends on the geometry package, including
     `std::geometry::metric`.
   - The geometry package does not depend on `std::differential`.
-  - The pullback and `differential` must not depend on any metric declaration
-    (#604, C12).
+  - The pullback and `differential` must not depend on any metric declaration.
 - **Versions and migration.**
-  - The profile adds no protocol
-    ([#533](https://github.com/MGYamada/Vastitas/issues/533)).
+  - The profile adds no wire protocol version.
   - Existing programs keep their meaning.
-  - The protocol-8 `Metric` keeps its name until #264 decides the rename.
+  - The protocol-8 `Metric` keeps its name. A rename is a separate decision.
 
 ## Consequences, validation and migration
 
@@ -466,3 +451,37 @@ gives ⊥, and ⊥ propagates through a wrong intermediate basepoint (#604, C6).
 - Implementation and executable acceptance, including exact algebra/representation, complex/symplectic geometry, functional/Hilbert/PDE reference examples, third-party AD rules, HVP, equivariant linalg, scalar profiles and optimizer regressions, are tracked in **[#160](https://github.com/MGYamada/Vastitas/issues/160)** and its child/existing issues.
 
 **Principle:** *Standardize the mathematical world and the trusted contracts connecting it; choose algorithms for realizing that world explicitly.*
+
+## History
+
+§10 was adopted for the Stage 3 tracker
+[#604](https://github.com/MGYamada/Vastitas/issues/604), through PR
+[#609](https://github.com/MGYamada/Vastitas/pull/609). It records the decision of
+[#360](https://github.com/MGYamada/Vastitas/issues/360). Its references are:
+
+- **Ownership.** It supersedes the ownership lines for metric-free
+  differentiation (§1) and `gradient` (§2) in
+  [#264](https://github.com/MGYamada/Vastitas/issues/264). That issue also keeps
+  position-dependent metrics, signature algebra (§3) and the protocol-8
+  `Metric` rename.
+- **Constructors and gluing.** Reconciling `CInfAffine` with `CInfScheme`, and
+  the `CInfReal`-free constructor, remain in
+  [#103](https://github.com/MGYamada/Vastitas/issues/103). Gluing and
+  `IsSmoothManifold` evidence are tracked in
+  [#606](https://github.com/MGYamada/Vastitas/issues/606).
+- **Outside the admission:**
+  - compiler-emitted reverse Core: [#361](https://github.com/MGYamada/Vastitas/issues/361),
+    [#290](https://github.com/MGYamada/Vastitas/issues/290),
+    [#164](https://github.com/MGYamada/Vastitas/issues/164);
+  - the Hessian-vector product and C∞-ring modules:
+    [#161](https://github.com/MGYamada/Vastitas/issues/161),
+    [#381](https://github.com/MGYamada/Vastitas/issues/381);
+  - custom rules: [#163](https://github.com/MGYamada/Vastitas/issues/163);
+  - complex AD, closures and checkpointing:
+    [#71](https://github.com/MGYamada/Vastitas/issues/71),
+    [#570](https://github.com/MGYamada/Vastitas/issues/570),
+    [#544](https://github.com/MGYamada/Vastitas/issues/544);
+  - performance: [#222](https://github.com/MGYamada/Vastitas/issues/222).
+- **Names and protocol.** `MetricSpace` belongs to
+  [#382](https://github.com/MGYamada/Vastitas/issues/382), and the single-protocol policy
+  to [#533](https://github.com/MGYamada/Vastitas/issues/533).

@@ -430,37 +430,39 @@ fn response_span(item: &Value) -> Span {
     }
 }
 
-struct BuildDirectory(PathBuf);
+/// A private temporary directory, removed when dropped.
+pub(crate) struct PrivateDirectory(pub(crate) PathBuf);
 
-impl BuildDirectory {
-    fn create() -> Result<Self, String> {
+impl PrivateDirectory {
+    /// Create one with errors labelled `code` and describing the `purpose`.
+    pub(crate) fn create(code: &str, purpose: &str) -> Result<Self, String> {
         for _ in 0..100 {
             let path = std::env::temp_dir().join(format!(
                 "vastitas-{}-{}",
                 std::process::id(),
                 NEXT_TEMP.fetch_add(1, Ordering::Relaxed)
             ));
-            // The name is predictable and Lake executes the generated lakefile,
+            // The name is predictable and child processes trust its contents
+            // (Lake executes a generated lakefile; nanoda reads its configuration),
             // so only the invoking user may enter the directory, whatever the umask.
             match fs::DirBuilder::new().mode(0o700).create(&path) {
                 Ok(()) => {
                     let directory = Self(path);
-                    fs::set_permissions(&directory.0, fs::Permissions::from_mode(0o700)).map_err(
-                        |error| format!("E_BUILD: cannot secure build directory: {error}"),
-                    )?;
+                    fs::set_permissions(&directory.0, fs::Permissions::from_mode(0o700))
+                        .map_err(|error| format!("{code}: cannot secure {purpose}: {error}"))?;
                     return Ok(directory);
                 }
                 Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(error) => {
-                    return Err(format!("E_BUILD: cannot create build directory: {error}"));
+                    return Err(format!("{code}: cannot create {purpose}: {error}"));
                 }
             }
         }
-        Err("E_BUILD: cannot allocate a unique build directory".into())
+        Err(format!("{code}: cannot allocate a unique {purpose}"))
     }
 }
 
-impl Drop for BuildDirectory {
+impl Drop for PrivateDirectory {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
     }
@@ -706,7 +708,7 @@ fn build_native(
     let native_root = kernel_root.join("native");
     let native_text = manifest_text(&native_root, "native runtime")?;
     let numerical_root = kernel_root.join("numerical");
-    let directory = BuildDirectory::create()?;
+    let directory = PrivateDirectory::create("E_BUILD", "build directory")?;
     let path = &directory.0;
     let optional_storage = if storage_runtime {
         format!(

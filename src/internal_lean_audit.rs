@@ -5,10 +5,9 @@
 use serde_json::{Map, Value};
 use std::ffi::OsString;
 use std::fs;
-use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
-use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Upstream nanoda configuration, completed with `export_file_path` at run time.
 const POLICY: &str = include_str!("../config/nanoda-internal-audit.json");
@@ -39,8 +38,6 @@ const POLICY_KEYS: [&str; 9] = [
 const DIAGNOSTIC_CHARS: usize = 2000;
 /// Standard output retained from the toolchain binaries, in bytes.
 const STDOUT_LIMIT: usize = 64 * 1024;
-
-static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
 
 fn export_path(args: &[OsString]) -> Result<PathBuf, String> {
     if args.len() != 1 || args[0] == "--help" || args[0] == "-h" {
@@ -247,37 +244,6 @@ fn resolve_checker() -> Result<PathBuf, String> {
     Ok(nanoda)
 }
 
-/// A private directory for the configuration file, removed on every return.
-struct ConfigDirectory(PathBuf);
-
-impl ConfigDirectory {
-    fn create() -> Result<Self, String> {
-        for _ in 0..100 {
-            let path = std::env::temp_dir().join(format!(
-                "vastitas-lean-audit-{}-{}",
-                std::process::id(),
-                NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed)
-            ));
-            match fs::DirBuilder::new().mode(0o700).create(&path) {
-                Ok(()) => return Ok(Self(path)),
-                Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
-                Err(error) => {
-                    return Err(format!(
-                        "E_LEAN_AUDIT: cannot create a configuration directory: {error}"
-                    ));
-                }
-            }
-        }
-        Err("E_LEAN_AUDIT: cannot allocate a unique configuration directory".into())
-    }
-}
-
-impl Drop for ConfigDirectory {
-    fn drop(&mut self) {
-        let _ = fs::remove_dir_all(&self.0);
-    }
-}
-
 /// A bounded, terminal-safe rendering of checker output. Export-controlled names
 /// can reach panic messages, so control and bidirectional formatting characters
 /// are shown as escapes.
@@ -325,7 +291,9 @@ pub fn run_cli(args: &[OsString]) -> Result<(), String> {
         ));
     }
     let nanoda = resolve_checker()?;
-    let directory = ConfigDirectory::create()?;
+    // Removed on every return, including interruption.
+    let directory =
+        crate::driver::PrivateDirectory::create("E_LEAN_AUDIT", "configuration directory")?;
     let config_path = directory.0.join("nanoda-config.json");
     fs::write(&config_path, config)
         .map_err(|error| format!("E_LEAN_AUDIT: cannot write the nanoda configuration: {error}"))?;

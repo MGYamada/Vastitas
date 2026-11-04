@@ -46,6 +46,11 @@ target/debug/vastitas build examples/smooth.vast -o target/smooth
 
 The program prints `2`.
 
+`Affine(CInfReal, n)` builds a descriptor object that records only its
+dimension. Smooth real affine space with named coordinates, smooth maps and
+covectors is a separate declaration, `Affine(n)[c₁, …, cₙ]`; see
+[smooth affine declarations](../language/smooth-declarations.md).
+
 ## Identity is nominal
 
 `Point<X, S>` is an `S`-valued point of `X`, and `Morphism<X, Y>` carries both

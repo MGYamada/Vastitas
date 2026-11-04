@@ -385,8 +385,9 @@ paths remain performance gaps and block the corresponding completion claim.
    source `check`/`build` outputs and compare equivalent C baselines.
 5. Connect actual-checker resource theorems and the final code-generation audit;
    record every remaining native/semantic assumption in `verification.md`.
-6. Keep residual metadata extensible, but introduce AD retention/replay and its
-   proofs with the later AD work. Do not mark AD implemented by writing this chapter.
+6. Keep residual metadata extensible. AD retention and replay and their proofs
+   remain open; the [Stage 3 roadmap entry](guide/historical-roadmap.md#stage-3-smooth-affine-geometry-and-reverse-ad)
+   tracks them.
 
 The completion record must distinguish implemented checks, regression evidence,
 formal theorems, trusted native behavior and measured performance. This chapter

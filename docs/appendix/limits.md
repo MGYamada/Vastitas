@@ -59,6 +59,26 @@ isomorphisms and evidence composites — runs within `algebraWork` and
 | `algebraChain` | 16 | Length of a declared base chain |
 | `algebraNesting` | 64 | Nesting of a polynomial expression on the wire |
 
+### Smooth objects and maps
+
+[Smooth affine declarations](../language/smooth-declarations.md) reuse the
+exact affine algebra budgets above. The kernel elaborates each image of a
+smooth map within one `algebraWork` run. An input beyond a bound is an error
+(`E_LIMIT`).
+
+| Key | Value | What it bounds |
+| --- | --- | --- |
+| `algebraGenerators` | 16 | Coordinates of a smooth affine object, so the dimension of every smooth map, tangent or cotangent fiber, tape and Gram matrix |
+| `algebraCoefficientDigits` | 64 | Digits of an `Affine(n)` dimension, and of a literal in an image or a Gram entry |
+| `algebraDegree` | 16 | Degree and exponents of an image or a Gram entry |
+| `algebraNesting` | 64 | Nesting of an image or a Gram entry |
+| `algebraTerms` | 512 | Terms of each expanded image or Gram entry |
+| `algebraWork` | 8,000,000 | Work of elaborating one image, or all Gram entries of one metric |
+
+These bounds apply when a program is checked. In a compiled program, `same`
+and `composite` expand a composite map at run time without a budget, and the
+reverse pass has no work bound.
+
 ### Smooth metrics
 
 The kernel evaluates all Gram entries of one metric within one `algebraWork`

@@ -9,7 +9,12 @@ qualified factor coordinates, and its relations are both factors' bases
 followed by the equalizer of the two structure maps. The right structure map
 is composed with the chosen base isomorphism when there is one. Its base is the left
 factor's base, and its structure map is the left structure map. When there is
-no chosen base isomorphism, both factors have the same declared base.
+no chosen base isomorphism, both factors have the same declared base. With a
+chosen base isomorphism, the right factor has its own declared base.
+
+**Base isomorphisms.** An accepted base isomorphism has one canonical image for
+each coordinate on both sides. The forward and inverse images each respect the
+relations. The two maps compose to the identity both ways (`checkIso_sound`).
 
 **Cartesian squares.** Accepted Cartesian evidence consists of three valid
 declared morphisms. The first two target the fiber's factors over its base.
@@ -22,9 +27,64 @@ namespace VastitasOracle.AffineFibers
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.AlgebraRuntime
 open VastitasKernel.AlgebraBasis VastitasKernel.AlgebraDeclarations
-open VastitasOracle.AlgebraBasis VastitasOracle.AffineMorphisms
+open VastitasOracle.AlgebraBasis VastitasOracle.AffineDeclarations VastitasOracle.AffineMorphisms
 
-/-- An accepted fiber construction is the presentation derived from its factors. -/
+/-- The exact facts recorded by an accepted base isomorphism between `b` and `b'`.
+`forward` gives `b`'s coordinates in `b'`'s ring, and `inverse` gives `b'`'s
+coordinates in `b`'s ring. -/
+structure IsoValid (b b' : AffineData) (forward inverse : List Poly) : Prop where
+  forward_length : forward.length = b.arity
+  inverse_length : inverse.length = b'.arity
+  forward_canonical : ∀ image ∈ forward, Poly.canonical b'.arity image = true
+  inverse_canonical : ∀ image ∈ inverse, Poly.canonical b.arity image = true
+  /-- The forward images send every basis element of `b` into `b'`'s ideal. -/
+  forward_relations : ∀ g ∈ b.basis, ∃ quotients,
+    combination quotients b'.basis = Poly.subst b'.arity forward g
+  /-- The inverse images send every basis element of `b'` into `b`'s ideal. -/
+  inverse_relations : ∀ g ∈ b'.basis, ∃ quotients,
+    combination quotients b.basis = Poly.subst b.arity inverse g
+  /-- The map `b' → b → b'` is the identity of `b'`. -/
+  there : (Map.compose ⟨b.arity, b.basis, inverse⟩ ⟨b'.arity, b'.basis, forward⟩).images =
+    (Map.identity b'.arity b'.basis).images
+  /-- The map `b → b' → b` is the identity of `b`. -/
+  back : (Map.compose ⟨b'.arity, b'.basis, forward⟩ ⟨b.arity, b.basis, inverse⟩).images =
+    (Map.identity b.arity b.basis).images
+
+/-- **An accepted base isomorphism is mutually inverse.** A successful `checkIso`
+establishes the facts of `IsoValid`. -/
+theorem checkIso_sound {b b' : AffineData} {forward inverse : List Poly} {s s' : Nat}
+    (h : (checkIso b b' forward inverse).run s = .ok ((), s')) : IsoValid b b' forward inverse := by
+  unfold checkIso at h
+  obtain ⟨_, _, hshape, h⟩ := bind_ok h
+  obtain ⟨_, _, hforward, h⟩ := bind_ok h
+  obtain ⟨_, _, hinverse, h⟩ := bind_ok h
+  obtain ⟨there, _, hthere, h⟩ := bind_ok h
+  obtain ⟨back, _, hback, h⟩ := bind_ok h
+  have hshape := ensure_ok hshape
+  have hsame := ensure_ok h
+  simp only [Bool.and_eq_true, beq_iff_eq, List.all_eq_true] at hshape hsame
+  rw [compose_ok hthere, compose_ok hback] at hsame
+  exact {
+    forward_length := hshape.1.1.1
+    inverse_length := hshape.1.1.2
+    forward_canonical := hshape.1.2
+    inverse_canonical := hshape.2
+    forward_relations := fun g member => by
+      obtain ⟨_, _, hg⟩ := forM_ok hforward g member
+      obtain ⟨q, _, hq, hg⟩ := bind_ok hg
+      rw [← substitute_ok hq]
+      exact checkMember_ok hg
+    inverse_relations := fun g member => by
+      obtain ⟨_, _, hg⟩ := forM_ok hinverse g member
+      obtain ⟨q, _, hq, hg⟩ := bind_ok hg
+      rw [← substitute_ok hq]
+      exact checkMember_ok hg
+    there := hsame.1
+    back := hsame.2 }
+
+/-- An accepted fiber construction is the presentation derived from its factors.
+With a chosen base isomorphism, the right factor's base `b'` is declared and the
+isomorphism between `b` and `b'` is checked (`IsoValid`). -/
 theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner → Option AffineData}
     {left right : Namespace.Owner} {via : Option (List Poly × List Poly)} {relations : List Poly}
     {s s' : Nat} (construction : data.construction = .fiber left right via relations)
@@ -32,7 +92,9 @@ theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner �
     ∃ l r baseRef b rightImages, resolve left = some l ∧ resolve right = some r ∧ l.base = some baseRef ∧
       resolve baseRef = some b ∧ (via = none → r.base = some baseRef ∧ rightImages = r.structureImages) ∧
       (∀ forward inverse, via = some (forward, inverse) →
-        rightImages = forward.map (Poly.subst r.arity r.structureImages)) ∧
+        ∃ baseRef' b', r.base = some baseRef' ∧ resolve baseRef' = some b' ∧
+          IsoValid b b' forward inverse ∧
+          rightImages = forward.map (Poly.subst r.arity r.structureImages)) ∧
       data.generators = (fiberPresentation left right l r b rightImages).generators ∧
       relations = (fiberPresentation left right l r b rightImages).relations ∧
       data.base = (fiberPresentation left right l r b rightImages).base ∧
@@ -73,14 +135,17 @@ theorem checkConstruction_fiber {data : AffineData} {resolve : Namespace.Owner �
     | none => simp only [hr', hb'] at h; exact (throw_not_ok h).elim
     | some b' =>
     simp only [hr', hb'] at h
-    obtain ⟨_, _, _, h⟩ := bind_ok h
+    obtain ⟨_, _, hiso, h⟩ := bind_ok h
     obtain ⟨rightImages, _, himages, h⟩ := bind_ok h
     have hc := ensure_ok h
     have himages : rightImages = forward.map (Poly.subst r.arity r.structureImages) :=
       mapM_ok (fun _ _ _ _ _ hq => substitute_ok hq) himages
     simp only [Bool.and_eq_true, beq_iff_eq] at hc
     exact ⟨l, r, baseRef, b, rightImages, rfl, rfl, hbase, (by simp [hb]), (fun absurd => by cases absurd),
-      (fun _ _ same => by cases same; exact himages), hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
+      (fun _ _ same => by
+        cases same
+        exact ⟨baseRef', b', (by simp [hr']), (by simp [hb']), checkIso_sound hiso, himages⟩),
+      hc.1.1.1, hc.1.1.2, hc.1.2, hc.2⟩
 
 /-- An accepted principal open `D(f) ⊂ X` is the presentation derived from `X`:
 `X`'s coordinates and the inverse, `X`'s basis and `u·f − 1`, over `X` by the

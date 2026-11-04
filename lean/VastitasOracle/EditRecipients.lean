@@ -197,8 +197,10 @@ theorem reconstruct_declared (p : Indexed) {initial final : List Reference}
   obtain ⟨⟨state, after⟩, loop, rest⟩ := bind_success accepted
   simp only [pure] at rest
   cases rest
-  let P : List Edit.GrantEntry × List VastitasKernel.Authority.TransferEntry → Prop := fun state =>
-    (∀ entry ∈ state.1, DeclaredDelegation p entry) ∧ (∀ entry ∈ state.2, DeclaredTransfer p entry)
+  -- The loops accumulate arrays (linear reconstruction); membership is read through `toList`.
+  let P : Array Edit.GrantEntry × Array VastitasKernel.Authority.TransferEntry → Prop := fun state =>
+    (∀ entry ∈ state.1.toList, DeclaredDelegation p entry) ∧
+      (∀ entry ∈ state.2.toList, DeclaredTransfer p entry)
   refine forIn_invariant (P := P) _ _ _ ⟨by simp, by simp⟩ ?_ loop
   intro pkg pkgMember state s r s' holds run
   simp only [StateT.run_bind] at run
@@ -214,7 +216,7 @@ theorem reconstruct_declared (p : Indexed) {initial final : List Reference}
   simp only [pure] at rest
   cases rest
   refine ⟨?_, ?_⟩
-  · refine forIn_invariant (P := fun grants : List Edit.GrantEntry => ∀ entry ∈ grants, DeclaredDelegation p entry)
+  · refine forIn_invariant (P := fun grants : Array Edit.GrantEntry => ∀ entry ∈ grants.toList, DeclaredDelegation p entry)
       _ _ _ holds.1 ?_ grantLoop
     intro raw rawMember grants s r s' holds run
     simp only [StateT.run_bind] at run
@@ -222,12 +224,13 @@ theorem reconstruct_declared (p : Indexed) {initial final : List Reference}
     simp only [pure] at rest
     cases rest
     intro delegation member
-    simp only [ForInStep.value, List.mem_append, List.mem_singleton] at member
+    simp only [ForInStep.value, Array.toList_push, List.mem_append, List.mem_singleton] at member
     rcases member with member | rfl
     · exact holds delegation member
     · exact ⟨pkg, pkgMember, m, mMember, raw, rawMember, s, _, lowered⟩
   · refine forIn_invariant
-      (P := fun moved : List VastitasKernel.Authority.TransferEntry => ∀ entry ∈ moved, DeclaredTransfer p entry)
+      (P := fun moved : Array VastitasKernel.Authority.TransferEntry => ∀ entry ∈ moved.toList,
+        DeclaredTransfer p entry)
       _ _ _ holds.2 ?_ transferLoop
     intro raw rawMember moved s r s' holds run
     simp only [StateT.run_bind] at run
@@ -235,7 +238,7 @@ theorem reconstruct_declared (p : Indexed) {initial final : List Reference}
     simp only [pure] at rest
     cases rest
     intro transfer member
-    simp only [ForInStep.value, List.mem_append, List.mem_singleton] at member
+    simp only [ForInStep.value, Array.toList_push, List.mem_append, List.mem_singleton] at member
     rcases member with member | rfl
     · exact holds transfer member
     · exact ⟨pkg, pkgMember, m, mMember, raw, rawMember, s, _, lowered⟩

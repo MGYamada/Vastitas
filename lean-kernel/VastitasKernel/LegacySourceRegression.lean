@@ -179,4 +179,32 @@ private def contracts : Json := Json.mkObj [
   unless !(Core.Typing.checkModule duplicate true).isOk do throw (IO.userError "duplicate public Core function accepted")
   IO.println "legacy source: exact returned Core evaluation/codegen and seven independent Core mutations passed"
 
+private def integer (value : String) : Json := Json.mkObj [
+  ("kind", toJson "integer"), ("value", toJson value), ("span", span)]
+private def geometry (statements : List Json) : Json :=
+  flat 2 [(fn).setObjVal! "body" (block (integer "0") statements)]
+private def explained (name message : String) (statements : List Json) (notes : Nat) : IO Unit :=
+  match check (geometry statements) true with
+  | .ok _ => throw (IO.userError s!"legacy source: {name} unexpectedly accepted")
+  | .error diagnostic =>
+    unless diagnostic.code == "E_ENDPOINT" && diagnostic.message == message && diagnostic.notes.length == notes do
+      throw (IO.userError s!"legacy source: {name}: {diagnostic.code}: {diagnostic.message} ({diagnostic.notes.length} notes)")
+
+-- Legacy geometry syntax reaches the same primitive explainer (#602).
+#eval show IO Unit from do
+  let affine (marker : String) := call "Affine" [varExpr marker, integer "3"]
+  explained "#602 reproduction" "apply requires a point with target Y (the map's source), but the supplied point has target X"
+    [letStmt "X" (affine "QQ"), letStmt "Y" (affine "QQ"), letStmt "point_x" (call "origin" [varExpr "X"]),
+     letStmt "crossed" (call "apply" [call "id" [varExpr "Y"], varExpr "point_x"])] 2
+  explained "compose across coefficients"
+    ("compose requires a second map with target X (the first map's source), but the supplied second map " ++
+      "has target Y, whose coefficient marker CInfReal differs from QQ")
+    [letStmt "X" (affine "QQ"), letStmt "Y" (affine "CInfReal"),
+     letStmt "f" (call "compose" [call "id" [varExpr "X"], call "id" [varExpr "Y"]])] 2
+  explained "point supplied as a map" "apply requires a map of family Morphism, but the supplied map has family Point"
+    [letStmt "X" (affine "QQ"), letStmt "p" (call "apply" [call "origin" [varExpr "X"], call "origin" [varExpr "X"]])] 1
+  checkCase "matching legacy objects" (geometry [letStmt "X" (affine "QQ"),
+    letStmt "p" (call "apply" [call "id" [varExpr "X"], call "origin" [varExpr "X"]])]) true true
+  IO.println "legacy source: rejected geometry primitives name their failed requirement"
+
 end VastitasKernel.Indexed.LegacySource.Regression

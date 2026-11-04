@@ -171,6 +171,70 @@ def multipleFixture : Source.Program := multiple (program [makeMultiple, repackM
   fn "bad" [] packed (block (.pack packed (var "X") [call "geo::id" [var "X"], call "geo::origin" [var "X"]] {})
     [bind "X" (call "geo::Affine" [num 3])])])) )
 
+/-! Rejected primitive calls name the failed requirement of their resolved
+binding (#602). The message is exact; the origin notes are unchanged. -/
+private def explains (message : String) (p : Source.Program) (notes : Nat) : Bool :=
+  match Bodies.checkProgram p true with
+  | .error error => error.code == "E_ENDPOINT" && error.message == message && error.notes.length == notes
+  | .ok _ => false
+private def objects : List Source.Stmt :=
+  [bind "X" (call "geo::Affine" [num 3]), bind "Y" (call "geo::Affine" [num 3])]
+private def withObjects (statement : Source.Stmt) : Source.Program := program [main (num 0) (objects ++ [statement])]
+private def primitive (name : String) (binding : Source.Primitive) : Source.Declaration :=
+  ⟨name, .primitive binding, true, {}⟩
+/-- Renamed and additional library primitives; only their bindings carry meaning. -/
+private def extended (p : Source.Program) : Source.Program := withLibrary p fun m =>
+  { m with declarations := m.declarations ++ [
+    primitive "follow" (.apply (path "Morphism") (path "Point")),
+    primitive "after" (.compose (path "Morphism")),
+    primitive "smoothDimension" (.dimension ⟨path "CInfScheme", path "CInfReal"⟩),
+    ⟨"Grid2", .implementation (path "QQ") .affineDescriptor [.origin, .dimension], true, {}⟩,
+    ⟨"Other", .classification [] [path "Grid2"], true, {}⟩,
+    primitive "otherDimension" (.dimension ⟨path "Other", path "QQ"⟩)] }
+private def crossed (callee : String) : Source.Program := extended (program [main (num 0) (objects ++
+  [bind "point_x" (call "geo::origin" [var "X"]),
+   bind "crossed" (call callee [call "geo::id" [var "Y"], var "point_x"])])])
+private def apply602 : String := "apply requires a point with target Y (the map's source), but the supplied point has target X"
+
+#eval check "#602: apply names the point target and the map source" (explains apply602 (crossed "geo::apply") 2)
+#eval check "#602: another dependency alias reaches the same binding" (explains apply602 (crossed "other::apply") 2)
+#eval check "#602: a renamed declaration is explained by its binding" (explains
+  "follow requires a point with target Y (the map's source), but the supplied point has target X" (crossed "geo::follow") 2)
+#eval check "#602: compose names the intermediate endpoints" (explains
+  "compose requires a second map with target X (the first map's source), but the supplied second map has target Y"
+  (withObjects (bind "f" (call "geo::compose" [call "geo::id" [var "X"], call "geo::id" [var "Y"]]))) 2)
+#eval check "#602: renamed compose" (explains
+  "after requires a second map with target X (the first map's source), but the supplied second map has target Y"
+  (extended (withObjects (bind "f" (call "geo::after" [call "geo::id" [var "X"], call "geo::id" [var "Y"]])))) 2)
+#eval check "#602: a family failure is not an endpoint disagreement" (explains
+  "apply requires a map of family Morphism, but the supplied map has family Point"
+  (withObjects (bind "p" (call "geo::apply" [call "geo::origin" [var "X"], call "geo::origin" [var "X"]]))) 1)
+#eval check "#602: the first failed requirement wins when several fail" (explains
+  "apply requires a map of family Morphism, but the supplied map has family Point"
+  (withObjects (bind "p" (call "geo::apply" [call "geo::origin" [var "X"], call "geo::id" [var "Y"]]))) 2)
+#eval check "#602: then the second operand's family" (explains
+  "apply requires a point of family Point, but the supplied point has family Morphism"
+  (withObjects (bind "p" (call "geo::apply" [call "geo::id" [var "X"], call "geo::id" [var "Y"]]))) 2)
+#eval check "#602: a coefficient failure is named as such" (explains
+  "smoothDimension requires an object with coefficient marker CInfReal, but the supplied object X has coefficient marker QQ"
+  (extended (withObjects (bind "d" (call "geo::smoothDimension" [var "X"])))) 1)
+#eval check "#602: a domain failure is named as such" (explains
+  "otherDimension requires an object whose domain lies within Other, but the supplied object X has domain Grid"
+  (extended (withObjects (bind "d" (call "geo::otherDimension" [var "X"])))) 1)
+#eval check "#602: matching objects remain accepted" (accepts (extended (program [main (num 0) (objects ++
+  [bind "p" (call "geo::follow" [call "geo::after" [call "geo::id" [var "Y"], call "geo::id" [var "Y"]],
+    call "geo::origin" [var "Y"]])])])))
+#eval check "#602: no cause is invented for an uncovered contract" (match Source.checkDeclarations Regression.declarationFixture with
+  | .error _ => false
+  | .ok checked =>
+    let env := checked.resolved.declarations
+    match env.primitives.find? (·.id.name == "baseObject") with
+    | none => false
+    | some declaration =>
+      -- The binding is valid and has no role table; the result is wrong but valid.
+      !validPrimitive env.indexed declaration.binding [] 0 [] .natural &&
+        Diagnostics.explainPrimitive env.indexed declaration.binding [] 0 [] .natural == none)
+
 #eval check "source coverage rejects omissions and substituted owners" (match Bodies.checkProgram packageFixture true with
   | .error _ => false
   | .ok checked =>

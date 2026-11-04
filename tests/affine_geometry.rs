@@ -350,6 +350,52 @@ fn morphism_declarations_reject_relation_variance_base_and_type_errors() {
 }
 
 #[test]
+fn rejected_relative_primitives_name_the_disagreeing_objects() {
+    let extra = "indexed morphism overQQ: Over<X, X, SpecQQ> = identity;\nindexed primitive view = relative_view(Over, S, SpecQQ);";
+    success(&check(&fixture(&with(&format!(
+        "{extra}\nfn good() -> Bool {{ same(view(toX()), compose(overQQ(), view(toX()))) && same(lift(toX(), toOrigin()), lift(toX(), toOrigin())) }}"
+    )))));
+    for (body, message) in [
+        (
+            "same(compose(toX(), p()), p())",
+            "compose requires a second map with target DS (the first map's source), but the supplied second map has target Line",
+        ),
+        (
+            "same(compose(toS(), overQQ()), toS())",
+            "compose requires a second map with base S (the first map's base), but the supplied second map has base SpecQQ",
+        ),
+        (
+            "same(view(p()), p())",
+            "view requires a map with base S (the base that the primitive views from), but the supplied map has base SpecQQ",
+        ),
+        (
+            "same(p(), sq())",
+            "same requires a second map with source D (the first map's source), but the supplied second map has source Line",
+        ),
+        (
+            "same(lift(prX(), toOrigin()), lift(prX(), toOrigin()))",
+            "lift requires a second map with source Fiber (the first map's source), but the supplied second map has source DS",
+        ),
+        (
+            "same(lift(toX(), toX()), lift(toX(), toX()))",
+            "lift requires a second map with target Origin (the fiber's second factor), but the supplied second map has target X",
+        ),
+    ] {
+        let stderr = rejects(
+            &with(&format!("{extra}\nfn bad() -> Bool {{ {body} }}")),
+            "E_ENDPOINT",
+        );
+        let (_, primary) = stderr
+            .lines()
+            .next()
+            .unwrap()
+            .split_once(": E_ENDPOINT: ")
+            .unwrap();
+        assert_eq!(primary, message, "{body}: {stderr}");
+    }
+}
+
+#[test]
 fn mutated_observations_change_the_native_result() {
     let s = fixture(
         &MAIN

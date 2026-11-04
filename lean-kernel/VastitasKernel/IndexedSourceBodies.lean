@@ -78,11 +78,14 @@ def typeLabel (input : Input) (type : Core.DataType) : M String := do
 def objectNotes (input : Input) (refs : List ObjectRef) : M (List DiagnosticNote) := do
   return Diagnostics.objectNotes input.declarations input.geometry (← get).origins refs
 
-def endpointFailure (input : Input) (values : List Core.Result) (span : Span) (message : String) : M α := do
+/-- Origin notes for every object in `values`, then the generativity help. -/
+def endpointNotes (input : Input) (values : List Core.Result) (span : Span) : M (List DiagnosticNote) := do
   let refs := values.flatMap Core.Result.refs
+  return (← objectNotes input refs) ++ Diagnostics.generativeNotes (← get).origins refs span
+
+def endpointFailure (input : Input) (values : List Core.Result) (span : Span) (message : String) : M α := do
   let labels ← values.mapM fun value => typeLabel input value.type
-  fail span "E_ENDPOINT" (message ++ ": " ++ String.intercalate ", " labels)
-    ((← objectNotes input refs) ++ Diagnostics.generativeNotes (← get).origins refs span)
+  fail span "E_ENDPOINT" (message ++ ": " ++ String.intercalate ", " labels) (← endpointNotes input values span)
 
 /-- Restrict dependent type indices, not bare object values. An object leaving a
 block retains its opening/construction identity; the Core freshness audit still
@@ -150,7 +153,9 @@ def primitiveResult : ValueType → Core.Result
   | .integerPair => ⟨.pure (.pair .int), none⟩
 
 /-- Both declared calls and the legacy syntax adapter use this same primitive
-contract check. The final independent Core audit remains mandatory. -/
+contract check. The final independent Core audit remains mandatory. A rejected
+call is explained from its resolved binding and actual operand types; when no
+cause is established, the message lists the operand types instead. -/
 def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
     (values : List Core.Term) (span : Span) : M Core.Term := do
   let some binding := input.declarations.primitive? id | fail span "E_TYPE" "unknown declared primitive"
@@ -159,8 +164,15 @@ def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
   let brand ← match binding with | .descriptor _ => fresh | _ => pure 0
   let some output := inferPrimitiveResult input.declarations.indexed binding brand operands
     | fail span "E_TYPE" "primitive operand shape mismatch"
-  unless validPrimitive input.declarations.indexed binding (Core.Typing.contextRefs ctx.core) brand operands output do
-    endpointFailure input (values.map Core.Term.result) span "primitive capability, endpoint or coefficient contract failed"
+  let allowed := Core.Typing.contextRefs ctx.core
+  unless validPrimitive input.declarations.indexed binding allowed brand operands output do
+    let results := values.map Core.Term.result
+    match Diagnostics.explainPrimitive input.declarations.indexed binding allowed brand operands output with
+    | some failure =>
+      let message := Diagnostics.explainFailure input.declarations input.geometry (← get).origins id.name
+        (← typeLabel input (primitiveResult output).type) failure
+      fail span "E_ENDPOINT" message (← endpointNotes input results span)
+    | none => endpointFailure input results span "primitive capability, endpoint or coefficient contract failed"
   if let .descriptor _ := binding then
     if let .object _ reference := output then
       let legacy := input.geometry.any fun profile => id == profile.scheme.affine || id == profile.smooth.affine

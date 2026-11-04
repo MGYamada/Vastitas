@@ -312,6 +312,72 @@ fn coherent_renaming_retains_contracts_without_privileged_geometry_names() {
     native(&fixture(&rename(DEMO), rename));
 }
 
+/// The primary message of a rejected check, after its location and code.
+fn endpoint_message(source: &str, rewrite: impl Fn(&str) -> String) -> String {
+    let stderr = common::expect_code(&check(&fixture(source, rewrite)), "E_ENDPOINT");
+    let (_, message) = stderr
+        .lines()
+        .next()
+        .unwrap()
+        .split_once(": E_ENDPOINT: ")
+        .unwrap();
+    message.to_owned()
+}
+
+#[test]
+fn library_primitives_explain_rejections_through_their_actual_binding() {
+    let crossed = |callee: &str| {
+        format!(
+            "fn main() -> Int {{ let X = geo::scheme::Affine(3); let Y = geo::scheme::Affine(3); let p = {callee}(geo::scheme::id(Y), geo::scheme::origin(X)); 0 }}"
+        )
+    };
+    let expected = |name: &str| {
+        format!(
+            "{name} requires a point with target Y (the map's source), but the supplied point has target X"
+        )
+    };
+    for callee in [
+        "apply",
+        "geo::apply",
+        "geo::scheme::apply",
+        "same::scheme::apply",
+    ] {
+        assert_eq!(
+            endpoint_message(&crossed(callee), str::to_owned),
+            expected("apply")
+        );
+    }
+    // A renamed declaration is explained by its own binding, also when the
+    // legacy profile selects it for `apply(...)`.
+    let renamed = |text: &str| {
+        text.replace("primitive apply = apply(", "primitive follow = apply(")
+            .replace("super::apply;", "super::follow;")
+            .replace("\"self::apply\"", "\"self::follow\"")
+    };
+    for callee in ["apply", "geo::scheme::follow"] {
+        assert_eq!(
+            endpoint_message(&crossed(callee), renamed),
+            expected("follow")
+        );
+    }
+    // A coefficient failure is named as such, under any coherent spelling.
+    let source =
+        "fn main() -> Int { let X = geo::scheme::Affine(2); let d = geo::smooth::dimension(X); 0 }";
+    assert_eq!(
+        endpoint_message(source, str::to_owned),
+        "dimension requires an object with coefficient marker CInfReal, but the supplied object X has coefficient marker QQ"
+    );
+    let respelled = |text: &str| {
+        text.replace("Scheme", "Space")
+            .replace("CInfReal", "SmoothScalar")
+            .replace("QQ", "Rational")
+    };
+    assert_eq!(
+        endpoint_message(&respelled(source), respelled),
+        "dimension requires an object with coefficient marker SmoothScalar, but the supplied object X has coefficient marker Rational"
+    );
+}
+
 #[test]
 fn domains_coefficients_and_base_objects_are_separate() {
     reject(

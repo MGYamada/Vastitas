@@ -657,18 +657,9 @@ fn cotangent_programs_lower_to_the_shared_smooth_runtime() {
 
 #[test]
 fn cotangent_operations_reject_wrong_objects_variances_and_points() {
-    // Endpoint errors name the operand types.
+    // When no operand role is at fault, the endpoint error lists the operand
+    // types. Role failures are covered by smooth_endpoint_errors_name_the_failing_role.
     for (label, body, types) in [
-        (
-            "a seed over the source of g instead of its target",
-            "fn bad() -> Bool { lies_over(pullback(g(), plane_at(3, 9), dplane(plane_at(3, 9), 1, 0)), plane_at(3, 9)) }",
-            "Smooth<Plane, Line>, Smooth<Pt, Plane>, Cotangent<Plane>",
-        ),
-        (
-            "a tangent seed",
-            "indexed primitive vline = fiber_vector(Tangent, Smooth, Line);\nfn bad() -> Bool { lies_over(pullback(sq(), line_at(3), vline(line_at(9), 1)), line_at(3)) }",
-            "Smooth<Line, Line>, Smooth<Pt, Line>, Tangent<Line>",
-        ),
         (
             "a point whose source object is 1-dimensional",
             "fn bad() -> Bool { lies_over(pullback(sq(), sq(), dline(line_at(9), 1)), line_at(3)) }",
@@ -678,57 +669,6 @@ fn cotangent_operations_reject_wrong_objects_variances_and_points() {
             "a covector in the point slot",
             "fn bad() -> Bool { lies_over(pullback(sq(), dline(line_at(3), 1), dline(line_at(9), 1)), line_at(3)) }",
             "Smooth<Line, Line>, Cotangent<Line>, Cotangent<Line>",
-        ),
-        (
-            "two vectors compared as covectors",
-            "fn bad() -> Bool { same_covector(vplane(plane_at(1, 2), 1, 0), vplane(plane_at(1, 2), 1, 0)) }",
-            "Tangent<Plane>, Tangent<Plane>",
-        ),
-        (
-            "a differential of a map to the plane",
-            "fn bad() -> Bool { lies_over(differential(f(), line_at(3)), line_at(3)) }",
-            "Smooth<Line, Plane>, Smooth<Pt, Line>",
-        ),
-        (
-            "a backward seed over the source of the tape instead of its target",
-            "fn bad() -> Bool { lies_over(backward(linearize(f(), line_at(3)), dline(line_at(3), 1)), line_at(3)) }",
-            "Tape<Line, Plane>, Cotangent<Line>",
-        ),
-        (
-            "a covector on the line at a point of the plane",
-            "fn bad() -> Bool { lies_over(dline(line_at(3), 1), plane_at(3, 9)) }",
-            "Cotangent<Line>, Smooth<Pt, Plane>",
-        ),
-        (
-            "covectors over different objects",
-            "fn bad() -> Bool { same_covector(dline(line_at(3), 1), dplane(plane_at(3, 9), 1, 0)) }",
-            "Cotangent<Line>, Cotangent<Plane>",
-        ),
-        (
-            "a plane component of a covector on the line",
-            "fn bad() -> Int { pair_first(dx(dline(line_at(3), 1))) }",
-            "Cotangent<Line>",
-        ),
-        (
-            "a covector and a vector over different objects",
-            "fn bad() -> Int { pair_first(pairing(dline(line_at(1), 1), vplane(plane_at(1, 2), 1, 0))) }",
-            "Cotangent<Line>, Tangent<Plane>",
-        ),
-        // No implicit metric pairs two covectors or two vectors.
-        (
-            "two covectors",
-            "fn bad() -> Int { pair_first(pairing(differential(g(), plane_at(1, 2)), differential(g(), plane_at(1, 2)))) }",
-            "Cotangent<Plane>, Cotangent<Plane>",
-        ),
-        (
-            "two vectors",
-            "fn bad() -> Int { pair_first(pairing(vplane(plane_at(1, 2), 3, 4), vplane(plane_at(1, 2), 3, 4))) }",
-            "Tangent<Plane>, Tangent<Plane>",
-        ),
-        (
-            "a vector and then a covector",
-            "fn bad() -> Int { pair_first(pairing(vplane(plane_at(1, 2), 3, 4), differential(g(), plane_at(1, 2)))) }",
-            "Tangent<Plane>, Cotangent<Plane>",
         ),
     ] {
         let stderr = rejects_cotangent(&with_cotangent(body), "E_ENDPOINT");
@@ -1315,28 +1255,130 @@ fn observations() -> Int {",
 
 #[test]
 fn metric_operations_reject_wrong_objects_and_variances() {
-    for (body, types) in [
-        (
-            "fn bad() -> Cotangent<Plane> { flat_skew(differential(g(), plane_at(1, 2))) }",
-            "Cotangent<Plane>",
-        ),
-        (
-            "fn bad() -> Tangent<Plane> { sharp_skew(vplane(plane_at(1, 2), 1, 0)) }",
-            "Tangent<Plane>",
-        ),
-        (
-            "indexed primitive vline = fiber_vector(Tangent, Smooth, Line);\nfn bad() -> Cotangent<Plane> { flat_skew(vline(line_at(1), 1)) }",
-            "Tangent<Line>",
-        ),
-    ] {
-        let stderr = rejects_metric(&with_metric(body), "E_ENDPOINT");
-        assert!(stderr.contains(types), "{body}: {stderr}");
-    }
-    // flat returns a covector and sharp a vector.
+    // Wrong operand objects and variances are E_ENDPOINT role failures, covered
+    // by smooth_endpoint_errors_name_the_failing_role. flat returns a covector,
+    // so expecting a vector from it is a type error.
     rejects_metric(
         &with_metric("fn bad() -> Tangent<Plane> { flat_skew(vplane(plane_at(1, 2), 1, 0)) }"),
         "E_TYPE",
     );
+}
+
+/// The E_ENDPOINT explainer names the failing operand role of each smooth,
+/// fiber and metric primitive: its family first, then its objects.
+#[test]
+fn smooth_endpoint_errors_name_the_failing_role() {
+    for (body, message) in [
+        (
+            "fn bad() -> Bool { same(compose(f(), f()), gf()) }",
+            "compose requires a second map with target Line (the first map's source), but the supplied second map has target Plane",
+        ),
+        (
+            "fn bad() -> Bool { same(f(), g()) }",
+            "same requires a second map with source Line (the first map's source), but the supplied second map has source Plane",
+        ),
+    ] {
+        let stderr = rejects(&with(body), "E_ENDPOINT");
+        assert!(stderr.contains(message), "{body}: {stderr}");
+    }
+    for (body, message) in [
+        (
+            "fn bad() -> Bool { lies_over(pullback(g(), plane_at(3, 9), dplane(plane_at(3, 9), 1, 0)), plane_at(3, 9)) }",
+            "pullback requires a seed with object Line (the map's target), but the supplied seed has object Plane",
+        ),
+        (
+            "indexed primitive vline = fiber_vector(Tangent, Smooth, Line);\nfn bad() -> Bool { lies_over(pullback(sq(), line_at(3), vline(line_at(9), 1)), line_at(3)) }",
+            "pullback requires a seed of family Cotangent, but the supplied seed has family Tangent",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(pullback(f(), plane_at(3, 9), dplane(plane_at(3, 9), 1, 0)), line_at(3)) }",
+            "pullback requires a point with target Line (the map's source), but the supplied point has target Plane",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(differential(f(), line_at(3)), line_at(3)) }",
+            "differential requires a function with target Line (the primitive's declared line), but the supplied function has target Plane",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(differential(g(), line_at(3)), line_at(3)) }",
+            "differential requires a point with target Plane (the function's source), but the supplied point has target Line",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(backward(linearize(f(), plane_at(3, 9)), dplane(plane_at(3, 9), 1, 0)), line_at(3)) }",
+            "linearize requires a point with target Line (the map's source), but the supplied point has target Plane",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(backward(linearize(f(), line_at(3)), dline(line_at(3), 1)), line_at(3)) }",
+            "backward requires a seed with object Plane (the tape's target), but the supplied seed has object Line",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(dline(line_at(3), 1), plane_at(3, 9)) }",
+            "lies_over requires a point with target Line (the element's object), but the supplied point has target Plane",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(vplane(plane_at(1, 2), 1, 0), plane_at(1, 2)) }",
+            "lies_over requires an element of family Cotangent, but the supplied element has family Tangent",
+        ),
+        (
+            "fn bad() -> Bool { lies_over(dline(plane_at(3, 9), 1), line_at(3)) }",
+            "dline requires a point with target Line (the primitive's declared object), but the supplied point has target Plane",
+        ),
+        (
+            "fn bad() -> Bool { same_covector(vplane(plane_at(1, 2), 1, 0), vplane(plane_at(1, 2), 1, 0)) }",
+            "same_covector requires a first element of family Cotangent, but the supplied first element has family Tangent",
+        ),
+        (
+            "fn bad() -> Bool { same_covector(dline(line_at(3), 1), dplane(plane_at(3, 9), 1, 0)) }",
+            "same_covector requires a second element with object Line (the first element's object), but the supplied second element has object Plane",
+        ),
+        (
+            "fn bad() -> Int { pair_first(dx(dline(line_at(3), 1))) }",
+            "dx requires an element with object Plane (the primitive's declared object), but the supplied element has object Line",
+        ),
+        (
+            "fn bad() -> Int { pair_first(pairing(dline(line_at(1), 1), vplane(plane_at(1, 2), 1, 0))) }",
+            "pairing requires a vector with object Line (the covector's object), but the supplied vector has object Plane",
+        ),
+        (
+            "fn bad() -> Int { pair_first(pairing(differential(g(), plane_at(1, 2)), differential(g(), plane_at(1, 2)))) }",
+            "pairing requires a vector of family Tangent, but the supplied vector has family Cotangent",
+        ),
+        (
+            "fn bad() -> Int { pair_first(pairing(vplane(plane_at(1, 2), 3, 4), differential(g(), plane_at(1, 2)))) }",
+            "pairing requires a covector of family Cotangent, but the supplied covector has family Tangent",
+        ),
+        (
+            "fn bad() -> Int { pair_first(pairing(vplane(plane_at(1, 2), 3, 4), vplane(plane_at(1, 2), 3, 4))) }",
+            "pairing requires a covector of family Cotangent, but the supplied covector has family Tangent",
+        ),
+        (
+            "fn bad() -> Smooth<Line, Plane> { composite(linearize(f(), line_at(3))) }",
+            "composite requires a map of family Smooth, but the supplied map has family Tape",
+        ),
+    ] {
+        let stderr = rejects_cotangent(&with_cotangent(body), "E_ENDPOINT");
+        assert!(stderr.contains(message), "{body}: {stderr}");
+    }
+    for (body, message) in [
+        (
+            "fn bad() -> Cotangent<Plane> { flat_skew(differential(g(), plane_at(1, 2))) }",
+            "flat_skew requires a vector of family Tangent, but the supplied vector has family Cotangent",
+        ),
+        (
+            "fn bad() -> Tangent<Plane> { sharp_skew(vplane(plane_at(1, 2), 1, 0)) }",
+            "sharp_skew requires a covector of family Cotangent, but the supplied covector has family Tangent",
+        ),
+        (
+            "indexed primitive vline = fiber_vector(Tangent, Smooth, Line);\nfn bad() -> Cotangent<Plane> { flat_skew(vline(line_at(1), 1)) }",
+            "flat_skew requires a vector with object Plane (the metric's object), but the supplied vector has object Line",
+        ),
+        (
+            "indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);\nfn bad() -> Tangent<Plane> { sharp_skew(dline(line_at(1), 1)) }",
+            "sharp_skew requires a covector with object Plane (the metric's object), but the supplied covector has object Line",
+        ),
+    ] {
+        let stderr = rejects_metric(&with_metric(body), "E_ENDPOINT");
+        assert!(stderr.contains(message), "{body}: {stderr}");
+    }
 }
 
 #[test]

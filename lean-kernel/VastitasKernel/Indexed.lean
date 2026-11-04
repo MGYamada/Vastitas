@@ -54,6 +54,11 @@ inductive Constraint where
   | canonical (object : Nat)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- Whether a fiber family holds vectors (`tangent`) or covectors (`cotangent`). -/
+inductive Variance where
+  | tangent | cotangent
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-- An indexed token retains every index, even when its runtime representation
 is empty. Endpoint representations are sealed and require an explicit contract.
 `relative` is the sealed three-index `MorphismOver(X, Y, S)` of presented
@@ -66,10 +71,6 @@ a point of `X`, or the failure value. `tape` is the sealed two-index
 Only `linearize` constructs a tape. `metricForm` is the sealed one-index
 `MetricForm(X)` of a smooth object: it indexes metric declarations, and no
 runtime value has its type. -/
-inductive Variance where
-  | tangent | cotangent
-  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
-
 inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
   | fiber (variance : Variance)

@@ -82,9 +82,10 @@ Core. See
 ## Cotangent pullback
 
 The pullback of a covector along a [smooth map](#smooth-map) at a point. For a
-map `F` with Jacobian `J` at `x`, it sends a covector `η` at `F(x)` to the
-covector `Jᵀη` at `x`. A seed that does not lie over `F(x)` gives the failure
-value. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+map `F` with Jacobian `J` at a point `x`, it sends a covector `η` at `F(x)` to
+the covector `Jᵀη` at `x`. A covector at any other point gives the
+[failure value](#failure-value). See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Delegation
 
@@ -152,21 +153,27 @@ source code. See
 [Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal) and
 [Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
 
+## Failure value
+
+The value of a [tangent or cotangent fiber](#tangent-or-cotangent-fiber) family
+that stands for no vector or covector. A cotangent pullback returns it for a
+covector that is not at the image point, and every pullback of the failure
+value is the failure value. It is at no point, and it equals no value, itself
+included. Its components and its pairings read `(0, 0)`, which no rational
+number reads. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
 ## Family
 
 A type former declared with `indexed family`. Its parameters are objects,
 markers, domains or natural numbers. `Point` and `Morphism` are families. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
-## Fiber
+## Fiber product
 
-A value of a family with the `cotangent` or `tangent` representation, such as
-`Cotangent<X>` or `Tangent<X>`: a covector or vector at a rational point of the
-[smooth affine object](#smooth-affine-object) `X`, given by its components in
-the coordinate coframe or frame. A fiber may also be the failure value. The
-failure value lies over no point and equals no fiber, and its components read
-`(0, 0)`. See
-[smooth forms](../protocol.md#protocol-9-smooth-forms).
+The presented affine object `fiber(X, Y)` of two presented affine objects over
+a common base. It is unrelated to a
+[tangent or cotangent fiber](#tangent-or-cotangent-fiber). See
+[Fiber products and base change](../affine-geometry.md#fiber-products-and-base-change).
 
 ## Flat mode
 
@@ -442,12 +449,24 @@ exclusive. A storage loan grants no edit authority; compare
 [edit loan](#edit-loan). See
 [Affine ownership and explicit transitions](../storage-ownership.md#75-affine-ownership-and-explicit-transitions).
 
+## Tangent or cotangent fiber
+
+A value of a family with the `tangent` or `cotangent` representation, such as
+`Tangent<X>` or `Cotangent<X>`. It is a vector or covector at a rational point
+of the [smooth affine object](#smooth-affine-object) `X`. Its components are
+given in the coordinate frame or coframe. It may also be the
+[failure value](#failure-value). It is unrelated to a
+[fiber product](#fiber-product). See
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
+
 ## Tape
 
 A value of a family with the `tape` representation, such as `Tape<X, Y>`: the
 forward values that one evaluation of a [smooth map](#smooth-map) saves at a
-point. Only `linearize` builds a tape, and `cotangent_backward` runs the
-reverse pass over it. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+point. Only `linearize` builds a tape; a tape has no source or wire form.
+`cotangent_backward` runs the reverse pass over a tape. It returns the
+[failure value](#failure-value) for a covector that is not at the tape's
+output point. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Transfer
 

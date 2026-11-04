@@ -576,6 +576,62 @@ fn mutated_cotangent_observations_change_the_native_result() {
 }
 
 #[test]
+fn a_right_intermediate_point_flips_the_failure_checks() {
+    // With g(f(3)) = 18 and the right intermediate point, the detour succeeds:
+    // codes 9 (it fails) and 21 (the identity keeps it a failure) flip.
+    let main = common::checked_replace(
+        COTANGENT_MAIN,
+        "compose(f(), line_at(2)), dline(line_at(8), 1)",
+        "compose(f(), line_at(3)), dline(line_at(18), 1)",
+    );
+    assert_eq!(run(&cotangent_fixture(&main)), b"72\n");
+}
+
+/// The lowered source of a program whose only pullback uses `binding`.
+fn one_pullback_source(binding: &str) -> String {
+    let main = format!(
+        "mod profile;
+use profile::Cotangent;
+use profile::Smooth;
+use profile::Line;
+use profile::line_at;
+use profile::lies_over;
+use profile::{binding};
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+fn main() -> Int {{ if lies_over({binding}(sq(), line_at(3), dline(line_at(9), 1)), line_at(3)) {{ 42 }} else {{ 0 }} }}
+"
+    );
+    let s = cotangent_fixture(&main);
+    assert_eq!(run(&s), b"42\n");
+    let emitted = kernel(request(&s), "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    emitted["lean_source"].as_str().unwrap().to_string()
+}
+
+#[test]
+fn each_pullback_binding_lowers_to_its_own_mode() {
+    let saved = one_pullback_source("pullback");
+    assert_eq!(saved.matches("PullbackMode.saved").count(), 1, "{saved}");
+    assert_eq!(
+        saved.matches("PullbackMode.recomputed").count(),
+        0,
+        "{saved}"
+    );
+    let recomputed = one_pullback_source("pullback_recomputed");
+    assert_eq!(
+        recomputed.matches("PullbackMode.recomputed").count(),
+        1,
+        "{recomputed}"
+    );
+    assert_eq!(
+        recomputed.matches("PullbackMode.saved").count(),
+        0,
+        "{recomputed}"
+    );
+}
+
+#[test]
 fn cotangent_programs_lower_to_the_shared_smooth_runtime() {
     let raw = request(&cotangent_fixture(COTANGENT_MAIN));
     let emitted = kernel(&raw, "emit");
@@ -600,41 +656,95 @@ fn cotangent_programs_lower_to_the_shared_smooth_runtime() {
 
 #[test]
 fn cotangent_operations_reject_wrong_objects_variances_and_points() {
-    // A seed over the wrong object, a tangent seed, a point from a 1-dimensional
-    // object, a covector compared as a vector, and a differential of a map to
-    // the plane are endpoint errors that name the operand types.
-    for (body, types) in [
+    // Endpoint errors name the operand types.
+    for (label, body, types) in [
         (
+            "a seed over the source of g instead of its target",
             "fn bad() -> Bool { lies_over(pullback(g(), plane_at(3, 9), dplane(plane_at(3, 9), 1, 0)), plane_at(3, 9)) }",
             "Smooth<Plane, Line>, Smooth<Pt, Plane>, Cotangent<Plane>",
         ),
         (
+            "a tangent seed",
             "indexed primitive vline = fiber_vector(Tangent, Smooth, Line);\nfn bad() -> Bool { lies_over(pullback(sq(), line_at(3), vline(line_at(9), 1)), line_at(3)) }",
             "Smooth<Line, Line>, Smooth<Pt, Line>, Tangent<Line>",
         ),
         (
+            "a point whose source object is 1-dimensional",
             "fn bad() -> Bool { lies_over(pullback(sq(), sq(), dline(line_at(9), 1)), line_at(3)) }",
             "Smooth<Line, Line>, Smooth<Line, Line>, Cotangent<Line>",
         ),
         (
+            "a covector in the point slot",
+            "fn bad() -> Bool { lies_over(pullback(sq(), dline(line_at(3), 1), dline(line_at(9), 1)), line_at(3)) }",
+            "Smooth<Line, Line>, Cotangent<Line>, Cotangent<Line>",
+        ),
+        (
+            "two vectors compared as covectors",
             "fn bad() -> Bool { same_covector(vplane(plane_at(1, 2), 1, 0), vplane(plane_at(1, 2), 1, 0)) }",
             "Tangent<Plane>, Tangent<Plane>",
         ),
         (
+            "a differential of a map to the plane",
             "fn bad() -> Bool { lies_over(differential(f(), line_at(3)), line_at(3)) }",
             "Smooth<Line, Plane>, Smooth<Pt, Line>",
         ),
         (
+            "a backward seed over the source of the tape instead of its target",
             "fn bad() -> Bool { lies_over(backward(linearize(f(), line_at(3)), dline(line_at(3), 1)), line_at(3)) }",
             "Tape<Line, Plane>, Cotangent<Line>",
         ),
         (
-            "fn bad() -> Int { pair_first(pairing(dplane(plane_at(1, 2), 1, 0), vplane(plane_at(1, 2), 1, 0))) + pair_first(pairing(dline(line_at(1), 1), vplane(plane_at(1, 2), 1, 0))) }",
+            "a covector on the line at a point of the plane",
+            "fn bad() -> Bool { lies_over(dline(line_at(3), 1), plane_at(3, 9)) }",
+            "Cotangent<Line>, Smooth<Pt, Plane>",
+        ),
+        (
+            "covectors over different objects",
+            "fn bad() -> Bool { same_covector(dline(line_at(3), 1), dplane(plane_at(3, 9), 1, 0)) }",
+            "Cotangent<Line>, Cotangent<Plane>",
+        ),
+        (
+            "a plane component of a covector on the line",
+            "fn bad() -> Int { pair_first(dx(dline(line_at(3), 1))) }",
+            "Cotangent<Line>",
+        ),
+        (
+            "a covector and a vector over different objects",
+            "fn bad() -> Int { pair_first(pairing(dline(line_at(1), 1), vplane(plane_at(1, 2), 1, 0))) }",
             "Cotangent<Line>, Tangent<Plane>",
+        ),
+        // No implicit metric pairs two covectors or two vectors.
+        (
+            "two covectors",
+            "fn bad() -> Int { pair_first(pairing(differential(g(), plane_at(1, 2)), differential(g(), plane_at(1, 2)))) }",
+            "Cotangent<Plane>, Cotangent<Plane>",
+        ),
+        (
+            "two vectors",
+            "fn bad() -> Int { pair_first(pairing(vplane(plane_at(1, 2), 3, 4), vplane(plane_at(1, 2), 3, 4))) }",
+            "Tangent<Plane>, Tangent<Plane>",
+        ),
+        (
+            "a vector and then a covector",
+            "fn bad() -> Int { pair_first(pairing(vplane(plane_at(1, 2), 3, 4), differential(g(), plane_at(1, 2)))) }",
+            "Tangent<Plane>, Cotangent<Plane>",
         ),
     ] {
         let stderr = rejects_cotangent(&with_cotangent(body), "E_ENDPOINT");
-        assert!(stderr.contains(types), "{body}: {stderr}");
+        assert!(stderr.contains(types), "{label}: {stderr}");
+    }
+    // An operand with one index in a slot from which the checker reads the
+    // result's objects (the map of a pullback, the tape of a backward pass) is
+    // a type error.
+    for body in [
+        "fn bad() -> Bool { lies_over(backward(dline(line_at(3), 1), dline(line_at(9), 1)), line_at(3)) }",
+        "fn bad() -> Bool { lies_over(pullback(dline(line_at(3), 1), line_at(3), dline(line_at(9), 1)), line_at(3)) }",
+    ] {
+        let stderr = rejects_cotangent(&with_cotangent(body), "E_TYPE");
+        assert!(
+            stderr.contains("primitive operand shape mismatch"),
+            "{body}: {stderr}"
+        );
     }
     // A tape is built only by linearize.
     rejects_cotangent(

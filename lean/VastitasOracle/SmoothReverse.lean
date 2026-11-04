@@ -25,11 +25,14 @@ Together with `SmoothDeclarations.smoothCompose_reifies` and
 `IndexedSemantics.primitive_runtime_erasure`, these state that the reverse pass
 runs on the program that checked Core builds. They need no chain rule: that
 the pass computes the transpose of the derivative is a statement about
-calculus, proved in the bridge.
+calculus, proved in the bridge (`VastitasBridge.Differential.ChainRule`:
+`backward_eq_cot`, `pullback_composite`).
 
 `smooth_differential_metric_free` states that the differential and the
 cotangent pullback never consult the declarations: their Core semantics is the
-same in every environment, and their runtime operation takes no environment. -/
+same in every environment, and their runtime operation takes no environment.
+The checker-level weakening theorem, that adding metric declarations leaves the
+validity of other bindings unchanged, is planned for S5. -/
 namespace VastitasOracle.SmoothReverse
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
@@ -262,8 +265,8 @@ theorem core_backward_linearize {module : Module} {functions : Typing.Signatures
 /-- **Pullback along a program node.** A pullback whose map operand is a Core
 `compose` node runs on the program node `Program.compose after before` that
 the node builds, never on an expanded composite. With
-`SmoothRuntime.pullback_stepwise`, it is the pullback along `after` and then
-along `before`. -/
+`VastitasOracle.SmoothRuntime.pullback_stepwise`, it is the pullback along
+`after` and then along `before`. -/
 theorem core_pullback_compose {module : Module} {fuel : Nat} {values : Values}
     {pullbackId composeId : DeclId} {after before point seed : Core.Term} {composeResult result : Result}
     {smooth cotangent family : DeclId} {mode : SmoothRuntime.PullbackMode}
@@ -300,10 +303,10 @@ private theorem environment_free {binding : PrimitiveBinding}
 
 /-- **Metric-free differential.** The `differential` and `cotangent_pullback`
 bindings never consult the declarations. Their Core semantics is the same in
-every pair of environments, so adding or removing any declaration (a metric
-among them) leaves it unchanged. Their runtime operation takes no environment:
-it is `SmoothRuntime.differential` and `SmoothRuntime.pullback` of the erased
-operands. The checker-level weakening theorem is stated separately. -/
+every pair of environments, so adding or removing a declaration leaves it
+unchanged. Their runtime operation takes no environment: it is
+`SmoothRuntime.differential` and `SmoothRuntime.pullback` of the erased
+operands. The checker-level weakening theorem is planned for S5. -/
 theorem smooth_differential_metric_free (env env' : Indexed.Environment) (values : List Value) :
     (∀ smooth cotangent line,
       evalPrimitive env (.differential smooth cotangent line) values =

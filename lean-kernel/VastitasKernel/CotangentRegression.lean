@@ -48,6 +48,10 @@ private def declarations : List Source.Declaration := [
   morphism "gf" "Line" "Line" (.pullback [("t", .product [n 2, .pow (c "t") 2])]),
   morphism "sq" "Line" "Line" (.pullback [("t", .pow (c "t") 2)]),
   morphism "idP" "Plane" "Plane" .identity,
+  morphism "idL" "Line" "Line" .identity,
+  -- The shears A(x, y) = (x + y, y) and B(x, y) = (x, x + y).
+  morphism "shearA" "Plane" "Plane" (.pullback [("x", .sum [c "x", c "y"]), ("y", c "y")]),
+  morphism "shearB" "Plane" "Plane" (.pullback [("x", c "x"), ("y", .sum [c "x", c "y"])]),
   primitive "compose" (.smoothCompose (path "Smooth")),
   primitive "composite" (.smoothComposite (path "Smooth")),
   primitive "line_at" (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt")),
@@ -169,6 +173,19 @@ private def stepwise : Core.Term :=
     (pullback (constant "g" "Plane" "Line") (compose (constant "f" "Line" "Plane") three "Pt" "Plane") seed "Plane")
     "Line"
 private def failed : Core.Term := pullback gAfterF three (dline (lineAt 17) 1) "Line"
+/-- dt at g(f(2)) = 8 pulled back along g at f(2) = (2, 4), then along f at 3:
+the intermediate point is wrong, so the second pullback fails. -/
+private def detourAt (intermediate : Int) (target : Int) : Core.Term :=
+  pullback (constant "f" "Line" "Plane") three
+    (pullback (constant "g" "Plane" "Line") (compose (constant "f" "Line" "Plane") (lineAt intermediate) "Pt" "Plane")
+      (dline (lineAt target) 1) "Plane") "Line"
+private def detour : Core.Term := detourAt 2 8
+/-- The identity of the line at 3 accepts every covector at 3. -/
+private def alongIdentity (value : Core.Term) : Core.Term := pullback (constant "idL" "Line" "Line") three value "Line"
+private def origin : Core.Term := planeAt 0 0
+private def shearDx (first second : String) : Core.Term :=
+  pullback (compose (constant first "Plane" "Plane") (constant second "Plane" "Plane") "Plane" "Plane") origin
+    (dplane origin 1 0) "Plane"
 private def dg : Core.Term := prim "differential" [constant "g" "Plane" "Line", planeAt 1 2] (cotangentType "Plane")
 
 private def cotangentMain : Core.Function := {
@@ -196,6 +213,13 @@ private def cotangentMain : Core.Function := {
     guarded (equals (numerator (prim "pairing" [dg, vplane (planeAt 1 2) 3 4] pairType)) 10) 16 <|
     guarded (equals (denominator (prim "pairing" [dg, vplane (planeAt 0 0) 3 4] pairType)) 0) 17 <|
     guarded (prim "tangent_over" [vplane (planeAt 1 2) 3 4, planeAt 1 2] bool) 18 <|
+    guarded (notE (liesOver detour three)) 19 <|
+    guarded (equals (denominator (component "dt" detour)) 0) 20 <|
+    guarded (sameCovector (alongIdentity stepwise) stepwise) 21 <|
+    guarded (notE (liesOver (alongIdentity detour) three)) 22 <|
+    -- B after A pulls dx back to (1, 1), and A after B to (2, 1).
+    guarded (sameCovector (shearDx "shearB" "shearA") (dplane origin 1 1)) 23 <|
+    guarded (sameCovector (shearDx "shearA" "shearB") (dplane origin 2 1)) 24 <|
     .integer 42 }
 
 /-- The reverse pass of this regression as one audited Core module. -/
@@ -210,13 +234,19 @@ def cotangentFixture : Core.Module := ⟨resolved.getD default, [cotangentMain],
     some (.indexed (.fiber .cotangent (some ⟨[3], [12]⟩))))
 #eval check "a seed at 17 fails"
   (Core.Semantics.eval cotangentFixture 64 (fun _ => none) failed == some (.indexed (.fiber .cotangent none)))
-#eval check "a wrong intermediate point propagates the failure"
-  (Core.Semantics.eval cotangentFixture 64 (fun _ => none)
-    (pullback (constant "sq" "Line" "Line") (lineAt 1)
-      (pullback (constant "f" "Line" "Plane") three
-        (pullback (constant "g" "Plane" "Line") (compose (constant "f" "Line" "Plane") (lineAt 2) "Pt" "Plane")
-          (dline (lineAt 8) 1) "Plane") "Line") "Line") ==
-    some (.indexed (.fiber .cotangent none)))
+private def evaluate (term : Core.Term) : Option Core.Semantics.Value :=
+  Core.Semantics.eval cotangentFixture 64 (fun _ => none) term
+#eval check "a wrong intermediate point fails"
+  (evaluate detour == some (.indexed (.fiber .cotangent none)))
+#eval check "the right intermediate point succeeds"
+  (evaluate (detourAt 3 18) == some (.indexed (.fiber .cotangent (some ⟨[3], [12]⟩))))
+#eval check "the identity at 3 accepts a covector at 3"
+  (evaluate (alongIdentity stepwise) == some (.indexed (.fiber .cotangent (some ⟨[3], [12]⟩))))
+#eval check "the identity at 3 keeps a failure a failure"
+  (evaluate (alongIdentity detour) == some (.indexed (.fiber .cotangent none)))
+#eval check "the shears pull dx back to (1, 1) and (2, 1)"
+  (evaluate (shearDx "shearB" "shearA") == some (.indexed (.fiber .cotangent (some ⟨[0, 0], [1, 1]⟩))) &&
+    evaluate (shearDx "shearA" "shearB") == some (.indexed (.fiber .cotangent (some ⟨[0, 0], [2, 1]⟩))))
 #eval check "the cotangent Core module imports the smooth runtime" (match Core.Typing.checkModule cotangentFixture true with
   | .ok checked => match Core.Codegen.generate checked with
     | .ok source => (source.splitOn "import VastitasKernel.SmoothRuntime\n").length == 2 &&
@@ -224,6 +254,21 @@ def cotangentFixture : Core.Module := ⟨resolved.getD default, [cotangentMain],
         (source.splitOn "VastitasKernel.SmoothRuntime.linearize").length > 1
     | .error _ => false
   | .error _ => false)
+
+/-- Each pullback binding lowers to its own mode. -/
+private def oneMode (name : String) : Core.Term :=
+  guarded (liesOver (pullback gAfterF three seed "Line" name) three) 1 (.integer 42)
+private def modes (name : String) : Option (Bool × Bool) :=
+  match Core.Typing.checkModule ⟨resolved.getD default, [{ cotangentMain with body := oneMode name }], some 0⟩
+      true with
+  | .ok checked => match Core.Codegen.generate checked with
+    | .ok source => some ((source.splitOn "PullbackMode.saved").length - 1 == 1,
+        (source.splitOn "PullbackMode.recomputed").length - 1 == 1)
+    | .error _ => none
+  | .error _ => none
+#eval check "the saved binding lowers to the saved mode only" (modes "pullback" == some (true, false))
+#eval check "the recomputed binding lowers to the recomputed mode only"
+  (modes "pullback_recomputed" == some (false, true))
 
 /-! ## Static rejections in Core -/
 
@@ -237,8 +282,20 @@ private def rejected (body : Core.Term) : Bool :=
 #eval check "a tangent seed is rejected"
   (rejected (liesOver (pullback gAfterF three (prim "vline" [lineAt 18, .integer 1] (tangentType "Line")) "Line")
     three))
-#eval check "a tangent where a cotangent is compared is rejected"
+#eval check "vectors compared as covectors are rejected"
   (rejected (sameCovector (vplane (planeAt 1 2) 1 0) (vplane (planeAt 1 2) 1 0)))
+#eval check "a covector on the line at a point of the plane is rejected"
+  (rejected (liesOver (dline three 1) (planeAt 3 9)))
+#eval check "covectors over different objects are not compared"
+  (rejected (sameCovector (dline three 1) (dplane (planeAt 3 9) 1 0)))
+#eval check "a plane component of a covector on the line is rejected"
+  (rejected (equals (numerator (component "dx" (dline three 1))) 0))
+#eval check "two covectors, two vectors or a vector and a covector do not pair"
+  (rejected (equals (numerator (prim "pairing" [dg, dg] pairType)) 0) &&
+    rejected (equals (numerator (prim "pairing" [vplane (planeAt 1 2) 3 4, vplane (planeAt 1 2) 3 4] pairType)) 0) &&
+    rejected (equals (numerator (prim "pairing" [vplane (planeAt 1 2) 3 4, dg] pairType)) 0))
+#eval check "a covector in the tape slot of backward is rejected"
+  (rejected (liesOver (prim "backward" [dline three 1, seed] (cotangentType "Line")) three))
 #eval check "lies_over at a point from a non-zero-dimensional object is rejected"
   (rejected (liesOver (pullback (constant "sq" "Line" "Line") (compose (constant "sq" "Line" "Line") three "Pt" "Line")
     (dline (lineAt 9) 1) "Line") (compose (constant "sq" "Line" "Line") (constant "sq" "Line" "Line") "Line" "Line")))

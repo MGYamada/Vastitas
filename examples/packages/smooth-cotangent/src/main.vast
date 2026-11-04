@@ -36,6 +36,7 @@ indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
 indexed morphism gf: Smooth<Line, Line> = pullback(t -> 2*t^2);
 indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
 indexed morphism idP: Smooth<Plane, Plane> = identity;
+indexed morphism idL: Smooth<Line, Line> = identity;
 // The shears A(x, y) = (x + y, y) and B(x, y) = (x, x + y).
 indexed morphism shearA: Smooth<Plane, Plane> = pullback(x -> x + y, y -> y);
 indexed morphism shearB: Smooth<Plane, Plane> = pullback(x -> x, y -> x + y);
@@ -69,11 +70,11 @@ fn main() -> Int {
        + verdict(same_covector(stepwise(seed), pullback(gf(), x, seed)), 4)
        // The result lies in the cotangent space at 3.
        + verdict(lies_over(stepwise(seed), x), 5)
-       // Wrong seeds fail, the failure propagates and its component reads (0, 0).
+       // Wrong seeds fail, and a failure's component reads (0, 0).
        + verdict(!lies_over(wrong, x), 6)
        + verdict(!same_covector(wrong, wrong), 7)
        + verdict(reads(wrong, 0, 0), 8)
-       + verdict(!lies_over(pullback(sq(), line_at(1), detour), line_at(1)), 9)
+       + verdict(!lies_over(detour, x) && reads(detour, 0, 0), 9)
        // Saved, recomputed and the first-class tape agree; a tape from 3 rejects a seed at sq(4) = 16.
        + verdict(same_covector(pullback_recomputed(gAfterF, x, seed), pullback(gAfterF, x, seed)), 10)
        + verdict(same_covector(backward(linearize(gAfterF, x), seed), pullback(gAfterF, x, seed)), 11)
@@ -91,4 +92,7 @@ fn main() -> Int {
        + verdict(pair_first(pairing(dg, v)) == 10 && pair_second(pairing(dg, v)) == 1, 17)
        + verdict(pair_second(pairing(dg, vplane(plane_at(0, 0), 3, 4))) == 0, 18)
        + verdict(tangent_over(v, plane_at(1, 2)) && same_vector(v, vplane(plane_at(1, 2), 3, 4)), 19)
+       // The identity at 3 accepts every covector at 3, but a failure stays a failure.
+       + verdict(same_covector(pullback(idL(), x, stepwise(seed)), stepwise(seed)), 20)
+       + verdict(!lies_over(pullback(idL(), x, detour), x), 21)
 }

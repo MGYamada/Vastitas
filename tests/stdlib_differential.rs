@@ -174,6 +174,177 @@ fn library_profile_checks_builds_and_runs_from_a_path_package() {
     }
 }
 
+/// `value` without its source spans.
+fn without_spans(value: &Value) -> Value {
+    match value {
+        Value::Object(fields) => Value::Object(
+            fields
+                .iter()
+                .filter(|(key, _)| key.as_str() != "span")
+                .map(|(key, field)| (key.clone(), without_spans(field)))
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(items.iter().map(without_spans).collect()),
+        other => other.clone(),
+    }
+}
+
+/// Each public binding of the library is the documented operation over the
+/// library's families. A binding with another mode or family, such as a
+/// recomputing `pullback` or a `tangent_over` on covectors, fails here even
+/// though it computes the same values in the example.
+#[test]
+fn library_bindings_are_the_documented_operations() {
+    let wire = request(&fixture(MAIN, &[]));
+    let path = |name: &str| serde_json::json!({ "path": [name] });
+    let expected = [
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "compose_smooth",
+            serde_json::json!({ "op": "smooth_compose", "family": path("Smooth") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "composite",
+            serde_json::json!({ "op": "smooth_composite", "family": path("Smooth") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "same_smooth",
+            serde_json::json!({ "op": "smooth_equal", "family": path("Smooth") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "line_at",
+            serde_json::json!({ "op": "smooth_int_point", "family": path("Smooth"), "object": path("Line"), "point": path("Pt") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "lies_over",
+            serde_json::json!({ "op": "fiber_at", "family": path("Cotangent"), "map_family": path("Smooth") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "tangent_over",
+            serde_json::json!({ "op": "fiber_at", "family": path("Tangent"), "map_family": path("Smooth") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "same_covector",
+            serde_json::json!({ "op": "fiber_equal", "family": path("Cotangent") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "same_vector",
+            serde_json::json!({ "op": "fiber_equal", "family": path("Tangent") }),
+        ),
+        (
+            "vastitas_geometry",
+            vec!["smooth", "affine"],
+            "pairing",
+            serde_json::json!({ "op": "fiber_pairing", "cotangent": path("Cotangent"), "tangent": path("Tangent") }),
+        ),
+        (
+            "vastitas_differential",
+            vec![],
+            "pullback",
+            serde_json::json!({ "op": "cotangent_pullback", "map_family": path("Smooth"), "cotangent": path("Cotangent"), "mode": "saved" }),
+        ),
+        (
+            "vastitas_differential",
+            vec![],
+            "differential",
+            serde_json::json!({ "op": "differential", "map_family": path("Smooth"), "cotangent": path("Cotangent"), "line": path("Line") }),
+        ),
+        (
+            "vastitas_differential",
+            vec![],
+            "linearize",
+            serde_json::json!({ "op": "linearize", "map_family": path("Smooth"), "tape": path("Tape") }),
+        ),
+        (
+            "vastitas_differential",
+            vec![],
+            "backward",
+            serde_json::json!({ "op": "cotangent_backward", "tape": path("Tape"), "cotangent": path("Cotangent") }),
+        ),
+    ];
+    for (library, module, name, binding) in expected {
+        let module = package(&wire, library)["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["path"] == serde_json::json!(module))
+            .unwrap_or_else(|| panic!("{library}: no module {module:?}"));
+        let declaration = module["indexed_declarations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["name"] == name)
+            .unwrap_or_else(|| panic!("{library}: no declaration {name}"));
+        assert_eq!(declaration["kind"], "primitive", "{library}::{name}");
+        assert_eq!(declaration["public"], true, "{library}::{name}");
+        assert_eq!(
+            without_spans(&declaration["binding"]),
+            binding,
+            "{library}::{name}"
+        );
+    }
+}
+
+/// The library's other operations work from an application: `tangent_over`,
+/// `composite`, `same_smooth` and the `Tape` family. Each check has its own
+/// code, so the program prints 42 only when all of them hold.
+#[test]
+fn library_fiber_and_map_operations_work_from_an_application() {
+    let main = common::checked_replace(
+        MAIN,
+        "use std::geometry::metric::MetricForm;",
+        "use std::geometry::metric::MetricForm;\nuse std::geometry::smooth::affine::Tape;\nuse std::geometry::smooth::affine::tangent_over;\nuse std::geometry::smooth::affine::composite;\nuse std::geometry::smooth::affine::same_smooth;",
+    );
+    let main = common::checked_replace(
+        &main,
+        "indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);",
+        "indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);\nindexed morphism twice_square: Smooth<Line, Line> = pullback(t -> 2*t^2);\nindexed morphism square: Smooth<Line, Line> = pullback(t -> t^2);",
+    );
+    let main = common::checked_replace(
+        &main,
+        "    42 + verdict(",
+        concat!(
+            "    let tape: Tape<Line, Line> = linearize(gAfterF, x);\n",
+            "    42 + verdict(tangent_over(grad, p), 12)\n",
+            "       + verdict(!tangent_over(vplane(plane_at(0, 0), 1, 0), p), 13)\n",
+            "       + verdict(same_smooth(composite(gAfterF), twice_square()), 14)\n",
+            "       + verdict(same_smooth(gAfterF, twice_square()), 15)\n",
+            "       + verdict(!same_smooth(gAfterF, square()), 16)\n",
+            "       + verdict(same_covector(backward(tape, seed), stepped), 17)\n",
+            "       + verdict(",
+        ),
+    );
+    assert_eq!(run(&fixture(&main, &[])), b"42\n");
+    // Each new check can fail: a vector at (1, 2) does not lie over (0, 0),
+    // and the composite is not t^2.
+    let failing = common::checked_replace(
+        &main,
+        "verdict(tangent_over(grad, p), 12)",
+        "verdict(tangent_over(grad, plane_at(0, 0)), 12)",
+    );
+    let failing = common::checked_replace(
+        &failing,
+        "verdict(same_smooth(gAfterF, twice_square()), 15)",
+        "verdict(same_smooth(gAfterF, square()), 15)",
+    );
+    assert_eq!(run(&fixture(&failing, &[])), b"69\n");
+}
+
 #[test]
 fn mutated_observations_change_the_native_result() {
     // 13 dt is wrong (code 1). The seed at 18 is right, so the failure check

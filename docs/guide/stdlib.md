@@ -69,7 +69,7 @@ std = { path = "../../../stdlib" }
 ```
 
 Generate the standard library's package root, which combines the arithmetic
-sources with the geometry library. Run the script again after editing the
+sources with the geometry and differential libraries. Run the script again after editing the
 standard library's sources. Then build:
 
 ```sh

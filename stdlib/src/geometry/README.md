@@ -178,8 +178,9 @@ the numerical profile and from `MetricSpace`. Neither of those names exists in
 
 ### Metrics belong to the application
 
-A metric, its evidence, `flat` and `sharp` each name one metric. The package
-that declares the metric must declare them:
+A metric's evidence, `flat` and `sharp` each name one metric. Any package
+that can name the metric may declare them. The standard library declares
+none, because it cannot name an application's metric:
 
 ```vast
 use std::geometry::smooth::affine::Tangent;
@@ -195,7 +196,7 @@ indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence 
 The library declares no metric, so no metric is a default. The
 [complete example](../../../examples/packages/stdlib-differential/main.vast)
 also computes a pullback, a differential and a gradient with
-[`std::differential`](../README.md#differentiation):
+[`std::differential`](../../README.md#differentiation):
 
 ```sh
 python3 scripts/build_stdlib_package.py

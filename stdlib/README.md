@@ -56,8 +56,8 @@ indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, re
 ```
 
 A gradient is `sharp` applied to a differential. `sharp` names one metric and
-its evidence, so the application that declares the metric writes the gradient
-as an ordinary function:
+its evidence, and the library cannot name an application's metric. So an
+application declares `sharp` and writes the gradient as an ordinary function:
 
 ```vast
 fn gradient(h: Smooth<Plane, Line>, p: Smooth<Pt, Plane>) -> Tangent<Plane> {

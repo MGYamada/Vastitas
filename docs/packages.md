@@ -204,11 +204,16 @@ valid exports. Older protocols reject this metadata. See the
 [complete wire schema](protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)
 and [source semantics](indexed-source.md#legacy-geometry-syntax-in-packages).
 
-The standard entrypoint is `stdlib/Vastitas.toml`, combining arithmetic with
-`std::geometry::scheme` and `std::geometry::smooth`. The temporary `stdlib/indexed`
-entrypoint has been removed. Geometry definitions remain in their canonical
-`stdlib/src/geometry/{scheme,smooth}/mod.vast` directories, retaining their
-original package/module owners through re-exports. Flat `--lib` inputs keep
+The standard entrypoint is `stdlib/Vastitas.toml`. It combines arithmetic with
+two packages that it re-exports: the geometry package, `std::geometry`, and
+the differential package, `std::differential`. The geometry package contains
+`std::geometry::scheme`, `std::geometry::smooth`,
+`std::geometry::smooth::affine` and `std::geometry::metric`. The differential
+package, in `stdlib/src/differential/`, depends on the geometry package, never
+the reverse. Every build that depends on `std` checks both packages. The
+temporary `stdlib/indexed` entrypoint has been removed. Geometry definitions
+remain in their canonical directories under `stdlib/src/geometry/`, retaining
+their original package/module owners through re-exports. Flat `--lib` inputs keep
 their existing compatibility behavior.
 
 <a id="edit-borrowing"></a>

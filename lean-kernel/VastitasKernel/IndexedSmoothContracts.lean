@@ -117,4 +117,41 @@ def linearizeValid (env : Environment) (smooth tape : DeclId) : Bool :=
 def cotangentBackwardValid (env : Environment) (tape cotangent : DeclId) : Bool :=
   isTapeFamily env tape && fiberVariance? env cotangent == some .cotangent
 
+/-! ## Metrics
+
+`flat` and `sharp` name a declared metric, and `sharp` also names
+nondegenerate evidence for it. Each binding embeds the metric's object and the
+matrices it applies: the Gram matrix `G` for `flat` and the evidence's inverse
+`B` for `sharp`. The contracts below require the embedded copies to equal the
+named declarations exactly, so a forged matrix or a forged object fails the
+declaration audit. Riemannian evidence is the wrong kind for `sharp`. No
+contract above consults a metric: the metric-free primitives are unchanged by
+metric declarations. -/
+
+/-- `flat(T, C, using = g)`: lower a vector of `T` over the metric's object to
+a covector of `C` with the embedded Gram matrix, which equals `g`'s. -/
+def metricFlatValid (env : Environment) (metric object : DeclId) (gram : SmoothRuntime.Matrix)
+    (tangent cotangent : DeclId) : Bool :=
+  match metricData? env metric with
+  | some (object', n, gram') =>
+    object' == object && gram' == gram && SmoothDeclarations.square n gram &&
+      fiberVariance? env tangent == some .tangent && fiberVariance? env cotangent == some .cotangent &&
+      validApplication env ⟨tangent, [.object (.global object)]⟩ &&
+      validApplication env ⟨cotangent, [.object (.global object)]⟩
+  | none => false
+
+/-- `sharp(C, T, using = g, evidence = e)`: raise a covector of `C` over the
+metric's object to a vector of `T` with the embedded inverse, which equals the
+inverse that `e` certifies. `e` is nondegenerate evidence for `g`. -/
+def metricSharpValid (env : Environment) (metric evidence object : DeclId)
+    (gram inverse : SmoothRuntime.Matrix) (cotangent tangent : DeclId) : Bool :=
+  match metricData? env metric, lookup env evidence with
+  | some (object', n, gram'), some (.metricEvidence metric' (.nondegenerate inverse')) =>
+    object' == object && gram' == gram && metric' == metric && inverse' == inverse &&
+      SmoothDeclarations.square n inverse &&
+      fiberVariance? env cotangent == some .cotangent && fiberVariance? env tangent == some .tangent &&
+      validApplication env ⟨cotangent, [.object (.global object)]⟩ &&
+      validApplication env ⟨tangent, [.object (.global object)]⟩
+  | _, _ => false
+
 end VastitasKernel.Indexed

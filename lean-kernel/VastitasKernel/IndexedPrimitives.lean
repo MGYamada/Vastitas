@@ -91,6 +91,14 @@ inductive PrimitiveBinding where
   | linearize (smooth tape : DeclId)
   /-- The reverse pass of a tape of `tape` on a covector of `cotangent`. -/
   | cotangentBackward (tape cotangent : DeclId)
+  /-- `flat` with the metric `metric` on `object`: a vector of `tangent` to a
+  covector of `cotangent`, by the embedded Gram matrix. -/
+  | metricFlat (metric object : DeclId) (gram : SmoothRuntime.Matrix) (tangent cotangent : DeclId)
+  /-- `sharp` with the metric `metric` on `object` and its nondegenerate
+  evidence `evidence`: a covector of `cotangent` to a vector of `tangent`, by
+  the embedded inverse. The embedded Gram matrix identifies the metric. -/
+  | metricSharp (metric evidence object : DeclId) (gram inverse : SmoothRuntime.Matrix)
+      (cotangent tangent : DeclId)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 def isRelativeFamily (env : Environment) (family : DeclId) : Bool :=
@@ -261,6 +269,10 @@ def PrimitiveBinding.Valid (env : Environment) : PrimitiveBinding → Prop
   | .differential smooth cotangent line => differentialValid env smooth cotangent line = true
   | .linearize smooth tape => linearizeValid env smooth tape = true
   | .cotangentBackward tape cotangent => cotangentBackwardValid env tape cotangent = true
+  | .metricFlat metric object gram tangent cotangent =>
+      metricFlatValid env metric object gram tangent cotangent = true
+  | .metricSharp metric evidence object gram inverse cotangent tangent =>
+      metricSharpValid env metric evidence object gram inverse cotangent tangent = true
 
 def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .descriptor implementation => match implementationType env implementation with
@@ -297,6 +309,9 @@ def validPrimitiveBinding (env : Environment) : PrimitiveBinding → Bool
   | .differential smooth cotangent line => differentialValid env smooth cotangent line
   | .linearize smooth tape => linearizeValid env smooth tape
   | .cotangentBackward tape cotangent => cotangentBackwardValid env tape cotangent
+  | .metricFlat metric object gram tangent cotangent => metricFlatValid env metric object gram tangent cotangent
+  | .metricSharp metric evidence object gram inverse cotangent tangent =>
+      metricSharpValid env metric evidence object gram inverse cotangent tangent
 
 /-- The operand count of each closed primitive. -/
 def PrimitiveBinding.arity (env : Environment) : PrimitiveBinding → Nat
@@ -410,6 +425,10 @@ def PrimitiveAssociation (env : Environment) (binding : PrimitiveBinding) (allow
         result = .indexed ⟨tape, [.object x, .object y]⟩
   | .cotangentBackward tape cotangent, [.indexed ⟨tf, [.object x, .object y]⟩, .indexed ⟨cf, [.object y']⟩] =>
       tf = tape ∧ cf = cotangent ∧ y = y' ∧ result = .indexed ⟨cotangent, [.object x]⟩
+  | .metricFlat _ object _ tangent cotangent, [.indexed ⟨tf, [.object x]⟩] =>
+      tf = tangent ∧ x = .global object ∧ result = .indexed ⟨cotangent, [.object (.global object)]⟩
+  | .metricSharp _ _ object _ _ cotangent tangent, [.indexed ⟨cf, [.object x]⟩] =>
+      cf = cotangent ∧ x = .global object ∧ result = .indexed ⟨tangent, [.object (.global object)]⟩
   | _, _ => False
 
 instance (env : Environment) (binding : PrimitiveBinding) (allowed : List ObjectRef)
@@ -490,6 +509,8 @@ def inferPrimitiveResult (env : Environment) (binding : PrimitiveBinding) (brand
       some (.indexed ⟨tape, [.object source, .object target]⟩)
   | .cotangentBackward _ cotangent, [.indexed ⟨_, [.object source, .object _]⟩, .indexed _] =>
       some (.indexed ⟨cotangent, [.object source]⟩)
+  | .metricFlat _ object _ _ cotangent, [.indexed _] => some (.indexed ⟨cotangent, [.object (.global object)]⟩)
+  | .metricSharp _ _ object _ _ _ tangent, [.indexed _] => some (.indexed ⟨tangent, [.object (.global object)]⟩)
   | _, _ => none
 
 def inferPrimitive (env : CheckedEnvironment) (binding : PrimitiveBinding) (allowed : List ObjectRef)

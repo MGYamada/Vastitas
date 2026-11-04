@@ -19,6 +19,10 @@ private def renderPoly (p : AlgebraRuntime.Poly) : String :=
   s!"([{String.intercalate ", " (p.map renderTerm')}] : {algebra "Poly"})"
 private def renderPolys (ps : List AlgebraRuntime.Poly) : String :=
   s!"([{String.intercalate ", " (ps.map renderPoly)}] : List {algebra "Poly"})"
+/-- A checked metric matrix, row by row, with exact rational entries. -/
+private def renderMatrix (matrix : SmoothRuntime.Matrix) : String :=
+  let rows := matrix.map fun row => s!"[{String.intercalate ", " (row.map renderRat)}]"
+  s!"([{String.intercalate ", " rows}] : {smooth "Matrix"})"
 /-- The distinct bases of the checked relative constants, in declaration order.
 Each is emitted once as `basis_k` and shared by every map over that object. -/
 private def bases (env : Declarations) : List (List AlgebraRuntime.Poly) :=
@@ -51,7 +55,9 @@ private def renderType (env : Declarations) : DataType → Except String String
     | some (.family family) => .ok (match family.representation with
         | .token => "Unit" | .point => runtime "Point" | .morphism => runtime "Morphism"
         | .relative => algebra "Map" | .smooth => smooth "Program"
-        | .fiber _ => s!"(Option {smooth "Fiber"})" | .tape => smooth "Tape")
+        | .fiber _ => s!"(Option {smooth "Fiber"})" | .tape => smooth "Tape"
+        -- No value has a metric form type.
+        | .metricForm => "Unit")
     | _ => .error "indexed family missing from checked declarations"
   | .package application => do
       let some entry := (packageCases env).zipIdx.find? fun entry => entry.1.1 == application
@@ -100,6 +106,9 @@ private def renderPrimitive (env : Declarations) (binding : PrimitiveBinding) (a
   | .differential .., [function, point] => .ok (application (smooth "differential") [function, point])
   | .linearize .., [map, point] => .ok (application (smooth "linearize") [map, point])
   | .cotangentBackward .., [tape, seed] => .ok (application (smooth "backward") [tape, seed])
+  | .metricFlat _ _ gram _ _, [vector] => .ok (application (smooth "flat") [renderMatrix gram, vector])
+  | .metricSharp _ _ _ _ inverse _ _, [covector] =>
+      .ok (application (smooth "sharp") [renderMatrix inverse, covector])
   | _, _ => .error "closed primitive arity mismatch"
 
 private def renderBinary (operator : BinaryOp) (left right : String) : String :=

@@ -101,7 +101,25 @@ inductive Primitive where
   | differential (smooth cotangent line : Path)
   | linearize (smooth tape : Path)
   | cotangentBackward (tape cotangent : Path)
+  /-- `flat(tangent, cotangent, using = metric)` (protocol 9). -/
+  | flat (tangent cotangent metric : Path)
+  /-- `sharp(cotangent, tangent, using = metric, evidence = evidence)` (protocol 9). -/
+  | sharp (cotangent tangent metric evidence : Path)
   deriving Repr, Inhabited
+
+/-- The Gram matrix of a metric declaration, before elaboration. -/
+inductive MetricGram where
+  /-- The identity matrix of the object's dimension. -/
+  | euclidean
+  /-- Rows of constant polynomial expressions in the object's coordinates. -/
+  | rows (entries : List (List PolyExpr))
+  deriving Repr, Inhabited
+
+/-- The kind of evidence a declaration asks the kernel to compute. -/
+inductive EvidenceKind where
+  | nondegenerate
+  | riemannian
+  deriving Repr, Inhabited, DecidableEq
 
 /-- How a declared morphism `X → Y` over `S` is given (Stage 2). -/
 inductive MorphismDefinition where
@@ -143,6 +161,11 @@ inductive Body where
   /-- `Affine(dimension)[coordinates]`: a smooth object (Stage 3). The kernel
   checks the dimension against the coordinates; only the coordinates are kept. -/
   | smoothAffine (implementation : Path) (dimension : Nat) (coordinates : List String)
+  /-- `metric name : family<object> = gram`: a metric (Stage 3). The kernel
+  evaluates the Gram matrix in the object's coordinates. -/
+  | metric (family : Path) (indices : List Path) (gram : MetricGram)
+  /-- `evidence name = kind(metric)`: the kernel computes the certificate. -/
+  | evidence (metric : Path) (kind : EvidenceKind)
   deriving Repr, Inhabited
 
 structure Declaration where

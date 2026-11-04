@@ -175,7 +175,7 @@ theorem smooth_objects_are_declared {env : Environment} (envValid : env.Valid) {
       subst found
       dsimp only at entryValid
       exact ⟨coordinates, rfl, (smoothAffine_sound entryValid).2.2.2⟩
-    | marker | implementation | classification | family =>
+    | marker | implementation | classification | family | metric | metricEvidence =>
       simp [declared, Declaration.objectImplementation?] at found
 
 /-- **Reification.** The value of `compose` is the program node

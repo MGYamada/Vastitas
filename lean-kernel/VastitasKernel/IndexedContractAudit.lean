@@ -38,7 +38,7 @@ theorem validPrimitiveBinding_iff (env : Environment) (binding : PrimitiveBindin
     | relativeIntPoint | relativePair | relativeIso | relativeCartesian
     | smoothConstant | smoothCompose | smoothEqual | smoothIntPoint | smoothComposite
     | fiberVector | fiberAt | fiberEqual | fiberComponent | fiberPairing | cotangentPullback
-    | differential | linearize | cotangentBackward =>
+    | differential | linearize | cotangentBackward | metricFlat | metricSharp =>
     simp [validPrimitiveBinding, PrimitiveBinding.Valid, Bool.and_eq_true, and_assoc]
 
 theorem validValueType_iff (env : Environment) (type : ValueType) :

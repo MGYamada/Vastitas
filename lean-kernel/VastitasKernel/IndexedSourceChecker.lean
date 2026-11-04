@@ -3,6 +3,7 @@ import VastitasKernel.NamespaceChecker
 import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedAlgebraSource
 import VastitasKernel.IndexedSmoothSource
+import VastitasKernel.IndexedMetricSource
 
 namespace VastitasKernel.Indexed.Source
 
@@ -80,6 +81,15 @@ def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primiti
   | .linearize smooth tape => return .linearize (← resolveId p scope smooth) (← resolveId p scope tape)
   | .cotangentBackward tape cotangent =>
       return .cotangentBackward (← resolveId p scope tape) (← resolveId p scope cotangent)
+  | .flat tangent cotangent metric => do
+      -- The object and the Gram matrix are elaborated once the metric is.
+      let metric ← resolveId p scope metric
+      return .metricFlat metric metric [] (← resolveId p scope tangent) (← resolveId p scope cotangent)
+  | .sharp cotangent tangent metric evidence => do
+      -- The object and both matrices are elaborated once the evidence is.
+      let metric ← resolveId p scope metric
+      let evidence ← resolveId p scope evidence
+      return .metricSharp metric evidence metric [] [] (← resolveId p scope cotangent) (← resolveId p scope tangent)
 
 def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
     Source.Representation → ResolveM Indexed.Representation
@@ -151,6 +161,20 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
       match SmoothDeclarations.checkObject dimension coordinates with
       | .ok () => return add (.smoothAffine implementation coordinates)
       | .error error => smoothProblem span error
+  | .metric family indices _ => do
+      let family ← resolveId p scope family
+      let indices ← indices.mapM (resolveId p scope)
+      let [object] := indices
+        | smoothProblem span (.metric <| s!"a metric names one object, as in `MetricForm<X>`, " ++
+            s!"but {indices.length} are given")
+      -- The Gram matrix is elaborated once the object is known.
+      return add (.metric family object [])
+  | .evidence metric kind => do
+      let metric ← resolveId p scope metric
+      -- The certificate is computed once the metric is elaborated.
+      return add (.metricEvidence metric (match kind with
+        | .nondegenerate => .nondegenerate []
+        | .riemannian => .riemannian [] [] []))
 
 def resolveGeometrySetting (p : Namespace.Indexed) (scope : Namespace.Scope)
     (setting : GeometrySetting Path) : ResolveM (GeometrySetting DeclId) := do
@@ -188,6 +212,7 @@ def lower (p : Program) : Namespace.Result Resolved := do
   checkSmoothImplementations sources declarations
   let declarations ← elaborateAffine sources declarations
   let declarations ← elaborateSmooth sources declarations
+  let declarations ← elaborateMetrics sources declarations
   let restrictTargets ← p.owned.filterMapM fun (owner, d) => match d.body with
     | .morphism _ _ (.restrict morphism) => do
       let target ← Namespace.resolve index owner.scope morphism.path morphism.span

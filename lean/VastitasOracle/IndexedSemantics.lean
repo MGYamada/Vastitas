@@ -3,6 +3,7 @@ import VastitasOracle.IndexedCore
 import VastitasOracle.IndexedPrimitives
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothFibers
+import VastitasOracle.SmoothMetricForms
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
 primitive registry. These lemmas do not yet prove whole-term typed evaluation,
@@ -568,6 +569,8 @@ theorem primitive_total_and_typed {env : Indexed.Environment} {world : World} {b
     | exact smooth_outcome (fun _ => rfl) (SmoothFibers.differential_total rule typed)
     | exact smooth_outcome (fun _ => rfl) (SmoothFibers.linearize_total rule typed)
     | exact smooth_outcome (fun _ => rfl) (SmoothFibers.cotangentBackward_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricFlat_total rule typed)
+    | exact smooth_outcome (fun _ => rfl) (SmoothMetricForms.metricSharp_total rule typed)
     | contradiction
 
 

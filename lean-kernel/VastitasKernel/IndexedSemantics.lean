@@ -293,6 +293,10 @@ def evalPrimitive (env : Indexed.Environment) : PrimitiveBinding → List Value 
       some (.indexed (.tape (SmoothRuntime.linearize map point)))
   | .cotangentBackward .., [.indexed (.tape tape), .indexed (.fiber _ seed)] =>
       some (.indexed (.fiber .cotangent (SmoothRuntime.backward tape seed)))
+  | .metricFlat _ _ gram _ _, [.indexed (.fiber _ vector)] =>
+      some (.indexed (.fiber .cotangent (SmoothRuntime.flat gram vector)))
+  | .metricSharp _ _ _ _ inverse _ _, [.indexed (.fiber _ covector)] =>
+      some (.indexed (.fiber .tangent (SmoothRuntime.sharp inverse covector)))
   | _, _ => none
 
 /-- The closed registry's erased operands/results use the actual runtime
@@ -381,6 +385,8 @@ def evalRuntimePrimitive : PrimitiveBinding → List PrimitiveRuntimeValue → O
       some (.fiber (SmoothRuntime.differential function point))
   | .linearize .., [.smooth map, .smooth point] => some (.tape (SmoothRuntime.linearize map point))
   | .cotangentBackward .., [.tape tape, .fiber seed] => some (.fiber (SmoothRuntime.backward tape seed))
+  | .metricFlat _ _ gram _ _, [.fiber vector] => some (.fiber (SmoothRuntime.flat gram vector))
+  | .metricSharp _ _ _ _ inverse _ _, [.fiber covector] => some (.fiber (SmoothRuntime.sharp inverse covector))
   | _, _ => none
 
 def evalPair : PairElem → Value → Value → Option Value

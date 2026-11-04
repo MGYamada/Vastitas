@@ -1,5 +1,6 @@
 import VastitasKernel.Identity
 import VastitasKernel.AlgebraDeclarations
+import VastitasKernel.SmoothDeclarations
 
 /-! Finite declaration and index foundations used by public protocol 7 through
 `Indexed.Wire.check`, and by the protocol-8 resource composition.
@@ -62,7 +63,9 @@ is a `SmoothRuntime.Program`. `fiber` is the sealed one-index `Tangent(X)` or
 `Cotangent(X)` of a smooth object: its runtime value is a vector or covector at
 a point of `X`, or the failure value. `tape` is the sealed two-index
 `Tape(X, Y)`: the saved forward values of a smooth program `X → Y` at a point.
-Only `linearize` constructs a tape. -/
+Only `linearize` constructs a tape. `metricForm` is the sealed one-index
+`MetricForm(X)` of a smooth object: it indexes metric declarations, and no
+runtime value has its type. -/
 inductive Variance where
   | tangent | cotangent
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
@@ -71,12 +74,24 @@ inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
   | fiber (variance : Variance)
   | tape
+  | metricForm
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 structure Family where
   parameters : List Parameter
   constraints : List Constraint
   representation : FamilyRepresentation
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+/-- Evidence for a metric with Gram matrix `G`. The kernel computes it during
+elaboration and `Entry.Valid` checks it again; it never comes from the wire.
+
+- `nondegenerate inverse`: `G B = I` and `B G = I` for `B = inverse`;
+- `riemannian lower pivots lowerInverse`: `G = L D Lᵀ` with `L` unit lower
+  triangular, every pivot of `D` positive, and `L L⁻¹ = L⁻¹ L = I`. -/
+inductive MetricEvidence where
+  | nondegenerate (inverse : SmoothRuntime.Matrix)
+  | riemannian (lower : SmoothRuntime.Matrix) (pivots : List Rat) (lowerInverse : SmoothRuntime.Matrix)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 inductive Declaration where
@@ -89,6 +104,11 @@ inductive Declaration where
   | affine (implementation : DeclId) (data : AlgebraDeclarations.AffineData)
   /-- The smooth real affine space with these coordinates, `Affine(n)[c₁, …, cₙ]`. -/
   | smoothAffine (implementation : DeclId) (coordinates : List String)
+  /-- A metric `MetricForm<object>` of the family `family`: a constant
+  symmetric Gram matrix in the coordinates of the smooth object `object`. -/
+  | metric (family object : DeclId) (gram : SmoothRuntime.Matrix)
+  /-- Evidence for the metric `metric`. -/
+  | metricEvidence (metric : DeclId) (evidence : MetricEvidence)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
 /-- The implementation of a canonical global object: a descriptor global, a
@@ -404,6 +424,11 @@ def Family.Valid (env : Environment) (f : Family) : Prop :=
       f.constraints = [.canonical 0, .canonical 1] ∧
       f.parameters.all (fun p => match p with
         | .object id => (domain env id).all (smoothImplementation env)
+        | _ => false) = true
+  | .metricForm => f.parameters.length = 1 ∧
+      f.constraints = [.canonical 0] ∧
+      f.parameters.all (fun p => match p with
+        | .object id => (domain env id).all (smoothImplementation env)
         | _ => false) = true)
 
 instance (env : Environment) (f : Family) : Decidable (f.Valid env) := by
@@ -435,6 +460,26 @@ def classRanks (env : Environment) : List (DeclId × Nat) :=
 def classRank (ranks : List (DeclId × Nat)) (id : DeclId) : Nat :=
   ((ranks.find? fun pair => pair.1 == id).map Prod.snd).getD 0
 
+/-- An unchecked application contains no frontend-selected representation. The
+representation comes only from the independently checked family declaration. -/
+structure Application where
+  family : DeclId
+  indices : List Index
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
+def Application.Valid (env : Environment) (app : Application) : Prop :=
+  ∃ family, lookup env app.family = some (.family family) ∧
+    family.parameters.length = app.indices.length ∧
+    (∀ pair ∈ family.parameters.zip app.indices, pair.1.Accepts env pair.2) ∧
+    (∀ c ∈ family.constraints, c.Holds env app.indices)
+
+def validApplication (env : Environment) (app : Application) : Bool :=
+  match lookup env app.family with
+  | some (.family family) => family.parameters.length == app.indices.length &&
+      (family.parameters.zip app.indices).all (fun (p, i) => decide (p.Accepts env i)) &&
+      family.constraints.all (constraintHolds env app.indices)
+  | _ => false
+
 /-- A presented object: its implementation is a presented representation, its
 base chain is finite and stays within presented objects of the same marker,
 and its stored data verifies against its base's stored data. -/
@@ -457,6 +502,46 @@ def validSmoothAffine (env : Environment) (implementation : DeclId) (coordinates
   smoothImplementation env implementation && decide (coordinates.length ≤ Limits.algebraGenerators) &&
     decide coordinates.Nodup
 
+/-! ## Metrics (Stage 3)
+
+A metric is declared at a `metric_form` family applied to one smooth object.
+Its Gram matrix is square of the object's dimension and symmetric. Evidence
+names a metric and carries a certificate that is checked again against the
+metric's Gram matrix. -/
+
+/-- The family is declared with the sealed `metric_form` representation. -/
+def isMetricFamily (env : Environment) (family : DeclId) : Bool :=
+  match lookup env family with
+  | some (.family contract) => contract.representation == .metricForm
+  | _ => false
+
+/-- A metric `MetricForm<object>`: an application of a `metric_form` family
+to a declared smooth object, and a Gram matrix that `checkGram` accepts at the
+object's dimension. -/
+def validMetric (env : Environment) (family object : DeclId) (gram : SmoothRuntime.Matrix) : Bool :=
+  isMetricFamily env family && validApplication env ⟨family, [.object (.global object)]⟩ &&
+    match smoothDimension? env object with
+    | some n => (SmoothDeclarations.checkGram n gram).isOk
+    | none => false
+
+/-- The object, its dimension and the Gram matrix of a declared metric. -/
+def metricData? (env : Environment) (metric : DeclId) : Option (DeclId × Nat × SmoothRuntime.Matrix) :=
+  match lookup env metric with
+  | some (.metric _ object gram) => (smoothDimension? env object).map fun n => (object, n, gram)
+  | _ => none
+
+/-- The exact identities of a certificate for an `n × n` Gram matrix. -/
+def MetricEvidence.check (n : Nat) (gram : SmoothRuntime.Matrix) : MetricEvidence → Bool
+  | .nondegenerate inverse => SmoothDeclarations.checkNondegenerate n gram inverse
+  | .riemannian lower pivots lowerInverse =>
+      SmoothDeclarations.checkRiemannian n gram lower pivots lowerInverse
+
+/-- Evidence for a declared metric, checked against that metric's Gram matrix. -/
+def validMetricEvidence (env : Environment) (metric : DeclId) (evidence : MetricEvidence) : Bool :=
+  match metricData? env metric with
+  | some (_, n, gram) => evidence.check n gram
+  | none => false
+
 def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry) : Prop :=
   match entry.declaration with
   | .marker => True
@@ -475,6 +560,8 @@ def Entry.Valid (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entr
   | .family f => f.Valid env
   | .affine implementation data => validAffine env entry.id implementation data = true
   | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates = true
+  | .metric family object gram => validMetric env family object gram = true
+  | .metricEvidence metric evidence => validMetricEvidence env metric evidence = true
 
 /-- A separately structured executable parent check, avoiding unbounded search
 for a classification record in the finite validation procedure. -/
@@ -501,6 +588,8 @@ def validEntry (env : Environment) (ranks : List (DeclId × Nat)) (entry : Entry
   | .family f => decide (f.Valid env)
   | .affine implementation data => validAffine env entry.id implementation data
   | .smoothAffine implementation coordinates => validSmoothAffine env implementation coordinates
+  | .metric family object gram => validMetric env family object gram
+  | .metricEvidence metric evidence => validMetricEvidence env metric evidence
 
 structure Environment.Valid (env : Environment) : Prop where
   bounded : env.length ≤ 4096
@@ -509,26 +598,6 @@ structure Environment.Valid (env : Environment) : Prop where
 
 def validEnvironment (env : Environment) : Bool :=
   decide (env.length ≤ 4096) && decide (env.map Entry.id).Nodup && env.all (validEntry env (classRanks env))
-
-/-- An unchecked application contains no frontend-selected representation. The
-representation comes only from the independently checked family declaration. -/
-structure Application where
-  family : DeclId
-  indices : List Index
-  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
-
-def Application.Valid (env : Environment) (app : Application) : Prop :=
-  ∃ family, lookup env app.family = some (.family family) ∧
-    family.parameters.length = app.indices.length ∧
-    (∀ pair ∈ family.parameters.zip app.indices, pair.1.Accepts env pair.2) ∧
-    (∀ c ∈ family.constraints, c.Holds env app.indices)
-
-def validApplication (env : Environment) (app : Application) : Bool :=
-  match lookup env app.family with
-  | some (.family family) => family.parameters.length == app.indices.length &&
-      (family.parameters.zip app.indices).all (fun (p, i) => decide (p.Accepts env i)) &&
-      family.constraints.all (constraintHolds env app.indices)
-  | _ => false
 
 /-- Every object-valued argument is traversed, independently of its runtime
 representation. In particular an empty token cannot hide a free local brand. -/

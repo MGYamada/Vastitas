@@ -124,14 +124,15 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["name", "image"]
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
-/-- The Stage 2 relative and Stage 3 smooth, fiber and tape primitive
+/-- The Stage 2 relative and Stage 3 smooth, fiber, tape and metric primitive
 contracts. Only protocol 9 admits them; the list is explicit, so no other
-spelling with a shared prefix is admitted. -/
+spelling with a shared prefix is admitted. There is no `gradient` operation:
+a gradient is an ordinary function that applies `sharp` to a differential. -/
 def algebraicOperations : List String :=
   ["relative_compose", "relative_equal", "relative_view", "relative_coefficient", "relative_int_point",
    "relative_pair", "smooth_compose", "smooth_equal", "smooth_composite", "smooth_int_point",
    "fiber_vector", "fiber_at", "fiber_equal", "fiber_component", "fiber_pairing", "cotangent_pullback",
-   "differential", "linearize", "cotangent_backward"]
+   "differential", "linearize", "cotangent_backward", "flat", "sharp"]
 
 /-- How a cotangent pullback obtains forward values. -/
 def pullbackMode (j : Json) : Except String SmoothRuntime.PullbackMode := do
@@ -190,6 +191,13 @@ def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive
   | "cotangent_backward" =>
     fields j ["op", "tape", "cotangent"]
     return .cotangentBackward (← path (← field j "tape")) (← path (← field j "cotangent"))
+  | "flat" =>
+    fields j ["op", "tangent", "cotangent", "metric"]
+    return .flat (← path (← field j "tangent")) (← path (← field j "cotangent")) (← path (← field j "metric"))
+  | "sharp" =>
+    fields j ["op", "cotangent", "tangent", "metric", "evidence"]
+    return .sharp (← path (← field j "cotangent")) (← path (← field j "tangent")) (← path (← field j "metric"))
+      (← path (← field j "evidence"))
   | _ => throw "unknown indexed primitive contract"
 
 def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := do
@@ -295,7 +303,27 @@ def familyRepresentation (j : Json) (algebraic : Bool := false) : Except String 
   | "tape" =>
     unless algebraic do throw "smooth declarations require protocol 9"
     return .tape
+  | "metric_form" =>
+    unless algebraic do throw "metric declarations require protocol 9"
+    return .metricForm
   | _ => throw "unsupported indexed family representation"
+
+/-- The Gram matrix of a metric: `euclidean`, or rows of polynomial
+expressions. Certificates have no field: the kernel computes them. -/
+def metricGram (j : Json) : Except String Source.MetricGram := do
+  match ← str j "kind" with
+  | "euclidean" => fields j ["kind"]; return .euclidean
+  | "gram" =>
+    fields j ["kind", "rows"]
+    return .rows (← (← array j "rows").mapM fun row => do
+      (← row.getArr?).toList.mapM (polyExpr Limits.algebraNesting))
+  | _ => throw "a Gram matrix is euclidean or explicit rows"
+
+def evidenceKind (j : Json) : Except String Source.EvidenceKind := do
+  match ← j.getStr? with
+  | "nondegenerate" => return .nondegenerate
+  | "riemannian" => return .riemannian
+  | _ => throw "evidence is nondegenerate or riemannian"
 
 def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := false) :
     Except String Source.Body := do
@@ -355,6 +383,15 @@ def declarationBody (j : Json) (numerical : Bool := false) (algebraic : Bool := 
     fields j (common ++ ["implementation", "dimension", "coordinates"])
     return .smoothAffine (← path (← field j "implementation")) (← smoothDimension (← str j "dimension"))
       (← (← array j "coordinates").mapM Json.getStr?)
+  | "metric" =>
+    unless algebraic do throw "metric declarations require protocol 9"
+    fields j (common ++ ["family", "indices", "gram"])
+    return .metric (← path (← field j "family")) (← (← array j "indices").mapM path)
+      (← metricGram (← field j "gram"))
+  | "evidence" =>
+    unless algebraic do throw "metric declarations require protocol 9"
+    fields j (common ++ ["metric", "evidence"])
+    return .evidence (← path (← field j "metric")) (← evidenceKind (← field j "evidence"))
   | "affine" =>
     unless algebraic do throw "algebraic affine declarations require protocol 9"
     fields j (common ++ ["implementation", "generators", "relations", "base", "bindings"])

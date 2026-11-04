@@ -2,6 +2,7 @@
 import VastitasBridge.AlgebraicGeometry.Buchberger
 import VastitasBridge.AlgebraicGeometry.Kernel.Polynomial
 import VastitasBridge.AlgebraicGeometry.Kernel.Reduction
+import VastitasBridge.AlgebraicGeometry.Kernel.Substitution
 import VastitasBridge.AlgebraicGeometry.Kernel.Presentation
 import VastitasBridge.AlgebraicGeometry.Kernel.Morphisms
 import VastitasBridge.AlgebraicGeometry.Kernel.DualNumbers
@@ -9,3 +10,7 @@ import VastitasBridge.AlgebraicGeometry.Kernel.Embed
 import VastitasBridge.AlgebraicGeometry.Kernel.PrincipalOpens
 import VastitasBridge.AlgebraicGeometry.Kernel.FiberProducts
 import VastitasBridge.Analysis.DaleckiiKrein
+import VastitasBridge.Differential.Prerequisites
+import VastitasBridge.Differential.Derivative
+import VastitasBridge.Differential.ChainRule
+import VastitasBridge.Differential.Frechet

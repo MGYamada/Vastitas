@@ -12,6 +12,7 @@ on:
       - 'lean-kernel/lakefile.toml'
       - 'lean/VastitasOracle/Algebra*.lean'
       - 'lean/VastitasOracle/Affine*.lean'
+      - 'lean/VastitasOracle/Smooth*.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -31,6 +32,7 @@ on:
       - 'lean-kernel/lakefile.toml'
       - 'lean/VastitasOracle/Algebra*.lean'
       - 'lean/VastitasOracle/Affine*.lean'
+      - 'lean/VastitasOracle/Smooth*.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -94,7 +96,9 @@ jobs:
             Mathlib.AlgebraicGeometry.Scheme \
             Mathlib.AlgebraicGeometry.Pullbacks \
             Mathlib.Algebra.Category.Ring.Constructions \
-            Mathlib.Analysis.CStarAlgebra.Matrix
+            Mathlib.Analysis.CStarAlgebra.Matrix \
+            Mathlib.Algebra.MvPolynomial.PDeriv \
+            Mathlib.Analysis.Calculus.FDeriv.Prod
       - name: Build the mathematical bridge
         working-directory: lean-bridge
         run: lake build

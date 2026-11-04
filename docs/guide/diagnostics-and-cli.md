@@ -15,7 +15,12 @@ vastitas audit-lean LEAN4EXPORT.ndjson
 ```
 
 - **Flat mode** takes one entry file plus repeated `--lib` libraries
-  ([Chapter 1](stdlib.md#flat-mode-with---lib)).
+  ([Chapter 1](stdlib.md#flat-mode-with---lib)). Package-only declarations
+  (`resource fn`, `mod`, `use`, `pub`, `indexed` and edit-authority
+  declarations) require manifest mode. Flat mode rejects them with
+  `E_UNSUPPORTED` and a hint to run `vastitas check --manifest-path
+  Vastitas.toml`. Any other unexpected top-level token is `E_PARSE`, with a
+  suggestion for near misses such as `fun`.
 - **Manifest mode** takes one `Vastitas.toml` and cannot be mixed with flat mode.
 - `--openblas-prefix` and `--native-cc` are for builds whose checked entry
   needs the numerical runtime: one that runs GEMM or diagonal Hermitian

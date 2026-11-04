@@ -69,7 +69,7 @@ vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
 
 Read the [English book](https://github.com/MGYamada/Vastitas/blob/main/docs/README.md) or browse its [contents](https://github.com/MGYamada/Vastitas/blob/main/docs/SUMMARY.md).
 It starts with Getting Started and teaches the language chapter by chapter;
-the language reference, the verification boundaries and the appendices follow.
+the Vastitas Reference, the verification boundaries and the appendices follow.
 The [Stages 2–7 roadmap](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/historical-roadmap.md) follows current GitHub
 issue decisions and distinguishes planned work from the delivered compiler.
 [Build the book locally](https://github.com/MGYamada/Vastitas/blob/main/docs/development/documentation.md)

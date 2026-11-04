@@ -1,4 +1,5 @@
 // Smooth affine geometry over CInfReal. No general manifold claims are implied.
+pub mod affine;
 pub indexed marker CInfReal;
 pub indexed implementation GridSmooth(CInfReal, affine_descriptor) capabilities(origin, dimension);
 pub indexed classification CInfScheme { parents(super::Objects); domain(GridSmooth); };

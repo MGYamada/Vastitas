@@ -1,8 +1,9 @@
-"""Byte-preservation and generated-output lifecycle regressions."""
+"""Byte-preservation, generated-output lifecycle and entrypoint regressions."""
 import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
@@ -67,6 +68,29 @@ class PackageGenerationTests(unittest.TestCase):
         self.assertFalse(extra.exists())
         self.assertEqual(keep.read_bytes(), b"keep")
         self.run_generator("--check")
+
+    def test_entrypoint_reexports_each_library_package_of_the_manifest(self):
+        self.run_generator()
+        lib = (self.destination / "lib.vast").read_bytes()
+        self.assertEqual(
+            lib,
+            generator.HEADER
+            + b"pub mod arithmetic;\n"
+            + b"pub use geometry_library as geometry;\n"
+            + b"pub use differential_library as differential;\n",
+        )
+        # The tracked manifest declares exactly the re-exported packages.
+        stdlib = generator.ROOT / "stdlib"
+        manifest = tomllib.loads((stdlib / "Vastitas.toml").read_text())
+        self.assertEqual(
+            manifest["dependencies"],
+            {alias: {"path": f"src/{name}"} for alias, name in generator.LIBRARIES},
+        )
+        # Differential depends on geometry; geometry depends on nothing.
+        geometry = tomllib.loads((stdlib / "src/geometry/Vastitas.toml").read_text())
+        differential = tomllib.loads((stdlib / "src/differential/Vastitas.toml").read_text())
+        self.assertNotIn("dependencies", geometry)
+        self.assertEqual(differential["dependencies"], {"geometry": {"path": "../geometry"}})
 
 
 if __name__ == "__main__":

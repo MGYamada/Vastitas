@@ -461,6 +461,8 @@ fn function_body_affine_spellings_still_use_the_geometry_compatibility_export() 
         "scheme/mod.vast",
         "scheme/affine/mod.vast",
         "smooth/mod.vast",
+        "smooth/affine/mod.vast",
+        "metric/mod.vast",
     ] {
         s.write(
             &format!("geo/{name}"),

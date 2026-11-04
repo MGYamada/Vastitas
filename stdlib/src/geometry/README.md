@@ -1,4 +1,4 @@
-# `std::geometry::scheme` and `std::geometry::smooth`
+# `std::geometry`: `scheme`, `smooth` and `metric`
 
 The existing finite ordinary/smooth affine profile is implemented by ordinary
 `.vast` indexed declarations under two sibling modules. They use the same
@@ -7,7 +7,9 @@ migration profile of #49/#58–63, not general scheme or manifold support. The
 child module `scheme::affine` adds the Stage 2
 [presented affine profile](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md#the-standard-library-profile).
 Its algebraic forms put the whole package closure on public protocol 9, the
-current schema epoch (#533).
+current schema epoch (#533). The child module `smooth::affine` and the sibling
+module `metric` add the [smooth affine profile](#smooth-affine-objects-and-metrics)
+and its metric forms. Their smooth and metric forms also use protocol 9.
 
 The canonical source tree mirrors the public module hierarchy. Each module has
 its own directory and a `mod.vast` entrypoint:
@@ -15,18 +17,25 @@ its own directory and a `mod.vast` entrypoint:
 ```text
 stdlib/src/geometry/
 ├── mod.vast
+├── metric/
+│   └── mod.vast
 ├── scheme/
 │   ├── mod.vast
 │   └── affine/
 │       └── mod.vast
 └── smooth/
-    └── mod.vast
+    ├── mod.vast
+    └── affine/
+        └── mod.vast
 ```
 
 [`geometry/mod.vast`](mod.vast) owns the shared contracts;
 [`scheme/mod.vast`](scheme/mod.vast) and [`smooth/mod.vast`](smooth/mod.vast)
-own the two settings. The local manifest loads these files directly; there is
-no generated or copied geometry source tree.
+own the two settings. [`smooth/affine/mod.vast`](smooth/affine/mod.vast) and
+[`metric/mod.vast`](metric/mod.vast) own the smooth affine profile. The local
+manifest loads these files directly; there is no generated or copied geometry
+source tree. The geometry manifest has no dependencies. In particular, the
+geometry package does not depend on `std::differential`.
 
 ## Use
 
@@ -105,6 +114,95 @@ exactly the same declaration owners as `std::geometry`. Arithmetic re-exports
 likewise preserve the owners of the original arithmetic package. Renaming imports
 adds no editing rights. A copied package at another location has distinct nominal
 declarations, even when its name, version and source bytes are unchanged.
+
+## Smooth affine objects and metrics
+
+`std::geometry::smooth::affine` declares the smooth affine profile once, on the
+`CInfReal` marker of `std::geometry::smooth`. A *smooth affine object* is a
+declared real affine space `Affine(n)[c₁, …, cₙ]` with named coordinates. Its
+maps are exact rational polynomial maps. `std::geometry::metric` declares the
+family of constant metric forms on these objects. An application declares its
+own objects, maps and metrics against these declarations:
+
+```vast
+use std::geometry::smooth::affine::SmoothR;
+use std::geometry::smooth::affine::Smooth;
+use std::geometry::smooth::affine::Line;
+
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+```
+
+| Module | Public name | Contract |
+| --- | --- | --- |
+| `smooth::affine` | `SmoothR` | The smooth affine implementation on `CInfReal` |
+| | `CInfAffine` | The sealed classification of smooth affine objects; it has no parent |
+| | `Smooth<X, Y>` | Smooth maps from `X` to `Y` |
+| | `Tape<X, Y>` | The saved forward values of a smooth map at a point |
+| | `Tangent<X>`, `Cotangent<X>` | Vectors and covectors at a rational point of `X` |
+| | `Pt` | `Affine(0)[]`, the source of every rational point |
+| | `Line` | `Affine(1)[t]`, the target of every differential |
+| | `compose_smooth(after, before)` | The composite program; it does not expand the maps |
+| | `composite(map)` | The composite program expanded into one map |
+| | `same_smooth(a, b)` | Equality of the coordinate polynomials |
+| | `line_at(n)` | The rational point `n` of `Line`, from an `Int` |
+| | `lies_over(covector, point)`, `tangent_over(vector, point)` | Whether a value lies over a point; a failure value lies over no point |
+| | `same_covector(a, b)`, `same_vector(a, b)` | Equality at one point; a failure value equals nothing |
+| | `pairing(covector, vector)` | The metric-free pairing, as a reduced fraction |
+| `metric` | `MetricForm<X>` | The metric forms of a smooth affine object `X` |
+
+Each declaration of a smooth affine object introduces one object. An
+application's `Affine(1)[t]` is not `Line`, and `differential` rejects a
+function into it (`E_ENDPOINT`). A smooth affine object must not index
+`Point`, `Morphism` or `Pointed`, and a `CInfScheme` object must not index the
+smooth families. Either is an error (`E_TYPE`).
+
+### Names
+
+The smooth affine module declares no `compose`, `id`, `same` or `apply`. The
+bare legacy name `compose`, `std::geometry::compose` and
+`std::geometry::smooth::compose` name one declaration, which takes `Morphism`
+maps. A smooth map there is an error (`E_ENDPOINT`). `compose_smooth` and
+`same_smooth` take smooth maps only; a `Morphism` there is an error
+(`E_ENDPOINT`). The identity smooth map of an object is a declaration, not a
+function:
+
+```vast
+indexed morphism idPlane: Smooth<Plane, Plane> = identity;
+```
+
+`std::geometry::smooth::id(X)` takes a `CInfScheme` object and returns a
+`Morphism`. `MetricForm` is distinct from the diagonal Hermitian `Metric` of
+the numerical profile and from `MetricSpace`. Neither of those names exists in
+`std::geometry::metric`.
+
+### Metrics belong to the application
+
+A metric, its evidence, `flat` and `sharp` each name one metric. The package
+that declares the metric must declare them:
+
+```vast
+use std::geometry::smooth::affine::Tangent;
+use std::geometry::smooth::affine::Cotangent;
+use std::geometry::metric::MetricForm;
+
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed evidence SkewInvertible = nondegenerate(Skew);
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible);
+```
+
+The library declares no metric, so no metric is a default. The
+[complete example](../../../examples/packages/stdlib-differential/main.vast)
+also computes a pullback, a differential and a gradient with
+[`std::differential`](../README.md#differentiation):
+
+```sh
+python3 scripts/build_stdlib_package.py
+cargo run --locked -- build --manifest-path examples/packages/stdlib-differential/Vastitas.toml -o target/stdlib-differential
+./target/stdlib-differential
+# 42
+```
 
 ## Migration and checker boundaries
 

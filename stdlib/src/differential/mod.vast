@@ -1,0 +1,27 @@
+// Metric-free differentiation of exact rational polynomial maps between smooth
+// affine objects (historical Stage 3). Every operation here binds a runtime
+// routine of the executable kernel; none names a metric. The package depends on
+// the geometry package, and the geometry package does not depend on it.
+use geometry::smooth::affine::Smooth;
+use geometry::smooth::affine::Tape;
+use geometry::smooth::affine::Cotangent;
+use geometry::smooth::affine::Line;
+
+// pullback(f, x, eta) is the covector eta o Df(x) at x, with saved forward
+// values. A seed over a point other than f(x) gives the failure value.
+pub indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);
+// differential(phi, x) is the pullback of dt at phi(x), for phi into Line.
+pub indexed primitive differential = differential(Smooth, Cotangent, Line);
+// linearize(f, x) saves the forward values of f at x; backward pulls a seed
+// back through them. linearize is the only way to build a tape.
+pub indexed primitive linearize = linearize(Smooth, Tape);
+pub indexed primitive backward = cotangent_backward(Tape, Cotangent);
+
+// A gradient is sharp applied to a differential. sharp names one metric and
+// its evidence, so the package that declares the metric declares sharp and
+// writes the gradient as an ordinary function:
+//
+//     indexed primitive sharp_g = sharp(Cotangent, Tangent, using = g, evidence = e);
+//     fn gradient(phi: Smooth<X, Line>, x: Smooth<Pt, X>) -> Tangent<X> {
+//         sharp_g(differential(phi, x))
+//     }

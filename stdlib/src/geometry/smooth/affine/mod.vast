@@ -1,0 +1,36 @@
+// Smooth real affine geometry over CInfReal (historical Stage 3): the declared
+// spaces Affine(n)[c1, ..., cn], the exact rational polynomial maps between
+// them, vectors and covectors at rational points, and the saved forward values
+// of a map at a point. Each declaration is one canonical object. The objects
+// form the sealed classification CInfAffine; they index neither the Stage 1
+// CInfScheme families nor the presented families. See docs/adr/0001-mathematics-first-stdlib.md.
+pub indexed implementation SmoothR(super::CInfReal, smooth_affine) capabilities();
+pub indexed classification CInfAffine { parents(); domain(SmoothR); };
+
+// Smooth maps, saved forward values, vectors and covectors.
+pub indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+pub indexed family Tape(object(CInfAffine), object(CInfAffine))
+    = tape constraints(canonical(0), canonical(1));
+pub indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+pub indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+
+// The point, the source of every rational point, and the line, the target of
+// every differential.
+pub indexed affine Pt(SmoothR) = Affine(0)[];
+pub indexed affine Line(SmoothR) = Affine(1)[t];
+
+// compose_smooth(after, before) builds a program node; composite expands it
+// into one map. Neither is the Stage 1 compose of std::geometry.
+pub indexed primitive compose_smooth = smooth_compose(Smooth);
+pub indexed primitive composite = smooth_composite(Smooth);
+pub indexed primitive same_smooth = smooth_equal(Smooth);
+// The rational point of the line at a runtime integer.
+pub indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+
+// Metric-free operations on the fibers at a rational point.
+pub indexed primitive lies_over = fiber_at(Cotangent, Smooth);
+pub indexed primitive tangent_over = fiber_at(Tangent, Smooth);
+pub indexed primitive same_covector = fiber_equal(Cotangent);
+pub indexed primitive same_vector = fiber_equal(Tangent);
+pub indexed primitive pairing = fiber_pairing(Cotangent, Tangent);

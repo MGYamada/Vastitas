@@ -13,6 +13,9 @@ on:
       - 'lean/VastitasOracle/Algebra*.lean'
       - 'lean/VastitasOracle/Affine*.lean'
       - 'lean/VastitasOracle/Smooth*.lean'
+      # Differential/Accepted.lean reads the typed Core contract.
+      - 'lean/VastitasOracle/Indexed*.lean'
+      - 'lean/VastitasOracle/Dependency.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -35,6 +38,9 @@ on:
       - 'lean/VastitasOracle/Algebra*.lean'
       - 'lean/VastitasOracle/Affine*.lean'
       - 'lean/VastitasOracle/Smooth*.lean'
+      # Differential/Accepted.lean reads the typed Core contract.
+      - 'lean/VastitasOracle/Indexed*.lean'
+      - 'lean/VastitasOracle/Dependency.lean'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'

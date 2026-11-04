@@ -15,7 +15,8 @@ module-level map at a point, in the basis `mvPolynomialBasis` of the differentia
   `kaehlerD_aeval`.
 * **`pullback_eq_kaehler_fiber`**: component `j` of `cot map x η` is the value at `x` of the
   `j`-th coordinate of `Σᵢ ηᵢ • d(Fᵢ)`, the Kähler pullback of the constant covector
-  `Σᵢ ηᵢ dyᵢ` (`kaehler_pullback_const`).
+  `Σᵢ ηᵢ dyᵢ` (`kaehler_pullback_const`). `Accepted.lean` states it for an accepted Core node
+  (`checked_pullback_kaehler`).
 * `pullbackForm_compose`: the Kähler pullback along `SmoothRuntime.compose after before` is the
   pullback along `after`, then along `before`.
 * **`cot_compose_kaehler`**: the runtime chain rule for one composite map, proved through

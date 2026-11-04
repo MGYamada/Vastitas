@@ -53,6 +53,11 @@ inductive Constraint where
   | canonical (object : Nat)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
+/-- Whether a fiber family holds vectors (`tangent`) or covectors (`cotangent`). -/
+inductive Variance where
+  | tangent | cotangent
+  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
+
 /-- An indexed token retains every index, even when its runtime representation
 is empty. Endpoint representations are sealed and require an explicit contract.
 `relative` is the sealed three-index `MorphismOver(X, Y, S)` of presented
@@ -63,10 +68,6 @@ is a `SmoothRuntime.Program`. `fiber` is the sealed one-index `Tangent(X)` or
 a point of `X`, or the failure value. `tape` is the sealed two-index
 `Tape(X, Y)`: the saved forward values of a smooth program `X → Y` at a point.
 Only `linearize` constructs a tape. -/
-inductive Variance where
-  | tangent | cotangent
-  deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
-
 inductive FamilyRepresentation where
   | token | point | morphism | relative | smooth
   | fiber (variance : Variance)

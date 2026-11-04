@@ -74,9 +74,10 @@ them. See [affine geometry](affine-geometry.md).
 
 <a id="protocol-9-smooth-forms"></a>
 
-**Protocol-9 smooth forms.** Smooth objects, smooth maps, fibers and tapes
-are validated optional fields of protocol 9. Any module that uses one selects
-protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
+**Protocol-9 smooth forms.** Smooth objects, smooth maps, tangent or cotangent
+fibers, and tapes are validated optional fields of protocol 9. Any module that
+uses one selects protocol 9. Protocols 7 and 8 reject each form with
+`E_PROTOCOL`.
 
 - **Representation.** An implementation may use the string `"smooth_affine"`.
 - **Family representation.** A family may use the string `"smooth"`,
@@ -91,7 +92,8 @@ protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
 - **Primitives.** The binding `op` may be `smooth_compose`, `smooth_equal` or
   `smooth_composite`, each with `family`, or `smooth_int_point` with `family`,
   `object` and `point`.
-- **Fiber and tape primitives.** Each binding names its families as paths:
+- **Primitives on tangent or cotangent fibers and tapes.** Each binding names
+  its families as paths:
   - `fiber_vector` with `family`, `map_family` and `object`;
   - `fiber_at` with `family` and `map_family`;
   - `fiber_equal` with `family`;
@@ -103,10 +105,11 @@ protocol 9. Protocols 7 and 8 reject each form with `E_PROTOCOL`.
   - `linearize` with `map_family` and `tape`;
   - `cotangent_backward` with `tape` and `cotangent`.
 
-Fibers and tapes have no record of their own. The wire never carries a
-covector, a vector, a tape or a coordinate index. The kernel resolves the
-coordinate of `fiber_component` to its index, and generated programs compute
-every fiber and tape at run time. Only `linearize` builds a tape.
+Tangent or cotangent fibers and tapes have no record of their own. The wire
+never carries a covector, a vector, a [tape](appendix/glossary.md#tape) or a
+coordinate index. The kernel resolves the coordinate of `fiber_component` to
+its index. Generated programs compute every tangent or cotangent fiber and
+every tape at run time.
 
 The kernel admits primitive operations from an explicit list. A spelling that
 only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
@@ -114,8 +117,9 @@ wire carries names, a declared dimension and polynomial expressions. It never
 carries a map, a program or an image in normal form. The kernel elaborates
 every map, and it checks the declared dimension against the coordinates and
 the generator limit. The [`E_SMOOTH` row](appendix/diagnostics.md#e-smooth) of
-the diagnostics reference lists the declaration errors and the operand errors
-of the fiber and tape primitives. The frontend spelling
+the diagnostics reference lists the declaration errors. The
+[tangent or cotangent fiber row](appendix/diagnostics.md#e-smooth-fibers) lists
+the errors of the primitives on tangent or cotangent fibers and tapes. The frontend spelling
 `Affine(K, n)[…]` has no record of its own: it produces the `kind: "affine"`
 record of `spec[…] over K`.
 

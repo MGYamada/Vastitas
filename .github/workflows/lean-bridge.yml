@@ -69,6 +69,9 @@ jobs:
             Mathlib.Analysis.Calculus.DSlope \
             Mathlib.Analysis.Calculus.FDeriv.Mul \
             Mathlib.Analysis.Matrix.HermitianFunctionalCalculus \
+            Mathlib.Data.Set.List \
+            Mathlib.RingTheory.MvPolynomial.Groebner \
+            Mathlib.RingTheory.MvPolynomial.MonomialOrder.DegLex \
             Mathlib.Analysis.CStarAlgebra.Matrix
       - name: Build the mathematical bridge
         working-directory: lean-bridge

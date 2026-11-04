@@ -9,7 +9,8 @@ Vastitas needs three toolchains:
 | A host C toolchain | — | On macOS, install the Xcode Command Line Tools |
 
 Builds of programs that run GEMM or diagonal Hermitian pairing also need
-sequential LP64 OpenBLAS 0.3.34.
+sequential LP64 OpenBLAS 0.3.34. The optional `vastitas audit-lean` diagnostic
+needs Lean 4.35.0 installed by elan and runs that toolchain's `nanoda_bin`.
 You can skip it until [Chapter 10](numerical.md).
 
 ## Build from a checkout

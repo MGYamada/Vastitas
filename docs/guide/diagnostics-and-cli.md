@@ -22,8 +22,9 @@ vastitas audit-lean LEAN4EXPORT.ndjson
   pairing. Such a build requires the prefix (`E_BUILD` without it). For any
   other entry the two flags are rejected with `E_USAGE`
   ([Chapter 10](numerical.md)).
-- `audit-lean` is an internal, non-authoritative cross-check of Lean proof
-  exports. It does not check `.vast` programs.
+- `audit-lean` is an opt-in, non-authoritative cross-check of Lean proof
+  exports with the Lean toolchain's `nanoda_bin`. It does not check `.vast`
+  programs.
 - `vastitas --help` prints the usage and `vastitas --version` the version and
   wire protocols.
 

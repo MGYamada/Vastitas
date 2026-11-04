@@ -40,7 +40,7 @@ codes come from the lexer, parser and lexical resolver.
 | `E_INTERRUPTED` | A signal cancelled the compilation |
 | `E_LEX`, `E_PARSE`, `E_UNSUPPORTED` | The source cannot be tokenized or parsed, or uses unimplemented syntax |
 | `E_RESOURCE_LITERAL` | A resource payload such as `f64(0.1)` is not an exact binary64 value ([rule](../storage/resource-programs.md#resource-source--explicit-source-contracts)) |
-| `E_LEAN_AUDIT`, `E_LEAN_AUDIT_POLICY` | `audit-lean` cannot read, recheck or accept a proof export, or its policy is invalid ([CLI](../guide/cli.md)) |
+| `E_LEAN_AUDIT`, `E_LEAN_AUDIT_POLICY`, `E_LEAN_AUDIT_CHECKER` | `audit-lean` cannot read, recheck or accept a proof export; its policy is invalid; or the pinned Lean toolchain or its `nanoda_bin` is missing or mismatched ([CLI](../guide/cli.md)) |
 
 The frontend also reports some kernel-family codes early, including `E_LIMIT`,
 `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_CAPTURE`, `E_CYCLE`,

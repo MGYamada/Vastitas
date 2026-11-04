@@ -3,13 +3,11 @@
 //! fallback classification are unit-tested next to their implementations.
 mod common;
 use common::{Scratch, kernel_identity, kernel_path};
-use nix::sys::signal::{Signal, kill};
-use nix::unistd::Pid;
 use std::ffi::OsString;
 use std::fs;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::{Command, Output};
 use std::time::{Duration, Instant};
 
 const PINNED: &str = include_str!("../lean-kernel/lean-toolchain");
@@ -237,40 +235,6 @@ fn subprocess_output_is_bounded() {
         "{error}"
     );
     assert!(start.elapsed() < Duration::from_secs(60));
-}
-
-// #564 (4): the internal audit worker keeps default signal dispositions.
-#[test]
-fn audit_worker_terminates_on_forwarded_signals() {
-    let s = fixture();
-    let fifo = s.0.join("export.ndjson");
-    nix::unistd::mkfifo(&fifo, nix::sys::stat::Mode::S_IRWXU).unwrap();
-    for signal in [Signal::SIGTERM, Signal::SIGINT] {
-        // Opening the FIFO blocks the worker before nanoda reads anything.
-        let mut child = Command::new(env!("CARGO_BIN_EXE_vastitas"))
-            .arg("__internal-nanoda-worker")
-            .arg(&fifo)
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .unwrap();
-        std::thread::sleep(Duration::from_millis(300));
-        kill(Pid::from_raw(child.id() as i32), signal).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
-        let status = loop {
-            if let Some(status) = child.try_wait().unwrap() {
-                break status;
-            }
-            if Instant::now() >= deadline {
-                child.kill().unwrap();
-                child.wait().unwrap();
-                panic!("audit worker ignored {signal}");
-            }
-            std::thread::sleep(Duration::from_millis(10));
-        };
-        use std::os::unix::process::ExitStatusExt;
-        assert_eq!(status.signal(), Some(signal as i32));
-    }
 }
 
 // #564 (6): module names are matched byte for byte, also on case-insensitive

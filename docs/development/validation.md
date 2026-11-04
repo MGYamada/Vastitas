@@ -29,7 +29,8 @@ This build boundary preserves the separate mathematical-definition alignment
 principle in [ADR 0001](../adr/0001-mathematics-first-stdlib.md#9-mathematical-alignment-and-oracle-dependency-independence).
 CI runs Rust formatting and strict Clippy once, tests native compilation and
 the arithmetic standard library on macOS and Linux with the oracle directory
-absent, and builds/audits proofs without Mathlib in a separate job. It runs on pull requests,
+absent, and builds/audits proofs without Mathlib in a separate job. On both
+hosts, `audit-lean` runs the `nanoda_bin` from the pinned Lean toolchain. It runs on pull requests,
 pushes to `main`, and manual dispatch; a pull request's branch pushes are checked once
 through its `pull_request` run. Superseded runs for the same event and branch/PR are
 cancelled; push and pull-request runs do not cancel each other.

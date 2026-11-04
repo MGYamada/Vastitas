@@ -19,9 +19,10 @@ this is the cotangent pullback along the composite polynomial map that the progr
 * **`pullback_composite`**: the checked pullback along a well-typed program, in either mode, is
   the checked pullback along its composite as one primitive.
 * `smoothEqual_iff`: the runtime's `same` is equality of the denoted polynomial maps.
-* `Cov x`: covectors whose basepoint is part of their type, after the polynomial cotangent
-  fragment of PR #377. `pullback_comp` is the typed chain rule; a seed over another point does
-  not typecheck.
+* `Cov x`: covectors whose basepoint is part of their type, a basepoint-only fragment after the
+  polynomial cotangent proof of PR #377. It has no nominal objects or endpoints; the oracle port
+  of PR #377 (Stage 3 step S6) carries those. `pullback_comp` is the typed chain rule; a typed
+  seed is accepted only at its own index.
 
 Checked with Lean 4.35.0 and Mathlib commit
 56a005855ea17e0b0958f73ec801ae140b0a1679.
@@ -162,9 +163,11 @@ theorem smoothEqual_iff {F G : Program} (hF : F.wellTyped n m = true)
 
 /-! ## Covectors typed by their basepoint
 
-After the polynomial cotangent fragment of PR #377: the basepoint of a covector is part of its
-type, so a pullback accepts only a seed over the image point. Transport along a proved
-equality of points is the only way to move a covector between fibers. -/
+After the polynomial cotangent fragment of PR #377, without its nominal objects and endpoints:
+the basepoint of a covector is part of its type, so a typed seed is accepted only at its own
+index. Moving the components of a covector to another index needs `transport`, which takes a
+proof that the points are equal. The constructor itself can re-anchor components at any index;
+the runtime's failure value, not this type, is what rejects a seed over another point. -/
 
 /-- A covector at the point `x`: its components in the coordinate coframe at `x`. -/
 structure Cov (x : List ℚ) where

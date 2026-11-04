@@ -152,11 +152,16 @@ impl Drop for FakeElan {
     }
 }
 
+/// Single-quote a path for a POSIX shell script.
+fn shell_quote(path: &Path) -> String {
+    format!("'{}'", path.to_str().unwrap().replace('\'', "'\\''"))
+}
+
 /// A fake `lean` that delegates to the real pinned one, so the toolchain
 /// identity check passes and only the checker under test differs.
 fn real_lean() -> (&'static str, String) {
     let lean = real_toolchain().join("bin/lean");
-    ("lean", format!("exec '{}' \"$@\"", lean.display()))
+    ("lean", format!("exec {} \"$@\"", shell_quote(&lean)))
 }
 
 /// A fake checker reporting the pinned identity and otherwise running `body`.
@@ -364,8 +369,8 @@ fn checker_uses_upstream_configuration_and_its_report_is_validated() {
     let record = temporary_path("-config.json");
     let checker = |tail: &str| {
         identified_checker(&format!(
-            "cp \"$1\" '{}' || exit 9\ntest -f nanoda-config.json || exit 8\n{tail}",
-            record.display()
+            "cp \"$1\" {} || exit 9\ntest -f nanoda-config.json || exit 8\n{tail}",
+            shell_quote(&record)
         ))
     };
     let elan = FakeElan::new(&[real_lean(), checker("exit 3")]);

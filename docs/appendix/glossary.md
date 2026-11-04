@@ -1,7 +1,7 @@
 # Appendix G: Glossary
 
 This glossary defines the terms that the book uses with a specific meaning.
-Each entry links to the chapter that gives the full rules.
+Each entry links to a chapter that explains the term.
 
 ## Abstract method
 
@@ -21,7 +21,7 @@ See [Abstract types](../guide/dispatch.md#abstract-types).
 
 The `assembly` block in the root module of the root package. It borrows grants
 as edit loans, applies contributions, returns the loans and seals the edited
-generics. A program has at most one assembly. See
+generics. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority).
 
 ## Base object
@@ -47,19 +47,29 @@ The word has two meanings:
    `HasOrder` holds for `Nat` and `Int`. Programs cannot declare capabilities.
    See [Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
 2. In an `indexed implementation` declaration, a capability is a tag in the
-   `capabilities(...)` list, such as `origin` or `dimension`. The checker
-   audits each primitive against the declared capabilities. See
+   `capabilities(...)` list, from the closed set `origin` and `dimension`. The
+   checker audits each primitive against the declared capabilities. See
    [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
 ## CInfScheme
 
 See [Scheme](#scheme).
 
+## Classification
+
+An `indexed classification` declaration, such as `Scheme`. It lists its parent
+classifications and its domain, the complete finite list of implementations
+that it classifies. A child's domain lies inside each parent's domain. See
+[Identity and declarations](../indexed-source.md#identity-and-declarations).
+
 ## Contribution
 
-A `contribution` declaration in a recipient package. It holds methods for a
-generic that another module owns. An assembly applies it with an edit loan. See
-[Edit authority](../guide/modules-and-authority.md#edit-authority).
+A `contribution` declaration that names a generic and holds methods for it. An
+assembly applies it with `apply`: a recipient's contribution through an edit
+loan, and a contribution of the module that holds the generic's edit authority
+without a loan. See
+[Edit authority](../guide/modules-and-authority.md#edit-authority) and
+[Source declarations](../packages.md#source-declarations).
 
 ## Core
 
@@ -71,17 +81,24 @@ Core. See
 
 ## Dispatch
 
-The static selection of one method of a generic from the argument types. Every
-choice is made and checked at compile time, and no method lookup happens at run
-time. Expected results never influence the choice. See
+The static selection of one method of a generic from the argument types. The
+compiler makes and checks every choice at compile time, and no method lookup
+happens at run time. Expected results never influence the choice. See
 [How a method is chosen](../guide/dispatch.md#how-a-method-is-chosen).
 
 ## Dispatch key
 
-An argument-type tuple for which dispatch selects a method. The checker
-examines every key of the generic's arity over `Nat`, `Int`, `Bool` and `Unit`,
-including keys outside the domain, up to 4,096 keys. See
-[How a method is chosen](../guide/dispatch.md#how-a-method-is-chosen).
+A tuple of argument types from `Nat`, `Int`, `Bool` and `Unit`, of the
+generic's arity. The checker examines every key for ambiguity, including keys
+outside the domain. Every key in the domain needs exactly one winning method.
+See [Selection and whole-program checking](../stage1a.md#selection-and-whole-program-checking).
+
+## Delegation
+
+A `delegation` declaration by the recipient of a `delegable` grant. It names a recipient module and a region inside the parent loan's
+region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
+parent loan stays suspended until the nested loan returns. See
+[Explicit delegation](../packages.md#explicit-delegation).
 
 ## Domain
 
@@ -96,19 +113,23 @@ The word has two meanings:
 
 ## Edit authority
 
-The right to add methods to a generic. The generic's current
-[owner](#owner) holds it. Initially, that is the module that defines the
-generic. Imports, `pub`, qualified names and child modules do not grant it. A
-grant lends it as an edit loan, and a [transfer](#transfer) moves it
-permanently. See
-[Edit authority](../guide/modules-and-authority.md#edit-authority).
+The right to add methods to a generic. The module that defines the generic
+holds it first, and a [transfer](#transfer) moves it to another module.
+Imports, `pub`, qualified names and child modules do not grant it. A
+[grant](#grant) lets an assembly borrow it for a region as an edit loan, which
+the recipient's contribution uses.
+Authority over abstract-type membership and abstract-method contracts stays
+with the defining module. See
+[Edit authority](../guide/modules-and-authority.md#edit-authority) and
+[Permanent transfer](../packages.md#permanent-transfer).
 
 ## Edit loan
 
 Temporary, exclusive edit authority over a region of a generic. An assembly
 takes it from a grant with `borrow` and gives it back with `return`. A loan from
-a `delegable` grant can be lent on as a nested loan through a `delegation`. An
-edit loan grants no access to storage; compare [storage loan](#storage-loan).
+a `delegable` grant can be lent on as a nested loan through a
+[delegation](#delegation). An edit loan grants no access to storage; compare
+[storage loan](#storage-loan).
 See [Scoped edit borrowing](../packages.md#edit-borrowing).
 
 ## Existential package
@@ -160,10 +181,17 @@ function value. See
 ## Grant
 
 A `grant` declaration in the module that holds edit authority over a generic.
-It offers a region of the generic's domain to one recipient module. The
-recipient is named by its package's manifest `[package] name` and its module
-path. An assembly turns a grant into an edit loan. See
-[Scoped edit borrowing](../packages.md#edit-borrowing).
+It offers a [region](#region) to one recipient module. The grant names the
+recipient by its package's manifest `[package] name` and its module path. A
+grant is a permission, not a loan: an assembly borrows it to obtain an edit
+loan. See [Scoped edit borrowing](../packages.md#edit-borrowing).
+
+## Implementation
+
+An `indexed implementation` declaration, such as `Grid`. It records a
+coefficient marker, a finite backend representation and its
+[capabilities](#capability). See
+[Identity and declarations](../indexed-source.md#identity-and-declarations).
 
 ## Indexed declaration
 
@@ -183,8 +211,8 @@ distribution only. See [Compiler architecture](../development/architecture.md).
 ## Lambda
 
 A function expression such as `fn(x: Int) -> Int { x + 1 }`. A lambda states
-every parameter type and its result type. Referring to a binding from its
-surroundings is an error (`E_CAPTURE`). See
+every parameter type and its result type, and it captures nothing from its
+surroundings. See
 [No captures](../guide/function-values.md#no-captures).
 
 ## Layout
@@ -208,9 +236,10 @@ declarations require it. Compare [flat mode](#flat-mode). See
 
 ## Marker
 
-A coefficient marker declared with `indexed marker`, such as `QQ`. An
-implementation records its marker. A marker is not an object: `QQ` and the
-[base object](#base-object) `Base(QQ)` differ. See
+A coefficient marker, such as `QQ`. A package declares a marker with
+`indexed marker`, and the core geometry syntax spells the markers `QQ` and
+`CInfReal`. An implementation records its marker. A marker is not an object:
+`QQ` and the [base object](#base-object) `Base(QQ)` differ. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Method
@@ -221,9 +250,10 @@ result type and may require capabilities. See
 
 ## Module
 
-A namespace inside a package: an inline `mod name { ... }` block, or a file
-that `mod name;` loads. Each module has a logical module path from the package
-root. See [Modules](../guide/modules-and-authority.md#modules).
+A namespace inside a package. The root source file is the package's root
+module. A child module is an inline `mod name { ... }` block or a file that
+`mod name;` loads. Each module has a logical module path from the package root.
+See [Modules](../guide/modules-and-authority.md#modules).
 
 ## Nominal identity
 
@@ -266,6 +296,14 @@ A directory with a `Vastitas.toml` manifest, a root source file and modules.
 Compare [existential package](#existential-package). See
 [Packages and manifests](../guide/stdlib.md).
 
+## Primitive
+
+An `indexed primitive` declaration. It binds a name, such as `origin` or
+`compose`, to one of a closed set of primitive contracts. The checker audits
+each primitive against its declared representation, domain, arity and
+capabilities. See
+[Declarations and source example](../indexed-source.md#declarations-and-source-example).
+
 ## Profile
 
 The word has three qualified uses:
@@ -281,6 +319,17 @@ The word has three qualified uses:
 3. A **coefficient profile** declares what the coefficients of numerical maps
    mean mathematically. See
    [Coefficient profiles](../guide/numerical.md#coefficient-profiles).
+
+## Region
+
+The word has two meanings:
+
+1. The region of a [grant](#grant) or [delegation](#delegation) is a list of
+   concrete scalar argument tuples. An edit loan covers that region. See
+   [Source declarations](../packages.md#source-declarations).
+2. A storage region is a set of byte intervals in one allocation. Storage loans
+   and layouts cover regions. See
+   [Regions, overlap and alias evidence](../storage-ownership.md#74-regions-overlap-and-alias-evidence).
 
 ## Resource function
 
@@ -298,7 +347,7 @@ ones. No implicit bridge connects the two settings. See
 
 The `seal` step of an assembly. Sealing a generic checks its final method
 table: no ambiguity, full domain coverage, and winning methods only inside each
-grant's region. Every edited generic must be sealed. See
+grant's region. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority).
 
 ## Selector
@@ -309,9 +358,11 @@ The type that a method gives a parameter for dispatch: a concrete scalar type,
 
 ## Signature probe
 
-The separate checking pass for unused functions and lambdas. Its results never
-reach the generated code. See
-[Specialization](../guide/function-values.md#specialization).
+A typed placeholder result that an abstract function parameter supplies during
+the signature-probe pass. That pass checks every definition, including unused
+higher-order functions and lambdas. A separate pass specializes executable
+calls, and signature probes never enter it or the generated code. See
+[Checking and specialization](../stage1b.md#checking-and-specialization).
 
 ## Space
 
@@ -323,15 +374,15 @@ different spaces. See
 ## Specialization
 
 The compilation step that erases function values. Each call with concrete
-function arguments becomes its own checked instance. Each pass allows at most
-4,096 instances in a compilation unit, and exceeding that is an error
-(`E_LIMIT`). See [Specialization](../guide/function-values.md#specialization).
+function arguments becomes its own checked instance. Lambda instances and
+instances of higher-order functions count toward a limit that
+[Appendix D](limits.md) gives. See
+[Specialization](../guide/function-values.md#specialization).
 
 ## Stage
 
 A numbered milestone of the development roadmap. Stage 1 is the finite
-compiler, and Stage 2 is finite affine geometry over QQ. The guide and the
-Vastitas Reference describe the language without Stage numbers. See
+compiler, and Stage 2 is finite affine geometry over QQ. See
 [Historical Stages 2–7](../guide/historical-roadmap.md).
 
 ## Status words
@@ -342,7 +393,8 @@ them.
 
 ## Storage loan
 
-Temporary access to a region of storage that a storage [owner](#owner) holds.
+Temporary access to a [region](#region) of storage that a storage
+[owner](#owner) holds.
 `borrow` takes a `read`, `write` or `read_write` loan on a layout, and
 `release` returns it. Read loans may share a region, and a write loan is
 exclusive. A storage loan grants no edit authority; compare
@@ -356,6 +408,13 @@ authority over a generic to a recipient module. An assembly performs it after
 every edit loan has returned. The generic keeps its identity. See
 [Permanent transfer](../packages.md#permanent-transfer).
 
+## View
+
+The binding that a storage loan creates, such as `output` in
+`borrow output = write(data, layout(...));`. A view reads or writes the cells
+that its [layout](#layout) describes. See
+[Resource functions](../guide/storage.md#resource-functions).
+
 ## Wire protocol
 
 The versioned JSON request that the frontend sends to the kernel, and the
@@ -364,4 +423,5 @@ kernel's response. The kernel accepts versions 2 to 9. See
 
 ## Witness
 
-The object that an [existential package](#existential-package) hides.
+The object that an [existential package](#existential-package) hides. See
+[Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).

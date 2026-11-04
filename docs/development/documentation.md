@@ -110,23 +110,17 @@ chapter is rewritten.
 
 ### Rules and their placement
 
-- Normative text uses "must", "must not" and "may". A rejection is written
-  "is an error (`E_CODE`)", with the diagnostic code the compiler reports.
-  Normative text never uses "should".
-- Every rule lives in exactly one place, normally a section of the Vastitas
-  Reference. Other chapters link to that section instead of restating the
-  rule. The guide may describe a rule informally next to such a link.
-- A Reference section on a construct contains, in order: a **Syntax** block in
-  the [notation](../language/notation.md), a description, the rules as a
-  bulleted list, and examples.
-- Put implementation detail in a marked note, so that readers can skip it. An
-  implementation note says which component checks a rule and how. It never
-  states a rule of the language.
-
-  ```markdown
-  > **Implementation note.** The Lean kernel rebuilds the package graph and
-  > assigns every owner. The frontend supplies no trusted owner.
-  ```
+- Write normative text with the rule words that
+  [Notation](../language/notation.md#rules) defines: "must", "must not", "may"
+  and "is an error (`E_CODE`)". Never write "should".
+- Every rule lives in one place, normally a section of the Vastitas Reference.
+  Other chapters link to that section instead of restating the rule. The guide
+  may describe a rule informally next to such a link.
+- Lay out each Reference section on a construct as
+  [Notation](../language/notation.md#sections) describes.
+- Put implementation detail in an
+  [implementation note](../language/notation.md#implementation-notes), so that
+  readers can skip it.
 
 ### Examples
 
@@ -141,18 +135,20 @@ chapter is rewritten.
 
 ### What stays out
 
-- Issue and pull request links appear only in the History sections of the
-  compiler-internals part and in the appendices.
+- Issue and pull request links appear only in the appendices and in a
+  History section at the end of a chapter in the part "How the compiler is
+  checked".
 - The guide's body contains no issue numbers, commit hashes, Stage numbers,
-  wire-protocol numbers or theorem names. Evidence ledgers and proof-boundary
-  lists belong in the reference parts, and the guide links to them.
+  wire-protocol numbers or theorem names.
+- Evidence ledgers and proof-boundary lists belong in the part "How the
+  compiler is checked" and in the appendices. Other chapters link to them.
 - The Vastitas Reference describes the language as it is. A section does not
   say which Stage or wire-protocol version introduced a construct.
 
 ### Principles and status words
 
-- The Introduction states the principles **Check before generating** and
-  **Fast like C**, in at least one sentence each.
+- The Introduction states the performance goal **Fast like C** and the
+  principle **Check before generating**, in at least one sentence each.
 - Use the status words Implemented, Tested, Proved and Planned with the
   meanings that the [Introduction](../index.md#what-exists-today) gives them,
   and keep the four apart. `AGENTS.md` requires this separation.

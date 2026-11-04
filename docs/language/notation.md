@@ -1,8 +1,17 @@
 # Notation
 
-This chapter explains how the Vastitas Reference writes syntax, rules and
-implementation notes. The [glossary](../appendix/glossary.md) defines the terms
-that the Reference uses.
+This chapter explains how the Vastitas Reference lays out a section and how it
+writes syntax, rules and implementation notes. The
+[glossary](../appendix/glossary.md) defines the terms that the Reference uses.
+
+## Sections
+
+A Reference section that defines a construct contains, in order:
+
+1. a **Syntax** block, in the grammar notation below;
+2. a description of the construct;
+3. its rules, as a bulleted list;
+4. examples.
 
 ## Grammar
 
@@ -18,7 +27,7 @@ The expression on the right uses the following notation.
 | Notation | Example | Meaning |
 | --- | --- | --- |
 | UpperCamelCase | `UseDeclaration`, `UsePath` | A nonterminal, defined by its own production |
-| UPPER_CASE | `IDENTIFIER`, `INTEGER_LITERAL` | A token class that the lexer produces |
+| UPPER_CASE | `IDENTIFIER`, `INTEGER_LITERAL` | A token class, such as identifiers or integer literals |
 | `` `text` `` | `` `use` ``, `` `::` ``, `` `;` `` | A keyword or punctuation token, spelled as shown |
 | x y | `` `use` UsePath `` | Sequence: x followed by y |
 | x \| y | `` IDENTIFIER \| `generic` `` | Either x or y |
@@ -26,7 +35,7 @@ The expression on the right uses the following notation.
 | x\* | `` ( `::` PathSegment )* `` | Zero or more x |
 | x+ | `` ( `,` Type )+ `` | One or more x |
 | ( x ) | `` ( `as` IDENTIFIER )? `` | Grouping |
-| x except y | `IDENTIFIER except ReservedName` | Anything that x matches and y does not match |
+| x except y | `IDENTIFIER except ReservedName` | Anything that x matches and y does not match; y is one item or a group |
 
 The postfix operators `?`, `*` and `+` apply to the item immediately before
 them. A sequence binds more tightly than `|`, and `except` applies to the
@@ -37,9 +46,9 @@ two tokens.
 
 ## Syntax blocks
 
-A section that defines a construct opens with a **Syntax** block: a quoted
-block whose code is labelled `text`. For example, a `use` declaration in a
-package has this syntax:
+A Syntax block is a quoted block that starts with **Syntax** and holds the
+productions in a code block labelled `text`. For example, a `use` declaration
+in a package has this syntax:
 
 > **Syntax**
 >
@@ -54,14 +63,14 @@ programs that match the form are valid.
 
 ## Rules
 
-The rules of a construct follow its description as a bulleted list. They use
-these words:
+The rules of a construct use these words:
 
 - **must** and **must not** state a requirement on a program.
 - **may** states a permission.
-- **is an error (`E_CODE`)** states that the compiler rejects the input with a
-  diagnostic whose code is `E_CODE`. A code that begins with `E_NATIVE_` is
-  reported by the generated program when it runs.
+- **is an error (`E_CODE`)** states that a program that breaks the rule fails
+  with a diagnostic whose code is `E_CODE`. The compiler reports the error
+  before it generates code, unless the rule says that the generated program
+  checks it at run time.
 
 [Appendix B](../appendix/diagnostics.md) lists the diagnostic codes and the
 [format of a diagnostic line](../appendix/diagnostics.md#output-format).
@@ -69,7 +78,8 @@ these words:
 ## Implementation notes
 
 A quoted block that begins with **Implementation note.** describes how the
-compiler checks or implements a rule:
+compiler checks or implements a rule. It says which component does the work
+and how:
 
 > **Implementation note.** The Lean kernel rebuilds the package graph and
 > assigns every owner. The frontend supplies no trusted owner.

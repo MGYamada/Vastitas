@@ -17,7 +17,9 @@ and explicit `--lib` retain their existing geometry syntax and wire formats.
 with a separately validated closed compatibility declaration package.
 [Protocol 8 resource functions](storage/resource-programs.md#resource-source) and
 [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations) compose with this same
-checker. Public numerical arrays/maps and performance acceptance remain pending.
+checker. Public numerical maps are available inside resource functions
+([numerical values](linalg/maps-and-gemm.md#numerical-values)); general public
+numerical arrays and Fast like C performance acceptance remain pending.
 
 ## Legacy geometry syntax in packages
 
@@ -643,7 +645,9 @@ a full source/native refinement theorem. References already present inside an
 outer indexed value remain in scope even when that object's original binding
 was anonymous. Packages use an
 explicit finite case table indexed by domain and coefficient marker, at most
-64 cases per declaration. Cases cannot overlap. Runtime objects and dimensions
+64 cases per declaration. Two cases cannot share a witness type, that is the
+same domain and coefficient marker. Lookup uses that exact pair, so cases whose
+domains are nominally related stay distinct and unambiguous. Runtime objects and dimensions
 are never case or dispatch keys. Fields use the single-witness templates above.
 
 `VastitasOracle.IndexedCore.checkModule_acceptance` identifies the exact input

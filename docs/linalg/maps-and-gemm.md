@@ -705,7 +705,8 @@ certified numerical error bounds or source/native refinement; see the
 For public package syntax and `vastitas check`/`build`, use
 [the numerical source guide](#numerical-values--public-source-and-build).
 Checking and kernel source emission need no OpenBLAS. A native build requires
-`--openblas-prefix` only when its checked entry emits GEMM; unused numerical
+`--openblas-prefix` only when its checked entry emits GEMM or diagonal Hermitian
+pairing; unused numerical
 bodies are still checked but do not force a numerical runtime dependency.
 
 Build this optional dependency explicitly with Python 3.12+, Make and a host C

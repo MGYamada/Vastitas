@@ -210,7 +210,7 @@ mutual
 
   def invokeDefinition : Nat → Input → Namespace.Scope → Context → Nat → List Expr → Span → M Value
     | 0, _, _, _, _, _, span => error span "E_LIMIT"
-        s!"too many function arguments for the remaining checking budget of {Limits.bodyChecking} units (statements, nesting, and call arguments)"
+        s!"too many function arguments for the remaining checking budget of {Limits.bodyChecking} units along one checking path"
     | fuel + 1, input, scope, ctx, id, arguments, span => do
       let definition ← prepared input id span
       let parameters := definition.definition.function.params.zip definition.context

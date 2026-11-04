@@ -108,7 +108,7 @@ Int-to-Nat conversion or conversion-path search. Negative and arbitrary-size
 values are preserved. Expected results never change selection; bare literals
 select Int. The library's intended value preservation, identity, reversal and
 idempotence contracts are stronger than typing: ordinary user code returning
-`pair(0, 0)` can typecheck. The [numerical oracle contracts](../docs/stage1a.md#promotion)
+`pair(0, 0)` can typecheck. The [numerical oracle contracts](https://github.com/MGYamada/Vastitas/blob/main/docs/stage1a.md#promotion)
 prove the actual checked stdlib bodies for arbitrary inputs; CI compares their
 fixture with real frontend output. Contract regressions reject value-changing
 or wrong-policy mutations separately from compiler type errors.
@@ -148,5 +148,5 @@ missing or stale output without writing. A clean checkout needs this explicit
 generation step before manifest-mode stdlib use; flat `--lib` needs no generation.
 Tests and CI prepare the package automatically. The compiler itself loads the
 fixed manifest inputs and contains no special stdlib generation or resolver path.
-See [packages](../docs/packages.md). Neither mode supplies an automatic prelude
+See [packages](https://github.com/MGYamada/Vastitas/blob/main/docs/packages.md). Neither mode supplies an automatic prelude
 or a registry package manager.

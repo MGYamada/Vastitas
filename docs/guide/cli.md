@@ -2,9 +2,11 @@
 
 Use `vastitas check INPUT` to validate a source and `vastitas build INPUT -o OUTPUT` to produce a native executable. Work through [Hello, Vastitas](hello-vastitas.md) first, or pass an explicit package manifest as described in the [package guide](stdlib.md).
 
-`check` also accepts a library without `main`. `build` requires
-`fn main() -> Int`; the generated entrypoint prints the integer and exits
-successfully. Compilation never runs the generated program.
+`check` also accepts a library without `main`. `build` requires a `main` that
+returns `Int`: an ordinary `fn main() -> Int`, or in manifest mode a
+`resource fn main() -> Int` with no resource inputs or owned outputs. The
+generated entrypoint prints the integer and exits successfully. Compilation
+never runs the generated program.
 
 Inputs must be regular files, limited to 16 MiB each and 64 MiB / 8,192 loads per
 compilation. Package closures admit at most 4,096 logical modules, including
@@ -35,13 +37,24 @@ package edits separate from compiler builds that use the same package artifacts.
 Lake descendants inherit the package locks, so killing the driver alone does
 not unlock artifacts that a surviving build still uses.
 
-The compiler uses this checkout's built backend and runtime. A relocatable
-installation and cross-compilation are not provided. The optional
-`VASTITAS_KERNEL` and `VASTITAS_KERNEL_ROOT` environment variables select a
-trusted backend executable and kernel package directory for development.
-The backend build includes the native runtime. `check` needs only the executable
-when explicitly selected; `build` also needs the package and uses its pinned
-`lean-toolchain` for the generated project.
+`VASTITAS_KERNEL_ROOT` selects the kernel package directory. Without it, the
+driver uses the `lean-kernel` directory of the source tree it was compiled
+from, which is this repository's `lean-kernel` in a checkout. A driver installed
+with `cargo install` has no built kernel of its own: set `VASTITAS_KERNEL_ROOT`
+to the absolute path of a built kernel directory, such as the extracted crate's
+`lean-kernel` in the [README's install steps](https://github.com/MGYamada/Vastitas/blob/main/README.md#install-the-alpha).
+`VASTITAS_KERNEL` additionally selects a trusted backend executable for
+development. `check` needs only that executable when it is selected; `build`
+also needs the package and uses its pinned `lean-toolchain` for the generated
+project.
+
+`lake -d <root> build vastitas-kernel` builds the kernel executable. Generated
+programs depend on the kernel package and, when their checked entry needs them,
+on the storage runtime (`<root>/native`) and the numerical runtime
+(`<root>/numerical`). These are separate Lake packages that the first build
+needing them compiles inside the kernel root, so that directory must be
+writable. There is no self-contained relocatable installation, and
+cross-compilation is not provided: builds target the host.
 
 Every backend response reports the kernel's build identity: a digest of the
 kernel sources it was compiled from and its Lean version. The driver rejects a
@@ -50,6 +63,35 @@ kernel`), so rebuild the kernel (`lake -d <root> build vastitas-kernel`) after
 updating the compiler or its sources. `build` also requires the package's
 `lean-toolchain` to equal the compiler's pin and `lean --version`, resolved as
 Lake resolves it, to report that version; otherwise it stops before Lake runs.
+
+### Numerical builds
+
+A program whose checked entry runs GEMM or diagonal Hermitian pairing needs the
+numerical runtime and sequential LP64 OpenBLAS 0.3.34. Build OpenBLAS once into
+a new, empty prefix with Python 3.12 or later, Make and a host C toolchain:
+
+```sh
+python3 scripts/build_openblas.py --prefix "$PWD/target/openblas-0.3.34" --jobs 4
+```
+
+The script downloads the OpenBLAS 0.3.34 release and verifies its SHA-256. It
+builds a static, sequential, locked LP64 archive and checks the installed
+profile before recording the prefix. `--archive PATH` builds from an
+already downloaded release archive. Then pass the prefix to `build`:
+
+```sh
+vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+  --openblas-prefix "$PWD/target/openblas-0.3.34" -o target/numerical-example
+```
+
+On Linux, add `--native-cc cc` so the numerical program is compiled and linked
+with the host C compiler, matching the libc that built OpenBLAS. `check`
+rejects both options, and so does a build whose entry needs no numerical
+runtime (`E_USAGE` in both cases). A numerical entry built without
+`--openblas-prefix` fails with `E_BUILD`. The 0.1.0-alpha crate does not include
+`scripts/build_openblas.py`; the README shows how to fetch it. The
+[adapter contract](../linalg/maps-and-gemm.md#numerical-adapter) describes the
+build profile and its checks in full.
 
 ### Internal Lean proof audit (v0.1.0 gate)
 

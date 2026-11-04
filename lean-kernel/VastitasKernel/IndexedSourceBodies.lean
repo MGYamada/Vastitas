@@ -49,7 +49,7 @@ def fail (span : Span) (code message : String) (notes : List DiagnosticNote := [
   throw { code, message, span, notes }
 
 def checkingBudgetExceeded (span : Span) : M α :=
-  fail span "E_LIMIT" s!"function exceeds the checking budget of {Limits.bodyChecking} units (statements, nesting, and call arguments)"
+  fail span "E_LIMIT" s!"function exceeds the checking budget of {Limits.bodyChecking} units along one checking path"
 
 def fresh : M Nat := do
   let symbol := (← get).nextSymbol

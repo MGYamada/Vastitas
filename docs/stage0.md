@@ -139,9 +139,12 @@ at 128 nodes of depth, including left-associated operator chains. A standalone
 `if`/`else if` chain supports at most 62 conditions; enclosing expressions also
 consume the nesting budget. The protocol
 decoder allows up to 512 recursive decoding steps. The semantic checker starts
-each function with 4096 units of fuel, consumed along recursive checking paths
-by expression nesting, statements, and call arguments; this is not solely a
-syntax nesting limit or an exact statement count.
+each function with 4096 units of fuel, which bounds the depth of one checking
+path rather than a total count. Each nested expression, each later statement of
+a block and each argument of a call to a defined function consumes one unit along
+its own path. Sibling subexpressions, namely both operands, both branches, pack
+fields and the arguments of generic or primitive calls, are checked with the
+same remaining fuel.
 
 Both `check` and `build` also enforce at most 4096 generated Lean `let` bindings
 per function, including all branches and nested expressions. A source `let`
@@ -159,8 +162,12 @@ selected executable must report the kernel build identity of this compiler.
 Unimplemented syntax or operations are rejected. Beyond this Stage 0 core,
 [Stage 1a](stage1a.md) adds scalar dispatch, [Stage 1b](stage1b.md) adds independent
 functions, and [package mode](packages.md) adds path packages and modules/imports.
-User-defined abstract types, ownership of editable functions, tensor operations,
-AD, numerical solvers, and physical evidence remain later work. There is no
+Later increments added user-defined abstract types ([Stage 1a](stage1a.md#abstract-types)),
+edit authority over functions ([packages](packages.md#edit-borrowing)), storage
+ownership and tensor operations
+([resource programs](storage/resource-programs.md),
+[numerical maps](linalg/maps-and-gemm.md)). AD, numerical solvers and physical
+evidence remain later work. There is no
 REPL, user-facing interpreter, LSP, package manager, or cross-compilation target.
 
 ## Source libraries

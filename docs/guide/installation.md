@@ -23,8 +23,10 @@ lake -d lean-kernel build vastitas-kernel
 cargo build --locked
 ```
 
-The kernel build also builds the native runtime that generated programs link
-against. The driver is now `target/debug/vastitas`. Check it:
+The storage and numerical runtimes are separate Lake packages under
+`lean-kernel/`. The first build that needs one compiles it there, so the kernel
+directory must stay writable. The driver is now `target/debug/vastitas`. Check
+it:
 
 ```sh
 target/debug/vastitas --version

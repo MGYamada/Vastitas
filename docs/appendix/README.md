@@ -13,3 +13,5 @@ The appendices collect reference material that the teaching chapters link to.
   Stages 2–7, the Stage 1 delivery record and its acceptance evidence.
 - [F: Contributing and validation](contributing.md) lists the checks to run
   before changing the compiler, the proofs or this book.
+- [G: Glossary](glossary.md) defines the terms that the book uses with a
+  specific meaning.

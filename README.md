@@ -43,7 +43,8 @@ The example prints `42`. Set `VASTITAS_KERNEL_ROOT` to this same absolute
 path in each new shell. For programs that import the combined standard
 library, run `python3 scripts/build_stdlib_package.py` once in the extracted
 crate. Numerical programs also require sequential LP64
-OpenBLAS 0.3.34. [Numerical build guide](https://github.com/MGYamada/Vastitas/blob/v0.1.0-alpha/docs/guide/cli.md)
+OpenBLAS 0.3.34. The optional `vastitas audit-lean` diagnostic needs Lean 4.35.0
+installed by elan and runs that toolchain's `nanoda_bin`. [Numerical build guide](https://github.com/MGYamada/Vastitas/blob/v0.1.0-alpha/docs/guide/cli.md)
 
 ## Documentation
 

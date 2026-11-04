@@ -1,4 +1,2 @@
 # Preserve byte-verified CSV evidence with its original CRLF record separators.
 experiments/contraction_trees/results/*/raw.csv whitespace=cr-at-eol
-# Preserve formatting in the pinned third-party checker sources.
-src/vendor/nanoda/*.rs whitespace=-blank-at-eol,-blank-at-eof

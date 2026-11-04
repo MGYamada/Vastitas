@@ -34,8 +34,9 @@ vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/de
 
 There is no implicit manifest search. Positional `.vast` plus explicit `--lib`
 remains the protocol-2 compatibility mode; it cannot be mixed with manifest
-mode. `check` needs no main. `build` requires an ordinary `fn main() -> Int`
-declared in the selected package's root module. Importing another package's
+mode. `check` needs no main. `build` requires a `main` returning `Int`, either
+an ordinary `fn main() -> Int` or a `resource fn main() -> Int` with no resource
+inputs or owned outputs, declared in the selected package's root module. Importing another package's
 main or declaring a main in a child module does not supply that entrypoint.
 
 Only local path dependencies are supported. There is no registry, Git fetch,

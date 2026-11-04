@@ -75,9 +75,10 @@ python3 scripts/build_openblas.py --prefix "$PWD/target/openblas-0.3.34" --jobs 
 ```
 
 The script downloads the OpenBLAS 0.3.34 release and verifies its SHA-256. It
-builds a static, sequential, locked LP64 archive and checks the installed
-profile before recording the prefix. `--archive PATH` builds from an
-already downloaded release archive. Then pass the prefix to `build`:
+builds a static, sequential, locked LP64 archive. The current script also
+checks the installed profile before recording the prefix; the copy at the
+`v0.1.0-alpha` tag does not. `--archive PATH` builds from an already
+downloaded release archive. Then pass the prefix to `build`:
 
 ```sh
 vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \

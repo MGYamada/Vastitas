@@ -692,7 +692,7 @@ All existing affine descriptor/origin/identity/dimension/composition/application
 operations use ordinary declared primitive contracts. Each module's `pointed`
 is an ordinary `.vast` function that constructs and packages data.
 
-Twenty-one integration tests exercise both settings, alias identity, coherent renaming,
+Twenty-four integration tests exercise both settings, alias identity, coherent renaming,
 separately generated/opened/copied nominal objects, coefficient versus test-object
 distinction, missing capabilities, dependent morphism calls with retained test
 objects/repacking, composition with arithmetic in the same protocol-7 closure,

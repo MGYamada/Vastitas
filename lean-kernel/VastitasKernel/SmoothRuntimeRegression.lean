@@ -45,8 +45,9 @@ private def stepwise : FiberValue := pullback .saved f x (pullback .saved g fx e
   (fiberEqual stepwise (backward (linearize (.compose g f) x) eta))
 #eval check "the tape keeps the intermediate point f(3) = (3, 9)"
   ((linearize (.compose g f) x).steps.map (·.input) == [[3], [3, 9]])
-#eval check "compose builds a node and never the composite"
-  (Program.compose g f != composite (.compose g f))
+#eval check "a compose node records one step per factor; the composite records one"
+  ((linearize (.compose g f) x).steps.length == 2 &&
+    (linearize (composite (.compose g f)) x).steps.length == 1)
 #eval check "the result lies over x" (fiberAt stepwise x && !fiberAt stepwise (intPoint [4]))
 #eval check "a seed at 17 fails" (pullback .saved (.compose g f) x (some ⟨[17], [1]⟩) == none)
 #eval check "a wrong intermediate basepoint propagates the failure"
@@ -86,6 +87,12 @@ private def inverseOf (gram : Matrix) : Matrix :=
   (flat skew (vector p [5, -7]) == some ⟨[1, 2], [3, -2]⟩ &&
     sharp (inverseOf skew) (flat skew (vector p [5, -7])) == vector p [5, -7])
 #eval check "dg(grad) = Skew(grad, grad) = 2" (pairing dg (sharp (inverseOf skew) dg) == (2, 1))
+#eval check "pairing at different points reads the failure value"
+  (pairing dg (vector (intPoint [3, 4]) [1, 0]) == (0, 0))
+#eval check "pairing with different component counts reads the failure value"
+  (pairing dg (vector p [1]) == (0, 0))
+#eval check "the differential runs one forward pass and agrees with the pullback"
+  (differential g p == pullback .saved g p (some ⟨g.eval (coordinates p), [1]⟩))
 
 private def code {α : Type} : Except Error α → String
   | .ok _ => "ok"
@@ -111,5 +118,9 @@ private def code {α : Type} : Except Error α → String
     code (checkMap 2 1 ⟨1, [], [v 1 0]⟩) == "E_SMOOTH" &&
     code (checkMap 1 1 ⟨1, [v 1 0], [v 1 0]⟩) == "E_SMOOTH" &&
     code (checkMap 1 2 ⟨1, [], [v 1 0]⟩) == "E_SMOOTH")
+#eval check "checkMap rejects non-canonical images"
+  (code (checkMap 1 1 ⟨1, [], [[⟨[1], 0⟩]]⟩) == "E_SMOOTH" &&
+    code (checkMap 1 1 ⟨1, [], [[⟨[0], 1⟩, ⟨[1], 1⟩]]⟩) == "E_SMOOTH" &&
+    code (checkMap 1 1 ⟨1, [], [[⟨[1, 0], 1⟩]]⟩) == "E_SMOOTH")
 
 end VastitasKernel.SmoothRuntimeRegression

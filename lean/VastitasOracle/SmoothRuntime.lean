@@ -17,8 +17,8 @@ They need no calculus:
 - the failure value is absorbing and observably distinct from every fiber.
 
 That the reverse pass is the transpose of the derivative of the composite map
-(the chain rule) is a statement about calculus. It is proved in the mathlib
-bridge. -/
+(the chain rule) is a statement about calculus. Its proof is in the mathlib
+bridge (`VastitasBridge.Differential.ChainRule`, Stage 3 step S2). -/
 namespace VastitasOracle.SmoothRuntime
 
 open VastitasKernel.AlgebraRuntime VastitasKernel.SmoothRuntime
@@ -110,12 +110,20 @@ theorem backward_forward (program : Program) (point seed : List Rat) :
   backward_record program point seed
 
 /-- The reverse pass over a composite node runs the outer factor at the inner
-factor's output, then the inner factor. It never forms the composite map. -/
+factor's output, then the inner factor: the reverse pass is stepwise at the
+intermediate point. That the implementation never forms the composite map is a
+property of the definition; it is tested, not stated here. -/
 theorem reverse_compose (after before : Program) (point seed : List Rat) :
     (Program.compose after before).reverse point seed =
       before.reverse point (after.reverse (before.eval point) seed) := rfl
 
 /-! ## Pullbacks -/
+
+theorem linearize_output (map point : Program) :
+    (linearize map point).output = map.eval (coordinates point) := forward_output _ _
+
+theorem linearize_input (map point : Program) :
+    (linearize map point).input = coordinates point := rfl
 
 /-- Both modes compute the recomputing reverse pass, on the fiber over the image. -/
 theorem pullback_spec (mode : PullbackMode) (map point : Program) (seed : Fiber) :
@@ -123,8 +131,13 @@ theorem pullback_spec (mode : PullbackMode) (map point : Program) (seed : Fiber)
       if seed.point = map.eval (coordinates point) ∧ seed.components.length = map.outputArity then
         some ⟨coordinates point, map.reverse (coordinates point) seed.components⟩
       else none := by
-  cases mode <;>
-    simp [pullback, backward_forward]
+  cases mode
+  · simp only [pullback, backward, linearize_output, linearize_input, eval_length, beq_iff_eq,
+      Bool.and_eq_true]
+    split
+    · simp only [linearize, backward_forward]
+    · rfl
+  · simp [pullback]
 
 theorem pullback_saved_eq_recomputed (map point : Program) (seed : FiberValue) :
     pullback .saved map point seed = pullback .recomputed map point seed := by
@@ -133,7 +146,8 @@ theorem pullback_saved_eq_recomputed (map point : Program) (seed : FiberValue) :
   | some seed => rw [pullback_spec, pullback_spec]
 
 theorem pullback_none (mode : PullbackMode) (map point : Program) :
-    pullback mode map point none = none := rfl
+    pullback mode map point none = none := by
+  cases mode <;> rfl
 
 /-- **A seed over another point fails.** -/
 theorem pullback_wrong_point (mode : PullbackMode) (map point : Program) (seed : Fiber)
@@ -148,8 +162,10 @@ theorem pullback_wrong_length (mode : PullbackMode) (map point : Program) (seed 
   rw [pullback_spec]
   simp [h]
 
-/-- **Membership.** A pullback at `point` lies in the cotangent space at `point`,
-with one component per source coordinate. -/
+/-- **Membership.** A pullback at `point` lies over `point` and has one
+component per source coordinate of the map. With dimension checks
+(`pullback_mem_of_wellTyped`) it is a covector in the cotangent space at
+`point`. -/
 theorem pullback_mem {mode : PullbackMode} {map point : Program} {seed : FiberValue} {result : Fiber}
     (h : pullback mode map point seed = some result) :
     result.point = coordinates point ∧ result.components.length = map.inputArity := by
@@ -173,7 +189,7 @@ theorem pullback_stepwise (mode : PullbackMode) (outer inner point : Program) (s
     pullback mode (.compose outer inner) point seed =
       pullback mode inner point (pullback mode outer (.compose inner point) seed) := by
   cases seed with
-  | none => rfl
+  | none => simp only [pullback_none]
   | some seed =>
     rw [pullback_spec, pullback_spec]
     by_cases hs : seed.point = outer.eval (inner.eval (coordinates point)) ∧
@@ -189,8 +205,7 @@ theorem pullback_stepwise (mode : PullbackMode) (outer inner point : Program) (s
           seed.components.length = (Program.compose outer inner).outputArity) := hs
       have hr : ¬(seed.point = outer.eval (coordinates (.compose inner point)) ∧
           seed.components.length = outer.outputArity) := hs
-      rw [ite_eq_right hl, ite_eq_right hr]
-      rfl
+      rw [ite_eq_right hl, ite_eq_right hr, pullback_none]
 
 theorem pullback_stepwise_of_wellTyped (mode : PullbackMode) (outer inner point : Program)
     (seed : FiberValue) {source target : Nat}
@@ -202,24 +217,16 @@ theorem pullback_stepwise_of_wellTyped (mode : PullbackMode) (outer inner point 
 
 /-! ## Saved tapes -/
 
-theorem linearize_output (map point : Program) :
-    (linearize map point).output = map.eval (coordinates point) := forward_output _ _
-
-theorem linearize_input (map point : Program) :
-    (linearize map point).input = coordinates point := rfl
 
 /-- The first-class tape gives the same result as the pullback. -/
 theorem backward_linearize (map point : Program) (seed : FiberValue) :
-    backward (linearize map point) seed = pullback .saved map point seed := by
-  cases seed with
-  | none => rfl
-  | some seed =>
-    rw [pullback_spec]
-    simp only [backward, linearize_output, linearize_input, eval_length, beq_iff_eq,
-      Bool.and_eq_true]
-    split
-    · simp only [linearize, backward_forward]
-    · rfl
+    backward (linearize map point) seed = pullback .saved map point seed := rfl
+
+/-- The differential is the pullback of the coordinate covector at the image. -/
+theorem differential_eq_pullback (function point : Program) :
+    differential function point =
+      pullback .saved function point (some ⟨function.eval (coordinates point), [1]⟩) := by
+  simp only [differential, pullback, linearize_output]
 
 /-- A tape rejects a seed that does not lie over its own output. -/
 theorem backward_foreign_seed (tape : Tape) (seed : Fiber) (h : seed.point ≠ tape.output) :
@@ -227,6 +234,18 @@ theorem backward_foreign_seed (tape : Tape) (seed : Fiber) (h : seed.point ≠ t
   simp [backward, h]
 
 theorem backward_none (tape : Tape) : backward tape none = none := rfl
+
+/-- **Membership with dimensions.** For a map checked as `ℝⁿ → ℝᵐ` and a point
+checked as `ℝ⁰ → ℝⁿ`, a pullback lies over a point with `n` coordinates and
+has `n` components: it is a covector in the cotangent space at that point. -/
+theorem pullback_mem_of_wellTyped {mode : PullbackMode} {map point : Program} {seed : FiberValue}
+    {result : Fiber} {n m : Nat} (hmap : map.wellTyped n m = true)
+    (hpoint : point.wellTyped 0 n = true) (h : pullback mode map point seed = some result) :
+    result.point = coordinates point ∧ result.point.length = n ∧ result.components.length = n := by
+  obtain ⟨hp, hc⟩ := pullback_mem h
+  refine ⟨hp, ?_, ?_⟩
+  · rw [hp, coordinates, eval_length, wellTyped_outputArity hpoint]
+  · rw [hc, wellTyped_inputArity hmap]
 
 /-! ## The failure value -/
 
@@ -261,6 +280,26 @@ theorem pairing_none_left (value : FiberValue) : pairing none value = (0, 0) := 
 
 theorem pairing_none_right (value : FiberValue) : pairing value none = (0, 0) := by
   cases value <;> rfl
+
+/-- Pairing a covector with a vector at another point reads the failure value. -/
+theorem pairing_wrong_point (alpha v : Fiber) (h : alpha.point ≠ v.point) :
+    pairing (some alpha) (some v) = (0, 0) := by
+  simp [pairing, h]
+
+/-- Pairing fibers with different component counts reads the failure value. -/
+theorem pairing_wrong_length (alpha v : Fiber) (h : alpha.components.length ≠ v.components.length) :
+    pairing (some alpha) (some v) = (0, 0) := by
+  simp [pairing, h]
+
+/-- A pairing that does not read the failure value comes from fibers at one
+point with equal component counts. -/
+theorem pairing_some (alpha v : Fiber) (h : pairing (some alpha) (some v) ≠ (0, 0)) :
+    alpha.point = v.point ∧ alpha.components.length = v.components.length := by
+  by_cases hp : alpha.point = v.point
+  · by_cases hl : alpha.components.length = v.components.length
+    · exact ⟨hp, hl⟩
+    · exact absurd (pairing_wrong_length alpha v hl) h
+  · exact absurd (pairing_wrong_point alpha v hp) h
 
 /-- `flat` and `sharp` keep the basepoint and map the failure value to itself. -/
 theorem transform_point (matrix : Matrix) (fiber : Fiber) :

@@ -1,7 +1,7 @@
 [book]
 title = "Vastitas Programming Language"
 authors = ["Vastitas Project Contributors"]
-description = "The checked Vastitas compiler and its mathematical roadmap"
+description = "Guide and reference for Vastitas, a language whose mathematical programs are checked in full before they compile to native executables"
 language = "en"
 src = "docs"
 

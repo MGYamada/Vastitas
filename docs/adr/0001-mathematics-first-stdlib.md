@@ -217,8 +217,9 @@ the implementation.
   declaration. The smooth affine objects form the sealed classification
   `CInfAffine`.
 - A *seed* is the covector that a pullback starts from.
-- *Executable kernel* means the Lean compiler kernel in `lean-kernel/`. It is
-  distinct from the official Lean kernel of §9.
+- *Executable kernel* means the Vastitas checker and runtime in
+  `lean-kernel/`, written in Lean. It is distinct from the official Lean
+  kernel of §9.
 - The *wire* is the JSON request from the Rust frontend to the executable
   kernel.
 
@@ -257,9 +258,11 @@ the implementation.
     ⊥. ⊥ is absorbing, and it equals no covector.
   - The differential `dφ` at `x` of a smooth function `φ: X → Affine(1)` is the
     pullback of the coordinate covector `dt` at `φ(x)`.
-  - `std::differential` also owns `gradient(φ, using = g, evidence = e)`, the
-    `grad` of §4 and §6. It is the ordinary library composition
-    `sharp(dφ, using = g, evidence = e)`, not a differentiation primitive.
+  - `std::differential` also owns `gradient(φ, x, using = g, evidence = e)`,
+    the `grad` of §4 and §6. It is the ordinary library composition
+    `sharp(dφ_x, using = g, evidence = e)`, not a differentiation primitive.
+    This also supersedes #264 §2, which lists `gradient` in
+    `std::geometry::metric`.
 - **`std::geometry::metric`.**
   - A metric `MetricForm<X>` is a symmetric bilinear form on a smooth affine
     object. It is given by a symmetric rational Gram matrix `G` in the declared
@@ -268,14 +271,15 @@ the implementation.
     `riemannian(g)`, and it names the metric it certifies.
   - `flat(v, using = g)` maps a vector `v` at `x` to the covector `Gv` at `x`.
   - `sharp(α, using = g, evidence = e)` maps a covector `α` at `x` to the
-    vector `G⁻¹α` at `x`. `e` must be nondegeneracy evidence for `g`.
+    vector `G⁻¹α` at `x`. `e` must be `nondegenerate(g)` evidence;
+    `riemannian(g)` evidence is the wrong kind for `sharp`.
   - #264's general base requires `IsSmoothManifold` evidence. This profile uses
     declared smooth affine objects only.
 - **Split between Core, `std` and backends.**
   - Core supplies generic indexed families, checked declarations, evidence
     records and code generation. Core gains no rule keyed by a type name.
-  - `std` declarations bind the kernel routines as primitives, as the Stage 2
-    presented-algebra profile does.
+  - `std` declarations bind the executable kernel's runtime routines as
+    primitives, as the Stage 2 presented-algebra profile does.
   - The reverse pass is a runtime routine of the executable kernel. The
     compiler emits no reverse Core in this profile.
   - The executable kernel checks every declaration before code generation.
@@ -289,7 +293,7 @@ the implementation.
 - Pullback along `g ∘ f` at `x` equals pullback along `g` at `f(x)` followed by
   pullback along `f` at `x`.
 - `sharp(flat(v)) = v` and `flat(sharp(α)) = α` for a metric with
-  nondegeneracy evidence.
+  nondegeneracy evidence (the `using` and `evidence` arguments are elided).
 
 #### Admission argument
 
@@ -319,16 +323,19 @@ the implementation.
     regularity hypothesis.
   - The Stage 3 acceptance map, planned in #604, must keep four kinds of claim
     apart:
-    - structural facts about the runtime, proved in the oracle;
-    - the Fréchet comparison, proved in the mathlib bridge;
-    - the polynomial Kähler comparison, proved in the mathlib bridge;
+    - structural facts about the runtime, whose proofs belong in the oracle;
+    - the Fréchet comparison, whose proof belongs in the mathlib bridge;
+    - the polynomial Kähler comparison, whose proof belongs in the mathlib
+      bridge;
     - tests, which are evidence but not proofs.
 
 #### Execution and evidence profile
 
 - **Executable profile.** The profile consists of:
   - exact rational polynomial maps between smooth affine objects of dimension
-    at most 16, the `algebraGenerators` [limit](../appendix/limits.md);
+    at most 16, the value of the `algebraGenerators`
+    [limit](../appendix/limits.md). The implementation records this use in
+    that table;
   - rational points;
   - constant rational metrics.
 - **Saved and recomputed forward values.**
@@ -352,9 +359,9 @@ the implementation.
     `L D Lᵀ` factorization with positive `D`.
   - The executable kernel must compute each certificate and check it again
     before acceptance. Certificates never come from the wire.
-  - Evidence is sound because the kernel re-checks it. That the search finds a
-    certificate for every invertible or positive-definite form is tested, not
-    proved.
+  - Evidence is sound because the kernel re-checks it. That the kernel's
+    certificate computation succeeds for every invertible or
+    positive-definite form is tested, not proved.
 - **Trust.** Native tests are evidence, not proofs. Native refinement of the
   runtime is not claimed.
 
@@ -369,7 +376,8 @@ the implementation.
   [#381](https://github.com/MGYamada/Vastitas/issues/381)). This profile does
   not discharge that requirement. Forward mode stays a third-party
   interpretation (§6).
-- C∞-ring differentials as modules (#381). They stay specification-only.
+- C∞-ring differentials as modules (#381). This amendment does not admit
+  them.
 - Custom derivative rules and non-polynomial primitives
   ([#163](https://github.com/MGYamada/Vastitas/issues/163)). Without custom
   rules, authority escalation does not apply.
@@ -386,7 +394,8 @@ the implementation.
 #### Negative tests
 
 The Stage 3 profile must reject each of the following with its own diagnostic.
-All of these tests are proposed; none has run yet (#604, C1, C6 and C12–C15).
+All of these tests are proposed; none has run (#604, C1, C2, C6, C7 and
+C13–C15).
 
 - **Objects:** an implementation mismatch, a dimension that differs from the
   coordinate count, `spec` under a smooth implementation, and a smooth global
@@ -410,17 +419,17 @@ All of these tests are proposed; none has run yet (#604, C1, C6 and C12–C15).
 - **Inputs and transport:** floating-point inputs, protocols 7 and 8, a wire
   payload that carries a certificate, and tampered Core.
 
-A seed over another point gives ⊥, and ⊥ propagates through a wrong
-intermediate basepoint.
+The profile must also show failure semantics: a seed over another point
+gives ⊥, and ⊥ propagates through a wrong intermediate basepoint (#604, C6).
 
 #### Compatibility and public-name audit
 
 - **Operation names.**
-  - The intended `std::differential` operations are `pullback`, `differential`,
-    `linearize`, `backward` and `gradient`. `pullback` is the operation of §6,
-    and `gradient` is its `grad`.
-  - The implementation fixes the final names in #604, and they must not shadow
-    existing names. Smooth-map `compose` and the identity must not be ambiguous
+  - `std::differential` exports `pullback`, `differential`, `linearize`,
+    `backward` and `gradient`. `pullback` is the operation of §6, and its wire
+    operation is `cotangent_pullback`. `gradient` is the `grad` of §4 and §6.
+  - The smooth map type is `Smooth<X, Y>`, and the tape type is `Tape<X, Y>`.
+  - These names must not shadow existing names. Smooth-map `compose` and the identity must not be ambiguous
     with `std::geometry::compose` and `std::geometry::smooth::id`.
 - **`MetricForm`.**
   - `MetricForm` is nominally distinct from the protocol-8 diagonal Hermitian
@@ -433,14 +442,14 @@ intermediate basepoint.
     `spec[…] over K`.
   - In function bodies, `Affine(n)` keeps its Stage 1 meaning as the
     descriptor primitive of `std::geometry::scheme` or `std::geometry::smooth`.
-  - `geometry_compat` still resolves `Affine(QQ, n)` and `Affine(CInfReal, n)`.
-  - A smooth affine declaration still names its implementation, for example
+  - `geometry_compat` resolves `Affine(QQ, n)` and `Affine(CInfReal, n)`.
+  - A smooth affine declaration names its implementation, for example
     `SmoothR`. So #103's "no public CInfReal ceremony" is met only partly.
 - **Packages.**
   - The `std::differential` package depends on the geometry package, including
     `std::geometry::metric`.
   - The geometry package does not depend on `std::differential`.
-  - The pullback and `differential` do not depend on any metric declaration
+  - The pullback and `differential` must not depend on any metric declaration
     (#604, C12).
 - **Versions and migration.**
   - The profile adds no protocol

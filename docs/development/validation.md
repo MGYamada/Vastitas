@@ -45,15 +45,19 @@ by renamed modules, so run it on a clean build.
 
 `tests/emit_golden.rs` compares the Lean that the kernel emits for a fixed
 set of packages with `tests/fixtures/emit/*.lean`. Together those packages
-declare every wire primitive and lower each one from an entry point; the test
-asserts both. A change to code generation must regenerate the fixtures and
-review their diff:
+declare every wire primitive and lower each one from an entry point. The test
+asserts that they declare every wire primitive. It also asserts that the
+generated Lean contains the lowering of each primitive except `relative_view`.
+The lowering of `relative_view` is its operand, so the test has no text to look
+for, and only the bytes of `tests/fixtures/emit/relative-view.lean` pin it. A
+change to code generation must regenerate the fixtures and review their diff:
 
 ```sh
 VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
 ```
 
-Regeneration is refused under CI. For every example and manifest,
+When `CI` is set, the test fails instead of regenerating the fixtures.
+Regenerate them locally and commit them. For every example and manifest,
 `scripts/capture_emit.py` records the wire request, the `check` and `emit`
 responses and the generated Lean, and `--compare` reports every byte that
 differs from an earlier capture. A change that promises identical generated

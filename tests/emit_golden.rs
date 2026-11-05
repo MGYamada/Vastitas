@@ -225,8 +225,11 @@ fn generated_lean_matches_the_emit_fixtures() {
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
     // The fixtures together declare every wire primitive and lower each one
-    // from an entry point, so a codegen change to any primitive shows up as a
-    // fixture diff.
+    // from an entry point. The test asserts the declarations, and for each
+    // primitive except `relative_view` it asserts that the generated Lean
+    // contains the primitive's lowering text (its witness).
+    // The lowering of `relative_view` is its operand, so it has no witness:
+    // only the bytes of tests/fixtures/emit/relative-view.lean pin it.
     let expected: BTreeSet<String> = WIRE_OPERATIONS
         .iter()
         .map(|(op, _)| (*op).to_owned())

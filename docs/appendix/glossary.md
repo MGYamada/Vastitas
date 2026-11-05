@@ -377,6 +377,24 @@ each primitive's representation, domain, arity, capabilities and family shapes.
 See
 [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
+## Primitive registry
+
+The closed, finite set of [primitive](#primitive) bindings that the checker
+accepts. Each binding has one registry descriptor (`PrimitiveDescriptor`),
+which holds its [primitive shape](#primitive-shape), its validity contract and
+its two evaluators. The checker derives a binding's validity contract, operand
+association, result type and operand count from its registry descriptor. No
+source spelling or native symbol adds a binding. See
+[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+
+## Primitive shape
+
+The part of a [primitive](#primitive) binding's registry descriptor that lists
+its operands, the relations between them and its result. A call of the
+binding allocates when the result is a fresh object. The argument hints and the
+[role table](#role-table) of the binding come from its shape. See
+[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+
 ## Profile
 
 The word has three qualified uses:
@@ -426,6 +444,15 @@ positive-definite Gram matrix has Riemannian evidence. It is the wrong kind of
 evidence for `sharp`, which requires
 [nondegenerate evidence](#nondegenerate-evidence). See
 [metric forms](../protocol.md#protocol-9-metric-forms).
+
+## Role table
+
+The requirements that a [primitive shape](#primitive-shape) places on the
+operand types of one call, in a fixed order: the operands' families, then their
+fixed indices, then the shape's relations. Every requirement is part of the
+binding's contract. When a call of a valid binding fails a requirement, the
+diagnostic names the first one in the table. See
+[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
 
 ## Scheme
 

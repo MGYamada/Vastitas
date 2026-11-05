@@ -64,12 +64,17 @@ The rules for claims:
   for a rule about source declarations only through the Rust frontend.
 - A Tested claim's tests must exist, and a CI step must run each of them. An
   ignored Rust test must be selected by a step that passes `--ignored` or
-  `--include-ignored`. A Rust test under `#[cfg(...)]`, other than
-  `cfg(test)`, does not count as run. Nor does a Python test that unittest may
-  skip or expect to fail. A `skip`, `skipIf`, `skipUnless` or
-  `expectedFailure` decorator, whatever its condition, on the method, its class
-  or a base class in the module makes it so. So does `skipTest` or `SkipTest`
-  in that class or base class, or in the module's `setUpModule`.
+  `--include-ignored`. These tests do not count as run:
+  - a Rust test under a `cfg` condition other than `cfg(test)`, on the
+    function, an enclosing module or the file, including a `cfg` that
+    `cfg_attr` adds;
+  - a `#[test]` function inside another function, which libtest does not
+    collect;
+  - a Rust test in a package with `autotests = false`, or in a file that
+    `Cargo.toml` lists under `[[test]]`;
+  - a Python test in a module that names `skip`, `skipIf`, `skipUnless`,
+    `expectedFailure`, `SkipTest`, `skipTest` or `load_tests` in any use, or
+    below a package whose `__init__.py` does.
 - An Assumed claim must cite entries of the assumption registry,
   `docs/spec/assumptions.toml`. The registry's chapter,
   [Assumptions](spec/assumptions.md), lists every claim that cites each entry.

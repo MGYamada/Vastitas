@@ -121,7 +121,12 @@ PYTHON = '''import unittest
 class DemoTests(unittest.TestCase):
     def test_identity(self):
         pass
+'''
 
+SKIPPED_PYTHON = '''import unittest
+
+
+class SkippedTests(unittest.TestCase):
     @unittest.skip("never")
     def test_skipped(self):
         pass
@@ -157,6 +162,7 @@ FILES = {
     "docs/SUMMARY.md": "- [std::demo](spec/demo.md)\n- [Assumptions](spec/assumptions.md)\n",
     "tests/demo.rs": RUST,
     "scripts/test_demo.py": PYTHON,
+    "scripts/test_skipped.py": SKIPPED_PYTHON,
     "scripts/check_kernel_regressions.sh": "#!/usr/bin/env bash\nset -euo pipefail\n"
                                            "lake -d lean-kernel build \\\n  VastitasKernel.DemoRegression\n",
     "lean-kernel/VastitasKernel/DemoRegression.lean": "",
@@ -248,15 +254,35 @@ class FixtureTests(unittest.TestCase):
 
     def test_skipped_python_test(self):
         self.edit("docs/spec/demo.toml", "test_demo.py::DemoTests::test_identity",
-                  "test_demo.py::DemoTests::test_skipped")
-        self.assertRejected("unittest may skip `scripts/test_demo.py::DemoTests::test_skipped` or expect it to fail")
+                  "test_skipped.py::SkippedTests::test_skipped")
+        self.assertRejected("unittest may skip `scripts/test_skipped.py::SkippedTests::test_skipped` or expect it to fail")
 
-    def test_python_tests_that_a_base_class_skips(self):
-        # The review of #655 found that a skip of a base class did not count.
-        self.edit("scripts/test_demo.py", "class DemoTests(unittest.TestCase):",
-                  "@unittest.skip('never')\nclass BaseTests(unittest.TestCase):\n    pass\n\n\n"
-                  "class DemoTests(BaseTests):")
-        self.assertRejected("unittest may skip `scripts/test_demo.py::DemoTests::test_identity` or expect it to fail")
+    def test_python_tests_in_a_module_that_may_skip_or_filter_tests(self):
+        # The reviews of #655 found skips through a base class and a load_tests
+        # hook. Any use of these names in the module, or in the __init__.py of a
+        # package above it, makes all of its tests not count.
+        cited = "unittest may skip `scripts/test_demo.py::DemoTests::test_identity` or expect it to fail"
+        for path, old, new in (
+                ("scripts/test_demo.py", "class DemoTests(unittest.TestCase):",
+                 "@unittest.skip('never')\nclass BaseTests(unittest.TestCase):\n    pass\n\n\n"
+                 "class DemoTests(BaseTests):"),
+                ("scripts/test_demo.py", "class DemoTests(unittest.TestCase):",
+                 "def load_tests(loader, tests, pattern):\n    return unittest.TestSuite()\n\n\n"
+                 "class DemoTests(unittest.TestCase):"),
+                ("scripts/test_demo.py", "import unittest\n", "import unittest\nfrom unittest import skip as never\n"),
+                ("scripts/test_demo.py", "        pass\n", "        pass\n\n    test_identity = unittest.skip('x')(test_identity)\n"),
+                ("scripts/test_demo.py", "        pass\n", "        pass\n\n\nclass OtherTests(unittest.TestCase):\n"
+                 "    @unittest.skipUnless(False, 'never')\n    def test_other(self):\n        pass\n"),
+                ("scripts/test_demo.py", "        pass\n", "        pass\n\n    @unittest.expectedFailure\n"
+                 "    def test_broken(self):\n        self.fail()\n"),
+                ("scripts/test_demo.py", "        pass\n", "        self.skipTest('later')\n")):
+            with self.subTest(new=new):
+                self.put("scripts/test_demo.py", PYTHON)
+                self.edit(path, old, new)
+                self.assertRejected(cited)
+        self.put("scripts/test_demo.py", PYTHON)
+        self.put("scripts/__init__.py", "def load_tests(loader, tests, pattern):\n    return tests\n")
+        self.assertRejected(cited)
 
     def test_python_test_that_no_step_discovers(self):
         self.put("tools/test_extra.py", PYTHON)
@@ -624,6 +650,28 @@ class FixtureTests(unittest.TestCase):
                   "#[test]\n#[cfg(feature = \"none\")]\nfn identity_runs() {}")
         self.assertRejected("`tests/demo.rs::identity_runs` is compiled only under a #[cfg(...)] condition")
 
+    def test_rust_tests_that_libtest_may_not_build_or_collect(self):
+        # The review of #655 found a cfg that cfg_attr adds; a test inside a
+        # function is no test, and Cargo.toml may build the file differently.
+        for old, new, fragment in (
+                ("#[test]\nfn identity_runs() {}", "#[test]\n#[cfg_attr(all(), cfg(any()))]\nfn identity_runs() {}",
+                 "`tests/demo.rs::identity_runs` is compiled only under a #[cfg(...)] condition"),
+                ("#[test]\nfn identity_runs() {}", "#![cfg_attr(all(), cfg(any()))]\n#[test]\nfn identity_runs() {}",
+                 "`tests/demo.rs::identity_runs` is compiled only under a #[cfg(...)] condition"),
+                ("#[test]\nfn identity_runs() {}", "fn outer() {\n    #[test]\n    fn identity_runs() {}\n}",
+                 "tests/demo.rs has no #[test] function `identity_runs`")):
+            with self.subTest(new=new):
+                self.put("tests/demo.rs", RUST)
+                self.edit("tests/demo.rs", old, new)
+                self.assertRejected(fragment)
+        self.put("tests/demo.rs", RUST)
+        for manifest in ('[package]\nname = "vastitas"\nautotests = false\n',
+                         '[package]\nname = "vastitas"\n\n[[test]]\nname = "demo"\nharness = false\n',
+                         '[package]\nname = "vastitas"\n\n[[test]]\nname = "demo"\nrequired-features = ["x"]\n'):
+            with self.subTest(manifest=manifest):
+                self.put("Cargo.toml", manifest)
+                self.assertRejected("Cargo.toml sets `autotests = false` or lists tests/demo.rs under [[test]]")
+
     def test_tests_in_comments_are_not_tests(self):
         self.edit("tests/demo.rs", "#[test]\nfn identity_runs() {}", "/*\n#[test]\nfn identity_runs() {}\n*/")
         self.assertRejected("tests/demo.rs has no #[test] function `identity_runs`")
@@ -901,21 +949,18 @@ class ParserTests(unittest.TestCase):
             "    @unittest.skipIf(ROOT is None, 'y')", "    def test_c(self): pass",
             "    def helper(self): pass",
             "class Helper:", "    def test_d(self): pass",
-            "class C(B):", "    def test_e(self): pass",
-            "class D(A):", "    def test_f(self): pass",
-            "class E(unittest.TestCase):", "    @unittest.expectedFailure", "    def test_g(self): pass",
-            "    def test_h(self): pass",
-            "class F(unittest.TestCase):", "    def setUp(self):", "        self.skipTest('x')",
-            "    def test_i(self): pass",
-            "class G(F):", "    def test_j(self): pass", ""])
+            "class C(B):", "    def test_e(self): pass", ""])
         self.assertEqual(python_tests(source), {
             ("A", "test_a"): True, ("B", "test_b"): True, ("B", "test_c"): True,
-            ("C", "test_b"): True, ("C", "test_c"): True, ("C", "test_e"): False,
-            ("D", "test_a"): True, ("D", "test_f"): True, ("E", "test_g"): True, ("E", "test_h"): False,
-            ("F", "test_i"): True, ("G", "test_i"): True, ("G", "test_j"): True})
-        module = "import unittest\ndef setUpModule():\n    raise unittest.SkipTest('x')\n" \
-                 "class H(unittest.TestCase):\n    def test_k(self): pass\n"
-        self.assertEqual(python_tests(module), {("H", "test_k"): True})
+            ("C", "test_b"): True, ("C", "test_c"): True, ("C", "test_e"): True})
+        plain = "import unittest\nclass H(unittest.TestCase):\n    def test_k(self): pass\n" \
+                "class I(H):\n    def test_l(self): pass\n"
+        self.assertEqual(python_tests(plain), {("H", "test_k"): False, ("I", "test_k"): False, ("I", "test_l"): False})
+        for line in ("def setUpModule():\n    raise unittest.SkipTest('x')", "load_tests = None",
+                     "from unittest import expectedFailure", "X = unittest.case.skipTest"):
+            with self.subTest(line=line):
+                self.assertEqual(python_tests(f"{plain}{line}\n"),
+                                 {("H", "test_k"): True, ("I", "test_k"): True, ("I", "test_l"): True})
 
     def test_yaml_subset_reads_the_repository_workflows(self):
         for path in sorted((check_spec.ROOT / ".github/workflows").glob("*.yml")):

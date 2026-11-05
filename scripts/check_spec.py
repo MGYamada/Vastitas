@@ -948,15 +948,20 @@ def rust_attribute(attribute):
 
 
 def rust_conditional(attributes):
-    """Whether attributes compile their item only under a configuration other than `cfg(test)`."""
-    return any(rust_attribute(a) == "cfg" and re.sub(r"\s", "", a) != "cfg(test)" for a in attributes)
+    """Whether attributes compile their item only under a configuration other
+    than `cfg(test)`: a `cfg` attribute, or a `cfg_attr` that adds one."""
+    return any(rust_attribute(a) == "cfg" and re.sub(r"\s", "", a) != "cfg(test)"
+               or rust_attribute(a) == "cfg_attr" and re.search(r"\bcfg\s*\(", a[len("cfg_attr"):])
+               for a in attributes)
 
 
 def rust_tests(source):
     """Map the libtest name of each `#[test]` function, such as `a::b`, to
     (ignored, conditional). A test is ignored under `#[ignore]` or a `cfg_attr`
     that can add `ignore`. It is conditional under `#[cfg(...)]` other than
-    `cfg(test)`, on the function or on an enclosing module or file."""
+    `cfg(test)`, or a `cfg_attr` that adds one, on the function or on an
+    enclosing module or file. A `#[test]` function inside another item, such
+    as a function body, is no test: libtest does not collect it."""
     text = rust_blank(source)
     found, stack, pending, whole_file, index = {}, [], [], False, 0
     while True:
@@ -978,7 +983,7 @@ def rust_tests(source):
         if match.group(1):
             stack.append((True, match.group(1), rust_conditional(pending)))
         elif match.group(2):
-            if any(re.sub(r"\s", "", a) == "test" for a in pending):
+            if all(frame[0] for frame in stack) and any(re.sub(r"\s", "", a) == "test" for a in pending):
                 path = "::".join([frame[1] for frame in stack if frame[0]] + [match.group(2)])
                 ignored = any(rust_attribute(a) == "ignore"
                               or rust_attribute(a) == "cfg_attr" and re.search(r"\bignore\b", a) for a in pending)
@@ -991,13 +996,26 @@ def rust_tests(source):
         pending = []
 
 
+# Names whose use in a module may keep unittest from running its test methods
+# as written, or make a failure pass.
+PYTHON_SKIPS = {"SkipTest", "__unittest_expecting_failure__", "__unittest_skip__", "expectedFailure", "load_tests",
+                "skip", "skipIf", "skipTest", "skipUnless"}
+
+
+def python_skips(source):
+    """Whether a module names a member of PYTHON_SKIPS anywhere, in any use."""
+    return any(isinstance(node, ast.Name) and node.id in PYTHON_SKIPS
+               or isinstance(node, ast.Attribute) and node.attr in PYTHON_SKIPS
+               or isinstance(node, ast.alias) and node.name.split(".")[-1] in PYTHON_SKIPS
+               or isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name in PYTHON_SKIPS
+               for node in ast.walk(ast.parse(source)))
+
+
 def python_tests(source):
     """(class, method) of the test methods of the unittest.TestCase classes of a
-    module, mapped to whether unittest may skip the method or expect it to fail.
-    It may when a `skip`, `skipIf`, `skipUnless` or `expectedFailure` decorator,
-    whatever its condition, marks the method, its class or a base class in the
-    module; when that class or base class names `skipTest` or `SkipTest`; and,
-    for every method, when the module's `setUpModule` does."""
+    module, mapped to whether unittest may skip them or expect them to fail.
+    It may whenever `python_skips` holds for the module, whatever the condition
+    or the class that the name concerns."""
     module = ast.parse(source)
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
 
@@ -1010,43 +1028,18 @@ def python_tests(source):
             base in ("TestCase", "IsolatedAsyncioTestCase") or test_case(base, seen + (name,))
             for base in base_names(node))
 
-    def decorated(node):
-        for decorator in node.decorator_list:
-            target = decorator.func if isinstance(decorator, ast.Call) else decorator
-            name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
-            if name in ("skip", "skipIf", "skipUnless", "expectedFailure"):
-                return True
-        return False
-
-    def names_skip(node):
-        return any(isinstance(item, ast.Attribute) and item.attr in ("skipTest", "SkipTest")
-                   or isinstance(item, ast.Name) and item.id in ("skipTest", "SkipTest") for item in ast.walk(node))
-
-    def class_skips(name, seen=()):
-        node = classes.get(name)
-        return node is not None and name not in seen and (
-            decorated(node) or names_skip(node) or any(class_skips(base, seen + (name,)) for base in base_names(node)))
-
     def methods(name, seen=()):
         node = classes.get(name)
         if node is None or name in seen:
-            return {}
-        found = {}
-        for base in reversed(base_names(node)):
-            found.update(methods(base, seen + (name,)))
-        for item in node.body:
-            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
-                found[item.name] = decorated(item)
-        return found
+            return set()
+        found = set()
+        for base in base_names(node):
+            found |= methods(base, seen + (name,))
+        return found | {item.name for item in node.body
+                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test")}
 
-    module_skips = any(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "setUpModule"
-                       and names_skip(node) for node in module.body)
-    tests = {}
-    for name in classes:
-        if test_case(name):
-            for method, skip in methods(name).items():
-                tests[(name, method)] = skip or module_skips or class_skips(name)
-    return tests
+    skips = python_skips(source)
+    return {(name, method): skips for name in classes if test_case(name) for method in methods(name)}
 
 
 class Repository:
@@ -1055,12 +1048,22 @@ class Repository:
     def __init__(self, root):
         self.root = root
         self.cargo, self.discover, self.regression_steps = [], [], 0
-        package = None
+        package, manifest = None, {}
         if (root / "Cargo.toml").is_file():
             try:
-                package = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8")).get("package", {}).get("name")
+                manifest = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8"))
             except tomllib.TOMLDecodeError:
-                package = None
+                manifest = {}
+            package = manifest.get("package", {}).get("name")
+        # Integration tests that cargo builds by itself, with the libtest harness
+        # and no required features: those of tests/*.rs, unless autotests is off or
+        # a [[test]] target names the file.
+        targets = manifest.get("test", [])
+        self.autotests = manifest.get("package", {}).get("autotests", True) is not False
+        self.listed = {os.path.normpath(target.get("path", f"tests/{target.get('name')}.rs"))
+                       for target in (targets if isinstance(targets, list) else []) if isinstance(target, dict)}
+        if not isinstance(targets, list):
+            self.autotests = False
         directory = root / WORKFLOWS
         workflows = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml")) if directory.is_dir() else []
         for path in workflows:
@@ -1109,6 +1112,17 @@ class Repository:
                 self._python[path] = None
         return self._python[path]
 
+    def package_skips(self, path):
+        """Whether an `__init__.py` of a package that contains the module at `path` names a member of PYTHON_SKIPS."""
+        for directory in PurePosixPath(path).parents:
+            init = self.root / directory / "__init__.py"
+            try:
+                if init.is_file() and python_skips(init.read_text(encoding="utf-8")):
+                    return True
+            except SyntaxError:
+                return True
+        return False
+
     def check_test(self, item, where, errors):
         """Check one Tested reference: the test exists and a CI step runs it."""
         if match := RUST_TEST.fullmatch(item):
@@ -1121,6 +1135,9 @@ class Repository:
             elif tests[name][1]:
                 errors.append(f"{where}: `{item}` is compiled only under a #[cfg(...)] condition, "
                               "so it does not count as run")
+            elif not self.autotests or os.path.normpath(path) in self.listed:
+                errors.append(f"{where}: Cargo.toml sets `autotests = false` or lists {path} under [[test]], "
+                              f"so `{item}` does not count as run")
             elif not any(run.runs(PurePosixPath(path).stem, name, tests[name][0]) for run in self.cargo):
                 if tests[name][0]:
                     errors.append(f"{where}: `{item}` is #[ignore]d, and no CI step passes --ignored for it")
@@ -1133,7 +1150,7 @@ class Repository:
                 errors.append(f"{where}: the test file {path} does not exist or does not parse")
             elif (test_class, method) not in tests:
                 errors.append(f"{where}: {path} has no unittest test method `{test_class}.{method}`")
-            elif tests[(test_class, method)]:
+            elif tests[(test_class, method)] or self.package_skips(path):
                 errors.append(f"{where}: unittest may skip `{item}` or expect it to fail")
             elif not any(run.runs(path, test_class, method) for run in self.discover):
                 errors.append(f"{where}: no CI step runs `{item}`")

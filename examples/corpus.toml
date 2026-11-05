@@ -92,7 +92,8 @@ stdout = "44\n"
 id = "package.authority.edit-authority.base"
 kind = "package"
 path = "packages/authority/edit-authority/base/Vastitas.toml"
-expect = "accept"
+expect = "dependency"
+covered_by = "package.authority.edit-authority.app"
 
 [[case]]
 id = "package.authority.edit-borrow.addon"
@@ -111,7 +112,8 @@ stdout = "42\n"
 id = "package.authority.edit-borrow.lib"
 kind = "package"
 path = "packages/authority/edit-borrow/lib/Vastitas.toml"
-expect = "accept"
+expect = "dependency"
+covered_by = "package.authority.edit-borrow.app"
 
 [[case]]
 id = "package.core.arithmetic"

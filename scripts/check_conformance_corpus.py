@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples"
 IDENTIFIER = re.compile(r"[a-z0-9-]+(?:\.[a-z0-9-]+)*\Z")
 DIAGNOSTIC = re.compile(r"E_[A-Z0-9_]+\Z")
-FIELDS = {"id", "kind", "path", "expect", "stdout", "diagnostic", "libraries"}
+FIELDS = {"id", "kind", "path", "expect", "stdout", "diagnostic", "libraries", "covered_by"}
 
 
 def relative_path(value, origin):
@@ -65,14 +65,18 @@ def load_cases(examples=EXAMPLES, repository=ROOT):
             raise ValueError(f"{name}: missing or escaping file: {path}")
 
         kind, expect = case["kind"], case["expect"]
+        if expect not in ("accept", "reject", "dependency"):
+            raise ValueError(f"{name}: unknown expectation: {expect}")
         if kind == "source" and path.suffix == ".vast":
+            if expect == "dependency":
+                raise ValueError(f"{name}: only packages may be dependency fixtures")
             if expect == "accept" and path.parts[0] != "book":
                 raise ValueError(f"{name}: accepted single-file sources belong under book/")
             if expect == "reject" and path.parts[0] != "reject":
                 raise ValueError(f"{name}: rejected sources belong under reject/")
             loose_paths.add(path.as_posix())
         elif (kind == "package" and path.name == "Vastitas.toml" and
-              ((expect == "accept" and path.parts[0] == "packages") or
+              ((expect in ("accept", "dependency") and path.parts[0] == "packages") or
                (expect == "reject" and path.parts[0] == "reject"))):
             package_paths.add(path.as_posix())
         else:
@@ -84,6 +88,12 @@ def load_cases(examples=EXAMPLES, repository=ROOT):
                 raise ValueError(f"{name}: rejected cases require an exact E_* diagnostic code")
         elif "diagnostic" in case:
             raise ValueError(f"{name}: accepted cases cannot claim a rejection code")
+        if expect == "dependency":
+            owner = case.get("covered_by")
+            if not isinstance(owner, str) or not IDENTIFIER.fullmatch(owner):
+                raise ValueError(f"{name}: dependency fixtures require a covering case ID")
+        elif "covered_by" in case:
+            raise ValueError(f"{name}: only dependency fixtures may declare covered_by")
         if "stdout" in case and (expect != "accept" or not isinstance(case["stdout"], str)):
             raise ValueError(f"{name}: stdout is an exact native witness for accepted cases only")
         libraries = case.get("libraries", [])
@@ -111,10 +121,12 @@ def load_cases(examples=EXAMPLES, repository=ROOT):
 
     # Check the manifest-relative dependency graph after corpus moves. This is
     # structural only: it never replaces the compiler's package checker.
+    graph = {}
     for rel in package_paths:
         manifest = examples / rel
         with manifest.open("rb") as handle:
             data = tomllib.load(handle)
+        dependencies = set()
         for dependency, desc in data.get("dependencies", {}).items():
             if isinstance(desc, dict) and "path" in desc:
                 target = desc["path"]
@@ -123,6 +135,31 @@ def load_cases(examples=EXAMPLES, repository=ROOT):
                 resolved = (manifest.parent / target).resolve()
                 if not resolved.is_relative_to(repository.resolve()) or not (resolved / "Vastitas.toml").is_file():
                     raise ValueError(f"{rel}: broken path dependency {dependency} = {target}")
+                dependencies.add((resolved / "Vastitas.toml").resolve())
+        graph[manifest.resolve()] = dependencies
+
+    # A dependency fixture is not promised to pass `check` in isolation: edit
+    # authority, for example, can name a recipient outside its own closure.
+    # Require a registered, accepted package whose dependency graph checks it.
+    by_id = {case["id"]: case for case in cases}
+    for case in cases:
+        if case["expect"] != "dependency":
+            continue
+        owner = by_id.get(case["covered_by"])
+        if owner is None or owner["kind"] != "package" or owner["expect"] != "accept":
+            raise ValueError(f"{case['id']}: covered_by must name an accepted package case")
+        target = (examples / case["path"]).resolve()
+        root = (examples / owner["path"]).resolve()
+        reachable = set()
+        pending = list(graph.get(root, ()))
+        while pending:
+            manifest = pending.pop()
+            if manifest in reachable:
+                continue
+            reachable.add(manifest)
+            pending.extend(graph.get(manifest, ()))
+        if target == root or target not in reachable:
+            raise ValueError(f"{case['id']}: not in {owner['id']}'s dependency closure")
     return cases
 
 
@@ -195,9 +232,17 @@ def main():
             cli = args.cli.resolve()
             if not cli.is_file():
                 raise ValueError(f"compiler not found: {cli}; build the CLI and Lean kernel first")
+            by_id = {case["id"]: case for case in cases}
+            checked = set()
             for case in selected:
-                execute(case, cli)
-                print(f"ok {case['id']}")
+                checked_case = by_id[case["covered_by"]] if case["expect"] == "dependency" else case
+                if checked_case["id"] not in checked:
+                    execute(checked_case, cli)
+                    checked.add(checked_case["id"])
+                if case["expect"] == "dependency":
+                    print(f"ok {case['id']} (covered by {checked_case['id']})")
+                else:
+                    print(f"ok {case['id']}")
         print(f"conformance corpus: {len(cases)} indexed cases, {len(selected)} selected")
     except (OSError, ValueError, subprocess.TimeoutExpired) as error:
         print(f"conformance corpus: {error}", file=sys.stderr)

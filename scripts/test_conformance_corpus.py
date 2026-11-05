@@ -29,6 +29,7 @@ class ConformanceCorpusTests(unittest.TestCase):
         self.assertEqual(len(cases), 45)
         self.assertEqual(sum(c["kind"] == "package" for c in cases), 33)
         self.assertEqual(sum(c["expect"] == "reject" for c in cases), 2)
+        self.assertEqual(sum(c["expect"] == "dependency" for c in cases), 2)
         self.assertEqual(len({c["id"] for c in cases}), len(cases))
 
     def test_unindexed_source_is_not_silently_ignored(self):
@@ -66,6 +67,54 @@ class ConformanceCorpusTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(ValueError, "expected rejection"):
                 corpus.execute(case, Path("/fake/compiler"))
+
+    def test_dependency_fixtures_must_be_in_a_checked_package_closure(self):
+        examples, root = self.fixture()
+        app = examples / "packages" / "core" / "app"
+        base = examples / "packages" / "core" / "base"
+        app.mkdir(parents=True)
+        base.mkdir(parents=True)
+        for package in (app, base):
+            (package / "main.vast").write_text("fn main() -> Int { 1 }\n")
+        (base / "Vastitas.toml").write_text('[package]\nname = "base"\nroot = "main.vast"\n')
+        (app / "Vastitas.toml").write_text(
+            '[package]\nname = "app"\nroot = "main.vast"\n'
+            '[dependencies]\nbase = { path = "../base" }\n'
+        )
+        index = examples / "corpus.toml"
+        original = index.read_text()
+        index.write_text(original +
+            '[[case]]\nid = "package.core.app"\nkind = "package"\n'
+            'path = "packages/core/app/Vastitas.toml"\nexpect = "accept"\n' +
+            '[[case]]\nid = "package.core.base"\nkind = "package"\n'
+            'path = "packages/core/base/Vastitas.toml"\nexpect = "dependency"\n'
+            'covered_by = "package.core.app"\n')
+        self.assertEqual(len(corpus.load_cases(examples, root)), 3)
+        (app / "Vastitas.toml").write_text('[package]\nname = "app"\nroot = "main.vast"\n')
+        with self.assertRaisesRegex(ValueError, "not in .* dependency closure"):
+            corpus.load_cases(examples, root)
+        (app / "Vastitas.toml").write_text(
+            '[package]\nname = "app"\nroot = "main.vast"\n'
+            '[dependencies]\nbase = { path = "../base" }\n'
+        )
+        index.write_text(index.read_text().replace(
+            'covered_by = "package.core.app"', 'covered_by = "book.values.one"'))
+        with self.assertRaisesRegex(ValueError, "covered_by must name an accepted package"):
+            corpus.load_cases(examples, root)
+
+    def test_dependency_filter_runs_its_covering_package(self):
+        app = {"id": "package.core.app", "kind": "package", "expect": "accept"}
+        base = {"id": "package.core.base", "kind": "package", "expect": "dependency",
+                "covered_by": app["id"]}
+        with tempfile.TemporaryDirectory() as temporary:
+            cli = Path(temporary) / "vastitas"
+            cli.touch()
+            with mock.patch.object(corpus, "load_cases", return_value=[base, app]), \
+                 mock.patch.object(corpus, "execute") as execute, \
+                 mock.patch("sys.argv", ["check_conformance_corpus.py", "--run",
+                                         "--case", "package.core.base", "--cli", str(cli)]):
+                self.assertEqual(corpus.main(), 0)
+                execute.assert_called_once_with(app, cli)
 
     def test_emit_capture_covers_the_same_accepted_cases(self):
         expected = {c["id"] for c in corpus.load_cases() if c["expect"] == "accept"}

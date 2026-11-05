@@ -422,12 +422,22 @@ def yaml_plain(text):
     return (text[:match.start()] if match else text).rstrip()
 
 
+YAML_SINGLE = re.compile(r"'((?:[^']|'')*)'")
+YAML_DOUBLE = re.compile(r'"((?:[^"\\]|\\["\\/])*)"')
+
+
 def yaml_scalar(text):
+    """A plain or quoted scalar. A quoted scalar ends at its closing quote, and
+    only a comment may follow it; a double-quoted scalar may escape only `"`,
+    `\\` and `/`. Anything else raises YamlError."""
     text = text.strip()
-    if len(text) > 1 and text[0] in "'\"" and text[-1] == text[0]:
+    if text[:1] in ("'", '"'):
+        match = (YAML_SINGLE if text[0] == "'" else YAML_DOUBLE).match(text)
+        if not match or not re.fullmatch(r"[ \t]*(?:#.*)?", text[match.end():]):
+            raise YamlError(f"an unread quoted scalar {text!r}")
         if text[0] == "'":
-            return text[1:-1].replace("''", "'")
-        return re.sub(r'\\(["\\/])', r"\1", text[1:-1])
+            return match.group(1).replace("''", "'")
+        return re.sub(r'\\(["\\/])', r"\1", match.group(1))
     return yaml_plain(text)
 
 
@@ -555,8 +565,13 @@ def yaml_load(text):
     """Block mappings and sequences, plain, quoted and block scalars, and flow
     sequences of scalars; other flow collections stay text. A scalar folded
     from several lines is Folded. YamlError reports a form outside the subset,
-    including a repeated key, which GitHub rejects, and a line that the subset
-    does not reach, such as a quoted scalar over several lines."""
+    including a repeated key, which GitHub rejects, a line that the subset
+    does not reach, such as a quoted scalar over several lines, and whitespace
+    other than spaces, tabs and newlines, such as NEL, which YAML 1.1 reads as
+    a line break."""
+    odd = next((c for c in text if c.isspace() and c not in " \t\n"), None)
+    if odd is not None:
+        raise YamlError(f"the whitespace {odd!r}, which YAML and Python read differently")
     lines = YamlLines(text)
     tree = yaml_node(lines, 0)
     if lines.current() is not None:
@@ -615,7 +630,19 @@ def unix_job(job):
 # wrapper, a cross target or a Python path.
 SHELL_ENVIRONMENT = {"ACTIONS_ALLOW_UNSECURE_COMMANDS", "BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE",
                      "IFS", "PATH", "POSIXLY_CORRECT", "PS4", "SHELLOPTS"}
-ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "CARGO_BUILD_", "CARGO_TARGET_", "RUSTC", "PYTHON")
+ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "CARGO_BUILD_", "CARGO_TARGET_", "RUST", "PYTHON")
+
+
+# The workflow keys that run_steps reads.
+GITHUB_KEYS = {"container", "continue-on-error", "defaults", "env", "if", "include", "jobs", "matrix", "needs", "on",
+               "run", "runs-on", "shell", "steps", "strategy", "working-directory"}
+
+
+def exact_keys(*tables):
+    """Whether no key of the mappings differs from one of GITHUB_KEYS only in case."""
+    return not any(isinstance(table, dict) and any(
+        isinstance(key, str) and key.lower() in GITHUB_KEYS and key not in GITHUB_KEYS for key in table)
+        for table in tables)
 
 
 def plain_environment(*tables):
@@ -634,7 +661,9 @@ def run_steps(workflow):
     `plain_environment` holds for the workflow, job and step; and no earlier
     step of the job names GITHUB_ENV or GITHUB_PATH, a textual rule. A workflow
     outside the YAML subset, or with `defaults` that are not block mappings,
-    yields nothing, and so does a job with such `defaults`."""
+    yields nothing, and so does a job with such `defaults`. A key that differs
+    from one of GITHUB_KEYS only in case keeps its workflow, job or step from
+    counting. A working directory with `..` is unknown."""
     try:
         tree = yaml_load(workflow)
     except YamlError:
@@ -655,24 +684,29 @@ def run_steps(workflow):
         needs = [needs] if isinstance(needs, str) else needs
         return isinstance(needs, list) and all(unconditional(need, seen + (name,)) for need in needs)
     top = defaults(tree)
-    if top is None:
+    if top is None or not exact_keys(tree, tree.get("defaults"), top):
         return
     for name, job in jobs.items():
         if not unconditional(name) or not unix_job(job) or defaults(job) is None:
+            continue
+        strategy = job.get("strategy")
+        if not exact_keys(job, job.get("defaults"), defaults(job), strategy,
+                          strategy.get("matrix") if isinstance(strategy, dict) else None):
             continue
         settings, tainted = dict(top, **defaults(job)), False
         for step in job.get("steps") or []:
             script = step.get("run") if isinstance(step, dict) else None
             if not isinstance(script, str):
                 continue
-            countable = (not tainted and not isinstance(script, Folded) and "if" not in step
+            countable = (not tainted and not isinstance(script, Folded) and "if" not in step and exact_keys(step)
                          and not may_skip(step.get("continue-on-error"))
                          and step.get("shell", settings.get("shell")) in (None, "bash")
                          and plain_environment(tree.get("env"), job.get("env"), step.get("env")))
             tainted = tainted or "GITHUB_ENV" in script or "GITHUB_PATH" in script
             if countable:
-                directory = step.get("working-directory", settings.get("working-directory", "."))
-                yield script, shell_directory(PurePosixPath("."), str(directory))
+                directory = str(step.get("working-directory", settings.get("working-directory", ".")))
+                yield script, None if ".." in PurePosixPath(directory).parts \
+                    else shell_directory(PurePosixPath("."), directory)
 
 
 PLAIN_WORD = r"(?:[A-Za-z0-9_./:=@%+,-]|'[^'\r\n]*')+"
@@ -735,9 +769,12 @@ def plain_commands(script, directory=PurePosixPath("."), errexit=True, origin=No
     is plain too: the reader follows a relative directory while errexit is on,
     and otherwise the directory becomes None, unknown. So is `set` with
     switches that `plain_set` reads. `origin`, the directory of a script file,
-    makes SCRIPT_PARENT plain."""
+    makes SCRIPT_PARENT plain. A line with `${{`, which GitHub substitutes
+    before bash runs, is not plain, even in a comment or a quote."""
     words = []
     for line in script.split("\n"):
+        if "${{" in line:
+            return
         if not words and PLAIN_COMMENT.fullmatch(line):
             continue
         if not words and origin is not None and line.strip(" ") == SCRIPT_PARENT:
@@ -837,8 +874,7 @@ def cargo_run(arguments, package=None):
                 yield "", argument
 
     for name, value in options(arguments[:split], CARGO_FLAGS, CARGO_VALUES):
-        if name in ("-p", "--package") and value != package \
-                or name == "--exclude" and (value == package or any(c in value for c in "*?[")):
+        if name in ("-p", "--package") and value != package or name == "--exclude":
             run.runs_nothing = True
         elif name == "--manifest-path" and os.path.normpath(value) != "Cargo.toml":
             run.runs_nothing = True
@@ -892,8 +928,10 @@ def discover_run(arguments, directory):
     """The tests that `python3 -m unittest discover ARGUMENTS` runs from
     `directory`, or None. An option outside DISCOVER_FLAGS, DISCOVER_SHORT and
     DISCOVER_LONG gives None: `--help` runs no test, and a top-level directory
-    `-t` changes the names that `-k` matches."""
-    found, positional, selections = {"start": ".", "pattern": "test*.py"}, [], []
+    `-t` changes the names that `-k` matches. So does a start directory or a
+    pattern given both as a positional word and as an option, because the last
+    one wins."""
+    found, positional, selections, given = {"start": ".", "pattern": "test*.py"}, [], [], set()
     items = iter(arguments)
     for argument in items:
         if argument in DISCOVER_FLAGS:
@@ -913,7 +951,8 @@ def discover_run(arguments, directory):
             selections.append(value)
         elif key != "durations":
             found[key] = value
-    if len(positional) > 2:
+            given.add(key)
+    if len(positional) > 2 or any(key in given for key in ("start", "pattern")[:len(positional)]):
         return None
     found.update(zip(("start", "pattern"), positional))
     resolved = shell_directory(directory, found["start"])
@@ -975,6 +1014,31 @@ def rust_blank(source):
     return "".join(out)
 
 
+RUST_MACRO = re.compile(r"\bmacro_rules!\s*[A-Za-z_]\w*\s*[({\[]|\b[A-Za-z_]\w*!\s*[({\[]")
+
+
+def rust_without_macros(text):
+    """`text` with the body of every macro definition and invocation blanked,
+    newlines kept: a test inside one exists only if the macro expands it."""
+    out, index = [], 0
+    for match in RUST_MACRO.finditer(text):
+        if match.start() < index:
+            continue
+        depth, end = 0, len(text)
+        for position in range(match.end() - 1, len(text)):
+            if text[position] in "({[":
+                depth += 1
+            elif text[position] in ")}]":
+                depth -= 1
+                if depth == 0:
+                    end = position
+                    break
+        out.append(text[index:match.end()])
+        out.append(re.sub(r"[^\n]", " ", text[match.end():end]))
+        index = end
+    return "".join(out) + text[index:]
+
+
 def rust_closing(text, start):
     depth = 0
     for index in range(start, len(text)):
@@ -1006,8 +1070,9 @@ def rust_tests(source):
     that can add `ignore`. It is conditional under `#[cfg(...)]` other than
     `cfg(test)`, or a `cfg_attr` that adds one, on the function or on an
     enclosing module or file. A `#[test]` function inside another item, such
-    as a function body, is no test: libtest does not collect it."""
-    text = rust_blank(source)
+    as a function body, or inside a macro definition or invocation, is no
+    test: libtest does not collect it, or only an expansion would define it."""
+    text = rust_without_macros(rust_blank(source))
     found, stack, pending, whole_file, index = {}, [], [], False, 0
     while True:
         match = RUST_TOKEN.search(text, index)
@@ -1041,6 +1106,8 @@ def rust_tests(source):
         pending = []
 
 
+# Names that a test module must leave bound to unittest's own objects.
+UNITTEST_NAMES = {"IsolatedAsyncioTestCase", "TestCase", "unittest"}
 # Names whose use in a module may keep unittest from running its test methods
 # as written, or make a failure pass.
 PYTHON_SKIPS = {"SkipTest", "__unittest_expecting_failure__", "__unittest_skip__", "expectedFailure", "load_tests",
@@ -1063,8 +1130,9 @@ def python_tests(source):
     or the class that the name concerns, and for an `async def` method of a
     class that is no IsolatedAsyncioTestCase, which unittest never awaits. A
     test name that the class body assigns or deletes rather than defines, and
-    any test of a module that changes a class attribute, calls `setattr` or
-    `delattr`, or deletes an attribute, count as never run."""
+    any test of a module that changes or rebinds a class or its attributes,
+    calls `setattr` or `delattr`, deletes an attribute, or binds a name of
+    UNITTEST_NAMES to something other than unittest's, count as never run."""
     module = ast.parse(source)
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
 
@@ -1097,13 +1165,23 @@ def python_tests(source):
         return found
 
     def changes_classes(node):
+        """Whether `node` changes a class or its attributes, or binds one of
+        unittest's names to something other than unittest's."""
         targets = (node.targets if isinstance(node, (ast.Assign, ast.Delete))
                    else [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign)) else [])
+        names = [leaf.id for target in targets for leaf in ast.walk(target) if isinstance(leaf, ast.Name)]
         return (any(isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
                     and target.value.id in classes for target in targets)
                 or isinstance(node, ast.Delete) and any(isinstance(target, ast.Attribute) for target in targets)
+                or any(name in classes or name in UNITTEST_NAMES for name in names)
                 or isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                and node.func.id in ("setattr", "delattr"))
+                and node.func.id in ("setattr", "delattr")
+                or isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
+                and node.name in UNITTEST_NAMES
+                or isinstance(node, ast.Import) and any(
+                    (alias.asname or alias.name) in UNITTEST_NAMES and alias.name != "unittest" for alias in node.names)
+                or isinstance(node, ast.ImportFrom) and node.module != "unittest" and any(
+                    (alias.asname or alias.name) in UNITTEST_NAMES for alias in node.names))
 
     skips = python_skips(source) or any(changes_classes(node) for node in ast.walk(module))
     return {(name, method): skips or kind == "unknown"
@@ -1128,6 +1206,11 @@ class Repository:
         # and no required features: those of tests/*.rs, unless autotests is off or
         # a [[test]] target names the file.
         targets = manifest.get("test", [])
+        workspace = manifest.get("workspace", {})
+        # `cargo test` at the root runs tests/*.rs only for a root package that is a default member and
+        # that no .cargo config, which may set a runner, wraps.
+        self.root_tests = package is not None and not (isinstance(workspace, dict) and "default-members" in workspace) \
+            and not any((root / ".cargo" / name).exists() for name in ("config.toml", "config"))
         self.autotests = manifest.get("package", {}).get("autotests", True) is not False
         self.listed = {os.path.normpath(target.get("path", f"tests/{target.get('name')}.rs"))
                        for target in (targets if isinstance(targets, list) else []) if isinstance(target, dict)}
@@ -1135,6 +1218,8 @@ class Repository:
             self.autotests = False
         directory = root / WORKFLOWS
         workflows = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml")) if directory.is_dir() else []
+        # GitHub reads a workflow file from Git; a symbolic link holds only its target's path.
+        workflows = [path for path in workflows if not path.is_symlink()]
         for path in workflows:
             for script, start in run_steps(path.read_text(encoding="utf-8")):
                 for words, where, counted in plain_commands(script, start):
@@ -1160,10 +1245,13 @@ class Repository:
             if directory == PurePosixPath("."):
                 self.cargo.append(cargo_run(words[2:], package))
         elif words[0] in ("python", "python3") and words[1:4] == ["-m", "unittest", "discover"]:
-            run = discover_run(words[4:], directory)
+            # `-m` puts the working directory first on the module path, where a local unittest would win.
+            shadowed = directory is not None and any(
+                (self.root / directory / name).exists() for name in ("unittest.py", "unittest"))
+            run = None if shadowed else discover_run(words[4:], directory)
             if run is not None:
                 self.discover.append(run)
-        elif words[0] == "bash" and len(words) == 2 and shell_directory(directory, words[1]) == PurePosixPath(REGRESSIONS):
+        elif directory == PurePosixPath(".") and words in (["bash", str(REGRESSIONS)], ["bash", f"./{REGRESSIONS}"]):
             self.regression_steps += 1
 
     def rust(self, path):
@@ -1204,6 +1292,9 @@ class Repository:
             elif tests[name][1]:
                 errors.append(f"{where}: `{item}` is compiled only under a #[cfg(...)] condition, "
                               "so it does not count as run")
+            elif not self.root_tests:
+                errors.append(f"{where}: Cargo.toml has no root package that `cargo test` runs by default, or a "
+                              f".cargo config may change how it runs tests, so `{item}` does not count as run")
             elif not self.autotests or os.path.normpath(path) in self.listed:
                 errors.append(f"{where}: Cargo.toml sets `autotests = false` or lists {path} under [[test]], "
                               f"so `{item}` does not count as run")

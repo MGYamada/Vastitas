@@ -69,14 +69,22 @@ The rules for claims:
     function, an enclosing module or the file, including a `cfg` that
     `cfg_attr` adds;
   - a `#[test]` function inside another function, which libtest does not
-    collect;
+    collect, or inside a macro definition or invocation;
   - a Rust test in a package with `autotests = false`, or in a file that
     `Cargo.toml` lists under `[[test]]`;
+  - a Rust test when `Cargo.toml` has no root package that `cargo test` runs
+    by default, as in a virtual workspace or one with `default-members`, or
+    when the repository has a `.cargo/config.toml`, which may set a test
+    runner;
   - a Python test in a module that names `skip`, `skipIf`, `skipUnless`,
     `expectedFailure`, `SkipTest`, `skipTest` or `load_tests` in any use, or
     below a package whose `__init__.py` does;
   - an `async def` Python test of a class that is no
-    `IsolatedAsyncioTestCase`, which unittest never awaits.
+    `IsolatedAsyncioTestCase`, which unittest never awaits;
+  - a Python test that its class body assigns or deletes, and every test of a
+    module that changes, deletes or rebinds a class or its attributes, or binds
+    `TestCase`, `IsolatedAsyncioTestCase` or `unittest` to something other
+    than unittest's.
 - An Assumed claim must cite entries of the assumption registry,
   `docs/spec/assumptions.toml`. The registry's chapter,
   [Assumptions](spec/assumptions.md), lists every claim that cites each entry.
@@ -201,24 +209,33 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
 - neither the step nor its job, nor any job that the job needs directly or
   through other jobs, has an `if:` condition or a `continue-on-error` that can
   be true, and every job that it needs exists;
+- no key of the workflow, the job or the step differs only in case from a key
+  that the check reads, such as `If:`;
 - every runner of the job is a GitHub-hosted Linux or macOS runner, `ubuntu-…`
   or `macos-…`, named directly or through a literal matrix without `exclude`,
   and the job has no `container`;
 - the step uses bash, the default shell there, and the `defaults` of its
   workflow and job are block mappings;
 - its `run:` value is a single line or a literal block (`|`), not a folded
-  one;
+  one, and its working directory has no `..`;
 - no `env:` of the workflow, the job or the step sets a variable that changes
   how bash starts or finds commands, or how cargo or Python runs tests:
   `BASH_ENV`, `SHELLOPTS`, `PATH` and the others that `check_spec.py` lists,
   or a variable that starts with `BASH_FUNC_`, `LD_`, `DYLD_`,
-  `CARGO_BUILD_`, `CARGO_TARGET_`, `RUSTC` or `PYTHON`;
+  `CARGO_BUILD_`, `CARGO_TARGET_`, `RUST` or `PYTHON`;
 - no earlier step of the job has `GITHUB_ENV` or `GITHUB_PATH` in its text.
 
 A workflow outside the subset of YAML that the check reads runs no test as far
-as the check is concerned. Such a workflow has, for example, a quoted,
-explicit, tagged, anchored, merge or repeated key, or a quoted scalar over
-several lines.
+as the check is concerned. Such a workflow has, for example:
+
+- a quoted, explicit, tagged, anchored, merge or repeated key;
+- a quoted scalar over several lines, with text after its closing quote, or
+  with an escape other than `\"`, `\\` and `/`;
+- whitespace other than spaces, tabs and newlines, such as a non-breaking
+  space, or NEL, which YAML 1.1 reads as a line break.
+
+A workflow file that is a symbolic link runs no test either, because GitHub
+reads the link itself from Git.
 
 The check reads a step's script line by line and stops at the first line that
 is not plain. A plain line is blank, a comment, or a command whose words
@@ -234,9 +251,10 @@ more commands are plain:
   after `-o` or `+o` the options `errexit`, `nounset`, `pipefail`, `verbose`
   and `xtrace`.
 
-A plain script therefore has no operators, expansions, double quotes, globs,
-redirections, compound commands or other builtins, and runs its commands one
-after another. A command counts when `errexit` is on, because its failure then
+A line with `${{` is not plain, even in a comment or a quote, because GitHub
+substitutes the expression before bash runs. A plain script therefore has no
+operators, expansions, double quotes, globs, redirections, compound commands or
+other builtins, and runs its commands one after another. A command counts when `errexit` is on, because its failure then
 fails the step. No command after the first line that is not plain counts.
 
 The check reads the kernel regression script in the same way. The script
@@ -244,27 +262,30 @@ starts with `errexit` off, so it must switch `errexit` on before its build
 counts. There `cd "$(dirname "$0")/.."` is plain too and goes to the
 repository root. A build counts as the line `lake -d lean-kernel build`
 followed only by module names, run from the repository root. A step runs the
-script as `bash` followed by the script's path.
+script from the repository root as `bash scripts/check_kernel_regressions.sh`.
 
 The check recognizes these commands, and reads only the options that it lists:
 
 - `cargo test` in the root package, with target selections such as `--test`
-  and `--all-targets`, filters, `-p`, `--manifest-path`, `--exclude`,
-  options of the build that run every selected test, such as `--locked` and
-  `--features`, and after `--` the harness options `--ignored`,
-  `--include-ignored`, `--exact`, `--skip` and those of output;
+  and `--all-targets`, filters, `-p`, `--manifest-path`, options of the build
+  that run every selected test, such as `--locked` and `--features`, and
+  after `--` the harness options `--ignored`, `--include-ignored`, `--exact`,
+  `--skip` and those of output;
 - `python3 -m unittest discover` or `python -m unittest discover`, without
   interpreter options, with `-s`, `-p`, `-k`, their long forms, and options of
-  output and failure handling;
+  output and failure handling, run where no `unittest.py` or `unittest`
+  package shadows the standard library;
 - the run of the regression script above.
 
-Any other option, such as `--no-run`, `--doc`, `--target`, `--config`,
-`--list`, `--help`, `--version` or the top-level directory `-t`, makes the
-command run no test as far as the check is concerned. So does `--exclude` with
-the root package or a glob. The check trusts the runner image, the actions
-that steps use and the programs that steps run: they must not change how bash
-starts, and `cargo`, `python3`, `python`, `bash` and `lake` must run the tools
-of those names.
+Any other option, such as `--no-run`, `--doc`, `--exclude`, `--target`,
+`--config`, `--list`, `--help`, `--version` or the top-level directory `-t`,
+makes the command run no test as far as the check is concerned. So does a
+start directory or a pattern given both as a positional word and as an option.
+The check trusts the runner image, the actions that steps use, and the
+programs and scripts that steps run, those of earlier steps included. They
+must not change how bash starts, and `cargo`, `python3`, `python`, `bash` and
+`lake` must run the tools of those names. The rule about `GITHUB_ENV` and
+`GITHUB_PATH` reads only the text of earlier steps.
 
 `scripts/spec_resolve.lean` imports exactly the modules that a pins file lists.
 It rejects:

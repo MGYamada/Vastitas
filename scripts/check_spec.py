@@ -29,7 +29,6 @@ import shlex
 import subprocess
 import sys
 import tempfile
-import textwrap
 import tomllib
 
 
@@ -89,7 +88,7 @@ FILE_ID = re.compile(r"[a-z][a-z0-9-]*")
 PROPERTY_ID = re.compile(r"[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+")
 SHORT_ID = re.compile(r"[a-z][a-z0-9-]*")
 LEAN_NAME = re.compile(r"[^\W\d][\w'!?]*(?:\.[^\W\d][\w'!?]*)+")
-RUST_TEST = re.compile(r"(tests/[A-Za-z0-9_]+\.rs)::([A-Za-z_][A-Za-z0-9_]*)")
+RUST_TEST = re.compile(r"(tests/[A-Za-z0-9_]+\.rs)::((?:[A-Za-z_][A-Za-z0-9_]*::)*[A-Za-z_][A-Za-z0-9_]*)")
 PYTHON_TEST = re.compile(r"((?:[A-Za-z0-9_-]+/)*test_[A-Za-z0-9_]+\.py)::([A-Za-z_]\w*)::([A-Za-z_]\w*)")
 DIAGNOSTIC = re.compile(r"E_[A-Z0-9_]+")
 STATEMENT = re.compile(r"sha256:[0-9a-f]{64}")
@@ -156,6 +155,14 @@ def paragraph(value):
     return " ".join(value.split())
 
 
+def inline(value):
+    """Escape HTML outside code spans, so that text such as Pair<Int> renders as written."""
+    parts = value.split("`")
+    for index in range(0, len(parts), 2):
+        parts[index] = parts[index].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return "`".join(parts)
+
+
 def keys(value, where, required, optional, errors):
     if not isinstance(value, dict):
         errors.append(f"{where}: expected a table")
@@ -176,6 +183,8 @@ def text(value, key, where, errors):
     if not isinstance(item, str) or not item.strip():
         errors.append(f"{where}: `{key}` must be a non-empty string")
         return None
+    if item.count("`") % 2:
+        errors.append(f"{where}: `{key}` has an unmatched backquote")
     return paragraph(item)
 
 
@@ -188,10 +197,18 @@ def strings(value, key, where, errors, empty=False):
         return None
     if not item and not empty:
         errors.append(f"{where}: `{key}` must not be empty")
+    if any(x.count("`") % 2 for x in item):
+        errors.append(f"{where}: an item of `{key}` has an unmatched backquote")
     repeated = sorted({x for x in item if item.count(x) > 1})
     if repeated:
         errors.append(f"{where}: `{key}` repeats {', '.join(repeated)}")
     return [paragraph(x) for x in item]
+
+
+def title_rule(title, where, errors):
+    """Titles appear in headings, tables and link text, so they hold no markup."""
+    if title and any(c in title for c in "|[]<>`"):
+        errors.append(f"{where}: `title` must not contain `|`, `[`, `]`, `<`, `>` or a backquote")
 
 
 def load_toml(root, path, errors):
@@ -212,7 +229,7 @@ def parse_claim(name, table, where, errors):
         errors.append(f"{where}: expected a table")
         return None
     status = table.get("status")
-    if status not in STATUSES:
+    if not isinstance(status, str) or status not in STATUSES:
         errors.append(f"{where}: unknown status {status!r}; use one of {', '.join(STATUSES)}")
         return None
     required, optional = CLAIM_KEYS[status]
@@ -276,8 +293,9 @@ def parse_property(identifier, table, prefix, where, root, errors):
         return None
     values = {key: text(table, key, where, errors) for key in
               ("title", "subject", "statement", "example", "example_test", "example_not_executed")}
-    if values["title"] and "|" in values["title"]:
-        errors.append(f"{where}: `title` must not contain `|`")
+    title_rule(values["title"], where, errors)
+    if values["subject"] and "`" in values["subject"]:
+        errors.append(f"{where}: `subject` must not contain a backquote")
     if ("example_test" in table) == ("example_not_executed" in table):
         errors.append(f"{where}: give exactly one of `example_test` (the test that runs the example) "
                       "and `example_not_executed` (why no test runs it)")
@@ -317,8 +335,7 @@ def parse_spec(root, path, errors):
               for key in ("id", "title", "subject", "description")}
     if values["id"] and not FILE_ID.fullmatch(values["id"]):
         errors.append(f"{path} [spec]: invalid `id` (use lower-case words joined by hyphens)")
-    if values["title"] and ("|" in values["title"] or "]" in values["title"]):
-        errors.append(f"{path} [spec]: `title` must not contain `|` or `]`")
+    title_rule(values["title"], f"{path} [spec]", errors)
     properties = []
     tables = data.get("property")
     if not isinstance(tables, dict) or not tables:
@@ -354,125 +371,323 @@ def parse_registry(root, errors):
         if not keys(table, where, ("title", "statement"), (), errors):
             continue
         title, statement = text(table, "title", where, errors), text(table, "statement", where, errors)
-        if title and "|" in title:
-            errors.append(f"{where}: `title` must not contain `|`")
+        title_rule(title, where, errors)
         registry[identifier] = Assumption(identifier, title or identifier, statement or "")
     return registry
 
 
 # Tests and the CI steps that run them.
+#
+# A Tested claim needs a CI step that runs each of its tests. The workflows are
+# read with a subset of YAML that covers GitHub workflows, and each `run:` step
+# with a model of the shell. Both are conservative: a form they do not model
+# counts as not running a test, and so does a step that a condition, a
+# continue-on-error flag or a filtered pull_request trigger may skip.
 
-ATTRIBUTE = re.compile(r"#\s*\[\s*([A-Za-z_][A-Za-z0-9_]*)")
-FUNCTION = re.compile(r"(?:pub(?:\s*\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?(?:unsafe\s+)?"
-                      r"fn\s+([A-Za-z_][A-Za-z0-9_]*)")
+YAML_KEY = re.compile(r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"\-?:,\[\]{}][^#]*?|-[^\s#][^#]*?)\s*:(?:\s+|$)""")
 
 
-def rust_tests(source):
-    """`#[test]` functions of a Rust source, mapped to whether they are `#[ignore]`d."""
-    tests, attributes = {}, []
-    for line in source.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#["):
-            match = ATTRIBUTE.match(stripped)
-            if match:
-                attributes.append(match.group(1))
+class YamlLines:
+    def __init__(self, text):
+        self.lines = text.split("\n")
+        self.index = 0
+
+    def current(self):
+        while self.index < len(self.lines):
+            stripped = self.lines[self.index].strip()
+            if stripped and not stripped.startswith("#"):
+                return self.lines[self.index]
+            self.index += 1
+        return None
+
+
+def yaml_indent(line):
+    return len(line) - len(line.lstrip(" "))
+
+
+def yaml_plain(text):
+    match = re.search(r"\s#", text)
+    return (text[:match.start()] if match else text).rstrip()
+
+
+def yaml_scalar(text):
+    text = text.strip()
+    if len(text) > 1 and text[0] in "'\"" and text[-1] == text[0]:
+        if text[0] == "'":
+            return text[1:-1].replace("''", "'")
+        return re.sub(r'\\(["\\/])', r"\1", text[1:-1])
+    return yaml_plain(text)
+
+
+def yaml_key(content):
+    match = YAML_KEY.match(content)
+    if not match:
+        return None, None
+    return yaml_scalar(match.group(1)), content[match.end():]
+
+
+def yaml_node(lines, indent):
+    line = lines.current()
+    if line is None or yaml_indent(line) < indent:
+        return None
+    if line.lstrip().startswith("- ") or line.strip() == "-":
+        return yaml_sequence(lines, yaml_indent(line))
+    return yaml_mapping(lines, yaml_indent(line))
+
+
+def yaml_mapping(lines, indent):
+    result = {}
+    while True:
+        line = lines.current()
+        if line is None or yaml_indent(line) != indent or line.lstrip().startswith("- "):
+            return result
+        key, rest = yaml_key(line.strip())
+        if key is None:
+            return result
+        lines.index += 1
+        result[key] = yaml_value(lines, indent, rest)
+
+
+def yaml_value(lines, indent, rest):
+    rest = rest.strip()
+    if not rest or rest.startswith("#"):
+        line = lines.current()
+        if line is not None and (yaml_indent(line) > indent
+                                 or yaml_indent(line) == indent and line.lstrip().startswith("- ")):
+            return yaml_node(lines, yaml_indent(line))
+        return None
+    if rest[0] in "|>":
+        header = yaml_plain(rest)
+        return yaml_block(lines, indent, rest[0], "-" if "-" in header else "")
+    if rest[0] in "'\"":
+        return yaml_scalar(rest)
+    if rest[0] == "[":
+        text = yaml_plain(rest)
+        inner = text[1:-1] if text.endswith("]") else "["
+        if any(c in inner for c in "[]{}"):
+            return text
+        return [yaml_scalar(item) for item in inner.split(",") if item.strip()]
+    if rest[0] == "{":
+        return yaml_plain(rest)
+    parts = [yaml_plain(rest)]
+    while lines.index < len(lines.lines):
+        line = lines.lines[lines.index]
+        if not line.strip() or yaml_indent(line) <= indent or line.lstrip().startswith("#"):
+            break
+        parts.append(yaml_plain(line.strip()))
+        lines.index += 1
+    return " ".join(parts)
+
+
+def yaml_block(lines, indent, style, chomping):
+    body = []
+    while lines.index < len(lines.lines):
+        line = lines.lines[lines.index]
+        if line.strip() and yaml_indent(line) <= indent:
+            break
+        body.append(line)
+        lines.index += 1
+    while body and not body[-1].strip():
+        body.pop()
+    margin = min((yaml_indent(line) for line in body if line.strip()), default=0)
+    body = [line[margin:] for line in body]
+    end = "" if chomping == "-" else "\n"
+    if style == "|":
+        return "\n".join(body) + end
+    folded, previous = "", None
+    for line in body:
+        if not line:
+            folded += "\n"
+        elif line[0] == " " or previous is None or previous == "" or previous[0] == " ":
+            folded += ("\n" if folded and not folded.endswith("\n") else "") + line
+        else:
+            folded += " " + line
+        previous = line
+    return folded + end
+
+
+def yaml_sequence(lines, indent):
+    items = []
+    while True:
+        line = lines.current()
+        if line is None or yaml_indent(line) != indent or not (line.lstrip().startswith("- ")
+                                                               or line.strip() == "-"):
+            return items
+        content = line.lstrip()[1:].lstrip()
+        column = len(line) - len(content)
+        lines.index += 1
+        if not content:
+            items.append(yaml_node(lines, indent + 1))
             continue
-        if not stripped or stripped.startswith("//"):
+        key, rest = yaml_key(content)
+        if key is None:
+            items.append(yaml_scalar(content))
             continue
-        match = FUNCTION.match(stripped)
-        if match and "test" in attributes:
-            tests[match.group(1)] = "ignore" in attributes
-        attributes = []
-    return tests
+        item = {key: yaml_value(lines, column, rest)}
+        item.update(yaml_mapping(lines, column))
+        items.append(item)
 
 
-def python_tests(source):
-    """(class, method) of the test methods of a unittest module, mapped to an unconditional skip."""
-    tests = {}
-
-    def skipped(node):
-        for decorator in node.decorator_list:
-            target = decorator.func if isinstance(decorator, ast.Call) else decorator
-            name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
-            if name == "skip":
-                return True
-        return False
-
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.ClassDef):
-            for item in node.body:
-                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
-                    tests[(node.name, item.name)] = skipped(node) or skipped(item)
-    return tests
+def yaml_load(text):
+    """Block mappings and sequences, plain, quoted and block scalars, and flow
+    sequences of scalars; other flow collections stay text."""
+    return yaml_node(YamlLines(text), 0)
 
 
-def pull_request_trigger(workflow):
-    lines = workflow.splitlines()
-    for index, line in enumerate(lines):
-        match = re.match(r"""^(?:on|"on"|'on'):\s*([^#]*)""", line)
-        if not match:
-            continue
-        inline = match.group(1).strip()
-        if inline:
-            return "pull_request" in re.findall(r"[A-Za-z_]+", inline)
-        for nested in lines[index + 1:]:
-            if nested.strip() and not nested[0].isspace() and not nested.startswith("#"):
-                break
-            if re.match(r"^\s+(?:-\s*)?pull_request\s*(?::|$)", nested):
-                return True
-        return False
+FILTERS = ("paths", "paths-ignore", "branches", "branches-ignore", "types")
+
+
+def every_pull_request(triggers):
+    """Whether the `on:` value starts the workflow for every pull request."""
+    if isinstance(triggers, str):
+        return triggers == "pull_request"
+    if isinstance(triggers, list):
+        return "pull_request" in triggers
+    if isinstance(triggers, dict) and "pull_request" in triggers:
+        config = triggers["pull_request"]
+        return config is None or isinstance(config, dict) and not any(key in config for key in FILTERS)
     return False
 
 
-RUN = re.compile(r"^(\s*)(-\s+)?run:\s*(.*?)\s*$")
+def may_skip(value):
+    """Whether a `continue-on-error` value can be true."""
+    return value is not None and str(value).strip().lower() != "false"
 
 
-def run_scripts(workflow):
-    """The text of every `run:` step of a workflow."""
-    lines = workflow.splitlines()
-    scripts, index = [], 0
-    while index < len(lines):
-        match = RUN.match(lines[index])
-        index += 1
-        if not match:
+def run_steps(workflow):
+    """(script, directory, pipefail) of each `run:` step that every pull request
+    runs and whose failure fails the job. A step or job with `if:` or a
+    `continue-on-error` that can be true does not count."""
+    tree = yaml_load(workflow)
+    if not isinstance(tree, dict) or not every_pull_request(tree.get("on")):
+        return
+    def defaults(table):
+        run = ((table.get("defaults") or {}) if isinstance(table.get("defaults"), dict) else {}).get("run")
+        return run if isinstance(run, dict) else {}
+    top = defaults(tree)
+    jobs = tree.get("jobs")
+    for job in (jobs.values() if isinstance(jobs, dict) else []):
+        if not isinstance(job, dict) or "if" in job or may_skip(job.get("continue-on-error")):
             continue
-        indent = len(match.group(1)) + len(match.group(2) or "")
-        value = match.group(3)
-        if value[:1] in ("|", ">"):
-            body = []
-            while index < len(lines) and (not lines[index].strip()
-                                          or len(lines[index]) - len(lines[index].lstrip()) > indent):
-                body.append(lines[index])
-                index += 1
-            scripts.append(textwrap.dedent("\n".join(body)))
-        elif len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
-            scripts.append(value[1:-1])
-        else:
-            scripts.append(re.sub(r"\s+#.*$", "", value))
-    return scripts
-
-
-def commands(script):
-    """Simple commands of a shell script: continuations joined, split at `;`, `&&`, `||` and `|`."""
-    for line in script.replace("\\\n", " ").splitlines():
-        for part in re.split(r"&&|\|\||;|\|", line):
-            try:
-                tokens = shlex.split(part, comments=True)
-            except ValueError:
+        settings = dict(top, **defaults(job))
+        for step in job.get("steps") or []:
+            if not isinstance(step, dict) or not isinstance(step.get("run"), str):
                 continue
-            while tokens and tokens[0] in ("then", "else", "do", "if", "!", "time"):
-                tokens = tokens[1:]
-            while tokens and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*=.*", tokens[0]):
-                tokens = tokens[1:]
-            if tokens:
-                yield tokens
+            if "if" in step or may_skip(step.get("continue-on-error")):
+                continue
+            shell = step.get("shell", settings.get("shell"))
+            if shell not in (None, "bash", "sh"):
+                continue
+            directory = step.get("working-directory", settings.get("working-directory", "."))
+            yield step["run"], shell_directory(PurePosixPath("."), str(directory)), shell == "bash"
 
 
-CARGO_VALUES = {"--bin", "--example", "--bench", "-p", "--package", "--features", "-F", "--manifest-path",
-                "--target", "--target-dir", "-j", "--jobs", "--profile", "--color", "--message-format",
-                "--exclude", "-Z", "--config"}
+SHELL_PIECES = re.compile(r"&&|\|\||;;|\|&|>>|<<-?|>&|<&|&>|[;|&()<>]")
+SHELL_CONTROL = {";", "&&", "||", "|", "&", "|&", ";;", "(", ")"}
+SHELL_REDIRECTS = {">", ">>", "<", "<<", "<<-", ">&", "<&", "&>"}
+SHELL_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
+SHELL_GUARDS = {"if", "elif", "while", "until", "!"}
+SHELL_PREFIXES = SHELL_GUARDS | {"then", "else", "do", "time", "command", "exec", "nohup", "{", "}"}
+
+
+def shell_tokens(line):
+    lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
+    lexer.whitespace_split = True
+    lexer.commenters = "#"
+    tokens = []
+    for token in lexer:
+        if token and all(c in "();<>|&" for c in token):
+            tokens += SHELL_PIECES.findall(token)
+        else:
+            tokens.append(token)
+    return tokens
+
+
+def shell_directory(directory, target):
+    """`directory / target`, or None when the result is unknown."""
+    if directory is None or not target or target.startswith(("/", "~")) or any(c in target for c in "$`*?"):
+        return None
+    return PurePosixPath(os.path.normpath(str(directory / target)))
+
+
+def shell_commands(script, directory=PurePosixPath("."), pipefail=False):
+    """Each simple command of a shell script as (words, directory, counted).
+
+    A command counts when its failure fails the script. A condition of `if`,
+    `while` or `until`, a negated command, a command before `||`, a command
+    before `|` without pipefail and any command after `set +e` does not count.
+    `directory` follows `cd`, and is None once it is unknown. Comments, quotes,
+    redirections and here-document bodies are removed; a line whose quotes do
+    not close is skipped."""
+    heredoc, errexit, stack = None, True, []
+    for line in script.replace("\\\n", " ").split("\n"):
+        if heredoc is not None:
+            if line.strip() == heredoc:
+                heredoc = None
+            continue
+        try:
+            tokens = shell_tokens(line)
+        except ValueError:
+            continue
+        words, guarded, target = [], False, False
+        for index, token in enumerate(tokens + [";"]):
+            if target:
+                target = False
+                if tokens[index - 1] in ("<<", "<<-"):
+                    heredoc = token.lstrip("-")
+                continue
+            if token in SHELL_REDIRECTS:
+                if words and words[-1].isdigit():
+                    words.pop()
+                target = True
+                continue
+            if token not in SHELL_CONTROL:
+                if not words and (token in SHELL_PREFIXES or SHELL_ASSIGNMENT.fullmatch(token)):
+                    guarded = guarded or token in SHELL_GUARDS
+                else:
+                    words.append(token)
+                continue
+            if words and words[0] == "env":
+                words = words[1:]
+                while words and (SHELL_ASSIGNMENT.fullmatch(words[0]) or words[0].startswith("-")):
+                    words = words[2:] if words[0] in ("-u", "-C", "-S") else words[1:]
+            if words:
+                if words[:2] == ["set", "+e"]:
+                    errexit = False
+                elif words[:2] == ["set", "-e"]:
+                    errexit = True
+                elif words[:3] == ["set", "-o", "pipefail"]:
+                    pipefail = True
+                counted = errexit and not guarded and token != "||" and (token not in ("|", "|&") or pipefail)
+                if words[0] in ("cd", "pushd"):
+                    directory = shell_directory(directory, words[1] if len(words) > 1 else "")
+                elif words[0] == "popd":
+                    directory = None
+                else:
+                    yield words, directory, counted
+            if token == "(":
+                stack.append(directory)
+            elif token == ")" and stack:
+                directory = stack.pop()
+            words = []
+            if token not in ("|", "|&"):
+                guarded = False
+
+
+def option(argument, items, short, long):
+    """The value of `-s VALUE`, `-sVALUE`, `--long VALUE` or `--long=VALUE`, or None."""
+    if argument == short or long and argument == long:
+        return next(items, "")
+    if short and argument.startswith(short) and len(argument) > len(short) and not argument.startswith("--"):
+        return argument[len(short):]
+    if long and argument.startswith(long + "="):
+        return argument[len(long) + 1:]
+    return None
+
+
+CARGO_VALUES = {"--bin", "--example", "--bench", "--features", "-F", "--target", "--target-dir", "-j", "--jobs",
+                "--profile", "--color", "--message-format", "--exclude", "-Z", "--config"}
 CARGO_TARGETS = {"--lib", "--bins", "--bin", "--examples", "--example", "--benches", "--bench", "--doc"}
-LIBTEST_VALUES = {"--skip", "--test-threads", "--format", "--color", "-Z", "--logfile", "--shuffle-seed"}
 
 
 @dataclass
@@ -483,27 +698,41 @@ class CargoRun:
     filters: list
     skips: list
     exact: bool
+    runs_nothing: bool
 
     def runs(self, stem, name, ignored):
-        if not (self.every_test or stem in self.targets):
+        if self.runs_nothing or not (self.every_test or stem in self.targets):
             return False
         if ignored and self.ignored == "exclude" or not ignored and self.ignored == "only":
             return False
+
         def matches(pattern):
             return name == pattern if self.exact else pattern in name
+
         if any(matches(skip) for skip in self.skips):
             return False
         return not self.filters or any(matches(item) for item in self.filters)
 
 
-def cargo_run(arguments):
+def cargo_run(arguments, package=None):
+    """The tests that `cargo test ARGUMENTS` runs in the root package `package`."""
     split = arguments.index("--") if "--" in arguments else len(arguments)
     before, after = arguments[:split], arguments[split + 1:]
-    run = CargoRun(False, set(), "exclude", [], [], False)
+    run = CargoRun(False, set(), "exclude", [], [], False, False)
     selected, items = False, iter(before)
     for argument in items:
         name, _, attached = argument.partition("=") if argument.startswith("--") else (argument, "", "")
-        if name in ("--all-targets", "--tests"):
+        value = option(argument, items, "-p", "--package")
+        if value is not None:
+            if value != package:
+                run.runs_nothing = True
+        elif name == "--manifest-path":
+            value = attached or next(items, "")
+            if os.path.normpath(value) != "Cargo.toml":
+                run.runs_nothing = True
+        elif name == "--no-run":
+            run.runs_nothing = True
+        elif name in ("--all-targets", "--tests"):
             run.every_test = selected = True
         elif name == "--test":
             selected = True
@@ -520,15 +749,18 @@ def cargo_run(arguments):
         run.every_test = True
     items = iter(after)
     for argument in items:
-        if argument == "--ignored":
+        skip = option(argument, items, None, "--skip")
+        if skip is not None:
+            run.skips.append(skip)
+        elif argument == "--ignored":
             run.ignored = "only"
         elif argument == "--include-ignored":
             run.ignored = "include"
         elif argument == "--exact":
             run.exact = True
-        elif argument == "--skip":
-            run.skips.append(next(items, ""))
-        elif argument in LIBTEST_VALUES:
+        elif argument == "--list":
+            run.runs_nothing = True
+        elif argument in ("--test-threads", "--format", "--color", "-Z", "--logfile", "--shuffle-seed"):
             next(items, None)
         elif not argument.startswith("-"):
             run.filters.append(argument)
@@ -550,25 +782,207 @@ class DiscoverRun:
             fnmatch.fnmatchcase(full, item) if "*" in item else item in full for item in self.selections)
 
 
-def discover_run(arguments):
+def discover_run(arguments, directory):
+    """The tests that `python3 -m unittest discover ARGUMENTS` runs from `directory`."""
     start, pattern, positional, selections = ".", "test*.py", [], []
     items = iter(arguments)
     for argument in items:
-        if argument in ("-s", "--start-directory"):
-            start = next(items, start)
-        elif argument in ("-p", "--pattern"):
-            pattern = next(items, pattern)
-        elif argument in ("-t", "--top-level-directory"):
-            next(items, None)
-        elif argument == "-k":
-            selections.append(next(items, ""))
-        elif not argument.startswith("-"):
-            positional.append(argument)
+        for short, long in (("-s", "--start-directory"), ("-p", "--pattern"),
+                            ("-t", "--top-level-directory"), ("-k", None)):
+            value = option(argument, items, short, long)
+            if value is not None:
+                if short == "-s":
+                    start = value
+                elif short == "-p":
+                    pattern = value
+                elif short == "-k":
+                    selections.append(value)
+                break
+        else:
+            if not argument.startswith("-"):
+                positional.append(argument)
     if positional:
         start = positional[0]
     if len(positional) > 1:
         pattern = positional[1]
-    return DiscoverRun(PurePosixPath(os.path.normpath(start)), pattern, selections)
+    resolved = shell_directory(directory, start)
+    return DiscoverRun(resolved, pattern, selections) if resolved is not None else None
+
+
+RUST_RAW = re.compile(r'(b?)r(#*)"')
+RUST_CHAR = re.compile(r"'(?:\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F]{1,6}\}|.)|[^\\'\n])'")
+RUST_TOKEN = re.compile(r"#!?\[|\bmod\s+([A-Za-z_]\w*)\s*\{|\bfn\s+([A-Za-z_]\w*)|[{};]")
+RUST_NAME = re.compile(r"\s*([A-Za-z_][\w:]*)")
+
+
+def rust_blank(source):
+    """The source without comments, with the contents of string and character
+    literals removed. Newlines stay."""
+    out, i, n = [], 0, len(source)
+
+    def identifier_before(index):
+        return index > 0 and (source[index - 1].isalnum() or source[index - 1] == "_")
+
+    while i < n:
+        if source.startswith("//", i):
+            end = source.find("\n", i)
+            i = n if end < 0 else end
+            continue
+        if source.startswith("/*", i):
+            depth, i = 1, i + 2
+            while i < n and depth:
+                if source.startswith("/*", i):
+                    depth, i = depth + 1, i + 2
+                elif source.startswith("*/", i):
+                    depth, i = depth - 1, i + 2
+                else:
+                    out.append("\n" if source[i] == "\n" else "")
+                    i += 1
+            continue
+        raw = RUST_RAW.match(source, i)
+        if raw and not identifier_before(i):
+            end = source.find('"' + raw.group(2), raw.end())
+            end = n if end < 0 else end + 1 + len(raw.group(2))
+            out.append('""' + "\n" * source.count("\n", i, end))
+            i = end
+            continue
+        if source[i] == '"' or source.startswith('b"', i) and not identifier_before(i):
+            j = i + (2 if source[i] == "b" else 1)
+            while j < n and source[j] != '"':
+                j += 2 if source[j] == "\\" else 1
+            out.append('""' + "\n" * source.count("\n", i, j))
+            i = j + 1
+            continue
+        if source[i] == "'":
+            match = RUST_CHAR.match(source, i)
+            if match:
+                out.append("' '")
+                i = match.end()
+                continue
+        out.append(source[i])
+        i += 1
+    return "".join(out)
+
+
+def rust_closing(text, start):
+    depth = 0
+    for index in range(start, len(text)):
+        if text[index] == "[":
+            depth += 1
+        elif text[index] == "]":
+            depth -= 1
+            if depth == 0:
+                return index
+    return len(text) - 1
+
+
+def rust_attribute(attribute):
+    match = RUST_NAME.match(attribute)
+    return match.group(1) if match else ""
+
+
+def rust_conditional(attributes):
+    """Whether attributes compile their item only under a configuration other than `cfg(test)`."""
+    return any(rust_attribute(a) == "cfg" and re.sub(r"\s", "", a) != "cfg(test)" for a in attributes)
+
+
+def rust_tests(source):
+    """Map the libtest name of each `#[test]` function, such as `a::b`, to
+    (ignored, conditional). A test is ignored under `#[ignore]` or a `cfg_attr`
+    that can add `ignore`. It is conditional under `#[cfg(...)]` other than
+    `cfg(test)`, on the function or on an enclosing module or file."""
+    text = rust_blank(source)
+    found, stack, pending, whole_file, index = {}, [], [], False, 0
+    while True:
+        match = RUST_TOKEN.search(text, index)
+        if not match:
+            return found
+        token, index = match.group(0), match.end()
+        if token.startswith("#"):
+            end = rust_closing(text, match.end() - 1)
+            body, index = text[match.end():end], end + 1
+            if token != "#![":
+                pending.append(body)
+            elif rust_conditional([body]):
+                if stack:
+                    stack[-1] = (stack[-1][0], stack[-1][1], True)
+                else:
+                    whole_file = True
+            continue
+        if match.group(1):
+            stack.append((True, match.group(1), rust_conditional(pending)))
+        elif match.group(2):
+            if any(re.sub(r"\s", "", a) == "test" for a in pending):
+                path = "::".join([frame[1] for frame in stack if frame[0]] + [match.group(2)])
+                ignored = any(rust_attribute(a) == "ignore"
+                              or rust_attribute(a) == "cfg_attr" and re.search(r"\bignore\b", a) for a in pending)
+                found[path] = (bool(ignored),
+                               whole_file or any(frame[2] for frame in stack) or rust_conditional(pending))
+        elif token == "{":
+            stack.append((False, None, rust_conditional(pending)))
+        elif token == "}" and stack:
+            stack.pop()
+        pending = []
+
+
+def python_tests(source):
+    """(class, method) of the test methods of the unittest.TestCase classes of a
+    module, mapped to whether a decorator skips the method or its class
+    unconditionally: `skip`, `skipIf(True, …)` or `skipUnless(False, …)`."""
+    classes = {}
+    for node in ast.parse(source).body:
+        if isinstance(node, ast.ClassDef):
+            classes[node.name] = node
+
+    def base_names(node):
+        return [base.attr if isinstance(base, ast.Attribute) else getattr(base, "id", "") for base in node.bases]
+
+    def test_case(name, seen=()):
+        node = classes.get(name)
+        return node is not None and name not in seen and any(
+            base in ("TestCase", "IsolatedAsyncioTestCase") or test_case(base, seen + (name,))
+            for base in base_names(node))
+
+    def skipped(node):
+        for decorator in node.decorator_list:
+            call = decorator if isinstance(decorator, ast.Call) else None
+            target = call.func if call else decorator
+            name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
+            if name == "skip":
+                return True
+            if call and name in ("skipIf", "skipUnless") and call.args and isinstance(call.args[0], ast.Constant) \
+                    and bool(call.args[0].value) == (name == "skipIf"):
+                return True
+        return False
+
+    def methods(name, seen=()):
+        node = classes.get(name)
+        if node is None or name in seen:
+            return {}
+        found = {}
+        for base in reversed(base_names(node)):
+            found.update(methods(base, seen + (name,)))
+        for item in node.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
+                found[item.name] = skipped(item)
+        return found
+
+    tests = {}
+    for name, node in classes.items():
+        if test_case(name):
+            for method, skip in methods(name).items():
+                tests[(name, method)] = skip or skipped(node)
+    return tests
+
+
+def script_target(words, directory):
+    """The script that a command runs as `bash SCRIPT`, `sh SCRIPT` or `SCRIPT`, or None."""
+    if words and words[0] in ("bash", "sh"):
+        arguments = [word for word in words[1:] if not word.startswith("-")]
+        return shell_directory(directory, arguments[0]) if arguments else None
+    if words and "/" in words[0]:
+        return shell_directory(directory, words[0])
+    return None
 
 
 class Repository:
@@ -577,32 +991,42 @@ class Repository:
     def __init__(self, root):
         self.root = root
         self.cargo, self.discover, self.regression_steps = [], [], 0
+        package = None
+        if (root / "Cargo.toml").is_file():
+            try:
+                package = tomllib.loads((root / "Cargo.toml").read_text(encoding="utf-8")).get("package", {}).get("name")
+            except tomllib.TOMLDecodeError:
+                package = None
         directory = root / WORKFLOWS
         workflows = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml")) if directory.is_dir() else []
         for path in workflows:
-            workflow = path.read_text(encoding="utf-8")
-            if not pull_request_trigger(workflow):
-                continue
-            for script in run_scripts(workflow):
-                for tokens in commands(script):
-                    self.add(tokens)
+            for script, start, pipefail in run_steps(path.read_text(encoding="utf-8")):
+                for words, where, counted in shell_commands(script, start, pipefail):
+                    if counted:
+                        self.add(words, where, package)
         self.regressions = set()
         if (root / REGRESSIONS).is_file():
-            for tokens in commands((root / REGRESSIONS).read_text(encoding="utf-8")):
-                if tokens[:4] == ["lake", "-d", "lean-kernel", "build"]:
-                    self.regressions.update(item for item in tokens[4:] if LEAN_NAME.fullmatch(item))
+            for words, _, _ in shell_commands((root / REGRESSIONS).read_text(encoding="utf-8")):
+                if words[:4] == ["lake", "-d", "lean-kernel", "build"]:
+                    self.regressions.update(item for item in words[4:] if LEAN_NAME.fullmatch(item))
         self.codes = set()
         if (root / DIAGNOSTICS).is_file():
             self.codes = set(re.findall(r"`(E_[A-Z0-9_]+)`", (root / DIAGNOSTICS).read_text(encoding="utf-8")))
         self._rust, self._python = {}, {}
 
-    def add(self, tokens):
-        for index in range(len(tokens) - 1):
-            if os.path.basename(tokens[index]) == "cargo" and tokens[index + 1] == "test":
-                self.cargo.append(cargo_run(tokens[index + 2:]))
-            if tokens[index] == "-m" and tokens[index + 1:index + 3] == ["unittest", "discover"]:
-                self.discover.append(discover_run(tokens[index + 3:]))
-        if any(item.endswith(str(REGRESSIONS)) for item in tokens):
+    def add(self, words, directory, package):
+        if os.path.basename(words[0]) == "cargo" and words[1:2] == ["test"]:
+            if directory == PurePosixPath("."):
+                self.cargo.append(cargo_run(words[2:], package))
+        elif os.path.basename(words[0]) in ("python", "python3"):
+            rest = words[1:]
+            while rest and rest[0].startswith("-") and rest[0] != "-m":
+                rest = rest[1:]
+            if rest[:3] == ["-m", "unittest", "discover"] and directory is not None:
+                run = discover_run(rest[3:], directory)
+                if run is not None:
+                    self.discover.append(run)
+        elif script_target(words, directory) == PurePosixPath(REGRESSIONS):
             self.regression_steps += 1
 
     def rust(self, path):
@@ -629,8 +1053,11 @@ class Repository:
                 errors.append(f"{where}: the test file {path} does not exist")
             elif name not in tests:
                 errors.append(f"{where}: {path} has no #[test] function `{name}`")
-            elif not any(run.runs(PurePosixPath(path).stem, name, tests[name]) for run in self.cargo):
-                if tests[name]:
+            elif tests[name][1]:
+                errors.append(f"{where}: `{item}` is compiled only under a #[cfg(...)] condition, "
+                              "so it does not count as run")
+            elif not any(run.runs(PurePosixPath(path).stem, name, tests[name][0]) for run in self.cargo):
+                if tests[name][0]:
                     errors.append(f"{where}: `{item}` is #[ignore]d, and no CI step passes --ignored for it")
                 else:
                     errors.append(f"{where}: no CI step runs `{item}`")
@@ -640,7 +1067,7 @@ class Repository:
             if tests is None:
                 errors.append(f"{where}: the test file {path} does not exist or does not parse")
             elif (test_class, method) not in tests:
-                errors.append(f"{where}: {path} has no test method `{test_class}.{method}`")
+                errors.append(f"{where}: {path} has no unittest test method `{test_class}.{method}`")
             elif tests[(test_class, method)]:
                 errors.append(f"{where}: `{item}` is skipped unconditionally")
             elif not any(run.runs(path, test_class, method) for run in self.discover):
@@ -744,7 +1171,10 @@ def format_pins(environment, entries):
 
 # Loading and checking.
 
-def load(root, errors):
+def load(root, errors, pin_errors=None):
+    """Parse and check every specification file. Errors about the statement pins
+    go to `pin_errors` when it is given, so that an update can ignore them."""
+    pin_errors = errors if pin_errors is None else pin_errors
     repository = Repository(root)
     registry = parse_registry(root, errors)
     specs, owners = [], {}
@@ -775,20 +1205,23 @@ def load(root, errors):
                 repository.check_test(item.example_test, f"{where} example_test", errors)
             for claim in item.claims:
                 check_claim(claim, f"{where} claim.{claim.name}", repository, registry, cited, errors)
-    pins = {environment: load_pins(root, environment, errors) for environment in ENVIRONMENTS}
+    pins = {environment: load_pins(root, environment, pin_errors) for environment in ENVIRONMENTS}
     for environment, names in cited.items():
         path = PINS / f"{environment}.json"
         update = f"run `python3 scripts/check_spec.py --update-statements {environment}`"
+        if not names:
+            if (root / path).exists():
+                pin_errors.append(f"{path}: no claim cites a name of the {environment} environment; "
+                                  "delete this file and the CI step that resolves it")
+            continue
         for name, kinds in sorted(names.items()):
             pin = pins[environment].get(name)
-            if len(kinds) > 1:
-                errors.append(f"`{name}` is cited both as a theorem and as a kernel definition")
-            elif pin is None:
-                errors.append(f"{path}: `{name}` is cited but not pinned; {update}")
+            if pin is None:
+                pin_errors.append(f"{path}: `{name}` is cited but not pinned; {update}")
             elif pin["kind"] not in kinds:
-                errors.append(f"{path}: `{name}` is cited as a {next(iter(kinds))} but pinned as a {pin['kind']}")
+                pin_errors.append(f"{path}: `{name}` is cited as a {next(iter(kinds))} but pinned as a {pin['kind']}")
         for name in sorted(pins[environment].keys() - names.keys()):
-            errors.append(f"{path}: `{name}` is pinned but no claim cites it; {update}")
+            pin_errors.append(f"{path}: `{name}` is pinned but no claim cites it; {update}")
     outputs = {spec.chapter: render_spec(spec, pins, registry) for spec in specs}
     if registry or (root / REGISTRY).exists():
         outputs[REGISTRY.with_suffix(".md")] = render_registry(registry, specs)
@@ -900,7 +1333,7 @@ def claim_lines(claim, pins, registry):
     if claim.premises is not None:
         if claim.premises:
             lines.append("  - Premises:")
-            lines += [f"    - {premise}" for premise in claim.premises]
+            lines += [f"    - {inline(premise)}" for premise in claim.premises]
         else:
             lines.append("  - Premises: none")
     if claim.assumes:
@@ -910,18 +1343,18 @@ def claim_lines(claim, pins, registry):
         where = f" in {link_module(pin['module'])}" if pin else ""
         lines.append(f"  - Enforced by: `{definition}`{where}, which reports `{code}`")
     if claim.reason:
-        lines.append(f"  - Reason: {claim.reason}")
+        lines.append(f"  - Reason: {inline(claim.reason)}")
     if claim.issue:
         lines.append(f"  - Issue: [#{claim.issue}]({ISSUES}{claim.issue})")
     if claim.note:
-        lines.append(f"  - Note: {claim.note}")
+        lines.append(f"  - Note: {inline(claim.note)}")
     return lines
 
 
 def render_spec(spec, pins, registry):
     lines = [f"# {spec.title}", "",
              f"{MARKER} from {spec.path}. Edit that file and run `python3 scripts/check_spec.py --write`. -->",
-             "", spec.description, "",
+             "", inline(spec.description), "",
              f"[Specifications](../specifications.md) defines the "
              f"[claim statuses](../specifications.md#claim-statuses) and the checks. This chapter is "
              f"generated from [`{spec.path}`]({BLOB}{spec.path}).", "",
@@ -933,12 +1366,12 @@ def render_spec(spec, pins, registry):
         label, target = item.rule
         lines += ["", f'<a id="{item.id}"></a>', "", f"## {item.title}", "",
                   f"- Property: `{item.id}`", f"- Subject: `{item.subject}`",
-                  f"- Rule: [{label}](../{target})", "", item.statement, "",
-                  f"- Example: {item.example}"]
+                  f"- Rule: [{label}](../{target})", "", inline(item.statement), "",
+                  f"- Example: {inline(item.example)}"]
         if item.example_test:
             lines.append(f"- Run by: {test_reference(item.example_test)}")
-        else:
-            lines.append(f"- Not executed: {item.example_not_executed}")
+        elif item.example_not_executed:
+            lines.append(f"- Not executed: {inline(item.example_not_executed)}")
         lines += ["", "Claims:", ""]
         for claim in item.claims:
             lines += claim_lines(claim, pins, registry)
@@ -959,14 +1392,14 @@ def render_registry(registry, specs):
              f"{MARKER} from {REGISTRY}. Edit that file and run `python3 scripts/check_spec.py --write`. -->",
              "", "The assumption registry lists the trusted components that claims rest on. A claim with "
              "status [Assumed](../specifications.md#assumed) cites an entry as its evidence. A Proved or "
-             "Tested claim names in `assumes` the entries that its evidence does not discharge. This chapter "
-             f"is generated from [`{REGISTRY}`]({BLOB}{REGISTRY}).", "",
+             "Tested claim lists in `assumes` the entries that relate its evidence to the property as the "
+             f"statement reads it. This chapter is generated from [`{REGISTRY}`]({BLOB}{REGISTRY}).", "",
              "| Assumption | Claims that cite it |", "| --- | --- |"]
     for identifier, entry in registry.items():
         lines.append(f"| [{entry.title}](#assumption.{identifier}) | {len(citations[identifier])} |")
     for identifier, entry in registry.items():
         lines += ["", f'<a id="assumption.{identifier}"></a>', "", f"## {entry.title}", "",
-                  f"- Assumption: `{identifier}`", "", entry.statement, ""]
+                  f"- Assumption: `{identifier}`", "", inline(entry.statement), ""]
         if citations[identifier]:
             lines.append("Cited by:")
             lines.append("")
@@ -979,31 +1412,46 @@ def render_registry(registry, specs):
 # Statement pins from the Lean resolver.
 
 def update_statements(root, environment):
-    errors = []
-    state = load(root, errors)
-    names = state.cited[environment]
-    blocking = [error for error in errors if PINS.as_posix() not in error and "out of date" not in error]
+    blocking = []
+    state = load(root, blocking, pin_errors=[])
     if blocking:
         print("\n".join(blocking), file=sys.stderr)
         print("fix these errors before updating the statement pins", file=sys.stderr)
         return 1
+    names = state.cited[environment]
+    path = root / PINS / f"{environment}.json"
+    if not names:
+        if path.exists():
+            path.unlink()
+            print(f"removed {path.relative_to(root)}: no claim cites a name of the {environment} environment; "
+                  "remove the CI step that resolves it")
+        return 0
     rules = ENVIRONMENTS[environment]
     request = {"format": 1, "environment": environment, "imports": rules["discover"],
                "entries": [{"name": name, "kind": next(iter(kinds))} for name, kinds in sorted(names.items())]}
     with tempfile.TemporaryDirectory(prefix="vastitas-spec-") as directory:
         source, report = Path(directory) / "request.json", Path(directory) / "report.json"
         source.write_text(json.dumps(request), encoding="utf-8")
-        result = subprocess.run(
-            ["lake", "env", "lean", str(root / RESOLVER)], cwd=root / rules["directory"], text=True,
-            env=dict(os.environ, VASTITAS_SPEC_INPUT=str(source), VASTITAS_SPEC_REPORT=str(report)),
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
-        if result.returncode or not report.is_file():
-            print(result.stdout, file=sys.stderr)
-            print(f"the resolver failed in {rules['directory']}/; build that package first", file=sys.stderr)
+        try:
+            result = subprocess.run(
+                ["lake", "env", "lean", "-DwarningAsError=true", str(root / RESOLVER)],
+                cwd=root / rules["directory"], text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                env=dict(os.environ, VASTITAS_SPEC_INPUT=str(source), VASTITAS_SPEC_REPORT=str(report)),
+                check=False)
+        except OSError as error:
+            print(f"cannot run lake in {rules['directory']}/: {error}", file=sys.stderr)
             return 1
-        facts = json.loads(report.read_text(encoding="utf-8"))
-    if facts.get("problems"):
-        print("\n".join(facts["problems"]), file=sys.stderr)
+        try:
+            facts = json.loads(report.read_text(encoding="utf-8")) if report.is_file() else None
+        except ValueError:
+            facts = None
+    if not isinstance(facts, dict) or not isinstance(facts.get("entries"), list):
+        print(result.stdout, file=sys.stderr)
+        print(f"the resolver wrote no report in {rules['directory']}/; build that package first, "
+              f"so that {', '.join(rules['discover'])} can be imported", file=sys.stderr)
+        return 1
+    if facts.get("problems") or result.returncode:
+        print("\n".join(facts.get("problems") or [result.stdout]), file=sys.stderr)
         return 1
     entries = sorted(({key: entry[key] for key in ("name", "module", "kind", "statement") if key in entry}
                       for entry in facts["entries"]), key=lambda entry: entry["name"])
@@ -1016,7 +1464,6 @@ def update_statements(root, environment):
             print(f"changed {entry['name']}: review its statement and module")
     for name in sorted(old.keys() - {entry["name"] for entry in entries}):
         print(f"removed {name}")
-    path = root / PINS / f"{environment}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(format_pins(environment, entries), encoding="utf-8")
     return 0

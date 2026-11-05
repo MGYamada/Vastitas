@@ -1,11 +1,15 @@
 """Regressions for scripts/check_spec.py: each case breaks one rule of a valid fixture."""
 import json
-from pathlib import Path
+import os
+from pathlib import Path, PurePosixPath
+import stat
 import tempfile
 import unittest
+from unittest import mock
 
 import check_spec
-from check_spec import cargo_run, discover_run, pull_request_trigger, python_tests, rust_tests
+from check_spec import cargo_run, discover_run, every_pull_request, python_tests, run_steps, rust_tests, \
+    shell_commands
 
 
 HASH = "sha256:" + "a" * 64
@@ -123,6 +127,13 @@ class DemoTests(unittest.TestCase):
 '''
 
 
+BRIDGE_CLAIM = '''[property."demo.identity".claim.bridge]
+status = "proved-bridge"
+evidence = ["VastitasBridge.Demo.id_eq"]
+premises = ["x is a real number"]
+'''
+
+
 def pins(environment, entries):
     return check_spec.format_pins(environment, entries)
 
@@ -232,7 +243,7 @@ class FixtureTests(unittest.TestCase):
     def test_missing_python_test(self):
         self.edit("docs/spec/demo.toml", "test_demo.py::DemoTests::test_identity",
                   "test_demo.py::DemoTests::test_absent")
-        self.assertRejected("scripts/test_demo.py has no test method `DemoTests.test_absent`")
+        self.assertRejected("scripts/test_demo.py has no unittest test method `DemoTests.test_absent`")
 
     def test_skipped_python_test(self):
         self.edit("docs/spec/demo.toml", "test_demo.py::DemoTests::test_identity",
@@ -417,6 +428,196 @@ class FixtureTests(unittest.TestCase):
         self.assertFalse((self.root / "docs/spec/extra.md").exists())
         self.assertTrue((self.root / "docs/spec/notes.md").exists())
 
+    def rejects_with_step(self, step, fragment="no CI step runs `tests/demo.rs::identity_runs`"):
+        """Replace the step that runs every Rust test, then expect `fragment`."""
+        self.edit(".github/workflows/ci.yml", "      - run: cargo test --locked --all-targets\n", step)
+        self.assertRejected(fragment)
+
+    def test_folded_run_values_are_one_command(self):
+        self.rejects_with_step("      - run: >\n          cargo test --locked\n          --lib\n")
+
+    def test_plain_run_values_continue_on_indented_lines(self):
+        self.rejects_with_step("      - run: cargo test --locked\n          --lib\n")
+
+    def test_commented_and_echoed_commands_do_not_run(self):
+        self.rejects_with_step("      - run: |\n          echo skipped; # cargo test --locked --all-targets\n"
+                               "          echo cargo test --locked --all-targets\n")
+
+    def test_here_document_bodies_do_not_run(self):
+        self.rejects_with_step("      - run: |\n          cat <<'EOF'\n          cargo test --locked --all-targets\n"
+                               "          EOF\n")
+
+    def test_commands_whose_failure_is_ignored_do_not_count(self):
+        self.rejects_with_step("      - run: cargo test --locked --all-targets || true\n")
+        self.edit(".github/workflows/ci.yml", "cargo test --locked --all-targets || true",
+                  "if cargo test --locked --all-targets; then echo ok; fi")
+        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_conditional_steps_and_jobs_do_not_count(self):
+        self.rejects_with_step("      - run: cargo test --locked --all-targets\n"
+                               "        if: github.event_name == 'push'\n")
+        self.edit(".github/workflows/ci.yml", "        if: github.event_name == 'push'\n",
+                  "        continue-on-error: true\n")
+        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+        self.edit(".github/workflows/ci.yml", "        continue-on-error: true\n", "")
+        self.edit(".github/workflows/ci.yml", "  test:\n", "  test:\n    if: false\n")
+        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_filtered_pull_request_triggers_do_not_count(self):
+        self.edit(".github/workflows/ci.yml", "  pull_request:\n", "  pull_request:\n    paths: ['docs/**']\n")
+        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_steps_in_another_directory_do_not_count(self):
+        self.rejects_with_step("      - run: cargo test --locked --all-targets\n"
+                               "        working-directory: experiments\n")
+        self.edit(".github/workflows/ci.yml", "      - run: cargo test --locked --all-targets\n"
+                  "        working-directory: experiments\n",
+                  "      - run: cd experiments && cargo test --locked --all-targets\n")
+        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_build_only_and_listing_steps_do_not_run_tests(self):
+        self.rejects_with_step("      - run: cargo test --locked --all-targets --no-run\n")
+        self.edit(".github/workflows/ci.yml", "--all-targets --no-run", "--all-targets -- --list")
+        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_pipelines_count_only_with_pipefail(self):
+        # GitHub runs `shell: bash` steps with -o pipefail; the default shell has no pipefail.
+        self.rejects_with_step("      - run: cargo test --locked --all-targets 2>&1 | tee log\n")
+        self.edit(".github/workflows/ci.yml", "jobs:\n", "defaults:\n  run:\n    shell: bash\njobs:\n")
+        self.assertEqual(self.errors(), [])
+
+    def test_regression_script_must_be_run(self):
+        self.edit(".github/workflows/ci.yml", "bash scripts/check_kernel_regressions.sh",
+                  "shellcheck scripts/check_kernel_regressions.sh")
+        self.assertRejected("no CI step runs scripts/check_kernel_regressions.sh")
+
+    def test_commented_regression_modules_are_not_built(self):
+        self.edit("docs/spec/demo.toml", '"VastitasKernel.DemoRegression"]', '"VastitasKernel.OldRegression"]')
+        self.put("lean-kernel/VastitasKernel/OldRegression.lean", "")
+        self.edit("scripts/check_kernel_regressions.sh", "lake -d lean-kernel build",
+                  "# Retired; lake -d lean-kernel build VastitasKernel.OldRegression\nlake -d lean-kernel build")
+        self.assertRejected("`VastitasKernel.OldRegression` is not a module that "
+                            "scripts/check_kernel_regressions.sh builds")
+
+    def test_conditionally_compiled_tests_do_not_count(self):
+        self.edit("tests/demo.rs", "#[test]\nfn identity_runs() {}",
+                  "#[test]\n#[cfg(feature = \"none\")]\nfn identity_runs() {}")
+        self.assertRejected("`tests/demo.rs::identity_runs` is compiled only under a #[cfg(...)] condition")
+
+    def test_tests_in_comments_are_not_tests(self):
+        self.edit("tests/demo.rs", "#[test]\nfn identity_runs() {}", "/*\n#[test]\nfn identity_runs() {}\n*/")
+        self.assertRejected("tests/demo.rs has no #[test] function `identity_runs`")
+
+    def test_nested_tests_have_module_paths(self):
+        self.edit("tests/demo.rs", "#[test]\nfn identity_runs() {}",
+                  "mod inner {\n    #[test]\n    fn identity_runs() {}\n}")
+        self.assertRejected("tests/demo.rs has no #[test] function `identity_runs`")
+        self.edit("docs/spec/demo.toml", '"tests/demo.rs::identity_runs", "scripts',
+                  '"tests/demo.rs::inner::identity_runs", "scripts')
+        self.edit("docs/spec/demo.toml", 'example_test = "tests/demo.rs::identity_runs"',
+                  'example_test = "tests/demo.rs::inner::identity_runs"')
+        self.assertEqual(self.errors(), [])
+
+    def test_python_tests_need_a_test_case(self):
+        self.edit("scripts/test_demo.py", "class DemoTests(unittest.TestCase):", "class DemoTests:")
+        self.assertRejected("scripts/test_demo.py has no unittest test method `DemoTests.test_identity`")
+
+    def test_status_of_the_wrong_type(self):
+        self.edit("docs/spec/demo.toml", 'status = "not-claimed"', 'status = ["not-claimed"]')
+        self.assertRejected("unknown status ['not-claimed']")
+
+    def test_titles_hold_no_markup(self):
+        self.edit("docs/spec/demo.toml", 'title = "Identity"', 'title = "Identity] of x"')
+        self.assertRejected("`title` must not contain")
+        self.edit("docs/spec/demo.toml", 'title = "Identity] of x"', 'title = "Identity"')
+        self.edit("docs/spec/assumptions.toml", 'title = "Frontend parsing"', 'title = "Frontend <b>parsing</b>"')
+        self.assertRejected("[assumption.frontend]: `title` must not contain")
+
+    def test_subjects_hold_no_backquotes(self):
+        self.edit("docs/spec/demo.toml", 'subject = "std::demo::id"\nstatement = "id(x) = x for every x."',
+                  'subject = "id `x` y"\nstatement = "id(x) = x for every x."')
+        self.assertRejected("`subject` must not contain a backquote")
+
+    def drop_bridge_claim(self):
+        self.edit("docs/spec/demo.toml", BRIDGE_CLAIM, "")
+
+    def test_pins_of_an_environment_without_citations(self):
+        self.drop_bridge_claim()
+        self.assertRejected("docs/spec/pins/bridge.json: no claim cites a name of the bridge environment")
+        (self.root / "docs/spec/pins/bridge.json").unlink()
+        self.assertEqual(self.errors(), [])
+
+    def test_unsorted_and_repeated_pins(self):
+        self.put("docs/spec/pins/oracle.json", json.dumps({
+            "format": 1, "environment": "oracle", "imports": ["VastitasKernel.Check", "VastitasOracle.Demo"],
+            "entries": [ORACLE_PINS[1], ORACLE_PINS[0], ORACLE_PINS[1]]}))
+        self.assertRejected("entries must be sorted by name", "`VastitasOracle.Demo.id_eq` is pinned twice")
+
+    def test_malformed_enforced_by(self):
+        self.edit("docs/spec/demo.toml", 'code = "E_DEMO" }]', 'code = "demo" }]')
+        self.assertRejected("`code` must be a diagnostic code such as E_METRIC")
+        self.edit("docs/spec/demo.toml",
+                  'enforced_by = [{ definition = "VastitasKernel.Check.check", code = "demo" }]',
+                  'enforced_by = []')
+        self.assertRejected("`enforced_by` must be a non-empty list of tables")
+
+    def fake_lake(self, report):
+        """A `lake` on PATH that writes the value of the expression `report` as the
+        resolver's report; the expression sees the request as `request`."""
+        directory = self.root / "fakebin"
+        directory.mkdir(exist_ok=True)
+        lake = directory / "lake"
+        lake.write_text("#!/usr/bin/env python3\nimport json, os\n"
+                        f"report = {report!r}\n"
+                        "request = json.load(open(os.environ['VASTITAS_SPEC_INPUT']))\n"
+                        "facts = eval(report)\n"
+                        "json.dump(facts, open(os.environ['VASTITAS_SPEC_REPORT'], 'w'))\n"
+                        "raise SystemExit(1 if facts['problems'] else 0)\n", encoding="utf-8")
+        lake.chmod(lake.stat().st_mode | stat.S_IEXEC)
+        for name in ("lean", "lean-bridge"):
+            (self.root / name).mkdir(exist_ok=True)
+        return mock.patch.dict(os.environ, {"PATH": f"{directory}{os.pathsep}{os.environ['PATH']}"})
+
+    def test_update_statements_pins_what_the_resolver_reports(self):
+        (self.root / "docs/spec/pins/oracle.json").unlink()
+        report = ("{'format': 1, 'environment': 'oracle', 'problems': [], 'entries': ["
+                  "dict({'name': e['name'], 'kind': e['kind'], 'module': e['name'].rsplit('.', 1)[0]}, "
+                  "**({'statement': 'sha256:' + 'c' * 64} if e['kind'] == 'theorem' else {})) "
+                  "for e in request['entries']]}")
+        with self.fake_lake(report):
+            self.assertEqual(check_spec.update_statements(self.root, "oracle"), 0)
+        pins = json.loads((self.root / "docs/spec/pins/oracle.json").read_text(encoding="utf-8"))
+        self.assertEqual([entry["name"] for entry in pins["entries"]],
+                         ["VastitasKernel.Check.check", "VastitasOracle.Demo.id_eq"])
+        self.assertEqual(self.errors(), [])
+
+    def test_update_statements_writes_nothing_on_problems(self):
+        before = (self.root / "docs/spec/pins/oracle.json").read_text(encoding="utf-8")
+        report = "{'format': 1, 'environment': 'oracle', 'entries': [], 'problems': ['x: depends on sorryAx']}"
+        with self.fake_lake(report):
+            self.assertEqual(check_spec.update_statements(self.root, "oracle"), 1)
+        self.assertEqual((self.root / "docs/spec/pins/oracle.json").read_text(encoding="utf-8"), before)
+
+    def test_update_statements_without_citations_removes_the_pins(self):
+        self.drop_bridge_claim()
+        self.assertEqual(check_spec.update_statements(self.root, "bridge"), 0)
+        self.assertFalse((self.root / "docs/spec/pins/bridge.json").exists())
+
+    def test_update_statements_stops_on_specification_errors(self):
+        self.edit("docs/spec/demo.toml", 'status = "not-claimed"', 'status = "implemented"')
+        self.assertEqual(check_spec.update_statements(self.root, "oracle"), 1)
+
+    def test_text_outside_code_is_escaped(self):
+        self.edit("docs/spec/demo.toml", 'statement = "id(x) = x for every x."',
+                  'statement = "id: Pair<Int> -> Pair<Int> keeps `Pair<Int>` & more."')
+        self.assertEqual(self.errors(), [])
+        chapter = (self.root / "docs/spec/demo.md").read_text(encoding="utf-8")
+        self.assertIn("id: Pair&lt;Int&gt; -&gt; Pair&lt;Int&gt; keeps `Pair<Int>` &amp; more.", chapter)
+
+    def test_unmatched_backquote(self):
+        self.edit("docs/spec/demo.toml", 'statement = "id(x) = x for every x."', 'statement = "`id(x) = x"')
+        self.assertRejected("`statement` has an unmatched backquote")
+
     def test_chapter_contents(self):
         chapter = (self.root / "docs/spec/demo.md").read_text(encoding="utf-8")
         for fragment in (
@@ -449,7 +650,8 @@ class FixtureTests(unittest.TestCase):
 class ParserTests(unittest.TestCase):
     def test_cargo_targets_filters_and_ignored(self):
         run = cargo_run("--locked --test numerical_source --test tensor_source -- --ignored".split())
-        self.assertEqual((run.every_test, run.targets, run.ignored), (False, {"numerical_source", "tensor_source"}, "only"))
+        self.assertEqual((run.every_test, run.targets, run.ignored),
+                         (False, {"numerical_source", "tensor_source"}, "only"))
         self.assertTrue(run.runs("tensor_source", "anything", True))
         self.assertFalse(run.runs("tensor_source", "anything", False))
         self.assertFalse(run.runs("examples", "anything", True))
@@ -459,40 +661,110 @@ class ParserTests(unittest.TestCase):
         run = cargo_run("--locked --test promotion stdlib_ir_matches_proof_fixture".split())
         self.assertTrue(run.runs("promotion", "stdlib_ir_matches_proof_fixture", False))
         self.assertFalse(run.runs("promotion", "another_test", False))
-        run = cargo_run("--locked -- --include-ignored --skip slow".split())
+        run = cargo_run("--locked -- --include-ignored --skip slow --skip=heavy".split())
         self.assertTrue(run.runs("any", "fast", True) and run.runs("any", "fast", False))
-        self.assertFalse(run.runs("any", "slow_case", False))
+        self.assertFalse(run.runs("any", "slow_case", False) or run.runs("any", "heavy_case", False))
+        self.assertTrue(cargo_run("-- --exact a::b".split()).runs("t", "a::b", False))
+        self.assertFalse(cargo_run("-- --exact b".split()).runs("t", "a::b", False))
         self.assertFalse(cargo_run("--lib".split()).runs("examples", "a", False))
         self.assertTrue(cargo_run("--test=demo".split()).runs("demo", "a", False))
+        for arguments in ("--all-targets --no-run", "-- --list", "-p other", "--manifest-path x/Cargo.toml"):
+            self.assertFalse(cargo_run(arguments.split(), "vastitas").runs("demo", "a", False), arguments)
+        self.assertTrue(cargo_run("-p vastitas --manifest-path Cargo.toml".split(), "vastitas")
+                        .runs("demo", "a", False))
 
     def test_unittest_discover(self):
-        run = discover_run(["-s", "scripts", "-p", "test_*.py"])
+        here = PurePosixPath(".")
+        run = discover_run(["-s", "scripts", "-p", "test_*.py"], here)
         self.assertTrue(run.runs("scripts/test_demo.py", "DemoTests", "test_identity"))
         self.assertFalse(run.runs("tools/test_demo.py", "DemoTests", "test_identity"))
-        run = discover_run(["-s", "scripts", "-p", "test_diagnostic_reference.py", "-v"])
+        run = discover_run(["-s", "scripts", "-p", "test_diagnostic_reference.py", "-v"], here)
         self.assertFalse(run.runs("scripts/test_demo.py", "DemoTests", "test_identity"))
-        run = discover_run(["-s", "./experiments/trees/", "-p", "test_*.py", "-k", "identity"])
+        run = discover_run(["-s", "./experiments/trees/", "-p", "test_*.py", "-k", "identity"], here)
         self.assertTrue(run.runs("experiments/trees/test_a.py", "Tests", "test_identity"))
         self.assertFalse(run.runs("experiments/trees/test_a.py", "Tests", "test_other"))
+        run = discover_run(["--start-directory=scripts", "--pattern=test_demo.py"], here)
+        self.assertTrue(run.runs("scripts/test_demo.py", "DemoTests", "test_identity"))
+        self.assertFalse(run.runs("scripts/test_other.py", "DemoTests", "test_identity"))
+        self.assertTrue(discover_run(["-sscripts", "-ptest_*.py"], here).runs("scripts/test_a.py", "A", "test_a"))
+        self.assertTrue(discover_run(["scripts", "test_*.py"], here).runs("scripts/test_a.py", "A", "test_a"))
+        self.assertTrue(discover_run(["-s", "."], PurePosixPath("scripts")).runs("scripts/test_a.py", "A", "test_a"))
 
     def test_pull_request_triggers(self):
-        self.assertTrue(pull_request_trigger("on:\n  pull_request:\n  push:\n"))
-        self.assertTrue(pull_request_trigger("on:\n  push:\n    paths: ['a']\n  pull_request:\n    paths:\n"))
-        self.assertTrue(pull_request_trigger("on: [push, pull_request]\n"))
-        self.assertFalse(pull_request_trigger("on:\n  push:\n    branches: [main]\n  workflow_dispatch:\n"))
-        self.assertFalse(pull_request_trigger("on: push\njobs:\n  pull_request:\n"))
+        self.assertTrue(every_pull_request({"pull_request": None, "push": None}))
+        self.assertTrue(every_pull_request(["push", "pull_request"]))
+        self.assertTrue(every_pull_request("pull_request"))
+        self.assertFalse(every_pull_request({"pull_request": {"paths": ["a"]}}))
+        self.assertFalse(every_pull_request({"pull_request": {"branches": ["main"]}}))
+        self.assertFalse(every_pull_request({"push": {"branches": ["pull_request"]}}))
+        self.assertFalse(every_pull_request({"workflow_dispatch": {"inputs": {"pull_request": {}}}}))
+
+    def test_run_steps(self):
+        workflow = "\n".join([
+            "on:", "  pull_request:", "defaults:", "  run:", "    shell: bash", "jobs:", "  a:", "    steps:",
+            "      - run: >-", "          cargo test", "          --lib",
+            "      - name: In a directory", "        working-directory: lean", "        run: |",
+            "          lake build",
+            "      - if: always()", "        run: skipped",
+            "      - uses: actions/checkout@v4",
+            "  b:", "    continue-on-error: true", "    steps:", "      - run: skipped", ""])
+        self.assertEqual(list(run_steps(workflow)),
+                         [("cargo test --lib", PurePosixPath("."), True),
+                          ("lake build\n", PurePosixPath("lean"), True)])
+
+    def test_shell_commands(self):
+        def commands(script, pipefail=True):
+            return [(words, str(directory), counted)
+                    for words, directory, counted in shell_commands(script, PurePosixPath("."), pipefail)]
+        self.assertEqual(commands("A=1 env B=2 cargo test --test a # comment; cargo test"),
+                         [(["cargo", "test", "--test", "a"], ".", True)])
+        self.assertEqual(commands("cargo test || true"), [(["cargo", "test"], ".", False), (["true"], ".", True)])
+        self.assertEqual(commands("cargo test | tee log", pipefail=False)[0][2], False)
+        self.assertEqual(commands("cargo test 2>&1 | tee log")[0], (["cargo", "test"], ".", True))
+        self.assertEqual(commands("(cd sub && make) ; make"), [(["make"], "sub", True), (["make"], ".", True)])
+        self.assertEqual(commands("cd $HOME && make"), [(["make"], "None", True)])
+        self.assertEqual(commands("set +e\nmake")[-1], (["make"], ".", False))
+        self.assertEqual(commands("cat <<'EOF'\ncargo test\nEOF\nmake"), [(["cat"], ".", True), (["make"], ".", True)])
 
     def test_rust_attributes(self):
-        tests = rust_tests('#[test]\n// note\n#[cfg(unix)]\npub fn a() {}\n#[test]\n#[ignore = "x"]\nfn b() {}\n'
-                           "#[cfg(test)]\nfn c() {}\n")
-        self.assertEqual(tests, {"a": False, "b": True})
+        source = "\n".join([
+            "#[test]", "// note", "#[cfg(unix)]", "pub fn a() {}",
+            "#[test]", '#[ignore = "x"]', "fn b() {}",
+            "#[cfg(test)]", "fn c() {}",
+            "#[test] fn d() {}",
+            "#[test]", '#[cfg_attr(not(feature = "x"), ignore)]', "fn e() {}",
+            "#[test]", "#[should_panic(", '    expected = "x"', ")]", "fn f() {}",
+            "#[cfg(test)]", "mod tests {", "    #[test]", "    fn g() {}", "}",
+            "/* #[test]", "fn h() {} */",
+            'const S: &str = r#"', "#[test]", 'fn i() {}"#;',
+            "fn helper<'a>(x: &'a str) -> char { '{' }",
+            "#[test]", "fn j() {}", ""])
+        self.assertEqual(rust_tests(source), {
+            "a": (False, True), "b": (True, False), "d": (False, False), "e": (True, False),
+            "f": (False, False), "tests::g": (False, False), "j": (False, False)})
 
     def test_python_skips(self):
-        tests = python_tests("import unittest\n@unittest.skip('x')\nclass A(unittest.TestCase):\n"
-                             "    def test_a(self): pass\nclass B(unittest.TestCase):\n"
-                             "    @unittest.skipIf(True, 'y')\n    def test_b(self): pass\n"
-                             "    def helper(self): pass\n")
-        self.assertEqual(tests, {("A", "test_a"): True, ("B", "test_b"): False})
+        source = "\n".join([
+            "import unittest",
+            "@unittest.skip('x')", "class A(unittest.TestCase):", "    def test_a(self): pass",
+            "class B(unittest.TestCase):",
+            "    @unittest.skipIf(True, 'y')", "    def test_b(self): pass",
+            "    @unittest.skipIf(ROOT is None, 'y')", "    def test_c(self): pass",
+            "    def helper(self): pass",
+            "class Helper:", "    def test_d(self): pass",
+            "class C(B):", "    def test_e(self): pass", ""])
+        self.assertEqual(python_tests(source), {
+            ("A", "test_a"): True, ("B", "test_b"): True, ("B", "test_c"): False,
+            ("C", "test_b"): True, ("C", "test_c"): False, ("C", "test_e"): False})
+
+    def test_yaml_subset_reads_the_repository_workflows(self):
+        for path in sorted((check_spec.ROOT / ".github/workflows").glob("*.yml")):
+            tree = check_spec.yaml_load(path.read_text(encoding="utf-8"))
+            self.assertIsInstance(tree.get("jobs"), dict, path.name)
+            for job in tree["jobs"].values():
+                for step in job.get("steps") or []:
+                    self.assertIsInstance(step, dict, path.name)
+                    self.assertTrue("run" in step or "uses" in step, (path.name, step))
 
     def test_repository_workflows(self):
         repository = check_spec.Repository(check_spec.ROOT)

@@ -14,7 +14,8 @@
 mod common;
 use common::{
     Scratch, assert_wire_rejected, captured_wire, checked_replace, cli,
-    generated_reverse_functions, kernel, lean_definitions, lean_function_id, root, success,
+    generated_reverse_functions, kernel, lean_definitions, lean_function_id, regenerate_fixture,
+    root, success,
 };
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -543,5 +544,30 @@ fn a_reverse_pass_through_an_object_outside_the_cotangent_domain_keeps_the_runti
             .count(),
         1,
         "{source}"
+    );
+}
+
+/// The wire of the acceptance example, with the checkout root written as
+/// `/vastitas`. `VastitasAlgebraTest.ReverseExampleRegression` runs it through
+/// the protocol-9 checker and evaluates `main` before and after the compilation.
+const EXAMPLE_WIRE: &str = "tests/fixtures/reverse-example.wire.json";
+
+#[test]
+fn the_acceptance_example_wire_fixture_is_current() {
+    let request = wire(&root().join(ACCEPTANCE));
+    let text = format!(
+        "{}\n",
+        serde_json::to_string_pretty(&request)
+            .unwrap()
+            .replace(root().to_str().unwrap(), "/vastitas")
+    );
+    let path = root().join(EXAMPLE_WIRE);
+    if regenerate_fixture("VASTITAS_UPDATE_EMIT_FIXTURES") {
+        std::fs::write(&path, &text).unwrap();
+    }
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        text,
+        "regenerate with VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --test reverse_core"
     );
 }

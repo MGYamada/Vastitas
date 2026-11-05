@@ -12,17 +12,19 @@ derives the binding validity contract, the operand association, result
 inference, the operand count and whether a call allocates from it,
 `IndexedCore` the argument hints, `IndexedSourceDiagnostics` the role table,
 `IndexedSemantics` the two evaluators and `IndexedCodegen` the lowering of a
-call and the literals a generated module shares. The wire decoder is still a
-per-constructor table; the next step of #622 moves it here, so a new
-constructor today still needs a case in it.
+call and the literals a generated module shares. The wire decoder is a
+per-constructor table until the next step of #622 moves it here; a new
+constructor needs a case in it.
 
 The validity contract is a `Bool` that the checker runs together with the
 `Prop` that the proofs use; the descriptor carries the proof that they agree,
 so the two cannot drift apart. The association is a `Shape`, one datum for the
-contract, the inference and the diagnostics. The evaluators take the operand
-values the shape admits and return `none` on any other list: the logical one
-builds the values of `IndexedPrimitiveValues`, the erased one the runtime
-structures of generated programs. The oracle states their obligations once,
+contract, the inference and the diagnostics. The evaluators match the operand
+pattern of the shape and return `none` on any other pattern; a variadic entry
+accepts any number of integer operands, and the checked operand count, not the
+evaluator, fixes it. The logical evaluator builds the values of
+`IndexedPrimitiveValues`, the erased one the runtime structures of generated
+programs. The oracle states their obligations once,
 for any descriptor (`VastitasOracle.IndexedPrimitiveSoundness`). The lowering
 writes the generated Lean text of a call from its rendered operands, in the
 vocabulary of `Lowering` (runtime names and exact literals of the checked
@@ -93,7 +95,7 @@ structure PrimitiveDescriptor where
   /-- The two contracts agree; the registry entry proves it once. -/
   valid_iff : ∀ env, validBool env = true ↔ validProp env
   /-- The logical evaluator: the value of a call on operand values of the Core
-  semantics, or `none` outside the shape. -/
+  semantics, or `none` when they do not match the shape's operand pattern. -/
   eval : Environment → List Value → Option Value
   /-- The erased evaluator: the same call on the runtime structures that
   generated programs link. -/

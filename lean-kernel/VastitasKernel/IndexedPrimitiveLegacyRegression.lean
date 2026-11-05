@@ -2,14 +2,14 @@ import VastitasKernel.IndexedSourceDiagnostics
 import VastitasKernel.IndexedSemantics
 
 /-! Frozen copies of the primitive tables as they were before the registry
-(#622), with the proof that the derived tables agree with them on every
-binding. Each table that moves into `PrimitiveBinding.contract` keeps its
+(#622), with the theorems and corpus comparisons that show the derived
+tables agree with them on every binding. Each table that moves into `PrimitiveBinding.contract` keeps its
 pre-registry definition here until the migration is complete. The validity
 contracts agree by definitional unfolding; the operand count agrees by a
 theorem, and so do the argument hints at every position below the operand
 count, which are all the elaborators consult (the pre-registry `descriptor`
-hint also answered the positions beyond it); the two evaluators and the fresh
-slot agree by theorem; the association, result inference, the role table and
+hint also answered the positions beyond it); the two evaluators, the fresh slot and the
+allocation flag (`allocates_agrees`) agree by theorem; the association, result inference, the role table and
 the explanation of a rejected call are compared on an enumerated corpus of
 operand lists, well shaped and malformed, and the evaluators on a corpus of
 value lists, at the end of this module. The module is deleted at the end of
@@ -667,8 +667,9 @@ private def compare (tally : Tally) (binding : PrimitiveBinding) (arguments : Li
   pure tally
 /-! ### The evaluators on value lists
 
-Every list of at most three values from a pool with one value of each kind,
-logical and erased, for every binding of the seeds. -/
+Every list of at most three values from a pool with at least one value of each
+constructor (two dimensions of object, both fiber values), logical and erased,
+for every binding of the seeds. -/
 private def object (dimension : Nat) : Core.Semantics.Object := ⟨id "Grid", IndexedRuntime.descriptor dimension⟩
 private def valuePool : List Value :=
   [.natural 0, .natural 3, .integer 2, .integer (-1), .boolean true, .unit, .pairNat 1 2, .pairInt 1 (-2),

@@ -31,9 +31,9 @@ Riemannian evidence never validates a `sharp` (`sharp_rejects_riemannian`).
 
 **Typed totality.** `flat` maps a vector of `Tangent<X>` to a covector of
 `Cotangent<X>`, and `sharp` the reverse; each keeps `dim X` components
-(`metricFlat_total`, `metricSharp_total`).
-`IndexedSemantics.primitive_total_and_typed` and
-`IndexedSemantics.primitive_runtime_erasure` dispatch to these lemmas.
+(`metricFlat_total`, `metricSharp_total`). The `Sound` instances at the end
+combine them with the erasure of the matched operand;
+`IndexedSemantics.registry_sound` dispatches to them.
 
 **Basepoints.** `flat` and `sharp` keep the point of a vector or covector and
 change only its components, and they send the failure value to the failure

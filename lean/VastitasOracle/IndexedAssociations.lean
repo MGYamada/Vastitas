@@ -10,10 +10,10 @@ conjunction the shape amounts to, in the order the shape checks it: the
 operands' families and fixed indices, operand by operand, then the relations,
 then the result; and, for each binding with listed operands, that any accepted
 call has that operand list. The uncallable evidence bindings have no
-association. These are the local obligations the totality and bridge proofs
-destructure: a new callable binding adds its association lemma and its shape
-lemma here, its totality lemma, and its named case in
-`IndexedSemantics.primitive_total_and_typed`. -/
+association. These are the local obligations the `Sound` instances and the
+bridge proofs destructure: a new callable binding adds its association lemma
+and its shape lemma here, its totality lemma and `Sound` instance in its
+module, and its named case in `IndexedSemantics.registry_sound`. -/
 namespace VastitasOracle.IndexedAssociations
 
 open VastitasKernel VastitasKernel.Indexed

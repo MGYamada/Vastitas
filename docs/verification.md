@@ -1453,18 +1453,40 @@ legacy distinctness soundness theorem now uses this same implementation.
 
 The first indexed evaluation fragment is in `VastitasOracle.IndexedSemantics`.
 It imports the actual Core semantics and proves domain upcasts, reference
-denotation and world-extension lemmas. `primitive_total_and_typed` covers every
-closed registry binding: it cases on the binding by name, reads the binding's
-operand list off its registry shape with the shape lemma of
-`VastitasOracle.IndexedAssociations`, and applies the binding's totality lemma.
+denotation and world-extension lemmas.
+`VastitasOracle.IndexedPrimitiveSoundness` states the two semantic obligations
+of one registry entry as the structure `Sound`, on the entry's own shape,
+validity contract and evaluators. Typed totality: an accepted call on typed
+operand values evaluates to a value of the checked result type. The world
+after the call keeps every prior binding and differs from the old one only at
+the brand an allocating call binds (`descriptorWorld`). Runtime erasure: a
+successful logical evaluation erases to the erased evaluator on the erased
+operands. Each binding proves its own instance in the module of its totality
+lemma: `descriptor_sound` … `relativeCartesian_sound` in `IndexedSemantics`,
+and the smooth, fiber and metric instances in `SmoothPrimitives`,
+`SmoothFibers` and `SmoothMetricForms`. An instance with listed operands reads
+the binding's operand list off its registry shape with the shape lemma of
+`VastitasOracle.IndexedAssociations`. It applies the binding's totality lemma
+through `Sound.ofBinding` (the `IndexedSemantics` instances, whose totality
+lemmas state the world after the call) or `Sound.ofPure` (the smooth, fiber
+and metric instances, none of which allocates). It proves erasure by
+computation on the matched operands (the tactic `erase_matched`), by a case on
+the global object that `global` and `origin` look up, or with the erasure
+lemma of a variadic binding (`intPoint_erasure`, `smoothPoint_erasure`,
+`fiberVector_erasure`). The two evidence bindings have no totality lemma: their
+instances follow from `relativeIso_association` and
+`relativeCartesian_association` and from their `none` evaluators.
+`registry_sound` dispatches to the instances by constructor, one case per
+constructor. `primitive_total_and_typed` is its corollary and covers every
+closed registry binding.
 `checked_primitive_semantics` and
 `core_primitive_semantics` connect it to the real primitive checker and a real
 typed Core node. Typed runtime arguments and constructor-slot freshness are
 explicit premises, not inferred from an unrelated certificate. Composition's
 shared middle reference denotes the same runtime object on both sides.
 
-`primitive_runtime_erasure` connects successful logical registry evaluation to
-the actual minimal runtime operations. The bounded Core evaluator and twenty
+`primitive_runtime_erasure`, the other corollary of `registry_sound`, connects
+successful logical registry evaluation to the minimal runtime operations. The bounded Core evaluator and twenty
 regressions test the same source-independent fixtures as native generation, but
 are not whole-program proofs. The term/function/program theorem below supplies
 typed total evaluation, dependent-call transport and allocation freshness from
@@ -1922,23 +1944,30 @@ All of these are Proved (oracle). Names are relative to `VastitasOracle`.
 | Module | Theorems | Statement |
 | --- | --- | --- |
 | `SmoothDeclarations` | `smoothAffine_sound`, `smooth_objects_are_declared`, `sealed_families_exclude_smooth`, `smooth_families_exclude_foreign`, `smoothCompose_reifies`, `core_compose_reifies` | An accepted smooth object has a smooth implementation and distinct coordinates within the generator limit; in a valid environment there is no smooth global; the Stage 1 point and morphism families and the Stage 2 relative family never range over smooth objects; `compose` evaluates to the program node `Program.compose`, in Core and at run time |
-| `SmoothPrimitives` | `smoothConstant_total`, `smoothCompose_total`, `smoothEqual_total`, `smoothComposite_total`, `smoothIntPoint_total`, `smoothPoint_erasure` | Each smooth map primitive returns a value of its checked type and erases to the runtime |
+| `SmoothPrimitives` | `smoothConstant_total`, `smoothCompose_total`, `smoothEqual_total`, `smoothComposite_total`, `smoothIntPoint_total`, `smoothPoint_erasure`, `smoothConstant_sound`, `smoothCompose_sound`, `smoothEqual_sound`, `smoothIntPoint_sound`, `smoothComposite_sound` | Each smooth map primitive returns a value of its checked type and erases to the runtime; its `Sound` instance combines both |
 | `SmoothCanonical` | `add_canonical`, `mul_canonical`, `subst_canonical`, `compose_wellFormed`, `composite_wellTyped` | Canonical sparse polynomials are closed under the runtime operations, so the composite of a well-typed program is well typed |
-| `SmoothFibers` | `fiberVector_total`, `fiberAt_total`, `fiberEqual_total`, `fiberComponent_total`, `fiberPairing_total`, `cotangentPullback_total`, `differential_total`, `linearize_total`, `cotangentBackward_total`, `fiberVector_erasure` | Each fiber and tape primitive returns a value of its checked type; a tape satisfies its residual relation |
+| `SmoothFibers` | `fiberVector_total`, `fiberAt_total`, `fiberEqual_total`, `fiberComponent_total`, `fiberPairing_total`, `cotangentPullback_total`, `differential_total`, `linearize_total`, `cotangentBackward_total`, `fiberVector_erasure`, `fiberVector_sound`, `fiberAt_sound`, `fiberEqual_sound`, `fiberComponent_sound`, `fiberPairing_sound`, `cotangentPullback_sound`, `differential_sound`, `linearize_sound`, `cotangentBackward_sound` | Each fiber and tape primitive returns a value of its checked type and has its `Sound` instance; a tape satisfies its residual relation |
 | `SmoothRuntime` | `pullback_spec`, `pullback_saved_eq_recomputed`, `backward_forward`, `forward_residual`, `backward_linearize`, `backward_foreign_seed`, `pullback_wrong_point`, `pullback_none`, `pullback_mem_of_wellTyped`, `pullback_stepwise`, `pullback_identity`, `fiberEqual_none_left`, `component_ne_failure` | Structural facts that unfold the implementation: the two modes and the tape agree, a seed over another point gives the failure value, the failure value is absorbing and observably distinct, a result lies over the input point, a composite pulls back stepwise, the identity pulls back to itself |
 | `SmoothCalculus` | `evalIn_subst`, `dual_tangent`, `evalAt_partial_subst`, `cot_compose`, `eval_denote`, `backward_eq_cot`, `backward_eq_cot_saved`, `pullback_composite`, `pullback_eq_composite`, `Cov.pullback_comp`, `Cov.pullback_id`, `Cov.pullback_runtime`, `Regression.shear_correct_order`, `Regression.shear_reversed_order` | The chain rule without mathlib: evaluation in any commutative ring that receives `ℚ`, the directional derivative in the dual numbers, and the reverse pass of a well-typed program as the cotangent pullback `cot` along its denoted map, in both modes; the typed covector fragment ported from the polynomial cotangent proof, with the noncommuting shears |
 | `SmoothReverse` | `core_cotangent_pullback`, `core_differential`, `core_linearize`, `core_cotangent_backward`, `core_backward_linearize`, `core_pullback_compose`, `smooth_differential_metric_free` | An accepted Core node of each reverse-pass binding evaluates to the runtime operation on its operand values, with its checked type; a pullback along a Core `compose` node runs on the program node; `differential` and `cotangent_pullback` take no environment |
 | `SmoothMetrics` | `checkNondegenerate_spec`, `checkGram_sound`, `certifyNondegenerate_sound`, `checkRiemannian_spec`, `certifyRiemannian_sound`, `zero_row_not_nondegenerate`, `diag_one_zero_rejected` | An accepted certificate is an exact two-sided inverse, or an exact `L D Lᵀ` factorization with positive pivots and an inverse of `L`, whatever search produced it; diag(1, 0) has no nondegenerate evidence |
-| `SmoothMetricForms` | `metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`, `flat_uses_declared_gram`, `sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_fiberAt`, `sharp_fiberAt`, `metricFlat_total`, `metricSharp_total`, `flat_sharp_erasure` | In a valid environment, metrics and evidence satisfy their checks; `flat` embeds its metric's Gram matrix and `sharp` the certified inverse of nondegenerate evidence for its metric; both keep the basepoint |
+| `SmoothMetricForms` | `metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`, `flat_uses_declared_gram`, `sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_fiberAt`, `sharp_fiberAt`, `metricFlat_total`, `metricSharp_total`, `flat_sharp_erasure`, `metricFlat_sound`, `metricSharp_sound` | In a valid environment, metrics and evidence satisfy their checks; `flat` embeds its metric's Gram matrix and `sharp` the certified inverse of nondegenerate evidence for its metric; both keep the basepoint and have their `Sound` instance |
 | `SmoothMetricWeakening` | `validPrimitiveBinding_metric_insertion_of_valid`, `evalPrimitive_metric_insertion_of_valid`, `validPrimitiveBinding_metric_weakening`, `evalPrimitive_metric_weakening`, `differential_metric_free`, `cotangentPullback_metric_free` | Metric declarations at any position of a valid environment change neither the validity nor the value of any binding other than `flat` and `sharp` |
+| `IndexedPrimitiveSoundness` | `descriptorWorld_pure`, `descriptorWorld_allocating`, `Sound.ofBinding`, `Sound.ofPure` | The structure `Sound` states the obligations of one registry entry on the entry's own shape, validity contract and evaluators. Typed totality: the world after a call is `descriptorWorld`; an allocating entry binds the returned object to the result's brand, any other entry leaves the world unchanged. Erasure: the logical evaluator erases to the erased one. `Sound.ofBinding` builds an instance from a binding's totality and erasure lemmas. `Sound.ofPure` builds one from the same two lemmas and a proof that the binding does not allocate, when the totality lemma leaves the world unchanged |
 
-`IndexedSemantics.primitive_total_and_typed` and
-`IndexedSemantics.primitive_runtime_erasure` dispatch to the totality and
-erasure lemmas above. `IndexedAssociations` states what each binding's registry
-shape amounts to: the association of each callable binding, the operand list
-of each binding with listed operands, and that the evidence bindings have no
-association; the totality lemmas and the bridge destructure those statements
-instead of the shape itself. The Stage 2 statements `validAffine_sound`,
+`IndexedSemantics.registry_sound` dispatches by constructor to the `Sound`
+instances above and to those of the Stage 1 and 2 bindings in
+`IndexedSemantics`; `IndexedSemantics.primitive_total_and_typed` and
+`IndexedSemantics.primitive_runtime_erasure` are its corollaries.
+`IndexedAssociations` states what each binding's registry shape amounts to: the
+association of each callable binding, the operand list of each binding with
+listed operands, that the evidence bindings have no association, and that the
+descriptor binding is the one whose entry allocates (`allocates_iff`). The
+`Sound` instances and the bridge destructure those statements instead of the
+shape itself. `IndexedValueSafety.primitive_frame`, `primitive_fresh` and
+`SmoothReverse.core_outcome` test `PrimitiveBinding.allocates` (with
+`Shape.result_of_allocates` and `allocates_iff`) instead of naming the
+constructor. The Stage 2 statements `validAffine_sound`,
 `presented_not_descriptor` and `sealed_families_exclude_presented` are
 unchanged.
 

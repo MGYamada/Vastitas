@@ -12,9 +12,9 @@ call binds. Runtime erasure: a successful logical evaluation erases to the
 runtime evaluator on the erased operands. `IndexedSemantics.registry_sound`
 proves `Sound` for every registry entry by name, and
 `primitive_total_and_typed` and `primitive_runtime_erasure` are its
-corollaries. A new binding proves its own instance next to its totality lemma,
-with `Sound.ofBinding`, or `Sound.ofPure` when it does not allocate, and adds
-its case to `registry_sound`. -/
+corollaries. A new binding proves its own instance in the module of its
+totality lemma, with `Sound.ofBinding`, or `Sound.ofPure` when it does not
+allocate, and adds its case to `registry_sound`. -/
 namespace VastitasOracle.IndexedPrimitiveSoundness
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core

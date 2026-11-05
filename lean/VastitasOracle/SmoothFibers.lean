@@ -25,8 +25,9 @@ type:
 
 Fiber and tape values name declared smooth objects only, so their typing does
 not depend on the world and survives renaming and package transport.
-`IndexedSemantics.primitive_total_and_typed` and
-`IndexedSemantics.primitive_runtime_erasure` dispatch to these lemmas. -/
+The `Sound` instances at the end combine these lemmas with `fiberVector_erasure`
+and the erasure of the matched operands; `IndexedSemantics.registry_sound`
+dispatches to them. -/
 namespace VastitasOracle.SmoothFibers
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core

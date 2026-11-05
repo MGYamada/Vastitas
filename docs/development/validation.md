@@ -7,6 +7,7 @@ cargo fmt --all -- --check
 cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
 python3 scripts/check_boundaries.py
+python3 scripts/check_spec.py
 ```
 
 To build the separate proof oracle and audit every kernel and oracle module
@@ -21,9 +22,19 @@ lake -d lean build VastitasOracle
 (cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean)
 lake -d lean env python3 scripts/check_axiom_audit.py
 (cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean)
+(cd lean && VASTITAS_SPEC_INPUT=../docs/spec/pins/oracle.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)
+lake -d lean env python3 scripts/check_spec_lean.py
 bash scripts/replay_lean.sh lean VastitasOracle
 bash scripts/replay_lean.sh lean VastitasKernel
 ```
+
+`check_spec.py` and `spec_resolve.lean` check the claims of the
+[specifications](../specifications.md). After a change to the statement of a
+cited theorem, review the change, run
+`python3 scripts/check_spec.py --update-statements oracle` (or `bridge`) and
+review the diff of the statement pins. After `(cd lean-bridge && lake build)`,
+run the bridge resolver, a heavy check, with
+`(cd lean-bridge && VASTITAS_SPEC_INPUT=../docs/spec/pins/bridge.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)`.
 
 The last two lines replay every built Oracle and kernel module with the official
 `leanchecker` against its imported environment, as CI does. It is not an
@@ -51,8 +62,9 @@ code runs it before and after.
 ## Memory budget for local verification
 
 Run the heavy checks one at a time, and not while another process builds
-Lean. A heavy check is the bridge build, `Audit.lean`, a `leanchecker` replay,
-or `scripts/check_axiom_audit.py`.
+Lean. A heavy check is the bridge build, `Audit.lean`, the bridge
+specification resolver, `check_spec.py --update-statements`, a `leanchecker`
+replay, or `scripts/check_axiom_audit.py`.
 
 Always replay through `scripts/replay_lean.sh`. Do not call `leanchecker`
 directly:

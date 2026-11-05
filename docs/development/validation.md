@@ -60,8 +60,11 @@ When `CI` is set, the test fails instead of regenerating the fixtures.
 Regenerate them locally and commit them. For every example and manifest,
 `scripts/capture_emit.py` records the wire request, the `check` and `emit`
 responses and the generated Lean, and `--compare` reports every byte that
-differs from an earlier capture. A change that promises identical generated
-code runs it before and after.
+differs from an earlier capture. The packages under
+`tests/emit_corpus/rejected/` reach the kernel and are rejected there, so the
+capture also records the diagnostics of rejected primitive calls. A change that
+promises identical generated code, diagnostics or wire format runs it before
+and after.
 
 ## Memory budget for local verification
 

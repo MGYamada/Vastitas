@@ -449,9 +449,12 @@ evidence for `sharp`, which requires
 
 The requirements that a [primitive shape](#primitive-shape) places on the
 operand types of one call, in a fixed order: the operands' families, then their
-fixed indices, then the shape's relations. Every requirement is part of the
-binding's contract. When a call of a valid binding fails a requirement, the
-diagnostic names the first one in the table. See
+fixed indices, then the shape's relations. The table lists them once the
+operands have the shape's index pattern; `relative_coefficient` and
+`relative_pair` list the families as soon as each operand is of the expected
+kind. Every requirement is part of the binding's contract. When a call of a
+valid binding fails a listed requirement, the diagnostic names the first one;
+otherwise it lists the operand types. See
 [Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
 
 ## Scheme

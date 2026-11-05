@@ -21,11 +21,15 @@ With `--kernel-fixtures`, it also records the generated modules of
 
 The kernel rejects every package under `tests/emit_corpus/rejected/` on
 purpose, so that the comparison covers the diagnostics of rejected primitive
-calls. Each package fails one kind of requirement: a family, a coefficient
-marker, a domain, a fixed or a shared endpoint, the index pattern
-(`E_ENDPOINT`), the operand shape (`E_TYPE`) or the operand count (`E_ARITY`),
-and the relative-coefficient and relative-pair calls, which report families
-before the index pattern. Their `cli.txt` and `check.json` hold the message.
+calls; their `cli.txt` and `check.json` hold the message. With `E_ENDPOINT`,
+the packages fail a family, a coefficient marker, a domain, a fixed index
+(`flat`, `relative_coefficient`), a shared endpoint (`compose`, the seed of
+`cotangent_backward`), an endpoint fixed by a declaration (`relative_pair`),
+two equal applications (`same`), the index pattern (a covector in the point
+slot of a pullback, which lists the operand types), and a family that
+`relative_coefficient` and `relative_pair` report before the index pattern.
+One package fails the operand shape (`E_TYPE`) and one the operand count
+(`E_ARITY`).
 
 The checkout root is written as `<ROOT>` so captures from different
 checkouts compare. `--compare BASELINE` reports every byte difference against

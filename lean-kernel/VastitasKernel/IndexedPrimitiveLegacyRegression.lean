@@ -2,8 +2,9 @@ import VastitasKernel.IndexedSourceDiagnostics
 import VastitasKernel.IndexedSemantics
 
 /-! Frozen copies of the primitive tables as they were before the registry
-(#622), with the theorems and corpus comparisons that show the derived
-tables agree with them wherever a caller reads them. Each table that moves
+(#622), with the evidence that the derived tables agree with them wherever a
+caller reads them: theorems for some tables, an enumerated corpus for the
+others, as listed next. Each table that moves
 into `PrimitiveBinding.contract` keeps its pre-registry definition here until
 the migration is complete. The validity contracts agree by definitional
 unfolding; the two evaluators, the fresh slot and the allocation flag
@@ -18,15 +19,16 @@ Two derived tables deviate from the frozen ones where no caller reads them:
 - The operand count agrees by a theorem, and so do the argument hints at every
   position below the operand count, which are all the elaborators consult. The
   pre-registry `descriptor` hint also answered the positions beyond it.
-- The role table agrees on every valid binding, the only case in which
-  `explainPrimitive` consults it. For `relativePair family fiber` with
+- On the corpus, the role table agrees on every operand list of a valid
+  binding, the only case in which `explainPrimitive` consults it; no theorem
+  states this. For `relativePair family fiber` with
   `plainFiber? env fiber = none` and two relative maps of three object indices,
   the derived table also lists the requirement that the second map's source is
   the first map's source, after the two family requirements that are all the
   frozen table lists. Such a binding is invalid, since its contract requires
   `plainFiber?`, so `explainPrimitive` reports `.binding` before it reads the
   table, and `roleTable` has no other caller. The corpus prints this difference
-  and fails on any difference for a valid binding.
+  and fails on any other difference.
 
 The module is deleted at the end of the migration; the emit goldens
 (`tests/fixtures/emit`) stay. -/
@@ -563,7 +565,8 @@ object, a smooth object without coordinates, an affine object with two
 generators, families of another representation or variance, and a global of a
 smooth implementation. The variations change the binding parameters in the
 base environment: a missing family or object, a family of the wrong
-representation, a fiber that is not a fiber product without `via`, an
+representation, a fiber that `plainFiber?` rejects (not a fiber product, one
+with `via`, or one without a base), an
 implementation or global of another kind, an object whose `affineArity` or
 `smoothArity` is 0, a coordinate out of range, and valid bindings with other
 parameters, so that more valid role tables are compared. The environments have
@@ -816,6 +819,17 @@ private structure Tally where
   explained : Nat := 0
 /-- The two role tables, when they differ for an invalid binding. -/
 private abbrev Difference := List RoleRequirement × List RoleRequirement
+/-- The one difference the module header records: `relativePair` over a fiber
+that `plainFiber?` rejects, where the derived table appends the requirement
+that the second map's source is the first map's source. -/
+private def documentedDeviation (seed : Seed) (before now : List RoleRequirement) : Bool :=
+  match seed.binding with
+  | .relativePair _ fiber =>
+    (plainFiber? seed.env fiber).isNone && now.take before.length == before &&
+      match now.drop before.length with
+      | [.object "second map" "source" _ _ "the first map's source"] => true
+      | _ => false
+  | _ => false
 private def compare (tally : Tally) (seed : Seed) (arguments : List ValueType) : IO (Tally × Option Difference) := do
   let env := seed.env
   let binding := seed.binding
@@ -824,8 +838,8 @@ private def compare (tally : Tally) (seed : Seed) (arguments : List ValueType) :
   let valid := validPrimitiveBinding env binding
   let before := legacyRoleTable env binding arguments
   let now := roleTable env binding arguments
-  if valid && before != now then
-    throw (IO.userError (s!"the role table differs for the valid binding {seed.name} on {reprStr arguments}: " ++
+  if before != now && (valid || !documentedDeviation seed before now) then
+    throw (IO.userError (s!"the role table differs for {seed.name} on {reprStr arguments}: " ++
       s!"before {reprStr before}, now {reprStr now}"))
   let mut tally := { tally with cases := tally.cases + 1, valid := tally.valid + if valid then 1 else 0 }
   for result in candidates env binding arguments do

@@ -186,35 +186,56 @@ keeps its pin.
 - a generated chapter that is missing, out of date or absent from the
   contents, and a chapter under `docs/spec/` that no file generates.
 
-A CI step is a `run:` step of a workflow that every pull request starts: its
-`pull_request` trigger has no `paths`, `branches` or `types` filter. A step,
-or its job, with an `if:` condition or with a `continue-on-error` that can be
-true does not count. Neither does a job that may run on Windows, where the
-default shell is PowerShell.
+A CI step is a `run:` step that every pull request runs and whose failure
+fails the workflow. `check_spec.py` counts a step only when all of these hold:
 
-`check_spec.py` reads each step with a model of the shell. It follows `cd` and
-`working-directory`, and it ignores comments, quoted text, redirections and
-here-document bodies. A command counts only when it runs whenever the step
-runs and its failure fails the step. These commands do not count:
+- its workflow's `pull_request` trigger has no `paths`, `branches` or `types`
+  filter;
+- neither the step nor its job, nor a job that the job needs, has an `if:`
+  condition or a `continue-on-error` that can be true;
+- every runner of the job is a GitHub-hosted Linux or macOS runner, `ubuntu-…`
+  or `macos-…`, named directly or through a literal matrix;
+- the step uses bash, the default shell there;
+- its `run:` value is a single line or a literal block (`|`), not a folded
+  one;
+- no `env:` of the workflow, the job or the step sets a variable that changes
+  how bash starts or finds commands, such as `BASH_ENV`, `SHELLOPTS`, `PATH`,
+  a `BASH_FUNC_…` or an `LD_…` variable;
+- no earlier step of the job names `GITHUB_ENV` or `GITHUB_PATH`.
 
-- a command inside `if`, `while`, `until`, `for`, `select` or `case`, or
-  inside a command substitution;
-- a command in a negated pipeline, in a list with `&&` or `||`, or in the
-  background;
-- a command before `|` without `pipefail`;
-- a command that runs while `errexit` is off, as after `set +e`;
-- every command after a function definition, after `exit` without a non-zero
-  status, or after `exec`, `return`, `source`, `.`, `eval`, `trap`, `alias`,
-  `shopt` or `enable`.
+A workflow outside the subset of YAML that `check_spec.py` reads, such as one
+with a quoted, explicit, tagged or merge key, runs no test as far as the check
+is concerned.
 
-A group or subshell passes these conditions to the commands in it. A `cd` that
-may not run makes the directory unknown, and a `set -e` that may not run does
-not switch `errexit` on. The model reads the kernel regression script in the
-same way. That script starts with `errexit` off, so it must switch `errexit`
-on before its build counts. The model recognizes `cargo test` in the root
-package, with its target, filter, `--skip`, `--exact`, `--ignored`, `--no-run`
-and `--list` options, `python3 -m unittest discover`, and runs of the kernel
-regression script. A form that it does not model counts as not running a test.
+`check_spec.py` reads a step's script line by line and stops at the first line
+that is not plain. A plain line is blank, a comment, or a command whose words
+consist of letters, digits, `_./:=@%+,-` and single-quoted text, separated by
+spaces. A final ` \` joins the next line. The first word names a program or
+one of `echo`, `pwd`, `test`, `true`, `false` and `:`, and has no `=`. Two
+more commands are plain:
+
+- `cd` with one relative directory, which the check follows while `errexit` is
+  on;
+- `set` that switches only `-e`, `-u`, `-v` and `-x`, or after `-o` the
+  options `errexit`, `nounset`, `pipefail`, `verbose` and `xtrace`.
+
+A plain script therefore has no operators, expansions, double quotes, globs,
+redirections, compound commands or other builtins, and runs its commands one
+after another. A command counts when `errexit` is on, because its failure then
+fails the step. No command after the first line that is not plain counts.
+
+The check reads the kernel regression script in the same way. The script
+starts with `errexit` off, so it must switch `errexit` on before its build
+counts. There `cd "$(dirname "$0")/.."` is plain too and goes to the
+repository root. A step runs the script as
+`bash scripts/check_kernel_regressions.sh`.
+
+The check recognizes these commands: `cargo test` in the root package, with
+its target, filter, `--skip`, `--exact`, `--ignored`, `--no-run`, `--list`,
+`--doc` and `--help` options; `python3 -m unittest discover` without
+interpreter options; and that run of the regression script. It trusts the
+runner image, the actions that steps use and the programs that steps run not
+to change how bash starts or which program a command name runs.
 
 `scripts/spec_resolve.lean` imports exactly the modules that a pins file lists.
 It rejects:

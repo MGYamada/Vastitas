@@ -25,7 +25,6 @@ import json
 import os
 from pathlib import Path, PurePosixPath
 import re
-import shlex
 import subprocess
 import sys
 import tempfile
@@ -380,11 +379,22 @@ def parse_registry(root, errors):
 #
 # A Tested claim needs a CI step that runs each of its tests. The workflows are
 # read with a subset of YAML that covers GitHub workflows, and each `run:` step
-# with a model of the shell. Both are conservative: a form they do not model
-# counts as not running a test, and so does a step that a condition, a
+# only as far as its lines are plain. Both are conservative: a form they do not
+# read counts as not running a test, and so does a step that a condition, a
 # continue-on-error flag or a filtered pull_request trigger may skip.
 
-YAML_KEY = re.compile(r"""("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^\s#'"\-?:,\[\]{}][^#]*?|-[^\s#][^#]*?)\s*:(?:\s+|$)""")
+YAML_KEY = re.compile(r"([A-Za-z0-9_][A-Za-z0-9_.-]*)[ ]*:(?:[ ]+|$)")
+
+
+YAML_QUOTED = re.compile(r"""(?:"(?:[^"\\]|\\.)*"|'(?:[^']|'')*')[ ]*(?:#.*)?""")
+
+
+class YamlError(ValueError):
+    """A workflow form that the YAML subset does not read."""
+
+
+class Folded(str):
+    """A scalar that YAML folds from several lines."""
 
 
 class YamlLines:
@@ -394,9 +404,11 @@ class YamlLines:
 
     def current(self):
         while self.index < len(self.lines):
-            stripped = self.lines[self.index].strip()
-            if stripped and not stripped.startswith("#"):
-                return self.lines[self.index]
+            line = self.lines[self.index]
+            if line.strip() and not line.strip().startswith("#"):
+                if "\t" in line[:len(line) - len(line.lstrip())]:
+                    raise YamlError("a tab in indentation")
+                return line
             self.index += 1
         return None
 
@@ -420,10 +432,12 @@ def yaml_scalar(text):
 
 
 def yaml_key(content):
+    """The plain key of a mapping entry and the text after it. A quoted,
+    explicit, tagged, anchored or merge key raises YamlError."""
     match = YAML_KEY.match(content)
     if not match:
-        return None, None
-    return yaml_scalar(match.group(1)), content[match.end():]
+        raise YamlError(f"an unread mapping key in {content!r}")
+    return match.group(1), content[match.end():]
 
 
 def yaml_node(lines, indent):
@@ -442,8 +456,6 @@ def yaml_mapping(lines, indent):
         if line is None or yaml_indent(line) != indent or line.lstrip().startswith("- "):
             return result
         key, rest = yaml_key(line.strip())
-        if key is None:
-            return result
         lines.index += 1
         result[key] = yaml_value(lines, indent, rest)
 
@@ -476,7 +488,7 @@ def yaml_value(lines, indent, rest):
             break
         parts.append(yaml_plain(line.strip()))
         lines.index += 1
-    return " ".join(parts)
+    return Folded(" ".join(parts)) if len(parts) > 1 else parts[0]
 
 
 def yaml_block(lines, indent, style, chomping):
@@ -494,6 +506,10 @@ def yaml_block(lines, indent, style, chomping):
     end = "" if chomping == "-" else "\n"
     if style == "|":
         return "\n".join(body) + end
+    return Folded(yaml_fold(body) + end)
+
+
+def yaml_fold(body):
     folded, previous = "", None
     for line in body:
         if not line:
@@ -503,7 +519,7 @@ def yaml_block(lines, indent, style, chomping):
         else:
             folded += " " + line
         previous = line
-    return folded + end
+    return folded
 
 
 def yaml_sequence(lines, indent):
@@ -519,10 +535,12 @@ def yaml_sequence(lines, indent):
         if not content:
             items.append(yaml_node(lines, indent + 1))
             continue
-        key, rest = yaml_key(content)
-        if key is None:
+        if not YAML_KEY.match(content):
+            if not YAML_QUOTED.fullmatch(content) and re.search(r":(?:[ ]|$)", content):
+                raise YamlError(f"an unread mapping key in {content!r}")
             items.append(yaml_scalar(content))
             continue
+        key, rest = yaml_key(content)
         item = {key: yaml_value(lines, column, rest)}
         item.update(yaml_mapping(lines, column))
         items.append(item)
@@ -530,7 +548,8 @@ def yaml_sequence(lines, indent):
 
 def yaml_load(text):
     """Block mappings and sequences, plain, quoted and block scalars, and flow
-    sequences of scalars; other flow collections stay text."""
+    sequences of scalars; other flow collections stay text. A scalar folded
+    from several lines is Folded. YamlError reports a form outside the subset."""
     return yaml_node(YamlLines(text), 0)
 
 
@@ -554,60 +573,104 @@ def may_skip(value):
     return value is not None and str(value).strip().lower() != "false"
 
 
+def unix_job(job):
+    """Whether every runner that `job` may use is a GitHub-hosted Linux or macOS
+    runner, `ubuntu-…` or `macos-…`, where a `run:` step uses bash by default.
+    A `${{ matrix.KEY }}` runner takes the literal values of KEY in the job's
+    matrix, with those that `include` adds."""
+    labels = job.get("runs-on")
+    if isinstance(labels, str):
+        match = re.fullmatch(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}", labels.strip())
+        if match:
+            strategy = job.get("strategy")
+            matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
+            include = matrix.get("include") or [] if isinstance(matrix, dict) else None
+            if not isinstance(include, list) or not all(isinstance(entry, dict) for entry in include):
+                return False
+            values = matrix.get(match.group(1), [])
+            labels = (values if isinstance(values, list) else [values]) + [
+                entry[match.group(1)] for entry in include if match.group(1) in entry]
+        else:
+            labels = [labels]
+    return isinstance(labels, list) and bool(labels) and all(
+        isinstance(label, str) and label.startswith(("ubuntu-", "macos-")) for label in labels)
+
+
+# Variables that change how bash starts, reads or finds commands, or how programs load.
+SHELL_ENVIRONMENT = {"BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE", "IFS", "PATH", "POSIXLY_CORRECT",
+                     "PS4", "SHELLOPTS"}
+
+
+def plain_environment(*tables):
+    """Whether no `env:` table sets a variable of SHELL_ENVIRONMENT or one that
+    starts with BASH_FUNC_, LD_ or DYLD_."""
+    return all(table is None or isinstance(table, dict) and not any(
+        name in SHELL_ENVIRONMENT or name.startswith(("BASH_FUNC_", "LD_", "DYLD_")) for name in table)
+        for table in tables)
+
+
 def run_steps(workflow):
-    """(script, directory, pipefail) of each `run:` step that every pull request
-    runs and whose failure fails the job. A step or job with `if:` or a
-    `continue-on-error` that can be true does not count, and neither does a job
-    that may run on Windows, whose default shell is PowerShell."""
-    tree = yaml_load(workflow)
+    """(script, directory) of each `run:` step that every pull request runs and
+    whose failure fails the job. Neither the step nor its job, nor any job that
+    it needs, has `if:` or a `continue-on-error` that can be true; `unix_job`
+    holds; the step uses bash; its script is a single line or a literal block;
+    `plain_environment` holds for the workflow, job and step; and no earlier
+    step of the job names GITHUB_ENV or GITHUB_PATH. A workflow outside the
+    YAML subset yields nothing."""
+    try:
+        tree = yaml_load(workflow)
+    except YamlError:
+        return
     if not isinstance(tree, dict) or not every_pull_request(tree.get("on")):
         return
     def defaults(table):
         run = ((table.get("defaults") or {}) if isinstance(table.get("defaults"), dict) else {}).get("run")
         return run if isinstance(run, dict) else {}
+    jobs = tree.get("jobs") if isinstance(tree.get("jobs"), dict) else {}
+    def unconditional(name, seen=()):
+        job = jobs.get(name)
+        if not isinstance(job, dict) or name in seen or "if" in job or may_skip(job.get("continue-on-error")):
+            return False
+        needs = job.get("needs", [])
+        needs = [needs] if isinstance(needs, str) else needs
+        return isinstance(needs, list) and all(unconditional(need, seen + (name,)) for need in needs)
     top = defaults(tree)
-    jobs = tree.get("jobs")
-    for job in (jobs.values() if isinstance(jobs, dict) else []):
-        if not isinstance(job, dict) or "if" in job or may_skip(job.get("continue-on-error")):
+    for name, job in jobs.items():
+        if not unconditional(name) or not unix_job(job):
             continue
-        if "windows" in f"{job.get('runs-on')} {job.get('strategy')}".lower():
-            continue
-        settings = dict(top, **defaults(job))
+        settings, tainted = dict(top, **defaults(job)), False
         for step in job.get("steps") or []:
-            if not isinstance(step, dict) or not isinstance(step.get("run"), str):
+            script = step.get("run") if isinstance(step, dict) else None
+            if not isinstance(script, str):
                 continue
-            if "if" in step or may_skip(step.get("continue-on-error")):
-                continue
-            shell = step.get("shell", settings.get("shell"))
-            if shell not in (None, "bash", "sh"):
-                continue
-            directory = step.get("working-directory", settings.get("working-directory", "."))
-            yield step["run"], shell_directory(PurePosixPath("."), str(directory)), shell == "bash"
+            countable = (not tainted and not isinstance(script, Folded) and "if" not in step
+                         and not may_skip(step.get("continue-on-error"))
+                         and step.get("shell", settings.get("shell")) in (None, "bash")
+                         and plain_environment(tree.get("env"), job.get("env"), step.get("env")))
+            tainted = tainted or "GITHUB_ENV" in script or "GITHUB_PATH" in script
+            if countable:
+                directory = step.get("working-directory", settings.get("working-directory", "."))
+                yield script, shell_directory(PurePosixPath("."), str(directory))
 
 
-SHELL_PIECES = re.compile(r"&&|\|\||;;|\|&|>>|<<<|<<-?|>&|<&|&>|[;|&()<>]")
-SHELL_CONTROL = {";", "&&", "||", "|", "&", "|&", ";;", "(", ")"}
-SHELL_REDIRECTS = {">", ">>", "<", "<<", "<<-", "<<<", ">&", "<&", "&>"}
-SHELL_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
-SHELL_PREFIXES = {"time", "command", "builtin", "nohup"}
-SHELL_SKIPPED = SHELL_PREFIXES | {"then", "do", "else", "elif"}
-SHELL_COMPOUNDS = {"if": "fi", "while": "done", "until": "done", "for": "done", "select": "done", "case": "esac"}
-SHELL_CLOSERS = {"fi", "done", "esac", "}"}
-# Commands after which the model no longer knows which commands run, or how a failure ends.
-SHELL_STOPS = {"return", "source", ".", "eval", "trap", "alias", "shopt", "enable"}
-
-
-def shell_tokens(line):
-    lexer = shlex.shlex(line, posix=True, punctuation_chars=True)
-    lexer.whitespace_split = True
-    lexer.commenters = "#"
-    tokens = []
-    for token in lexer:
-        if token and all(c in "();<>|&" for c in token):
-            tokens += SHELL_PIECES.findall(token)
-        else:
-            tokens.append(token)
-    return tokens
+PLAIN_WORD = r"(?:[A-Za-z0-9_./:=@%+,-]|'[^'\r\n]*')+"
+PLAIN_LINE = re.compile(rf" *(?:{PLAIN_WORD}(?: +{PLAIN_WORD})*)?(?: *| +\\)")
+PLAIN_COMMENT = re.compile(r" *(?:#.*)?")
+# Bash reserved words and builtins. A plain command names none of them, except
+# those in PLAIN_BUILTINS and `cd` and `set`, which the reader follows.
+SHELL_WORDS = {
+    "!", "[[", "]]", "{", "}", "case", "coproc", "do", "done", "elif", "else", "esac", "fi", "for", "function",
+    "if", "in", "select", "then", "time", "until", "while", ".", ":", "[", "alias", "bg", "bind", "break",
+    "builtin", "caller", "cd", "command", "compgen", "complete", "compopt", "continue", "declare", "dirs",
+    "disown", "echo", "enable", "eval", "exec", "exit", "export", "false", "fc", "fg", "getopts", "hash", "help",
+    "history", "jobs", "kill", "let", "local", "logout", "mapfile", "popd", "printf", "pushd", "pwd", "read",
+    "readarray", "readonly", "return", "set", "shift", "shopt", "source", "suspend", "test", "times", "trap",
+    "true", "type", "typeset", "ulimit", "umask", "unalias", "unset", "wait"}
+PLAIN_BUILTINS = {":", "echo", "false", "pwd", "test", "true"}
+SET_LETTERS = {"e": "errexit", "u": "nounset", "v": "verbose", "x": "xtrace"}
+SET_OPTIONS = {"errexit", "nounset", "pipefail", "verbose", "xtrace"}
+# In a script file, this line goes to the parent of the script's directory.
+SCRIPT_PARENT = 'cd "$(dirname "$0")/.."'
 
 
 def shell_directory(directory, target):
@@ -617,198 +680,61 @@ def shell_directory(directory, target):
     return PurePosixPath(os.path.normpath(str(directory / target)))
 
 
-def shell_cd(words, directory):
-    """The directory after `cd WORDS` or `pushd WORDS`, or None when it is unknown."""
-    arguments = [word for word in words[1:] if word not in ("-L", "-P")]
-    if len(arguments) != 1 or arguments[0] == "-":
-        return None
-    return shell_directory(directory, arguments[0])
-
-
-def shell_set(arguments, errexit, pipefail, switch_on):
-    """errexit and pipefail after `set ARGUMENTS`. Unless `switch_on`, the
-    options are only switched off."""
-    pending = []
+def plain_set(arguments):
+    """The (on, option) switches of `set ARGUMENTS`, or None unless each
+    argument switches options of SET_OPTIONS: `-e`, `-u`, `-v`, `-x`, and
+    `-o` or `+o` before an option name."""
+    switches, pending = [], []
     for argument in arguments:
         if pending:
-            on = pending.pop(0) == "-"
-            if argument == "errexit" and (switch_on or not on):
-                errexit = on
-            elif argument == "pipefail" and (switch_on or not on):
-                pipefail = on
+            if argument not in SET_OPTIONS:
+                return None
+            switches.append((pending.pop(0), argument))
+        elif len(argument) > 1 and argument[0] in "-+" and all(c in SET_LETTERS or c == "o" for c in argument[1:]):
+            for letter in argument[1:]:
+                if letter == "o":
+                    pending.append(argument[0] == "-")
+                else:
+                    switches.append((argument[0] == "-", SET_LETTERS[letter]))
+        else:
+            return None
+    return switches if switches and not pending else None
+
+
+def plain_commands(script, directory=PurePosixPath("."), errexit=True, origin=None):
+    """(words, directory, counted) for each command of a shell script before its
+    first line that is not plain. A command counts when errexit is on, so that
+    its failure fails the script.
+
+    A plain line is blank, a comment, or words of letters, digits, `_./:=@%+,-`
+    and single-quoted text, separated by spaces; a final ` \\` joins the next
+    line. The first word of a command names a program or a member of
+    PLAIN_BUILTINS, and has no `=`. `cd` with one relative directory is plain
+    too: the reader follows it while errexit is on, and the directory becomes
+    None, unknown, when it is off. So is `set` with switches that `plain_set`
+    reads. `origin`, the directory of a script file, makes SCRIPT_PARENT plain."""
+    words = []
+    for line in script.split("\n"):
+        if not words and PLAIN_COMMENT.fullmatch(line):
             continue
-        if argument in ("-", "--") or len(argument) < 2 or argument[0] not in "-+":
-            break
-        for letter in argument[1:]:
-            if letter == "e" and (switch_on or argument[0] == "+"):
-                errexit = argument[0] == "-"
-            elif letter == "o":
-                pending.append(argument[0])
-    return errexit, pipefail
-
-
-def shell_stops(words):
-    """Whether the model loses track of the script after the command `words`."""
-    if words[0] == "exit":
-        return not (len(words) > 1 and words[1].isdigit() and int(words[1]) % 256)
-    return words[0] in SHELL_STOPS or words[0] == "exec" and len(words) > 1
-
-
-class ShellFrame:
-    """An open compound command, group, subshell or substitution, with the list
-    that contains it and the settings that a subshell restores."""
-
-    def __init__(self, kind, closer, start, outer, saved):
-        self.kind, self.closer, self.start, self.outer, self.saved = kind, closer, start, outer, saved
-
-
-class ShellList:
-    """The command list being read: the words of its current command, and the
-    first command of its current pipeline and of its current pipeline element."""
-
-    def __init__(self, start):
-        self.words, self.pipeline, self.element = [], start, start
-        self.andor = self.negated = self.piped = self.subshell = False
-
-
-def shell_commands(script, directory=PurePosixPath("."), pipefail=False, errexit=True):
-    """Each simple command of a shell script as (words, directory, counted).
-
-    `pipefail` and `errexit` are the settings that the script starts with. A
-    command counts when it runs whenever the script runs and its failure fails
-    the script. A command does not count when it is inside `if`, `while`,
-    `until`, `for`, `select`, `case` or a command substitution; when its pipeline
-    is negated, in a list with `&&` or `||`, or in the background; when it comes
-    before `|` without pipefail; when errexit is off; or when it follows a
-    command that `shell_stops` names or a function definition. A group or
-    subshell passes these conditions to the commands in it. `set` switches an
-    option on only where it surely runs in the shell itself, and `cd` is followed
-    only there: elsewhere the directory becomes None, unknown. A subshell
-    restores both. Comments, quotes, redirections and here-document bodies are
-    removed. A keyword that closes nothing, or a quote that never closes, stops
-    the counting."""
-    record, frames, heredoc, stopped = [], [], None, False
-    current = ShellList(0)
-
-    def mark(start):
-        for command in record[start:]:
-            command[2] = False
-
-    def sure(token):
-        return (not stopped and all(frame.kind == "subshell" for frame in frames) and not current.andor
-                and not current.negated and not current.piped and token not in ("&&", "||", "&", "|", "|&"))
-
-    def end(token):
-        """End the current command, pipeline element or pipeline at `token`."""
-        nonlocal directory, errexit, pipefail, stopped
-        words, current.words = current.words, []
-        if words and words[0] == "env":
-            words = words[1:]
-            while words and (SHELL_ASSIGNMENT.fullmatch(words[0]) or words[0].startswith("-")):
-                words = words[2:] if words[0] in ("-u", "-C", "-S") else words[1:]
-        if words and words[0] in ("cd", "pushd", "popd"):
-            directory = shell_cd(words, directory) if sure(token) and words[0] != "popd" else None
-        elif words:
-            if words[0] == "set":
-                errexit, pipefail = shell_set(words[1:], errexit, pipefail, sure(token))
-            conditional = any(frame.kind in ("compound", "substitution") for frame in frames)
-            record.append([words, directory, errexit and not stopped and not conditional])
-            stopped = stopped or shell_stops(words)
-        if current.subshell and not errexit or token in ("|", "|&") and not pipefail:
-            mark(current.element)
-        current.subshell, current.element = False, len(record)
-        if token in ("|", "|&"):
-            current.piped = True
+        if not words and origin is not None and line.strip() == SCRIPT_PARENT:
+            directory = shell_directory(origin, "..") if errexit else None
+            continue
+        if not PLAIN_LINE.fullmatch(line):
             return
-        if current.negated or current.andor or token in ("&&", "||", "&"):
-            mark(current.pipeline)
-        current.pipeline, current.negated, current.piped = len(record), False, False
-        current.andor = token in ("&&", "||")
-
-    def open_frame(kind, closer):
-        nonlocal current
-        frames.append(ShellFrame(kind, closer, len(record), current, (errexit, pipefail, directory)))
-        current = ShellList(len(record))
-
-    def close_frame():
-        nonlocal current, errexit, pipefail, directory
-        frame = frames.pop()
-        current = frame.outer
-        if frame.kind in ("subshell", "substitution"):
-            errexit, pipefail, directory = frame.saved
-            current.subshell = frame.kind == "subshell"
-
-    lines = script.replace("\\\n", " ").split("\n")
-    number = 0
-    while number < len(lines):
-        line, number = lines[number], number + 1
-        if heredoc is not None:
-            if line.strip() == heredoc:
-                heredoc = None
+        words += [re.sub(r"'([^']*)'", r"\1", word) for word in re.findall(PLAIN_WORD, line)]
+        if line.endswith("\\") or not words:
             continue
-        tokens = None
-        while tokens is None:
-            try:
-                tokens = shell_tokens(line)
-            except ValueError:
-                if number == len(lines):
-                    break
-                line, number = line + "\n" + lines[number], number + 1
-        if tokens is None:
-            stopped = True
-            break
-        if not tokens:
-            continue
-        if tokens[-1] not in ("&&", "||", "|", "|&"):
-            tokens.append(";")
-        target, position = None, 0
-        while position < len(tokens):
-            token, previous, position = tokens[position], tokens[position - 1] if position else "", position + 1
-            if target is not None:
-                if token == "(":
-                    open_frame("substitution", ")")
-                elif target in ("<<", "<<-"):
-                    heredoc = token.lstrip("-")
-                target = None
-            elif token in SHELL_REDIRECTS:
-                if current.words and current.words[-1].isdigit():
-                    current.words.pop()
-                target = token
-            elif token == "(" and len(current.words) == 1 and tokens[position:position + 1] == [")"]:
-                stopped, current.words, position = True, [], position + 1
-            elif token == "(":
-                open_frame("substitution" if current.words or previous.endswith("$") else "subshell", ")")
-            elif token == ")":
-                if frames and frames[-1].closer == "esac":
-                    current.words = []
-                elif frames and frames[-1].closer == ")":
-                    end(";")
-                    close_frame()
-                else:
-                    stopped = True
-            elif token in SHELL_CONTROL:
-                end(token)
-            elif current.words:
-                current.words.append(token)
-            elif token in SHELL_COMPOUNDS:
-                open_frame("compound", SHELL_COMPOUNDS[token])
-            elif token == "{":
-                open_frame("group", "}")
-            elif token in SHELL_CLOSERS:
-                if frames and frames[-1].closer == token:
-                    close_frame()
-                else:
-                    stopped = True
-            elif token == "!":
-                current.negated = True
-            elif token == "function":
-                stopped = True
-            elif token not in SHELL_SKIPPED and not SHELL_ASSIGNMENT.fullmatch(token):
-                current.words.append(token)
-    if frames:
-        mark(frames[0].start)
-    for words, where, counted in record:
-        yield words, where, counted
+        switches = plain_set(words[1:]) if words[0] == "set" else None
+        if words[0] == "cd" and len(words) == 2 and not words[1].startswith("-"):
+            directory = shell_directory(directory, words[1]) if errexit else None
+        elif switches is not None:
+            errexit = {option: on for on, option in switches}.get("errexit", errexit)
+        elif "=" not in words[0] and (words[0] in PLAIN_BUILTINS or words[0] not in SHELL_WORDS):
+            yield words, directory, errexit
+        else:
+            return
+        words = []
 
 
 def option(argument, items, short, long):
@@ -867,8 +793,11 @@ def cargo_run(arguments, package=None):
             value = attached or next(items, "")
             if os.path.normpath(value) != "Cargo.toml":
                 run.runs_nothing = True
-        elif name == "--no-run":
+        elif name in ("--no-run", "--doc", "--help", "-h", "--version", "-V"):
             run.runs_nothing = True
+        elif name == "--exclude":
+            if (attached or next(items, "")) == package:
+                run.runs_nothing = True
         elif name in ("--all-targets", "--tests"):
             run.every_test = selected = True
         elif name == "--test":
@@ -895,7 +824,7 @@ def cargo_run(arguments, package=None):
             run.ignored = "include"
         elif argument == "--exact":
             run.exact = True
-        elif argument == "--list":
+        elif argument in ("--list", "--help", "-h"):
             run.runs_nothing = True
         elif argument in ("--test-threads", "--format", "--color", "-Z", "--logfile", "--shuffle-seed"):
             next(items, None)
@@ -1120,16 +1049,6 @@ def python_tests(source):
     return tests
 
 
-def script_target(words, directory):
-    """The script that a command runs as `bash SCRIPT`, `sh SCRIPT` or `SCRIPT`, or None."""
-    if words and words[0] in ("bash", "sh"):
-        arguments = [word for word in words[1:] if not word.startswith("-")]
-        return shell_directory(directory, arguments[0]) if arguments else None
-    if words and "/" in words[0]:
-        return shell_directory(directory, words[0])
-    return None
-
-
 class Repository:
     """The tests, the CI steps, the kernel regressions and the diagnostic codes of a checkout."""
 
@@ -1145,34 +1064,34 @@ class Repository:
         directory = root / WORKFLOWS
         workflows = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml")) if directory.is_dir() else []
         for path in workflows:
-            for script, start, pipefail in run_steps(path.read_text(encoding="utf-8")):
-                for words, where, counted in shell_commands(script, start, pipefail):
+            for script, start in run_steps(path.read_text(encoding="utf-8")):
+                for words, where, counted in plain_commands(script, start):
                     if counted:
                         self.add(words, where, package)
         self.regressions = set()
         if (root / REGRESSIONS).is_file():
-            script = (root / REGRESSIONS).read_text(encoding="utf-8")
-            for words, _, counted in shell_commands(script, errexit=False):
-                if counted and words[:4] == ["lake", "-d", "lean-kernel", "build"]:
-                    self.regressions.update(item for item in words[4:] if LEAN_NAME.fullmatch(item))
+            # Bash runs the script as `bash SCRIPT`: errexit is off, and only "\n" ends a line.
+            with open(root / REGRESSIONS, encoding="utf-8", newline="") as handle:
+                script = handle.read()
+            for words, where, counted in plain_commands(script, errexit=False, origin=PurePosixPath(REGRESSIONS).parent):
+                if counted and where == PurePosixPath(".") and words[:4] == ["lake", "-d", "lean-kernel", "build"] \
+                        and all(LEAN_NAME.fullmatch(item) for item in words[4:]):
+                    self.regressions.update(words[4:])
         self.codes = set()
         if (root / DIAGNOSTICS).is_file():
             self.codes = set(re.findall(r"`(E_[A-Z0-9_]+)`", (root / DIAGNOSTICS).read_text(encoding="utf-8")))
         self._rust, self._python = {}, {}
 
     def add(self, words, directory, package):
-        if os.path.basename(words[0]) == "cargo" and words[1:2] == ["test"]:
+        """Record a plain command that runs Rust tests, Python tests or the regression script."""
+        if words[:2] == ["cargo", "test"]:
             if directory == PurePosixPath("."):
                 self.cargo.append(cargo_run(words[2:], package))
-        elif os.path.basename(words[0]) in ("python", "python3"):
-            rest = words[1:]
-            while rest and rest[0].startswith("-") and rest[0] != "-m":
-                rest = rest[1:]
-            if rest[:3] == ["-m", "unittest", "discover"] and directory is not None:
-                run = discover_run(rest[3:], directory)
-                if run is not None:
-                    self.discover.append(run)
-        elif script_target(words, directory) == PurePosixPath(REGRESSIONS):
+        elif words[0] in ("python", "python3") and words[1:4] == ["-m", "unittest", "discover"]:
+            run = discover_run(words[4:], directory) if directory is not None else None
+            if run is not None:
+                self.discover.append(run)
+        elif words[0] == "bash" and len(words) == 2 and shell_directory(directory, words[1]) == PurePosixPath(REGRESSIONS):
             self.regression_steps += 1
 
     def rust(self, path):

@@ -8,8 +8,8 @@ import unittest
 from unittest import mock
 
 import check_spec
-from check_spec import cargo_run, discover_run, every_pull_request, python_tests, run_steps, rust_tests, \
-    shell_commands
+from check_spec import cargo_run, discover_run, every_pull_request, plain_commands, plain_set, python_tests, \
+    run_steps, rust_tests
 
 
 HASH = "sha256:" + "a" * 64
@@ -90,6 +90,7 @@ on:
     branches: [main]
 jobs:
   test:
+    runs-on: ubuntu-latest
     steps:
       - run: cargo test --locked --all-targets
       - name: Ignored tests
@@ -460,40 +461,102 @@ class FixtureTests(unittest.TestCase):
                   "if cargo test --locked --all-targets; then echo ok; fi")
         self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
 
-    def test_commands_that_may_not_run_or_fail_the_step_do_not_count(self):
-        # The review of #655 found that the body of `if` counted as run.
-        for script in ("if false; then cargo test --locked --all-targets; fi",
-                       "while false; do cargo test --locked --all-targets; done",
-                       "for x in a; do cargo test --locked --all-targets; done",
-                       "case $x in a) cargo test --locked --all-targets;; esac",
-                       "run() { cargo test --locked --all-targets; }",
-                       "true && cargo test --locked --all-targets",
-                       "cargo test --locked --all-targets && true",
-                       "false || cargo test --locked --all-targets",
-                       "cargo test --locked --all-targets &",
-                       "! cargo test --locked --all-targets",
-                       "{ cargo test --locked --all-targets; } || true",
-                       "(cargo test --locked --all-targets) || true",
-                       "echo $(cargo test --locked --all-targets)",
-                       "exit 0\ncargo test --locked --all-targets",
-                       "source env.sh\ncargo test --locked --all-targets",
-                       "trap 'exit 0' ERR\ncargo test --locked --all-targets"):
+    def test_lines_after_a_line_that_is_not_plain_do_not_count(self):
+        # The reviews of #655 found shell forms in which a command may not run,
+        # or bash ignores its failure. A step counts only up to its first line
+        # that is not plain.
+        for script in (
+                "if false; then cargo test --locked --all-targets; fi",
+                "while false; do cargo test --locked --all-targets; done",
+                "for x in a; do cargo test --locked --all-targets; done",
+                "case $x in a) cargo test --locked --all-targets;; esac",
+                "cargo() (:)\ncargo test --locked --all-targets",
+                "true && cargo test --locked --all-targets",
+                "cargo test --locked --all-targets || true",
+                "cargo test --locked --all-targets &",
+                "! cargo test --locked --all-targets",
+                "{ cargo test --locked --all-targets; } || true",
+                "(cargo test --locked --all-targets) || true",
+                "cargo test --locked --all-targets 2>&1 | tee log",
+                "echo $(cargo test --locked --all-targets)",
+                "x=$(cargo test --locked --all-targets)",
+                "while read -r l; do :; done < <(cargo test --locked --all-targets)",
+                "tests=(cargo test --locked --all-targets)",
+                "echo `true; cargo test --locked --all-targets`",
+                "${{ 'exit' }} 0\ncargo test --locked --all-targets",
+                "X=exit\n$X 0\ncargo test --locked --all-targets",
+                "exit 0\ncargo test --locked --all-targets",
+                "exec true\ncargo test --locked --all-targets",
+                "source env.sh\ncargo test --locked --all-targets",
+                "trap 'exit 0' ERR\ncargo test --locked --all-targets",
+                "set -n\ncargo test --locked --all-targets",
+                "set -o noexec\ncargo test --locked --all-targets",
+                "set +e\ncargo test --locked --all-targets",
+                "set -o +e\ncargo test --locked --all-targets",
+                "hash -p /usr/bin/true cargo\ncargo test --locked --all-targets",
+                "PATH=/nowhere cargo test --locked --all-targets",
+                "echo $'a\\'b'\necho ' ; cargo test --locked --all-targets ; '",
+                "echo \"|\" cargo test --locked --all-targets",
+                "v=${GITHUB_REF#refs/}; if [ \"$v\" = never ]; then\n  cargo test --locked --all-targets\nfi",
+                "cargo test --locked --all-targets --features=a#b || true",
+                "# note \\\nif false; then\n  cargo test --locked --all-targets\nfi",
+                "cat <<- EOF\nx\n\ncargo test --locked --all-targets\nEOF",
+                "cat <<EOF\n  EOF\ncargo test --locked --all-targets\nEOF",
+                "cat <<A <<B\nB\nA\ncargo test --locked --all-targets\nB"):
             with self.subTest(script=script):
                 body = "".join(f"          {line}\n" for line in script.split("\n"))
                 self.put(".github/workflows/ci.yml", WORKFLOW.replace(
                     "      - run: cargo test --locked --all-targets\n", f"      - run: |\n{body}"))
                 self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
 
-    def test_commands_after_compound_commands_count(self):
+    def test_plain_lines_before_a_test_count(self):
+        self.edit(".github/workflows/ci.yml", "jobs:\n", "defaults:\n  run:\n    shell: bash\njobs:\n")
         self.edit(".github/workflows/ci.yml", "      - run: cargo test --locked --all-targets\n",
-                  "      - run: |\n          if [ \"$RUNNER_OS\" = Linux ]; then\n            export CC=cc\n"
-                  "          fi\n          (cd scripts)\n          { true; }\n          exit_code=1\n"
-                  "          cargo test --locked --all-targets\n")
+                  "      - run: |\n          # Build first.\n          set -eu -o pipefail\n          cd scripts\n"
+                  "          cd ..\n          echo 'building: now'\n          python3 scripts/build.py \\\n"
+                  "            --check\n          cargo test --locked \\\n            --all-targets\n")
         self.assertEqual(self.errors(), [])
 
-    def test_windows_jobs_do_not_count(self):
-        self.edit(".github/workflows/ci.yml", "  test:\n", "  test:\n    runs-on: windows-latest\n")
-        self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+    def test_steps_that_their_job_or_environment_may_change_do_not_count(self):
+        step = "      - run: cargo test --locked --all-targets\n"
+        for edits in (
+                [("runs-on: ubuntu-latest", "runs-on: windows-latest")],
+                [("runs-on: ubuntu-latest", "runs-on: ${{ vars.RUNNER }}")],
+                [("runs-on: ubuntu-latest", "runs-on: [self-hosted, linux]")],
+                [("runs-on: ubuntu-latest\n", "runs-on: ${{ matrix.os }}\n    strategy:\n      matrix:\n"
+                  "        os: [ubuntu-latest]\n        include:\n          - os: windows-latest\n")],
+                [("jobs:\n", "jobs:\n  gate:\n    if: false\n    runs-on: ubuntu-latest\n    steps:\n"
+                  "      - run: true\n"), ("  test:\n", "  test:\n    needs: gate\n")],
+                [(step, step + "        shell: sh\n")],
+                [(step, step + "        env:\n          BASH_ENV: /tmp/exit.sh\n")],
+                [("    steps:\n", "    env:\n      PATH: /nowhere\n    steps:\n")],
+                [("jobs:\n", "env:\n  LD_PRELOAD: /tmp/stub.so\njobs:\n")],
+                [("    steps:\n", "    steps:\n      - run: echo \"BASH_ENV=/tmp/exit.sh\" >> \"$GITHUB_ENV\"\n")],
+                [(step, "      - \"i\\x66\": false\n        run: cargo test --locked --all-targets\n")],
+                [(step, "      - !!str if: false\n        run: cargo test --locked --all-targets\n")],
+                [(step, "      - run: >\n          cargo test --locked --all-targets\n")]):
+            with self.subTest(edits=edits):
+                workflow = WORKFLOW
+                for old, new in edits:
+                    self.assertIn(old, workflow)
+                    workflow = workflow.replace(old, new, 1)
+                self.put(".github/workflows/ci.yml", workflow)
+                self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_commands_that_run_no_cited_test(self):
+        rust, python = "no CI step runs `tests/demo.rs::identity_runs`", \
+            "no CI step runs `scripts/test_demo.py::DemoTests::test_identity`"
+        for old, new, fragment in (
+                ("cargo test --locked --all-targets\n", "cargo test --locked --all-targets --help\n", rust),
+                ("cargo test --locked --all-targets\n", "cargo test --locked --all-targets -- -h\n", rust),
+                ("cargo test --locked --all-targets\n", "cargo test --locked --doc\n", rust),
+                ("cargo test --locked --all-targets\n", "env cargo test --locked --all-targets\n", rust),
+                ("python3 -m unittest", "python3 -cpass -m unittest", python),
+                ("bash scripts/check_kernel_regressions.sh", "bash -n scripts/check_kernel_regressions.sh",
+                 "no CI step runs scripts/check_kernel_regressions.sh")):
+            with self.subTest(new=new):
+                self.put(".github/workflows/ci.yml", WORKFLOW.replace(old, new, 1))
+                self.assertRejected(fragment)
 
     def test_conditional_steps_and_jobs_do_not_count(self):
         self.rejects_with_step("      - run: cargo test --locked --all-targets\n"
@@ -522,12 +585,6 @@ class FixtureTests(unittest.TestCase):
         self.edit(".github/workflows/ci.yml", "--all-targets --no-run", "--all-targets -- --list")
         self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
 
-    def test_pipelines_count_only_with_pipefail(self):
-        # GitHub runs `shell: bash` steps with -o pipefail; the default shell has no pipefail.
-        self.rejects_with_step("      - run: cargo test --locked --all-targets 2>&1 | tee log\n")
-        self.edit(".github/workflows/ci.yml", "jobs:\n", "defaults:\n  run:\n    shell: bash\njobs:\n")
-        self.assertEqual(self.errors(), [])
-
     def test_regression_script_must_be_run(self):
         self.edit(".github/workflows/ci.yml", "bash scripts/check_kernel_regressions.sh",
                   "shellcheck scripts/check_kernel_regressions.sh")
@@ -538,11 +595,21 @@ class FixtureTests(unittest.TestCase):
         for script in ("set -euo pipefail\nif lake -d lean-kernel build VastitasKernel.DemoRegression; then\n"
                        "  echo ignored\nfi\n",
                        "set -euo pipefail\nlake -d lean-kernel build VastitasKernel.DemoRegression || true\n",
-                       "lake -d lean-kernel build VastitasKernel.DemoRegression\necho done\n"):
+                       "lake -d lean-kernel build VastitasKernel.DemoRegression\necho done\n",
+                       "nohup set -e\nlake -d lean-kernel build VastitasKernel.DemoRegression\n",
+                       "set -e 2>/dev/null\nlake -d lean-kernel build VastitasKernel.DemoRegression\n",
+                       "set -euo pipefail\n# off for now\rlake -d lean-kernel build VastitasKernel.DemoRegression\n",
+                       "set -euo pipefail\nlake -d lean-kernel build --help VastitasKernel.DemoRegression\n",
+                       "set -euo pipefail\ncd lean-kernel\nlake -d lean-kernel build VastitasKernel.DemoRegression\n"):
             with self.subTest(script=script):
                 self.put("scripts/check_kernel_regressions.sh", "#!/usr/bin/env bash\n" + script)
                 self.assertRejected("`VastitasKernel.DemoRegression` is not a module that "
                                     "scripts/check_kernel_regressions.sh builds")
+
+    def test_regression_script_may_go_to_the_repository_root(self):
+        self.put("scripts/check_kernel_regressions.sh", "#!/usr/bin/env bash\nset -euo pipefail\n"
+                 "cd \"$(dirname \"$0\")/..\"\nlake -d lean-kernel build \\\n  VastitasKernel.DemoRegression\n")
+        self.assertEqual(self.errors(), [])
 
     def test_commented_regression_modules_are_not_built(self):
         self.edit("docs/spec/demo.toml", '"VastitasKernel.DemoRegression"]', '"VastitasKernel.OldRegression"]')
@@ -721,7 +788,8 @@ class ParserTests(unittest.TestCase):
         self.assertFalse(cargo_run("-- --exact b".split()).runs("t", "a::b", False))
         self.assertFalse(cargo_run("--lib".split()).runs("examples", "a", False))
         self.assertTrue(cargo_run("--test=demo".split()).runs("demo", "a", False))
-        for arguments in ("--all-targets --no-run", "-- --list", "-p other", "--manifest-path x/Cargo.toml"):
+        for arguments in ("--all-targets --no-run", "-- --list", "-p other", "--manifest-path x/Cargo.toml",
+                          "--help", "-h", "-- --help", "--doc", "--workspace --exclude vastitas"):
             self.assertFalse(cargo_run(arguments.split(), "vastitas").runs("demo", "a", False), arguments)
         self.assertTrue(cargo_run("-p vastitas --manifest-path Cargo.toml".split(), "vastitas")
                         .runs("demo", "a", False))
@@ -754,52 +822,58 @@ class ParserTests(unittest.TestCase):
 
     def test_run_steps(self):
         workflow = "\n".join([
-            "on:", "  pull_request:", "defaults:", "  run:", "    shell: bash", "jobs:", "  a:", "    steps:",
-            "      - run: >-", "          cargo test", "          --lib",
+            "on:", "  pull_request:", "defaults:", "  run:", "    shell: bash", "jobs:",
+            "  a:", "    runs-on: ${{ matrix.os }}", "    strategy:", "      matrix:",
+            "        os: [ubuntu-latest, macos-latest]", "    steps:",
+            "      - run: cargo test --lib",
+            "      - run: >-", "          folded", "          text",
             "      - name: In a directory", "        working-directory: lean", "        run: |",
             "          lake build",
             "      - if: always()", "        run: skipped",
             "      - uses: actions/checkout@v4",
-            "  b:", "    continue-on-error: true", "    steps:", "      - run: skipped", ""])
+            "      - run: echo x >> \"$GITHUB_PATH\"",
+            "      - run: after a write to GITHUB_PATH",
+            "  b:", "    runs-on: ubuntu-latest", "    continue-on-error: true", "    steps:", "      - run: skipped",
+            "  c:", "    runs-on: ubuntu-latest", "    needs: [b]", "    steps:", "      - run: skipped", ""])
         self.assertEqual(list(run_steps(workflow)),
-                         [("cargo test --lib", PurePosixPath("."), True),
-                          ("lake build\n", PurePosixPath("lean"), True)])
+                         [("cargo test --lib", PurePosixPath(".")), ("lake build\n", PurePosixPath("lean")),
+                          ("echo x >> \"$GITHUB_PATH\"", PurePosixPath("."))])
+        self.assertEqual(list(run_steps(workflow.replace("    shell: bash", "    shell: pwsh"))), [])
+        self.assertEqual(list(run_steps(workflow.replace("  c:", "  'c':"))), [])
 
-    def test_shell_commands(self):
-        def commands(script, pipefail=True):
+    def test_plain_commands(self):
+        def commands(script, errexit=True, origin=None):
             return [(words, str(directory), counted)
-                    for words, directory, counted in shell_commands(script, PurePosixPath("."), pipefail)]
-        self.assertEqual(commands("A=1 env B=2 cargo test --test a # comment; cargo test"),
-                         [(["cargo", "test", "--test", "a"], ".", True)])
-        self.assertEqual(commands("cargo test || true"), [(["cargo", "test"], ".", False), (["true"], ".", False)])
-        self.assertEqual(commands("cargo test | tee log", pipefail=False)[0][2], False)
-        self.assertEqual(commands("cargo test 2>&1 | tee log")[0], (["cargo", "test"], ".", True))
-        self.assertEqual(commands("(cd sub; make) ; make"), [(["make"], "sub", True), (["make"], ".", True)])
-        self.assertEqual(commands("(cd sub && make) ; make"), [(["make"], "None", False), (["make"], ".", True)])
-        self.assertEqual(commands("cd $HOME && make"), [(["make"], "None", False)])
-        self.assertEqual(commands("if x; then cd sub; fi; make")[-1], (["make"], "None", True))
-        self.assertEqual(commands("set +e\nmake")[-1], (["make"], ".", False))
-        self.assertEqual(commands("cat <<'EOF'\ncargo test\nEOF\nmake"), [(["cat"], ".", True), (["make"], ".", True)])
-        self.assertEqual(commands('python3 -c "\ncargo test\n"\nmake'),
-                         [(["python3", "-c", "\ncargo test\n"], ".", True), (["make"], ".", True)])
-        self.assertEqual(commands("make &&\n\n  cargo test"), [(["make"], ".", False), (["cargo", "test"], ".", False)])
-        self.assertEqual(commands("diff <(cargo test) b"), [(["cargo", "test"], ".", False), (["diff", "b"], ".", True)])
-        self.assertEqual(commands("if x; then exit 1; fi\nmake")[-1], (["make"], ".", True))
-        self.assertEqual(commands("exec make\nmake")[-1], (["make"], ".", False))
-        self.assertEqual(commands("fi\nmake"), [(["make"], ".", False)])
-        self.assertEqual(commands("echo 'open\nmake"), [])
+                    for words, directory, counted in plain_commands(script, PurePosixPath("."), errexit, origin)]
+        self.assertEqual(commands("# comment\n\necho 'a b' c=d\ncargo test \\\n  --lib"),
+                         [(["echo", "a b", "c=d"], ".", True), (["cargo", "test", "--lib"], ".", True)])
+        self.assertEqual(commands("cd sub\nmake\ncd ..\nmake"), [(["make"], "sub", True), (["make"], ".", True)])
+        self.assertEqual(commands("set +e\ncd sub\nmake\nset -e\nmake"),
+                         [(["make"], "None", False), (["make"], "None", True)])
+        for script in ("make | tee log", "A=1 make", "export A=1", 'make "x"', "make\tx", "cd -P sub",
+                       "cargo test \\\n# no", "time make", "{ make; }"):
+            with self.subTest(script=script):
+                self.assertEqual(commands(f"make\n{script}\nmake"), [(["make"], ".", True)])
+        self.assertEqual(commands("make", errexit=False), [(["make"], ".", False)])
+        self.assertEqual(commands("set -euo pipefail\nmake", errexit=False), [(["make"], ".", True)])
+        self.assertEqual(commands('cd "$(dirname "$0")/.."\nmake', origin=PurePosixPath("scripts")),
+                         [(["make"], ".", True)])
+        self.assertEqual(commands('cd "$(dirname "$0")/.."\nmake'), [])
+        self.assertEqual(plain_set(["-euo", "pipefail"]), [(True, "errexit"), (True, "nounset"), (True, "pipefail")])
+        self.assertEqual(plain_set(["+o", "errexit"]), [(False, "errexit")])
+        for arguments in (["-n"], ["-o", "noexec"], ["-o", "+e"], ["-Qe"], ["-o"], [], ["--", "-e"], ["-t"]):
+            self.assertIsNone(plain_set(arguments), arguments)
 
-    def test_shell_errexit(self):
-        def counted(script):
-            return [counted for _, _, counted in shell_commands(script, PurePosixPath("."), False, False)]
-        self.assertEqual(counted("make"), [False])
-        self.assertEqual(counted("set -euo pipefail\nmake | tee"), [True, True, True])
-        self.assertEqual(counted("set -o errexit -o pipefail\nmake | tee"), [True, True, True])
-        self.assertEqual(counted("if x; then set -e; fi\nmake")[-1], False)
-        self.assertEqual(counted("{ set -e; }\nmake")[-1], False)
-        self.assertEqual(counted("(set -e; make)\nmake"), [False, False, False])
-        self.assertEqual(counted("set -e\n(make)\nmake"), [True, True, True])
-        self.assertEqual(counted("set -e\nset +o errexit\nmake")[-1], False)
+    def test_yaml_subset_rejects_keys_that_it_does_not_read(self):
+        for text in ('jobs:\n  "a": 1\n', "jobs:\n  ? a\n  : 1\n", "jobs:\n  !!str a: 1\n", "jobs:\n  <<: *x\n",
+                     'jobs:\n  a:\n    - "i\\x66": false\n', "jobs:\n\ta: 1\n"):
+            with self.subTest(text=text):
+                with self.assertRaises(check_spec.YamlError):
+                    check_spec.yaml_load(text)
+        self.assertIsInstance(check_spec.yaml_load("a: >\n  b\n  c\n")["a"], check_spec.Folded)
+        self.assertIsInstance(check_spec.yaml_load("a: b\n  c\n")["a"], check_spec.Folded)
+        self.assertNotIsInstance(check_spec.yaml_load("a: |\n  b\n")["a"], check_spec.Folded)
+        self.assertEqual(check_spec.yaml_load('a:\n  - "b: c"\n'), {"a": ["b: c"]})
 
     def test_rust_attributes(self):
         source = "\n".join([

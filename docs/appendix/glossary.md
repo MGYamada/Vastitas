@@ -107,15 +107,6 @@ the covector `Jᵀη` at `x`. A covector at any other point gives the
 [failure value](#failure-value). See
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
-## Derivative rule
-
-The field `reverse` of a [registry entry](#registry-entry). It says what a
-call of the binding contributes when the kernel compiles a reverse pass into
-Core. A declared smooth map is one step pulled back by its Jacobian table.
-`compose` chains the maps of two operands. A pullback, a differential or the
-reverse pass of a tape is a reverse pass. Every other binding has the rule
-`none`. See [Add an indexed primitive](../development/primitives.md).
-
 ## Delegation
 
 A `delegation` declaration by the recipient of a `delegable` grant or
@@ -123,6 +114,16 @@ delegation. It names a recipient module and a region inside the parent loan's
 region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
 [Explicit delegation](../packages.md#explicit-delegation).
+
+## Derivative rule
+
+The field `reverse` of a [registry entry](#registry-entry). It says what a
+call of the binding contributes when the kernel compiles a reverse pass into
+Core. A declared smooth map is one step pulled back by its Jacobian table.
+`compose` chains the maps of two operands. `linearize` builds a tape whose map
+and point a reverse pass of the tape reads. A pullback, a differential or the
+reverse pass of a tape is a reverse pass. The other bindings have the rule
+`none`. See [Add an indexed primitive](../development/primitives.md).
 
 ## Dispatch
 

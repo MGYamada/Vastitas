@@ -154,8 +154,8 @@ theorem pullback_stepwise_applyPoint (mode : PullbackMode) (outer inner point : 
       (by rw [coordinates_applyPoint]; rfl)]
 
 /-- A table step along a map checked as `ℝⁿ → ℝᵐ` from a point of `ℝⁿ`
-returns the failure value or a covector over that point with `n`
-components, whatever the saved output point. -/
+returns the failure value or a fiber whose point and components both have `n`
+entries, whatever the saved output point. -/
 theorem jacobianStep_typed {map : Map} {n m : Nat} (hmap : wellFormed n m map = true) {input : Program}
     (hinput : input.wellTyped 0 n = true) (output : Program) (seed : FiberValue) :
     FiberTyped n (jacobianStep map.images.length (jacobian map) input output seed) := by
@@ -412,8 +412,8 @@ theorem cotangentBackward_reverse (tape cotangent : DeclId) :
   · rintro ⟨record, variance, seed, rfl, rfl⟩
     rfl
 
-/-- A backward step states the rule `none`, whatever its map type: compiling
-generated Core again changes nothing. -/
+/-- A backward step states the rule `none`, whatever its map type: the
+compilation does not open it. -/
 theorem cotangentJacobian_reverse (cotangent : DeclId) (application : Application) (map : AlgebraRuntime.Map) :
     ReverseSound (PrimitiveBinding.cotangentJacobian cotangent application map).contract := by
   have rule : (PrimitiveBinding.cotangentJacobian cotangent application map).contract.reverse = .none := by

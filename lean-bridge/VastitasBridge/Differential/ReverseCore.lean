@@ -28,6 +28,13 @@ for every entry of every compiled module:
 * **`compiled_saved_entry_kaehler`**, **`compiled_recomputed_entry_kaehler`**: component `j` of
   the same covector is the value at `x` of the `j`-th coordinate of the Kähler pullback of
   `Σᵢ ηᵢ dyᵢ` along the polynomial map `F` denotes.
+* **`site_saved_rewrite_frechet`**, `site_recomputed_rewrite_frechet`,
+  `site_differential_rewrite_frechet`, `site_tape_rewrite_frechet`: under the premises of the
+  Oracle's (S) theorems, the source site and its compiled Core evaluate to the same covector,
+  which is `η ∘ DM(x)` for the site's map value `M`, not only for the chain of the step
+  programs. **`compiled_site_frechet`** and **`compiled_differential_site_frechet`** state it
+  for the term that `compileSite` returns at a pullback or a differential site, from the
+  Oracle's `compiled_site_evaluates`.
 * `EntryFrechet` collects the Fréchet statement of one entry in both modes;
   `compiled_entries_frechet`, `public_wire_entries_frechet` (protocol 7),
   `legacy_wire_entries_frechet` (protocols 2-6), `public_resource_entries_frechet` and
@@ -67,7 +74,8 @@ open VastitasKernel.Indexed.Core.Semantics (Values)
 open VastitasOracle.SmoothRuntime
 open VastitasOracle.IndexedEvaluation (Evaluates ArgumentsEvaluate)
 open VastitasOracle.SmoothReverseCore (chain stepPrograms ResidualRel functionArguments
-  composable_of_wellTyped)
+  composable_of_wellTyped Stable AllPairs StepsDeclared StepFormed MorphismsDeclared Factors
+  smoothValue pointSymbols sitePoints unitSeed)
 open VastitasBridge.AlgebraicGeometry.Kernel
 open MvPolynomial
 
@@ -408,6 +416,335 @@ theorem compiled_recomputed_entry_kaehler (compiled : Indexed.Core.Reverse.Compi
       (composable_of_wellTyped _ typed) start variance (some seed) argumentsEval substitution result)
 
 end Compiled
+
+/-! ## Rewritten sites
+
+The Oracle's (S) theorems state that the source site and the Core that the compilation puts at the
+site evaluate to the same covector, the pullback along the site's map value `M`. Read over `ℝ`,
+both are `η ∘ DM(x)`, with Mathlib's Fréchet derivative of the real program `M`. -/
+
+/-- Two terms that evaluate to the pullback of a seed over `F(x)` along a program `F` checked as
+`ℝⁿ → ℝᵐ` evaluate to the same covector over `x`, which is `η ∘ DF(x)`. -/
+theorem evaluates_pair_frechet {module : Indexed.Core.Module} {values : Values}
+    {first second : Indexed.Core.Term} (mode : PullbackMode) {F : Program}
+    (typed : F.wellTyped n m = true) {start : Program}
+    (startLength : (coordinates start).length = n) {seed : Fiber}
+    (over : seed.point = F.eval (coordinates start)) (components : seed.components.length = m)
+    (evaluated : Evaluates module values first
+        (.indexed (.fiber .cotangent (pullback mode F start (some seed)))) ∧
+      Evaluates module values second
+        (.indexed (.fiber .cotangent (pullback mode F start (some seed))))) :
+    ∃ r : Fiber, Evaluates module values first (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values second (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates start ∧ r.components.length = n ∧
+      covector n r.components = (covector F.outputArity seed.components).comp
+        (fderiv ℝ (realProgram F n) (realPoint n (coordinates start))) := by
+  obtain ⟨r, hr, hpoint, hlength, hcovector⟩ :=
+    pullback_covector_eq_comp_fderiv mode typed start startLength seed over components
+  rw [hr] at evaluated
+  exact ⟨r, evaluated.1, evaluated.2, hpoint, hlength, hcovector⟩
+
+/-- **A saved site means `η ∘ DM(x)`.** Under the premises of the Oracle's `site_saved_rewrite`,
+let the map operand evaluate to a program `M` checked as `ℝⁿ → ℝᵐ`, the point to `x` with `n`
+coordinates, and the seed to a covector `η` over `M(x)` with `m` components. Then the source site
+`pullback(M, x, η)` and its compiled Core evaluate to the same covector over `x` with `n`
+components, which as a linear functional is `η ∘ DM(x)`. The proof composes `site_saved_rewrite`
+with `pullback_covector_eq_comp_fderiv`, without `cot_compose`, `backward_eq_cot` or
+`pderiv_aeval`. -/
+theorem site_saved_rewrite_frechet {module : Indexed.Core.Module} {entry : Indexed.Core.Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) =
+      some entry.generated)
+    (saved : entry.site.mode = .saved)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step)
+    (morphisms : MorphismsDeclared module entry.site.steps) (nonempty : entry.site.steps ≠ [])
+    {values : Values} {bound : ℕ} {opaqueTerms : List Indexed.Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol firstPoint : ℕ} (startHigh : bound ≤ startSymbol)
+    (seedHigh : startSymbol < seedSymbol) (firstHigh : seedSymbol < firstPoint)
+    {mapTerm pointTerm seedTerm : Indexed.Core.Term} {x : Program} {variance : Variance}
+    {seed : Fiber} {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance (some seed))))
+    {id smooth cotangent : Indexed.DeclId} {mode : PullbackMode}
+    (source : module.declarations.primitive? id = some (.cotangentPullback smooth cotangent mode))
+    (sourceResult result : Indexed.Core.Result)
+    (typed : map.wellTyped n m = true) (startLength : (coordinates x).length = n)
+    (over : seed.point = map.eval (coordinates x)) (components : seed.components.length = m) :
+    ∃ r : Fiber,
+      Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] sourceResult)
+        (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
+          (Indexed.Core.Reverse.forwardLets entry.names entry.site entry.site.steps
+            (Indexed.Core.Reverse.mapTerms entry.site.steps opaqueTerms)
+            (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
+            (.call entry.function (opaqueTerms ++ sitePoints entry.site
+              (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length) ++
+              [.variable seedSymbol seedTerm.result]) [] result))))
+        (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates x ∧ r.components.length = n ∧
+      covector n r.components = (covector map.outputArity seed.components).comp
+        (fderiv ℝ (realProgram map n) (realPoint n (coordinates x))) :=
+  evaluates_pair_frechet mode typed startLength over components
+    (VastitasOracle.SmoothReverseCore.site_saved_rewrite function saved apply declared formed
+      morphisms nonempty opaqueEval count startHigh seedHigh firstHigh mapEval factors pointEval
+      seedEval source sourceResult result)
+
+/-- **A recomputing site means `η ∘ DM(x)`.** The same under the premises of the Oracle's
+`site_recomputed_rewrite`, without `cot_compose`, `backward_eq_cot` or `pderiv_aeval`. -/
+theorem site_recomputed_rewrite_frechet {module : Indexed.Core.Module}
+    {entry : Indexed.Core.Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) =
+      some entry.generated)
+    (recomputed : entry.site.mode = .recomputed)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step)
+    (morphisms : MorphismsDeclared module entry.site.steps) (nonempty : entry.site.steps ≠ [])
+    {values : Values} {bound : ℕ} {opaqueTerms : List Indexed.Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol : ℕ} (startHigh : bound ≤ startSymbol)
+    (seedHigh : startSymbol < seedSymbol)
+    {mapTerm pointTerm seedTerm : Indexed.Core.Term} {x : Program} {variance : Variance}
+    {seed : Fiber} {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance (some seed))))
+    {id smooth cotangent : Indexed.DeclId} {mode : PullbackMode}
+    (source : module.declarations.primitive? id = some (.cotangentPullback smooth cotangent mode))
+    (sourceResult result : Indexed.Core.Result)
+    (typed : map.wellTyped n m = true) (startLength : (coordinates x).length = n)
+    (over : seed.point = map.eval (coordinates x)) (components : seed.components.length = m) :
+    ∃ r : Fiber,
+      Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] sourceResult)
+        (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
+          (.call entry.function (opaqueTerms ++ [.variable startSymbol pointTerm.result,
+            .variable seedSymbol seedTerm.result]) [] result)))
+        (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates x ∧ r.components.length = n ∧
+      covector n r.components = (covector map.outputArity seed.components).comp
+        (fderiv ℝ (realProgram map n) (realPoint n (coordinates x))) :=
+  evaluates_pair_frechet mode typed startLength over components
+    (VastitasOracle.SmoothReverseCore.site_recomputed_rewrite function recomputed apply declared
+      formed morphisms nonempty opaqueEval count startHigh seedHigh mapEval factors pointEval
+      seedEval source sourceResult result)
+
+/-- **A differential site means `dt ∘ Dφ(x)`.** Under the premises of the Oracle's
+`site_differential_rewrite`, let the function operand evaluate to a program `φ` checked as
+`ℝⁿ → ℝ¹` and the point to `x` with `n` coordinates. Then the source site `differential(φ, x)` and
+its compiled Core evaluate to the same covector over `x` with `n` components, which as a linear
+functional is `dt ∘ Dφ(x)`. No proof step uses `cot_compose`, `backward_eq_cot` or
+`pderiv_aeval`. -/
+theorem site_differential_rewrite_frechet {module : Indexed.Core.Module}
+    {entry : Indexed.Core.Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) =
+      some entry.generated)
+    (saved : entry.site.mode = .saved)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step)
+    (morphisms : MorphismsDeclared module entry.site.steps) (nonempty : entry.site.steps ≠ [])
+    {seedVariance : Variance}
+    (seedDeclared : module.declarations.primitive? entry.names.seed =
+      some (.fiberVector entry.site.cotangent entry.site.smooth entry.site.output))
+    (seedFamily : Indexed.fiberVariance? module.declarations.indexed entry.site.cotangent =
+      some seedVariance)
+    {values : Values} {bound : ℕ} {opaqueTerms : List Indexed.Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol firstPoint : ℕ} (startHigh : bound ≤ startSymbol)
+    (seedHigh : startSymbol < seedSymbol) (firstHigh : seedSymbol < firstPoint)
+    {functionTerm pointTerm : Indexed.Core.Term} {map x : Program}
+    (mapEval : Evaluates module values functionTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    {id smooth cotangent line : Indexed.DeclId}
+    (source : module.declarations.primitive? id = some (.differential smooth cotangent line))
+    (sourceResult result : Indexed.Core.Result)
+    (typed : map.wellTyped n 1 = true) (startLength : (coordinates x).length = n) :
+    ∃ r : Fiber,
+      Evaluates module values (.primitive id [functionTerm, pointTerm] sourceResult)
+        (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm
+          (Indexed.Core.Reverse.forwardLets entry.names entry.site entry.site.steps
+            (Indexed.Core.Reverse.mapTerms entry.site.steps opaqueTerms)
+            (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
+            (.letE seedSymbol (unitSeed entry (sitePoints entry.site
+                (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length))
+                (.variable startSymbol pointTerm.result))
+              (.call entry.function (opaqueTerms ++ sitePoints entry.site
+                (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length) ++
+                [.variable seedSymbol (Indexed.Core.Reverse.fiberResult entry.site entry.site.output)])
+                [] result))))
+        (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates x ∧ r.components.length = n ∧
+      covector n r.components = (covector map.outputArity [1]).comp
+        (fderiv ℝ (realProgram map n) (realPoint n (coordinates x))) := by
+  have rewrite := VastitasOracle.SmoothReverseCore.site_differential_rewrite function saved apply
+    declared formed morphisms nonempty seedDeclared seedFamily opaqueEval count startHigh seedHigh
+    firstHigh mapEval factors pointEval source sourceResult result
+  rw [VastitasOracle.SmoothRuntime.differential_eq_pullback] at rewrite
+  exact evaluates_pair_frechet (seed := ⟨map.eval (coordinates x), [1]⟩) .saved typed startLength
+    rfl rfl rewrite
+
+/-- **A tape site means `η ∘ DM(x)`.** Under the premises of the Oracle's `site_tape_rewrite`, with
+the map, point and seed of `site_saved_rewrite_frechet`, the reverse pass of the tape
+`backward(linearize(M, x), η)` and its compiled Core evaluate to the same covector over `x`, which
+is `η ∘ DM(x)`. No proof step uses `cot_compose`, `backward_eq_cot` or `pderiv_aeval`. -/
+theorem site_tape_rewrite_frechet {module : Indexed.Core.Module} {entry : Indexed.Core.Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) =
+      some entry.generated)
+    (saved : entry.site.mode = .saved)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step)
+    (morphisms : MorphismsDeclared module entry.site.steps) (nonempty : entry.site.steps ≠ [])
+    {values : Values} {bound : ℕ} {opaqueTerms : List Indexed.Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol firstPoint : ℕ} (startHigh : bound ≤ startSymbol)
+    (seedHigh : startSymbol < seedSymbol) (firstHigh : seedSymbol < firstPoint)
+    {mapTerm pointTerm seedTerm : Indexed.Core.Term} {x : Program} {variance : Variance}
+    {seed : Fiber} {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance (some seed))))
+    {builder id : Indexed.DeclId} (tape : Indexed.Core.Reverse.ruleOf module.declarations builder = .tape)
+    (pass : Indexed.Core.Reverse.ruleOf module.declarations id = .pass .backward)
+    (tapeResult sourceResult result : Indexed.Core.Result)
+    (typed : map.wellTyped n m = true) (startLength : (coordinates x).length = n)
+    (over : seed.point = map.eval (coordinates x)) (components : seed.components.length = m) :
+    ∃ r : Fiber,
+      Evaluates module values
+        (.primitive id [.primitive builder [mapTerm, pointTerm] tapeResult, seedTerm] sourceResult)
+        (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
+          (Indexed.Core.Reverse.forwardLets entry.names entry.site entry.site.steps
+            (Indexed.Core.Reverse.mapTerms entry.site.steps opaqueTerms)
+            (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
+            (.call entry.function (opaqueTerms ++ sitePoints entry.site
+              (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length) ++
+              [.variable seedSymbol seedTerm.result]) [] result))))
+        (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates x ∧ r.components.length = n ∧
+      covector n r.components = (covector map.outputArity seed.components).comp
+        (fderiv ℝ (realProgram map n) (realPoint n (coordinates x))) :=
+  evaluates_pair_frechet .saved typed startLength over components
+    (VastitasOracle.SmoothReverseCore.site_tape_rewrite function saved apply declared formed
+      morphisms nonempty opaqueEval count startHigh seedHigh firstHigh mapEval factors pointEval
+      seedEval tape pass tapeResult sourceResult result)
+
+/-- **A compiled pullback site means `η ∘ DM(x)`.** Let `compileSite` compile a pullback site
+`pullback(M, x, η)`, in either mode, of a function whose `let` definitions in scope agree with
+the activation (`DefsAgree`), in a module that keeps the source bindings and holds every entry of
+the ledger (`EntryWellFormed`). Let the operands, reading no symbol at or above `state.next`,
+evaluate to a program `M` checked as `ℝⁿ → ℝᵐ`, a point `x` with `n` coordinates and a covector
+`η` over `M(x)` with `m` components. Then the source call and the term that `compileSite` returns
+evaluate to the same covector over `x` with `n` components, which is `η ∘ DM(x)`. The proof
+composes the Oracle's `compiled_site_evaluates` with `pullback_covector_eq_comp_fderiv`, without
+`cot_compose`, `backward_eq_cot` or `pderiv_aeval`. -/
+theorem compiled_site_frechet {module : Indexed.Core.Module} {env : Indexed.Core.Declarations}
+    {defs : Indexed.Core.Reverse.Defs} {state : Indexed.Core.Reverse.State} {id : Indexed.DeclId}
+    {arguments : List Indexed.Core.Term} {result : Indexed.Core.Result} {term : Indexed.Core.Term}
+    {state' : Indexed.Core.Reverse.State}
+    (compiled : Indexed.Core.Reverse.compileSite env defs state id arguments result =
+      some (term, state'))
+    (rules : ∀ id binding, env.primitive? id = some binding →
+      module.declarations.primitive? id = some binding)
+    (wellFormed : ∀ entry ∈ state'.entries,
+      VastitasOracle.SmoothReverseCompiled.EntryWellFormed module entry)
+    {values : Values}
+    (agree : VastitasOracle.SmoothReverseCompiled.DefsAgree module values state.next defs)
+    {mapTerm pointTerm seedTerm : Indexed.Core.Term} {mode : PullbackMode}
+    (operands : Indexed.Core.Reverse.siteOperands env defs id arguments =
+      some (mapTerm, pointTerm, some seedTerm, mode))
+    (pullbackSite : Indexed.Core.Reverse.ruleOf env id = .pass (.pullback mode))
+    {map x : Program} (mapStable : Stable module values state.next mapTerm (smoothValue map))
+    (typed : map.wellTyped n m = true)
+    (pointStable : Stable module values state.next pointTerm (smoothValue x))
+    (startLength : (coordinates x).length = n) {variance : Variance} {seed : Fiber}
+    (seedStable : Stable module values state.next seedTerm (.indexed (.fiber variance (some seed))))
+    (over : seed.point = map.eval (coordinates x)) (components : seed.components.length = m) :
+    ∃ r : Fiber,
+      Evaluates module values (.primitive id arguments result) (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values term (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates x ∧ r.components.length = n ∧
+      covector n r.components = (covector map.outputArity seed.components).comp
+        (fderiv ℝ (realProgram map n) (realPoint n (coordinates x))) := by
+  obtain ⟨value, sourceEval, termEval⟩ :=
+    VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates compiled rules wellFormed agree
+      operands mapStable typed pointStable
+      fun seedTerm' same => ⟨variance, some seed, by cases same; exact seedStable⟩
+  rcases VastitasOracle.SmoothReverseCompiled.siteOperands_cases operands with
+    ⟨seedTerm', -, rfl, sameSeed⟩ | ⟨-, -, noSeed, -⟩ | ⟨-, -, -, -, backward, -⟩
+  · cases sameSeed
+    have pullbackEval := VastitasOracle.SmoothReverseCore.pass_pullback_evaluates
+      (VastitasOracle.SmoothReverseCompiled.ruleOf_transfer rules pullbackSite
+        (by intro same; cases same))
+      mapStable.evaluates pointStable.evaluates seedStable.evaluates result
+    rw [VastitasOracle.IndexedEvaluation.evaluates_unique sourceEval pullbackEval] at termEval
+    exact evaluates_pair_frechet mode typed startLength over components ⟨pullbackEval, termEval⟩
+  · cases noSeed
+  · rw [pullbackSite] at backward
+    cases backward
+
+/-- **A compiled differential site means `dt ∘ Dφ(x)`.** Under the premises of
+`compiled_site_frechet` for a differential site `differential(φ, x)`, with `φ` checked as
+`ℝⁿ → ℝ¹`, the source call and the term that `compileSite` returns evaluate to the same covector
+over `x` with `n` components, which is `dt ∘ Dφ(x)`. -/
+theorem compiled_differential_site_frechet {module : Indexed.Core.Module}
+    {env : Indexed.Core.Declarations} {defs : Indexed.Core.Reverse.Defs}
+    {state : Indexed.Core.Reverse.State} {id : Indexed.DeclId} {arguments : List Indexed.Core.Term}
+    {result : Indexed.Core.Result} {term : Indexed.Core.Term} {state' : Indexed.Core.Reverse.State}
+    (compiled : Indexed.Core.Reverse.compileSite env defs state id arguments result =
+      some (term, state'))
+    (rules : ∀ id binding, env.primitive? id = some binding →
+      module.declarations.primitive? id = some binding)
+    (wellFormed : ∀ entry ∈ state'.entries,
+      VastitasOracle.SmoothReverseCompiled.EntryWellFormed module entry)
+    {values : Values}
+    (agree : VastitasOracle.SmoothReverseCompiled.DefsAgree module values state.next defs)
+    {mapTerm pointTerm : Indexed.Core.Term} {mode : PullbackMode}
+    (operands : Indexed.Core.Reverse.siteOperands env defs id arguments =
+      some (mapTerm, pointTerm, none, mode))
+    {map x : Program} (mapStable : Stable module values state.next mapTerm (smoothValue map))
+    (typed : map.wellTyped n 1 = true)
+    (pointStable : Stable module values state.next pointTerm (smoothValue x))
+    (startLength : (coordinates x).length = n) :
+    ∃ r : Fiber,
+      Evaluates module values (.primitive id arguments result) (.indexed (.fiber .cotangent (some r))) ∧
+      Evaluates module values term (.indexed (.fiber .cotangent (some r))) ∧
+      r.point = coordinates x ∧ r.components.length = n ∧
+      covector n r.components = (covector map.outputArity [1]).comp
+        (fderiv ℝ (realProgram map n) (realPoint n (coordinates x))) := by
+  obtain ⟨value, sourceEval, termEval⟩ :=
+    VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates compiled rules wellFormed agree
+      operands mapStable typed pointStable fun _ same => by cases same
+  rcases VastitasOracle.SmoothReverseCompiled.siteOperands_cases operands with
+    ⟨_, -, -, hasSeed⟩ | ⟨differentialSite, rfl, -, -⟩ | ⟨_, _, _, _, -, -, hasSeed, -⟩
+  · cases hasSeed
+  · have differentialEval := VastitasOracle.SmoothReverseCore.pass_differential_evaluates
+      (VastitasOracle.SmoothReverseCompiled.ruleOf_transfer rules differentialSite
+        (by intro same; cases same))
+      mapStable.evaluates pointStable.evaluates result
+    rw [VastitasOracle.IndexedEvaluation.evaluates_unique sourceEval differentialEval] at termEval
+    rw [VastitasOracle.SmoothRuntime.differential_eq_pullback] at differentialEval termEval
+    exact evaluates_pair_frechet (seed := ⟨map.eval (coordinates x), [1]⟩) .saved typed startLength
+      rfl rfl ⟨differentialEval, termEval⟩
+  · cases hasSeed
 
 /-! ## Every entry of every public path -/
 

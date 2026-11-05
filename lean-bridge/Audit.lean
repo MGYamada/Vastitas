@@ -178,7 +178,13 @@ run_cmd do
       `VastitasBridge.Differential.public_wire_entries_frechet,
       `VastitasBridge.Differential.legacy_wire_entries_frechet,
       `VastitasBridge.Differential.public_resource_entries_frechet,
-      `VastitasBridge.Differential.public_pure_entry_frechet] do
+      `VastitasBridge.Differential.public_pure_entry_frechet,
+      `VastitasBridge.Differential.site_saved_rewrite_frechet,
+      `VastitasBridge.Differential.site_recomputed_rewrite_frechet,
+      `VastitasBridge.Differential.site_differential_rewrite_frechet,
+      `VastitasBridge.Differential.site_tape_rewrite_frechet,
+      `VastitasBridge.Differential.compiled_site_frechet,
+      `VastitasBridge.Differential.compiled_differential_site_frechet] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would
@@ -273,7 +279,18 @@ run_cmd do
       `VastitasBridge.Differential.public_wire_entries_frechet,
       `VastitasBridge.Differential.legacy_wire_entries_frechet,
       `VastitasBridge.Differential.public_resource_entries_frechet,
-      `VastitasBridge.Differential.public_pure_entry_frechet]
+      `VastitasBridge.Differential.public_pure_entry_frechet,
+      `VastitasOracle.SmoothReverseCore.site_saved_rewrite,
+      `VastitasOracle.SmoothReverseCore.site_recomputed_rewrite,
+      `VastitasOracle.SmoothReverseCore.site_differential_rewrite,
+      `VastitasOracle.SmoothReverseCore.site_tape_rewrite,
+      `VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates,
+      `VastitasBridge.Differential.site_saved_rewrite_frechet,
+      `VastitasBridge.Differential.site_recomputed_rewrite_frechet,
+      `VastitasBridge.Differential.site_differential_rewrite_frechet,
+      `VastitasBridge.Differential.site_tape_rewrite_frechet,
+      `VastitasBridge.Differential.compiled_site_frechet,
+      `VastitasBridge.Differential.compiled_differential_site_frechet]
   for name in independent do
     unless env.contains name do
       throwError "missing theorem {name} of the independence check"

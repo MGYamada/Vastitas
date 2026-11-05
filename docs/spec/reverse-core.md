@@ -22,7 +22,7 @@ After acceptance, the kernel compiles every reverse site of a checked module int
 
 - Property: `reverse-core.backward.saved`
 - Subject: `Core.Reverse.Entry.generated`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, T4](../reverse-core-acceptance.md#t4)
 
 Let a saved site have the step programs m₁, …, m_k, which compose. Call its generated backward function on one program per opaque step, the input point r₀, saved points r₁, …, r_k and a seed η, where each rᵢ has the coordinates of mᵢ(rᵢ₋₁). The call evaluates to the saved-mode pullback of η along m_k ∘ ⋯ ∘ m₁ at r₀. A seed that does not lie over r_k gives the failure value ⊥. This holds for every entry of a compiled module.
 
@@ -69,7 +69,7 @@ Claims:
 
 - Property: `reverse-core.backward.recomputed`
 - Subject: `Core.Reverse.Entry.generated`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, T3](../reverse-core-acceptance.md#t3)
 
 Call the generated backward function of a recomputing site on one program per opaque step, the input point r₀ and a seed η, with programs that compose. It evaluates the images again and gives the recomputing pullback of η along m_k ∘ ⋯ ∘ m₁ at r₀. With saved points that are the images, the saved and the recomputing generated functions of a site have the same value. This holds for every entry of a compiled module.
 
@@ -115,7 +115,7 @@ Claims:
 
 - Property: `reverse-core.forward`
 - Subject: `Core.Reverse.forwardLets`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, T1](../reverse-core-acceptance.md#t1)
 
 The forward Core of a site binds, one let per step and in application order, the evaluated images r₁ = m₁(r₀), …, r_k = m_k(r_{k-1}) of the input point. It evaluates to a value exactly when its body evaluates to that value with those points bound. The points satisfy the residual relation, and r_k has the coordinates of the primal value m_k ∘ ⋯ ∘ m₁ at r₀. The compiled Core of a site holds these lets after the input point.
 
@@ -149,7 +149,7 @@ Claims:
 
 - Property: `reverse-core.meaning`
 - Subject: `Core.Reverse.Entry.generated`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, A2](../reverse-core-acceptance.md#a2)
 
 Let the chain m_k ∘ ⋯ ∘ m₁ of the step programs be well typed from ℝⁿ to ℝᵐ, and let the seed η lie over its image of the input point x with m components. Then the generated backward function of a saved or a recomputing site evaluates to the covector at x whose components are cot of the composite map at x applied to η.
 
@@ -193,7 +193,7 @@ Claims:
 
 - Property: `reverse-core.sites`
 - Subject: `Core.Reverse.compileSite`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, T5](../reverse-core-acceptance.md#t5)
 
 The term that the compilation puts at a site and the source call evaluate to the same value. This holds for a pullback in either mode, for a differential, whose generated seed is the unit covector at the primal value, and for the reverse pass of a tape, direct or bound by a let. The maps that the derivative rules read from the map operand are its maps: its value is a composition tree whose leaves are the step programs.
 
@@ -240,7 +240,7 @@ Claims:
 
 - Property: `reverse-core.validation`
 - Subject: `Core.Reverse.Compiled`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, T2](../reverse-core-acceptance.md#t2)
 
 A compilation stage holds its generated module and ledger exactly when compiling the source module again gives both. Every entry's generated function and declarations are found by their ids. Every entry is well formed: its site has a step, and every declared step names two objects and is a declaration with the derivative rule morphism. Its forward, backward and seed steps are declared under its names. On protocols 2-6, 7 and 8/9, consider every entry of a compiled module that the accepted certificate carries, or of the module that the pure emit path generates code from. A call of its generated function computes the pullback along the chain of the step programs passed as arguments, in its mode.
 
@@ -284,7 +284,7 @@ Claims:
 
 - Property: `reverse-core.steps`
 - Subject: `cotangentJacobian`
-- Rule: [Smooth affine geometry and reverse pullbacks](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+- Rule: [Compiled reverse Core acceptance, Jacobian tables](../reverse-core-acceptance.md#jacobian-tables)
 
 The backward step along a declared map m applies the Jacobian table of m, which the kernel computes from the exact map, to the seed. The table applied to a seed η at a point x is cot m x η. When the saved output point is the image of the input point, the table step is the pullback along m at the input point, for every seed. Every registry binding keeps the promise of its derivative rule, which the compilation reads.
 

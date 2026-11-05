@@ -73,7 +73,7 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
   match entry : program.entry with
   | none =>
     let core : Core.Typing.CheckedModule true := by
-      simpa [entry] using checked.pureProgram.executable.core
+      simpa [entry] using checked.pureProgram.compiled.core
     let source ← (Core.Codegen.generate core).mapError fun message => {code := "E_CODEGEN", message}
     return ⟨source, false, false⟩
   | some id =>
@@ -85,7 +85,7 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
       match checked.targets.entries[fragment]? with
       | some target => pure target.function
       | none => error "mixed execution names an absent pure target"
-    let pureSource ← (Core.Codegen.generateLibrary checked.values.executable.core roots).mapError fun message =>
+    let pureSource ← (Core.Codegen.generateLibrary checked.values.compiled.core roots).mapError fun message =>
       {code := "E_CODEGEN", message}
     let plan ← (Native.compile execution.checked.statements).mapError fun problem =>
       {code := problem.code, message := problem.message}

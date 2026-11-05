@@ -31,7 +31,7 @@ private def process (mode input : String) : Lean.Json := Id.run do
         match Indexed.Wire.check json true with
         | .error diagnostic => return failureJson diagnostic version
         | .ok accepted =>
-          match Indexed.Core.Codegen.generate accepted.checked.executable.core with
+          match Indexed.Core.Codegen.generate accepted.checked.compiled.core with
           | .error message => return failureJson { code := "E_CODEGEN", message } version
           | .ok source => return successJson (some source) version
       else
@@ -44,7 +44,7 @@ private def process (mode input : String) : Lean.Json := Id.run do
       match Indexed.LegacySource.check json true with
       | .error diagnostic => return failureJson diagnostic version
       | .ok accepted =>
-        match Indexed.Core.Codegen.generate accepted.checked.executable.core with
+        match Indexed.Core.Codegen.generate accepted.checked.compiled.core with
         | .ok source => return successJson (some source) version
         | .error message => return failureJson { code := "E_CODEGEN", message } version
     else

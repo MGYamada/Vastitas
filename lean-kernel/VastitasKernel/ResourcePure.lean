@@ -35,6 +35,8 @@ structure Checked (program : DispatchSource.Program) {requireMain : Bool}
   audit : Compiler.CheckedPass compiler true false
   coverage : Compiler.coversDefinitions compiler.input audit.lowered = true
   executable : Compiler.CheckedPass compiler false false
+  /-- The executable Core with its reverse sites compiled into Core (#623). -/
+  compiled : Core.Reverse.Compiled executable.core
 
 def check (program : DispatchSource.Program) {requireMain : Bool}
     (authority : AuthoritySource.CheckedProgram program requireMain) (fragments : Fragments) :
@@ -54,8 +56,9 @@ def check (program : DispatchSource.Program) {requireMain : Bool}
               let audit ← Compiler.checkPass compiler true false
               if coverage : Compiler.coversDefinitions compiler.input audit.lowered = true then
                 let executable ← Compiler.checkPass compiler false false
+                let compiled ← Core.Reverse.compile executable.core
                 return ⟨fragmentHeaders, lifted, liftFrom, definitions, compiler, prepareFrom,
-                  preparation, instances, audit, coverage, executable⟩
+                  preparation, instances, audit, coverage, executable, compiled⟩
               else Namespace.problem {} "E_OWNER" "resource pure fragments lost an original or lifted body"
             else Namespace.problem {} "E_OWNER" "resource pure composition changed authority method instances"
           else Namespace.problem {} "E_OWNER" "resource pure composition changed definition origins"

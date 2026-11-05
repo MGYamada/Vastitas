@@ -117,7 +117,7 @@ theorem generated_pure_entry {program : VastitasKernel.ResourceSource.Program}
     ∃ checked : VastitasKernel.ResourceSource.Checked program true,
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
       ∃ core : Core.Typing.CheckedModule true,
-        core.module = checked.pureProgram.executable.core.module ∧
+        core.module = checked.pureProgram.compiled.core.module ∧
         Core.Codegen.generate core = .ok generated.source ∧
         generated.storageRuntime = false ∧ generated.numericalRuntime = false := by
   unfold VastitasKernel.ResourceSource.Codegen.generate at emitted
@@ -130,14 +130,15 @@ theorem generated_pure_entry {program : VastitasKernel.ResourceSource.Program}
         VastitasKernel.ResourceSource.Codegen.Generated) = generated := Except.ok.inj returned
     subst generated
     let core : Core.Typing.CheckedModule true := by
-      simpa [absent] using checked.pureProgram.executable.core
+      simpa [absent] using checked.pureProgram.compiled.core
     refine ⟨checked, accepted, core, ?_, mapError_success compiled, rfl, rfl⟩
-    exact cast_module (by simp [absent]) checked.pureProgram.executable.core
+    exact cast_module (by simp [absent]) checked.pureProgram.compiled.core
   · rename_i id selected
     simp [found] at selected
 
 /-- The module that the pure-entry emit path actually generates is the accepted
-certificate's `pureProgram.executable` module. It has typed, finite evaluation
+certificate's `pureProgram.compiled` module: the executable Core with its
+reverse sites compiled into Core (#623). It has typed, finite evaluation
 for every function, and its `main` evaluates to an `Int`. This concerns the
 checked Core, not the generated text or native code. -/
 theorem generated_pure_entry_total {program : VastitasKernel.ResourceSource.Program}
@@ -147,7 +148,7 @@ theorem generated_pure_entry_total {program : VastitasKernel.ResourceSource.Prog
     ∃ checked : VastitasKernel.ResourceSource.Checked program true,
       VastitasKernel.ResourceSource.check program true = .ok checked ∧
     ∃ core : Core.Typing.CheckedModule true,
-      core.module = checked.pureProgram.executable.core.module ∧
+      core.module = checked.pureProgram.compiled.core.module ∧
       Core.Codegen.generate core = .ok generated.source ∧
       (∀ function ∈ core.module.functions, IndexedFunctionSafety.FunctionReturns core.module function) ∧
       ∃ id function result,

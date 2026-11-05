@@ -11,6 +11,7 @@
   "elaborationWork": 1000000,
   "resourceWork": 32000000,
   "generatedLets": 4096,
+  "reverseLeaves": 256,
   "specializations": 4096,
   "dispatchKeys": 4096,
   "dispatchArity": 6,

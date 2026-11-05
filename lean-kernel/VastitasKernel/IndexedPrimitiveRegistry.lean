@@ -595,8 +595,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
 
   /- Steps of compiled reverse Core (#623). The kernel declares these bindings
   for the Core it generates; no source or wire form names them, and neither
-  has a derivative rule of its own, so compiling generated Core again changes
-  nothing. `smoothApply` has the typing of `compose(map, point)` and evaluates
+  has a derivative rule of its own. `smoothApply` has the typing of `compose(map, point)` and evaluates
   the image. `cotangentJacobian` has the typing of a pullback along its
   declared map, with the map's image of the input saved as a second point. -/
   | .smoothApply smooth =>

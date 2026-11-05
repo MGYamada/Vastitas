@@ -15,6 +15,7 @@ lake build \
   VastitasKernel.SmoothObjectRegression \
   VastitasKernel.CotangentRegression \
   VastitasKernel.MetricFormRegression \
+  VastitasKernel.ReverseCoreRegression \
   VastitasKernel.IndexedCodegen \
   VastitasKernel.IndexedRuntime:c.o \
   VastitasKernel.AlgebraRuntime:c.o \
@@ -75,5 +76,7 @@ authority_empty 5
 smooth_programs 42
 smooth_cotangent_programs 42
 smooth_metric_programs 42
+smooth_reverse_programs 42
+smooth_reverse_extended 42
 FIXTURES
 echo 'indexed Core: all standalone native fixtures passed'

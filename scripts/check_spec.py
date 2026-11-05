@@ -19,6 +19,7 @@ the resolver in report mode, from lean/ or from lean-bridge/.
 """
 import argparse
 import ast
+import importlib.machinery
 from dataclasses import dataclass, field
 import fnmatch
 import json
@@ -429,8 +430,11 @@ YAML_DOUBLE = re.compile(r'"((?:[^"\\]|\\["\\/])*)"')
 def yaml_scalar(text):
     """A plain or quoted scalar. A quoted scalar ends at its closing quote, and
     only a comment may follow it; a double-quoted scalar may escape only `"`,
-    `\\` and `/`. Anything else raises YamlError."""
+    `\\` and `/`. An anchor, an alias, a tag and anything else raise
+    YamlError."""
     text = text.strip()
+    if text[:1] in ("&", "*", "!"):
+        raise YamlError(f"an anchor, alias or tag in {text!r}")
     if text[:1] in ("'", '"'):
         match = (YAML_SINGLE if text[0] == "'" else YAML_DOUBLE).match(text)
         if not match or not re.fullmatch(r"[ \t]*(?:#.*)?", text[match.end():]):
@@ -474,6 +478,8 @@ def yaml_mapping(lines, indent):
 
 def yaml_value(lines, indent, rest):
     rest = rest.strip()
+    if rest[:1] in ("&", "*", "!"):
+        raise YamlError(f"an anchor, alias or tag in {rest!r}")
     if not rest or rest.startswith("#"):
         line = lines.current()
         if line is not None and (yaml_indent(line) > indent
@@ -629,7 +635,7 @@ def unix_job(job):
 # load, or how cargo and Python build and run tests: a test runner, a compiler
 # wrapper, a cross target or a Python path.
 SHELL_ENVIRONMENT = {"ACTIONS_ALLOW_UNSECURE_COMMANDS", "BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE",
-                     "IFS", "PATH", "POSIXLY_CORRECT", "PS4", "SHELLOPTS"}
+                     "HOME", "IFS", "PATH", "POSIXLY_CORRECT", "PS4", "SHELLOPTS"}
 ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "RUST", "PYTHON")
 
 
@@ -1022,7 +1028,7 @@ def rust_blank(source):
     return "".join(out)
 
 
-RUST_MACRO = re.compile(r"\bmacro_rules!\s*[A-Za-z_]\w*\s*[({\[]|\b[A-Za-z_]\w*!\s*[({\[]")
+RUST_MACRO = re.compile(r"\bmacro_rules\s*!\s*(?:r#)?[^\W\d]\w*\s*[({\[]|\b(?:r#)?[^\W\d]\w*\s*!\s*[({\[]")
 
 
 def rust_without_macros(text):
@@ -1220,13 +1226,16 @@ def python_tests(source):
     other test cases of the module. Every test of the module counts as not run
     when `python_skips` holds; when anything other than these classes and the
     plain imports `import unittest` and `from unittest import ...` binds or
-    unbinds a class name or a name of UNITTEST_NAMES, in any form and scope;
-    when code assigns or deletes a class attribute or deletes any attribute;
-    and when a test case or one of its methods has a decorator, a test case
-    has keywords such as `metaclass`, or one defines a method of PYTHON_HARNESS.
-    So does a test name that a class body assigns or deletes rather than
-    defines, and an `async def` test of a class that is no
-    IsolatedAsyncioTestCase, which unittest never awaits."""
+    unbinds a class name or a name of UNITTEST_NAMES, in any form and scope,
+    or a star import from any module but unittest may; when a class name is
+    used as a value rather than as a base; when code assigns or deletes an
+    attribute or item of a class or of a name of UNITTEST_NAMES, or deletes
+    any attribute; and when a test case or one of its methods has a decorator,
+    a test case has keywords such as `metaclass`, or one defines a method of
+    PYTHON_HARNESS. A test name that a class body assigns or deletes rather
+    than defines, and an `async def` test of a class that is no
+    IsolatedAsyncioTestCase, which unittest never awaits, count as not run
+    too."""
     module = ast.parse(source)
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
     kinds = {"TestCase", "IsolatedAsyncioTestCase", "unittest.TestCase", "unittest.IsolatedAsyncioTestCase"}
@@ -1269,17 +1278,26 @@ def python_tests(source):
     imports |= {id(alias) for node in ast.walk(module)
                 if isinstance(node, ast.ImportFrom) and node.module == "unittest" and not node.level
                 for alias in node.names if alias.asname is None}
-    rebinds = any((name in classes or name in UNITTEST_NAMES) and id(node) not in definitions | imports
+    rebinds = any((name in classes or name in UNITTEST_NAMES or name == "*") and id(node) not in definitions | imports
                   for name, node in python_bindings(module))
-    changes = any(isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
-                  and target.value.id in classes or isinstance(node, ast.Delete) and isinstance(target, ast.Attribute)
-                  for node in ast.walk(module) if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Delete))
-                  for target in (node.targets if isinstance(node, (ast.Assign, ast.Delete)) else [node.target]))
+
+    def root(node):
+        while isinstance(node, (ast.Attribute, ast.Subscript)):
+            node = node.value
+        return node.id if isinstance(node, ast.Name) else None
+
+    changes = any(isinstance(target, (ast.Attribute, ast.Subscript)) and (
+        root(target) in classes or root(target) in UNITTEST_NAMES or isinstance(node, ast.Delete))
+        for node in ast.walk(module) if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Delete))
+        for target in (node.targets if isinstance(node, (ast.Assign, ast.Delete)) else [node.target]))
+    bases = {id(base) for node in classes.values() for base in node.bases}
+    aliases = any(isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in classes
+                  and id(node) not in bases for node in ast.walk(module))
     cases = [node for name, node in classes.items() if test_case(name)]
     harness = any(node.decorator_list or node.keywords or any(
         isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
         and (item.decorator_list or item.name in PYTHON_HARNESS) for item in node.body) for node in cases)
-    skips = python_skips(source) or rebinds or changes or harness
+    skips = python_skips(source) or rebinds or changes or aliases or harness
     return {(name, method): skips or kind == "unknown"
             or kind == "async" and not test_case(name, {"IsolatedAsyncioTestCase", "unittest.IsolatedAsyncioTestCase"})
             for name in classes if test_case(name) for method, kind in methods(name).items()}
@@ -1290,15 +1308,16 @@ PYTHON_STARTUP = {"sitecustomize", "usercustomize"}
 
 def python_shadows(directory):
     """Whether `directory` holds a module or package whose name a module of the
-    standard library, or Python's start-up, uses: `NAME.py`, `NAME.pyc`, an
-    extension module or `NAME/__init__.py`."""
+    standard library, or Python's start-up, uses: a file with a suffix of
+    `importlib.machinery.all_suffixes()`, or `NAME/__init__.py`."""
     names = sys.stdlib_module_names | PYTHON_STARTUP
+    suffixes = tuple(importlib.machinery.all_suffixes())
     try:
         entries = list(Path(directory).iterdir())
     except OSError:
         return False
     return any(entry.name.split(".")[0] in names and (
-        entry.is_file() and entry.suffix in (".py", ".pyc", ".so", ".pyd")
+        entry.is_file() and entry.name.endswith(suffixes)
         or entry.is_dir() and (entry / "__init__.py").exists()) for entry in entries)
 
 
@@ -1325,8 +1344,9 @@ class Repository:
         self.root_tests = package is not None and not (isinstance(workspace, dict) and "default-members" in workspace) \
             and not any((root / ".cargo" / name).exists() for name in ("config.toml", "config"))
         self.autotests = manifest.get("package", {}).get("autotests", True) is not False
-        self.listed = {os.path.normpath(target.get("path", f"tests/{target.get('name')}.rs"))
-                       for target in (targets if isinstance(targets, list) else []) if isinstance(target, dict)}
+        self.listed = {os.path.normpath(item) for target in (targets if isinstance(targets, list) else [])
+                       if isinstance(target, dict)
+                       for item in (target.get("path", f"tests/{target.get('name')}.rs"), f"tests/{target.get('name')}.rs")}
         if not isinstance(targets, list):
             self.autotests = False
         directory = root / WORKFLOWS
@@ -1353,17 +1373,26 @@ class Repository:
             self.codes = set(re.findall(r"`(E_[A-Z0-9_]+)`", (root / DIAGNOSTICS).read_text(encoding="utf-8")))
         self._rust, self._python = {}, {}
 
+    def through_link(self, directory):
+        """Whether `directory` passes through a symbolic link of the checkout, where
+        programs see the link's target while the reader follows the link's name."""
+        return directory is None or any(
+            (self.root / PurePosixPath(*directory.parts[:length])).is_symlink()
+            for length in range(1, len(directory.parts) + 1))
+
     def add(self, words, directory, package):
         """Record a plain command that runs Rust tests, Python tests or the regression script."""
+        if self.through_link(directory):
+            return
         if words[:2] == ["cargo", "test"]:
             if directory == PurePosixPath("."):
                 self.cargo.append(cargo_run(words[2:], package))
         elif words[0] in ("python", "python3") and words[1:4] == ["-m", "unittest", "discover"]:
             # `-m` puts the working directory first on the module path, where a local module or
             # package that the standard library also has, unittest among them, would win.
-            shadowed = directory is not None and python_shadows(self.root / directory)
-            run = None if shadowed else discover_run(words[4:], directory)
-            if run is not None:
+            run = None if python_shadows(self.root / directory) else discover_run(words[4:], directory)
+            # unittest puts the start directory on the module path too, before the tests import.
+            if run is not None and not self.through_link(run.start) and not python_shadows(self.root / run.start):
                 self.discover.append(run)
         elif directory == PurePosixPath(".") and words in (["bash", str(REGRESSIONS)], ["bash", f"./{REGRESSIONS}"]):
             self.regression_steps += 1

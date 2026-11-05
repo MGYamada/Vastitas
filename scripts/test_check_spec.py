@@ -628,7 +628,11 @@ class FixtureTests(unittest.TestCase):
                 [(step, step + "        Env:\n          BASH_ENV: /tmp/exit.sh\n")],
                 [("    steps:\n", "    steps:\n      - Run: echo \"X=1\" >> \"$GITHUB_ENV\"\n")],
                 [("jobs:\n", "env:\n  CARGO_ENCODED_RUSTFLAGS: x\njobs:\n")],
-                [("jobs:\n", "env:\n  CARGO_HOME: .cargo-home\njobs:\n")]):
+                [("jobs:\n", "env:\n  CARGO_HOME: .cargo-home\njobs:\n")],
+                # The soundness review of #656: HOME, and YAML anchors and aliases.
+                [("jobs:\n", "env:\n  HOME: fakehome\njobs:\n")],
+                [("    steps:\n", "    steps:\n      - name: &s echo \"BASH_ENV=/tmp/x\" >> \"$GITHUB_ENV\"\n"
+                  "        run: *s\n")]):
             with self.subTest(edits=edits):
                 workflow = WORKFLOW
                 for old, new in edits:
@@ -772,7 +776,9 @@ class FixtureTests(unittest.TestCase):
                 ({"Cargo.toml": '[package]\nname = "vastitas"\n\n[workspace]\ndefault-members = ["other"]\n'}, rust),
                 ({".cargo/config.toml": "[target.'cfg(all())']\nrunner = \"true\"\n"}, rust),
                 ({".cargo/config": "[target.'cfg(all())']\nrunner = \"true\"\n"}, rust),
-                ({"Cargo.toml": '[package]\nname = "vastitas"\n\n[workspace]\ndefault-members = ["."]\n'}, rust)):
+                ({"Cargo.toml": '[package]\nname = "vastitas"\n\n[workspace]\ndefault-members = ["."]\n'}, rust),
+                ({"Cargo.toml": '[package]\nname = "vastitas"\n\n[[test]]\nname = "demo"\npath = "tests/other.rs"\n'},
+                 "Cargo.toml sets `autotests = false` or lists tests/demo.rs under [[test]]")):
             with self.subTest(files=files):
                 for name, contents in FILES.items():
                     self.put(name, contents)
@@ -816,6 +822,26 @@ class FixtureTests(unittest.TestCase):
         self.put("unittest/data.txt", "")
         self.assertEqual(self.errors(), [])
 
+    def test_directories_through_a_symbolic_link_do_not_count(self):
+        # The soundness review of #656: programs see a link's target, while the reader follows its name.
+        python = "no CI step runs `scripts/test_demo.py::DemoTests::test_identity`"
+        step = "        run: python3 -m unittest discover -s scripts -p 'test_*.py'\n"
+        for new in ("        run: python3 -m unittest discover -s ../scripts -p 'test_*.py'\n"
+                    "        working-directory: link\n",
+                    "        run: |\n          cd link\n          python3 -m unittest discover -s ../scripts -p 'test_*.py'\n",
+                    "        run: python3 -m unittest discover -s linked -p 'test_*.py'\n"):
+            with self.subTest(new=new):
+                self.setUp()
+                self.put("experiments/foo/.keep", "")
+                os.symlink("experiments/foo", self.root / "link")
+                os.symlink("scripts", self.root / "linked")
+                self.edit(".github/workflows/ci.yml", step, new)
+                self.assertRejected(python)
+
+    def test_standard_library_names_in_the_start_directory(self):
+        self.put("scripts/difflib.py", "import sys\nsys.exit(0)\n")
+        self.assertRejected("no CI step runs `scripts/test_demo.py::DemoTests::test_identity`")
+
     def test_regression_script_runs_as_a_path_from_the_root(self):
         self.edit(".github/workflows/ci.yml", "bash scripts/check_kernel_regressions.sh",
                   "bash ./scripts/check_kernel_regressions.sh")
@@ -842,7 +868,12 @@ class FixtureTests(unittest.TestCase):
                        PYTHON.replace("class DemoTests", "@print\nclass DemoTests"),
                        PYTHON.replace("(unittest.TestCase)", "(unittest.TestCase, metaclass=type)"),
                        PYTHON.replace("        pass\n", "        pass\n\n    def run(self, result=None):\n"
-                                      "        return result\n")):
+                                      "        return result\n"),
+                       # The soundness review of #656.
+                       PYTHON.replace("import unittest\n", "import unittest\nfrom helpers import *\n"),
+                       PYTHON + "\n\nAlias = DemoTests\nAlias.test_identity = None\n",
+                       PYTHON + "\n\nunittest.TestCase.run = lambda *arguments: None\n",
+                       PYTHON + "\n\nmatch None:\n    case DemoTests:\n        pass\n"):
             with self.subTest(source=source):
                 self.put("scripts/test_demo.py", source)
                 self.assertRejected(cited)
@@ -874,7 +905,12 @@ class FixtureTests(unittest.TestCase):
         for body in ("never!(\n    #[test]\n    fn identity_runs() {}\n);",
                      "never!(\n    vec![1];\n    #[test]\n    fn identity_runs() {}\n);",
                      "macro_rules! unused (\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n);",
-                     "macro_rules! unused {\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n}"):
+                     "macro_rules! unused {\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n}",
+                     # The soundness review of #656: spaces, raw identifiers and other letters.
+                     "never ! (\n    #[test]\n    fn identity_runs() {}\n);",
+                     "macro_rules ! m (\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n);",
+                     "macro_rules! r#m (\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n);",
+                     "\u00f1ever!(\n    #[test]\n    fn identity_runs() {}\n);"):
             with self.subTest(body=body):
                 self.put("tests/demo.rs", RUST.replace("#[test]\nfn identity_runs() {}", body))
                 self.assertRejected("tests/demo.rs has no #[test] function `identity_runs`")
@@ -1157,7 +1193,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(check_spec.yaml_load("a: 'b''c'\n"), {"a": "b'c"})
         self.assertEqual(check_spec.yaml_load('a: "b\\/c"\n'), {"a": "b/c"})
         for text in ("a: 'b\n  c'\nd: 1\n", "a:\n  - b\n c: 1\n", "a: [b,\n  c]\n", "a: 'b' c\n",
-                     'a: "b\\nc"\n', "a: b\u0085c: d\n", "a: b\u3000\n", "a: b\x0cc\n"):
+                     'a: "b\\nc"\n', "a: b\u0085c: d\n", "a: b\u3000\n", "a: b\x0cc\n",
+                     "a: &x b\n", "a: *x\n", "a: !!str b\n", "a:\n  - *x\n", "a: [*x]\n"):
             with self.subTest(text=text):
                 with self.assertRaises(check_spec.YamlError):
                     check_spec.yaml_load(text)

@@ -74,7 +74,7 @@ The rules for claims:
   - a `#[test]` function inside another function, which libtest does not
     collect, or inside a macro definition or invocation;
   - a test in a package with `autotests = false`, or in a file that
-    `Cargo.toml` lists under `[[test]]`;
+    `Cargo.toml` lists under `[[test]]`, by its path or by its name;
   - any test when `Cargo.toml` has no root package that `cargo test` runs by
     default, as in a virtual workspace or a workspace with `default-members`;
   - any test when the repository has `.cargo/config.toml` or `.cargo/config`,
@@ -91,9 +91,13 @@ The rules for claims:
     `setattr`, `__setattr__`, `__dict__`, `__class__` or `sys.modules`;
   - every test of a module where anything but its classes and the plain
     imports of unittest binds or unbinds a class name, `TestCase`,
-    `IsolatedAsyncioTestCase` or `unittest`, in any form and scope;
-  - every test of a module that assigns or deletes a class attribute, or
-    deletes any attribute;
+    `IsolatedAsyncioTestCase` or `unittest`, in any form and scope, or that
+    has a star import from any module but unittest;
+  - every test of a module that uses a class name as a value rather than as a
+    base;
+  - every test of a module that assigns or deletes an attribute or item of a
+    class, `TestCase`, `IsolatedAsyncioTestCase` or `unittest`, or deletes any
+    attribute;
   - every test of a module whose test case, or a method of one, has a
     decorator, or whose test case has keywords such as `metaclass` or defines
     a method such as `run` that replaces how unittest calls tests;
@@ -236,7 +240,8 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
   one, and its working directory has no `..`;
 - no `env:` of the workflow, the job or the step sets a variable that changes
   how bash starts or finds commands, or how cargo or Python runs tests:
-  `BASH_ENV`, `SHELLOPTS`, `PATH` and the others that `check_spec.py` lists,
+  `BASH_ENV`, `SHELLOPTS`, `PATH`, `HOME` and the others that `check_spec.py`
+  lists,
   a variable that starts with `BASH_FUNC_`, `LD_`, `DYLD_`, `RUST` or
   `PYTHON`, or a `CARGO_` variable other than the `CARGO_TERM_` settings of
   terminal output;
@@ -245,7 +250,8 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
 A workflow outside the subset of YAML that the check reads runs no test as far
 as the check is concerned. Such a workflow has, for example:
 
-- a quoted, explicit, tagged, anchored, merge or repeated key;
+- a quoted, explicit, tagged, anchored, merge or repeated key, or an
+  anchor, an alias or a tag anywhere else;
 - a quoted scalar over several lines, with text after its closing quote, or
   with an escape other than `\"`, `\\` and `\/`;
 - whitespace other than spaces, tabs and newlines. A non-breaking space is an
@@ -283,7 +289,10 @@ followed only by module names, run from the repository root. A step runs the
 script from the repository root as `bash scripts/check_kernel_regressions.sh`
 or `bash ./scripts/check_kernel_regressions.sh`.
 
-The check recognizes these commands, and reads only the options that it lists:
+A recognized command counts only in a directory that passes through no
+symbolic link of the checkout: programs see the link's target, while the check
+follows the link's name. The check recognizes these commands, and reads only
+the options that it lists:
 
 - `cargo test` in the root package, with target selections such as `--test`
   and `--all-targets`, filters, `-p`, `--manifest-path`, options of the build
@@ -292,9 +301,10 @@ The check recognizes these commands, and reads only the options that it lists:
   `--skip` and those of output;
 - `python3 -m unittest discover` or `python -m unittest discover`, without
   interpreter options, with `-s`, `-p`, `-k`, their long forms, and options of
-  output and failure handling. The step's working directory must hold no
-  module or package with the name of a module of the standard library, such
-  as `unittest.py` or `argparse.py`, which would shadow it;
+  output and failure handling. Neither the step's working directory nor the
+  start directory of the discovery may hold a module or package with the name
+  of a module of the standard library, such as `unittest.py` or
+  `argparse.py`, which would shadow it;
 - the run of the regression script above.
 
 Any other option, such as `--no-run`, `--doc`, `--exclude`, `--target`,
@@ -305,7 +315,11 @@ The check trusts the runner image, the actions that steps use, and the
 programs and scripts that steps run, those of earlier steps included. They
 must not change how bash starts, and `cargo`, `python3`, `python`, `bash` and
 `lake` must run the tools of those names. The rule about `GITHUB_ENV` and
-`GITHUB_PATH` reads only the text of earlier steps.
+`GITHUB_PATH` reads only the text of earlier steps. The check reads a cited
+test's module, the `__init__.py` files above it, the test file of a Rust test
+and `Cargo.toml`. It trusts the rest of the code that CI runs, such as other
+test modules and the helpers that a test imports, not to change how unittest,
+libtest or cargo run the cited test.
 
 `scripts/spec_resolve.lean` imports exactly the modules that a pins file lists.
 It rejects:
@@ -333,7 +347,8 @@ No check verifies what people review:
 
 - that the premises list every hypothesis of the cited theorems;
 - that a statement, an example or a note says what the evidence establishes;
-- that a cited test exercises the property or runs the example;
+- that a cited test exercises the property or runs the example, and does not
+  return early or skip at run time through a helper that it calls;
 - that an `enforced_by` definition reports its code;
 - that a Planned claim's issue exists and is open.
 

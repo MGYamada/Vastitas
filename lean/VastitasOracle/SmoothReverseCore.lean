@@ -38,8 +38,8 @@ The other theorems use the stepwise pullback (`pullback_stepwise`), table steps
 `backward_eq_cot`, so the bridge's Fréchet route stays independent of the
 kernel chain rule. The premises about the module are hypotheses:
 `StepsDeclared`, `StepFormed`, `MorphismsDeclared`, the declaration of
-`names.apply` and the lookup of the generated function. That a compiled,
-checked module satisfies them is a separate statement. -/
+`names.apply` and the lookup of the generated function. `SmoothReverseCompiled`
+proves them for every entry of a compiled module. -/
 
 namespace VastitasOracle.SmoothReverseCore
 

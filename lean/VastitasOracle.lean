@@ -67,6 +67,7 @@ import VastitasOracle.ResourceSource
 import VastitasOracle.ResourceCodegen
 import VastitasOracle.ResourceValueFlow
 import VastitasOracle.IndexedReverseCore
+import VastitasOracle.SmoothReverseCompiled
 
 import VastitasOracle.StorageShapes
 import VastitasOracle.StorageShapeNumerical

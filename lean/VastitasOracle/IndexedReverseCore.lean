@@ -17,10 +17,10 @@ function and every declaration of an entry are found by their ids.
 generates code from a compiled module (protocols 2-7, and the pure program and
 pure values of protocols 8/9) therefore uses the compilation of its executable
 Core, and every function of it has typed, finite evaluation
-(`IndexedProgramSafety`). These theorems concern checked Core. They do not
-state that a generated function computes the reverse pass of its site: the
-step bindings are proved in `SmoothJacobian`, while their composition along a
-site, the generated text and native code are not covered here. -/
+(`IndexedProgramSafety`). These theorems concern checked Core. That a
+generated function computes the reverse pass of its site is stated in
+`SmoothReverseCore` and, for every entry of a compiled module, in
+`SmoothReverseCompiled`; the generated text and native code are not covered. -/
 namespace VastitasOracle.IndexedReverseCore
 open VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Reverse

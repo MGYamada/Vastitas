@@ -23,6 +23,9 @@ def bodyChecking : Nat := compiler_limit% "bodyChecking"
 def elaborationWork : Nat := compiler_limit% "elaborationWork"
 def resourceWork : Nat := compiler_limit% "resourceWork"
 def generatedLets : Nat := compiler_limit% "generatedLets"
+/-- The maps of one compiled reverse pass that the compilation reads through
+`let`s and compositions (#623); beyond it, a map value is one step. -/
+def reverseLeaves : Nat := compiler_limit% "reverseLeaves"
 def specializations : Nat := compiler_limit% "specializations"
 def dispatchKeys : Nat := compiler_limit% "dispatchKeys"
 def dispatchArity : Nat := compiler_limit% "dispatchArity"

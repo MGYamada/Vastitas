@@ -64,6 +64,10 @@ def directionalDerivative (smooth tangent line : DeclId) : PrimitiveDescriptor w
         .ok (Lowering.application (Lowering.smooth "pairing")
           [Lowering.application (Lowering.smooth "differential") [function, point], vector])
     | _ => Lowering.arityMismatch
+  -- The derivative rule. The call runs a reverse pass inside its own
+  -- evaluator, so compiled reverse Core treats it as an opaque call: it is not
+  -- a reverse pass that the compilation replaces, and it builds no map.
+  reverse := .none
 
 /-- The descriptor that the resolved arguments of the wire form make, in wire
 order: the step `PrimitiveFamily.build` takes for a registry family, with the

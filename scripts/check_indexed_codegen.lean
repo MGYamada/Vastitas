@@ -10,6 +10,7 @@ import VastitasKernel.IndexedAuthorityRegression
 import VastitasKernel.SmoothObjectRegression
 import VastitasKernel.CotangentRegression
 import VastitasKernel.MetricFormRegression
+import VastitasKernel.ReverseCoreRegression
 
 open VastitasKernel.Indexed.Core
 
@@ -64,5 +65,17 @@ def main (arguments : List String) : IO Unit := do
     let .ok checked := Typing.checkModule module true
       | throw (IO.userError s!"fixture {name} rejected")
     let .ok source := Codegen.generate checked
+      | throw (IO.userError s!"fixture {name} failed code generation")
+    IO.FS.writeFile (System.FilePath.mk directory / s!"{name}.lean") source
+  -- Compiled reverse Core (#623): the reverse sites compiled into Core, checked
+  -- again and validated, then lowered.
+  for (name, module) in [
+      ("smooth_reverse_programs", VastitasKernel.Indexed.CotangentRegression.cotangentFixture),
+      ("smooth_reverse_extended", VastitasKernel.Indexed.Core.ReverseCoreRegression.extendedFixture)] do
+    let .ok checked := Typing.checkModule module true
+      | throw (IO.userError s!"fixture {name} rejected")
+    let .ok compiled := Reverse.compile checked
+      | throw (IO.userError s!"fixture {name} failed its reverse compilation")
+    let .ok source := Codegen.generate compiled.core
       | throw (IO.userError s!"fixture {name} failed code generation")
     IO.FS.writeFile (System.FilePath.mk directory / s!"{name}.lean") source

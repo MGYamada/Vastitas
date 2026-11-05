@@ -786,7 +786,8 @@ source directly to `Indexed.AuthoritySource.checkProgram`, the same declaration,
 function, finite-dispatch and edit-authority checker used by protocol 7. It does
 not use the old geometry elaborator's acceptance or translate an old checked Core
 on the public path. Both `check` and `build` require the common audit; code
-emission uses the exact returned executable Core and independently audits it again.
+emission uses the returned executable Core with its reverse passes compiled
+into Core, and audits that module again.
 
 Flat functions, methods, abstract declarations and contracts retain their actual
 bodies and spans in a synthetic module whose identity is independent of display

@@ -93,6 +93,14 @@ inductive PrimitiveBinding where
   | linearize (smooth tape : DeclId)
   /-- The reverse pass of a tape of `tape` on a covector of `cotangent`. -/
   | cotangentBackward (tape cotangent : DeclId)
+  /-- The image of a point under a map in `smooth`, as an evaluated point: a
+  forward step of compiled reverse Core (#623). The kernel declares it; no
+  source or wire form names it. -/
+  | smoothApply (smooth : DeclId)
+  /-- One backward step of compiled reverse Core along the declared map `map`
+  of type `application`, on a covector of `cotangent`, by the map's Jacobian
+  table (#623). The kernel declares it; no source or wire form names it. -/
+  | cotangentJacobian (cotangent : DeclId) (application : Application) (map : AlgebraRuntime.Map)
   /-- `flat` with the metric `metric` on `object`: a vector of `tangent` to a
   covector of `cotangent`, by the embedded Gram matrix. -/
   | metricFlat (metric object : DeclId) (gram : SmoothRuntime.Matrix) (tangent cotangent : DeclId)

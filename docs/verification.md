@@ -132,8 +132,8 @@ has its own section,
 
 | Wire input | Independent acceptance | Native generation |
 | --- | --- | --- |
-| Protocols 2–6 | `Indexed.LegacySource.check`, including original decoder/namespace validation and conversion into `Indexed.AuthoritySource.checkProgram` | `Indexed.Core.Codegen.generate` on the exact returned executable Core |
-| Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator |
+| Protocols 2–6 | `Indexed.LegacySource.check`, including original decoder/namespace validation and conversion into `Indexed.AuthoritySource.checkProgram` | `Indexed.Core.Codegen.generate` on `compiled`: the returned executable Core with its reverse passes compiled into Core and checked again |
+| Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator, on `compiled` |
 | Protocols 8/9 | `ResourceSource.Wire.check`, composing indexed pure bodies with resource/numerical checks | `ResourceSource.Codegen.generate` rechecks the accepted source and both components |
 
 Protocol 9 changes only edit recipient identity syntax within the full resource
@@ -562,10 +562,13 @@ reuses the accepted source program. The internal component entry's
 accepted entry schedule and its audited closed native plan. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
 is no resource entry. `generated_pure_entry_total` adds that this generated
-module is the certificate's `pureProgram.executable` module, that every function
+module is the certificate's `pureProgram.compiled` module, the executable Core
+with its reverse passes compiled into Core, that every function
 has typed, finite evaluation and that its `main` evaluates to an `Int`. `ResourceSource.pure_entry_functions_total` and
 `pure_entry_main_total` state the same for `checked.pureProgram.executable`,
-while `pure_value_functions_total` covers the value library of the mixed path.
+the module before that compilation,
+while `pure_value_functions_total` covers the value library of the mixed path
+before it.
 These theorems establish acceptance and identify the exact
 inputs to native generation. Native heap and floating-point refinement remain open.
 
@@ -1373,7 +1376,8 @@ the contribution implementations.
 authority path. `reconstructed` retains the exact decoder input/result and the
 actual combined checker's acceptance equation. `checked_cores` gives typing of
 both returned passes, executable dependency order and the main contract;
-`codegen_input` identifies the exact executable Core passed to generation.
+`codegen_input` identifies the executable Core; generation receives
+`compiled`, the executable Core with its reverse passes compiled into Core.
 `returned_loans` and `final_footprints` retain the actual authority guarantees.
 The underlying individual-adapter theorems above retain their narrower scope.
 Twelve direct kernel wire regressions and actual Rust-source integration tests
@@ -2043,6 +2047,7 @@ All of these are Proved (oracle). Names are relative to `VastitasOracle`.
 | `SmoothRuntime` | `pullback_spec`, `pullback_saved_eq_recomputed`, `backward_forward`, `forward_residual`, `backward_linearize`, `backward_foreign_seed`, `pullback_wrong_point`, `pullback_none`, `pullback_mem_of_wellTyped`, `pullback_stepwise`, `pullback_identity`, `fiberEqual_none_left`, `component_ne_failure` | Structural facts that unfold the implementation: the two modes and the tape agree, a seed over another point gives the failure value, the failure value is absorbing and observably distinct, a result lies over the input point, a composite pulls back stepwise, the identity pulls back to itself |
 | `SmoothCalculus` | `evalIn_subst`, `dual_tangent`, `evalAt_partial_subst`, `cot_compose`, `eval_denote`, `backward_eq_cot`, `backward_eq_cot_saved`, `pullback_composite`, `pullback_eq_composite`, `Cov.pullback_comp`, `Cov.pullback_id`, `Cov.pullback_runtime`, `Regression.shear_correct_order`, `Regression.shear_reversed_order` | The chain rule without mathlib: evaluation in any commutative ring that receives `ℚ`, the directional derivative in the dual numbers, and the reverse pass of a well-typed program as the cotangent pullback `cot` along its denoted map, in both modes; the typed covector fragment ported from the polynomial cotangent proof, with the noncommuting shears |
 | `SmoothReverse` | `core_cotangent_pullback`, `core_differential`, `core_linearize`, `core_cotangent_backward`, `core_backward_linearize`, `core_pullback_compose`, `smooth_differential_metric_free` | An accepted Core node of each reverse-pass binding evaluates to the runtime operation on its operand values, with its checked type; a pullback along a Core `compose` node runs on the program node; `differential` and `cotangent_pullback` take no environment |
+| `SmoothJacobian` | `coordinates_ratPoint`, `coordinates_applyPoint`, `transposeApply_jacobian`, `jacobianStep_eq_of_output`, `jacobianStep_eq`, `pullback_congr_point`, `pullback_stepwise_applyPoint`, `smoothApply_sound`, `cotangentJacobian_sound`, `registry_reverse_sound` | The steps of compiled reverse Core: an evaluated point has the coordinates it was built from; a step by a Jacobian table is the pullback along its declared map when the saved output is the image of the input, in either mode; the two step bindings have their `Sound` instances; every registry entry keeps the promise of its derivative rule (`ReverseSound`) |
 | `SmoothMetrics` | `checkNondegenerate_spec`, `checkGram_sound`, `certifyNondegenerate_sound`, `checkRiemannian_spec`, `certifyRiemannian_sound`, `zero_row_not_nondegenerate`, `diag_one_zero_rejected` | An accepted certificate is an exact two-sided inverse, or an exact `L D Lᵀ` factorization with positive pivots and an inverse of `L`, whatever search produced it; diag(1, 0) has no nondegenerate evidence |
 | `SmoothMetricForms` | `metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`, `flat_uses_declared_gram`, `sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_fiberAt`, `sharp_fiberAt`, `metricFlat_total`, `metricSharp_total`, `flat_sharp_erasure`, `metricFlat_sound`, `metricSharp_sound` | In a valid environment, metrics and evidence satisfy their checks; `flat` embeds its metric's Gram matrix and `sharp` the certified inverse of nondegenerate evidence for its metric; both keep the basepoint and have their `Sound` instance |
 | `SmoothMetricWeakening` | `validPrimitiveBinding_metric_insertion_of_valid`, `evalPrimitive_metric_insertion_of_valid`, `validPrimitiveBinding_metric_weakening`, `evalPrimitive_metric_weakening`, `differential_metric_free`, `cotangentPullback_metric_free` | Metric declarations at any position of a valid environment change neither the validity nor the value of any binding other than `flat` and `sharp` |

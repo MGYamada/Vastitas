@@ -115,6 +115,16 @@ region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
 [Explicit delegation](../packages.md#explicit-delegation).
 
+## Derivative rule
+
+The field `reverse` of a [registry entry](#registry-entry). It says what a
+call of the binding contributes when the kernel compiles a reverse pass into
+Core. A declared smooth map is one step pulled back by its Jacobian table.
+`compose` chains the maps of two operands. `linearize` builds a tape whose map
+and point a reverse pass of the tape reads. A pullback, a differential or the
+reverse pass of a tape is a reverse pass. The other bindings have the rule
+`none`. See [Add an indexed primitive](../development/primitives.md).
+
 ## Dispatch
 
 The static selection of one method of a generic from the argument types. The
@@ -503,7 +513,8 @@ in the [primitive registry](#primitive-registry). It holds the binding's
 [primitive shape](#primitive-shape), its validity contract as a `Prop` and as
 a `Bool` with the proof that they agree, its
 [logical](#logical-evaluator) and [erased evaluators](#erased-evaluator),
-its [lowering](#lowering) and its [shared literals](#shared-literal). See
+its [lowering](#lowering), its [shared literals](#shared-literal) and its
+[derivative rule](#derivative-rule). See
 [Add an indexed primitive](../development/primitives.md).
 
 ## Resource function

@@ -345,6 +345,23 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
     simp only [validPrimitiveBinding, PrimitiveBinding.contract,
       familyRepresentation_append ext maps (by decide : FamilyRepresentation.morphism ≠ _),
       familyRepresentation_append ext points (by decide : FamilyRepresentation.point ≠ _)]
+  | cotangentJacobian cotangent application map =>
+    have contract : ∀ env, validPrimitiveBinding env (.cotangentJacobian cotangent application map) =
+        cotangentJacobianValid env cotangent application map := by
+      intro env
+      simp only [validPrimitiveBinding, PrimitiveBinding.contract]
+      split <;> rfl
+    rw [contract, contract]
+    simp only [cotangentJacobianValid, smoothConstantValid, isSmoothFamily_append ext, smoothEndpoints_append ext,
+      fiberVariance_append ext]
+    cases smooth : isSmoothFamily small application.family
+    · simp
+    · cases cotangentFamily : fiberVariance? small cotangent == some .cotangent
+      · simp
+      · have found : (lookup small cotangent).isSome = true :=
+          found_of_fiberVariance (by simp only [beq_iff_eq] at cotangentFamily; simp [cotangentFamily])
+        simp only [validApplication_of_found ext (application := application) (found_of_isSmoothFamily smooth),
+          validApplication_mk_of_found ext found]
   | _ =>
     simp only [validPrimitiveBinding, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
       PrimitiveDescriptor.evidence, implementationType_append ext, affineImplementation_append ext,
@@ -353,7 +370,7 @@ theorem validPrimitiveBinding_of_extension {binding : PrimitiveBinding} (free : 
       affineData_append ext, affineArity_append ext, freeAffine_append ext, pointBase_append ext,
       plainFiber_append ext, relativeIsoValid_append ext, relativeCartesianValid_append ext,
       isSmoothFamily_append ext, fiberAtValid, fiberEqualValid, fiberPairingValid, cotangentPullbackValid,
-      differentialValid, linearizeValid, cotangentBackwardValid, fiberVariance_append ext,
+      differentialValid, linearizeValid, cotangentBackwardValid, smoothApplyValid, fiberVariance_append ext,
       isTapeFamily_append ext, smoothDimension_append ext]
 
 /-- The propositional contract is unchanged as well. -/
@@ -371,7 +388,11 @@ of any primitive. Only `global`, `origin` and `fiber_vector` consult the
 environment, and none of them reads a metric declaration. -/
 theorem evalPrimitive_of_extension (binding : PrimitiveBinding) (values : List Value) :
     evalPrimitive big binding values = evalPrimitive small binding values := by
-  cases binding <;> simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+  cases binding
+  case cotangentJacobian cotangent application map =>
+    simp only [evalPrimitive, PrimitiveBinding.contract]
+    split <;> rfl
+  all_goals simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
     PrimitiveDescriptor.evidence, globalObject_append ext, fiberVectorValue_append ext]
 
 end Extension

@@ -28,6 +28,9 @@ theorem checked_cores {json : Lean.Json} (accepted : Indexed.LegacySource.Checke
     Core.Typing.MainValid accepted.checked.executable.lowered.module requireMain :=
   IndexedAuthority.both_passes accepted.checked
 
+/-- The executable Core is the module the executable pass returned. Main
+lowers `accepted.checked.compiled.core`: this module with its reverse passes
+compiled into Core (#623). -/
 theorem codegen_input {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json true) :
     accepted.checked.executable.core.module = accepted.checked.executable.lowered.module :=
   accepted.checked.executable.coreInput

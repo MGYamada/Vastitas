@@ -18,7 +18,10 @@ describes the registry's place in the checker, and
   `PrimitiveDescriptor` value that `PrimitiveBinding.contract` returns for a
   binding. It holds the binding's shape, its validity contract as a `Prop`
   and as a `Bool` with the proof that the two agree, its two evaluators, its
-  lowering and its shared literals.
+  lowering, its shared literals and its derivative rule.
+- The [**derivative rule**](../appendix/glossary.md#derivative-rule) of an
+  entry says what a call contributes when the kernel compiles a reverse pass
+  into Core.
 - A [**shape**](../appendix/glossary.md#primitive-shape) is the operand
   association of a binding as data: the operands, an optional variadic tail
   of integers, the relations between operand indices, and the result
@@ -72,12 +75,16 @@ tables below take no case per constructor. Module paths are relative to
 | `allocatedSerials` and the fresh brand of `emitPrimitive` | `IndexedTypeAudit.lean`, `IndexedSourceBodies.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `Codegen.renderPrimitive` | `IndexedCodegen.lean` | `render` |
 | `Codegen.renderContext` and the `basis_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
+| The reverse sites of a module and the maps of each site | `IndexedReverse.lean` | `reverse` |
 
 The oracle states the semantic obligations of an entry once, for any
 entry. `VastitasOracle.IndexedPrimitiveSoundness.Sound` has the fields
 `total` and `erasure`, and `IndexedSemantics.registry_sound` proves it for
 every entry by name. `primitive_total_and_typed` and
 `primitive_runtime_erasure` are its corollaries and keep their statements.
+`SmoothJacobian.ReverseSound` states what the derivative rule of an entry
+promises about its logical evaluator, and
+`SmoothJacobian.registry_reverse_sound` proves it for every entry by name.
 `Sound` says nothing about the lowering. The pinned generated code of
 [step 6](#6-tests) tests it.
 
@@ -156,6 +163,7 @@ The arm builds a `PrimitiveDescriptor`, the structure of
 | `evalRuntime` | The erased evaluator, `List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue` |
 | `render` | The lowering, `RenderContext → List String → Except String String` |
 | `literals` | The shared literals of the entry; `[]` when omitted |
+| `reverse` | The derivative rule; every entry states it, and there is no default |
 
 `PrimitiveDescriptor.ofBool` builds an entry whose contract is one executable
 check; its `Prop` is that the check returns `true`.
@@ -336,11 +344,34 @@ unfolds another's entry. For a binding `name`:
 6. The **named case** in `registry_sound` in `IndexedSemantics.lean`,
    `| .name arguments => name_sound arguments`. The corollaries
    `primitive_total_and_typed` and `primitive_runtime_erasure` do not change.
+7. The **derivative rule proof**. `ReverseSound` of the entry is `True` for
+   the rule `none`. For any other rule, a lemma `name_reverse` in
+   `SmoothJacobian.lean` states on which operand lists the call evaluates and
+   to what value. The named case in `registry_reverse_sound` cites it.
+
+The derivative rules are:
+
+| Rule | Bindings | What a call contributes to compiled reverse Core |
+| --- | --- | --- |
+| `morphism map` | `smoothConstant` | One step, pulled back by the Jacobian table of `map` |
+| `chain after before` | `smoothCompose` | The maps of the two operands, `before` first |
+| `tape` | `linearize` | The map and point that a reverse pass of the tape reads |
+| `pass kind` | `cotangentPullback`, `differential`, `cotangentBackward` | A reverse pass that the compilation replaces |
+| `none` | every other binding | Nothing; a map of this binding is one step that the compilation does not open |
+
+The steps of compiled reverse Core call `smoothApply` and
+`cotangentJacobian`. These bindings have no family and no parser arm, so no
+source names them; their rule is `none`. A map that the compilation does not
+open is pulled back by a saved `cotangentPullback`, and the seed of a
+differential is a `fiberVector`. `registry_reverse_sound` matches every
+constructor by name, as `registry_sound` does.
 
 Four proofs case on every binding and close the other arms by automation:
 `allocates_iff` in `IndexedAssociations.lean`, `affine_result` in
 `GeometryResults.lean`, and `validPrimitiveBinding_of_extension` and
-`evalPrimitive_of_extension` in `SmoothMetricWeakening.lean`.
+`evalPrimitive_of_extension` in `SmoothMetricWeakening.lean`. An entry that
+matches on its own data before it builds its shape, as `cotangentJacobian`
+matches on the indices of its map type, needs a named case in `allocates_iff`.
 `validPrimitiveBinding_of_extension` closes a contract that reads the
 environment through the lookup views in its `simp` set.
 `evalPrimitive_of_extension` closes an evaluator that reads the environment
@@ -456,6 +487,8 @@ proves their facts.
   its fields with `Source.resolveArgument` in
   `PrimitiveFamily.resolutionOrder`. `buildDescriptor` of the example module
   makes the entry from the resolved arguments.
+- The entry states the derivative rule `none`. Its evaluator runs a reverse
+  pass inside one call, which compiled reverse Core does not open.
 - `lean/VastitasOracle/IndexedDescriptorDemo.lean` proves
   `IndexedPrimitiveSoundness.Sound` for the entry from the structure's
   fields, not through `Sound.ofBinding`, and instantiates its two
@@ -464,6 +497,7 @@ proves their facts.
   `Wire.familyPrimitive` accepts has the family's `op` and its field names
   and kinds, in wire order (`familyPrimitive_wireForm`), and
   instantiates that fact at the demonstration's family.
+  `directionalDerivative_reverseSound` proves its `ReverseSound`.
 
 The parts that look an `op` up in `families` reject the demonstration's
 `op`, as they reject every `op` that the registry does not hold. These are

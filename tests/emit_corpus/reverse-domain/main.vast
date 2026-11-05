@@ -1,0 +1,48 @@
+// A reverse pass through an object outside the cotangent family's domain
+// (#623). The smooth family covers two implementations, the cotangent family
+// only one, so the source never forms a covector over `Out`. A compiled pass
+// would form one at the intermediate point, so the kernel keeps the runtime
+// reverse pass for these sites (tests/reverse_core.rs). psi after phi is 3t^2:
+// at 2 it is 12, where dt pulls back to 12 dt. The differential of psi after
+// phi at 2 is 12 dt as well. Each observation adds its own power of two, so
+// `main` prints 42 only when all hold.
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed implementation SmoothS(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR, SmoothS); };
+indexed classification CInfR { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfR)) = cotangent constraints(canonical(0));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Out(SmoothS) = Affine(1)[u];
+indexed primitive compose = smooth_compose(Smooth);
+indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);
+indexed primitive differential = differential(Smooth, Cotangent, Line);
+indexed primitive lies_over = fiber_at(Cotangent, Smooth);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+
+indexed morphism phi: Smooth<Line, Out> = pullback(u -> t^2);
+indexed morphism psi: Smooth<Out, Line> = pullback(t -> 3*u);
+indexed morphism twice: Smooth<Line, Line> = pullback(t -> 2*t);
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A covector on the line reads n / 1 at the point x.
+fn reads(value: Cotangent<Line>, x: Smooth<Pt, Line>, n: Int) -> Bool {
+    lies_over(value, x) && pair_first(dt(value)) == n && pair_second(dt(value)) == 1
+}
+
+fn main() -> Int {
+    let x: Smooth<Pt, Line> = line_at(2);
+    let seed: Cotangent<Line> = dline(line_at(12), 1);
+    // Through Out: the runtime reverse pass.
+    verdict(reads(pullback(compose(psi(), phi()), x, seed), x, 12), 2)
+      + verdict(reads(differential(compose(psi(), phi()), x), x, 12), 4)
+      // Within the domain: compiled.
+      + verdict(reads(pullback(twice(), x, dline(line_at(4), 1)), x, 2), 8)
+      + 42
+}

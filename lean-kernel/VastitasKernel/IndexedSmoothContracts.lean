@@ -117,6 +117,25 @@ def linearizeValid (env : Environment) (smooth tape : DeclId) : Bool :=
 def cotangentBackwardValid (env : Environment) (tape cotangent : DeclId) : Bool :=
   isTapeFamily env tape && fiberVariance? env cotangent == some .cotangent
 
+/-! ## Steps of compiled reverse Core
+
+The kernel declares these bindings for the reverse Core it generates (#623);
+no source or wire form names them. -/
+
+/-- The forward step: the image of a point under a map in `S`. -/
+def smoothApplyValid (env : Environment) (smooth : DeclId) : Bool := isSmoothFamily env smooth
+
+/-- The backward step along a declared map `X → Y`: the map is a valid
+declared smooth map of type `application`, `C` is a cotangent family, and `C`
+applies to both `X` and `Y`. -/
+def cotangentJacobianValid (env : Environment) (cotangent : DeclId) (application : Application)
+    (map : AlgebraRuntime.Map) : Bool :=
+  smoothConstantValid env application map && fiberVariance? env cotangent == some .cotangent &&
+  match application.indices with
+  | [source, target] =>
+    validApplication env ⟨cotangent, [source]⟩ && validApplication env ⟨cotangent, [target]⟩
+  | _ => false
+
 /-! ## Metrics
 
 `flat` and `sharp` name a declared metric, and `sharp` also names

@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedAuthorityPreparation
+import VastitasKernel.IndexedReverse
 
 namespace VastitasKernel.Indexed.AuthoritySource
 open FunctionSource
@@ -33,6 +34,9 @@ structure CheckedProgram (program : DispatchSource.Program) (requireMain : Bool)
   audit : Compiler.CheckedPass compiler true false
   coverage : Compiler.coversDefinitions compiler.input audit.lowered = true
   executable : Compiler.CheckedPass compiler false requireMain
+  /-- The executable Core with its reverse sites compiled into Core (#623),
+  checked again and validated against `executable.core`. -/
+  compiled : Core.Reverse.Compiled executable.core
 
 def CheckedProgram.namespaceUnits {p : DispatchSource.Program} {requireMain : Bool}
     (checked : CheckedProgram p requireMain) : Nat :=
@@ -57,8 +61,9 @@ def checkProgram (program : DispatchSource.Program) (requireMain : Bool := false
                 let audit ← Compiler.checkPass compiler true false
                 if coverage : Compiler.coversDefinitions compiler.input audit.lowered = true then
                   let executable ← Compiler.checkPass compiler false requireMain
+                  let compiled ← Core.Reverse.compile executable.core
                   return ⟨authority, dispatcher, dispatcherFrom, entry, lifted, liftFrom, definitions,
-                    compiler, prepareFrom, preparation, instances, audit, coverage, executable⟩
+                    compiler, prepareFrom, preparation, instances, audit, coverage, executable, compiled⟩
                 else Namespace.problem {} "E_INTERNAL_FUNCTION" "authority body audit omitted a source definition"
               else Namespace.problem {} "E_OWNER" "authority method/key/body scope correspondence failed"
             else Namespace.problem {} "E_OWNER" "preparation changed definition identities or source scopes"

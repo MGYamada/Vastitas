@@ -16,7 +16,10 @@ use std::fs;
 /// emit corpus), smooth maps and their equality (smooth-objects), fibers,
 /// tapes and pullbacks (smooth-cotangent), metrics with `flat` and `sharp`
 /// (smooth-metric), and the standard-library differential profile
-/// (stdlib-differential).
+/// (stdlib-differential). The generated backward functions of compiled
+/// reverse Core (#623) are pinned for the Stage 3 acceptance program
+/// (smooth-differential), for maps that a branch chooses (reverse-branch) and
+/// for a tape bound by `let` or passed to a function (reverse-tape).
 const CASES: &[(&str, &str, u64)] = &[
     ("indexed", "examples/packages/indexed/Vastitas.toml", 7),
     (
@@ -54,6 +57,26 @@ const CASES: &[(&str, &str, u64)] = &[
         "examples/packages/stdlib-differential/Vastitas.toml",
         9,
     ),
+    (
+        "smooth-differential",
+        "examples/packages/smooth-differential/Vastitas.toml",
+        9,
+    ),
+    (
+        "reverse-branch",
+        "tests/emit_corpus/reverse-branch/Vastitas.toml",
+        9,
+    ),
+    (
+        "reverse-tape",
+        "tests/emit_corpus/reverse-tape/Vastitas.toml",
+        9,
+    ),
+    (
+        "reverse-domain",
+        "tests/emit_corpus/reverse-domain/Vastitas.toml",
+        9,
+    ),
 ];
 
 /// Every wire operation of an indexed primitive declaration (docs/protocol.md)
@@ -62,7 +85,14 @@ const CASES: &[(&str, &str, u64)] = &[
 /// `relative_view`, whose lowering is its operand. A global object is bound by
 /// `let` in the corpus, which separates it from the base-object argument that
 /// `origin` renders. The test checks that the list names each family of
-/// `vastitas::indexed::primitive_families()` once.
+/// `vastitas::indexed::primitive_families()` once. The kernel compiles every
+/// reverse pass that it can read into Core (#623), so `cotangent_pullback`
+/// and `differential` have a text of that Core: the Jacobian step along a
+/// declared map, and the forward image at which a differential's unit
+/// covector lies. Every compiled pass writes these texts, so
+/// `tests/reverse_core.rs` checks the compiled Core of each operation.
+/// `linearize` and `cotangent_backward` keep their own lowering where a
+/// function receives the tape (reverse-tape).
 const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
     (
         "descriptor",
@@ -127,11 +157,11 @@ const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
     ),
     (
         "cotangent_pullback",
-        Some("VastitasKernel.SmoothRuntime.pullback "),
+        Some("VastitasKernel.SmoothRuntime.jacobianStep "),
     ),
     (
         "differential",
-        Some("VastitasKernel.SmoothRuntime.differential "),
+        Some("VastitasKernel.SmoothRuntime.applyPoint "),
     ),
     ("linearize", Some("VastitasKernel.SmoothRuntime.linearize ")),
     (

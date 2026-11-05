@@ -61,15 +61,17 @@ theorem pure_value_bodies_typed {program : Program} (checked : Checked program r
     (IndexedFunctions.checked_pass checked.values.executable).2.2.1⟩
 
 /-- Pure value bodies called from a resource entry. The mixed emit path generates
-their library from `checked.values.executable.core`. -/
+their library from `checked.values.compiled.core`, this module with its
+reverse passes compiled into Core (#623). -/
 theorem pure_value_functions_total {program : Program} (checked : Checked program requireMain) :
     ∀ function ∈ checked.values.executable.core.module.functions,
       IndexedFunctionSafety.FunctionReturns checked.values.executable.core.module function :=
   IndexedProgramSafety.checked_functions_total_and_typed checked.values.executable.core
 
 /-- Without a resource entry, the emit path generates code from
-`checked.pureProgram.executable.core` (see `ResourceCodegen.generated_pure_entry`).
-Every function of that module has typed, finite evaluation. -/
+`checked.pureProgram.compiled.core`, this module with its reverse passes
+compiled into Core (see `ResourceCodegen.generated_pure_entry`). Every function
+of this module has typed, finite evaluation. -/
 theorem pure_entry_functions_total {program : Program} (checked : Checked program requireMain) :
     ∀ function ∈ checked.pureProgram.executable.core.module.functions,
       IndexedFunctionSafety.FunctionReturns checked.pureProgram.executable.core.module function :=

@@ -30,6 +30,7 @@ lake -d lean-kernel build \
   VastitasKernel.SmoothRuntimeRegression \
   VastitasKernel.SmoothObjectRegression \
   VastitasKernel.CotangentRegression \
+  VastitasKernel.ReverseCoreRegression \
   VastitasKernel.MetricFormRegression \
   VastitasKernel.IndexedSourceTypeRegression \
   VastitasKernel.IndexedSourceBodyRegression \

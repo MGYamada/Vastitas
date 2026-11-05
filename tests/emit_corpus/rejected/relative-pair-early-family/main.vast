@@ -1,0 +1,27 @@
+// Rejected by the kernel: `relative_pair` reports the family before the index pattern: a
+// two-index Morphism in its three-index second map slot (`families := .early`).
+indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed classification Scheme { parents(); domain(Grid); };
+indexed global Base(Grid);
+indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));
+indexed primitive affine = descriptor(Grid);
+indexed primitive identity = identity((Scheme, QQ), Morphism);
+indexed implementation AffineQQ(QQ, presented_affine(rational)) capabilities();
+indexed classification AffineScheme { parents(); domain(AffineQQ); };
+indexed family Over(object(AffineScheme), object(AffineScheme), object(AffineScheme))
+    = relative constraints(structural(0, 2), structural(1, 2));
+indexed affine SpecQQ(AffineQQ) = spec[];
+indexed affine S(AffineQQ) = spec[t] over SpecQQ;
+indexed affine X(AffineQQ) = spec[t, x] relations(x^2 - t) over S by(t -> t);
+indexed affine Origin(AffineQQ) = spec[] over S by(t -> 0);
+indexed affine DS(AffineQQ) = spec[e] relations(e^2) over S by(t -> 0);
+indexed morphism toX: Over<DS, X, S> = pullback(t -> 0, x -> e);
+indexed affine Fiber(AffineQQ) = fiber(X, Origin);
+indexed primitive lift = relative_pair(Over, Fiber);
+
+fn main() -> Int {
+    let Y = affine(2);
+    let f = lift(toX(), identity(Y));
+    0
+}

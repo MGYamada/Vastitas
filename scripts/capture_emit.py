@@ -29,7 +29,8 @@ two equal applications (`same`), the index pattern (a covector in the point
 slot of a pullback, which lists the operand types), and a family that
 `relative_coefficient` and `relative_pair` report before the index pattern.
 One package fails the operand shape (`E_TYPE`) and one the operand count
-(`E_ARITY`).
+(`E_ARITY`). `tests/rejected_diagnostics.rs` also pins these `cli.txt` texts in
+every `cargo test` run, against `tests/fixtures/rejected/`.
 
 The checkout root is written as `<ROOT>` so captures from different
 checkouts compare. `--compare BASELINE` reports every byte difference against

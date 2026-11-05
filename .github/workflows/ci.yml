@@ -354,6 +354,10 @@ jobs:
           bash scripts/check_kernel_regressions.sh
       - name: Audit axioms and opaque code of every kernel and oracle module
         run: cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean
+      # The compiled reverse Core theorems that the specification states without
+      # the chain rule reach no chain-rule theorem through their constants (#623).
+      - name: Chain-rule independence of the compiled reverse Core theorems
+        run: cd lean && lake env lean -DwarningAsError=true ../scripts/check_chain_rule_free.lean
       # Each pinned oracle theorem and kernel definition of docs/spec/: module,
       # kind and axioms, and the statement hash of each theorem (#647).
       - name: Resolve the oracle claims of the specifications

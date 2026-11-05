@@ -19,27 +19,35 @@ saved points to the maps, and `Composable` states that adjacent dimensions
 agree. `backwardPass` is the runtime value of the generated backward Core at
 any points.
 
-- `forwardLets_evaluates` (F): the forward Core binds the evaluated images.
+- `forwardLets_evaluates`, `forwardLets_primal` (F): the forward Core binds
+  the evaluated images, which satisfy the residual relation; the last image
+  has the coordinates of the primal value.
 - `saved_function_evaluates`, `saved_function_pullback` (B): the saved
   function computes `backwardPass`, and, with the residual relation, the
   saved-mode pullback along the chain; `saved_function_foreign_seed`: a seed
   over another point gives `none`.
 - `recomputed_function_evaluates`, `recomputed_function_pullback` (R) and
   `saved_eq_recomputed`.
-- `saved_function_cot` (D): the value in coordinates. Only this theorem and
-  `pullback_chain_cot` use the chain rule (`SmoothCalculus.backward_eq_cot`).
-- `site_saved_rewrite`, `site_recomputed_rewrite`, `site_differential_rewrite`
-  (S): the Core of one site and its source call evaluate to the same
-  covector, for a map operand whose value is any composition tree of the step
-  programs (`Factors`).
+- `pullback_chain_cot` and `saved_function_cot` (D): the value in coordinates.
+  These two use the chain rule (`SmoothCalculus.backward_eq_cot`).
+- `site_saved_core`, `site_recomputed_core`, `site_differential_core` (S): the
+  Core that `compileSite` builds at a site evaluates to the pullback along the
+  chain of the step programs. `site_saved_rewrite`, `site_recomputed_rewrite`,
+  `site_differential_rewrite` and `site_tape_rewrite`: the source call and
+  that Core evaluate to the same covector, for a map operand whose value is a
+  composition tree of the step programs (`Factors`).
 
 The other theorems use the stepwise pullback (`pullback_stepwise`), table steps
 (`jacobianStep_eq_of_output`) and evaluated points, not `cot_compose` or
-`backward_eq_cot`, so the bridge's Fréchet route stays independent of the
-kernel chain rule. The premises about the module are hypotheses:
-`StepsDeclared`, `StepFormed`, `MorphismsDeclared`, the declaration of
-`names.apply` and the lookup of the generated function. `SmoothReverseCompiled`
-proves them for every entry of a compiled module. -/
+`backward_eq_cot`. The module imports `SmoothCalculus` for the two (D)
+theorems, so this independence holds of the constants that each theorem uses,
+not of the imports. `scripts/check_chain_rule_free.lean` checks it.
+
+The premises about the module are hypotheses: `StepsDeclared`, `StepFormed`,
+`MorphismsDeclared`, the declaration of `names.apply`, the lookup of the
+generated function and, for a differential, the declaration of the seed and
+the variance of its family. `SmoothReverseCompiled` proves them for every
+entry of a compiled module. -/
 
 namespace VastitasOracle.SmoothReverseCore
 
@@ -1154,6 +1162,27 @@ theorem forwardLets_evaluates {module : Module} {names : Names} {site : Site}
     rw [letE_iff image]
     exact rest
 
+/-- **(F) The primal value and the residuals.** Under the premises of
+`forwardLets_evaluates`, the forward Core binds the evaluated images, these
+satisfy the residual relation, and the last of them has the coordinates of
+the primal value: the chain of the programs at the input point. No chain rule
+is used. -/
+theorem forwardLets_primal {module : Module} {names : Names} {site : Site}
+    (apply : module.declarations.primitive? names.apply = some (.smoothApply site.smooth))
+    (steps : List Step) (maps : List Term) (programs : List Program) (symbols : List Nat) (values : Values)
+    (bound : Nat) (previous : Term) (start : Program) (body : Term) (value : Value)
+    (pairs : AllPairs (fun map program => Stable module values bound map (smoothValue program)) maps programs)
+    (stepCount : steps.length = maps.length) (symbolCount : symbols.length = maps.length)
+    (high : ∀ symbol ∈ symbols, bound ≤ symbol) (previousEval : Evaluates module values previous (smoothValue start))
+    (nonempty : programs ≠ []) :
+    (Evaluates module values (forwardLets names site steps maps previous symbols body) value ↔
+      Evaluates module (bindAll values symbols ((images programs start).map smoothValue)) body value) ∧
+    ResidualRel programs start (images programs start) ∧
+    coordinates ((images programs start).getLastD start) = (chain programs).eval (coordinates start) :=
+  ⟨forwardLets_evaluates apply steps maps programs symbols values bound previous start body value pairs stepCount
+    symbolCount high previousEval, residualRel_images programs start,
+    residual_last programs start _ nonempty (residualRel_images programs start)⟩
+
 /-! ## The recomputing backward function -/
 
 /-- **The recomputing backward function, for any input point.** Let the
@@ -1272,11 +1301,11 @@ theorem saved_eq_recomputed {module : Module} {names : Names} {site : Site}
 /-! ## Composition trees -/
 
 /-- `program` is a tree of `compose` nodes whose leaves, in application
-order, are `leaves`, and the dimensions agree at every node. The value of a
-map operand that the derivative rules read (`Reverse.resolve`) has this shape:
-a call with rule `chain after before` evaluates to the node
-`compose first second` (`SmoothJacobian.ReverseSound`), and every other map
-value is one leaf. -/
+order, are `leaves`, and the dimensions agree at every node. The theorems of
+this module take it as a premise. `SmoothReverseCompiled.resolve_factors`
+proves that the value of a map operand that `Reverse.resolve` reads has this
+shape, when the value is well typed and the `let` definitions that `resolve`
+reads through agree with the activation. -/
 inductive Factors : Program → List Program → Prop
   | leaf (program : Program) : Factors program [program]
   | node {after before : Program} {afterLeaves beforeLeaves : List Program} :
@@ -1369,6 +1398,59 @@ theorem Factors.pullback_chain (mode : PullbackMode) {program : Program} {leaves
     pullback mode program point seed = pullback mode (chain leaves) point seed := by
   rw [factors.pullback_eq, (factors_chain leaves factors.ne_nil composable).pullback_eq]
 
+theorem composable_append : ∀ (first second : List Program), Composable first → Composable second →
+    (∀ last head, first.getLast? = some last → second.head? = some head → head.inputArity = last.outputArity) →
+    Composable (first ++ second)
+  | [], _, _, composable, _ => composable
+  | [_], [], _, _, _ => trivial
+  | [last], head :: _, _, composable, junction => ⟨junction last head rfl rfl, composable⟩
+  | _ :: next :: rest, second, composable, composableSecond, junction =>
+    ⟨composable.1, composable_append (next :: rest) second composable.2 composableSecond
+      fun last head isLast isHead => junction last head (by simpa using isLast) isHead⟩
+
+theorem Factors.head_inputArity {program : Program} {leaves : List Program} (factors : Factors program leaves) :
+    ∀ head, leaves.head? = some head → head.inputArity = program.inputArity := by
+  induction factors with
+  | leaf program =>
+    intro head found
+    cases found
+    rfl
+  | @node after before afterLeaves beforeLeaves _ beforeFactors _ _ beforeIh =>
+    intro head found
+    obtain ⟨first, rest, rfl⟩ := List.exists_cons_of_ne_nil beforeFactors.ne_nil
+    rw [List.cons_append, List.head?_cons] at found
+    rw [← Option.some.inj found]
+    exact beforeIh first rfl
+
+theorem Factors.last_outputArity {program : Program} {leaves : List Program} (factors : Factors program leaves) :
+    ∀ last, leaves.getLast? = some last → last.outputArity = program.outputArity := by
+  induction factors with
+  | leaf program =>
+    intro last found
+    cases found
+    rfl
+  | @node after before afterLeaves beforeLeaves afterFactors _ _ afterIh _ =>
+    intro last found
+    rw [List.getLast?_append] at found
+    cases isLast : afterLeaves.getLast? with
+    | none => exact absurd (List.getLast?_eq_none_iff.mp isLast) afterFactors.ne_nil
+    | some other =>
+      rw [isLast] at found
+      simp only [Option.some_or, Option.some.injEq] at found
+      rw [← found]
+      exact afterIh other isLast
+
+/-- **The leaves of a tree compose.** The dimension condition at every node
+makes adjacent leaves agree in dimension. -/
+theorem Factors.composable {program : Program} {leaves : List Program} (factors : Factors program leaves) :
+    Composable leaves := by
+  induction factors with
+  | leaf => trivial
+  | @node after before afterLeaves beforeLeaves afterFactors beforeFactors arity afterIh beforeIh =>
+    refine composable_append beforeLeaves afterLeaves beforeIh afterIh fun last head isLast isHead => ?_
+    rw [afterFactors.head_inputArity head isHead, beforeFactors.last_outputArity last isLast]
+    exact arity
+
 end Trees
 
 /-! ## The site -/
@@ -1448,19 +1530,95 @@ theorem pullback_saved_eq (mode : PullbackMode) (map point : Program) (seed : Fi
   · rfl
   · exact VastitasOracle.SmoothRuntime.pullback_saved_eq_recomputed map point seed
 
-/-- **(S) A saved site, locally.** The Core that `compileSite` builds for a
-saved site with a seed operand, after the `let`s of the compound opaque
+/-! ## Source calls by their derivative rules -/
+
+/-- A declaration whose derivative rule is not `none` is declared with a
+binding of that rule. -/
+theorem ruleOf_found {env : Declarations} {id : DeclId} {rule : ReverseRule} (found : Reverse.ruleOf env id = rule)
+    (proper : rule ≠ .none) : ∃ binding, env.primitive? id = some binding ∧ binding.contract.reverse = rule := by
+  unfold Reverse.ruleOf at found
+  split at found
+  · rename_i binding declared
+    exact ⟨binding, declared, found⟩
+  · exact absurd found.symm proper
+
+/-- A call whose rule is a pullback pass evaluates to the pullback of the
+values of its operands (`ReverseSound`). -/
+theorem pass_pullback_evaluates {module : Module} {values : Values} {id : DeclId} {mode : PullbackMode}
+    (rule : Reverse.ruleOf module.declarations id = .pass (.pullback mode)) {mapTerm pointTerm seedTerm : Core.Term}
+    {map x : Program} {variance : Variance} {seed : FiberValue}
+    (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Evaluates module values seedTerm (.indexed (.fiber variance seed))) (result : Result) :
+    Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] result)
+      (.indexed (.fiber .cotangent (pullback mode map x seed))) := by
+  obtain ⟨binding, found, reverse⟩ := ruleOf_found rule (by intro same; cases same)
+  have sound := SmoothJacobian.registry_reverse_sound binding
+  unfold SmoothJacobian.ReverseSound at sound
+  rw [reverse] at sound
+  exact IndexedEvaluation.primitive found (IndexedEvaluation.arguments_cons mapEval
+    (IndexedEvaluation.arguments_cons pointEval (IndexedEvaluation.arguments_cons seedEval
+      (IndexedEvaluation.arguments_nil _ _)))) ((sound _ _ _).mpr ⟨map, x, variance, seed, rfl, rfl⟩)
+
+/-- A call whose rule is the differential pass evaluates to the differential. -/
+theorem pass_differential_evaluates {module : Module} {values : Values} {id : DeclId}
+    (rule : Reverse.ruleOf module.declarations id = .pass .differential) {functionTerm pointTerm : Core.Term}
+    {map x : Program} (mapEval : Evaluates module values functionTerm (smoothValue map))
+    (pointEval : Evaluates module values pointTerm (smoothValue x)) (result : Result) :
+    Evaluates module values (.primitive id [functionTerm, pointTerm] result)
+      (.indexed (.fiber .cotangent (VastitasKernel.SmoothRuntime.differential map x))) := by
+  obtain ⟨binding, found, reverse⟩ := ruleOf_found rule (by intro same; cases same)
+  have sound := SmoothJacobian.registry_reverse_sound binding
+  unfold SmoothJacobian.ReverseSound at sound
+  rw [reverse] at sound
+  exact IndexedEvaluation.primitive found (IndexedEvaluation.arguments_cons mapEval
+    (IndexedEvaluation.arguments_cons pointEval (IndexedEvaluation.arguments_nil _ _)))
+    ((sound _ _ _).mpr ⟨map, x, rfl, rfl⟩)
+
+/-- A call whose rule is `tape` evaluates to the tape of its map and point. -/
+theorem tape_evaluates {module : Module} {values : Values} {id : DeclId}
+    (rule : Reverse.ruleOf module.declarations id = .tape) {mapTerm pointTerm : Core.Term} {map x : Program}
+    (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (pointEval : Evaluates module values pointTerm (smoothValue x)) (result : Result) :
+    Evaluates module values (.primitive id [mapTerm, pointTerm] result)
+      (.indexed (.tape (VastitasKernel.SmoothRuntime.linearize map x))) := by
+  obtain ⟨binding, found, reverse⟩ := ruleOf_found rule (by intro same; cases same)
+  have sound := SmoothJacobian.registry_reverse_sound binding
+  unfold SmoothJacobian.ReverseSound at sound
+  rw [reverse] at sound
+  exact IndexedEvaluation.primitive found (IndexedEvaluation.arguments_cons mapEval
+    (IndexedEvaluation.arguments_cons pointEval (IndexedEvaluation.arguments_nil _ _)))
+    ((sound _ _ _).mpr ⟨map, x, rfl, rfl⟩)
+
+/-- A call whose rule is the `backward` pass evaluates to the reverse pass
+over the tape. -/
+theorem pass_backward_evaluates {module : Module} {values : Values} {id : DeclId}
+    (rule : Reverse.ruleOf module.declarations id = .pass .backward) {tapeTerm seedTerm : Core.Term}
+    {tape : VastitasKernel.SmoothRuntime.Tape} {variance : Variance} {seed : FiberValue}
+    (tapeEval : Evaluates module values tapeTerm (.indexed (.tape tape)))
+    (seedEval : Evaluates module values seedTerm (.indexed (.fiber variance seed))) (result : Result) :
+    Evaluates module values (.primitive id [tapeTerm, seedTerm] result)
+      (.indexed (.fiber .cotangent (VastitasKernel.SmoothRuntime.backward tape seed))) := by
+  obtain ⟨binding, found, reverse⟩ := ruleOf_found rule (by intro same; cases same)
+  have sound := SmoothJacobian.registry_reverse_sound binding
+  unfold SmoothJacobian.ReverseSound at sound
+  rw [reverse] at sound
+  exact IndexedEvaluation.primitive found (IndexedEvaluation.arguments_cons tapeEval
+    (IndexedEvaluation.arguments_cons seedEval (IndexedEvaluation.arguments_nil _ _)))
+    ((sound _ _ _).mpr ⟨tape, variance, seed, rfl, rfl⟩)
+
+/-- **The compiled Core of a saved site.** The Core that `compileSite` builds
+for a saved site with a seed operand, after the `let`s of the compound opaque
 leaves: `let start := point; let seed := seed; forwardLets …
 (call f (opaques ++ points ++ [seed]))`. Let the module hold the generated
 function of `entry` and its declarations (`apply`, `StepsDeclared`,
 `StepFormed`, `MorphismsDeclared`), and let the site have a step. Let the
-opaque leaf terms evaluate to programs that compose, the point to `x` and the
-seed term to `η`, all reading no symbol at or above `bound`, and let the
-symbols of the site be fresh: `bound ≤ start < seed < firstPoint`. Let the map
-operand `M` evaluate to a composition tree whose leaves are the step programs
-(`Factors`). Then the source site `pullback(M, point, seed)` in either mode and
-the generated Core evaluate to the same covector. No chain rule is used. -/
-theorem site_saved_rewrite {module : Module} {entry : Reverse.Entry}
+opaque terms evaluate to programs that compose, the point to `x` and the seed
+term to `η`, all reading no symbol at or above `bound`, and let the symbols of
+the site be fresh: `bound ≤ start < seed < firstPoint`. Then the Core
+evaluates to the saved-mode pullback of `η` along the chain of the step
+programs at `x`. No chain rule is used. -/
+theorem site_saved_core {module : Module} {entry : Reverse.Entry}
     (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
     (saved : entry.site.mode = .saved)
     (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
@@ -1474,25 +1632,16 @@ theorem site_saved_rewrite {module : Module} {entry : Reverse.Entry}
     (composable : Composable (stepPrograms entry.site.steps opaques))
     {startSymbol seedSymbol firstPoint : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
     (firstHigh : seedSymbol < firstPoint)
-    {mapTerm pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
-    {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
-    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    {pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
     (pointEval : Evaluates module values pointTerm (smoothValue x))
-    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed)))
-    {id smooth cotangent : DeclId} {mode : PullbackMode}
-    (source : module.declarations.primitive? id = some (.cotangentPullback smooth cotangent mode))
-    (sourceResult result : Result) :
-    Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] sourceResult)
-        (.indexed (.fiber .cotangent (pullback mode map x seed))) ∧
-      Evaluates module values
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed))) (result : Result) :
+    Evaluates module values
         (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
           (forwardLets entry.names entry.site entry.site.steps (mapTerms entry.site.steps opaqueTerms)
             (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
             (.call entry.function (opaqueTerms ++ sitePoints entry.site (.variable startSymbol pointTerm.result)
               (pointSymbols firstPoint entry.site.steps.length) ++ [.variable seedSymbol seedTerm.result]) [] result))))
-        (.indexed (.fiber .cotangent (pullback mode map x seed))) := by
-  refine ⟨source_pullback_evaluates source mapEval pointEval seedEval.evaluates sourceResult, ?_⟩
-  rw [factors.pullback_chain mode composable, ← pullback_saved_eq mode]
+      (.indexed (.fiber .cotangent (pullback .saved (chain (stepPrograms entry.site.steps opaques)) x seed))) := by
   have agrees₁ := agrees_bindValue (values := values) (smoothValue x) startHigh
   have agrees₂ := agrees_bindValue (values := bindValue values startSymbol (smoothValue x))
     (.indexed (.fiber variance seed)) (Nat.le_of_lt (Nat.lt_of_le_of_lt startHigh seedHigh))
@@ -1546,13 +1695,13 @@ theorem site_saved_rewrite {module : Module} {entry : Reverse.Entry}
   exact saved_function_pullback saved declared (entry_names_steps_length entry) formed nonempty count composable x
     (residualRel_images _ _) variance seed bound
 
-/-- **(S) A recomputing site, locally.** The Core that `compileSite` builds
-for a recomputing site, after the `let`s of the compound opaque leaves:
+/-- **The compiled Core of a recomputing site.** The Core that `compileSite`
+builds for a recomputing site, after the `let`s of the compound opaque leaves:
 `let start := point; let seed := seed; call f (opaques ++ [start, seed])`.
-Under the premises of `site_saved_rewrite` with the recomputing policy, the
-source site `pullback(M, point, seed)` and the generated Core evaluate to the
-same covector. No chain rule is used. -/
-theorem site_recomputed_rewrite {module : Module} {entry : Reverse.Entry}
+Under the premises of `site_saved_core` with the recomputing policy, it
+evaluates to the recomputing pullback of the seed along the chain of the step
+programs at `x`. No chain rule is used. -/
+theorem site_recomputed_core {module : Module} {entry : Reverse.Entry}
     (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
     (recomputed : entry.site.mode = .recomputed)
     (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
@@ -1565,24 +1714,15 @@ theorem site_recomputed_rewrite {module : Module} {entry : Reverse.Entry}
     (count : opaques.length = entry.site.opaqueSteps.length)
     (composable : Composable (stepPrograms entry.site.steps opaques))
     {startSymbol seedSymbol : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
-    {mapTerm pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
-    {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
-    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    {pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
     (pointEval : Evaluates module values pointTerm (smoothValue x))
-    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed)))
-    {id smooth cotangent : DeclId} {mode : PullbackMode}
-    (source : module.declarations.primitive? id = some (.cotangentPullback smooth cotangent mode))
-    (sourceResult result : Result) :
-    Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] sourceResult)
-        (.indexed (.fiber .cotangent (pullback mode map x seed))) ∧
-      Evaluates module values
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed))) (result : Result) :
+    Evaluates module values
         (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
           (.call entry.function (opaqueTerms ++ [.variable startSymbol pointTerm.result,
             .variable seedSymbol seedTerm.result]) [] result)))
-        (.indexed (.fiber .cotangent (pullback mode map x seed))) := by
-  refine ⟨source_pullback_evaluates source mapEval pointEval seedEval.evaluates sourceResult, ?_⟩
-  rw [factors.pullback_chain mode composable, ← pullback_saved_eq mode,
-    VastitasOracle.SmoothRuntime.pullback_saved_eq_recomputed]
+      (.indexed (.fiber .cotangent
+        (pullback .recomputed (chain (stepPrograms entry.site.steps opaques)) x seed))) := by
   have agrees₁ := agrees_bindValue (values := values) (smoothValue x) startHigh
   have agrees₂ := agrees_bindValue (values := bindValue values startSymbol (smoothValue x))
     (.indexed (.fiber variance seed)) (Nat.le_of_lt (Nat.lt_of_le_of_lt startHigh seedHigh))
@@ -1647,15 +1787,15 @@ theorem pointVariables_evaluate {module : Module} {site : Site} {values : Values
   rw [equal, pointSymbols_getElem]
   exact IndexedEvaluation.variable_value (found i ho)
 
-/-- **(S) A differential site, locally.** The Core that `compileSite` builds
-for a differential, after the `let`s of the compound opaque leaves:
+/-- **The compiled Core of a differential site.** The Core that `compileSite`
+builds for a differential, after the `let`s of the compound opaque leaves:
 `let start := point; forwardLets … (let seed := unit(last point); call f
-(opaques ++ points ++ [seed]))`. Under the premises of `site_saved_rewrite`,
-with the seed declaration `fiberVector` of the site's cotangent family (whose
-variance is `seedVariance`), the source site `differential(φ, point)`, with
-`φ` evaluating to a composition tree of the step programs, and the generated
-Core evaluate to the same covector. No chain rule is used. -/
-theorem site_differential_rewrite {module : Module} {entry : Reverse.Entry}
+(opaques ++ points ++ [seed]))`. Under the premises of `site_saved_core`, with
+the seed declaration `fiberVector` of the site's cotangent family (whose
+variance is `seedVariance`), it evaluates to the saved-mode pullback, along
+the chain of the step programs at `x`, of the coordinate covector `[1]` at the
+last image. No chain rule is used. -/
+theorem site_differential_core {module : Module} {entry : Reverse.Entry}
     (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
     (saved : entry.site.mode = .saved)
     (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
@@ -1672,16 +1812,9 @@ theorem site_differential_rewrite {module : Module} {entry : Reverse.Entry}
     (composable : Composable (stepPrograms entry.site.steps opaques))
     {startSymbol seedSymbol firstPoint : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
     (firstHigh : seedSymbol < firstPoint)
-    {functionTerm pointTerm : Core.Term} {map x : Program}
-    (mapEval : Evaluates module values functionTerm (smoothValue map))
-    (factors : Factors map (stepPrograms entry.site.steps opaques))
-    (pointEval : Evaluates module values pointTerm (smoothValue x))
-    {id smooth cotangent line : DeclId}
-    (source : module.declarations.primitive? id = some (.differential smooth cotangent line))
-    (sourceResult result : Result) :
-    Evaluates module values (.primitive id [functionTerm, pointTerm] sourceResult)
-        (.indexed (.fiber .cotangent (VastitasKernel.SmoothRuntime.differential map x))) ∧
-      Evaluates module values
+    {pointTerm : Core.Term} {x : Program} (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (result : Result) :
+    Evaluates module values
         (.letE startSymbol pointTerm
           (forwardLets entry.names entry.site entry.site.steps (mapTerms entry.site.steps opaqueTerms)
             (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
@@ -1690,11 +1823,8 @@ theorem site_differential_rewrite {module : Module} {entry : Reverse.Entry}
               (.call entry.function (opaqueTerms ++ sitePoints entry.site (.variable startSymbol pointTerm.result)
                 (pointSymbols firstPoint entry.site.steps.length) ++
                 [.variable seedSymbol (Reverse.fiberResult entry.site entry.site.output)]) [] result))))
-        (.indexed (.fiber .cotangent (VastitasKernel.SmoothRuntime.differential map x))) := by
-  refine ⟨IndexedEvaluation.primitive source (IndexedEvaluation.arguments_cons mapEval
-    (IndexedEvaluation.arguments_cons pointEval (IndexedEvaluation.arguments_nil _ _))) rfl, ?_⟩
-  rw [VastitasOracle.SmoothRuntime.differential_eq_pullback, factors.pullback_chain .saved composable,
-    ← factors.coordinates_reach, reach_eq_getLastD]
+      (.indexed (.fiber .cotangent (pullback .saved (chain (stepPrograms entry.site.steps opaques)) x
+        (some ⟨coordinates ((images (stepPrograms entry.site.steps opaques) x).getLastD x), [1]⟩)))) := by
   have agrees₁ := agrees_bindValue (values := values) (smoothValue x) startHigh
   have startFound : bindValue values startSymbol (smoothValue x) startSymbol = some (smoothValue x) := by
     simp [bindValue]
@@ -1787,5 +1917,177 @@ theorem site_differential_rewrite {module : Module} {entry : Reverse.Entry}
     fun activation bound => ?_
   exact saved_function_pullback saved declared (entry_names_steps_length entry) formed nonempty count composable x
     (residualRel_images _ _) seedVariance _ bound
+
+/-- **(S) A saved site, locally.** The source site `pullback(M, point, seed)`
+in either mode and the Core of `site_saved_core` evaluate to the same
+covector, when the map operand `M` evaluates to a composition tree whose
+leaves are the step programs (`Factors`). `compiled_site_evaluates` in
+`SmoothReverseCompiled` states this for the term that `compileSite` returns.
+No chain rule is used. -/
+theorem site_saved_rewrite {module : Module} {entry : Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
+    (saved : entry.site.mode = .saved)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step) (morphisms : MorphismsDeclared module entry.site.steps)
+    (nonempty : entry.site.steps ≠ [])
+    {values : Values} {bound : Nat} {opaqueTerms : List Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol firstPoint : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
+    (firstHigh : seedSymbol < firstPoint)
+    {mapTerm pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
+    {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed)))
+    {id smooth cotangent : DeclId} {mode : PullbackMode}
+    (source : module.declarations.primitive? id = some (.cotangentPullback smooth cotangent mode))
+    (sourceResult result : Result) :
+    Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] sourceResult)
+        (.indexed (.fiber .cotangent (pullback mode map x seed))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
+          (forwardLets entry.names entry.site entry.site.steps (mapTerms entry.site.steps opaqueTerms)
+            (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
+            (.call entry.function (opaqueTerms ++ sitePoints entry.site (.variable startSymbol pointTerm.result)
+              (pointSymbols firstPoint entry.site.steps.length) ++ [.variable seedSymbol seedTerm.result]) [] result))))
+        (.indexed (.fiber .cotangent (pullback mode map x seed))) := by
+  refine ⟨source_pullback_evaluates source mapEval pointEval seedEval.evaluates sourceResult, ?_⟩
+  rw [factors.pullback_chain mode factors.composable, ← pullback_saved_eq mode]
+  exact site_saved_core function saved apply declared formed morphisms nonempty opaqueEval count factors.composable
+    startHigh seedHigh firstHigh pointEval seedEval result
+
+/-- **(S) A recomputing site, locally.** Under the premises of
+`site_saved_rewrite` with the recomputing policy, the source site
+`pullback(M, point, seed)` and the Core of `site_recomputed_core` evaluate to
+the same covector. No chain rule is used. -/
+theorem site_recomputed_rewrite {module : Module} {entry : Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
+    (recomputed : entry.site.mode = .recomputed)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step) (morphisms : MorphismsDeclared module entry.site.steps)
+    (nonempty : entry.site.steps ≠ [])
+    {values : Values} {bound : Nat} {opaqueTerms : List Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
+    {mapTerm pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
+    {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed)))
+    {id smooth cotangent : DeclId} {mode : PullbackMode}
+    (source : module.declarations.primitive? id = some (.cotangentPullback smooth cotangent mode))
+    (sourceResult result : Result) :
+    Evaluates module values (.primitive id [mapTerm, pointTerm, seedTerm] sourceResult)
+        (.indexed (.fiber .cotangent (pullback mode map x seed))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
+          (.call entry.function (opaqueTerms ++ [.variable startSymbol pointTerm.result,
+            .variable seedSymbol seedTerm.result]) [] result)))
+        (.indexed (.fiber .cotangent (pullback mode map x seed))) := by
+  refine ⟨source_pullback_evaluates source mapEval pointEval seedEval.evaluates sourceResult, ?_⟩
+  rw [factors.pullback_chain mode factors.composable, ← pullback_saved_eq mode,
+    VastitasOracle.SmoothRuntime.pullback_saved_eq_recomputed]
+  exact site_recomputed_core function recomputed apply declared formed morphisms nonempty opaqueEval count
+    factors.composable startHigh seedHigh pointEval seedEval result
+
+/-- **(S) A differential site, locally.** Under the premises of
+`site_saved_rewrite`, with the seed declaration `fiberVector` of the site's
+cotangent family, the source site `differential(φ, point)`, with `φ`
+evaluating to a composition tree of the step programs, and the Core of
+`site_differential_core` evaluate to the same covector. No chain rule is
+used. -/
+theorem site_differential_rewrite {module : Module} {entry : Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
+    (saved : entry.site.mode = .saved)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step) (morphisms : MorphismsDeclared module entry.site.steps)
+    (nonempty : entry.site.steps ≠ []) {seedVariance : Variance}
+    (seedDeclared : module.declarations.primitive? entry.names.seed =
+      some (.fiberVector entry.site.cotangent entry.site.smooth entry.site.output))
+    (seedFamily : fiberVariance? module.declarations.indexed entry.site.cotangent = some seedVariance)
+    {values : Values} {bound : Nat} {opaqueTerms : List Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol firstPoint : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
+    (firstHigh : seedSymbol < firstPoint)
+    {functionTerm pointTerm : Core.Term} {map x : Program}
+    (mapEval : Evaluates module values functionTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    {id smooth cotangent line : DeclId}
+    (source : module.declarations.primitive? id = some (.differential smooth cotangent line))
+    (sourceResult result : Result) :
+    Evaluates module values (.primitive id [functionTerm, pointTerm] sourceResult)
+        (.indexed (.fiber .cotangent (VastitasKernel.SmoothRuntime.differential map x))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm
+          (forwardLets entry.names entry.site entry.site.steps (mapTerms entry.site.steps opaqueTerms)
+            (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
+            (.letE seedSymbol (unitSeed entry (sitePoints entry.site (.variable startSymbol pointTerm.result)
+                (pointSymbols firstPoint entry.site.steps.length)) (.variable startSymbol pointTerm.result))
+              (.call entry.function (opaqueTerms ++ sitePoints entry.site (.variable startSymbol pointTerm.result)
+                (pointSymbols firstPoint entry.site.steps.length) ++
+                [.variable seedSymbol (Reverse.fiberResult entry.site entry.site.output)]) [] result))))
+        (.indexed (.fiber .cotangent (VastitasKernel.SmoothRuntime.differential map x))) := by
+  refine ⟨IndexedEvaluation.primitive source (IndexedEvaluation.arguments_cons mapEval
+    (IndexedEvaluation.arguments_cons pointEval (IndexedEvaluation.arguments_nil _ _))) rfl, ?_⟩
+  rw [VastitasOracle.SmoothRuntime.differential_eq_pullback, factors.pullback_chain .saved factors.composable,
+    ← factors.coordinates_reach, reach_eq_getLastD]
+  exact site_differential_core function saved apply declared formed morphisms nonempty seedDeclared seedFamily
+    opaqueEval count factors.composable startHigh seedHigh firstHigh pointEval result
+
+/-- **(S) A tape site, locally.** The reverse pass of a tape that `linearize`
+builds, `backward(linearize(M, point), seed)`, compiles to the Core of a saved
+site. With a declaration `builder` whose derivative rule is `tape` and a
+declaration `id` whose rule is the `backward` pass, the source call and the
+Core of `site_saved_core` evaluate to the same covector, under the premises of
+`site_saved_rewrite`. `SmoothRuntime.backward_linearize` relates the two
+passes. No chain rule is used. -/
+theorem site_tape_rewrite {module : Module} {entry : Reverse.Entry}
+    (function : module.functions.find? (fun function => function.id == entry.function) = some entry.generated)
+    (saved : entry.site.mode = .saved)
+    (apply : module.declarations.primitive? entry.names.apply = some (.smoothApply entry.site.smooth))
+    (declared : StepsDeclared module entry.names entry.site)
+    (formed : ∀ step ∈ entry.site.steps, StepFormed step) (morphisms : MorphismsDeclared module entry.site.steps)
+    (nonempty : entry.site.steps ≠ [])
+    {values : Values} {bound : Nat} {opaqueTerms : List Core.Term} {opaques : List Program}
+    (opaqueEval : AllPairs (fun term program => Stable module values bound term (smoothValue program))
+      opaqueTerms opaques)
+    (count : opaques.length = entry.site.opaqueSteps.length)
+    {startSymbol seedSymbol firstPoint : Nat} (startHigh : bound ≤ startSymbol) (seedHigh : startSymbol < seedSymbol)
+    (firstHigh : seedSymbol < firstPoint)
+    {mapTerm pointTerm seedTerm : Core.Term} {x : Program} {variance : Variance} {seed : FiberValue}
+    {map : Program} (mapEval : Evaluates module values mapTerm (smoothValue map))
+    (factors : Factors map (stepPrograms entry.site.steps opaques))
+    (pointEval : Evaluates module values pointTerm (smoothValue x))
+    (seedEval : Stable module values bound seedTerm (.indexed (.fiber variance seed)))
+    {builder id : DeclId} (tape : Reverse.ruleOf module.declarations builder = .tape)
+    (pass : Reverse.ruleOf module.declarations id = .pass .backward)
+    (tapeResult sourceResult result : Result) :
+    Evaluates module values
+        (.primitive id [.primitive builder [mapTerm, pointTerm] tapeResult, seedTerm] sourceResult)
+        (.indexed (.fiber .cotangent (pullback .saved map x seed))) ∧
+      Evaluates module values
+        (.letE startSymbol pointTerm (.letE seedSymbol seedTerm
+          (forwardLets entry.names entry.site entry.site.steps (mapTerms entry.site.steps opaqueTerms)
+            (.variable startSymbol pointTerm.result) (pointSymbols firstPoint entry.site.steps.length)
+            (.call entry.function (opaqueTerms ++ sitePoints entry.site (.variable startSymbol pointTerm.result)
+              (pointSymbols firstPoint entry.site.steps.length) ++ [.variable seedSymbol seedTerm.result]) [] result))))
+        (.indexed (.fiber .cotangent (pullback .saved map x seed))) := by
+  refine ⟨?_, ?_⟩
+  · rw [← VastitasOracle.SmoothRuntime.backward_linearize]
+    exact pass_backward_evaluates pass (tape_evaluates tape mapEval pointEval tapeResult) seedEval.evaluates
+      sourceResult
+  · rw [factors.pullback_chain .saved factors.composable]
+    exact site_saved_core function saved apply declared formed morphisms nonempty opaqueEval count
+      factors.composable startHigh seedHigh firstHigh pointEval seedEval result
 
 end VastitasOracle.SmoothReverseCore

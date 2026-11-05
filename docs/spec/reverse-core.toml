@@ -6,9 +6,9 @@ id = "reverse-core"
 title = "Compiled reverse Core"
 subject = "the smooth profile's reverse passes"
 description = """
-After acceptance, the kernel compiles every reverse site of a checked module, a
-pullback in either mode, a differential or the reverse pass of a tape, into
-Core of its own. The forward Core at the site binds the input point r₀ and the
+After acceptance, the kernel compiles every reverse site of a checked module
+into Core of its own. A site is a pullback in either mode, a differential or
+the reverse pass of a tape. The forward Core at the site binds the input point r₀ and the
 images rᵢ = mᵢ(rᵢ₋₁) along the maps m₁, …, m_k of the site. A generated
 backward function pulls the seed back along m_k, …, m₁: a declared map by its
 Jacobian table, any other map value by the runtime reverse pass. The ledger of
@@ -21,12 +21,12 @@ text or native code.
 title = "Saved backward Core"
 subject = "Core.Reverse.Entry.generated"
 statement = """
-Let a saved site have the step programs m₁, …, m_k. Its generated backward
-function, called on one program per opaque step, the input point r₀, saved
-points r₁, …, r_k and a seed η, evaluates to the saved-mode pullback of η along
-m_k ∘ ⋯ ∘ m₁ at r₀, when each rᵢ has the coordinates of mᵢ(rᵢ₋₁) and the
-programs compose. A seed that does not lie over r_k gives the failure value ⊥.
-This holds for every entry of a compiled module.
+Let a saved site have the step programs m₁, …, m_k, which compose. Call its
+generated backward function on one program per opaque step, the input point
+r₀, saved points r₁, …, r_k and a seed η, where each rᵢ has the coordinates of
+mᵢ(rᵢ₋₁). The call evaluates to the saved-mode pullback of η along
+m_k ∘ ⋯ ∘ m₁ at r₀. A seed that does not lie over r_k gives the failure value
+⊥. This holds for every entry of a compiled module.
 """
 specified_in = "[Smooth affine geometry and reverse pullbacks](verification.md#smooth-affine-geometry-and-reverse-pullbacks)"
 example = """
@@ -43,19 +43,22 @@ evidence = [
   "VastitasOracle.SmoothReverseCore.saved_function_pullback",
   "VastitasOracle.SmoothReverseCore.saved_function_foreign_seed",
   "VastitasOracle.SmoothReverseCompiled.compiled_saved_entry",
+  "VastitasOracle.SmoothReverseCompiled.compiled_saved_entry_foreign_seed",
 ]
 premises = [
-  "for `saved_function_pullback` and `saved_function_foreign_seed`: the module declares the backward step of every map under the site's names (`StepsDeclared`), the map type of every declared step names two objects (`StepFormed`), the site has a step, and the activation binds the parameters of the generated function to the arguments; `compiled_saved_entry` discharges the module premises for every entry of a compiled module",
+  "for `saved_function_pullback` and `saved_function_foreign_seed`: the module declares the backward step of every map under the site's names (`StepsDeclared`), the map type of every declared step names two objects (`StepFormed`), the site has a step, and the activation binds the parameters of the generated function to the arguments",
+  "`compiled_saved_entry` and `compiled_saved_entry_foreign_seed` discharge these module premises for every entry of a compiled module",
   "one program per opaque step",
   "for the pullback: the programs compose (`Composable`) and the saved points satisfy the residual relation (`ResidualRel`)",
   "for `saved_function_foreign_seed`: the residual relation, and a seed whose point is not that of the last saved point",
-  "for `compiled_saved_entry`: the entry belongs to the ledger of a compiled module, its site saves, and the arguments of the call evaluate to the opaque programs, the points and the seed",
+  "for the compiled forms: the entry belongs to the ledger of a compiled module, its site saves, and the arguments of the call evaluate to the opaque programs, the points and the seed",
 ]
 note = """
-None of these theorems uses the chain rule: the proofs use the Jacobian table
+None of these theorems uses the chain rule. The proofs use the Jacobian table
 steps (`VastitasOracle.SmoothJacobian.jacobianStep_eq_of_output`) and the
-stepwise pullback. That consecutive steps share their objects is not proved,
-and no theorem needs it.
+stepwise pullback, and `scripts/check_chain_rule_free.lean` checks this on the
+constants that each theorem uses. That consecutive steps share their objects
+is not proved, and no theorem needs it.
 """
 
 [property."reverse-core.backward.saved".claim.test]
@@ -77,7 +80,6 @@ failures included, and rejects forged backward functions.
 [property."reverse-core.backward.saved".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.backward.saved".claim.native]
 status = "not-claimed"
@@ -91,12 +93,12 @@ refines them. Tests run the native code.
 title = "Recomputed backward Core and agreement of the policies"
 subject = "Core.Reverse.Entry.generated"
 statement = """
-The generated backward function of a recomputing site, called on one program
-per opaque step, the input point r₀ and a seed η, evaluates the images again
-and gives the recomputing pullback of η along m_k ∘ ⋯ ∘ m₁ at r₀, when the
-programs compose. On the same arguments and saved points that are the images,
-the saved and the recomputing generated functions of a site have the same
-value. This holds for every entry of a compiled module.
+Call the generated backward function of a recomputing site on one program per
+opaque step, the input point r₀ and a seed η, with programs that compose. It
+evaluates the images again and gives the recomputing pullback of η along
+m_k ∘ ⋯ ∘ m₁ at r₀. With saved points that are the images, the saved and the
+recomputing generated functions of a site have the same value. This holds for
+every entry of a compiled module.
 """
 specified_in = "[Smooth affine geometry and reverse pullbacks](verification.md#smooth-affine-geometry-and-reverse-pullbacks)"
 example = """
@@ -115,15 +117,16 @@ evidence = [
   "VastitasOracle.SmoothReverseCompiled.compiled_recomputed_entry",
 ]
 premises = [
-  "for `recomputed_function_pullback` and `saved_eq_recomputed`: the module declares the forward step `smoothApply` and the backward step of every map under the site's names, the map type of every declared step names two objects, every declared step is a declaration with the derivative rule `morphism` (`MorphismsDeclared`), the site has a step, and the activations bind the parameters to the arguments; `compiled_recomputed_entry` discharges the module premises for every entry of a compiled module",
+  "for `recomputed_function_pullback` and `saved_eq_recomputed`: the module declares the forward step `smoothApply` and the backward step of every map under the site's names, the map type of every declared step names two objects, every declared step is a declaration with the derivative rule `morphism` (`MorphismsDeclared`), the site has a step, and the activations bind the parameters to the arguments",
+  "`compiled_recomputed_entry` discharges these module premises for every entry of a compiled module",
   "one program per opaque step, and the programs compose",
   "for `saved_eq_recomputed`: the saved points satisfy the residual relation, and both bodies evaluate; the theorem states that their values agree",
   "for `compiled_recomputed_entry`: the entry belongs to the ledger of a compiled module, its site recomputes, and the arguments of the call evaluate to the opaque programs, the input point and the seed",
 ]
 note = """
-None of these theorems uses the chain rule: the proofs use
+None of these theorems uses the chain rule. The proofs use
 `VastitasOracle.SmoothRuntime.pullback_saved_eq_recomputed` and the table
-steps.
+steps, and `scripts/check_chain_rule_free.lean` checks this.
 """
 
 [property."reverse-core.backward.recomputed".claim.test]
@@ -144,7 +147,6 @@ checks that the recomputing pullback keeps its mode.
 [property."reverse-core.backward.recomputed".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.backward.recomputed".claim.native]
 status = "not-claimed"
@@ -161,7 +163,9 @@ statement = """
 The forward Core of a site binds, one let per step and in application order,
 the evaluated images r₁ = m₁(r₀), …, r_k = m_k(r_{k-1}) of the input point. It
 evaluates to a value exactly when its body evaluates to that value with those
-points bound.
+points bound. The points satisfy the residual relation, and r_k has the
+coordinates of the primal value m_k ∘ ⋯ ∘ m₁ at r₀. The compiled Core of a
+site holds these lets after the input point.
 """
 specified_in = "[Smooth affine geometry and reverse pullbacks](verification.md#smooth-affine-geometry-and-reverse-pullbacks)"
 example = """
@@ -173,12 +177,18 @@ example_test = "tests/smooth_differential.rs::smooth_example_checks_builds_and_e
 
 [property."reverse-core.forward".claim.oracle]
 status = "proved-oracle"
-evidence = ["VastitasOracle.SmoothReverseCore.forwardLets_evaluates"]
+evidence = [
+  "VastitasOracle.SmoothReverseCore.forwardLets_evaluates",
+  "VastitasOracle.SmoothReverseCore.forwardLets_primal",
+  "VastitasOracle.SmoothReverseCompiled.compileSite_term",
+]
 premises = [
   "the module declares the forward step under the site's name as `smoothApply`; `VastitasOracle.SmoothReverseCompiled.entry_well_formed` discharges this for every entry of a compiled module",
   "the map terms evaluate to the step programs and read no symbol at or above a bound, every bound symbol is at or above it, and the term of the previous point evaluates to the input point",
+  "for the primal value in `forwardLets_primal`: the site has a step",
+  "`compileSite_term` states the shape of the term that `compileSite` returns; it has no premise beyond the compilation of the site",
 ]
-note = "The theorem does not use the chain rule."
+note = "None of these theorems uses the chain rule."
 
 [property."reverse-core.forward".claim.test]
 status = "tested"
@@ -196,7 +206,6 @@ reads the result of a site whose forward Core binds two images.
 [property."reverse-core.forward".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.forward".claim.native]
 status = "not-claimed"
@@ -227,6 +236,7 @@ example_test = "tests/smooth_differential.rs::smooth_example_checks_builds_and_e
 [property."reverse-core.meaning".claim.oracle]
 status = "proved-oracle"
 evidence = [
+  "VastitasOracle.SmoothReverseCore.pullback_chain_cot",
   "VastitasOracle.SmoothReverseCore.saved_function_cot",
   "VastitasOracle.SmoothReverseCompiled.compiled_saved_entry_cot",
   "VastitasOracle.SmoothReverseCompiled.compiled_recomputed_entry_cot",
@@ -238,10 +248,11 @@ premises = [
   "for a saved site: the saved points satisfy the residual relation",
 ]
 note = """
-All three theorems use the chain rule
+These theorems use the chain rule
 `VastitasOracle.SmoothCalculus.backward_eq_cot`, through
-`VastitasOracle.SmoothReverseCore.pullback_chain_cot`. The other properties of
-this file do not. Component j of cot f x η is Σᵢ ηᵢ (∂ⱼ fᵢ)(x).
+`pullback_chain_cot`. The other properties of this file do not, which
+`scripts/check_chain_rule_free.lean` checks on constants. Component j of
+cot f x η is Σᵢ ηᵢ (∂ⱼ fᵢ)(x).
 """
 
 [property."reverse-core.meaning".claim.test]
@@ -259,7 +270,6 @@ wrong result changes the native output.
 [property."reverse-core.meaning".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.meaning".claim.native]
 status = "not-claimed"
@@ -273,11 +283,12 @@ refines them. Tests run the native code.
 title = "Rewritten sites"
 subject = "Core.Reverse.compileSite"
 statement = """
-The Core that the compilation puts at a site and the source call evaluate to
-the same covector. This holds for a pullback in either mode and for a
-differential, whose generated seed is the unit covector at the primal value,
-when the map operand evaluates to a composition tree whose leaves are the step
-programs.
+The term that the compilation puts at a site and the source call evaluate to
+the same value. This holds for a pullback in either mode, for a differential,
+whose generated seed is the unit covector at the primal value, and for the
+reverse pass of a tape, direct or bound by a let. The maps that the derivative
+rules read from the map operand are its maps: its value is a composition tree
+whose leaves are the step programs.
 """
 specified_in = "[Smooth affine geometry and reverse pullbacks](verification.md#smooth-affine-geometry-and-reverse-pullbacks)"
 example = """
@@ -289,19 +300,30 @@ example_test = "VastitasKernel.ReverseCoreRegression"
 [property."reverse-core.sites".claim.oracle]
 status = "proved-oracle"
 evidence = [
+  "VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates",
+  "VastitasOracle.SmoothReverseCompiled.compileSite_term",
+  "VastitasOracle.SmoothReverseCompiled.resolve_factors",
+  "VastitasOracle.SmoothReverseCore.site_saved_core",
+  "VastitasOracle.SmoothReverseCore.site_recomputed_core",
+  "VastitasOracle.SmoothReverseCore.site_differential_core",
   "VastitasOracle.SmoothReverseCore.site_saved_rewrite",
   "VastitasOracle.SmoothReverseCore.site_recomputed_rewrite",
   "VastitasOracle.SmoothReverseCore.site_differential_rewrite",
+  "VastitasOracle.SmoothReverseCore.site_tape_rewrite",
 ]
 premises = [
-  "the module holds the generated function and the declarations of the entry, as for the backward Core, and declares the source call as `cotangentPullback` in some mode or as `differential`; `VastitasOracle.SmoothReverseCompiled.entry_well_formed` discharges the premises about the entry for every entry of a compiled module",
-  "for `site_differential_rewrite`: the seed declaration is a `fiberVector` of the site's cotangent family, and that family has a variance",
-  "the opaque leaf terms evaluate to programs that compose, the point and the seed terms evaluate, and none of them reads a symbol at or above a bound",
-  "the symbols of the site are fresh: the bound is at most the input point's symbol, which is below the seed's, which is below the first image's",
-  "the map operand evaluates to a composition tree whose leaves are the step programs (`Factors`)",
-  "the theorems start after the lets of the compound opaque leaves; those lets and the tape form of a site are not restated",
+  "for `compiled_site_evaluates`: the module keeps the bindings of the source declarations and holds every entry of the ledger (`EntryWellFormed`, which `entry_well_formed` proves for a compiled module)",
+  "for `compiled_site_evaluates` and `resolve_factors`: the let definitions in scope agree with the activation (`DefsAgree`), reading no symbol at or above the first symbol that the compilation binds",
+  "for `compiled_site_evaluates`: the map operand evaluates to a well-typed program, and the map, point and seed operands read no symbol at or above that symbol",
+  "for the local theorems (`site_*_core`, `site_*_rewrite`): the opaque terms and the point and seed terms evaluate, reading no symbol at or above a bound below the site's symbols, and the map operand's value is a composition tree of the step programs (`Factors`)",
+  "for the differential: the seed declaration is a `fiberVector` of the site's cotangent family, and that family has a variance",
 ]
-note = "None of these theorems uses the chain rule."
+note = """
+`compiled_site_evaluates` states the property for the term that `compileSite`
+returns, the lets of the compound opaque leaves included. None of these
+theorems uses the chain rule, which `scripts/check_chain_rule_free.lean`
+checks.
+"""
 
 [property."reverse-core.sites".claim.test]
 status = "tested"
@@ -320,7 +342,6 @@ let.
 [property."reverse-core.sites".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.sites".claim.native]
 status = "not-claimed"
@@ -336,13 +357,14 @@ subject = "Core.Reverse.Compiled"
 statement = """
 A compilation stage holds its generated module and ledger exactly when
 compiling the source module again gives both. Every entry's generated function
-and declarations are found by their ids, and every entry is well formed: its
-site has a step, every declared step names two objects and is a declaration
-with the derivative rule morphism, and its forward, backward and seed steps are
-declared under its names. On protocols 2-6, 7 and 8/9, every entry of a
-compiled module that the accepted certificate carries, and of the module that
-the pure emit path generates code from, computes the pullback of its site in
-its mode.
+and declarations are found by their ids. Every entry is well formed: its site
+has a step, and every declared step names two objects and is a declaration
+with the derivative rule morphism. Its forward, backward and seed steps are
+declared under its names. On protocols 2-6, 7 and 8/9, consider every entry of
+a compiled module that the accepted certificate carries, or of the module that
+the pure emit path generates code from. A call of its generated function
+computes the pullback along the chain of the step programs passed as
+arguments, in its mode.
 """
 specified_in = "[Smooth affine geometry and reverse pullbacks](verification.md#smooth-affine-geometry-and-reverse-pullbacks)"
 example = """
@@ -371,7 +393,13 @@ premises = [
 note = """
 Validation is translation validation by recompilation, not an independent
 checker. None of these theorems uses the chain rule. That consecutive steps
-share their objects is not proved, and no theorem needs it.
+share their objects is not proved, and no theorem needs it. A pin covers the
+statement of a theorem, and a claim pins theorems and kernel definitions only.
+The pins of the public-path theorems therefore do not cover the oracle
+definitions `EntryComputes` and `EntryWellFormed`. Reviewers read those
+definitions with the theorems. That `Main.process` generates code from the
+compiled module of protocols 2-7 is read from `Main`, which the oracle does
+not import.
 """
 
 [property."reverse-core.validation".claim.test]
@@ -392,7 +420,6 @@ extra and misowned generated functions, and sites left uncompiled.
 [property."reverse-core.validation".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.validation".claim.native]
 status = "not-claimed"
@@ -450,7 +477,6 @@ one declared step and rejects a step along another declared map.
 [property."reverse-core.steps".claim.bridge]
 status = "planned"
 issue = 623
-note = "Step 4 of #623 states the bridge theorems for compiled reverse Core."
 
 [property."reverse-core.steps".claim.native]
 status = "not-claimed"

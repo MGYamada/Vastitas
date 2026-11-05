@@ -437,9 +437,9 @@ theorem compiled_main_total {source : Typing.CheckedModule true} (compiled : Com
 /-! ## Public paths -/
 
 open VastitasKernel VastitasKernel.Indexed in
-/-- Protocol 7: the emit path generates code from `accepted.checked.compiled.core`
-(`Main.process`), which is the compilation of the executable Core of the
-accepted program. -/
+/-- Protocol 7: `accepted.checked.compiled.core` is the compilation of the
+executable Core of the accepted program. `Main.process` generates code from
+this module; that is read from `Main`, which the oracle does not import. -/
 theorem compiled_codegen_input {json : Lean.Json} (accepted : Wire.CheckedInput json true) :
     Core.Reverse.generate accepted.checked.executable.lowered.module =
       (accepted.checked.compiled.core.module, accepted.checked.compiled.entries) ∧
@@ -475,8 +475,9 @@ theorem public_compiled_main_total {json : Lean.Json} (accepted : Wire.CheckedIn
   compiled_main_total accepted.checked.compiled
 
 open VastitasKernel VastitasKernel.Indexed in
-/-- Protocols 2-6: the emit path also generates code from
-`accepted.checked.compiled.core`, the compilation of the executable Core. -/
+/-- Protocols 2-6: `accepted.checked.compiled.core` is the compilation of the
+executable Core. `Main.process` generates code from this module, as for
+protocol 7. -/
 theorem legacy_compiled_codegen_input {json : Lean.Json} (accepted : Indexed.LegacySource.CheckedInput json true) :
     Core.Reverse.generate accepted.checked.executable.lowered.module =
       (accepted.checked.compiled.core.module, accepted.checked.compiled.entries) ∧

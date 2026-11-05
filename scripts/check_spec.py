@@ -557,7 +557,8 @@ def may_skip(value):
 def run_steps(workflow):
     """(script, directory, pipefail) of each `run:` step that every pull request
     runs and whose failure fails the job. A step or job with `if:` or a
-    `continue-on-error` that can be true does not count."""
+    `continue-on-error` that can be true does not count, and neither does a job
+    that may run on Windows, whose default shell is PowerShell."""
     tree = yaml_load(workflow)
     if not isinstance(tree, dict) or not every_pull_request(tree.get("on")):
         return
@@ -568,6 +569,8 @@ def run_steps(workflow):
     jobs = tree.get("jobs")
     for job in (jobs.values() if isinstance(jobs, dict) else []):
         if not isinstance(job, dict) or "if" in job or may_skip(job.get("continue-on-error")):
+            continue
+        if "windows" in f"{job.get('runs-on')} {job.get('strategy')}".lower():
             continue
         settings = dict(top, **defaults(job))
         for step in job.get("steps") or []:
@@ -582,12 +585,16 @@ def run_steps(workflow):
             yield step["run"], shell_directory(PurePosixPath("."), str(directory)), shell == "bash"
 
 
-SHELL_PIECES = re.compile(r"&&|\|\||;;|\|&|>>|<<-?|>&|<&|&>|[;|&()<>]")
+SHELL_PIECES = re.compile(r"&&|\|\||;;|\|&|>>|<<<|<<-?|>&|<&|&>|[;|&()<>]")
 SHELL_CONTROL = {";", "&&", "||", "|", "&", "|&", ";;", "(", ")"}
-SHELL_REDIRECTS = {">", ">>", "<", "<<", "<<-", ">&", "<&", "&>"}
+SHELL_REDIRECTS = {">", ">>", "<", "<<", "<<-", "<<<", ">&", "<&", "&>"}
 SHELL_ASSIGNMENT = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=.*")
-SHELL_GUARDS = {"if", "elif", "while", "until", "!"}
-SHELL_PREFIXES = SHELL_GUARDS | {"then", "else", "do", "time", "command", "exec", "nohup", "{", "}"}
+SHELL_PREFIXES = {"time", "command", "builtin", "nohup"}
+SHELL_SKIPPED = SHELL_PREFIXES | {"then", "do", "else", "elif"}
+SHELL_COMPOUNDS = {"if": "fi", "while": "done", "until": "done", "for": "done", "select": "done", "case": "esac"}
+SHELL_CLOSERS = {"fi", "done", "esac", "}"}
+# Commands after which the model no longer knows which commands run, or how a failure ends.
+SHELL_STOPS = {"return", "source", ".", "eval", "trap", "alias", "shopt", "enable"}
 
 
 def shell_tokens(line):
@@ -610,68 +617,198 @@ def shell_directory(directory, target):
     return PurePosixPath(os.path.normpath(str(directory / target)))
 
 
-def shell_commands(script, directory=PurePosixPath("."), pipefail=False):
+def shell_cd(words, directory):
+    """The directory after `cd WORDS` or `pushd WORDS`, or None when it is unknown."""
+    arguments = [word for word in words[1:] if word not in ("-L", "-P")]
+    if len(arguments) != 1 or arguments[0] == "-":
+        return None
+    return shell_directory(directory, arguments[0])
+
+
+def shell_set(arguments, errexit, pipefail, switch_on):
+    """errexit and pipefail after `set ARGUMENTS`. Unless `switch_on`, the
+    options are only switched off."""
+    pending = []
+    for argument in arguments:
+        if pending:
+            on = pending.pop(0) == "-"
+            if argument == "errexit" and (switch_on or not on):
+                errexit = on
+            elif argument == "pipefail" and (switch_on or not on):
+                pipefail = on
+            continue
+        if argument in ("-", "--") or len(argument) < 2 or argument[0] not in "-+":
+            break
+        for letter in argument[1:]:
+            if letter == "e" and (switch_on or argument[0] == "+"):
+                errexit = argument[0] == "-"
+            elif letter == "o":
+                pending.append(argument[0])
+    return errexit, pipefail
+
+
+def shell_stops(words):
+    """Whether the model loses track of the script after the command `words`."""
+    if words[0] == "exit":
+        return not (len(words) > 1 and words[1].isdigit() and int(words[1]) % 256)
+    return words[0] in SHELL_STOPS or words[0] == "exec" and len(words) > 1
+
+
+class ShellFrame:
+    """An open compound command, group, subshell or substitution, with the list
+    that contains it and the settings that a subshell restores."""
+
+    def __init__(self, kind, closer, start, outer, saved):
+        self.kind, self.closer, self.start, self.outer, self.saved = kind, closer, start, outer, saved
+
+
+class ShellList:
+    """The command list being read: the words of its current command, and the
+    first command of its current pipeline and of its current pipeline element."""
+
+    def __init__(self, start):
+        self.words, self.pipeline, self.element = [], start, start
+        self.andor = self.negated = self.piped = self.subshell = False
+
+
+def shell_commands(script, directory=PurePosixPath("."), pipefail=False, errexit=True):
     """Each simple command of a shell script as (words, directory, counted).
 
-    A command counts when its failure fails the script. A condition of `if`,
-    `while` or `until`, a negated command, a command before `||`, a command
-    before `|` without pipefail and any command after `set +e` does not count.
-    `directory` follows `cd`, and is None once it is unknown. Comments, quotes,
-    redirections and here-document bodies are removed; a line whose quotes do
-    not close is skipped."""
-    heredoc, errexit, stack = None, True, []
-    for line in script.replace("\\\n", " ").split("\n"):
+    `pipefail` and `errexit` are the settings that the script starts with. A
+    command counts when it runs whenever the script runs and its failure fails
+    the script. A command does not count when it is inside `if`, `while`,
+    `until`, `for`, `select`, `case` or a command substitution; when its pipeline
+    is negated, in a list with `&&` or `||`, or in the background; when it comes
+    before `|` without pipefail; when errexit is off; or when it follows a
+    command that `shell_stops` names or a function definition. A group or
+    subshell passes these conditions to the commands in it. `set` switches an
+    option on only where it surely runs in the shell itself, and `cd` is followed
+    only there: elsewhere the directory becomes None, unknown. A subshell
+    restores both. Comments, quotes, redirections and here-document bodies are
+    removed. A keyword that closes nothing, or a quote that never closes, stops
+    the counting."""
+    record, frames, heredoc, stopped = [], [], None, False
+    current = ShellList(0)
+
+    def mark(start):
+        for command in record[start:]:
+            command[2] = False
+
+    def sure(token):
+        return (not stopped and all(frame.kind == "subshell" for frame in frames) and not current.andor
+                and not current.negated and not current.piped and token not in ("&&", "||", "&", "|", "|&"))
+
+    def end(token):
+        """End the current command, pipeline element or pipeline at `token`."""
+        nonlocal directory, errexit, pipefail, stopped
+        words, current.words = current.words, []
+        if words and words[0] == "env":
+            words = words[1:]
+            while words and (SHELL_ASSIGNMENT.fullmatch(words[0]) or words[0].startswith("-")):
+                words = words[2:] if words[0] in ("-u", "-C", "-S") else words[1:]
+        if words and words[0] in ("cd", "pushd", "popd"):
+            directory = shell_cd(words, directory) if sure(token) and words[0] != "popd" else None
+        elif words:
+            if words[0] == "set":
+                errexit, pipefail = shell_set(words[1:], errexit, pipefail, sure(token))
+            conditional = any(frame.kind in ("compound", "substitution") for frame in frames)
+            record.append([words, directory, errexit and not stopped and not conditional])
+            stopped = stopped or shell_stops(words)
+        if current.subshell and not errexit or token in ("|", "|&") and not pipefail:
+            mark(current.element)
+        current.subshell, current.element = False, len(record)
+        if token in ("|", "|&"):
+            current.piped = True
+            return
+        if current.negated or current.andor or token in ("&&", "||", "&"):
+            mark(current.pipeline)
+        current.pipeline, current.negated, current.piped = len(record), False, False
+        current.andor = token in ("&&", "||")
+
+    def open_frame(kind, closer):
+        nonlocal current
+        frames.append(ShellFrame(kind, closer, len(record), current, (errexit, pipefail, directory)))
+        current = ShellList(len(record))
+
+    def close_frame():
+        nonlocal current, errexit, pipefail, directory
+        frame = frames.pop()
+        current = frame.outer
+        if frame.kind in ("subshell", "substitution"):
+            errexit, pipefail, directory = frame.saved
+            current.subshell = frame.kind == "subshell"
+
+    lines = script.replace("\\\n", " ").split("\n")
+    number = 0
+    while number < len(lines):
+        line, number = lines[number], number + 1
         if heredoc is not None:
             if line.strip() == heredoc:
                 heredoc = None
             continue
-        try:
-            tokens = shell_tokens(line)
-        except ValueError:
+        tokens = None
+        while tokens is None:
+            try:
+                tokens = shell_tokens(line)
+            except ValueError:
+                if number == len(lines):
+                    break
+                line, number = line + "\n" + lines[number], number + 1
+        if tokens is None:
+            stopped = True
+            break
+        if not tokens:
             continue
-        words, guarded, target = [], False, False
-        for index, token in enumerate(tokens + [";"]):
-            if target:
-                target = False
-                if tokens[index - 1] in ("<<", "<<-"):
+        if tokens[-1] not in ("&&", "||", "|", "|&"):
+            tokens.append(";")
+        target, position = None, 0
+        while position < len(tokens):
+            token, previous, position = tokens[position], tokens[position - 1] if position else "", position + 1
+            if target is not None:
+                if token == "(":
+                    open_frame("substitution", ")")
+                elif target in ("<<", "<<-"):
                     heredoc = token.lstrip("-")
-                continue
-            if token in SHELL_REDIRECTS:
-                if words and words[-1].isdigit():
-                    words.pop()
-                target = True
-                continue
-            if token not in SHELL_CONTROL:
-                if not words and (token in SHELL_PREFIXES or SHELL_ASSIGNMENT.fullmatch(token)):
-                    guarded = guarded or token in SHELL_GUARDS
+                target = None
+            elif token in SHELL_REDIRECTS:
+                if current.words and current.words[-1].isdigit():
+                    current.words.pop()
+                target = token
+            elif token == "(" and len(current.words) == 1 and tokens[position:position + 1] == [")"]:
+                stopped, current.words, position = True, [], position + 1
+            elif token == "(":
+                open_frame("substitution" if current.words or previous.endswith("$") else "subshell", ")")
+            elif token == ")":
+                if frames and frames[-1].closer == "esac":
+                    current.words = []
+                elif frames and frames[-1].closer == ")":
+                    end(";")
+                    close_frame()
                 else:
-                    words.append(token)
-                continue
-            if words and words[0] == "env":
-                words = words[1:]
-                while words and (SHELL_ASSIGNMENT.fullmatch(words[0]) or words[0].startswith("-")):
-                    words = words[2:] if words[0] in ("-u", "-C", "-S") else words[1:]
-            if words:
-                if words[:2] == ["set", "+e"]:
-                    errexit = False
-                elif words[:2] == ["set", "-e"]:
-                    errexit = True
-                elif words[:3] == ["set", "-o", "pipefail"]:
-                    pipefail = True
-                counted = errexit and not guarded and token != "||" and (token not in ("|", "|&") or pipefail)
-                if words[0] in ("cd", "pushd"):
-                    directory = shell_directory(directory, words[1] if len(words) > 1 else "")
-                elif words[0] == "popd":
-                    directory = None
+                    stopped = True
+            elif token in SHELL_CONTROL:
+                end(token)
+            elif current.words:
+                current.words.append(token)
+            elif token in SHELL_COMPOUNDS:
+                open_frame("compound", SHELL_COMPOUNDS[token])
+            elif token == "{":
+                open_frame("group", "}")
+            elif token in SHELL_CLOSERS:
+                if frames and frames[-1].closer == token:
+                    close_frame()
                 else:
-                    yield words, directory, counted
-            if token == "(":
-                stack.append(directory)
-            elif token == ")" and stack:
-                directory = stack.pop()
-            words = []
-            if token not in ("|", "|&"):
-                guarded = False
+                    stopped = True
+            elif token == "!":
+                current.negated = True
+            elif token == "function":
+                stopped = True
+            elif token not in SHELL_SKIPPED and not SHELL_ASSIGNMENT.fullmatch(token):
+                current.words.append(token)
+    if frames:
+        mark(frames[0].start)
+    for words, where, counted in record:
+        yield words, where, counted
 
 
 def option(argument, items, short, long):
@@ -1006,8 +1143,9 @@ class Repository:
                         self.add(words, where, package)
         self.regressions = set()
         if (root / REGRESSIONS).is_file():
-            for words, _, _ in shell_commands((root / REGRESSIONS).read_text(encoding="utf-8")):
-                if words[:4] == ["lake", "-d", "lean-kernel", "build"]:
+            script = (root / REGRESSIONS).read_text(encoding="utf-8")
+            for words, _, counted in shell_commands(script, errexit=False):
+                if counted and words[:4] == ["lake", "-d", "lean-kernel", "build"]:
                     self.regressions.update(item for item in words[4:] if LEAN_NAME.fullmatch(item))
         self.codes = set()
         if (root / DIAGNOSTICS).is_file():

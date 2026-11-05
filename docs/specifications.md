@@ -186,15 +186,32 @@ keeps its pin.
 A CI step is a `run:` step of a workflow that every pull request starts: its
 `pull_request` trigger has no `paths`, `branches` or `types` filter. A step,
 or its job, with an `if:` condition or with a `continue-on-error` that can be
-true does not count. `check_spec.py` reads each step with a model of the
-shell. It follows `cd` and `working-directory`, and it ignores comments,
-quoted text, redirections and here-document bodies. A command whose failure
-cannot fail the step does not count: the condition of an `if`, a command
-before `||`, a command before `|` without `pipefail`, and a command after
-`set +e`. It recognizes `cargo test` in the root package, with its target,
-filter, `--skip`, `--exact`, `--ignored`, `--no-run` and `--list` options,
-`python3 -m unittest discover`, and runs of the kernel regression script. A
-form that it does not model counts as not running a test.
+true does not count. Neither does a job that may run on Windows, where the
+default shell is PowerShell.
+
+`check_spec.py` reads each step with a model of the shell. It follows `cd` and
+`working-directory`, and it ignores comments, quoted text, redirections and
+here-document bodies. A command counts only when it runs whenever the step
+runs and its failure fails the step. These commands do not count:
+
+- a command inside `if`, `while`, `until`, `for`, `select` or `case`, or
+  inside a command substitution;
+- a command in a negated pipeline, in a list with `&&` or `||`, or in the
+  background;
+- a command before `|` without `pipefail`;
+- a command that runs while `errexit` is off, as after `set +e`;
+- every command after a function definition, after `exit` without a non-zero
+  status, or after `exec`, `return`, `source`, `.`, `eval`, `trap`, `alias`,
+  `shopt` or `enable`.
+
+A group or subshell passes these conditions to the commands in it. A `cd` that
+may not run makes the directory unknown, and a `set -e` that may not run does
+not switch `errexit` on. The model reads the kernel regression script in the
+same way. That script starts with `errexit` off, so it must switch `errexit`
+on before its build counts. The model recognizes `cargo test` in the root
+package, with its target, filter, `--skip`, `--exact`, `--ignored`, `--no-run`
+and `--list` options, `python3 -m unittest discover`, and runs of the kernel
+regression script. A form that it does not model counts as not running a test.
 
 `scripts/spec_resolve.lean` imports exactly the modules that a pins file lists.
 It rejects:

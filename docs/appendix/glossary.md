@@ -360,7 +360,7 @@ The word has three qualified uses:
    admits two rank-two map occurrences joined by one evaluation edge.
 2. An **indexed profile** is a set of indexed declarations that defines a
    geometric setting, such as the ordinary affine profile of
-   `examples/packages/indexed/geo.vast`. See
+   `examples/packages/geometry/indexed/geo.vast`. See
    [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 3. A **coefficient profile** declares what the coefficients of numerical maps
    mean mathematically. See

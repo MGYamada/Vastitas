@@ -18,7 +18,7 @@ use std::fs;
 /// (smooth-metric), and the standard-library differential profile
 /// (stdlib-differential).
 const CASES: &[(&str, &str, u64)] = &[
-    ("indexed", "examples/packages/indexed/Vastitas.toml", 7),
+    ("indexed", "examples/packages/geometry/indexed/Vastitas.toml", 7),
     (
         "indexed-calls",
         "tests/emit_corpus/indexed-calls/Vastitas.toml",
@@ -26,7 +26,7 @@ const CASES: &[(&str, &str, u64)] = &[
     ),
     (
         "affine-geometry",
-        "examples/packages/affine-geometry/Vastitas.toml",
+        "examples/packages/geometry/affine-geometry/Vastitas.toml",
         9,
     ),
     (
@@ -36,22 +36,22 @@ const CASES: &[(&str, &str, u64)] = &[
     ),
     (
         "smooth-objects",
-        "examples/packages/smooth-objects/Vastitas.toml",
+        "examples/packages/geometry/smooth-objects/Vastitas.toml",
         9,
     ),
     (
         "smooth-cotangent",
-        "examples/packages/smooth-cotangent/Vastitas.toml",
+        "examples/packages/geometry/smooth-cotangent/Vastitas.toml",
         9,
     ),
     (
         "smooth-metric",
-        "examples/packages/smooth-metric/Vastitas.toml",
+        "examples/packages/geometry/smooth-metric/Vastitas.toml",
         9,
     ),
     (
         "stdlib-differential",
-        "examples/packages/stdlib-differential/Vastitas.toml",
+        "examples/packages/stdlib/stdlib-differential/Vastitas.toml",
         9,
     ),
 ];

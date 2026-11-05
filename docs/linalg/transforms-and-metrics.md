@@ -169,8 +169,8 @@ laws or all mathematical adjoint identities.
 ### Example and regression evidence
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/linear-transforms/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/linear-transforms/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/linear-transforms/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/linear-transforms/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/linear-transforms
 /tmp/linear-transforms
 ```
@@ -332,8 +332,8 @@ OpenBLAS. Numerical CI executes all shape/orientation cases, mixed complex
 components and explicit accumulation.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/vector-evaluation/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/vector-evaluation/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/vector-evaluation/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/vector-evaluation/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/vector-evaluation
 /tmp/vector-evaluation
 ```
@@ -490,8 +490,8 @@ prove that an unrelated composite buffer holds a matrix product, source/native
 refinement, numerical error bounds, or floating-point field identities.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/diagonal-metrics/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/diagonal-metrics/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/diagonal-metrics/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/diagonal-metrics/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/diagonal-metrics
 /tmp/diagonal-metrics
 ```

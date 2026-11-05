@@ -84,7 +84,7 @@ The bridge proves what the kernel's identities mean in mathlib:
 ## Acceptance conditions
 
 The acceptance example is
-[`examples/packages/affine-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/affine-geometry).
+[`examples/packages/geometry/affine-geometry/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/affine-geometry).
 It checks, builds and prints `42`, and every observation below contributes a
 distinct failure code, so a wrong result changes the output
 (`mutated_observations_change_the_native_result`).

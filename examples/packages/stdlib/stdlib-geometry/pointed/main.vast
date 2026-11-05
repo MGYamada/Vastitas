@@ -1,4 +1,4 @@
-// Declaration-driven counterpart of examples/pointed.vast.
+// Declaration-driven counterpart of examples/book/geometry/pointed.vast.
 use std::geometry::scheme as scheme;
 
 fn make_origin(n: Nat) -> scheme::Pointed<scheme::Scheme, scheme::QQ> {

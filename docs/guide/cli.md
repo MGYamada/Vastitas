@@ -81,7 +81,7 @@ checks the installed profile before recording the prefix; the copy at the
 downloaded release archive. Then pass the prefix to `build`:
 
 ```sh
-vastitas build --manifest-path examples/packages/numerical/Vastitas.toml \
+vastitas build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix "$PWD/target/openblas-0.3.34" -o target/numerical-example
 ```
 

@@ -45,7 +45,7 @@ fn rejects(raw: Value, code: &str) {
 
 #[test]
 fn pairs_preserve_values_arguments_results_branches_and_lambda_bodies() {
-    let scratch = Scratch::new(include_str!("../examples/pairs.vast"));
+    let scratch = Scratch::new(include_str!("../examples/book/values/pairs.vast"));
     for package in [false, true] {
         success(scratch.cli("check", package).output().unwrap());
         success(

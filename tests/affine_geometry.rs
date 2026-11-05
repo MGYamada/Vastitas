@@ -6,14 +6,14 @@ use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 use std::os::unix::fs::PermissionsExt;
 
-const PROFILE: &str = include_str!("../examples/packages/affine-geometry/src/profile.vast");
-const MAIN: &str = include_str!("../examples/packages/affine-geometry/src/main.vast");
+const PROFILE: &str = include_str!("../examples/packages/geometry/affine-geometry/src/profile.vast");
+const MAIN: &str = include_str!("../examples/packages/geometry/affine-geometry/src/main.vast");
 
 fn fixture(main: &str) -> Scratch {
     let s = Scratch::empty("affine geometry");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/affine-geometry/Vastitas.toml"),
+        include_str!("../examples/packages/geometry/affine-geometry/Vastitas.toml"),
     );
     s.write("src/main.vast", main);
     s.write("src/profile.vast", PROFILE);

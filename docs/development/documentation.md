@@ -125,15 +125,17 @@ next rewrite.
 
 ### Examples
 
-- Put every complete program in a file under `examples/book/`, or use a
-  tested package under `examples/packages/`. Pull it into
+- Put every complete accepted single-file program in `examples/book/`, or use a
+  tested package under `examples/packages/`. Register it in
+  [`examples/corpus.toml`](../../examples/corpus.toml). Pull it into
   the chapter with the mdBook
   [`include` directive](https://rust-lang.github.io/mdBook/format/mdbook.html#including-files),
   so that the book shows the tested text. Step 3 of
   [Author and retire a chapter](#author-and-retire-a-chapter) requires a test
   for it.
 - Show a rejected program with the diagnostic line that the compiler prints
-  for it. Do not paraphrase the diagnostic.
+  for it. Register complete negative programs under `examples/reject/`, with
+  their expected diagnostic code in the corpus. Do not paraphrase the diagnostic.
 
 ### What stays out
 

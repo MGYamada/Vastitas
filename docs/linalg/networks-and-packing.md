@@ -50,14 +50,14 @@ origins, basis evidence and active child loans. A graph cannot supply raw native
 flags or convert a conjugate space into an algebraic dual. Merely equal dimensions
 do not identify spaces, and distinct bases of one space are not silently identified.
 
-The [complete package](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/finite_network/Vastitas.toml) computes
+The [complete package](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/tensor/finite_network/Vastitas.toml) computes
 the rectangular real and complex products from the public GEMM example and checks
 every output coordinate. The complex product has entries `1+2i, 3i; 2, 2`;
 an inserted conjugation changes it.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/finite_network/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/finite_network/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/tensor/finite_network/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/tensor/finite_network/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/finite-network
 /tmp/finite-network
 ```
@@ -207,7 +207,7 @@ assuming a structural symmetry law.
 ### Public source
 
 The complete real/complex padded example is
-[`examples/packages/tensor-packing`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/tensor-packing/Vastitas.toml).
+[`examples/packages/tensor/tensor-packing`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/tensor/tensor-packing/Vastitas.toml).
 Its key steps are:
 
 ```vast
@@ -350,7 +350,7 @@ conjugate spaces and unrelated bases cannot supply that evidence.
 ### Source and explicit execution plan
 
 The complete padded real/complex example is
-[`examples/packages/contraction-tree`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/contraction-tree/Vastitas.toml).
+[`examples/packages/tensor/contraction-tree`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/tensor/contraction-tree/Vastitas.toml).
 It computes, in the written order,
 
 ```text
@@ -553,7 +553,7 @@ contract3_cached(saved, packed, b, c, NativeFast);
 contract3_cached(saved, packed, b, c, NativeFast);
 ```
 
-The [complete real/complex example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/cached-tensor-packing/src/main.vast)
+The [complete real/complex example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/tensor/cached-tensor-packing/src/main.vast)
 uses padded layouts, one explicit packing per scalar representation and two
 contractions. Scratch and output remain caller-owned. A cache is a lexical compiler
 witness; it is not a resource parameter/result, owned package, snapshot allocation,

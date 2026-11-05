@@ -9,7 +9,7 @@ and markers, are in [declaration-driven indexed source](../indexed-source.md#dec
 [glossary](../appendix/glossary.md) defines the terms.
 
 The examples quote the tested programs in
-[`examples/packages/smooth-differential/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/smooth-differential).
+[`examples/packages/geometry/smooth-differential/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/smooth-differential).
 A rejected fragment is shown with the code and message of the diagnostic that
 the compiler prints for it; the file position depends on where the fragment
 appears.
@@ -98,7 +98,7 @@ Rules:
   presented object `QLine`, is an error (`E_TYPE`).
 
 Example, from
-[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/smooth-differential/src/profile.vast):
+[`profile.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/smooth-differential/src/profile.vast):
 
 ```vast
 pub indexed marker CInfReal;
@@ -244,7 +244,7 @@ Rules:
 - Any other word after `=` is an error (`E_TYPE`).
 
 Example, from
-[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/smooth-differential/src/main.vast):
+[`main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/smooth-differential/src/main.vast):
 
 ```vast
 indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);

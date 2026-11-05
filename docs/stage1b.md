@@ -175,7 +175,7 @@ may use Pair internally. `Fn<(A, B), C>` remains an argument sequence, not a Pai
 Methods may return Pair; their selected signature determines the call and
 projection types in both first-order and function-containing programs. The
 [stdlib](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md#explicit-promotion) supplies four Nat/Int promotion methods.
-See [the executable example](https://github.com/MGYamada/Vastitas/blob/main/examples/pairs.vast) and [protocol](protocol.md).
+See [the executable example](https://github.com/MGYamada/Vastitas/blob/main/examples/book/values/pairs.vast) and [protocol](protocol.md).
 
 The actual core carries finite Pair types and primitive operations. Native code
 uses Lean `Prod Nat Nat` or `Prod Int Int`. Current indexed typing, evaluation and
@@ -372,7 +372,7 @@ Dependency lockfiles and compiler limits were unchanged.
 | `cargo test --locked --all-targets` | 205 passed; all four 20,000-function watchdog workloads passed |
 | `python3 scripts/check_boundaries.py` | Passed |
 | `python3 -m unittest discover -s scripts -p 'test_*.py'` | 14 passed |
-| CLI `check` / `build` of `examples/functions.vast`, then native execution | Passed; output 42 |
+| CLI `check` / `build` of `examples/book/functions/functions.vast`, then native execution | Passed; output 42 |
 | Same duplicate-ledger fixture against main and candidate | Main: predicate true / index false; candidate: true / true |
 
 The new Rust test initially used reserved `apply` and an unformatted diagnostic

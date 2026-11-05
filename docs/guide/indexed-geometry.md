@@ -22,7 +22,7 @@ The core has a deliberately small set of forms:
 
 `Scheme` is the ordinary setting and `CInfScheme` the smooth one. There is no
 implicit bridge between them.
-[`examples/smooth.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/smooth.vast)
+[`examples/book/geometry/smooth.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/geometry/smooth.vast)
 works in the smooth setting:
 
 ```vast
@@ -40,7 +40,7 @@ fn main() -> Int {
 ```
 
 ```sh
-target/debug/vastitas build examples/smooth.vast -o target/smooth
+target/debug/vastitas build examples/book/geometry/smooth.vast -o target/smooth
 ./target/smooth
 ```
 
@@ -65,14 +65,14 @@ hides an object with a point on it. Each `unpack` opens the package with a fresh
 scoped identity, even when the same package is opened twice. Returning a local
 point without its object is rejected; repacking the two together is fine.
 [Chapter 1](hello-vastitas.md#a-program-with-geometry) walks through
-`examples/pointed.vast`, which does exactly this.
+`examples/book/geometry/pointed.vast`, which does exactly this.
 
 ## The standard geometry library
 
 `std::geometry::scheme` and `std::geometry::smooth` declare the same finite
 profile as library code, through the indexed declarations shown below. This
 demo uses the explicit witness and field syntax of indexed packages.
-[`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast):
+[`examples/packages/stdlib/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-geometry/main.vast):
 
 ```vast
 use std::geometry::scheme as scheme;
@@ -98,7 +98,7 @@ commands. The two dimensions add, but nothing lets `p` be used in `Y`.
 The library is not privileged. Any package can declare its own markers,
 classifications, families, existential packages and primitives with `indexed`
 declarations.
-[`examples/packages/indexed/geo.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/indexed/geo.vast)
+[`examples/packages/geometry/indexed/geo.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/indexed/geo.vast)
 declares a complete ordinary affine profile:
 
 ```vast
@@ -144,8 +144,8 @@ fn main() -> Int {
 ```
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/indexed/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
+cargo run --locked -- check --manifest-path examples/packages/geometry/indexed/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/geometry/indexed/Vastitas.toml -o target/indexed-demo
 ./target/indexed-demo
 # 42
 ```

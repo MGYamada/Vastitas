@@ -19,14 +19,14 @@ This bounded profile does not complete [Stage 1](../stage1-completion.md).
 Resource functions exist only in manifest mode. A flat-mode file that declares
 `resource fn` is rejected with `E_UNSUPPORTED`.
 
-The [complete example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/app/src/main.vast) imports
+The [complete example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/storage/app/src/main.vast) imports
 resource functions from a separate directory-aligned package, receives an owned
 buffer, borrows it for inspection, moves it through another function, drops it,
 and computes `42` using ordinary finite dispatch and an independent lambda:
 
 ```sh
-vastitas check --manifest-path examples/packages/storage/app/Vastitas.toml
-vastitas build --manifest-path examples/packages/storage/app/Vastitas.toml -o /tmp/storage-example
+vastitas check --manifest-path examples/packages/storage/storage/app/Vastitas.toml
+vastitas build --manifest-path examples/packages/storage/storage/app/Vastitas.toml -o /tmp/storage-example
 /tmp/storage-example
 ```
 
@@ -160,7 +160,7 @@ resource fn finish(data: Owned<F64, 1>, seed: Int) -> Int {
 }
 ```
 
-The [scalar-flow example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/resource-values/src/main.vast)
+The [scalar-flow example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/resource-values/src/main.vast)
 passes a computed Bool through a resource helper, chooses different fills at
 runtime, returns the Bool together with an initialized owner, and inspects the
 selected output before computing `42`. Nat remains arbitrary precision with
@@ -334,9 +334,9 @@ Real and complex GEMM can reuse a caller's destination through nested calls at
 multiple extents. Dimension values never become dispatch keys or evidence that
 two nominal spaces or bases are equal.
 
-The [worked package](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/runtime-shapes/src/main.vast) uses two
+The [worked package](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/runtime-shapes/src/main.vast) uses two
 extents in one executable and calls the same helper twice into each destination.
-Run `cargo run -- check --manifest-path examples/packages/runtime-shapes/Vastitas.toml`;
+Run `cargo run -- check --manifest-path examples/packages/storage/runtime-shapes/Vastitas.toml`;
 native build additionally requires `--openblas-prefix <pinned-prefix>`.
 
 ### Public interface

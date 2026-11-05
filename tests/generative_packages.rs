@@ -3,24 +3,24 @@ use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/generative-owned-map/src/real/mod.vast");
+const REAL: &str = include_str!("../examples/packages/numerical/generative-owned-map/src/real/mod.vast");
 const COMPLEX: &str =
-    include_str!("../examples/packages/generative-owned-map/src/complex/mod.vast");
+    include_str!("../examples/packages/numerical/generative-owned-map/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     let s = Scratch::empty("generative owned maps");
     for (name, source) in [
         (
             "Vastitas.toml",
-            include_str!("../examples/packages/generative-owned-map/Vastitas.toml"),
+            include_str!("../examples/packages/numerical/generative-owned-map/Vastitas.toml"),
         ),
         (
             "src/main.vast",
-            include_str!("../examples/packages/generative-owned-map/src/main.vast"),
+            include_str!("../examples/packages/numerical/generative-owned-map/src/main.vast"),
         ),
         (
             "src/profiles/mod.vast",
-            include_str!("../examples/packages/generative-owned-map/src/profiles/mod.vast"),
+            include_str!("../examples/packages/numerical/generative-owned-map/src/profiles/mod.vast"),
         ),
         ("src/real/mod.vast", real),
         ("src/complex/mod.vast", complex),

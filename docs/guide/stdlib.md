@@ -6,7 +6,7 @@ modules. This section builds two packages and then shows the older flat mode.
 
 ## A manifest
 
-[`examples/packages/demo`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/demo)
+[`examples/packages/core/demo`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/demo)
 depends on a sibling package called `arithmetic`:
 
 ```toml
@@ -40,8 +40,8 @@ fn main() -> Int {
 Pass the manifest explicitly with `--manifest-path`:
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/demo/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
+target/debug/vastitas check --manifest-path examples/packages/core/demo/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/core/demo/Vastitas.toml -o target/demo
 ./target/demo
 ```
 
@@ -65,7 +65,7 @@ version = "0.1.0"
 root = "main.vast"
 
 [dependencies]
-std = { path = "../../../stdlib" }
+std = { path = "../../../../stdlib" }
 ```
 
 Generate the standard library's package root, which combines the arithmetic
@@ -74,8 +74,8 @@ standard library's sources. Then build:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas check --manifest-path examples/packages/stdlib-geometry/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
+target/debug/vastitas check --manifest-path examples/packages/stdlib/stdlib-geometry/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
 ```
 
@@ -83,7 +83,7 @@ The program prints `42`. It imports `std::geometry::scheme` and
 `std::geometry::smooth`, constructs one object in each setting, opens each point
 package and adds the two dimensions through `std::arithmetic::generic::add`.
 A matching dimension grants no right to use a point from one space in the
-other. [Demo source](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast)
+other. [Demo source](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-geometry/main.vast)
 
 An import permits calls and nothing more. To contribute methods to a function
 in another module, a package needs the corresponding grant and a checked
@@ -111,7 +111,7 @@ fn main() -> Int {
 ```
 
 ```sh
-cargo run --locked -- build examples/stdlib-arithmetic.vast \
+cargo run --locked -- build examples/book/stdlib/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast -o target/stdlib-arithmetic
 ./target/stdlib-arithmetic

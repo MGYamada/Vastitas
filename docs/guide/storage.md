@@ -13,7 +13,7 @@ Resource programs need manifest mode.
 
 A `resource fn` is a sequence of storage statements followed by a pure
 `value { ... }` block. The library package in
-[`examples/packages/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage)
+[`examples/packages/storage/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage/storage)
 allocates, initializes and checks a buffer:
 
 ```vast
@@ -87,8 +87,8 @@ resource fn main() -> Int {
 ```
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/storage/app/Vastitas.toml
-target/debug/vastitas build --manifest-path examples/packages/storage/app/Vastitas.toml -o target/storage-example
+target/debug/vastitas check --manifest-path examples/packages/storage/storage/app/Vastitas.toml
+target/debug/vastitas build --manifest-path examples/packages/storage/storage/app/Vastitas.toml -o target/storage-example
 ./target/storage-example
 ```
 

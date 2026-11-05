@@ -37,7 +37,7 @@ const DIFFERENTIAL: &[(&str, &str)] = &[
         include_str!("../stdlib/src/differential/mod.vast"),
     ),
 ];
-const DEMO: &str = include_str!("../examples/packages/stdlib-geometry/main.vast");
+const DEMO: &str = include_str!("../examples/packages/stdlib/stdlib-geometry/main.vast");
 
 fn fixture(source: &str, rewrite: impl Fn(&str) -> String) -> Scratch {
     common::prepare_stdlib_package();
@@ -112,12 +112,12 @@ fn native_result(s: &Scratch, expected: &[u8]) {
 #[test]
 fn pointed_and_smooth_workflows_migrate_without_erasing_abstract_annotations() {
     native(&fixture(
-        include_str!("../examples/packages/stdlib-geometry/pointed/main.vast"),
+        include_str!("../examples/packages/stdlib/stdlib-geometry/pointed/main.vast"),
         str::to_owned,
     ));
     native_result(
         &fixture(
-            include_str!("../examples/packages/stdlib-geometry/smooth/main.vast"),
+            include_str!("../examples/packages/stdlib/stdlib-geometry/smooth/main.vast"),
             str::to_owned,
         ),
         b"2\n",
@@ -127,11 +127,11 @@ fn pointed_and_smooth_workflows_migrate_without_erasing_abstract_annotations() {
 #[test]
 fn unchanged_legacy_examples_use_the_declared_stdlib_profile() {
     native(&fixture(
-        include_str!("../examples/pointed.vast"),
+        include_str!("../examples/book/geometry/pointed.vast"),
         str::to_owned,
     ));
     native_result(
-        &fixture(include_str!("../examples/smooth.vast"), str::to_owned),
+        &fixture(include_str!("../examples/book/geometry/smooth.vast"), str::to_owned),
         b"2\n",
     );
 }
@@ -160,7 +160,7 @@ fn main() -> Int {
 
 #[test]
 fn legacy_profile_paths_can_be_coherently_renamed() {
-    native(&fixture(include_str!("../examples/pointed.vast"), |text| {
+    native(&fixture(include_str!("../examples/book/geometry/pointed.vast"), |text| {
         text.replace("Scheme", "Space")
             .replace("QQ", "Rational")
             .replace("Point", "Position")
@@ -835,7 +835,7 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
 
 #[test]
 fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
-    let s = fixture(include_str!("../examples/pointed.vast"), str::to_owned);
+    let s = fixture(include_str!("../examples/book/geometry/pointed.vast"), str::to_owned);
     let original = captured_wire(&s);
     assert_eq!(kernel(&original, "check")["ok"], true);
     let geo = original["packages"]

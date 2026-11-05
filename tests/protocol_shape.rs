@@ -74,15 +74,15 @@ fn record_paths(value: &Value, path: &str, records: &mut BTreeMap<String, String
 fn legacy_decoders_reject_unknown_fields_in_every_nested_record_shape() {
     let geometric = format!(
         "{}\nfn preserve_map(X: Scheme, f: Morphism<X, X>) -> Morphism<X, X> {{ f }}",
-        include_str!("../examples/pointed.vast")
+        include_str!("../examples/book/geometry/pointed.vast")
     );
     let mut cases = Vec::new();
     for source in [
-        include_str!("../examples/functions.vast"),
-        include_str!("../examples/pairs.vast"),
+        include_str!("../examples/book/functions/functions.vast"),
+        include_str!("../examples/book/values/pairs.vast"),
         &geometric,
         "fn empty() -> Unit { { () } } generic f(x) { domain (Int); } method f(x: Int) -> Int { x } fn main() -> Int { f(0) }",
-        include_str!("../examples/abstract-contracts.vast"),
+        include_str!("../examples/book/abstract/abstract-contracts.vast"),
     ] {
         let flat = request(source, "shape.vast");
         cases.push(flat.clone());
@@ -192,12 +192,12 @@ fn promotion_without_affine() -> Value {
         "target/package/lib.vast",
         "pub use differential_library as differential;\n",
     );
-    let example = root.join("examples/packages/promotion");
+    let example = root.join("examples/packages/stdlib/promotion");
     s.write(
         "app/Vastitas.toml",
         &std::fs::read_to_string(example.join("Vastitas.toml"))
             .unwrap()
-            .replace("../../../stdlib", "../stdlib"),
+            .replace("../../../../stdlib", "../stdlib"),
     );
     s.write(
         "app/main.vast",
@@ -220,22 +220,22 @@ fn public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape
     let examples = common::root().join("examples/packages");
     let mut cases = Vec::new();
     for (package, version) in [
-        ("indexed", 7),
+        ("geometry/indexed", 7),
         // Its stdlib dependency declares Stage 2 presented affine geometry.
-        ("promotion", 9),
-        ("resource-values", 8),
-        ("numerical", 8),
-        ("runtime-shapes", 8),
-        ("tensor-packing", 8),
-        ("contraction-tree", 8),
-        ("finite_network", 8),
-        ("storage/app", 8),
-        ("edit-borrow/app", 9),
-        ("edit-authority/app", 9),
-        ("smooth-objects", 9),
-        ("smooth-cotangent", 9),
-        ("smooth-metric", 9),
-        ("smooth-differential", 9),
+        ("stdlib/promotion", 9),
+        ("storage/resource-values", 8),
+        ("numerical/numerical", 8),
+        ("storage/runtime-shapes", 8),
+        ("tensor/tensor-packing", 8),
+        ("tensor/contraction-tree", 8),
+        ("tensor/finite_network", 8),
+        ("storage/storage/app", 8),
+        ("authority/edit-borrow/app", 9),
+        ("authority/edit-authority/app", 9),
+        ("geometry/smooth-objects", 9),
+        ("geometry/smooth-cotangent", 9),
+        ("geometry/smooth-metric", 9),
+        ("geometry/smooth-differential", 9),
     ] {
         let manifest = examples.join(package).join("Vastitas.toml");
         let mut command = common::cli();

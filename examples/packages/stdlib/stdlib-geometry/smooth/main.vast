@@ -1,4 +1,4 @@
-// Declaration-driven counterpart of examples/smooth.vast.
+// Declaration-driven counterpart of examples/book/geometry/smooth.vast.
 use std::geometry::smooth as smooth;
 
 fn make_smooth(n: Nat) -> smooth::Pointed<smooth::CInfScheme, smooth::CInfReal> {

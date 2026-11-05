@@ -3,24 +3,24 @@ use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const MAIN: &str = include_str!("../examples/packages/storage/app/src/main.vast");
+const MAIN: &str = include_str!("../examples/packages/storage/storage/app/src/main.vast");
 const OPERATIONS: &str =
-    include_str!("../examples/packages/storage/buffers/src/operations/mod.vast");
+    include_str!("../examples/packages/storage/storage/buffers/src/operations/mod.vast");
 
 fn fixture(main: &str, operations: &str) -> Scratch {
     let s = Scratch::empty("resource source");
     s.write(
         "app/Vastitas.toml",
-        include_str!("../examples/packages/storage/app/Vastitas.toml"),
+        include_str!("../examples/packages/storage/storage/app/Vastitas.toml"),
     );
     s.write("app/src/main.vast", main);
     s.write(
         "buffers/Vastitas.toml",
-        include_str!("../examples/packages/storage/buffers/Vastitas.toml"),
+        include_str!("../examples/packages/storage/storage/buffers/Vastitas.toml"),
     );
     s.write(
         "buffers/src/lib.vast",
-        include_str!("../examples/packages/storage/buffers/src/lib.vast"),
+        include_str!("../examples/packages/storage/storage/buffers/src/lib.vast"),
     );
     s.write("buffers/src/operations/mod.vast", operations);
     s

@@ -240,7 +240,7 @@ fn wire_numbers_duplicate_keys_nesting_and_encoding_fail_closed() {
 #[test]
 fn gram_entries_and_literals_require_plain_decimal_digits() {
     // #562.3: `_` separators are rejected; the unmodified request is accepted.
-    let manifest = root().join("examples/packages/diagonal-metrics/Vastitas.toml");
+    let manifest = root().join("examples/packages/numerical/diagonal-metrics/Vastitas.toml");
     let raw = captured(&manifest, 8);
     assert_eq!(kernel(&raw, "check")["ok"], true);
     for entry in ["2_0", "-4_0", "+2", "", "-"] {

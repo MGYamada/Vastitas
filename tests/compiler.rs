@@ -32,18 +32,18 @@ fn request(source: &str) -> Value {
 
 #[test]
 fn native_pointed_object_survives_return_unpack_and_dependent_call() {
-    native(include_str!("../examples/pointed.vast"), "42");
+    native(include_str!("../examples/book/geometry/pointed.vast"), "42");
 }
 
 #[test]
 fn native_smooth_objects_preserve_their_setting() {
-    native(include_str!("../examples/smooth.vast"), "2");
+    native(include_str!("../examples/book/geometry/smooth.vast"), "2");
 }
 
 #[test]
 fn native_arbitrary_precision_and_forward_calls() {
     native(
-        include_str!("../examples/arithmetic.vast"),
+        include_str!("../examples/book/values/arithmetic.vast"),
         "1234567890123456789012345678900",
     );
 }

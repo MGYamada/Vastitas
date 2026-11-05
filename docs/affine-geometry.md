@@ -132,7 +132,7 @@ indexed primitive view = relative_view(Over, S, SpecQQ);            // Over<X, Y
 At runtime, a value of `Over<X, Y, S>` is an exact `AlgebraRuntime.Map`.
 Generated programs import that runtime only when they use it.
 
-The [example package](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/affine-geometry)
+The [example package](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry/affine-geometry)
 checks, builds and prints `42` after confirming:
 
 - `p ≠ q` as D-valued points, while their composites with the closed point agree;

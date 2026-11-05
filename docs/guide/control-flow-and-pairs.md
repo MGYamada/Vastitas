@@ -39,7 +39,7 @@ builtins work with them:
 | `pair_first(p)` | The first component, with exactly the element type |
 | `pair_second(p)` | The second component |
 
-[`examples/pairs.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/pairs.vast)
+[`examples/book/values/pairs.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/values/pairs.vast)
 passes pairs through functions, chooses between them with `if` and uses one
 inside a lambda:
 
@@ -69,7 +69,7 @@ fn main() -> Int {
 ```
 
 ```sh
-target/debug/vastitas build examples/pairs.vast -o target/pairs
+target/debug/vastitas build examples/book/values/pairs.vast -o target/pairs
 ./target/pairs
 ```
 

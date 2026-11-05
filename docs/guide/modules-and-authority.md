@@ -22,7 +22,7 @@ an error). Paths follow the **logical** module path from the root source
 directory: a child `mod exact;` of `math` loads `math/exact.vast` or
 `math/exact/mod.vast`. Source files cannot escape their package directory.
 
-[`examples/packages/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/arithmetic)
+[`examples/packages/core/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/core/arithmetic)
 splits its library across a file module and reexports from the root:
 
 ```vast
@@ -72,7 +72,7 @@ does not grant that right.
 To let another package contribute methods, the owner issues a **grant**. The
 recipient declares a **contribution**, and the root package's **assembly**
 borrows the grant, applies the contribution and seals the generic.
-[`examples/packages/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-borrow)
+[`examples/packages/authority/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/authority/edit-borrow)
 has three packages. The library owns `choose` and grants the `(Int, Int)`
 region to the package named `edit_addon`:
 
@@ -110,7 +110,7 @@ fn main() -> Int { base::choose(40, 2) }
 ```
 
 ```sh
-target/debug/vastitas check --manifest-path examples/packages/edit-borrow/app/Vastitas.toml
+target/debug/vastitas check --manifest-path examples/packages/authority/edit-borrow/app/Vastitas.toml
 ```
 
 The recipient in `to edit_addon` is a manifest `[package] name`, not a

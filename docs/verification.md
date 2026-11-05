@@ -132,8 +132,8 @@ has its own section,
 
 | Wire input | Independent acceptance | Native generation |
 | --- | --- | --- |
-| Protocols 2–6 | `Indexed.LegacySource.check`, including original decoder/namespace validation and conversion into `Indexed.AuthoritySource.checkProgram` | `Indexed.Core.Codegen.generate` on the exact returned executable Core |
-| Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator |
+| Protocols 2–6 | `Indexed.LegacySource.check`, including original decoder/namespace validation and conversion into `Indexed.AuthoritySource.checkProgram` | `Indexed.Core.Codegen.generate` on `compiled`: the returned executable Core with its reverse passes compiled into Core and checked again |
+| Protocol 7 | `Indexed.Wire.check` and the same full indexed authority/function/dispatch composition | The same indexed Core generator, on `compiled` |
 | Protocols 8/9 | `ResourceSource.Wire.check`, composing indexed pure bodies with resource/numerical checks | `ResourceSource.Codegen.generate` rechecks the accepted source and both components |
 
 Protocol 9 changes only edit recipient identity syntax within the full resource
@@ -562,10 +562,13 @@ reuses the accepted source program. The internal component entry's
 accepted entry schedule and its audited closed native plan. `generated_pure_entry` retains
 the same returned pure Core and the disabled optional-runtime flags when there
 is no resource entry. `generated_pure_entry_total` adds that this generated
-module is the certificate's `pureProgram.executable` module, that every function
+module is the certificate's `pureProgram.compiled` module, the executable Core
+with its reverse passes compiled into Core, that every function
 has typed, finite evaluation and that its `main` evaluates to an `Int`. `ResourceSource.pure_entry_functions_total` and
 `pure_entry_main_total` state the same for `checked.pureProgram.executable`,
-while `pure_value_functions_total` covers the value library of the mixed path.
+the module before that compilation,
+while `pure_value_functions_total` covers the value library of the mixed path
+before it.
 These theorems establish acceptance and identify the exact
 inputs to native generation. Native heap and floating-point refinement remain open.
 
@@ -1373,7 +1376,8 @@ the contribution implementations.
 authority path. `reconstructed` retains the exact decoder input/result and the
 actual combined checker's acceptance equation. `checked_cores` gives typing of
 both returned passes, executable dependency order and the main contract;
-`codegen_input` identifies the exact executable Core passed to generation.
+`codegen_input` identifies the executable Core; generation receives
+`compiled`, the executable Core with its reverse passes compiled into Core.
 `returned_loans` and `final_footprints` retain the actual authority guarantees.
 The underlying individual-adapter theorems above retain their narrower scope.
 Twelve direct kernel wire regressions and actual Rust-source integration tests

@@ -1,0 +1,76 @@
+// A branch chooses the smooth map that a reverse pass runs on (#623). The
+// kernel compiles each pullback into Core: a declared map is one step, pulled
+// back by its Jacobian table, and a map that a branch chooses is one step,
+// pulled back by the runtime reverse pass over the program it holds
+// (tests/reverse_core.rs). g after f is 2t^2 and h is 6t: both send 3 to 18,
+// where dt pulls back to 12 dt along g after f and to 6 dt along h. Each
+// observation adds its own power of two, so `main` prints 42 only when all hold.
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed primitive compose = smooth_compose(Smooth);
+indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);
+indexed primitive pullback_recomputed = cotangent_pullback(Smooth, Cotangent, recomputed);
+indexed primitive differential = differential(Smooth, Cotangent, Line);
+indexed primitive lies_over = fiber_at(Cotangent, Smooth);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+indexed morphism h: Smooth<Line, Line> = pullback(t -> 6*t);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+
+// The map is bound by a `let` whose definition is a branch.
+fn chosen(c: Bool, x: Smooth<Pt, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {
+    let m: Smooth<Line, Line> = if c { compose(g(), f()) } else { h() };
+    pullback(m, x, seed)
+}
+
+// The branch is the map operand of a recomputing pullback.
+fn recomputed(c: Bool, x: Smooth<Pt, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {
+    pullback_recomputed(if c { compose(g(), f()) } else { h() }, x, seed)
+}
+
+// sq after the chosen map: a declared step after a chosen one.
+fn squared(c: Bool, x: Smooth<Pt, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {
+    pullback(compose(sq(), if c { compose(g(), f()) } else { h() }), x, seed)
+}
+
+// The differential of the chosen map.
+fn slope(c: Bool, x: Smooth<Pt, Line>) -> Cotangent<Line> {
+    differential(if c { compose(g(), f()) } else { h() }, x)
+}
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A covector on the line reads n / 1 at the point x.
+fn reads(value: Cotangent<Line>, x: Smooth<Pt, Line>, n: Int) -> Bool {
+    lies_over(value, x) && pair_first(dt(value)) == n && pair_second(dt(value)) == 1
+}
+
+fn main() -> Int {
+    let x: Smooth<Pt, Line> = line_at(3);
+    // dt at 18, and at sq(18) = 324.
+    let seed: Cotangent<Line> = dline(line_at(18), 1);
+    let outer: Cotangent<Line> = dline(line_at(324), 1);
+    42 + verdict(reads(chosen(true, x, seed), x, 12), 1)
+       + verdict(reads(chosen(false, x, seed), x, 6), 2)
+       + verdict(reads(recomputed(true, x, seed), x, 12), 4)
+       + verdict(reads(recomputed(false, x, seed), x, 6), 8)
+       // sq'(18) = 36: 36 times 12 is 432, and 36 times 6 is 216.
+       + verdict(reads(squared(true, x, outer), x, 432), 16)
+       + verdict(reads(squared(false, x, outer), x, 216), 32)
+       + verdict(reads(slope(true, x), x, 12), 64)
+       + verdict(reads(slope(false, x), x, 6), 128)
+       // A seed at 17 fails along either map.
+       + verdict(!lies_over(chosen(true, x, dline(line_at(17), 1)), x), 256)
+       + verdict(!lies_over(chosen(false, x, dline(line_at(17), 1)), x), 512)
+}

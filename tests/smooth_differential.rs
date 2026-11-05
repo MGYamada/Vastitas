@@ -613,25 +613,40 @@ fn main() -> Int {{ if lies_over({binding}(sq(), line_at(3), dline(line_at(9), 1
 }
 
 #[test]
-fn each_pullback_binding_lowers_to_its_own_mode() {
-    let saved = one_pullback_source("pullback");
-    assert_eq!(saved.matches("PullbackMode.saved").count(), 1, "{saved}");
-    assert_eq!(
-        saved.matches("PullbackMode.recomputed").count(),
-        0,
-        "{saved}"
-    );
-    let recomputed = one_pullback_source("pullback_recomputed");
-    assert_eq!(
-        recomputed.matches("PullbackMode.recomputed").count(),
-        1,
-        "{recomputed}"
-    );
-    assert_eq!(
-        recomputed.matches("PullbackMode.saved").count(),
-        0,
-        "{recomputed}"
-    );
+fn each_pullback_binding_compiles_to_its_own_residual_policy() {
+    // The kernel compiles the pullback along the declared map sq into Core
+    // (#623): a generated backward function `f_1`, placed first, with one
+    // Jacobian step. Saved, the caller evaluates sq(3) and passes both points
+    // and the seed; recomputed, it passes the input point and the seed, and
+    // the function evaluates sq(3) again. Neither runs the runtime reverse pass.
+    for (binding, parameters, caller_images, function_images) in
+        [("pullback", 3, 1, 0), ("pullback_recomputed", 2, 0, 1)]
+    {
+        let source = one_pullback_source(binding);
+        assert!(!source.contains("PullbackMode"), "{binding}: {source}");
+        let definitions = common::lean_definitions(&source);
+        let names: Vec<&str> = definitions.iter().map(|(name, _)| *name).collect();
+        assert_eq!(names, ["f_1", "f_0", "main"], "{binding}: {source}");
+        let (generated, caller) = (definitions[0].1, definitions[1].1);
+        let header = generated.lines().next().unwrap();
+        assert_eq!(header.matches(" (v_").count(), parameters, "{header}");
+        assert_eq!(
+            generated.matches("SmoothRuntime.jacobianStep ").count(),
+            1,
+            "{generated}"
+        );
+        assert_eq!(
+            generated.matches("SmoothRuntime.applyPoint ").count(),
+            function_images,
+            "{binding}: {generated}"
+        );
+        assert_eq!(
+            caller.matches("SmoothRuntime.applyPoint ").count(),
+            caller_images,
+            "{binding}: {caller}"
+        );
+        assert_eq!(caller.matches("(f_1 ").count(), 1, "{caller}");
+    }
 }
 
 #[test]
@@ -642,10 +657,13 @@ fn cotangent_programs_lower_to_the_shared_smooth_runtime() {
     let source = emitted["lean_source"].as_str().unwrap();
     for expected in [
         "import VastitasKernel.SmoothRuntime\n",
+        // Every reverse pass is compiled into Core (#623): the forward images
+        // and the Jacobian steps along the declared maps.
+        "(VastitasKernel.SmoothRuntime.applyPoint ",
+        "(VastitasKernel.SmoothRuntime.jacobianStep ",
+        // The composite as one map is a step whose structure the compilation
+        // does not open: the runtime reverse pass, with saved forward values.
         "(VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved ",
-        "(VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.recomputed ",
-        "(VastitasKernel.SmoothRuntime.differential ",
-        "(VastitasKernel.SmoothRuntime.backward (VastitasKernel.SmoothRuntime.linearize ",
         "(VastitasKernel.SmoothRuntime.vector ",
         "(VastitasKernel.SmoothRuntime.component ",
         "(VastitasKernel.SmoothRuntime.pairing ",
@@ -654,6 +672,15 @@ fn cotangent_programs_lower_to_the_shared_smooth_runtime() {
         ": (Option VastitasKernel.SmoothRuntime.Fiber)",
     ] {
         assert!(source.contains(expected), "{expected}\n{source}");
+    }
+    // No pass runs the routines that the compiled Core replaces.
+    for absent in [
+        "SmoothRuntime.PullbackMode.recomputed",
+        "SmoothRuntime.differential ",
+        "SmoothRuntime.linearize ",
+        "SmoothRuntime.backward ",
+    ] {
+        assert!(!source.contains(absent), "{absent}\n{source}");
     }
 }
 
@@ -946,10 +973,21 @@ fn metric_programs_lower_to_the_shared_smooth_runtime() {
         // sharp applies the inverse that the kernel certified.
         "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
         "(VastitasKernel.SmoothRuntime.sharp ([[(mkRat (1 : Int) 1), (mkRat (0 : Int) 1)], [(mkRat (0 : Int) 1), (mkRat (-1 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix) ",
-        "(VastitasKernel.SmoothRuntime.differential ",
+        // The differential is compiled into Core (#623): a Jacobian step
+        // along the declared g, and the runtime reverse pass along the parameter h
+        // of each gradient function.
+        "(VastitasKernel.SmoothRuntime.jacobianStep ",
     ] {
         assert!(source.contains(expected), "{expected}\n{source}");
     }
+    assert!(!source.contains("SmoothRuntime.differential "), "{source}");
+    assert_eq!(
+        source
+            .matches("(VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved ")
+            .count(),
+        3,
+        "{source}"
+    );
     // Neither a gradient operation nor the Riemannian certificate reaches
     // the generated program.
     assert!(!source.contains("gradient"), "{source}");
@@ -1557,7 +1595,16 @@ fn differential_is_unchanged_by_metric_declarations() {
         emitted["lean_source"].as_str().unwrap().to_owned()
     };
     let free_source = generated(&free);
-    assert!(free_source.contains("(VastitasKernel.SmoothRuntime.differential "));
+    // The differential is compiled into Core (#623): the unit covector at
+    // g(1, 2), pulled back by the Jacobian table of g. No metric enters it.
+    assert!(
+        free_source.contains("(VastitasKernel.SmoothRuntime.jacobianStep "),
+        "{free_source}"
+    );
+    assert!(
+        !free_source.contains("SmoothRuntime.differential "),
+        "{free_source}"
+    );
     assert_eq!(free_source, generated(&metric));
     assert_eq!(run(&free), b"42\n");
     assert_eq!(run(&metric), b"42\n");
@@ -1571,8 +1618,9 @@ fn differential_is_unchanged_by_metric_declarations() {
 //   and acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically.
 // - C8 (proof): the oracle's smoothCompose_reifies (SmoothDeclarations.lean)
 //   and core_cotangent_pullback (SmoothReverse.lean); the lowering tests
-//   smooth_programs_lower_to_the_shared_smooth_runtime and
-//   cotangent_programs_lower_to_the_shared_smooth_runtime.
+//   smooth_programs_lower_to_the_shared_smooth_runtime,
+//   cotangent_programs_lower_to_the_shared_smooth_runtime and, for the
+//   compiled reverse Core (#623), tests/reverse_core.rs.
 // - C10 (bridge): pullback_eq_fderiv_adjoint and
 //   pullback_getD_eq_fderiv_adjoint in lean-bridge Differential/Frechet.lean.
 // - C11 (bridge): pullback_eq_kaehler_fiber and cot_compose_kaehler in

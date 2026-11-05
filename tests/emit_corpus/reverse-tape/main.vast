@@ -1,0 +1,60 @@
+// Tapes and compiled reverse Core (#623). A tape bound by a `let` and used by
+// two reverse passes: the kernel compiles each pass into Core, reading the
+// tape's map and point through the `let`. A tape passed to a function: the
+// pass in the function keeps the runtime reverse pass, since the function cannot see
+// how its tape was built (tests/reverse_core.rs). g after f is 2t^2, so dt at
+// g(f(3)) = 18 pulls back to 12 dt at 3. Each observation adds its own power of
+// two, so `main` prints 42 only when all hold.
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+indexed family Tape(object(CInfAffine), object(CInfAffine))
+    = tape constraints(canonical(0), canonical(1));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed primitive compose = smooth_compose(Smooth);
+indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);
+indexed primitive linearize = linearize(Smooth, Tape);
+indexed primitive backward = cotangent_backward(Tape, Cotangent);
+indexed primitive lies_over = fiber_at(Cotangent, Smooth);
+indexed primitive same_covector = fiber_equal(Cotangent);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism g: Smooth<Plane, Line> = pullback(t -> x^2 + y);
+
+// The reverse pass of a tape that this function receives.
+fn through(tape: Tape<Line, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {
+    backward(tape, seed)
+}
+
+fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
+
+// A covector on the line reads n / 1 at the point x.
+fn reads(value: Cotangent<Line>, x: Smooth<Pt, Line>, n: Int) -> Bool {
+    lies_over(value, x) && pair_first(dt(value)) == n && pair_second(dt(value)) == 1
+}
+
+fn main() -> Int {
+    let x: Smooth<Pt, Line> = line_at(3);
+    let gAfterF: Smooth<Line, Line> = compose(g(), f());
+    // One tape, two reverse passes.
+    let tape: Tape<Line, Line> = linearize(gAfterF, x);
+    let once: Cotangent<Line> = backward(tape, dline(line_at(18), 1));
+    let twice: Cotangent<Line> = backward(tape, dline(line_at(18), 2));
+    42 + verdict(reads(once, x, 12), 1)
+       + verdict(reads(twice, x, 24), 2)
+       + verdict(same_covector(once, pullback(gAfterF, x, dline(line_at(18), 1))), 4)
+       // The same tape, passed to a function.
+       + verdict(reads(through(tape, dline(line_at(18), 3)), x, 36), 8)
+       + verdict(same_covector(through(tape, dline(line_at(18), 1)), once), 16)
+       // A tape from 3 rejects a seed at 17, compiled or not.
+       + verdict(!lies_over(backward(tape, dline(line_at(17), 1)), x), 32)
+       + verdict(!lies_over(through(tape, dline(line_at(17), 1)), x), 64)
+}

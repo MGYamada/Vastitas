@@ -90,4 +90,7 @@ language can skip it.
 ## Status words
 
 The words Implemented, Tested, Proved and Planned have the meanings that the
-[Introduction](../index.md#what-exists-today) gives them.
+[Introduction](../index.md#what-exists-today) gives them. A claim in a
+[specification](../specifications.md) has one of six
+[claim statuses](../specifications.md#claim-statuses), which divide Proved by
+the environment of the theorem and add Assumed and Not claimed.

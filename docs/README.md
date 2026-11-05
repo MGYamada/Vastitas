@@ -70,6 +70,12 @@ The book keeps four kinds of statement apart:
 | Proved | A Lean theorem states it, under the assumptions listed in [Verification boundaries](verification.md). |
 | Planned | A GitHub issue proposes it. It is not available yet. |
 
+[Specifications](specifications.md) record properties of the standard library
+and of language constructs, apart from their code. Each claim about a property
+has one of six [claim statuses](specifications.md#claim-statuses). They divide
+Proved into Proved (oracle) and Proved (bridge), keep Tested and Planned, and
+add Assumed and Not claimed.
+
 ## How to read this book
 
 Chapters 1 to 12 teach the language in order. They use programs from

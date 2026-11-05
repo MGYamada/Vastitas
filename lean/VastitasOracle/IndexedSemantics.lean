@@ -5,6 +5,7 @@ import VastitasOracle.IndexedAssociations
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.SmoothFibers
 import VastitasOracle.SmoothMetricForms
+import VastitasOracle.SmoothJacobian
 import VastitasOracle.IndexedPrimitiveSoundness
 
 /-! Runtime-value obligations for the actual indexed Core and its closed
@@ -827,6 +828,8 @@ theorem registry_sound : ∀ binding : PrimitiveBinding, Sound binding.contract
   | .differential smooth cotangent line => SmoothFibers.differential_sound smooth cotangent line
   | .linearize smooth tape => SmoothFibers.linearize_sound smooth tape
   | .cotangentBackward tape cotangent => SmoothFibers.cotangentBackward_sound tape cotangent
+  | .smoothApply smooth => SmoothJacobian.smoothApply_sound smooth
+  | .cotangentJacobian cotangent application map => SmoothJacobian.cotangentJacobian_sound cotangent application map
   | .metricFlat metric object gram tangent cotangent =>
     SmoothMetricForms.metricFlat_sound metric object gram tangent cotangent
   | .metricSharp metric evidence object gram inverse cotangent tangent =>

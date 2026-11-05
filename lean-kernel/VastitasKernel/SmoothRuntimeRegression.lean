@@ -58,6 +58,39 @@ private def stepwise : FiberValue := pullback .saved f x (pullback .saved g fx e
 #eval check "the failure value reads (0, 0)"
   (component (pullback .saved (.compose g f) x (some ⟨[17], [1]⟩)) 0 == (0, 0))
 #eval check "the failure value equals nothing" (!fiberEqual none none)
+
+/-! Steps of compiled reverse Core (#623): an evaluated image and one backward
+step by a Jacobian table, against the reverse pass of the runtime. -/
+private def mapOf : Program → Map
+  | .primitive map => map
+  | .compose _ _ => default
+private def step (map : Program) (input : Program) (seed : FiberValue) : FiberValue :=
+  jacobianStep (mapOf map).images.length (jacobian (mapOf map)) input (applyPoint map input) seed
+
+#eval check "the evaluated image of 3 under f is (3, 9)"
+  (coordinates (applyPoint f x) == [3, 9] && coordinates (applyPoint (.compose g f) x) == [18])
+#eval check "an evaluated point is a constant map from the 0-dimensional object"
+  (applyPoint f x == ratPoint [3, 9] && (mapOf (applyPoint f x)).arity == 0)
+#eval check "the Jacobian table of g is (2x, 1)"
+  (jacobian (mapOf g) == [[Poly.scale 2 (v 2 0)], [Poly.const 2 1]])
+#eval check "a table step equals cot" (transposeApply (jacobian (mapOf g)) [3, 9] [1] == cot (mapOf g) [3, 9] [1])
+#eval check "two table steps give 12 dt at 3"
+  (step f x (step g (applyPoint f x) eta) == some ⟨[3], [12]⟩)
+#eval check "each table step equals the saved pullback along its map"
+  ([f, g, gf, sq, shearA, shearB].all fun map =>
+    let point := if (mapOf map).arity == 1 then x else intPoint [1, 2]
+    let image := coordinates (applyPoint map point)
+    [([1] : List Rat), [2, -3]].all fun components =>
+      let seed : FiberValue := some ⟨image, components.take image.length⟩
+      step map point seed == pullback .saved map point seed)
+#eval check "a table step rejects a seed over another point and a wrong component count"
+  (step g (applyPoint f x) (some ⟨[17], [1]⟩) == none && step g (applyPoint f x) (some ⟨[18], [1, 0]⟩) == none &&
+    step g (applyPoint f x) none == none)
+#eval check "the shears at the origin pull dx back to (1, 1) and (2, 1)"
+  (let zero := intPoint [0, 0]
+   let dx : FiberValue := some ⟨[0, 0], [1, 0]⟩
+   step shearA zero (step shearB (applyPoint shearA zero) dx) == some ⟨[0, 0], [1, 1]⟩ &&
+     step shearB zero (step shearA (applyPoint shearB zero) dx) == some ⟨[0, 0], [2, 1]⟩)
 #eval check "a component of 12 reads (12, 1)" (component stepwise 0 == (12, 1))
 
 private def o : Program := intPoint [0, 0]

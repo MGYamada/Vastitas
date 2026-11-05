@@ -13,6 +13,7 @@ import VastitasOracle.SmoothFibers
 import VastitasOracle.SmoothReverse
 import VastitasOracle.SmoothMetricForms
 import VastitasOracle.SmoothMetricWeakening
+import VastitasOracle.SmoothJacobian
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness

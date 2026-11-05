@@ -291,4 +291,43 @@ def same (left right : Program) : Bool := left.denote.images == right.denote.ima
 /-- The composite as one primitive. -/
 def composite (program : Program) : Program := .primitive program.denote
 
+/-! ## Compiled reverse passes
+
+The kernel compiles a reverse pass into Core whose steps call the two
+operations below (#623). The forward Core evaluates each map at the point the
+previous step produced and keeps the result as an evaluated point. The
+backward Core pulls the seed back one map at a time. For a declared map, the
+step evaluates a table of partial derivatives that the kernel computes once,
+when it checks the program, so no derivative is formed while the program runs. -/
+
+/-- A rational point of `ℝⁿ` from its coordinates: a map from `ℝ⁰` with
+constant images. -/
+def ratPoint (values : List Rat) : Program := .primitive ⟨0, [], values.map (Poly.const 0)⟩
+
+/-- The image of a point under a program, as an evaluated point. -/
+def applyPoint (map point : Program) : Program := ratPoint (map.eval (coordinates point))
+
+/-- The Jacobian table of a map: entry `j` lists the partial derivative in
+coordinate `j` of every image, in target order. -/
+def jacobian (map : Map) : List (List Poly) :=
+  (List.range map.arity).map fun j => map.images.map (partialDerivative j)
+
+/-- `Jᵀ η` at a point from a Jacobian table: component `j` is `Σᵢ ηᵢ ∂ⱼfᵢ(x)`. -/
+def transposeApply (table : List (List Poly)) (point seed : List Rat) : List Rat :=
+  table.map fun column => dot seed (column.map fun derivative => evalAt derivative point)
+
+/-- One step of a compiled reverse pass along a declared map with `outputs`
+target coordinates and Jacobian table `table`. `input` is the point the map was
+evaluated at and `output` its saved image. The step is `none` unless the seed
+lies over `output` and has one component per target coordinate. -/
+def jacobianStep (outputs : Nat) (table : List (List Poly)) (input output : Program)
+    (seed : FiberValue) : FiberValue :=
+  match seed with
+  | none => none
+  | some seed =>
+    if seed.point == coordinates output && seed.components.length == outputs then
+      let point := coordinates input
+      some ⟨point, transposeApply table point seed.components⟩
+    else none
+
 end VastitasKernel.SmoothRuntime

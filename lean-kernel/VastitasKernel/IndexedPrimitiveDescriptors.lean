@@ -82,10 +82,47 @@ def renderMap (ctx : RenderContext) (map : AlgebraRuntime.Map) : String :=
     | some index => basisName index
     | none => renderPolys map.basis
   s!"({algebra "Map.mk"} {map.arity} {basis} {renderPolys map.images})"
+/-- A Jacobian table, column by column, with exact rational coefficients. -/
+def renderJacobian (table : List (List AlgebraRuntime.Poly)) : String :=
+  s!"([{String.intercalate ", " (table.map renderPolys)}] : List (List {algebra "Poly"}))"
 /-- The lowering of a call whose rendered operands do not fit its entry. -/
 def arityMismatch : Except String String := .error "closed primitive arity mismatch"
 
 end Lowering
+
+/-- The reverse passes that the kernel compiles into Core (#623). -/
+inductive PassKind where
+  /-- The pullback of a seed along a map at a point, with saved or recomputed
+  forward values. Operands: map, point, seed. -/
+  | pullback (mode : SmoothRuntime.PullbackMode)
+  /-- The differential of a function to a line at a point: the pullback of the
+  coordinate covector at the image. Operands: function, point. -/
+  | differential
+  /-- The reverse pass of a tape on a seed. Operands: tape, seed. -/
+  | backward
+  deriving Repr, Inhabited, DecidableEq
+
+/-- The derivative rule of a primitive: what a call contributes when the
+kernel compiles a reverse pass into Core (#623). The compilation reads these
+rules only; it has no case per binding. -/
+inductive ReverseRule where
+  /-- The call neither builds the map of a reverse pass nor runs one. A call
+  of type `Smooth<X, Y>` with this rule is one step whose structure the
+  compilation does not open. -/
+  | none
+  /-- The call is a declared map, with its exact data: one step whose backward
+  evaluates the Jacobian table of `map`. -/
+  | morphism (map : AlgebraRuntime.Map)
+  /-- The call composes the maps at operand positions `after` and `before`:
+  the forward runs `before` first, the backward runs `after` first. -/
+  | chain (after before : Nat)
+  /-- The call saves the forward values of a map at a point as a tape.
+  Operands: map, point. -/
+  | tape
+  /-- The call is a reverse pass of kind `kind`, which the compilation
+  replaces by generated forward and backward Core. -/
+  | pass (kind : PassKind)
+  deriving Repr, Inhabited, DecidableEq
 
 structure PrimitiveDescriptor where
   /-- The operands, their agreements and the result type. -/
@@ -110,6 +147,9 @@ structure PrimitiveDescriptor where
   /-- The literals a generated module declares once for this entry; none
   unless the entry names them. -/
   literals : List SharedLiteral := []
+  /-- The derivative rule: what a call contributes to compiled reverse Core.
+  Every entry states it; there is no default. -/
+  reverse : ReverseRule
 
 /-- A descriptor whose contract is one executable check; its calls share no
 literal unless given. -/
@@ -117,6 +157,7 @@ def PrimitiveDescriptor.ofBool (shape : Shape) (check : Environment → Bool)
     (eval : Environment → List Value → Option Value)
     (evalRuntime : List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue)
     (render : RenderContext → List String → Except String String)
+    (reverse : ReverseRule)
     (literals : List SharedLiteral := []) : PrimitiveDescriptor where
   shape := shape
   validProp env := check env = true
@@ -126,11 +167,12 @@ def PrimitiveDescriptor.ofBool (shape : Shape) (check : Environment → Bool)
   evalRuntime := evalRuntime
   render := render
   literals := literals
+  reverse := reverse
 
 /-- The descriptor of an evidence binding: its contract is one executable
 check, no call is well formed, none evaluates and none is lowered. -/
 def PrimitiveDescriptor.evidence (check : Environment → Bool) : PrimitiveDescriptor :=
-  .ofBool .uncallable check (fun _ _ => none) (fun _ => none) (fun _ _ => Lowering.arityMismatch)
+  .ofBool .uncallable check (fun _ _ => none) (fun _ => none) (fun _ _ => Lowering.arityMismatch) .none
 
 /-- The distinct literals the entries share, in declaration order. -/
 def PrimitiveDescriptor.sharedLiterals (entries : List PrimitiveDescriptor) : List SharedLiteral :=

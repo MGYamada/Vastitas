@@ -281,6 +281,32 @@ theorem metricSharp_association {env : Environment} {metric evidence object cota
       cf = cotangent ∧ .global object = x ∧ .indexed ⟨tangent, [.object (.global object)]⟩ = result := by
   association_simp
 
+/-! ## Steps of compiled reverse Core (#623) -/
+
+theorem smoothApply_association {env : Environment} {smooth mf pf point : DeclId} {x y x' : ObjectRef}
+    {allowed : List ObjectRef} {brand : Nat} {result : ValueType} :
+    PrimitiveAssociation env (.smoothApply smooth) allowed brand
+      [.indexed ⟨mf, [.object x, .object y]⟩, .indexed ⟨pf, [.object (.global point), .object x']⟩] result ↔
+      mf = smooth ∧ pf = smooth ∧ x = x' ∧ smoothDimension? env point = some 0 ∧
+        .indexed ⟨smooth, [.object (.global point), .object y]⟩ = result := by
+  association_simp
+
+/-- The association of a backward step along a declared map whose type names
+two objects. The shape of the binding reads the type of its map. The lemma
+states that type as `⟨family, [source, target]⟩`. With any other indices the
+step is uncallable (`cotangentJacobian_shape`). -/
+theorem cotangentJacobian_association {env : Environment} {cotangent family fi fo fc point : DeclId}
+    {map : AlgebraRuntime.Map} {source target p s t t' : ObjectRef} {allowed : List ObjectRef} {brand : Nat}
+    {result : ValueType} :
+    PrimitiveAssociation env (.cotangentJacobian cotangent ⟨family, [.object source, .object target]⟩ map)
+      allowed brand
+      [.indexed ⟨fi, [.object p, .object s]⟩, .indexed ⟨fo, [.object (.global point), .object t]⟩,
+        .indexed ⟨fc, [.object t']⟩] result ↔
+      fi = family ∧ source = s ∧ fo = family ∧ target = t ∧ fc = cotangent ∧ target = t' ∧
+        p = .global point ∧ smoothDimension? env point = some 0 ∧
+        .indexed ⟨cotangent, [.object source]⟩ = result := by
+  association_simp
+
 
 /-! ## The operand list of a binding, read off its association
 
@@ -761,12 +787,76 @@ theorem metricSharp_shape {env : Environment} {metric evidence object cotangent 
   slots_end sa
   rfl
 
+theorem smoothApply_shape {env : Environment} {smooth : DeclId} {allowed : List ObjectRef} {brand : Nat}
+    {arguments : List ValueType} {result : ValueType}
+    (association : PrimitiveAssociation env (.smoothApply smooth) allowed brand arguments result) :
+    ∃ (x y : ObjectRef) (point : DeclId) (x' : ObjectRef), arguments =
+      [.indexed ⟨smooth, [.object x, .object y]⟩, .indexed ⟨smooth, [.object (.global point), .object x']⟩] := by
+  obtain ⟨h, relations, -⟩ := association
+  have atOrigin := relations (.pointDimension ⟨1, 0⟩ 0) (by simp [PrimitiveBinding.contract, PrimitiveDescriptor.ofBool])
+  operand_cons a ma h
+  operand_cons b mb h
+  operands_end h
+  indexed_operand ia sa ma
+  slot_var x sa
+  slot_var y sa
+  slots_end sa
+  indexed_operand ib sb mb
+  slot_var ref sb
+  slot_var x' sb
+  slots_end sb
+  obtain ⟨point, rfl⟩ := point_global (by rfl) atOrigin
+  exact ⟨x, y, point, x', rfl⟩
+
+/-- An accepted backward step names a map type with two object indices, and
+its operands are an input point at the map's source, an output point at its
+target and a covector at its target. -/
+theorem cotangentJacobian_shape {env : Environment} {cotangent : DeclId} {application : Application}
+    {map : AlgebraRuntime.Map} {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType}
+    {result : ValueType}
+    (association : PrimitiveAssociation env (.cotangentJacobian cotangent application map) allowed brand
+      arguments result) :
+    ∃ (source target p : ObjectRef) (point : DeclId), application.indices = [.object source, .object target] ∧
+      arguments =
+        [.indexed ⟨application.family, [.object p, .object source]⟩,
+          .indexed ⟨application.family, [.object (.global point), .object target]⟩,
+          .indexed ⟨cotangent, [.object target]⟩] := by
+  unfold PrimitiveAssociation at association
+  simp only [PrimitiveBinding.contract] at association
+  split at association
+  · rename_i source target indices
+    obtain ⟨h, relations, -⟩ := association
+    have atOrigin := relations (.pointDimension ⟨1, 0⟩ 0) (by simp [PrimitiveDescriptor.ofBool])
+    operand_cons a ma h
+    operand_cons b mb h
+    operand_cons c mc h
+    operands_end h
+    indexed_operand ia sa ma
+    slot_var p sa
+    slot_fixed sa
+    slots_end sa
+    indexed_operand ib sb mb
+    slot_var ref sb
+    slot_fixed sb
+    slots_end sb
+    indexed_operand ic sc mc
+    slot_fixed sc
+    slots_end sc
+    obtain ⟨point, rfl⟩ := point_global (by rfl) atOrigin
+    exact ⟨source, target, p, point, indices, rfl⟩
+  · obtain ⟨-, -, instantiated⟩ := association
+    simp [PrimitiveDescriptor.ofBool, Shape.uncallable, ResultTemplate.instantiate] at instantiated
+
 /-! ## Allocation -/
 
 /-- `descriptor` is the one binding whose registry entry allocates. -/
 theorem allocates_iff {binding : PrimitiveBinding} :
     binding.allocates = true ↔ ∃ implementation, binding = .descriptor implementation := by
-  cases binding <;> simp [PrimitiveBinding.allocates, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+  cases binding
+  case cotangentJacobian cotangent application map =>
+    simp only [PrimitiveBinding.allocates, PrimitiveBinding.contract]
+    split <;> simp [PrimitiveDescriptor.ofBool, Shape.allocates, Shape.uncallable]
+  all_goals simp [PrimitiveBinding.allocates, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
     PrimitiveDescriptor.evidence, Shape.allocates, Shape.uncallable]
 
 end VastitasOracle.IndexedAssociations

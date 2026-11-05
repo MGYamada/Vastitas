@@ -21,7 +21,9 @@ apply, and `registry_sound` is untouched. The generic facts then hold for it
 as for any registry entry: an accepted call on typed operand values evaluates,
 by the descriptor's own evaluator, to a value of the checked result type; the
 world is unchanged, because the call does not allocate; and a successful
-evaluation erases to the runtime evaluator. The last section proves what the
+evaluation erases to the runtime evaluator. The demo's derivative rule is
+`none`, so `SmoothJacobian.ReverseSound` holds for it trivially
+(`directionalDerivative_reverseSound`). The last section proves what the
 demo's lowering and wire form satisfy: the lowering of the two registry calls
 it replaces, the checked operand count, no shared literal, and, by a fact
 about the decoder proved for every family, a decoded wire form with its
@@ -155,6 +157,12 @@ theorem directionalDerivative_sound (smooth tangent line : DeclId) :
   erasure evaluated := by
     simp only [directionalDerivative] at evaluated
     split at evaluated <;> first | contradiction | (cases evaluated; exact ⟨_, _, rfl, rfl, rfl⟩)
+
+/-- The demo states the derivative rule `none`: compiled reverse Core treats a
+call as an opaque call, so the rule promises nothing about the evaluator. -/
+theorem directionalDerivative_reverseSound (smooth tangent line : DeclId) :
+    SmoothJacobian.ReverseSound (directionalDerivative smooth tangent line) :=
+  trivial
 
 /-! ## The generic facts, instantiated -/
 

@@ -77,6 +77,8 @@ may raise limits.
 - Kernel/checker/dispatch/Fn/authority: `bash scripts/check_kernel_regressions.sh`.
   Indexed Core/codegen: `bash scripts/check_indexed_native.sh`.
   Storage lowering/native: `bash scripts/check_storage_native.sh`.
+- Specs (`docs/spec/`): `python3 scripts/check_spec.py`. A changed cited Lean statement
+  needs `--update-statements oracle|bridge` and a reviewed pin diff.
 - GEMM: `python3 scripts/check_gemm_native.py --prefix <prefix>`.
   Checked GEMM/lowering/FFI: `python3 scripts/check_gemm_checked.py --prefix <prefix>`.
   Use pinned sequential LP64 OpenBLAS 0.3.34; Linux also uses `--valgrind`

@@ -25,6 +25,9 @@ on:
       - 'scripts/test_ci_bootstrap.py'
       - 'scripts/replay_lean.sh'
       - 'scripts/test_replay_lean.py'
+      # The bridge claims of the specifications and their resolver (#647).
+      - 'docs/spec/pins/bridge.json'
+      - 'scripts/spec_resolve.lean'
       - '.github/workflows/lean-bridge.yml'
   pull_request:
     paths:
@@ -50,6 +53,9 @@ on:
       - 'scripts/test_ci_bootstrap.py'
       - 'scripts/replay_lean.sh'
       - 'scripts/test_replay_lean.py'
+      # The bridge claims of the specifications and their resolver (#647).
+      - 'docs/spec/pins/bridge.json'
+      - 'scripts/spec_resolve.lean'
       - '.github/workflows/lean-bridge.yml'
   workflow_dispatch:
 
@@ -119,6 +125,13 @@ jobs:
       - name: Audit all bridge declarations and transitive axiom dependencies
         working-directory: lean-bridge
         run: lake env lean Audit.lean
+      # Each pinned bridge theorem of docs/spec/: module, kind, axioms and
+      # statement hash (#647).
+      - name: Resolve the bridge claims of the specifications
+        working-directory: lean-bridge
+        env:
+          VASTITAS_SPEC_INPUT: ../docs/spec/pins/bridge.json
+        run: lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean
       - name: Replay bridge proof declarations with the official kernel
         # leanchecker replays each module as a task holding its own Mathlib
         # environment; the runner bounds the worker threads (#600).

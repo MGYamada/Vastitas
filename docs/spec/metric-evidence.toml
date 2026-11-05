@@ -1,0 +1,232 @@
+# Properties of metric evidence declarations. docs/specifications.md defines
+# the format; scripts/check_spec.py checks this file and generates
+# metric-evidence.md.
+
+[spec]
+id = "evidence"
+title = "Metric evidence"
+subject = "indexed evidence"
+description = """
+The rules of an `indexed evidence` declaration, which certifies a property of
+the metric it names. `nondegenerate(g)` certifies that the Gram matrix of g is
+invertible, and `riemannian(g)` that it is positive definite. The kernel
+computes each certificate and checks it again before acceptance; a
+certificate never comes from the frontend.
+"""
+
+[property."evidence.names-metric"]
+title = "Evidence names a metric"
+subject = "indexed evidence"
+statement = """
+The path of an evidence declaration must name a metric. A path that names
+another indexed declaration is an error (`E_METRIC`). In a valid checked
+declaration environment, every evidence declaration names a declared metric on
+an object of known dimension.
+"""
+specified_in = "[Metric evidence](language/smooth-declarations.md#metric-evidence)"
+example = """
+`indexed evidence SkewInvertible = nondegenerate(Plane);` names an object, not
+a metric, and the kernel rejects it with `E_METRIC`.
+"""
+example_test = "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes"
+
+[property."evidence.names-metric".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.SmoothMetricForms.nondegenerate_evidence_sound",
+  "VastitasOracle.SmoothMetricForms.riemannian_evidence_sound",
+]
+premises = ["the checked declaration environment is valid and contains the evidence declaration"]
+assumes = ["rust-frontend"]
+
+[property."evidence.names-metric".claim.test]
+status = "tested"
+evidence = [
+  "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes",
+  "VastitasKernel.MetricFormRegression",
+]
+enforced_by = [{ definition = "VastitasKernel.Indexed.Source.certifyEvidence", code = "E_METRIC" }]
+note = """
+An unresolved path is an error (`E_NAME`), and a path that names something
+other than an indexed declaration is an error (`E_TYPE`), as for every
+declaration path.
+"""
+
+[property."evidence.nondegenerate"]
+title = "Nondegenerate evidence"
+subject = "indexed evidence"
+statement = """
+The kernel accepts `nondegenerate(g)` only with an inverse B of the Gram matrix
+G of g, with GB = BG = I. So G is invertible. For a singular Gram matrix, such
+as diag(1, 0), the declaration is an error (`E_METRIC`).
+"""
+specified_in = "[Metric evidence](language/smooth-declarations.md#metric-evidence)"
+example = """
+Let Diag10 be a metric with the Gram matrix gram((1, 0), (0, 0)). The kernel
+rejects `indexed evidence Bad = nondegenerate(Diag10);`, because the metric is
+singular.
+"""
+example_test = "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes"
+
+[property."evidence.nondegenerate".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.SmoothMetrics.certifyNondegenerate_sound",
+  "VastitasOracle.SmoothMetrics.checkNondegenerate_spec",
+  "VastitasOracle.SmoothMetrics.zero_row_not_nondegenerate",
+  "VastitasOracle.SmoothMetrics.diag_one_zero_rejected",
+  "VastitasOracle.SmoothMetricForms.nondegenerate_evidence_sound",
+]
+premises = [
+  "for `certifyNondegenerate_sound`: the kernel's certification returned the inverse",
+  "for `zero_row_not_nondegenerate`: row i of the Gram matrix, with i < n, is zero",
+  "for `nondegenerate_evidence_sound`: the checked declaration environment is valid and contains the evidence declaration",
+]
+assumes = ["rust-frontend"]
+note = """
+`certifyNondegenerate_sound` holds whatever search produced the inverse: the
+kernel checks GB = BG = I itself.
+"""
+
+[property."evidence.nondegenerate".claim.bridge]
+status = "proved-bridge"
+evidence = [
+  "VastitasBridge.Differential.isUnit_gram_of_nondegenerate",
+  "VastitasBridge.Differential.inverse_eq_of_nondegenerate",
+  "VastitasBridge.Differential.not_isUnit_diag_one_zero",
+  "VastitasBridge.Differential.checkNondegenerate_diag_one_zero",
+]
+premises = [
+  "for `isUnit_gram_of_nondegenerate` and `inverse_eq_of_nondegenerate`: the Gram matrix and the inverse pass `checkNondegenerate`",
+]
+assumes = ["mathlib", "rust-frontend"]
+
+[property."evidence.nondegenerate".claim.test]
+status = "tested"
+evidence = [
+  "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes",
+  "VastitasKernel.MetricFormRegression",
+]
+enforced_by = [
+  { definition = "VastitasKernel.Indexed.Source.certifyEvidence", code = "E_METRIC" },
+  { definition = "VastitasKernel.SmoothDeclarations.certifyNondegenerate", code = "E_METRIC" },
+]
+
+[property."evidence.riemannian"]
+title = "Riemannian evidence"
+subject = "indexed evidence"
+statement = """
+The kernel accepts `riemannian(g)` only with a factorization G = L D Lᵀ of the
+Gram matrix of g and an inverse of L, where L is unit lower triangular and every
+diagonal entry of D is positive. So G is positive definite over ℝ. For a Gram
+matrix that is not positive definite, such as diag(1, −1), the declaration is
+an error (`E_METRIC`). The matrix diag(1, −1) is its own inverse, so it passes
+the nondegenerate check.
+"""
+specified_in = "[Metric evidence](language/smooth-declarations.md#metric-evidence)"
+example = """
+For the metric gram((1, 0), (0, -1)), the kernel rejects `riemannian` evidence
+because the metric is not positive definite, and it accepts `nondegenerate`
+evidence.
+"""
+example_test = "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes"
+
+[property."evidence.riemannian".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.SmoothMetrics.certifyRiemannian_sound",
+  "VastitasOracle.SmoothMetrics.checkRiemannian_spec",
+  "VastitasOracle.SmoothMetricForms.riemannian_evidence_sound",
+]
+premises = [
+  "for `certifyRiemannian_sound`: the kernel's certification returned the factorization",
+  "for `checkRiemannian_spec`: the factorization passes `checkRiemannian`",
+  "for `riemannian_evidence_sound`: the checked declaration environment is valid and contains the evidence declaration",
+]
+assumes = ["rust-frontend"]
+
+[property."evidence.riemannian".claim.bridge]
+status = "proved-bridge"
+evidence = [
+  "VastitasBridge.Differential.posDef_of_riemannian",
+  "VastitasBridge.Differential.checked_riemannian_posDef",
+  "VastitasBridge.Differential.not_posDef_lorentz",
+  "VastitasBridge.Differential.checkRiemannian_lorentz",
+  "VastitasBridge.Differential.checkNondegenerate_lorentz",
+]
+premises = [
+  "for `posDef_of_riemannian`: the factorization passes `checkRiemannian`",
+  "for `checked_riemannian_posDef`: the checked declaration environment is valid and contains the Riemannian evidence declaration",
+]
+assumes = ["mathlib", "rust-frontend"]
+note = """
+`checkNondegenerate_lorentz` shows that diag(1, −1) with itself as the inverse
+passes the nondegenerate check. That the kernel's search finds this inverse is
+tested.
+"""
+
+[property."evidence.riemannian".claim.test]
+status = "tested"
+evidence = [
+  "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes",
+  "tests/smooth_differential.rs::smooth_example_checks_builds_and_executes",
+  "VastitasKernel.MetricFormRegression",
+]
+enforced_by = [
+  { definition = "VastitasKernel.Indexed.Source.certifyEvidence", code = "E_METRIC" },
+  { definition = "VastitasKernel.SmoothDeclarations.certifyRiemannian", code = "E_METRIC" },
+]
+note = """
+The [acceptance example](../stage3-acceptance.md#acceptance-conditions)
+declares nondegenerate evidence for diag(1, −1).
+"""
+
+[property."evidence.kind"]
+title = "Evidence kinds"
+subject = "indexed evidence"
+statement = "An evidence kind other than `nondegenerate` or `riemannian` is an error (`E_TYPE`)."
+specified_in = "[Metric evidence](language/smooth-declarations.md#metric-evidence)"
+example = "The compiler rejects `indexed evidence SkewPositive = positive(Skew);` with `E_TYPE`."
+example_test = "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes"
+
+[property."evidence.kind".claim.test]
+status = "tested"
+evidence = [
+  "tests/smooth_differential.rs::metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes",
+]
+note = "The frontend reports this error. No theorem states the rejection."
+
+[property."evidence.search"]
+title = "Certificate search"
+subject = "indexed evidence"
+statement = """
+`invert?` finds an inverse of every invertible Gram matrix, and `ldl?` finds an
+L D Lᵀ factorization of every positive-definite Gram matrix. Soundness does not
+depend on this, because the kernel checks every certificate again. An
+incomplete search would reject a valid metric with `E_METRIC`, and it would
+accept no invalid one.
+"""
+specified_in = "[Metric evidence](language/smooth-declarations.md#metric-evidence)"
+example = """
+A dense 16 × 16 metric with L·L on the diagonal and 1/L elsewhere, for a large
+integer L, has both kinds of evidence.
+"""
+example_test = "tests/smooth_differential.rs::a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound"
+
+[property."evidence.search".claim.test]
+status = "tested"
+evidence = [
+  "tests/smooth_differential.rs::a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound",
+  "VastitasAlgebraTest.SmoothReferenceRegression",
+  "VastitasKernel.MetricFormRegression",
+]
+note = """
+`SmoothReferenceRegression` compares the inverse, and whether Riemannian
+evidence exists, with the Python reference for the 2 × 2 Gram matrices of
+`tests/fixtures/smooth-differential.json`. No test covers every invertible or
+positive-definite matrix.
+"""
+
+[property."evidence.search".claim.proof]
+status = "planned"
+issue = 264

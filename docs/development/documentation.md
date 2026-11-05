@@ -16,7 +16,7 @@ parts:
 | --- | --- | --- |
 | Introduction and chapters 1–12 | Teaching chapters in reading order, with short **What is checked** notes that link to the reference parts | `README.md`, `guide/*.md`, `affine-geometry.md` |
 | Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage0.md`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
-| How the compiler is checked | Architecture, wire protocols, proof boundaries and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `adr/` |
+| How the compiler is checked | Architecture, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
 | Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `development/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
@@ -139,7 +139,8 @@ next rewrite.
 
 - Issue and pull request links appear only in the appendices and in a
   History section at the end of a chapter in the part "How the compiler is
-  checked".
+  checked". A generated specification chapter also links the issue of each
+  Planned claim, because that issue is the claim's evidence.
 - The guide's body contains no issue numbers, commit hashes, Stage numbers,
   wire-protocol numbers or theorem names.
 - Evidence ledgers and proof-boundary lists belong in the part "How the
@@ -154,6 +155,10 @@ next rewrite.
 - Use the status words Implemented, Tested, Proved and Planned with the
   meanings that the [Introduction](../index.md#what-exists-today) gives them,
   and keep the four apart. `AGENTS.md` requires this separation.
+- A claim in a [specification](../specifications.md) has one of the six
+  [claim statuses](../specifications.md#claim-statuses). The chapters under
+  `docs/spec/` are generated: edit the TOML file, then run
+  `python3 scripts/check_spec.py --write`.
 
 ## Consolidation baseline
 

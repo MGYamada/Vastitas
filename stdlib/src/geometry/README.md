@@ -63,17 +63,17 @@ fn main() -> Int {
 }
 ```
 
-The [complete example](../../../examples/packages/stdlib-geometry/main.vast) also
+The [complete example](../../../examples/packages/stdlib/stdlib-geometry/main.vast) also
 constructs points and identity maps, composes/applies maps and unpacks both settings.
-The ported [pointed](../../../examples/packages/stdlib-geometry/pointed/main.vast) and
-[smooth](../../../examples/packages/stdlib-geometry/smooth/main.vast) examples retain
+The ported [pointed](../../../examples/packages/stdlib/stdlib-geometry/pointed/main.vast) and
+[smooth](../../../examples/packages/stdlib/stdlib-geometry/smooth/main.vast) examples retain
 the original workflows and return `42` and `2`; the smooth example keeps its
 explicit `CInfScheme` annotation and dimension check after unpacking.
 
 ```sh
 cargo run --locked -- check --manifest-path stdlib/src/geometry/Vastitas.toml
 cargo run --locked -- check --manifest-path stdlib/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
+cargo run --locked -- build --manifest-path examples/packages/stdlib/stdlib-geometry/Vastitas.toml -o target/stdlib-geometry
 ./target/stdlib-geometry
 # 42
 ```
@@ -194,13 +194,13 @@ indexed primitive sharp_skew = sharp(Cotangent, Tangent, using = Skew, evidence 
 ```
 
 The library declares no metric, so no metric is a default. The
-[complete example](../../../examples/packages/stdlib-differential/main.vast)
+[complete example](../../../examples/packages/stdlib/stdlib-differential/main.vast)
 also computes a pullback, a differential and a gradient with
 [`std::differential`](../../README.md#differentiation):
 
 ```sh
 python3 scripts/build_stdlib_package.py
-cargo run --locked -- build --manifest-path examples/packages/stdlib-differential/Vastitas.toml -o target/stdlib-differential
+cargo run --locked -- build --manifest-path examples/packages/stdlib/stdlib-differential/Vastitas.toml -o target/stdlib-differential
 ./target/stdlib-differential
 # 42
 ```

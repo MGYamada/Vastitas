@@ -9,6 +9,23 @@ cargo test --locked --all-targets
 python3 scripts/check_boundaries.py
 ```
 
+## Source conformance corpus
+
+[`examples/`](https://github.com/MGYamada/Vastitas/blob/main/examples/README.md) is the indexed public-compiler corpus.
+Run its structural guard without the compiler, then exercise its acceptance,
+rejection and native-output contracts after building the kernel and driver and
+generating the stdlib package:
+
+```sh
+python3 scripts/check_conformance_corpus.py
+cargo build --locked
+python3 scripts/build_stdlib_package.py
+python3 scripts/check_conformance_corpus.py --run
+```
+
+These cases test observed compiler behavior; they do not establish Lean proofs,
+mathematical semantics or full native refinement.
+
 To build the separate proof oracle and audit every kernel and oracle module
 (the audit needs every kernel library root, executable and regression module
 built first; it checks that each `.olean` exists, not that it is current):
@@ -42,9 +59,10 @@ review their diff:
 VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
 ```
 
-Regeneration is refused under CI. For every example and manifest,
-`scripts/capture_emit.py` records the wire request, the `check` and `emit`
-responses and the generated Lean, and `--compare` reports every byte that
+Regeneration is refused under CI. For every accepted indexed case and additional
+stdlib/emit fixture manifest, `scripts/capture_emit.py` records the wire
+request, the `check` and `emit` responses and the generated Lean. Its
+`--compare` option reports every byte that
 differs from an earlier capture. A change that promises identical generated
 code runs it before and after.
 

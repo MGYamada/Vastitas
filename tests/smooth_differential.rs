@@ -3,13 +3,13 @@
 //! are exact QQ polynomial maps. The kernel elaborates and checks every map;
 //! these tests exercise acceptance, native execution, rejections, protocol
 //! selection and forged wire. The last section runs the Stage 3 acceptance
-//! program, `examples/packages/smooth-differential`.
+//! program, `examples/packages/geometry/smooth-differential`.
 mod common;
 use common::{Scratch, assert_wire_rejected, cli, expect_code, kernel, remove_spans, success};
 use serde_json::{Value, json};
 
-const PROFILE: &str = include_str!("../examples/packages/smooth-objects/src/profile.vast");
-const MAIN: &str = include_str!("../examples/packages/smooth-objects/src/main.vast");
+const PROFILE: &str = include_str!("../examples/packages/geometry/smooth-objects/src/profile.vast");
+const MAIN: &str = include_str!("../examples/packages/geometry/smooth-objects/src/main.vast");
 
 /// The presented Stage 2 profile, declared next to the smooth one.
 const PRESENTED: &str = "indexed marker QQ;
@@ -22,7 +22,7 @@ fn fixture(main: &str) -> Scratch {
     let s = Scratch::empty("smooth objects");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/smooth-objects/Vastitas.toml"),
+        include_str!("../examples/packages/geometry/smooth-objects/Vastitas.toml"),
     );
     s.write("src/main.vast", main);
     s.write("src/profile.vast", PROFILE);
@@ -521,14 +521,15 @@ fn main() -> Int {
 // checks the roadmap identity and its failure cases natively.
 
 const COTANGENT_PROFILE: &str =
-    include_str!("../examples/packages/smooth-cotangent/src/profile.vast");
-const COTANGENT_MAIN: &str = include_str!("../examples/packages/smooth-cotangent/src/main.vast");
+    include_str!("../examples/packages/geometry/smooth-cotangent/src/profile.vast");
+const COTANGENT_MAIN: &str =
+    include_str!("../examples/packages/geometry/smooth-cotangent/src/main.vast");
 
 fn cotangent_fixture(main: &str) -> Scratch {
     let s = Scratch::empty("smooth cotangent");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/smooth-cotangent/Vastitas.toml"),
+        include_str!("../examples/packages/geometry/smooth-cotangent/Vastitas.toml"),
     );
     s.write("src/main.vast", main);
     s.write("src/profile.vast", COTANGENT_PROFILE);
@@ -876,14 +877,15 @@ fn raw_wire_rejects_forged_fiber_and_tape_records() {
 // Metrics, evidence, flat and sharp (protocol 9). The differential needs no
 // metric; a gradient is an ordinary function that applies sharp to it.
 
-const METRIC_PROFILE: &str = include_str!("../examples/packages/smooth-metric/src/profile.vast");
-const METRIC_MAIN: &str = include_str!("../examples/packages/smooth-metric/src/main.vast");
+const METRIC_PROFILE: &str =
+    include_str!("../examples/packages/geometry/smooth-metric/src/profile.vast");
+const METRIC_MAIN: &str = include_str!("../examples/packages/geometry/smooth-metric/src/main.vast");
 
 fn metric_fixture_with(profile: &str, main: &str) -> Scratch {
     let s = Scratch::empty("smooth metric");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/smooth-metric/Vastitas.toml"),
+        include_str!("../examples/packages/geometry/smooth-metric/Vastitas.toml"),
     );
     s.write("src/main.vast", main);
     s.write("src/profile.vast", profile);
@@ -1586,9 +1588,9 @@ fn differential_is_unchanged_by_metric_declarations() {
 //   in lean-bridge Differential/Metric.lean.
 
 const ACCEPTANCE_PROFILE: &str =
-    include_str!("../examples/packages/smooth-differential/src/profile.vast");
+    include_str!("../examples/packages/geometry/smooth-differential/src/profile.vast");
 const ACCEPTANCE_MAIN: &str =
-    include_str!("../examples/packages/smooth-differential/src/main.vast");
+    include_str!("../examples/packages/geometry/smooth-differential/src/main.vast");
 /// The acceptance program's failure codes are exactly `1..=CODES`.
 const CODES: u32 = 25;
 
@@ -1596,7 +1598,7 @@ fn acceptance_fixture(main: &str) -> Scratch {
     let s = Scratch::empty("smooth differential");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/smooth-differential/Vastitas.toml"),
+        include_str!("../examples/packages/geometry/smooth-differential/Vastitas.toml"),
     );
     s.write("src/main.vast", main);
     s.write("src/profile.vast", ACCEPTANCE_PROFILE);

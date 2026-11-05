@@ -41,7 +41,7 @@ generated program.
 
 ## A program with geometry
 
-[`examples/pointed.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/pointed.vast)
+[`examples/book/geometry/pointed.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/geometry/pointed.vast)
 is a little larger. It constructs a geometric object, returns it together with a
 point on it, and checks that the point still belongs to that object:
 
@@ -68,8 +68,8 @@ fn main() -> Int {
 ```
 
 ```sh
-target/debug/vastitas check examples/pointed.vast
-target/debug/vastitas build examples/pointed.vast -o target/pointed
+target/debug/vastitas check examples/book/geometry/pointed.vast
+target/debug/vastitas build examples/book/geometry/pointed.vast -o target/pointed
 ./target/pointed
 ```
 

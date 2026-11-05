@@ -126,7 +126,7 @@ existing `int_*` and `nat_*` functions. Existing operators and prefixed
 functions retain their behavior, including saturating Nat subtraction.
 
 ```sh
-cargo run --locked -- build examples/dispatch-arithmetic.vast \
+cargo run --locked -- build examples/book/dispatch/dispatch-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
@@ -200,7 +200,7 @@ outside the callable domain) are unchanged. The key-space bound remains 4096.
 Abstract selectors cannot appear as ordinary parameter/result types, Fn
 contracts, Pair elements, or generic domain keys. They introduce no implicit
 Nat-to-Int conversion. `Variety` and `Manifold` in
-[the runnable example](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-selectors.vast) are uninhabited
+[the runnable example](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-selectors.vast) are uninhabited
 nominal declarations, without mathematical axioms or geometric claims.
 
 In packages, `pub abstract type` and imports/reexports follow existing path
@@ -271,7 +271,7 @@ module preserves the original owner's authority. Contracts have no `pub`
 modifier of their own. Flat sources and explicit `--lib` inputs retain their
 shared namespace.
 
-The [contract example](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast) checks, builds and
+The [contract example](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-contracts.vast) checks, builds and
 runs to 42. `ContractRegression` and `tests/abstract_contracts.rs` exercise the
 actual checker, native flat/package/--lib paths, higher-order lowering, unions,
 empty domains, overlapping/conflicting results, authority and tampered IR.

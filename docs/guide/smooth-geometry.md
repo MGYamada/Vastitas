@@ -7,12 +7,12 @@ number in the program is an exact rational, and the program prints `42` only
 when every observation holds.
 
 The program is
-[`examples/packages/stdlib-differential/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-differential/main.vast).
+[`examples/packages/stdlib/stdlib-differential/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib/stdlib-differential/main.vast).
 Run it from the repository root:
 
 ```sh
 python3 scripts/build_stdlib_package.py
-target/debug/vastitas build --manifest-path examples/packages/stdlib-differential/Vastitas.toml -o target/stdlib-differential
+target/debug/vastitas build --manifest-path examples/packages/stdlib/stdlib-differential/Vastitas.toml -o target/stdlib-differential
 ./target/stdlib-differential
 ```
 
@@ -28,7 +28,7 @@ polynomial in the source coordinates. The standard library declares the
 families that describe them, so a program imports them:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:imports}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:imports}}
 ```
 
 `Smooth<X, Y>` is the type of smooth maps from `X` to `Y`. `Cotangent<X>` holds
@@ -42,7 +42,7 @@ The program declares the plane and two maps. `f` sends `t` to `(t, t²)`, and
 `g` sends `(x, y)` to `x² + y`:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:objects}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:objects}}
 ```
 
 A map's images are written in the source coordinates and listed by target
@@ -58,7 +58,7 @@ Its components read back as reduced fractions, a `Pair<Int>` of numerator and
 denominator:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:fibers}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:fibers}}
 ```
 
 `dline(line_at(18), 1)` is the covector dt at the point 18 of `Line`.
@@ -77,7 +77,7 @@ The pullback along `g` at `f(3)`, then along `f` at 3, gives the same
 covector as the pullback along the composite:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:main}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:main}}
 ```
 
 The observations in `main` read as follows:
@@ -127,7 +127,7 @@ pass. The library binds only the saved mode, and a program binds the other
 one itself:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:recomputed}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:recomputed}}
 ```
 
 `linearize(F, x)` returns the saved forward pass as a value, a *tape*, and
@@ -149,7 +149,7 @@ metric. A program names its metric explicitly and gives evidence that the
 metric is nondegenerate:
 
 ```vast
-{{#include ../../examples/packages/stdlib-differential/main.vast:metric}}
+{{#include ../../examples/packages/stdlib/stdlib-differential/main.vast:metric}}
 ```
 
 - `indexed metric` declares a constant symmetric Gram matrix in the

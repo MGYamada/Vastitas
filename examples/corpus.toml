@@ -1,0 +1,297 @@
+# The executable index of the Vastitas conformance corpus.
+# Paths are relative to examples/. Every positive source and package manifest,
+# and every rejected standalone program, must have exactly one case entry.
+schema_version = 1
+
+[[case]]
+id = "book.abstract.abstract-contracts"
+kind = "source"
+path = "book/abstract/abstract-contracts.vast"
+expect = "accept"
+
+[[case]]
+id = "book.abstract.abstract-selectors"
+kind = "source"
+path = "book/abstract/abstract-selectors.vast"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "book.dispatch.arithmetic"
+kind = "source"
+path = "book/dispatch/dispatch-arithmetic.vast"
+expect = "accept"
+stdout = "42\n"
+libraries = ["stdlib/src/arithmetic/int.vast","stdlib/src/arithmetic/nat.vast","stdlib/src/arithmetic/generic.vast"]
+
+[[case]]
+id = "book.functions.functions"
+kind = "source"
+path = "book/functions/functions.vast"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "book.geometry.pointed"
+kind = "source"
+path = "book/geometry/pointed.vast"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "book.geometry.smooth"
+kind = "source"
+path = "book/geometry/smooth.vast"
+expect = "accept"
+stdout = "2\n"
+
+[[case]]
+id = "book.stdlib.arithmetic"
+kind = "source"
+path = "book/stdlib/stdlib-arithmetic.vast"
+expect = "accept"
+stdout = "42\n"
+libraries = ["stdlib/src/arithmetic/int.vast","stdlib/src/arithmetic/nat.vast"]
+
+[[case]]
+id = "book.stdlib.promotion"
+kind = "source"
+path = "book/stdlib/promotion.vast"
+expect = "accept"
+stdout = "42\n"
+libraries = ["stdlib/src/arithmetic/int.vast","stdlib/src/arithmetic/nat.vast","stdlib/src/arithmetic/generic.vast"]
+
+[[case]]
+id = "book.values.arithmetic"
+kind = "source"
+path = "book/values/arithmetic.vast"
+expect = "accept"
+stdout = "1234567890123456789012345678900\n"
+
+[[case]]
+id = "book.values.pairs"
+kind = "source"
+path = "book/values/pairs.vast"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.authority.edit-authority.addon"
+kind = "package"
+path = "packages/authority/edit-authority/addon/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.authority.edit-authority.app"
+kind = "package"
+path = "packages/authority/edit-authority/app/Vastitas.toml"
+expect = "accept"
+stdout = "44\n"
+
+[[case]]
+id = "package.authority.edit-authority.base"
+kind = "package"
+path = "packages/authority/edit-authority/base/Vastitas.toml"
+expect = "dependency"
+covered_by = "package.authority.edit-authority.app"
+
+[[case]]
+id = "package.authority.edit-borrow.addon"
+kind = "package"
+path = "packages/authority/edit-borrow/addon/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.authority.edit-borrow.app"
+kind = "package"
+path = "packages/authority/edit-borrow/app/Vastitas.toml"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.authority.edit-borrow.lib"
+kind = "package"
+path = "packages/authority/edit-borrow/lib/Vastitas.toml"
+expect = "dependency"
+covered_by = "package.authority.edit-borrow.app"
+
+[[case]]
+id = "package.core.arithmetic"
+kind = "package"
+path = "packages/core/arithmetic/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.core.demo"
+kind = "package"
+path = "packages/core/demo/Vastitas.toml"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.geometry.affine-geometry"
+kind = "package"
+path = "packages/geometry/affine-geometry/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.indexed"
+kind = "package"
+path = "packages/geometry/indexed/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-cotangent"
+kind = "package"
+path = "packages/geometry/smooth-cotangent/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-differential"
+kind = "package"
+path = "packages/geometry/smooth-differential/Vastitas.toml"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.geometry.smooth-metric"
+kind = "package"
+path = "packages/geometry/smooth-metric/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.geometry.smooth-objects"
+kind = "package"
+path = "packages/geometry/smooth-objects/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.diagonal-metrics"
+kind = "package"
+path = "packages/numerical/diagonal-metrics/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.generative-owned-map"
+kind = "package"
+path = "packages/numerical/generative-owned-map/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.linear-transforms"
+kind = "package"
+path = "packages/numerical/linear-transforms/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.numerical"
+kind = "package"
+path = "packages/numerical/numerical/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.numerical-declarations"
+kind = "package"
+path = "packages/numerical/numerical-declarations/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.numerical.vector-evaluation"
+kind = "package"
+path = "packages/numerical/vector-evaluation/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.promotion"
+kind = "package"
+path = "packages/stdlib/promotion/Vastitas.toml"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.stdlib.stdlib-differential"
+kind = "package"
+path = "packages/stdlib/stdlib-differential/Vastitas.toml"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.stdlib.stdlib-geometry"
+kind = "package"
+path = "packages/stdlib/stdlib-geometry/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-geometry.pointed"
+kind = "package"
+path = "packages/stdlib/stdlib-geometry/pointed/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.stdlib.stdlib-geometry.smooth"
+kind = "package"
+path = "packages/stdlib/stdlib-geometry/smooth/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.resource-values"
+kind = "package"
+path = "packages/storage/resource-values/Vastitas.toml"
+expect = "accept"
+stdout = "42\n"
+
+[[case]]
+id = "package.storage.runtime-shapes"
+kind = "package"
+path = "packages/storage/runtime-shapes/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.storage.app"
+kind = "package"
+path = "packages/storage/storage/app/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.storage.storage.buffers"
+kind = "package"
+path = "packages/storage/storage/buffers/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.cached-tensor-packing"
+kind = "package"
+path = "packages/tensor/cached-tensor-packing/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.contraction-tree"
+kind = "package"
+path = "packages/tensor/contraction-tree/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.finite-network"
+kind = "package"
+path = "packages/tensor/finite_network/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "package.tensor.tensor-packing"
+kind = "package"
+path = "packages/tensor/tensor-packing/Vastitas.toml"
+expect = "accept"
+
+[[case]]
+id = "reject.declarations.duplicate-local"
+kind = "source"
+path = "reject/declarations/duplicate-local.vast"
+expect = "reject"
+diagnostic = "E_DUPLICATE"
+
+[[case]]
+id = "reject.names.unresolved-function"
+kind = "source"
+path = "reject/names/unresolved-function.vast"
+expect = "reject"
+diagnostic = "E_NAME"

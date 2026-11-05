@@ -12,6 +12,7 @@ include = [
     "/config/nanoda-internal-audit.json", "/rust-toolchain.toml", "/lean-toolchain",
     "/lean-kernel/", "!**/.lake/", "/tests/", "/examples/",
     "/stdlib/src/", "/stdlib/Vastitas.toml", "/stdlib/README.md", "/scripts/build_stdlib_package.py",
+    "/scripts/check_conformance_corpus.py",
     "/scripts/build_openblas.py",
 ]
 

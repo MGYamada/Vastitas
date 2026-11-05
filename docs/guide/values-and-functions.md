@@ -15,7 +15,7 @@ There are four scalar types:
 | `Unit` | `()`, empty blocks, equality |
 
 Integers never overflow. This program from
-[`examples/arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/arithmetic.vast)
+[`examples/book/values/arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/values/arithmetic.vast)
 multiplies a 30-digit literal:
 
 ```vast
@@ -33,7 +33,7 @@ fn twice(x: Int) -> Int { x + x }
 ```
 
 ```sh
-target/debug/vastitas build examples/arithmetic.vast -o target/arithmetic
+target/debug/vastitas build examples/book/values/arithmetic.vast -o target/arithmetic
 ./target/arithmetic
 ```
 

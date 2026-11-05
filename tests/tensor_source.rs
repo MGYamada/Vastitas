@@ -3,22 +3,23 @@ use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/tensor-packing/src/real/mod.vast");
-const COMPLEX: &str = include_str!("../examples/packages/tensor-packing/src/complex/mod.vast");
+const REAL: &str = include_str!("../examples/packages/tensor/tensor-packing/src/real/mod.vast");
+const COMPLEX: &str =
+    include_str!("../examples/packages/tensor/tensor-packing/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     let s = Scratch::empty("tensor packing");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/tensor-packing/Vastitas.toml"),
+        include_str!("../examples/packages/tensor/tensor-packing/Vastitas.toml"),
     );
     s.write(
         "src/main.vast",
-        include_str!("../examples/packages/tensor-packing/src/main.vast"),
+        include_str!("../examples/packages/tensor/tensor-packing/src/main.vast"),
     );
     s.write(
         "src/profiles/mod.vast",
-        include_str!("../examples/packages/tensor-packing/src/profiles/mod.vast"),
+        include_str!("../examples/packages/tensor/tensor-packing/src/profiles/mod.vast"),
     );
     s.write("src/real/mod.vast", real);
     s.write("src/complex/mod.vast", complex);

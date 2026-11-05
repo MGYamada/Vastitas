@@ -49,7 +49,7 @@ fn native_generic_arithmetic_uses_explicit_source_libraries() {
     let libraries = ["generic.vast", "nat.vast", "int.vast"]
         .map(|file| root().join("stdlib/src/arithmetic").join(file));
     native(
-        include_str!("../examples/dispatch-arithmetic.vast"),
+        include_str!("../examples/book/dispatch/dispatch-arithmetic.vast"),
         &libraries,
         "42",
     );

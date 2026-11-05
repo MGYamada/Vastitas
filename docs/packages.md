@@ -26,8 +26,8 @@ Each path names a directory containing `Vastitas.toml`; paths are relative to
 the declaring manifest. Unsupported manifest fields and dependency forms fail.
 
 ```sh
-vastitas check --manifest-path examples/packages/demo/Vastitas.toml
-vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/demo
+vastitas check --manifest-path examples/packages/core/demo/Vastitas.toml
+vastitas build --manifest-path examples/packages/core/demo/Vastitas.toml -o target/demo
 ./target/demo
 # 42
 ```
@@ -190,7 +190,7 @@ Ordinary imports remain call-only. The exact generic owner may issue a grant to
 one module in the selected dependency closure; that module contributes methods
 only through a root assembly with an active exclusive loan. Neither imports,
 child modules nor aliases imply this permission. See [the syntax and completion
-contract](#edit-borrowing) and `examples/packages/edit-borrow/app/Vastitas.toml`.
+contract](#edit-borrowing) and `examples/packages/authority/edit-borrow/app/Vastitas.toml`.
 
 ## Indexed geometry compatibility exports
 
@@ -367,8 +367,8 @@ separate check of retained APIs and shared trace logic.
 Try the complete example:
 
 ```sh
-cargo run -- check --manifest-path examples/packages/edit-borrow/app/Vastitas.toml
-cargo run -- build --manifest-path examples/packages/edit-borrow/app/Vastitas.toml -o /tmp/vastitas-edit
+cargo run -- check --manifest-path examples/packages/authority/edit-borrow/app/Vastitas.toml
+cargo run -- build --manifest-path examples/packages/authority/edit-borrow/app/Vastitas.toml -o /tmp/vastitas-edit
 /tmp/vastitas-edit # 42
 ```
 
@@ -491,8 +491,8 @@ forged source/authority mutations. `AuthorityRegression` remains a separate
 test of the retained checker and shared trace helpers.
 
 ```sh
-cargo run -- check --manifest-path examples/packages/edit-authority/app/Vastitas.toml
-cargo run -- build --manifest-path examples/packages/edit-authority/app/Vastitas.toml -o target/edit-authority
+cargo run -- check --manifest-path examples/packages/authority/edit-authority/app/Vastitas.toml
+cargo run -- build --manifest-path examples/packages/authority/edit-authority/app/Vastitas.toml -o target/edit-authority
 ./target/edit-authority # 44
 ```
 

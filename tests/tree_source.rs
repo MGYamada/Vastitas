@@ -3,22 +3,23 @@ use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/contraction-tree/src/real/mod.vast");
-const COMPLEX: &str = include_str!("../examples/packages/contraction-tree/src/complex/mod.vast");
+const REAL: &str = include_str!("../examples/packages/tensor/contraction-tree/src/real/mod.vast");
+const COMPLEX: &str =
+    include_str!("../examples/packages/tensor/contraction-tree/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     let s = Scratch::empty("contraction tree");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/contraction-tree/Vastitas.toml"),
+        include_str!("../examples/packages/tensor/contraction-tree/Vastitas.toml"),
     );
     s.write(
         "src/main.vast",
-        include_str!("../examples/packages/contraction-tree/src/main.vast"),
+        include_str!("../examples/packages/tensor/contraction-tree/src/main.vast"),
     );
     s.write(
         "src/profiles/mod.vast",
-        include_str!("../examples/packages/contraction-tree/src/profiles/mod.vast"),
+        include_str!("../examples/packages/tensor/contraction-tree/src/profiles/mod.vast"),
     );
     s.write("src/real/mod.vast", real);
     s.write("src/complex/mod.vast", complex);

@@ -31,7 +31,7 @@ tuple. Results may differ between methods: here `(Nat, Nat)` returns `Nat`.
 The standard library's
 [`generic.vast`](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/arithmetic/generic.vast)
 defines `add` and `maximum` this way over all four Nat/Int pairs.
-[`examples/dispatch-arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/dispatch-arithmetic.vast)
+[`examples/book/dispatch/dispatch-arithmetic.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/dispatch/dispatch-arithmetic.vast)
 uses them:
 
 ```vast
@@ -44,7 +44,7 @@ fn main() -> Int {
 ```
 
 ```sh
-cargo run --locked -- build examples/dispatch-arithmetic.vast \
+cargo run --locked -- build examples/book/dispatch/dispatch-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
@@ -104,7 +104,7 @@ The checker is strict in three ways:
 
 You can declare your own nominal selectors with `abstract type` and place the
 concrete scalars under them with `subtype`.
-[`examples/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-selectors.vast):
+[`examples/book/abstract/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-selectors.vast):
 
 ```vast
 // Selector declarations have nominal identity; they do not create values.
@@ -138,7 +138,7 @@ conversions.
 An `abstract method` has no executable body: its braces hold only a domain.
 It extends the callable domain and fixes the result type that the concrete
 winner must have.
-[`examples/abstract-contracts.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast):
+[`examples/book/abstract/abstract-contracts.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/abstract/abstract-contracts.vast):
 
 ```vast
 abstract type Numeric;
@@ -185,7 +185,7 @@ method add(left: Nat, right: Int) -> Int {
 }
 ```
 
-[`examples/promotion.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/promotion.vast)
+[`examples/book/stdlib/promotion.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/stdlib/promotion.vast)
 calls `promote` directly. Build it with the same three libraries as
 `dispatch-arithmetic.vast`:
 

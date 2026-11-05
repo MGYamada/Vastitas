@@ -129,12 +129,12 @@ existing dependent field across the boundary, return a package containing its
 witness and fields together. These rules apply to both ordinary and smooth
 geometry and to legacy geometry syntax through the common checker.
 
-The complete [example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/indexed/main.vast) additionally uses
+The complete [example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry/indexed/main.vast) additionally uses
 an identity morphism and a static lambda:
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/indexed/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/indexed/Vastitas.toml -o target/indexed-demo
+cargo run --locked -- check --manifest-path examples/packages/geometry/indexed/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/geometry/indexed/Vastitas.toml -o target/indexed-demo
 ./target/indexed-demo
 # 42
 ```
@@ -725,7 +725,7 @@ legacy syntax can use the same IDs and primitive emitter as new syntax. Exactly
 one export is required only for legacy syntax; qualified calls to multiple
 independent libraries remain supported. Existing declared/local names take
 precedence, and visibility errors cannot fall back to builtin spelling.
-Unchanged `examples/pointed.vast` and `examples/smooth.vast` run through the
+Unchanged `examples/book/geometry/pointed.vast` and `examples/book/geometry/smooth.vast` run through the
 same protocol-7 closure. Mixed syntax retains dependent endpoints and package
 witnesses; capture, scope escape and unused-body checks are unchanged.
 

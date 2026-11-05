@@ -22,7 +22,7 @@ A function type lists its parameters and its result:
 tuple values. Function types contain `Nat`, `Int`, `Bool`, `Unit` and `Fn` only.
 
 A lambda writes every parameter type and its result type:
-[`examples/functions.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/functions.vast)
+[`examples/book/functions/functions.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/functions/functions.vast)
 
 ```vast
 fn invoke(f: Fn<Int, Int>, x: Int) -> Int {
@@ -40,8 +40,8 @@ fn main() -> Int {
 ```
 
 ```sh
-target/debug/vastitas check examples/functions.vast
-target/debug/vastitas build examples/functions.vast -o target/functions
+target/debug/vastitas check examples/book/functions/functions.vast
+target/debug/vastitas build examples/book/functions/functions.vast -o target/functions
 ./target/functions
 ```
 

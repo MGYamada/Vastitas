@@ -3,22 +3,24 @@ use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/diagonal-metrics/src/real/mod.vast");
-const COMPLEX: &str = include_str!("../examples/packages/diagonal-metrics/src/complex/mod.vast");
+const REAL: &str =
+    include_str!("../examples/packages/numerical/diagonal-metrics/src/real/mod.vast");
+const COMPLEX: &str =
+    include_str!("../examples/packages/numerical/diagonal-metrics/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     let s = Scratch::empty("diagonal metrics");
     s.write(
         "Vastitas.toml",
-        include_str!("../examples/packages/diagonal-metrics/Vastitas.toml"),
+        include_str!("../examples/packages/numerical/diagonal-metrics/Vastitas.toml"),
     );
     s.write(
         "src/main.vast",
-        include_str!("../examples/packages/diagonal-metrics/src/main.vast"),
+        include_str!("../examples/packages/numerical/diagonal-metrics/src/main.vast"),
     );
     s.write(
         "src/profiles/mod.vast",
-        include_str!("../examples/packages/diagonal-metrics/src/profiles/mod.vast"),
+        include_str!("../examples/packages/numerical/diagonal-metrics/src/profiles/mod.vast"),
     );
     s.write("src/real/mod.vast", real);
     s.write("src/complex/mod.vast", complex);
@@ -198,12 +200,12 @@ fn diagonal_metrics_and_trees_keep_actual_receipts_in_both_branches() {
     for flag in [false, true] {
         let real = with_runtime_tree(
             REAL,
-            include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+            include_str!("../examples/packages/tensor/contraction-tree/src/real/mod.vast"),
             flag,
         );
         let complex = with_runtime_tree(
             COMPLEX,
-            include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+            include_str!("../examples/packages/tensor/contraction-tree/src/complex/mod.vast"),
             flag,
         );
         let s = fixture(&real, &complex);
@@ -350,24 +352,24 @@ fn diagonal_pairing_builds_executes_real_complex_and_empty_forms() {
         (
             with_runtime_tree(
                 REAL,
-                include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+                include_str!("../examples/packages/tensor/contraction-tree/src/real/mod.vast"),
                 false,
             ),
             with_runtime_tree(
                 COMPLEX,
-                include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+                include_str!("../examples/packages/tensor/contraction-tree/src/complex/mod.vast"),
                 false,
             ),
         ),
         (
             with_runtime_tree(
                 REAL,
-                include_str!("../examples/packages/contraction-tree/src/real/mod.vast"),
+                include_str!("../examples/packages/tensor/contraction-tree/src/real/mod.vast"),
                 true,
             ),
             with_runtime_tree(
                 COMPLEX,
-                include_str!("../examples/packages/contraction-tree/src/complex/mod.vast"),
+                include_str!("../examples/packages/tensor/contraction-tree/src/complex/mod.vast"),
                 true,
             ),
         ),

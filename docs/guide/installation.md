@@ -53,6 +53,8 @@ vastitas build examples/pointed.vast -o pointed
 ./pointed
 ```
 
+The published archive has the historical flat example layout. A checkout of
+`main` uses [`examples/book/`](https://github.com/MGYamada/Vastitas/blob/main/examples/README.md) instead.
 The example prints `42`. Set `VASTITAS_KERNEL_ROOT` to this same absolute path
 in each new shell, and keep the directory writable. For programs that import
 the combined standard library, run `python3 scripts/build_stdlib_package.py`

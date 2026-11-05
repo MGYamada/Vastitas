@@ -41,7 +41,7 @@ fn documented(inputs: &[&str], expected: &str) {
 // docs/stage1a.md: abstract selectors.
 #[test]
 fn abstract_selectors() {
-    documented(&["examples/abstract-selectors.vast"], "42");
+    documented(&["examples/book/abstract/abstract-selectors.vast"], "42");
 }
 
 // stdlib/README.md: the flat example with the three explicit libraries.
@@ -49,7 +49,7 @@ fn abstract_selectors() {
 fn flat_promotion() {
     documented(
         &[
-            "examples/promotion.vast",
+            "examples/book/stdlib/promotion.vast",
             "--lib",
             INT,
             "--lib",
@@ -66,7 +66,7 @@ fn flat_promotion() {
 fn stdlib_arithmetic() {
     documented(
         &[
-            "examples/stdlib-arithmetic.vast",
+            "examples/book/stdlib/stdlib-arithmetic.vast",
             "--lib",
             INT,
             "--lib",
@@ -86,13 +86,16 @@ fn arithmetic_and_demo_packages() {
             .args([
                 "check",
                 "--manifest-path",
-                "examples/packages/arithmetic/Vastitas.toml",
+                "examples/packages/core/arithmetic/Vastitas.toml",
             ])
             .output()
             .unwrap(),
     );
     documented(
-        &["--manifest-path", "examples/packages/demo/Vastitas.toml"],
+        &[
+            "--manifest-path",
+            "examples/packages/core/demo/Vastitas.toml",
+        ],
         "42",
     );
 }
@@ -103,7 +106,7 @@ fn edit_borrow_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/edit-borrow/app/Vastitas.toml",
+            "examples/packages/authority/edit-borrow/app/Vastitas.toml",
         ],
         "42",
     );
@@ -115,7 +118,7 @@ fn edit_authority_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/edit-authority/app/Vastitas.toml",
+            "examples/packages/authority/edit-authority/app/Vastitas.toml",
         ],
         "44",
     );
@@ -128,7 +131,7 @@ fn promotion_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/promotion/Vastitas.toml",
+            "examples/packages/stdlib/promotion/Vastitas.toml",
         ],
         "42",
     );
@@ -142,7 +145,7 @@ fn smooth_differential_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/smooth-differential/Vastitas.toml",
+            "examples/packages/geometry/smooth-differential/Vastitas.toml",
         ],
         "42",
     );
@@ -157,7 +160,7 @@ fn stdlib_differential_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/stdlib-differential/Vastitas.toml",
+            "examples/packages/stdlib/stdlib-differential/Vastitas.toml",
         ],
         "42",
     );
@@ -169,7 +172,7 @@ fn resource_values_package() {
     documented(
         &[
             "--manifest-path",
-            "examples/packages/resource-values/Vastitas.toml",
+            "examples/packages/storage/resource-values/Vastitas.toml",
         ],
         "42",
     );
@@ -184,7 +187,7 @@ fn runtime_shapes_package_checks_without_blas() {
             .args([
                 "check",
                 "--manifest-path",
-                "examples/packages/runtime-shapes/Vastitas.toml",
+                "examples/packages/storage/runtime-shapes/Vastitas.toml",
             ])
             .output()
             .unwrap(),
@@ -201,7 +204,7 @@ fn runtime_shapes_package_runs_with_openblas() {
     documented_build(
         &[
             "--manifest-path",
-            "examples/packages/runtime-shapes/Vastitas.toml",
+            "examples/packages/storage/runtime-shapes/Vastitas.toml",
         ],
         &["--openblas-prefix", &prefix, "--native-cc", &cc],
         "0",

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Capture, and compare, what the compiler emits for every example.
 
-For each documented single-file example, every package manifest under
-`examples/` and `stdlib/`, and every manifest under `tests/emit_corpus/`, the
+For each accepted case in `examples/corpus.toml`, every package manifest under
+`stdlib/`, and every manifest under `tests/emit_corpus/`, the
 script records:
 
 - `wire.raw.json` and `wire.json`: the exact protocol request the frontend
@@ -46,20 +46,10 @@ import sys
 import tempfile
 from pathlib import Path
 
+from check_conformance_corpus import arguments, load_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = ".capture_emit"
-STDLIB_INT = "stdlib/src/arithmetic/int.vast"
-STDLIB_NAT = "stdlib/src/arithmetic/nat.vast"
-STDLIB_GENERIC = "stdlib/src/arithmetic/generic.vast"
-
-# Single-file examples with the arguments their documentation gives
-# (tests/examples.rs and docs/guide). Every other `examples/*.vast` is checked alone.
-SINGLE_FILE = {
-    "dispatch-arithmetic": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT, "--lib", STDLIB_GENERIC],
-    "promotion": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT, "--lib", STDLIB_GENERIC],
-    "stdlib-arithmetic": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT],
-}
-
 STUB = """#!/usr/bin/env python3
 import json, os, sys
 request = sys.stdin.buffer.read()
@@ -75,15 +65,19 @@ sys.exit(1)
 def corpus():
     """(name, arguments after `check`) for every input, in a stable order."""
     cases = []
-    for example in sorted((ROOT / "examples").glob("*.vast")):
-        cases.append((f"example/{example.stem}", [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])))
-    manifests = sorted(ROOT.glob("examples/**/Vastitas.toml")) + sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
+    for case in load_cases():
+        # Rejected sources can fail before any wire request exists. Their
+        # diagnostic contract is exercised by check_conformance_corpus.py.
+        if case["expect"] == "accept":
+            family = "example" if case["kind"] == "source" else "package"
+            cases.append((f"{family}/{case['id']}", arguments(case)))
+    manifests = sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("tests/emit_corpus/**/Vastitas.toml"))
     for manifest in manifests:
         relative = manifest.relative_to(ROOT)
         if "stdlib/target" in str(relative):
             continue
-        name = "package/" + str(relative.parent).replace("examples/packages/", "").replace("/", "__")
+        name = "package/" + str(relative.parent).replace("/", "__")
         cases.append((name, ["--manifest-path", str(relative)]))
     return cases
 

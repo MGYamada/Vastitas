@@ -18,13 +18,17 @@ From the repository root with Rust 1.99.1, Lean 4.35.0 and a host C toolchain:
 ```sh
 lake -d lean-kernel build vastitas-kernel
 cargo build --locked
-target/debug/vastitas check examples/pointed.vast
-target/debug/vastitas build examples/pointed.vast -o target/pointed
+target/debug/vastitas check examples/book/geometry/pointed.vast
+target/debug/vastitas build examples/book/geometry/pointed.vast -o target/pointed
 ./target/pointed
 ```
 
 The program prints `42`. [Getting started](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/getting-started.md) ·
 [CLI reference](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/cli.md) · [Packages and manifests](https://github.com/MGYamada/Vastitas/blob/main/docs/guide/stdlib.md)
+
+The [`examples/` conformance corpus](examples/README.md) indexes accepted
+programs, package graphs, expected rejections and exact native outputs. Its
+registry is checked in CI alongside the compiler's Rust and Lean regressions.
 
 ## Install the alpha
 
@@ -44,6 +48,8 @@ vastitas build examples/pointed.vast -o pointed
 ./pointed
 ```
 
+The published alpha archive predates the `examples/` corpus reorganization and
+retains its historical flat paths; a main-branch checkout uses `examples/book/`.
 The example prints `42`. Set `VASTITAS_KERNEL_ROOT` to this same absolute
 path in each new shell. The first build that needs the storage or numerical
 runtime compiles it inside that directory, so keep it writable. For programs

@@ -99,10 +99,10 @@ not exposed while their source-language contracts remain unspecified.
 Supply the needed source files with repeatable `--lib` options:
 
 ```sh
-cargo run -- check examples/stdlib-arithmetic.vast \
+cargo run -- check examples/book/stdlib/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast
-cargo run -- build examples/stdlib-arithmetic.vast \
+cargo run -- build examples/book/stdlib/stdlib-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   -o target/stdlib-arithmetic
@@ -121,7 +121,7 @@ cargo run -- check stdlib/src/arithmetic/nat.vast
 For the generic wrappers, include their dependencies explicitly:
 
 ```sh
-cargo run -- build examples/dispatch-arithmetic.vast \
+cargo run -- build examples/book/dispatch/dispatch-arithmetic.vast \
   --lib stdlib/src/arithmetic/int.vast \
   --lib stdlib/src/arithmetic/nat.vast \
   --lib stdlib/src/arithmetic/generic.vast -o target/dispatch-arithmetic
@@ -163,7 +163,7 @@ prove the actual checked stdlib bodies for arbitrary inputs; CI compares their
 fixture with real frontend output. Contract regressions reject value-changing
 or wrong-policy mutations separately from compiler type errors.
 
-The [flat example](../examples/promotion.vast) uses the three explicit libraries
+The [flat example](../examples/book/stdlib/promotion.vast) uses the three explicit libraries
 above. Flat mode checks the whole assembly but has no package owner guarantees.
 
 ## Package use
@@ -186,8 +186,8 @@ The generated entrypoint also re-exports the geometry package as
 
 ```sh
 python3 scripts/build_stdlib_package.py
-cargo run -- check --manifest-path examples/packages/promotion/Vastitas.toml
-cargo run -- build --manifest-path examples/packages/promotion/Vastitas.toml -o target/promotion
+cargo run -- check --manifest-path examples/packages/stdlib/promotion/Vastitas.toml
+cargo run -- build --manifest-path examples/packages/stdlib/promotion/Vastitas.toml -o target/promotion
 ./target/promotion
 # 42
 ```

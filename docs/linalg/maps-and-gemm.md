@@ -83,7 +83,7 @@ through the same namespace resolver and records their provenance. The actual
 Core independently audits its complete declaration environment again before
 generation. No frontend-selected checked IDs or profile certificates are accepted.
 
-The example under `examples/packages/numerical-declarations` checks these
+The example under `examples/packages/numerical/numerical-declarations` checks these
 declarations while compiling an ordinary program that returns `42`. It requires
 neither OpenBLAS nor the storage native runtime. Declaration acceptance is not
 evidence of numerical execution or C-level performance.
@@ -145,7 +145,7 @@ map destination = view(output, bu, bw);
 gemm(left, right, destination, overwrite, NativeFast);
 ```
 
-The [complete example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/numerical/src/main.vast) calls sibling
+The [complete example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/numerical/numerical/src/main.vast) calls sibling
 `real` and `complex` modules, checks rectangular products and then accumulates
 into the same destination. Each module lives in its own directory with `mod.vast`.
 The real product is `[[1,2,3],[4,5,6]] * [[7,8],[9,10],[11,12]]`, giving
@@ -166,8 +166,8 @@ live data bytes. These are operation counters, not elapsed-time measurements or
 evidence of C parity; see [initialization coverage](../storage/checked-storage.md#storage-ir--layout-and-initialization).
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/numerical/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/numerical/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/numerical/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o /tmp/numerical-example
 /tmp/numerical-example
 ```
@@ -570,7 +570,7 @@ its direct basis. The source basis is an explicit dependency on an earlier
 parameter. Dimensions remain static. This bounded profile does not implement
 runtime dimensions, arbitrary existential resource tuples or borrowed results.
 
-The [real and complex example](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/generative-owned-map)
+The [real and complex example](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/generative-owned-map)
 returns locally generated targets, passes packages through nested calls, opens
 and repacks them, and uses their exact padded allocation through dependent
 owned-map and read-map parameters. It builds and runs without OpenBLAS because

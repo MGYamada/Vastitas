@@ -16,7 +16,7 @@ example package has its own profile module. This excerpt shows the smooth
 profiles of the GEMM example:
 
 ```vast
-// examples/packages/numerical/src/profiles/mod.vast (first part)
+// examples/packages/numerical/numerical/src/profiles/mod.vast (first part)
 pub indexed marker RealCoefficients;
 pub indexed marker ComplexCoefficients;
 
@@ -35,7 +35,7 @@ these ideal coefficients. Neither is an exact field.
 
 Inside a resource function, with three live loans of matching shapes, the real
 half of
-[`examples/packages/numerical`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical)
+[`examples/packages/numerical/numerical`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/numerical/numerical)
 multiplies two matrices:
 
 ```vast
@@ -68,8 +68,8 @@ into the same destination and checks again. The complex half computes
 conjugation.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/numerical/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/numerical/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/numerical/numerical/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/numerical/numerical/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o target/numerical-example
 ./target/numerical-example
 ```
@@ -84,7 +84,7 @@ links OpenBLAS.
 
 Transposes and conjugations are never implicit. You derive them explicitly, and
 each one has its own nominal space and basis.
-[`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/linear-transforms/src/main.vast)
+[`examples/packages/numerical/linear-transforms`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/numerical/linear-transforms/src/main.vast)
 declares them:
 
 ```vast
@@ -137,7 +137,7 @@ Hermitian forms with caller scratch; see
 ## Tensor networks
 
 A `contract` block wires map occurrences together and writes the result into a
-destination. [`examples/packages/finite_network`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/finite_network)
+destination. [`examples/packages/tensor/finite_network`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/tensor/finite_network)
 expresses the same product as a two-node network:
 
 ```vast
@@ -156,8 +156,8 @@ input of `b` and output of `a`, which must match the destination's objects and
 bases exactly. Contraction inserts no conjugation, metric or basis change.
 
 ```sh
-cargo run --locked -- check --manifest-path examples/packages/finite_network/Vastitas.toml
-cargo run --locked -- build --manifest-path examples/packages/finite_network/Vastitas.toml \
+cargo run --locked -- check --manifest-path examples/packages/tensor/finite_network/Vastitas.toml
+cargo run --locked -- build --manifest-path examples/packages/tensor/finite_network/Vastitas.toml \
   --openblas-prefix /path/to/openblas-0.3.34 -o target/finite-network
 ./target/finite-network
 ```

@@ -248,7 +248,14 @@ class FixtureTests(unittest.TestCase):
     def test_skipped_python_test(self):
         self.edit("docs/spec/demo.toml", "test_demo.py::DemoTests::test_identity",
                   "test_demo.py::DemoTests::test_skipped")
-        self.assertRejected("`scripts/test_demo.py::DemoTests::test_skipped` is skipped unconditionally")
+        self.assertRejected("unittest may skip `scripts/test_demo.py::DemoTests::test_skipped` or expect it to fail")
+
+    def test_python_tests_that_a_base_class_skips(self):
+        # The review of #655 found that a skip of a base class did not count.
+        self.edit("scripts/test_demo.py", "class DemoTests(unittest.TestCase):",
+                  "@unittest.skip('never')\nclass BaseTests(unittest.TestCase):\n    pass\n\n\n"
+                  "class DemoTests(BaseTests):")
+        self.assertRejected("unittest may skip `scripts/test_demo.py::DemoTests::test_identity` or expect it to fail")
 
     def test_python_test_that_no_step_discovers(self):
         self.put("tools/test_extra.py", PYTHON)
@@ -820,10 +827,21 @@ class ParserTests(unittest.TestCase):
             "    @unittest.skipIf(ROOT is None, 'y')", "    def test_c(self): pass",
             "    def helper(self): pass",
             "class Helper:", "    def test_d(self): pass",
-            "class C(B):", "    def test_e(self): pass", ""])
+            "class C(B):", "    def test_e(self): pass",
+            "class D(A):", "    def test_f(self): pass",
+            "class E(unittest.TestCase):", "    @unittest.expectedFailure", "    def test_g(self): pass",
+            "    def test_h(self): pass",
+            "class F(unittest.TestCase):", "    def setUp(self):", "        self.skipTest('x')",
+            "    def test_i(self): pass",
+            "class G(F):", "    def test_j(self): pass", ""])
         self.assertEqual(python_tests(source), {
-            ("A", "test_a"): True, ("B", "test_b"): True, ("B", "test_c"): False,
-            ("C", "test_b"): True, ("C", "test_c"): False, ("C", "test_e"): False})
+            ("A", "test_a"): True, ("B", "test_b"): True, ("B", "test_c"): True,
+            ("C", "test_b"): True, ("C", "test_c"): True, ("C", "test_e"): False,
+            ("D", "test_a"): True, ("D", "test_f"): True, ("E", "test_g"): True, ("E", "test_h"): False,
+            ("F", "test_i"): True, ("G", "test_i"): True, ("G", "test_j"): True})
+        module = "import unittest\ndef setUpModule():\n    raise unittest.SkipTest('x')\n" \
+                 "class H(unittest.TestCase):\n    def test_k(self): pass\n"
+        self.assertEqual(python_tests(module), {("H", "test_k"): True})
 
     def test_yaml_subset_reads_the_repository_workflows(self):
         for path in sorted((check_spec.ROOT / ".github/workflows").glob("*.yml")):

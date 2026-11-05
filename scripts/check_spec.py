@@ -1064,12 +1064,13 @@ def rust_tests(source):
 
 def python_tests(source):
     """(class, method) of the test methods of the unittest.TestCase classes of a
-    module, mapped to whether a decorator skips the method or its class
-    unconditionally: `skip`, `skipIf(True, …)` or `skipUnless(False, …)`."""
-    classes = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.ClassDef):
-            classes[node.name] = node
+    module, mapped to whether unittest may skip the method or expect it to fail.
+    It may when a `skip`, `skipIf`, `skipUnless` or `expectedFailure` decorator,
+    whatever its condition, marks the method, its class or a base class in the
+    module; when that class or base class names `skipTest` or `SkipTest`; and,
+    for every method, when the module's `setUpModule` does."""
+    module = ast.parse(source)
+    classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
 
     def base_names(node):
         return [base.attr if isinstance(base, ast.Attribute) else getattr(base, "id", "") for base in node.bases]
@@ -1080,17 +1081,22 @@ def python_tests(source):
             base in ("TestCase", "IsolatedAsyncioTestCase") or test_case(base, seen + (name,))
             for base in base_names(node))
 
-    def skipped(node):
+    def decorated(node):
         for decorator in node.decorator_list:
-            call = decorator if isinstance(decorator, ast.Call) else None
-            target = call.func if call else decorator
+            target = decorator.func if isinstance(decorator, ast.Call) else decorator
             name = target.attr if isinstance(target, ast.Attribute) else getattr(target, "id", "")
-            if name == "skip":
-                return True
-            if call and name in ("skipIf", "skipUnless") and call.args and isinstance(call.args[0], ast.Constant) \
-                    and bool(call.args[0].value) == (name == "skipIf"):
+            if name in ("skip", "skipIf", "skipUnless", "expectedFailure"):
                 return True
         return False
+
+    def names_skip(node):
+        return any(isinstance(item, ast.Attribute) and item.attr in ("skipTest", "SkipTest")
+                   or isinstance(item, ast.Name) and item.id in ("skipTest", "SkipTest") for item in ast.walk(node))
+
+    def class_skips(name, seen=()):
+        node = classes.get(name)
+        return node is not None and name not in seen and (
+            decorated(node) or names_skip(node) or any(class_skips(base, seen + (name,)) for base in base_names(node)))
 
     def methods(name, seen=()):
         node = classes.get(name)
@@ -1101,14 +1107,16 @@ def python_tests(source):
             found.update(methods(base, seen + (name,)))
         for item in node.body:
             if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
-                found[item.name] = skipped(item)
+                found[item.name] = decorated(item)
         return found
 
+    module_skips = any(isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "setUpModule"
+                       and names_skip(node) for node in module.body)
     tests = {}
-    for name, node in classes.items():
+    for name in classes:
         if test_case(name):
             for method, skip in methods(name).items():
-                tests[(name, method)] = skip or skipped(node)
+                tests[(name, method)] = skip or module_skips or class_skips(name)
     return tests
 
 
@@ -1207,7 +1215,7 @@ class Repository:
             elif (test_class, method) not in tests:
                 errors.append(f"{where}: {path} has no unittest test method `{test_class}.{method}`")
             elif tests[(test_class, method)]:
-                errors.append(f"{where}: `{item}` is skipped unconditionally")
+                errors.append(f"{where}: unittest may skip `{item}` or expect it to fail")
             elif not any(run.runs(path, test_class, method) for run in self.discover):
                 errors.append(f"{where}: no CI step runs `{item}`")
         elif LEAN_NAME.fullmatch(item):

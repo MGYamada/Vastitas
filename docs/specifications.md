@@ -65,8 +65,11 @@ The rules for claims:
 - A Tested claim's tests must exist, and a CI step must run each of them. An
   ignored Rust test must be selected by a step that passes `--ignored` or
   `--include-ignored`. A Rust test under `#[cfg(...)]`, other than
-  `cfg(test)`, does not count as run, nor does a Python test that a decorator
-  always skips: `skip`, `skipIf(True, …)` or `skipUnless(False, …)`.
+  `cfg(test)`, does not count as run. Nor does a Python test that unittest may
+  skip or expect to fail. A `skip`, `skipIf`, `skipUnless` or
+  `expectedFailure` decorator, whatever its condition, on the method, its class
+  or a base class in the module makes it so. So does `skipTest` or `SkipTest`
+  in that class or base class, or in the module's `setUpModule`.
 - An Assumed claim must cite entries of the assumption registry,
   `docs/spec/assumptions.toml`. The registry's chapter,
   [Assumptions](spec/assumptions.md), lists every claim that cites each entry.

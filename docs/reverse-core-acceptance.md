@@ -376,4 +376,31 @@ pins these four runtime reverse passes and their callers.
 
 ## Validation
 
-TODO(validation): the commands of the integrated batch and their results.
+The full suite ran once, on the integrated batch 2 head `f3938f6`, each Lean
+and cargo job under the machine-wide lock and the heavy jobs one at a time.
+
+| Command | Result |
+| --- | --- |
+| `lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest VastitasStorageTest VastitasAlgebraTest vastitas-kernel storage-native-fixture numerical-native-fixture` | pass |
+| `bash scripts/check_kernel_regressions.sh` | pass, with `ReverseCoreRegression` |
+| `bash scripts/check_indexed_native.sh` | pass, with `smooth_reverse_programs` and `smooth_reverse_extended` (42) |
+| `bash scripts/check_storage_native.sh` | pass |
+| `cargo fmt --check`, `cargo clippy --locked --all-targets -- -D warnings` | pass |
+| `cargo test --locked --all-targets` | 541 passed, 0 failed, 14 ignored |
+| `python3 scripts/capture_emit.py --kernel-fixtures --compare` against `05fd395` | only the emit of `smooth-cotangent`, `smooth-differential`, `smooth-metric` and `stdlib-differential` differs; the corpus packages and the two kernel fixtures are new |
+| `lake -d lean build` | pass |
+| `scripts/audit_axioms.lean` | 42,100 declarations in 305 modules |
+| `scripts/check_chain_rule_free.lean` | 33 theorems reach none of 8 chain-rule theorems; 3 controls reach them |
+| Oracle `spec_resolve.lean` | 65 theorems and 3 kernel definitions |
+| `replay_lean.sh lean VastitasOracle`, `replay_lean.sh lean VastitasKernel` | pass |
+| `check_axiom_audit.py` | 21 cases |
+| `check_spec_lean.py`, `check_oracle_core.lean`, `check_edit_acceptance.lean` | pass |
+| `lake -d lean-bridge build` | pass |
+| Bridge `Audit.lean` | 1,049 declarations; chain-rule independence for 28 theorems |
+| `replay_lean.sh lean-bridge -v VastitasBridge` | pass |
+| `check_boundaries.py` and its unit tests | pass |
+| Bridge `spec_resolve.lean` | 34 theorems |
+| `check_docs.py`, `check_spec.py`, `check_primitive_table.py`, `mdbook build`, `check_book.py` | pass |
+
+These are native and proof results of one machine. Native results are not
+refinement proofs.

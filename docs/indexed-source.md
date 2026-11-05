@@ -591,16 +591,17 @@ binding's operands, their agreements and its result.
 (`Value`), the erased runtime values of generated programs
 (`PrimitiveRuntimeValue`) and the erasure between them.
 `IndexedPrimitiveDescriptors.lean` defines what a binding's descriptor holds:
-its shape, its validity contract, its two evaluators, `eval` on logical values
-and `evalRuntime` on erased values, and its lowering. `IndexedPrimitiveRegistry.lean`
+its shape, its validity contract, its two evaluators, its lowering and the
+literals a generated module declares once for it. The evaluators are `eval` on
+logical values and `evalRuntime` on erased values. `IndexedPrimitiveRegistry.lean`
 holds one descriptor per binding, and `IndexedPrimitives.lean` derives every
 binding's validity contract, operand association, result inference and operand
 count from it; the argument hints of `IndexedCore.lean` and the role table of
 `IndexedSourceDiagnostics.lean` come from the same shape. The two evaluators of
 `IndexedSemantics.lean`, `evalPrimitive` and `evalRuntimePrimitive`, apply the
-entry's evaluators, and the lowering of a call and the literals a generated
-module shares, in `IndexedCodegen.lean`, come from the same entry. Whether a
-call allocates comes from the shape:
+entry's evaluators. `IndexedCodegen.lean` lowers a call by its entry and
+declares the literals that the entries share. Whether a call allocates comes
+from the shape:
 `Shape.allocates` holds when the result template is a fresh object, and
 `PrimitiveBinding.allocates` reads it off the entry. The fresh-slot premise
 `PrimitiveFresh` of `IndexedSemantics.lean`, the brand that

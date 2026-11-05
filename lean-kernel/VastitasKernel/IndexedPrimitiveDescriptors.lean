@@ -28,10 +28,11 @@ programs. The oracle states their obligations once,
 for any descriptor (`VastitasOracle.IndexedPrimitiveSoundness`). The lowering
 writes the generated Lean text of a call from its rendered operands, in the
 vocabulary of `Lowering` (runtime names and exact literals of the checked
-data, never source spellings), and rejects any other operand list; it reads
-the literals the module shares through a `RenderContext`. A descriptor grants
-no authority: the all-body audits and the public acceptance path are
-unchanged. -/
+data, never source spellings), and rejects any other operand list; a variadic
+entry renders any number of operands, and the checked operand count, not the
+lowering, fixes it. The lowering reads the literals the module shares through
+a `RenderContext`. A descriptor grants no authority: the all-body audits and
+the public acceptance path are unchanged. -/
 namespace VastitasKernel.Indexed
 open VastitasKernel.Indexed.Core.Semantics (Value PrimitiveRuntimeValue)
 
@@ -102,10 +103,12 @@ structure PrimitiveDescriptor where
   evalRuntime : List PrimitiveRuntimeValue → Option PrimitiveRuntimeValue
   /-- The lowering: the generated Lean text of a call from the literals the
   module shares and the rendered operands, or an error on any other operand
-  list. -/
+  list. A variadic entry renders any number of operands; the checked operand
+  count fixes it. -/
   render : RenderContext → List String → Except String String
-  /-- The literals a generated module declares once for this entry. -/
-  literals : List SharedLiteral
+  /-- The literals a generated module declares once for this entry; none
+  unless the entry names them. -/
+  literals : List SharedLiteral := []
 
 /-- A descriptor whose contract is one executable check; its calls share no
 literal unless given. -/

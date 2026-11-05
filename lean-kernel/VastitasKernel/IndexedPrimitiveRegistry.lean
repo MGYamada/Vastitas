@@ -13,8 +13,9 @@ Derived from the arm below, with no case elsewhere: the validity contract
 the operand association, result inference, the operand count, the argument
 hints, the role table, whether a call allocates, the two evaluators
 (`evalPrimitive`, `evalRuntimePrimitive`), the lowering of a call
-(`renderPrimitive`) and the literals a generated module shares (`bases`). The
-decoder takes a case per constructor until the next step of #622 migrates it.
+(`IndexedCodegen`) and the literals a generated module shares
+(`PrimitiveDescriptor.sharedLiterals`). The decoder takes a case per
+constructor until the next step of #622 migrates it.
 A proof that unfolds a derived table at one constructor needs only
 `PrimitiveBinding.contract` (and `PrimitiveDescriptor.ofBool` or
 `PrimitiveDescriptor.evidence`) in its `simp` set. Each arm names the exact
@@ -39,7 +40,10 @@ oracle proves it per entry (`VastitasOracle.IndexedPrimitiveSoundness.Sound`).
 
 The lowering of an entry writes the generated Lean text of a call from its
 rendered operands, in the vocabulary of `Lowering`, and rejects any other
-operand list with the one arity error. A relative constant shares its basis:
+operand list with the one arity error; a variadic entry (the two integer
+points, and the components after a fiber vector's point) renders any number of
+operands, as the pre-registry table did, and the checked operand count fixes
+it. A relative constant shares its basis:
 the module declares each distinct basis once as `basis_k`, and every map over
 it, relative or smooth, names it. -/
 namespace VastitasKernel.Indexed
@@ -83,8 +87,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [dim] => .ok (Lowering.application (Lowering.runtime "descriptor") [dim])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .global id =>
     { shape := { operands := [], result := .globalObject id }
       validProp env := affineGlobal env id = true ∧ ObjectRef.Valid env (.global id)
@@ -98,8 +101,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [] => .ok (Lowering.runtime "baseObject")
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .origin domain family base =>
     { shape :=
         { operands := [.object "object" domain], relations := [.refines 0],
@@ -118,8 +120,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [object] => .ok (Lowering.application (Lowering.runtime "origin") [object, Lowering.runtime "baseObject"])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .identity domain family =>
     { shape :=
         { operands := [.object "object" domain], relations := [.refines 0],
@@ -136,8 +137,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [object] => .ok (Lowering.application (Lowering.runtime "identity") [object])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .dimension domain =>
     { shape := { operands := [.object "object" domain], relations := [.refines 0], result := .natural }
       validProp env := domain.Supports env .dimension
@@ -151,8 +151,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [object] => .ok s!"({object}).dimension"
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .compose family =>
     { shape :=
         { operands := [mapOperand "first map" family, mapOperand "second map" family],
@@ -170,8 +169,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [after, before] => .ok (Lowering.application (Lowering.runtime "compose") [after, before])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .apply maps points =>
     { shape :=
         { operands := [mapOperand "map" maps, pointOperand "point" points],
@@ -190,8 +188,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [map, point] => .ok (Lowering.application (Lowering.runtime "apply") [map, point])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   /- Relative morphisms over a base (Stage 2). -/
   | .relativeConstant application affineMap =>
     .ofBool { operands := [], result := .constant application }
@@ -238,8 +235,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [map] => .ok map
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .relativeEqual family =>
     .ofBool
       { operands := [.application "first map" family, .application "second map" family],
@@ -280,8 +276,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       render := fun _ args => match args with
         | [map] =>
           .ok (Lowering.application (Lowering.algebra "Map.coefficient") [map, toString coordinate, toString monomial])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .relativeIntPoint family object base =>
     { shape :=
         { operands := [], tail := some fun env => affineArity env object,
@@ -293,8 +288,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
       eval := fun _ values => intPointValue values
       evalRuntime := intPointRuntime
       render := fun _ coordinates =>
-        .ok (Lowering.application (Lowering.algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"])
-      literals := [] }
+        .ok (Lowering.application (Lowering.algebra "Map.intPoint") [s!"[{String.intercalate ", " coordinates}]"]) }
   | .relativePair family fiber =>
     { shape :=
         { operands := [relativeMapOperand "first map" family, relativeMapOperand "second map" family],
@@ -320,8 +314,7 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
         | _ => none
       render := fun _ args => match args with
         | [left, right] => .ok (Lowering.application (Lowering.algebra "Map.pair") [left, right])
-        | _ => Lowering.arityMismatch
-      literals := [] }
+        | _ => Lowering.arityMismatch }
   | .relativeIso forward backward => .evidence fun env => relativeIsoValid env forward backward
   | .relativeCartesian first second inverse fiber =>
     .evidence fun env => relativeCartesianValid env first second inverse fiber

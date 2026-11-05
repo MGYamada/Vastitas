@@ -4,16 +4,18 @@ import VastitasKernel.IndexedTypeAudit
 Generated modules import IndexedRuntime, and AlgebraRuntime or SmoothRuntime
 only when they use them. Names and representation choices come from numeric
 positions and validated contracts, never source spellings. The text of a
-primitive call and the literals a module shares come from the registry entry
-of its binding (`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. -/
+primitive call comes from the registry entry of its binding, and the literals
+a module declares once come from the entries of all its primitives
+(`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
 open VastitasKernel.Indexed.Lowering (runtime algebra smooth application renderPolys basisName)
 
-/-- The distinct literals the checked primitives share, in declaration order:
-each is emitted once as `basis_k` and named by every map over that basis. -/
-private def bases (env : Declarations) : List SharedLiteral :=
-  PrimitiveDescriptor.sharedLiterals (env.primitives.map fun entry => entry.binding.contract)
+/-- What the lowering of a call reads from the module: the distinct literals
+that the entries of all its checked primitives share, in declaration order, each
+emitted once as `basis_k` and named by every map over that basis. -/
+def renderContext (env : Declarations) : RenderContext :=
+  ⟨PrimitiveDescriptor.sharedLiterals (env.primitives.map fun entry => entry.binding.contract)⟩
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"
@@ -44,7 +46,7 @@ private def renderType (env : Declarations) : DataType → Except String String
       return packageName entry.2
 
 /-- The lowering of a call is its registry entry's. -/
-private def renderPrimitive (ctx : RenderContext) (binding : PrimitiveBinding) (args : List String) :
+def renderPrimitive (ctx : RenderContext) (binding : PrimitiveBinding) (args : List String) :
     Except String String :=
   binding.contract.render ctx args
 
@@ -119,9 +121,9 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
         reachable := reachable.insert callee
   let packages ← (packageCases module.declarations).zipIdx.mapM fun (entry, index) =>
     renderPackage module.declarations entry.2 index
-  let literals := bases module.declarations
+  let ctx := renderContext module.declarations
   let functions ← (module.functions.filter (fun function => reachable.contains function.id)).mapM
-    (renderFunction module.declarations ⟨literals⟩)
+    (renderFunction module.declarations ctx)
   -- Only programs that use exact algebra or smooth programs import those runtimes.
   let usesAlgebra := (packages ++ functions).any fun text => (text.splitOn (algebra "")).length > 1
   let usesSmooth := (packages ++ functions).any fun text => (text.splitOn (smooth "")).length > 1
@@ -129,7 +131,7 @@ def generateLibrary {requireMain : Bool} (checked : Typing.CheckedModule require
     (if usesAlgebra then "import VastitasKernel.AlgebraRuntime\n" else "") ++
     (if usesSmooth then "import VastitasKernel.SmoothRuntime\n" else "")
   let basisDefinitions := if usesAlgebra then
-      literals.zipIdx.map fun (basis, index) =>
+      ctx.literals.zipIdx.map fun (basis, index) =>
         s!"def {basisName index} : List {algebra "Poly"} :=\n  {renderPolys basis}\n"
     else []
   return imports ++ "\nset_option maxRecDepth 32768\n" ++

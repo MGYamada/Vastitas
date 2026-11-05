@@ -1,4 +1,4 @@
-import VastitasKernel.IndexedCore
+import VastitasKernel.IndexedCodegen
 
 set_option autoImplicit false
 
@@ -10,7 +10,9 @@ are the frozen bases, and on every binding and every list of rendered
 operands, the entry's lowering with those literals is the frozen text or the
 frozen error. The text helpers the frozen rows use are frozen with them, so
 the theorems also check that `Lowering` writes the same names and literals.
-The module is deleted at the end of the migration; the emit goldens
+The lowering is the table moved into `PrimitiveBinding.contract` whose frozen
+copy lives here rather than in `IndexedPrimitiveLegacyRegression`, which keeps
+the frozen copies of the other moved tables. The module is deleted at the end of the migration; the emit goldens
 (`tests/fixtures/emit`) stay. -/
 namespace VastitasKernel.Indexed.PrimitiveRenderLegacyRegression
 open VastitasKernel.Indexed.Core (Declarations)
@@ -121,13 +123,13 @@ theorem render_agrees (env : Declarations) (binding : PrimitiveBinding) (args : 
     binding.contract.render ⟨bases env⟩ args = renderPrimitive env binding args := by
   cases binding <;> rcases args with _ | ⟨_, _ | ⟨_, _ | ⟨_, _ | ⟨_, _⟩⟩⟩⟩ <;> rfl
 
-/-- What `IndexedCodegen` renders for a call, the entry's lowering with the
-literals the module's entries share, is the frozen text on every module,
-binding and list of rendered operands. -/
+/-- What `IndexedCodegen` renders for a call (`Codegen.renderPrimitive` with the
+module's `Codegen.renderContext`) is the frozen text on every module, binding and
+list of rendered operands. -/
 theorem renderPrimitive_agrees (env : Declarations) (binding : PrimitiveBinding) (args : List String) :
-    binding.contract.render
-      ⟨PrimitiveDescriptor.sharedLiterals (env.primitives.map fun entry => entry.binding.contract)⟩ args =
+    Core.Codegen.renderPrimitive (Core.Codegen.renderContext env) binding args =
       renderPrimitive env binding args := by
+  unfold Core.Codegen.renderPrimitive Core.Codegen.renderContext
   rw [bases_agrees]
   exact render_agrees env binding args
 

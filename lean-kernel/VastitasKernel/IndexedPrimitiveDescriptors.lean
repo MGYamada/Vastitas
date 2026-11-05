@@ -12,9 +12,10 @@ derives the binding validity contract, the operand association, result
 inference, the operand count and whether a call allocates from it,
 `IndexedCore` the argument hints, `IndexedSourceDiagnostics` the role table,
 `IndexedSemantics` the two evaluators and `IndexedCodegen` the lowering of a
-call and the literals a generated module shares. The wire decoder is a
-per-constructor table until the next step of #622 moves it here; a new
-constructor needs a case in it.
+call and the literals a generated module shares. A binding's wire form comes
+from its `PrimitiveFamily` in `IndexedPrimitiveFamilies`, which the decoder,
+the resolver and the generated Rust table read; a binding without a family is
+built by `resolveBody` or a stage pass.
 
 The validity contract is a `Bool` that the checker runs together with the
 `Prop` that the proofs use; the descriptor carries the proof that they agree,

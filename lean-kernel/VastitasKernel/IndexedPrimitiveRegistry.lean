@@ -14,8 +14,10 @@ the operand association, result inference, the operand count, the argument
 hints, the role table, whether a call allocates, the two evaluators
 (`evalPrimitive`, `evalRuntimePrimitive`), the lowering of a call
 (`IndexedCodegen`) and the literals a generated module shares
-(`PrimitiveDescriptor.sharedLiterals`). The decoder takes a case per
-constructor until the next step of #622 migrates it.
+(`PrimitiveDescriptor.sharedLiterals`). A binding's wire form comes from its
+`PrimitiveFamily` in `IndexedPrimitiveFamilies`, which the decoder, the
+resolver and the generated Rust table read; a binding without a family is
+built by `resolveBody` or a stage pass.
 A proof that unfolds a derived table at one constructor needs no
 per-constructor lemma: besides the table's own definition and what evaluates
 the entry's fields (the `Shape` matcher for the association, the arm's checks

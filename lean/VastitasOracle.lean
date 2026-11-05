@@ -31,6 +31,7 @@ import VastitasOracle.IndexedPrimitives
 import VastitasOracle.IndexedCore
 import VastitasOracle.LegacyIndexed
 import VastitasOracle.IndexedSemantics
+import VastitasOracle.IndexedDescriptorDemo
 import VastitasOracle.IndexedPackageSemantics
 import VastitasOracle.IndexedEvaluation
 import VastitasOracle.IndexedWorld

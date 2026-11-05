@@ -32,8 +32,9 @@ bash scripts/replay_lean.sh lean VastitasKernel
 [specifications](../specifications.md). After a change to the statement of a
 cited theorem, review the change, run
 `python3 scripts/check_spec.py --update-statements oracle` (or `bridge`) and
-review the diff of the statement pins. The bridge resolver runs from
-`lean-bridge/` after `lake build`.
+review the diff of the statement pins. After `(cd lean-bridge && lake build)`,
+run the bridge resolver, a heavy check, with
+`(cd lean-bridge && VASTITAS_SPEC_INPUT=../docs/spec/pins/bridge.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)`.
 
 The last two lines replay every built Oracle and kernel module with the official
 `leanchecker` against its imported environment, as CI does. It is not an

@@ -64,14 +64,15 @@ See [Scheme](#scheme).
 
 ## Claim
 
-A statement that a [property](#property) holds, with exactly one
-[claim status](#claim-status) and the evidence that the status requires. See
+A record of what establishes one part of a [property](#property), or why
+nothing does, with exactly one [claim status](#claim-status) and the evidence
+that the status requires. See
 [Properties and claims](../specifications.md#properties-and-claims).
 
 ## Claim status
 
 One of Proved (oracle), Proved (bridge), Tested, Assumed, Not claimed and
-Planned. The checks infer no status and upgrade none. See
+Planned. The specification checks infer no status and upgrade none. See
 [Claim statuses](../specifications.md#claim-statuses).
 
 ## Classification
@@ -288,6 +289,13 @@ A coefficient marker, such as `QQ`. A package declares a marker with
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
+## Mathematical bridge
+
+The proof package in `lean-bridge/`. It proves with mathlib what the kernel's
+definitions mean; the kernel, the oracle and the compiler do not depend on it.
+A claim with status Proved (bridge) cites its theorems. See
+[Independent mathematical bridge](../verification.md#independent-mathematical-bridge).
+
 ## Method
 
 One body of a generic. A method gives each parameter a selector, declares a
@@ -491,9 +499,25 @@ instances and instances of higher-order functions count toward a limit that
 
 ## Specification
 
-A TOML file under `docs/spec/` that records the properties of one module or
-construct, apart from its code. Each file generates a chapter of the book. See
-[Specifications](../specifications.md).
+A TOML file under `docs/spec/`, other than the
+[assumption registry](#assumption-registry), that records the properties of one
+module or construct, apart from its code. Each file generates a chapter of the
+book. See [Specifications](../specifications.md).
+
+## Specification environment
+
+The Lean environment in which a [statement pin](#statement-pin) resolves: the
+oracle environment, for theorems under `VastitasOracle` and kernel definitions
+under `VastitasKernel`, or the bridge environment, for theorems under
+`VastitasBridge`. Proved (oracle) and Proved (bridge) name it. It is distinct
+from the kernel's checked declaration environment. See
+[Claim statuses](../specifications.md#claim-statuses).
+
+## Specification resolver
+
+The check `scripts/spec_resolve.lean`. It imports the modules that a statement
+pins file lists and checks each pinned name's module, kind, axioms and
+statement hash. See [What the checks verify](../specifications.md#what-the-checks-verify).
 
 ## Stage
 
@@ -503,16 +527,18 @@ compiler, and Stage 2 is finite affine geometry over QQ. See
 
 ## Statement pin
 
-The recorded defining module, kind and statement hash of a Lean name that a
-[claim](#claim) cites. A changed statement fails the resolver until someone
-reviews the change and regenerates the pin. See
+The recorded defining module and kind of a theorem or kernel definition that a
+[claim](#claim) cites and, for a theorem, the hash of its statement. A changed
+statement fails the [specification resolver](#specification-resolver) until
+someone reviews the change and regenerates the pin. See
 [Statement pins](../specifications.md#statement-pins).
 
 ## Status words
 
 Implemented, Tested, Proved and Planned: the four kinds of statement that the
 book keeps apart. The [Introduction](../index.md#what-exists-today) defines
-them. A [claim](#claim) has one of six [claim statuses](#claim-status) instead.
+them. A [claim](#claim) has one of the six
+[claim statuses](../specifications.md#claim-statuses) instead.
 
 ## Storage loan
 

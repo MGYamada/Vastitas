@@ -72,9 +72,10 @@ The book keeps four kinds of statement apart:
 
 [Specifications](specifications.md) record properties of the standard library
 and of language constructs, apart from their code. Each claim about a property
-has one of six [claim statuses](specifications.md#claim-statuses). They divide
-Proved into Proved (oracle) and Proved (bridge), keep Tested and Planned, and
-add Assumed and Not claimed.
+has one of six [claim statuses](specifications.md#claim-statuses). They keep
+Tested and Planned and add Assumed and Not claimed. They divide Proved by where
+the theorem lives: in the proof oracle or in the mathematical bridge, which uses
+mathlib.
 
 ## How to read this book
 

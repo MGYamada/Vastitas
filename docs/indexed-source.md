@@ -622,10 +622,11 @@ binding through the family. The frontend reads `src/primitive_table.rs`, which
 for drift. A binding that the checker derives from a morphism, isomorphism or
 Cartesian-square declaration has no family.
 [Add an indexed primitive](development/primitives.md) lists what one more
-binding touches. `IndexedDescriptorRegression` runs the shape derivations
-that each derived table reads, the evaluators and the lowering on a
-`PrimitiveDescriptor` value outside the registry, and the decoder and
-resolver steps that take a family on a `PrimitiveFamily` value outside it.
+binding touches. `IndexedDescriptorExample` defines a `PrimitiveDescriptor`
+value and a `PrimitiveFamily` value outside the registry.
+`IndexedDescriptorRegression` runs on the first the shape derivations that
+each derived table reads, the evaluators and the lowering, and on the second
+the decoder and resolver steps that take a family.
 
 No source spelling, arbitrary native symbol, certificate string or `trusted` flag
 chooses an implementation. The binding IDs, operand annotations and result
@@ -867,8 +868,10 @@ result conversions. Composition's middle runtime endpoints agree through their
 shared nominal reference.
 
 `primitive_runtime_erasure`, the other corollary of `registry_sound`, proves
-that a successful logical registry operation erases to the corresponding
-`IndexedRuntime` operation, including the explicit canonical base for origin.
+that a successful logical evaluation of a registry entry erases to the entry's
+erased evaluator on the erased operands. The erased evaluator applies the
+`IndexedRuntime`, `AlgebraRuntime` or `SmoothRuntime` operation that generated
+programs link, including the explicit canonical base for origin.
 This operation-level theorem does not prove the generated source or Lean/C
 toolchain correct. Native representation does not retain implementation IDs and
 cannot supply typing or authority evidence.

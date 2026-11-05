@@ -36,6 +36,13 @@ bash scripts/replay_lean.sh lean VastitasOracle
 bash scripts/replay_lean.sh lean VastitasKernel
 ```
 
+No library root imports `VastitasKernel.IndexedDescriptorExample`, the
+definitions of the primitive that
+[Add an indexed primitive](primitives.md#the-demonstration) demonstrates.
+The regression `IndexedDescriptorRegression` and the oracle module
+`IndexedDescriptorDemo` import it, so the regression script and the oracle
+build both build it before the audit.
+
 `check_spec.py` and `spec_resolve.lean` check the claims of the
 [specifications](../specifications.md). After a change to the statement of a
 cited theorem, review the change, run
@@ -68,11 +75,24 @@ When `CI` is set, the test fails instead of regenerating the fixtures.
 Regenerate them locally and commit them. For every example and manifest,
 `scripts/capture_emit.py` records the wire request, the `check` and `emit`
 responses and the generated Lean, and `--compare` reports every byte that
-differs from an earlier capture. The packages under
-`tests/emit_corpus/rejected/` reach the kernel and are rejected there, so the
-capture also records the diagnostics of rejected primitive calls. A change that
-promises identical generated code, diagnostics or wire format runs it before
-and after.
+differs from an earlier capture. A change that promises identical generated
+code, diagnostics or wire format runs it before and after.
+
+The packages under `tests/emit_corpus/rejected/` reach the kernel and are
+rejected there, so the capture also records the diagnostics of rejected
+primitive calls. `tests/rejected_diagnostics.rs` pins those diagnostics in
+every `cargo test` run. It checks that the frontend accepts each package,
+runs `check` on it with the kernel and compares the exit code, the standard
+output and the standard error with `tests/fixtures/rejected/<package>.txt`,
+in the format of the capture's `cli.txt`. It fails on an expectation without
+its package. A change to such a diagnostic must regenerate the expectations
+and review their diff:
+
+```sh
+VASTITAS_UPDATE_REJECTED_FIXTURES=1 cargo test --locked --test rejected_diagnostics
+```
+
+As for the emit fixtures, the test refuses to regenerate when `CI` is set.
 
 ## Memory budget for local verification
 

@@ -9,32 +9,36 @@ describes the registry's place in the checker, and
 
 ## Terms
 
-- A **binding** is a constructor of `PrimitiveBinding` with its data: family,
-  base and object IDs and the embedded maps, matrices or coordinates. It is
-  the Core-level identity of a primitive call. Displayed names and
-  arbitrary certificate strings are not part of it.
+- A [**binding**](../appendix/glossary.md#primitive-binding) is a
+  constructor of `PrimitiveBinding` with its data: family, base and object
+  IDs and the embedded maps, matrices or coordinates. It is the Core-level
+  identity of a primitive call. Displayed names and arbitrary certificate
+  strings are not part of it.
 - A [**registry entry**](../appendix/glossary.md#registry-entry) is the
   `PrimitiveDescriptor` value that `PrimitiveBinding.contract` returns for a
   binding. It holds the binding's shape, its validity contract as a `Prop`
   and as a `Bool` with the proof that the two agree, its two evaluators, its
   lowering and its shared literals.
-- A **shape** is the operand association of a binding as data: the operands,
-  an optional variadic tail of integers, the relations between operand
-  indices, and the result template.
-- The **association** of a shape holds for an operand list and a result when
-  the operands match the shape, every relation holds and the result is the
-  instantiated template.
+- A [**shape**](../appendix/glossary.md#primitive-shape) is the operand
+  association of a binding as data: the operands, an optional variadic tail
+  of integers, the relations between operand indices, and the result
+  template.
+- The [**association**](../appendix/glossary.md#primitive-association) of a
+  shape holds for an operand list and a result when the operands match the
+  shape, every relation holds and the result is the instantiated template.
 - The [**role table**](../appendix/glossary.md#role-table) of a call lists
   the requirements that its shape places on the operand types, in a fixed
   order: the operands' families, their fixed indices, then the relations. The
   diagnostic of a rejected call names the first requirement that fails.
-- The **logical evaluator** of an entry computes the value of a call on the
-  values of the Core semantics. The **erased evaluator** computes the same
-  call on the runtime structures that generated programs link.
-  [**Erasure**](../appendix/glossary.md#erasure) maps a logical value to its
-  runtime structure.
-- The **totality lemma** of a binding proves that an accepted call on typed
-  operand values evaluates to a value of the checked result type.
+- The [**logical evaluator**](../appendix/glossary.md#logical-evaluator) of
+  an entry computes the value of a call on the values of the Core semantics.
+  The [**erased evaluator**](../appendix/glossary.md#erased-evaluator)
+  computes the same call on the runtime structures that generated programs
+  link. [**Erasure**](../appendix/glossary.md#erasure) maps a logical value
+  to its runtime structure.
+- The [**totality lemma**](../appendix/glossary.md#totality-lemma) of a
+  binding proves that an accepted call on typed operand values evaluates to
+  a value of the checked result type.
 - The [**lowering**](../appendix/glossary.md#lowering) of a call is the Lean
   text that code generation writes for it, from the texts of its operands.
 - A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis
@@ -82,17 +86,28 @@ every entry by name. `primitive_total_and_typed` and
 Every table that reads a wire form reads it through the family of its `op`.
 `families` in `IndexedPrimitiveFamilies.lean` lists one family per `op`, and
 `primitiveFamily?` finds it. No other table of the kernel or of the frontend
-lists the operations. The parser arms of
+lists the operations. One kernel module writes wire forms by hand:
+`LegacySource.lean` builds the `descriptor`, `global`, `origin`, `identity`,
+`dimension`, `compose` and `apply` forms of the compatibility profile of
+protocols 2 to 6 with literal `op` and field names. Lean does not check
+those names against the table. Every program of protocols 2 to 6 resolves
+the profile, so a renamed `op` or field fails `LegacySourceRegression` with
+`E_PROTOCOL`. The parser arms of
 [step 4](#4-surface-syntax-and-elaboration) and the test lists of
 [step 6](#6-tests) name every `op`, and a test of step 6 fails when one of
 them misses an `op` of the table.
 
 | Derived table | File | Reads from the family |
 | --- | --- | --- |
-| `primitive`, `familyPrimitive`, `algebraicPrimitive` and the list `algebraicOperations` | `lean-kernel/VastitasKernel/IndexedDeclarationProtocol.lean` | `op`, `fields`, `algebraic`: the decoder admits only the family's fields, decodes each by its kind, and admits an algebraic `op` only in protocol 9 |
+| `primitive`, `familyPrimitive` and `algebraicPrimitive` | `lean-kernel/VastitasKernel/IndexedDeclarationProtocol.lean` | `op`, `fields`, `algebraic`: the decoder admits only the family's fields, decodes each by its kind, and admits an algebraic `op` only in protocol 9 |
 | `resolvePrimitive` | `lean-kernel/VastitasKernel/IndexedSourceChecker.lean` | `fields`, `resolveFirst`, `build`: the resolver checks the field names and kinds, resolves the fields in resolution order and builds the binding |
 | `FAMILIES` | `src/primitive_table.rs` | `op`, `algebraic`, `fields`, generated from `families` |
 | `primitive_family`, `Primitive::new` and `DeclarationBody::is_algebraic` | `src/indexed.rs` | `FAMILIES`: the frontend record admits only the family's fields, in wire order, and serializes them in that order |
+
+`algebraicOperations` in `IndexedDeclarationProtocol.lean` lists the `op`
+of every algebraic family. Nothing in the decoder reads it;
+`IndexedDescriptorRegression` checks that it does not hold the `op` of
+[the demonstration](#the-demonstration).
 
 `scripts/check_primitive_table.py` builds `IndexedPrimitiveFamilies`, runs
 `scripts/primitive_table.lean` and renders `src/primitive_table.rs` from its
@@ -218,19 +233,26 @@ A `PrimitiveFamily` has these fields:
 | `build` | The binding from the resolved arguments, in wire order |
 
 The resolution order is observable. The resolver reports the first name that
-does not resolve, and the recorded references keep the order. `flat` and
-`sharp` resolve the metric and its evidence first.
+does not resolve, and the recorded references keep the order. `flat`
+resolves its metric first, and `sharp` its metric and then its evidence;
+`MetricFormRegression` checks both orders. List in `resolveFirst` only
+fields of the family, each once. `resolvePrimitive` skips a name that is not
+a field and resolves a repeated name twice. `IndexedDescriptorRegression`
+checks every family for both mistakes.
 
 `build` puts a placeholder where the kernel computes data after resolution.
 `relative_coefficient` starts with coordinate `0` and the empty monomial,
 `fiber_component` with coordinate `0`, and `flat` and `sharp` with the
 metric's own ID as the object and empty matrices.
 A stage pass of [step 4](#4-surface-syntax-and-elaboration) fills the
-placeholder. The pass reads the field back from the wire form through an
-accessor of `IndexedPrimitiveFamilies.lean`, such as
+placeholder. The wire forms of `relative_coefficient` and `fiber_component`
+hold the data, and their passes read the field back from the wire form
+through an accessor of `IndexedPrimitiveFamilies.lean`,
 `relativeCoefficientArguments?` or `fiberComponentCoordinate?`. The accessor
 and the family entry use the same names from `WireName`, so a pass reads only
-fields that the decoder admits.
+fields that the decoder admits. `elaborateMetrics` reads nothing from the
+wire form: it fills the object and the matrices of `flat` and `sharp` from
+the metric and the evidence that the binding names.
 
 A binding that the checker derives from another declaration has no family.
 `relativeConstant` and `smoothConstant` come from a morphism declaration, and
@@ -292,16 +314,25 @@ unfolds another's entry. For a binding `name`:
    `primitive_single`, `primitive_pair`, `values_pair`, `values_triple`,
    `smooth_value`, `fiber_value`, `point_value` and `map_and_point` read the
    operand values, and `relative_typed` and `fiber_typed` type the results.
-4. An **erasure lemma** `name_erasure` when the evaluators do not match one
-   operand pattern, as `fiberVector_erasure`, `smoothPoint_erasure` and
-   `intPoint_erasure` do for the variadic bindings. For one pattern the
-   scoped tactic `erase_matched` of `IndexedPrimitiveSoundness.lean` proves
-   erasure by computation.
+4. The **erasure proof**. When the evaluators match one operand pattern,
+   the scoped tactic `erase_matched` of `IndexedPrimitiveSoundness.lean`
+   proves erasure by computation. A logical evaluator that looks a
+   declaration up in the environment needs a case on that lookup, as
+   `global_sound` and `origin_sound` case on `globalObject`. Evaluators that
+   do not match one operand pattern need an erasure lemma `name_erasure`.
+   The lemmas of the variadic bindings predate that name pattern:
+   `fiberVector_erasure`, `smoothPoint_erasure` of `smoothIntPoint` and
+   `intPoint_erasure` of `relativeIntPoint`.
 5. The **soundness instance** `name_sound`, of type
    `Sound (PrimitiveBinding.name …).contract`, next to the totality lemma.
-   `Sound.ofPure rfl` takes the totality and erasure proofs of a binding that
-   does not allocate. `Sound.ofBinding` takes the world-updating form, as
-   `descriptor_sound` does.
+   `Sound.ofBinding` takes a totality lemma that concludes
+   `PrimitiveOutcome`, which states the world after the call, and the
+   erasure proof. It applies whether or not the binding allocates, and the
+   Stage 1 and Stage 2 instances use it. `Sound.ofPure rfl` takes a totality
+   lemma that concludes `SmoothOutcome`, which states no world, and the
+   erasure proof. It applies only to a binding that does not allocate, and
+   the Stage 3 instances use it. The evidence bindings have no totality
+   lemma; their instances give the two fields of `Sound` directly.
 6. The **named case** in `registry_sound` in `IndexedSemantics.lean`,
    `| .name arguments => name_sound arguments`. The corollaries
    `primitive_total_and_typed` and `primitive_runtime_erasure` do not change.
@@ -316,7 +347,8 @@ environment through the lookup views in its `simp` set.
 only through `globalObject` or `fiberVectorValue`. A binding that reads a metric
 declaration is excluded from `MetricFree` in `SmoothMetricWeakening.lean`, as
 `metricFlat` and `metricSharp` are. A binding that allocates changes the
-statement of `allocates_iff`.
+statements of `allocates_iff` and of `SmoothReverse.core_outcome`, whose
+premise excludes `descriptor`, the one allocating binding.
 
 ### 6. Tests
 
@@ -342,6 +374,12 @@ statement of `allocates_iff`.
   the snippet. `the_table_keeps_the_former_allow_list` in `src/indexed.rs`
   names every operation that only protocol 9 admits and every other one. Add
   the `op` to its list.
+- The diagnostics of rejected calls. `tests/rejected_diagnostics.rs` runs
+  `check` on each package under `tests/emit_corpus/rejected/` and compares
+  the exit code and the output with the package's file under
+  `tests/fixtures/rejected/`. To pin the diagnostic of a rejected call of the
+  primitive, add a package there and regenerate the expectations as
+  [Pinned generated code](validation.md#pinned-generated-code) describes.
 - The native check. `scripts/check_indexed_native.sh` generates the Lean
   program of each fixture module that `scripts/check_indexed_codegen.lean`
   lists, compiles it with the runtime objects, runs it and compares its
@@ -374,20 +412,31 @@ A primitive is documented in four places:
   inventory of
   [Declaration-driven indexed source](../indexed-source.md#closed-primitive-binding-inventory)
   instead;
-- its wire operation and fields in
-  [Wire protocols](../protocol.md#protocol-9-algebraic-affine-forms);
-- its row in [Appendix B](../appendix/diagnostics.md#e-smooth-fibers);
+- its wire operation and fields in [Wire protocols](../protocol.md): the
+  [protocol 7 table](../protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)
+  for an operation that is not algebraic, and the protocol 9
+  [algebraic affine](../protocol.md#protocol-9-algebraic-affine-forms),
+  [smooth](../protocol.md#protocol-9-smooth-forms) or
+  [metric](../protocol.md#protocol-9-metric-forms) forms for an algebraic
+  one;
+- its diagnostics in the row of its construct in
+  [Appendix B](../appendix/diagnostics.md#lean-kernel), such as the rows of
+  [fibers and tapes](../appendix/diagnostics.md#e-smooth-fibers) and of
+  [metrics](../appendix/diagnostics.md#e-metric);
 - the theorem tables of [Verification boundaries](../verification.md).
 
 ## The demonstration
 
-Two modules define one hypothetical primitive as a `PrimitiveDescriptor`
-value and its wire form as a `PrimitiveFamily` value, both outside the
-registry, so that the registry of the kernel gains no test primitive. The
-primitive is a directional derivative: the differential of a function to a
-line, paired with a tangent vector at the point. Its evaluators and its
-lowering compose `SmoothRuntime.differential` and `SmoothRuntime.pairing`,
-which generated programs link, so no runtime code is added.
+`lean-kernel/VastitasKernel/IndexedDescriptorExample.lean` defines one
+hypothetical primitive as a `PrimitiveDescriptor` value and its wire form as
+a `PrimitiveFamily` value, both outside the registry, so that the registry of
+the kernel gains no test primitive. The module holds definitions only and
+runs no check. The primitive is a directional derivative: the differential
+of a function to a line, paired with a tangent vector at the point. Its
+evaluators and its lowering compose `SmoothRuntime.differential` and
+`SmoothRuntime.pairing`, which generated programs link, so no runtime code is
+added. Two modules import the definitions: one checks them and the other
+proves their facts.
 
 - `lean-kernel/VastitasKernel/IndexedDescriptorRegression.lean` runs each
   derivation on the entry with `decide` and `#eval` checks. These are the
@@ -405,8 +454,8 @@ which generated programs link, so no runtime code is added.
 - The same module decodes the family's wire form through
   `Wire.familyPrimitive`, with the message of each near miss, and resolves
   its fields with `Source.resolveArgument` in
-  `PrimitiveFamily.resolutionOrder`. `buildDescriptor` makes the entry from
-  the resolved arguments.
+  `PrimitiveFamily.resolutionOrder`. `buildDescriptor` of the example module
+  makes the entry from the resolved arguments.
 - `lean/VastitasOracle/IndexedDescriptorDemo.lean` proves
   `IndexedPrimitiveSoundness.Sound` for the entry from the structure's
   fields, not through `Sound.ofBinding`, and instantiates its two
@@ -448,7 +497,8 @@ case there; steps 4 and 5 name them.
 
 `scripts/check_kernel_regressions.sh` lists the regression, and the oracle
 root `lean/VastitasOracle.lean` imports the demonstration, so that the axiom
-audit covers it.
+audit covers it. The oracle imports the example module and not the
+regression, so building the oracle runs none of the regression's checks.
 
 ```sh
 lake -d lean-kernel build VastitasKernel.IndexedDescriptorRegression

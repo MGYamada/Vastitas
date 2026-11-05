@@ -162,6 +162,15 @@ a `delegable` grant or delegation can be lent on as a nested loan through a
 [storage loan](#storage-loan).
 See [Scoped edit borrowing](../packages.md#edit-borrowing).
 
+## Erased evaluator
+
+The evaluator of a [registry entry](#registry-entry) that computes a
+[primitive](#primitive) call on the runtime structures that generated
+programs link. It applies operations of `IndexedRuntime`, `AlgebraRuntime`
+or `SmoothRuntime`. Compare [logical evaluator](#logical-evaluator) and
+[erasure](#erasure). See
+[Add an indexed primitive](../development/primitives.md#terms).
+
 ## Erasure
 
 The word has two qualified uses:
@@ -170,7 +179,8 @@ The word has two qualified uses:
    the runtime structure that generated programs link, such as a smooth
    program or a fiber. The oracle proves for every
    [registry entry](#registry-entry) that a successful logical evaluation
-   erases to the entry's erased evaluator on the erased operands. See
+   erases to the entry's [erased evaluator](#erased-evaluator) on the erased
+   operands. See
    [Add an indexed primitive](../development/primitives.md#terms).
 2. Elsewhere, erasure removes what only the checker needs before native
    execution, such as nominal tags and the function values that
@@ -283,6 +293,13 @@ The view descriptor `layout(offset, rows, columns, leading, transposed)`. It
 describes a column-major physical rectangle in an allocation: a byte offset,
 the physical numbers of rows and columns, the leading dimension in elements and
 a transpose flag. See [Resource functions](../guide/storage.md#resource-functions).
+
+## Logical evaluator
+
+The evaluator of a [registry entry](#registry-entry) that computes the value
+of a [primitive](#primitive) call on the values of the Core semantics. Compare
+[erased evaluator](#erased-evaluator). See
+[Add an indexed primitive](../development/primitives.md#terms).
 
 ## Lowering
 
@@ -402,6 +419,23 @@ each primitive's representation, domain, arity, capabilities and family shapes.
 See
 [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
+## Primitive association
+
+The condition that a [primitive shape](#primitive-shape) places on the
+operand list and the result of one call: the operands match the shape, every
+relation of the shape holds and the result is the shape's result template,
+instantiated at the operands. The checker decides it for every call. See
+[Add an indexed primitive](../development/primitives.md#terms).
+
+## Primitive binding
+
+A constructor of `PrimitiveBinding` with its data: family, base and object
+IDs and the embedded maps, matrices or coordinates. It is the Core-level
+identity of a [primitive](#primitive) call and has one
+[registry entry](#registry-entry). Displayed names and certificate strings
+are not part of it. See
+[Add an indexed primitive](../development/primitives.md#terms).
+
 ## Primitive family
 
 The entry of one wire `op` in the family table of
@@ -464,10 +498,11 @@ The word has two meanings:
 
 ## Registry entry
 
-The `PrimitiveDescriptor` value of one [primitive](#primitive) binding in the
-[primitive registry](#primitive-registry). It holds the binding's
+The `PrimitiveDescriptor` value of one [primitive binding](#primitive-binding)
+in the [primitive registry](#primitive-registry). It holds the binding's
 [primitive shape](#primitive-shape), its validity contract as a `Prop` and as
-a `Bool` with the proof that they agree, its logical and erased evaluators,
+a `Bool` with the proof that they agree, its
+[logical](#logical-evaluator) and [erased evaluators](#erased-evaluator),
 its [lowering](#lowering) and its [shared literals](#shared-literal). See
 [Add an indexed primitive](../development/primitives.md).
 
@@ -649,6 +684,13 @@ point. Only `linearize` builds a tape; a tape has no source or wire form.
 `cotangent_backward` runs the reverse pass over a tape. It returns the
 [failure value](#failure-value) for a covector that is not at the tape's
 output point. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Totality lemma
+
+The oracle lemma of one [primitive binding](#primitive-binding) that proves
+that an accepted call on typed operand values evaluates to a value of the
+checked result type. The binding's soundness instance builds on it. See
+[Add an indexed primitive](../development/primitives.md#5-the-local-proofs).
 
 ## Transfer
 

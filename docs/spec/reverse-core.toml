@@ -7,12 +7,13 @@ title = "Compiled reverse Core"
 subject = "the smooth profile's reverse passes"
 description = """
 After acceptance, the kernel compiles every reverse site of a checked module
-into Core of its own. A site is a pullback in either mode, a differential or
+that it can read into Core of its own. A site is a pullback in either mode, a differential or
 the reverse pass of a tape. The forward Core at the site binds the input point r₀ and the
 images rᵢ = mᵢ(rᵢ₋₁) along the maps m₁, …, m_k of the site. A generated
 backward function pulls the seed back along m_k, …, m₁: a declared map by its
 Jacobian table, any other map value by the runtime reverse pass. The ledger of
-the compilation lists every site with its generated function. The theorems
+the compilation lists every compiled site with its generated function. A site
+that the compilation cannot read keeps the runtime reverse pass. The theorems
 below concern the checked Core and the kernel evaluator, not the generated
 text or native code.
 """
@@ -28,7 +29,7 @@ mᵢ(rᵢ₋₁). The call evaluates to the saved-mode pullback of η along
 m_k ∘ ⋯ ∘ m₁ at r₀. A seed that does not lie over r_k gives the failure value
 ⊥. This holds for every entry of a compiled module.
 """
-specified_in = "[Compiled reverse Core acceptance, T4](reverse-core-acceptance.md#t4)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: denotation](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-denotation)"
 example = """
 In the acceptance example, the site pullback(gAfterF, x, seed), with
 gAfterF = compose(g(), f()), saves f(3) = (3, 9) and g(3, 9) = 18. Its
@@ -118,7 +119,7 @@ m_k ∘ ⋯ ∘ m₁ at r₀. With saved points that are the images, the saved a
 recomputing generated functions of a site have the same value. This holds for
 every entry of a compiled module.
 """
-specified_in = "[Compiled reverse Core acceptance, T3](reverse-core-acceptance.md#t3)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: policies](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-policies)"
 example = """
 pullback_recomputed(gAfterF, x, seed) evaluates f and g again in its generated
 function and agrees with the saved pullback. Along sq ∘ g ∘ f the recomputing
@@ -197,10 +198,11 @@ The forward Core of a site binds, one let per step and in application order,
 the evaluated images r₁ = m₁(r₀), …, r_k = m_k(r_{k-1}) of the input point. It
 evaluates to a value exactly when its body evaluates to that value with those
 points bound. The points satisfy the residual relation, and r_k has the
-coordinates of the primal value m_k ∘ ⋯ ∘ m₁ at r₀. The compiled Core of a
-site holds these lets after the input point.
+coordinates of the primal value m_k ∘ ⋯ ∘ m₁ at r₀. At a saved site the
+compiled Core holds these lets after the input point. At a recomputing site
+the generated function holds them.
 """
-specified_in = "[Compiled reverse Core acceptance, T1](reverse-core-acceptance.md#t1)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: forward Core](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-forward)"
 example = """
 At the site pullback(gAfterF, x, seed) of the acceptance example, the forward
 Core binds f(3) = (3, 9) and then g(3, 9) = 18 before it calls the generated
@@ -254,7 +256,7 @@ Then the generated backward function of a saved or a recomputing site
 evaluates to the covector at x whose components are cot of the composite map
 at x applied to η.
 """
-specified_in = "[Compiled reverse Core acceptance, A2](reverse-core-acceptance.md#a2)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: denotation](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-denotation)"
 example = """
 The compiled sites of stepwise pull dt at g(f(3)) = 18 back to 12 dt at 3, the
 derivative of g ∘ f(t) = 2t² at 3. The compiled differential of
@@ -335,14 +337,15 @@ refines them. Tests run the native code.
 title = "Rewritten sites"
 subject = "Core.Reverse.compileSite"
 statement = """
-The term that the compilation puts at a site and the source call evaluate to
-the same value. This holds for a pullback in either mode, for a differential,
+The term that the compilation puts at a site and the call with the same
+operands evaluate to the same value. The compilation rewrites the innermost
+sites first, so those operands are already rewritten. This holds for a pullback in either mode, for a differential,
 whose generated seed is the unit covector at the primal value, and for the
 reverse pass of a tape, direct or bound by a let. The maps that the derivative
 rules read from the map operand are its maps: its value is a composition tree
 whose leaves are the step programs.
 """
-specified_in = "[Compiled reverse Core acceptance, T5](reverse-core-acceptance.md#t5)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: denotation](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-denotation)"
 example = """
 In the Core module of the cotangent regression, each of the 45 sites, compiled
 on its own, evaluates to the value of its source site, failures included.
@@ -372,9 +375,11 @@ premises = [
 ]
 note = """
 `compiled_site_evaluates` states the property for the term that `compileSite`
-returns, the lets of the compound opaque leaves included. None of these
-theorems uses the chain rule, which `scripts/check_chain_rule_free.lean`
-checks.
+returns, with the lets that bind the values of compound opaque steps. Applying
+it inside a rewritten function needs six facts that no theorem discharges,
+which the [acceptance map](../reverse-core-acceptance.md#site-premises) lists.
+None of these theorems uses the chain rule, which
+`scripts/check_chain_rule_free.lean` checks.
 """
 
 [property."reverse-core.sites".claim.test]
@@ -416,10 +421,11 @@ which is `η ∘ DM(x)` for the map value `M` of the site, with mathlib's
 proofs compose the oracle's site theorems with
 `pullback_covector_eq_comp_fderiv`. They use neither the kernel chain rule
 (`cot_compose`, `backward_eq_cot`) nor the formal chain rule `pderiv_aeval`,
-which `lean-bridge/Audit.lean` checks on the constants that the proofs use. For
-a tape site the bridge states the local theorem only: `compiled_site_frechet`
-covers pullback sites and `compiled_differential_site_frechet` differential
-sites.
+which `lean-bridge/Audit.lean` checks on the constants that the proofs use.
+`compiled_site_frechet` covers pullback sites, and
+`compiled_differential_site_frechet` differential sites. The direct tape form
+backward(linearize(M, x), η) has the local theorem only. A tape bound by a let
+has no Fréchet theorem.
 """
 
 [property."reverse-core.sites".claim.native]
@@ -438,16 +444,16 @@ A compilation stage holds its generated module and ledger exactly when
 compiling the source module again gives both. Every entry's generated function
 and declarations are found by their ids. Every entry is well formed: its site
 has a step, and every declared step names two objects and is a declaration
-with the derivative rule morphism. Its forward, backward and seed steps are
-declared under its names. On protocols 2-6, 7 and 8/9, consider every entry of
+with the derivative rule morphism. Its forward and backward steps, and for a
+differential its seed, are declared under its names. On protocols 2-6, 7 and 8/9, consider every entry of
 a compiled module that the accepted certificate carries, or of the module that
 the pure emit path generates code from. A call of its generated function
 computes the pullback along the chain of the step programs passed as
 arguments, in its mode.
 """
-specified_in = "[Compiled reverse Core acceptance, T2](reverse-core-acceptance.md#t2)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: checking](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-checking)"
 example = """
-The 22 reverse calls of the acceptance program compile to 22 generated
+The 22 reverse sites of the acceptance program compile to 22 generated
 functions, numbered after the source functions and placed first. Each Jacobian
 step lies in a generated function.
 """
@@ -513,7 +519,10 @@ premises = [
 assumes = ["mathlib"]
 note = """
 Every ledger entry of the module that a public path lowers has the Fréchet
-meaning of its backward Core.
+meaning of its backward Core. A pin covers the statement of a theorem, and a
+claim pins theorems only. The pins of the public-path theorems therefore do
+not cover the bridge structure `EntryFrechet` that they conclude. Reviewers
+read its definition with the theorems.
 """
 
 [property."reverse-core.validation".claim.native]
@@ -535,7 +544,7 @@ the input point, the table step is the pullback along m at the input point,
 for every seed. Every registry binding keeps the promise of its derivative
 rule, which the compilation reads.
 """
-specified_in = "[Compiled reverse Core acceptance, Jacobian tables](reverse-core-acceptance.md#jacobian-tables)"
+specified_in = "[ADR 0001 §10, compiled reverse Core: derivative rules](adr/0001-mathematics-first-stdlib.md#compiled-reverse-core-rules)"
 example = """
 The table step of g(x, y) = x² + y at (3, 9) pulls dt at 18 back to 6 dx + dy,
 and the table step of f(t) = (t, t²) at 3 pulls that back to 12 dt.

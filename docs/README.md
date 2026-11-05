@@ -60,8 +60,8 @@ Historical Stage 3 (finite smooth affine geometry over QQ) adds
 covectors and vectors at rational points, the metric-free reverse cotangent
 pullback, and named metrics with checked evidence. Its
 [acceptance map](stage3-acceptance.md) separates the same kinds of statement.
-The kernel compiles the reverse passes of that profile into Core and checks
-that Core again. The
+The kernel compiles each reverse pass of that profile that it can read into
+Core and checks that Core again. The
 [compiled reverse Core acceptance map](reverse-core-acceptance.md) records
 what is proved and what is tested.
 

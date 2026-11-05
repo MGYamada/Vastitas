@@ -473,22 +473,23 @@ form or protocol version. It changes how the executable kernel realizes
 what is implemented, tested and proved.
 
 - **Contract.**
-  - After acceptance, the executable kernel may replace a reverse pass by Core
+  - <a id="compiled-reverse-core-forward"></a>After acceptance, the executable kernel may replace a reverse pass by Core
     that it generates from the checked Core. Forward Core computes the primal
     value and the residual points as ordinary Core values. A generated
     backward function computes the pullback from the residuals and the seed.
-  - The generated Core must denote the operation that it replaces: the
+  - <a id="compiled-reverse-core-denotation"></a>The generated Core must denote the operation that it replaces: the
     covector `η ∘ Df(x)` over `x` for a seed over `f(x)`, and ⊥ for any other
     seed.
-  - The derivative rule of each primitive is part of its registry entry. A
+  - <a id="compiled-reverse-core-rules"></a>The derivative rule of each primitive is part of its registry entry. A
     declared polynomial map is pulled back by its Jacobian table, which the
     executable kernel computes from the map with exact rational coefficients.
   - A map whose structure the compilation does not open is one step. The
     runtime routine of this section pulls the seed back along it, so that
     routine stays part of the profile.
-  - The saved policy passes every residual to the backward function. The
+  - <a id="compiled-reverse-core-policies"></a>The saved policy passes every
+    point to the backward function: the residuals and the primal value. The
     recomputed policy passes the input point, and the backward function
-    evaluates the other residuals again. Both must give the same covector.
+    evaluates the other points again. Both must give the same covector.
   - Residuals are immutable pure Core values. They meet the retention
     contract of
     [storage ownership §7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation)
@@ -498,7 +499,7 @@ what is implemented, tested and proved.
   two realizations of it, not two denotations (B). Arithmetic stays exact, and
   no derivative is sampled or approximated (C). Basepoints, objects and
   variance stay explicit (D).
-- **Checking.**
+- <a id="compiled-reverse-core-checking"></a>**Checking.**
   - The generated module passes the Core audit that source-derived Core
     passes.
   - Translation validation compiles the source module again and compares
@@ -517,6 +518,16 @@ what is implemented, tested and proved.
   - The rewrite of one call is a local theorem with explicit premises.
     Agreement of whole compiled modules with their source is tested, not
     proved.
+- **Negative tests.** Forged reverse Core, a residual from another point, a
+  step over another object and a tampered tape must be rejected statically. A
+  seed over another point must give ⊥. The
+  [rejections](../reverse-core-acceptance.md#rejections) of the acceptance map
+  record the test or theorem of each case.
+- **Compatibility and public-name audit.** The amendment adds no public name,
+  wire field or protocol version, and existing programs must keep their
+  values. The compiled names `__vastitas_rd…` and `__vastitas_rf…` lie under
+  the reserved prefix `__vastitas_`, so no source name can collide with them.
+  The step bindings `smoothApply` and `cotangentJacobian` have no wire family.
 - **Boundary.** Outside this amendment:
   - differentiation of branches, loops or recursion; a branch may still
     choose a map, which is then one opaque step;

@@ -262,10 +262,11 @@ other package-only declarations. Compare [manifest mode](#manifest-mode). See
 
 ## Forward Core
 
-The `let`s that [compiled reverse Core](#compiled-reverse-core) places at a
-[reverse site](#reverse-site). They bind the input point and its image along
-each map of the site, in application order, as ordinary Core values. The last
-image is the primal value, and the other points are the
+The `let`s of [compiled reverse Core](#compiled-reverse-core) that bind the
+input point of a [reverse site](#reverse-site) and its image along each map of
+the site, in application order, as ordinary Core values. They stand at a
+saved site, and inside the [backward Core](#backward-core) of a recomputing
+site. The last image is the primal value, and the other points are the
 [residuals](#residual). Compare [backward Core](#backward-core). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
@@ -321,7 +322,17 @@ The matrix of partial derivatives of a declared [smooth map](#smooth-map), as
 polynomials with rational coefficients. The kernel computes it from the map
 when it generates the program, and the generated code holds it as a literal.
 A step of [backward Core](#backward-core) along the map evaluates the table at
-the saved input point and applies its transpose to the seed. See
+the saved input point and applies its transpose to the seed. That step is a
+[Jacobian step](#jacobian-step). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
+
+## Jacobian step
+
+The step of [backward Core](#backward-core) along a declared
+[smooth map](#smooth-map). It applies the transpose of the map's
+[Jacobian table](#jacobian-table), evaluated at the saved input point, to the
+seed. It gives the [failure value](#failure-value) unless the seed lies over
+the saved output point. Compare [opaque step](#opaque-step). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Kernel
@@ -574,9 +585,9 @@ Saved data that a later pullback reads. In
 [compiled reverse Core](#compiled-reverse-core), the residuals of a
 [reverse site](#reverse-site) are its input point and its images before the
 last map. The [forward Core](#forward-core) binds them as immutable Core
-values. A saved site passes them to its [backward Core](#backward-core). A
-recomputing site passes the input point, and the backward Core evaluates the
-other residuals again. See
+values. A saved site passes them, and the primal value, to its
+[backward Core](#backward-core). A recomputing site passes the input point,
+and the backward Core evaluates the other points again. See
 [Reverse residual retention and mutation](../storage-ownership.md#710-reverse-residual-retention-and-mutation).
 
 ## Resource function

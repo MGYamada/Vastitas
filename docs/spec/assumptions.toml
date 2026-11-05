@@ -1,0 +1,45 @@
+# The assumption registry: the trusted components that claims rest on.
+# docs/specifications.md defines the format, and scripts/check_spec.py
+# generates docs/spec/assumptions.md from this file.
+
+[assumption.rust-frontend]
+title = "Rust frontend parsing"
+statement = """
+The Rust frontend parses each source into the wire request that the source
+denotes. The kernel checks every declaration that it receives again, but
+parser fidelity is tested only.
+"""
+
+[assumption.lean-to-c]
+title = "Lean-to-C toolchain and C compiler"
+statement = """
+The Lean compiler and the C compiler translate generated Lean into native code
+that computes the Lean definitions. Native refinement is not proved.
+"""
+
+[assumption.lean-rat-gmp]
+title = "Lean core Rat and GMP"
+statement = """
+Lean core's `Rat` arithmetic, and the GMP library that implements large
+numbers, compute the rational and integer operations that the runtime uses.
+"""
+
+[assumption.mathlib]
+title = "mathlib"
+statement = """
+mathlib, at the commit that `lean-bridge/lake-manifest.json` pins, defines the
+mathematical objects that the bridge theorems use with their standard meaning.
+The official Lean kernel checks every bridge proof.
+"""
+
+[assumption.promotion-reflection]
+title = "Promotion fixture reflection"
+statement = """
+`VastitasKernel.IndexedPromotionFixture.checked` is the Core module that
+`Indexed.LegacySource.check` returns for `tests/fixtures/promotion.json`. The
+`stdlib_indexed_checked%` elaborator runs that checker at elaboration time,
+prints the returned module with `reprStr` and elaborates the text as
+`checked`. A build-time `#eval` compares the two renderings. That agreement
+rests on compiled evaluation and on a faithful `Repr`, which the axiom audit
+cannot see.
+"""

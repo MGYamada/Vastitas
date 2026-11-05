@@ -1,0 +1,233 @@
+# Properties of std::arithmetic::generic. docs/specifications.md defines the
+# format; scripts/check_spec.py checks this file and generates
+# std-arithmetic-generic.md.
+
+[spec]
+id = "arithmetic"
+title = "std::arithmetic::generic"
+subject = "std::arithmetic::generic"
+description = """
+The promotion contracts of `std::arithmetic::generic`: the four `promote`
+methods on Nat and Int, and the `add` and `maximum` methods that use them. The
+oracle proves each contract for all Nat and Int arguments on the Core module of
+the stdlib fixture. The reflection step that identifies that module with the
+public checker's result is assumed.
+"""
+
+[property."arithmetic.promote.total"]
+title = "Promotion is total"
+subject = "std::arithmetic::generic::promote"
+statement = """
+For each of the four input keys, the selected `promote` body evaluates, for
+all arguments, to the specified pair, and its declared return type is
+`Pair<Nat>` for two Nat inputs and `Pair<Int>` otherwise.
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = """
+For `n: Nat = 123456789012345678901234567890` and `z: Nat = 0`, `promote(n, z)`
+is `pair(n, z)` of type `Pair<Nat>`, and `promote(n, -7)` is `pair(int(n), -7)`
+of type `Pair<Int>`.
+"""
+example_test = "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes"
+
+[property."arithmetic.promote.total".claim.oracle]
+status = "proved-oracle"
+evidence = ["VastitasOracle.IndexedPromotion.promotion_total"]
+premises = ["the theorem concerns the module `VastitasKernel.IndexedPromotionFixture.checked`"]
+assumes = ["promotion-reflection"]
+
+[property."arithmetic.promote.total".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes",
+  "VastitasPromotion.IndexedRegression",
+]
+
+[property."arithmetic.promote.values"]
+title = "Promotion preserves values"
+subject = "std::arithmetic::generic::promote"
+statement = """
+Each component of the promoted pair has the integer value of its input, where
+a Nat n reads as the integer n.
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = "For `n: Nat = 123456789012345678901234567890`, `promote(-7, n)` is `pair(-7, int(n))`."
+example_test = "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes"
+
+[property."arithmetic.promote.values".claim.oracle]
+status = "proved-oracle"
+evidence = ["VastitasOracle.IndexedPromotion.promotion_preserves_values"]
+premises = ["the theorem concerns the module `VastitasKernel.IndexedPromotionFixture.checked`"]
+assumes = ["promotion-reflection"]
+
+[property."arithmetic.promote.values".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes",
+  "VastitasPromotion.IndexedRegression",
+]
+
+[property."arithmetic.promote.same-type"]
+title = "Same-type promotion is the identity"
+subject = "std::arithmetic::generic::promote"
+statement = """
+Promoting two values of one type keeps that type, the two values and their
+order.
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = "`promote(-7, -2)` is `pair(-7, -2)` of type `Pair<Int>`."
+example_test = "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes"
+
+[property."arithmetic.promote.same-type".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.IndexedPromotion.same_type_identity_nat",
+  "VastitasOracle.IndexedPromotion.same_type_identity_int",
+]
+premises = ["the theorems concern the module `VastitasKernel.IndexedPromotionFixture.checked`"]
+assumes = ["promotion-reflection"]
+
+[property."arithmetic.promote.same-type".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes",
+  "VastitasPromotion.IndexedRegression",
+]
+
+[property."arithmetic.promote.reversal"]
+title = "Reversal"
+subject = "std::arithmetic::generic::promote"
+statement = """
+Swapping the inputs keeps the common type and swaps the components of the
+promoted pair.
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = """
+For `n: Nat = 123456789012345678901234567890`, `promote(n, -7)` is
+`pair(int(n), -7)` and `promote(-7, n)` is `pair(-7, int(n))`.
+"""
+example_test = "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes"
+
+[property."arithmetic.promote.reversal".claim.oracle]
+status = "proved-oracle"
+evidence = ["VastitasOracle.IndexedPromotion.reversal"]
+premises = ["the theorem concerns the module `VastitasKernel.IndexedPromotionFixture.checked`"]
+assumes = ["promotion-reflection"]
+
+[property."arithmetic.promote.reversal".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes",
+  "VastitasPromotion.IndexedRegression",
+]
+
+[property."arithmetic.promote.idempotence"]
+title = "Idempotence"
+subject = "std::arithmetic::generic::promote"
+statement = "Promoting the components of a promoted pair again keeps its type and its values."
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = """
+For `ni = promote(n, -7)`, `promote(pair_first(ni), pair_second(ni))` is `ni`.
+"""
+example_test = "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes"
+
+[property."arithmetic.promote.idempotence".claim.oracle]
+status = "proved-oracle"
+evidence = ["VastitasOracle.IndexedPromotion.idempotence"]
+premises = ["the theorem concerns the module `VastitasKernel.IndexedPromotionFixture.checked`"]
+assumes = ["promotion-reflection"]
+
+[property."arithmetic.promote.idempotence".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::promotion_values_types_reversal_and_idempotence_execute_in_both_modes",
+  "VastitasPromotion.IndexedRegression",
+]
+
+[property."arithmetic.embedding"]
+title = "The Nat-to-Int embedding"
+subject = "std::arithmetic::generic"
+statement = """
+The embedding of Nat into Int preserves addition, order and the maximum:
+int(a + b) = int(a) + int(b), int(a) ≤ int(b) exactly when a ≤ b, and
+int(max(a, b)) = max(int(a), int(b)).
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = "`int(20 + 22)` equals `int(20) + int(22)`, which is 42."
+example_not_executed = "The facts are lemmas about Int.ofNat; no program evaluates them on their own."
+
+[property."arithmetic.embedding".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.IndexedPromotion.embedding_preserves_addition",
+  "VastitasOracle.IndexedPromotion.embedding_preserves_order",
+  "VastitasOracle.IndexedPromotion.embedding_preserves_maximum",
+]
+premises = []
+
+[property."arithmetic.mixed"]
+title = "Mixed addition and maximum"
+subject = "std::arithmetic::generic::add"
+statement = """
+`add` and `maximum` on any two of Nat and Int evaluate, for all arguments, to
+the sum and the maximum of their integer values. The result is Nat for two Nat
+inputs and Int otherwise.
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = "For `n: Nat = 20`, `add(n, -7)` is 13 and `maximum(-7, n)` is 20."
+example_test = "tests/promotion.rs::mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes"
+
+[property."arithmetic.mixed".claim.oracle]
+status = "proved-oracle"
+evidence = [
+  "VastitasOracle.IndexedPromotion.addition_correct",
+  "VastitasOracle.IndexedPromotion.maximum_correct",
+]
+premises = ["the theorems concern the module `VastitasKernel.IndexedPromotionFixture.checked`"]
+assumes = ["promotion-reflection"]
+
+[property."arithmetic.mixed".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::mixed_arithmetic_delegates_to_homogeneous_kernels_in_both_modes",
+  "VastitasPromotion.IndexedRegression",
+]
+note = """
+The oracle evaluates the bodies themselves: a mixed method promotes its inputs
+once and calls the homogeneous Int method, and a homogeneous method calls its
+kernel. The theorems state the results, not this call structure.
+"""
+
+[property."arithmetic.reflection"]
+title = "The proved module is the checked module"
+subject = "std::arithmetic::generic"
+statement = """
+The module that the promotion theorems concern,
+`VastitasKernel.IndexedPromotionFixture.checked`, is the Core module that the
+public checker `Indexed.LegacySource.check` returns for the stdlib arithmetic
+sources in `tests/fixtures/promotion.json`, and that fixture is what the Rust
+frontend produces from those sources.
+"""
+specified_in = "[Nat/Int promotion](stage1a.md#promotion)"
+example = """
+The frontend's output for the three stdlib arithmetic files equals
+`tests/fixtures/promotion.json`.
+"""
+example_test = "tests/promotion.rs::stdlib_ir_matches_proof_fixture"
+
+[property."arithmetic.reflection".claim.reflection]
+status = "assumed"
+evidence = ["promotion-reflection"]
+
+[property."arithmetic.reflection".claim.test]
+status = "tested"
+evidence = [
+  "tests/promotion.rs::stdlib_ir_matches_proof_fixture",
+  "VastitasPromotion.IndexedRegression",
+]
+note = """
+`stdlib_ir_matches_proof_fixture` compares the frontend's output with the
+fixture. Building `VastitasPromotion.IndexedFixture`, which
+`VastitasPromotion.IndexedRegression` imports, compares the reflected module
+with a fresh run of the public checker.
+"""

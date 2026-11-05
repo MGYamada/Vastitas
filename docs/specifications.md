@@ -227,8 +227,15 @@ describes. To run the resolver and its regressions as CI does:
 lake -d lean env python3 scripts/check_spec_lean.py
 ```
 
-CI runs `check_spec.py` and `test_check_spec.py` in "Rust formatting and
-lint", and `check_spec_lean.py` in "Lean proofs and axiom audit".
+CI runs the checks in three places:
+
+- "Rust formatting and lint" runs `check_spec.py` and `test_check_spec.py`.
+- "Lean proofs and axiom audit" runs the oracle resolver on
+  `docs/spec/pins/oracle.json`, after it builds every kernel library and the
+  oracle, and runs `check_spec_lean.py`.
+- The mathematical bridge workflow runs the bridge resolver on
+  `docs/spec/pins/bridge.json` after it builds the bridge. A change to that
+  file or to the resolver starts the workflow.
 
 ## History
 

@@ -156,6 +156,14 @@ def paragraph(value):
     return " ".join(value.split())
 
 
+def inline(value):
+    """Escape HTML outside code spans, so that text such as Pair<Int> renders as written."""
+    parts = value.split("`")
+    for index in range(0, len(parts), 2):
+        parts[index] = parts[index].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return "`".join(parts)
+
+
 def keys(value, where, required, optional, errors):
     if not isinstance(value, dict):
         errors.append(f"{where}: expected a table")
@@ -176,6 +184,8 @@ def text(value, key, where, errors):
     if not isinstance(item, str) or not item.strip():
         errors.append(f"{where}: `{key}` must be a non-empty string")
         return None
+    if item.count("`") % 2:
+        errors.append(f"{where}: `{key}` has an unmatched backquote")
     return paragraph(item)
 
 
@@ -188,6 +198,8 @@ def strings(value, key, where, errors, empty=False):
         return None
     if not item and not empty:
         errors.append(f"{where}: `{key}` must not be empty")
+    if any(x.count("`") % 2 for x in item):
+        errors.append(f"{where}: an item of `{key}` has an unmatched backquote")
     repeated = sorted({x for x in item if item.count(x) > 1})
     if repeated:
         errors.append(f"{where}: `{key}` repeats {', '.join(repeated)}")
@@ -276,8 +288,8 @@ def parse_property(identifier, table, prefix, where, root, errors):
         return None
     values = {key: text(table, key, where, errors) for key in
               ("title", "subject", "statement", "example", "example_test", "example_not_executed")}
-    if values["title"] and "|" in values["title"]:
-        errors.append(f"{where}: `title` must not contain `|`")
+    if values["title"] and any(c in values["title"] for c in "|<>"):
+        errors.append(f"{where}: `title` must not contain `|`, `<` or `>`")
     if ("example_test" in table) == ("example_not_executed" in table):
         errors.append(f"{where}: give exactly one of `example_test` (the test that runs the example) "
                       "and `example_not_executed` (why no test runs it)")
@@ -900,7 +912,7 @@ def claim_lines(claim, pins, registry):
     if claim.premises is not None:
         if claim.premises:
             lines.append("  - Premises:")
-            lines += [f"    - {premise}" for premise in claim.premises]
+            lines += [f"    - {inline(premise)}" for premise in claim.premises]
         else:
             lines.append("  - Premises: none")
     if claim.assumes:
@@ -910,18 +922,18 @@ def claim_lines(claim, pins, registry):
         where = f" in {link_module(pin['module'])}" if pin else ""
         lines.append(f"  - Enforced by: `{definition}`{where}, which reports `{code}`")
     if claim.reason:
-        lines.append(f"  - Reason: {claim.reason}")
+        lines.append(f"  - Reason: {inline(claim.reason)}")
     if claim.issue:
         lines.append(f"  - Issue: [#{claim.issue}]({ISSUES}{claim.issue})")
     if claim.note:
-        lines.append(f"  - Note: {claim.note}")
+        lines.append(f"  - Note: {inline(claim.note)}")
     return lines
 
 
 def render_spec(spec, pins, registry):
     lines = [f"# {spec.title}", "",
              f"{MARKER} from {spec.path}. Edit that file and run `python3 scripts/check_spec.py --write`. -->",
-             "", spec.description, "",
+             "", inline(spec.description), "",
              f"[Specifications](../specifications.md) defines the "
              f"[claim statuses](../specifications.md#claim-statuses) and the checks. This chapter is "
              f"generated from [`{spec.path}`]({BLOB}{spec.path}).", "",
@@ -933,12 +945,12 @@ def render_spec(spec, pins, registry):
         label, target = item.rule
         lines += ["", f'<a id="{item.id}"></a>', "", f"## {item.title}", "",
                   f"- Property: `{item.id}`", f"- Subject: `{item.subject}`",
-                  f"- Rule: [{label}](../{target})", "", item.statement, "",
-                  f"- Example: {item.example}"]
+                  f"- Rule: [{label}](../{target})", "", inline(item.statement), "",
+                  f"- Example: {inline(item.example)}"]
         if item.example_test:
             lines.append(f"- Run by: {test_reference(item.example_test)}")
-        else:
-            lines.append(f"- Not executed: {item.example_not_executed}")
+        elif item.example_not_executed:
+            lines.append(f"- Not executed: {inline(item.example_not_executed)}")
         lines += ["", "Claims:", ""]
         for claim in item.claims:
             lines += claim_lines(claim, pins, registry)
@@ -966,7 +978,7 @@ def render_registry(registry, specs):
         lines.append(f"| [{entry.title}](#assumption.{identifier}) | {len(citations[identifier])} |")
     for identifier, entry in registry.items():
         lines += ["", f'<a id="assumption.{identifier}"></a>', "", f"## {entry.title}", "",
-                  f"- Assumption: `{identifier}`", "", entry.statement, ""]
+                  f"- Assumption: `{identifier}`", "", inline(entry.statement), ""]
         if citations[identifier]:
             lines.append("Cited by:")
             lines.append("")

@@ -417,6 +417,17 @@ class FixtureTests(unittest.TestCase):
         self.assertFalse((self.root / "docs/spec/extra.md").exists())
         self.assertTrue((self.root / "docs/spec/notes.md").exists())
 
+    def test_text_outside_code_is_escaped(self):
+        self.edit("docs/spec/demo.toml", 'statement = "id(x) = x for every x."',
+                  'statement = "id: Pair<Int> -> Pair<Int> keeps `Pair<Int>` & more."')
+        self.assertEqual(self.errors(), [])
+        chapter = (self.root / "docs/spec/demo.md").read_text(encoding="utf-8")
+        self.assertIn("id: Pair&lt;Int&gt; -&gt; Pair&lt;Int&gt; keeps `Pair<Int>` &amp; more.", chapter)
+
+    def test_unmatched_backquote(self):
+        self.edit("docs/spec/demo.toml", 'statement = "id(x) = x for every x."', 'statement = "`id(x) = x"')
+        self.assertRejected("`statement` has an unmatched backquote")
+
     def test_chapter_contents(self):
         chapter = (self.root / "docs/spec/demo.md").read_text(encoding="utf-8")
         for fragment in (

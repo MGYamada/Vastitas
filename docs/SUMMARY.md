@@ -42,6 +42,11 @@
   - [Pure evaluation and graph proofs](verification/core-models.md)
   - [Daleckii–Krein mathematical bridge](daleckii-krein.md)
 - [Specifications](specifications.md)
+  - [std::differential](spec/std-differential.md)
+  - [std::geometry::metric](spec/std-geometry-metric.md)
+  - [Metric evidence](spec/metric-evidence.md)
+  - [std::arithmetic::generic](spec/std-arithmetic-generic.md)
+  - [Assumptions](spec/assumptions.md)
 - [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
 
 # Appendices

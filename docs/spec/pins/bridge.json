@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "environment": "bridge",
+  "imports": [
+    "VastitasBridge.Differential.Accepted",
+    "VastitasBridge.Differential.ChainRule",
+    "VastitasBridge.Differential.Kaehler",
+    "VastitasBridge.Differential.Metric"
+  ],
+  "entries": [
+    {"name": "VastitasBridge.Differential.backward_eq_cot", "module": "VastitasBridge.Differential.ChainRule", "kind": "theorem", "statement": "sha256:1c3c3c6f88785488ffc1dba50e129670759cc877d6af7645b9802c0eb9b32729"},
+    {"name": "VastitasBridge.Differential.checkNondegenerate_diag_one_zero", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:418dbe49eddbef3219802f30817934b479b1cc3b7019389a98b9fdb642365301"},
+    {"name": "VastitasBridge.Differential.checkNondegenerate_lorentz", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:fb6f661cfd54244b8f9917367c0a994fe966418a8cb5dc03594d94585efa48ce"},
+    {"name": "VastitasBridge.Differential.checkRiemannian_lorentz", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:58bd70e54a53973a0215105d40c2c3c19275f77ab872bcd8667d68543688ab5a"},
+    {"name": "VastitasBridge.Differential.checked_flat_sharp", "module": "VastitasBridge.Differential.Accepted", "kind": "theorem", "statement": "sha256:6863f0270ea778047deb8b4d74ed8c23635c5539a34810db3b5a37a6e0f46758"},
+    {"name": "VastitasBridge.Differential.checked_riemannian_posDef", "module": "VastitasBridge.Differential.Accepted", "kind": "theorem", "statement": "sha256:479a4bb1d1f9399344beacded72c67352780b004c9afa496d469346799f0a8ec"},
+    {"name": "VastitasBridge.Differential.cot_compose", "module": "VastitasBridge.Differential.ChainRule", "kind": "theorem", "statement": "sha256:54ac1c436a5e26790a6e704c816f43a216c9a9e65f2366425bba4d92b427d621"},
+    {"name": "VastitasBridge.Differential.cot_compose_kaehler", "module": "VastitasBridge.Differential.Kaehler", "kind": "theorem", "statement": "sha256:54ac1c436a5e26790a6e704c816f43a216c9a9e65f2366425bba4d92b427d621"},
+    {"name": "VastitasBridge.Differential.flat_sharp", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:515b8ac500016cef948940f2433cce56577a9e0eecd14796cd9d31b69aded96f"},
+    {"name": "VastitasBridge.Differential.inverse_eq_of_nondegenerate", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:c1e0d58b4ca574c00ba76fb482f05a0de91442f1a9ddd11c20799d3a35d9d7fd"},
+    {"name": "VastitasBridge.Differential.isUnit_gram_of_nondegenerate", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:8a1d3b3d26afdd47bcd6d85dba11b3a3013676a496d1683d3a7ab01ae9474d21"},
+    {"name": "VastitasBridge.Differential.not_isUnit_diag_one_zero", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:a877cba8be14a18ee1296191cec6bc0b99744766736ab7c6fc2ff7e896bd98cc"},
+    {"name": "VastitasBridge.Differential.not_posDef_lorentz", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:a4790ed6d16ae993bc276b82d8f4cece0f313027ca5ac0f9da333a4d29424709"},
+    {"name": "VastitasBridge.Differential.posDef_of_riemannian", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:02796b3134e4437a6b4ed96c1e4f6e96fd3c8db488d7b1033a7313303c7155c6"},
+    {"name": "VastitasBridge.Differential.pullback_comp", "module": "VastitasBridge.Differential.ChainRule", "kind": "theorem", "statement": "sha256:5b26596d520442116e1f6a7fa8488d61c7cdf710b16c154a632f73920fd799e5"},
+    {"name": "VastitasBridge.Differential.pullback_composite", "module": "VastitasBridge.Differential.ChainRule", "kind": "theorem", "statement": "sha256:5a3094ceca1493fca38ff05f47f02290ebd6b1a028b8f69face1afa3b564e875"},
+    {"name": "VastitasBridge.Differential.sharp_flat", "module": "VastitasBridge.Differential.Metric", "kind": "theorem", "statement": "sha256:fbda3192a0357169f923706d8fcd6744daa594183596405506ea11f722860051"}
+  ]
+}

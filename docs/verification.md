@@ -1517,7 +1517,9 @@ Backend refinement remains a separate obligation.
 
 The theorems and tests of this section cover every binding of the closed
 primitive registry: the Stage 1 and Stage 2 bindings, and the smooth, fiber,
-tape and metric bindings of
+tape and metric bindings and the step bindings of
+[compiled reverse Core](#compiled-reverse-core) (`smoothApply` and
+`cotangentJacobian`) of
 [Smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
 The two modules of the table are Proved (oracle): mathlib-free modules of
 `lean/VastitasOracle/` that `scripts/audit_axioms.lean` audits. Names are
@@ -1526,13 +1528,16 @@ relative to `VastitasOracle`.
 | Module | Theorems | Statement |
 | --- | --- | --- |
 | `IndexedPrimitiveSoundness` | `descriptorWorld_pure`, `descriptorWorld_allocating`, `Sound.ofBinding`, `Sound.ofPure` | The structure `Sound` states the obligations of one registry entry on the entry's own shape, validity contract and evaluators. Typed totality: the world after a call is `descriptorWorld`; an allocating entry binds the returned object to the result's brand, any other entry leaves the world unchanged. Erasure: the logical evaluator erases to the erased one. `Sound.ofBinding` builds an instance from a binding's totality and erasure lemmas. `Sound.ofPure` builds one from the same two lemmas and a proof that the binding does not allocate, when the totality lemma leaves the world unchanged |
-| `IndexedDescriptorDemo` | `directionalDerivative_shape`, `directionalDerivative_association`, `directionalDerivative_total`, `directionalDerivative_sound`, `directionalDerivative_outcome`, `directionalDerivative_world`, `directionalDerivative_erasure`, `directionalDerivative_render`, `directionalDerivative_render_arity`, `directionalDerivative_render_mismatch`, `directionalDerivative_sharedLiterals`, `wireArgument_kind`, `familyPrimitive_wireForm`, `directionalDerivative_wireForm`, `directionalDerivative_unregistered`, `directionalDerivative_rejected` | A hypothetical directional derivative, a `PrimitiveDescriptor` value that the registry does not contain, has its `Sound` instance, proved from the structure's fields and not through `Sound.ofBinding` or `Sound.ofPure`. An accepted call on typed operand values evaluates by the value's own evaluator to a value of the checked type, leaves the world unchanged and erases to the erased evaluator. Its lowering is that of `differential` and then `fiber_pairing`, it accepts only the checked operand count, and it adds no shared literal. For every primitive family, a form that `Wire.familyPrimitive` accepts has the family's `op` and its field names and kinds, in wire order. The trusted decoder `Wire.primitive` rejects the value's `op`, which no family of the registry has |
+| `IndexedDescriptorDemo` | `directionalDerivative_shape`, `directionalDerivative_association`, `directionalDerivative_total`, `directionalDerivative_sound`, `directionalDerivative_outcome`, `directionalDerivative_world`, `directionalDerivative_erasure`, `directionalDerivative_render`, `directionalDerivative_render_arity`, `directionalDerivative_render_mismatch`, `directionalDerivative_sharedLiterals`, `wireArgument_kind`, `familyPrimitive_wireForm`, `directionalDerivative_wireForm`, `directionalDerivative_unregistered`, `directionalDerivative_rejected`, `directionalDerivative_reverseSound` | A hypothetical directional derivative, a `PrimitiveDescriptor` value that the registry does not contain, has its `Sound` instance, proved from the structure's fields and not through `Sound.ofBinding` or `Sound.ofPure`. An accepted call on typed operand values evaluates by the value's own evaluator to a value of the checked type, leaves the world unchanged and erases to the erased evaluator. Its lowering is that of `differential` and then `fiber_pairing`, it accepts only the checked operand count, and it adds no shared literal. For every primitive family, a form that `Wire.familyPrimitive` accepts has the family's `op` and its field names and kinds, in wire order. The trusted decoder `Wire.primitive` rejects the value's `op`, which no family of the registry has. Its derivative rule is `none`, so its `ReverseSound` holds trivially |
 
 `IndexedSemantics.registry_sound` dispatches by constructor to the `Sound`
 instances of the Stage 1 and 2 bindings in `IndexedSemantics` and to those of
 the smooth, fiber and metric bindings in `SmoothPrimitives`, `SmoothFibers`
-and `SmoothMetricForms`; `IndexedSemantics.primitive_total_and_typed` and
+and `SmoothMetricForms`, and to those of the two step bindings in
+`SmoothJacobian`; `IndexedSemantics.primitive_total_and_typed` and
 `IndexedSemantics.primitive_runtime_erasure` are its corollaries.
+`SmoothJacobian.registry_reverse_sound` proves for every entry, by one named
+case per binding, what its derivative rule promises (`ReverseSound`).
 `IndexedAssociations` states what each binding's registry shape amounts to: the
 association of each callable binding, the operand list of each binding with
 listed operands, that the evidence bindings have no association, and that the
@@ -1657,8 +1662,12 @@ without a callee-safety, evaluator-success or ambient-freshness assumption.
 `IndexedWire.executable_functions_total`, `audit_functions_total` and `main_total`
 apply those theorems to the exact Core modules returned from protocol 7.
 `LegacySource` exposes the same three corollaries for protocols 2–6. Their
-`coreInput` equations tie the proofs to the same executable Core passed to native
-generation, and to the audit Core that also includes unapplied/unused bodies.
+`coreInput` equations tie the proofs to the executable Core and to the audit
+Core that also includes unapplied/unused bodies. Native generation receives
+`compiled`, the executable Core with its reverse passes compiled into Core,
+checked again and validated. `IndexedReverseCore.compiled_codegen_input` and
+`legacy_compiled_codegen_input` identify that module, and
+`compiled_functions_total` gives its functions typed, finite evaluation.
 
 These are theorems about the actual indexed Core evaluator, not equality with a
 source interpreter or the retained legacy evaluator, native-code refinement,
@@ -2034,6 +2043,61 @@ and admits only `propext`, `Classical.choice` and `Quot.sound`. **Proved
 (bridge)** means a mathlib theorem in `lean-bridge/`, which `lean-bridge/Audit.lean`
 requires by name. **Tested** means a regression or native test.
 
+<a id="compiled-reverse-core"></a>
+
+### Compiled reverse Core
+
+After acceptance, the kernel compiles each reverse pass of the executable
+Core that it can read into Core of its own (`lean-kernel/VastitasKernel/IndexedReverse.lean`).
+Code generation receives the result, `compiled`, on every public path. The
+[compiled reverse Core acceptance map](reverse-core-acceptance.md) links each
+claim below to its tests and theorems.
+
+- A [reverse site](appendix/glossary.md#reverse-site) is a call whose
+  [derivative rule](appendix/glossary.md#derivative-rule) is a reverse pass:
+  a cotangent pullback in either mode, a differential, or `cotangent_backward`
+  on a tape that `linearize` builds. The tape may be bound by a `let`.
+- The compilation reads the maps of a site through the derivative rules. A
+  call whose rule is `chain` composes the maps of two operands, and a `let`
+  whose definition may be copied to the site is read through. A nullary call
+  of a declared map is a step along its
+  [Jacobian table](appendix/glossary.md#jacobian-table). Every other map value
+  is an [opaque step](appendix/glossary.md#opaque-step). The compilation reads
+  at most `reverseLeaves` maps of one site. It reads through at most as many
+  levels as there are `let`s in scope, plus 64.
+- The [forward Core](appendix/glossary.md#forward-core) binds the input
+  point r₀ and its images rᵢ = mᵢ(rᵢ₋₁) as ordinary Core values. It stands at
+  a saved site, and inside the generated function of a recomputing site. r_k
+  is the primal value, and r₀, …, r_{k−1} are the
+  [residuals](appendix/glossary.md#residual). A differential also binds its
+  seed, the unit covector at r_k: the coordinate covector of its
+  1-dimensional target.
+- The [backward Core](appendix/glossary.md#backward-core) is a generated
+  function. It pulls the seed back along m_k, …, m₁: a declared map by its
+  Jacobian table, an opaque step by the
+  [runtime reverse pass](appendix/glossary.md#runtime-reverse-pass) in saved
+  mode. The function takes the map value of each opaque step as a parameter.
+  A saved site passes every point: the residuals and the primal value. A
+  recomputing site passes r₀, and the function evaluates the images again.
+- The kernel declares the step bindings of each site and its generated
+  function in the scope of the function that holds the site, under reserved
+  names (`__vastitas_rd…`, `__vastitas_rf…`). No source and no wire request
+  can name them.
+- `Core.Typing.checkModule` checks the generated module again, as it checks
+  source-derived Core. `validate` compiles the source module again and
+  requires the generated module and its ledger to be the result. This is
+  translation validation by recompilation, not by an independent checker. A
+  failure of either check is an internal error (`E_INTERNAL_REVERSE`). A
+  module without a reverse site compiles to itself.
+- The compilation rejects no accepted program. A site stays a call of the
+  runtime reverse pass when its maps cannot be read, or when a family of the
+  generated Core does not cover one of its objects. It also stays when its
+  declarations would exceed the 4096 declaration ids of a module. A function
+  whose compiled Core would exceed `generatedLets` keeps all its sites.
+- The compilation runs once, on source Core. An opaque step calls a saved
+  `cotangent_pullback` declaration, so compiling generated Core again would
+  compile that step again.
+
 ### Oracle theorems
 
 All of these are Proved (oracle). Names are relative to `VastitasOracle`.
@@ -2048,6 +2112,9 @@ All of these are Proved (oracle). Names are relative to `VastitasOracle`.
 | `SmoothCalculus` | `evalIn_subst`, `dual_tangent`, `evalAt_partial_subst`, `cot_compose`, `eval_denote`, `backward_eq_cot`, `backward_eq_cot_saved`, `pullback_composite`, `pullback_eq_composite`, `Cov.pullback_comp`, `Cov.pullback_id`, `Cov.pullback_runtime`, `Regression.shear_correct_order`, `Regression.shear_reversed_order` | The chain rule without mathlib: evaluation in any commutative ring that receives `ℚ`, the directional derivative in the dual numbers, and the reverse pass of a well-typed program as the cotangent pullback `cot` along its denoted map, in both modes; the typed covector fragment ported from the polynomial cotangent proof, with the noncommuting shears |
 | `SmoothReverse` | `core_cotangent_pullback`, `core_differential`, `core_linearize`, `core_cotangent_backward`, `core_backward_linearize`, `core_pullback_compose`, `smooth_differential_metric_free` | An accepted Core node of each reverse-pass binding evaluates to the runtime operation on its operand values, with its checked type; a pullback along a Core `compose` node runs on the program node; `differential` and `cotangent_pullback` take no environment |
 | `SmoothJacobian` | `coordinates_ratPoint`, `coordinates_applyPoint`, `transposeApply_jacobian`, `jacobianStep_eq_of_output`, `jacobianStep_eq`, `pullback_congr_point`, `pullback_stepwise_applyPoint`, `smoothApply_sound`, `cotangentJacobian_sound`, `registry_reverse_sound` | The steps of compiled reverse Core: an evaluated point has the coordinates it was built from; a step by a Jacobian table is the pullback along its declared map when the saved output is the image of the input, in either mode; the two step bindings have their `Sound` instances; every registry entry keeps the promise of its derivative rule (`ReverseSound`) |
+| `SmoothReverseCore` | `forwardLets_evaluates`, `forwardLets_primal`, `saved_function_evaluates`, `saved_function_pullback`, `saved_function_foreign_seed`, `recomputed_function_evaluates`, `recomputed_function_pullback`, `saved_eq_recomputed`, `pullback_chain_cot`, `saved_function_cot`, `site_saved_core`, `site_recomputed_core`, `site_differential_core`, `site_saved_rewrite`, `site_recomputed_rewrite`, `site_differential_rewrite`, `site_tape_rewrite` | The Core of one reverse site, under premises about its module and its operands: the forward Core binds the evaluated images, which satisfy the residual relation, the last with the coordinates of the primal value; the generated function pulls the seed back along the steps, last map first, at any points; with saved points that are the images, this is the pullback along the chain of the step programs in the site's mode; a seed over another point gives the failure value; for a map operand whose value is a composition tree of the step programs, the source call and its compiled Core evaluate to the same covector, for a pullback, a differential and a tape. Only `pullback_chain_cot` and `saved_function_cot` use the chain rule |
+| `IndexedReverseCore` | `termEq_sound`, `moduleEq_sound`, `validate_iff`, `generate_shape`, `generate_entries_nil_iff`, `compiled_entry_resolves`, `compiled_functions_total`, `compiled_codegen_input`, `legacy_compiled_codegen_input`, `public_compiled_entries`, `public_pure_entry_compiled`, `public_resource_compiled` | Validation holds exactly when the generated module and the ledger are the compilation of the source module; the compilation keeps the source declarations, `main` and function headers, adds the declarations and the generated function of every entry, and leaves a module without a site unchanged; every entry resolves by its ids; the compiled module of every public path is the compilation of its executable Core, and its functions all have typed, finite evaluation. That the emit path generates code from it is proved for the protocol 8/9 pure path; for protocols 2-7 it is read from `Main`, which the oracle does not import |
+| `SmoothReverseCompiled` | `resolve_declared`, `stepsOf_declared`, `compileSite_entry`, `generate_formed`, `entry_well_formed`, `compiled_saved_entry`, `compiled_recomputed_entry`, `compiled_saved_entry_foreign_seed`, `compiled_saved_entry_cot`, `compiled_recomputed_entry_cot`, `resolve_factors`, `compileSite_term`, `compiled_site_evaluates`, `public_wire_entries`, `legacy_wire_entries`, `public_resource_entries`, `public_pure_entry_computes` | Every entry of a compiled module satisfies the module premises of `SmoothReverseCore`; a call of its generated function on one map per opaque step, the points and a seed evaluates to the pullback along the chain of the step programs passed as arguments, in its mode, with saved points in the residual relation; a seed over another point gives the failure value; in coordinates this is `cot` of the composite map (chain rule). When the `let` definitions in scope agree with the activation, the maps that `resolve` reads compose to the map operand's value, and the term that `compileSite` returns evaluates as the source call. Every entry of every compiled module that a public path accepts or emits satisfies `EntryComputes`. Composability of the programs stays a premise on the arguments; that consecutive steps share their objects is not proved |
 | `SmoothMetrics` | `checkNondegenerate_spec`, `checkGram_sound`, `certifyNondegenerate_sound`, `checkRiemannian_spec`, `certifyRiemannian_sound`, `zero_row_not_nondegenerate`, `diag_one_zero_rejected` | An accepted certificate is an exact two-sided inverse, or an exact `L D Lᵀ` factorization with positive pivots and an inverse of `L`, whatever search produced it; diag(1, 0) has no nondegenerate evidence |
 | `SmoothMetricForms` | `metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`, `flat_uses_declared_gram`, `sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_fiberAt`, `sharp_fiberAt`, `metricFlat_total`, `metricSharp_total`, `flat_sharp_erasure`, `metricFlat_sound`, `metricSharp_sound` | In a valid environment, metrics and evidence satisfy their checks; `flat` embeds its metric's Gram matrix and `sharp` the certified inverse of nondegenerate evidence for its metric; both keep the basepoint and have their `Sound` instance |
 | `SmoothMetricWeakening` | `validPrimitiveBinding_metric_insertion_of_valid`, `evalPrimitive_metric_insertion_of_valid`, `validPrimitiveBinding_metric_weakening`, `evalPrimitive_metric_weakening`, `differential_metric_free`, `cotangentPullback_metric_free` | Metric declarations at any position of a valid environment change neither the validity nor the value of any binding other than `flat` and `sharp` |
@@ -2068,6 +2135,7 @@ All of these are Proved (bridge), in `VastitasBridge.Differential`.
 | `Kaehler.lean` | `kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler` | The runtime pullback is the fiber at `x` of the Kähler pullback Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases, for one map; a second chain rule for two maps by functoriality, independent of `ChainRule.lean` and `Frechet.lean` |
 | `Metric.lean` | `isUnit_gram_of_nondegenerate`, `inverse_eq_of_nondegenerate`, `sharp_flat`, `flat_sharp`, `gradient_riesz`, `posDef_of_riemannian`, `not_isUnit_diag_one_zero`, `not_posDef_lorentz`, `checkNondegenerate_lorentz` | Nondegenerate evidence makes the Gram matrix invertible; `flat` and `sharp` are inverse; `sharp` is the Riesz representation for g(v, w) = vᵀGw; Riemannian evidence makes G positive definite over ℝ |
 | `Accepted.lean` | `checked_pullback_frechet`, `checked_pullback_kaehler`, `checked_differential_frechet`, `checked_gradient_riesz`, `checked_riemannian_posDef`, `checked_flat_sharp` | The comparisons above for an accepted Core node or an accepted declaration |
+| `ReverseCore.lean` | `backward_eq_cot_kaehler`, `pullback_eq_cot_kaehler`, `compiled_saved_entry_cot_kaehler`, `compiled_recomputed_entry_cot_kaehler`, `compiled_saved_entry_frechet`, `compiled_recomputed_entry_frechet`, `compiled_saved_entry_fderiv_adjoint`, `compiled_recomputed_entry_fderiv_adjoint`, `compiled_saved_entry_kaehler`, `compiled_recomputed_entry_kaehler`, `compiled_entries_frechet`, `public_wire_entries_frechet`, `legacy_wire_entries_frechet`, `public_resource_entries_frechet`, `public_pure_entry_frechet`, `site_saved_rewrite_frechet`, `site_recomputed_rewrite_frechet`, `site_differential_rewrite_frechet`, `site_tape_rewrite_frechet`, `compiled_site_frechet`, `compiled_differential_site_frechet` | Let `F` be the chain of the step programs of a compiled entry. A call of the entry's generated function evaluates to the covector `η ∘ DF(x)` for mathlib's `fderiv ℝ`, in either mode. Its components are `cot` of the composite map and the fiber at `x` of the Kähler pullback. Every entry of every module that a public path accepts or emits does so. A source site and its compiled Core evaluate to the same covector, `η ∘ DM(x)` for the site's map value `M`. No proof uses the kernel chain rule or `pderiv_aeval` |
 
 The theorems of `Accepted.lean` derive the hypotheses of the other files
 from the checker's typing of one node (`Typing.HasType`) together with the
@@ -2080,6 +2148,36 @@ map; `checked_pullback_kaehler` reaches programs through the kernel chain rule
 contracts (`CallReturns`), allocation uniqueness and freshness as premises.
 The [acceptance map](stage3-acceptance.md#bridge-hypotheses-discharged)
 states the premises of each theorem.
+
+The theorems of `ReverseCore.lean` start from the oracle's
+`SmoothReverseCompiled.compiled_saved_entry` and `compiled_recomputed_entry`,
+which use the stepwise pullback. The Fréchet theorems add
+`pullback_covector_eq_comp_fderiv`. The other theorems add
+`backward_eq_cot_kaehler`, which proves `F.reverse x η = cot F.denote x η` from
+`cot_compose_kaehler`. The import closure of the file contains the oracle's
+`SmoothCalculus`, so the independence from the chain rule concerns the
+constants that the proofs use. `lean-bridge/Audit.lean` walks those constants.
+It fails if one reaches a chain-rule theorem of `ChainRule.lean` or of the
+oracle, `pullback_chain_cot` included, or `pderiv_aeval`. Two positive
+controls, `compiled_saved_entry_cot` and `checked_pullback_kaehler`, must
+reach one.
+
+The site theorems compose the oracle's `site_saved_rewrite`,
+`site_recomputed_rewrite`, `site_differential_rewrite`, `site_tape_rewrite`
+and `compiled_site_evaluates` with `pullback_covector_eq_comp_fderiv`. They
+reach the map value `M` of the source site, not only the chain of the step
+programs. `compiled_site_frechet` covers the pullback sites that
+`compileSite` compiles, and `compiled_differential_site_frechet` the
+differential sites, under the premises of `compiled_site_evaluates`. The direct
+tape form `backward(linearize(M, x), η)` has the local theorem only, and a
+tape bound by a `let` has no Fréchet theorem.
+
+Premises on the arguments of the call stay. There is one smooth map per opaque
+step, and the arguments evaluate to those maps, the points and the seed. For a
+saved site, the saved points satisfy the residual relation. The chain is well
+typed from `n` to `m` coordinates, and the seed lies over the image with `m`
+components. The Fréchet theorems also need an input point with `n`
+coordinates.
 
 ### Tested, not proved
 
@@ -2098,6 +2196,40 @@ states the premises of each theorem.
   rejected primitive calls: see
   [Primitive registry evidence](#primitive-registry-evidence).
 - Native execution of the acceptance example and its mutations.
+- Compiled reverse Core:
+  - the generated Core of the acceptance example and of the corpus packages
+    where a branch chooses the map or a tape crosses a function
+    (`tests/reverse_core.rs`);
+  - the forged modules, the value of each compiled site against its source
+    call, and the budgets (`ReverseCoreRegression`);
+  - the generated code, byte for byte (`tests/emit_golden.rs`), and the
+    native fixtures `smooth_reverse_programs` and `smooth_reverse_extended`.
+- Compiled reverse Core as a whole module. The tests compare the result of
+  `main` before and after the compilation: of the acceptance example
+  (`VastitasAlgebraTest.ReverseExampleRegression`), of the cotangent fixture
+  and of the extended module (`VastitasKernel.ReverseCoreRegression`), and of
+  the corpus packages (`tests/reverse_core.rs`). They compare single sites with
+  their source calls only on the 45 closed sites of the cotangent fixture, a
+  hand-built Core program that differs from the acceptance example.
+- The oracle proves that the term at each compiled site evaluates as its
+  source call (`compiled_site_evaluates`). Applying it inside a rewritten
+  function needs six facts that no theorem discharges, and that only the
+  comparisons above test:
+  - the `let` definitions in scope agree with the activation (`DefsAgree`);
+  - the operands read no symbol that the compilation binds;
+  - `rewrite` places the term that `compileSite` returns at the site of the
+    rewritten body;
+  - the ledger entries before the site are well formed (`EntryWellFormed`);
+  - the map operand evaluates to a well-typed program;
+  - the source call of the theorem is the call with the same operands, which
+    the compilation has already rewritten, evaluated in the compiled module.
+- A tape passed to another function: that function keeps the runtime reverse
+  pass, `tests/reverse_core.rs`.
+- Chain-rule independence is checked, not proved: `scripts/check_chain_rule_free.lean`
+  walks the constants of each theorem that the
+  [compiled reverse Core specification](spec/reverse-core.md) states without the
+  chain rule. The oracle's import closure contains `SmoothCalculus`, so the
+  check is on constants, not on imports.
 
 Native refinement of generated code, the Rust parser and the Lean-to-C
 toolchain are outside these claims, as for the rest of the compiler.

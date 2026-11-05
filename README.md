@@ -10,6 +10,7 @@ over QQ. [Chapter](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-ge
 Historical Stage 3 adds a checked finite profile of smooth real affine geometry
 over QQ: polynomial smooth maps, covectors and vectors at rational points, the
 metric-free reverse cotangent pullback, and named metrics with checked evidence. [Reference](https://github.com/MGYamada/Vastitas/blob/main/docs/language/smooth-declarations.md) · [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/stage3-acceptance.md)
+The kernel compiles each of these reverse passes that it can read into Core and checks that Core again. [Acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/reverse-core-acceptance.md)
 
 ## Build and use
 

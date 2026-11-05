@@ -31,6 +31,17 @@ The list of trusted components that claims rest on, in
 Proved or Tested claim may name entries in `assumes`. See
 [Assumptions](../spec/assumptions.md).
 
+## Backward Core
+
+The generated function of a [reverse site](#reverse-site) in
+[compiled reverse Core](#compiled-reverse-core). It takes the map values of
+the site's [opaque steps](#opaque-step), the points and the
+[seed](#seed), and it pulls the seed back along the maps of the site, last map
+first. It pulls a declared map back by its [Jacobian table](#jacobian-table)
+and an opaque step by the [runtime reverse pass](#runtime-reverse-pass).
+Compare [forward Core](#forward-core). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
+
 ## Base object
 
 The object `Base(K)` over the coefficient marker `K`. The zero point
@@ -82,6 +93,17 @@ classifications and its domain, the complete finite list of implementations
 that it classifies. A child's domain lies inside each parent's domain. See
 [Identity and declarations](../indexed-source.md#identity-and-declarations).
 
+## Compiled reverse Core
+
+The [Core](#core) that the kernel generates for the
+[reverse sites](#reverse-site) of a checked module: the
+[forward Core](#forward-core) at each site and one
+[backward Core](#backward-core) function per site. The kernel checks the
+generated module again with the Core audit, and it validates the module by
+compiling the source module again. Code generation receives the compiled
+module. See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
+
 ## Contribution
 
 A `contribution` declaration that names a generic and holds methods for it. An
@@ -119,11 +141,12 @@ parent loan stays suspended until the nested loan returns. See
 
 The field `reverse` of a [registry entry](#registry-entry). It says what a
 call of the binding contributes when the kernel compiles a reverse pass into
-Core. A declared smooth map is one step pulled back by its Jacobian table.
-`compose` chains the maps of two operands. `linearize` builds a tape whose map
-and point a reverse pass of the tape reads. A pullback, a differential or the
-reverse pass of a tape is a reverse pass. The other bindings have the rule
-`none`. See [Add an indexed primitive](../development/primitives.md).
+[compiled reverse Core](#compiled-reverse-core). A declared smooth map is one
+step pulled back by its [Jacobian table](#jacobian-table). `compose` chains
+the maps of two operands. `linearize` builds a tape whose map and point a
+reverse pass of the tape reads. A pullback, a differential or the reverse pass
+of a tape is a reverse pass, and its call is a
+[reverse site](#reverse-site). The other bindings have the rule `none`. See [Add an indexed primitive](../development/primitives.md).
 
 ## Dispatch
 
@@ -237,6 +260,16 @@ libraries, without a manifest. Flat mode has no modules, imports, `pub` or
 other package-only declarations. Compare [manifest mode](#manifest-mode). See
 [Flat mode with `--lib`](../guide/stdlib.md#flat-mode-with---lib).
 
+## Forward Core
+
+The `let`s of [compiled reverse Core](#compiled-reverse-core) that bind the
+input point of a [reverse site](#reverse-site) and its image along each map of
+the site, in application order, as ordinary Core values. They stand at a
+saved site, and inside the [backward Core](#backward-core) of a recomputing
+site. The last image is the primal value, and the other points are the
+[residuals](#residual). Compare [backward Core](#backward-core). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
+
 ## Frontend
 
 The Rust part of the compiler, in `src/`. It provides the command line, parses
@@ -282,6 +315,25 @@ classification, global, family, package or primitive. Indexed declarations let
 any package declare an indexed [profile](#profile), and the standard geometry
 library uses them. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+
+## Jacobian table
+
+The matrix of partial derivatives of a declared [smooth map](#smooth-map), as
+polynomials with rational coefficients. The kernel computes it from the map
+when it generates the program, and the generated code holds it as a literal.
+A step of [backward Core](#backward-core) along the map evaluates the table at
+the saved input point and applies its transpose to the seed. That step is a
+[Jacobian step](#jacobian-step). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
+
+## Jacobian step
+
+The step of [backward Core](#backward-core) along a declared
+[smooth map](#smooth-map). It applies the transpose of the map's
+[Jacobian table](#jacobian-table), evaluated at the saved input point, to the
+seed. It gives the [failure value](#failure-value) unless the seed lies over
+the saved output point. Compare [opaque step](#opaque-step). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Kernel
 
@@ -393,6 +445,16 @@ matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
 `G B` and `B G` are the identity. A singular Gram matrix has no nondegenerate
 evidence. `sharp` requires nondegenerate evidence for its metric. See
 [metric forms](../protocol.md#protocol-9-metric-forms).
+
+## Opaque step
+
+A map of a [reverse site](#reverse-site) whose structure the compilation does
+not open. Function parameters, values of branches and calls, `composite(…)`
+and maps beyond the `reverseLeaves` [limit](limits.md#checker-limits) are
+opaque steps. [Backward Core](#backward-core) pulls the seed back along an
+opaque step with the [runtime reverse pass](#runtime-reverse-pass) in saved
+mode. Compare [Jacobian table](#jacobian-table). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Oracle
 
@@ -517,11 +579,32 @@ its [lowering](#lowering), its [shared literals](#shared-literal) and its
 [derivative rule](#derivative-rule). See
 [Add an indexed primitive](../development/primitives.md).
 
+## Residual
+
+Saved data that a later pullback reads. In
+[compiled reverse Core](#compiled-reverse-core), the residuals of a
+[reverse site](#reverse-site) are its input point and its images before the
+last map. The [forward Core](#forward-core) binds them as immutable Core
+values. A saved site passes them, and the primal value, to its
+[backward Core](#backward-core). A recomputing site passes the input point,
+and the backward Core evaluates the other points again. See
+[Reverse residual retention and mutation](../storage-ownership.md#710-reverse-residual-retention-and-mutation).
+
 ## Resource function
 
 A function declared with `resource fn`. Its body is a sequence of storage
 statements followed by a pure `value { ... }` block. See
 [Resource functions](../guide/storage.md#resource-functions).
+
+## Reverse site
+
+A call whose [derivative rule](#derivative-rule) is a reverse pass: a
+[cotangent pullback](#cotangent-pullback) in either mode, a differential, or
+the reverse pass of a [tape](#tape) that `linearize` builds. The kernel
+replaces each reverse site whose maps it can read by
+[compiled reverse Core](#compiled-reverse-core). Any other site stays a call
+of the [runtime reverse pass](#runtime-reverse-pass). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Riemannian evidence
 
@@ -545,6 +628,15 @@ kind. Every requirement is part of the binding's contract. When a call of a
 valid binding fails a listed requirement, the diagnostic names the first one;
 otherwise it lists the operand types. See
 [Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+
+## Runtime reverse pass
+
+The verified routine of the smooth runtime that runs a reverse pass over a
+program value: `SmoothRuntime.pullback`, `backward`, `differential` and
+`linearize`. [Backward Core](#backward-core) calls it for an
+[opaque step](#opaque-step), and a [reverse site](#reverse-site) that the
+compilation cannot read stays a call of it. See
+[reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives).
 
 ## Scheme
 

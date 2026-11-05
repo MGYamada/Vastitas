@@ -19,3 +19,4 @@ import VastitasBridge.Differential.Kaehler
 import VastitasBridge.Differential.MetricPrerequisites
 import VastitasBridge.Differential.Metric
 import VastitasBridge.Differential.Accepted
+import VastitasBridge.Differential.ReverseCore

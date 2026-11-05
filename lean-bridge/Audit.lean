@@ -163,7 +163,28 @@ run_cmd do
       `VastitasBridge.Differential.checked_differential_frechet,
       `VastitasBridge.Differential.checked_gradient_riesz,
       `VastitasBridge.Differential.checked_riemannian_posDef,
-      `VastitasBridge.Differential.checked_flat_sharp] do
+      `VastitasBridge.Differential.checked_flat_sharp,
+      `VastitasBridge.Differential.backward_eq_cot_kaehler,
+      `VastitasBridge.Differential.pullback_eq_cot_kaehler,
+      `VastitasBridge.Differential.compiled_saved_entry_cot_kaehler,
+      `VastitasBridge.Differential.compiled_recomputed_entry_cot_kaehler,
+      `VastitasBridge.Differential.compiled_saved_entry_frechet,
+      `VastitasBridge.Differential.compiled_recomputed_entry_frechet,
+      `VastitasBridge.Differential.compiled_saved_entry_fderiv_adjoint,
+      `VastitasBridge.Differential.compiled_recomputed_entry_fderiv_adjoint,
+      `VastitasBridge.Differential.compiled_saved_entry_kaehler,
+      `VastitasBridge.Differential.compiled_recomputed_entry_kaehler,
+      `VastitasBridge.Differential.compiled_entries_frechet,
+      `VastitasBridge.Differential.public_wire_entries_frechet,
+      `VastitasBridge.Differential.legacy_wire_entries_frechet,
+      `VastitasBridge.Differential.public_resource_entries_frechet,
+      `VastitasBridge.Differential.public_pure_entry_frechet,
+      `VastitasBridge.Differential.site_saved_rewrite_frechet,
+      `VastitasBridge.Differential.site_recomputed_rewrite_frechet,
+      `VastitasBridge.Differential.site_differential_rewrite_frechet,
+      `VastitasBridge.Differential.site_tape_rewrite_frechet,
+      `VastitasBridge.Differential.compiled_site_frechet,
+      `VastitasBridge.Differential.compiled_differential_site_frechet] do
     unless env.contains name do
       throwError "missing required bridge theorem {name}"
   -- Select by defining module, as the oracle audit does: a name prefix would
@@ -184,3 +205,97 @@ run_cmd do
   if count == 0 then
     throwError "no bridge declarations audited"
   logInfo m!"bridge axiom audit passed for {count} declarations ({privateCount} private)"
+
+/-- The constants that `root` uses, transitively, through declarations of the Vastitas packages.
+A declaration of another package imports no Vastitas module, so the walk stops there. -/
+def vastitasClosure (env : Environment) (root : Name) : NameSet := Id.run do
+  let inVastitas (name : Name) : Bool :=
+    match env.getModuleIdxFor? name with
+    | some index =>
+      match env.allImportedModuleNames[index.toNat]? with
+      | some owner => [`VastitasBridge, `VastitasOracle, `VastitasKernel].any (·.isPrefixOf owner)
+      | none => false
+    | none => false
+  let mut seen : NameSet := {}
+  let mut stack : Array Name := #[root]
+  while !stack.isEmpty do
+    let name := stack.back!
+    stack := stack.pop
+    if seen.contains name then continue
+    seen := seen.insert name
+    unless inVastitas name do continue
+    let some info := env.find? name | continue
+    for used in info.getUsedConstantsAsSet do
+      unless seen.contains used do stack := stack.push used
+  return seen
+
+-- The compiled reverse Core theorems (#623) avoid the kernel chain rule. Their import closure
+-- contains the Oracle's `SmoothCalculus`, so check the constants their proofs use: none may
+-- reach a chain-rule theorem of `ChainRule.lean` or of the Oracle, or `pderiv_aeval`.
+run_cmd do
+  let env ← getEnv
+  let chainRule := #[
+      `VastitasBridge.Differential.cot_compose,
+      `VastitasBridge.Differential.backward_eq_cot,
+      `VastitasBridge.Differential.backward_eq_cot_saved,
+      `VastitasBridge.Differential.pullback_composite,
+      `VastitasBridge.Differential.pullback_eq_composite,
+      `VastitasBridge.Differential.pullback_comp,
+      `VastitasBridge.Differential.pderiv_aeval,
+      `VastitasOracle.SmoothCalculus.cot_compose,
+      `VastitasOracle.SmoothCalculus.cot_compose_of_length,
+      `VastitasOracle.SmoothCalculus.evalAt_partial_subst,
+      `VastitasOracle.SmoothCalculus.backward_eq_cot,
+      `VastitasOracle.SmoothCalculus.backward_eq_cot_saved,
+      `VastitasOracle.SmoothCalculus.pullback_composite,
+      `VastitasOracle.SmoothCalculus.pullback_eq_composite,
+      `VastitasOracle.SmoothCalculus.Cov.pullback_comp,
+      `VastitasOracle.SmoothReverseCore.pullback_chain_cot]
+  for name in chainRule do
+    unless env.contains name do
+      throwError "missing chain-rule theorem {name}: update the independence check"
+  -- Positive controls: theorems known to use the chain rule must be detected.
+  for (name, uses) in #[
+      (`VastitasOracle.SmoothReverseCompiled.compiled_saved_entry_cot,
+        `VastitasOracle.SmoothCalculus.cot_compose),
+      (`VastitasBridge.Differential.checked_pullback_kaehler,
+        `VastitasBridge.Differential.cot_compose)] do
+    unless (vastitasClosure env name).contains uses do
+      throwError "independence check control failed: {name} does not reach {uses}"
+  let independent := #[
+      `VastitasOracle.SmoothReverseCompiled.compiled_saved_entry,
+      `VastitasOracle.SmoothReverseCompiled.compiled_recomputed_entry,
+      `VastitasBridge.Differential.backward_eq_cot_kaehler,
+      `VastitasBridge.Differential.pullback_eq_cot_kaehler,
+      `VastitasBridge.Differential.compiled_saved_entry_cot_kaehler,
+      `VastitasBridge.Differential.compiled_recomputed_entry_cot_kaehler,
+      `VastitasBridge.Differential.compiled_saved_entry_frechet,
+      `VastitasBridge.Differential.compiled_recomputed_entry_frechet,
+      `VastitasBridge.Differential.compiled_saved_entry_fderiv_adjoint,
+      `VastitasBridge.Differential.compiled_recomputed_entry_fderiv_adjoint,
+      `VastitasBridge.Differential.compiled_saved_entry_kaehler,
+      `VastitasBridge.Differential.compiled_recomputed_entry_kaehler,
+      `VastitasBridge.Differential.compiled_entries_frechet,
+      `VastitasBridge.Differential.public_wire_entries_frechet,
+      `VastitasBridge.Differential.legacy_wire_entries_frechet,
+      `VastitasBridge.Differential.public_resource_entries_frechet,
+      `VastitasBridge.Differential.public_pure_entry_frechet,
+      `VastitasOracle.SmoothReverseCore.site_saved_rewrite,
+      `VastitasOracle.SmoothReverseCore.site_recomputed_rewrite,
+      `VastitasOracle.SmoothReverseCore.site_differential_rewrite,
+      `VastitasOracle.SmoothReverseCore.site_tape_rewrite,
+      `VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates,
+      `VastitasBridge.Differential.site_saved_rewrite_frechet,
+      `VastitasBridge.Differential.site_recomputed_rewrite_frechet,
+      `VastitasBridge.Differential.site_differential_rewrite_frechet,
+      `VastitasBridge.Differential.site_tape_rewrite_frechet,
+      `VastitasBridge.Differential.compiled_site_frechet,
+      `VastitasBridge.Differential.compiled_differential_site_frechet]
+  for name in independent do
+    unless env.contains name do
+      throwError "missing theorem {name} of the independence check"
+    let closure := vastitasClosure env name
+    for used in chainRule do
+      if closure.contains used then
+        throwError "{name} uses the chain-rule theorem {used}"
+  logInfo m!"chain-rule independence passed for {independent.size} theorems"

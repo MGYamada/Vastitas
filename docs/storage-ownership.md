@@ -291,6 +291,21 @@ that dependency. The plan must retain old `x`, snapshot it, or justify replay;
 the checker must reject a stale residual even if the new value has the same type.
 Invariant-bearing geometric/numerical descriptors follow the same dependency rule.
 
+[Compiled reverse Core](appendix/glossary.md#compiled-reverse-core) meets this
+contract without storage. Its [residuals](appendix/glossary.md#residual) are
+points of smooth affine objects: immutable pure Core values that hold no
+allocation, region or loan, so no mutation can make them stale. A saved site
+uses Retain: its forward Core binds every residual, and its backward Core
+reads the bound values. The map value of an opaque step is retained the same
+way. A recomputing site uses Recompute: its backward Core receives the input
+point and evaluates the images again along the same checked maps. Exact
+rational evaluation of a polynomial map has no effect and no policy choice, so
+the replay reproduces each value. A pure value has one version, and the
+derivative rules belong to the closed primitive registry, so a residual records
+no value versions or rule revisions. Compiled reverse Core forms no
+storage-backed residual, so Snapshot and the invalidation checks of this
+section do not arise for it.
+
 ## 7.11 Tensor ports and execution scheduling
 
 Every occurrence creates fresh ports; every finalized port is connected once or

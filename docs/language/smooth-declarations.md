@@ -412,13 +412,28 @@ Rules:
   [operand checks](#operand-checks) apply.
 - The operand rules of [operand checks](#operand-checks) apply.
 
-> **Implementation note.** The reverse pass is a runtime routine over the
-> program value that `smooth_compose` builds. The `saved` mode runs the
-> forward pass once and keeps every intermediate point on a tape. The
-> `recomputed` mode evaluates the intermediate points again during the reverse
-> pass. Neither expands the composite, and the compiler generates no
-> derivative code. Points are runtime values, so a seed over another point of
-> the right object gives ⊥ at run time, not a static error.
+> **Implementation note.** After the check, the kernel compiles each reverse
+> pass that it can read into
+> [compiled reverse Core](../appendix/glossary.md#compiled-reverse-core).
+> [Forward Core](../appendix/glossary.md#forward-core) at the call evaluates
+> the image of the input point along each map of the pass. A generated
+> function, the [backward Core](../appendix/glossary.md#backward-core), pulls
+> the seed back one map at a time. It pulls a declared map back by its
+> [Jacobian table](../appendix/glossary.md#jacobian-table), a literal that the
+> kernel computes from the map. Any other map value, such as a function
+> parameter, the value of a branch or `composite(…)`, is an
+> [opaque step](../appendix/glossary.md#opaque-step). The
+> [runtime reverse pass](../appendix/glossary.md#runtime-reverse-pass) over
+> the program value that `smooth_compose` builds pulls the seed back along
+> it. The `saved` mode passes every point to the backward Core: the input
+> point, the intermediate points and the image.
+> The `recomputed` mode passes the input point, and the backward Core
+> evaluates the intermediate points again. Neither mode expands the composite.
+> The reverse pass of a tape bound by `let` is compiled; a tape passed to a
+> function keeps the runtime reverse pass.
+> [Compiled reverse Core](../verification.md#compiled-reverse-core) lists the
+> limits of the compilation. Points are runtime values, so a seed over another
+> point of the right object gives ⊥ at run time, not a static error.
 
 Example:
 

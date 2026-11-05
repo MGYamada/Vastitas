@@ -74,14 +74,18 @@ a reverse pass with saved or recomputed forward values over the program that
 checked Core builds, and named constant metrics with checked nondegeneracy and
 Riemannian evidence. The acceptance example runs natively. The oracle proves
 the chain rule without mathlib, and the mathlib bridge proves the Fréchet and
-Kähler comparisons as separate theorems. Compiled reverse Core (#623, after
-#622), forward mode and Hessian-vector products (#161), custom rules (#163),
+Kähler comparisons as separate theorems. The kernel compiles each reverse
+pass that it can read into Core, checks that Core again, and the oracle and
+the bridge prove it
+([compiled reverse Core acceptance](../reverse-core-acceptance.md), tracker
+#623). Forward mode and Hessian-vector products (#161), custom rules (#163),
 gluing (#606), position-dependent metrics and performance (#222) remain open.
-Reverse residual retention also remains open: the retention, replay and
-invalidation contract of
+Compiled reverse Core keeps its residuals as immutable pure Core values,
+retained or recomputed, as
 [storage ownership §7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation)
-and its proofs arrive with compiled reverse AD. The tape of this profile is an
-immutable runtime value that records none of that metadata.
+records. Storage-backed residual retention, with its value versions and
+invalidation, remains open. The tape of this profile is an immutable runtime
+value that records none of that metadata.
 
 ## Stage 4. Bundles and tensor diagrams
 

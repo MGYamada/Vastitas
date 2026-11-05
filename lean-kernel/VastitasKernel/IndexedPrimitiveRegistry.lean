@@ -16,14 +16,17 @@ hints, the role table, whether a call allocates, the two evaluators
 (`IndexedCodegen`) and the literals a generated module shares
 (`PrimitiveDescriptor.sharedLiterals`). The decoder takes a case per
 constructor until the next step of #622 migrates it.
-A proof that unfolds a derived table at one constructor needs only
-`PrimitiveBinding.contract` (and `PrimitiveDescriptor.ofBool` or
-`PrimitiveDescriptor.evidence`) in its `simp` set. Each arm names the exact
+A proof that unfolds a derived table at one constructor needs no
+per-constructor lemma: besides the table's own definition and what evaluates
+the entry's fields (the `Shape` matcher for the association, the arm's checks
+for validity), its `simp` set names only `PrimitiveBinding.contract` (and
+`PrimitiveDescriptor.ofBool` or `PrimitiveDescriptor.evidence`). Each arm names the exact
 checks of `Indexed`, `IndexedPrimitiveBinding` and `IndexedSmoothContracts`;
 family, base and object IDs are part of the contract, displayed names and
 arbitrary certificates are not.
 
-Index fields are named as their families declare them: a point is
+Index fields carry the names the role table reports, the vocabulary of the
+pre-registry diagnostics; family declarations name no indices. A point is
 `[target, source]`, a morphism, smooth map or tape `[source, target]`, a
 relative morphism `[source, target, base]`, a fiber `[object]`. The role table
 reports a shape's families once the operands have its index pattern;

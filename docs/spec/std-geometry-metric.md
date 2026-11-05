@@ -8,8 +8,8 @@ The laws of the musical maps of a named metric, from ADR 0001 §10. A metric g o
 
 | Property | Claims |
 | --- | --- |
-| [sharp after flat](#metric.sharp-flat) | Proved (bridge), Tested, Not claimed |
-| [flat after sharp](#metric.flat-sharp) | Proved (bridge), Tested, Not claimed |
+| [sharp after flat](#metric.sharp-flat) | Proved (oracle), Proved (bridge), Tested, Not claimed |
+| [flat after sharp](#metric.flat-sharp) | Proved (oracle), Proved (bridge), Tested, Not claimed |
 
 <a id="metric.sharp-flat"></a>
 
@@ -19,28 +19,35 @@ The laws of the musical maps of a named metric, from ADR 0001 §10. A metric g o
 - Subject: `std::geometry::metric::MetricForm`
 - Rule: [ADR 0001 §10, Laws](../adr/0001-mathematics-first-stdlib.md#laws)
 
-For a metric g with nondegenerate evidence e, `sharp` with g and e undoes `flat` with g: sharp(flat(v)) = v for every vector v with one component per coordinate of the metric's object, and for the failure value ⊥.
+Let g be a metric with nondegenerate evidence e. Then `sharp` with g and e undoes `flat` with g: sharp(flat(v)) = v for the failure value ⊥ and for every vector v with one component per coordinate of the metric's object.
 
 - Example: For the Euclidean metric and for the metric gram((2, 1), (1, 1)) of the plane, sharp(flat(v)) = v for the vector v = (5, -7) at (1, 2).
 - Run by: `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
 
 Claims:
 
+- `binding`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SmoothMetricForms`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetricForms.lean): `VastitasOracle.SmoothMetricForms.flat_uses_declared_gram`, `VastitasOracle.SmoothMetricForms.sharp_requires_nondegenerate`, `VastitasOracle.SmoothMetricForms.flat_sharp_erasure`
+  - Premises:
+    - for `flat_uses_declared_gram` and `sharp_requires_nondegenerate`: the `flat` and `sharp` bindings are valid in their checked declaration environment
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: A valid `flat` with g applies the Gram matrix of g, and a valid `sharp` with g and e applies the inverse that e certifies. The `bridge` claim shows that those two runtime maps undo each other.
 - `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
   - Evidence:
     - [`VastitasBridge.Differential.Metric`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/Metric.lean): `VastitasBridge.Differential.sharp_flat`
     - [`VastitasBridge.Differential.Accepted`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/Accepted.lean): `VastitasBridge.Differential.checked_flat_sharp`
   - Premises:
-    - for `sharp_flat`: the Gram matrix and the inverse pass `checkNondegenerate`
-    - for `checked_flat_sharp`: the environment is valid and contains the nondegenerate evidence declaration; the theorem derives the Gram matrix, the dimension and the certified inverse from them
-  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+    - for `sharp_flat`: the Gram matrix and the inverse pass `checkNondegenerate`, and the fiber has n components or is ⊥
+    - for `checked_flat_sharp`: the checked declaration environment is valid and contains the nondegenerate evidence declaration; the theorem derives the Gram matrix, the dimension n and the certified inverse, and states the law for fibers with n components and for ⊥
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib), [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - `mutated_observations_change_the_native_result` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
-  - Note: Code 23 of the acceptance example checks sharp(flat(v)) = v for two metrics.
+  - Note: Observation 23 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions) checks sharp(flat(v)) = v for two metrics.
 - `native`: [Not claimed](../specifications.md#not-claimed)
-  - Reason: The theorems concern the Lean runtime definitions that the checker and the generated programs share. That the compiled native code refines them is not claimed; native execution is tested only.
+  - Reason: The theorems concern the Lean runtime definitions that the checker and the generated programs share. No claim states that the compiled native code refines them. Tests run the native code.
 
 <a id="metric.flat-sharp"></a>
 
@@ -50,25 +57,32 @@ Claims:
 - Subject: `std::geometry::metric::MetricForm`
 - Rule: [ADR 0001 §10, Laws](../adr/0001-mathematics-first-stdlib.md#laws)
 
-For a metric g with nondegenerate evidence e, `flat` with g undoes `sharp` with g and e: flat(sharp(α)) = α for every covector α with one component per coordinate of the metric's object, and for the failure value ⊥.
+Let g be a metric with nondegenerate evidence e. Then `flat` with g undoes `sharp` with g and e: flat(sharp(α)) = α for the failure value ⊥ and for every covector α with one component per coordinate of the metric's object.
 
-- Example: With the metric gram((2, 1), (1, 1)) of the plane, the differential (2, 1) of g(x, y) = x² + y at (1, 2) raises to the gradient (1, 0), and `flat` lowers (1, 0) back to (2, 1).
+- Example: Take the metric gram((2, 1), (1, 1)) of the plane and g(x, y) = x² + y. The differential (2, 1) of g at (1, 2) raises to the gradient (1, 0), and `flat` lowers (1, 0) back to (2, 1).
 - Run by: `library_profile_checks_builds_and_runs_from_a_path_package` in [`tests/stdlib_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_differential.rs)
 
 Claims:
 
+- `binding`: [Proved (oracle)](../specifications.md#proved-oracle)
+  - Evidence:
+    - [`VastitasOracle.SmoothMetricForms`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetricForms.lean): `VastitasOracle.SmoothMetricForms.flat_uses_declared_gram`, `VastitasOracle.SmoothMetricForms.sharp_requires_nondegenerate`, `VastitasOracle.SmoothMetricForms.flat_sharp_erasure`
+  - Premises:
+    - for `flat_uses_declared_gram` and `sharp_requires_nondegenerate`: the `flat` and `sharp` bindings are valid in their checked declaration environment
+  - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: A valid `flat` with g applies the Gram matrix of g, and a valid `sharp` with g and e applies the inverse that e certifies. The `bridge` claim shows that those two runtime maps undo each other.
 - `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
   - Evidence:
     - [`VastitasBridge.Differential.Metric`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/Metric.lean): `VastitasBridge.Differential.flat_sharp`
     - [`VastitasBridge.Differential.Accepted`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/Accepted.lean): `VastitasBridge.Differential.checked_flat_sharp`
   - Premises:
-    - for `flat_sharp`: the Gram matrix and the inverse pass `checkNondegenerate`
-    - for `checked_flat_sharp`: the environment is valid and contains the nondegenerate evidence declaration; the theorem derives the Gram matrix, the dimension and the certified inverse from them
-  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+    - for `flat_sharp`: the Gram matrix and the inverse pass `checkNondegenerate`, and the fiber has n components or is ⊥
+    - for `checked_flat_sharp`: the checked declaration environment is valid and contains the nondegenerate evidence declaration; the theorem derives the Gram matrix, the dimension n and the certified inverse, and states the law for fibers with n components and for ⊥
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib), [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `library_profile_checks_builds_and_runs_from_a_path_package` in [`tests/stdlib_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_differential.rs)
     - `mutated_observations_change_the_native_result` in [`tests/stdlib_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/stdlib_differential.rs)
   - Note: The library example lowers the gradient of g with `flat` and compares the result with the differential of g.
 - `native`: [Not claimed](../specifications.md#not-claimed)
-  - Reason: The theorems concern the Lean runtime definitions that the checker and the generated programs share. That the compiled native code refines them is not claimed; native execution is tested only.
+  - Reason: The theorems concern the Lean runtime definitions that the checker and the generated programs share. No claim states that the compiled native code refines them. Tests run the native code.

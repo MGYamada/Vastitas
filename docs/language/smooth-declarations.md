@@ -519,7 +519,8 @@ Evidence certifies a property of the metric it names.
 
 Rules:
 
-- The path must name a metric. Otherwise it is an error (`E_METRIC`).
+- The path must name a metric. A path that names another indexed declaration
+  is an error (`E_METRIC`).
 - `nondegenerate(g)` for a singular Gram matrix, such as diag(1, 0), is an
   error (`E_METRIC`).
 - `riemannian(g)` for a Gram matrix that is not positive definite, such as

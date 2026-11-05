@@ -348,7 +348,7 @@ jobs:
       - name: Audit axioms and opaque code of every kernel and oracle module
         run: cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean
       # Each pinned oracle theorem and kernel definition of docs/spec/: module,
-      # kind, axioms and statement hash (#647).
+      # kind and axioms, and the statement hash of each theorem (#647).
       - name: Resolve the oracle claims of the specifications
         env:
           VASTITAS_SPEC_INPUT: ../docs/spec/pins/oracle.json

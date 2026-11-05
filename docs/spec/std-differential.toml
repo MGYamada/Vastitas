@@ -9,16 +9,17 @@ description = """
 The laws of the metric-free cotangent pullback of `std::differential`, from
 ADR 0001 §10. For a smooth map f, a point x and a seed η over f(x), the
 pullback is the covector η ∘ Df(x) over x. A seed over another point gives the
-failure value ⊥.
+failure value ⊥. The theorems below concern the runtime operations that the
+`std::differential` bindings evaluate to.
 """
 
 [property."differential.pullback.linear"]
 title = "Linearity in the seed"
 subject = "std::differential::pullback"
 statement = """
-For a smooth map f and a point x, the pullback along f at x is linear in the
-seed: the pullback of aη + bη' is a times the pullback of η plus b times the
-pullback of η', for seeds η and η' over f(x) and rationals a and b.
+Let f be a smooth map, x a point, η and η' seeds over f(x), and a and b
+rationals. The pullback along f at x is linear in the seed: it maps aη + bη' to
+a times the pullback of η plus b times the pullback of η'.
 """
 specified_in = "[ADR 0001 §10, Laws](adr/0001-mathematics-first-stdlib.md#laws)"
 example = """
@@ -33,8 +34,9 @@ issue = 649
 note = """
 `VastitasBridge.Differential.pullback_getD_eq_fderiv_adjoint` gives component
 j of the result as Σᵢ ηᵢ (Df(x) eⱼ)ᵢ, which is linear in η, but no theorem
-states linearity. The Python reference checks homogeneity of its own pullback
-in `scripts/test_metric_reference.py`; that test does not run the kernel.
+states linearity. The Python reference checks the homogeneity of its own
+pullback in `scripts/test_metric_reference.py`; that test does not run the
+kernel.
 """
 
 [property."differential.pullback.identity"]
@@ -42,7 +44,7 @@ title = "Identity"
 subject = "std::differential::pullback"
 statement = """
 Pullback along the identity map of ℝⁿ at a point x returns every seed over x
-unchanged, in the saved and in the recomputing mode.
+unchanged, in the `saved` and in the `recomputed` mode.
 """
 specified_in = "[ADR 0001 §10, Laws](adr/0001-mathematics-first-stdlib.md#laws)"
 example = "The identity of the plane pulls the covector (5, 7) at (1, 2) back to itself."
@@ -67,17 +69,18 @@ evidence = [
   "tests/smooth_differential.rs::mutated_observations_change_the_native_result",
 ]
 note = """
-Code 15 of the acceptance example pulls a covector back along the identity of
-the plane, and code 10 pulls the failure value back along the identity of the
-line. The mutation test shows that a wrong result changes the native output.
+Observation 15 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions)
+pulls a covector back along the identity of the plane. Observation 10 pulls the
+failure value back along the identity of the line. The mutation test shows that
+a wrong result changes the native output.
 """
 
 [property."differential.pullback.identity".claim.native]
 status = "not-claimed"
 reason = """
 The theorems concern the Lean runtime definitions that the checker and the
-generated programs share. That the compiled native code refines them is not
-claimed; native execution is tested only.
+generated programs share. No claim states that the compiled native code
+refines them. Tests run the native code.
 """
 
 [property."differential.pullback.composition"]
@@ -90,8 +93,9 @@ and the failure value ⊥.
 """
 specified_in = "[ADR 0001 §10, Laws](adr/0001-mathematics-first-stdlib.md#laws)"
 example = """
-With f(t) = (t, t²) and g(x, y) = x² + y, the seed dt at g(f(3)) = 18 pulls back
-along g at (3, 9) and then along f at 3 to 12 dt, its pullback along g ∘ f at 3.
+Take f(t) = (t, t²) and g(x, y) = x² + y. The seed dt at g(f(3)) = 18 pulls back
+along g at (3, 9), then along f at 3, to 12 dt. That is its pullback along
+g ∘ f at 3.
 """
 example_test = "tests/stdlib_differential.rs::library_profile_checks_builds_and_runs_from_a_path_package"
 
@@ -112,8 +116,8 @@ premises = [
 ]
 note = """
 `pullback_stepwise` states the law for the program node that `compose` builds.
-`backward_eq_cot` and `pullback_composite` show that the same pullback equals
-the pullback along the composite polynomial map, and `cot_compose` is the chain
+`backward_eq_cot` and `pullback_composite` show that this pullback equals the
+pullback along the composite polynomial map, and `cot_compose` is the chain
 rule for that map. The chain-rule proofs of `SmoothCalculus` use dual numbers
 and `Lean.Grind.CommRing`, not mathlib.
 """
@@ -133,7 +137,8 @@ premises = [
 ]
 assumes = ["mathlib"]
 note = """
-`cot_compose` follows mathlib's formal chain rule `pderiv_aeval`.
+`cot_compose` follows the formal chain rule `pderiv_aeval` for mathlib's
+`pderiv`, which `VastitasBridge.Differential.Prerequisites` proves.
 `cot_compose_kaehler` proves the same equation from the functoriality of
 Kähler differentials, independently of `cot_compose`.
 """
@@ -147,9 +152,11 @@ evidence = [
   "VastitasAlgebraTest.SmoothReferenceRegression",
 ]
 note = """
-Codes 1 to 5 of the acceptance example compare the stepwise pullback with the
+Observation 1 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions)
+checks 12 dt. Observations 2 to 4 compare the stepwise pullback with the
 pullback along the composite program, along the composite as one map and along
-a declared map. `SmoothReferenceRegression` compares the composite cases of
+a declared map. Observation 5 checks that the composite and the declared map
+are the same map. `SmoothReferenceRegression` compares the composite cases of
 `tests/fixtures/smooth-differential.json`, which the independent Python
 references generate.
 """
@@ -158,6 +165,6 @@ references generate.
 status = "not-claimed"
 reason = """
 The theorems concern the Lean runtime definitions that the checker and the
-generated programs share. That the compiled native code refines them is not
-claimed; native execution is tested only.
+generated programs share. No claim states that the compiled native code
+refines them. Tests run the native code.
 """

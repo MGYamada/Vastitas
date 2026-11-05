@@ -22,9 +22,9 @@ The rules of an `indexed evidence` declaration, which certifies a property of th
 - Subject: `indexed evidence`
 - Rule: [Metric evidence](../language/smooth-declarations.md#metric-evidence)
 
-The path of an evidence declaration must name a metric. Otherwise the declaration is an error (`E_METRIC`). In a valid environment, every evidence declaration names a declared metric on an object of known dimension.
+The path of an evidence declaration must name a metric. A path that names another indexed declaration is an error (`E_METRIC`). In a valid checked declaration environment, every evidence declaration names a declared metric on an object of known dimension.
 
-- Example: `indexed evidence SkewInvertible = nondegenerate(Plane);` names an object, not a metric, and is rejected with `E_METRIC`.
+- Example: `indexed evidence SkewInvertible = nondegenerate(Plane);` names an object, not a metric, and the kernel rejects it with `E_METRIC`.
 - Run by: `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
 
 Claims:
@@ -33,13 +33,14 @@ Claims:
   - Evidence:
     - [`VastitasOracle.SmoothMetricForms`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetricForms.lean): `VastitasOracle.SmoothMetricForms.nondegenerate_evidence_sound`, `VastitasOracle.SmoothMetricForms.riemannian_evidence_sound`
   - Premises:
-    - the environment is valid and contains the evidence declaration
+    - the checked declaration environment is valid and contains the evidence declaration
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasKernel.MetricFormRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MetricFormRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Enforced by: `VastitasKernel.Indexed.Source.certifyEvidence` in [`VastitasKernel.IndexedMetricSource`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedMetricSource.lean), which reports `E_METRIC`
+  - Note: An unresolved path is an error (`E_NAME`), and a path that names something other than an indexed declaration is an error (`E_TYPE`), as for every declaration path.
 
 <a id="evidence.nondegenerate"></a>
 
@@ -49,9 +50,9 @@ Claims:
 - Subject: `indexed evidence`
 - Rule: [Metric evidence](../language/smooth-declarations.md#metric-evidence)
 
-`nondegenerate(g)` is accepted only with an inverse B of the Gram matrix G of g, with GB = BG = I. So G is invertible. For a singular Gram matrix, such as diag(1, 0), the declaration is an error (`E_METRIC`).
+The kernel accepts `nondegenerate(g)` only with an inverse B of the Gram matrix G of g, with GB = BG = I. So G is invertible. For a singular Gram matrix, such as diag(1, 0), the declaration is an error (`E_METRIC`).
 
-- Example: `indexed evidence Bad = nondegenerate(Diag10);`, where Diag10 has the Gram matrix gram((1, 0), (0, 0)), is rejected because the metric is singular.
+- Example: Let Diag10 be a metric with the Gram matrix gram((1, 0), (0, 0)). The kernel rejects `indexed evidence Bad = nondegenerate(Diag10);`, because the metric is singular.
 - Run by: `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
 
 Claims:
@@ -61,8 +62,9 @@ Claims:
     - [`VastitasOracle.SmoothMetrics`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetrics.lean): `VastitasOracle.SmoothMetrics.certifyNondegenerate_sound`, `VastitasOracle.SmoothMetrics.checkNondegenerate_spec`, `VastitasOracle.SmoothMetrics.zero_row_not_nondegenerate`, `VastitasOracle.SmoothMetrics.diag_one_zero_rejected`
     - [`VastitasOracle.SmoothMetricForms`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetricForms.lean): `VastitasOracle.SmoothMetricForms.nondegenerate_evidence_sound`
   - Premises:
+    - for `certifyNondegenerate_sound`: the kernel's certification returned the inverse
     - for `zero_row_not_nondegenerate`: row i of the Gram matrix, with i &lt; n, is zero
-    - for `nondegenerate_evidence_sound`: the environment is valid and contains the evidence declaration
+    - for `nondegenerate_evidence_sound`: the checked declaration environment is valid and contains the evidence declaration
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
   - Note: `certifyNondegenerate_sound` holds whatever search produced the inverse: the kernel checks GB = BG = I itself.
 - `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
@@ -70,7 +72,7 @@ Claims:
     - [`VastitasBridge.Differential.Metric`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/Metric.lean): `VastitasBridge.Differential.isUnit_gram_of_nondegenerate`, `VastitasBridge.Differential.inverse_eq_of_nondegenerate`, `VastitasBridge.Differential.not_isUnit_diag_one_zero`, `VastitasBridge.Differential.checkNondegenerate_diag_one_zero`
   - Premises:
     - for `isUnit_gram_of_nondegenerate` and `inverse_eq_of_nondegenerate`: the Gram matrix and the inverse pass `checkNondegenerate`
-  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib), [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
@@ -86,9 +88,9 @@ Claims:
 - Subject: `indexed evidence`
 - Rule: [Metric evidence](../language/smooth-declarations.md#metric-evidence)
 
-`riemannian(g)` is accepted only with a factorization G = L D Lᵀ of the Gram matrix of g, with L unit lower triangular, every diagonal entry of D positive, and an inverse of L. So G is positive definite over ℝ. For a Gram matrix that is not positive definite, such as diag(1, −1), the declaration is an error (`E_METRIC`). The same diag(1, −1) has nondegenerate evidence.
+The kernel accepts `riemannian(g)` only with a factorization G = L D Lᵀ of the Gram matrix of g and an inverse of L, where L is unit lower triangular and every diagonal entry of D is positive. So G is positive definite over ℝ. For a Gram matrix that is not positive definite, such as diag(1, −1), the declaration is an error (`E_METRIC`). The matrix diag(1, −1) is its own inverse, so it passes the nondegenerate check.
 
-- Example: For the metric gram((1, 0), (0, -1)), `riemannian` evidence is rejected because the metric is not positive definite, and `nondegenerate` evidence is accepted.
+- Example: For the metric gram((1, 0), (0, -1)), the kernel rejects `riemannian` evidence because the metric is not positive definite, and it accepts `nondegenerate` evidence.
 - Run by: `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
 
 Claims:
@@ -98,7 +100,9 @@ Claims:
     - [`VastitasOracle.SmoothMetrics`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetrics.lean): `VastitasOracle.SmoothMetrics.certifyRiemannian_sound`, `VastitasOracle.SmoothMetrics.checkRiemannian_spec`
     - [`VastitasOracle.SmoothMetricForms`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothMetricForms.lean): `VastitasOracle.SmoothMetricForms.riemannian_evidence_sound`
   - Premises:
-    - for `riemannian_evidence_sound`: the environment is valid and contains the evidence declaration
+    - for `certifyRiemannian_sound`: the kernel's certification returned the factorization
+    - for `checkRiemannian_spec`: the factorization passes `checkRiemannian`
+    - for `riemannian_evidence_sound`: the checked declaration environment is valid and contains the evidence declaration
   - Assumes: [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
 - `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
   - Evidence:
@@ -106,8 +110,9 @@ Claims:
     - [`VastitasBridge.Differential.Accepted`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/Accepted.lean): `VastitasBridge.Differential.checked_riemannian_posDef`
   - Premises:
     - for `posDef_of_riemannian`: the factorization passes `checkRiemannian`
-    - for `checked_riemannian_posDef`: the environment is valid and contains the Riemannian evidence declaration
-  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+    - for `checked_riemannian_posDef`: the checked declaration environment is valid and contains the Riemannian evidence declaration
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib), [Rust frontend parsing](assumptions.md#assumption.rust-frontend)
+  - Note: `checkNondegenerate_lorentz` shows that diag(1, −1) with itself as the inverse passes the nondegenerate check. That the kernel's search finds this inverse is tested.
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
@@ -115,7 +120,7 @@ Claims:
     - [`VastitasKernel.MetricFormRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MetricFormRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Enforced by: `VastitasKernel.Indexed.Source.certifyEvidence` in [`VastitasKernel.IndexedMetricSource`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedMetricSource.lean), which reports `E_METRIC`
   - Enforced by: `VastitasKernel.SmoothDeclarations.certifyRiemannian` in [`VastitasKernel.SmoothDeclarations`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/SmoothDeclarations.lean), which reports `E_METRIC`
-  - Note: The acceptance example declares nondegenerate evidence for diag(1, −1).
+  - Note: The [acceptance example](../stage3-acceptance.md#acceptance-conditions) declares nondegenerate evidence for diag(1, −1).
 
 <a id="evidence.kind"></a>
 
@@ -127,7 +132,7 @@ Claims:
 
 An evidence kind other than `nondegenerate` or `riemannian` is an error (`E_TYPE`).
 
-- Example: `indexed evidence SkewPositive = positive(Skew);` is rejected with `E_TYPE`.
+- Example: The compiler rejects `indexed evidence SkewPositive = positive(Skew);` with `E_TYPE`.
 - Run by: `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
 
 Claims:
@@ -135,7 +140,7 @@ Claims:
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `metric_declarations_reject_malformed_metrics_and_evidence_with_specific_codes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
-  - Note: The frontend reports this error; the rejection is not proved.
+  - Note: The frontend reports this error. No theorem states the rejection.
 
 <a id="evidence.search"></a>
 
@@ -145,7 +150,7 @@ Claims:
 - Subject: `indexed evidence`
 - Rule: [Metric evidence](../language/smooth-declarations.md#metric-evidence)
 
-`invert?` finds an inverse of every invertible Gram matrix, and `ldl?` finds an L D Lᵀ factorization of every positive-definite Gram matrix. Soundness does not depend on this: the kernel checks every certificate again, so an incomplete search would reject a valid metric with `E_METRIC` but accept no invalid one.
+`invert?` finds an inverse of every invertible Gram matrix, and `ldl?` finds an L D Lᵀ factorization of every positive-definite Gram matrix. Soundness does not depend on this, because the kernel checks every certificate again. An incomplete search would reject a valid metric with `E_METRIC`, and it would accept no invalid one.
 
 - Example: A dense 16 × 16 metric with L·L on the diagonal and 1/L elsewhere, for a large integer L, has both kinds of evidence.
 - Run by: `a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
@@ -157,6 +162,6 @@ Claims:
     - `a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasAlgebraTest.SmoothReferenceRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasAlgebraTest/SmoothReferenceRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - [`VastitasKernel.MetricFormRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/MetricFormRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
-  - Note: `SmoothReferenceRegression` compares the certificates with the Python reference for the 2 × 2 Gram matrices of `tests/fixtures/smooth-differential.json`. No test covers every invertible or positive-definite matrix.
+  - Note: `SmoothReferenceRegression` compares the inverse, and whether Riemannian evidence exists, with the Python reference for the 2 × 2 Gram matrices of `tests/fixtures/smooth-differential.json`. No test covers every invertible or positive-definite matrix.
 - `proof`: [Planned](../specifications.md#planned)
   - Issue: [#264](https://github.com/MGYamada/Vastitas/issues/264)

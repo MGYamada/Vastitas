@@ -29,6 +29,8 @@ theorem withSorry : (1 : Nat) = 2 := sorry
 axiom unsound : False
 theorem withAxiom : (1 : Nat) = 2 := unsound.elim
 def notTheorem : Nat := 1
+theorem goodRenamed {m : Nat} : m + 0 = m := Nat.add_zero m
+theorem poly.{u} (α : Sort (max u 1)) (a : α) : a = a := rfl
 end VastitasOracle.SpecFixture
 """,
     "VastitasOracle.SpecFixtureOther": """
@@ -39,6 +41,7 @@ end VastitasOracle.SpecFixtureOther
     "VastitasKernel.SpecFixture": """
 namespace VastitasKernel.SpecFixture
 def check (n : Nat) : Bool := n == 0
+def withSorryDefinition : Nat := sorry
 theorem notDefinition : True := trivial
 end VastitasKernel.SpecFixture
 namespace VastitasOracle.Misplaced
@@ -50,7 +53,44 @@ namespace VastitasBridge.SpecFixture
 theorem good (n : Nat) : n * 1 = n := Nat.mul_one n
 end VastitasBridge.SpecFixture
 """,
+    # A module without Lean's prelude that declares its own `propext`.
+    "VastitasOracle.SpecEvil": """prelude
+axiom propext : ∀ p : Prop, p
+theorem VastitasOracle.SpecEvil.bad : ∀ p : Prop, p := propext
+""",
+    # Two modules that declare one theorem, which Lean merges on import.
+    "VastitasOracle.SpecTwinA": """
+theorem VastitasOracle.SpecTwin.t : True := trivial
+""",
+    "VastitasOracle.SpecTwinB": """
+theorem VastitasOracle.SpecTwin.t : True := trivial
+""",
+    # An axiom and a theorem of one name and type, which Lean merges on import,
+    # and a theorem that uses the merged constant.
+    "VastitasOracle.SpecMergeAxiom": """
+axiom VastitasOracle.SpecMerge.t : True
+""",
+    "VastitasOracle.SpecMergeTheorem": """
+theorem VastitasOracle.SpecMerge.t : True := trivial
+""",
+    "VastitasOracle.SpecMerge": """
+import VastitasOracle.SpecMergeAxiom
+import VastitasOracle.SpecMergeTheorem
+theorem VastitasOracle.SpecMerge.uses : True := VastitasOracle.SpecMerge.t
+""",
+    "VastitasOracle.SpecStaleBase": """
+def VastitasOracle.SpecStale.k : Nat := 0
+""",
+    "VastitasOracle.SpecStale": """
+import VastitasOracle.SpecStaleBase
+theorem VastitasOracle.SpecStale.uses : VastitasOracle.SpecStale.k = 0 := rfl
+""",
 }
+
+# The canonical text of `VastitasOracle.SpecFixture.poly.{u} (α : Sort (max u 1)) (a : α) : a = a`,
+# which covers universe parameters, `max` and `succ` levels.
+POLY_TEXT = ("vastitas-statement-v1 U{_.s1:u,} P(Sm(p_.s1:u;,sz); P(#0; "
+             "A(A(A(C_.s2:Eq{m(sz,p_.s1:u;),} #1;) #0;) #0;)))")
 
 # The canonical text of `VastitasOracle.SpecFixture.good`, `∀ n : Nat, n + 0 = n`.
 # A change here is a change of the pin format, which changes every pin.
@@ -66,21 +106,29 @@ def lean(arguments, environment, cwd):
                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=600, check=False)
 
 
+def compile_module(package, environment, module, source):
+    output = package / ".lake/build/lib/lean"
+    file = package.joinpath(*module.split(".")).with_suffix(".lean")
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(source, encoding="utf-8")
+    target = output.joinpath(*module.split(".")).with_suffix(".olean")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    result = lean(["--root", package, "-o", target, file], environment, package)
+    if result.returncode:
+        raise RuntimeError(f"fixture {module} failed to compile\n{result.stdout}")
+
+
 def build(package):
-    """Compile the fixture modules into `package/.lake/build/lib/lean`."""
+    """Compile the fixture modules into `package/.lake/build/lib/lean`. Then
+    recompile `VastitasOracle.SpecStaleBase` without the constant that the
+    compiled `VastitasOracle.SpecStale` uses, so that its object file is stale."""
     output = package / ".lake/build/lib/lean"
     output.mkdir(parents=True)
     environment = dict(os.environ)
     environment["LEAN_PATH"] = os.pathsep.join(filter(None, [str(output), environment.get("LEAN_PATH")]))
     for module, source in FIXTURES.items():
-        file = package.joinpath(*module.split(".")).with_suffix(".lean")
-        file.parent.mkdir(parents=True, exist_ok=True)
-        file.write_text(source, encoding="utf-8")
-        target = output.joinpath(*module.split(".")).with_suffix(".olean")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        result = lean(["--root", package, "-o", target, file], environment, package)
-        if result.returncode:
-            raise RuntimeError(f"fixture {module} failed to compile\n{result.stdout}")
+        compile_module(package, environment, module, source)
+    compile_module(package, environment, "VastitasOracle.SpecStaleBase", "def VastitasOracle.SpecStale.other : Nat := 0\n")
     return environment
 
 
@@ -88,12 +136,13 @@ def pins(environment_name, imports, entries):
     return {"format": 1, "environment": environment_name, "imports": imports, "entries": entries}
 
 
-def run(environment, directory, data, report=False):
+def run(environment, directory, data, report=False, extra=None):
     source = directory / "pins.json"
     source.write_text(json.dumps(data), encoding="utf-8")
     variables = dict(environment, VASTITAS_SPEC_INPUT=str(source))
-    variables.pop("VASTITAS_SPEC_REPORT", None)
-    variables.pop("VASTITAS_SPEC_CANONICAL", None)
+    for name in ("VASTITAS_SPEC_REPORT", "VASTITAS_SPEC_CANONICAL", "VASTITAS_SPEC_STATEMENT_LIMIT"):
+        variables.pop(name, None)
+    variables.update(extra or {})
     output = directory / "report.json"
     if report:
         variables.update(VASTITAS_SPEC_REPORT=str(output), VASTITAS_SPEC_CANONICAL="1")
@@ -118,19 +167,22 @@ def main():
         facts = run(environment, directory, pins("oracle", fixture, [
             {"name": "VastitasOracle.SpecFixture.good", "kind": "theorem"},
             {"name": "VastitasOracle.SpecFixture.other", "kind": "theorem"},
+            {"name": "VastitasOracle.SpecFixture.goodRenamed", "kind": "theorem"},
+            {"name": "VastitasOracle.SpecFixture.poly", "kind": "theorem"},
             {"name": "VastitasKernel.SpecFixture.check", "kind": "definition"}]), report=True)
         if facts["problems"]:
             raise RuntimeError(f"valid fixtures reported problems: {facts['problems']}")
         found = {entry["name"]: entry for entry in facts["entries"]}
         good, other = found["VastitasOracle.SpecFixture.good"], found["VastitasOracle.SpecFixture.other"]
-        for entry in (good, other):
+        renamed, poly = found["VastitasOracle.SpecFixture.goodRenamed"], found["VastitasOracle.SpecFixture.poly"]
+        for entry in (good, other, renamed, poly):
             expected = "sha256:" + hashlib.sha256(entry["canonical"].encode("utf-8")).hexdigest()
             if entry["statement"] != expected:
                 raise RuntimeError(f"Lean SHA-256 {entry['statement']} differs from Python's {expected}")
         if good["module"] != "VastitasOracle.SpecFixture" or good["kind"] != "theorem" \
                 or not set(good["axioms"]) <= {"propext", "Classical.choice", "Quot.sound"}:
             raise RuntimeError(f"unexpected facts for good: {good}")
-        if found["VastitasKernel.SpecFixture.check"] != {
+        if {key: value for key, value in found["VastitasKernel.SpecFixture.check"].items() if key != "axioms"} != {
                 "name": "VastitasKernel.SpecFixture.check", "kind": "definition",
                 "module": "VastitasKernel.SpecFixture"}:
             raise RuntimeError(f"unexpected facts for check: {found['VastitasKernel.SpecFixture.check']}")
@@ -138,6 +190,10 @@ def main():
             raise RuntimeError(f"the canonical statement text changed:\n{good['canonical']}")
         if good["statement"] == other["statement"]:
             raise RuntimeError("two different statements have the same hash")
+        if renamed["statement"] != good["statement"]:
+            raise RuntimeError("renaming a binder or making it implicit changed the statement hash")
+        if poly["canonical"] != POLY_TEXT:
+            raise RuntimeError(f"the canonical text of a universe-polymorphic statement changed:\n{poly['canonical']}")
         print("passed: report mode, and Lean's SHA-256 equals Python's on the canonical text", flush=True)
         passed += 1
 
@@ -149,9 +205,9 @@ def main():
                  {"name": "VastitasKernel.SpecFixture.check", "kind": "definition",
                   "module": "VastitasKernel.SpecFixture"}]
 
-        def case(label, data, expected=()):
+        def case(label, data, expected=(), extra=None):
             nonlocal passed
-            result = run(environment, directory, data)
+            result = run(environment, directory, data, extra=extra)
             if not expected:
                 if result.returncode or "resolved in" not in result.stdout:
                     raise RuntimeError(f"{label}: valid pins rejected\n{result.stdout}")
@@ -161,6 +217,9 @@ def main():
             passed += 1
 
         case("valid pins resolve", pins("oracle", fixture, valid))
+        case("an inherited report variable keeps the comparison", pins("oracle", fixture, [
+            theorem("VastitasOracle.SpecFixture.other", other, statement=good["statement"])]),
+            ["has a changed statement"], extra={"VASTITAS_SPEC_REPORT": str(directory / "inherited.json")})
         case("a missing theorem", pins("oracle", fixture, valid + [
             theorem("VastitasOracle.SpecFixture.absent", good)]),
             ["VastitasOracle.SpecFixture.absent: is not found in the imported modules"])
@@ -209,6 +268,43 @@ def main():
         case("an oracle theorem in the bridge environment", pins("bridge", fixture, [
             theorem("VastitasOracle.SpecFixture.good", good)]),
             ["is not a fully qualified name under VastitasBridge", "outside VastitasBridge"])
+        case("a kernel definition that uses sorry", pins("oracle", fixture, [
+            {"name": "VastitasKernel.SpecFixture.withSorryDefinition", "kind": "definition",
+             "module": "VastitasKernel.SpecFixture"}]),
+            ["withSorryDefinition: depends on the unapproved axiom sorryAx"])
+        case("an axiom named propext outside Lean's prelude", pins("oracle", ["VastitasOracle.SpecEvil"], [
+            {"name": "VastitasOracle.SpecEvil.bad", "kind": "theorem", "module": "VastitasOracle.SpecEvil",
+             "statement": good["statement"]}]),
+            ["the imported modules declare the axiom propext in VastitasOracle.SpecEvil, not in Init.Core",
+             "bad: depends on the unapproved axiom propext of VastitasOracle.SpecEvil"])
+        case("a theorem that two modules declare", pins(
+            "oracle", ["VastitasOracle.SpecTwinA", "VastitasOracle.SpecTwinB"], [
+                {"name": "VastitasOracle.SpecTwin.t", "kind": "theorem", "module": "VastitasOracle.SpecTwinA",
+                 "statement": good["statement"]}]),
+            ["VastitasOracle.SpecTwin.t: is declared by more than one imported module"])
+        case("a theorem that reaches an axiom merged with a theorem", pins("oracle", ["VastitasOracle.SpecMerge"], [
+            {"name": "VastitasOracle.SpecMerge.uses", "kind": "theorem", "module": "VastitasOracle.SpecMerge",
+             "statement": good["statement"]}]),
+            ["uses: depends on the unapproved axiom VastitasOracle.SpecMerge.t"])
+        case("a theorem that reaches a constant its modules no longer define", pins(
+            "oracle", ["VastitasOracle.SpecStale"], [
+                {"name": "VastitasOracle.SpecStale.uses", "kind": "theorem", "module": "VastitasOracle.SpecStale",
+                 "statement": good["statement"]}]),
+            ["uses: reaches VastitasOracle.SpecStale.k, which the imported modules do not define"])
+        case("a pin without a module", pins("oracle", fixture, [
+            {"name": "VastitasOracle.SpecFixture.good", "kind": "theorem", "statement": good["statement"]}]),
+            ["VastitasOracle.SpecFixture.good: has no pinned module"])
+        case("a name with an empty component", pins("oracle", fixture, [
+            theorem("VastitasOracle..good", good)]), ["VastitasOracle..good: is not a Lean name"])
+        case("another input format", dict(pins("oracle", fixture, valid), format=2), ["the input must have format 1"])
+        case("an import that is not a module name", pins("oracle", fixture + ["Vastitas Oracle"], valid),
+             ["the import `Vastitas Oracle` is not a module name"])
+        case("no modules to import", pins("oracle", [], valid), ["no modules to import"])
+        result = run(environment, directory, pins("oracle", fixture, valid), extra={"VASTITAS_SPEC_STATEMENT_LIMIT": "100"})
+        if not result.returncode or "more than 100 bytes of canonical text" not in result.stdout:
+            raise RuntimeError(f"a statement over the size limit was not rejected\n{result.stdout}")
+        print("passed: a statement longer than the size limit", flush=True)
+        passed += 1
         case("no pinned declarations", pins("oracle", fixture, []), ["no pinned declarations"])
         case("an unknown environment", pins("mathlib", fixture, valid),
              ["unknown specification environment mathlib"])

@@ -593,8 +593,8 @@ binding's operands, their agreements and its result.
 `IndexedPrimitiveDescriptors.lean` defines what a binding's
 [registry entry](appendix/glossary.md#registry-entry)
 (`PrimitiveDescriptor`) holds: its shape, its validity contract, its two
-evaluators, its lowering and the literals a generated module declares once for
-it. The evaluators are `eval` on logical values and `evalRuntime` on erased
+evaluators, its lowering, the literals a generated module declares once for
+it and its [derivative rule](appendix/glossary.md#derivative-rule). The evaluators are `eval` on logical values and `evalRuntime` on erased
 values. `IndexedPrimitiveRegistry.lean` holds one registry entry per
 binding, and `IndexedPrimitives.lean` derives every
 binding's validity contract, operand association, result inference and operand
@@ -620,7 +620,10 @@ admits it, and how the resolved fields build the binding. The decoder of
 binding through the family. The frontend reads `src/primitive_table.rs`, which
 `scripts/check_primitive_table.py` generates from the same table and checks
 for drift. A binding that the checker derives from a morphism, isomorphism or
-Cartesian-square declaration has no family.
+Cartesian-square declaration has no family. Neither has a step binding of
+[compiled reverse Core](appendix/glossary.md#compiled-reverse-core),
+`smoothApply` or `cotangentJacobian`. Only the kernel declares these
+bindings, after acceptance, so no source or wire request names them.
 [Add an indexed primitive](development/primitives.md) lists what one more
 binding touches. `IndexedDescriptorExample` defines a `PrimitiveDescriptor`
 value and a `PrimitiveFamily` value outside the registry.

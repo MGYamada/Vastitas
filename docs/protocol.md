@@ -410,8 +410,12 @@ names, reserved names, unbound references, incompatible annotations, escaping
 nominal identities, and a main signature other than `fn main() -> Int`.
 Check accepts modules without main; emit requires main.
 Source declaration order does not constrain function calls.
-The `__vastitas_` prefix is reserved for hygienic specialization names and is
-rejected in source binders and references, including forged wire requests.
+The `__vastitas_` prefix is reserved for hygienic specialization names and for
+the declarations (`__vastitas_rd…`) and generated functions (`__vastitas_rf…`)
+of compiled reverse Core. A source binder, or a declaration or function of a
+wire request, under that prefix is an error (`E_RESERVED`). The kernel
+declares the compiled reverse names only after acceptance, so a call of one
+in a request is an unbound name (`E_NAME`).
 
 `decodeSurfaceModule` in `SurfaceProtocol.lean` decodes the extended request and
 `Indexed.LegacySource` converts its unresolved syntax into the common
@@ -738,8 +742,10 @@ than ignoring them as unrelated metadata.
 `Indexed.Wire.check` retains the exact decode and actual
 `Indexed.AuthoritySource.checkProgram` result. The actual authority assembler,
 all-key footprints, every applied/unapplied body, independent Fn audits and both
-Core checks therefore run before success. `emit` passes that exact executable
-Core to `Indexed.Core.Codegen.generate`, which independently rechecks it.
+Core checks therefore run before success. `emit` passes `compiled` to
+`Indexed.Core.Codegen.generate`: the executable Core with its reverse passes
+compiled into Core, checked again and validated by recompilation. The
+generator rechecks it independently.
 See [source syntax and limitations](indexed-source.md).
 
 ## Expected-rejection doctest consumer (reference only)

@@ -393,6 +393,21 @@ def measure (env : Declarations) (defs : Defs) : Nat → Term → Nat × Bool
       | none => (1, true)
     | _ => (1, copyable env term)
 
+/-- The definition that a `let` records. An alias of a recorded `let` records
+that `let`'s definition under its own symbol, so a chain of aliases is read in
+one step. Core forbids shadowing, so the definition's variables still name
+the same bindings at the alias. -/
+def Def.record (env : Declarations) (defs : Defs) (symbol : Nat) (value : Term) : Def :=
+  let measured : Def :=
+    let (leaves, copies) := measure env defs (defs.length + 64) value
+    ⟨symbol, value, leaves, copies⟩
+  match strip value with
+  | .variable source _ =>
+    match defs.find source with
+    | some definition => { definition with symbol }
+    | none => measured
+  | _ => measured
+
 /-- Read the maps of a reverse pass from its map operand, with at most `budget`
 leaves. `fuel` bounds the depth read through. A variable is read through when
 its definition's opaque steps may be copied and its recorded steps fit in the
@@ -618,8 +633,7 @@ def rewrite (env : Declarations) (defs : Defs) (state : State) : Term → Term �
     (.scope body, state)
   | .letE symbol value body =>
     let (value, state) := rewrite env defs state value
-    let (leaves, copies) := measure env defs (defs.length + 64) value
-    let (body, state) := rewrite env (⟨symbol, value, leaves, copies⟩ :: defs) state body
+    let (body, state) := rewrite env (Def.record env defs symbol value :: defs) state body
     (.letE symbol value body, state)
   | term => (term, state)
 

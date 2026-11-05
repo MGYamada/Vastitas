@@ -28,6 +28,7 @@ lake -d lean-kernel build VastitasKernel VastitasPromotion VastitasPublicTest Va
 bash scripts/check_kernel_regressions.sh
 lake -d lean build VastitasOracle
 (cd lean && lake env lean -DwarningAsError=true ../scripts/audit_axioms.lean)
+(cd lean && lake env lean -DwarningAsError=true ../scripts/check_chain_rule_free.lean)
 lake -d lean env python3 scripts/check_axiom_audit.py
 (cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean)
 (cd lean && VASTITAS_SPEC_INPUT=../docs/spec/pins/oracle.json lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean)

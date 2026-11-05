@@ -1662,8 +1662,12 @@ without a callee-safety, evaluator-success or ambient-freshness assumption.
 `IndexedWire.executable_functions_total`, `audit_functions_total` and `main_total`
 apply those theorems to the exact Core modules returned from protocol 7.
 `LegacySource` exposes the same three corollaries for protocols 2–6. Their
-`coreInput` equations tie the proofs to the same executable Core passed to native
-generation, and to the audit Core that also includes unapplied/unused bodies.
+`coreInput` equations tie the proofs to the executable Core and to the audit
+Core that also includes unapplied/unused bodies. Native generation receives
+`compiled`, the executable Core with its reverse passes compiled into Core,
+checked again and validated. `IndexedReverseCore.compiled_codegen_input` and
+`legacy_compiled_codegen_input` identify that module, and
+`compiled_functions_total` gives its functions typed, finite evaluation.
 
 These are theorems about the actual indexed Core evaluator, not equality with a
 source interpreter or the retained legacy evaluator, native-code refinement,
@@ -2043,8 +2047,8 @@ requires by name. **Tested** means a regression or native test.
 
 ### Compiled reverse Core
 
-After acceptance, the kernel compiles the reverse passes of the executable
-Core into Core of their own (`lean-kernel/VastitasKernel/IndexedReverse.lean`).
+After acceptance, the kernel compiles each reverse pass of the executable
+Core that it can read into Core of its own (`lean-kernel/VastitasKernel/IndexedReverse.lean`).
 Code generation receives the result, `compiled`, on every public path. The
 [compiled reverse Core acceptance map](reverse-core-acceptance.md) links each
 claim below to its tests and theorems.
@@ -2061,18 +2065,20 @@ claim below to its tests and theorems.
   is an [opaque step](appendix/glossary.md#opaque-step). The compilation reads
   at most `reverseLeaves` maps of one site. It reads through at most as many
   levels as there are `let`s in scope, plus 64.
-- The [forward Core](appendix/glossary.md#forward-core) at the site binds the
-  input point r₀ and its images rᵢ = mᵢ(rᵢ₋₁) as ordinary Core values. r_k is
-  the primal value, and r₀, …, r_{k−1} are the
+- The [forward Core](appendix/glossary.md#forward-core) binds the input
+  point r₀ and its images rᵢ = mᵢ(rᵢ₋₁) as ordinary Core values. It stands at
+  a saved site, and inside the generated function of a recomputing site. r_k
+  is the primal value, and r₀, …, r_{k−1} are the
   [residuals](appendix/glossary.md#residual). A differential also binds its
-  seed, the coordinate covector at r_k.
+  seed, the unit covector at r_k: the coordinate covector of its
+  1-dimensional target.
 - The [backward Core](appendix/glossary.md#backward-core) is a generated
   function. It pulls the seed back along m_k, …, m₁: a declared map by its
   Jacobian table, an opaque step by the
   [runtime reverse pass](appendix/glossary.md#runtime-reverse-pass) in saved
-  mode. The function takes the map value of each opaque step as a parameter. A saved
-  site passes every point. A recomputing site passes r₀, and the function
-  evaluates the images again.
+  mode. The function takes the map value of each opaque step as a parameter.
+  A saved site passes every point: the residuals and the primal value. A
+  recomputing site passes r₀, and the function evaluates the images again.
 - The kernel declares the step bindings of each site and its generated
   function in the scope of the function that holds the site, under reserved
   names (`__vastitas_rd…`, `__vastitas_rf…`). No source and no wire request
@@ -2151,9 +2157,10 @@ which use the stepwise pullback. The Fréchet theorems add
 `cot_compose_kaehler`. The import closure of the file contains the oracle's
 `SmoothCalculus`, so the independence from the chain rule concerns the
 constants that the proofs use. `lean-bridge/Audit.lean` walks those constants.
-It fails if one is `cot_compose`, `backward_eq_cot`, `pullback_composite` or
-`pullback_comp` of the bridge or the oracle, or `pderiv_aeval`. A positive
-control checks that the walk detects `cot_compose`.
+It fails if one reaches a chain-rule theorem of `ChainRule.lean` or of the
+oracle, `pullback_chain_cot` included, or `pderiv_aeval`. Two positive
+controls, `compiled_saved_entry_cot` and `checked_pullback_kaehler`, must
+reach one.
 
 The site theorems compose the oracle's `site_saved_rewrite`,
 `site_recomputed_rewrite`, `site_differential_rewrite`, `site_tape_rewrite`
@@ -2161,7 +2168,9 @@ and `compiled_site_evaluates` with `pullback_covector_eq_comp_fderiv`. They
 reach the map value `M` of the source site, not only the chain of the step
 programs. `compiled_site_frechet` covers the pullback sites that
 `compileSite` compiles, and `compiled_differential_site_frechet` the
-differential sites. A tape site has the local theorem only.
+differential sites, under the premises of `compiled_site_evaluates`. The direct
+tape form `backward(linearize(M, x), η)` has the local theorem only, and a
+tape bound by a `let` has no Fréchet theorem.
 
 Premises on the arguments of the call stay. There is one smooth map per opaque
 step, and the arguments evaluate to those maps, the points and the seed. For a
@@ -2195,13 +2204,25 @@ coordinates.
     call, and the budgets (`ReverseCoreRegression`);
   - the generated code, byte for byte (`tests/emit_golden.rs`), and the
     native fixtures `smooth_reverse_programs` and `smooth_reverse_extended`.
-- Compiled reverse Core as a whole module: that the compiled module evaluates
-  as the source module in every function, `VastitasKernel.ReverseCoreRegression`
-  and `tests/reverse_core.rs`. The oracle proves that the term at each compiled
-  site evaluates as its source call (`compiled_site_evaluates`), under two
-  premises that it does not discharge for the rewritten functions: the `let`
-  definitions in scope agree with the activation, and the operands read no
-  symbol that the compilation binds.
+- Compiled reverse Core as a whole module. The tests compare the result of
+  `main` before and after the compilation: of the acceptance example
+  (`VastitasAlgebraTest.ReverseExampleRegression`), of the cotangent fixture
+  and of the extended module (`VastitasKernel.ReverseCoreRegression`), and of
+  the corpus packages (`tests/reverse_core.rs`). They compare single sites with
+  their source calls only on the 45 closed sites of the cotangent fixture, a
+  hand-built Core program that differs from the acceptance example.
+- The oracle proves that the term at each compiled site evaluates as its
+  source call (`compiled_site_evaluates`). Applying it inside a rewritten
+  function needs six facts that no theorem discharges, and that only the
+  comparisons above test:
+  - the `let` definitions in scope agree with the activation (`DefsAgree`);
+  - the operands read no symbol that the compilation binds;
+  - `rewrite` places the term that `compileSite` returns at the site of the
+    rewritten body;
+  - the ledger entries before the site are well formed (`EntryWellFormed`);
+  - the map operand evaluates to a well-typed program;
+  - the source call of the theorem is the call with the same operands, which
+    the compilation has already rewritten, evaluated in the compiled module.
 - A tape passed to another function: that function keeps the runtime reverse
   pass, `tests/reverse_core.rs`.
 - Chain-rule independence is checked, not proved: `scripts/check_chain_rule_free.lean`

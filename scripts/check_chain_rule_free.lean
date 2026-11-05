@@ -21,6 +21,7 @@ namespace VastitasChainRuleFree
 /-- The chain-rule theorems of the oracle. -/
 def chainRule : Array Name := #[
   `VastitasOracle.SmoothCalculus.cot_compose_of_length,
+  `VastitasOracle.SmoothCalculus.evalAt_partial_subst,
   `VastitasOracle.SmoothCalculus.cot_compose,
   `VastitasOracle.SmoothCalculus.backward_eq_cot,
   `VastitasOracle.SmoothCalculus.backward_eq_cot_saved,

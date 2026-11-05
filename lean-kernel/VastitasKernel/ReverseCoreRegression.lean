@@ -422,4 +422,26 @@ private def doubled (base : String) (levels : Nat) (seedPoint : Int) : Module :=
    (Reverse.rewrite source.declarations [] full site).2.entries.isEmpty &&
      (Reverse.rewrite source.declarations [] room site).2.entries.length == 1)
 
+/-- `a₀ := g ∘ f`, then `aᵢ₊₁ := aᵢ` for `aliases` aliases, then the pullback
+along the last alias at 3. -/
+private def aliased (aliases : Nat) : Function :=
+  let line := smoothType "Line" "Line"
+  let rec chain : Nat → Term → Term
+    | 0, body => body
+    | k + 1, body => .letE (aliases - k) (var (aliases - k - 1) line) (chain k body)
+  { id := 0, definition := id "main", parameters := [], returnType := .pure .int
+    body := .letE 0 (compose (constant "g" "Plane" "Line") (constant "f" "Line" "Plane") "Line" "Line") <|
+      chain aliases <|
+        guarded (same (prim "pullback" [var aliases line, three, seed] (cotangentType "Line")) twelve) 1
+          (.integer 42) }
+
+#eval check "a chain of 200 aliases is read in one step: two declared steps, evaluated as the source"
+  (let module : Module := { source with functions := [aliased 200] }
+   let (compiled, ledger) := Reverse.generate module
+   ledger.length == 1 && (ledger.headD default).site.steps.length == 2 &&
+     (ledger.headD default).site.steps.all (·.kind != .opaque) && (Typing.checkModule compiled true).isOk &&
+     run compiled mainCall == some (.integer 42) && run module mainCall == some (.integer 42))
+#eval check "steps over the wrong objects fail the Core audit"
+  (!audited (onTwoSteps swapSteps))
+
 end VastitasKernel.Indexed.Core.ReverseCoreRegression

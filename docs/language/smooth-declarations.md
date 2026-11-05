@@ -413,7 +413,8 @@ Rules:
 - The operand rules of [operand checks](#operand-checks) apply.
 
 > **Implementation note.** After the check, the kernel compiles each reverse
-> pass into [compiled reverse Core](../appendix/glossary.md#compiled-reverse-core).
+> pass that it can read into
+> [compiled reverse Core](../appendix/glossary.md#compiled-reverse-core).
 > [Forward Core](../appendix/glossary.md#forward-core) at the call evaluates
 > the image of the input point along each map of the pass. A generated
 > function, the [backward Core](../appendix/glossary.md#backward-core), pulls
@@ -424,7 +425,8 @@ Rules:
 > [opaque step](../appendix/glossary.md#opaque-step). The
 > [runtime reverse pass](../appendix/glossary.md#runtime-reverse-pass) over
 > the program value that `smooth_compose` builds pulls the seed back along
-> it. The `saved` mode passes every intermediate point to the backward Core.
+> it. The `saved` mode passes every point to the backward Core: the input
+> point, the intermediate points and the image.
 > The `recomputed` mode passes the input point, and the backward Core
 > evaluates the intermediate points again. Neither mode expands the composite.
 > The reverse pass of a tape bound by `let` is compiled; a tape passed to a

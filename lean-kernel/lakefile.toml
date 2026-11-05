@@ -64,11 +64,18 @@ name = "smoothFixture"
 path = "../tests/fixtures/smooth-differential.json"
 text = true
 
+# The wire of the Stage 3 acceptance example for compiled reverse Core (#623).
+[[input_file]]
+name = "reverseExampleFixture"
+path = "../tests/fixtures/reverse-example.wire.json"
+text = true
+
 [[lean_lib]]
 name = "VastitasAlgebraTest"
 leanOptions = { autoImplicit = false }
-roots = ["VastitasAlgebraTest.BasisRegression", "VastitasAlgebraTest.SmoothReferenceRegression"]
-needs = ["compilerLimits", "algebraFixture", "smoothFixture"]
+roots = ["VastitasAlgebraTest.BasisRegression", "VastitasAlgebraTest.SmoothReferenceRegression",
+  "VastitasAlgebraTest.ReverseExampleRegression"]
+needs = ["compilerLimits", "algebraFixture", "smoothFixture", "reverseExampleFixture"]
 
 [[input_file]]
 name = "storageFixture"

@@ -4,8 +4,14 @@ The compiler rejects an input that exceeds a limit, usually with `E_LIMIT`. It
 never accepts part of an input or skips an unused body to stay within a budget.
 These are defensive implementation limits, not mathematical restrictions.
 The compilation of reverse passes into Core is the one exception: its budgets
-bound how much of a checked program it compiles, and it rejects nothing (see
-`reverseLeaves`).
+bound how much of a checked program it compiles, and it rejects nothing. A
+reverse site keeps the
+[runtime reverse pass](glossary.md#runtime-reverse-pass) when its compiled
+Core would exceed `generatedLets` in its function, or when its declarations
+would exceed the 4096 declaration ids of a Core module. The reading of a
+site's maps stops after `reverseLeaves` maps, and after as many levels as
+there are `let`s in scope, plus 64; the rest of the map is one
+[opaque step](glossary.md#opaque-step).
 
 ## Checker limits
 
@@ -27,8 +33,8 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `bodyChecking` | 4096 | Depth of one checking path through a function body or function instance | [Core language](../stage0.md#compiler-behavior-and-limits) · [Specialization](../stage1b.md#checking-and-specialization) |
 | `elaborationWork` | 1,000,000 | Aggregate elaboration units per pass | [Specialization](../stage1b.md#checking-and-specialization) |
 | `resourceWork` | 32,000,000 | Weighted units across all resource probes and the executable entry | [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work) |
-| `generatedLets` | 4096 | Generated Lean `let` bindings per function. A function whose compiled reverse Core would exceed it keeps its reverse passes as calls of the runtime pass | [Core language](../stage0.md#compiler-behavior-and-limits) |
-| `reverseLeaves` | 256 | Maps of one reverse pass that the compilation into Core reads through `let`s and `compose`; a map beyond it is one step pulled back by the runtime pass | [Kernel source](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
+| `generatedLets` | 4096 | Generated Lean `let` bindings per function. A function whose compiled reverse Core would exceed it keeps its reverse passes as calls of the [runtime reverse pass](glossary.md#runtime-reverse-pass) | [Core language](../stage0.md#compiler-behavior-and-limits) |
+| `reverseLeaves` | 256 | Maps of one reverse pass that the compilation into Core reads through `let`s and `compose`; a map beyond it is one [opaque step](glossary.md#opaque-step), pulled back by the runtime reverse pass | [Kernel source](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
 | `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Specialization](../stage1b.md#checking-and-specialization) |
 | `dispatchKeys` | 4096 | Argument tuples enumerated for one generic | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
 | `dispatchArity` | 6 | Generic arity; the seventh argument would exceed 4,096 tuples | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |

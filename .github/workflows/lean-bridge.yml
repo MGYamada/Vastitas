@@ -10,12 +10,10 @@ on:
       - 'lean-kernel/VastitasKernel/**'
       - 'lean-kernel/compiler-limits.json'
       - 'lean-kernel/lakefile.toml'
-      - 'lean/VastitasOracle/Algebra*.lean'
-      - 'lean/VastitasOracle/Affine*.lean'
-      - 'lean/VastitasOracle/Smooth*.lean'
-      # Differential/Accepted.lean reads the typed Core contract.
-      - 'lean/VastitasOracle/Indexed*.lean'
-      - 'lean/VastitasOracle/Dependency.lean'
+      # Differential/Accepted.lean reads the typed Core contract, and
+      # Differential/ReverseCore.lean the compiled reverse Core of every public
+      # path, whose imports reach most Oracle modules (#623).
+      - 'lean/VastitasOracle/**'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'
@@ -38,12 +36,10 @@ on:
       - 'lean-kernel/VastitasKernel/**'
       - 'lean-kernel/compiler-limits.json'
       - 'lean-kernel/lakefile.toml'
-      - 'lean/VastitasOracle/Algebra*.lean'
-      - 'lean/VastitasOracle/Affine*.lean'
-      - 'lean/VastitasOracle/Smooth*.lean'
-      # Differential/Accepted.lean reads the typed Core contract.
-      - 'lean/VastitasOracle/Indexed*.lean'
-      - 'lean/VastitasOracle/Dependency.lean'
+      # Differential/Accepted.lean reads the typed Core contract, and
+      # Differential/ReverseCore.lean the compiled reverse Core of every public
+      # path, whose imports reach most Oracle modules (#623).
+      - 'lean/VastitasOracle/**'
       - 'lean/lakefile.toml'
       - 'lean/lake-manifest.json'
       - 'lean/lean-toolchain'

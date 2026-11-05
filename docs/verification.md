@@ -2071,6 +2071,7 @@ All of these are Proved (bridge), in `VastitasBridge.Differential`.
 | `Kaehler.lean` | `kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler` | The runtime pullback is the fiber at `x` of the Kähler pullback Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases, for one map; a second chain rule for two maps by functoriality, independent of `ChainRule.lean` and `Frechet.lean` |
 | `Metric.lean` | `isUnit_gram_of_nondegenerate`, `inverse_eq_of_nondegenerate`, `sharp_flat`, `flat_sharp`, `gradient_riesz`, `posDef_of_riemannian`, `not_isUnit_diag_one_zero`, `not_posDef_lorentz`, `checkNondegenerate_lorentz` | Nondegenerate evidence makes the Gram matrix invertible; `flat` and `sharp` are inverse; `sharp` is the Riesz representation for g(v, w) = vᵀGw; Riemannian evidence makes G positive definite over ℝ |
 | `Accepted.lean` | `checked_pullback_frechet`, `checked_pullback_kaehler`, `checked_differential_frechet`, `checked_gradient_riesz`, `checked_riemannian_posDef`, `checked_flat_sharp` | The comparisons above for an accepted Core node or an accepted declaration |
+| `ReverseCore.lean` | `backward_eq_cot_kaehler`, `pullback_eq_cot_kaehler`, `compiled_saved_entry_cot_kaehler`, `compiled_recomputed_entry_cot_kaehler`, `compiled_saved_entry_frechet`, `compiled_recomputed_entry_frechet`, `compiled_saved_entry_fderiv_adjoint`, `compiled_recomputed_entry_fderiv_adjoint`, `compiled_saved_entry_kaehler`, `compiled_recomputed_entry_kaehler`, `compiled_entries_frechet`, `public_wire_entries_frechet`, `legacy_wire_entries_frechet`, `public_resource_entries_frechet`, `public_pure_entry_frechet` | Let `F` be the chain of the step programs of a compiled entry. A call of the entry's generated function evaluates to the covector `η ∘ DF(x)` for mathlib's `fderiv ℝ`, in either mode. Its components are `cot` of the composite map and the fiber at `x` of the Kähler pullback. Every entry of every module that a public path accepts or emits does so. No proof uses the kernel chain rule or `pderiv_aeval` |
 
 The theorems of `Accepted.lean` derive the hypotheses of the other files
 from the checker's typing of one node (`Typing.HasType`) together with the
@@ -2083,6 +2084,25 @@ map; `checked_pullback_kaehler` reaches programs through the kernel chain rule
 contracts (`CallReturns`), allocation uniqueness and freshness as premises.
 The [acceptance map](stage3-acceptance.md#bridge-hypotheses-discharged)
 states the premises of each theorem.
+
+The theorems of `ReverseCore.lean` start from the oracle's
+`SmoothReverseCompiled.compiled_saved_entry` and `compiled_recomputed_entry`,
+which use the stepwise pullback. The Fréchet theorems add
+`pullback_covector_eq_comp_fderiv`. The other theorems add
+`backward_eq_cot_kaehler`, which proves `F.reverse x η = cot F.denote x η` from
+`cot_compose_kaehler`. The import closure of the file contains the oracle's
+`SmoothCalculus`, so the independence from the chain rule concerns the
+constants that the proofs use. `lean-bridge/Audit.lean` walks those constants.
+It fails if one is `cot_compose`, `backward_eq_cot`, `pullback_composite` or
+`pullback_comp` of the bridge or the oracle, or `pderiv_aeval`. A positive
+control checks that the walk detects `cot_compose`.
+
+Premises on the arguments of the call stay. There is one smooth map per opaque
+step, and the arguments evaluate to those maps, the points and the seed. For a
+saved site, the saved points satisfy the residual relation. The chain is well
+typed from `n` to `m` coordinates, and the seed lies over the image with `m`
+components. The Fréchet theorems also need an input point with `n`
+coordinates.
 
 ### Tested, not proved
 

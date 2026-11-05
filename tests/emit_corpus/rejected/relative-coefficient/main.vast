@@ -1,0 +1,16 @@
+// Rejected by the kernel: `relative_coefficient` fixes the map's source to D; the map starts at Line
+// (tests/affine_geometry.rs).
+indexed marker QQ;
+indexed implementation AffineQQ(QQ, presented_affine(rational)) capabilities();
+indexed classification AffineScheme { parents(); domain(AffineQQ); };
+indexed family Over(object(AffineScheme), object(AffineScheme), object(AffineScheme))
+    = relative constraints(structural(0, 2), structural(1, 2));
+indexed affine SpecQQ(AffineQQ) = spec[];
+indexed affine D(AffineQQ) = spec[e] relations(e^2) over SpecQQ;
+indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
+indexed morphism sq: Over<Line, Line, SpecQQ> = pullback(t -> t^2);
+indexed primitive eps = relative_coefficient(Over, D, Line, t, e);
+
+fn bad() -> Bool { pair_first(eps(sq())) == 1 }
+
+fn main() -> Int { 0 }

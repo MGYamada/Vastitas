@@ -8,7 +8,15 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
 python3 scripts/check_boundaries.py
 python3 scripts/check_spec.py
+python3 scripts/check_primitive_table.py
 ```
+
+`src/primitive_table.rs` is generated from the kernel's primitive families
+(`lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`).
+`check_primitive_table.py` builds that module, renders the table and fails on
+any difference. After a change to the families, run
+`python3 scripts/check_primitive_table.py --write` and review the diff of the
+table.
 
 To build the separate proof oracle and audit every kernel and oracle module
 (the audit needs every kernel library root, executable and regression module
@@ -28,6 +36,13 @@ bash scripts/replay_lean.sh lean VastitasOracle
 bash scripts/replay_lean.sh lean VastitasKernel
 ```
 
+No library root imports `VastitasKernel.IndexedDescriptorExample`, the
+definitions of the primitive that
+[Add an indexed primitive](primitives.md#the-demonstration) demonstrates.
+The regression `IndexedDescriptorRegression` and the oracle module
+`IndexedDescriptorDemo` import it, so the regression script and the oracle
+build both build it before the audit.
+
 `check_spec.py` and `spec_resolve.lean` check the claims of the
 [specifications](../specifications.md). After a change to the statement of a
 cited theorem, review the change, run
@@ -45,19 +60,39 @@ by renamed modules, so run it on a clean build.
 
 `tests/emit_golden.rs` compares the Lean that the kernel emits for a fixed
 set of packages with `tests/fixtures/emit/*.lean`. Together those packages
-declare every wire primitive and lower each one from an entry point; the test
-asserts both. A change to code generation must regenerate the fixtures and
-review their diff:
+declare every wire primitive and lower each one from an entry point. The test
+asserts that they declare every wire primitive. It also asserts that the
+generated Lean contains the lowering of each primitive except `relative_view`.
+The lowering of `relative_view` is its operand, so the test has no text to look
+for, and only the bytes of `tests/fixtures/emit/relative-view.lean` pin it. A
+change to code generation must regenerate the fixtures and review their diff:
 
 ```sh
 VASTITAS_UPDATE_EMIT_FIXTURES=1 cargo test --locked --test emit_golden
 ```
 
-Regeneration is refused under CI. For every example and manifest,
+When `CI` is set, the test fails instead of regenerating the fixtures.
+Regenerate them locally and commit them. For every example and manifest,
 `scripts/capture_emit.py` records the wire request, the `check` and `emit`
 responses and the generated Lean, and `--compare` reports every byte that
 differs from an earlier capture. A change that promises identical generated
-code runs it before and after.
+code, diagnostics or wire format runs it before and after.
+
+The packages under `tests/emit_corpus/rejected/` reach the kernel and are
+rejected there, so the capture also records the diagnostics of rejected
+primitive calls. `tests/rejected_diagnostics.rs` pins those diagnostics in
+every `cargo test` run. It checks that the frontend accepts each package,
+runs `check` on it with the kernel and compares the exit code, the standard
+output and the standard error with `tests/fixtures/rejected/<package>.txt`,
+in the format of the capture's `cli.txt`. It fails on an expectation without
+its package. A change to such a diagnostic must regenerate the expectations
+and review their diff:
+
+```sh
+VASTITAS_UPDATE_REJECTED_FIXTURES=1 cargo test --locked --test rejected_diagnostics
+```
+
+As for the emit fixtures, the test refuses to regenerate when `CI` is set.
 
 ## Memory budget for local verification
 

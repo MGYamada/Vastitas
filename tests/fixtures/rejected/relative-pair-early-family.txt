@@ -1,0 +1,5 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/relative-pair-early-family/main.vast:25:13: E_ENDPOINT: lift requires a second map of family Over, but the supplied second map has family Morphism
+<ROOT>/tests/emit_corpus/rejected/relative-pair-early-family/main.vast:24:13: note: object Y was introduced here by primitive 'affine'

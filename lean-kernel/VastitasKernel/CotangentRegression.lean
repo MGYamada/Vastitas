@@ -26,6 +26,38 @@ private def morphism (name x y : String) (definition : Source.MorphismDefinition
 private def primitive (name : String) (binding : Source.Primitive) : Source.Declaration :=
   decl name (.primitive binding)
 
+/-! The wire forms of the Stage 3 primitives used here: the op and its fields
+in wire order, as `families` admits them. -/
+private def smoothCompose (family : String) : Source.Primitive :=
+  ⟨"smooth_compose", [("family", .path (path family))]⟩
+private def smoothComposite (family : String) : Source.Primitive :=
+  ⟨"smooth_composite", [("family", .path (path family))]⟩
+private def smoothIntPoint (family object point : String) : Source.Primitive :=
+  ⟨"smooth_int_point",
+    [("family", .path (path family)), ("object", .path (path object)), ("point", .path (path point))]⟩
+private def cotangentPullback (maps cotangent : String) (mode : SmoothRuntime.PullbackMode) : Source.Primitive :=
+  ⟨"cotangent_pullback",
+    [("map_family", .path (path maps)), ("cotangent", .path (path cotangent)), ("mode", .pullbackMode mode)]⟩
+private def differential (maps cotangent line : String) : Source.Primitive :=
+  ⟨"differential",
+    [("map_family", .path (path maps)), ("cotangent", .path (path cotangent)), ("line", .path (path line))]⟩
+private def linearize (maps tape : String) : Source.Primitive :=
+  ⟨"linearize", [("map_family", .path (path maps)), ("tape", .path (path tape))]⟩
+private def cotangentBackward (tape cotangent : String) : Source.Primitive :=
+  ⟨"cotangent_backward", [("tape", .path (path tape)), ("cotangent", .path (path cotangent))]⟩
+private def fiberVector (family maps object : String) : Source.Primitive :=
+  ⟨"fiber_vector",
+    [("family", .path (path family)), ("map_family", .path (path maps)), ("object", .path (path object))]⟩
+private def fiberAt (family maps : String) : Source.Primitive :=
+  ⟨"fiber_at", [("family", .path (path family)), ("map_family", .path (path maps))]⟩
+private def fiberEqual (family : String) : Source.Primitive :=
+  ⟨"fiber_equal", [("family", .path (path family))]⟩
+private def fiberComponent (family object coordinate : String) : Source.Primitive :=
+  ⟨"fiber_component",
+    [("family", .path (path family)), ("object", .path (path object)), ("coordinate", .coordinate coordinate)]⟩
+private def fiberPairing (cotangent tangent : String) : Source.Primitive :=
+  ⟨"fiber_pairing", [("cotangent", .path (path cotangent)), ("tangent", .path (path tangent))]⟩
+
 private def family (representation : FamilyRepresentation) (arity : Nat)
     (constraints : List Constraint) (domain := "CInfAffine") : Source.Declaration :=
   decl (match representation with
@@ -52,26 +84,26 @@ private def declarations : List Source.Declaration := [
   -- The shears A(x, y) = (x + y, y) and B(x, y) = (x, x + y).
   morphism "shearA" "Plane" "Plane" (.pullback [("x", .sum [c "x", c "y"]), ("y", c "y")]),
   morphism "shearB" "Plane" "Plane" (.pullback [("x", c "x"), ("y", .sum [c "x", c "y"])]),
-  primitive "compose" (.smoothCompose (path "Smooth")),
-  primitive "composite" (.smoothComposite (path "Smooth")),
-  primitive "line_at" (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt")),
-  primitive "plane_at" (.smoothIntPoint (path "Smooth") (path "Plane") (path "Pt")),
-  primitive "pullback" (.cotangentPullback (path "Smooth") (path "Cotangent") .saved),
-  primitive "pullback_recomputed" (.cotangentPullback (path "Smooth") (path "Cotangent") .recomputed),
-  primitive "differential" (.differential (path "Smooth") (path "Cotangent") (path "Line")),
-  primitive "linearize" (.linearize (path "Smooth") (path "Tape")),
-  primitive "backward" (.cotangentBackward (path "Tape") (path "Cotangent")),
-  primitive "lies_over" (.fiberAt (path "Cotangent") (path "Smooth")),
-  primitive "same_covector" (.fiberEqual (path "Cotangent")),
-  primitive "tangent_over" (.fiberAt (path "Tangent") (path "Smooth")),
-  primitive "pairing" (.fiberPairing (path "Cotangent") (path "Tangent")),
-  primitive "dline" (.fiberVector (path "Cotangent") (path "Smooth") (path "Line")),
-  primitive "dplane" (.fiberVector (path "Cotangent") (path "Smooth") (path "Plane")),
-  primitive "vplane" (.fiberVector (path "Tangent") (path "Smooth") (path "Plane")),
-  primitive "vline" (.fiberVector (path "Tangent") (path "Smooth") (path "Line")),
-  primitive "dt" (.fiberComponent (path "Cotangent") (path "Line") "t"),
-  primitive "dx" (.fiberComponent (path "Cotangent") (path "Plane") "x"),
-  primitive "dy" (.fiberComponent (path "Cotangent") (path "Plane") "y") ]
+  primitive "compose" (smoothCompose "Smooth"),
+  primitive "composite" (smoothComposite "Smooth"),
+  primitive "line_at" (smoothIntPoint "Smooth" "Line" "Pt"),
+  primitive "plane_at" (smoothIntPoint "Smooth" "Plane" "Pt"),
+  primitive "pullback" (cotangentPullback "Smooth" "Cotangent" .saved),
+  primitive "pullback_recomputed" (cotangentPullback "Smooth" "Cotangent" .recomputed),
+  primitive "differential" (differential "Smooth" "Cotangent" "Line"),
+  primitive "linearize" (linearize "Smooth" "Tape"),
+  primitive "backward" (cotangentBackward "Tape" "Cotangent"),
+  primitive "lies_over" (fiberAt "Cotangent" "Smooth"),
+  primitive "same_covector" (fiberEqual "Cotangent"),
+  primitive "tangent_over" (fiberAt "Tangent" "Smooth"),
+  primitive "pairing" (fiberPairing "Cotangent" "Tangent"),
+  primitive "dline" (fiberVector "Cotangent" "Smooth" "Line"),
+  primitive "dplane" (fiberVector "Cotangent" "Smooth" "Plane"),
+  primitive "vplane" (fiberVector "Tangent" "Smooth" "Plane"),
+  primitive "vline" (fiberVector "Tangent" "Smooth" "Line"),
+  primitive "dt" (fiberComponent "Cotangent" "Line" "t"),
+  primitive "dx" (fiberComponent "Cotangent" "Plane" "x"),
+  primitive "dy" (fiberComponent "Cotangent" "Plane" "y") ]
 
 private def program (ds := declarations) : Source.Program := {
   file := "cotangent", root := pkg.source,
@@ -351,32 +383,32 @@ private def presented : List Source.Declaration := [
     code (with' (presented ++ [decl "BadTape" (.family ⟨[.object (path "AffineScheme"), .object (path "AffineScheme")],
       [.canonical 0, .canonical 1], .tape⟩)])) == "E_TYPE")
 #eval check "a cotangent pullback needs a cotangent family"
-  (code (with' [primitive "bad" (.cotangentPullback (path "Smooth") (path "Tangent") .saved)]) == "E_SMOOTH" &&
-    mentions (with' [primitive "bad" (.cotangentPullback (path "Smooth") (path "Tangent") .saved)])
+  (code (with' [primitive "bad" (cotangentPullback "Smooth" "Tangent" .saved)]) == "E_SMOOTH" &&
+    mentions (with' [primitive "bad" (cotangentPullback "Smooth" "Tangent" .saved)])
       "`Tangent` is a tangent family")
 #eval check "a pairing names a cotangent and a tangent family"
-  (code (with' [primitive "bad" (.fiberPairing (path "Tangent") (path "Cotangent"))]) == "E_SMOOTH")
+  (code (with' [primitive "bad" (fiberPairing "Tangent" "Cotangent")]) == "E_SMOOTH")
 #eval check "a backward pass and a differential need a cotangent family"
-  (code (with' [primitive "bad" (.cotangentBackward (path "Tape") (path "Tangent"))]) == "E_SMOOTH" &&
-    code (with' [primitive "bad" (.differential (path "Smooth") (path "Tangent") (path "Line"))]) == "E_SMOOTH")
+  (code (with' [primitive "bad" (cotangentBackward "Tape" "Tangent")]) == "E_SMOOTH" &&
+    code (with' [primitive "bad" (differential "Smooth" "Tangent" "Line")]) == "E_SMOOTH")
 #eval check "a differential needs a 1-dimensional line"
-  (code (with' [primitive "bad" (.differential (path "Smooth") (path "Cotangent") (path "Plane"))]) == "E_SMOOTH" &&
-    mentions (with' [primitive "bad" (.differential (path "Smooth") (path "Cotangent") (path "Plane"))])
+  (code (with' [primitive "bad" (differential "Smooth" "Cotangent" "Plane")]) == "E_SMOOTH" &&
+    mentions (with' [primitive "bad" (differential "Smooth" "Cotangent" "Plane")])
       "must be 1-dimensional, but it has dimension 2" &&
-    code (with' [primitive "bad" (.differential (path "Smooth") (path "Cotangent") (path "Pt"))]) == "E_SMOOTH")
+    code (with' [primitive "bad" (differential "Smooth" "Cotangent" "Pt")]) == "E_SMOOTH")
 #eval check "a fiber component names a coordinate of its object"
-  (code (with' [primitive "bad" (.fiberComponent (path "Cotangent") (path "Plane") "t")]) == "E_AFFINE_COORDINATE")
+  (code (with' [primitive "bad" (fiberComponent "Cotangent" "Plane" "t")]) == "E_AFFINE_COORDINATE")
 #eval check "fiber contracts need smooth objects"
-  (code (with' (presented ++ [primitive "bad" (.fiberVector (path "Cotangent") (path "Smooth") (path "QLine"))]))
+  (code (with' (presented ++ [primitive "bad" (fiberVector "Cotangent" "Smooth" "QLine")]))
       == "E_SMOOTH" &&
-    code (with' (presented ++ [primitive "bad" (.fiberComponent (path "Cotangent") (path "QLine") "t")])) == "E_SMOOTH")
+    code (with' (presented ++ [primitive "bad" (fiberComponent "Cotangent" "QLine" "t")])) == "E_SMOOTH")
 #eval check "families of the wrong kind fail the declaration audit"
-  (code (with' [primitive "bad" (.cotangentPullback (path "Tape") (path "Cotangent") .saved)]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.linearize (path "Smooth") (path "Cotangent"))]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.cotangentBackward (path "Smooth") (path "Cotangent"))]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.fiberVector (path "Smooth") (path "Smooth") (path "Line"))]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.fiberAt (path "Tape") (path "Smooth"))]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.fiberEqual (path "Smooth"))]) == "E_TYPE")
+  (code (with' [primitive "bad" (cotangentPullback "Tape" "Cotangent" .saved)]) == "E_TYPE" &&
+    code (with' [primitive "bad" (linearize "Smooth" "Cotangent")]) == "E_TYPE" &&
+    code (with' [primitive "bad" (cotangentBackward "Smooth" "Cotangent")]) == "E_TYPE" &&
+    code (with' [primitive "bad" (fiberVector "Smooth" "Smooth" "Line")]) == "E_TYPE" &&
+    code (with' [primitive "bad" (fiberAt "Tape" "Smooth")]) == "E_TYPE" &&
+    code (with' [primitive "bad" (fiberEqual "Smooth")]) == "E_TYPE")
 
 /-! ## Tampered Core: the independent audit rechecks every binding -/
 

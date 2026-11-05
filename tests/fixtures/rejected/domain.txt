@@ -1,0 +1,5 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/domain/main.vast:13:13: E_ENDPOINT: otherDimension requires an object whose domain lies within Other, but the supplied object X has domain Grid
+<ROOT>/tests/emit_corpus/rejected/domain/main.vast:12:13: note: object X was introduced here by primitive 'affine'

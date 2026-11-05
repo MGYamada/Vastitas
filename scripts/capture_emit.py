@@ -19,6 +19,19 @@ script records:
 With `--kernel-fixtures`, it also records the generated modules of
 `scripts/check_indexed_codegen.lean`.
 
+The kernel rejects every package under `tests/emit_corpus/rejected/` on
+purpose, so that the comparison covers the diagnostics of rejected primitive
+calls; their `cli.txt` and `check.json` hold the message. With `E_ENDPOINT`,
+the packages fail a family, a coefficient marker, a domain, a fixed index
+(`flat`, `relative_coefficient`), a shared endpoint (`compose`, the seed of
+`cotangent_backward`), an endpoint fixed by a declaration (`relative_pair`),
+two equal applications (`same`), the index pattern (a covector in the point
+slot of a pullback, which lists the operand types), and a family that
+`relative_coefficient` and `relative_pair` report before the index pattern.
+One package fails the operand shape (`E_TYPE`) and one the operand count
+(`E_ARITY`). `tests/rejected_diagnostics.rs` also pins these `cli.txt` texts in
+every `cargo test` run, against `tests/fixtures/rejected/`.
+
 The checkout root is written as `<ROOT>` so captures from different
 checkouts compare. `--compare BASELINE` reports every byte difference against
 an earlier capture and exits 1 when there is one. A change that promises

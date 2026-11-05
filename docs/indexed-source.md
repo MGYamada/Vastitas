@@ -586,16 +586,56 @@ The Core layer below additionally checks actual field terms; the later
 
 `IndexedPrimitiveBinding.lean` declares the explicit bindings of a closed finite
 registry. `IndexedPrimitiveShapes.lean` defines the shape that describes a
-binding's operands, their agreements and its result,
-`IndexedPrimitiveDescriptors.lean` what a binding's descriptor holds,
-`IndexedPrimitiveRegistry.lean` holds one descriptor per binding, and
-`IndexedPrimitives.lean` derives every binding's validity contract, operand
-association, result inference and operand count from it; the argument hints of
-`IndexedCore.lean` and the role table of `IndexedSourceDiagnostics.lean` come
-from the same shape.
+binding's operands, their agreements and its result.
+`IndexedPrimitiveValues.lean` defines the logical values of the Core semantics
+(`Value`), the erased runtime values of generated programs
+(`PrimitiveRuntimeValue`) and the erasure between them.
+`IndexedPrimitiveDescriptors.lean` defines what a binding's
+[registry entry](appendix/glossary.md#registry-entry)
+(`PrimitiveDescriptor`) holds: its shape, its validity contract, its two
+evaluators, its lowering and the literals a generated module declares once for
+it. The evaluators are `eval` on logical values and `evalRuntime` on erased
+values. `IndexedPrimitiveRegistry.lean` holds one registry entry per
+binding, and `IndexedPrimitives.lean` derives every
+binding's validity contract, operand association, result inference and operand
+count from it; the argument hints of `IndexedCore.lean` and the role table of
+`IndexedSourceDiagnostics.lean` come from the same shape. The two evaluators of
+`IndexedSemantics.lean`, `evalPrimitive` and `evalRuntimePrimitive`, apply the
+entry's evaluators. `IndexedCodegen.lean` lowers a call by its entry and
+declares the literals that the entries share. Whether a call allocates comes
+from the shape:
+`Shape.allocates` holds when the result template is a fresh object, and
+`PrimitiveBinding.allocates` reads it off the entry. The fresh-slot premise
+`PrimitiveFresh` of `IndexedSemantics.lean`, the brand that
+`IndexedSourceBodies.lean` draws for a call and the allocation serials of
+`IndexedTypeAudit.lean` test that flag. The `descriptor` binding is the one
+allocating binding.
+
+The wire form of a primitive comes from one table. `IndexedPrimitiveFamilies.lean`
+lists one [primitive family](appendix/glossary.md#primitive-family) per wire
+`op`: its fields with their kinds, in wire order, whether only protocol 9
+admits it, and how the resolved fields build the binding. The decoder of
+`IndexedDeclarationProtocol.lean` admits only those fields. The resolver
+`resolvePrimitive` of `IndexedSourceChecker.lean` resolves them and builds the
+binding through the family. The frontend reads `src/primitive_table.rs`, which
+`scripts/check_primitive_table.py` generates from the same table and checks
+for drift. A binding that the checker derives from a morphism, isomorphism or
+Cartesian-square declaration has no family.
+[Add an indexed primitive](development/primitives.md) lists what one more
+binding touches. `IndexedDescriptorExample` defines a `PrimitiveDescriptor`
+value and a `PrimitiveFamily` value outside the registry.
+`IndexedDescriptorRegression` runs on the first the shape derivations that
+each derived table reads, the evaluators and the lowering, and on the second
+the decoder and resolver steps that take a family.
+
 No source spelling, arbitrary native symbol, certificate string or `trusted` flag
 chooses an implementation. The binding IDs, operand annotations and result
 annotation are independently audited against the same checked environment.
+
+The table lists the bindings of this profile. [Presented affine
+geometry](affine-geometry.md) describes the relative bindings, and [Smooth
+affine declarations](language/smooth-declarations.md) describes the smooth,
+fiber, tape and metric bindings.
 
 | Registry entry | Operand and result contract | Additional obligation |
 | --- | --- | --- |
@@ -795,8 +835,9 @@ compilation needs neither mathlib nor OpenBLAS.
 
 ### Indexed runtime semantics: first proved fragment
 
-`IndexedSemantics` defines values and a bounded observation of the actual Core
-terms, with strict argument evaluation, separate function activations, explicit
+`IndexedPrimitiveValues` defines the values; `IndexedSemantics` defines their
+typing against worlds and a bounded observation of the Core terms, with
+strict argument evaluation, separate function activations, explicit
 package witnesses/fields and the closed primitive registry. The evaluator is
 internal semantic test infrastructure, has no public CLI, and does not impose
 its observation fuel on generated programs. It deliberately ignores result
@@ -816,17 +857,24 @@ actual witness under a private representative world.
 denotation of a given reference, preservation of values/results under world
 extension, and fresh local binding. For every accepted closed primitive, typed
 runtime operands and (for construction) a fresh world slot produce a typed
-result while preserving prior bindings. `checked_primitive_semantics` uses the
+result while preserving prior bindings. `VastitasOracle.IndexedPrimitiveSoundness`
+states that obligation, and the erasure below, once for any descriptor as the
+structure `Sound`. Each registry entry proves its own instance in the module
+of its totality lemma; `registry_sound` dispatches to the instances by
+constructor, and `primitive_total_and_typed` is its corollary. `checked_primitive_semantics` uses the
 actual `CheckedPrimitive`; `core_primitive_semantics` obtains the contract from
 the actual Core node's typing derivation, declaration lookup and exact operand/
 result conversions. Composition's middle runtime endpoints agree through their
 shared nominal reference.
 
-`primitive_runtime_erasure` proves that a successful logical registry operation
-erases to the corresponding actual `IndexedRuntime` operation, including the
-explicit canonical base for origin. This operation-level theorem does not prove
-the generated source or Lean/C toolchain correct. Native representation does not
-retain implementation IDs and cannot supply typing or authority evidence.
+`primitive_runtime_erasure`, the other corollary of `registry_sound`, proves
+that a successful logical evaluation of a registry entry erases to the entry's
+erased evaluator on the erased operands. The erased evaluator applies the
+`IndexedRuntime`, `AlgebraRuntime` or `SmoothRuntime` operation that generated
+programs link, including the explicit canonical base for origin.
+This operation-level theorem does not prove the generated source or Lean/C
+toolchain correct. Native representation does not retain implementation IDs and
+cannot supply typing or authority evidence.
 
 Twenty new semantic regressions evaluate the same three fixtures as the native
 checks, repeated function/package activations, finite observation exhaustion,
@@ -924,7 +972,7 @@ not an alternative semantic acceptance rule.
 | Calls named Affine/Base/origin/id/dimension/compose/apply: kernel `IndexedSourceBodies.lean`, `IndexedFunctionBodies.lean` | Adapter chooses profile declaration IDs, then invokes the same primitive emitter as qualified calls. Fallback is permitted only for an unresolved legacy name (`E_NAME`); a resolved declaration or visibility error never falls back. Operands execute once, in source order. |
 | Capture and global-name handling: kernel `IndexedFunctionScope.lean`, `IndexedFunctionBodies.lean` | General mechanism plus adapter names: traverse type indices and package fields as well as expressions; distinguish global declarations from local bindings. Independent lambdas cannot capture outer bindings. Scalar/Fn signature limits remain unchanged. |
 | Object identity, substitution and escape: kernel `IndexedCore.lean`, `IndexedTyping.lean`, `IndexedTypeAudit.lean` | General mechanism: unique allocation serials, fixed globals, dependent substitution, generative ordinary object returns/branch merges/openings, and traversal of every free type index, including tokens. Equal descriptors are not identity evidence. |
-| Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean` | Closed explicit registry; see the table below. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
+| Primitive behavior: kernel `IndexedPrimitiveBinding.lean`, `IndexedPrimitiveShapes.lean`, `IndexedPrimitiveValues.lean`, `IndexedPrimitiveDescriptors.lean`, `IndexedPrimitiveRegistry.lean`, `IndexedPrimitiveFamilies.lean`, `IndexedPrimitives.lean`, `IndexedContractAudit.lean`, `IndexedSemantics.lean`, `IndexedRuntime.lean`; generated `src/primitive_table.rs` | Closed explicit registry; see the table below. The wire form comes from the family table of `IndexedPrimitiveFamilies.lean`: the decoder, the resolver and the generated Rust table read it, and a family grants no authority. No arbitrary native registration, certificate string or mathematical axiom is admitted. |
 | Diagnostic names/locations: kernel `IndexedSourceDiagnostics.lean`, `IndexedSourceBodies.lean` | Presentation only. “Affine” introduction notes do not choose implementation, merge identities or authorize an operation. |
 | Native lowering: kernel `IndexedCodegen.lean` | General Core lowering selected by validated binding/representation tags, not source spelling. Rechecks all declarations, types, scopes, freshness and actual dependencies before emitting reachable functions. Generated modules import only `IndexedRuntime`. Mutable storage is not yet represented. |
 | Retained legacy `Checker`, `Declaration`, `Elaboration`, `FunctionChecker`, `FunctionScope`, `Core`, `Semantics`, `Runtime`, `LegacyIndexed` and old codegen | Internal API/regression/proof boundary. Old decoders and scalar/namespace header validation remain reusable; old geometric body acceptance is not called by public `check`/`build`. Their theorems do not substitute for proofs about public indexed Core. |

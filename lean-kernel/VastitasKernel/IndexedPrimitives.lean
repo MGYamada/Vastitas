@@ -12,8 +12,8 @@ refinement remains unproved.
 
 Every table here reads a binding through its registry entry
 (`PrimitiveBinding.contract`): the validity contract from the entry's `Bool`
-and `Prop`, and the operand association, result inference and operand count
-from the entry's `Shape`. -/
+and `Prop`, and the operand association, result inference, operand count and
+whether a call allocates from the entry's `Shape`. -/
 namespace VastitasKernel.Indexed
 
 /-- The binding contract as the proofs state it: the registry entry's `Prop`. -/
@@ -188,6 +188,22 @@ def infer (env : Environment) (shape : Shape) (brand : Nat) (arguments : List Va
 def arity (env : Environment) (shape : Shape) : Nat :=
   shape.operands.length + (shape.tail.map (· env)).getD 0
 
+/-- The result of an allocating shape is a fresh local object of the call's brand. -/
+theorem result_of_allocates {env : Environment} {shape : Shape} {allowed : List ObjectRef} {brand : Nat}
+    {arguments : List ValueType} {result : ValueType}
+    (association : Association env shape allowed brand arguments result) (allocates : shape.allocates = true) :
+    ∃ type, result = .object type (.local type brand) := by
+  obtain ⟨_, _, instantiated⟩ := association
+  unfold Shape.allocates at allocates
+  split at allocates
+  · rename_i implementation template
+    rw [template] at instantiated
+    simp only [ResultTemplate.instantiate, Option.bind_eq_bind] at instantiated
+    cases found : implementationType env implementation with
+    | none => simp [found] at instantiated
+    | some type => exact ⟨type, by simpa [found] using instantiated.symm⟩
+  · contradiction
+
 /-! ### What a match says about each operand -/
 
 theorem family_of_operandMatches {role : String} {family : DeclId} {slots : List Slot}
@@ -332,6 +348,10 @@ end Shape
 /-- The operand count of each closed primitive. -/
 def PrimitiveBinding.arity (env : Environment) (binding : PrimitiveBinding) : Nat :=
   binding.contract.shape.arity env
+
+/-- Whether a call of the binding allocates a fresh local object: the registry
+entry's result is one. -/
+def PrimitiveBinding.allocates (binding : PrimitiveBinding) : Bool := binding.contract.shape.allocates
 
 /-- A separately stated association contract for the exact primitive operands
 and result. Runtime fields and user-supplied metadata cannot choose endpoints. -/

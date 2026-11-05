@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/arity/main.vast:24:30: E_ARITY: wrong primitive argument count

@@ -106,6 +106,10 @@ structure Shape where
 /-- The shape of an evidence binding, which no call can use. -/
 def Shape.uncallable : Shape := { operands := [], result := .uncallable }
 
+/-- Whether a call allocates: its result is a fresh object, bound to the
+result's brand in the logical world. -/
+def Shape.allocates (shape : Shape) : Bool := shape.result matches .freshObject _
+
 /-- The indexed operands a result template reads. Inference checks their
 index shape and leaves every other indexed operand to the association; an
 object operand's reference is read whatever its type, so it needs no check. -/

@@ -1,7 +1,7 @@
 use super::*;
 use crate::indexed::{
     self, BoundApplication, BoundIndex, Constraint, DeclarationBody, ObjectType, PackageShape,
-    Primitive,
+    Primitive, WireValue,
 };
 
 impl Parser {
@@ -256,168 +256,86 @@ impl Parser {
         })
     }
 
+    /// Paths separated by commas, one per field.
+    fn indexed_paths(
+        &mut self,
+        fields: &[&'static str],
+    ) -> Result<Vec<(&'static str, WireValue)>, Diagnostic> {
+        let mut values = Vec::with_capacity(fields.len());
+        for (index, &field) in fields.iter().enumerate() {
+            if index > 0 {
+                self.expect(",")?;
+            }
+            values.push((field, WireValue::Path(self.type_path()?)));
+        }
+        Ok(values)
+    }
+
+    /// One arm per surface form. An op that the generated table
+    /// (`src/primitive_table.rs`) does not have is the unknown-contract
+    /// diagnostic before any argument is parsed, so an arm for such an op is
+    /// unreachable. Each arm names the wire fields of its op, and
+    /// `Primitive::new` admits them only if they are the table's fields, in
+    /// its order and with its kinds. The unit tests check that every table op
+    /// has an arm whose fields, order and kinds equal the table's, and that
+    /// an op outside the table is unknown; no test notices an unreachable
+    /// arm for an op outside the table.
     fn indexed_primitive(&mut self) -> Result<Primitive, Diagnostic> {
         let span = self.peek().span;
         let op = self.indexed_tag()?;
         self.expect("(")?;
-        let binding = match op.as_str() {
-            "descriptor" => Primitive::Descriptor {
-                implementation: self.type_path()?,
-            },
-            "global" => Primitive::Global {
-                declaration: self.type_path()?,
-            },
+        let unknown = || diagnostic("E_TYPE", "unknown indexed primitive contract", span);
+        let Some(family) = indexed::primitive_family(&op) else {
+            return Err(unknown());
+        };
+        let fields = match family.op {
+            "descriptor" => self.indexed_paths(&["implementation"])?,
+            "global" => self.indexed_paths(&["declaration"])?,
             "origin" => {
                 let domain = self.indexed_object_type()?;
                 self.expect(",")?;
-                let point_family = self.type_path()?;
-                self.expect(",")?;
-                Primitive::Origin {
-                    domain,
-                    point_family,
-                    base_object: self.type_path()?,
-                }
+                let mut fields = vec![("domain", WireValue::ObjectType(domain))];
+                fields.extend(self.indexed_paths(&["point_family", "base_object"])?);
+                fields
             }
             "identity" => {
                 let domain = self.indexed_object_type()?;
                 self.expect(",")?;
-                Primitive::Identity {
-                    domain,
-                    map_family: self.type_path()?,
-                }
+                let mut fields = vec![("domain", WireValue::ObjectType(domain))];
+                fields.extend(self.indexed_paths(&["map_family"])?);
+                fields
             }
-            "dimension" => Primitive::Dimension {
-                domain: self.indexed_object_type()?,
-            },
-            "compose" => Primitive::Compose {
-                map_family: self.type_path()?,
-            },
-            "apply" => {
-                let map_family = self.type_path()?;
-                self.expect(",")?;
-                Primitive::Apply {
-                    map_family,
-                    point_family: self.type_path()?,
-                }
-            }
-            "relative_compose" => Primitive::RelativeCompose {
-                family: self.type_path()?,
-            },
-            "relative_equal" => Primitive::RelativeEqual {
-                family: self.type_path()?,
-            },
-            "relative_view" => {
-                let family = self.type_path()?;
-                self.expect(",")?;
-                let source = self.type_path()?;
-                self.expect(",")?;
-                Primitive::RelativeView {
-                    family,
-                    source,
-                    target: self.type_path()?,
-                }
-            }
+            "dimension" => vec![("domain", WireValue::ObjectType(self.indexed_object_type()?))],
+            "compose" => self.indexed_paths(&["map_family"])?,
+            "apply" => self.indexed_paths(&["map_family", "point_family"])?,
+            "relative_compose" | "relative_equal" => self.indexed_paths(&["family"])?,
+            "relative_view" => self.indexed_paths(&["family", "source", "target"])?,
             "relative_coefficient" => {
-                let family = self.type_path()?;
+                let mut fields = self.indexed_paths(&["family", "source", "target"])?;
                 self.expect(",")?;
-                let source = self.type_path()?;
+                fields.push(("coordinate", WireValue::Coordinate(self.coordinate_name()?)));
                 self.expect(",")?;
-                let target = self.type_path()?;
-                self.expect(",")?;
-                let coordinate = self.coordinate_name()?;
-                self.expect(",")?;
-                Primitive::RelativeCoefficient {
-                    family,
-                    source,
-                    target,
-                    coordinate,
-                    monomial: self.poly(0)?,
-                }
+                fields.push(("monomial", WireValue::Polynomial(self.poly(0)?)));
+                fields
             }
-            "relative_pair" => {
-                let family = self.type_path()?;
-                self.expect(",")?;
-                Primitive::RelativePair {
-                    family,
-                    fiber: self.type_path()?,
-                }
+            "relative_pair" => self.indexed_paths(&["family", "fiber"])?,
+            "relative_int_point" => self.indexed_paths(&["family", "object", "base"])?,
+            "smooth_compose" | "smooth_equal" | "smooth_composite" => {
+                self.indexed_paths(&["family"])?
             }
-            "relative_int_point" => {
-                let family = self.type_path()?;
-                self.expect(",")?;
-                let object = self.type_path()?;
-                self.expect(",")?;
-                Primitive::RelativeIntPoint {
-                    family,
-                    object,
-                    base: self.type_path()?,
-                }
-            }
-            "smooth_compose" => Primitive::SmoothCompose {
-                family: self.type_path()?,
-            },
-            "smooth_equal" => Primitive::SmoothEqual {
-                family: self.type_path()?,
-            },
-            "smooth_composite" => Primitive::SmoothComposite {
-                family: self.type_path()?,
-            },
-            "smooth_int_point" => {
-                let family = self.type_path()?;
-                self.expect(",")?;
-                let object = self.type_path()?;
-                self.expect(",")?;
-                Primitive::SmoothIntPoint {
-                    family,
-                    object,
-                    point: self.type_path()?,
-                }
-            }
-            "fiber_vector" => {
-                let family = self.type_path()?;
-                self.expect(",")?;
-                let map_family = self.type_path()?;
-                self.expect(",")?;
-                Primitive::FiberVector {
-                    family,
-                    map_family,
-                    object: self.type_path()?,
-                }
-            }
-            "fiber_at" => {
-                let family = self.type_path()?;
-                self.expect(",")?;
-                Primitive::FiberAt {
-                    family,
-                    map_family: self.type_path()?,
-                }
-            }
-            "fiber_equal" => Primitive::FiberEqual {
-                family: self.type_path()?,
-            },
+            "smooth_int_point" => self.indexed_paths(&["family", "object", "point"])?,
+            "fiber_vector" => self.indexed_paths(&["family", "map_family", "object"])?,
+            "fiber_at" => self.indexed_paths(&["family", "map_family"])?,
+            "fiber_equal" => self.indexed_paths(&["family"])?,
             "fiber_component" => {
-                let family = self.type_path()?;
+                let mut fields = self.indexed_paths(&["family", "object"])?;
                 self.expect(",")?;
-                let object = self.type_path()?;
-                self.expect(",")?;
-                Primitive::FiberComponent {
-                    family,
-                    object,
-                    coordinate: self.coordinate_name()?,
-                }
+                fields.push(("coordinate", WireValue::Coordinate(self.coordinate_name()?)));
+                fields
             }
-            "fiber_pairing" => {
-                let cotangent = self.type_path()?;
-                self.expect(",")?;
-                Primitive::FiberPairing {
-                    cotangent,
-                    tangent: self.type_path()?,
-                }
-            }
+            "fiber_pairing" => self.indexed_paths(&["cotangent", "tangent"])?,
             "cotangent_pullback" => {
-                let map_family = self.type_path()?;
-                self.expect(",")?;
-                let cotangent = self.type_path()?;
+                let mut fields = self.indexed_paths(&["map_family", "cotangent"])?;
                 self.expect(",")?;
                 let token = self.peek().clone();
                 let mode = match self.indexed_tag()?.as_str() {
@@ -431,73 +349,32 @@ impl Parser {
                         ));
                     }
                 };
-                Primitive::CotangentPullback {
-                    map_family,
-                    cotangent,
-                    mode,
-                }
+                fields.push(("mode", WireValue::PullbackMode(mode)));
+                fields
             }
-            "differential" => {
-                let map_family = self.type_path()?;
-                self.expect(",")?;
-                let cotangent = self.type_path()?;
-                self.expect(",")?;
-                Primitive::Differential {
-                    map_family,
-                    cotangent,
-                    line: self.type_path()?,
-                }
-            }
-            "linearize" => {
-                let map_family = self.type_path()?;
-                self.expect(",")?;
-                Primitive::Linearize {
-                    map_family,
-                    tape: self.type_path()?,
-                }
-            }
-            "cotangent_backward" => {
-                let tape = self.type_path()?;
-                self.expect(",")?;
-                Primitive::CotangentBackward {
-                    tape,
-                    cotangent: self.type_path()?,
-                }
-            }
+            "differential" => self.indexed_paths(&["map_family", "cotangent", "line"])?,
+            "linearize" => self.indexed_paths(&["map_family", "tape"])?,
+            "cotangent_backward" => self.indexed_paths(&["tape", "cotangent"])?,
             "flat" => {
-                let tangent = self.type_path()?;
-                self.expect(",")?;
-                let cotangent = self.type_path()?;
-                Primitive::Flat {
-                    tangent,
-                    cotangent,
-                    metric: self.indexed_selection("flat", "using", "an explicit metric")?,
-                }
+                let mut fields = self.indexed_paths(&["tangent", "cotangent"])?;
+                let metric = self.indexed_selection("flat", "using", "an explicit metric")?;
+                fields.push(("metric", WireValue::Path(metric)));
+                fields
             }
             "sharp" => {
-                let cotangent = self.type_path()?;
-                self.expect(",")?;
-                let tangent = self.type_path()?;
+                let mut fields = self.indexed_paths(&["cotangent", "tangent"])?;
                 let metric = self.indexed_selection("sharp", "using", "an explicit metric")?;
-                Primitive::Sharp {
-                    cotangent,
-                    tangent,
-                    metric,
-                    evidence: self.indexed_selection(
-                        "sharp",
-                        "evidence",
-                        "explicit nondegeneracy evidence",
-                    )?,
-                }
+                fields.push(("metric", WireValue::Path(metric)));
+                let evidence =
+                    self.indexed_selection("sharp", "evidence", "explicit nondegeneracy evidence")?;
+                fields.push(("evidence", WireValue::Path(evidence)));
+                fields
             }
-            _ => {
-                return Err(diagnostic(
-                    "E_TYPE",
-                    "unknown indexed primitive contract",
-                    span,
-                ));
-            }
+            // A table op without a surface arm; the per-entry test fails.
+            _ => return Err(unknown()),
         };
+        // Fields that differ from the table's; the per-entry test fails.
+        let binding = Primitive::new(family.op, fields).map_err(|_| unknown())?;
         self.expect(")")?;
         Ok(binding)
     }
@@ -1103,5 +980,121 @@ impl Parser {
             name,
             image: self.poly(0)?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// One surface form per family of the generated table, in table order.
+    const SNIPPETS: &[(&str, &str)] = &[
+        ("descriptor", "descriptor(AffineQQ)"),
+        ("global", "global(SpecQQ)"),
+        ("origin", "origin((Scheme, QQ), Point, Base)"),
+        ("identity", "identity((Scheme, QQ), Morphism)"),
+        ("dimension", "dimension((Scheme, QQ))"),
+        ("compose", "compose(Morphism)"),
+        ("apply", "apply(Morphism, Point)"),
+        ("relative_compose", "relative_compose(Over)"),
+        ("relative_equal", "relative_equal(Over)"),
+        ("relative_view", "relative_view(Over, S, SpecQQ)"),
+        (
+            "relative_coefficient",
+            "relative_coefficient(Over, D, Line, Fiber::X::x, e^2 + 1)",
+        ),
+        (
+            "relative_int_point",
+            "relative_int_point(Over, Line, SpecQQ)",
+        ),
+        ("relative_pair", "relative_pair(Over, Fiber)"),
+        ("smooth_compose", "smooth_compose(Smooth)"),
+        ("smooth_equal", "smooth_equal(Smooth)"),
+        ("smooth_composite", "smooth_composite(Smooth)"),
+        ("smooth_int_point", "smooth_int_point(Smooth, Plane, Pt)"),
+        ("fiber_vector", "fiber_vector(Cotangent, Smooth, Line)"),
+        ("fiber_at", "fiber_at(Cotangent, Smooth)"),
+        ("fiber_equal", "fiber_equal(Cotangent)"),
+        ("fiber_component", "fiber_component(Cotangent, Line, t)"),
+        ("fiber_pairing", "fiber_pairing(Cotangent, Tangent)"),
+        (
+            "cotangent_pullback",
+            "cotangent_pullback(Smooth, Cotangent, recomputed)",
+        ),
+        ("differential", "differential(Smooth, Cotangent, Line)"),
+        ("linearize", "linearize(Smooth, Tape)"),
+        ("cotangent_backward", "cotangent_backward(Tape, Cotangent)"),
+        ("flat", "flat(Tangent, Cotangent, using = Skew)"),
+        (
+            "sharp",
+            "sharp(Cotangent, Tangent, using = Skew, evidence = SkewInvertible)",
+        ),
+    ];
+
+    fn parse_binding(source: &str) -> Result<Primitive, Diagnostic> {
+        let parsed = parse_module_source(
+            SourceInput {
+                source,
+                file: "primitive.vast",
+                offset: 0,
+            },
+            vec![],
+            true,
+            None,
+        )?;
+        let [module] = &parsed.modules[..] else {
+            panic!("one module expected");
+        };
+        let [declaration] = &module.indexed_declarations[..] else {
+            panic!("one declaration expected");
+        };
+        match &declaration.declaration.body {
+            DeclarationBody::Primitive { binding } => Ok(binding.clone()),
+            body => panic!("primitive expected, got {body:?}"),
+        }
+    }
+
+    /// Every family of the table has a surface form, and each form parses
+    /// to a binding with exactly the family's fields, which serializes as
+    /// `{"op": …}` followed by those fields in table order.
+    #[test]
+    fn every_table_entry_parses_to_its_wire_fields() {
+        let table: Vec<&str> = indexed::primitive_families()
+            .iter()
+            .map(|family| family.op)
+            .collect();
+        let snippets: Vec<&str> = SNIPPETS.iter().map(|(op, _)| *op).collect();
+        assert_eq!(
+            snippets, table,
+            "one snippet per table entry, in table order"
+        );
+        for (family, (_, snippet)) in indexed::primitive_families().iter().zip(SNIPPETS) {
+            let source = format!("indexed primitive p = {snippet};");
+            let binding = parse_binding(&source)
+                .unwrap_or_else(|error| panic!("`{snippet}` does not parse: {error:?}"));
+            assert_eq!(binding.op(), family.op);
+            let fields: Vec<(&str, indexed::WireKind)> = binding
+                .fields()
+                .map(|(name, value)| (name, value.kind()))
+                .collect();
+            assert_eq!(fields, family.fields, "{snippet}");
+            let mut expected = format!("{{\"op\":\"{}\"", family.op);
+            for (name, value) in binding.fields() {
+                expected.push_str(&format!(
+                    ",\"{name}\":{}",
+                    serde_json::to_string(value).unwrap()
+                ));
+            }
+            expected.push('}');
+            assert_eq!(serde_json::to_string(&binding).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn an_op_outside_the_table_is_unknown() {
+        let error = parse_binding("indexed primitive p = gradient(Smooth, Cotangent);")
+            .expect_err("`gradient` is not a primitive");
+        assert_eq!(error.code, "E_TYPE");
+        assert_eq!(error.message, "unknown indexed primitive contract");
     }
 }

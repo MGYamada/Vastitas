@@ -185,15 +185,15 @@ private def primitive (name : String) (binding : Source.Primitive) : Source.Decl
 /-- Renamed and additional library primitives; only their bindings carry meaning. -/
 private def extended (p : Source.Program) : Source.Program := withLibrary p fun m =>
   { m with declarations := m.declarations ++ [
-    primitive "follow" (.apply (path "Morphism") (path "Point")),
-    primitive "after" (.compose (path "Morphism")),
-    primitive "smoothDimension" (.dimension ⟨path "CInfScheme", path "CInfReal"⟩),
+    primitive "follow" ⟨"apply", [("map_family", .path (path "Morphism")), ("point_family", .path (path "Point"))]⟩,
+    primitive "after" ⟨"compose", [("map_family", .path (path "Morphism"))]⟩,
+    primitive "smoothDimension" ⟨"dimension", [("domain", .objectType ⟨path "CInfScheme", path "CInfReal"⟩)]⟩,
     ⟨"Grid2", .implementation (path "QQ") .affineDescriptor [.origin, .dimension], true, {}⟩,
     ⟨"Other", .classification [] [path "Grid2"], true, {}⟩,
-    primitive "otherDimension" (.dimension ⟨path "Other", path "QQ"⟩),
+    primitive "otherDimension" ⟨"dimension", [("domain", .objectType ⟨path "Other", path "QQ"⟩)]⟩,
     ⟨"Wide", .classification [] [path "Grid", path "Grid2"], true, {}⟩,
     ⟨"WideMap", .family ⟨[.object (path "Wide"), .object (path "Wide")], [.sameBase 0 1], .morphism⟩, true, {}⟩,
-    primitive "narrowApply" (.apply (path "WideMap") (path "Point"))] }
+    primitive "narrowApply" ⟨"apply", [("map_family", .path (path "WideMap")), ("point_family", .path (path "Point"))]⟩] }
 private def crossed (callee : String) : Source.Program := extended (program [main (num 0) (objects ++
   [bind "point_x" (call "geo::origin" [var "X"]),
    bind "crossed" (call callee [call "geo::id" [var "Y"], var "point_x"])])])

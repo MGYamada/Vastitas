@@ -102,7 +102,7 @@ The later parts are references:
 | Inspect an implementation or proof claim | [Architecture](development/architecture.md) · [Verification](verification.md) · [Acceptance evidence](stage1-acceptance.md) |
 | Look up a command, diagnostic or limit | [CLI](guide/cli.md) · [Diagnostics](appendix/diagnostics.md) · [Limits](appendix/limits.md) |
 | Evaluate an independent reference model | [Reference models](appendix/reference-models.md) |
-| Make a change | [Contributing and validation](appendix/contributing.md) |
+| Make a change | [Contributing and validation](appendix/contributing.md) · [Add an indexed primitive](development/primitives.md) |
 
 Code blocks are labelled with their language: `vast` for Vastitas source, `sh`
 for shell commands and `text` for output. Run commands from the repository root.

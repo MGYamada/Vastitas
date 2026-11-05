@@ -61,7 +61,8 @@ const CASES: &[(&str, &str, u64)] = &[
 /// `lean-kernel/VastitasKernel/IndexedCodegen.lean`), or `None` for
 /// `relative_view`, whose lowering is its operand. A global object is bound by
 /// `let` in the corpus, which separates it from the base-object argument that
-/// `origin` renders.
+/// `origin` renders. The test checks that the list names each family of
+/// `vastitas::indexed::primitive_families()` once.
 const WIRE_OPERATIONS: &[(&str, Option<&str>)] = &[
     (
         "descriptor",
@@ -224,9 +225,26 @@ fn generated_lean_matches_the_emit_fixtures() {
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));
+    // `WIRE_OPERATIONS` names each family of the generated table once, so a
+    // family added to the table without an entry here fails this assertion,
+    // and the declaration assertion below then requires a fixture for it.
+    let mut listed: Vec<&str> = WIRE_OPERATIONS.iter().map(|(op, _)| *op).collect();
+    let mut families: Vec<&str> = vastitas::indexed::primitive_families()
+        .iter()
+        .map(|family| family.op)
+        .collect();
+    listed.sort_unstable();
+    families.sort_unstable();
+    assert_eq!(
+        listed, families,
+        "WIRE_OPERATIONS must name each family of the primitive table once"
+    );
     // The fixtures together declare every wire primitive and lower each one
-    // from an entry point, so a codegen change to any primitive shows up as a
-    // fixture diff.
+    // from an entry point. The test asserts the declarations, and for each
+    // primitive except `relative_view` it asserts that the generated Lean
+    // contains the primitive's lowering text (its witness).
+    // The lowering of `relative_view` is its operand, so it has no witness:
+    // only the bytes of tests/fixtures/emit/relative-view.lean pin it.
     let expected: BTreeSet<String> = WIRE_OPERATIONS
         .iter()
         .map(|(op, _)| (*op).to_owned())

@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/index-shape/main.vast:24:30: E_ENDPOINT: primitive capability, endpoint or coefficient contract failed: Smooth<Line, Line>, Cotangent<Line>, Cotangent<Line>

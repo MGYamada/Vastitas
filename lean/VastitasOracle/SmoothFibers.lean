@@ -2,6 +2,7 @@ import VastitasKernel.IndexedSemantics
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothPrimitives
 import VastitasOracle.IndexedAssociations
+import VastitasOracle.IndexedPrimitiveSoundness
 
 set_option autoImplicit false
 
@@ -24,13 +25,14 @@ type:
 
 Fiber and tape values name declared smooth objects only, so their typing does
 not depend on the world and survives renaming and package transport.
-`IndexedSemantics.primitive_total_and_typed` and
-`IndexedSemantics.primitive_runtime_erasure` dispatch to these lemmas. -/
+The `Sound` instances at the end combine these lemmas with `fiberVector_erasure`
+and the erasure of the matched operands; `IndexedSemantics.registry_sound`
+dispatches to them. -/
 namespace VastitasOracle.SmoothFibers
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics
-open VastitasOracle.SmoothPrimitives
+open VastitasOracle.SmoothPrimitives VastitasOracle.IndexedPrimitiveSoundness
 
 /-! ## Families -/
 
@@ -305,7 +307,7 @@ theorem fiberVector_total {env : Indexed.Environment} {world : World} {family sm
     rw [arity] at length
     refine ⟨.indexed (.fiber variance (SmoothRuntime.vector program coordinates)), ?_,
       fiber_typed (fiber_family hv) rule.resultValid rfl hdim (vector_typed welltyped length)⟩
-    simp [evalPrimitive, fiberVectorValue, hv, found]
+    simp [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, fiberVectorValue, hv, found]
 
 theorem fiberAt_total {env : Indexed.Environment} {world : World} {family smooth ff sf point : DeclId}
     {x x' : Indexed.ObjectRef} {allowed : List Indexed.ObjectRef} {brand : Nat} {output : ValueType}
@@ -506,6 +508,107 @@ theorem fiberVector_erasure {env : Indexed.Environment} {family smooth object : 
       obtain ⟨inputs, erased, runtime⟩ := integers_erase coordinates
       refine ⟨.smooth point :: inputs, _, ?_, rfl, ?_⟩
       · simp [erasePrimitiveValue, erased]
-      · simp [evalRuntimePrimitive, fiberVectorRuntime, runtime]
+      · simp [evalRuntimePrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, fiberVectorRuntime, runtime]
+
+/-! ## Soundness instances -/
+
+theorem fiberVector_sound (family smooth object : DeclId) :
+    Sound (PrimitiveBinding.fiberVector family smooth object).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨point, x, components, rfl⟩ := IndexedAssociations.fiberVector_shape rule.association
+      exact fiberVector_total rule typed)
+    (by
+      intro env values value evaluated
+      simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool] at evaluated
+      split at evaluated
+      · exact fiberVector_erasure evaluated
+      · contradiction)
+
+theorem fiberAt_sound (family smooth : DeclId) : Sound (PrimitiveBinding.fiberAt family smooth).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨x, point, x', rfl⟩ := IndexedAssociations.fiberAt_shape rule.association
+      exact fiberAt_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem fiberEqual_sound (family : DeclId) : Sound (PrimitiveBinding.fiberEqual family).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨left, right, rfl⟩ := IndexedAssociations.fiberEqual_shape rule.association
+      exact fiberEqual_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem fiberComponent_sound (family object : DeclId) (coordinate : Nat) :
+    Sound (PrimitiveBinding.fiberComponent family object coordinate).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain rfl := IndexedAssociations.fiberComponent_shape rule.association
+      exact fiberComponent_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem fiberPairing_sound (cotangent tangent : DeclId) :
+    Sound (PrimitiveBinding.fiberPairing cotangent tangent).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨x, x', rfl⟩ := IndexedAssociations.fiberPairing_shape rule.association
+      exact fiberPairing_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem cotangentPullback_sound (smooth cotangent : DeclId) (mode : SmoothRuntime.PullbackMode) :
+    Sound (PrimitiveBinding.cotangentPullback smooth cotangent mode).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨x, y, point, x', y', rfl⟩ := IndexedAssociations.cotangentPullback_shape rule.association
+      exact cotangentPullback_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem differential_sound (smooth cotangent line : DeclId) :
+    Sound (PrimitiveBinding.differential smooth cotangent line).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨x, point, x', rfl⟩ := IndexedAssociations.differential_shape rule.association
+      exact differential_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem linearize_sound (smooth tape : DeclId) : Sound (PrimitiveBinding.linearize smooth tape).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨x, y, point, x', rfl⟩ := IndexedAssociations.linearize_shape rule.association
+      exact linearize_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem cotangentBackward_sound (tape cotangent : DeclId) :
+    Sound (PrimitiveBinding.cotangentBackward tape cotangent).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨x, y, y', rfl⟩ := IndexedAssociations.cotangentBackward_shape rule.association
+      exact cotangentBackward_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
 
 end VastitasOracle.SmoothFibers

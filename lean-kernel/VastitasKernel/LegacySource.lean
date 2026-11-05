@@ -134,11 +134,13 @@ private def settingDeclarations (base : BaseKind) : List Source.Declaration :=
    declaration implementation.name (.implementation s.marker .affineDescriptor [.origin, .dimension]),
    declaration s.domain.name (.classification [reference "Objects"] [implementation]),
    declaration s.baseObject.name (.global implementation),
-   declaration s.affine.name (.primitive (.descriptor implementation)),
-   declaration s.base.name (.primitive (.global s.baseObject)),
-   declaration s.origin.name (.primitive (.origin type geometryProfile.point s.baseObject)),
-   declaration s.identity.name (.primitive (.identity type geometryProfile.morphism)),
-   declaration s.dimension.name (.primitive (.dimension type))]
+   declaration s.affine.name (.primitive ⟨"descriptor", [("implementation", .path implementation)]⟩),
+   declaration s.base.name (.primitive ⟨"global", [("declaration", .path s.baseObject)]⟩),
+   declaration s.origin.name (.primitive ⟨"origin", [("domain", .objectType type),
+     ("point_family", .path geometryProfile.point), ("base_object", .path s.baseObject)]⟩),
+   declaration s.identity.name (.primitive ⟨"identity", [("domain", .objectType type),
+     ("map_family", .path geometryProfile.morphism)]⟩),
+   declaration s.dimension.name (.primitive ⟨"dimension", [("domain", .objectType type)]⟩)]
 
 /-- Explicit closed declarations for old wire schemas that cannot carry library
 metadata. Every declaration and role is checked by the common checker. -/
@@ -152,8 +154,9 @@ def profilePackage : DispatchSource.Package := {
      declaration "Pointed" (.package ([.qq, .cinfReal].map fun base =>
        let s := setting base
        ⟨⟨s.domain, s.marker⟩, [⟨reference "Point", [.witness, .global s.baseObject]⟩]⟩)),
-     declaration "compose" (.primitive (.compose (reference "Morphism"))),
-     declaration "apply" (.primitive (.apply (reference "Morphism") (reference "Point")))] }] }
+     declaration "compose" (.primitive ⟨"compose", [("map_family", .path (reference "Morphism"))]⟩),
+     declaration "apply" (.primitive ⟨"apply", [("map_family", .path (reference "Morphism")),
+       ("point_family", .path (reference "Point"))]⟩)] }] }
 
 def Input.namespace : Input → Namespace.Program
   | .package p => p

@@ -386,6 +386,27 @@ theorem relation_sound {env : Environment} {shape : Shape} {allowed : List Objec
     · simp at member
   | freshBrand => simp [Relation.requirement] at member
 
+/-- Every requirement in the role table of a shape is part of the shape's
+association contract, so a reported requirement is a genuine failure of that
+contract. -/
+theorem roles_sound {env : Environment} {shape : Shape} {allowed : List ObjectRef} {brand : Nat}
+    {arguments : List ValueType} {result : ValueType}
+    (association : Association env shape allowed brand arguments result) :
+    ∀ requirement ∈ roles env shape arguments, requirement.holds env = true := by
+  obtain ⟨matched, relations, -⟩ := association
+  intro requirement member
+  simp only [roles, List.mem_append] at member
+  rcases member with member | member
+  · split at member
+    · exact family_sound matched member
+    · simp at member
+  · split at member
+    · simp only [List.mem_append, List.mem_flatMap] at member
+      rcases member with member | ⟨relation, relationMember, member⟩
+      · exact fixed_sound matched member
+      · exact relation_sound (relations relation relationMember) member
+    · simp at member
+
 end VastitasKernel.Indexed.Shape
 
 namespace VastitasKernel.Indexed.Source.Diagnostics
@@ -397,24 +418,13 @@ def roleTable (env : Environment) (binding : PrimitiveBinding) (operands : List 
   Shape.roles env binding.contract.shape operands
 
 /-- Every requirement in the role table is part of the association contract, so
-a reported requirement is a genuine failure of that contract. -/
+a reported requirement is a genuine failure of that contract: `Shape.roles_sound`
+at the binding's shape. -/
 theorem roleTable_sound {env : Environment} {binding : PrimitiveBinding} {allowed : List ObjectRef}
     {brand : Nat} {operands : List ValueType} {result : ValueType}
     (association : PrimitiveAssociation env binding allowed brand operands result) :
-    ∀ requirement ∈ roleTable env binding operands, requirement.holds env = true := by
-  obtain ⟨matched, relations, -⟩ := association
-  intro requirement member
-  simp only [roleTable, Shape.roles, List.mem_append] at member
-  rcases member with member | member
-  · split at member
-    · exact Shape.family_sound matched member
-    · simp at member
-  · split at member
-    · simp only [List.mem_append, List.mem_flatMap] at member
-      rcases member with member | ⟨relation, relationMember, member⟩
-      · exact Shape.fixed_sound matched member
-      · exact Shape.relation_sound (relations relation relationMember) member
-    · simp at member
+    ∀ requirement ∈ roleTable env binding operands, requirement.holds env = true :=
+  Shape.roles_sound association
 
 /-- Why `validPrimitive` rejected a call. -/
 inductive PrimitiveFailure where

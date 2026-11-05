@@ -199,6 +199,7 @@ theorem core_compose_reifies {module : Core.Module} {fuel : Nat} {values : Core.
     (beforeValue : Core.Semantics.eval module fuel values second = some (.indexed (.smooth before))) :
     Core.Semantics.eval module (fuel + 1) values (.primitive id [first, second] result) =
       some (.indexed (.smooth (.compose after before))) := by
-  simp [Core.Semantics.eval, found, afterValue, beforeValue, Core.Semantics.evalPrimitive]
+  simp [Core.Semantics.eval, found, afterValue, beforeValue, Core.Semantics.evalPrimitive, PrimitiveBinding.contract,
+    PrimitiveDescriptor.ofBool]
 
 end VastitasOracle.SmoothDeclarations

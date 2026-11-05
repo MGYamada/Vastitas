@@ -161,7 +161,7 @@ def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
   let some binding := input.declarations.primitive? id | fail span "E_TYPE" "unknown declared primitive"
   let some operands := (values.map Core.Term.result).mapM Core.Result.primitiveType?
     | fail span "E_TYPE" "primitive operand shape mismatch"
-  let brand ← match binding with | .descriptor _ => fresh | _ => pure 0
+  let brand ← if binding.allocates then fresh else pure 0
   let some output := inferPrimitiveResult input.declarations.indexed binding brand operands
     | fail span "E_TYPE" "primitive operand shape mismatch"
   let allowed := Core.Typing.contextRefs ctx.core
@@ -173,7 +173,7 @@ def emitPrimitive (input : Input) (ctx : TypeContext) (id : DeclId)
         (← typeLabel input (primitiveResult output).type) failure
       fail span "E_ENDPOINT" message (← endpointNotes input results span)
     | none => endpointFailure input results span "primitive capability, endpoint or coefficient contract failed"
-  if let .descriptor _ := binding then
+  if binding.allocates then
     if let .object _ reference := output then
       let legacy := input.geometry.any fun profile => id == profile.scheme.affine || id == profile.smooth.affine
       rememberObject reference span (if legacy then "Affine" else s!"primitive '{id.name}'")

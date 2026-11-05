@@ -9,11 +9,14 @@ lemmas state, for each callable binding and its well-shaped operand list, the
 conjunction the shape amounts to, in the order the shape checks it: the
 operands' families and fixed indices, operand by operand, then the relations,
 then the result; and, for each binding with listed operands, that any accepted
-call has that operand list. The uncallable evidence bindings have no
-association. These are the local obligations the totality and bridge proofs
-destructure: a new callable binding adds its association lemma and its shape
-lemma here, its totality lemma, and its named case in
-`IndexedSemantics.primitive_total_and_typed`. -/
+call has that operand list. `relativePair_association` departs from that
+order: it folds the shape's four `fixedFrom` relations back into `base = base'`
+and `pairFactors env fiber left right base`, the form `relativePair_total`
+consumes. The uncallable evidence bindings have no
+association. These are the local obligations the `Sound` instances and the
+bridge proofs destructure: a new callable binding adds its association lemma
+and its shape lemma here, its totality lemma and `Sound` instance in its
+module, and its named case in `IndexedSemantics.registry_sound`. -/
 namespace VastitasOracle.IndexedAssociations
 
 open VastitasKernel VastitasKernel.Indexed
@@ -23,7 +26,8 @@ one operand list. -/
 local syntax "association_simp" : tactic
 local macro_rules
   | `(tactic| association_simp) => `(tactic| simp only [PrimitiveAssociation, Shape.Association,
-      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, Shape.accepts, Shape.operandsMatch,
+      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence, Shape.accepts,
+      Shape.operandsMatch,
       Shape.operandMatches, Shape.slotsMatch, Shape.tailMatches_none_iff, Shape.tailMatches_some_iff,
       Relation.holds, Shape.refAt, Shape.applicationAt, Shape.objectAt, ResultTemplate.instantiate,
       Shape.templateSlot, List.forall_mem_cons, List.not_mem_nil, false_implies, implies_true,
@@ -152,13 +156,13 @@ theorem relativeIso_association {env : Environment} {forward backward : Applicat
     {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType} {result : ValueType} :
     ¬ PrimitiveAssociation env (.relativeIso forward backward) allowed brand arguments result := by
   simp [PrimitiveAssociation, Shape.Association, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    Shape.uncallable, ResultTemplate.instantiate]
+    PrimitiveDescriptor.evidence, Shape.uncallable, ResultTemplate.instantiate]
 
 theorem relativeCartesian_association {env : Environment} {first second inverse : Application × AlgebraRuntime.Map}
     {fiber : DeclId} {allowed : List ObjectRef} {brand : Nat} {arguments : List ValueType} {result : ValueType} :
     ¬ PrimitiveAssociation env (.relativeCartesian first second inverse fiber) allowed brand arguments result := by
   simp [PrimitiveAssociation, Shape.Association, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
-    Shape.uncallable, ResultTemplate.instantiate]
+    PrimitiveDescriptor.evidence, Shape.uncallable, ResultTemplate.instantiate]
 
 /-! ## Smooth maps, fibers, tapes and metrics (Stage 3) -/
 
@@ -756,5 +760,13 @@ theorem metricSharp_shape {env : Environment} {metric evidence object cotangent 
   slot_fixed sa
   slots_end sa
   rfl
+
+/-! ## Allocation -/
+
+/-- `descriptor` is the one binding whose registry entry allocates. -/
+theorem allocates_iff {binding : PrimitiveBinding} :
+    binding.allocates = true ↔ ∃ implementation, binding = .descriptor implementation := by
+  cases binding <;> simp [PrimitiveBinding.allocates, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool,
+    PrimitiveDescriptor.evidence, Shape.allocates, Shape.uncallable]
 
 end VastitasOracle.IndexedAssociations

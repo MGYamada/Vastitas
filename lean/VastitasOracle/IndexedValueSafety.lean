@@ -188,14 +188,19 @@ theorem results_primitive {env : Declarations} {world : World} {values : List Va
           subst operands
           exact ⟨(result_primitive_iff head).mpr typed.1, ih tail typed.2⟩
 
+/-- The world slot a call may bind: the result's, when the binding allocates. -/
 def primitiveSlots (binding : PrimitiveBinding) (result : Result) : List Nat :=
-  match binding with | .descriptor _ => resultSerials result | _ => []
+  if binding.allocates then resultSerials result else []
 
 theorem primitive_frame {world : World} {binding : PrimitiveBinding} {result : Result}
     {output : ValueType} {value : Value} (converted : result.primitiveType? = some output) :
     WorldUnchangedOutside world (primitiveWorld world binding output value) (primitiveSlots binding result) := by
-  cases binding <;> try exact unchanged_refl _ _
-  case descriptor implementation =>
+  cases allocates : binding.allocates
+  · rw [primitiveWorld_pure allocates]
+    exact unchanged_refl _ _
+  · rw [primitiveWorld_allocating allocates]
+    have slots : primitiveSlots binding result = resultSerials result := by simp [primitiveSlots, allocates]
+    rw [slots]
     cases result with
     | mk type reference =>
       cases type with
@@ -211,7 +216,7 @@ theorem primitive_frame {world : World} {binding : PrimitiveBinding} {result : R
           | global _ => exact unchanged_refl _ _
           | «local» actual brand =>
             cases value <;> try exact unchanged_refl _ _
-            case object object => simpa [primitiveSlots, resultSerials, localSerial, primitiveWorld] using bind_unchanged world brand object
+            case object object => simpa [resultSerials, localSerial] using bind_unchanged world brand object
       | indexed application =>
         cases reference <;> simp only [Result.primitiveType?] at converted <;> try contradiction
         cases converted
@@ -253,11 +258,9 @@ theorem primitive_fresh {env : Declarations} {world : World} {binding : Primitiv
     (rule : PrimitiveTyped env.indexed binding allowed (primitiveBrand result) operands output)
     (fresh : WorldFreshFor world (primitiveSlots binding result)) :
     PrimitiveFresh binding world (primitiveBrand result) := by
-  cases binding <;> try trivial
-  case descriptor implementation =>
-    obtain rfl := IndexedAssociations.descriptor_shape rule.association
-    obtain ⟨type, _, _, rfl⟩ := IndexedAssociations.descriptor_association.mp rule.association
-    exact fresh _ (by simp [primitiveSlots, (descriptor_serial converted).1])
+  intro allocates
+  obtain ⟨type, rfl⟩ := Shape.result_of_allocates rule.association allocates
+  exact fresh _ (by simp [primitiveSlots, allocates, (descriptor_serial converted).1])
 
 def branchSlots (yes no result : Result) : List Nat :=
   if yes.reference = no.reference then [] else resultSerials result

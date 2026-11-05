@@ -233,7 +233,7 @@ theorem safe_primitive {module : Module} {functions : Signatures} {arguments : L
   simp only [Term.callIds] at calls
   have allocEq : allocatedSerials module.declarations (.primitive id arguments result) =
       arguments.flatMap (allocatedSerials module.declarations) ++ primitiveSlots binding result := by
-    cases binding <;> simp only [allocatedSerials, found, primitiveSlots]
+    simp only [allocatedSerials, found, primitiveSlots]
   rw [allocEq] at unique fresh
   obtain ⟨uniqueArgs, _, disjoint⟩ := List.nodup_append.mp unique
   obtain ⟨middle, inputs, evaluated, inputTypes, argExtends, argFrame⟩ :=

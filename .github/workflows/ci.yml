@@ -42,6 +42,13 @@ jobs:
         run: bash scripts/check_ci_python.sh
       - name: Contributor guidance limits and equality
         run: python3 scripts/check_docs.py
+      # src/primitive_table.rs is generated from the kernel's primitive
+      # families; the check builds that module, regenerates the table and
+      # fails on any difference (#622).
+      - name: Install checksum-pinned elan
+        run: python3 scripts/install_ci_elan.py --destination "$RUNNER_TEMP/vastitas-elan"
+      - name: Generated primitive table matches the kernel's families
+        run: python3 scripts/check_primitive_table.py
       # The claims of docs/spec/: format, statuses, tests and the CI steps that
       # run them, statement pin names and generated chapters (#647).
       - name: Specification files and generated chapters

@@ -162,6 +162,31 @@ a `delegable` grant or delegation can be lent on as a nested loan through a
 [storage loan](#storage-loan).
 See [Scoped edit borrowing](../packages.md#edit-borrowing).
 
+## Erased evaluator
+
+The evaluator of a [registry entry](#registry-entry) that computes a
+[primitive](#primitive) call on the runtime structures that generated
+programs link. It applies operations of `IndexedRuntime`, `AlgebraRuntime`
+or `SmoothRuntime`. Compare [logical evaluator](#logical-evaluator) and
+[erasure](#erasure). See
+[Add an indexed primitive](../development/primitives.md#terms).
+
+## Erasure
+
+The word has two qualified uses:
+
+1. The **erasure of a primitive value** maps a value of the Core semantics to
+   the runtime structure that generated programs link, such as a smooth
+   program or a fiber. The oracle proves for every
+   [registry entry](#registry-entry) that a successful logical evaluation
+   erases to the entry's [erased evaluator](#erased-evaluator) on the erased
+   operands. See
+   [Add an indexed primitive](../development/primitives.md#terms).
+2. Elsewhere, erasure removes what only the checker needs before native
+   execution, such as nominal tags and the function values that
+   [specialization](#specialization) erases. See
+   [Compiler protocols](../protocol.md).
+
 ## Existential package
 
 A value that hides a witness object together with fields whose types depend on
@@ -268,6 +293,23 @@ The view descriptor `layout(offset, rows, columns, leading, transposed)`. It
 describes a column-major physical rectangle in an allocation: a byte offset,
 the physical numbers of rows and columns, the leading dimension in elements and
 a transpose flag. See [Resource functions](../guide/storage.md#resource-functions).
+
+## Logical evaluator
+
+The evaluator of a [registry entry](#registry-entry) that computes the value
+of a [primitive](#primitive) call on the values of the Core semantics. Compare
+[erased evaluator](#erased-evaluator). See
+[Add an indexed primitive](../development/primitives.md#terms).
+
+## Lowering
+
+The text or the smaller form that a compiler pass produces for a checked
+construct. The lowering of a [primitive](#primitive) call is the Lean text
+that code generation writes for it from the texts of its operands. The
+`render` field of the binding's [registry entry](#registry-entry) produces
+it. Other passes lower checked source to [Core](#core), and their checked
+records keep the lowering equation. See
+[Add an indexed primitive](../development/primitives.md#terms).
 
 ## Manifest
 
@@ -377,6 +419,50 @@ each primitive's representation, domain, arity, capabilities and family shapes.
 See
 [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
+## Primitive association
+
+The condition that a [primitive shape](#primitive-shape) places on the
+operand list and the result of one call: the operands match the shape, every
+relation of the shape holds and the result is the shape's result template,
+instantiated at the operands. The checker decides it for every call. See
+[Add an indexed primitive](../development/primitives.md#terms).
+
+## Primitive binding
+
+A constructor of `PrimitiveBinding` with its data: family, base and object
+IDs and the embedded maps, matrices or coordinates. It is the Core-level
+identity of a [primitive](#primitive) call and has one
+[registry entry](#registry-entry). Displayed names and certificate strings
+are not part of it. See
+[Add an indexed primitive](../development/primitives.md#terms).
+
+## Primitive family
+
+The entry of one wire `op` in the family table of
+`IndexedPrimitiveFamilies.lean`: the operation's fields with their kinds in
+wire order, whether only protocol 9 admits it, and how the resolved fields
+build a [primitive](#primitive) binding. The wire decoder, the resolver and
+the frontend's generated table read it. A primitive family is not a
+[family](#family) declaration. See
+[Add an indexed primitive](../development/primitives.md#3-the-primitive-family).
+
+## Primitive registry
+
+The closed, finite set of [primitive](#primitive) bindings that the checker
+accepts. Each binding has one [registry entry](#registry-entry). The checker
+derives a binding's validity contract, operand association, result type and
+operand count from its registry entry, and code generation the text of a
+call. No source spelling or native symbol adds a binding. See
+[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+
+## Primitive shape
+
+The part of a [primitive](#primitive) binding's registry entry that lists
+its operands, the relations between them and its result. A call of the
+binding allocates when the result is a fresh object. The argument hints and the
+[role table](#role-table) of the binding come from its shape. See
+[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+
 ## Profile
 
 The word has three qualified uses:
@@ -410,6 +496,16 @@ The word has two meanings:
    and layouts cover regions. See
    [Regions, overlap and alias evidence](../storage-ownership.md#74-regions-overlap-and-alias-evidence).
 
+## Registry entry
+
+The `PrimitiveDescriptor` value of one [primitive binding](#primitive-binding)
+in the [primitive registry](#primitive-registry). It holds the binding's
+[primitive shape](#primitive-shape), its validity contract as a `Prop` and as
+a `Bool` with the proof that they agree, its
+[logical](#logical-evaluator) and [erased evaluators](#erased-evaluator),
+its [lowering](#lowering) and its [shared literals](#shared-literal). See
+[Add an indexed primitive](../development/primitives.md).
+
 ## Resource function
 
 A function declared with `resource fn`. Its body is a sequence of storage
@@ -426,6 +522,18 @@ positive-definite Gram matrix has Riemannian evidence. It is the wrong kind of
 evidence for `sharp`, which requires
 [nondegenerate evidence](#nondegenerate-evidence). See
 [metric forms](../protocol.md#protocol-9-metric-forms).
+
+## Role table
+
+The requirements that a [primitive shape](#primitive-shape) places on the
+operand types of one call, in a fixed order: the operands' families, then their
+fixed indices, then the shape's relations. The table lists them once the
+operands have the shape's index pattern; `relative_coefficient` and
+`relative_pair` list the families as soon as each operand is of the expected
+kind. Every requirement is part of the binding's contract. When a call of a
+valid binding fails a listed requirement, the diagnostic names the first one;
+otherwise it lists the operand types. See
+[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
 
 ## Scheme
 
@@ -454,6 +562,14 @@ the [failure value](#failure-value). See
 The type that a method gives a parameter for dispatch: a concrete scalar type,
 `Number`, `Any` or an abstract type. See
 [Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
+
+## Shared literal
+
+A basis that a generated module declares once, as `basis_k`, and that the
+[lowering](#lowering) of every map over that basis names. The `literals`
+field of a [registry entry](#registry-entry) lists the shared literals of the
+binding's calls. See
+[Add an indexed primitive](../development/primitives.md#2-the-registry-entry).
 
 ## Signature probe
 
@@ -569,6 +685,13 @@ point. Only `linearize` builds a tape; a tape has no source or wire form.
 [failure value](#failure-value) for a covector that is not at the tape's
 output point. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
+## Totality lemma
+
+The oracle lemma of one [primitive binding](#primitive-binding) that proves
+that an accepted call on typed operand values evaluates to a value of the
+checked result type. The binding's soundness instance builds on it. See
+[Add an indexed primitive](../development/primitives.md#5-the-local-proofs).
+
 ## Transfer
 
 A `transfer` declaration names an operation that permanently moves edit
@@ -582,6 +705,14 @@ The binding that a storage loan creates, such as `output` in
 `borrow output = write(data, layout(...));`. A view reads or writes the cells
 that its [layout](#layout) describes. See
 [Resource functions](../guide/storage.md#resource-functions).
+
+## Wire form
+
+The JSON record that stands for one declaration or form in a request of the
+[wire protocol](#wire-protocol). The wire form of a [primitive](#primitive)
+is an `op` and the named fields of its [primitive family](#primitive-family),
+in wire order. See
+[Add an indexed primitive](../development/primitives.md#one-family-derived-wire-form).
 
 ## Wire protocol
 

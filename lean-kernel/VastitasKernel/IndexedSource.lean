@@ -66,46 +66,63 @@ structure PackageShape where
   fields : List BoundApplication
   deriving Repr, Inhabited
 
-inductive Primitive where
-  | descriptor (implementation : Path)
-  | global (declaration : Path)
-  | origin (domain : ObjectType) (pointFamily baseObject : Path)
-  | identity (domain : ObjectType) (mapFamily : Path)
-  | dimension (domain : ObjectType)
-  | compose (mapFamily : Path)
-  | apply (mapFamily pointFamily : Path)
-  | relativeCompose (family : Path)
-  | relativeView (family source target : Path)
-  | relativeEqual (family : Path)
-  /-- `coordinate` names a target coordinate; `monomial` is a monomial in the
-  source's coordinates, checked after elaboration. -/
-  | relativeCoefficient (family source target : Path) (coordinate : String) (monomial : PolyExpr)
-  | relativeIntPoint (family object base : Path)
-  | relativePair (family fiber : Path)
-  /-- Stage 3 smooth programs (protocol 9). -/
-  | smoothCompose (family : Path)
-  | smoothEqual (family : Path)
-  | smoothComposite (family : Path)
-  /-- A rational point of `object` from runtime integers; `point` is 0-dimensional. -/
-  | smoothIntPoint (family object point : Path)
-  /-- Stage 3 fibers and tapes (protocol 9). `family` is a `Tangent` or
-  `Cotangent` family, `smooth` a `Smooth` family and `tape` a `Tape` family. -/
-  | fiberVector (family smooth object : Path)
-  | fiberAt (family smooth : Path)
-  | fiberEqual (family : Path)
-  /-- `coordinate` names a coordinate of `object`, resolved to its index after elaboration. -/
-  | fiberComponent (family object : Path) (coordinate : String)
-  | fiberPairing (cotangent tangent : Path)
-  | cotangentPullback (smooth cotangent : Path) (mode : SmoothRuntime.PullbackMode)
-  /-- `line` is a 1-dimensional smooth object. -/
-  | differential (smooth cotangent line : Path)
-  | linearize (smooth tape : Path)
-  | cotangentBackward (tape cotangent : Path)
-  /-- `flat(tangent, cotangent, using = metric)` (protocol 9). -/
-  | flat (tangent cotangent metric : Path)
-  /-- `sharp(cotangent, tangent, using = metric, evidence = evidence)` (protocol 9). -/
-  | sharp (cotangent tangent metric evidence : Path)
+/-- One decoded field of a primitive's wire form. The kinds are exactly what
+the indexed declaration decoder (protocols 7 to 9) accepts for a primitive
+field. -/
+inductive WireArgument where
+  | path (path : Path)
+  | objectType (type : ObjectType)
+  /-- A coordinate name, resolved to its index after elaboration. -/
+  | coordinate (name : String)
+  /-- A polynomial in coordinates, checked after elaboration. -/
+  | polynomial (expression : PolyExpr)
+  | pullbackMode (mode : SmoothRuntime.PullbackMode)
   deriving Repr, Inhabited
+
+/-- The kind of a wire field, as a family declares it. -/
+inductive WireKind where
+  | path | objectType | coordinate | polynomial | pullbackMode
+  deriving Repr, Inhabited, DecidableEq, BEq
+
+def WireArgument.kind : WireArgument → WireKind
+  | .path _ => .path
+  | .objectType _ => .objectType
+  | .coordinate _ => .coordinate
+  | .polynomial _ => .polynomial
+  | .pullbackMode _ => .pullbackMode
+
+/-- The table spelling of a kind, for the generated Rust table. -/
+def WireKind.wire : WireKind → String
+  | .path => "path"
+  | .objectType => "object_type"
+  | .coordinate => "coordinate"
+  | .polynomial => "polynomial"
+  | .pullbackMode => "pullback_mode"
+
+/-- A primitive's wire form: the `op` and its fields, named and in wire order.
+The families of `IndexedPrimitiveFamilies` say which ops exist and which fields
+each takes; the decoder admits exactly those, and `resolvePrimitive` builds
+the binding through the op's family. The arguments the stage passes
+elaborate (a coordinate name, a monomial) are read back from here by op and
+field name. -/
+structure Primitive where
+  op : String
+  arguments : List (String × WireArgument)
+  deriving Repr, Inhabited
+
+/-- The field `name` of the `op` form, if this is that form and has it. -/
+def Primitive.argument? (p : Primitive) (op name : String) : Option WireArgument :=
+  if p.op == op then (p.arguments.find? (·.1 == name)).map (·.2) else none
+
+def Primitive.coordinate? (p : Primitive) (op name : String) : Option String :=
+  match p.argument? op name with
+  | some (.coordinate coordinate) => some coordinate
+  | _ => none
+
+def Primitive.polynomial? (p : Primitive) (op name : String) : Option PolyExpr :=
+  match p.argument? op name with
+  | some (.polynomial expression) => some expression
+  | _ => none
 
 /-- The Gram matrix of a metric declaration, before elaboration. -/
 inductive MetricGram where

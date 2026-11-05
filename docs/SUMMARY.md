@@ -68,4 +68,5 @@
   - [F: Contributing and validation](appendix/contributing.md)
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)
+    - [Add an indexed primitive](development/primitives.md)
   - [G: Glossary](appendix/glossary.md)

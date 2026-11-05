@@ -2,6 +2,7 @@ import VastitasKernel.IndexedSemantics
 import VastitasOracle.IndexedAssociations
 import VastitasOracle.SmoothRuntime
 import VastitasOracle.SmoothCanonical
+import VastitasOracle.IndexedPrimitiveSoundness
 
 set_option autoImplicit false
 
@@ -19,12 +20,13 @@ accepted smooth primitive returns a value of its checked result type:
 - `int_point` builds a point of `X` from `dim X` runtime integers;
 - `same` returns a Boolean.
 
-`IndexedSemantics.primitive_total_and_typed` and
-`IndexedSemantics.primitive_runtime_erasure` dispatch to these lemmas. -/
+The `Sound` instances at the end combine these lemmas with their erasure;
+`IndexedSemantics.registry_sound` dispatches to them. -/
 namespace VastitasOracle.SmoothPrimitives
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core
 open VastitasKernel.Indexed.Core.Semantics
+open VastitasOracle.IndexedPrimitiveSoundness
 
 /-- The value of an accepted primitive and its type. The smooth primitives
 leave the world unchanged. -/
@@ -291,7 +293,7 @@ theorem smoothIntPoint_total {env : Indexed.Environment} {world : World} {family
   rw [arity] at length
   refine ⟨.indexed (.smooth (SmoothRuntime.intPoint coordinates)), ?_,
     smooth_typed (smooth_family smooth) rule.resultValid rfl pointZero objectDimension ?_⟩
-  · simp [evalPrimitive, smoothPointValue, found]
+  · simp [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, smoothPointValue, found]
   · rw [← length]
     exact VastitasOracle.SmoothCanonical.intPoint_wellTyped coordinates
 
@@ -330,7 +332,7 @@ theorem smoothPoint_erasure {family object point : DeclId} {values : List Value}
     simp [coordinates] at evaluated
     subst evaluated
     obtain ⟨inputs, erased, runtime⟩ := integers_erase coordinates
-    exact ⟨inputs, _, erased, rfl, by simp [evalRuntimePrimitive, smoothPointRuntime, runtime]⟩
+    exact ⟨inputs, _, erased, rfl, by simp [evalRuntimePrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, smoothPointRuntime, runtime]⟩
 
 /-- **Reification.** The value of `compose` is the program node
 `Program.compose after before`, both in the Core semantics and at runtime.
@@ -341,5 +343,59 @@ theorem smoothCompose_value (env : Indexed.Environment) (family : DeclId)
       some (.indexed (.smooth (.compose after before))) ∧
     evalRuntimePrimitive (.smoothCompose family) [.smooth after, .smooth before] =
       some (.smooth (.compose after before)) := ⟨rfl, rfl⟩
+
+/-! ## Soundness instances -/
+
+theorem smoothConstant_sound (application : Application) (map : AlgebraRuntime.Map) :
+    Sound (PrimitiveBinding.smoothConstant application map).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain rfl := IndexedAssociations.smoothConstant_shape rule.association
+      exact smoothConstant_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem smoothCompose_sound (family : DeclId) : Sound (PrimitiveBinding.smoothCompose family).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨middle, target, source, other, rfl⟩ := IndexedAssociations.smoothCompose_shape rule.association
+      exact smoothCompose_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem smoothEqual_sound (family : DeclId) : Sound (PrimitiveBinding.smoothEqual family).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨left, right, rfl⟩ := IndexedAssociations.smoothEqual_shape rule.association
+      exact smoothEqual_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
+
+theorem smoothIntPoint_sound (family object point : DeclId) :
+    Sound (PrimitiveBinding.smoothIntPoint family object point).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      exact smoothIntPoint_total rule typed)
+    (by
+      intro env values value evaluated
+      simp only [evalPrimitive, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool] at evaluated
+      exact smoothPoint_erasure evaluated)
+
+theorem smoothComposite_sound (family : DeclId) : Sound (PrimitiveBinding.smoothComposite family).contract :=
+  .ofPure rfl
+    (by
+      intro env world allowed brand arguments output values rule typed
+      obtain ⟨application, rfl⟩ := IndexedAssociations.smoothComposite_shape rule.association
+      exact smoothComposite_total rule typed)
+    (by
+      intro env values value evaluated
+      erase_matched evaluated)
 
 end VastitasOracle.SmoothPrimitives

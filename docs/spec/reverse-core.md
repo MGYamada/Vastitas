@@ -8,13 +8,13 @@ After acceptance, the kernel compiles every reverse site of a checked module int
 
 | Property | Claims |
 | --- | --- |
-| [Saved backward Core](#reverse-core.backward.saved) | Proved (oracle), Tested, Planned, Not claimed |
-| [Recomputed backward Core and agreement of the policies](#reverse-core.backward.recomputed) | Proved (oracle), Tested, Planned, Not claimed |
-| [Forward Core](#reverse-core.forward) | Proved (oracle), Tested, Planned, Not claimed |
-| [Meaning in coordinates](#reverse-core.meaning) | Proved (oracle), Tested, Planned, Not claimed |
-| [Rewritten sites](#reverse-core.sites) | Proved (oracle), Tested, Planned, Not claimed |
-| [Translation validation and public paths](#reverse-core.validation) | Proved (oracle), Tested, Planned, Not claimed |
-| [Compiled steps](#reverse-core.steps) | Proved (oracle), Tested, Planned, Not claimed |
+| [Saved backward Core](#reverse-core.backward.saved) | Proved (oracle), Tested, Proved (bridge), Not claimed |
+| [Recomputed backward Core and agreement of the policies](#reverse-core.backward.recomputed) | Proved (oracle), Tested, Proved (bridge), Not claimed |
+| [Forward Core](#reverse-core.forward) | Proved (oracle), Tested, Not claimed |
+| [Meaning in coordinates](#reverse-core.meaning) | Proved (oracle), Tested, Proved (bridge), Not claimed |
+| [Rewritten sites](#reverse-core.sites) | Proved (oracle), Tested, Not claimed |
+| [Translation validation and public paths](#reverse-core.validation) | Proved (oracle), Tested, Proved (bridge), Not claimed |
+| [Compiled steps](#reverse-core.steps) | Proved (oracle), Tested, Not claimed |
 
 <a id="reverse-core.backward.saved"></a>
 
@@ -50,8 +50,16 @@ Claims:
     - `mutated_observations_change_the_native_result` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: Observations 2 and 8 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions) run compiled saved sites, the second with a seed over another point. The Rust test checks that the saved sites receive the images from the caller. `ReverseCoreRegression` compares every compiled site with its source site, failures included, and rejects forged backward functions.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.compiled_saved_entry_frechet`, `VastitasBridge.Differential.compiled_saved_entry_kaehler`
+  - Premises:
+    - the entry belongs to the ledger of a compiled module (`Reverse.Compiled`), its site saves, and the generated function is called with one program per opaque step
+    - the arguments of the call evaluate to the opaque programs, the input point, the saved points and the seed, and the saved points satisfy the residual relation (`ResidualRel`)
+    - the chain of the step programs is well typed from `n` to `m` coordinates, and the seed lies over its image of the input point with `m` components
+    - for `compiled_saved_entry_frechet`: the input point has `n` coordinates
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: The saved backward Core evaluates to the covector `η ∘ DF(x)`, where `F` is the real program of the chain of the step programs, through `HasFDerivAt.comp` (`Frechet`). Its components are the Kähler pullback fiber. The proofs start from the oracle's `compiled_saved_entry`. They use neither the kernel chain rule (`cot_compose`, `backward_eq_cot`) nor the formal chain rule `pderiv_aeval`; `lean-bridge/Audit.lean` checks this on the constants that the proofs use.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 
@@ -88,8 +96,16 @@ Claims:
     - `mutated_observations_change_the_native_result` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: Observations 12 and 25 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions) run the two recomputing sites. The Rust test checks that their generated functions evaluate the images of their 2 and 3 steps. `ReverseCoreRegression` checks that the recomputing pullback keeps its mode.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.compiled_recomputed_entry_frechet`, `VastitasBridge.Differential.compiled_recomputed_entry_kaehler`
+  - Premises:
+    - the entry belongs to the ledger of a compiled module (`Reverse.Compiled`), its site recomputes, and the generated function is called with one program per opaque step
+    - the arguments of the call evaluate to the opaque programs, the input point and the seed
+    - the chain of the step programs is well typed from `n` to `m` coordinates, and the seed lies over its image of the input point with `m` components
+    - for `compiled_recomputed_entry_frechet`: the input point has `n` coordinates
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: The recomputing backward Core has the same Fréchet and Kähler meaning as the saved one. The proofs use neither the kernel chain rule (`cot_compose`, `backward_eq_cot`) nor the formal chain rule `pderiv_aeval`.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 
@@ -124,8 +140,6 @@ Claims:
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: Observation 2 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions) reads the result of a site whose forward Core binds two images. `ReverseCoreRegression` rejects a site that passes the input point as an image.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 
@@ -159,8 +173,17 @@ Claims:
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - `mutated_observations_change_the_native_result` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
   - Note: Observations 1 and 18 of the [acceptance example](../stage3-acceptance.md#acceptance-conditions) read 12 dt and (2, 1) from compiled sites. The mutation test shows that a wrong result changes the native output.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.compiled_saved_entry_cot_kaehler`, `VastitasBridge.Differential.compiled_recomputed_entry_cot_kaehler`, `VastitasBridge.Differential.compiled_saved_entry_frechet`, `VastitasBridge.Differential.compiled_recomputed_entry_frechet`, `VastitasBridge.Differential.backward_eq_cot_kaehler`
+  - Premises:
+    - the entry belongs to the ledger of a compiled module (`Reverse.Compiled`), and the generated function is called with one program per opaque step
+    - the arguments of the call evaluate to the opaque programs, the points and the seed, and for a saved site the saved points satisfy the residual relation (`ResidualRel`)
+    - the chain of the step programs is well typed from `n` to `m` coordinates, and the seed lies over its image of the input point with `m` components
+    - for the Fréchet statements: the input point has `n` coordinates
+    - for `backward_eq_cot_kaehler`, the lemma that the `cot` statements use: the runtime program is well typed
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: `compiled_saved_entry_cot_kaehler` and `compiled_recomputed_entry_cot_kaehler` state the property with the statements of the oracle's `compiled_saved_entry_cot` and `compiled_recomputed_entry_cot`. Their proofs reach `cot` of the composite map through `backward_eq_cot_kaehler`, which uses the functoriality of Kähler differentials (`cot_compose_kaehler`). They use neither the kernel chain rule (`cot_compose`, `backward_eq_cot`) nor the formal chain rule `pderiv_aeval`.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 
@@ -197,8 +220,6 @@ Claims:
     - `a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routine` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
   - Note: `ReverseCoreRegression` evaluates every source site and its compiled Core. The Rust tests run sites whose map a branch chooses and sites on a tape bound by a let.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 
@@ -233,8 +254,16 @@ Claims:
     - `a_reverse_pass_through_an_object_outside_the_cotangent_domain_keeps_the_runtime_pass` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The Rust tests pin the shape of the compiled acceptance program, check that the wire cannot name the compiler's declarations, and run a site that keeps the runtime reverse pass. `ReverseCoreRegression` rejects forged ledgers, missing, extra and misowned generated functions, and sites left uncompiled.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.public_wire_entries_frechet`, `VastitasBridge.Differential.legacy_wire_entries_frechet`, `VastitasBridge.Differential.public_resource_entries_frechet`, `VastitasBridge.Differential.public_pure_entry_frechet`
+  - Premises:
+    - for `public_wire_entries_frechet`, `legacy_wire_entries_frechet` and `public_resource_entries_frechet`: the checker of the public path accepts the JSON request (`CheckedInput`)
+    - for `public_pure_entry_frechet`: the request decodes to a program without a resource entry, and the emit path succeeds
+    - `EntryFrechet` keeps the premises on the arguments of a call: one program per opaque step, arguments that evaluate to the opaque programs, the points and the seed, and for a saved site the residual relation of the saved points
+    - `EntryFrechet` also keeps the chain of the step programs well typed from `n` to `m` coordinates, an input point with `n` coordinates and a seed over the image with `m` components
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: Every ledger entry of the module that a public path lowers has the Fréchet meaning of its backward Core.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 
@@ -266,7 +295,5 @@ Claims:
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
   - Note: The Rust test checks that every Jacobian step carries its table as a literal of rational polynomials. `ReverseCoreRegression` pins the generated function of one declared step and rejects a step along another declared map.
-- `bridge`: [Planned](../specifications.md#planned)
-  - Issue: [#623](https://github.com/MGYamada/Vastitas/issues/623)
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.

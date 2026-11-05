@@ -42,6 +42,10 @@ jobs:
         run: bash scripts/check_ci_python.sh
       - name: Contributor guidance limits and equality
         run: python3 scripts/check_docs.py
+      # The claims of docs/spec/: format, statuses, tests and the CI steps that
+      # run them, statement pin names and generated chapters (#647).
+      - name: Specification files and generated chapters
+        run: python3 scripts/check_spec.py
       - name: Verify sparse source evidence retrieval
         run: python3 -m unittest discover -s experiments/source_workspace -p test_fetch.py
       - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable action
@@ -357,6 +361,8 @@ jobs:
           bash scripts/replay_lean.sh lean VastitasKernel
       - name: Axiom-audit coverage, provenance and substitution regressions
         run: lake -d lean env python3 scripts/check_axiom_audit.py
+      - name: Specification resolver regressions
+        run: lake -d lean env python3 scripts/check_spec_lean.py
       - name: Core proof migration regressions
         run: cd lean && lake env lean -DwarningAsError=true ../scripts/check_oracle_core.lean
       - name: Finite edit acceptance indices

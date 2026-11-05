@@ -41,6 +41,7 @@
 - [Verification boundaries](verification.md)
   - [Pure evaluation and graph proofs](verification/core-models.md)
   - [Daleckii–Krein mathematical bridge](daleckii-krein.md)
+- [Specifications](specifications.md)
 - [Standard-library admission and trust](adr/0001-mathematics-first-stdlib.md)
 
 # Appendices

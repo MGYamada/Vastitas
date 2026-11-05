@@ -14,6 +14,7 @@ import VastitasOracle.SmoothReverse
 import VastitasOracle.SmoothMetricForms
 import VastitasOracle.SmoothMetricWeakening
 import VastitasOracle.SmoothJacobian
+import VastitasOracle.SmoothReverseCore
 import VastitasOracle.Certification
 import VastitasOracle.Coordinates
 import VastitasOracle.Soundness
@@ -65,6 +66,7 @@ import VastitasOracle.StorageNumerical
 import VastitasOracle.ResourceSource
 import VastitasOracle.ResourceCodegen
 import VastitasOracle.ResourceValueFlow
+import VastitasOracle.IndexedReverseCore
 
 import VastitasOracle.StorageShapes
 import VastitasOracle.StorageShapeNumerical

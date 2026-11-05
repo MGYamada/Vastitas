@@ -279,6 +279,11 @@ pins these four runtime reverse passes and their callers.
 - **Jacobian tables are repeated per step.** Each Jacobian step carries its
   table as a literal, so two steps along one declared map repeat it. Sharing
   literals is the subject of #629.
+- **No budget bounds the compilation's work or the emitted text.** Reading a
+  site's maps looks up `let` definitions in a list, and a copyable compound
+  leaf is bound again at each site that reads it. A size and work budget with
+  a fallback to the runtime reverse pass is a follow-up
+  ([#673](https://github.com/MGYamada/Vastitas/issues/673)).
 - **Validation is by recompilation.** `validate` compiles the source module
   again and compares the result structurally; no independent checker
   re-derives the templates. `moduleEq_sound` makes the comparison sound, so

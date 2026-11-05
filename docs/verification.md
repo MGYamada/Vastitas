@@ -1954,6 +1954,7 @@ All of these are Proved (oracle). Names are relative to `VastitasOracle`.
 | `SmoothMetricForms` | `metric_sound`, `nondegenerate_evidence_sound`, `riemannian_evidence_sound`, `flat_uses_declared_gram`, `sharp_requires_nondegenerate`, `sharp_rejects_riemannian`, `sharp_inverse_certified`, `flat_fiberAt`, `sharp_fiberAt`, `metricFlat_total`, `metricSharp_total`, `flat_sharp_erasure`, `metricFlat_sound`, `metricSharp_sound` | In a valid environment, metrics and evidence satisfy their checks; `flat` embeds its metric's Gram matrix and `sharp` the certified inverse of nondegenerate evidence for its metric; both keep the basepoint and have their `Sound` instance |
 | `SmoothMetricWeakening` | `validPrimitiveBinding_metric_insertion_of_valid`, `evalPrimitive_metric_insertion_of_valid`, `validPrimitiveBinding_metric_weakening`, `evalPrimitive_metric_weakening`, `differential_metric_free`, `cotangentPullback_metric_free` | Metric declarations at any position of a valid environment change neither the validity nor the value of any binding other than `flat` and `sharp` |
 | `IndexedPrimitiveSoundness` | `descriptorWorld_pure`, `descriptorWorld_allocating`, `Sound.ofBinding`, `Sound.ofPure` | The structure `Sound` states the obligations of one registry entry on the entry's own shape, validity contract and evaluators. Typed totality: the world after a call is `descriptorWorld`; an allocating entry binds the returned object to the result's brand, any other entry leaves the world unchanged. Erasure: the logical evaluator erases to the erased one. `Sound.ofBinding` builds an instance from a binding's totality and erasure lemmas. `Sound.ofPure` builds one from the same two lemmas and a proof that the binding does not allocate, when the totality lemma leaves the world unchanged |
+| `IndexedDescriptorDemo` | `directionalDerivative_shape`, `directionalDerivative_association`, `directionalDerivative_total`, `directionalDerivative_sound`, `directionalDerivative_outcome`, `directionalDerivative_world`, `directionalDerivative_erasure`, `directionalDerivative_render`, `directionalDerivative_render_arity`, `directionalDerivative_render_mismatch`, `directionalDerivative_sharedLiterals`, `wireArgument_kind`, `familyPrimitive_wireForm`, `directionalDerivative_wireForm`, `directionalDerivative_unregistered`, `directionalDerivative_rejected` | A hypothetical directional derivative, a `PrimitiveDescriptor` value that the registry does not contain, has its `Sound` instance, proved from the structure's fields and not through `Sound.ofBinding` or `Sound.ofPure`. An accepted call on typed operand values evaluates by the value's own evaluator to a value of the checked type, leaves the world unchanged and erases to the erased evaluator. Its lowering is that of `differential` and then `fiber_pairing`, it accepts only the checked operand count, and it adds no shared literal. For every primitive family, a form that `Wire.familyPrimitive` accepts has the family's `op` and its field names and kinds, in wire order. The trusted decoder `Wire.primitive` rejects the value's `op`, which no family of the registry has |
 
 `IndexedSemantics.registry_sound` dispatches by constructor to the `Sound`
 instances above and to those of the Stage 1 and 2 bindings in
@@ -1970,6 +1971,30 @@ shape itself. `IndexedValueSafety.primitive_frame`, `primitive_fresh` and
 constructor. The Stage 2 statements `validAffine_sound`,
 `presented_not_descriptor` and `sealed_families_exclude_presented` are
 unchanged.
+
+`IndexedDescriptorDemo` proves the `Sound` obligations of a descriptor
+outside the registry from the descriptor's fields and local proofs, and
+instantiates them and `descriptorWorld_pure` at it. The kernel regression
+`IndexedDescriptorRegression` runs on the same descriptor the shape
+derivations that each derived table reads (`Shape.infer`,
+`Shape.Association`, `Shape.roles`, `Shape.argumentHint`, `Shape.arity` and
+`Shape.allocates`), and the descriptor's validity contract, evaluators and
+lowering. It instantiates `Shape.roles_sound`, the kernel lemma that
+`roleTable_sound` applies at a binding's shape. It runs the steps of the decoder and the resolver that take a
+[primitive family](appendix/glossary.md#primitive-family) on a family outside
+the registry. Together they show that these derivations and the `Sound`
+obligations need nothing beyond the entry's fields. The derived tables and
+the theorems that the previous paragraph names take a `PrimitiveBinding`, so
+the two modules do not reach them. A binding added to the registry reaches
+the derived tables through its arm of `PrimitiveBinding.contract`. It reaches
+`primitive_total_and_typed` and `primitive_runtime_erasure` through its named
+case in `registry_sound`, which takes one case per binding, and
+`primitive_frame`, `primitive_fresh` and `core_outcome` through
+`allocates_iff`. [Add an indexed primitive](development/primitives.md) lists
+what such a binding touches. `Sound` covers neither the lowering of an entry
+nor the wire form of a family. `familyPrimitive_wireForm` proves the
+field list of a decoded form for every family; the tests of
+[Tested, not proved](#tested-not-proved) cover the rest.
 
 ### Bridge theorems
 
@@ -2009,6 +2034,20 @@ states the premises of each theorem.
   `tests/fixtures/smooth-differential.json`.
 - That `invert?` and `ldl?` find a certificate for every invertible or
   positive-definite Gram matrix. Soundness does not depend on it.
+- The lowering of every registry entry (its `render` and `literals` fields):
+  the pinned generated code of `tests/emit_golden.rs`, the lowering checks
+  of the kernel regressions and the generated programs that
+  `scripts/check_indexed_native.sh` compiles and runs.
+- The wire form of every primitive, beyond the field list of a decoded form:
+  `scripts/check_primitive_table.py`
+  compares `src/primitive_table.rs` with the families of
+  `IndexedPrimitiveFamilies.lean`. The unit tests
+  `every_table_entry_parses_to_its_wire_fields`,
+  `an_op_outside_the_table_is_unknown` and
+  `the_table_keeps_the_former_allow_list` check the frontend against that
+  table. `public_decoders_reject_unknown_fields_in_every_captured_v7_to_v9_record_shape`
+  in `tests/protocol_shape.rs` adds an unknown field to one record of each
+  record shape in its example packages, primitive records included.
 - Native execution of the acceptance example and its mutations.
 
 Native refinement of generated code, the Rust parser and the Lean-to-C

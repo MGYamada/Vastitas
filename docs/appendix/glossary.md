@@ -162,6 +162,21 @@ a `delegable` grant or delegation can be lent on as a nested loan through a
 [storage loan](#storage-loan).
 See [Scoped edit borrowing](../packages.md#edit-borrowing).
 
+## Erasure
+
+The word has two qualified uses:
+
+1. The **erasure of a primitive value** maps a value of the Core semantics to
+   the runtime structure that generated programs link, such as a smooth
+   program or a fiber. The oracle proves for every
+   [registry entry](#registry-entry) that a successful logical evaluation
+   erases to the entry's erased evaluator on the erased operands. See
+   [Add an indexed primitive](../development/primitives.md#terms).
+2. Elsewhere, erasure removes what only the checker needs before native
+   execution, such as nominal tags and the function values that
+   [specialization](#specialization) erases. See
+   [Compiler protocols](../protocol.md).
+
 ## Existential package
 
 A value that hides a witness object together with fields whose types depend on
@@ -268,6 +283,16 @@ The view descriptor `layout(offset, rows, columns, leading, transposed)`. It
 describes a column-major physical rectangle in an allocation: a byte offset,
 the physical numbers of rows and columns, the leading dimension in elements and
 a transpose flag. See [Resource functions](../guide/storage.md#resource-functions).
+
+## Lowering
+
+The text or the smaller form that a compiler pass produces for a checked
+construct. The lowering of a [primitive](#primitive) call is the Lean text
+that code generation writes for it from the texts of its operands. The
+`render` field of the binding's [registry entry](#registry-entry) produces
+it. Other passes lower checked source to [Core](#core), and their checked
+records keep the lowering equation. See
+[Add an indexed primitive](../development/primitives.md#terms).
 
 ## Manifest
 
@@ -377,20 +402,28 @@ each primitive's representation, domain, arity, capabilities and family shapes.
 See
 [Declarations and source example](../indexed-source.md#declarations-and-source-example).
 
+## Primitive family
+
+The entry of one wire `op` in the family table of
+`IndexedPrimitiveFamilies.lean`: the operation's fields with their kinds in
+wire order, whether only protocol 9 admits it, and how the resolved fields
+build a [primitive](#primitive) binding. The wire decoder, the resolver and
+the frontend's generated table read it. A primitive family is not a
+[family](#family) declaration. See
+[Add an indexed primitive](../development/primitives.md#3-the-primitive-family).
+
 ## Primitive registry
 
 The closed, finite set of [primitive](#primitive) bindings that the checker
-accepts. Each binding has one registry descriptor (`PrimitiveDescriptor`),
-which holds its [primitive shape](#primitive-shape), its validity contract,
-its two evaluators and its lowering. The checker derives a binding's validity
-contract, operand association, result type and operand count from its registry
-descriptor, and code generation the text of a call. No
-source spelling or native symbol adds a binding. See
+accepts. Each binding has one [registry entry](#registry-entry). The checker
+derives a binding's validity contract, operand association, result type and
+operand count from its registry entry, and code generation the text of a
+call. No source spelling or native symbol adds a binding. See
 [Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
 
 ## Primitive shape
 
-The part of a [primitive](#primitive) binding's registry descriptor that lists
+The part of a [primitive](#primitive) binding's registry entry that lists
 its operands, the relations between them and its result. A call of the
 binding allocates when the result is a fresh object. The argument hints and the
 [role table](#role-table) of the binding come from its shape. See
@@ -428,6 +461,15 @@ The word has two meanings:
 2. A storage region is a set of byte intervals in one allocation. Storage loans
    and layouts cover regions. See
    [Regions, overlap and alias evidence](../storage-ownership.md#74-regions-overlap-and-alias-evidence).
+
+## Registry entry
+
+The `PrimitiveDescriptor` value of one [primitive](#primitive) binding in the
+[primitive registry](#primitive-registry). It holds the binding's
+[primitive shape](#primitive-shape), its validity contract as a `Prop` and as
+a `Bool` with the proof that they agree, its logical and erased evaluators,
+its [lowering](#lowering) and its [shared literals](#shared-literal). See
+[Add an indexed primitive](../development/primitives.md).
 
 ## Resource function
 
@@ -485,6 +527,14 @@ the [failure value](#failure-value). See
 The type that a method gives a parameter for dispatch: a concrete scalar type,
 `Number`, `Any` or an abstract type. See
 [Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
+
+## Shared literal
+
+A basis that a generated module declares once, as `basis_k`, and that the
+[lowering](#lowering) of every map over that basis names. The `literals`
+field of a [registry entry](#registry-entry) lists the shared literals of the
+binding's calls. See
+[Add an indexed primitive](../development/primitives.md#2-the-registry-entry).
 
 ## Signature probe
 
@@ -613,6 +663,14 @@ The binding that a storage loan creates, such as `output` in
 `borrow output = write(data, layout(...));`. A view reads or writes the cells
 that its [layout](#layout) describes. See
 [Resource functions](../guide/storage.md#resource-functions).
+
+## Wire form
+
+The JSON record that stands for one declaration or form in a request of the
+[wire protocol](#wire-protocol). The wire form of a [primitive](#primitive)
+is an `op` and the named fields of its [primitive family](#primitive-family),
+in wire order. See
+[Add an indexed primitive](../development/primitives.md#one-family-derived-wire-form).
 
 ## Wire protocol
 

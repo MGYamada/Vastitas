@@ -57,6 +57,12 @@ protocol 9, and protocols 7 and 8 reject each form with `E_PROTOCOL`.
 - **Declaration.** `kind: "affine"` carries `implementation` (path),
   `generators` (names), `relations` (polynomials), `base` (path or `null`) and
   `bindings` (`[{name, image}]`), besides the common `name`, `public` and `span`.
+- **Primitives.** The binding `op` may be `relative_compose` or
+  `relative_equal`, each with `family`; `relative_view` with `family`,
+  `source` and `target`; `relative_coefficient` with `family`, `source`,
+  `target`, `coordinate` (a name) and `monomial` (a polynomial in the form
+  below); `relative_int_point` with `family`, `object` and `base`; or
+  `relative_pair` with `family` and `fiber`. Every other value is a path.
 
 Polynomials are tagged by `op`:
 
@@ -111,7 +117,9 @@ coordinate index. The kernel resolves the coordinate of `fiber_component` to
 its index. Generated programs compute every tangent or cotangent fiber and
 every tape at run time.
 
-The kernel admits primitive operations from an explicit list. A spelling that
+The kernel admits the primitive operations of its family table, which
+[protocol 7](#protocol-7-indexed-declarations-and-rich-package-bodies)
+describes. A spelling that
 only shares a prefix with a listed operation is an error (`E_PROTOCOL`). The
 wire carries names, a declared dimension and polynomial expressions. It never
 carries a map, a program or an image in normal form. The kernel elaborates
@@ -669,6 +677,14 @@ Primitive bindings use `op`, with these payloads:
 | `dimension` | `domain:ObjectType` |
 | `compose` | `map_family:TypePath` |
 | `apply` | `map_family:TypePath`, `point_family:TypePath` |
+
+The field set of every operation, here and in protocol 9, comes from one
+table: the families of `lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`.
+Each family names an `op`, its fields with their kinds in wire order, and
+whether only protocol 9 admits it. The decoder admits a binding only with its
+family's fields. The frontend reads `src/primitive_table.rs`, which
+`scripts/check_primitive_table.py` generates from the same families, and
+writes the fields in that order.
 
 Data annotations retain concrete scalar `named` and homogeneous `pair` types and add
 `{kind:"indexed_object",domain:TypePath,marker:TypePath}` and

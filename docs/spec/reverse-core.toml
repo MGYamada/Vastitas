@@ -391,6 +391,37 @@ Rust tests run sites whose map a branch chooses and sites on a tape bound by a
 let.
 """
 
+[property."reverse-core.sites".claim.bridge]
+status = "proved-bridge"
+evidence = [
+  "VastitasBridge.Differential.compiled_site_frechet",
+  "VastitasBridge.Differential.compiled_differential_site_frechet",
+  "VastitasBridge.Differential.site_saved_rewrite_frechet",
+  "VastitasBridge.Differential.site_recomputed_rewrite_frechet",
+  "VastitasBridge.Differential.site_differential_rewrite_frechet",
+  "VastitasBridge.Differential.site_tape_rewrite_frechet",
+]
+premises = [
+  "for `compiled_site_frechet` and `compiled_differential_site_frechet`: the premises of the oracle's `compiled_site_evaluates`, that is, the module keeps the bindings of the source declarations and holds every entry of the ledger (`EntryWellFormed`), the let definitions in scope agree with the activation (`DefsAgree`), and the map, point and seed operands read no symbol at or above the first symbol that the compilation binds",
+  "for `compiled_site_frechet`: the site's binding has the pullback rule; for `compiled_differential_site_frechet`: the site has no seed operand",
+  "for the local theorems (`site_*_rewrite_frechet`): the premises of the oracle's `site_*_rewrite`, that is, the module declarations of the entry, the opaque terms and the point and seed terms evaluate reading no symbol at or above a bound below the site's symbols, and the map operand's value is a composition tree of the step programs (`Factors`)",
+  "the map operand evaluates to a program `M` well typed from `n` to `m` coordinates (`m = 1` for a differential), and the point operand to a point `x` with `n` coordinates",
+  "for a pullback or a tape: the seed operand evaluates to a covector over `M(x)` with `m` components",
+]
+assumes = ["mathlib"]
+note = """
+The source site and its compiled Core evaluate to the same covector over `x`,
+which is `η ∘ DM(x)` for the map value `M` of the site, with mathlib's
+`fderiv ℝ` of the real program `M`; for a differential the seed is `dt`. The
+proofs compose the oracle's site theorems with
+`pullback_covector_eq_comp_fderiv`. They use neither the kernel chain rule
+(`cot_compose`, `backward_eq_cot`) nor the formal chain rule `pderiv_aeval`,
+which `lean-bridge/Audit.lean` checks on the constants that the proofs use. For
+a tape site the bridge states the local theorem only: `compiled_site_frechet`
+covers pullback sites and `compiled_differential_site_frechet` differential
+sites.
+"""
+
 [property."reverse-core.sites".claim.native]
 status = "not-claimed"
 reason = """

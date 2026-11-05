@@ -2071,7 +2071,7 @@ All of these are Proved (bridge), in `VastitasBridge.Differential`.
 | `Kaehler.lean` | `kaehler_D_subst`, `kaehler_pullback_const`, `pullback_eq_kaehler_fiber`, `pullback_eq_pullbackForm_fiber`, `pullbackForm_compose`, `cot_compose_kaehler` | The runtime pullback is the fiber at `x` of the Kähler pullback Ω_{ℚ[Y]/ℚ} → Ω_{ℚ[X]/ℚ} in the `mvPolynomialBasis` bases, for one map; a second chain rule for two maps by functoriality, independent of `ChainRule.lean` and `Frechet.lean` |
 | `Metric.lean` | `isUnit_gram_of_nondegenerate`, `inverse_eq_of_nondegenerate`, `sharp_flat`, `flat_sharp`, `gradient_riesz`, `posDef_of_riemannian`, `not_isUnit_diag_one_zero`, `not_posDef_lorentz`, `checkNondegenerate_lorentz` | Nondegenerate evidence makes the Gram matrix invertible; `flat` and `sharp` are inverse; `sharp` is the Riesz representation for g(v, w) = vᵀGw; Riemannian evidence makes G positive definite over ℝ |
 | `Accepted.lean` | `checked_pullback_frechet`, `checked_pullback_kaehler`, `checked_differential_frechet`, `checked_gradient_riesz`, `checked_riemannian_posDef`, `checked_flat_sharp` | The comparisons above for an accepted Core node or an accepted declaration |
-| `ReverseCore.lean` | `backward_eq_cot_kaehler`, `pullback_eq_cot_kaehler`, `compiled_saved_entry_cot_kaehler`, `compiled_recomputed_entry_cot_kaehler`, `compiled_saved_entry_frechet`, `compiled_recomputed_entry_frechet`, `compiled_saved_entry_fderiv_adjoint`, `compiled_recomputed_entry_fderiv_adjoint`, `compiled_saved_entry_kaehler`, `compiled_recomputed_entry_kaehler`, `compiled_entries_frechet`, `public_wire_entries_frechet`, `legacy_wire_entries_frechet`, `public_resource_entries_frechet`, `public_pure_entry_frechet` | Let `F` be the chain of the step programs of a compiled entry. A call of the entry's generated function evaluates to the covector `η ∘ DF(x)` for mathlib's `fderiv ℝ`, in either mode. Its components are `cot` of the composite map and the fiber at `x` of the Kähler pullback. Every entry of every module that a public path accepts or emits does so. No proof uses the kernel chain rule or `pderiv_aeval` |
+| `ReverseCore.lean` | `backward_eq_cot_kaehler`, `pullback_eq_cot_kaehler`, `compiled_saved_entry_cot_kaehler`, `compiled_recomputed_entry_cot_kaehler`, `compiled_saved_entry_frechet`, `compiled_recomputed_entry_frechet`, `compiled_saved_entry_fderiv_adjoint`, `compiled_recomputed_entry_fderiv_adjoint`, `compiled_saved_entry_kaehler`, `compiled_recomputed_entry_kaehler`, `compiled_entries_frechet`, `public_wire_entries_frechet`, `legacy_wire_entries_frechet`, `public_resource_entries_frechet`, `public_pure_entry_frechet`, `site_saved_rewrite_frechet`, `site_recomputed_rewrite_frechet`, `site_differential_rewrite_frechet`, `site_tape_rewrite_frechet`, `compiled_site_frechet`, `compiled_differential_site_frechet` | Let `F` be the chain of the step programs of a compiled entry. A call of the entry's generated function evaluates to the covector `η ∘ DF(x)` for mathlib's `fderiv ℝ`, in either mode. Its components are `cot` of the composite map and the fiber at `x` of the Kähler pullback. Every entry of every module that a public path accepts or emits does so. A source site and its compiled Core evaluate to the same covector, `η ∘ DM(x)` for the site's map value `M`. No proof uses the kernel chain rule or `pderiv_aeval` |
 
 The theorems of `Accepted.lean` derive the hypotheses of the other files
 from the checker's typing of one node (`Typing.HasType`) together with the
@@ -2096,6 +2096,14 @@ constants that the proofs use. `lean-bridge/Audit.lean` walks those constants.
 It fails if one is `cot_compose`, `backward_eq_cot`, `pullback_composite` or
 `pullback_comp` of the bridge or the oracle, or `pderiv_aeval`. A positive
 control checks that the walk detects `cot_compose`.
+
+The site theorems compose the oracle's `site_saved_rewrite`,
+`site_recomputed_rewrite`, `site_differential_rewrite`, `site_tape_rewrite`
+and `compiled_site_evaluates` with `pullback_covector_eq_comp_fderiv`. They
+reach the map value `M` of the source site, not only the chain of the step
+programs. `compiled_site_frechet` covers the pullback sites that
+`compileSite` compiles, and `compiled_differential_site_frechet` the
+differential sites. A tape site has the local theorem only.
 
 Premises on the arguments of the call stay. There is one smooth map per opaque
 step, and the arguments evaluate to those maps, the points and the seed. For a

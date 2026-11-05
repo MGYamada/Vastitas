@@ -12,7 +12,7 @@ After acceptance, the kernel compiles every reverse site of a checked module int
 | [Recomputed backward Core and agreement of the policies](#reverse-core.backward.recomputed) | Proved (oracle), Tested, Proved (bridge), Not claimed |
 | [Forward Core](#reverse-core.forward) | Proved (oracle), Tested, Not claimed |
 | [Meaning in coordinates](#reverse-core.meaning) | Proved (oracle), Tested, Proved (bridge), Not claimed |
-| [Rewritten sites](#reverse-core.sites) | Proved (oracle), Tested, Not claimed |
+| [Rewritten sites](#reverse-core.sites) | Proved (oracle), Tested, Proved (bridge), Not claimed |
 | [Translation validation and public paths](#reverse-core.validation) | Proved (oracle), Tested, Proved (bridge), Not claimed |
 | [Compiled steps](#reverse-core.steps) | Proved (oracle), Tested, Not claimed |
 
@@ -220,6 +220,17 @@ Claims:
     - `a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routine` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
   - Note: `ReverseCoreRegression` evaluates every source site and its compiled Core. The Rust tests run sites whose map a branch chooses and sites on a tape bound by a let.
+- `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
+  - Evidence:
+    - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.compiled_site_frechet`, `VastitasBridge.Differential.compiled_differential_site_frechet`, `VastitasBridge.Differential.site_saved_rewrite_frechet`, `VastitasBridge.Differential.site_recomputed_rewrite_frechet`, `VastitasBridge.Differential.site_differential_rewrite_frechet`, `VastitasBridge.Differential.site_tape_rewrite_frechet`
+  - Premises:
+    - for `compiled_site_frechet` and `compiled_differential_site_frechet`: the premises of the oracle's `compiled_site_evaluates`, that is, the module keeps the bindings of the source declarations and holds every entry of the ledger (`EntryWellFormed`), the let definitions in scope agree with the activation (`DefsAgree`), and the map, point and seed operands read no symbol at or above the first symbol that the compilation binds
+    - for `compiled_site_frechet`: the site's binding has the pullback rule; for `compiled_differential_site_frechet`: the site has no seed operand
+    - for the local theorems (`site_*_rewrite_frechet`): the premises of the oracle's `site_*_rewrite`, that is, the module declarations of the entry, the opaque terms and the point and seed terms evaluate reading no symbol at or above a bound below the site's symbols, and the map operand's value is a composition tree of the step programs (`Factors`)
+    - the map operand evaluates to a program `M` well typed from `n` to `m` coordinates (`m = 1` for a differential), and the point operand to a point `x` with `n` coordinates
+    - for a pullback or a tape: the seed operand evaluates to a covector over `M(x)` with `m` components
+  - Assumes: [mathlib](assumptions.md#assumption.mathlib)
+  - Note: The source site and its compiled Core evaluate to the same covector over `x`, which is `η ∘ DM(x)` for the map value `M` of the site, with mathlib's `fderiv ℝ` of the real program `M`; for a differential the seed is `dt`. The proofs compose the oracle's site theorems with `pullback_covector_eq_comp_fderiv`. They use neither the kernel chain rule (`cot_compose`, `backward_eq_cot`) nor the formal chain rule `pderiv_aeval`, which `lean-bridge/Audit.lean` checks on the constants that the proofs use. For a tape site the bridge states the local theorem only: `compiled_site_frechet` covers pullback sites and `compiled_differential_site_frechet` differential sites.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.
 

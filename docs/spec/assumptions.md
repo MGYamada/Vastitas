@@ -9,7 +9,7 @@ The assumption registry lists the trusted components that claims rest on. A clai
 | [Rust frontend parsing](#assumption.rust-frontend) | 15 |
 | [Lean-to-C toolchain and C compiler](#assumption.lean-to-c) | 0 |
 | [Lean core Rat and GMP](#assumption.lean-rat-gmp) | 0 |
-| [mathlib](#assumption.mathlib) | 9 |
+| [mathlib](#assumption.mathlib) | 10 |
 | [Promotion fixture reflection](#assumption.promotion-reflection) | 7 |
 
 <a id="assumption.rust-frontend"></a>
@@ -73,6 +73,7 @@ Cited by:
 - [`reverse-core.backward.saved`](reverse-core.md#reverse-core.backward.saved) (`bridge`)
 - [`reverse-core.backward.recomputed`](reverse-core.md#reverse-core.backward.recomputed) (`bridge`)
 - [`reverse-core.meaning`](reverse-core.md#reverse-core.meaning) (`bridge`)
+- [`reverse-core.sites`](reverse-core.md#reverse-core.sites) (`bridge`)
 - [`reverse-core.validation`](reverse-core.md#reverse-core.validation) (`bridge`)
 - [`differential.pullback.composition`](std-differential.md#differential.pullback.composition) (`bridge`)
 - [`metric.sharp-flat`](std-geometry-metric.md#metric.sharp-flat) (`bridge`)

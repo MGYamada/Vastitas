@@ -1,0 +1,16 @@
+// Rejected by the kernel: `dimension` is declared for CInfReal objects and receives a QQ object
+// (tests/stdlib_geometry.rs).
+indexed marker QQ;
+indexed marker CInfReal;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed implementation GridSmooth(CInfReal, affine_descriptor) capabilities(origin, dimension);
+indexed classification Scheme { parents(); domain(Grid); };
+indexed classification CInfScheme { parents(); domain(GridSmooth); };
+indexed primitive affine = descriptor(Grid);
+indexed primitive dimension = dimension((CInfScheme, CInfReal));
+
+fn main() -> Int {
+    let X = affine(2);
+    let d = dimension(X);
+    0
+}

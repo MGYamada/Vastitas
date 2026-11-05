@@ -74,16 +74,21 @@ inductive DataType where
   | package (application : Application)
   deriving Repr, Inhabited, DecidableEq, BEq, ReflBEq, LawfulBEq
 
-/-- The type that an integer literal takes as operand `position` of a primitive:
+/-- The type that an integer literal takes as operand `position` of a shape:
 `Nat` for a dimension operand and `Int` for every position of the integer tail
-(a coordinate of a rational point or a component of a fiber), from the
-binding's shape. Other operands give no hint. -/
-def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint (binding : PrimitiveBinding) (position : Nat) :
-    Option DataType :=
-  match binding.contract.shape.operands[position]? with
+(a coordinate of a rational point or a component of a fiber). Other operands
+give no hint. The derivation reads only the shape, so a descriptor outside the
+registry has its hints too. -/
+def _root_.VastitasKernel.Indexed.Shape.argumentHint (shape : Shape) (position : Nat) : Option DataType :=
+  match shape.operands[position]? with
   | some .natural => some (.pure .nat)
   | some _ => none
-  | none => if binding.contract.shape.tail.isSome then some (.pure .int) else none
+  | none => if shape.tail.isSome then some (.pure .int) else none
+
+/-- The argument hints of a binding: those of its registry entry's shape. -/
+def _root_.VastitasKernel.Indexed.PrimitiveBinding.argumentHint (binding : PrimitiveBinding) (position : Nat) :
+    Option DataType :=
+  binding.contract.shape.argumentHint position
 
 def DataType.Valid (env : Declarations) : DataType → Prop
   | .pure _ => True

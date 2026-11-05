@@ -590,11 +590,12 @@ binding's operands, their agreements and its result.
 `IndexedPrimitiveValues.lean` defines the logical values of the Core semantics
 (`Value`), the erased runtime values of generated programs
 (`PrimitiveRuntimeValue`) and the erasure between them.
-`IndexedPrimitiveDescriptors.lean` defines what a binding's descriptor holds:
-its shape, its validity contract, its two evaluators, its lowering and the
-literals a generated module declares once for it. The evaluators are `eval` on
-logical values and `evalRuntime` on erased values. `IndexedPrimitiveRegistry.lean`
-holds one descriptor per binding, and `IndexedPrimitives.lean` derives every
+`IndexedPrimitiveDescriptors.lean` defines what a binding's registry descriptor
+(`PrimitiveDescriptor`) holds: its shape, its validity contract, its two
+evaluators, its lowering and the literals a generated module declares once for
+it. The evaluators are `eval` on logical values and `evalRuntime` on erased
+values. `IndexedPrimitiveRegistry.lean` holds one registry descriptor per
+binding, and `IndexedPrimitives.lean` derives every
 binding's validity contract, operand association, result inference and operand
 count from it; the argument hints of `IndexedCore.lean` and the role table of
 `IndexedSourceDiagnostics.lean` come from the same shape. The two evaluators of
@@ -606,11 +607,16 @@ from the shape:
 `PrimitiveBinding.allocates` reads it off the entry. The fresh-slot premise
 `PrimitiveFresh` of `IndexedSemantics.lean`, the brand that
 `IndexedSourceBodies.lean` draws for a call and the allocation serials of
-`IndexedTypeAudit.lean` test that flag. The descriptor binding is the one
+`IndexedTypeAudit.lean` test that flag. The `descriptor` binding is the one
 allocating binding.
 No source spelling, arbitrary native symbol, certificate string or `trusted` flag
 chooses an implementation. The binding IDs, operand annotations and result
 annotation are independently audited against the same checked environment.
+
+The table lists the bindings of this profile. [Presented affine
+geometry](affine-geometry.md) describes the relative bindings, and [Smooth
+affine declarations](language/smooth-declarations.md) describes the smooth,
+fiber, tape and metric bindings.
 
 | Registry entry | Operand and result contract | Additional obligation |
 | --- | --- | --- |

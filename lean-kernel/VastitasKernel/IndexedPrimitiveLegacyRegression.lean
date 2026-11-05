@@ -2,18 +2,37 @@ import VastitasKernel.IndexedSourceDiagnostics
 import VastitasKernel.IndexedSemantics
 
 /-! Frozen copies of the primitive tables as they were before the registry
-(#622), with the theorems and corpus comparisons that show the derived
-tables agree with them on every binding. Each table that moves into `PrimitiveBinding.contract` keeps its
-pre-registry definition here until the migration is complete. The validity
-contracts agree by definitional unfolding; the operand count agrees by a
-theorem, and so do the argument hints at every position below the operand
-count, which are all the elaborators consult (the pre-registry `descriptor`
-hint also answered the positions beyond it); the two evaluators, the fresh slot and the
-allocation flag (`allocates_agrees`) agree by theorem; the association, result inference, the role table and
-the explanation of a rejected call are compared on an enumerated corpus of
-operand lists, well shaped and malformed, and the evaluators on a corpus of
-value lists, at the end of this module. The module is deleted at the end of
-the migration; the emit goldens (`tests/fixtures/emit`) stay. -/
+(#622), with the evidence that the derived tables agree with them wherever a
+caller reads them: theorems for some tables, an enumerated corpus for the
+others, as listed next. Each table that moves
+into `PrimitiveBinding.contract` keeps its pre-registry definition here until
+the migration is complete, except the lowering, whose frozen copy is in
+`IndexedPrimitiveRenderLegacyRegression`. The validity contracts agree by definitional
+unfolding; the two evaluators, the fresh slot and the allocation flag
+(`allocates_agrees`) agree by theorem; the association, result inference, the
+role table and the explanation of a rejected call are compared on an
+enumerated corpus of operand lists, well shaped and malformed, in two
+environments and with varied binding parameters, and the evaluators on a
+corpus of value lists, at the end of this module.
+
+Two derived tables deviate from the frozen ones where no caller reads them:
+
+- The operand count agrees by a theorem, and so do the argument hints at every
+  position below the operand count, which are all the elaborators consult. The
+  pre-registry `descriptor` hint also answered the positions beyond it.
+- On the corpus, the role table agrees on every operand list of a valid
+  binding, the only case in which `explainPrimitive` consults it; no theorem
+  states this. For `relativePair family fiber` with
+  `plainFiber? env fiber = none` and two relative maps of three object indices,
+  the derived table also lists the requirement that the second map's source is
+  the first map's source, after the two family requirements that are all the
+  frozen table lists. Such a binding is invalid, since its contract requires
+  `plainFiber?`, so `explainPrimitive` reports `.binding` before it reads the
+  table, and `roleTable` has no other caller. The corpus prints this difference
+  and fails on any other difference.
+
+The module is deleted at the end of the migration; the emit goldens
+(`tests/fixtures/emit`) stay. -/
 namespace VastitasKernel.Indexed.PrimitiveLegacyRegression
 open VastitasKernel.Indexed.Source.Diagnostics (RoleRequirement PrimitiveFailure explainPrimitive roleTable)
 
@@ -384,8 +403,9 @@ theorem argumentHint_agrees (env : Environment) (binding : PrimitiveBinding) (po
     (bound : position < binding.arity env) :
     binding.argumentHint position = legacyArgumentHint binding position := by
   cases binding <;> rcases position with _ | _ | _ | position <;>
-    simp_all [PrimitiveBinding.argumentHint, legacyArgumentHint, PrimitiveBinding.arity, Shape.arity,
-      PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence, Shape.uncallable] <;> omega
+    simp_all [PrimitiveBinding.argumentHint, Shape.argumentHint, legacyArgumentHint, PrimitiveBinding.arity,
+      Shape.arity, PrimitiveBinding.contract, PrimitiveDescriptor.ofBool, PrimitiveDescriptor.evidence,
+      Shape.uncallable] <;> omega
 
 /-! ## The evaluators before the registry (step 3) -/
 
@@ -526,13 +546,34 @@ theorem evalRuntimePrimitive_agrees (binding : PrimitiveBinding) (values : List 
 
 /-! ## The derived tables on an enumerated corpus
 
-For every binding, its well-shaped operand list and every mutation of it by
-every pool value, plus every list of at most three values from a small pool:
-the derived inference, association and role table must equal the pre-registry
-ones on all of them, and so must the explanation of every rejected call that
-passes inference. The corpus has two markers and an implementation outside
-the seeds' domain, so that the marker and domain requirements fail somewhere,
-and index lists of every length up to four. -/
+A seed is a binding, the environment it is checked in and a well-shaped
+operand list. Each seed runs on its operand list, on every mutation of it by
+every pool value, and on the lists of values from a small pool: of at most
+three values for a fixed seed in the base environment, and of at most two for
+the other seeds, whose parameters and environment matter on the well-shaped
+lists and their mutations. The derived inference and association must equal
+the pre-registry ones on all of them, and so must the explanation of every
+rejected call that passes inference. The derived role table must equal the
+pre-registry one on every operand list of a valid binding, the only case in
+which `explainPrimitive` consults it, and the module fails otherwise. On an
+invalid binding the corpus counts the operand lists on which the two differ and
+prints them per seed.
+
+The fixed seeds give every constructor one binding. They run in the base
+environment and again in a variant that declares some of what they read
+otherwise: a fiber product with a base isomorphism, a 1-dimensional point
+object, a smooth object without coordinates, an affine object with two
+generators, families of another representation or variance, and a global of a
+smooth implementation. The variations change the binding parameters in the
+base environment: a missing family or object, a family of the wrong
+representation, a fiber that `plainFiber?` rejects (not a fiber product, one
+with `via`, or one without a base), an
+implementation or global of another kind, an object whose `affineArity` or
+`smoothArity` is 0, a coordinate out of range, and valid bindings with other
+parameters, so that more valid role tables are compared. The environments have
+two markers and an implementation outside the seeds' domain, so that the
+marker and domain requirements fail somewhere, and index lists of every length
+up to four. -/
 
 private def id (name : String) : DeclId := ⟨⟨⟨"/legacy", "legacy", "1"⟩, []⟩, name⟩
 private def scheme : List Parameter := [.object (id "Scheme")]
@@ -541,6 +582,11 @@ private def family (parameters : List Parameter) (representation : FamilyReprese
 private def free (generators : List String) : AlgebraDeclarations.AffineData :=
   { generators, construction := .presented [], base := none, bindings := [], structureImages := [], basis := [],
     cofactors := [] }
+/-- A fiber product of `left` and `right`, with a base isomorphism `via` and a base. -/
+private def fiberProduct (left right : String) (via : Option (List AlgebraRuntime.Poly × List AlgebraRuntime.Poly))
+    (base : Option String) : AlgebraDeclarations.AffineData :=
+  { free [] with construction := .fiber (id left) (id right) via [], base := base.map id }
+private def unitMatrix : SmoothRuntime.Matrix := [[1, 0], [0, 1]]
 private def env : Environment := [
   ⟨id "K", .marker⟩,
   ⟨id "L", .marker⟩,
@@ -559,7 +605,28 @@ private def env : Environment := [
   ⟨id "X", .smoothAffine (id "Grid") ["x", "y"]⟩,
   ⟨id "A", .affine (id "Grid") (free ["t"])⟩,
   ⟨id "S", .affine (id "Grid") (free [])⟩,
-  ⟨id "F", .affine (id "Grid") { free [] with construction := .fiber (id "A") (id "A") none [], base := some (id "S") }⟩ ]
+  ⟨id "F", .affine (id "Grid") { free [] with construction := .fiber (id "A") (id "A") none [], base := some (id "S") }⟩,
+  -- Read by the variations only.
+  ⟨id "Chart", .implementation (id "K") .smoothAffine []⟩,
+  ⟨id "Base2", .global (id "Sparse")⟩,
+  ⟨id "Line", .smoothAffine (id "Grid") ["t"]⟩,
+  ⟨id "B", .affine (id "Grid") (free ["u", "v"])⟩,
+  ⟨id "G", .affine (id "Grid") (fiberProduct "A" "S" none (some "S"))⟩,
+  ⟨id "V", .affine (id "Grid") (fiberProduct "A" "A" (some ([], [])) (some "S"))⟩,
+  ⟨id "U", .affine (id "Grid") (fiberProduct "A" "A" none none)⟩,
+  ⟨id "Metric", family scheme .metricForm⟩,
+  ⟨id "Euclid", .metric (id "Metric") (id "X") unitMatrix⟩,
+  ⟨id "Invertible", .metricEvidence (id "Euclid") (.nondegenerate unitMatrix)⟩ ]
+/-- The base environment with some declarations that the fixed seeds read
+declared otherwise; `lookup` finds the first entry of an ID. -/
+private def variant : Environment := [
+  ⟨id "F", .affine (id "Grid") (fiberProduct "A" "A" (some ([], [])) (some "S"))⟩,
+  ⟨id "P", .smoothAffine (id "Grid") ["p"]⟩,
+  ⟨id "X", .smoothAffine (id "Grid") []⟩,
+  ⟨id "A", .affine (id "Grid") (free ["t", "u"])⟩,
+  ⟨id "Arrow", family (scheme ++ scheme) .point⟩,
+  ⟨id "Tangent", family scheme (.fiber .cotangent)⟩,
+  ⟨id "Base", .global (id "Chart")⟩ ] ++ env
 private def grid : ObjectType := ⟨id "Grid", id "K"⟩
 private def x : ObjectRef := .local grid 1
 private def y : ObjectRef := .local grid 2
@@ -568,7 +635,9 @@ private def gX : ObjectRef := .global (id "X")
 private def gP : ObjectRef := .global (id "P")
 private def gA : ObjectRef := .global (id "A")
 private def gS : ObjectRef := .global (id "S")
-private def refs : List ObjectRef := [x, y, .global (id "Base"), gP, gX, gA, gS, .global (id "F")]
+private def gF : ObjectRef := .global (id "F")
+private def gLine : ObjectRef := .global (id "Line")
+private def refs : List ObjectRef := [x, y, .global (id "Base"), gP, gX, gA, gS, gF]
 private def shortRefs : List ObjectRef := [x, y, gP, gX, gA]
 private def indexLists : List (List Index) :=
   [[], [.natural 3], [.marker (id "K")], [.object x, .marker (id "K")], [.object x, .object y, .object gA, .object gS]] ++
@@ -586,13 +655,15 @@ private def app (f : String) (indices : List ObjectRef) : ValueType := .indexed 
 private def smallPool : List ValueType :=
   scalarPool ++ ["Arrow", "Over", "Smooth", "Tangent"].map (fun f => app f [x, y]) ++
     [app "Tangent" [gX], app "Over" [x, y, gA], app "Smooth" [gP, x]]
+private def shortPairs : List (List ValueType) :=
+  [[]] ++ smallPool.map (fun a => [a]) ++ (smallPool.flatMap fun a => smallPool.map fun b => [a, b])
 private def shortLists : List (List ValueType) :=
-  [[]] ++ smallPool.map (fun a => [a]) ++ (smallPool.flatMap fun a => smallPool.map fun b => [a, b]) ++
-    (smallPool.flatMap fun a => smallPool.flatMap fun b => smallPool.map fun c => [a, b, c])
+  shortPairs ++ (smallPool.flatMap fun a => smallPool.flatMap fun b => smallPool.map fun c => [a, b, c])
 /-- The seed and each of its positions replaced by every pool value. -/
 private def mutations (seed : List ValueType) : List (List ValueType) :=
   seed :: (List.range seed.length).flatMap fun position => pool.map fun value => seed.set position value
-private def seeds : List (PrimitiveBinding × List ValueType) := [
+/-- One binding per constructor, with a well-shaped operand list in the base environment. -/
+private def fixedSeeds : List (PrimitiveBinding × List ValueType) := [
   (.descriptor (id "Grid"), [.natural]),
   (.global (id "Base"), []),
   (.origin grid (id "Point") (id "Base"), [.object grid x]),
@@ -626,50 +697,175 @@ private def seeds : List (PrimitiveBinding × List ValueType) := [
   (.cotangentBackward (id "Tape") (id "Cotangent"), [app "Tape" [x, y], app "Cotangent" [y]]),
   (.metricFlat (id "M") (id "X") [] (id "Tangent") (id "Cotangent"), [app "Tangent" [gX]]),
   (.metricSharp (id "M") (id "E") (id "X") [] [] (id "Cotangent") (id "Tangent"), [app "Cotangent" [gX]]) ]
+/-- Other binding parameters, in the base environment. -/
+private def variations : List (PrimitiveBinding × List ValueType) := [
+  -- Another implementation, one that is not an affine descriptor, and a classification.
+  (.descriptor (id "Sparse"), [.natural]),
+  (.descriptor (id "Chart"), [.natural]),
+  (.descriptor (id "Scheme"), [.natural]),
+  -- Another global, an affine object and a missing one.
+  (.global (id "Base2"), []),
+  (.global (id "A"), []),
+  (.global (id "Missing"), []),
+  -- A classification as the domain, a domain without implementations, and wrong or missing families.
+  (.origin ⟨id "Scheme", id "K"⟩ (id "Point") (id "Base"), [.object grid x]),
+  (.origin grid (id "Arrow") (id "Base"), [.object grid x]),
+  (.identity ⟨id "Grid", id "L"⟩ (id "Arrow"), [.object ⟨id "Grid", id "L"⟩ z]),
+  (.identity grid (id "Missing"), [.object grid x]),
+  (.dimension ⟨id "Scheme", id "K"⟩, [.object grid x]),
+  (.dimension ⟨id "Missing", id "K"⟩, [.object grid x]),
+  (.compose (id "Smooth"), [app "Smooth" [y, x], app "Smooth" [x, y]]),
+  (.compose (id "Missing"), [app "Missing" [y, x], app "Missing" [x, y]]),
+  (.apply (id "Point") (id "Arrow"), [app "Point" [x, y], app "Arrow" [x, gX]]),
+  -- Relative morphisms: identities, views along a chain, coefficients, points and pairs.
+  (.relativeConstant ⟨id "Over", [.object gA, .object gA, .object gA]⟩ (AlgebraRuntime.Map.identity 1 []), []),
+  (.relativeCompose (id "Arrow"), [app "Arrow" [y, x, gS], app "Arrow" [x, y, gS]]),
+  (.relativeView (id "Over") (id "F") (id "S"), [app "Over" [x, y, gF]]),
+  (.relativeView (id "Smooth") (id "F") (id "S"), [app "Smooth" [x, y, gF]]),
+  (.relativeEqual (id "Missing"), [app "Missing" [x, y, gS], app "Missing" [x, y, gS]]),
+  (.relativeCoefficient (id "Over") (id "S") (id "A") 0 [], [app "Over" [gS, gA, gS]]),
+  (.relativeCoefficient (id "Over") (id "A") (id "S") 0 [1], [app "Over" [gA, gS, gS]]),
+  (.relativeIntPoint (id "Over") (id "S") (id "S"), []),
+  (.relativeIntPoint (id "Over") (id "B") (id "S"), [.integer, .integer]),
+  (.relativeIntPoint (id "Over") (id "Missing") (id "S"), []),
+  (.relativeIntPoint (id "Arrow") (id "A") (id "S"), [.integer]),
+  (.relativePair (id "Over") (id "G"), [app "Over" [x, gA, gS], app "Over" [x, gS, gS]]),
+  (.relativePair (id "Over") (id "A"), [app "Over" [x, gA, gS], app "Over" [x, gA, gS]]),
+  (.relativePair (id "Over") (id "V"), [app "Over" [x, gA, gS], app "Over" [x, gA, gS]]),
+  (.relativePair (id "Over") (id "U"), [app "Over" [x, gA, gS], app "Over" [x, gA, gS]]),
+  (.relativePair (id "Over") (id "Missing"), [app "Over" [x, gA, gS], app "Over" [x, gA, gS]]),
+  (.relativePair (id "Missing") (id "F"), [app "Missing" [x, gA, gS], app "Missing" [x, gA, gS]]),
+  (.relativePair (id "Arrow") (id "F"), [app "Arrow" [x, gA, gS], app "Arrow" [x, gA, gS]]),
+  (.relativeIso (⟨id "Over", [.object gA, .object gA, .object gA]⟩, AlgebraRuntime.Map.identity 1 [])
+    (⟨id "Over", [.object gA, .object gA, .object gA]⟩, AlgebraRuntime.Map.identity 1 []), []),
+  -- Smooth maps: an identity, wrong and missing families, points of 0-dimensional and non-smooth objects.
+  (.smoothConstant ⟨id "Smooth", [.object gX, .object gX]⟩ (AlgebraRuntime.Map.identity 2 []), []),
+  (.smoothCompose (id "Over"), [app "Over" [y, x], app "Over" [x, y]]),
+  (.smoothEqual (id "Tape"), [app "Tape" [x, y], app "Tape" [x, y]]),
+  (.smoothIntPoint (id "Smooth") (id "P") (id "P"), []),
+  (.smoothIntPoint (id "Smooth") (id "A") (id "P"), []),
+  (.smoothIntPoint (id "Smooth") (id "X") (id "X"), [.integer, .integer]),
+  (.smoothComposite (id "Missing"), [app "Missing" [x, y]]),
+  -- Fibers over other objects and of other variances.
+  (.fiberVector (id "Tangent") (id "Smooth") (id "P"), [app "Smooth" [gP, gP]]),
+  (.fiberVector (id "Cotangent") (id "Smooth") (id "Line"), [app "Smooth" [gP, gLine], .integer]),
+  (.fiberVector (id "Tangent") (id "Smooth") (id "A"), [app "Smooth" [gP, gA]]),
+  (.fiberVector (id "Smooth") (id "Smooth") (id "X"), [app "Smooth" [gP, gX], .integer, .integer]),
+  (.fiberVector (id "Tangent") (id "Arrow") (id "X"), [app "Arrow" [gP, gX], .integer, .integer]),
+  (.fiberAt (id "Cotangent") (id "Smooth"), [app "Cotangent" [x], app "Smooth" [gP, x]]),
+  (.fiberAt (id "Tangent") (id "Tape"), [app "Tangent" [x], app "Tape" [gP, x]]),
+  (.fiberEqual (id "Cotangent"), [app "Cotangent" [x], app "Cotangent" [x]]),
+  (.fiberEqual (id "Smooth"), [app "Smooth" [x], app "Smooth" [x]]),
+  (.fiberComponent (id "Cotangent") (id "X") 1, [app "Cotangent" [gX]]),
+  (.fiberComponent (id "Tangent") (id "X") 2, [app "Tangent" [gX]]),
+  (.fiberComponent (id "Tangent") (id "P") 0, [app "Tangent" [gP]]),
+  (.fiberPairing (id "Tangent") (id "Cotangent"), [app "Tangent" [x], app "Cotangent" [x]]),
+  -- Derivatives: the other pullback mode, a 1-dimensional line and wrong families.
+  (.cotangentPullback (id "Smooth") (id "Cotangent") .recomputed,
+    [app "Smooth" [x, y], app "Smooth" [gP, x], app "Cotangent" [y]]),
+  (.cotangentPullback (id "Smooth") (id "Tangent") .saved,
+    [app "Smooth" [x, y], app "Smooth" [gP, x], app "Tangent" [y]]),
+  (.differential (id "Smooth") (id "Cotangent") (id "Line"), [app "Smooth" [x, gLine], app "Smooth" [gP, x]]),
+  (.linearize (id "Smooth") (id "Cotangent"), [app "Smooth" [x, y], app "Smooth" [gP, x]]),
+  (.cotangentBackward (id "Tape") (id "Tangent"), [app "Tape" [x, y], app "Tangent" [y]]),
+  -- A declared metric and its evidence, and the metric on another object.
+  (.metricFlat (id "Euclid") (id "X") unitMatrix (id "Tangent") (id "Cotangent"), [app "Tangent" [gX]]),
+  (.metricSharp (id "Euclid") (id "Invertible") (id "X") unitMatrix unitMatrix (id "Cotangent") (id "Tangent"),
+    [app "Cotangent" [gX]]),
+  (.metricFlat (id "Euclid") (id "P") unitMatrix (id "Tangent") (id "Cotangent"), [app "Tangent" [gP]]) ]
+/-- Operand lists well shaped in the variant, where `A` has two generators and `X` none. -/
+private def adapted : List (PrimitiveBinding × List ValueType) := [
+  (.relativeIntPoint (id "Over") (id "A") (id "S"), [.integer, .integer]),
+  (.smoothIntPoint (id "Smooth") (id "X") (id "P"), []),
+  (.fiberVector (id "Tangent") (id "Smooth") (id "X"), [app "Smooth" [gP, gX]]) ]
+/-- A binding, the environment it is checked in, a well-shaped operand list,
+and the short lists it also runs on. -/
+private structure Seed where
+  environment : String
+  env : Environment
+  binding : PrimitiveBinding
+  operands : List ValueType
+  short : List (List ValueType)
+/-- The seed's binding and environment, for a failure message. -/
+private def Seed.name (seed : Seed) : String := s!"{reprStr seed.binding} in the {seed.environment} environment"
+private def seeds : List Seed :=
+  fixedSeeds.map (fun (binding, operands) => ⟨"base", env, binding, operands, shortLists⟩) ++
+    variations.map (fun (binding, operands) => ⟨"base", env, binding, operands, shortPairs⟩) ++
+    (fixedSeeds ++ adapted).map fun (binding, operands) => ⟨"variant", variant, binding, operands, shortPairs⟩
 private def allowed : List ObjectRef := [x, y]
 private def brand : Nat := 10
-private def candidates (binding : PrimitiveBinding) (arguments : List ValueType) : List ValueType :=
+private def candidates (env : Environment) (binding : PrimitiveBinding) (arguments : List ValueType) :
+    List ValueType :=
   ((inferPrimitiveResult env binding brand arguments).toList ++ (legacyInfer env binding brand arguments).toList ++
     [.natural, .boolean, .integerPair, app "Arrow" [x, y], .object grid (.local grid brand)]).eraseDups
 /-- The explanation with the pre-registry role table. -/
-private def legacyExplain (binding : PrimitiveBinding) (arguments : List ValueType) (result : ValueType) :
-    Option PrimitiveFailure :=
+private def legacyExplain (env : Environment) (binding : PrimitiveBinding) (arguments : List ValueType)
+    (result : ValueType) : Option PrimitiveFailure :=
   if validPrimitive env binding allowed brand arguments result then none
   else if !validPrimitiveBinding env binding then some .binding
   else match (legacyRoleTable env binding arguments).find? (!·.holds env) with
     | some requirement => some (.role requirement)
     | none => if validValueType env result then none else some .result
+/-- A value on one line. -/
+private def oneLine {α : Type} [Repr α] (value : α) : String := (repr value).pretty 100000
+/-- A value on one line, with every declaration ID of the corpus shown by its name. -/
+private def render {α : Type} [Repr α] (value : α) : String :=
+  let names := (env.map fun entry => entry.id.name) ++ ["Missing", "M", "E"]
+  let named := names.foldl (fun text name => text.replace (oneLine (id name)) name) (oneLine value)
+  named.replace "VastitasKernel.Indexed." ""
 private structure Tally where
   cases : Nat := 0
+  /-- The operand lists of a valid binding, on which the role tables must agree. -/
+  valid : Nat := 0
   explained : Nat := 0
-private def compare (tally : Tally) (binding : PrimitiveBinding) (arguments : List ValueType) : IO Tally := do
-  let name := reprStr binding
+/-- The two role tables, when they differ for an invalid binding. -/
+private abbrev Difference := List RoleRequirement × List RoleRequirement
+/-- The one difference the module header records: `relativePair` over a fiber
+that `plainFiber?` rejects, where the derived table appends the requirement
+that the second map's source is the first map's source. -/
+private def documentedDeviation (seed : Seed) (before now : List RoleRequirement) : Bool :=
+  match seed.binding with
+  | .relativePair _ fiber =>
+    (plainFiber? seed.env fiber).isNone && now.take before.length == before &&
+      match now.drop before.length with
+      | [.object "second map" "source" _ _ "the first map's source"] => true
+      | _ => false
+  | _ => false
+private def compare (tally : Tally) (seed : Seed) (arguments : List ValueType) : IO (Tally × Option Difference) := do
+  let env := seed.env
+  let binding := seed.binding
   unless inferPrimitiveResult env binding brand arguments == legacyInfer env binding brand arguments do
-    throw (IO.userError s!"inference differs for {name} on {reprStr arguments}")
-  unless roleTable env binding arguments == legacyRoleTable env binding arguments do
-    throw (IO.userError (s!"the role table differs for {name} on {reprStr arguments}: before " ++
-      s!"{reprStr (legacyRoleTable env binding arguments)}, now {reprStr (roleTable env binding arguments)}"))
-  let mut tally := { tally with cases := tally.cases + 1 }
-  for result in candidates binding arguments do
+    throw (IO.userError s!"inference differs for {seed.name} on {reprStr arguments}")
+  let valid := validPrimitiveBinding env binding
+  let before := legacyRoleTable env binding arguments
+  let now := roleTable env binding arguments
+  if before != now && (valid || !documentedDeviation seed before now) then
+    throw (IO.userError (s!"the role table differs for {seed.name} on {reprStr arguments}: " ++
+      s!"before {reprStr before}, now {reprStr now}"))
+  let mut tally := { tally with cases := tally.cases + 1, valid := tally.valid + if valid then 1 else 0 }
+  for result in candidates env binding arguments do
     unless decide (PrimitiveAssociation env binding allowed brand arguments result) ==
         decide (legacyAssociation env binding allowed brand arguments result) do
-      throw (IO.userError s!"association differs for {name} on {reprStr arguments} with result {reprStr result}")
+      throw (IO.userError s!"association differs for {seed.name} on {reprStr arguments} with result {reprStr result}")
     unless decide (PrimitiveAssociation env binding [x, y, .local grid brand] brand arguments result) ==
         decide (legacyAssociation env binding [x, y, .local grid brand] brand arguments result) do
-      throw (IO.userError s!"association differs for {name} on {reprStr arguments} with a used brand")
+      throw (IO.userError s!"association differs for {seed.name} on {reprStr arguments} with a used brand")
     if (inferPrimitiveResult env binding brand arguments).isSome then
-      let old := legacyExplain binding arguments result
+      let old := legacyExplain env binding arguments result
       let new := explainPrimitive env binding allowed brand arguments result
       unless old == new do
-        throw (IO.userError (s!"explanation differs for {name} on {reprStr arguments} with result " ++
+        throw (IO.userError (s!"explanation differs for {seed.name} on {reprStr arguments} with result " ++
           s!"{reprStr result}: before {reprStr old}, now {reprStr new}"))
       tally := { tally with explained := tally.explained + 1 }
-  pure tally
+  pure (tally, if before == now then none else some (before, now))
 /-! ### The evaluators on value lists
 
 Every list of at most three values from a pool with at least one value of each
 constructor (two dimensions of object, both fiber values), logical and erased,
-for every binding of the seeds. -/
+for the binding of every fixed seed in the base environment. The theorems
+`evalPrimitive_agrees` and `evalRuntimePrimitive_agrees` cover every binding
+and environment; the variations and the variant environment target the
+derived typing tables, so they do not rerun this corpus. -/
 private def object (dimension : Nat) : Core.Semantics.Object := ⟨id "Grid", IndexedRuntime.descriptor dimension⟩
 private def valuePool : List Value :=
   [.natural 0, .natural 3, .integer 2, .integer (-1), .boolean true, .unit, .pairNat 1 2, .pairInt 1 (-2),
@@ -690,7 +886,7 @@ private def lists {α : Type} (pool : List α) : List (List α) :=
     (pool.flatMap fun a => pool.flatMap fun b => pool.map fun c => [a, b, c])
 private def compareEvaluators : IO Nat := do
   let mut cases := 0
-  for (binding, _) in seeds do
+  for (binding, _) in fixedSeeds do
     for values in lists valuePool do
       unless evalPrimitive env binding values == legacyEvalPrimitive env binding values do
         throw (IO.userError s!"the logical evaluator differs for {reprStr binding} on {reprStr values}")
@@ -702,12 +898,31 @@ private def compareEvaluators : IO Nat := do
   pure cases
 private def run : IO Unit := do
   let mut tally : Tally := {}
-  for (binding, seed) in seeds do
-    for arguments in mutations seed ++ shortLists do
-      tally ← compare tally binding arguments
+  let mut report : Array String := #[]
+  let mut differing := 0
+  for seed in seeds do
+    let mut count := 0
+    let mut first := ""
+    for arguments in mutations seed.operands ++ seed.short do
+      let (next, difference) ← compare tally seed arguments
+      tally := next
+      if let some (before, now) := difference then
+        if count == 0 then
+          first := s!"first on {render arguments}: before {render before}, now {render now}"
+        count := count + 1
+    if count > 0 then
+      report := report.push (s!"{render seed.binding} in the {seed.environment} environment, " ++
+        s!"on {count} operand lists, {first}")
+      differing := differing + count
   let evaluated ← compareEvaluators
-  IO.println (s!"legacy tables: {tally.cases} operand lists agree on inference, association and the role " ++
-    s!"table; {tally.explained} explanations agree; {evaluated} value lists agree on both evaluators")
+  let valid := (seeds.filter fun seed => validPrimitiveBinding seed.env seed.binding).length
+  IO.println (s!"legacy tables: {seeds.length} seeds in two environments, {valid} of them with a valid binding; " ++
+    s!"{tally.cases} operand lists agree on inference and association, and the {tally.valid} of a valid binding " ++
+    s!"on the role table; {tally.explained} explanations agree; {evaluated} value lists agree on both evaluators")
+  IO.println (s!"the role table differs on {differing} operand lists of {report.size} invalid bindings, " ++
+    "which `explainPrimitive` rejects before it reads the table:")
+  for entry in report do
+    IO.println s!"- {entry}"
 #eval run
 
 end VastitasKernel.Indexed.PrimitiveLegacyRegression

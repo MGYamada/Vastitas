@@ -9,7 +9,10 @@ lemmas state, for each callable binding and its well-shaped operand list, the
 conjunction the shape amounts to, in the order the shape checks it: the
 operands' families and fixed indices, operand by operand, then the relations,
 then the result; and, for each binding with listed operands, that any accepted
-call has that operand list. The uncallable evidence bindings have no
+call has that operand list. `relativePair_association` departs from that
+order: it folds the shape's four `fixedFrom` relations back into `base = base'`
+and `pairFactors env fiber left right base`, the form `relativePair_total`
+consumes. The uncallable evidence bindings have no
 association. These are the local obligations the `Sound` instances and the
 bridge proofs destructure: a new callable binding adds its association lemma
 and its shape lemma here, its totality lemma and `Sound` instance in its

@@ -1,0 +1,26 @@
+// Rejected by the kernel: a covector on the line takes one point and one component (E_ARITY)
+// (tests/smooth_differential.rs).
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+indexed family Tape(object(CInfAffine), object(CInfAffine))
+    = tape constraints(canonical(0), canonical(1));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+indexed primitive pullback = cotangent_pullback(Smooth, Cotangent, saved);
+indexed primitive linearize = linearize(Smooth, Tape);
+indexed primitive backward = cotangent_backward(Tape, Cotangent);
+indexed primitive lies_over = fiber_at(Cotangent, Smooth);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed morphism f: Smooth<Line, Plane> = pullback(x -> t, y -> t^2);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+
+fn bad() -> Bool { lies_over(dline(line_at(3), 1, 2), line_at(3)) }
+
+fn main() -> Int { 0 }

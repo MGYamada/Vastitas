@@ -1,0 +1,22 @@
+// Rejected by the kernel: `relative_coefficient` reports the family before the index pattern: a
+// two-index Morphism in its three-index map slot (`families := .early`).
+indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed classification Scheme { parents(); domain(Grid); };
+indexed global Base(Grid);
+indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));
+indexed primitive affine = descriptor(Grid);
+indexed primitive identity = identity((Scheme, QQ), Morphism);
+indexed implementation AffineQQ(QQ, presented_affine(rational)) capabilities();
+indexed classification AffineScheme { parents(); domain(AffineQQ); };
+indexed family Over(object(AffineScheme), object(AffineScheme), object(AffineScheme))
+    = relative constraints(structural(0, 2), structural(1, 2));
+indexed affine SpecQQ(AffineQQ) = spec[];
+indexed affine D(AffineQQ) = spec[e] relations(e^2) over SpecQQ;
+indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
+indexed primitive eps = relative_coefficient(Over, D, Line, t, e);
+
+fn main() -> Int {
+    let X = affine(2);
+    pair_first(eps(identity(X)))
+}

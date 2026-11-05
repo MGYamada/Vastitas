@@ -1,0 +1,17 @@
+// Rejected by the kernel: `relative_equal` compares two maps of one application; the second map
+// starts at Line, the first at D (tests/affine_geometry.rs).
+indexed marker QQ;
+indexed implementation AffineQQ(QQ, presented_affine(rational)) capabilities();
+indexed classification AffineScheme { parents(); domain(AffineQQ); };
+indexed family Over(object(AffineScheme), object(AffineScheme), object(AffineScheme))
+    = relative constraints(structural(0, 2), structural(1, 2));
+indexed affine SpecQQ(AffineQQ) = spec[];
+indexed affine D(AffineQQ) = spec[e] relations(e^2) over SpecQQ;
+indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
+indexed morphism p: Over<D, Line, SpecQQ> = pullback(t -> e);
+indexed morphism sq: Over<Line, Line, SpecQQ> = pullback(t -> t^2);
+indexed primitive same = relative_equal(Over);
+
+fn bad() -> Bool { same(p(), sq()) }
+
+fn main() -> Int { 0 }

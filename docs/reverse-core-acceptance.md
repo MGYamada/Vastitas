@@ -227,7 +227,8 @@ pins these four runtime reverse passes and their callers.
   also stays when its declarations would exceed the 4096 declaration ids of a
   module. A function whose compiled Core would exceed `generatedLets` keeps
   all its sites; no test reaches that budget. Compiling a function for each
-  static map argument is a follow-up: TODO(issue).
+  static map argument is a follow-up
+  ([#664](https://github.com/MGYamada/Vastitas/issues/664)).
 - **An opaque step evaluates its map forward twice:** once in the forward
   Core for its image, and again inside the runtime reverse pass.
 - **A let-bound tape's forward Core runs again at each reverse pass.** Each
@@ -287,14 +288,21 @@ pins these four runtime reverse passes and their callers.
 
 - Refinement of a whole compiled module; native refinement of the generated
   code.
-- Floating-point realization of the reverse Core with an error contract, and
+- Floating-point realization of the reverse Core with an error contract
+  ([#667](https://github.com/MGYamada/Vastitas/issues/667)), and
   performance against equivalent C (#222).
 - Optimizer preservation of (primal, pullback) pairs (#164).
 - Differentiation of branches, loops or recursion.
 - Forward mode and HVP (#161); custom rules (#163); checkpointing beyond
   save-all and recompute-all (#544); complex AD (#71).
 - Compiled Core for opaque steps, for tapes across functions, and for
-  `composite(…)`. Follow-ups: TODO(issue).
+  `composite(…)`. Follow-ups:
+  [#664](https://github.com/MGYamada/Vastitas/issues/664),
+  [#666](https://github.com/MGYamada/Vastitas/issues/666).
+- A refinement theorem for every function of a compiled module
+  ([#665](https://github.com/MGYamada/Vastitas/issues/665)), and the premises
+  that the compiled-entry theorems keep
+  ([#668](https://github.com/MGYamada/Vastitas/issues/668)).
 
 ## Validation
 

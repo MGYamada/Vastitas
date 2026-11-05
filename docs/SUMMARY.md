@@ -43,6 +43,7 @@
   - [Daleckii–Krein mathematical bridge](daleckii-krein.md)
 - [Specifications](specifications.md)
   - [std::differential](spec/std-differential.md)
+  - [Compiled reverse Core](spec/reverse-core.md)
   - [std::geometry::metric](spec/std-geometry-metric.md)
   - [Metric evidence](spec/metric-evidence.md)
   - [std::arithmetic::generic](spec/std-arithmetic-generic.md)

@@ -284,6 +284,16 @@ class FixtureTests(unittest.TestCase):
         self.put("scripts/__init__.py", "def load_tests(loader, tests, pattern):\n    return tests\n")
         self.assertRejected(cited)
 
+    def test_python_tests_that_a_class_body_or_the_module_disables(self):
+        # The review of #655 found that `test_identity = None` removes the method from discovery.
+        cited = "unittest may skip `scripts/test_demo.py::DemoTests::test_identity` or expect it to fail"
+        for addition in ("    test_identity = None\n", "    del test_identity\n",
+                         "\n\nDemoTests.test_identity = None\n", "\n\ndel DemoTests.test_identity\n",
+                         "\n\nsetattr(DemoTests, 'test_identity', None)\n"):
+            with self.subTest(addition=addition):
+                self.put("scripts/test_demo.py", PYTHON + addition)
+                self.assertRejected(cited)
+
     def test_async_python_tests_count_only_in_an_async_test_case(self):
         # The review of #655 found that unittest never awaits an async test of a TestCase.
         self.edit("scripts/test_demo.py", "    def test_identity(self):", "    async def test_identity(self):")
@@ -474,11 +484,11 @@ class FixtureTests(unittest.TestCase):
         self.edit(".github/workflows/ci.yml", "      - run: cargo test --locked --all-targets\n", step)
         self.assertRejected(fragment)
 
-    def test_folded_run_values_are_one_command(self):
-        self.rejects_with_step("      - run: >\n          cargo test --locked\n          --lib\n")
+    def test_folded_run_values_do_not_count(self):
+        self.rejects_with_step("      - run: >\n          cargo test --locked\n          --all-targets\n")
 
-    def test_plain_run_values_continue_on_indented_lines(self):
-        self.rejects_with_step("      - run: cargo test --locked\n          --lib\n")
+    def test_run_values_over_several_plain_lines_do_not_count(self):
+        self.rejects_with_step("      - run: cargo test --locked\n          --all-targets\n")
 
     def test_commented_and_echoed_commands_do_not_run(self):
         self.rejects_with_step("      - run: |\n          echo skipped; # cargo test --locked --all-targets\n"
@@ -494,7 +504,7 @@ class FixtureTests(unittest.TestCase):
                   "if cargo test --locked --all-targets; then echo ok; fi")
         self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
 
-    def test_lines_after_a_line_that_is_not_plain_do_not_count(self):
+    def test_commands_that_may_not_run_or_whose_failure_may_pass_do_not_count(self):
         # The reviews of #655 found shell forms in which a command may not run,
         # or bash ignores its failure. A step counts only up to its first line
         # that is not plain.
@@ -572,7 +582,25 @@ class FixtureTests(unittest.TestCase):
                 [("    steps:\n", "    steps:\n      - run: echo \"BASH_ENV=/tmp/exit.sh\" >> \"$GITHUB_ENV\"\n")],
                 [(step, "      - \"i\\x66\": false\n        run: cargo test --locked --all-targets\n")],
                 [(step, "      - !!str if: false\n        run: cargo test --locked --all-targets\n")],
-                [(step, "      - run: >\n          cargo test --locked --all-targets\n")]):
+                [(step, "      - run: >\n          cargo test --locked --all-targets\n")],
+                # The second review of #655: a reader that stopped early, defaults
+                # that are not block mappings, containers and unsecure commands.
+                [("    steps:\n", "    steps:\n"), ("bash scripts/check_kernel_regressions.sh\n",
+                  "bash scripts/check_kernel_regressions.sh\n    name: 'CI\n      job'\n    if: false\n")],
+                [("jobs:\n", "defaults: {run: {shell: 'bash {0}'}}\njobs:\n")],
+                [("    steps:\n", "    defaults:\n      run:\n        shell: sh\n    steps:\n")],
+                [("    steps:\n", "    defaults:\n      run:\n        working-directory: experiments\n"
+                  "    steps:\n")],
+                [("    runs-on: ubuntu-latest\n", "    runs-on: ubuntu-latest\n    container:\n"
+                  "      image: ubuntu:24.04\n")],
+                [("jobs:\n", "env:\n  ACTIONS_ALLOW_UNSECURE_COMMANDS: true\njobs:\n")],
+                [("    steps:\n", "    env: ${{ fromJSON(vars.ENV) }}\n    steps:\n")],
+                [("    steps:\n", "    steps:\n      - run: echo \"X=1\" >> \"$GITHUB_ENV\"\n      - run: true\n")],
+                [("  test:\n", "  test:\n    needs:\n      - a: b\n")],
+                [("jobs:\n", "jobs:\n  gate:\n    needs: test\n    runs-on: ubuntu-latest\n    steps:\n"
+                  "      - run: true\n"), ("  test:\n", "  test:\n    needs: gate\n")],
+                [("cargo test --locked --all-targets\n",
+                  "cargo test --locked --workspace --exclude 'v*' --all-targets\n")]):
             with self.subTest(edits=edits):
                 workflow = WORKFLOW
                 for old, new in edits:
@@ -580,6 +608,12 @@ class FixtureTests(unittest.TestCase):
                     workflow = workflow.replace(old, new, 1)
                 self.put(".github/workflows/ci.yml", workflow)
                 self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_steps_of_a_job_that_needs_an_unconditional_job_count(self):
+        self.edit(".github/workflows/ci.yml", "jobs:\n", "jobs:\n  build:\n    runs-on: macos-latest\n"
+                  "    steps:\n      - run: true\n")
+        self.edit(".github/workflows/ci.yml", "  test:\n", "  test:\n    needs: [build]\n")
+        self.assertEqual(self.errors(), [])
 
     def test_commands_that_run_no_cited_test(self):
         rust, python = "no CI step runs `tests/demo.rs::identity_runs`", \
@@ -857,7 +891,8 @@ class ParserTests(unittest.TestCase):
         self.assertTrue(cargo_run("--test=demo".split()).runs("demo", "a", False))
         for arguments in ("--all-targets --no-run", "-- --list", "-p other", "--manifest-path x/Cargo.toml",
                           "--help", "-h", "-- --help", "--doc", "--workspace --exclude vastitas", "--target x",
-                          "--config x", "-Z x", "-j4", "-- --exclude-should-panic", "-- --format json", "--test"):
+                          "--config x", "-Z x", "-j4", "-- --exclude-should-panic", "-- --format json", "--test",
+                          "--workspace --exclude v*", "-- --bench"):
             self.assertFalse(cargo_run(arguments.split(), "vastitas").runs("demo", "a", False), arguments)
         self.assertTrue(cargo_run("-p vastitas --manifest-path Cargo.toml".split(), "vastitas")
                         .runs("demo", "a", False))
@@ -932,9 +967,20 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(commands('cd "$(dirname "$0")/.."\nmake', origin=PurePosixPath("scripts")),
                          [(["make"], ".", True)])
         self.assertEqual(commands('cd "$(dirname "$0")/.."\nmake'), [])
+        for word in sorted(check_spec.SHELL_WORDS - check_spec.PLAIN_BUILTINS - {"cd", "set"}):
+            with self.subTest(word=word):
+                self.assertEqual(commands(f"make\n{word} x\nmake"), [(["make"], ".", True)])
+        for script in ("$X 0", "make *", "printf -v PATH /tmp/fake", "command set +e"):
+            with self.subTest(script=script):
+                self.assertEqual(commands(f"make\n{script}\nmake"), [(["make"], ".", True)])
+        self.assertEqual(commands("echo -e\nmake", errexit=False), [(["echo", "-e"], ".", False), (["make"], ".", False)])
+        self.assertEqual(commands("set -x\nmake", errexit=False), [(["make"], ".", False)])
+        self.assertEqual(commands("cargo test\\\n--lib"), [])
+        self.assertEqual(commands("cd /tmp\nmake"), [(["make"], "None", True)])
         self.assertEqual(plain_set(["-euo", "pipefail"]), [(True, "errexit"), (True, "nounset"), (True, "pipefail")])
         self.assertEqual(plain_set(["+o", "errexit"]), [(False, "errexit")])
-        for arguments in (["-n"], ["-o", "noexec"], ["-o", "+e"], ["-Qe"], ["-o"], [], ["--", "-e"], ["-t"]):
+        for arguments in (["-n"], ["-o", "noexec"], ["-o", "+e"], ["-Qe"], ["-o"], [], ["--", "-e"], ["-t"],
+                          ["-", "-e"]):
             self.assertIsNone(plain_set(arguments), arguments)
 
     def test_yaml_subset_rejects_keys_that_it_does_not_read(self):
@@ -947,6 +993,10 @@ class ParserTests(unittest.TestCase):
         self.assertIsInstance(check_spec.yaml_load("a: b\n  c\n")["a"], check_spec.Folded)
         self.assertNotIsInstance(check_spec.yaml_load("a: |\n  b\n")["a"], check_spec.Folded)
         self.assertEqual(check_spec.yaml_load('a:\n  - "b: c"\n'), {"a": ["b: c"]})
+        for text in ("a: 'b\n  c'\nd: 1\n", "a:\n  - b\n c: 1\n", "a: [b,\n  c]\n"):
+            with self.subTest(text=text):
+                with self.assertRaises(check_spec.YamlError):
+                    check_spec.yaml_load(text)
 
     def test_rust_attributes(self):
         source = "\n".join([

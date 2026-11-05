@@ -555,8 +555,13 @@ def yaml_load(text):
     """Block mappings and sequences, plain, quoted and block scalars, and flow
     sequences of scalars; other flow collections stay text. A scalar folded
     from several lines is Folded. YamlError reports a form outside the subset,
-    including a repeated key, which GitHub rejects."""
-    return yaml_node(YamlLines(text), 0)
+    including a repeated key, which GitHub rejects, and a line that the subset
+    does not reach, such as a quoted scalar over several lines."""
+    lines = YamlLines(text)
+    tree = yaml_node(lines, 0)
+    if lines.current() is not None:
+        raise YamlError(f"an unread line {lines.current()!r}")
+    return tree
 
 
 FILTERS = ("paths", "paths-ignore", "branches", "branches-ignore", "types")
@@ -584,7 +589,9 @@ def unix_job(job):
     runner, `ubuntu-…` or `macos-…`, where a `run:` step uses bash by default.
     A `${{ matrix.KEY }}` runner takes the literal values of KEY in the job's
     matrix, with those that `include` adds; a matrix with `exclude` is not
-    read."""
+    read. A job in a `container` runs on the container's image instead."""
+    if "container" in job:
+        return False
     labels = job.get("runs-on")
     if isinstance(labels, str):
         match = re.fullmatch(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}", labels.strip())
@@ -606,8 +613,8 @@ def unix_job(job):
 # Variables that change how bash starts, reads or finds commands, how programs
 # load, or how cargo and Python build and run tests: a test runner, a compiler
 # wrapper, a cross target or a Python path.
-SHELL_ENVIRONMENT = {"BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE", "IFS", "PATH", "POSIXLY_CORRECT",
-                     "PS4", "SHELLOPTS"}
+SHELL_ENVIRONMENT = {"ACTIONS_ALLOW_UNSECURE_COMMANDS", "BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE",
+                     "IFS", "PATH", "POSIXLY_CORRECT", "PS4", "SHELLOPTS"}
 ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "CARGO_BUILD_", "CARGO_TARGET_", "RUSTC", "PYTHON")
 
 
@@ -625,8 +632,9 @@ def run_steps(workflow):
     it needs, has `if:` or a `continue-on-error` that can be true; `unix_job`
     holds; the step uses bash; its script is a single line or a literal block;
     `plain_environment` holds for the workflow, job and step; and no earlier
-    step of the job names GITHUB_ENV or GITHUB_PATH. A workflow outside the
-    YAML subset yields nothing."""
+    step of the job names GITHUB_ENV or GITHUB_PATH, a textual rule. A workflow
+    outside the YAML subset, or with `defaults` that are not block mappings,
+    yields nothing, and so does a job with such `defaults`."""
     try:
         tree = yaml_load(workflow)
     except YamlError:
@@ -634,19 +642,23 @@ def run_steps(workflow):
     if not isinstance(tree, dict) or not every_pull_request(tree.get("on")):
         return
     def defaults(table):
-        run = ((table.get("defaults") or {}) if isinstance(table.get("defaults"), dict) else {}).get("run")
-        return run if isinstance(run, dict) else {}
+        """The `defaults.run` settings of a workflow or job, or None when they are not block mappings."""
+        settings = table.get("defaults", {})
+        run = settings.get("run", {}) if isinstance(settings, dict) else None
+        return run if isinstance(run, dict) else None
     jobs = tree.get("jobs") if isinstance(tree.get("jobs"), dict) else {}
     def unconditional(name, seen=()):
-        job = jobs.get(name)
+        job = jobs.get(name) if isinstance(name, str) else None
         if not isinstance(job, dict) or name in seen or "if" in job or may_skip(job.get("continue-on-error")):
             return False
         needs = job.get("needs", [])
         needs = [needs] if isinstance(needs, str) else needs
         return isinstance(needs, list) and all(unconditional(need, seen + (name,)) for need in needs)
     top = defaults(tree)
+    if top is None:
+        return
     for name, job in jobs.items():
-        if not unconditional(name) or not unix_job(job):
+        if not unconditional(name) or not unix_job(job) or defaults(job) is None:
             continue
         settings, tainted = dict(top, **defaults(job)), False
         for step in job.get("steps") or []:
@@ -692,8 +704,8 @@ def shell_directory(directory, target):
 
 def plain_set(arguments):
     """The (on, option) switches of `set ARGUMENTS`, or None unless each
-    argument switches options of SET_OPTIONS: `-e`, `-u`, `-v`, `-x`, and
-    `-o` or `+o` before an option name."""
+    argument switches options of SET_OPTIONS: `-e`, `-u`, `-v` and `-x` or
+    their `+` forms, and `-o` or `+o` before an option name."""
     switches, pending = [], []
     for argument in arguments:
         if pending:
@@ -712,28 +724,29 @@ def plain_set(arguments):
 
 
 def plain_commands(script, directory=PurePosixPath("."), errexit=True, origin=None):
-    """(words, directory, counted) for each command of a shell script before its
-    first line that is not plain. A command counts when errexit is on, so that
-    its failure fails the script.
+    """(words, directory, counted) for each command other than `cd` and `set` of
+    a shell script, before its first line that is not plain. A command counts
+    when errexit is on, so that its failure fails the script.
 
     A plain line is blank, a comment, or words of letters, digits, `_./:=@%+,-`
     and single-quoted text, separated by spaces; a final ` \\` joins the next
     line. The first word of a command names a program or a member of
-    PLAIN_BUILTINS, and has no `=`. `cd` with one relative directory is plain
-    too: the reader follows it while errexit is on, and the directory becomes
-    None, unknown, when it is off. So is `set` with switches that `plain_set`
-    reads. `origin`, the directory of a script file, makes SCRIPT_PARENT plain."""
+    PLAIN_BUILTINS, and has no `=`. `cd` with one directory that is no option
+    is plain too: the reader follows a relative directory while errexit is on,
+    and otherwise the directory becomes None, unknown. So is `set` with
+    switches that `plain_set` reads. `origin`, the directory of a script file,
+    makes SCRIPT_PARENT plain."""
     words = []
     for line in script.split("\n"):
         if not words and PLAIN_COMMENT.fullmatch(line):
             continue
-        if not words and origin is not None and line.strip() == SCRIPT_PARENT:
+        if not words and origin is not None and line.strip(" ") == SCRIPT_PARENT:
             directory = shell_directory(origin, "..") if errexit else None
             continue
         if not PLAIN_LINE.fullmatch(line):
             return
         words += [re.sub(r"'([^']*)'", r"\1", word) for word in re.findall(PLAIN_WORD, line)]
-        if line.endswith("\\") or not words:
+        if line.endswith("\\"):
             continue
         switches = plain_set(words[1:]) if words[0] == "set" else None
         if words[0] == "cd" and len(words) == 2 and not words[1].startswith("-"):
@@ -824,7 +837,8 @@ def cargo_run(arguments, package=None):
                 yield "", argument
 
     for name, value in options(arguments[:split], CARGO_FLAGS, CARGO_VALUES):
-        if name in ("-p", "--package") and value != package or name == "--exclude" and value == package:
+        if name in ("-p", "--package") and value != package \
+                or name == "--exclude" and (value == package or any(c in value for c in "*?[")):
             run.runs_nothing = True
         elif name == "--manifest-path" and os.path.normpath(value) != "Cargo.toml":
             run.runs_nothing = True
@@ -1047,7 +1061,10 @@ def python_tests(source):
     module, mapped to whether unittest may skip them or expect them to fail.
     It may whenever `python_skips` holds for the module, whatever the condition
     or the class that the name concerns, and for an `async def` method of a
-    class that is no IsolatedAsyncioTestCase, which unittest never awaits."""
+    class that is no IsolatedAsyncioTestCase, which unittest never awaits. A
+    test name that the class body assigns or deletes rather than defines, and
+    any test of a module that changes a class attribute, calls `setattr` or
+    `delattr`, or deletes an attribute, count as never run."""
     module = ast.parse(source)
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
 
@@ -1060,7 +1077,8 @@ def python_tests(source):
             base in kinds or test_case(base, kinds, seen + (name,)) for base in base_names(node))
 
     def methods(name, seen=()):
-        """Each test method of the class, mapped to whether it is `async def`."""
+        """Each test name of the class, mapped to "sync", "async" or "unknown"
+        when the class body assigns or deletes it."""
         node = classes.get(name)
         if node is None or name in seen:
             return {}
@@ -1069,12 +1087,28 @@ def python_tests(source):
             found.update(methods(base, seen + (name,)))
         for item in node.body:
             if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
-                found[item.name] = isinstance(item, ast.AsyncFunctionDef)
+                found[item.name] = "async" if isinstance(item, ast.AsyncFunctionDef) else "sync"
+            elif isinstance(item, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Delete)):
+                targets = item.targets if isinstance(item, (ast.Assign, ast.Delete)) else [item.target]
+                for target in targets:
+                    for leaf in ast.walk(target):
+                        if isinstance(leaf, ast.Name) and leaf.id.startswith("test"):
+                            found[leaf.id] = "unknown"
         return found
 
-    skips = python_skips(source)
-    return {(name, method): skips or asynchronous and not test_case(name, ("IsolatedAsyncioTestCase",))
-            for name in classes if test_case(name) for method, asynchronous in methods(name).items()}
+    def changes_classes(node):
+        targets = (node.targets if isinstance(node, (ast.Assign, ast.Delete))
+                   else [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign)) else [])
+        return (any(isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
+                    and target.value.id in classes for target in targets)
+                or isinstance(node, ast.Delete) and any(isinstance(target, ast.Attribute) for target in targets)
+                or isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id in ("setattr", "delattr"))
+
+    skips = python_skips(source) or any(changes_classes(node) for node in ast.walk(module))
+    return {(name, method): skips or kind == "unknown"
+            or kind == "async" and not test_case(name, ("IsolatedAsyncioTestCase",))
+            for name in classes if test_case(name) for method, kind in methods(name).items()}
 
 
 class Repository:
@@ -1126,7 +1160,7 @@ class Repository:
             if directory == PurePosixPath("."):
                 self.cargo.append(cargo_run(words[2:], package))
         elif words[0] in ("python", "python3") and words[1:4] == ["-m", "unittest", "discover"]:
-            run = discover_run(words[4:], directory) if directory is not None else None
+            run = discover_run(words[4:], directory)
             if run is not None:
                 self.discover.append(run)
         elif words[0] == "bash" and len(words) == 2 and shell_directory(directory, words[1]) == PurePosixPath(REGRESSIONS):

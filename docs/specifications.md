@@ -196,13 +196,16 @@ keeps its pin.
 A CI step is a `run:` step that every pull request runs and whose failure
 fails the workflow. `check_spec.py` counts a step only when all of these hold:
 
-- its workflow's `pull_request` trigger has no `paths`, `branches` or `types`
-  filter;
-- neither the step nor its job, nor a job that the job needs, has an `if:`
-  condition or a `continue-on-error` that can be true;
+- its workflow's `pull_request` trigger has no `paths`, `paths-ignore`,
+  `branches`, `branches-ignore` or `types` filter;
+- neither the step nor its job, nor any job that the job needs directly or
+  through other jobs, has an `if:` condition or a `continue-on-error` that can
+  be true, and every job that it needs exists;
 - every runner of the job is a GitHub-hosted Linux or macOS runner, `ubuntu-…`
-  or `macos-…`, named directly or through a literal matrix without `exclude`;
-- the step uses bash, the default shell there;
+  or `macos-…`, named directly or through a literal matrix without `exclude`,
+  and the job has no `container`;
+- the step uses bash, the default shell there, and the `defaults` of its
+  workflow and job are block mappings;
 - its `run:` value is a single line or a literal block (`|`), not a folded
   one;
 - no `env:` of the workflow, the job or the step sets a variable that changes
@@ -210,23 +213,26 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
   `BASH_ENV`, `SHELLOPTS`, `PATH` and the others that `check_spec.py` lists,
   or a variable that starts with `BASH_FUNC_`, `LD_`, `DYLD_`,
   `CARGO_BUILD_`, `CARGO_TARGET_`, `RUSTC` or `PYTHON`;
-- no earlier step of the job names `GITHUB_ENV` or `GITHUB_PATH`.
+- no earlier step of the job has `GITHUB_ENV` or `GITHUB_PATH` in its text.
 
-A workflow outside the subset of YAML that `check_spec.py` reads, such as one
-with a quoted, explicit, tagged, merge or repeated key, runs no test as far as
-the check is concerned.
+A workflow outside the subset of YAML that the check reads runs no test as far
+as the check is concerned. Such a workflow has, for example, a quoted,
+explicit, tagged, anchored, merge or repeated key, or a quoted scalar over
+several lines.
 
-`check_spec.py` reads a step's script line by line and stops at the first line
-that is not plain. A plain line is blank, a comment, or a command whose words
+The check reads a step's script line by line and stops at the first line that
+is not plain. A plain line is blank, a comment, or a command whose words
 consist of letters, digits, `_./:=@%+,-` and single-quoted text, separated by
 spaces. A final ` \` joins the next line. The first word names a program or
 one of `echo`, `pwd`, `test`, `true`, `false` and `:`, and has no `=`. Two
 more commands are plain:
 
-- `cd` with one relative directory, which the check follows while `errexit` is
-  on;
-- `set` that switches only `-e`, `-u`, `-v` and `-x`, or after `-o` the
-  options `errexit`, `nounset`, `pipefail`, `verbose` and `xtrace`.
+- `cd` with one directory that is no option; the check follows a relative
+  directory while `errexit` is on, and otherwise no longer knows the
+  directory;
+- `set` that switches only `-e`, `-u`, `-v` and `-x` or their `+` forms, or
+  after `-o` or `+o` the options `errexit`, `nounset`, `pipefail`, `verbose`
+  and `xtrace`.
 
 A plain script therefore has no operators, expansions, double quotes, globs,
 redirections, compound commands or other builtins, and runs its commands one
@@ -236,26 +242,29 @@ fails the step. No command after the first line that is not plain counts.
 The check reads the kernel regression script in the same way. The script
 starts with `errexit` off, so it must switch `errexit` on before its build
 counts. There `cd "$(dirname "$0")/.."` is plain too and goes to the
-repository root. A step runs the script as
-`bash scripts/check_kernel_regressions.sh`.
+repository root. A build counts as the line `lake -d lean-kernel build`
+followed only by module names, run from the repository root. A step runs the
+script as `bash` followed by the script's path.
 
-The check recognizes these commands, and reads only the options that it
-lists:
+The check recognizes these commands, and reads only the options that it lists:
 
 - `cargo test` in the root package, with target selections such as `--test`
   and `--all-targets`, filters, `-p`, `--manifest-path`, `--exclude`,
   options of the build that run every selected test, such as `--locked` and
   `--features`, and after `--` the harness options `--ignored`,
   `--include-ignored`, `--exact`, `--skip` and those of output;
-- `python3 -m unittest discover` without interpreter options, with `-s`,
-  `-p`, `-k`, their long forms, and options of output and failure handling;
+- `python3 -m unittest discover` or `python -m unittest discover`, without
+  interpreter options, with `-s`, `-p`, `-k`, their long forms, and options of
+  output and failure handling;
 - the run of the regression script above.
 
 Any other option, such as `--no-run`, `--doc`, `--target`, `--config`,
-`--list`, `--help` or the top-level directory `-t`, makes the command run no
-test as far as the check is concerned. The check trusts the runner image, the
-actions that steps use and the programs that steps run not to change how bash
-starts or which program a command name runs.
+`--list`, `--help`, `--version` or the top-level directory `-t`, makes the
+command run no test as far as the check is concerned. So does `--exclude` with
+the root package or a glob. The check trusts the runner image, the actions
+that steps use and the programs that steps run: they must not change how bash
+starts, and `cargo`, `python3`, `python`, `bash` and `lake` must run the tools
+of those names.
 
 `scripts/spec_resolve.lean` imports exactly the modules that a pins file lists.
 It rejects:

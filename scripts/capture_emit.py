@@ -19,6 +19,14 @@ script records:
 With `--kernel-fixtures`, it also records the generated modules of
 `scripts/check_indexed_codegen.lean`.
 
+The kernel rejects every package under `tests/emit_corpus/rejected/` on
+purpose, so that the comparison covers the diagnostics of rejected primitive
+calls. Each package fails one kind of requirement: a family, a coefficient
+marker, a domain, a fixed or a shared endpoint, the index pattern
+(`E_ENDPOINT`), the operand shape (`E_TYPE`) or the operand count (`E_ARITY`),
+and the relative-coefficient and relative-pair calls, which report families
+before the index pattern. Their `cli.txt` and `check.json` hold the message.
+
 The checkout root is written as `<ROOT>` so captures from different
 checkouts compare. `--compare BASELINE` reports every byte difference against
 an earlier capture and exits 1 when there is one. A change that promises

@@ -1,0 +1,18 @@
+// Rejected by the kernel: the map operand of `apply` has family Point (tests/usability_kernel.rs).
+indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed classification Scheme { parents(); domain(Grid); };
+indexed global Base(Grid);
+indexed family Point(object(Scheme), object(Scheme)) = point constraints(same_base(0, 1));
+indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));
+indexed primitive affine = descriptor(Grid);
+indexed primitive origin = origin((Scheme, QQ), Point, Base);
+indexed primitive identity = identity((Scheme, QQ), Morphism);
+indexed primitive compose = compose(Morphism);
+indexed primitive apply = apply(Morphism, Point);
+
+fn main() -> Int {
+    let X = affine(3);
+    let p = apply(origin(X), origin(X));
+    0
+}

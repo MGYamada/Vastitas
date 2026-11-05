@@ -1,0 +1,15 @@
+// Rejected by the kernel: the marker agrees, but the object's domain Grid is not within Other
+// (lean-kernel/VastitasKernel/IndexedSourceBodyRegression.lean).
+indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed implementation Grid2(QQ, affine_descriptor) capabilities(origin, dimension);
+indexed classification Scheme { parents(); domain(Grid); };
+indexed classification Other { parents(); domain(Grid2); };
+indexed primitive affine = descriptor(Grid);
+indexed primitive otherDimension = dimension((Other, QQ));
+
+fn main() -> Int {
+    let X = affine(3);
+    let d = otherDimension(X);
+    0
+}

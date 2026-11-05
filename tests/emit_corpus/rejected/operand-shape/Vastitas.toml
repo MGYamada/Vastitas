@@ -1,0 +1,4 @@
+[package]
+name = "rejected_operand_shape"
+version = "0.1.0"
+root = "main.vast"

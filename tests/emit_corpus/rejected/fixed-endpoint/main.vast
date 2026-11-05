@@ -1,0 +1,21 @@
+// Rejected by the kernel: the metric fixes the vector's object to Plane; the vector lies over Line
+// (tests/smooth_differential.rs).
+indexed marker CInfReal;
+indexed implementation SmoothR(CInfReal, smooth_affine) capabilities();
+indexed classification CInfAffine { parents(); domain(SmoothR); };
+indexed family Smooth(object(CInfAffine), object(CInfAffine))
+    = smooth constraints(canonical(0), canonical(1));
+indexed family Cotangent(object(CInfAffine)) = cotangent constraints(canonical(0));
+indexed family Tangent(object(CInfAffine)) = tangent constraints(canonical(0));
+indexed family MetricForm(object(CInfAffine)) = metric_form constraints(canonical(0));
+indexed affine Pt(SmoothR) = Affine(0)[];
+indexed affine Line(SmoothR) = Affine(1)[t];
+indexed affine Plane(SmoothR) = Affine(2)[x, y];
+indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
+indexed primitive vline = fiber_vector(Tangent, Smooth, Line);
+indexed metric Skew: MetricForm<Plane> = gram((2, 1), (1, 1));
+indexed primitive flat_skew = flat(Tangent, Cotangent, using = Skew);
+
+fn bad() -> Cotangent<Plane> { flat_skew(vline(line_at(1), 1)) }
+
+fn main() -> Int { 0 }

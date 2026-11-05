@@ -66,6 +66,7 @@
     - [Finite-profile acceptance and evidence](stage1-acceptance.md)
     - [Stage 2 finite affine geometry acceptance](stage2-acceptance.md)
     - [Stage 3 smooth affine geometry acceptance](stage3-acceptance.md)
+    - [Compiled reverse Core acceptance](reverse-core-acceptance.md)
   - [F: Contributing and validation](appendix/contributing.md)
     - [Run compiler, proof and native checks](development/validation.md)
     - [Maintain the documentation](development/documentation.md)

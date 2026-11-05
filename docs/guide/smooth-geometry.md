@@ -172,13 +172,15 @@ export a `gradient`.
 
 > **What is checked.** The checker rejects a seed, point or map over the wrong
 > object before any code is generated, and the compiler builds only programs
-> that it has checked. The [proofs](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
-> cover the reverse pass on the checked program, the chain rule, the agreement
-> of the saved and recomputing passes, the comparison with the derivative of
-> real analysis, and the meaning of metric evidence. Tests cover native
-> execution, the diagnostics, and agreement with independent reference
-> programs. A seed over the wrong point of the right object is a run-time
-> failure value, not a compile-time error.
+> that it has checked. It then turns each reverse pass into ordinary code and
+> checks that code again. The [proofs](../verification.md#smooth-affine-geometry-and-reverse-pullbacks)
+> cover the generated reverse code at each call and the reverse pass over the
+> checked program. They also cover the chain rule, the agreement of the saved
+> and recomputing passes, the comparison with the derivative of real
+> analysis, and the meaning of metric evidence. Tests cover native execution,
+> the diagnostics, the agreement of each compiled program with its source, and
+> agreement with independent reference programs. A seed over the wrong point
+> of the right object is a run-time failure value, not a compile-time error.
 
 ## See also
 

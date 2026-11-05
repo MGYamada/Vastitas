@@ -278,7 +278,10 @@ that this section refers to.
   - `std` declarations bind the executable kernel's runtime routines as
     primitives, as the Stage 2 presented-algebra profile does.
   - The reverse pass is a runtime routine of the executable kernel. The
-    compiler emits no reverse Core in this profile.
+    compiler emits no reverse Core in this profile. The
+    [amendment of 2026-11-06](#compiled-reverse-core-amendment) admits
+    compiled reverse Core and keeps this routine for the steps that compiled
+    Core does not open.
   - The executable kernel checks every declaration before code generation.
   - There is no selectable backend. Floating-point backends are outside this
     profile.
@@ -363,7 +366,9 @@ that this section refers to.
 
 #### Outside this admission
 
-- Compiler-emitted reverse Core.
+- Compiler-emitted reverse Core. The
+  [amendment of 2026-11-06](#compiled-reverse-core-amendment) admits it within
+  its boundary.
 - The forward-over-reverse Hessian-vector product that §6 requires, with its
   Weil-lift semantics. This profile does
   not discharge that requirement. Forward mode stays a third-party
@@ -456,6 +461,72 @@ therefore writes `gradient` as an ordinary function that applies its own
 requires a named metric and nondegenerate evidence. The admission of
 `gradient` stands. The History section names the follow-up.
 
+<a id="compiled-reverse-core-amendment"></a>
+
+#### Amendment: compiled reverse Core (2026-11-06)
+
+This amendment admits compiled reverse Core for the finite profile of this
+section, through the §8 procedure. It changes no public name, operation, wire
+form or protocol version. It changes how the executable kernel realizes
+`pullback`, `differential` and `backward`. It admits the contract; the
+[compiled reverse Core acceptance map](../reverse-core-acceptance.md) records
+what is implemented, tested and proved.
+
+- **Contract.**
+  - After acceptance, the executable kernel may replace a reverse pass by Core
+    that it generates from the checked Core. Forward Core computes the primal
+    value and the residual points as ordinary Core values. A generated
+    backward function computes the pullback from the residuals and the seed.
+  - The generated Core must denote the operation that it replaces: the
+    covector `η ∘ Df(x)` over `x` for a seed over `f(x)`, and ⊥ for any other
+    seed.
+  - The derivative rule of each primitive is part of its registry entry. A
+    declared polynomial map is pulled back by its Jacobian table, which the
+    executable kernel computes from the map with exact rational coefficients.
+  - A map whose structure the compilation does not open is one step. The
+    runtime routine of this section pulls the seed back along it, so that
+    routine stays part of the profile.
+  - The saved policy passes every residual to the backward function. The
+    recomputed policy passes the input point, and the backward function
+    evaluates the other residuals again. Both must give the same covector.
+  - Residuals are immutable pure Core values. They meet the retention
+    contract of
+    [storage ownership §7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation)
+    as Retain or Recompute, without storage.
+- **Admission argument.** The denotation of the pullback (A) does not depend
+  on the algorithm that computes it. Compiled Core and the runtime routine are
+  two realizations of it, not two denotations (B). Arithmetic stays exact, and
+  no derivative is sampled or approximated (C). Basepoints, objects and
+  variance stay explicit (D).
+- **Checking.**
+  - The generated module passes the Core audit that source-derived Core
+    passes.
+  - Translation validation compiles the source module again and compares
+    the result.
+  - No source and no wire request can name or supply the generated
+    declarations, functions or residuals.
+  - A failed check is an internal error. The compilation rejects no accepted
+    program: a reverse pass that it cannot compile stays a call of the runtime
+    routine.
+- **Evidence obligations.**
+  - The oracle proves, without mathlib, what the generated forward and
+    backward Core compute, that the two policies agree, and their meaning
+    relative to the oracle chain rule.
+  - The mathlib bridge proves that the generated backward Core is the
+    adjoint of the Fréchet derivative, independently of the kernel chain rule.
+  - The rewrite of one call is a local theorem with explicit premises.
+    Agreement of whole compiled modules with their source is tested, not
+    proved.
+- **Boundary.** Outside this amendment:
+  - differentiation of branches, loops or recursion; a branch may still
+    choose a map, which is then one opaque step;
+  - compiled Core for opaque steps, for tapes that cross a function boundary,
+    and for `composite`;
+  - floating-point realizations and performance;
+  - optimizer preservation of the (primal, selected pullback) contract of §6;
+  - custom rules, forward mode, the Hessian-vector product, complex AD and
+    checkpointing beyond save-all and recompute-all, as listed above.
+
 ## Consequences, validation and migration
 
 - A *thick* foundational `std` can cover algebra, topology/geometry, analysis, infinite-dimensional quantum mechanics and the mathematical formulation of equations, while a potentially infinite space of approximation algorithms remains in the ecosystem.
@@ -496,6 +567,15 @@ requires a named metric and nondegenerate evidence. The admission of
     [#570](https://github.com/MGYamada/Vastitas/issues/570),
     [#544](https://github.com/MGYamada/Vastitas/issues/544);
   - performance: [#222](https://github.com/MGYamada/Vastitas/issues/222).
+- **Compiled reverse Core.** The amendment of 2026-11-06 was adopted for
+  [#623](https://github.com/MGYamada/Vastitas/issues/623), after the primitive
+  descriptors of [#622](https://github.com/MGYamada/Vastitas/issues/622). It
+  admits, for this profile, the compiler-emitted reverse Core that §10
+  excluded when it was adopted. [#361](https://github.com/MGYamada/Vastitas/issues/361)
+  and [#290](https://github.com/MGYamada/Vastitas/issues/290) keep the general
+  cases, [#164](https://github.com/MGYamada/Vastitas/issues/164) the optimizer
+  obligation, and [#629](https://github.com/MGYamada/Vastitas/issues/629) the
+  sharing of Jacobian tables.
 - **Gradient export.** Exporting a generic `gradient` from
   `std::differential` needs object-polymorphic signatures and metric
   parameters: [#626](https://github.com/MGYamada/Vastitas/issues/626).

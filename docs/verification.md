@@ -1517,7 +1517,9 @@ Backend refinement remains a separate obligation.
 
 The theorems and tests of this section cover every binding of the closed
 primitive registry: the Stage 1 and Stage 2 bindings, and the smooth, fiber,
-tape and metric bindings of
+tape and metric bindings and the step bindings of
+[compiled reverse Core](#compiled-reverse-core) (`smoothApply` and
+`cotangentJacobian`) of
 [Smooth affine geometry and reverse pullbacks](#smooth-affine-geometry-and-reverse-pullbacks).
 The two modules of the table are Proved (oracle): mathlib-free modules of
 `lean/VastitasOracle/` that `scripts/audit_axioms.lean` audits. Names are
@@ -1526,13 +1528,16 @@ relative to `VastitasOracle`.
 | Module | Theorems | Statement |
 | --- | --- | --- |
 | `IndexedPrimitiveSoundness` | `descriptorWorld_pure`, `descriptorWorld_allocating`, `Sound.ofBinding`, `Sound.ofPure` | The structure `Sound` states the obligations of one registry entry on the entry's own shape, validity contract and evaluators. Typed totality: the world after a call is `descriptorWorld`; an allocating entry binds the returned object to the result's brand, any other entry leaves the world unchanged. Erasure: the logical evaluator erases to the erased one. `Sound.ofBinding` builds an instance from a binding's totality and erasure lemmas. `Sound.ofPure` builds one from the same two lemmas and a proof that the binding does not allocate, when the totality lemma leaves the world unchanged |
-| `IndexedDescriptorDemo` | `directionalDerivative_shape`, `directionalDerivative_association`, `directionalDerivative_total`, `directionalDerivative_sound`, `directionalDerivative_outcome`, `directionalDerivative_world`, `directionalDerivative_erasure`, `directionalDerivative_render`, `directionalDerivative_render_arity`, `directionalDerivative_render_mismatch`, `directionalDerivative_sharedLiterals`, `wireArgument_kind`, `familyPrimitive_wireForm`, `directionalDerivative_wireForm`, `directionalDerivative_unregistered`, `directionalDerivative_rejected` | A hypothetical directional derivative, a `PrimitiveDescriptor` value that the registry does not contain, has its `Sound` instance, proved from the structure's fields and not through `Sound.ofBinding` or `Sound.ofPure`. An accepted call on typed operand values evaluates by the value's own evaluator to a value of the checked type, leaves the world unchanged and erases to the erased evaluator. Its lowering is that of `differential` and then `fiber_pairing`, it accepts only the checked operand count, and it adds no shared literal. For every primitive family, a form that `Wire.familyPrimitive` accepts has the family's `op` and its field names and kinds, in wire order. The trusted decoder `Wire.primitive` rejects the value's `op`, which no family of the registry has |
+| `IndexedDescriptorDemo` | `directionalDerivative_shape`, `directionalDerivative_association`, `directionalDerivative_total`, `directionalDerivative_sound`, `directionalDerivative_outcome`, `directionalDerivative_world`, `directionalDerivative_erasure`, `directionalDerivative_render`, `directionalDerivative_render_arity`, `directionalDerivative_render_mismatch`, `directionalDerivative_sharedLiterals`, `wireArgument_kind`, `familyPrimitive_wireForm`, `directionalDerivative_wireForm`, `directionalDerivative_unregistered`, `directionalDerivative_rejected`, `directionalDerivative_reverseSound` | A hypothetical directional derivative, a `PrimitiveDescriptor` value that the registry does not contain, has its `Sound` instance, proved from the structure's fields and not through `Sound.ofBinding` or `Sound.ofPure`. An accepted call on typed operand values evaluates by the value's own evaluator to a value of the checked type, leaves the world unchanged and erases to the erased evaluator. Its lowering is that of `differential` and then `fiber_pairing`, it accepts only the checked operand count, and it adds no shared literal. For every primitive family, a form that `Wire.familyPrimitive` accepts has the family's `op` and its field names and kinds, in wire order. The trusted decoder `Wire.primitive` rejects the value's `op`, which no family of the registry has. Its derivative rule is `none`, so its `ReverseSound` holds trivially |
 
 `IndexedSemantics.registry_sound` dispatches by constructor to the `Sound`
 instances of the Stage 1 and 2 bindings in `IndexedSemantics` and to those of
 the smooth, fiber and metric bindings in `SmoothPrimitives`, `SmoothFibers`
-and `SmoothMetricForms`; `IndexedSemantics.primitive_total_and_typed` and
+and `SmoothMetricForms`, and to those of the two step bindings in
+`SmoothJacobian`; `IndexedSemantics.primitive_total_and_typed` and
 `IndexedSemantics.primitive_runtime_erasure` are its corollaries.
+`SmoothJacobian.registry_reverse_sound` proves for every entry, by one named
+case per binding, what its derivative rule promises (`ReverseSound`).
 `IndexedAssociations` states what each binding's registry shape amounts to: the
 association of each callable binding, the operand list of each binding with
 listed operands, that the evidence bindings have no association, and that the
@@ -2034,6 +2039,59 @@ and admits only `propext`, `Classical.choice` and `Quot.sound`. **Proved
 (bridge)** means a mathlib theorem in `lean-bridge/`, which `lean-bridge/Audit.lean`
 requires by name. **Tested** means a regression or native test.
 
+<a id="compiled-reverse-core"></a>
+
+### Compiled reverse Core
+
+After acceptance, the kernel compiles the reverse passes of the executable
+Core into Core of their own (`lean-kernel/VastitasKernel/IndexedReverse.lean`).
+Code generation receives the result, `compiled`, on every public path. The
+[compiled reverse Core acceptance map](reverse-core-acceptance.md) links each
+claim below to its tests and theorems.
+
+- A [reverse site](appendix/glossary.md#reverse-site) is a call whose
+  [derivative rule](appendix/glossary.md#derivative-rule) is a reverse pass:
+  a cotangent pullback in either mode, a differential, or `cotangent_backward`
+  on a tape that `linearize` builds. The tape may be bound by a `let`.
+- The compilation reads the maps of a site through the derivative rules. A
+  call whose rule is `chain` composes the maps of two operands, and a `let`
+  whose definition may be copied to the site is read through. A nullary call
+  of a declared map is a step along its
+  [Jacobian table](appendix/glossary.md#jacobian-table). Every other map value
+  is an [opaque step](appendix/glossary.md#opaque-step). The compilation reads
+  at most `reverseLeaves` maps of one site. It reads through at most as many
+  levels as there are `let`s in scope, plus 64.
+- The [forward Core](appendix/glossary.md#forward-core) at the site binds the
+  input point r₀ and its images rᵢ = mᵢ(rᵢ₋₁) as ordinary Core values. r_k is
+  the primal value, and r₀, …, r_{k−1} are the
+  [residuals](appendix/glossary.md#residual). A differential also binds its
+  seed, the coordinate covector at r_k.
+- The [backward Core](appendix/glossary.md#backward-core) is a generated
+  function. It pulls the seed back along m_k, …, m₁: a declared map by its
+  Jacobian table, an opaque step by the
+  [runtime reverse pass](appendix/glossary.md#runtime-reverse-pass) in saved
+  mode. The function takes the map value of each opaque step as a parameter. A saved
+  site passes every point. A recomputing site passes r₀, and the function
+  evaluates the images again.
+- The kernel declares the step bindings of each site and its generated
+  function in the scope of the function that holds the site, under reserved
+  names (`__vastitas_rd…`, `__vastitas_rf…`). No source and no wire request
+  can name them.
+- `Core.Typing.checkModule` checks the generated module again, as it checks
+  source-derived Core. `validate` compiles the source module again and
+  requires the generated module and its ledger to be the result. This is
+  translation validation by recompilation, not by an independent checker. A
+  failure of either check is an internal error (`E_INTERNAL_REVERSE`). A
+  module without a reverse site compiles to itself.
+- The compilation rejects no accepted program. A site stays a call of the
+  runtime reverse pass when its maps cannot be read, or when a family of the
+  generated Core does not cover one of its objects. It also stays when its
+  declarations would exceed the 4096 declaration ids of a module. A function
+  whose compiled Core would exceed `generatedLets` keeps all its sites.
+- The compilation runs once, on source Core. An opaque step calls a saved
+  `cotangent_pullback` declaration, so compiling generated Core again would
+  compile that step again.
+
 ### Oracle theorems
 
 All of these are Proved (oracle). Names are relative to `VastitasOracle`.
@@ -2129,6 +2187,14 @@ coordinates.
   rejected primitive calls: see
   [Primitive registry evidence](#primitive-registry-evidence).
 - Native execution of the acceptance example and its mutations.
+- Compiled reverse Core:
+  - the generated Core of the acceptance example and of the corpus packages
+    where a branch chooses the map or a tape crosses a function
+    (`tests/reverse_core.rs`);
+  - the forged modules, the value of each compiled site against its source
+    call, and the budgets (`ReverseCoreRegression`);
+  - the generated code, byte for byte (`tests/emit_golden.rs`), and the
+    native fixtures `smooth_reverse_programs` and `smooth_reverse_extended`.
 - Compiled reverse Core as a whole module: that the compiled module evaluates
   as the source module in every function, `VastitasKernel.ReverseCoreRegression`
   and `tests/reverse_core.rs`. The oracle proves that the term at each compiled

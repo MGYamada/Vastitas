@@ -4,7 +4,8 @@ use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const PROFILES: &str = include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast");
+const PROFILES: &str =
+    include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast");
 
 fn bits(value: f64) -> u64 {
     value.to_bits()

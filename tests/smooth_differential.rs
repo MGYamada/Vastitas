@@ -522,7 +522,8 @@ fn main() -> Int {
 
 const COTANGENT_PROFILE: &str =
     include_str!("../examples/packages/geometry/smooth-cotangent/src/profile.vast");
-const COTANGENT_MAIN: &str = include_str!("../examples/packages/geometry/smooth-cotangent/src/main.vast");
+const COTANGENT_MAIN: &str =
+    include_str!("../examples/packages/geometry/smooth-cotangent/src/main.vast");
 
 fn cotangent_fixture(main: &str) -> Scratch {
     let s = Scratch::empty("smooth cotangent");
@@ -876,7 +877,8 @@ fn raw_wire_rejects_forged_fiber_and_tape_records() {
 // Metrics, evidence, flat and sharp (protocol 9). The differential needs no
 // metric; a gradient is an ordinary function that applies sharp to it.
 
-const METRIC_PROFILE: &str = include_str!("../examples/packages/geometry/smooth-metric/src/profile.vast");
+const METRIC_PROFILE: &str =
+    include_str!("../examples/packages/geometry/smooth-metric/src/profile.vast");
 const METRIC_MAIN: &str = include_str!("../examples/packages/geometry/smooth-metric/src/main.vast");
 
 fn metric_fixture_with(profile: &str, main: &str) -> Scratch {

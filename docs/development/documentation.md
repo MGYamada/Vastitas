@@ -127,7 +127,7 @@ next rewrite.
 
 - Put every complete accepted single-file program in `examples/book/`, or use a
   tested package under `examples/packages/`. Register it in
-  [`examples/corpus.toml`](../../examples/corpus.toml). Pull it into
+  [`examples/corpus.toml`](https://github.com/MGYamada/Vastitas/blob/main/examples/corpus.toml). Pull it into
   the chapter with the mdBook
   [`include` directive](https://rust-lang.github.io/mdBook/format/mdbook.html#including-files),
   so that the book shows the tested text. Step 3 of

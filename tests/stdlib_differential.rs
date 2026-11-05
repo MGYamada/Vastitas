@@ -9,7 +9,8 @@ use serde_json::Value;
 use std::path::Path;
 
 const MAIN: &str = include_str!("../examples/packages/stdlib/stdlib-differential/main.vast");
-const MANIFEST: &str = include_str!("../examples/packages/stdlib/stdlib-differential/Vastitas.toml");
+const MANIFEST: &str =
+    include_str!("../examples/packages/stdlib/stdlib-differential/Vastitas.toml");
 
 /// A metric-free program: the pullback, the differential and a tape.
 const METRIC_FREE: &str = r#"

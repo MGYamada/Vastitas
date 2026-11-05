@@ -18,7 +18,11 @@ use std::fs;
 /// (smooth-metric), and the standard-library differential profile
 /// (stdlib-differential).
 const CASES: &[(&str, &str, u64)] = &[
-    ("indexed", "examples/packages/geometry/indexed/Vastitas.toml", 7),
+    (
+        "indexed",
+        "examples/packages/geometry/indexed/Vastitas.toml",
+        7,
+    ),
     (
         "indexed-calls",
         "tests/emit_corpus/indexed-calls/Vastitas.toml",

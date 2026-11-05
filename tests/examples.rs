@@ -92,7 +92,10 @@ fn arithmetic_and_demo_packages() {
             .unwrap(),
     );
     documented(
-        &["--manifest-path", "examples/packages/core/demo/Vastitas.toml"],
+        &[
+            "--manifest-path",
+            "examples/packages/core/demo/Vastitas.toml",
+        ],
         "42",
     );
 }

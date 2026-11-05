@@ -11,7 +11,7 @@ python3 scripts/check_boundaries.py
 
 ## Source conformance corpus
 
-[`examples/`](../../examples/README.md) is the indexed public-compiler corpus.
+[`examples/`](https://github.com/MGYamada/Vastitas/blob/main/examples/README.md) is the indexed public-compiler corpus.
 Run its structural guard without the compiler, then exercise its acceptance,
 rejection and native-output contracts after building the kernel and driver and
 generating the stdlib package:

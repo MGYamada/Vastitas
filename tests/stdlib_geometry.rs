@@ -131,7 +131,10 @@ fn unchanged_legacy_examples_use_the_declared_stdlib_profile() {
         str::to_owned,
     ));
     native_result(
-        &fixture(include_str!("../examples/book/geometry/smooth.vast"), str::to_owned),
+        &fixture(
+            include_str!("../examples/book/geometry/smooth.vast"),
+            str::to_owned,
+        ),
         b"2\n",
     );
 }
@@ -160,12 +163,15 @@ fn main() -> Int {
 
 #[test]
 fn legacy_profile_paths_can_be_coherently_renamed() {
-    native(&fixture(include_str!("../examples/book/geometry/pointed.vast"), |text| {
-        text.replace("Scheme", "Space")
-            .replace("QQ", "Rational")
-            .replace("Point", "Position")
-            .replace("Morphism", "Arrow")
-    }));
+    native(&fixture(
+        include_str!("../examples/book/geometry/pointed.vast"),
+        |text| {
+            text.replace("Scheme", "Space")
+                .replace("QQ", "Rational")
+                .replace("Point", "Position")
+                .replace("Morphism", "Arrow")
+        },
+    ));
 }
 
 #[test]
@@ -835,7 +841,10 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
 
 #[test]
 fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
-    let s = fixture(include_str!("../examples/book/geometry/pointed.vast"), str::to_owned);
+    let s = fixture(
+        include_str!("../examples/book/geometry/pointed.vast"),
+        str::to_owned,
+    );
     let original = captured_wire(&s);
     assert_eq!(kernel(&original, "check")["ok"], true);
     let geo = original["packages"]

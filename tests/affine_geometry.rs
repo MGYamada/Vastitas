@@ -6,7 +6,8 @@ use common::{Scratch, cli, kernel, success};
 use serde_json::{Value, json};
 use std::os::unix::fs::PermissionsExt;
 
-const PROFILE: &str = include_str!("../examples/packages/geometry/affine-geometry/src/profile.vast");
+const PROFILE: &str =
+    include_str!("../examples/packages/geometry/affine-geometry/src/profile.vast");
 const MAIN: &str = include_str!("../examples/packages/geometry/affine-geometry/src/main.vast");
 
 fn fixture(main: &str) -> Scratch {

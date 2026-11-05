@@ -7,7 +7,8 @@ use std::process::Command;
 const MAIN: &str = include_str!("../examples/packages/numerical/numerical/src/main.vast");
 const REAL: &str = include_str!("../examples/packages/numerical/numerical/src/real/mod.vast");
 const COMPLEX: &str = include_str!("../examples/packages/numerical/numerical/src/complex/mod.vast");
-const PROFILES: &str = include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast");
+const PROFILES: &str =
+    include_str!("../examples/packages/numerical/numerical/src/profiles/mod.vast");
 
 fn fixture(real: &str) -> Scratch {
     let s = Scratch::empty("public numerical");
@@ -1120,7 +1121,8 @@ fn public_real_complex_products_build_execute_and_keep_output_protection() {
     assert_eq!(std::fs::read(s.0.join("program")).unwrap(), existing);
 }
 
-const TRANSFORMS: &str = include_str!("../examples/packages/numerical/linear-transforms/src/main.vast");
+const TRANSFORMS: &str =
+    include_str!("../examples/packages/numerical/linear-transforms/src/main.vast");
 
 fn transform_fixture(source: &str) -> Scratch {
     let s = Scratch::empty("typed linear transforms");
@@ -1526,7 +1528,8 @@ fn typed_linear_transforms_build_execute_real_complex_and_rectangular_calls() {
     }
 }
 
-const NETWORK_REAL: &str = include_str!("../examples/packages/tensor/finite_network/src/real/mod.vast");
+const NETWORK_REAL: &str =
+    include_str!("../examples/packages/tensor/finite_network/src/real/mod.vast");
 const NETWORK_COMPLEX: &str =
     include_str!("../examples/packages/tensor/finite_network/src/complex/mod.vast");
 
@@ -1808,7 +1811,8 @@ fn finite_network_preserves_explicit_transformed_map_authority() {
     }
 }
 
-const EVALUATION: &str = include_str!("../examples/packages/numerical/vector-evaluation/src/main.vast");
+const EVALUATION: &str =
+    include_str!("../examples/packages/numerical/vector-evaluation/src/main.vast");
 
 fn evaluation_fixture(source: &str) -> Scratch {
     let s = Scratch::empty("bilinear vector evaluation");
@@ -2120,7 +2124,9 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
     let source = |complex: bool| {
         let (source, scalar, zero, one, result) = if complex {
             (
-                include_str!("../examples/packages/numerical/generative-owned-map/src/complex/mod.vast"),
+                include_str!(
+                    "../examples/packages/numerical/generative-owned-map/src/complex/mod.vast"
+                ),
                 "Complex<F64>",
                 "complex_bits(0, 0)",
                 "complex_bits(4607182418800017408, 0)",
@@ -2128,7 +2134,9 @@ fn generated_owned_packages_feed_real_complex_gemm_without_copying() {
             )
         } else {
             (
-                include_str!("../examples/packages/numerical/generative-owned-map/src/real/mod.vast"),
+                include_str!(
+                    "../examples/packages/numerical/generative-owned-map/src/real/mod.vast"
+                ),
                 "F64",
                 "f64_bits(0)",
                 "f64_bits(4607182418800017408)",

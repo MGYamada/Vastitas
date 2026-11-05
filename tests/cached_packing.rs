@@ -3,7 +3,8 @@ use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/tensor/cached-tensor-packing/src/real/mod.vast");
+const REAL: &str =
+    include_str!("../examples/packages/tensor/cached-tensor-packing/src/real/mod.vast");
 const COMPLEX: &str =
     include_str!("../examples/packages/tensor/cached-tensor-packing/src/complex/mod.vast");
 

@@ -4,7 +4,8 @@ use serde_json::{Value, json};
 use std::process::Command;
 
 const REAL: &str = include_str!("../examples/packages/tensor/tensor-packing/src/real/mod.vast");
-const COMPLEX: &str = include_str!("../examples/packages/tensor/tensor-packing/src/complex/mod.vast");
+const COMPLEX: &str =
+    include_str!("../examples/packages/tensor/tensor-packing/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     let s = Scratch::empty("tensor packing");

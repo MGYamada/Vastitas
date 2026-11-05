@@ -3,8 +3,10 @@ use common::{Scratch, assert_rejected, cli, kernel, success};
 use serde_json::{Value, json};
 use std::process::Command;
 
-const REAL: &str = include_str!("../examples/packages/numerical/diagonal-metrics/src/real/mod.vast");
-const COMPLEX: &str = include_str!("../examples/packages/numerical/diagonal-metrics/src/complex/mod.vast");
+const REAL: &str =
+    include_str!("../examples/packages/numerical/diagonal-metrics/src/real/mod.vast");
+const COMPLEX: &str =
+    include_str!("../examples/packages/numerical/diagonal-metrics/src/complex/mod.vast");
 
 fn fixture(real: &str, complex: &str) -> Scratch {
     let s = Scratch::empty("diagonal metrics");

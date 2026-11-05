@@ -39,7 +39,8 @@ statement = """
 `Indexed.LegacySource.check` returns for `tests/fixtures/promotion.json`. The
 `stdlib_indexed_checked%` elaborator runs that checker at elaboration time,
 prints the returned module with `reprStr` and elaborates the text as
-`checked`. A build-time `#eval` compares the two renderings. That agreement
-rests on compiled evaluation and on a faithful `Repr`, which the axiom audit
-cannot see.
+`checked`; before parsing, it writes the field name `end` as `«end»`. A
+build-time `#eval` compares the two renderings and checks the reflected module
+again with `Typing.checkModule`. That agreement rests on compiled evaluation
+and on a faithful `Repr`, which the axiom audit cannot see.
 """

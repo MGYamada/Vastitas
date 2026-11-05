@@ -68,8 +68,8 @@ The rules for claims:
   `cfg(test)`, does not count as run, nor does a Python test that a decorator
   always skips: `skip`, `skipIf(True, …)` or `skipUnless(False, …)`.
 - An Assumed claim must cite entries of the assumption registry,
-  `docs/spec/assumptions.toml`. The registry's generated chapter lists every
-  claim that cites each entry.
+  `docs/spec/assumptions.toml`. The registry's chapter,
+  [Assumptions](spec/assumptions.md), lists every claim that cites each entry.
 - A Not claimed claim must give a reason, and a Planned claim must give an
   issue number.
 

@@ -5,6 +5,7 @@ mod internal_lean_audit;
 pub mod ir;
 mod limits;
 mod packages;
+mod primitive_table;
 mod process;
 mod sources;
 pub mod storage;

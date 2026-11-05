@@ -8,7 +8,15 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked --all-targets
 python3 scripts/check_boundaries.py
 python3 scripts/check_spec.py
+python3 scripts/check_primitive_table.py
 ```
+
+`src/primitive_table.rs` is generated from the kernel's primitive families
+(`lean-kernel/VastitasKernel/IndexedPrimitiveFamilies.lean`).
+`check_primitive_table.py` builds that module, renders the table and fails on
+any difference. After a change to the families, run
+`python3 scripts/check_primitive_table.py --write` and review the diff of the
+table.
 
 To build the separate proof oracle and audit every kernel and oracle module
 (the audit needs every kernel library root, executable and regression module

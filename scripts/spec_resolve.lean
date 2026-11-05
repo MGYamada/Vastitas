@@ -18,13 +18,18 @@ cd lean-bridge && VASTITAS_SPEC_INPUT=../docs/spec/pins/bridge.json \
   lake env lean -DwarningAsError=true ../scripts/spec_resolve.lean
 ```
 
-Each pinned name must exist, be defined in its pinned module under the root of
-the environment, and have its pinned kind. The oracle environment resolves
-theorems under `VastitasOracle` and kernel definitions under `VastitasKernel`;
-the bridge environment resolves theorems under `VastitasBridge` only. A theorem
-may reach only the axioms `propext`, `Classical.choice` and `Quot.sound`. The
-search walks types, values and constructors itself, as `scripts/audit_axioms.lean`
-does; it does not use axiom sets recorded in imported object files. A theorem's
+Each pinned name must exist, be declared by exactly one module, its pinned
+module, under the root of the environment, and have its pinned kind. The
+oracle environment resolves theorems under `VastitasOracle` and kernel
+definitions under `VastitasKernel`; the bridge environment resolves theorems
+under `VastitasBridge` only. A pinned declaration may reach only the axioms
+`propext` of `Init.Core` and `Classical.choice` and `Quot.sound` of
+`Init.Prelude`. The search walks types, values and constructors itself, as
+`scripts/audit_axioms.lean` does; it does not use axiom sets recorded in
+imported object files. It fails on a constant that the imported modules do not
+define. Lean merges declarations of one name with one type on import, as it
+does for equation lemmas that several modules generate, and keeps one copy; the
+search therefore walks every copy that a project module declares. A theorem's
 statement must have its pinned hash.
 
 The hash is the SHA-256 of a canonical text of the statement: the universe
@@ -34,11 +39,14 @@ in the text is self-delimiting, so two different types have different texts.
 The pin covers the statement's expression; it does not cover the bodies of the
 definitions that the statement names.
 
-With `VASTITAS_SPEC_REPORT=<file>` the resolver writes what it finds to that
-file instead of comparing. `check_spec.py --update-statements` uses this mode,
-importing the package root, to pin new names. `VASTITAS_SPEC_CANONICAL=1` adds
-the canonical text of each statement to the report, so that
-`scripts/check_spec_lean.py` can compare this SHA-256 with Python's. -/
+An entry without a pinned module or statement is compared with nothing, and
+outside report mode its absence is a problem. With `VASTITAS_SPEC_REPORT=<file>`
+the resolver also writes what it finds to that file; `check_spec.py
+--update-statements` uses this mode, importing the package root, to pin new
+names. Every problem fails the run, in both modes. `VASTITAS_SPEC_CANONICAL=1`
+adds the canonical text of each statement to the report, so that
+`scripts/check_spec_lean.py` can compare this SHA-256 with Python's, and
+`VASTITAS_SPEC_STATEMENT_LIMIT` lowers the statement size limit for its test. -/
 namespace VastitasSpecResolve
 
 /-! ## SHA-256 (FIPS 180-4) -/
@@ -134,6 +142,11 @@ def appendName (out : String) : Name → String
   | .str pre part => appendName out pre ++ ".s" ++ toString part.utf8ByteSize ++ ":" ++ part
   | .num pre index => appendName out pre ++ ".n" ++ toString index ++ ";"
 
+/-- Statements longer than this many bytes are not pinned. The canonical text is
+built as a tree, so the limit also bounds the work on a statement with shared
+subterms. -/
+def statementLimit : Nat := 4 * 1024 * 1024
+
 partial def appendLevel (out : String) : Level → Except String String
   | .zero => pure (out.push 'z')
   | .succ level => appendLevel (out.push 's') level
@@ -146,7 +159,12 @@ partial def appendLevel (out : String) : Level → Except String String
   | .param name => pure ((appendName (out.push 'p') name).push ';')
   | .mvar _ => throw "a universe metavariable"
 
-partial def appendExpr (out : String) : Expr → Except String String
+partial def appendExpr (limit : Nat) (out : String) (e : Expr) : Except String String := do
+  if out.utf8ByteSize > limit then
+    throw s!"more than {limit} bytes of canonical text"
+  appendExprStep limit out e
+where
+  appendExprStep (limit : Nat) (out : String) : Expr → Except String String
   | .bvar index => pure (out ++ "#" ++ toString index ++ ";")
   | .sort level => return (← appendLevel (out.push 'S') level).push ';'
   | .const name levels => do
@@ -155,40 +173,66 @@ partial def appendExpr (out : String) : Expr → Except String String
       out := (← appendLevel out level).push ','
     return out.push '}'
   | .app function argument => do
-    let out ← appendExpr (out ++ "A(") function
-    return (← appendExpr (out.push ' ') argument).push ')'
+    let out ← appendExpr limit (out ++ "A(") function
+    return (← appendExpr limit (out.push ' ') argument).push ')'
   | .lam _ type body _ => do
-    let out ← appendExpr (out ++ "L(") type
-    return (← appendExpr (out.push ' ') body).push ')'
+    let out ← appendExpr limit (out ++ "L(") type
+    return (← appendExpr limit (out.push ' ') body).push ')'
   | .forallE _ type body _ => do
-    let out ← appendExpr (out ++ "P(") type
-    return (← appendExpr (out.push ' ') body).push ')'
+    let out ← appendExpr limit (out ++ "P(") type
+    return (← appendExpr limit (out.push ' ') body).push ')'
   | .letE _ type value body _ => do
-    let out ← appendExpr (out ++ "E(") type
-    let out ← appendExpr (out.push ' ') value
-    return (← appendExpr (out.push ' ') body).push ')'
+    let out ← appendExpr limit (out ++ "E(") type
+    let out ← appendExpr limit (out.push ' ') value
+    return (← appendExpr limit (out.push ' ') body).push ')'
   | .lit (.natVal value) => pure (out ++ "N" ++ toString value ++ ";")
   | .lit (.strVal value) => pure (out ++ "T" ++ toString value.utf8ByteSize ++ ":" ++ value)
-  | .mdata _ inner => appendExpr out inner
+  | .mdata _ inner => appendExpr limit out inner
   | .proj typeName index inner => do
     let out := appendName (out.push 'J') typeName
-    return (← appendExpr (out ++ "." ++ toString index ++ "(") inner).push ')'
+    return (← appendExpr limit (out ++ "." ++ toString index ++ "(") inner).push ')'
   | .fvar _ => throw "a free variable"
   | .mvar _ => throw "a metavariable"
 
 /-- The canonical text of a declaration's statement: its universe parameters and its type. -/
-def statementText (info : ConstantInfo) : Except String String := do
+def statementText (limit : Nat) (info : ConstantInfo) : Except String String := do
   let mut out := "vastitas-statement-v1 U{"
   for level in info.levelParams do
     out := (appendName out level).push ','
-  appendExpr (out ++ "} ") info.type
-
-/-- Statements longer than this many bytes are not pinned. -/
-def statementLimit : Nat := 16 * 1024 * 1024
+  let text ← appendExpr limit (out ++ "} ") info.type
+  if text.utf8ByteSize > limit then
+    throw s!"more than {limit} bytes of canonical text"
+  return text
 
 /-! ## Axioms -/
 
-def approvedAxioms : Array Name := #[`propext, `Classical.choice, `Quot.sound]
+/-- The approved axioms and the Lean modules that declare them. -/
+def approvedAxioms : Array (Name × Name) :=
+  #[(`propext, `Init.Core), (`Classical.choice, `Init.Prelude), (`Quot.sound, `Init.Prelude)]
+
+/-- The roots of the project's modules, whose constants must each have one declaring module. -/
+def projectRoots : Array Name := #[`VastitasOracle, `VastitasKernel, `VastitasPromotion, `VastitasBridge,
+  `VastitasAlgebraTest, `VastitasPublicTest, `VastitasStorageTest]
+
+/-- The module that declares `name` in `env`, if any. -/
+def ownerOf (env : Environment) (name : Name) : Option Name :=
+  (env.getModuleIdxFor? name).bind fun index => env.allImportedModuleNames[index.toNat]?
+
+/-- Every copy of each project constant that more than one imported project
+module declares. Lean merges such copies on import and keeps one of them. -/
+def copies (env : Environment) : NameMap (Array ConstantInfo) := Id.run do
+  let project := (List.range env.header.moduleNames.size).filter fun index =>
+    (env.header.moduleNames[index]?.map fun module => projectRoots.any (·.isPrefixOf module)).getD false
+  let mut counts : NameMap Nat := {}
+  for index in project do
+    for name in (env.header.moduleData[index]?.map (·.constNames)).getD #[] do
+      counts := counts.insert name ((counts.find? name).getD 0 + 1)
+  let mut result : NameMap (Array ConstantInfo) := {}
+  for index in project do
+    for info in (env.header.moduleData[index]?.map (·.constants)).getD #[] do
+      if (counts.find? info.name).getD 0 > 1 then
+        result := result.insert info.name (((result.find? info.name).getD #[]).push info)
+  return result
 
 /-- Constants that a declaration refers to: its type, its value (also for
 theorems and opaque constants) and the constructors of an inductive type. -/
@@ -201,30 +245,43 @@ def dependencies (info : ConstantInfo) : Array Name :=
   | .inductInfo v => used [v.type] ++ v.ctors.toArray
   | info => used [info.type]
 
-/-- Every axiom reachable from `root`, by an exact search with one visited set.
-`cache` keeps the dependencies of each constant already read. -/
-def axiomsOf (env : Environment) (cache : NameMap (Array Name)) (root : Name) :
-    Array Name × NameMap (Array Name) := Id.run do
+structure Reached where
+  axioms : Array Name := #[]
+  /-- Reached constants that the imported modules do not define. -/
+  missing : Array Name := #[]
+
+/-- Every axiom reachable from `root`, by an exact search with one visited set,
+through every copy of a merged constant. `cache` keeps the dependencies of
+each constant already read. -/
+def axiomsOf (env : Environment) (merged : NameMap (Array ConstantInfo)) (cache : NameMap (Array Name))
+    (root : Name) : Reached × NameMap (Array Name) := Id.run do
   let mut cache := cache
   let mut visited : NameSet := ({} : NameSet).insert root
   let mut stack := #[root]
-  let mut found := #[]
+  let mut found : Reached := {}
   while !stack.isEmpty do
     let name := stack.back!
     stack := stack.pop
-    let some info := env.find? name | continue
-    if let .axiomInfo _ := info then found := found.push name
+    let infos := (merged.find? name).getD (env.find? name).toArray
+    if infos.isEmpty then
+      found := { found with missing := found.missing.push name }
+      continue
+    if infos.any (fun info => info matches .axiomInfo _) then
+      found := { found with axioms := found.axioms.push name }
     let mut next := #[]
     match cache.find? name with
     | some known => next := known
     | none =>
-      next := dependencies info
+      next := infos.foldl (fun all info => all ++ dependencies info) #[]
       cache := cache.insert name next
     for dependency in next do
       unless visited.contains dependency do
         visited := visited.insert dependency
         stack := stack.push dependency
-  return (found.qsort Name.lt, cache)
+  let sorted : Reached := {
+    axioms := found.axioms.qsort Name.lt
+    missing := found.missing.qsort Name.lt }
+  return (sorted, cache)
 
 /-! ## Pins -/
 
@@ -294,10 +351,10 @@ structure Outcome where
   definitions : Nat := 0
 
 /-- Check one entry in `env`: the facts found, the problems, and the extended cache.
-With `compare`, the pinned module and statement must match; otherwise the facts
-only describe what the environment contains. -/
-def resolveEntry (env : Environment) (environment : String) (rules : Rules) (entry : Entry)
-    (compare canonical : Bool) (cache : NameMap (Array Name)) :
+A pinned module or statement must match what `env` contains; outside `report`
+mode an entry must pin both. -/
+def resolveEntry (env : Environment) (merged : NameMap (Array ConstantInfo)) (environment : String) (rules : Rules)
+    (entry : Entry) (report canonical : Bool) (limit : Nat) (cache : NameMap (Array Name)) :
     Option Json × Array String × NameMap (Array Name) := Id.run do
   let text := entry.text
   let mut problems : Array String := #[]
@@ -311,54 +368,61 @@ def resolveEntry (env : Environment) (environment : String) (rules : Rules) (ent
     problems := problems.push s!"{text}: is not a fully qualified name under {root}"
   let some info := env.find? name
     | return (none, problems.push s!"{text}: is not found in the imported modules", cache)
-  let owner := ((env.getModuleIdxFor? name).bind fun index =>
-    env.allImportedModuleNames[index.toNat]?).getD .anonymous
+  let owner := (ownerOf env name).getD .anonymous
   let kind := kindOf info
   if kind != entry.kind then
     problems := problems.push s!"{text}: is a {kind}, not a {entry.kind}"
   unless root.isPrefixOf owner do
     problems := problems.push s!"{text}: is defined in {owner}, outside {root}"
-  if compare then
-    match entry.module? with
-    | some module =>
-      if parseName? module != some owner then
-        problems := problems.push s!"{text}: is defined in {owner}, not in the pinned module {module}"
-    | none => problems := problems.push s!"{text}: has no pinned module"
+  if merged.contains name then
+    problems := problems.push s!"{text}: is declared by more than one imported module"
+  match entry.module? with
+  | some module =>
+    if parseName? module != some owner then
+      problems := problems.push s!"{text}: is defined in {owner}, not in the pinned module {module}"
+  | none =>
+    unless report do problems := problems.push s!"{text}: has no pinned module"
   let mut fact : List (String × Json) :=
     [("name", toJson text), ("kind", toJson kind), ("module", toJson owner.toString)]
-  let mut cache := cache
+  let (reached, cache) := axiomsOf env merged cache name
+  for axiomName in reached.axioms do
+    let module := (ownerOf env axiomName).getD .anonymous
+    unless approvedAxioms.contains (axiomName, module) do
+      problems := problems.push s!"{text}: depends on the unapproved axiom {axiomName} of {module}"
+  for missing in reached.missing do
+    problems := problems.push s!"{text}: reaches {missing}, which the imported modules do not define"
+  fact := fact ++ [("axioms", toJson (reached.axioms.map toString))]
   if kind == "theorem" then
-    let (axioms, extended) := axiomsOf env cache name
-    cache := extended
-    for axiomName in axioms do
-      unless approvedAxioms.contains axiomName do
-        problems := problems.push s!"{text}: depends on the unapproved axiom {axiomName}"
-    fact := fact ++ [("axioms", toJson (axioms.map toString))]
-    match statementText info with
+    match statementText limit info with
     | .error what =>
       problems := problems.push s!"{text}: has a statement that cannot be pinned: it contains {what}"
     | .ok statement =>
-      if statement.utf8ByteSize > statementLimit then
-        problems := problems.push s!"{text}: has a statement longer than {statementLimit} bytes"
       let hash := "sha256:" ++ sha256 statement.toUTF8
       fact := fact ++ [("statement", toJson hash)]
       if canonical then
         fact := fact ++ [("canonical", toJson statement)]
-      if compare then
-        match entry.statement? with
-        | some pinned =>
-          if pinned != hash then
-            problems := problems.push s!"{text}: has a changed statement: pinned {pinned}, found {hash}"
-        | none => problems := problems.push s!"{text}: has no pinned statement"
+      match entry.statement? with
+      | some pinned =>
+        if pinned != hash then
+          problems := problems.push s!"{text}: has a changed statement: pinned {pinned}, found {hash}"
+      | none =>
+        unless report do problems := problems.push s!"{text}: has no pinned statement"
   return (some (Json.mkObj fact), problems, cache)
 
 /-- Check every entry in `env`. -/
 def resolve (env : Environment) (environment : String) (rules : Rules) (entries : Array Entry)
-    (compare canonical : Bool) : Outcome := Id.run do
+    (report canonical : Bool) (limit : Nat) : Outcome := Id.run do
   let mut outcome : Outcome := {}
   let mut cache : NameMap (Array Name) := {}
+  let merged := copies env
+  for (axiomName, module) in approvedAxioms do
+    if let some owner := ownerOf env axiomName then
+      unless owner == module do
+        let problem := s!"the imported modules declare the axiom {axiomName} in {owner}, not in {module}"
+        outcome := { outcome with problems := outcome.problems.push problem }
   for entry in entries do
-    let (fact?, problems, extended) := resolveEntry env environment rules entry compare canonical cache
+    let (fact?, problems, extended) :=
+      resolveEntry env merged environment rules entry report canonical limit cache
     cache := extended
     outcome := { outcome with problems := outcome.problems ++ problems }
     if let some fact := fact? then
@@ -381,6 +445,7 @@ run_cmd do
     | throwError "set VASTITAS_SPEC_INPUT to a statement pins file, such as ../docs/spec/pins/oracle.json"
   let report? ← IO.getEnv "VASTITAS_SPEC_REPORT"
   let canonical := (← IO.getEnv "VASTITAS_SPEC_CANONICAL") == some "1"
+  let limit := ((← IO.getEnv "VASTITAS_SPEC_STATEMENT_LIMIT").bind String.toNat?).getD statementLimit
   let (environment, imports, entries) ← match parseInput (← IO.FS.readFile path) with
     | .ok input => pure input
     | .error message => throwError "{path}: {message}"
@@ -391,14 +456,13 @@ run_cmd do
   if imports.isEmpty then
     throwError "{path}: no modules to import"
   let env ← importModules (imports.map ({ module := · })) {}
-  let outcome := resolve env environment rules entries report?.isNone canonical
-  match report? with
-  | some out =>
+  let outcome := resolve env environment rules entries report?.isSome canonical limit
+  if let some out := report? then
     IO.FS.writeFile out (Json.mkObj [("format", toJson (1 : Nat)), ("environment", toJson environment),
       ("entries", Json.arr outcome.facts), ("problems", toJson outcome.problems)]).pretty
     logInfo m!"specification resolver ({environment}): reported {entries.size} declarations to {out}"
-  | none =>
-    unless outcome.problems.isEmpty do
-      throwError "specification resolver ({environment}) rejected {path}:\n{"\n".intercalate outcome.problems.toList}\nIf the change is intended, review it, then run: python3 scripts/check_spec.py --update-statements {environment}"
+  unless outcome.problems.isEmpty do
+    throwError "specification resolver ({environment}) rejected {path}:\n{"\n".intercalate outcome.problems.toList}\nIf the change is intended, review it, then run: python3 scripts/check_spec.py --update-statements {environment}"
+  if report?.isNone then
     let count (n : Nat) (noun : String) := s!"{n} {noun}{if n == 1 then "" else "s"}"
     logInfo m!"specification resolver ({environment}): {count outcome.theorems "theorem"} and {count outcome.definitions "kernel definition"} resolved in {count imports.size "module"}"

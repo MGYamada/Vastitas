@@ -614,7 +614,21 @@ class FixtureTests(unittest.TestCase):
                 [(step, step + "        Shell: sh\n")],
                 [("jobs:\n", "env:\n  RUSTFLAGS: --cfg x\njobs:\n")],
                 [(step, step + "        working-directory: link/..\n")],
-                [(step, "      - run: 'cargo test --locked --all-targets' trailing\n")]):
+                [(step, "      - run: 'cargo' test --locked --all-targets\n")],
+                # The review of #656: keys in another case in triggers, needed jobs
+                # and matrices, symbolic links and CARGO_ variables.
+                [("jobs:\n", "jobs:\n  gate:\n    If: false\n    runs-on: ubuntu-latest\n    steps:\n"
+                  "      - run: true\n"), ("  test:\n", "  test:\n    needs: gate\n")],
+                [("  pull_request:\n", "  pull_request:\n    Paths: [docs/**]\n")],
+                [("  pull_request:\n", "  Pull_Request:\n")],
+                [("runs-on: ubuntu-latest\n", "runs-on: ${{ matrix.os }}\n    strategy:\n      matrix:\n"
+                  "        os: [ubuntu-latest]\n        Exclude:\n          - os: ubuntu-latest\n")],
+                [("    runs-on: ubuntu-latest\n", "    Runs-On: ubuntu-latest\n    runs-on: ubuntu-latest\n")],
+                [("jobs:\n", "Defaults:\n  run:\n    shell: sh\njobs:\n")],
+                [(step, step + "        Env:\n          BASH_ENV: /tmp/exit.sh\n")],
+                [("    steps:\n", "    steps:\n      - Run: echo \"X=1\" >> \"$GITHUB_ENV\"\n")],
+                [("jobs:\n", "env:\n  CARGO_ENCODED_RUSTFLAGS: x\njobs:\n")],
+                [("jobs:\n", "env:\n  CARGO_HOME: .cargo-home\njobs:\n")]):
             with self.subTest(edits=edits):
                 workflow = WORKFLOW
                 for old, new in edits:
@@ -756,11 +770,13 @@ class FixtureTests(unittest.TestCase):
                  "no CI step runs `scripts/test_demo.py::DemoTests::test_identity`"),
                 ({"Cargo.toml": "[workspace]\nmembers = []\n"}, rust),
                 ({"Cargo.toml": '[package]\nname = "vastitas"\n\n[workspace]\ndefault-members = ["other"]\n'}, rust),
-                ({".cargo/config.toml": "[target.'cfg(all())']\nrunner = \"true\"\n"}, rust)):
+                ({".cargo/config.toml": "[target.'cfg(all())']\nrunner = \"true\"\n"}, rust),
+                ({".cargo/config": "[target.'cfg(all())']\nrunner = \"true\"\n"}, rust),
+                ({"Cargo.toml": '[package]\nname = "vastitas"\n\n[workspace]\ndefault-members = ["."]\n'}, rust)):
             with self.subTest(files=files):
                 for name, contents in FILES.items():
                     self.put(name, contents)
-                for name in ("unittest.py", ".cargo/config.toml"):
+                for name in ("unittest.py", ".cargo/config.toml", ".cargo/config"):
                     if (self.root / name).exists():
                         (self.root / name).unlink()
                 for name, contents in files.items():
@@ -773,19 +789,91 @@ class FixtureTests(unittest.TestCase):
         os.symlink("../../workflow.yml", self.root / ".github/workflows/ci.yml")
         self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
 
+    def test_workflow_directories_that_are_symbolic_links_do_not_count(self):
+        for link in (".github", ".github/workflows"):
+            with self.subTest(link=link):
+                self.setUp()
+                os.rename(self.root / link, self.root / "moved")
+                os.symlink(os.path.relpath(self.root / "moved", (self.root / link).parent), self.root / link)
+                self.assertRejected("no CI step runs `tests/demo.rs::identity_runs`")
+
+    def test_modules_that_shadow_the_standard_library(self):
+        # The review of #656: any standard-library name in the working directory wins under `python3 -m`.
+        python = "no CI step runs `scripts/test_demo.py::DemoTests::test_identity`"
+        for name in ("argparse.py", "unittest/__init__.py", "fnmatch.pyc", "sitecustomize.py"):
+            with self.subTest(name=name):
+                self.setUp()
+                self.put(name, "import sys\nsys.exit(0)\n")
+                self.assertRejected(python)
+        self.setUp()
+        self.put("experiments/argparse.py", "")
+        self.edit(".github/workflows/ci.yml", "        run: python3 -m unittest discover -s scripts -p 'test_*.py'\n",
+                  "        run: python3 -m unittest discover -s ../scripts -p 'test_*.py'\n"
+                  "        working-directory: experiments\n")
+        self.assertRejected(python)
+        self.setUp()
+        self.put("argparse", "")
+        self.put("unittest/data.txt", "")
+        self.assertEqual(self.errors(), [])
+
+    def test_regression_script_runs_as_a_path_from_the_root(self):
+        self.edit(".github/workflows/ci.yml", "bash scripts/check_kernel_regressions.sh",
+                  "bash ./scripts/check_kernel_regressions.sh")
+        self.assertEqual(self.errors(), [])
+
     def test_python_tests_whose_class_or_base_the_module_rebinds(self):
         cited = "unittest may skip `scripts/test_demo.py::DemoTests::test_identity` or expect it to fail"
         for source in (PYTHON.replace("import unittest\n", "import unittest\n\n\nclass TestCase:\n    pass\n")
                        .replace("(unittest.TestCase)", "(TestCase)"),
                        PYTHON + "\n\ndel DemoTests\n", PYTHON + "\n\nDemoTests = None\n",
                        PYTHON.replace("import unittest\n", "import mock as unittest\n"),
-                       PYTHON.replace("import unittest\n", "import unittest\nfrom helpers import TestCase\n")):
+                       PYTHON.replace("import unittest\n", "import unittest\nfrom helpers import TestCase\n"),
+                       # The review of #656.
+                       PYTHON + "\n\n(DemoTests := None)\n", PYTHON + "\n\nfor DemoTests in [None]:\n    pass\n",
+                       PYTHON + "\n\nwith open(__file__) as DemoTests:\n    pass\n",
+                       PYTHON + "\n\ntry:\n    pass\nexcept ValueError as DemoTests:\n    pass\n",
+                       PYTHON + "\n\nimport os as DemoTests\n", PYTHON + "\n\ndef DemoTests():\n    pass\n",
+                       PYTHON + "\n\nglobals()['DemoTests'] = None\n", PYTHON + "\n\nexec('del DemoTests')\n",
+                       PYTHON + "\n\ntype.__setattr__(DemoTests, 'test_identity', None)\n",
+                       PYTHON + "\n\nTestCase = object\n", PYTHON + "\n\ndef TestCase():\n    pass\n",
+                       PYTHON.replace("import unittest\n", "import unittest\nfrom unittest import TestCase as "
+                                      "IsolatedAsyncioTestCase\n"),
+                       PYTHON.replace("    def test_identity", "    @print\n    def test_identity"),
+                       PYTHON.replace("class DemoTests", "@print\nclass DemoTests"),
+                       PYTHON.replace("(unittest.TestCase)", "(unittest.TestCase, metaclass=type)"),
+                       PYTHON.replace("        pass\n", "        pass\n\n    def run(self, result=None):\n"
+                                      "        return result\n")):
             with self.subTest(source=source):
                 self.put("scripts/test_demo.py", source)
                 self.assertRejected(cited)
+        # A base from another module is no unittest base that the check reads.
+        for base in ("helpers.TestCase", "helpers.Mixin, unittest.TestCase"):
+            with self.subTest(base=base):
+                self.put("scripts/test_demo.py", PYTHON.replace("import unittest\n", "import unittest\nimport helpers\n")
+                         .replace("(unittest.TestCase)", f"({base})"))
+                self.assertRejected("scripts/test_demo.py has no unittest test method `DemoTests.test_identity`")
+
+    def test_python_tests_that_import_unittest_plainly_count(self):
+        for source in (PYTHON.replace("import unittest\n", "from unittest import TestCase\n")
+                       .replace("(unittest.TestCase)", "(TestCase)"),
+                       PYTHON.replace("import unittest\n", "import unittest\nimport re\n\nPATTERN = re.compile('x')\n")):
+            with self.subTest(source=source):
+                self.put("scripts/test_demo.py", source)
+                self.assertEqual(self.errors(), [])
+
+    def test_rust_tests_with_attributes_that_the_check_does_not_read(self):
+        unread = "`tests/demo.rs::identity_runs`, an enclosing module or its file carries an attribute"
+        for old, new in (("#[test]\nfn identity_runs() {}", "#[my_crate::attr]\n#[test]\nfn identity_runs() {}"),
+                         ("#[test]\nfn identity_runs() {}", "#[test]\n#[cfg_attr(miri, tokio::test)]\nfn identity_runs() {}"),
+                         ("#[test]\nfn identity_runs() {}", "#![my_attr]\n#[test]\nfn identity_runs() {}")):
+            with self.subTest(new=new):
+                self.put("tests/demo.rs", RUST.replace(old, new))
+                self.assertRejected(unread)
 
     def test_rust_tests_inside_macros_are_not_tests(self):
         for body in ("never!(\n    #[test]\n    fn identity_runs() {}\n);",
+                     "never!(\n    vec![1];\n    #[test]\n    fn identity_runs() {}\n);",
+                     "macro_rules! unused (\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n);",
                      "macro_rules! unused {\n    () => (\n        #[test]\n        fn identity_runs() {}\n    );\n}"):
             with self.subTest(body=body):
                 self.put("tests/demo.rs", RUST.replace("#[test]\nfn identity_runs() {}", body))
@@ -985,6 +1073,9 @@ class ParserTests(unittest.TestCase):
                           ["scripts", "test_*.py", "."], ["-s"], ["--unknown"], ["-x"],
                           ["scripts", "-s", "experiments"], ["-p", "x", "scripts", "test_*.py"]):
             self.assertIsNone(discover_run(arguments, here), arguments)
+        self.assertTrue(discover_run(["scripts", "-p", "test_*.py"], here).runs("scripts/test_a.py", "A", "test_a"))
+        for arguments in ():
+            self.assertIsNone(discover_run(arguments, here), arguments)
 
     def test_pull_request_triggers(self):
         self.assertTrue(every_pull_request({"pull_request": None, "push": None}))
@@ -1063,6 +1154,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(check_spec.yaml_load('a:\n  - "b: c"\n'), {"a": ["b: c"]})
         self.assertEqual(check_spec.yaml_load("a: 'b' # 'c'\n"), {"a": "b"})
         self.assertEqual(check_spec.yaml_load('a: "b\\"c"\n'), {"a": 'b"c'})
+        self.assertEqual(check_spec.yaml_load("a: 'b''c'\n"), {"a": "b'c"})
+        self.assertEqual(check_spec.yaml_load('a: "b\\/c"\n'), {"a": "b/c"})
         for text in ("a: 'b\n  c'\nd: 1\n", "a:\n  - b\n c: 1\n", "a: [b,\n  c]\n", "a: 'b' c\n",
                      'a: "b\\nc"\n', "a: b\u0085c: d\n", "a: b\u3000\n", "a: b\x0cc\n"):
             with self.subTest(text=text):
@@ -1081,10 +1174,19 @@ class ParserTests(unittest.TestCase):
             "/* #[test]", "fn h() {} */",
             'const S: &str = r#"', "#[test]", 'fn i() {}"#;',
             "fn helper<'a>(x: &'a str) -> char { '{' }",
-            "#[test]", "fn j() {}", ""])
+            "#[test]", "fn j() {}",
+            "#[test]", "#[serial]", "fn k() {}",
+            "#[test]", "#[cfg_attr(miri, my_crate::attr)]", "fn l() {}",
+            "#[test]", "#[allow(dead_code)]", "#[cfg_attr(unix, allow(unused))]", "fn m() {}",
+            "#[my_crate::wrap]", "mod wrapped {", "    #[test]", "    fn n() {}", "}", ""])
         self.assertEqual(rust_tests(source), {
-            "a": (False, True), "b": (True, False), "d": (False, False), "e": (True, False),
-            "f": (False, False), "tests::g": (False, False), "j": (False, False)})
+            "a": (False, True, False), "b": (True, False, False), "d": (False, False, False),
+            "e": (True, False, False), "f": (False, False, False), "tests::g": (False, False, False),
+            "j": (False, False, False), "k": (False, False, True), "l": (False, False, True),
+            "m": (False, False, False), "wrapped::n": (False, False, True)})
+        self.assertEqual(rust_tests("#![my_attr]\n#[test]\nfn o() {}\n"), {"o": (False, False, True)})
+        self.assertEqual(rust_tests("#![allow(unused)]\n#![feature(x)]\n#[test]\nfn p() {}\n"),
+                         {"p": (False, False, False)})
 
     def test_python_skips(self):
         source = "\n".join([

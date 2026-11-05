@@ -64,27 +64,42 @@ The rules for claims:
   for a rule about source declarations only through the Rust frontend.
 - A Tested claim's tests must exist, and a CI step must run each of them. An
   ignored Rust test must be selected by a step that passes `--ignored` or
-  `--include-ignored`. These tests do not count as run:
-  - a Rust test under a `cfg` condition other than `cfg(test)`, on the
-    function, an enclosing module or the file, including a `cfg` that
-    `cfg_attr` adds;
+  `--include-ignored`. These Rust tests do not count as run:
+  - a test under a `cfg` condition other than `cfg(test)`, on the function, an
+    enclosing module or the file, including a `cfg` that `cfg_attr` adds;
+  - a test with another attribute that the check does not read, on the
+    function, an enclosing module or the file, such as an attribute macro.
+    The check reads `test`, `ignore`, `should_panic`, `cfg`, `cfg_attr`, lint
+    attributes such as `allow`, and a few others that `check_spec.py` lists;
   - a `#[test]` function inside another function, which libtest does not
     collect, or inside a macro definition or invocation;
-  - a Rust test in a package with `autotests = false`, or in a file that
+  - a test in a package with `autotests = false`, or in a file that
     `Cargo.toml` lists under `[[test]]`;
-  - a Rust test when `Cargo.toml` has no root package that `cargo test` runs
-    by default, as in a virtual workspace or one with `default-members`, or
-    when the repository has a `.cargo/config.toml`, which may set a test
-    runner;
-  - a Python test in a module that names `skip`, `skipIf`, `skipUnless`,
+  - any test when `Cargo.toml` has no root package that `cargo test` runs by
+    default, as in a virtual workspace or a workspace with `default-members`;
+  - any test when the repository has `.cargo/config.toml` or `.cargo/config`,
+    which may set a test runner.
+- These Python tests do not count as run:
+  - a test of a class that is not a module-level test case. A test case has
+    `unittest.TestCase`, `unittest.IsolatedAsyncioTestCase`, those names
+    imported from unittest, or other test cases of its module as its only
+    bases;
+  - every test of a module that names `skip`, `skipIf`, `skipUnless`,
     `expectedFailure`, `SkipTest`, `skipTest` or `load_tests` in any use, or
     below a package whose `__init__.py` does;
-  - an `async def` Python test of a class that is no
-    `IsolatedAsyncioTestCase`, which unittest never awaits;
-  - a Python test that its class body assigns or deletes, and every test of a
-    module that changes, deletes or rebinds a class or its attributes, or binds
-    `TestCase`, `IsolatedAsyncioTestCase` or `unittest` to something other
-    than unittest's.
+  - every test of a module that uses dynamic code, such as `exec`, `globals`,
+    `setattr`, `__setattr__`, `__dict__`, `__class__` or `sys.modules`;
+  - every test of a module where anything but its classes and the plain
+    imports of unittest binds or unbinds a class name, `TestCase`,
+    `IsolatedAsyncioTestCase` or `unittest`, in any form and scope;
+  - every test of a module that assigns or deletes a class attribute, or
+    deletes any attribute;
+  - every test of a module whose test case, or a method of one, has a
+    decorator, or whose test case has keywords such as `metaclass` or defines
+    a method such as `run` that replaces how unittest calls tests;
+  - a test whose name its class body assigns or deletes;
+  - an `async def` test of a class that is no `IsolatedAsyncioTestCase`,
+    which unittest never awaits.
 - An Assumed claim must cite entries of the assumption registry,
   `docs/spec/assumptions.toml`. The registry's chapter,
   [Assumptions](spec/assumptions.md), lists every claim that cites each entry.
@@ -209,8 +224,9 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
 - neither the step nor its job, nor any job that the job needs directly or
   through other jobs, has an `if:` condition or a `continue-on-error` that can
   be true, and every job that it needs exists;
-- no key of the workflow, the job or the step differs only in case from a key
-  that the check reads, such as `If:`;
+- no key of the workflow, its triggers, the job, a job that it needs, its
+  matrix or the step differs only in case from a key that the check reads,
+  such as `if`, `paths` or `exclude`;
 - every runner of the job is a GitHub-hosted Linux or macOS runner, `ubuntu-…`
   or `macos-…`, named directly or through a literal matrix without `exclude`,
   and the job has no `container`;
@@ -221,8 +237,9 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
 - no `env:` of the workflow, the job or the step sets a variable that changes
   how bash starts or finds commands, or how cargo or Python runs tests:
   `BASH_ENV`, `SHELLOPTS`, `PATH` and the others that `check_spec.py` lists,
-  or a variable that starts with `BASH_FUNC_`, `LD_`, `DYLD_`,
-  `CARGO_BUILD_`, `CARGO_TARGET_`, `RUST` or `PYTHON`;
+  a variable that starts with `BASH_FUNC_`, `LD_`, `DYLD_`, `RUST` or
+  `PYTHON`, or a `CARGO_` variable other than the `CARGO_TERM_` settings of
+  terminal output;
 - no earlier step of the job has `GITHUB_ENV` or `GITHUB_PATH` in its text.
 
 A workflow outside the subset of YAML that the check reads runs no test as far
@@ -230,12 +247,13 @@ as the check is concerned. Such a workflow has, for example:
 
 - a quoted, explicit, tagged, anchored, merge or repeated key;
 - a quoted scalar over several lines, with text after its closing quote, or
-  with an escape other than `\"`, `\\` and `/`;
-- whitespace other than spaces, tabs and newlines, such as a non-breaking
-  space, or NEL, which YAML 1.1 reads as a line break.
+  with an escape other than `\"`, `\\` and `\/`;
+- whitespace other than spaces, tabs and newlines. A non-breaking space is an
+  example, and so is NEL (U+0085), which YAML 1.1 reads as a line break.
 
 A workflow file that is a symbolic link runs no test either, because GitHub
-reads the link itself from Git.
+reads the link itself from Git. Neither does any workflow when `.github` or
+`.github/workflows` is a symbolic link.
 
 The check reads a step's script line by line and stops at the first line that
 is not plain. A plain line is blank, a comment, or a command whose words
@@ -251,10 +269,10 @@ more commands are plain:
   after `-o` or `+o` the options `errexit`, `nounset`, `pipefail`, `verbose`
   and `xtrace`.
 
-A line with `${{` is not plain, even in a comment or a quote, because GitHub
-substitutes the expression before bash runs. A plain script therefore has no
-operators, expansions, double quotes, globs, redirections, compound commands or
-other builtins, and runs its commands one after another. A command counts when `errexit` is on, because its failure then
+A plain script therefore has no operators, expansions, double quotes, globs,
+redirections, compound commands or other builtins, and runs its commands one
+after another. A line with `${{` is not plain either, even in a comment or a
+quote, because GitHub substitutes the expression before bash runs. A command counts when `errexit` is on, because its failure then
 fails the step. No command after the first line that is not plain counts.
 
 The check reads the kernel regression script in the same way. The script
@@ -262,7 +280,8 @@ starts with `errexit` off, so it must switch `errexit` on before its build
 counts. There `cd "$(dirname "$0")/.."` is plain too and goes to the
 repository root. A build counts as the line `lake -d lean-kernel build`
 followed only by module names, run from the repository root. A step runs the
-script from the repository root as `bash scripts/check_kernel_regressions.sh`.
+script from the repository root as `bash scripts/check_kernel_regressions.sh`
+or `bash ./scripts/check_kernel_regressions.sh`.
 
 The check recognizes these commands, and reads only the options that it lists:
 
@@ -273,8 +292,9 @@ The check recognizes these commands, and reads only the options that it lists:
   `--skip` and those of output;
 - `python3 -m unittest discover` or `python -m unittest discover`, without
   interpreter options, with `-s`, `-p`, `-k`, their long forms, and options of
-  output and failure handling, run where no `unittest.py` or `unittest`
-  package shadows the standard library;
+  output and failure handling. The step's working directory must hold no
+  module or package with the name of a module of the standard library, such
+  as `unittest.py` or `argparse.py`, which would shadow it;
 - the run of the regression script above.
 
 Any other option, such as `--no-run`, `--doc`, `--exclude`, `--target`,

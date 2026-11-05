@@ -19,6 +19,7 @@ the resolver in report mode, from lean/ or from lean-bridge/.
 """
 import argparse
 import ast
+import importlib.machinery
 from dataclasses import dataclass, field
 import fnmatch
 import json
@@ -422,12 +423,25 @@ def yaml_plain(text):
     return (text[:match.start()] if match else text).rstrip()
 
 
+YAML_SINGLE = re.compile(r"'((?:[^']|'')*)'")
+YAML_DOUBLE = re.compile(r'"((?:[^"\\]|\\["\\/])*)"')
+
+
 def yaml_scalar(text):
+    """A plain or quoted scalar. A quoted scalar ends at its closing quote, and
+    only a comment may follow it; a double-quoted scalar may escape only `"`,
+    `\\` and `/`. An anchor, an alias, a tag and anything else raise
+    YamlError."""
     text = text.strip()
-    if len(text) > 1 and text[0] in "'\"" and text[-1] == text[0]:
+    if text[:1] in ("&", "*", "!"):
+        raise YamlError(f"an anchor, alias or tag in {text!r}")
+    if text[:1] in ("'", '"'):
+        match = (YAML_SINGLE if text[0] == "'" else YAML_DOUBLE).match(text)
+        if not match or not re.fullmatch(r"[ \t]*(?:#.*)?", text[match.end():]):
+            raise YamlError(f"an unread quoted scalar {text!r}")
         if text[0] == "'":
-            return text[1:-1].replace("''", "'")
-        return re.sub(r'\\(["\\/])', r"\1", text[1:-1])
+            return match.group(1).replace("''", "'")
+        return re.sub(r'\\(["\\/])', r"\1", match.group(1))
     return yaml_plain(text)
 
 
@@ -464,6 +478,8 @@ def yaml_mapping(lines, indent):
 
 def yaml_value(lines, indent, rest):
     rest = rest.strip()
+    if rest[:1] in ("&", "*", "!"):
+        raise YamlError(f"an anchor, alias or tag in {rest!r}")
     if not rest or rest.startswith("#"):
         line = lines.current()
         if line is not None and (yaml_indent(line) > indent
@@ -555,8 +571,13 @@ def yaml_load(text):
     """Block mappings and sequences, plain, quoted and block scalars, and flow
     sequences of scalars; other flow collections stay text. A scalar folded
     from several lines is Folded. YamlError reports a form outside the subset,
-    including a repeated key, which GitHub rejects, and a line that the subset
-    does not reach, such as a quoted scalar over several lines."""
+    including a repeated key, which GitHub rejects, a line that the subset
+    does not reach, such as a quoted scalar over several lines, and whitespace
+    other than spaces, tabs and newlines, such as NEL, which YAML 1.1 reads as
+    a line break."""
+    odd = next((c for c in text if c.isspace() and c not in " \t\n"), None)
+    if odd is not None:
+        raise YamlError(f"the whitespace {odd!r}, which YAML and Python read differently")
     lines = YamlLines(text)
     tree = yaml_node(lines, 0)
     if lines.current() is not None:
@@ -614,15 +635,30 @@ def unix_job(job):
 # load, or how cargo and Python build and run tests: a test runner, a compiler
 # wrapper, a cross target or a Python path.
 SHELL_ENVIRONMENT = {"ACTIONS_ALLOW_UNSECURE_COMMANDS", "BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE",
-                     "IFS", "PATH", "POSIXLY_CORRECT", "PS4", "SHELLOPTS"}
-ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "CARGO_BUILD_", "CARGO_TARGET_", "RUSTC", "PYTHON")
+                     "HOME", "IFS", "PATH", "POSIXLY_CORRECT", "PS4", "SHELLOPTS"}
+ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "RUST", "PYTHON")
+
+
+# The workflow keys that run_steps reads.
+GITHUB_KEYS = {"branches", "branches-ignore", "container", "continue-on-error", "defaults", "env", "exclude", "if",
+               "include", "jobs", "matrix", "needs", "on", "paths", "paths-ignore", "pull_request", "run", "runs-on",
+               "shell", "steps", "strategy", "types", "working-directory"}
+
+
+def exact_keys(*tables):
+    """Whether no key of the mappings differs from one of GITHUB_KEYS only in case."""
+    return not any(isinstance(table, dict) and any(
+        isinstance(key, str) and key.lower() in GITHUB_KEYS and key not in GITHUB_KEYS for key in table)
+        for table in tables)
 
 
 def plain_environment(*tables):
-    """Whether no `env:` table sets a variable of SHELL_ENVIRONMENT or one that
-    starts with one of ENVIRONMENT_PREFIXES."""
+    """Whether no `env:` table sets a variable of SHELL_ENVIRONMENT, one that
+    starts with one of ENVIRONMENT_PREFIXES, or a CARGO_ variable other than
+    the CARGO_TERM_ settings of terminal output."""
     return all(table is None or isinstance(table, dict) and not any(
-        name in SHELL_ENVIRONMENT or name.startswith(ENVIRONMENT_PREFIXES) for name in table)
+        name in SHELL_ENVIRONMENT or name.startswith(ENVIRONMENT_PREFIXES)
+        or name.startswith("CARGO_") and not name.startswith("CARGO_TERM_") for name in table)
         for table in tables)
 
 
@@ -634,7 +670,9 @@ def run_steps(workflow):
     `plain_environment` holds for the workflow, job and step; and no earlier
     step of the job names GITHUB_ENV or GITHUB_PATH, a textual rule. A workflow
     outside the YAML subset, or with `defaults` that are not block mappings,
-    yields nothing, and so does a job with such `defaults`."""
+    yields nothing, and so does a job with such `defaults`. A key that differs
+    from one of GITHUB_KEYS only in case keeps its workflow, job or step from
+    counting. A working directory with `..` is unknown."""
     try:
         tree = yaml_load(workflow)
     except YamlError:
@@ -649,30 +687,40 @@ def run_steps(workflow):
     jobs = tree.get("jobs") if isinstance(tree.get("jobs"), dict) else {}
     def unconditional(name, seen=()):
         job = jobs.get(name) if isinstance(name, str) else None
-        if not isinstance(job, dict) or name in seen or "if" in job or may_skip(job.get("continue-on-error")):
+        if not isinstance(job, dict) or name in seen or "if" in job or may_skip(job.get("continue-on-error")) \
+                or not exact_keys(job):
             return False
         needs = job.get("needs", [])
         needs = [needs] if isinstance(needs, str) else needs
         return isinstance(needs, list) and all(unconditional(need, seen + (name,)) for need in needs)
     top = defaults(tree)
-    if top is None:
+    triggers = tree.get("on")
+    if top is None or not exact_keys(tree, tree.get("defaults"), top, triggers,
+                                     triggers.get("pull_request") if isinstance(triggers, dict) else None):
         return
     for name, job in jobs.items():
         if not unconditional(name) or not unix_job(job) or defaults(job) is None:
             continue
+        strategy = job.get("strategy")
+        if not exact_keys(job, job.get("defaults"), defaults(job), strategy,
+                          strategy.get("matrix") if isinstance(strategy, dict) else None):
+            continue
         settings, tainted = dict(top, **defaults(job)), False
         for step in job.get("steps") or []:
+            if isinstance(step, dict) and not exact_keys(step, step.get("env")):
+                tainted = True
             script = step.get("run") if isinstance(step, dict) else None
             if not isinstance(script, str):
                 continue
-            countable = (not tainted and not isinstance(script, Folded) and "if" not in step
+            countable = (not tainted and not isinstance(script, Folded) and "if" not in step and exact_keys(step)
                          and not may_skip(step.get("continue-on-error"))
                          and step.get("shell", settings.get("shell")) in (None, "bash")
                          and plain_environment(tree.get("env"), job.get("env"), step.get("env")))
             tainted = tainted or "GITHUB_ENV" in script or "GITHUB_PATH" in script
             if countable:
-                directory = step.get("working-directory", settings.get("working-directory", "."))
-                yield script, shell_directory(PurePosixPath("."), str(directory))
+                directory = str(step.get("working-directory", settings.get("working-directory", ".")))
+                yield script, None if ".." in PurePosixPath(directory).parts \
+                    else shell_directory(PurePosixPath("."), directory)
 
 
 PLAIN_WORD = r"(?:[A-Za-z0-9_./:=@%+,-]|'[^'\r\n]*')+"
@@ -735,9 +783,12 @@ def plain_commands(script, directory=PurePosixPath("."), errexit=True, origin=No
     is plain too: the reader follows a relative directory while errexit is on,
     and otherwise the directory becomes None, unknown. So is `set` with
     switches that `plain_set` reads. `origin`, the directory of a script file,
-    makes SCRIPT_PARENT plain."""
+    makes SCRIPT_PARENT plain. A line with `${{`, which GitHub substitutes
+    before bash runs, is not plain, even in a comment or a quote."""
     words = []
     for line in script.split("\n"):
+        if "${{" in line:
+            return
         if not words and PLAIN_COMMENT.fullmatch(line):
             continue
         if not words and origin is not None and line.strip(" ") == SCRIPT_PARENT:
@@ -837,8 +888,7 @@ def cargo_run(arguments, package=None):
                 yield "", argument
 
     for name, value in options(arguments[:split], CARGO_FLAGS, CARGO_VALUES):
-        if name in ("-p", "--package") and value != package \
-                or name == "--exclude" and (value == package or any(c in value for c in "*?[")):
+        if name in ("-p", "--package") and value != package or name == "--exclude":
             run.runs_nothing = True
         elif name == "--manifest-path" and os.path.normpath(value) != "Cargo.toml":
             run.runs_nothing = True
@@ -892,8 +942,10 @@ def discover_run(arguments, directory):
     """The tests that `python3 -m unittest discover ARGUMENTS` runs from
     `directory`, or None. An option outside DISCOVER_FLAGS, DISCOVER_SHORT and
     DISCOVER_LONG gives None: `--help` runs no test, and a top-level directory
-    `-t` changes the names that `-k` matches."""
-    found, positional, selections = {"start": ".", "pattern": "test*.py"}, [], []
+    `-t` changes the names that `-k` matches. So does a start directory or a
+    pattern given both as a positional word and as an option, because the last
+    one wins."""
+    found, positional, selections, given = {"start": ".", "pattern": "test*.py"}, [], [], set()
     items = iter(arguments)
     for argument in items:
         if argument in DISCOVER_FLAGS:
@@ -913,7 +965,8 @@ def discover_run(arguments, directory):
             selections.append(value)
         elif key != "durations":
             found[key] = value
-    if len(positional) > 2:
+            given.add(key)
+    if len(positional) > 2 or any(key in given for key in ("start", "pattern")[:len(positional)]):
         return None
     found.update(zip(("start", "pattern"), positional))
     resolved = shell_directory(directory, found["start"])
@@ -975,6 +1028,31 @@ def rust_blank(source):
     return "".join(out)
 
 
+RUST_MACRO = re.compile(r"\bmacro_rules\s*!\s*(?:r#)?[^\W\d]\w*\s*[({\[]|\b(?:r#)?[^\W\d]\w*\s*!\s*[({\[]")
+
+
+def rust_without_macros(text):
+    """`text` with the body of every macro definition and invocation blanked,
+    newlines kept: a test inside one exists only if the macro expands it."""
+    out, index = [], 0
+    for match in RUST_MACRO.finditer(text):
+        if match.start() < index:
+            continue
+        depth, end = 0, len(text)
+        for position in range(match.end() - 1, len(text)):
+            if text[position] in "({[":
+                depth += 1
+            elif text[position] in ")}]":
+                depth -= 1
+                if depth == 0:
+                    end = position
+                    break
+        out.append(text[index:match.end()])
+        out.append(re.sub(r"[^\n]", " ", text[match.end():end]))
+        index = end
+    return "".join(out) + text[index:]
+
+
 def rust_closing(text, start):
     depth = 0
     for index in range(start, len(text)):
@@ -992,23 +1070,71 @@ def rust_attribute(attribute):
     return match.group(1) if match else ""
 
 
+# Attributes that leave a test, its modules and its file as libtest collects
+# them. `cfg`, `cfg_attr`, `test`, `ignore` and `should_panic` are read apart.
+RUST_ATTRIBUTES = {"allow", "deny", "doc", "expect", "forbid", "inline", "must_use", "rustfmt::skip",
+                   "track_caller", "warn"}
+
+
+def rust_arguments(attribute):
+    """The top-level, comma-separated arguments of an attribute such as `cfg_attr(a, b(c, d))`."""
+    start = attribute.find("(")
+    if start < 0 or not attribute.rstrip().endswith(")"):
+        return []
+    items, depth, current = [], 0, ""
+    for char in attribute[start + 1:attribute.rstrip().rfind(")")]:
+        if char in "([{":
+            depth += 1
+        elif char in ")]}":
+            depth -= 1
+        if char == "," and depth == 0:
+            items.append(current.strip())
+            current = ""
+        else:
+            current += char
+    return [item for item in items + [current.strip()] if item]
+
+
+def rust_effects(attributes, allowed):
+    """(ignored, conditional, unread) for the attributes of an item. `ignore`,
+    or a `cfg_attr` that adds it, ignores it. A `cfg` other than `cfg(test)`,
+    or a `cfg_attr` that adds a `cfg`, makes it conditional. Any other
+    attribute outside `allowed`, added by `cfg_attr` or not, leaves it unread:
+    an attribute macro, for example, may change or remove a test."""
+    ignored = conditional = unread = False
+    for attribute in attributes:
+        name = rust_attribute(attribute)
+        added = rust_arguments(attribute)[1:] if name == "cfg_attr" else [attribute]
+        if name == "cfg_attr" and not added:
+            unread = True
+        for item in added:
+            inner = rust_attribute(item)
+            if inner == "cfg":
+                conditional = conditional or name == "cfg_attr" or re.sub(r"\s", "", item) != "cfg(test)"
+            elif inner == "ignore":
+                ignored = True
+            elif inner not in allowed:
+                unread = True
+    return ignored, conditional, unread
+
+
 def rust_conditional(attributes):
     """Whether attributes compile their item only under a configuration other
     than `cfg(test)`: a `cfg` attribute, or a `cfg_attr` that adds one."""
-    return any(rust_attribute(a) == "cfg" and re.sub(r"\s", "", a) != "cfg(test)"
-               or rust_attribute(a) == "cfg_attr" and re.search(r"\bcfg\s*\(", a[len("cfg_attr"):])
-               for a in attributes)
+    return rust_effects(attributes, set())[1]
 
 
 def rust_tests(source):
     """Map the libtest name of each `#[test]` function, such as `a::b`, to
-    (ignored, conditional). A test is ignored under `#[ignore]` or a `cfg_attr`
-    that can add `ignore`. It is conditional under `#[cfg(...)]` other than
-    `cfg(test)`, or a `cfg_attr` that adds one, on the function or on an
-    enclosing module or file. A `#[test]` function inside another item, such
-    as a function body, is no test: libtest does not collect it."""
-    text = rust_blank(source)
-    found, stack, pending, whole_file, index = {}, [], [], False, 0
+    (ignored, conditional, unread), as `rust_effects` reads the attributes of
+    the function, its enclosing modules and its file. A function may also
+    carry `test` and `should_panic`, and a file `feature`; any attribute
+    outside RUST_ATTRIBUTES and those leaves the test unread. A `#[test]`
+    function inside another item, such as a function body, or inside a macro
+    definition or invocation, is no test: libtest does not collect it, or only
+    an expansion would define it."""
+    text = rust_without_macros(rust_blank(source))
+    found, stack, pending, whole_file, index = {}, [], [], (False, False), 0
     while True:
         match = RUST_TOKEN.search(text, index)
         if not match:
@@ -1019,62 +1145,112 @@ def rust_tests(source):
             body, index = text[match.end():end], end + 1
             if token != "#![":
                 pending.append(body)
-            elif rust_conditional([body]):
+            else:
+                _, conditional, unread = rust_effects([body], RUST_ATTRIBUTES | {"feature"})
                 if stack:
-                    stack[-1] = (stack[-1][0], stack[-1][1], True)
+                    stack[-1] = (stack[-1][0], stack[-1][1], stack[-1][2] or conditional, stack[-1][3] or unread)
                 else:
-                    whole_file = True
+                    whole_file = (whole_file[0] or conditional, whole_file[1] or unread)
             continue
         if match.group(1):
-            stack.append((True, match.group(1), rust_conditional(pending)))
+            _, conditional, unread = rust_effects(pending, RUST_ATTRIBUTES)
+            stack.append((True, match.group(1), conditional, unread))
         elif match.group(2):
             if all(frame[0] for frame in stack) and any(re.sub(r"\s", "", a) == "test" for a in pending):
                 path = "::".join([frame[1] for frame in stack if frame[0]] + [match.group(2)])
-                ignored = any(rust_attribute(a) == "ignore"
-                              or rust_attribute(a) == "cfg_attr" and re.search(r"\bignore\b", a) for a in pending)
-                found[path] = (bool(ignored),
-                               whole_file or any(frame[2] for frame in stack) or rust_conditional(pending))
+                ignored, conditional, unread = rust_effects(pending, RUST_ATTRIBUTES | {"test", "should_panic"})
+                found[path] = (ignored, whole_file[0] or any(frame[2] for frame in stack) or conditional,
+                               whole_file[1] or any(frame[3] for frame in stack) or unread)
         elif token == "{":
-            stack.append((False, None, rust_conditional(pending)))
+            stack.append((False, None, False, False))
         elif token == "}" and stack:
             stack.pop()
         pending = []
 
 
+# Names that a test module must leave bound to unittest's own objects.
+UNITTEST_NAMES = {"IsolatedAsyncioTestCase", "TestCase", "unittest"}
 # Names whose use in a module may keep unittest from running its test methods
 # as written, or make a failure pass.
 PYTHON_SKIPS = {"SkipTest", "__unittest_expecting_failure__", "__unittest_skip__", "expectedFailure", "load_tests",
                 "skip", "skipIf", "skipTest", "skipUnless"}
+# Names and attributes through which code can rebind, create or delete what the check reads.
+PYTHON_DYNAMIC_NAMES = {"__builtins__", "__import__", "builtins", "compile", "delattr", "eval", "exec", "globals",
+                        "importlib", "locals", "setattr", "vars"}
+PYTHON_DYNAMIC_ATTRIBUTES = {"__bases__", "__builtins__", "__class__", "__delattr__", "__dict__", "__mro__",
+                             "__setattr__", "modules"}
+# Methods through which a test class can replace how unittest calls its tests.
+PYTHON_HARNESS = {"__call__", "__getattr__", "__getattribute__", "__init__", "__init_subclass__", "__new__", "debug",
+                  "run"}
 
 
 def python_skips(source):
-    """Whether a module names a member of PYTHON_SKIPS anywhere, in any use."""
-    return any(isinstance(node, ast.Name) and node.id in PYTHON_SKIPS
-               or isinstance(node, ast.Attribute) and node.attr in PYTHON_SKIPS
-               or isinstance(node, ast.alias) and node.name.split(".")[-1] in PYTHON_SKIPS
+    """Whether a module names a member of PYTHON_SKIPS anywhere, in any use, or
+    uses a name of PYTHON_DYNAMIC_NAMES or an attribute of
+    PYTHON_DYNAMIC_ATTRIBUTES."""
+    return any(isinstance(node, ast.Name) and (node.id in PYTHON_SKIPS or node.id in PYTHON_DYNAMIC_NAMES)
+               or isinstance(node, ast.Attribute) and (node.attr in PYTHON_SKIPS
+                                                       or node.attr in PYTHON_DYNAMIC_ATTRIBUTES)
+               or isinstance(node, ast.alias) and (node.name.split(".")[-1] in PYTHON_SKIPS
+                                                   or node.name.split(".")[0] in PYTHON_DYNAMIC_NAMES)
                or isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.name in PYTHON_SKIPS
                for node in ast.walk(ast.parse(source)))
 
 
+def python_bindings(module):
+    """(name, node) for each name that the module binds or unbinds, in any scope."""
+    for node in ast.walk(module):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            yield node.id, node
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            yield node.name, node
+        elif isinstance(node, ast.alias):
+            yield node.asname or node.name.split(".")[0], node
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            yield node.name, node
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            yield from ((name, node) for name in node.names)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar)) and node.name:
+            yield node.name, node
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            yield node.rest, node
+
+
 def python_tests(source):
-    """(class, method) of the test methods of the unittest.TestCase classes of a
-    module, mapped to whether unittest may skip them or expect them to fail.
-    It may whenever `python_skips` holds for the module, whatever the condition
-    or the class that the name concerns, and for an `async def` method of a
-    class that is no IsolatedAsyncioTestCase, which unittest never awaits. A
-    test name that the class body assigns or deletes rather than defines, and
-    any test of a module that changes a class attribute, calls `setattr` or
-    `delattr`, or deletes an attribute, count as never run."""
+    """(class, method) of the test methods of the unittest test cases of a
+    module, mapped to whether unittest may skip them, not run them as written,
+    or expect them to fail.
+
+    A test case is a module-level class whose bases are `unittest.TestCase`,
+    `unittest.IsolatedAsyncioTestCase`, those names imported from unittest, or
+    other test cases of the module. Every test of the module counts as not run
+    when `python_skips` holds; when anything other than these classes and the
+    plain imports `import unittest` and `from unittest import ...` binds or
+    unbinds a class name or a name of UNITTEST_NAMES, in any form and scope,
+    or a star import from any module but unittest may; when a class name is
+    used as a value rather than as a base; when code assigns or deletes an
+    attribute or item of a class or of a name of UNITTEST_NAMES, or deletes
+    any attribute; and when a test case or one of its methods has a decorator,
+    a test case has keywords such as `metaclass`, or one defines a method of
+    PYTHON_HARNESS. A test name that a class body assigns or deletes rather
+    than defines, and an `async def` test of a class that is no
+    IsolatedAsyncioTestCase, which unittest never awaits, count as not run
+    too."""
     module = ast.parse(source)
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
+    kinds = {"TestCase", "IsolatedAsyncioTestCase", "unittest.TestCase", "unittest.IsolatedAsyncioTestCase"}
 
     def base_names(node):
-        return [base.attr if isinstance(base, ast.Attribute) else getattr(base, "id", "") for base in node.bases]
+        return [f"unittest.{base.attr}" if isinstance(base, ast.Attribute) and isinstance(base.value, ast.Name)
+                and base.value.id == "unittest" else base.id if isinstance(base, ast.Name) else "?"
+                for base in node.bases]
 
-    def test_case(name, kinds=("TestCase", "IsolatedAsyncioTestCase"), seen=()):
+    def test_case(name, wanted=kinds, seen=()):
         node = classes.get(name)
-        return node is not None and name not in seen and any(
-            base in kinds or test_case(base, kinds, seen + (name,)) for base in base_names(node))
+        return node is not None and name not in seen and bool(node.bases) and all(
+            base in kinds or base in classes and test_case(base, kinds, seen + (name,))
+            for base in base_names(node)) and any(
+            base in wanted or base in classes and test_case(base, wanted, seen + (name,)) for base in base_names(node))
 
     def methods(name, seen=()):
         """Each test name of the class, mapped to "sync", "async" or "unknown"
@@ -1096,19 +1272,53 @@ def python_tests(source):
                             found[leaf.id] = "unknown"
         return found
 
-    def changes_classes(node):
-        targets = (node.targets if isinstance(node, (ast.Assign, ast.Delete))
-                   else [node.target] if isinstance(node, (ast.AnnAssign, ast.AugAssign)) else [])
-        return (any(isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
-                    and target.value.id in classes for target in targets)
-                or isinstance(node, ast.Delete) and any(isinstance(target, ast.Attribute) for target in targets)
-                or isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                and node.func.id in ("setattr", "delattr"))
+    definitions = {id(node) for node in classes.values() if node.name not in UNITTEST_NAMES}
+    imports = {id(alias) for node in ast.walk(module) if isinstance(node, ast.Import)
+               for alias in node.names if alias.name == "unittest" and alias.asname is None}
+    imports |= {id(alias) for node in ast.walk(module)
+                if isinstance(node, ast.ImportFrom) and node.module == "unittest" and not node.level
+                for alias in node.names if alias.asname is None}
+    rebinds = any((name in classes or name in UNITTEST_NAMES or name == "*") and id(node) not in definitions | imports
+                  for name, node in python_bindings(module))
 
-    skips = python_skips(source) or any(changes_classes(node) for node in ast.walk(module))
+    def root(node):
+        while isinstance(node, (ast.Attribute, ast.Subscript)):
+            node = node.value
+        return node.id if isinstance(node, ast.Name) else None
+
+    changes = any(isinstance(target, (ast.Attribute, ast.Subscript)) and (
+        root(target) in classes or root(target) in UNITTEST_NAMES or isinstance(node, ast.Delete))
+        for node in ast.walk(module) if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Delete))
+        for target in (node.targets if isinstance(node, (ast.Assign, ast.Delete)) else [node.target]))
+    bases = {id(base) for node in classes.values() for base in node.bases}
+    aliases = any(isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in classes
+                  and id(node) not in bases for node in ast.walk(module))
+    cases = [node for name, node in classes.items() if test_case(name)]
+    harness = any(node.decorator_list or node.keywords or any(
+        isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+        and (item.decorator_list or item.name in PYTHON_HARNESS) for item in node.body) for node in cases)
+    skips = python_skips(source) or rebinds or changes or aliases or harness
     return {(name, method): skips or kind == "unknown"
-            or kind == "async" and not test_case(name, ("IsolatedAsyncioTestCase",))
+            or kind == "async" and not test_case(name, {"IsolatedAsyncioTestCase", "unittest.IsolatedAsyncioTestCase"})
             for name in classes if test_case(name) for method, kind in methods(name).items()}
+
+
+PYTHON_STARTUP = {"sitecustomize", "usercustomize"}
+
+
+def python_shadows(directory):
+    """Whether `directory` holds a module or package whose name a module of the
+    standard library, or Python's start-up, uses: a file with a suffix of
+    `importlib.machinery.all_suffixes()`, or `NAME/__init__.py`."""
+    names = sys.stdlib_module_names | PYTHON_STARTUP
+    suffixes = tuple(importlib.machinery.all_suffixes())
+    try:
+        entries = list(Path(directory).iterdir())
+    except OSError:
+        return False
+    return any(entry.name.split(".")[0] in names and (
+        entry.is_file() and entry.name.endswith(suffixes)
+        or entry.is_dir() and (entry / "__init__.py").exists()) for entry in entries)
 
 
 class Repository:
@@ -1128,13 +1338,22 @@ class Repository:
         # and no required features: those of tests/*.rs, unless autotests is off or
         # a [[test]] target names the file.
         targets = manifest.get("test", [])
+        workspace = manifest.get("workspace", {})
+        # `cargo test` at the root runs tests/*.rs only for a root package that is a default member and
+        # that no .cargo config, which may set a runner, wraps.
+        self.root_tests = package is not None and not (isinstance(workspace, dict) and "default-members" in workspace) \
+            and not any((root / ".cargo" / name).exists() for name in ("config.toml", "config"))
         self.autotests = manifest.get("package", {}).get("autotests", True) is not False
-        self.listed = {os.path.normpath(target.get("path", f"tests/{target.get('name')}.rs"))
-                       for target in (targets if isinstance(targets, list) else []) if isinstance(target, dict)}
+        self.listed = {os.path.normpath(item) for target in (targets if isinstance(targets, list) else [])
+                       if isinstance(target, dict)
+                       for item in (target.get("path", f"tests/{target.get('name')}.rs"), f"tests/{target.get('name')}.rs")}
         if not isinstance(targets, list):
             self.autotests = False
         directory = root / WORKFLOWS
         workflows = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml")) if directory.is_dir() else []
+        # GitHub reads a workflow file from Git; a symbolic link holds only its target's path.
+        links = (root / ".github").is_symlink() or directory.is_symlink()
+        workflows = [] if links else [path for path in workflows if not path.is_symlink()]
         for path in workflows:
             for script, start in run_steps(path.read_text(encoding="utf-8")):
                 for words, where, counted in plain_commands(script, start):
@@ -1154,16 +1373,28 @@ class Repository:
             self.codes = set(re.findall(r"`(E_[A-Z0-9_]+)`", (root / DIAGNOSTICS).read_text(encoding="utf-8")))
         self._rust, self._python = {}, {}
 
+    def through_link(self, directory):
+        """Whether `directory` passes through a symbolic link of the checkout, where
+        programs see the link's target while the reader follows the link's name."""
+        return directory is None or any(
+            (self.root / PurePosixPath(*directory.parts[:length])).is_symlink()
+            for length in range(1, len(directory.parts) + 1))
+
     def add(self, words, directory, package):
         """Record a plain command that runs Rust tests, Python tests or the regression script."""
+        if self.through_link(directory):
+            return
         if words[:2] == ["cargo", "test"]:
             if directory == PurePosixPath("."):
                 self.cargo.append(cargo_run(words[2:], package))
         elif words[0] in ("python", "python3") and words[1:4] == ["-m", "unittest", "discover"]:
-            run = discover_run(words[4:], directory)
-            if run is not None:
+            # `-m` puts the working directory first on the module path, where a local module or
+            # package that the standard library also has, unittest among them, would win.
+            run = None if python_shadows(self.root / directory) else discover_run(words[4:], directory)
+            # unittest puts the start directory on the module path too, before the tests import.
+            if run is not None and not self.through_link(run.start) and not python_shadows(self.root / run.start):
                 self.discover.append(run)
-        elif words[0] == "bash" and len(words) == 2 and shell_directory(directory, words[1]) == PurePosixPath(REGRESSIONS):
+        elif directory == PurePosixPath(".") and words in (["bash", str(REGRESSIONS)], ["bash", f"./{REGRESSIONS}"]):
             self.regression_steps += 1
 
     def rust(self, path):
@@ -1204,6 +1435,12 @@ class Repository:
             elif tests[name][1]:
                 errors.append(f"{where}: `{item}` is compiled only under a #[cfg(...)] condition, "
                               "so it does not count as run")
+            elif tests[name][2]:
+                errors.append(f"{where}: `{item}`, an enclosing module or its file carries an attribute that "
+                              "the check does not read, so it does not count as run")
+            elif not self.root_tests:
+                errors.append(f"{where}: Cargo.toml has no root package that `cargo test` runs by default, or a "
+                              f".cargo config may change how it runs tests, so `{item}` does not count as run")
             elif not self.autotests or os.path.normpath(path) in self.listed:
                 errors.append(f"{where}: Cargo.toml sets `autotests = false` or lists {path} under [[test]], "
                               f"so `{item}` does not count as run")

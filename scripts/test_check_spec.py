@@ -284,6 +284,13 @@ class FixtureTests(unittest.TestCase):
         self.put("scripts/__init__.py", "def load_tests(loader, tests, pattern):\n    return tests\n")
         self.assertRejected(cited)
 
+    def test_async_python_tests_count_only_in_an_async_test_case(self):
+        # The review of #655 found that unittest never awaits an async test of a TestCase.
+        self.edit("scripts/test_demo.py", "    def test_identity(self):", "    async def test_identity(self):")
+        self.assertRejected("unittest may skip `scripts/test_demo.py::DemoTests::test_identity` or expect it to fail")
+        self.edit("scripts/test_demo.py", "unittest.TestCase", "unittest.IsolatedAsyncioTestCase")
+        self.assertEqual(self.errors(), [])
+
     def test_python_test_that_no_step_discovers(self):
         self.put("tools/test_extra.py", PYTHON)
         self.edit("docs/spec/demo.toml", "scripts/test_demo.py::DemoTests::test_identity",
@@ -557,6 +564,11 @@ class FixtureTests(unittest.TestCase):
                 [(step, step + "        env:\n          BASH_ENV: /tmp/exit.sh\n")],
                 [("    steps:\n", "    env:\n      PATH: /nowhere\n    steps:\n")],
                 [("jobs:\n", "env:\n  LD_PRELOAD: /tmp/stub.so\njobs:\n")],
+                [("jobs:\n", "env:\n  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: 'true'\njobs:\n")],
+                [("    steps:\n", "    env:\n      PYTHONPATH: shadow\n    steps:\n")],
+                [("    runs-on: ubuntu-latest\n", "    runs-on: ubuntu-latest\n    runs-on: windows-latest\n")],
+                [("runs-on: ubuntu-latest\n", "runs-on: ${{ matrix.os }}\n    strategy:\n      matrix:\n"
+                  "        os: [ubuntu-latest]\n        exclude:\n          - os: ubuntu-latest\n")],
                 [("    steps:\n", "    steps:\n      - run: echo \"BASH_ENV=/tmp/exit.sh\" >> \"$GITHUB_ENV\"\n")],
                 [(step, "      - \"i\\x66\": false\n        run: cargo test --locked --all-targets\n")],
                 [(step, "      - !!str if: false\n        run: cargo test --locked --all-targets\n")],
@@ -578,6 +590,13 @@ class FixtureTests(unittest.TestCase):
                 ("cargo test --locked --all-targets\n", "cargo test --locked --doc\n", rust),
                 ("cargo test --locked --all-targets\n", "env cargo test --locked --all-targets\n", rust),
                 ("python3 -m unittest", "python3 -cpass -m unittest", python),
+                ("-p 'test_*.py'", "-p 'test_*.py' --help", python),
+                ("-p 'test_*.py'", "-p 'test_*.py' -t .", python),
+                ("-p 'test_*.py'", "-p 'test_*.py' --unknown", python),
+                ("cargo test --locked --all-targets\n", "cargo test --locked --all-targets --target x\n", rust),
+                ("cargo test --locked --all-targets\n", "cargo test --locked --all-targets --config x\n", rust),
+                ("cargo test --locked --all-targets\n",
+                 "cargo test --locked --all-targets -- --exclude-should-panic\n", rust),
                 ("bash scripts/check_kernel_regressions.sh", "bash -n scripts/check_kernel_regressions.sh",
                  "no CI step runs scripts/check_kernel_regressions.sh")):
             with self.subTest(new=new):
@@ -837,7 +856,8 @@ class ParserTests(unittest.TestCase):
         self.assertFalse(cargo_run("--lib".split()).runs("examples", "a", False))
         self.assertTrue(cargo_run("--test=demo".split()).runs("demo", "a", False))
         for arguments in ("--all-targets --no-run", "-- --list", "-p other", "--manifest-path x/Cargo.toml",
-                          "--help", "-h", "-- --help", "--doc", "--workspace --exclude vastitas"):
+                          "--help", "-h", "-- --help", "--doc", "--workspace --exclude vastitas", "--target x",
+                          "--config x", "-Z x", "-j4", "-- --exclude-should-panic", "-- --format json", "--test"):
             self.assertFalse(cargo_run(arguments.split(), "vastitas").runs("demo", "a", False), arguments)
         self.assertTrue(cargo_run("-p vastitas --manifest-path Cargo.toml".split(), "vastitas")
                         .runs("demo", "a", False))
@@ -858,6 +878,11 @@ class ParserTests(unittest.TestCase):
         self.assertTrue(discover_run(["-sscripts", "-ptest_*.py"], here).runs("scripts/test_a.py", "A", "test_a"))
         self.assertTrue(discover_run(["scripts", "test_*.py"], here).runs("scripts/test_a.py", "A", "test_a"))
         self.assertTrue(discover_run(["-s", "."], PurePosixPath("scripts")).runs("scripts/test_a.py", "A", "test_a"))
+        self.assertTrue(discover_run(["-v", "-f", "--durations", "3", "-s", "scripts"], here)
+                        .runs("scripts/test_a.py", "A", "test_a"))
+        for arguments in (["--help"], ["-h"], ["-s", "scripts", "-t", "."], ["--top-level-directory=."],
+                          ["scripts", "test_*.py", "."], ["-s"], ["--unknown"], ["-x"]):
+            self.assertIsNone(discover_run(arguments, here), arguments)
 
     def test_pull_request_triggers(self):
         self.assertTrue(every_pull_request({"pull_request": None, "push": None}))

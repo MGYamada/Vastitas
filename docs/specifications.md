@@ -74,7 +74,9 @@ The rules for claims:
     `Cargo.toml` lists under `[[test]]`;
   - a Python test in a module that names `skip`, `skipIf`, `skipUnless`,
     `expectedFailure`, `SkipTest`, `skipTest` or `load_tests` in any use, or
-    below a package whose `__init__.py` does.
+    below a package whose `__init__.py` does;
+  - an `async def` Python test of a class that is no
+    `IsolatedAsyncioTestCase`, which unittest never awaits.
 - An Assumed claim must cite entries of the assumption registry,
   `docs/spec/assumptions.toml`. The registry's chapter,
   [Assumptions](spec/assumptions.md), lists every claim that cites each entry.
@@ -199,18 +201,20 @@ fails the workflow. `check_spec.py` counts a step only when all of these hold:
 - neither the step nor its job, nor a job that the job needs, has an `if:`
   condition or a `continue-on-error` that can be true;
 - every runner of the job is a GitHub-hosted Linux or macOS runner, `ubuntu-…`
-  or `macos-…`, named directly or through a literal matrix;
+  or `macos-…`, named directly or through a literal matrix without `exclude`;
 - the step uses bash, the default shell there;
 - its `run:` value is a single line or a literal block (`|`), not a folded
   one;
 - no `env:` of the workflow, the job or the step sets a variable that changes
-  how bash starts or finds commands, such as `BASH_ENV`, `SHELLOPTS`, `PATH`,
-  a `BASH_FUNC_…` or an `LD_…` variable;
+  how bash starts or finds commands, or how cargo or Python runs tests:
+  `BASH_ENV`, `SHELLOPTS`, `PATH` and the others that `check_spec.py` lists,
+  or a variable that starts with `BASH_FUNC_`, `LD_`, `DYLD_`,
+  `CARGO_BUILD_`, `CARGO_TARGET_`, `RUSTC` or `PYTHON`;
 - no earlier step of the job names `GITHUB_ENV` or `GITHUB_PATH`.
 
 A workflow outside the subset of YAML that `check_spec.py` reads, such as one
-with a quoted, explicit, tagged or merge key, runs no test as far as the check
-is concerned.
+with a quoted, explicit, tagged, merge or repeated key, runs no test as far as
+the check is concerned.
 
 `check_spec.py` reads a step's script line by line and stops at the first line
 that is not plain. A plain line is blank, a comment, or a command whose words
@@ -235,12 +239,23 @@ counts. There `cd "$(dirname "$0")/.."` is plain too and goes to the
 repository root. A step runs the script as
 `bash scripts/check_kernel_regressions.sh`.
 
-The check recognizes these commands: `cargo test` in the root package, with
-its target, filter, `--skip`, `--exact`, `--ignored`, `--no-run`, `--list`,
-`--doc` and `--help` options; `python3 -m unittest discover` without
-interpreter options; and that run of the regression script. It trusts the
-runner image, the actions that steps use and the programs that steps run not
-to change how bash starts or which program a command name runs.
+The check recognizes these commands, and reads only the options that it
+lists:
+
+- `cargo test` in the root package, with target selections such as `--test`
+  and `--all-targets`, filters, `-p`, `--manifest-path`, `--exclude`,
+  options of the build that run every selected test, such as `--locked` and
+  `--features`, and after `--` the harness options `--ignored`,
+  `--include-ignored`, `--exact`, `--skip` and those of output;
+- `python3 -m unittest discover` without interpreter options, with `-s`,
+  `-p`, `-k`, their long forms, and options of output and failure handling;
+- the run of the regression script above.
+
+Any other option, such as `--no-run`, `--doc`, `--target`, `--config`,
+`--list`, `--help` or the top-level directory `-t`, makes the command run no
+test as far as the check is concerned. The check trusts the runner image, the
+actions that steps use and the programs that steps run not to change how bash
+starts or which program a command name runs.
 
 `scripts/spec_resolve.lean` imports exactly the modules that a pins file lists.
 It rejects:

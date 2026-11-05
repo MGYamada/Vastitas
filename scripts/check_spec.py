@@ -456,6 +456,8 @@ def yaml_mapping(lines, indent):
         if line is None or yaml_indent(line) != indent or line.lstrip().startswith("- "):
             return result
         key, rest = yaml_key(line.strip())
+        if key in result:
+            raise YamlError(f"a repeated key {key!r}")
         lines.index += 1
         result[key] = yaml_value(lines, indent, rest)
 
@@ -542,14 +544,18 @@ def yaml_sequence(lines, indent):
             continue
         key, rest = yaml_key(content)
         item = {key: yaml_value(lines, column, rest)}
-        item.update(yaml_mapping(lines, column))
+        others = yaml_mapping(lines, column)
+        if key in others:
+            raise YamlError(f"a repeated key {key!r}")
+        item.update(others)
         items.append(item)
 
 
 def yaml_load(text):
     """Block mappings and sequences, plain, quoted and block scalars, and flow
     sequences of scalars; other flow collections stay text. A scalar folded
-    from several lines is Folded. YamlError reports a form outside the subset."""
+    from several lines is Folded. YamlError reports a form outside the subset,
+    including a repeated key, which GitHub rejects."""
     return yaml_node(YamlLines(text), 0)
 
 
@@ -577,14 +583,15 @@ def unix_job(job):
     """Whether every runner that `job` may use is a GitHub-hosted Linux or macOS
     runner, `ubuntu-…` or `macos-…`, where a `run:` step uses bash by default.
     A `${{ matrix.KEY }}` runner takes the literal values of KEY in the job's
-    matrix, with those that `include` adds."""
+    matrix, with those that `include` adds; a matrix with `exclude` is not
+    read."""
     labels = job.get("runs-on")
     if isinstance(labels, str):
         match = re.fullmatch(r"\$\{\{\s*matrix\.([A-Za-z0-9_-]+)\s*\}\}", labels.strip())
         if match:
             strategy = job.get("strategy")
             matrix = strategy.get("matrix") if isinstance(strategy, dict) else None
-            include = matrix.get("include") or [] if isinstance(matrix, dict) else None
+            include = matrix.get("include") or [] if isinstance(matrix, dict) and "exclude" not in matrix else None
             if not isinstance(include, list) or not all(isinstance(entry, dict) for entry in include):
                 return False
             values = matrix.get(match.group(1), [])
@@ -596,16 +603,19 @@ def unix_job(job):
         isinstance(label, str) and label.startswith(("ubuntu-", "macos-")) for label in labels)
 
 
-# Variables that change how bash starts, reads or finds commands, or how programs load.
+# Variables that change how bash starts, reads or finds commands, how programs
+# load, or how cargo and Python build and run tests: a test runner, a compiler
+# wrapper, a cross target or a Python path.
 SHELL_ENVIRONMENT = {"BASH_ENV", "BASHOPTS", "CDPATH", "ENV", "GLOBIGNORE", "IFS", "PATH", "POSIXLY_CORRECT",
                      "PS4", "SHELLOPTS"}
+ENVIRONMENT_PREFIXES = ("BASH_FUNC_", "LD_", "DYLD_", "CARGO_BUILD_", "CARGO_TARGET_", "RUSTC", "PYTHON")
 
 
 def plain_environment(*tables):
     """Whether no `env:` table sets a variable of SHELL_ENVIRONMENT or one that
-    starts with BASH_FUNC_, LD_ or DYLD_."""
+    starts with one of ENVIRONMENT_PREFIXES."""
     return all(table is None or isinstance(table, dict) and not any(
-        name in SHELL_ENVIRONMENT or name.startswith(("BASH_FUNC_", "LD_", "DYLD_")) for name in table)
+        name in SHELL_ENVIRONMENT or name.startswith(ENVIRONMENT_PREFIXES) for name in table)
         for table in tables)
 
 
@@ -748,9 +758,19 @@ def option(argument, items, short, long):
     return None
 
 
-CARGO_VALUES = {"--bin", "--example", "--bench", "--features", "-F", "--target", "--target-dir", "-j", "--jobs",
-                "--profile", "--color", "--message-format", "--exclude", "-Z", "--config"}
-CARGO_TARGETS = {"--lib", "--bins", "--bin", "--examples", "--example", "--benches", "--bench", "--doc"}
+# The options of `cargo test` that the check reads. Any other option, such as
+# --no-run, --doc, --help, --target or --config, runs no test as far as the
+# check is concerned.
+CARGO_FLAGS = {"--all", "--all-features", "--all-targets", "--benches", "--bins", "--examples", "--frozen",
+               "--ignore-rust-version", "--keep-going", "--lib", "--locked", "--no-default-features", "--no-fail-fast",
+               "--offline", "--quiet", "--release", "--tests", "--verbose", "--workspace", "-q", "-v", "-vv"}
+CARGO_VALUES = {"--bench", "--bin", "--color", "--example", "--exclude", "--features", "--jobs", "--manifest-path",
+                "--message-format", "--package", "--profile", "--target-dir", "--test", "-F", "-j", "-p"}
+CARGO_TARGETS = {"--bench", "--benches", "--bin", "--bins", "--example", "--examples", "--lib"}
+# The options of the libtest harness, after `--`, that the check reads. Any
+# other option, such as --list, --help or --exclude-should-panic, runs no test.
+LIBTEST_FLAGS = {"--exact", "--ignored", "--include-ignored", "--nocapture", "--quiet", "--show-output", "-q"}
+LIBTEST_VALUES = {"--color", "--skip", "--test-threads"}
 
 
 @dataclass
@@ -778,58 +798,58 @@ class CargoRun:
 
 
 def cargo_run(arguments, package=None):
-    """The tests that `cargo test ARGUMENTS` runs in the root package `package`."""
+    """The tests that `cargo test ARGUMENTS` runs in the root package `package`.
+    An option outside CARGO_FLAGS and CARGO_VALUES, or after `--` outside
+    LIBTEST_FLAGS and LIBTEST_VALUES, makes it run nothing."""
     split = arguments.index("--") if "--" in arguments else len(arguments)
-    before, after = arguments[:split], arguments[split + 1:]
     run = CargoRun(False, set(), "exclude", [], [], False, False)
-    selected, items = False, iter(before)
-    for argument in items:
-        name, _, attached = argument.partition("=") if argument.startswith("--") else (argument, "", "")
-        value = option(argument, items, "-p", "--package")
-        if value is not None:
-            if value != package:
+    selected = False
+
+    def options(arguments, flags, values):
+        """(name, value) for each option, with value None for a flag, or ("", word) for a positional word."""
+        items = iter(arguments)
+        for argument in items:
+            name, equals, attached = argument.partition("=") if argument.startswith("--") else (argument, "", "")
+            if name in values:
+                value = attached if equals else next(items, None)
+                if value is None:
+                    run.runs_nothing = True
+                    return
+                yield name, value
+            elif name in flags and not equals:
+                yield name, None
+            elif argument.startswith("-"):
                 run.runs_nothing = True
-        elif name == "--manifest-path":
-            value = attached or next(items, "")
-            if os.path.normpath(value) != "Cargo.toml":
-                run.runs_nothing = True
-        elif name in ("--no-run", "--doc", "--help", "-h", "--version", "-V"):
+            else:
+                yield "", argument
+
+    for name, value in options(arguments[:split], CARGO_FLAGS, CARGO_VALUES):
+        if name in ("-p", "--package") and value != package or name == "--exclude" and value == package:
             run.runs_nothing = True
-        elif name == "--exclude":
-            if (attached or next(items, "")) == package:
-                run.runs_nothing = True
+        elif name == "--manifest-path" and os.path.normpath(value) != "Cargo.toml":
+            run.runs_nothing = True
         elif name in ("--all-targets", "--tests"):
             run.every_test = selected = True
         elif name == "--test":
             selected = True
-            run.targets.add(attached or next(items, ""))
+            run.targets.add(value)
         elif name in CARGO_TARGETS:
             selected = True
-            if name in CARGO_VALUES and not attached:
-                next(items, None)
-        elif name in CARGO_VALUES and not attached:
-            next(items, None)
-        elif not argument.startswith("-"):
-            run.filters.append(argument)
+        elif not name:
+            run.filters.append(value)
     if not selected:
         run.every_test = True
-    items = iter(after)
-    for argument in items:
-        skip = option(argument, items, None, "--skip")
-        if skip is not None:
-            run.skips.append(skip)
-        elif argument == "--ignored":
+    for name, value in options(arguments[split + 1:], LIBTEST_FLAGS, LIBTEST_VALUES):
+        if name == "--skip":
+            run.skips.append(value)
+        elif name == "--ignored":
             run.ignored = "only"
-        elif argument == "--include-ignored":
+        elif name == "--include-ignored":
             run.ignored = "include"
-        elif argument == "--exact":
+        elif name == "--exact":
             run.exact = True
-        elif argument in ("--list", "--help", "-h"):
-            run.runs_nothing = True
-        elif argument in ("--test-threads", "--format", "--color", "-Z", "--logfile", "--shuffle-seed"):
-            next(items, None)
-        elif not argument.startswith("-"):
-            run.filters.append(argument)
+        elif not name:
+            run.filters.append(value)
     return run
 
 
@@ -848,31 +868,42 @@ class DiscoverRun:
             fnmatch.fnmatchcase(full, item) if "*" in item else item in full for item in self.selections)
 
 
+DISCOVER_FLAGS = {"--buffer", "--catch", "--failfast", "--locals", "--quiet", "--verbose", "-b", "-c", "-f", "-q",
+                  "-v"}
+DISCOVER_SHORT = {"-k": "select", "-p": "pattern", "-s": "start"}
+DISCOVER_LONG = {"--durations": "durations", "--pattern": "pattern", "--start-directory": "start"}
+
+
 def discover_run(arguments, directory):
-    """The tests that `python3 -m unittest discover ARGUMENTS` runs from `directory`."""
-    start, pattern, positional, selections = ".", "test*.py", [], []
+    """The tests that `python3 -m unittest discover ARGUMENTS` runs from
+    `directory`, or None. An option outside DISCOVER_FLAGS, DISCOVER_SHORT and
+    DISCOVER_LONG gives None: `--help` runs no test, and a top-level directory
+    `-t` changes the names that `-k` matches."""
+    found, positional, selections = {"start": ".", "pattern": "test*.py"}, [], []
     items = iter(arguments)
     for argument in items:
-        for short, long in (("-s", "--start-directory"), ("-p", "--pattern"),
-                            ("-t", "--top-level-directory"), ("-k", None)):
-            value = option(argument, items, short, long)
-            if value is not None:
-                if short == "-s":
-                    start = value
-                elif short == "-p":
-                    pattern = value
-                elif short == "-k":
-                    selections.append(value)
-                break
+        if argument in DISCOVER_FLAGS:
+            continue
+        if argument.startswith("--"):
+            name, equals, attached = argument.partition("=")
+            key, value = DISCOVER_LONG.get(name), attached if equals else None
+        elif argument.startswith("-"):
+            key, value = DISCOVER_SHORT.get(argument[:2]), argument[2:] or None
         else:
-            if not argument.startswith("-"):
-                positional.append(argument)
-    if positional:
-        start = positional[0]
-    if len(positional) > 1:
-        pattern = positional[1]
-    resolved = shell_directory(directory, start)
-    return DiscoverRun(resolved, pattern, selections) if resolved is not None else None
+            positional.append(argument)
+            continue
+        value = value if value is not None else next(items, None)
+        if key is None or value is None:
+            return None
+        if key == "select":
+            selections.append(value)
+        elif key != "durations":
+            found[key] = value
+    if len(positional) > 2:
+        return None
+    found.update(zip(("start", "pattern"), positional))
+    resolved = shell_directory(directory, found["start"])
+    return DiscoverRun(resolved, found["pattern"], selections) if resolved is not None else None
 
 
 RUST_RAW = re.compile(r'(b?)r(#*)"')
@@ -1015,31 +1046,35 @@ def python_tests(source):
     """(class, method) of the test methods of the unittest.TestCase classes of a
     module, mapped to whether unittest may skip them or expect them to fail.
     It may whenever `python_skips` holds for the module, whatever the condition
-    or the class that the name concerns."""
+    or the class that the name concerns, and for an `async def` method of a
+    class that is no IsolatedAsyncioTestCase, which unittest never awaits."""
     module = ast.parse(source)
     classes = {node.name: node for node in module.body if isinstance(node, ast.ClassDef)}
 
     def base_names(node):
         return [base.attr if isinstance(base, ast.Attribute) else getattr(base, "id", "") for base in node.bases]
 
-    def test_case(name, seen=()):
+    def test_case(name, kinds=("TestCase", "IsolatedAsyncioTestCase"), seen=()):
         node = classes.get(name)
         return node is not None and name not in seen and any(
-            base in ("TestCase", "IsolatedAsyncioTestCase") or test_case(base, seen + (name,))
-            for base in base_names(node))
+            base in kinds or test_case(base, kinds, seen + (name,)) for base in base_names(node))
 
     def methods(name, seen=()):
+        """Each test method of the class, mapped to whether it is `async def`."""
         node = classes.get(name)
         if node is None or name in seen:
-            return set()
-        found = set()
-        for base in base_names(node):
-            found |= methods(base, seen + (name,))
-        return found | {item.name for item in node.body
-                        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test")}
+            return {}
+        found = {}
+        for base in reversed(base_names(node)):
+            found.update(methods(base, seen + (name,)))
+        for item in node.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name.startswith("test"):
+                found[item.name] = isinstance(item, ast.AsyncFunctionDef)
+        return found
 
     skips = python_skips(source)
-    return {(name, method): skips for name in classes if test_case(name) for method in methods(name)}
+    return {(name, method): skips or asynchronous and not test_case(name, ("IsolatedAsyncioTestCase",))
+            for name in classes if test_case(name) for method, asynchronous in methods(name).items()}
 
 
 class Repository:

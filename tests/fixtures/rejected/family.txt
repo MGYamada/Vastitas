@@ -1,0 +1,5 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/family/main.vast:16:13: E_ENDPOINT: apply requires a map of family Morphism, but the supplied map has family Point
+<ROOT>/tests/emit_corpus/rejected/family/main.vast:15:13: note: object X was introduced here by primitive 'affine'

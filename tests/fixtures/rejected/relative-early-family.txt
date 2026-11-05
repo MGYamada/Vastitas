@@ -1,0 +1,5 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/relative-early-family/main.vast:21:16: E_ENDPOINT: eps requires a map of family Over, but the supplied map has family Morphism
+<ROOT>/tests/emit_corpus/rejected/relative-early-family/main.vast:20:13: note: object X was introduced here by primitive 'affine'

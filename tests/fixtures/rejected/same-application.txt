@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/same-application/main.vast:15:20: E_ENDPOINT: same requires a second map with source D (the first map's source), but the supplied second map has source Line

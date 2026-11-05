@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/operand-shape/main.vast:24:30: E_TYPE: primitive operand shape mismatch

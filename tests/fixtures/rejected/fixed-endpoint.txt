@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/fixed-endpoint/main.vast:19:32: E_ENDPOINT: flat_skew requires a vector with object Plane (the metric's object), but the supplied vector has object Line

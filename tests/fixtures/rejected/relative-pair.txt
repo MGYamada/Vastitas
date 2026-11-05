@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/relative-pair/main.vast:18:25: E_ENDPOINT: lift requires a second map with target Origin (the fiber's second factor), but the supplied second map has target X

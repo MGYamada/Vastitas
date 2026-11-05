@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/relative-coefficient/main.vast:14:31: E_ENDPOINT: eps requires a map with source D (the primitive's declared source), but the supplied map has source Line

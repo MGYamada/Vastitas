@@ -1,0 +1,5 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/marker/main.vast:14:13: E_ENDPOINT: dimension requires an object with coefficient marker CInfReal, but the supplied object X has coefficient marker QQ
+<ROOT>/tests/emit_corpus/rejected/marker/main.vast:13:13: note: object X was introduced here by primitive 'affine'

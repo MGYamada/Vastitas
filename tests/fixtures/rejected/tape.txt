@@ -1,0 +1,4 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/tape/main.vast:24:30: E_ENDPOINT: backward requires a seed with object Plane (the tape's target), but the supplied seed has object Line

@@ -1,0 +1,6 @@
+exit 1
+--- stdout ---
+--- stderr ---
+<ROOT>/tests/emit_corpus/rejected/same-endpoint/main.vast:17:13: E_ENDPOINT: compose requires a second map with target X (the first map's source), but the supplied second map has target Y
+<ROOT>/tests/emit_corpus/rejected/same-endpoint/main.vast:15:13: note: object X was introduced here by primitive 'affine'
+<ROOT>/tests/emit_corpus/rejected/same-endpoint/main.vast:16:13: note: object Y was introduced here by primitive 'affine'

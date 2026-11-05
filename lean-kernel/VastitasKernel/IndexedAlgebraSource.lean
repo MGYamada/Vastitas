@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSource
+import VastitasKernel.IndexedPrimitiveFamilies
 import VastitasKernel.NamespaceChecker
 
 /-! Source elaboration of presented affine declarations (Stage 2).
@@ -264,7 +265,9 @@ def elaborateRelative (sources : List (DeclId × Span × Body)) (env : Core.Decl
       match morphismMap env.indexed application definition with
       | .ok map => primitives := primitives ++ [⟨entry.id, .relativeConstant application map⟩]
       | .error error => algebraProblem span error
-    | .relativeCoefficient family source target _ _, .primitive (.relativeCoefficient _ _ _ coordinate monomial) =>
+    | .relativeCoefficient family source target _ _, .primitive primitive =>
+      let some (coordinate, monomial) := primitive.relativeCoefficientArguments?
+        | primitives := primitives ++ [entry]; continue
       let some dx := affineData? env.indexed source
         | Namespace.problem span "E_AFFINE_BASE" "the source is not a presented affine object"
       let some dy := affineData? env.indexed target

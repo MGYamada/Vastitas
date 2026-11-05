@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedAuthorityCheck
+import VastitasKernel.IndexedPrimitiveFamilies
 import VastitasKernel.JsonDecode
 
 /-! Strict unresolved declaration decoding for the protocol-7 integration.
@@ -125,14 +126,12 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
 /-- The Stage 2 relative and Stage 3 smooth, fiber, tape and metric primitive
-contracts. Only protocol 9 admits them; the list is explicit, so no other
-spelling with a shared prefix is admitted. There is no `gradient` operation:
-a gradient is an ordinary function that applies `sharp` to a differential. -/
+contracts. Only protocol 9 admits them; the list is the algebraic families, so
+no other spelling with a shared prefix is admitted. There is no `gradient`
+operation: a gradient is an ordinary function that applies `sharp` to a
+differential. -/
 def algebraicOperations : List String :=
-  ["relative_compose", "relative_equal", "relative_view", "relative_coefficient", "relative_int_point",
-   "relative_pair", "smooth_compose", "smooth_equal", "smooth_composite", "smooth_int_point",
-   "fiber_vector", "fiber_at", "fiber_equal", "fiber_component", "fiber_pairing", "cotangent_pullback",
-   "differential", "linearize", "cotangent_backward", "flat", "sharp"]
+  (families.filter (·.algebraic)).map (·.op)
 
 /-- How a cotangent pullback obtains forward values. -/
 def pullbackMode (j : Json) : Except String SmoothRuntime.PullbackMode := do
@@ -141,64 +140,26 @@ def pullbackMode (j : Json) : Except String SmoothRuntime.PullbackMode := do
   | "recomputed" => return .recomputed
   | _ => throw "expected pullback mode saved or recomputed"
 
+/-- One field of a primitive's wire form, decoded by its declared kind. -/
+def wireArgument (j : Json) (spec : WireField) : Except String Source.WireArgument := do
+  match spec.kind with
+  | .path => return .path (← path (← field j spec.name))
+  | .objectType => return .objectType (← objectType (← field j spec.name))
+  | .coordinate => return .coordinate (← str j spec.name)
+  | .polynomial => return .polynomial (← polyExpr Limits.algebraNesting (← field j spec.name))
+  | .pullbackMode => return .pullbackMode (← pullbackMode (← field j spec.name))
+
+/-- A primitive of one family: exactly `op` and the family's fields, decoded
+in wire order. -/
+def familyPrimitive (j : Json) (family : PrimitiveFamily) : Except String Source.Primitive := do
+  fields j ("op" :: family.fieldNames)
+  return ⟨family.op, ← family.fields.mapM fun spec => return (spec.name, ← wireArgument j spec)⟩
+
 /-- Stage 2 relative and Stage 3 smooth primitives (protocol 9 only). -/
 def algebraicPrimitive (j : Json) (op : String) : Except String Source.Primitive := do
-  match op with
-  | "relative_compose" => fields j ["op", "family"]; return .relativeCompose (← path (← field j "family"))
-  | "relative_equal" => fields j ["op", "family"]; return .relativeEqual (← path (← field j "family"))
-  | "relative_view" =>
-    fields j ["op", "family", "source", "target"]
-    return .relativeView (← path (← field j "family")) (← path (← field j "source")) (← path (← field j "target"))
-  | "relative_coefficient" =>
-    fields j ["op", "family", "source", "target", "coordinate", "monomial"]
-    return .relativeCoefficient (← path (← field j "family")) (← path (← field j "source"))
-      (← path (← field j "target")) (← str j "coordinate") (← polyExpr Limits.algebraNesting (← field j "monomial"))
-  | "relative_int_point" =>
-    fields j ["op", "family", "object", "base"]
-    return .relativeIntPoint (← path (← field j "family")) (← path (← field j "object")) (← path (← field j "base"))
-  | "relative_pair" =>
-    fields j ["op", "family", "fiber"]
-    return .relativePair (← path (← field j "family")) (← path (← field j "fiber"))
-  | "smooth_compose" => fields j ["op", "family"]; return .smoothCompose (← path (← field j "family"))
-  | "smooth_equal" => fields j ["op", "family"]; return .smoothEqual (← path (← field j "family"))
-  | "smooth_composite" => fields j ["op", "family"]; return .smoothComposite (← path (← field j "family"))
-  | "smooth_int_point" =>
-    fields j ["op", "family", "object", "point"]
-    return .smoothIntPoint (← path (← field j "family")) (← path (← field j "object")) (← path (← field j "point"))
-  | "fiber_vector" =>
-    fields j ["op", "family", "map_family", "object"]
-    return .fiberVector (← path (← field j "family")) (← path (← field j "map_family")) (← path (← field j "object"))
-  | "fiber_at" =>
-    fields j ["op", "family", "map_family"]
-    return .fiberAt (← path (← field j "family")) (← path (← field j "map_family"))
-  | "fiber_equal" => fields j ["op", "family"]; return .fiberEqual (← path (← field j "family"))
-  | "fiber_component" =>
-    fields j ["op", "family", "object", "coordinate"]
-    return .fiberComponent (← path (← field j "family")) (← path (← field j "object")) (← str j "coordinate")
-  | "fiber_pairing" =>
-    fields j ["op", "cotangent", "tangent"]
-    return .fiberPairing (← path (← field j "cotangent")) (← path (← field j "tangent"))
-  | "cotangent_pullback" =>
-    fields j ["op", "map_family", "cotangent", "mode"]
-    return .cotangentPullback (← path (← field j "map_family")) (← path (← field j "cotangent"))
-      (← pullbackMode (← field j "mode"))
-  | "differential" =>
-    fields j ["op", "map_family", "cotangent", "line"]
-    return .differential (← path (← field j "map_family")) (← path (← field j "cotangent")) (← path (← field j "line"))
-  | "linearize" =>
-    fields j ["op", "map_family", "tape"]
-    return .linearize (← path (← field j "map_family")) (← path (← field j "tape"))
-  | "cotangent_backward" =>
-    fields j ["op", "tape", "cotangent"]
-    return .cotangentBackward (← path (← field j "tape")) (← path (← field j "cotangent"))
-  | "flat" =>
-    fields j ["op", "tangent", "cotangent", "metric"]
-    return .flat (← path (← field j "tangent")) (← path (← field j "cotangent")) (← path (← field j "metric"))
-  | "sharp" =>
-    fields j ["op", "cotangent", "tangent", "metric", "evidence"]
-    return .sharp (← path (← field j "cotangent")) (← path (← field j "tangent")) (← path (← field j "metric"))
-      (← path (← field j "evidence"))
-  | _ => throw "unknown indexed primitive contract"
+  let some family := primitiveFamily? op | throw "unknown indexed primitive contract"
+  unless family.algebraic do throw "unknown indexed primitive contract"
+  familyPrimitive j family
 
 def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := do
   match ← str j "kind" with
@@ -213,32 +174,13 @@ def morphismDefinition (j : Json) : Except String Source.MorphismDefinition := d
   | _ => throw "unknown morphism definition"
 
 def primitive (j : Json) (algebraic : Bool := false) : Except String Source.Primitive := do
-  match ← str j "op" with
-  | "descriptor" =>
-    fields j ["op", "implementation"]
-    return .descriptor (← path (← field j "implementation"))
-  | "global" =>
-    fields j ["op", "declaration"]
-    return .global (← path (← field j "declaration"))
-  | "origin" =>
-    fields j ["op", "domain", "point_family", "base_object"]
-    return .origin (← objectType (← field j "domain"))
-      (← path (← field j "point_family")) (← path (← field j "base_object"))
-  | "identity" =>
-    fields j ["op", "domain", "map_family"]
-    return .identity (← objectType (← field j "domain")) (← path (← field j "map_family"))
-  | "dimension" =>
-    fields j ["op", "domain"]
-    return .dimension (← objectType (← field j "domain"))
-  | "compose" =>
-    fields j ["op", "map_family"]
-    return .compose (← path (← field j "map_family"))
-  | "apply" =>
-    fields j ["op", "map_family", "point_family"]
-    return .apply (← path (← field j "map_family")) (← path (← field j "point_family"))
-  | op =>
-    unless algebraic && algebraicOperations.contains op do throw "unknown indexed primitive contract"
+  let op ← str j "op"
+  let some family := primitiveFamily? op | throw "unknown indexed primitive contract"
+  if family.algebraic then
+    unless algebraic do throw "unknown indexed primitive contract"
     algebraicPrimitive j op
+  else
+    familyPrimitive j family
 
 def coefficientKind (j : Json) : Except String CoefficientKind := do
   match ← j.getStr? with

@@ -44,7 +44,7 @@ private def declarations : List Source.Declaration := [
   morphism "prO" "Fiber" "Origin" "S" .second,
   morphism "back" "Fiber" "DS" "S" (.pullback [("e", c "X::x")]),
   cartesian "fiberIsDual" "toX" "toOrigin" "Fiber" "back",
-  decl "lift" (.primitive (.relativePair (path "Over") (path "Fiber"))),
+  decl "lift" (.primitive ⟨"relative_pair", [("family", .path (path "Over")), ("fiber", .path (path "Fiber"))]⟩),
   -- A separately declared copy of S, comparable only through a chosen isomorphism.
   affine "S2" ["t"] [] "SpecQQ",
   affine "Origin2" [] [] "S2" [("t", n 0)],
@@ -108,7 +108,9 @@ private def mapOf (name : String) : Option Map :=
     | .error _ => false)
 #eval check "a nested fiber nests its qualifiers"
   (match Source.checkDeclarations (with' [fiber "Nested" "Fiber" "Origin",
-      decl "nx" (.primitive (.relativeCoefficient (path "Over") (path "DS") (path "Nested") "Fiber::X::x" (c "e")))]) with
+      decl "nx" (.primitive ⟨"relative_coefficient", [("family", .path (path "Over")), ("source", .path (path "DS")),
+        ("target", .path (path "Nested")), ("coordinate", .coordinate "Fiber::X::x"),
+        ("monomial", .polynomial (c "e"))]⟩)]) with
     | .ok checked => (affineData? checked.resolved.declarations.indexed (id "Nested")).map (·.generators) ==
         some ["Fiber::X::t", "Fiber::X::x"]
     | .error _ => false)
@@ -133,7 +135,8 @@ private def mapOf (name : String) : Option Map :=
 #eval check "a projection to the wrong factor"
   (code (with' [morphism "bad" "Fiber" "Origin" "S" .first]) == "E_AFFINE_BASE")
 #eval check "pair is not admitted for products through an isomorphism"
-  (code (with' [decl "bad" (.primitive (.relativePair (path "Over") (path "Fiber2")))]) != "accepted")
+  (code (with' [decl "bad" (.primitive ⟨"relative_pair",
+    [("family", .path (path "Over")), ("fiber", .path (path "Fiber2"))]⟩)]) != "accepted")
 #eval check "isomorphisms must compose to the identity"
   (code (with' [morphism "sq2" "S" "S2" "SpecQQ" (.pullback [("t", sq "t")]),
     decl "bad" (.iso (path "sq2") (path "fromS2"))]) == "E_AFFINE_RELATION")

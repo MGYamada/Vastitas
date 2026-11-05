@@ -24,13 +24,14 @@ private def geometry : List Declaration := [
   decl "Base" (.global (path "Grid")),
   decl "Point" (family .point), decl "Morphism" (family .morphism),
   decl "Pointed" (.package [shape]),
-  decl "Affine" (.primitive (.descriptor (path "Grid"))),
-  decl "baseObject" (.primitive (.global (path "Base"))),
-  decl "origin" (.primitive (.origin objectType (path "Point") (path "Base"))),
-  decl "id" (.primitive (.identity objectType (path "Morphism"))),
-  decl "dimension" (.primitive (.dimension objectType)),
-  decl "compose" (.primitive (.compose (path "Morphism"))),
-  decl "apply" (.primitive (.apply (path "Morphism") (path "Point"))),
+  decl "Affine" (.primitive ⟨"descriptor", [("implementation", .path (path "Grid"))]⟩),
+  decl "baseObject" (.primitive ⟨"global", [("declaration", .path (path "Base"))]⟩),
+  decl "origin" (.primitive ⟨"origin", [("domain", .objectType objectType),
+    ("point_family", .path (path "Point")), ("base_object", .path (path "Base"))]⟩),
+  decl "id" (.primitive ⟨"identity", [("domain", .objectType objectType), ("map_family", .path (path "Morphism"))]⟩),
+  decl "dimension" (.primitive ⟨"dimension", [("domain", .objectType objectType)]⟩),
+  decl "compose" (.primitive ⟨"compose", [("map_family", .path (path "Morphism"))]⟩),
+  decl "apply" (.primitive ⟨"apply", [("map_family", .path (path "Morphism")), ("point_family", .path (path "Point"))]⟩),
   decl "Token" (.family ⟨[.domain, .marker, .natural, .object (path "Scheme")], [], .token⟩),
   decl "Sealed" (.package [⟨objectType,
     [⟨path "Token", [.domain (path "Scheme"), .marker (path "QQ"), .natural 3, .witness]⟩]⟩]) ]
@@ -81,12 +82,15 @@ private def twoLibraries : Program := { program with packages :=
         isMarker checked.resolved.declarations.indexed (id "QQ"))
 #eval check "matching display names cannot mix coefficient identities" (rejects "E_TYPE" { twoLibraries with packages :=
   [{ twoLibraries.packages[0]! with modules := [{ rootModule with declarations := rootModule.declarations ++
-    [decl "Mixed" (.primitive (.origin ⟨path "geo::Scheme", path "copy::QQ"⟩ (path "geo::Point") (path "geo::Base")))] }] },
+    [decl "Mixed" (.primitive ⟨"origin", [("domain", .objectType ⟨path "geo::Scheme", path "copy::QQ"⟩),
+      ("point_family", .path (path "geo::Point")), ("base_object", .path (path "geo::Base"))]⟩)] }] },
     twoLibraries.packages[1]!, twoLibraries.packages[2]!] })
 #eval check "base marker cannot serve as test object" (rejects "E_TYPE"
-  (change "origin" (.primitive (.origin objectType (path "Point") (path "QQ")))))
+  (change "origin" (.primitive ⟨"origin", [("domain", .objectType objectType),
+    ("point_family", .path (path "Point")), ("base_object", .path (path "QQ"))]⟩)))
 #eval check "wrong coefficient marker" (rejects "E_TYPE"
-  (change "origin" (.primitive (.origin ⟨path "Scheme", path "CInfReal"⟩ (path "Point") (path "Base")))))
+  (change "origin" (.primitive ⟨"origin", [("domain", .objectType ⟨path "Scheme", path "CInfReal"⟩),
+    ("point_family", .path (path "Point")), ("base_object", .path (path "Base"))]⟩)))
 #eval check "classification cycle" (rejects "E_TYPE"
   (change "Scheme" (.classification [path "Scheme"] [path "Grid"])))
 #eval check "complete domain capability audit" (rejects "E_TYPE" (changeLibrary fun m =>

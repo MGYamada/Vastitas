@@ -19,6 +19,15 @@ private def affine (name : String) (generators : List String) (relations : List 
   decl name (.affine (path "AffineQQ") generators relations (base.map path) bindings)
 private def morphism (name x y s : String) (definition : Source.MorphismDefinition) : Source.Declaration :=
   decl name (.morphism (path "Over") [path x, path y, path s] definition)
+/-- `relative_coefficient` of `Over` from `D` to `Line` in wire order; the algebra pass reads the
+coordinate and the monomial back by field name. -/
+private def coefficientOf (coordinate : String) (monomial : Source.PolyExpr) : Source.Body :=
+  .primitive ⟨"relative_coefficient", [("family", .path (path "Over")), ("source", .path (path "D")),
+    ("target", .path (path "Line")), ("coordinate", .coordinate coordinate),
+    ("monomial", .polynomial monomial)]⟩
+private def viewOf (source target : String) : Source.Body :=
+  .primitive ⟨"relative_view", [("family", .path (path "Over")), ("source", .path (path source)),
+    ("target", .path (path target))]⟩
 
 private def over (constraints : List Constraint := [.structural 0 2, .structural 1 2]) : Source.Family :=
   ⟨[.object (path "AffineScheme"), .object (path "AffineScheme"), .object (path "AffineScheme")],
@@ -41,9 +50,9 @@ private def declarations : List Source.Declaration := [
   morphism "root" "X" "Y" "S" (.pullback [("u", c "x")]),
   morphism "toS" "X" "S" "S" .structureMap,
   morphism "same" "X" "X" "S" .identity,
-  decl "compose" (.primitive (.relativeCompose (path "Over"))),
-  decl "eps" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t" (c "e"))),
-  decl "view" (.primitive (.relativeView (path "Over") (path "S") (path "SpecQQ"))) ]
+  decl "compose" (.primitive ⟨"relative_compose", [("family", .path (path "Over"))]⟩),
+  decl "eps" (coefficientOf "t" (c "e")),
+  decl "view" (viewOf "S" "SpecQQ") ]
 
 private def program (ds := declarations) : Source.Program := {
   file := "affine morphisms", root := pkg.source,
@@ -98,20 +107,15 @@ private def mapOf (name : String) : Option Map :=
 #eval check "absent structure map to the named base"
   (code (with' [morphism "bad" "D" "Line" "S" (.pullback [("t", c "e")])]) != "accepted")
 #eval check "unknown coefficient coordinate"
-  (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "u" (c "e")))])
-    == "E_AFFINE_COORDINATE")
+  (code (with' [decl "bad" (coefficientOf "u" (c "e"))]) == "E_AFFINE_COORDINATE")
 #eval check "coefficient selector must be a monomial"
-  (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t"
-    (.sum [c "e", n 1])))]) == "E_AFFINE_COORDINATE")
+  (code (with' [decl "bad" (coefficientOf "t" (.sum [c "e", n 1]))]) == "E_AFFINE_COORDINATE")
 #eval check "a zero coefficient selector"
-  (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t" (n 0)))])
-    == "E_AFFINE_COORDINATE")
+  (code (with' [decl "bad" (coefficientOf "t" (n 0))]) == "E_AFFINE_COORDINATE")
 #eval check "a coefficient selector that cancels to zero"
-  (code (with' [decl "bad" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t"
-    (.sum [c "e", .neg (c "e")])))]) == "E_AFFINE_COORDINATE")
+  (code (with' [decl "bad" (coefficientOf "t" (.sum [c "e", .neg (c "e")]))]) == "E_AFFINE_COORDINATE")
 #eval check "the constant coefficient selector is one"
-  (code (with' [decl "constant" (.primitive (.relativeCoefficient (path "Over") (path "D") (path "Line") "t"
-    (n 1)))]) == "accepted")
+  (code (with' [decl "constant" (coefficientOf "t" (n 1))]) == "accepted")
 
 -- Substitution is budgeted: small sources whose expansions are huge fail with E_LIMIT.
 private def coordinates : List String := (List.range 16).map (s!"x{·}")
@@ -127,7 +131,7 @@ private def level (k : Nat) : Source.Declaration :=
   (code (with' ([affine "S0" ["a0"] []] ++ (List.range 2).map level ++
     [morphism "fine" "S2" "S0" "S0" .structureMap])) == "accepted")
 #eval check "a view needs the target base on the chain"
-  (code (with' [decl "bad" (.primitive (.relativeView (path "Over") (path "SpecQQ") (path "S")))]) != "accepted")
+  (code (with' [decl "bad" (viewOf "SpecQQ" "S")]) != "accepted")
 #eval check "relative families need exactly the structural constraints"
   (code (program (declarations.map fun d => if d.name == "Over" then decl "Over" (.family (over [.structural 0 2]))
     else d)) != "accepted")

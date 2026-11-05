@@ -1,4 +1,5 @@
 import VastitasKernel.IndexedSource
+import VastitasKernel.IndexedPrimitiveFamilies
 import VastitasKernel.NamespaceChecker
 import VastitasKernel.IndexedTypeAudit
 import VastitasKernel.IndexedAlgebraSource
@@ -40,56 +41,34 @@ def resolveShape (p : Namespace.Indexed) (scope : Namespace.Scope) (shape : Pack
     ResolveM Indexed.PackageShape :=
   return ⟨← resolveType p scope shape.witnessType, ← shape.fields.mapM (resolveField p scope)⟩
 
-def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) : Primitive → ResolveM PrimitiveBinding
-  | .descriptor implementation => return .descriptor (← resolveId p scope implementation)
-  | .global declaration => return .global (← resolveId p scope declaration)
-  | .origin domain family base =>
-      return .origin (← resolveType p scope domain) (← resolveId p scope family) (← resolveId p scope base)
-  | .identity domain family => return .identity (← resolveType p scope domain) (← resolveId p scope family)
-  | .dimension domain => return .dimension (← resolveType p scope domain)
-  | .compose family => return .compose (← resolveId p scope family)
-  | .apply maps points => return .apply (← resolveId p scope maps) (← resolveId p scope points)
-  | .relativeCompose family => return .relativeCompose (← resolveId p scope family)
-  | .relativeView family source target =>
-      return .relativeView (← resolveId p scope family) (← resolveId p scope source) (← resolveId p scope target)
-  | .relativeEqual family => return .relativeEqual (← resolveId p scope family)
-  | .relativeCoefficient family source target _ _ =>
-      -- The coordinate index and monomial are elaborated once objects are known.
-      return .relativeCoefficient (← resolveId p scope family) (← resolveId p scope source)
-        (← resolveId p scope target) 0 []
-  | .relativeIntPoint family object base =>
-      return .relativeIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope base)
-  | .relativePair family fiber => return .relativePair (← resolveId p scope family) (← resolveId p scope fiber)
-  | .smoothCompose family => return .smoothCompose (← resolveId p scope family)
-  | .smoothEqual family => return .smoothEqual (← resolveId p scope family)
-  | .smoothComposite family => return .smoothComposite (← resolveId p scope family)
-  | .smoothIntPoint family object point =>
-      return .smoothIntPoint (← resolveId p scope family) (← resolveId p scope object) (← resolveId p scope point)
-  | .fiberVector family smooth object =>
-      return .fiberVector (← resolveId p scope family) (← resolveId p scope smooth) (← resolveId p scope object)
-  | .fiberAt family smooth => return .fiberAt (← resolveId p scope family) (← resolveId p scope smooth)
-  | .fiberEqual family => return .fiberEqual (← resolveId p scope family)
-  | .fiberComponent family object _ =>
-      -- The coordinate index is elaborated once objects are known.
-      return .fiberComponent (← resolveId p scope family) (← resolveId p scope object) 0
-  | .fiberPairing cotangent tangent =>
-      return .fiberPairing (← resolveId p scope cotangent) (← resolveId p scope tangent)
-  | .cotangentPullback smooth cotangent mode =>
-      return .cotangentPullback (← resolveId p scope smooth) (← resolveId p scope cotangent) mode
-  | .differential smooth cotangent line =>
-      return .differential (← resolveId p scope smooth) (← resolveId p scope cotangent) (← resolveId p scope line)
-  | .linearize smooth tape => return .linearize (← resolveId p scope smooth) (← resolveId p scope tape)
-  | .cotangentBackward tape cotangent =>
-      return .cotangentBackward (← resolveId p scope tape) (← resolveId p scope cotangent)
-  | .flat tangent cotangent metric => do
-      -- The object and the Gram matrix are elaborated once the metric is.
-      let metric ← resolveId p scope metric
-      return .metricFlat metric metric [] (← resolveId p scope tangent) (← resolveId p scope cotangent)
-  | .sharp cotangent tangent metric evidence => do
-      -- The object and both matrices are elaborated once the evidence is.
-      let metric ← resolveId p scope metric
-      let evidence ← resolveId p scope evidence
-      return .metricSharp metric evidence metric [] [] (← resolveId p scope cotangent) (← resolveId p scope tangent)
+def resolveArgument (p : Namespace.Indexed) (scope : Namespace.Scope) : WireArgument → ResolveM ResolvedArgument
+  | .path path => return .declaration (← resolveId p scope path)
+  | .objectType type => return .objectType (← resolveType p scope type)
+  | .coordinate name => pure (.coordinate name)
+  | .polynomial expression => pure (.polynomial expression)
+  | .pullbackMode mode => pure (.pullbackMode mode)
+
+/-- The binding of a primitive's wire form through its family: the arguments
+are the family's fields in wire order, each is resolved in the family's
+resolution order, and `build` embeds the placeholders that the stage passes
+fill. A form the decoder cannot produce (an unknown op, other field names,
+another order or other kinds) is `E_PROTOCOL` before any name is resolved, so
+`build` always receives arguments of the family's kinds. -/
+def resolvePrimitive (p : Namespace.Indexed) (scope : Namespace.Scope) (primitive : Primitive) :
+    ResolveM PrimitiveBinding := do
+  let some family := primitiveFamily? primitive.op
+    | Namespace.problem {} "E_PROTOCOL" "unknown indexed primitive contract"
+  unless primitive.arguments.map (fun (name, argument) => (name, argument.kind)) ==
+      family.fields.map (fun field => (field.name, field.kind)) do
+    Namespace.problem {} "E_PROTOCOL" s!"the arguments of `{family.op}` are not its wire fields"
+  let mut resolved : List (String × ResolvedArgument) := []
+  for name in family.resolutionOrder do
+    if let some (_, argument) := primitive.arguments.find? (·.1 == name) then
+      resolved := resolved ++ [(name, ← resolveArgument p scope argument)]
+  let arguments := family.fieldNames.filterMap fun name => (resolved.find? (·.1 == name)).map (·.2)
+  match family.build arguments with
+  | .ok binding => pure binding
+  | .error message => Namespace.problem {} "E_PROTOCOL" message
 
 def resolveRepresentation (p : Namespace.Indexed) (scope : Namespace.Scope) :
     Source.Representation → ResolveM Indexed.Representation

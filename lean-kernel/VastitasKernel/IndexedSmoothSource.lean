@@ -115,7 +115,9 @@ def elaborateSmooth (sources : List (DeclId × Span × Body)) (env : Core.Declar
     | .fiberVector _ _ object, _ =>
       requireSmoothObject env.indexed span "fiber_vector" object
       primitives := primitives ++ [entry]
-    | .fiberComponent family object _, some (.primitive (.fiberComponent _ _ coordinate)) =>
+    | .fiberComponent family object _, some (.primitive primitive) =>
+      let some coordinate := primitive.fiberComponentCoordinate?
+        | primitives := primitives ++ [entry]; continue
       let some coordinates := smoothCoordinates? env.indexed object
         | smoothProblem span (.smooth s!"the object `{object.name}` of `fiber_component` is not a smooth object")
       let some index := coordinates.idxOf? coordinate

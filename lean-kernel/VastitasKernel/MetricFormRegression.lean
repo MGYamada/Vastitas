@@ -26,15 +26,17 @@ private def morphism (name x y : String) (definition : Source.MorphismDefinition
   decl name (.morphism (path "Smooth") [path x, path y] definition)
 private def primitive (name : String) (binding : Source.Primitive) : Source.Declaration :=
   decl name (.primitive binding)
+private def ref (field name : String) : String × Source.WireArgument := (field, .path (path name))
 private def metric (name : String) (gram : Source.MetricGram) (object := "Plane") (family := "MetricForm") :
     Source.Declaration :=
   decl name (.metric (path family) [path object] gram)
 private def evidence (name metric : String) (kind : Source.EvidenceKind) : Source.Declaration :=
   decl name (.evidence (path metric) kind)
 private def flat (name metric : String) : Source.Declaration :=
-  primitive name (.flat (path "Tangent") (path "Cotangent") (path metric))
+  primitive name ⟨"flat", [ref "tangent" "Tangent", ref "cotangent" "Cotangent", ref "metric" metric]⟩
 private def sharp (name metric evidence : String) : Source.Declaration :=
-  primitive name (.sharp (path "Cotangent") (path "Tangent") (path metric) (path evidence))
+  primitive name ⟨"sharp",
+    [ref "cotangent" "Cotangent", ref "tangent" "Tangent", ref "metric" metric, ref "evidence" evidence]⟩
 
 private def family (name : String) (representation : FamilyRepresentation) (arity : Nat)
     (constraints : List Constraint) : Source.Declaration :=
@@ -53,24 +55,25 @@ private def metricFree : List Source.Declaration := [
   space "Plane" 2 ["x", "y"],
   space "Space" 3 ["u", "v", "w"],
   morphism "g" "Plane" "Line" (.pullback [("t", .sum [.pow (c "x") 2, c "y"])]),
-  primitive "plane_at" (.smoothIntPoint (path "Smooth") (path "Plane") (path "Pt")),
-  primitive "line_at" (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt")),
-  primitive "vline" (.fiberVector (path "Tangent") (path "Smooth") (path "Line")),
-  primitive "dline" (.fiberVector (path "Cotangent") (path "Smooth") (path "Line")),
-  primitive "space_at" (.smoothIntPoint (path "Smooth") (path "Space") (path "Pt")),
-  primitive "dspace" (.fiberVector (path "Cotangent") (path "Smooth") (path "Space")),
-  primitive "vspace" (.fiberVector (path "Tangent") (path "Smooth") (path "Space")),
-  primitive "differential" (.differential (path "Smooth") (path "Cotangent") (path "Line")),
-  primitive "tangent_over" (.fiberAt (path "Tangent") (path "Smooth")),
-  primitive "same_vector" (.fiberEqual (path "Tangent")),
-  primitive "same_covector" (.fiberEqual (path "Cotangent")),
-  primitive "pairing" (.fiberPairing (path "Cotangent") (path "Tangent")),
-  primitive "dplane" (.fiberVector (path "Cotangent") (path "Smooth") (path "Plane")),
-  primitive "vplane" (.fiberVector (path "Tangent") (path "Smooth") (path "Plane")),
-  primitive "dx" (.fiberComponent (path "Cotangent") (path "Plane") "x"),
-  primitive "dy" (.fiberComponent (path "Cotangent") (path "Plane") "y"),
-  primitive "vx" (.fiberComponent (path "Tangent") (path "Plane") "x"),
-  primitive "vy" (.fiberComponent (path "Tangent") (path "Plane") "y") ]
+  primitive "plane_at" ⟨"smooth_int_point", [ref "family" "Smooth", ref "object" "Plane", ref "point" "Pt"]⟩,
+  primitive "line_at" ⟨"smooth_int_point", [ref "family" "Smooth", ref "object" "Line", ref "point" "Pt"]⟩,
+  primitive "vline" ⟨"fiber_vector", [ref "family" "Tangent", ref "map_family" "Smooth", ref "object" "Line"]⟩,
+  primitive "dline" ⟨"fiber_vector", [ref "family" "Cotangent", ref "map_family" "Smooth", ref "object" "Line"]⟩,
+  primitive "space_at" ⟨"smooth_int_point", [ref "family" "Smooth", ref "object" "Space", ref "point" "Pt"]⟩,
+  primitive "dspace" ⟨"fiber_vector", [ref "family" "Cotangent", ref "map_family" "Smooth", ref "object" "Space"]⟩,
+  primitive "vspace" ⟨"fiber_vector", [ref "family" "Tangent", ref "map_family" "Smooth", ref "object" "Space"]⟩,
+  primitive "differential"
+    ⟨"differential", [ref "map_family" "Smooth", ref "cotangent" "Cotangent", ref "line" "Line"]⟩,
+  primitive "tangent_over" ⟨"fiber_at", [ref "family" "Tangent", ref "map_family" "Smooth"]⟩,
+  primitive "same_vector" ⟨"fiber_equal", [ref "family" "Tangent"]⟩,
+  primitive "same_covector" ⟨"fiber_equal", [ref "family" "Cotangent"]⟩,
+  primitive "pairing" ⟨"fiber_pairing", [ref "cotangent" "Cotangent", ref "tangent" "Tangent"]⟩,
+  primitive "dplane" ⟨"fiber_vector", [ref "family" "Cotangent", ref "map_family" "Smooth", ref "object" "Plane"]⟩,
+  primitive "vplane" ⟨"fiber_vector", [ref "family" "Tangent", ref "map_family" "Smooth", ref "object" "Plane"]⟩,
+  primitive "dx" ⟨"fiber_component", [ref "family" "Cotangent", ref "object" "Plane", ("coordinate", .coordinate "x")]⟩,
+  primitive "dy" ⟨"fiber_component", [ref "family" "Cotangent", ref "object" "Plane", ("coordinate", .coordinate "y")]⟩,
+  primitive "vx" ⟨"fiber_component", [ref "family" "Tangent", ref "object" "Plane", ("coordinate", .coordinate "x")]⟩,
+  primitive "vy" ⟨"fiber_component", [ref "family" "Tangent", ref "object" "Plane", ("coordinate", .coordinate "y")]⟩ ]
 
 /-- Metrics, evidence, `flat` and `sharp` on the plane. -/
 private def metrics : List Source.Declaration := [
@@ -371,15 +374,18 @@ private def big : Nat := 10 ^ 63 + 7
     rejectsWith (with' [sharp "bad" "SkewInvertible" "SkewInvertible"]) "E_METRIC"
       "`sharp` needs a metric after `using =`")
 #eval check "flat and sharp need families of the right variance"
-  (rejectsWith (with' [primitive "bad" (.flat (path "Cotangent") (path "Cotangent") (path "Skew"))]) "E_SMOOTH"
+  (rejectsWith (with' [primitive "bad"
+      ⟨"flat", [ref "tangent" "Cotangent", ref "cotangent" "Cotangent", ref "metric" "Skew"]⟩]) "E_SMOOTH"
     "`flat` needs a tangent family" &&
-    rejectsWith (with' [primitive "bad" (.sharp (path "Cotangent") (path "Cotangent") (path "Skew")
-      (path "SkewInvertible"))]) "E_SMOOTH" "`sharp` needs a tangent family")
+    rejectsWith (with' [primitive "bad" ⟨"sharp", [ref "cotangent" "Cotangent", ref "tangent" "Cotangent",
+      ref "metric" "Skew", ref "evidence" "SkewInvertible"]⟩]) "E_SMOOTH" "`sharp` needs a tangent family")
 #eval check "flat and sharp that name a family that is not a tangent or cotangent family are E_TYPE"
-  (code (with' [primitive "bad" (.flat (path "Smooth") (path "Cotangent") (path "Skew"))]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.flat (path "Tangent") (path "MetricForm") (path "Skew"))]) == "E_TYPE" &&
-    code (with' [primitive "bad" (.sharp (path "Smooth") (path "Tangent") (path "Skew") (path "SkewInvertible"))])
-      == "E_TYPE")
+  (code (with' [primitive "bad"
+      ⟨"flat", [ref "tangent" "Smooth", ref "cotangent" "Cotangent", ref "metric" "Skew"]⟩]) == "E_TYPE" &&
+    code (with' [primitive "bad"
+      ⟨"flat", [ref "tangent" "Tangent", ref "cotangent" "MetricForm", ref "metric" "Skew"]⟩]) == "E_TYPE" &&
+    code (with' [primitive "bad" ⟨"sharp", [ref "cotangent" "Smooth", ref "tangent" "Tangent", ref "metric" "Skew",
+      ref "evidence" "SkewInvertible"]⟩]) == "E_TYPE")
 #eval check "metric form families need exactly one canonical constraint over smooth objects"
   (code (replacing "MetricForm" (family "MetricForm" .metricForm 1 [])) == "E_TYPE" &&
     code (replacing "MetricForm" (family "MetricForm" .metricForm 2 [.canonical 0, .canonical 1])) == "E_TYPE" &&

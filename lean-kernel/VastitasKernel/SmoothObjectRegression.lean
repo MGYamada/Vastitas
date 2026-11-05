@@ -27,6 +27,10 @@ private def morphism (name x y : String) (definition : Source.MorphismDefinition
 private def smoothFamily (constraints : List Constraint := [.canonical 0, .canonical 1])
     (domain := "CInfAffine") : Source.Family :=
   ⟨[.object (path domain), .object (path domain)], constraints, .smooth⟩
+/-- `smooth_int_point` of the `Smooth` family in its wire form: the fields in wire order. -/
+private def smoothIntPoint (object point : String) : Source.Primitive :=
+  ⟨"smooth_int_point",
+    [("family", .path (path "Smooth")), ("object", .path (path object)), ("point", .path (path point))]⟩
 
 private def declarations : List Source.Declaration := [
   decl "CInfReal" .marker,
@@ -48,11 +52,11 @@ private def declarations : List Source.Declaration := [
   -- A shear of the plane, written y-first: (x, y) ↦ (x + y, y).
   morphism "shearA" "Plane" "Plane" (.pullback [("x", .sum [c "x", c "y"]), ("y", c "y")]),
   morphism "shearYFirst" "Plane" "Plane" (.pullback [("y", c "y"), ("x", .sum [c "x", c "y"])]),
-  decl "compose" (.primitive (.smoothCompose (path "Smooth"))),
-  decl "same" (.primitive (.smoothEqual (path "Smooth"))),
-  decl "composite" (.primitive (.smoothComposite (path "Smooth"))),
-  decl "line_at" (.primitive (.smoothIntPoint (path "Smooth") (path "Line") (path "Pt"))),
-  decl "plane_at" (.primitive (.smoothIntPoint (path "Smooth") (path "Plane") (path "Pt"))) ]
+  decl "compose" (.primitive ⟨"smooth_compose", [("family", .path (path "Smooth"))]⟩),
+  decl "same" (.primitive ⟨"smooth_equal", [("family", .path (path "Smooth"))]⟩),
+  decl "composite" (.primitive ⟨"smooth_composite", [("family", .path (path "Smooth"))]⟩),
+  decl "line_at" (.primitive (smoothIntPoint "Line" "Pt")),
+  decl "plane_at" (.primitive (smoothIntPoint "Plane" "Pt")) ]
 
 /-- The Stage 2 profile, to check that the two kinds of object stay apart. -/
 private def presented : List Source.Declaration := [
@@ -208,11 +212,9 @@ private def wrongMiddle : Core.Term :=
 #eval check "a smooth implementation has no globals"
   (code (with' [decl "G" (.global (path "SmoothR"))]) == "E_SMOOTH")
 #eval check "a smooth_int_point needs a 0-dimensional point object"
-  (code (with' [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "Plane") (path "Line")))])
-    == "E_SMOOTH")
+  (code (with' [decl "bad" (.primitive (smoothIntPoint "Plane" "Line"))]) == "E_SMOOTH")
 #eval check "a smooth_int_point needs smooth objects"
-  (code (with' (presented ++ [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "Line")
-    (path "SpecQQ")))])) == "E_SMOOTH")
+  (code (with' (presented ++ [decl "bad" (.primitive (smoothIntPoint "Line" "SpecQQ"))])) == "E_SMOOTH")
 #eval check "a foreign coordinate in an image"
   (code (with' [morphism "bad" "Line" "Plane" (.pullback [("x", c "s"), ("y", c "t")])]) == "E_AFFINE_COORDINATE")
 #eval check "target coordinates in an image (swapped variance)"
@@ -329,13 +331,12 @@ private def smoothMessage (extra : List Source.Declaration) (fragment : String) 
 #eval check "a smooth map to a presented object"
   (smoothMessage (presented ++ [morphism "bad" "Line" "QLine" (.pullback [("t", c "t")])]) "the target `QLine`")
 #eval check "a smooth_int_point whose object is not smooth"
-  (smoothMessage (presented ++ [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "SpecQQ")
-    (path "Pt")))]) "the object `SpecQQ`")
+  (smoothMessage (presented ++ [decl "bad" (.primitive (smoothIntPoint "SpecQQ" "Pt"))]) "the object `SpecQQ`")
 #eval check "a smooth_int_point whose point object is not smooth"
-  (smoothMessage (presented ++ [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "Line")
-    (path "SpecQQ")))]) "the point object `SpecQQ`")
+  (smoothMessage (presented ++ [decl "bad" (.primitive (smoothIntPoint "Line" "SpecQQ"))])
+    "the point object `SpecQQ`")
 #eval check "a smooth_int_point whose point object is not 0-dimensional"
-  (smoothMessage [decl "bad" (.primitive (.smoothIntPoint (path "Smooth") (path "Plane") (path "Line")))]
+  (smoothMessage [decl "bad" (.primitive (smoothIntPoint "Plane" "Line"))]
     "must be 0-dimensional, but it has dimension 1")
 #eval check "a fiber product under a smooth implementation"
   (smoothMessage (presented ++ [decl "Bad" (.affineFiber (path "SmoothR") (path "QLine") (path "QLine") none)])

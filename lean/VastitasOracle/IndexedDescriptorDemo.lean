@@ -1,27 +1,31 @@
-import VastitasKernel.IndexedDescriptorRegression
+import VastitasKernel.IndexedCodegen
+import VastitasKernel.IndexedDeclarationProtocol
+import VastitasKernel.IndexedDescriptorExample
 import VastitasOracle.IndexedSemantics
 
 set_option autoImplicit false
 
 /-! Soundness of the primitive outside the registry (#622).
 
-`VastitasKernel.IndexedDescriptorRegression.directionalDerivative` is a
+`VastitasKernel.Indexed.DescriptorRegression.directionalDerivative` is a
 hypothetical primitive defined as a `PrimitiveDescriptor` value, with no
-constructor in `PrimitiveBinding`. Its `IndexedPrimitiveSoundness.Sound`
-instance is proved here directly from the structure's two fields: typed
-totality from the shape and the validity contract the descriptor carries,
-with the value lemmas the registry's own instances use, and runtime erasure
-by computation on the matched operand values. `Sound.ofBinding` and
-`Sound.ofPure` take a binding, so they do not apply, and `registry_sound` is
-untouched. The generic facts then hold for it as for any registry entry: an
-accepted call on typed operand values evaluates, by the descriptor's own
-evaluator, to a value of the checked result type; the world is unchanged,
-because the call does not allocate; and a successful evaluation erases to the
-runtime evaluator. The last section proves what the demo's lowering and wire
-form satisfy: the lowering of the two registry calls it replaces, the
-checked operand count, no shared literal, and, by a fact about the decoder
-proved for every family, a decoded wire form with its family's fields in
-wire order; the trusted decoder rejects the demo's op. -/
+constructor in `PrimitiveBinding`. The kernel module
+`IndexedDescriptorExample` defines it and holds no check; the kernel
+regression `IndexedDescriptorRegression` runs the executable checks. Its
+`IndexedPrimitiveSoundness.Sound` instance is proved here directly from the
+structure's two fields: typed totality from the shape and the validity
+contract the descriptor carries, with the value lemmas the registry's own
+instances use, and runtime erasure by computation on the matched operand
+values. `Sound.ofBinding` and `Sound.ofPure` take a binding, so they do not
+apply, and `registry_sound` is untouched. The generic facts then hold for it
+as for any registry entry: an accepted call on typed operand values evaluates,
+by the descriptor's own evaluator, to a value of the checked result type; the
+world is unchanged, because the call does not allocate; and a successful
+evaluation erases to the runtime evaluator. The last section proves what the
+demo's lowering and wire form satisfy: the lowering of the two registry calls
+it replaces, the checked operand count, no shared literal, and, by a fact
+about the decoder proved for every family, a decoded wire form with its
+family's fields in wire order; the trusted decoder rejects the demo's op. -/
 namespace VastitasOracle.IndexedDescriptorDemo
 
 open VastitasKernel VastitasKernel.Indexed VastitasKernel.Indexed.Core

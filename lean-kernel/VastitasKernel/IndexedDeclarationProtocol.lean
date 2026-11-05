@@ -125,9 +125,13 @@ def binding (j : Json) : Except String (String × Source.PolyExpr) := do
   fields j ["name", "image"]
   return (← str j "name", ← polyExpr Limits.algebraNesting (← field j "image"))
 
-/-- The Stage 2 relative and Stage 3 smooth, fiber, tape and metric primitive
-contracts. Only protocol 9 admits them; the list is the algebraic families, so
-no other spelling with a shared prefix is admitted. There is no `gradient`
+/-- The ops that only protocol 9 admits (the Stage 2 relative and Stage 3
+smooth, fiber, tape and metric primitive contracts), derived from `families`:
+the op of each family with `algebraic` set. The decoder does not read this
+list. `primitive` and `algebraicPrimitive` admit exactly the ops that
+`primitiveFamily?` finds, so no other spelling is admitted, and admit an op
+whose family has `algebraic` set only in protocol 9.
+`IndexedDescriptorRegression` reads the list. There is no `gradient`
 operation: a gradient is an ordinary function that applies `sharp` to a
 differential. -/
 def algebraicOperations : List String :=

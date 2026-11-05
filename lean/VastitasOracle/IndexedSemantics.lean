@@ -534,7 +534,14 @@ theorem relativePair_total {env : Indexed.Environment} {world : World} {family f
   · exact global_refs_denote valid member global
   · exact leftDenotes _ (by simp [Application.refs])
 
-
+/-- A smooth primitive leaves the world unchanged. -/
+theorem smooth_outcome {env : Indexed.Environment} {world : World} {binding : PrimitiveBinding}
+    {values : List Value} {output : ValueType}
+    (unchanged : ∀ value, primitiveWorld world binding output value = world)
+    (outcome : SmoothPrimitives.SmoothOutcome env world binding values output) :
+    PrimitiveOutcome env world binding values output := by
+  obtain ⟨value, evaluated, typed⟩ := outcome
+  exact ⟨world, value, evaluated, worldExtends_refl world, typed, (unchanged value).symm⟩
 
 /-- Runtime endpoints agree at a checked composition boundary, even though
 different static references may denote equal descriptors in a noninjective world. -/
@@ -862,9 +869,11 @@ theorem core_primitive_semantics {env : Declarations} {functions : Typing.Signat
     (IndexedCore.typed_primitive_contract env functions ctx id arguments result binding operands output
       found input outputType accepted) typed fresh
 
-/-- Successful logical registry evaluation erases to the actual IndexedRuntime
-operations. This is an operation-level commuting theorem, not a proof about
-generated source, Lean/C compilation, linking or hardware. -/
+/-- Successful logical registry evaluation erases to the registry entry's
+erased evaluator, which applies the IndexedRuntime, AlgebraRuntime or
+SmoothRuntime operation that generated programs link. This is an
+operation-level commuting theorem, not a proof about generated source, Lean/C
+compilation, linking or hardware. -/
 theorem primitive_runtime_erasure {env : Indexed.Environment} {binding : PrimitiveBinding}
     {values : List Value} {value : Value} (evaluated : evalPrimitive env binding values = some value) :
     ∃ inputs output, values.mapM erasePrimitiveValue = some inputs ∧

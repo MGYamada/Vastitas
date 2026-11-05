@@ -7,10 +7,9 @@ set_option autoImplicit false
 
 A `PrimitiveFamily` says what the indexed declaration decoder (protocols 7
 to 9) admits for one op (its exact field names and kinds, in wire order),
-whether the op exists only in protocol 9 (today's allow-list), and how the
-resolved arguments make a `PrimitiveBinding`. The decoder
-(`IndexedDeclarationProtocol.primitive`), the lowering
-(`IndexedSourceChecker.resolvePrimitive`) and the generated Rust table
+whether only protocol 9 admits the op, and how the resolved arguments make a
+`PrimitiveBinding`. The decoder (`IndexedDeclarationProtocol.primitive`), the
+resolver (`IndexedSourceChecker.resolvePrimitive`) and the generated Rust table
 `src/primitive_table.rs` read `families`; no other table lists the ops. After
 a change to `families`, regenerate the Rust table with
 `python3 scripts/check_primitive_table.py --write`; CI runs the script
@@ -21,12 +20,16 @@ use the same `WireName` definitions as the family entries.
 
 `build` receives the arguments in wire order and embeds the placeholders that
 the stage passes fill: `relative_coefficient` starts with coordinate `0` and
-the empty monomial, `flat` and `sharp` with the metric's own ID as the object
-and empty matrices. `resolveFirst` names the fields the lowering resolves
-before the others, in that order; the lowering resolves the rest in wire
-order. The order is observable (the first unresolved name is reported, and
-the recorded references keep resolution order), so `flat` and `sharp` keep
-the pre-#622 order: the metric and its evidence first.
+the empty monomial, `fiber_component` with coordinate `0`, and `flat` and
+`sharp` with the metric's own ID as the object and empty matrices.
+`resolveFirst` names the fields the resolver resolves before the others, in
+that order; the resolver resolves the rest in wire order. The order is
+observable: the first name that does not resolve is the one reported, and the
+references are recorded in resolution order. `flat` resolves its metric
+first, and `sharp` its metric and then its evidence; `MetricFormRegression`
+checks both orders. Each `resolveFirst` is duplicate-free and names only
+fields of its family, so the resolver resolves each field once;
+`IndexedDescriptorRegression` checks it for every family.
 
 A family grants no authority: the binding it builds is audited like any
 other, and the all-body audits and the public acceptance path are unchanged. -/
@@ -60,8 +63,8 @@ structure PrimitiveFamily where
   build : List ResolvedArgument → Except String PrimitiveBinding
 
 /-- The arguments do not have the family's kinds. `resolvePrimitive` checks
-the field names and kinds before it calls `build`, so no lowering reaches
-this; only a direct call of `build` with other arguments does. -/
+the field names and kinds before it calls `build`, so the resolver never
+reaches this; only a direct call of `build` with other arguments does. -/
 private def mismatch {α : Type} (op : String) : Except String α :=
   throw s!"the arguments of `{op}` do not match its wire fields"
 
@@ -231,7 +234,7 @@ def primitiveFamily? (op : String) : Option PrimitiveFamily :=
 def PrimitiveFamily.fieldNames (family : PrimitiveFamily) : List String :=
   family.fields.map (·.name)
 
-/-- The order in which the lowering resolves the fields: `resolveFirst`, then
+/-- The order in which the resolver resolves the fields: `resolveFirst`, then
 the rest in wire order. -/
 def PrimitiveFamily.resolutionOrder (family : PrimitiveFamily) : List String :=
   family.resolveFirst ++ family.fieldNames.filter (!family.resolveFirst.contains ·)

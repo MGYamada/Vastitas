@@ -1,4 +1,5 @@
 import Lean.Elab.Command
+import VastitasKernel.IndexedDescriptorExample
 import VastitasKernel.IndexedSourceDiagnostics
 import VastitasKernel.IndexedSemantics
 import VastitasKernel.IndexedCodegen
@@ -9,85 +10,43 @@ set_option autoImplicit false
 
 /-! A primitive outside the registry on the derived tables (#622).
 
-`directionalDerivative` is a hypothetical primitive: the derivative of a
-smooth function `f : X → L` at a point `p` of `X` along a tangent vector `v`
-at `p`, as the reduced fraction `⟨df_p, v⟩`, which today takes `differential`
-and then `fiber_pairing`. It is one `PrimitiveDescriptor` value built from the
-data its binding would carry, outside `PrimitiveBinding.contract`: the
-registry gains no constructor and no table names it. Every derivation the
-kernel reads from a descriptor runs on it below: the validity contract and
-the agreement of its two forms, result inference, the association decision,
-the role table of a rejected call and its soundness, the argument hints, both
-evaluators on concrete values, their erasure, the operand count, whether a
-call allocates, the lowering of a call and its arity error, and the literals
-a module shares. Its evaluators and its lowering apply
-`SmoothRuntime.differential` and `SmoothRuntime.pairing`, which generated
-programs already link, so the demo adds no runtime code. The oracle proves
-its `Sound` instance in `VastitasOracle.IndexedDescriptorDemo`.
+`directionalDerivative`, a hypothetical primitive, is one
+`PrimitiveDescriptor` value outside `PrimitiveBinding.contract`; it and its
+wire form are defined in `IndexedDescriptorExample`, which holds no check.
+Every derivation the kernel reads from a descriptor runs on it below: the
+validity contract and the agreement of its two forms, result inference, the
+association decision, the role table of a rejected call and its soundness,
+the argument hints, both evaluators on concrete values, their erasure, the
+operand count, whether a call allocates, the lowering of a call and its arity
+error, and the literals a module shares. The oracle proves its `Sound`
+instance in `VastitasOracle.IndexedDescriptorDemo`.
 
 The wire form is a `PrimitiveFamily` value, `directionalDerivativeFamily`,
 also outside the registry (`families`). The parts of the decoder and the
 resolver that take a family or its fields as a parameter run on it:
-`Wire.familyPrimitive` (the admitted field set, the wire order, the kinds
-and the messages of a near miss), `Wire.wireArgument`,
+`Wire.familyPrimitive` (the admitted field set, the wire order, the kinds and
+the messages of a near miss), `Wire.wireArgument`,
 `PrimitiveFamily.fieldNames`, `PrimitiveFamily.resolutionOrder` and
 `Source.resolveArgument`. The parts that look the op up in `families` do not
 take a family value, so they reject the demo's op, as they must for an op the
 registry does not hold: `primitiveFamily?`, `Wire.primitive`,
-`Wire.algebraicPrimitive`, `Wire.algebraicOperations` and
-`Source.resolvePrimitive`. The field and kind comparison and the resolution
-loop of `resolvePrimitive` are inline in its body, after that lookup; the
-regression runs the same comparison and the same order on the demo's decoded
-form. `PrimitiveFamily.build` returns a `PrimitiveBinding`, a closed
-inductive with no constructor for the demo, so the demo family's `build`
-rejects every argument list; `buildDescriptor` is the same step with the
-descriptor as its result. The Rust table (`src/primitive_table.rs`) is
-generated from `families`, and the frontend builds its primitives through
-that table, so neither holds the demo's op.
+`Wire.algebraicPrimitive` and `Source.resolvePrimitive`; the list
+`Wire.algebraicOperations`, derived from `families`, does not hold it. The
+field and kind comparison and the resolution loop of `resolvePrimitive` are
+inline in its body, after that lookup; the regression runs the same comparison
+and the same order on the demo's decoded form. `PrimitiveFamily.build` returns
+a `PrimitiveBinding`, a closed inductive with no constructor for the demo, so
+the demo family's `build` rejects every argument list; `buildDescriptor` is
+the same step with the descriptor as its result. The Rust table
+(`src/primitive_table.rs`) is generated from `families`, and the frontend
+builds its primitives through that table, so neither holds the demo's op.
+For every family of the registry, the regression also checks that
+`resolveFirst` is duplicate-free and names only fields of the family.
 These are executable regressions, not proofs, except where a theorem is
 stated. -/
 namespace VastitasKernel.Indexed.DescriptorRegression
 open VastitasKernel.Indexed.Core.Semantics (Value PrimitiveRuntimeValue erasePrimitiveValue)
 open VastitasKernel.Indexed.Source.Diagnostics (RoleRequirement)
-
-/-- `directional_derivative(S, T, L)`: `⟨df_p, v⟩` for a function `f : X → L`
-in the smooth family `S`, a point `p` of `X` and a vector `v` of the tangent
-family `T` at `p`. `L` is a 1-dimensional smooth object. The validity contract
-is written as its two forms with their agreement; a registry entry whose
-contract is one executable check writes `PrimitiveDescriptor.ofBool`. -/
-def directionalDerivative (smooth tangent line : DeclId) : PrimitiveDescriptor where
-  shape :=
-    { operands := [.indexed "function" smooth
-          [.var "source", .fixed (.global line) "target" "the primitive's declared line"],
-        .indexed "point" smooth [.var "source", .var "target"],
-        .indexed "vector" tangent [.var "object"]],
-      -- The point lies in the function's source, so does the vector, and the
-      -- point is from a 0-dimensional object.
-      relations := [.sameRef ⟨0, 0⟩ ⟨1, 1⟩, .sameRef ⟨0, 0⟩ ⟨2, 0⟩, .pointDimension ⟨1, 0⟩ 0],
-      result := .integerPair }
-  validProp env := isSmoothFamily env smooth = true ∧ smoothDimension? env line = some 1 ∧
-    fiberVariance? env tangent = some .tangent
-  validBool env := isSmoothFamily env smooth && smoothDimension? env line == some 1 &&
-    fiberVariance? env tangent == some .tangent
-  valid_iff env := by simp [Bool.and_eq_true, and_assoc]
-  eval := fun _ values => match values with
-    | [.indexed (.smooth function), .indexed (.smooth point), .indexed (.fiber _ vector)] =>
-        let (numerator, denominator) :=
-          SmoothRuntime.pairing (SmoothRuntime.differential function point) vector
-        some (.pairInt numerator denominator)
-    | _ => none
-  evalRuntime := fun values => match values with
-    | [.smooth function, .smooth point, .fiber vector] =>
-        let (numerator, denominator) :=
-          SmoothRuntime.pairing (SmoothRuntime.differential function point) vector
-        some (.pairInt numerator denominator)
-    | _ => none
-  -- The text of the erased evaluator's expression; it shares no literal.
-  render := fun _ args => match args with
-    | [function, point, vector] =>
-        .ok (Lowering.application (Lowering.smooth "pairing")
-          [Lowering.application (Lowering.smooth "differential") [function, point], vector])
-    | _ => Lowering.arityMismatch
 
 /-! ## The generic facts, instantiated at the descriptor -/
 
@@ -335,26 +294,8 @@ run_cmd do
 
 `directional_derivative` takes the paths of its smooth family, its tangent
 family and its line, as `differential` takes `map_family`, `cotangent` and
-`line`. -/
-
-/-- The descriptor that the resolved arguments of the wire form make, in wire
-order: the step `PrimitiveFamily.build` takes for a registry family, with the
-descriptor in place of a binding. -/
-def buildDescriptor : List ResolvedArgument → Except String PrimitiveDescriptor
-  | [.declaration smooth, .declaration tangent, .declaration line] => pure (directionalDerivative smooth tangent line)
-  | _ => throw "the arguments of `directional_derivative` do not match its wire fields"
-
-/-- The wire form of the demo, outside `families`: protocol 9 only, three
-paths. `build` rejects every argument list, because `PrimitiveBinding` has no
-constructor for the demo; it reports a list that `buildDescriptor` rejects
-as a registry family does. -/
-def directionalDerivativeFamily : PrimitiveFamily where
-  op := "directional_derivative"
-  algebraic := true
-  fields := [⟨"map_family", .path⟩, ⟨"tangent", .path⟩, ⟨"line", .path⟩]
-  build arguments := do
-    let _ ← buildDescriptor arguments
-    throw "`directional_derivative` has no `PrimitiveBinding` constructor"
+`line`; `directionalDerivativeFamily` and `buildDescriptor` are defined in
+`IndexedDescriptorExample`. -/
 
 private def spanJson (n : Nat) : Lean.Json := Lean.Json.mkObj [("start", Lean.toJson (10 * n)),
   ("end", Lean.toJson (10 * n + 5)), ("line", Lean.toJson (1 : Nat)), ("column", Lean.toJson (n + 1))]
@@ -454,6 +395,23 @@ private def declaration? : ResolvedArgument → Option DeclId
 
 #eval check "nothing is resolved first, so the resolution order is the wire order"
   (directionalDerivativeFamily.resolutionOrder == directionalDerivativeFamily.fieldNames)
+
+/-- A family resolves each of its fields once: `resolveFirst` is duplicate-free
+and names only fields of the family, so the resolution order is a permutation
+of the field names. `resolvePrimitive` skips a name in `resolveFirst` that is
+not a field, and resolves a repeated one twice. -/
+private def resolvesEachFieldOnce (family : PrimitiveFamily) : Bool :=
+  decide family.resolveFirst.Nodup && family.resolveFirst.all (family.fieldNames.contains ·) &&
+    family.resolutionOrder.isPerm family.fieldNames
+
+#eval check "every family of the registry, and the demo's, resolves each of its fields once"
+  (families.all resolvesEachFieldOnce && resolvesEachFieldOnce directionalDerivativeFamily)
+#eval check "a misspelt or a repeated name in `resolveFirst` fails that check"
+  ((primitiveFamily? "flat").map (fun family => resolvesEachFieldOnce { family with resolveFirst := ["metrc"] }) ==
+      some false &&
+    (primitiveFamily? "sharp").map (fun family =>
+      resolvesEachFieldOnce { family with resolveFirst := ["metric", "evidence", "metric"] }) == some false)
+
 #eval check "the decoded form passes the comparison" ((decode wireJson).toOption.map isWireForm == some true)
 #eval check "a form with its fields in another order fails it"
   ((decode wireJson).toOption.map (fun primitive => isWireForm { primitive with

@@ -392,6 +392,76 @@ private def big : Nat := 10 ^ 63 + 7
     code (with' (presented ++ [decl "BadForm" (.family ⟨[.object (path "AffineScheme")], [.canonical 0],
       .metricForm⟩)])) == "E_TYPE")
 
+/-! ## The order in which `flat` and `sharp` resolve their names
+
+The resolver resolves the metric of `flat` first, and the metric and then the
+evidence of `sharp`, and then the other fields in wire order. The first name
+that does not resolve is the one reported, so with two such names the metric,
+and then the evidence, is reported before a tangent or cotangent family; the
+references of a resolved form are recorded in the same order. The forms are
+the ones `flat` and `sharp` above build. -/
+
+/-- The source form of a primitive declaration. -/
+private def form? (declaration : Source.Declaration) : Option Source.Primitive :=
+  match declaration.body with
+  | .primitive binding => some binding
+  | _ => none
+
+private def flatForm : Option Source.Primitive := form? (flat "flat_skew" "Skew")
+private def sharpForm : Option Source.Primitive := form? (sharp "sharp_skew" "Skew" "SkewInvertible")
+
+/-- The form with the paths of `fields` replaced by names that no declaration
+has: `MissingMetric` for the field `metric`, and so on. -/
+private def breaking (fields : List String) (form : Source.Primitive) : Source.Primitive :=
+  { form with arguments := form.arguments.map fun (field, argument) =>
+      if fields.contains field then ref field ("Missing" ++ field.capitalize) else (field, argument) }
+
+private def metricIndex : Namespace.Indexed := (program declarations).indexed
+private def metricScope : Namespace.Scope := ⟨pkg, []⟩
+
+/-- The code and the message the resolver reports for a form. -/
+private def reported (form : Option Source.Primitive) : Option (String × String) :=
+  form.bind fun form => match (Source.resolvePrimitive metricIndex metricScope form).run [] with
+    | .ok _ => none
+    | .error diagnostic => some (diagnostic.code, diagnostic.message)
+
+/-- The paths of a resolved form's references, in the order they are
+recorded; `resolveId` puts each one first, and `Source.lower` reverses them. -/
+private def recorded (form : Option Source.Primitive) : Option (List (List String)) :=
+  form.bind fun form => match (Source.resolvePrimitive metricIndex metricScope form).run [] with
+    | .ok (_, references) => some (references.reverse.map (·.path.path))
+    | .error _ => none
+
+private def undefinedName (name : String) : Option (String × String) :=
+  some ("E_NAME", s!"undefined name '{name}' in this module")
+
+#eval check "the families resolve the metric, then the evidence, first"
+  ((primitiveFamily? "flat").map (·.resolutionOrder) == some ["metric", "tangent", "cotangent"] &&
+    (primitiveFamily? "sharp").map (·.resolutionOrder) == some ["metric", "evidence", "cotangent", "tangent"])
+#eval check "flat records the metric, the tangent family and the cotangent family, in that order"
+  (recorded flatForm == some [["Skew"], ["Tangent"], ["Cotangent"]])
+#eval check "sharp records the metric, the evidence, the cotangent family and the tangent family, in that order"
+  (recorded sharpForm == some [["Skew"], ["SkewInvertible"], ["Cotangent"], ["Tangent"]])
+#eval check "flat with two unresolvable names reports its metric before a family"
+  (reported (flatForm.map (breaking ["tangent", "metric"])) == undefinedName "MissingMetric" &&
+    reported (flatForm.map (breaking ["cotangent", "metric"])) == undefinedName "MissingMetric" &&
+    reported (flatForm.map (breaking ["tangent", "cotangent"])) == undefinedName "MissingTangent")
+#eval check "sharp with two unresolvable names reports its metric, then its evidence, before a family"
+  (reported (sharpForm.map (breaking ["tangent", "metric"])) == undefinedName "MissingMetric" &&
+    reported (sharpForm.map (breaking ["cotangent", "metric"])) == undefinedName "MissingMetric" &&
+    reported (sharpForm.map (breaking ["metric", "evidence"])) == undefinedName "MissingMetric" &&
+    reported (sharpForm.map (breaking ["cotangent", "evidence"])) == undefinedName "MissingEvidence" &&
+    reported (sharpForm.map (breaking ["tangent", "evidence"])) == undefinedName "MissingEvidence" &&
+    reported (sharpForm.map (breaking ["cotangent", "tangent"])) == undefinedName "MissingCotangent")
+#eval check "the source checker reports the same name"
+  (match flatForm, sharpForm with
+    | some flatSource, some sharpSource =>
+      rejectsWith (with' [primitive "bad" (breaking ["tangent", "metric"] flatSource)]) "E_NAME"
+          "undefined name 'MissingMetric' in this module" &&
+        rejectsWith (with' [primitive "bad" (breaking ["cotangent", "evidence"] sharpSource)]) "E_NAME"
+          "undefined name 'MissingEvidence' in this module"
+    | _, _ => false)
+
 /-! ## Tampered Core: the independent audit rechecks every metric -/
 
 private def tamper (extra : PrimitiveBinding) : Bool :=

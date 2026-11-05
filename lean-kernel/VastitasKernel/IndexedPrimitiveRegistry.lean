@@ -27,30 +27,29 @@ checks of `Indexed`, `IndexedPrimitiveBinding` and `IndexedSmoothContracts`;
 family, base and object IDs are part of the contract, displayed names and
 arbitrary certificates are not.
 
-Index fields carry the names the role table reports, the vocabulary of the
-pre-registry diagnostics; family declarations name no indices. A point is
-`[target, source]`, a morphism, smooth map or tape `[source, target]`, a
-relative morphism `[source, target, base]`, a fiber `[object]`. The role table
-reports a shape's families once the operands have its index pattern;
-`families := .early` keeps the precedence of the two primitives that report
-them as soon as the operands are applications.
+Index fields carry the names that the role table reports in diagnostics;
+family declarations name no indices. A point is `[target, source]`, a
+morphism, smooth map or tape `[source, target]`, a relative morphism
+`[source, target, base]`, a fiber `[object]`. The role table reports a shape's
+families once the operands have its index pattern; `families := .early` keeps
+the precedence of the two primitives that report them as soon as the operands
+are applications.
 
 The evaluators of an entry match the operand pattern of its shape and return
 `none` on any other pattern; a variadic entry accepts any number of integer
-operands, as the pre-registry tables did, and the checked operand count fixes
-it. The logical one builds the values of
-`IndexedPrimitiveValues`; the erased one applies the runtime operations that
-generated programs link, on erased values. The two agree up to erasure; the
-oracle proves it per entry (`VastitasOracle.IndexedPrimitiveSoundness.Sound`).
+operands, and the checked operand count fixes the number. The logical one
+builds the values of `IndexedPrimitiveValues`; the erased one applies the
+runtime operations that generated programs link, on erased values. The two
+agree up to erasure; the oracle proves it per entry
+(`VastitasOracle.IndexedPrimitiveSoundness.Sound`).
 
 The lowering of an entry writes the generated Lean text of a call from its
 rendered operands, in the vocabulary of `Lowering`, and rejects any other
 operand list with the one arity error; a variadic entry (the two integer
 points, and the components after a fiber vector's point) renders any number of
-operands, as the pre-registry table did, and the checked operand count fixes
-it. A relative constant shares its basis:
-the module declares each distinct basis once as `basis_k`, and every map over
-it, relative or smooth, names it. -/
+operands, and the checked operand count fixes the number. A relative constant
+shares its basis: the module declares each distinct basis once as `basis_k`,
+and every map over it, relative or smooth, names it. -/
 namespace VastitasKernel.Indexed
 open VastitasKernel.Indexed.Audit (validApplication_iff)
 open VastitasKernel.Indexed.Core.Semantics (globalObject intPointValue smoothPointValue fiberVectorValue
@@ -73,7 +72,7 @@ private abbrev smoothPointOperand (family : DeclId) : Operand := mapOperand "poi
 private abbrev pointAtOrigin : Relation := .pointDimension ⟨1, 0⟩ 0
 
 /-- The registry: the descriptor of a binding, from the binding's own data.
-This is the one dispatch on binding constructors. -/
+This is the one dispatch that the derived tables read. -/
 def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
   /- Objects, points and morphisms. -/
   | .descriptor implementation =>

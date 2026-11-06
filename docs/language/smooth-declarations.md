@@ -425,12 +425,14 @@ Rules:
 > [opaque step](../appendix/glossary.md#opaque-step). The
 > [runtime reverse pass](../appendix/glossary.md#runtime-reverse-pass) over
 > the program value that `smooth_compose` builds pulls the seed back along
-> it. The `saved` mode passes every point to the backward Core: the input
-> point, the intermediate points and the image.
+> it, in the mode of the call. The `saved` mode passes every point to the
+> backward Core: the input point, the intermediate points and the image.
 > The `recomputed` mode passes the input point, and the backward Core
-> evaluates the intermediate points again. Neither mode expands the composite.
-> The reverse pass of a tape bound by `let` is compiled; a tape passed to a
-> function keeps the runtime reverse pass.
+> evaluates again the intermediate points that it reads. Neither mode expands
+> the composite. The reverse pass of a tape bound by `let` is compiled when
+> the map and the point of its `linearize` are variables, literals or calls of
+> primitives that allocate nothing; a tape over a call result or a branch
+> value, and a tape passed to a function, keep the runtime reverse pass.
 > [Compiled reverse Core](../verification.md#compiled-reverse-core) lists the
 > limits of the compilation. Points are runtime values, so a seed over another
 > point of the right object gives ⊥ at run time, not a static error.

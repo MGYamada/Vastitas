@@ -4,9 +4,12 @@ This map links each acceptance condition of compiled reverse Core to its
 implementation, tests, oracle and bridge theorems, and native evidence.
 Compiled reverse Core extends the finite smooth profile of historical Stage 3
 ([acceptance map](stage3-acceptance.md)). The kernel compiles the reverse
-passes of a checked program into Core, checks that Core again, and the oracle
-and the bridge prove it correct
-([tracker #623](https://github.com/MGYamada/Vastitas/issues/623)). The map
+passes of a checked program into Core and checks that Core again. The oracle
+and the bridge prove what each generated function computes, and what each
+compiled site computes under premises that no theorem discharges yet; whole
+compiled modules agree with their source in tests, not in a theorem
+([#665](https://github.com/MGYamada/Vastitas/issues/665);
+[tracker #623](https://github.com/MGYamada/Vastitas/issues/623)). The map
 does not include performance: the Fast like C verdict stays with #222.
 [Verification boundaries](verification.md#compiled-reverse-core) describes
 the compilation.
@@ -27,7 +30,8 @@ the compilation.
 - The [**forward Core**](appendix/glossary.md#forward-core) of a site binds
   the input point r₀ and its images rᵢ = mᵢ(rᵢ₋₁) along the maps m₁, …, m_k
   of the site, in application order. Each map is one step. r_k is the primal
-  value.
+  value. The images are evaluated points; r₀ is the point operand as the
+  source gives it.
 - The points r₀, …, r_{k−1} are the
   [**residuals**](appendix/glossary.md#residual). They are ordinary Core
   values of the types `Smooth<P, Xᵢ>`. A saved site passes every point, the
@@ -44,7 +48,7 @@ the compilation.
   saved point.
 - An [**opaque step**](appendix/glossary.md#opaque-step) is a map whose
   structure the compilation does not open. The backward Core pulls the seed
-  back along it with the runtime reverse pass in saved mode.
+  back along it with the runtime reverse pass in the site's residual policy.
 
 ## Scope and decisions
 
@@ -56,10 +60,14 @@ The conditions are the Target items T1–T5 and the acceptance boxes A1–A6 of
   Jacobian table of `map`, a literal of rational polynomials in the generated
   code. Nothing is differentiated symbolically at run time.
 - **Opaque maps and tapes take one runtime step.** A function parameter, the
-  value of a branch or of a call, `composite(…)` and a map beyond the
-  `reverseLeaves` budget are opaque steps. The backward Core pulls the seed
-  back along each with the runtime reverse pass. A tape that crosses a
-  function boundary keeps `linearize` and `backward`. The
+  value of a branch or of a call, `composite(…)` and a map that the
+  `reverseLeaves` budget does not reach are opaque steps; a map operand whose
+  own `compose` calls exceed the budget is one opaque step as a whole. The
+  backward Core pulls the seed back along each with the runtime reverse pass.
+  A tape that crosses a function boundary keeps `linearize` and `backward`,
+  and so does a tape bound by a `let` whose map or point is not a variable, a
+  literal or a call of a non-allocating primitive, such as a call result or a
+  branch value. The
   [per-code table](#acceptance-example-by-code) lists the opaque steps of the
   acceptance example.
 - **Residuals are a `let` chain, and the backward Core is a function.** The
@@ -67,8 +75,9 @@ The conditions are the Target items T1–T5 and the acceptance boxes A1–A6 of
   generated function of a recomputing site. The backward Core is a generated
   function of the opaque maps, the points and the seed. A saved site passes
   every point: the residuals and the primal value. A recomputing site passes
-  r₀, and its function evaluates the images again. The compilation adds no
-  Core type.
+  r₀, and its function evaluates again the images that its steps read; its
+  opaque steps run the runtime reverse pass in recomputed mode. The
+  compilation adds no Core type.
 - **The theorems cover the generated functions and, locally, the rewrite of
   a site.** The oracle proves what the forward and backward Core of every
   entry of a compiled module compute. The bridge proves the Fréchet
@@ -78,9 +87,11 @@ The conditions are the Target items T1–T5 and the acceptance boxes A1–A6 of
 
 Further facts of the profile:
 
-- **No rejection.** The compilation rejects no accepted program. A site that
-  it cannot compile stays a call of the runtime reverse pass; see
-  [gaps](#gaps).
+- **No rejection.** The compilation is designed to reject no accepted
+  program. A site that it cannot compile stays a call of the runtime reverse
+  pass; see [gaps](#gaps). A generated module that failed the Core audit
+  would be an internal error (`E_INTERNAL_REVERSE`); no theorem excludes it,
+  and no test reaches it.
 - **Field.** QQ only, as in Stage 3. There are no floats.
 - **Wire.** The wire form and the protocol versions are unchanged. The Rust
   frontend derives nothing; no file under `src/` changes.
@@ -121,9 +132,9 @@ from `scripts/check_kernel_regressions.sh`. Oracle files are in
 
 | Key | Implementation | Tests | Theorems |
 | --- | --- | --- | --- |
-| **R — rules and steps** | `IndexedPrimitiveDescriptors.lean` (`ReverseRule`, `PassKind`, the field `reverse`), `IndexedPrimitiveRegistry.lean` (the rule of every entry; `smoothApply` and `cotangentJacobian` with their lowerings), `IndexedSmoothContracts.lean` (their contracts), `SmoothRuntime.lean` (`Map.ratPoint`, `applyPoint`, `jacobian`, `jacobianStep`) | `SmoothRuntimeRegression` (the Jacobian table of g; a table step equals `cot` and the saved pullback; a seed over another point fails). The rule of each binding is tested through the compiled programs: the counts of Jacobian steps, compiled tapes and maps read through `compose` | Oracle `SmoothJacobian` (`jacobianStep_eq_of_output`, `jacobianStep_eq`, `pullback_congr_point`, `pullback_stepwise_applyPoint`, `smoothApply_sound`, `cotangentJacobian_sound`, `registry_reverse_sound`); `IndexedDescriptorDemo.directionalDerivative_reverseSound` |
+| **R — rules and steps** | `IndexedPrimitiveDescriptors.lean` (`ReverseRule`, `PassKind`, the field `reverse`), `IndexedPrimitiveRegistry.lean` (the rule of every entry; `smoothApply` and `cotangentJacobian` with their lowerings), `IndexedSmoothContracts.lean` (their contracts), `SmoothRuntime.lean` (`ratPoint`, `applyPoint`, `jacobian`, `jacobianStep`) | `SmoothRuntimeRegression` (the Jacobian table of g; a table step equals `cot` and the saved pullback; a seed over another point fails). The rule of each binding is tested through the compiled programs: the counts of Jacobian steps, compiled tapes and maps read through `compose` | Oracle `SmoothJacobian` (`jacobianStep_eq_of_output`, `jacobianStep_eq`, `pullback_congr_point`, `pullback_stepwise_applyPoint`, `smoothApply_sound`, `cotangentJacobian_sound`, `registry_reverse_sound`); `IndexedDescriptorDemo.directionalDerivative_reverseSound` |
 | **G — generation** | `IndexedReverse.lean` (`resolve`, `compileSite`, `forwardLets`, `backwardBody`, `Entry.generated`, `Entry.declarations`, `rewriteFunction`, `generate`); `Limits.lean` and `compiler-limits.json` (`reverseLeaves`) | `ReverseCoreRegression`; `tests/reverse_core.rs` | Oracle `SmoothReverseCore` (what the templates compute), `IndexedReverseCore` (the structure of `generate`) and `SmoothReverseCompiled` (every entry of a compiled module, and the term at a compiled site) |
-| **V — check again** | `IndexedReverse.lean` (`termEq` to `moduleEq`, `validate`, `Compiled`, `compile`); `IndexedAuthorityCheck.lean` and `ResourcePure.lean` (the field `compiled`); `Main.lean` and `ResourceCodegen.lean` (generation from `compiled`) | The forged modules of `ReverseCoreRegression`; `the_wire_cannot_name_the_compiled_declarations` | Oracle `IndexedReverseCore` (`moduleEq_sound`, `validate_iff`, the `compiled_*` and `public_*` theorems) and `SmoothReverseCompiled` (`public_wire_entries`, `legacy_wire_entries`, `public_resource_entries`, `public_pure_entry_computes`) |
+| **V — check again** | `IndexedReverse.lean` (`termEq` to `moduleEq`, `validate`, `Compiled`, `compile`, which runs the Core audit); `IndexedAuthorityCheck.lean` and `ResourcePure.lean` (the field `compiled`); `Main.lean` and `ResourceCodegen.lean` (generation from `compiled`) | The forged modules of `ReverseCoreRegression`; `the_wire_cannot_name_the_compiled_declarations` | Oracle `IndexedReverseCore` (`moduleEq_sound`, `validate_iff`, `compile_fails_only_by_audit`, the `compiled_*` and `public_*` theorems) and `SmoothReverseCompiled` (`public_wire_entries`, `legacy_wire_entries`, `public_resource_entries`, `public_pure_entry_computes`) |
 | **E — emitted code** | The lowerings of the step bindings | `generated_lean_matches_the_emit_fixtures` (`tests/emit_golden.rs`); the native fixtures `smooth_reverse_programs` and `smooth_reverse_extended` of `scripts/check_indexed_native.sh` | Tested only |
 | **B — bridge** | — | `lean-bridge/Audit.lean` (requires every name below, and walks the constants of each proof) | Bridge `ReverseCore.lean` (`backward_eq_cot_kaehler`, `pullback_eq_cot_kaehler`; the `compiled_*_entry_frechet`, `compiled_*_entry_fderiv_adjoint`, `compiled_*_entry_kaehler` and `compiled_*_entry_cot_kaehler` theorems; `compiled_site_frechet`, `compiled_differential_site_frechet` and the `site_*_rewrite_frechet` theorems; `compiled_entries_frechet` and the public-path `*_frechet` theorems) |
 
@@ -171,12 +182,12 @@ below is that observation.
 | Condition | Status and evidence |
 | --- | --- |
 | <a id="t1"></a>T1. Transform: from the checked Core of a smooth program, the kernel produces forward Core (the primal value and the residuals as ordinary Core values) and backward Core (the pullback from the residuals and a seed); the transform works on checked IR only, and Rust derives nothing | **Implemented**: `Reverse.generate`, run by `Reverse.compile` on `executable.core` (G). No file under `src/` changes. **Tested**: `acceptance_sites_compile_to_generated_backward_functions` (the 22 reverse sites of the acceptance example give 22 generated functions, placed first and numbered after the source functions; each is called once; every Jacobian step lies in a generated function, with its table as a literal without variables; the 4 runtime reverse passes and their callers; the 4 unit covectors that the differentials pass as seeds; no call of `SmoothRuntime.differential`, `backward`, `linearize` or the recomputed mode); `ReverseCoreRegression` ("the fixture has one entry per reverse site", "every site of the fixture is compiled" for 45 sites, "the parameter h is one opaque step", "the let-bound map is read through: two declared steps", "both backward calls on the let-bound tape are compiled"). **Proved (oracle)**: `SmoothReverseCore.forwardLets_evaluates` and `forwardLets_primal` (the forward Core binds the images of the input point, which satisfy the residual relation, the last with the coordinates of the primal value); `SmoothReverseCompiled.compileSite_term` (the term at a compiled site binds the input point and continues with the forward Core); `IndexedReverseCore.generate_shape`, `generate_keeps_function`, `generate_entry_mem`, `generate_entry_function`, `generate_entry_declaration` (the generated functions and declarations are in the module, and every source function keeps its header); `SmoothReverseCompiled.generate_formed` (every entry of the ledger is well formed); `SmoothJacobian.registry_reverse_sound` (every registry entry keeps the promise of its derivative rule). |
-| <a id="t2"></a>T2. Check again: the generated Core passes the same checker, typing and audits as source-derived Core; forged reverse Core is rejected | **Implemented**: `Reverse.compile` runs `Core.Typing.checkModule`, the Core audit of source-derived executable Core, on the generated module, and `validate` compiles the source module again and compares (V). A failure is `E_INTERNAL_REVERSE`. The source passes also run `validPass`, the provenance and static-target audit of their lowering records. Generated functions have no lowering records, and validation by recompilation stands in for that audit. The compiled declarations and functions have reserved names (`__vastitas_rd…`, `__vastitas_rf…`). **Tested**: the forged modules of [A4](#a4); `the_wire_cannot_name_the_compiled_declarations`. **Proved (oracle)**: `IndexedReverseCore.moduleEq_sound` (with `termEq_sound`, `termsEq_sound`, `functionEq_sound`, `functionsEq_sound`), `validate_iff`, `validate_sound`, `validate_no_entries`; `compiled_generate`, `compiled_entry_resolves`, `compiled_functions_total`, `compiled_main_total` (the compiled module is the recompilation of the executable Core, every entry resolves, and every function is total and typed); `SmoothReverseCompiled.entry_well_formed` (the forward, backward and seed steps of every entry are declarations of the compiled module, with their rules). |
-| <a id="t3"></a>T3. Saved and recomputed residuals: both policies are expressible, and they agree | **Implemented**: `backwardBody`. A saved function takes every point, the residuals and the primal value; a recomputing function takes r₀ and evaluates the images in its body. **Tested**: codes 12 and 25; `each_pullback_binding_compiles_to_its_own_residual_policy` (`tests/smooth_differential.rs`); `acceptance_sites_compile_to_generated_backward_functions` (the two recomputing functions evaluate 5 images); `a_branch_chooses_the_map_of_a_reverse_pass` (`recomputed`, codes 4 and 8 of the corpus package); `ReverseCoreRegression` ("the recomputing pullback keeps its mode; every other site saves", "the recomputing pullback reads through the let: three declared steps"). **Proved (oracle)**: `SmoothReverseCore.recomputed_function_evaluates`, `recomputed_function_pullback`, `saved_eq_recomputed`; `SmoothReverseCompiled.compiled_saved_entry` and `compiled_recomputed_entry` (for every entry of a compiled module, in its mode). **Proved (bridge)**: the Fréchet and Kähler meaning of both modes (T4, A3). |
+| <a id="t2"></a>T2. Check again: the generated Core passes the same checker, typing and audits as source-derived Core; forged reverse Core is rejected | **Implemented**: `Reverse.compile` runs `Core.Typing.checkModule`, the Core audit of source-derived executable Core, on the generated module (V). A failed audit is `E_INTERNAL_REVERSE`. The source passes also run `validPass`, the provenance and static-target audit of their lowering records; generated functions have no lowering records and skip that audit. `validate` states that the generated module and the ledger are what `generate` returns for the source module. `compile` builds them that way, so this holds by construction: it is the certificate `Compiled.validated`, not a check, and it cannot detect an error of the generator. What rules out such an error is the oracle: its theorems are stated on the kernel's own templates and on every entry of a compiled module (T4, T5), so a generator change that breaks them fails the oracle build. The compiled declarations and functions have reserved names (`__vastitas_rd…`, `__vastitas_rf…`). **Tested**: the forged modules of [A4](#a4), which show that validation and the Core audit tell them from the compilation; `the_wire_cannot_name_the_compiled_declarations`. **Proved (oracle)**: `IndexedReverseCore.moduleEq_sound` (with `termEq_sound`, `termsEq_sound`, `functionEq_sound`, `functionsEq_sound`), `validate_iff`, `validate_sound`, `validate_no_entries`, `compile_fails_only_by_audit` (`compile` fails only when the Core audit rejects the generated module); `compiled_generate`, `compiled_entry_resolves`, `compiled_functions_total`, `compiled_main_total` (the compiled module is what `generate` returns for the executable Core, every entry resolves, and every function is total and typed); `SmoothReverseCompiled.entry_well_formed` (the forward, backward and seed steps of every entry are declarations of the compiled module, with their rules). |
+| <a id="t3"></a>T3. Saved and recomputed residuals: both policies are expressible, and they agree | **Implemented**: `backwardBody` and `stepBinding`. A saved function takes every point, the residuals and the primal value; a recomputing function takes r₀ and evaluates in its body the images that its steps read. An opaque step runs the runtime reverse pass in the site's policy. **Tested**: codes 12 and 25; `each_pullback_binding_compiles_to_its_own_residual_policy` (`tests/smooth_differential.rs`); `acceptance_sites_compile_to_generated_backward_functions` (the two recomputing functions evaluate 5 images); `a_branch_chooses_the_map_of_a_reverse_pass` (`recomputed`, codes 4 and 8 of the corpus package: an opaque step in recomputed mode); `ReverseCoreRegression` ("the recomputing pullback keeps its mode; every other site saves", "the recomputing pullback reads through the let: three declared steps"). **Proved (oracle)**: `SmoothReverseCore.recomputed_function_evaluates`, `recomputed_function_pullback`, `saved_eq_recomputed`; `SmoothReverseCompiled.compiled_saved_entry` and `compiled_recomputed_entry` (for every entry of a compiled module, in its mode). **Proved (bridge)**: the Fréchet and Kähler meaning of both modes (T4, A3). |
 | <a id="t4"></a>T4. Theorem: the forward Core evaluates to the primal value with residuals that satisfy the residual relation; the backward Core, for every seed over the output, evaluates to η ∘ D⟦P⟧(x); for the generated Core itself, reusing the chain rule and the meaning theorems of Stage 3 | **Proved (oracle)**: forward, `SmoothReverseCore.forwardLets_evaluates` and `forwardLets_primal`, for the primal value of the chain of the step programs. That this chain composes to the site's map value is `resolve_factors`, which only `compiled_site_evaluates` uses (T5). Backward, at any points, `saved_function_evaluates`; under the residual relation, `backwardPass_eq_pullback` and `saved_function_pullback` (the saved-mode pullback along the chain of the step programs, without the chain rule). For every entry of a compiled module, `SmoothReverseCompiled.compiled_saved_entry` and `compiled_recomputed_entry`, whose module premises `entry_well_formed` discharges. A seed over another point gives ⊥: `saved_function_foreign_seed`, `compiled_saved_entry_foreign_seed`. Meaning, through the Stage 3 chain rule `SmoothCalculus.backward_eq_cot`: `saved_function_cot`, `pullback_chain_cot`, `compiled_saved_entry_cot` and `compiled_recomputed_entry_cot` (`some ⟨x, cot F x η⟩` for the chain F of the step programs). On every public path, `public_wire_entries` (protocol 7), `legacy_wire_entries` (protocols 2–6), `public_resource_entries` and `public_pure_entry_computes` (protocols 8/9): every entry of the compiled module satisfies `EntryComputes`. **Proved (bridge)**: `compiled_saved_entry_frechet` and `compiled_recomputed_entry_frechet` (the call evaluates to the covector `(covector η).comp (fderiv ℝ (realProgram F) x)`), from the oracle's `compiled_saved_entry` and `compiled_recomputed_entry` and the Stage 3 theorem `Frechet.pullback_covector_eq_comp_fderiv`, without `ChainRule.lean`; `compiled_entries_frechet` and, on every public path, `public_wire_entries_frechet`, `legacy_wire_entries_frechet`, `public_resource_entries_frechet` and `public_pure_entry_frechet`. The premises that stay concern the call. Its arguments evaluate to one program per opaque step, the points and the seed. For a saved site, the points satisfy the residual relation. The chain is well typed from n to m coordinates, and the seed lies over the image with m components. The Fréchet theorems also need an input point with n coordinates ([#668](https://github.com/MGYamada/Vastitas/issues/668)). |
-| <a id="t5"></a>T5. Refinement: the generated code agrees with the runtime reverse pass on the acceptance example, which may stay as a reference | **Tested**: the acceptance example prints `42` through compiled Core, and the 25-code expectations of `mutated_observations_change_the_native_result` are unchanged (A1). `VastitasAlgebraTest.ReverseExampleRegression` evaluates `main` of the acceptance example before and after the compilation: observational agreement of all 25 codes. `ReverseCoreRegression` compares each compiled site with its source call ("each compiled site evaluates to the value of the source site, failures included") on the 45 closed sites of `CotangentRegression.cotangentFixture`, a hand-built Core program that differs from the acceptance example; the compiled fixture and the compiled extended module also evaluate to 42. The corpus packages run with their mutations (A6). **Proved (oracle)**, for one site: `SmoothReverseCompiled.compiled_site_evaluates` (the term that `compileSite` returns and the source call evaluate to the same value, for a pullback in either mode, a differential and the reverse pass of a tape, direct or bound by a `let`), from `compileSite_term` and `resolve_factors` (the maps that the compilation reads compose to the value of the map operand); the local theorems `SmoothReverseCore.site_saved_rewrite`, `site_recomputed_rewrite`, `site_differential_rewrite` and `site_tape_rewrite`. <a id="site-premises"></a>Applying `compiled_site_evaluates` inside a rewritten function needs six facts that no theorem discharges ([#665](https://github.com/MGYamada/Vastitas/issues/665)). The `let` definitions in scope agree with the activation (`DefsAgree`), and the operands read no symbol that the compilation binds. `rewrite` places the returned term at the site, and the ledger entries before the site are well formed. The map operand evaluates to a well-typed program. The source call of the theorem is the call with the same operands, which the compilation has already rewritten. **Proved (bridge)**: `compiled_site_frechet` and `compiled_differential_site_frechet` (a compiled pullback or differential site and its source call evaluate to the covector η ∘ DM(x) of the site's map value M), under the same premises; `site_saved_rewrite_frechet`, `site_recomputed_rewrite_frechet`, `site_differential_rewrite_frechet` and `site_tape_rewrite_frechet` (the local theorems). The direct tape form `backward(linearize(M, x), η)` has the local theorem only, and a tape bound by a `let` has no Fréchet theorem ([#668](https://github.com/MGYamada/Vastitas/issues/668)). **Not claimed**: refinement of a whole module ([#665](https://github.com/MGYamada/Vastitas/issues/665)). |
+| <a id="t5"></a>T5. Refinement: the generated code agrees with the runtime reverse pass on the acceptance example, which may stay as a reference | **Tested**: the acceptance example prints `42` through compiled Core, and the 25-code expectations of `mutated_observations_change_the_native_result` are unchanged (A1). `VastitasAlgebraTest.ReverseExampleRegression` evaluates `main` of the acceptance example before and after the compilation: observational agreement of all 25 codes. `ReverseCoreRegression` compares each compiled site with its source call ("each compiled site evaluates to the value of the source site, failures included") on the 45 closed sites of `CotangentRegression.cotangentFixture`, a hand-built Core program that differs from the acceptance example; the compiled fixture and the compiled extended module also evaluate to 42. The corpus packages run with their mutations (A6). **Proved (oracle)**, for one site: `SmoothReverseCompiled.compiled_site_evaluates` (the term that `compileSite` returns and the source call evaluate to the same value, for a pullback in either mode, a differential and the reverse pass of a tape, direct or bound by a `let`), from `compileSite_term` and `resolve_factors` (the maps that the compilation reads compose to the value of the map operand); the local theorems `SmoothReverseCore.site_saved_rewrite`, `site_recomputed_rewrite`, `site_differential_rewrite` and `site_tape_rewrite`. <a id="site-premises"></a>Its premise that the module keeps the source bindings holds for every compiled module (`compiled_rules`). Applying `compiled_site_evaluates` inside a rewritten function needs six facts that no theorem discharges ([#665](https://github.com/MGYamada/Vastitas/issues/665)). The `let` definitions in scope agree with the activation (`DefsAgree`), and the operands read no symbol that the compilation binds. `rewrite` places the returned term at the site, and the ledger entries before the site are well formed. The map operand evaluates to a well-typed program. The source call of the theorem is the call with the same operands, which the compilation has already rewritten. **Proved (bridge)**: `compiled_site_frechet` and `compiled_differential_site_frechet` (a compiled pullback or differential site and its source call evaluate to the covector η ∘ DM(x) of the site's map value M), under the same premises; `site_saved_rewrite_frechet`, `site_recomputed_rewrite_frechet`, `site_differential_rewrite_frechet` and `site_tape_rewrite_frechet` (the local theorems). The direct tape form `backward(linearize(M, x), η)` has the local theorem only, and a tape bound by a `let` has no Fréchet theorem ([#668](https://github.com/MGYamada/Vastitas/issues/668)). **Not claimed**: refinement of a whole module ([#665](https://github.com/MGYamada/Vastitas/issues/665)). |
 | <a id="a1"></a>A1. The Stage 3 acceptance example runs its reverse passes through generated Core and prints `42`; a mutation test flips its codes | **Tested**: `smooth_example_checks_builds_and_executes`; `mutated_observations_change_the_native_result` (every code 1–25 flipped by some group of mutations); `acceptance_sites_compile_to_generated_backward_functions`. The [per-code table](#acceptance-example-by-code) shows which steps each code reads. |
-| <a id="a2"></a>A2. Oracle theorem: generated forward and backward Core are correct, relative to the oracle chain rule | **Proved (oracle)**: the theorems of T1, T3, T4 and T5. The statements relative to the chain rule are `saved_function_cot`, `compiled_saved_entry_cot` and `compiled_recomputed_entry_cot`. The other theorems do not use the chain rule, which `scripts/check_chain_rule_free.lean` checks on constants, with positive controls ([chain-rule independence](#chain-rule-independence)). |
+| <a id="a2"></a>A2. Oracle theorem: generated forward and backward Core are correct, relative to the oracle chain rule | **Proved (oracle)**: the theorems of T1, T3, T4 and T5. The statements relative to the chain rule are the six of [chain-rule independence](#chain-rule-independence): `pullback_chain_cot`, `saved_function_cot`, `compiled_saved_entry_cot`, `compiled_recomputed_entry_cot`, `EntryComputes.saved_cot` and `EntryComputes.recomputed_cot`. `scripts/check_chain_rule_free.lean` checks on constants, with positive controls, that the 33 theorems it lists, which the specification states without the chain rule, reach no chain-rule theorem. A theorem of T1–T5 that the script does not list, such as `generate_shape` or `backwardPass_eq_pullback`, is not checked. |
 | <a id="a3"></a>A3. Bridge theorem: the generated backward Core equals the adjoint of `fderiv` of the accepted program | **Proved (bridge)**: `compiled_saved_entry_frechet` and `compiled_recomputed_entry_frechet` (for every entry of a compiled module, the generated backward Core is η ∘ DF(x) for mathlib's `fderiv ℝ` of the chain F of the step programs), and their componentwise forms `compiled_saved_entry_fderiv_adjoint` and `compiled_recomputed_entry_fderiv_adjoint`; for the source site, `compiled_site_frechet` and `compiled_differential_site_frechet`, under the premises of T5, and the local `site_*_rewrite_frechet` theorems (η ∘ DM(x) for the site's map value M); on every public path, `compiled_entries_frechet`, `public_wire_entries_frechet`, `legacy_wire_entries_frechet`, `public_resource_entries_frechet` and `public_pure_entry_frechet`. The Kähler corollaries: `compiled_saved_entry_kaehler` and `compiled_recomputed_entry_kaehler` (the fiber at x of the Kähler pullback), `compiled_saved_entry_cot_kaehler` and `compiled_recomputed_entry_cot_kaehler` (`cot` of the composite map), through `backward_eq_cot_kaehler` and `pullback_eq_cot_kaehler`, which use Kähler functoriality (`cot_compose_kaehler`). No proof uses the kernel chain rule or `pderiv_aeval`; `lean-bridge/Audit.lean` requires each name and checks this on constants, with positive controls. The premises are those of T4. The Fréchet theorems need an input point with n coordinates. The direct tape form has the local theorem only, and a tape bound by a `let` has no Fréchet theorem ([#668](https://github.com/MGYamada/Vastitas/issues/668)). |
 | <a id="a4"></a>A4. Rejected: forged reverse Core, a residual from another point, mismatched endpoints, a seed over another point (the failure value), and a tampered tape | See [rejections](#rejections). |
 | <a id="a5"></a>A5. Byte-level codegen tests for the generated reverse functions | **Tested**: `generated_lean_matches_the_emit_fixtures` pins `tests/fixtures/emit/smooth-differential.lean`, `reverse-branch.lean`, `reverse-tape.lean` and `reverse-domain.lean`, and the regenerated `smooth-cotangent.lean`, `smooth-metric.lean` and `stdlib-differential.lean`; non-smooth goldens are unchanged. `ReverseCoreRegression` ("the generated function of one declared step, byte for byte", the pullback along `gf` with the table `[[4t]]`; "the lowering calls the compiled steps and no runtime reverse pass at a compiled site"; "one generated function per site, before the source functions"). The native fixtures `smooth_reverse_programs` and `smooth_reverse_extended` compile and print `42`. **Not claimed**: native refinement of the generated code. |
@@ -188,11 +199,11 @@ below is that observation.
 
 | Rejection | Outcome | Evidence |
 | --- | --- | --- |
-| Forged reverse Core | Static. `validate` rejects every module and ledger other than the recompilation of the source module; the Core audit also rejects the ill-typed ones. No source or wire request can name a compiled declaration or supply Core. | **Tested**: `ReverseCoreRegression`: a backward function that returns its seed; the two steps of the shears in the opposite order (well typed, `main` changes); a step with its input and output points exchanged; a step along another declared map; a generated function under another owner; a missing generated function (Core audit); an extra function; a site left uncompiled; a function returning a covector over another object (Core audit); a ledger with another mode or a missing entry. `the_wire_cannot_name_the_compiled_declarations`: a declaration, morphism or function under a compiler name (`E_RESERVED`), a call of one (`E_NAME`), and the operations `smooth_apply` and `cotangent_jacobian` (`E_PROTOCOL`), for `check` and `emit`. **Proved (oracle)**: `IndexedReverseCore.validate_sound`, `compiled_codegen_input`, `legacy_compiled_codegen_input`, `generated_pure_entry_compiled`, `public_pure_entry_compiled`, `public_resource_compiled` (the compiled module of every public path is the recompilation of its executable Core; that code generation uses it is proved for the protocol 8/9 pure path, and read from `Main` for protocols 2–7). |
-| A residual from another point | Static for a forged residual: the forward Core binds every residual, and validation rejects any other. A source program that pulls back through the wrong intermediate point passes a seed over another point to the next site, which gives the failure value ⊥. | **Tested**: `ReverseCoreRegression` ("a residual from another point: a site passing the input point as the image is rejected", well typed); codes 9 and 10. **Proved (oracle)**: `SmoothReverseCore.forwardLets_evaluates` and `forwardLets_primal` (the residuals are the images); `SmoothReverseCompiled.compiled_saved_entry_foreign_seed`. |
-| Mismatched endpoints | Static. The source call is `E_ENDPOINT`, as in Stage 3. The Core audit checks the generated module again, and validation rejects every module other than the recompilation. The compilation forms points and covectors only over objects that its families cover; any other site keeps the runtime reverse pass. | **Tested**: `smooth_endpoint_errors_name_the_failing_role`, `acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically` (`tests/smooth_differential.rs`); `ReverseCoreRegression` (a generated function whose declared result is a covector over another object fails the Core audit). `validate_iff` proves that validation rejects every other module. The Core audit of a forged step is tested, not proved. |
+| Forged reverse Core | Static. No source or wire request can name a compiled declaration or supply Core, so the compiled module is the one that `generate` returns (`compile_fails_only_by_audit`). The forged modules below are not inputs of any pipeline path: they show that `validate`, and the Core audit for the ill-typed ones, tell a module from the compilation. An error of the generator itself is ruled out by the oracle theorems (T4, T5), not by validation. | **Tested**: `ReverseCoreRegression`: a backward function that returns its seed; the two steps of the shears in the opposite order (well typed, `main` changes); a step with its input and output points exchanged; a step along another declared map; a generated function under another owner; a missing generated function (Core audit); an extra function; a site left uncompiled; a function returning a covector over another object (Core audit); a ledger with another mode or a missing entry. `the_wire_cannot_name_the_compiled_declarations`: a declaration, morphism or function under a compiler name (`E_RESERVED`), a call of one (`E_NAME`), and the operations `smooth_apply` and `cotangent_jacobian` (`E_PROTOCOL`), for `check` and `emit`. **Proved (oracle)**: `IndexedReverseCore.validate_sound`, `compiled_codegen_input`, `legacy_compiled_codegen_input`, `generated_pure_entry_compiled`, `public_pure_entry_compiled`, `public_resource_compiled` (the compiled module of every public path is what `generate` returns for its executable Core; that code generation uses it is proved for the protocol 8/9 pure path, and read from `Main` for protocols 2–7). |
+| A residual from another point | Static for a forged residual: the forward Core binds every residual, and no request can supply another; validation tells a forged module from the compilation. A source program that pulls back through the wrong intermediate point passes a seed over another point to the next site, which gives the failure value ⊥. | **Tested**: `ReverseCoreRegression` ("a residual from another point: a site passing the input point as the image is rejected", well typed); codes 9 and 10. **Proved (oracle)**: `SmoothReverseCore.forwardLets_evaluates` and `forwardLets_primal` (the residuals are the images); `SmoothReverseCompiled.compiled_saved_entry_foreign_seed`. |
+| Mismatched endpoints | Static. The source call is `E_ENDPOINT`, as in Stage 3. The Core audit checks the generated module again. The compilation forms points and covectors only over objects that its families cover; any other site keeps the runtime reverse pass. | **Tested**: `smooth_endpoint_errors_name_the_failing_role`, `acceptance_rejects_wrong_objects_and_a_gradient_primitive_statically` (`tests/smooth_differential.rs`); `ReverseCoreRegression` (a generated function whose declared result is a covector over another object fails the Core audit). `validate_iff` characterizes validation. The Core audit of a forged step is tested, not proved. |
 | A seed over another point | The failure value ⊥, at run time. | **Tested**: codes 8, 11 and 14; the corpus packages (`reverse-branch` codes 256 and 512, `reverse-tape` codes 32 and 64, compiled and runtime). **Proved (oracle)**: `SmoothReverseCore.saved_function_foreign_seed`, `backwardPass_foreign_seed`; `SmoothReverseCompiled.compiled_saved_entry_foreign_seed` (every saved entry of a compiled module); `SmoothJacobian.jacobianStep_eq_of_output`. The bridge theorems take a seed over the image as a premise. |
-| A tampered tape | Static. A tape has no source or wire form, as in Stage 3. The compiled reverse pass of a tape bound by `let` reads the map and the point of its `linearize` and forms its own residuals, which validation fixes. A tape from another point rejects the seed with ⊥. | **Tested**: `raw_wire_rejects_forged_fiber_and_tape_records` (`tests/smooth_differential.rs`); code 14; `a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routine`. No forged module of `ReverseCoreRegression` changes a tape site. **Proved (oracle)**: `IndexedReverseCore.validate_iff` (validation rejects every change, a tape site's included). |
+| A tampered tape | Static. A tape has no source or wire form, as in Stage 3. The compiled reverse pass of a tape bound by `let` reads the map and the point of its `linearize` and forms its own residuals. A tape from another point rejects the seed with ⊥. | **Tested**: `raw_wire_rejects_forged_fiber_and_tape_records` (`tests/smooth_differential.rs`); code 14; `a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routine`. No forged module of `ReverseCoreRegression` changes a tape site. **Proved (oracle)**: `IndexedReverseCore.validate_iff` (validation tells every change from the compilation, a tape site's included). |
 
 <a id="acceptance-example-by-code"></a>
 
@@ -236,7 +247,7 @@ pins these four runtime reverse passes and their callers.
 
 | Issue | Met by this profile | Open |
 | --- | --- | --- |
-| [#361](https://github.com/MGYamada/Vastitas/issues/361) compiled pullbacks | Reverse Core that the kernel emits, checks again and validates by recompilation, for exact QQ polynomial maps; saved and recomputed residuals; the noncommuting shears and nonlinear composition through Jacobian steps (codes 1, 2, 4, 16 and 17) | Opaque steps compiled through specialization; preservation through passes (#164) |
+| [#361](https://github.com/MGYamada/Vastitas/issues/361) compiled pullbacks | Reverse Core that the kernel emits and checks again with the Core audit, for exact QQ polynomial maps; saved and recomputed residuals; the noncommuting shears and nonlinear composition through Jacobian steps (codes 1, 2, 4, 16 and 17) | Opaque steps compiled through specialization; preservation through passes (#164) |
 | [#290](https://github.com/MGYamada/Vastitas/issues/290) proof-carrying differentiation | The theorem over generated forward and backward Core, restricted to the finite smooth profile (T4); a residual from another point is rejected (A4) | The derivation language, selected-backward and within contracts, and a whole-module refinement theorem ([#665](https://github.com/MGYamada/Vastitas/issues/665)) |
 | [#629](https://github.com/MGYamada/Vastitas/issues/629) | — | Sharing of repeated literals, such as the Jacobian table of a map that several steps read |
 
@@ -249,10 +260,12 @@ pins these four runtime reverse passes and their callers.
   source call (`compiled_site_evaluates`). Applying it inside a rewritten
   function needs six facts that no theorem discharges; [T5](#site-premises)
   lists them. A refinement theorem for every function is a follow-up
-  ([#665](https://github.com/MGYamada/Vastitas/issues/665)). The tests
-  compare the result of `main`: of the acceptance example, of the cotangent
-  fixture and of the corpus packages. They compare single sites only on the
-  45 closed sites of the cotangent fixture.
+  ([#665](https://github.com/MGYamada/Vastitas/issues/665)). The kernel
+  regressions compare the result of `main` before and after the compilation:
+  of the acceptance example, of the cotangent fixture and of the extended
+  module. The corpus packages run only compiled, against values derived by
+  hand. The regressions compare single sites only on the 45 closed sites of
+  the cotangent fixture.
 - **The compiled-entry theorems keep premises.** One program per opaque step,
   composable programs and, for a saved site, the residual relation are
   premises on the arguments of a call. That consecutive steps share their
@@ -262,8 +275,13 @@ pins these four runtime reverse passes and their callers.
   Discharging these is a follow-up ([#668](https://github.com/MGYamada/Vastitas/issues/668)).
 - **Opaque maps and escaping tapes use the runtime reverse pass.** Opaque
   steps are function parameters, values of branches and calls,
-  `composite(…)`, and maps beyond `reverseLeaves`. A tape passed to or
-  returned from a function keeps `backward`. A whole site stays a call of the
+  `composite(…)`, and maps that `reverseLeaves` does not reach. A map operand
+  whose own `compose` calls exceed the budget is one opaque step as a whole,
+  so none of its maps is compiled, and the order of the operands decides
+  which part of a map fits. A tape passed to or returned from a function keeps
+  `backward`, and so does a tape bound by a `let` over a call result or a
+  branch value ([#666](https://github.com/MGYamada/Vastitas/issues/666)). A
+  whole site stays a call of the
   runtime reverse pass when its maps cannot be read, or when a family of the
   generated Core does not cover one of its objects (`reverse-domain`). It
   also stays when its declarations would exceed the 4096 declaration ids of a
@@ -273,6 +291,15 @@ pins these four runtime reverse passes and their callers.
   ([#664](https://github.com/MGYamada/Vastitas/issues/664)).
 - **An opaque step evaluates its map forward twice:** once in the forward
   Core for its image, and again inside the runtime reverse pass ([#668](https://github.com/MGYamada/Vastitas/issues/668)).
+  A recomputing function does not bind the image of a last opaque step,
+  which nothing reads.
+- **The input point is not evaluated once.** The forward Core binds r₀ as the
+  point operand, so a composite point such as `compose(f(), x)` is evaluated
+  by each step that reads it: the first forward step and the first backward
+  step. The runtime reverse pass evaluated it once per pass. Each image is an
+  evaluated point, a program node with one constant polynomial per
+  coordinate, which every step that reads it evaluates again; see
+  [storage ownership §7.10](storage-ownership.md#710-reverse-residual-retention-and-mutation).
 - **A let-bound tape's forward Core runs again at each reverse pass.** Each
   reverse pass of the tape is a site that copies the tape's map and point.
   The tape's own `let` stays in the function.
@@ -284,12 +311,15 @@ pins these four runtime reverse passes and their callers.
   leaf is bound again at each site that reads it. A size and work budget with
   a fallback to the runtime reverse pass is a follow-up
   ([#673](https://github.com/MGYamada/Vastitas/issues/673)).
-- **Validation is by recompilation.** `validate` compiles the source module
-  again and compares the result structurally; no independent checker
-  re-derives the templates. `moduleEq_sound` makes the comparison sound, so
-  validation is as strong as the generator, whose output the oracle theorems
-  describe.
-- **The compilation runs once, on source Core.** An opaque step calls a saved
+- **Validation is a certificate, not a check.** `validate` states that the
+  generated module and the ledger are what `generate` returns for the source
+  module; `compile` builds them that way, and `compile_fails_only_by_audit`
+  proves that only the Core audit can fail. No independent checker
+  re-derives the templates, so validation cannot detect an error of the
+  generator. The oracle theorems, stated on the kernel's own templates and on
+  every entry of a compiled module, are what rule such errors out. `compile`
+  also runs `generate` a second time inside `validate`.
+- **The compilation runs once, on source Core.** An opaque step calls a
   `cotangent_pullback` declaration, whose rule is a reverse pass, so
   compiling generated Core again would compile that step again.
 - **No floats and no performance claims.** Arithmetic is exact over QQ, and
@@ -321,9 +351,10 @@ pins these four runtime reverse passes and their callers.
     rewritten function needs six facts that no theorem discharges
     ([T5](#site-premises),
     [#665](https://github.com/MGYamada/Vastitas/issues/665)).
-  - Structural equality is sound, and validation characterizes the
-    recompilation. The compiled module of every public path is that
-    recompilation, with total and typed functions. That code generation uses
+  - Structural equality is sound, validation characterizes the result of
+    `generate`, and `compile` fails only by the Core audit. The compiled
+    module of every public path is that result, with total and typed
+    functions. That code generation uses
     it is proved for the protocol 8/9 pure path and read from `Main` for
     protocols 2–7.
 - **Proved (bridge).**
@@ -342,10 +373,12 @@ pins these four runtime reverse passes and their callers.
   constants of every theorem stated without the chain rule, with positive
   controls ([chain-rule independence](#chain-rule-independence)).
 - **Tested only.**
-  - Agreement of the result of `main` before and after the compilation, and
-    of the closed sites of the cotangent fixture with their source calls.
-  - The listed forged modules, which validation is proved to reject, and the
-    wire requests that name compiled declarations.
+  - Agreement of the result of `main` before and after the compilation, on
+    the acceptance example, the cotangent fixture and the extended module,
+    and of the closed sites of the cotangent fixture with their source calls.
+    The corpus packages against values derived by hand.
+  - The listed forged modules, which validation is proved to tell from the
+    compilation, and the wire requests that name compiled declarations.
   - The generated code, byte for byte, and its native execution.
   - The budget fallbacks of `reverseLeaves` and of the declaration bound.
 - **Assumed.** As in Stage 3: the Rust frontend's parsing, the Lean-to-C

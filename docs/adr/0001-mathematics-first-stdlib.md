@@ -489,7 +489,9 @@ what is implemented, tested and proved.
   - <a id="compiled-reverse-core-policies"></a>The saved policy passes every
     point to the backward function: the residuals and the primal value. The
     recomputed policy passes the input point, and the backward function
-    evaluates the other points again. Both must give the same covector.
+    evaluates again the points that it reads; a step that the compilation
+    does not open runs the runtime routine in the same policy. Both must give
+    the same covector.
   - Residuals are immutable pure Core values. They meet the retention
     contract of
     [storage ownership §7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation)
@@ -502,13 +504,16 @@ what is implemented, tested and proved.
 - <a id="compiled-reverse-core-checking"></a>**Checking.**
   - The generated module passes the Core audit that source-derived Core
     passes.
-  - Translation validation compiles the source module again and compares
-    the result.
+  - The compiled module carries the certificate that it is what the
+    generator returns for the source module. The certificate holds by
+    construction, so it cannot detect an error of the generator; the oracle's
+    theorems about the generator's templates and compiled sites rule such
+    errors out.
   - No source and no wire request can name or supply the generated
     declarations, functions or residuals.
-  - A failed check is an internal error. The compilation rejects no accepted
-    program: a reverse pass that it cannot compile stays a call of the runtime
-    routine.
+  - A failed Core audit is an internal error. The compilation rejects no
+    accepted program: a reverse pass that it cannot compile stays a call of
+    the runtime routine.
 - **Evidence obligations.**
   - The oracle proves, without mathlib, what the generated forward and
     backward Core compute, that the two policies agree, and their meaning

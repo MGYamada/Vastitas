@@ -10,3 +10,5 @@
 __pycache__/
 *.py[cod]
 /experiments/source_workspace/results/*/evidence.zip
+/.env
+/.env.local

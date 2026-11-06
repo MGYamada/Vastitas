@@ -10,7 +10,11 @@ The laws of the metric-free cotangent pullback of `std::differential`, from
 ADR 0001 §10. For a smooth map f, a point x and a seed η over f(x), the
 pullback is the covector η ∘ Df(x) over x. A seed over another point gives the
 failure value ⊥. The theorems below concern the runtime operations that the
-`std::differential` bindings evaluate to.
+`std::differential` bindings evaluate to. The kernel compiles each reverse pass
+that it can read into generated Core, which calls these operations only for
+its opaque steps; [compiled reverse Core](reverse-core.md) states what that
+Core computes. The runtime operations remain the reference that it agrees
+with.
 """
 
 [property."differential.pullback.linear"]
@@ -78,9 +82,12 @@ a wrong result changes the native output.
 [property."differential.pullback.identity".claim.native]
 status = "not-claimed"
 reason = """
-The theorems concern the Lean runtime definitions that the checker and the
-generated programs share. No claim states that the compiled native code
-refines them. Tests run the native code.
+The theorems concern the Lean runtime definitions that the checker shares with
+the generated programs, which call them for opaque steps and for reverse
+passes that the compilation keeps. A compiled reverse pass runs generated Core,
+whose agreement with these definitions is proved per site under premises and
+tested on whole programs ([compiled reverse Core](reverse-core.md)). No claim
+states that the compiled native code refines them. Tests run the native code.
 """
 
 [property."differential.pullback.composition"]
@@ -156,7 +163,13 @@ Observation 1 of the [acceptance example](../stage3-acceptance.md#acceptance-con
 checks 12 dt. Observations 2 to 4 compare the stepwise pullback with the
 pullback along the composite program, along the composite as one map and along
 a declared map. Observation 5 checks that the composite and the declared map
-are the same map. `SmoothReferenceRegression` compares the composite cases of
+are the same map. Since the reverse passes are compiled, both sides of
+observation 2 run Jacobian steps along `g` and `f`, and so do both sides of the
+composition observation of the library package, so neither runs the runtime
+pass on a composite program. Observation 3 compares the stepwise pullback with
+the runtime pass along the composite as one map, an opaque step over
+`composite(…)`, and observation 4 with the table of the declared map `gf`.
+`SmoothReferenceRegression` runs the runtime pass on the composite programs of
 `tests/fixtures/smooth-differential.json`, which the independent Python
 references generate.
 """
@@ -164,7 +177,10 @@ references generate.
 [property."differential.pullback.composition".claim.native]
 status = "not-claimed"
 reason = """
-The theorems concern the Lean runtime definitions that the checker and the
-generated programs share. No claim states that the compiled native code
-refines them. Tests run the native code.
+The theorems concern the Lean runtime definitions that the checker shares with
+the generated programs, which call them for opaque steps and for reverse
+passes that the compilation keeps. A compiled reverse pass runs generated Core,
+whose agreement with these definitions is proved per site under premises and
+tested on whole programs ([compiled reverse Core](reverse-core.md)). No claim
+states that the compiled native code refines them. Tests run the native code.
 """

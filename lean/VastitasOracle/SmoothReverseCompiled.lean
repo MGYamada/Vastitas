@@ -398,7 +398,7 @@ theorem entry_well_formed (compiled : Compiled source) {entry : Entry} (member :
   have formed := compiled_formed compiled entry member
   obtain ⟨kept, -⟩ := IndexedReverseCore.compiled_shape compiled
   refine ⟨function, declarations ⟨entry.names.apply, .smoothApply entry.site.smooth⟩ ?_,
-    fun id step zipped => declarations ⟨id, stepBinding entry.site step.kind⟩ ?_,
+    fun id step zipped => ⟨entry.site.mode, declarations ⟨id, stepBinding entry.site step.kind⟩ ?_⟩,
     fun unit => declarations ⟨entry.names.seed, .fiberVector entry.site.cotangent entry.site.smooth
       entry.site.output⟩ ?_, fun unit => fiberVector_variance (id := entry.names.seed)
       (smooth := entry.site.smooth) (object := entry.site.output) compiled.core.typed.declarations ?_,
@@ -1322,11 +1322,22 @@ theorem siteOperands_cases {env : Declarations} {defs : Defs} {id : DeclId} {arg
     rw [rule] at operands
     cases operands
 
+/-- **A compiled module keeps the source bindings.** Every declaration of the
+source module has the same binding in the compiled module: the premise
+`rules` of `compiled_site_evaluates` holds for every compiled module. -/
+theorem compiled_rules {requireMain : Bool} {source : Typing.CheckedModule requireMain}
+    (compiled : Compiled source) :
+    ∀ id binding, source.module.declarations.primitive? id = some binding →
+      compiled.core.module.declarations.primitive? id = some binding := by
+  intro id binding found
+  rw [(IndexedReverseCore.compiled_shape compiled).1]
+  exact primitive_append found
+
 /-- **The Core that `compileSite` returns evaluates to the value of the
 source site.** Let `compileSite` compile a site of a function whose `let`
 definitions in scope agree with the activation (`DefsAgree`), and let the
-module keep the source bindings and hold every entry of the ledger
-(`EntryWellFormed`). Let the map operand that `siteOperands` reads evaluate to
+module keep the source bindings (`rules`, which `compiled_rules` proves for a
+compiled module) and hold every entry of the ledger (`EntryWellFormed`). Let the map operand that `siteOperands` reads evaluate to
 a well-typed program, and the point and seed operands evaluate, none of them
 reading a symbol at or above `state.next`, where the compiled Core binds its
 own symbols. Then the source call and the returned term evaluate to the same

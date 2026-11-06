@@ -444,4 +444,55 @@ private def aliased (aliases : Nat) : Function :=
 #eval check "steps over the wrong objects fail the Core audit"
   (!audited (onTwoSteps swapSteps))
 
+/-! ## Definitions that `measure` does not read in full
+
+`measure` reads a `let` with the fuel of the `let`s before it plus 64; a site
+reads with the fuel of every `let` in scope plus 64. Source nests expressions
+less than 64 deep, so only a hand-built wire reaches the difference. A
+definition nested deeper than its record reads counts as `reverseLeaves + 1`
+steps, so no site reads it through. Before, the record counted the unread part
+as one step; a site with more fuel then read deeper, overflowed the budget and
+undid the reading, and nested undone readings multiplied the work by about 8
+per level. -/
+
+/-- A balanced `compose` tree of `2^depth` copies of `leaf`. -/
+private def tree : Nat → Term → Term
+  | 0, leaf => leaf
+  | depth + 1, leaf => compose (tree depth leaf) (tree depth leaf) "Line" "Line"
+
+/-- `inner` nested `depth` levels deep along the first operand of `compose`,
+the operand `resolve` reads first: `compose(… compose(inner, m) …, m)`. -/
+private def comb (name : String) (depth : Nat) (inner : Term) : Term :=
+  Nat.repeat (fun term => compose term (constant name "Line" "Line") "Line" "Line") depth inner
+
+/-- `L₀ := comb(68, base)` and `Lᵢ := comb(i + 68, compose(tree(3, Lᵢ₋₁), tree(8, m)))`
+for `i ≤ levels`, each nested four levels deeper than its record reads; then
+`pad` integer `let`s, which give the site more fuel than any record had, and a
+pullback along `L_levels` at 3. -/
+private def deep (name : String) (base : Term) (levels pad : Nat) : Function :=
+  let line := smoothType "Line" "Line"
+  let value (i : Nat) : Term := match i with
+    | 0 => comb name 68 base
+    | i + 1 => comb name (i + 69)
+      (compose (tree 3 (var i line)) (tree 8 (constant name "Line" "Line")) "Line" "Line")
+  let maps (body : Term) : Term := (List.range (levels + 1)).foldr (fun i rest => .letE i (value i) rest) body
+  let padding (body : Term) : Term :=
+    (List.range pad).foldr (fun j rest => .letE (levels + 1 + j) (.integer 0) rest) body
+  { id := 0, definition := id "main", parameters := [], returnType := .pure .int
+    body := maps <| padding <|
+      guarded (same (prim "pullback" [var levels line, three, dline (lineAt 3) 1] (cotangentType "Line"))
+        (dline three 1)) 1 (.integer 42) }
+
+#eval check "a definition nested deeper than its record reads stays one opaque step at a site with more fuel"
+  (let module : Module := { source with functions := [deep "idL" (constant "idL" "Line" "Line") 0 20] }
+   let (compiled, ledger) := Reverse.generate module
+   ledger.length == 1 && (ledger.headD default).site.steps.map (·.kind) == [.opaque] &&
+     (Typing.checkModule compiled true).isOk && run module mainCall == some (.integer 42) &&
+     run compiled mainCall == some (.integer 42))
+#eval check "six nested definitions that measure does not read in full compile without undone readings"
+  (let module : Module := { source with functions := [deep "sq" (tree 8 (constant "sq" "Line" "Line")) 6 500] }
+   let (compiled, ledger) := Reverse.generate module
+   ledger.length == 1 && (ledger.headD default).site.steps.map (·.kind) == [.opaque] &&
+     (Typing.checkModule compiled true).isOk)
+
 end VastitasKernel.Indexed.Core.ReverseCoreRegression

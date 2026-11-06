@@ -744,8 +744,8 @@ than ignoring them as unrelated metadata.
 all-key footprints, every applied/unapplied body, independent Fn audits and both
 Core checks therefore run before success. `emit` passes `compiled` to
 `Indexed.Core.Codegen.generate`: the executable Core with its reverse passes
-compiled into Core, checked again and validated by recompilation. The
-generator rechecks it independently.
+compiled into Core and checked again by the Core audit. The generator
+rechecks it independently.
 See [source syntax and limitations](indexed-source.md).
 
 ## Expected-rejection doctest consumer (reference only)

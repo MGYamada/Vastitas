@@ -75,9 +75,11 @@ checked Core builds, and named constant metrics with checked nondegeneracy and
 Riemannian evidence. The acceptance example runs natively. The oracle proves
 the chain rule without mathlib, and the mathlib bridge proves the Fréchet and
 Kähler comparisons as separate theorems. The kernel compiles each reverse
-pass that it can read into Core, checks that Core again, and the oracle and
-the bridge prove it
-([compiled reverse Core acceptance](../reverse-core-acceptance.md), tracker
+pass that it can read into Core and checks that Core again. The oracle and
+the bridge prove what each generated function computes, and each compiled
+site under premises that no theorem discharges yet; whole modules agree with
+their source in tests (#665;
+[compiled reverse Core acceptance](../reverse-core-acceptance.md), tracker
 #623). Forward mode and Hessian-vector products (#161), custom rules (#163),
 gluing (#606), position-dependent metrics and performance (#222) remain open.
 Compiled reverse Core keeps its residuals as immutable pure Core values,

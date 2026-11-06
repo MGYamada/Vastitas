@@ -264,10 +264,12 @@ other package-only declarations. Compare [manifest mode](#manifest-mode). See
 
 The `let`s of [compiled reverse Core](#compiled-reverse-core) that bind the
 input point of a [reverse site](#reverse-site) and its image along each map of
-the site, in application order, as ordinary Core values. They stand at a
-saved site, and inside the [backward Core](#backward-core) of a recomputing
-site. The last image is the primal value, and the other points are the
-[residuals](#residual). Compare [backward Core](#backward-core). See
+the site, in application order, as ordinary Core values. The images are
+evaluated points; the input point is the point operand as the source gives
+it. They stand at a saved site, and inside the
+[backward Core](#backward-core) of a recomputing site, which binds only the
+images that its steps read. The last image is the primal value, and the other
+points are the [residuals](#residual). Compare [backward Core](#backward-core). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Frontend
@@ -449,11 +451,13 @@ evidence. `sharp` requires nondegenerate evidence for its metric. See
 ## Opaque step
 
 A map of a [reverse site](#reverse-site) whose structure the compilation does
-not open. Function parameters, values of branches and calls, `composite(…)`
-and maps beyond the `reverseLeaves` [limit](limits.md#checker-limits) are
-opaque steps. [Backward Core](#backward-core) pulls the seed back along an
-opaque step with the [runtime reverse pass](#runtime-reverse-pass) in saved
-mode. Compare [Jacobian table](#jacobian-table). See
+not open. Function parameters, values of branches and calls and
+`composite(…)` are opaque steps, and so are maps that the `reverseLeaves`
+[limit](limits.md#checker-limits) does not reach: a `let`-bound map beyond
+the remaining budget, or a whole map operand whose `compose` calls exceed it.
+[Backward Core](#backward-core) pulls the seed back along an opaque step with
+the [runtime reverse pass](#runtime-reverse-pass) in the site's residual
+policy. Compare [Jacobian table](#jacobian-table). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Oracle
@@ -587,7 +591,7 @@ Saved data that a later pullback reads. In
 last map. The [forward Core](#forward-core) binds them as immutable Core
 values. A saved site passes them, and the primal value, to its
 [backward Core](#backward-core). A recomputing site passes the input point,
-and the backward Core evaluates the other points again. See
+and the backward Core evaluates again the points that it reads. See
 [Reverse residual retention and mutation](../storage-ownership.md#710-reverse-residual-retention-and-mutation).
 
 ## Resource function

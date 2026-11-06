@@ -5,13 +5,19 @@ never accepts part of an input or skips an unused body to stay within a budget.
 These are defensive implementation limits, not mathematical restrictions.
 The compilation of reverse passes into Core is the one exception: its budgets
 bound how much of a checked program it compiles, and it rejects nothing. A
-reverse site keeps the
-[runtime reverse pass](glossary.md#runtime-reverse-pass) when its compiled
-Core would exceed `generatedLets` in its function, or when its declarations
-would exceed the 4096 declaration ids of a Core module. The reading of a
-site's maps stops after `reverseLeaves` maps, and after as many levels as
-there are `let`s in scope, plus 64; the rest of the map is one
-[opaque step](glossary.md#opaque-step).
+function whose compiled Core would exceed `generatedLets` keeps every one of
+its reverse sites as a call of the
+[runtime reverse pass](glossary.md#runtime-reverse-pass). A site keeps it too
+when its declarations would exceed the 4096 declaration ids of a Core module.
+The reading of a site's maps charges at most `reverseLeaves` maps:
+
+- a `let`-bound map whose recorded maps exceed the remaining budget is one
+  [opaque step](glossary.md#opaque-step);
+- below as many levels as there are `let`s in scope, plus 64, the rest of the
+  map is one opaque step, and a `let` nested deeper than its own reading
+  reaches is one opaque step wherever it is read;
+- a map operand whose own `compose` calls exceed the budget is one opaque step
+  as a whole, so none of its maps is compiled.
 
 ## Checker limits
 

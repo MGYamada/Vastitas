@@ -178,7 +178,7 @@ export a `gradient`.
 > program. They also cover the chain rule, the agreement of the saved
 > and recomputing passes, the comparison with the derivative of real
 > analysis, and the meaning of metric evidence. Tests cover native execution,
-> the diagnostics, the agreement of each compiled program with its source, and
+> the diagnostics, the agreement of the tested programs with their source, and
 > agreement with independent reference programs. A seed over the wrong point
 > of the right object is a run-time failure value, not a compile-time error.
 

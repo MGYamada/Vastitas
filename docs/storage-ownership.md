@@ -298,13 +298,28 @@ allocation, region or loan, so no mutation can make them stale. A saved site
 uses Retain: its forward Core binds every residual, and its backward Core
 reads the bound values. The map value of an opaque step is retained the same
 way. A recomputing site uses Recompute: its backward Core receives the input
-point and evaluates the images again along the same checked maps. Exact
-rational evaluation of a polynomial map has no effect and no policy choice, so
-the replay reproduces each value. A pure value has one version, and the
-derivative rules belong to the closed primitive registry, so a residual records
-no value versions or rule revisions. Compiled reverse Core forms no
-storage-backed residual, so Snapshot and the invalidation checks of this
-section do not arise for it.
+point and evaluates again, along the same checked maps, the images that its
+steps read, and its opaque steps run the runtime reverse pass in recomputed
+mode, which keeps no tape. Exact rational evaluation of a polynomial map has
+no effect and no policy choice, so the replay reproduces each value. A pure
+value has one version, and the derivative rules belong to the closed
+primitive registry, so a residual records no value versions or rule
+revisions. Compiled reverse Core forms no storage-backed residual, so
+Snapshot and the invalidation checks of this section do not arise for it.
+
+The encoding of a residual has a cost that this contract does not bound, and
+nothing measures it (#222). Each image is an evaluated point: a fresh program
+node that holds one constant polynomial per coordinate. Every step that reads
+a point evaluates that node again to recover its coordinates as a new list of
+rationals, so each intermediate point is read three times: by the next
+forward step and by the two backward steps around it. Each Jacobian step also
+allocates one list per table column, and checks its seed against its output
+point although the previous step produced the seed over that point, so the
+check cannot fail after the first step. The input point r₀ is bound as the
+point operand, so a composite point is evaluated again by each step that
+reads it. An equivalent C program would keep the coordinates of each point in
+registers or on the stack. Representing residuals as coordinates is a
+follow-up.
 
 ## 7.11 Tensor ports and execution scheduling
 

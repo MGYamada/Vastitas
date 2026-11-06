@@ -362,8 +362,8 @@ The derivative rules are:
 The steps of compiled reverse Core call `smoothApply` and
 `cotangentJacobian`. These bindings have no family and no parser arm, so no
 source names them; their rule is `none`. A map that the compilation does not
-open is pulled back by a saved `cotangentPullback`, and the seed of a
-differential is a `fiberVector`. `registry_reverse_sound` matches every
+open is pulled back by a `cotangentPullback` in the site's residual policy,
+and the seed of a differential is a `fiberVector`. `registry_reverse_sound` matches every
 constructor by name, as `registry_sound` does.
 
 Four proofs case on every binding and close the other arms by automation:

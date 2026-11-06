@@ -427,6 +427,69 @@ theorem compiled_functions_total (compiled : Compiled source) :
 
 end Compiled
 
+/-! ## The validation holds by construction
+
+`compile` builds the generated module with `generate` and the certificate
+`validated` from the same call, so the validation cannot fail: `compile`
+fails only when the Core audit rejects the generated module. The validation
+therefore detects no error of the generator; the theorems about the templates
+and the compiled sites are what rule such errors out. -/
+
+/-- The Core audit returns the module it checks. -/
+theorem checkModule_module {module : Module} {requireMain : Bool} {checked : Typing.CheckedModule requireMain}
+    (audited : Typing.checkModule module requireMain = .ok checked) : checked.module = module := by
+  unfold Typing.checkModule at audited
+  split at audited
+  · split at audited
+    · split at audited
+      · cases audited; rfl
+      · cases audited
+    · cases audited
+  · cases audited
+
+/-- The generator's own output validates, for every module. -/
+theorem validate_generate (module : Module) : validate module (generate module).2 (generate module).1 = true :=
+  validate_iff.mpr rfl
+
+/-- **`compile` fails only by the Core audit.** When `compile` fails, the
+Core audit rejects the generated module; the branch that reports a failed
+validation is not reached. -/
+theorem compile_fails_only_by_audit {requireMain : Bool} (source : Typing.CheckedModule requireMain)
+    (diagnostic : VastitasKernel.Diagnostic) (failed : compile source = .error diagnostic) :
+    ∃ error, Typing.checkModule (generate source.module).1 requireMain = .error error := by
+  have valid := validate_generate source.module
+  unfold compile at failed
+  revert failed valid
+  rcases generated : generate source.module with ⟨module, entries⟩
+  intro failed valid
+  dsimp only at valid failed
+  split at failed
+  · rename_i empty
+    exfalso
+    have none : entries = [] := List.isEmpty_iff.mp empty
+    have same : module = source.module := by
+      have unchanged := generate_no_entries (module := source.module) (by rw [generated, none])
+      rw [generated] at unchanged
+      exact unchanged
+    rw [same] at valid
+    rw [pure_bind] at failed
+    try dsimp only at failed
+    rw [dite_eq_left valid] at failed
+    first | cases failed | (simp [pure, Except.pure] at failed) | nomatch failed | contradiction
+  · cases audit : Typing.checkModule module requireMain with
+    | error error => exact ⟨error, rfl⟩
+    | ok checked =>
+      exfalso
+      have same := checkModule_module audit
+      rw [← same] at valid
+      rw [audit] at failed
+      simp only [Except.mapError] at failed
+      rw [show (Except.ok checked : Except VastitasKernel.Diagnostic (Typing.CheckedModule requireMain)) =
+        pure checked from rfl, pure_bind] at failed
+      try dsimp only at failed
+      rw [dite_eq_left valid] at failed
+      first | cases failed | (simp [pure, Except.pure] at failed) | nomatch failed | contradiction
+
 theorem compiled_main_total {source : Typing.CheckedModule true} (compiled : Compiled source) :
     ∃ id function result,
       compiled.core.module.main = some id ∧

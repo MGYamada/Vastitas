@@ -13,7 +13,7 @@ After acceptance, the kernel compiles every reverse site of a checked module tha
 | [Forward Core](#reverse-core.forward) | Proved (oracle), Tested, Not claimed |
 | [Meaning in coordinates](#reverse-core.meaning) | Proved (oracle), Tested, Proved (bridge), Not claimed |
 | [Rewritten sites](#reverse-core.sites) | Proved (oracle), Tested, Proved (bridge), Not claimed |
-| [Translation validation and public paths](#reverse-core.validation) | Proved (oracle), Tested, Proved (bridge), Not claimed |
+| [The compilation certificate and public paths](#reverse-core.validation) | Proved (oracle), Tested, Proved (bridge), Not claimed |
 | [Compiled steps](#reverse-core.steps) | Proved (oracle), Tested, Not claimed |
 
 <a id="reverse-core.backward.saved"></a>
@@ -204,22 +204,23 @@ Claims:
 
 - `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.SmoothReverseCompiled`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothReverseCompiled.lean): `VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates`, `VastitasOracle.SmoothReverseCompiled.compileSite_term`, `VastitasOracle.SmoothReverseCompiled.resolve_factors`
+    - [`VastitasOracle.SmoothReverseCompiled`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothReverseCompiled.lean): `VastitasOracle.SmoothReverseCompiled.compiled_site_evaluates`, `VastitasOracle.SmoothReverseCompiled.compiled_rules`, `VastitasOracle.SmoothReverseCompiled.compileSite_term`, `VastitasOracle.SmoothReverseCompiled.resolve_factors`
     - [`VastitasOracle.SmoothReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothReverseCore.lean): `VastitasOracle.SmoothReverseCore.site_saved_core`, `VastitasOracle.SmoothReverseCore.site_recomputed_core`, `VastitasOracle.SmoothReverseCore.site_differential_core`, `VastitasOracle.SmoothReverseCore.site_saved_rewrite`, `VastitasOracle.SmoothReverseCore.site_recomputed_rewrite`, `VastitasOracle.SmoothReverseCore.site_differential_rewrite`, `VastitasOracle.SmoothReverseCore.site_tape_rewrite`
   - Premises:
-    - for `compiled_site_evaluates`: the module keeps the bindings of the source declarations and holds every entry of the ledger (`EntryWellFormed`, which `entry_well_formed` proves for a compiled module)
+    - for `compiled_site_evaluates`: the module keeps the bindings of the source declarations (`rules`, which `compiled_rules` proves for every compiled module) and holds every entry of the ledger that the rewriting has built up to the site (`EntryWellFormed`; `entry_well_formed` proves it for the final ledger of a compiled module, and no theorem states that the partial ledger is a prefix of that ledger)
     - for `compiled_site_evaluates` and `resolve_factors`: the let definitions in scope agree with the activation (`DefsAgree`), reading no symbol at or above the first symbol that the compilation binds
     - for `compiled_site_evaluates`: the map operand evaluates to a well-typed program, and the map, point and seed operands read no symbol at or above that symbol
     - for the local theorems (`site_*_core`, `site_*_rewrite`): the opaque terms and the point and seed terms evaluate, reading no symbol at or above a bound below the site's symbols, and the map operand's value is a composition tree of the step programs (`Factors`)
     - for the differential: the seed declaration is a `fiberVector` of the site's cotangent family, and that family has a variance
-  - Note: `compiled_site_evaluates` states the property for the term that `compileSite` returns, with the lets that bind the values of compound opaque steps. Applying it inside a rewritten function needs six facts that no theorem discharges, which the [acceptance map](../reverse-core-acceptance.md#site-premises) lists. None of these theorems uses the chain rule, which `scripts/check_chain_rule_free.lean` checks.
+  - Note: `compiled_site_evaluates` states the property for the term that `compileSite` returns, with the lets that bind the values of compound opaque steps. Its premise `rules` holds for every compiled module (`compiled_rules`). Applying it inside a rewritten function needs six facts that no theorem discharges, which the [acceptance map](../reverse-core-acceptance.md#site-premises) lists. None of these theorems uses the chain rule, which `scripts/check_chain_rule_free.lean` checks.
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+    - [`VastitasAlgebraTest.ReverseExampleRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasAlgebraTest/ReverseExampleRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
     - `a_branch_chooses_the_map_of_a_reverse_pass` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routine` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
-  - Note: `ReverseCoreRegression` evaluates every source site and its compiled Core. The Rust tests run sites whose map a branch chooses and sites on a tape bound by a let.
+  - Note: `ReverseCoreRegression` evaluates every source site and its compiled Core. `ReverseExampleRegression` evaluates `main` of the acceptance example, which the public protocol-9 checker accepts, before and after the compilation. The Rust tests run sites whose map a branch chooses and sites on a tape bound by a let.
 - `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
   - Evidence:
     - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.compiled_site_frechet`, `VastitasBridge.Differential.compiled_differential_site_frechet`, `VastitasBridge.Differential.site_saved_rewrite_frechet`, `VastitasBridge.Differential.site_recomputed_rewrite_frechet`, `VastitasBridge.Differential.site_differential_rewrite_frechet`, `VastitasBridge.Differential.site_tape_rewrite_frechet`
@@ -236,7 +237,7 @@ Claims:
 
 <a id="reverse-core.validation"></a>
 
-## Translation validation and public paths
+## The compilation certificate and public paths
 
 - Property: `reverse-core.validation`
 - Subject: `Core.Reverse.Compiled`
@@ -251,20 +252,21 @@ Claims:
 
 - `oracle`: [Proved (oracle)](../specifications.md#proved-oracle)
   - Evidence:
-    - [`VastitasOracle.IndexedReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedReverseCore.lean): `VastitasOracle.IndexedReverseCore.validate_iff`, `VastitasOracle.IndexedReverseCore.compiled_entry_resolves`
+    - [`VastitasOracle.IndexedReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/IndexedReverseCore.lean): `VastitasOracle.IndexedReverseCore.validate_iff`, `VastitasOracle.IndexedReverseCore.compile_fails_only_by_audit`, `VastitasOracle.IndexedReverseCore.compiled_entry_resolves`
     - [`VastitasOracle.SmoothReverseCompiled`](https://github.com/MGYamada/Vastitas/blob/main/lean/VastitasOracle/SmoothReverseCompiled.lean): `VastitasOracle.SmoothReverseCompiled.entry_well_formed`, `VastitasOracle.SmoothReverseCompiled.public_wire_entries`, `VastitasOracle.SmoothReverseCompiled.legacy_wire_entries`, `VastitasOracle.SmoothReverseCompiled.public_resource_entries`, `VastitasOracle.SmoothReverseCompiled.public_pure_entry_computes`
   - Premises:
     - for `compiled_entry_resolves` and `entry_well_formed`: the entry belongs to the ledger of a compilation stage (`Reverse.Compiled`) of a checked module
     - for `public_pure_entry_computes`: the request decodes to a program without a resource entry, and the emit path succeeds
     - `EntryComputes` keeps the premises on the arguments of a call: one program per opaque step, composable programs and, for a saved site, the residual relation of the saved points
-  - Note: Validation is translation validation by recompilation, not an independent checker. None of these theorems uses the chain rule. That consecutive steps share their objects is not proved, and no theorem needs it. A pin covers the statement of a theorem, and a claim pins theorems and kernel definitions only. The pins of the public-path theorems therefore do not cover the oracle definitions `EntryComputes` and `EntryWellFormed`. Reviewers read those definitions with the theorems. That `Main.process` generates code from the compiled module of protocols 2-7 is read from `Main`, which the oracle does not import.
+  - Note: The validation is a certificate, not a check: `compile` builds the generated module and the ledger with `generate`, so `compile_fails_only_by_audit` shows that only the Core audit can fail. The validation detects no error of the generator; the theorems about the templates and the compiled entries rule such errors out. None of these theorems uses the chain rule. That consecutive steps share their objects is not proved, and no theorem needs it. A pin covers the statement of a theorem, and a claim pins theorems and kernel definitions only. The pins of the public-path theorems therefore do not cover the oracle definitions `EntryComputes` and `EntryWellFormed`. Reviewers read those definitions with the theorems. That `Main.process` generates code from the compiled module of protocols 2-7 is read from `Main`, which the oracle does not import.
 - `test`: [Tested](../specifications.md#tested)
   - Evidence:
     - `acceptance_sites_compile_to_generated_backward_functions` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `the_wire_cannot_name_the_compiled_declarations` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `a_reverse_pass_through_an_object_outside_the_cotangent_domain_keeps_the_runtime_pass` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
-  - Note: The Rust tests pin the shape of the compiled acceptance program, check that the wire cannot name the compiler's declarations, and run a site that keeps the runtime reverse pass. `ReverseCoreRegression` rejects forged ledgers, missing, extra and misowned generated functions, and sites left uncompiled.
+    - [`VastitasAlgebraTest.ReverseExampleRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasAlgebraTest/ReverseExampleRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
+  - Note: The Rust tests pin the shape of the compiled acceptance program, check that the wire cannot name the compiler's declarations, and run a site that keeps the runtime reverse pass. `ReverseExampleRegression` runs the public protocol-9 checker on the acceptance example and counts its compiled sites. `ReverseCoreRegression` shows that validation tells forged ledgers, missing, extra and misowned generated functions, and sites left uncompiled from the compilation; no pipeline path receives such a module.
 - `bridge`: [Proved (bridge)](../specifications.md#proved-bridge)
   - Evidence:
     - [`VastitasBridge.Differential.ReverseCore`](https://github.com/MGYamada/Vastitas/blob/main/lean-bridge/VastitasBridge/Differential/ReverseCore.lean): `VastitasBridge.Differential.public_wire_entries_frechet`, `VastitasBridge.Differential.legacy_wire_entries_frechet`, `VastitasBridge.Differential.public_resource_entries_frechet`, `VastitasBridge.Differential.public_pure_entry_frechet`

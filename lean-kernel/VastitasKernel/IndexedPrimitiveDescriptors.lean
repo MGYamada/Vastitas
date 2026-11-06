@@ -106,9 +106,11 @@ inductive PassKind where
 kernel compiles a reverse pass into Core (#623). The compilation reads these
 rules only; it has no case per binding. -/
 inductive ReverseRule where
-  /-- The call neither builds the map of a reverse pass nor runs one. A call
-  of type `Smooth<X, Y>` with this rule is one step whose structure the
-  compilation does not open. -/
+  /-- The compilation does not open the call. A call of type `Smooth<X, Y>`
+  with this rule is one opaque step of any reverse pass that reads it. The
+  rule makes no claim about what the call computes: it may run a reverse pass
+  itself, as the kernel's own `cotangentJacobian` step does, and the oracle's
+  `ReverseSound` promises nothing for it. -/
   | none
   /-- The call is a declared map, with its exact data: one step whose backward
   evaluates the Jacobian table of `map`. -/

@@ -13,11 +13,13 @@ a checked module by Core of its own:
 
 - the forward Core, at the site, binds the input point `r₀` and the images
   `rᵢ = mᵢ(rᵢ₋₁)` along the maps `m₁, …, m_k` of the site, in application order,
-  as ordinary Core values (evaluated points `Smooth<P, Xᵢ>`). `r_k` is the
-  primal value; `r₀, …, r_{k-1}` are the residuals;
+  as ordinary Core values `Smooth<P, Xᵢ>`. The images are evaluated points;
+  `r₀` is the point operand as the source gives it, so a composite point is
+  evaluated again by each step that reads it. `r_k` is the primal value;
+  `r₀, …, r_{k-1}` are the residuals;
 - the backward Core is a generated function that pulls the seed back along
   `m_k, …, m₁` from the points. A recomputing site passes only `r₀`, and the
-  function evaluates the images again.
+  function evaluates again the images that its steps read.
 
 The maps of a site are read from the checked Core through the derivative
 rules: a call whose rule is `chain after before` composes the maps at those
@@ -25,24 +27,28 @@ operand positions, and a `let` whose definition can be copied to the site is
 read through. Every other map value is one step. A declared map (`morphism`)
 is pulled back by its Jacobian table, which the kernel computes from the exact
 map; any other map value is pulled back by the runtime reverse pass
-(`SmoothRuntime.pullback` in saved mode) over the program it holds. Such a step
-evaluates its map forward twice: once for its image, and again inside the
-runtime reverse pass. A tape bound by a `let` is read at each of its reverse
-passes, which evaluate the forward Core again.
+(`SmoothRuntime.pullback` in the site's residual policy) over the program it
+holds. Such a step evaluates its map forward twice: once for its image, and
+again inside the runtime reverse pass. A tape bound by a `let` is read at each
+of its reverse passes, which evaluate the forward Core again.
 
 The steps call bindings that the kernel declares for each site
-(`smoothApply`, `cotangentJacobian`, a saved `cotangentPullback` for the other
-map values and, for a differential, a `fiberVector` for the seed). These
-declarations and the generated functions live in the scope of the function
-that holds the site, under the names `__vastitas_rd…` and `__vastitas_rf…`,
-which no source can spell. The ledger lists every site with its generated
-function. `validate` compiles the source module again and requires the
-generated module and the ledger to be the result: translation validation by
-recompilation, not by an independent checker. `Core.Typing.checkModule` checks
-the generated module like any other. A module without a site compiles to
-itself. The compilation runs once, on source Core: an opaque step calls a
-saved pullback, whose rule is a reverse pass, so compiling generated Core again
-would compile that step again.
+(`smoothApply`, `cotangentJacobian`, a `cotangentPullback` in the site's policy
+for the other map values and, for a differential, a `fiberVector` for the
+seed). These declarations and the generated functions live in the scope of the
+function that holds the site, under the names `__vastitas_rd…` and
+`__vastitas_rf…`, which no source can spell. The ledger lists every site with
+its generated function. `Core.Typing.checkModule` checks the generated module
+like any other. `validate` states that the generated module and the ledger are
+what `generate` returns for the source module; `compile` produces them that
+way, so the check holds by construction and gives the certificate
+`Compiled.validated`, from which the oracle reads the generated functions. It
+cannot detect an error of the generator: the oracle's theorems about the
+templates (`SmoothReverseCore`) and the compiled sites (`SmoothReverseCompiled`)
+are what rule such errors out. A module without a site compiles to itself.
+The compilation runs once, on source Core: an opaque step calls a pullback,
+whose rule is a reverse pass, so compiling generated Core again would compile
+that step again.
 
 The compilation rejects no program. A site stays a call of the runtime reverse
 pass when its maps cannot be read, when a family of the generated Core does
@@ -159,6 +165,8 @@ structure Entry where
 def Site.input (site : Site) : DeclId := (site.steps.head?.map Step.source).getD site.point
 def Site.output (site : Site) : DeclId := (site.steps.getLast?.map Step.target).getD site.point
 def Site.opaqueSteps (site : Site) : List Step := site.steps.filter fun step => step.kind == .opaque
+/-- The last map of the site is opaque: its backward step reads no image. -/
+def Site.lastOpaque (site : Site) : Bool := site.steps.getLast?.map Step.kind == some .opaque
 
 def pointResult (site : Site) (object : DeclId) : Result :=
   ⟨.indexed ⟨site.smooth, [.object (.global site.point), .object (.global object)]⟩, none⟩
@@ -188,9 +196,11 @@ def Entry.names (entry : Entry) : Names :=
   ⟨declId entry.scope entry.index 0, (List.range k).map fun j => declId entry.scope entry.index (j + 1),
     declId entry.scope entry.index (k + 1)⟩
 
+/-- The binding of a backward step: the Jacobian table step of a declared map,
+or the runtime reverse pass in the site's residual policy for an opaque one. -/
 def stepBinding (site : Site) : StepKind → PrimitiveBinding
   | .declared _ application map => .cotangentJacobian site.cotangent application map
-  | .opaque => .cotangentPullback site.smooth site.cotangent .saved
+  | .opaque => .cotangentPullback site.smooth site.cotangent site.mode
 
 /-- The declarations of an entry. -/
 def Entry.declarations (entry : Entry) : List NamedPrimitive :=
@@ -280,10 +290,17 @@ def backwardBody (names : Names) (site : Site) : Term :=
     backwardChain site (pulls names site maps points) seed (q + k + 2)
   | .recomputed =>
     let seed : Term := .variable (q + 1) (fiberResult site site.output)
-    let symbols := (List.range k).map fun index => q + 2 + index
+    -- The forward Core binds the images that the backward steps read: the
+    -- input of every step and the output of a declared step, whose Jacobian
+    -- step checks the seed against it. A last opaque step reads no image, so
+    -- its image is not bound, and the input point stands at its output, which
+    -- the step does not read.
+    let bound := if site.lastOpaque then k - 1 else k
+    let symbols := (List.range bound).map fun index => q + 2 + index
     let points := start :: (site.steps.zip symbols).map fun (step, symbol) =>
       Term.variable symbol (pointResult site step.target)
-    forwardLets names site site.steps maps start symbols
+    let points := if site.lastOpaque then points ++ [start] else points
+    forwardLets names site (site.steps.take bound) (maps.take bound) start symbols
       (backwardChain site (pulls names site maps points) seed (q + k + 2))
 
 /-- The generated function of an entry. -/
@@ -370,9 +387,13 @@ def Tree.charge (tree : Tree) (budget : Nat) : Option (Tree × Nat) :=
 
 /-- The number of steps of a map term read in full, at most
 `reverseLeaves + 1`, and whether its opaque steps may be copied. A variable is
-read through as its definition records. `fuel` bounds the depth. -/
+read through as its definition records. `fuel` bounds the depth: a term that
+the fuel does not reach counts as `reverseLeaves + 1`, so a definition that
+`measure` does not read in full is never read through. Without this, a reading
+at a site with more `let`s in scope, and so more fuel, could find more steps
+than the record and be undone, and nested undone readings multiply. -/
 def measure (env : Declarations) (defs : Defs) : Nat → Term → Nat × Bool
-  | 0, term => (1, copyable env term)
+  | 0, term => (Limits.reverseLeaves + 1, copyable env term)
   | fuel + 1, term =>
     match strip term with
     | .primitive id arguments _ =>
@@ -411,9 +432,12 @@ def Def.record (env : Declarations) (defs : Defs) (symbol : Nat) (value : Term) 
 /-- Read the maps of a reverse pass from its map operand, with at most `budget`
 leaves. `fuel` bounds the depth read through. A variable is read through when
 its definition's opaque steps may be copied and its recorded steps fit in the
-remaining budget; otherwise it is one step. The record decides before the
-reading, so no reading is undone and the work stays within the budget times the
-depth. The result is `none` when the operand itself exceeds the budget. -/
+remaining budget; otherwise it is one step. The record counts at least the
+steps that a reading of the definition charges, at any fuel, so a reading that
+the record admits fits in the budget and is never undone; the fallback `step`
+is not reached after it. The result is `none` when the operand itself, read
+inline, exceeds the budget: `compileSite` then makes the whole operand one
+opaque step, and that one reading is discarded. -/
 def resolve (env : Declarations) (defs : Defs) : Nat → Nat → Term → Option (Tree × Nat)
   | 0, budget, term => Tree.charge (.opaque term) budget
   | fuel + 1, budget, term =>
@@ -693,8 +717,10 @@ def generate (module : Module) : Module × List Entry :=
           primitives := module.declarations.primitives ++ entries.flatMap Entry.declarations }
         functions := entries.map Entry.generated ++ functions }, entries)
 
-/-- The translation validation of compiled reverse Core: the source module
-compiles to exactly `generated` with exactly the ledger `entries`. -/
+/-- The source module compiles to exactly `generated` with exactly the ledger
+`entries`. `compile` establishes it by construction; it is the certificate
+that ties a compiled module to its source, not a check that can catch an
+error of `generate`. -/
 def validate (source : Module) (entries : List Entry) (generated : Module) : Bool :=
   let (expected, sites) := generate source
   decide (sites = entries) && moduleEq expected generated
@@ -702,15 +728,18 @@ def validate (source : Module) (entries : List Entry) (generated : Module) : Boo
 /-! ## The compilation stage -/
 
 /-- A checked module with its compiled reverse Core: the generated module,
-checked again by the independent Core audit, and its ledger, validated
-against the source module. -/
+checked again by the independent Core audit, its ledger, and the certificate
+that both are what `generate` returns for the source module. -/
 structure Compiled {requireMain : Bool} (source : Typing.CheckedModule requireMain) where
   entries : List Entry
   core : Typing.CheckedModule requireMain
   validated : validate source.module entries core.module = true
 
-/-- Compile the reverse sites of a checked module and check the result again.
-A failed check is an internal error, reported with the code `E_INTERNAL_REVERSE`. -/
+/-- Compile the reverse sites of a checked module and check the result again
+with the Core audit. A failed audit is an internal error, reported with the
+code `E_INTERNAL_REVERSE`. The certificate `validated` holds by construction
+(the oracle proves `compile_fails_only_by_audit`), so the last branch is not
+reached. -/
 def compile {requireMain : Bool} (source : Typing.CheckedModule requireMain) :
     Except Diagnostic (Compiled source) := do
   let (generated, entries) := generate source.module

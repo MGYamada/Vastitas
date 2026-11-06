@@ -297,8 +297,11 @@ The kernel compiles a reverse pass into Core whose steps call the two
 operations below (#623). The forward Core evaluates each map at the point the
 previous step produced and keeps the result as an evaluated point. The
 backward Core pulls the seed back one map at a time. For a declared map, the
-step evaluates a table of partial derivatives that the kernel computes once,
-when it checks the program, so no derivative is formed while the program runs. -/
+step evaluates a table of partial derivatives. The generated program holds the
+table as a literal, which the kernel computes when it lowers each step, so no
+derivative is formed while the program runs. The kernel's own evaluator,
+which the checker and the regressions use, computes the table again at every
+step it evaluates. -/
 
 /-- A rational point of `ℝⁿ` from its coordinates: a map from `ℝ⁰` with
 constant images. -/

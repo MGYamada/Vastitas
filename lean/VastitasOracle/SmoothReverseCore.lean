@@ -213,6 +213,13 @@ theorem images_length : ∀ (programs : List Program) (point : Program),
   | [], _ => rfl
   | _ :: programs, _ => by simp [images, images_length programs]
 
+/-- The images along the first maps are the first images. -/
+theorem images_take : ∀ (count : Nat) (programs : List Program) (point : Program),
+    images (programs.take count) point = (images programs point).take count
+  | 0, _, _ => by simp [images]
+  | _ + 1, [], _ => by simp [images]
+  | count + 1, _ :: programs, _ => by simp [images, images_take count programs]
+
 /-- Evaluated images satisfy the residual relation. -/
 theorem residualRel_images : ∀ (programs : List Program) (point : Program),
     ResidualRel programs point (images programs point)
@@ -321,6 +328,41 @@ theorem backwardPass_foreign_seed : ∀ (steps : List Step) (programs : List Pro
     simp only [backwardPass, stepPoints, List.foldr_cons] at rest ⊢
     rw [rest, StepPoint.pull_none]
 
+/-- **A last opaque step reads no output point.** When the last step is
+opaque, the backward pass does not depend on the last output point: outputs
+that agree on every other point give the same value. -/
+theorem backwardPass_last_opaque (steps : List Step) : ∀ (programs : List Program) (start : Program)
+    (outputs outputs' : List Program) (seed : FiberValue),
+    steps.getLast?.map Step.kind = some .opaque → outputs.length = steps.length →
+    outputs'.length = steps.length → outputs.dropLast = outputs'.dropLast →
+    backwardPass steps programs start outputs seed = backwardPass steps programs start outputs' seed := by
+  induction steps with
+  | nil => intro _ _ _ _ _ last; simp at last
+  | cons step rest ih =>
+    intro programs start outputs outputs' seed last length length' same
+    rcases programs with _ | ⟨program, programs⟩
+    · rfl
+    rcases outputs with _ | ⟨output, outputs⟩
+    · simp at length
+    rcases outputs' with _ | ⟨output', outputs'⟩
+    · simp at length'
+    rcases rest with _ | ⟨second, rest⟩
+    · obtain ⟨kind, source, target⟩ := step
+      simp only [List.getLast?_singleton, Option.map_some, Option.some.injEq] at last
+      subst last
+      have none : outputs = [] := by simpa using length
+      have none' : outputs' = [] := by simpa using length'
+      subst none none'
+      rfl
+    · have nonempty : outputs ≠ [] := by intro empty; subst empty; simp at length
+      have nonempty' : outputs' ≠ [] := by intro empty; subst empty; simp at length'
+      rw [List.dropLast_cons_of_ne_nil nonempty, List.dropLast_cons_of_ne_nil nonempty'] at same
+      obtain ⟨rfl, tails⟩ := List.cons.inj same
+      have restEq := ih programs output outputs outputs' seed (by simpa using last) (by simpa using length)
+        (by simpa using length') tails
+      simp only [backwardPass, stepPoints, List.foldr_cons] at restEq ⊢
+      rw [restEq]
+
 /-- **The value in coordinates (uses the chain rule).** For a well-typed chain
 and a seed over its image with one component per target coordinate, the
 pullback along the chain is `cot` of the composite map at the input point.
@@ -419,6 +461,15 @@ theorem AllPairs.append {α β : Type} {relation : α → β → Prop} :
   | _ :: _, _, _ :: _, _, pairs, rest => ⟨pairs.1, AllPairs.append pairs.2 rest⟩
   | [], _, _ :: _, _, pairs, _ => pairs.elim
   | _ :: _, _, [], _, pairs, _ => pairs.elim
+
+theorem AllPairs.take {α β : Type} {relation : α → β → Prop} :
+    ∀ (count : Nat) {as : List α} {bs : List β}, AllPairs relation as bs →
+      AllPairs relation (as.take count) (bs.take count)
+  | 0, _, _, _ => by simp [AllPairs]
+  | _ + 1, [], [], _ => trivial
+  | count + 1, _ :: _, _ :: _, pairs => ⟨pairs.1, AllPairs.take count pairs.2⟩
+  | _ + 1, [], _ :: _, pairs => pairs.elim
+  | _ + 1, _ :: _, [], pairs => pairs.elim
 
 theorem AllPairs.reverse {α β : Type} {relation : α → β → Prop} :
     ∀ {as : List α} {bs : List β}, AllPairs relation as bs → AllPairs relation as.reverse bs.reverse
@@ -538,12 +589,19 @@ def StepFormed (step : Step) : Prop :=
   ∀ morphism application map, step.kind = .declared morphism application map →
     ∃ source target, application.indices = [.object source, .object target]
 
+/-- The module declares `id` as the backward step of kind `kind` of the site,
+in some residual policy: `cotangentJacobian` for a declared map, and
+`cotangentPullback` in either mode for an opaque one. The kernel declares an
+opaque step in the site's own policy; both modes have the same value
+(`pullback_saved_eq`), so the theorems accept either, and a saved site and the
+same site recomputing share their declarations. -/
+def StepDeclaredAs (module : Module) (site : Site) (id : DeclId) (kind : StepKind) : Prop :=
+  ∃ mode, module.declarations.primitive? id = some (stepBinding { site with mode } kind)
+
 /-- The module declares the backward step of every map of the site under the
-name the site gives it: `cotangentJacobian` for a declared map, the saved
-`cotangentPullback` for an opaque one. -/
+name the site gives it (`StepDeclaredAs`). -/
 def StepsDeclared (module : Module) (names : Names) (site : Site) : Prop :=
-  ∀ id step, (id, step) ∈ names.steps.zip site.steps →
-    module.declarations.primitive? id = some (stepBinding site step.kind)
+  ∀ id step, (id, step) ∈ names.steps.zip site.steps → StepDeclaredAs module site id step.kind
 
 /-- Every declared map is a declaration whose derivative rule is `morphism`
 with the step's map: the nullary call of the declaration is the map. -/
@@ -579,10 +637,19 @@ theorem morphism_evaluates {module : Module} {morphism : DeclId} {map : Vastitas
       ((sound module.declarations.indexed [] _).mpr ⟨rfl, rfl⟩)
   · cases rule
 
-/-- One backward step of the generated Core evaluates to `StepPoint.pull`. -/
+/-- The runtime reverse pass has the same value in both residual policies. -/
+theorem pullback_saved_eq (mode : PullbackMode) (map point : Program) (seed : FiberValue) :
+    pullback .saved map point seed = pullback mode map point seed := by
+  cases mode
+  · rfl
+  · exact VastitasOracle.SmoothRuntime.pullback_saved_eq_recomputed map point seed
+
+/-- One backward step of the generated Core evaluates to `StepPoint.pull`. An
+opaque step runs the reverse pass in the site's policy, which has the value of
+the saved one (`pullback_saved_eq`). -/
 theorem stepTerm_evaluates {module : Module} {site : Site} {values : Values} {id : DeclId} {step : Step}
     {map input output seedTerm : Term} {point : StepPoint} {variance : Variance} {seed : FiberValue}
-    (same : point.step = step) (binding : module.declarations.primitive? id = some (stepBinding site step.kind))
+    (same : point.step = step) (binding : StepDeclaredAs module site id step.kind)
     (formed : StepFormed step)
     (mapEval : step.kind = .opaque → Evaluates module values map (smoothValue point.program))
     (inputEval : Evaluates module values input (smoothValue point.input))
@@ -591,6 +658,7 @@ theorem stepTerm_evaluates {module : Module} {site : Site} {values : Values} {id
     Evaluates module values (stepTerm site id step map input output seedTerm)
       (.indexed (.fiber .cotangent (point.pull seed))) := by
   subst same
+  obtain ⟨mode, binding⟩ := binding
   obtain ⟨⟨kind, source, target⟩, program, inputPoint, outputPoint⟩ := point
   rcases kind with ⟨morphism, ⟨family, indices⟩, mapData⟩ | _
   · obtain ⟨objectSource, objectTarget, shape⟩ := formed morphism _ mapData rfl
@@ -599,16 +667,19 @@ theorem stepTerm_evaluates {module : Module} {site : Site} {values : Values} {id
     exact IndexedEvaluation.primitive binding
       (IndexedEvaluation.arguments_cons inputEval (IndexedEvaluation.arguments_cons outputEval
         (IndexedEvaluation.arguments_cons seedEval (IndexedEvaluation.arguments_nil _ _)))) rfl
-  · exact IndexedEvaluation.primitive binding
+  · refine IndexedEvaluation.primitive binding
       (IndexedEvaluation.arguments_cons (mapEval rfl) (IndexedEvaluation.arguments_cons inputEval
-        (IndexedEvaluation.arguments_cons seedEval (IndexedEvaluation.arguments_nil _ _)))) rfl
+        (IndexedEvaluation.arguments_cons seedEval (IndexedEvaluation.arguments_nil _ _)))) ?_
+    show (some (Value.indexed (.fiber .cotangent (pullback mode program inputPoint seed))) : Option Value) = _
+    rw [← pullback_saved_eq mode program inputPoint seed]
+    rfl
 
 /-- A backward step of the generated Core and its runtime step: the step and
 its declaration, and its map (for an opaque step), input and output terms read
 no symbol at or above `bound`. -/
 def PullDenotes (module : Module) (site : Site) (values : Values) (bound : Nat) (pull : Pull)
     (point : StepPoint) : Prop :=
-  point.step = pull.2.1 ∧ module.declarations.primitive? pull.1 = some (stepBinding site pull.2.1.kind) ∧
+  point.step = pull.2.1 ∧ StepDeclaredAs module site pull.1 pull.2.1.kind ∧
     StepFormed pull.2.1 ∧
     (pull.2.1.kind = .opaque → Stable module values bound pull.2.2.1 (smoothValue point.program)) ∧
     Stable module values bound pull.2.2.2.1 (smoothValue point.input) ∧
@@ -779,7 +850,7 @@ theorem appPulls_denote {module : Module} {site : Site} {values : Values} {bound
     ∀ (ids : List DeclId) (steps : List Step) (maps : List Term) (programs : List Program) (startTerm : Term)
       (start : Program) (outputTerms : List Term) (outputs : List Program),
       ids.length = steps.length →
-      (∀ id step, (id, step) ∈ ids.zip steps → module.declarations.primitive? id = some (stepBinding site step.kind)) →
+      (∀ id step, (id, step) ∈ ids.zip steps → StepDeclaredAs module site id step.kind) →
       (∀ step ∈ steps, StepFormed step) →
       StepMaps module values bound steps maps programs →
       Stable module values bound startTerm (smoothValue start) →
@@ -919,20 +990,37 @@ theorem backwardBody_saved (names : Names) {site : Site} (saved : site.mode = .s
   rw [saved]
   rfl
 
+/-- The input point parameter of a generated function. -/
+def startVariable (site : Site) : Core.Term := .variable site.opaqueSteps.length (Reverse.pointResult site site.input)
+
+/-- The number of images that a recomputing function binds: every image, or
+every image but the last when the last step is opaque. -/
+def boundImages (site : Site) : Nat := if site.lastOpaque then site.steps.length - 1 else site.steps.length
+
+/-- The point terms of a recomputing function: the input point and the bound
+images, then, after a last opaque step, the input point again at the output
+position that step does not read. -/
+def recomputedPoints (site : Site) : List Core.Term :=
+  let points := startVariable site :: pointVariables site (pointSymbols (site.opaqueSteps.length + 2) (boundImages site))
+  if site.lastOpaque then points ++ [startVariable site] else points
+
 /-- The body of a recomputing generated function. -/
 theorem backwardBody_recomputed (names : Names) {site : Site} (recomputed : site.mode = .recomputed) :
     backwardBody names site =
-      forwardLets names site site.steps (mapTerms site.steps (opaqueVariables site))
-        (.variable site.opaqueSteps.length (Reverse.pointResult site site.input))
-        (pointSymbols (site.opaqueSteps.length + 2) site.steps.length)
-        (backwardChain site (pulls names site (mapTerms site.steps (opaqueVariables site))
-            (.variable site.opaqueSteps.length (Reverse.pointResult site site.input) ::
-              pointVariables site (pointSymbols (site.opaqueSteps.length + 2) site.steps.length)))
+      forwardLets names site (site.steps.take (boundImages site))
+        ((mapTerms site.steps (opaqueVariables site)).take (boundImages site)) (startVariable site)
+        (pointSymbols (site.opaqueSteps.length + 2) (boundImages site))
+        (backwardChain site (pulls names site (mapTerms site.steps (opaqueVariables site)) (recomputedPoints site))
           (.variable (site.opaqueSteps.length + 1) (Reverse.fiberResult site site.output))
           (site.opaqueSteps.length + site.steps.length + 2)) := by
   unfold backwardBody
   rw [recomputed]
   rfl
+
+/-- A last opaque step: the steps end in an opaque one. -/
+theorem lastOpaque_iff {site : Site} : site.lastOpaque = true ↔ site.steps.getLast?.map Step.kind = some .opaque := by
+  unfold Reverse.Site.lastOpaque
+  exact beq_iff_eq
 
 theorem opaqueVariables_length (site : Site) : (opaqueVariables site).length = site.opaqueSteps.length := by
   simp [opaqueVariables]
@@ -1002,6 +1090,27 @@ theorem pointVariables_stable {module : Module} {site : Site} {values : Values} 
   rw [pointVariables_length _ _ (pointSymbols_length _ _)] at hi
   refine stable_variable module result (by rw [pointSymbols_getElem]; omega) ?_
   rw [bindAll_getElem values _ _ (pointSymbols_nodup _ _) (by simp [pointSymbols_length, count]) i hs (by simp; omega)]
+  simp
+
+/-- The same for the first `count` images, `count` at most the number of
+steps. -/
+theorem pointVariables_stable_of_le {module : Module} {site : Site} {values : Values} {bound first count : Nat}
+    {points : List Program} (length : points.length = count) (le : count ≤ site.steps.length)
+    (enough : first + count ≤ bound) :
+    AllPairs (fun term point => Stable module
+        (bindAll values (pointSymbols first count) (points.map smoothValue)) bound term (smoothValue point))
+      (pointVariables site (pointSymbols first count)) points := by
+  have variables : (pointVariables site (pointSymbols first count)).length = count := by
+    simp [pointVariables, pointSymbols_length]
+    omega
+  apply allPairs_of_getElem (by rw [variables, length])
+  intro i hi ho
+  obtain ⟨result, hs, equal⟩ := pointVariables_getElem site _ i hi
+  rw [equal]
+  rw [variables] at hi
+  refine stable_variable module result (by rw [pointSymbols_getElem]; omega) ?_
+  rw [bindAll_getElem values _ _ (pointSymbols_nodup _ _) (by simp [pointSymbols_length, length]) i hs
+    (by simp; omega)]
   simp
 
 /-- **The saved backward function, for any points.** Let the module declare
@@ -1211,8 +1320,7 @@ theorem recomputed_function_evaluates {module : Module} {names : Names} {site : 
   have opaqueEval := opaqueVariables_stable (module := module) (site := site) (points := [start])
     (variance := variance) (seed := seed) (bound := site.opaqueSteps.length + 2) count (by omega)
   have startStable : Stable module (fun symbol => (functionArguments opaques [start] variance seed)[symbol]?)
-      (site.opaqueSteps.length + 2) (.variable site.opaqueSteps.length (Reverse.pointResult site site.input))
-      (smoothValue start) := by
+      (site.opaqueSteps.length + 2) (startVariable site) (smoothValue start) := by
     refine stable_variable module _ (by omega) ?_
     have found := functionArguments_point opaques [start] variance seed 0 (by simp)
     simpa [count] using found
@@ -1225,21 +1333,71 @@ theorem recomputed_function_evaluates {module : Module} {names : Names} {site : 
   have maps := allPairs_mapTerms site.steps morphisms _ opaques opaqueEval count
   have imagesCount : (images (stepPrograms site.steps opaques) start).length = site.steps.length := by
     rw [images_length, stepPrograms_length]
+  -- The forward Core binds the first `boundImages site` images.
+  have boundLe : boundImages site ≤ site.steps.length := by
+    unfold boundImages
+    split <;> omega
+  have boundCount : ((images (stepPrograms site.steps opaques) start).take (boundImages site)).length =
+      boundImages site := by
+    rw [List.length_take, imagesCount]
+    omega
   have agrees := bindAll_agrees (bound := site.opaqueSteps.length + 2)
     (fun symbol => (functionArguments opaques [start] variance seed)[symbol]?)
-    (pointSymbols (site.opaqueSteps.length + 2) site.steps.length)
-    ((images (stepPrograms site.steps opaques) start).map smoothValue) (fun _ member => pointSymbols_high _ member)
+    (pointSymbols (site.opaqueSteps.length + 2) (boundImages site))
+    (((images (stepPrograms site.steps opaques) start).take (boundImages site)).map smoothValue)
+    (fun _ member => pointSymbols_high _ member)
   have enough : site.opaqueSteps.length + 2 ≤ site.opaqueSteps.length + site.steps.length + 2 := by omega
-  have chainEval := siteChain_evaluates (names := names) (site.opaqueSteps.length + site.steps.length + 2)
-    declared length formed nonempty
-    (opaqueEval.imp fun _ _ stable => stable.extend agrees enough) count
-    (startStable.extend agrees enough)
-    (pointVariables_stable (first := site.opaqueSteps.length + 2) imagesCount (by omega)) imagesCount
-    (seedStable.extend agrees enough).evaluates
-  exact (forwardLets_evaluates apply site.steps _ (stepPrograms site.steps opaques)
-    (pointSymbols (site.opaqueSteps.length + 2) site.steps.length) _ (site.opaqueSteps.length + 2) _ start _ _ maps
-    (by rw [mapTerms_length]) (by rw [pointSymbols_length, mapTerms_length]) (fun _ member => pointSymbols_high _ member)
-    startStable.evaluates).mpr chainEval
+  have pointsStable := pointVariables_stable_of_le (module := module) (site := site)
+    (bound := site.opaqueSteps.length + site.steps.length + 2) (first := site.opaqueSteps.length + 2)
+    (values := fun symbol => (functionArguments opaques [start] variance seed)[symbol]?) boundCount boundLe
+    (by omega)
+  refine (forwardLets_evaluates apply (site.steps.take (boundImages site))
+    ((mapTerms site.steps (opaqueVariables site)).take (boundImages site))
+    ((stepPrograms site.steps opaques).take (boundImages site))
+    (pointSymbols (site.opaqueSteps.length + 2) (boundImages site)) _ (site.opaqueSteps.length + 2) _ start _ _
+    (maps.take (boundImages site)) (by simp [mapTerms_length])
+    (by simp only [pointSymbols_length, List.length_take, mapTerms_length]; omega)
+    (fun _ member => pointSymbols_high _ member) startStable.evaluates).mpr ?_
+  rw [images_take]
+  cases last : site.lastOpaque
+  · -- Every image is bound.
+    have boundIs : boundImages site = site.steps.length := by simp [boundImages, last]
+    have pointsIs : recomputedPoints site =
+        startVariable site :: pointVariables site (pointSymbols (site.opaqueSteps.length + 2) (boundImages site)) := by
+      simp [recomputedPoints, last]
+    rw [pointsIs]
+    have chainEval := siteChain_evaluates (names := names) (site.opaqueSteps.length + site.steps.length + 2)
+      declared length formed nonempty
+      (opaqueEval.imp fun _ _ stable => stable.extend agrees enough) count
+      (startStable.extend agrees enough) pointsStable (by rw [boundCount, boundIs])
+      (seedStable.extend agrees enough).evaluates
+    have full : (images (stepPrograms site.steps opaques) start).take (boundImages site) =
+        images (stepPrograms site.steps opaques) start :=
+      List.take_of_length_le (Nat.le_of_eq (by rw [imagesCount, boundIs]))
+    rw [full] at chainEval ⊢
+    exact chainEval
+  · -- The image of the last, opaque step is not bound; the input point stands at its output.
+    have lastKind := lastOpaque_iff.mp last
+    have positive : 0 < site.steps.length := List.length_pos_iff.mpr nonempty
+    have boundIs : boundImages site = site.steps.length - 1 := by simp [boundImages, last]
+    have pointsIs : recomputedPoints site =
+        startVariable site :: (pointVariables site (pointSymbols (site.opaqueSteps.length + 2) (boundImages site)) ++
+          [startVariable site]) := by
+      simp [recomputedPoints, last]
+    rw [pointsIs]
+    have chainEval := siteChain_evaluates (names := names) (site.opaqueSteps.length + site.steps.length + 2)
+      declared length formed nonempty
+      (opaqueEval.imp fun _ _ stable => stable.extend agrees enough) count
+      (startStable.extend agrees enough)
+      (AllPairs.append (as' := [startVariable site]) (bs' := [start]) pointsStable
+        ⟨startStable.extend agrees enough, trivial⟩)
+      (by rw [List.length_append, boundCount, boundIs, List.length_singleton]; omega)
+      (seedStable.extend agrees enough).evaluates
+    rwa [backwardPass_last_opaque site.steps (stepPrograms site.steps opaques) start
+      ((images (stepPrograms site.steps opaques) start).take (boundImages site) ++ [start])
+      (images (stepPrograms site.steps opaques) start) seed lastKind
+      (by rw [List.length_append, boundCount, boundIs, List.length_singleton]; omega) imagesCount
+      (by rw [List.dropLast_concat, List.dropLast_eq_take, imagesCount, boundIs])] at chainEval
 
 /-- **(R) The recomputing backward function is the recomputing pullback.**
 Under the premises of `recomputed_function_evaluates`, when the step programs
@@ -1523,12 +1681,6 @@ theorem source_pullback_evaluates {module : Module} {values : Values} {id smooth
       (.indexed (.fiber .cotangent (pullback mode map point seed))) :=
   IndexedEvaluation.primitive found (IndexedEvaluation.arguments_cons mapEval (IndexedEvaluation.arguments_cons
     pointEval (IndexedEvaluation.arguments_cons seedEval (IndexedEvaluation.arguments_nil _ _)))) rfl
-
-theorem pullback_saved_eq (mode : PullbackMode) (map point : Program) (seed : FiberValue) :
-    pullback .saved map point seed = pullback mode map point seed := by
-  cases mode
-  · rfl
-  · exact VastitasOracle.SmoothRuntime.pullback_saved_eq_recomputed map point seed
 
 /-! ## Source calls by their derivative rules -/
 

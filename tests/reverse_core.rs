@@ -42,6 +42,10 @@ const REVERSE: &[&str] = &[
 const REFERENCE: &str =
     "(VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved ";
 
+/// The same at a recomputing site: an opaque step keeps the site's policy.
+const RECOMPUTED_REFERENCE: &str =
+    "(VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.recomputed ";
+
 /// The wire request that `check` sends for a manifest.
 fn wire(manifest: &Path) -> Value {
     let mut command = cli();
@@ -447,21 +451,19 @@ fn a_branch_chooses_the_map_of_a_reverse_pass() {
     );
     assert_eq!(run(&package(BRANCH_MANIFEST, &main)), "127\n");
     // Each of the four sites is compiled. The branch stays in the function
-    // that holds the site and is one step, pulled back by the runtime reverse pass;
-    // in `squared` the declared sq after it is a Jacobian step.
+    // that holds the site and is one step, pulled back by the runtime reverse
+    // pass in the site's policy; in `squared` the declared sq after it is a
+    // Jacobian step.
     let request = wire(&root().join("tests/emit_corpus/reverse-branch/Vastitas.toml"));
     let source = emitted(&request);
     let generated = generated_reverse_functions(&source, functions(&request).len());
     assert_eq!(generated.len(), sites(&request), "{source}");
     assert_eq!(generated.len(), 4, "{source}");
-    for (name, body) in &generated {
-        assert_eq!(body.matches(REFERENCE).count(), 1, "{name}: {body}");
-    }
-    for (name, steps) in [
-        ("chosen", 0),
-        ("recomputed", 0),
-        ("squared", 1),
-        ("slope", 0),
+    for (name, steps, reference) in [
+        ("chosen", 0, REFERENCE),
+        ("recomputed", 0, RECOMPUTED_REFERENCE),
+        ("squared", 1, REFERENCE),
+        ("slope", 0, REFERENCE),
     ] {
         let caller = definition(&source, &request, name);
         assert_eq!(caller.matches("(if ").count(), 1, "{name}: {caller}");
@@ -470,11 +472,35 @@ fn a_branch_chooses_the_map_of_a_reverse_pass() {
             .find(|(generated, _)| caller.contains(&format!("({generated} ")))
             .unwrap();
         assert_eq!(
+            body.matches("SmoothRuntime.pullback ").count(),
+            1,
+            "{name} calls {generated}: {body}"
+        );
+        assert_eq!(
+            body.matches(reference).count(),
+            1,
+            "{name} calls {generated}: {body}"
+        );
+        assert_eq!(
             body.matches("SmoothRuntime.jacobianStep ").count(),
             steps,
             "{name} calls {generated}: {body}"
         );
     }
+    // The recomputing function reads no image of its one opaque step, so it
+    // binds none: its body is the runtime reverse pass alone.
+    let caller = definition(&source, &request, "recomputed");
+    let (_, body) = generated
+        .iter()
+        .find(|(generated, _)| caller.contains(&format!("({generated} ")))
+        .unwrap();
+    assert!(
+        body.split_once(":=\n  ")
+            .unwrap()
+            .1
+            .starts_with(RECOMPUTED_REFERENCE),
+        "{body}"
+    );
     assert!(!source.contains("SmoothRuntime.differential "), "{source}");
 }
 

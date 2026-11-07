@@ -2,11 +2,10 @@
 
 ## Keep this file small
 
-Keep AGENTS.md and CLAUDE.md identical: **100 lines / 6,000 UTF-8 bytes** each.
-`scripts/check_docs.py` checks limits and equality. Keep rules/links here,
-specs in docs, decisions in Issues, fixture results and history in Git.
-No release/publication histories. Shorten rules; only explicit user instruction
-may raise limits.
+`scripts/check_docs.py` requires identical AGENTS.md/CLAUDE.md, each within
+**100 lines / 6,000 UTF-8 bytes**. Only explicit user instruction may raise limits.
+Keep rules/links here, specs in docs, decisions in Issues, fixture results/history
+in Git. No release/publication histories.
 
 ## Scope and evidence
 
@@ -22,6 +21,12 @@ may raise limits.
 - User instructions set scope; authorized work needs no extra approval. No REPL,
   user-facing interpreter, LSP or package manager without scope expansion.
   Keep AD, solver, physics and broader profiles separate.
+- Keep `.env`/`.env.*` ignored and untracked. Use `.env.local` temporarily and
+  `.env` for external settings. Load only one, with no fallback.
+  Never force-add or copy values (hosts, users, key paths, tokens) into tracked
+  files, fixtures, logs, commits, PRs, issues or artifacts. Use placeholders.
+  Before commits/PRs check `git check-ignore`, `git ls-files` and staged diffs
+  for environment leaks.
 
 ## Architecture and invariants
 

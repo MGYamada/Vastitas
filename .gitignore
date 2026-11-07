@@ -10,5 +10,6 @@
 __pycache__/
 *.py[cod]
 /experiments/source_workspace/results/*/evidence.zip
-/.env
-/.env.local
+# Environment settings and variants at every directory level.
+.env
+.env.*

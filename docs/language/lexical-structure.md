@@ -101,7 +101,7 @@ use, apart from the exceptions that the rules give. These names are reserved:
 
 | Names | Reserved for |
 | --- | --- |
-| `Nat`, `Int`, `Bool`, `Unit`, `Pair`, `Fn`, `Any`, `Number` | [Types](types.md) and [dispatch selectors](../stage1a.md#selectors-and-capabilities) |
+| `Nat`, `Int`, `Bool`, `Unit`, `Pair`, `Fn`, `Any`, `Number` | [Types](types.md) and [dispatch selectors](../stage1a.md#method-declarations) |
 | `Scheme`, `CInfScheme`, `Point`, `Morphism`, `Pointed` | [Geometric types](geometric-types.md) |
 | `QQ`, `CInfReal` | [Coefficient markers](geometric-types.md#settings-and-markers) |
 | `int`, `pair`, `pair_first`, `pair_second` | [Built-in functions](expressions.md#built-in-functions) |

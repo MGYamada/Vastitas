@@ -72,7 +72,7 @@ function name is the function, as [Function values](functions.md#function-values
 describes. A coefficient marker is a value only where
 [Settings and markers](geometric-types.md#settings-and-markers) allows it, and a
 lambda refers only to its own bindings, as
-[Lambdas](../stage1b.md#syntax-and-values) says.
+[Lambdas](../stage1b.md#lambdas-and-their-names) says.
 
 Rules:
 
@@ -161,7 +161,7 @@ fn sign(x: Int) -> Int {
 A call whose callee is the name of a function, a generic or a
 [built-in function](#built-in-functions) calls it. [Calls](functions.md#calls)
 gives the rules for functions, and
-[Finite dispatch](../stage1a.md#selection-and-whole-program-checking) the rules
+[Finite dispatch](../stage1a.md#selection) the rules
 for generics. Any other callee is an expression whose value is a function, and
 the call applies that function to the arguments.
 

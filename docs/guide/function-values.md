@@ -90,7 +90,7 @@ Exceeding a limit is `E_LIMIT`, and the whole input is rejected.
 
 > **What is checked.** The static target rule, both checking passes and every
 > budget are specified in
-> [Independent lambdas and static higher-order functions](../stage1b.md#checking-and-specialization).
+> [Independent lambdas and static higher-order functions](../stage1b.md#specialization).
 > The oracle proves capture freedom, static signature consistency, and typing,
 > dependency order and termination of the returned core. Operational
 > correspondence from source lambdas through specialization is not proved; see

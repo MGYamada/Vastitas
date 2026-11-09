@@ -1,0 +1,4 @@
+examples/reject/dispatch/incomparable-methods.vast:1:1: E_DISPATCH_AMBIGUOUS: generic 'describe': multiple incomparable optimal methods at key (Nat)
+examples/reject/dispatch/incomparable-methods.vast:4:1: note: candidate method `describe(Number)` declared here; has narrower selectors; does not require HasOrder
+examples/reject/dispatch/incomparable-methods.vast:5:1: note: candidate method `describe(Any) requires (HasOrder)` declared here; selectors are not narrower in every argument; has stronger requirements (HasOrder)
+examples/reject/dispatch/incomparable-methods.vast:1:1: note: help: declare `describe(Number) requires (HasOrder)` to resolve this key; recheck the entire family after editing

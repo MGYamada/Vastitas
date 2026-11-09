@@ -241,7 +241,7 @@ The two compiler scaling CSV files remain attached to their reported revision.
 | Former subjects | Current home |
 | --- | --- |
 | Abstract selectors, promotion policy and proofs | [Finite dispatch](../stage1a.md#abstract-types) |
-| Old-checker indexing measurements | [Functions and indexing evidence](../stage1b.md#stage1b-indexing) |
+| Old-checker indexing measurements | [Functions and indexing evidence](../internals/checking-pipeline.md#history) |
 | Edit grants, nested reborrowing and permanent transfer | [Package authority](../language/edit-authority.md) |
 | Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |

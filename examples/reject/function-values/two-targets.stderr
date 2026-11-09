@@ -1,0 +1,1 @@
+examples/reject/function-values/two-targets.vast:3:5: E_STATIC_CALL: function-valued branches must resolve to the same static target

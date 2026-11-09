@@ -75,5 +75,5 @@ signature may still use pairs internally, as `offset` does above.
 > **What is checked.** Conditionals and blocks follow the
 > [expressions reference](../language/expressions.md#if-expressions). The pair contract,
 > including its proof scope, is in
-> [Homogeneous data pairs](../stage1b.md#homogeneous-data-pairs). Pairs reappear
+> [Homogeneous data pairs](../language/types.md#pair-types). Pairs reappear
 > as the result of `promote` in [Chapter 4](dispatch.md#promotion-between-nat-and-int).

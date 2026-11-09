@@ -18,7 +18,7 @@ Rules:
   not define is an error (`E_UNSUPPORTED`), unless it names an
   [indexed type](#indexed-types) in manifest mode.
 - Parameters of a method may also have selector types, such as `Number` and
-  `Any`, which [Finite dispatch](../stage1a.md#selectors-and-capabilities)
+  `Any`, which [Finite dispatch](../stage1a.md#method-declarations)
   describes. Selector types are not types of values.
 
 ## Scalar types

@@ -1,0 +1,1 @@
+examples/reject/function-values/capture.vast:4:41: E_CAPTURE: independent lambda cannot capture `offset`; pass it as an explicit parameter

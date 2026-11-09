@@ -173,7 +173,7 @@ happens at run time. Expected results never influence the choice. See
 A tuple of argument types from `Nat`, `Int`, `Bool` and `Unit`, of the
 generic's arity. The checker examines every key for ambiguity, including keys
 outside the [domain](#domain). See
-[Selection and whole-program checking](../stage1a.md#selection-and-whole-program-checking).
+[Selection and whole-program checking](../stage1a.md#selection).
 
 ## Domain
 
@@ -769,7 +769,7 @@ A typed placeholder result that an abstract function parameter supplies during
 the signature-probe pass. That pass checks every definition, including unused
 higher-order functions and lambdas. A separate pass specializes executable
 calls, and signature probes never enter it or the generated code. See
-[Checking and specialization](../stage1b.md#checking-and-specialization).
+[Checking and specialization](../stage1b.md#specialization).
 
 ## Smooth affine object
 
@@ -803,7 +803,7 @@ with the function values passed to it, becomes one checked instance. Lambda
 instances and instances of higher-order functions count toward a limit that
 [Appendix D](limits.md) gives. See
 [Specialization](../guide/function-values.md#specialization) and
-[Checking and specialization](../stage1b.md#checking-and-specialization).
+[Checking and specialization](../stage1b.md#specialization).
 
 ## Specification
 

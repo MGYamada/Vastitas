@@ -98,6 +98,9 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/expressions/mixed-integers.vast", &[]),
     ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
+    ("examples/reject/dispatch/incomparable-methods.vast", &[]),
+    ("examples/reject/function-values/capture.vast", &[]),
+    ("examples/reject/function-values/two-targets.vast", &[]),
 ];
 
 /// The rejected packages that the book includes from `examples/reject/packages/`,

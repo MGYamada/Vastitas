@@ -93,7 +93,7 @@ Rules:
 - The entry point must have the signature `fn main() -> Int`. Another
   signature is an error (`E_MAIN`). In manifest mode, a function named `main`
   in another module is an ordinary function.
-- A [generic](../stage1a.md#declarations) named `main` is an error (`E_MAIN`)
+- A [generic](../stage1a.md#generic-declarations) named `main` is an error (`E_MAIN`)
   in flat mode and in the root module of the root package.
 - `vastitas build` requires an entry point. A program without one is an error
   (`E_MAIN`). `vastitas check` accepts a program without an entry point, such

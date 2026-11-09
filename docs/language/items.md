@@ -21,11 +21,11 @@ only inside the bodies of items.
 | Item | Begins with | Flat mode | Rules |
 | --- | --- | --- | --- |
 | Function | `fn` | Yes | [Functions](functions.md) |
-| Generic | `generic` | Yes | [Finite dispatch](../stage1a.md#declarations) |
-| Method | `method` | Yes | [Finite dispatch](../stage1a.md#declarations) |
+| Generic | `generic` | Yes | [Finite dispatch](../stage1a.md#generic-declarations) |
+| Method | `method` | Yes | [Finite dispatch](../stage1a.md#generic-declarations) |
 | Abstract type | `abstract type` | Yes | [Abstract types](../stage1a.md#abstract-types) |
 | Subtype | `subtype` | Yes | [Abstract types](../stage1a.md#abstract-types) |
-| Abstract method | `abstract method` | Yes | [Abstract method contracts](../stage1a.md#abstract-method-contracts) |
+| Abstract method | `abstract method` | Yes | [Abstract method contracts](../stage1a.md#abstract-methods) |
 | Module | `mod` | No | [Modules and paths](names-and-paths.md) |
 | Import | `use` | No | [Modules and paths](names-and-paths.md) |
 | Indexed declaration | `indexed` | No | [Indexed source](../indexed-source.md#declarations-and-source-example), [smooth declarations](smooth-declarations.md) |

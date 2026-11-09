@@ -1,6 +1,6 @@
 # Edit authority
 
-A [generic](../stage1a.md#declarations) is a family of methods that the
+A [generic](../stage1a.md#generic-declarations) is a family of methods that the
 compiler checks as a whole. **Edit authority** decides which module may add
 methods to a generic. The module that defines a generic holds that authority.
 A **grant** lets another module contribute methods, through the **assembly** of
@@ -33,11 +33,9 @@ Rules:
 >
 > ```text
 > GrantDeclaration ->
->     `grant` IDENTIFIER `:` Path `to` Path `delegable`? `{` `domain` Region `}`
+>     `grant` IDENTIFIER `:` Path `to` Path `delegable`? `{` `domain` Domain `}`
 > DelegationDeclaration ->
->     `delegation` IDENTIFIER `:` Path `to` Path `delegable`? `{` `domain` Region `}`
-> Region -> `;` | RegionKey ( `,` RegionKey )* `,`? `;`
-> RegionKey -> `(` ( ScalarType ( `,` ScalarType )* `,`? )? `)`
+>     `delegation` IDENTIFIER `:` Path `to` Path `delegable`? `{` `domain` Domain `}`
 > ```
 
 `grant g : f to p::m { domain … }` declares the permission `g` for the module
@@ -45,8 +43,9 @@ Rules:
 **recipient**: its first segment is the name in the `[package]` table of the
 recipient's manifest, and the rest is the logical path of its module. `to p`
 names the root module of `p`. The **region** lists the argument tuples of
-scalar types that the recipient's methods may win; `domain;` is an empty
-region. A grant is a permission, not an active edit: it takes effect only when
+scalar types that the recipient's methods may win. It has the form of the
+[domain](../stage1a.md#generic-declarations) of a generic; `domain;` is an
+empty region. A grant is a permission, not an active edit: it takes effect only when
 an assembly borrows it.
 
 A **delegation** has the same form. It lets the holder of a loan pass part of
@@ -191,7 +190,7 @@ When an assembly seals a generic, the compiler checks the generic as a whole,
 with every method that the assembly installed:
 
 - every argument tuple of the generic has no ambiguity, as
-  [Finite dispatch](../stage1a.md#selection-and-whole-program-checking)
+  [Finite dispatch](../stage1a.md#selection)
   describes;
 - every tuple of the domain, including the domains of abstract methods, has
   one winning method, whose result type matches every abstract method that

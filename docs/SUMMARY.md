@@ -33,8 +33,8 @@
 - [Modules](language/modules.md)
 - [Packages](packages.md)
 - [Edit authority](language/edit-authority.md)
-- [Finite dispatch, abstract contracts and promotion](stage1a.md)
-- [Lambdas and static higher-order functions](stage1b.md)
+- [Generics and dispatch](stage1a.md)
+- [Function values](stage1b.md)
 - [Declaration-driven indexed source](indexed-source.md)
 - [Smooth affine declarations](language/smooth-declarations.md)
 - [Storage, ownership and residual retention](storage-ownership.md)
@@ -47,6 +47,7 @@
 # How the compiler is checked
 
 - [Compiler architecture](development/architecture.md)
+- [Checking pipeline](internals/checking-pipeline.md)
 - [Wire protocols 2–9](protocol.md)
 - [Verification boundaries](verification.md)
   - [Pure evaluation and graph proofs](verification/core-models.md)

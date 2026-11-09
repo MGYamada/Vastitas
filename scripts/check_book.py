@@ -32,6 +32,9 @@ CONVERTED = frozenset({
     "language/modules.md",
     "packages.md",
     "language/edit-authority.md",
+    "stage1a.md",
+    "stage1b.md",
+    "internals/checking-pipeline.md",
     "language/smooth-declarations.md",
     "specifications.md",
     "spec/std-differential.md",
@@ -68,11 +71,6 @@ REPOSITORY = "MGYamada/Vastitas"
 # the construct defines them, by that chapter. Remove an entry when its
 # chapter gains the production.
 PENDING_NONTERMINALS = {
-    "GenericDeclaration": "stage1a.md",
-    "MethodDeclaration": "stage1a.md",
-    "AbstractMethodDeclaration": "stage1a.md",
-    "AbstractTypeDeclaration": "stage1a.md",
-    "SubtypeDeclaration": "stage1a.md",
     "IndexedDeclaration": "the geometry-declarations chapter",
     "ResourceFunction": "storage/resource-programs.md",
 }

@@ -34,7 +34,7 @@ Rules:
   branches of an `if` are such blocks.
 
 A lambda has stricter rules for the names it binds, which
-[Lambdas](../stage1b.md#syntax-and-values) gives.
+[Lambdas](../stage1b.md#lambdas-and-their-names) gives.
 
 In this program the two blocks bind `step` once each:
 

@@ -28,6 +28,10 @@ CONVERTED = frozenset({
     "language/expressions.md",
     "language/types.md",
     "language/geometric-types.md",
+    "language/names-and-paths.md",
+    "language/modules.md",
+    "packages.md",
+    "language/edit-authority.md",
     "language/smooth-declarations.md",
     "specifications.md",
     "spec/std-differential.md",
@@ -64,14 +68,6 @@ REPOSITORY = "MGYamada/Vastitas"
 # the construct defines them, by that chapter. Remove an entry when its
 # chapter gains the production.
 PENDING_NONTERMINALS = {
-    "Path": "the names-and-paths chapter",
-    "ModuleDeclaration": "the modules chapter",
-    "UseDeclaration": "the modules chapter",
-    "GrantDeclaration": "the edit-authority chapter",
-    "DelegationDeclaration": "the edit-authority chapter",
-    "TransferDeclaration": "the edit-authority chapter",
-    "ContributionDeclaration": "the edit-authority chapter",
-    "AssemblyDeclaration": "the edit-authority chapter",
     "GenericDeclaration": "stage1a.md",
     "MethodDeclaration": "stage1a.md",
     "AbstractMethodDeclaration": "stage1a.md",
@@ -351,6 +347,9 @@ def check_includes(source, chapters, root=ROOT):
     for directory in BOOK_EXAMPLES:
         for file in sorted((root / directory).rglob("*")):
             hidden = any(part.startswith(".") for part in file.relative_to(root).parts)
+            # A rejected package's manifest is part of the test, not of the text.
+            if file.name == "Vastitas.toml":
+                continue
             if file.is_file() and not hidden and Path(os.path.normpath(file)) not in included:
                 errors.append(f"{file.relative_to(root)}: no chapter includes this example")
     if errors:

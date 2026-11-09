@@ -27,7 +27,7 @@ Rules:
 - A binding with the name of a function, a generic or an abstract type is an
   error (`E_SHADOW`). In manifest mode, so is a binding with the name of a
   module, an import or a dependency of its module, as
-  [Modules and paths](../packages.md#modules-and-paths) describes.
+  [Modules and paths](names-and-paths.md) describes.
 - A binding with a [reserved name](lexical-structure.md#reserved-names) is an
   error (`E_RESERVED`).
 - Blocks that do not contain one another may bind the same name. The two

@@ -18,3 +18,26 @@ and where it is going.
 
 These records cite exact revisions and measurements. The teaching chapters and
 the Vastitas Reference describe the behaviour of the current compiler.
+
+## Source migrations
+
+A source migration changes the spelling that a program must use. The
+compiler rejects the old spelling with a diagnostic that names the new one.
+
+### Named edit recipients
+
+The recipient of a `grant`, `delegation` or `transfer` was once written as a
+manifest location and a module path, `to module("../addon/Vastitas.toml", "ops")`.
+That form is an error (`E_UNSUPPORTED`). To migrate a declaration:
+
+1. Read the `[package] name` of the manifest that the old form named.
+2. Write the recipient as that name followed by the module path:
+   `to addon::ops`, or `to addon` for the root module.
+3. Use neither the directory name of the manifest nor a dependency alias.
+
+Moving the recipient package then changes only the dependency manifests, not
+the issuing source. [Grants and delegations](../language/edit-authority.md#grants-and-delegations)
+gives the rules. The migrations of the `fn` family form and of `assemble`
+([#462](https://github.com/MGYamada/Vastitas/issues/462),
+[#455](https://github.com/MGYamada/Vastitas/issues/455)) are separate and
+pending.

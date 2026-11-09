@@ -113,7 +113,7 @@ imports. Mixed Nat/Int arithmetic through the generic library is in
 [Chapter 4](dispatch.md).
 
 > **What is checked.** The manifest, module and visibility rules are specified in
-> [Path packages and logical modules](../packages.md#manifest-and-commands), and
+> [Path packages and logical modules](../packages.md#manifests), and
 > flat source libraries in the
 > [programs reference](../language/programs.md#flat-mode). The
 > [standard-library sources](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)

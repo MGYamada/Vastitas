@@ -26,13 +26,13 @@ only inside the bodies of items.
 | Abstract type | `abstract type` | Yes | [Abstract types](../stage1a.md#abstract-types) |
 | Subtype | `subtype` | Yes | [Abstract types](../stage1a.md#abstract-types) |
 | Abstract method | `abstract method` | Yes | [Abstract method contracts](../stage1a.md#abstract-method-contracts) |
-| Module | `mod` | No | [Modules and paths](../packages.md#modules-and-paths) |
-| Import | `use` | No | [Modules and paths](../packages.md#modules-and-paths) |
+| Module | `mod` | No | [Modules and paths](names-and-paths.md) |
+| Import | `use` | No | [Modules and paths](names-and-paths.md) |
 | Indexed declaration | `indexed` | No | [Indexed source](../indexed-source.md#declarations-and-source-example), [smooth declarations](smooth-declarations.md) |
 | Resource function | `resource fn` | No | [Resource programs](../storage/resource-programs.md) |
-| Grant, delegation | `grant`, `delegation` | No | [Edit borrowing](../packages.md#edit-borrowing), [delegation](../packages.md#explicit-delegation) |
-| Transfer | `transfer` | No | [Permanent transfer](../packages.md#permanent-transfer) |
-| Contribution, assembly | `contribution`, `assembly` | No | [Edit borrowing](../packages.md#source-declarations) |
+| Grant, delegation | `grant`, `delegation` | No | [Edit borrowing](edit-authority.md), [delegation](edit-authority.md#grants-and-delegations) |
+| Transfer | `transfer` | No | [Permanent transfer](edit-authority.md#transfers) |
+| Contribution, assembly | `contribution`, `assembly` | No | [Edit borrowing](edit-authority.md#contributions) |
 
 Rules:
 
@@ -48,7 +48,7 @@ Rules:
 In manifest mode, `pub` makes an item visible outside the module that declares
 it.
 An item without `pub` is private to its module.
-[Visibility and ownership](../packages.md#visibility-and-ownership) gives the
+[Visibility and ownership](names-and-paths.md#visibility) gives the
 rules.
 
 Rules:

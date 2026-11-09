@@ -118,7 +118,7 @@ assembly applies it with `apply`: a recipient's contribution through an edit
 loan, and a contribution of the module that holds the generic's edit authority
 without a loan. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority) and
-[Source declarations](../packages.md#source-declarations).
+[Contributions](../language/edit-authority.md#contributions).
 
 ## Core
 
@@ -142,7 +142,7 @@ A `delegation` declaration by the recipient of a `delegable` grant or
 delegation. It names a recipient module and a region inside the parent loan's
 region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
-[Explicit delegation](../packages.md#explicit-delegation).
+[Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
 ## Derivative rule
 
@@ -197,7 +197,7 @@ the recipient's contribution uses.
 A transfer does not move authority over abstract-type membership or
 abstract-method contracts. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority) and
-[Permanent transfer](../packages.md#permanent-transfer).
+[Transfers](../language/edit-authority.md#transfers).
 
 ## Edit loan
 
@@ -206,7 +206,7 @@ takes it from a grant with `borrow` and gives it back with `return`. A loan from
 a `delegable` grant or delegation can be lent on as a nested loan through a
 [delegation](#delegation). An edit loan grants no access to storage; compare
 [storage loan](#storage-loan).
-See [Scoped edit borrowing](../packages.md#edit-borrowing).
+See [Assemblies](../language/edit-authority.md#assemblies).
 
 ## Entry point
 
@@ -328,7 +328,7 @@ generic to one recipient module. It becomes usable once its module has received
 that authority. The grant names the recipient by its package's manifest
 `[package] name` and its module path. A grant is a permission, not a loan: an
 assembly borrows it to obtain an edit loan. See
-[Scoped edit borrowing](../packages.md#edit-borrowing).
+[Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
 ## Implementation
 
@@ -404,6 +404,12 @@ of a [primitive](#primitive) call on the values of the Core semantics. Compare
 [erased evaluator](#erased-evaluator). See
 [Add an indexed primitive](../development/primitives.md#terms).
 
+## Logical path
+
+The names of the modules from the root module of a package down to a module,
+such as `math::exact`. The file of a file module depends only on its logical
+path. See [Module declarations](../language/modules.md#module-declarations).
+
 ## Lowering
 
 The text or the smaller form that a compiler pass produces for a checked
@@ -463,7 +469,7 @@ metric form is distinct from the diagonal Hermitian `Metric` of
 A namespace inside a package. The root source file is the package's root
 module. A child module is an inline `mod name { ... }` block or a file that
 `mod name;` loads. Each module has a logical module path from the package root.
-See [Modules](../guide/modules-and-authority.md#modules).
+See [Modules](../language/modules.md).
 
 ## Nominal identity
 
@@ -515,7 +521,7 @@ The word has three meanings. Qualify it where the context does not decide.
    [Visibility and ownership](../guide/modules-and-authority.md#visibility-and-ownership).
 2. The **current owner** of a generic is the module that holds its edit
    authority. A [transfer](#transfer) changes it. See
-   [Permanent transfer](../packages.md#permanent-transfer).
+   [Transfers](../language/edit-authority.md#transfers).
 3. A **storage owner** is a binding that owns an allocation. `allocate`
    creates one, `move` and calls hand it on, and `drop` frees it. See
    [The statements](../guide/storage.md#the-statements).
@@ -525,6 +531,18 @@ The word has three meanings. Qualify it where the context does not decide.
 A directory with a `Vastitas.toml` manifest, a root source file and modules.
 Compare [existential package](#existential-package). See
 [Packages and manifests](../guide/stdlib.md).
+
+## Package graph
+
+The packages that a root manifest reaches through its dependencies. The
+compiler checks every package of the graph. See
+[The package graph](../packages.md#the-package-graph).
+
+## Path
+
+A sequence of names separated by `::` that names a declaration, such as
+`std::arithmetic::generic::add`. Its first segment may be `package`, `self`,
+`super` or a dependency alias. See [Names and paths](../language/names-and-paths.md).
 
 ## Primitive
 
@@ -607,13 +625,19 @@ One mathematical fact about a language construct or a standard-library module,
 recorded in a [specification](#specification) with an example and one or more
 [claims](#claim). See [Specifications](../specifications.md).
 
+## Reexport
+
+A `pub use` declaration, which makes a public declaration of another module
+nameable through the current module. It keeps the declaration's identity and
+grants no edit authority. See [`use` declarations](../language/modules.md#use-declarations).
+
 ## Region
 
 The word has two meanings:
 
 1. The region of a [grant](#grant) or [delegation](#delegation) is a list of
    concrete scalar argument tuples. An edit loan covers that region. See
-   [Source declarations](../packages.md#source-declarations).
+   [Contributions](../language/edit-authority.md#contributions).
 2. A storage region is a set of byte intervals in one allocation. Storage loans
    and layouts cover regions. See
    [Regions, overlap and alias evidence](../storage-ownership.md#74-regions-overlap-and-alias-evidence).
@@ -884,7 +908,7 @@ checked result type. The binding's soundness instance builds on it. See
 A `transfer` declaration names an operation that permanently moves edit
 authority over a generic to a recipient module. An assembly performs the
 transfer, and the generic keeps its identity. See
-[Permanent transfer](../packages.md#permanent-transfer).
+[Transfers](../language/edit-authority.md#transfers).
 
 ## View
 

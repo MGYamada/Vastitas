@@ -170,6 +170,10 @@ next rewrite.
   `vastitas check` prints for it from the repository root. Include both files,
   so that the chapter shows the diagnostic that the compiler prints. Do not
   paraphrase the diagnostic.
+- Put a rejected package in `examples/reject/packages/<name>/` and list the
+  directory in `BOOK_REJECTED_PACKAGES`. `<name>.stderr` next to the directory
+  holds the lines of `vastitas check --manifest-path`, with the repository root
+  removed from file names. A chapter need not include the manifest.
 
 ### What stays out
 
@@ -238,7 +242,7 @@ The two compiler scaling CSV files remain attached to their reported revision.
 | --- | --- |
 | Abstract selectors, promotion policy and proofs | [Finite dispatch](../stage1a.md#abstract-types) |
 | Old-checker indexing measurements | [Functions and indexing evidence](../stage1b.md#stage1b-indexing) |
-| Edit grants, nested reborrowing and permanent transfer | [Package authority](../packages.md#edit-borrowing) |
+| Edit grants, nested reborrowing and permanent transfer | [Package authority](../language/edit-authority.md) |
 | Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |
 | Public resource statements and runtime shapes | [Resource programs](../storage/resource-programs.md) |

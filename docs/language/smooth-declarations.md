@@ -19,15 +19,13 @@ All forms in this chapter share these productions:
 > **Syntax**
 >
 > ```text
-> DeclarationPath -> PathSegment ( `::` PathSegment )*
-> PathSegment -> IDENTIFIER | `generic`
 > CoordinateName -> IDENTIFIER ( `::` IDENTIFIER )*
 > ```
 
-A `DeclarationPath` names a declaration in scope, as a `use` path does. A
-`CoordinateName` names a coordinate of an object. Each declaration of this
-chapter is an [item](items.md), and `pub` before it makes it visible outside its
-module.
+A [`Path`](names-and-paths.md) names a declaration in scope, as in a `use`
+declaration. A `CoordinateName` names a coordinate of an object. Each
+declaration of this chapter is an [item](items.md), and `pub` before it makes
+it visible outside its module.
 
 ## The smooth profile
 
@@ -35,13 +33,13 @@ module.
 >
 > ```text
 > SmoothImplementation -> `indexed` `implementation` IDENTIFIER
->     `(` DeclarationPath `,` `smooth_affine` `)` `capabilities` `(` Capabilities? `)` `;`
+>     `(` Path `,` `smooth_affine` `)` `capabilities` `(` Capabilities? `)` `;`
 > Capabilities -> Capability ( `,` Capability )* `,`?
 > Capability -> `origin` | `dimension`
 > SmoothFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
 >     `=` SmoothRepresentation `constraints` `(` Constraints? `)` `;`
 > Parameters -> Parameter ( `,` Parameter )* `,`?
-> Parameter -> `domain` | `marker` | `natural` | `object` `(` DeclarationPath `)`
+> Parameter -> `domain` | `marker` | `natural` | `object` `(` Path `)`
 > SmoothRepresentation -> `smooth` | `cotangent` | `tangent` | `tape` | `metric_form`
 > Constraints -> Constraint ( `,` Constraint )* `,`?
 > Constraint -> `canonical` `(` INTEGER_LITERAL `)`
@@ -120,9 +118,9 @@ pub indexed family MetricForm(object(CInfAffine)) = metric_form constraints(cano
 > **Syntax**
 >
 > ```text
-> AffineSpaceDeclaration -> `indexed` `affine` IDENTIFIER `(` DeclarationPath `)`
+> AffineSpaceDeclaration -> `indexed` `affine` IDENTIFIER `(` Path `)`
 >     `=` AffineSpace `;`
-> AffineSpace -> `Affine` `(` ( DeclarationPath `,` )? INTEGER_LITERAL `)` `[` Coordinates? `]`
+> AffineSpace -> `Affine` `(` ( Path `,` )? INTEGER_LITERAL `)` `[` Coordinates? `]`
 > Coordinates -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
 > ```
 
@@ -210,10 +208,10 @@ Rules:
 > **Syntax**
 >
 > ```text
-> MorphismDeclaration -> `indexed` `morphism` IDENTIFIER `:` DeclarationPath
->     `<` DeclarationPath ( `,` DeclarationPath )* `>` `=` MorphismDefinition `;`
+> MorphismDeclaration -> `indexed` `morphism` IDENTIFIER `:` Path
+>     `<` Path ( `,` Path )* `>` `=` MorphismDefinition `;`
 > MorphismDefinition -> `pullback` `(` ImageBindings? `)` | `identity`
->     | `structure` | `first` | `second` | `restrict` `(` DeclarationPath `)`
+>     | `structure` | `first` | `second` | `restrict` `(` Path `)`
 > ImageBindings -> ImageBinding ( `,` ImageBinding )* `,`?
 > ImageBinding -> CoordinateName `->` Polynomial
 > ```
@@ -269,10 +267,10 @@ E_AFFINE_COORDINATE: unknown coordinate x
 > ```text
 > PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
 > PrimitiveBinding -> SmoothMapBinding | FiberBinding | ReverseBinding | MetricBinding
-> SmoothMapBinding -> `smooth_compose` `(` DeclarationPath `)`
->     | `smooth_equal` `(` DeclarationPath `)`
->     | `smooth_composite` `(` DeclarationPath `)`
->     | `smooth_int_point` `(` DeclarationPath `,` DeclarationPath `,` DeclarationPath `)`
+> SmoothMapBinding -> `smooth_compose` `(` Path `)`
+>     | `smooth_equal` `(` Path `)`
+>     | `smooth_composite` `(` Path `)`
+>     | `smooth_int_point` `(` Path `,` Path `,` Path `)`
 > ```
 
 `indexed primitive p = binding;` declares a function `p` whose operands and
@@ -320,11 +318,11 @@ pub indexed primitive line_at = smooth_int_point(Smooth, Line, Pt);
 > **Syntax**
 >
 > ```text
-> FiberBinding -> `fiber_vector` `(` DeclarationPath `,` DeclarationPath `,` DeclarationPath `)`
->     | `fiber_at` `(` DeclarationPath `,` DeclarationPath `)`
->     | `fiber_equal` `(` DeclarationPath `)`
->     | `fiber_component` `(` DeclarationPath `,` DeclarationPath `,` CoordinateName `)`
->     | `fiber_pairing` `(` DeclarationPath `,` DeclarationPath `)`
+> FiberBinding -> `fiber_vector` `(` Path `,` Path `,` Path `)`
+>     | `fiber_at` `(` Path `,` Path `)`
+>     | `fiber_equal` `(` Path `)`
+>     | `fiber_component` `(` Path `,` Path `,` CoordinateName `)`
+>     | `fiber_pairing` `(` Path `,` Path `)`
 > ```
 
 A value of `Cotangent<X>` or `Tangent<X>` is a covector or a vector at a
@@ -372,10 +370,10 @@ pub indexed primitive pairing = fiber_pairing(Cotangent, Tangent);
 > **Syntax**
 >
 > ```text
-> ReverseBinding -> `cotangent_pullback` `(` DeclarationPath `,` DeclarationPath `,` PullbackMode `)`
->     | `differential` `(` DeclarationPath `,` DeclarationPath `,` DeclarationPath `)`
->     | `linearize` `(` DeclarationPath `,` DeclarationPath `)`
->     | `cotangent_backward` `(` DeclarationPath `,` DeclarationPath `)`
+> ReverseBinding -> `cotangent_pullback` `(` Path `,` Path `,` PullbackMode `)`
+>     | `differential` `(` Path `,` Path `,` Path `)`
+>     | `linearize` `(` Path `,` Path `)`
+>     | `cotangent_backward` `(` Path `,` Path `)`
 > PullbackMode -> `saved` | `recomputed`
 > ```
 
@@ -472,8 +470,8 @@ E_TYPE: a cotangent pullback mode is saved or recomputed
 > **Syntax**
 >
 > ```text
-> MetricDeclaration -> `indexed` `metric` IDENTIFIER `:` DeclarationPath
->     `<` DeclarationPath ( `,` DeclarationPath )* `>` `=` GramForm `;`
+> MetricDeclaration -> `indexed` `metric` IDENTIFIER `:` Path
+>     `<` Path ( `,` Path )* `>` `=` GramForm `;`
 > GramForm -> `euclidean` | `gram` `(` GramRows? `)`
 > GramRows -> GramRow ( `,` GramRow )* `,`?
 > GramRow -> `(` ( Polynomial ( `,` Polynomial )* `,`? )? `)`
@@ -526,7 +524,7 @@ E_METRIC: the metric `smooth_differential::Skew` is not symmetric: the entries i
 > **Syntax**
 >
 > ```text
-> EvidenceDeclaration -> `indexed` `evidence` IDENTIFIER `=` EvidenceKind `(` DeclarationPath `)` `;`
+> EvidenceDeclaration -> `indexed` `evidence` IDENTIFIER `=` EvidenceKind `(` Path `)` `;`
 > EvidenceKind -> `nondegenerate` | `riemannian`
 > ```
 
@@ -572,9 +570,9 @@ E_METRIC: the metric `smooth_differential::Lorentz` is not positive definite, so
 > **Syntax**
 >
 > ```text
-> MetricBinding -> `flat` `(` DeclarationPath `,` DeclarationPath `,` `using` `=` DeclarationPath `)`
->     | `sharp` `(` DeclarationPath `,` DeclarationPath `,` `using` `=` DeclarationPath
->       `,` `evidence` `=` DeclarationPath `)`
+> MetricBinding -> `flat` `(` Path `,` Path `,` `using` `=` Path `)`
+>     | `sharp` `(` Path `,` Path `,` `using` `=` Path
+>       `,` `evidence` `=` Path `)`
 > ```
 
 `flat` and `sharp` are the musical maps of a named metric g with Gram matrix

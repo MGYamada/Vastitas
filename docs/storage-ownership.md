@@ -61,7 +61,7 @@ Compiler latency and generated-program runtime are separate measurements.
 | Network occurrence | Fresh occurrence and linear port identities | A fresh allocation or disjoint tensor factors |
 
 Function-edit ownership remains the independent protocol-6 discipline in
-[edit authority](packages.md#edit-authority). Borrowing a function does not borrow its data.
+[edit authority](language/edit-authority.md#transfers). Borrowing a function does not borrow its data.
 Creating two occurrences of one immutable tensor creates new ports, not copies.
 The runtime may share immutable descriptors; copying a descriptor does not grant
 mutable authority. A numerical logical value may reuse storage only after all

@@ -67,7 +67,7 @@ let c = a + 5;           // Nat: the literal takes the type of a
 
 A path expression names a parameter, a binding or a function. A path with `::`
 names a declaration of another module, as
-[Modules and paths](../packages.md#modules-and-paths) describes. The value of a
+[Modules and paths](names-and-paths.md) describes. The value of a
 function name is the function, as [Function values](functions.md#function-values)
 describes. A coefficient marker is a value only where
 [Settings and markers](geometric-types.md#settings-and-markers) allows it, and a

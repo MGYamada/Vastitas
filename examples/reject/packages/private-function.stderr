@@ -1,0 +1,1 @@
+examples/reject/packages/private-function/main.vast:8:27: E_VISIBILITY: 'area' is private in its declaring module

@@ -30,8 +30,8 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | --- | --- | --- | --- |
 | `parseNesting` | 64 | Combined type and expression recursive parsing in the frontend | [Budgets](#parser-and-checker-budgets) |
 | `astDepth` | 128 | Syntax-tree depth, including left-associated operator chains | [Budgets](#parser-and-checker-budgets) |
-| `moduleNesting` | 64 | Logical module nesting | [Modules and paths](../packages.md#modules-and-paths) |
-| `packageNesting` | 64 | Dependency nesting | [Modules and paths](../packages.md#modules-and-paths) |
+| `moduleNesting` | 64 | Logical module nesting | [Modules](../language/modules.md) |
+| `packageNesting` | 64 | Dependency nesting | [Package graph](../packages.md#the-package-graph) |
 | `typeNesting` | 64 | Nesting of a declared type | Kernel source |
 | `sourceNesting` | 512 | Recursive decoding steps in the protocol decoder | [Budgets](#parser-and-checker-budgets) |
 | `namespaceNesting` | 1024 | Recursion of the namespace checker through a function body | Kernel source |
@@ -46,13 +46,13 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `dispatchArity` | 6 | Generic arity; the seventh argument would exceed 4,096 tuples | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
 | `dispatchWork` | 16,000,000 | Dispatch-table work for one generic family, charged before the work runs | [Wire protocols](../protocol.md) |
 | `nominalTypes` | 64 | Nominal types, including `Nat`, `Int`, `Bool`, `Unit`, `Number` and `Any` | [Abstract selectors](../stage1a.md#abstract-types) |
-| `namespaceResolution` | 4096 | Member work for one path resolution | [Modules and paths](../packages.md#modules-and-paths) |
-| `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Modules and paths](../packages.md#modules-and-paths) |
-| `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Modules and paths](../packages.md#modules-and-paths) |
+| `namespaceResolution` | 4096 | Member work for one path resolution | [Names and paths](../language/names-and-paths.md#resolution) |
+| `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Names and paths](../language/names-and-paths.md#resolution) |
+| `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Names and paths](../language/names-and-paths.md#resolution) |
 | `dependencyGraph` | 4096 | Units for traversing the package dependency graph | Kernel source |
-| `assemblyEvents` | 4096 | Events in an edit assembly | [Wire extension](../packages.md#wire-extension) |
-| `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Wire extension](../packages.md#wire-extension) |
-| `contributionMethods` | 4096 | Methods in one contribution | [Wire extension](../packages.md#wire-extension) |
+| `assemblyEvents` | 4096 | Events in an edit assembly | [Assemblies](../language/edit-authority.md#assemblies) |
+| `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Assemblies](../language/edit-authority.md#assemblies) |
+| `contributionMethods` | 4096 | Methods in one contribution | [Assemblies](../language/edit-authority.md#assemblies) |
 
 ### Exact affine algebra (Stage 2)
 

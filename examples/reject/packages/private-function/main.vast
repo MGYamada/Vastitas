@@ -1,0 +1,9 @@
+mod geometry {
+    // Without `pub`, `area` is visible only in `geometry` and its children.
+    fn area(width: Int, height: Int) -> Int { width * height }
+    pub fn square(side: Int) -> Int { area(side, side) }
+}
+
+fn main() -> Int {
+    geometry::square(6) + geometry::area(2, 3)
+}

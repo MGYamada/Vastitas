@@ -29,7 +29,7 @@ Rules:
 - The compiler parses each file on its own. An item must end in the file where
   it begins. An item that reaches the end of its file is an error (`E_PARSE`).
 - Items are declared at the top level of a file or of a
-  [module](../packages.md#modules-and-paths). A `let` binding outside a
+  [module](names-and-paths.md). A `let` binding outside a
   function is an error (`E_PARSE`).
 
 ## Flat mode
@@ -75,7 +75,7 @@ The executable prints `42`.
 ## Manifest mode
 
 In manifest mode the manifest names a root source file, and the
-[modules](../packages.md#modules-and-paths) of each package form a tree under
+[modules](names-and-paths.md) of each package form a tree under
 it. Names are visible across modules through `use` imports and `pub`
 visibility. [Packages](../packages.md) gives the rules.
 

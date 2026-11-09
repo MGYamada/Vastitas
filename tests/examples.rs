@@ -100,6 +100,12 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
 ];
 
+/// The rejected packages that the book includes from `examples/reject/packages/`,
+/// by directory. `vastitas check --manifest-path <directory>/Vastitas.toml`,
+/// run from the repository root, must fail and print exactly the lines of
+/// `<directory>.stderr`, with the repository root removed from file names.
+const BOOK_REJECTED_PACKAGES: &[&str] = &["examples/reject/packages/private-function"];
+
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
     let mut inputs = vec![path];
     for lib in libs {
@@ -140,6 +146,29 @@ fn book_rejections_print_their_diagnostics() {
     }
 }
 
+#[test]
+fn book_rejected_packages_print_their_diagnostics() {
+    for directory in BOOK_REJECTED_PACKAGES {
+        let manifest = format!("{directory}/Vastitas.toml");
+        let output = cli()
+            .current_dir(root())
+            .args(["check", "--manifest-path", &manifest])
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{directory} must be rejected"
+        );
+        let prefix = format!("{}/", root().display());
+        let stderr = String::from_utf8(output.stderr)
+            .unwrap()
+            .replace(&prefix, "");
+        let expected = std::fs::read_to_string(root().join(format!("{directory}.stderr"))).unwrap();
+        assert_eq!(stderr, expected, "{directory}");
+    }
+}
+
 fn files_under(directory: &Path, found: &mut Vec<String>) {
     for entry in std::fs::read_dir(directory).unwrap() {
         let path = entry.unwrap().path();
@@ -173,6 +202,16 @@ fn book_examples_are_registered() {
         assert!(path.starts_with("examples/reject/"), "{path}");
         expected.insert(path.to_string());
         expected.insert(path.replace(".vast", ".stderr"));
+    }
+    for directory in BOOK_REJECTED_PACKAGES {
+        assert!(
+            directory.starts_with("examples/reject/packages/"),
+            "{directory}"
+        );
+        let mut files = Vec::new();
+        files_under(&root().join(directory), &mut files);
+        expected.extend(files);
+        expected.insert(format!("{directory}.stderr"));
     }
     let mut found = Vec::new();
     files_under(&root().join("examples/book"), &mut found);

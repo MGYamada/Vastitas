@@ -1,0 +1,13 @@
+fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
+    let X = Affine(QQ, n);
+    pack { scheme: X, point: origin(X) }
+}
+
+fn main() -> Int {
+    // The point names the object that `unpack` opens inside the block.
+    let p = {
+        unpack make_origin(2) as { scheme: X, point: q };
+        q
+    };
+    0
+}

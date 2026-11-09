@@ -44,11 +44,10 @@ FILE:LINE:COLUMN: CODE: message
 `LINE` and `COLUMN` are one-based, and columns count Unicode scalars. In flat
 mode each `--lib` file keeps its own positions, and package diagnostics name the
 original module file. For the program from
-[Chapter 1](hello-vastitas.md#when-the-checker-says-no), a local build of the
-compiler printed the following; message wording can change between revisions:
+[Chapter 1](hello-vastitas.md#when-the-checker-says-no), the compiler prints:
 
 ```text
-target/manual-bad.vast:1:20: E_TYPE: expected Int, found Bool
+{{#include ../../examples/reject/types/bool-result.stderr}}
 ```
 
 The **code** says which rule failed; the message gives the detail. Errors that

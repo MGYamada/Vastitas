@@ -1,0 +1,2 @@
+examples/reject/expressions/mixed-integers.vast:2:5: E_TYPE: expected Int, found Nat
+examples/reject/expressions/mixed-integers.vast:2:5: note: help: convert explicitly with int(...); Nat values are never converted implicitly

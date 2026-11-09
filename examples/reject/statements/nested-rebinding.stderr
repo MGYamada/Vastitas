@@ -1,0 +1,1 @@
+examples/reject/statements/nested-rebinding.vast:4:9: E_DUPLICATE: binding `total` already exists in this scope; shadowing is not supported

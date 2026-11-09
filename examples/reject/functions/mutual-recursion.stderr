@@ -1,0 +1,1 @@
+examples/reject/functions/mutual-recursion.vast:1:1: E_RECURSION: recursive call cycle `even` → `odd` → `even` is not supported

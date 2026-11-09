@@ -1,0 +1,2 @@
+examples/reject/geometric-types/escaping-point.vast:9:9: E_ESCAPE: Point<X, Base(QQ)> contains a local object index; package its witness and fields before returning
+examples/reject/geometric-types/escaping-point.vast:9:9: note: object X was introduced here by unpack

@@ -49,11 +49,7 @@ name and version; equal names and versions at different locations remain distinc
 ## Modules and paths
 
 ```vast
-mod math {
-    pub fn increment(x: Int) -> Int { x + 1 }
-}
-use math::increment as next;
-fn main() -> Int { next(41) }
+{{#include ../examples/packages/inline-module/main.vast}}
 ```
 
 Declarations and imports occur at module scope only. `mod math;` loads either

@@ -56,6 +56,13 @@ function. A basis is tied to one space. A map reads storage as coordinates in
 named bases. See
 [Spaces, bases and maps](../guide/numerical.md#spaces-bases-and-maps).
 
+## Binding
+
+A name that a `let` or `unpack` statement or a parameter list introduces. A
+binding is immutable, and no binding may reuse a name that is visible where it
+is introduced. See
+[Scopes of bindings](../language/statements.md#scopes-of-bindings).
+
 ## Capability
 
 The word has two meanings:
@@ -148,6 +155,12 @@ reverse pass of the tape reads. A pullback, a differential or the reverse pass
 of a tape is a reverse pass, and its call is a
 [reverse site](#reverse-site). The other bindings have the rule `none`. See [Add an indexed primitive](../development/primitives.md).
 
+## Descriptor object
+
+An object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
+`Affine(CInfReal, n)` builds. It records only its dimension. See
+[Geometric types](../language/geometric-types.md).
+
 ## Dispatch
 
 The static selection of one method of a generic from the argument types. The
@@ -195,6 +208,13 @@ a `delegable` grant or delegation can be lent on as a nested loan through a
 [storage loan](#storage-loan).
 See [Scoped edit borrowing](../packages.md#edit-borrowing).
 
+## Entry point
+
+The function `main` of a program, with the signature `fn main() -> Int`, or a
+`resource fn main() -> Int` in manifest mode. `vastitas build` requires one,
+and the executable prints the integer that it returns. See
+[The entry point](../language/programs.md#the-entry-point).
+
 ## Erased evaluator
 
 The evaluator of a [registry entry](#registry-entry) that computes a
@@ -231,6 +251,13 @@ source code. See
 [Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal) and
 [Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
 
+## Expected type
+
+The type that the position of an expression requires, such as the annotation
+of a `let` statement or the type of a parameter for an argument. An integer
+literal has type `Nat` where its expected type is `Nat`, and `Int` otherwise.
+See [Literal expressions](../language/expressions.md#literal-expressions).
+
 ## Failure value
 
 The value of a [tangent or cotangent fiber](#tangent-or-cotangent-fiber) family
@@ -258,7 +285,7 @@ a common base. It is unrelated to a
 The compiler mode that takes one entry file and any number of `--lib`
 libraries, without a manifest. Flat mode has no modules, imports, `pub` or
 other package-only declarations. Compare [manifest mode](#manifest-mode). See
-[Flat mode with `--lib`](../guide/stdlib.md#flat-mode-with---lib).
+[Flat mode](../language/programs.md#flat-mode).
 
 ## Forward Core
 
@@ -317,6 +344,18 @@ classification, global, family, package or primitive. Indexed declarations let
 any package declare an indexed [profile](#profile), and the standard geometry
 library uses them. See
 [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+
+## Indexed type
+
+A type that applies a family of an `indexed` declaration to its arguments, such
+as `geo::Point<X, geo::Base>`, or the type `Object<D, M>` of an object. See
+[Indexed types](../language/types.md#indexed-types).
+
+## Item
+
+A declaration at the top level of a source file or of a module, such as a
+function, a generic or a module. Statements and expressions occur only inside
+items. See [Items](../language/items.md).
 
 ## Jacobian table
 
@@ -385,7 +424,7 @@ dependencies. See [A manifest](../guide/stdlib.md#a-manifest).
 The compiler mode that takes one manifest with `--manifest-path`. Modules,
 imports, resource functions, indexed declarations and edit-authority
 declarations appear only in this mode. Compare [flat mode](#flat-mode). See
-[The commands](../guide/diagnostics-and-cli.md#the-commands).
+[Manifest mode](../language/programs.md#manifest-mode).
 
 ## Marker
 
@@ -555,6 +594,13 @@ The word has three qualified uses:
    mean mathematically. See
    [Coefficient profiles](../guide/numerical.md#coefficient-profiles).
 
+## Program
+
+The set of source files that the compiler checks together: an entry file and
+its `--lib` libraries in [flat mode](#flat-mode), or the packages that a
+manifest reaches in [manifest mode](#manifest-mode). See
+[Programs](../language/programs.md).
+
 ## Property
 
 One mathematical fact about a language construct or a standard-library module,
@@ -582,6 +628,14 @@ a `Bool` with the proof that they agree, its
 its [lowering](#lowering), its [shared literals](#shared-literal) and its
 [derivative rule](#derivative-rule). See
 [Add an indexed primitive](../development/primitives.md).
+
+## Reserved name
+
+An identifier that no declaration or binding may use, such as a built-in type
+name, a built-in function name or a name that begins with `__vastitas_`. An
+`indexed` declaration may use the names of the geometric core, such as `Point`.
+Compare [strict keyword](#strict-keyword). See
+[Reserved names](../language/lexical-structure.md#reserved-names).
 
 ## Residual
 
@@ -669,6 +723,13 @@ the [failure value](#failure-value). See
 The type that a method gives a parameter for dispatch: a concrete scalar type,
 `Number`, `Any` or an abstract type. See
 [Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
+
+## Setting
+
+The kind of a core geometric object: `Scheme` for ordinary objects and
+`CInfScheme` for smooth ones. Each setting has one coefficient
+[marker](#marker). See [Scheme](#scheme) and
+[Settings and markers](../language/geometric-types.md#settings-and-markers).
 
 ## Shared literal
 
@@ -773,6 +834,12 @@ exclusive. A storage loan grants no edit authority; compare
 [edit loan](#edit-loan). See
 [Affine ownership and explicit transitions](../storage-ownership.md#75-affine-ownership-and-explicit-transitions).
 
+## Strict keyword
+
+A word with a fixed meaning that is never an identifier, such as `fn`, `let`
+or `if`. Other words, such as `pub`, act as keywords only where a construct
+spells them. See [Keywords](../language/lexical-structure.md#keywords).
+
 ## Tangent or cotangent fiber
 
 A value of a family with the `tangent` or `cotangent` representation, such as
@@ -791,6 +858,19 @@ point. Only `linearize` builds a tape; a tape has no source or wire form.
 `cotangent_backward` runs the reverse pass over a tape. It returns the
 [failure value](#failure-value) for a covector that is not at the tape's
 output point. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Target
+
+The object `X` of a point type `Point<X, S>`, which the point lies on, or the
+object `Y` of a morphism type `Morphism<X, Y>`, whose source is `X`. Compare
+[test object](#test-object). See [Geometric types](../language/geometric-types.md).
+
+## Test object
+
+The second index `S` of a point type `Point<X, S>`: the point is a point of
+its target `X` with values in `S`. The test object of `origin(X)` is the
+[base object](#base-object). See
+[Geometric types](../language/geometric-types.md).
 
 ## Totality lemma
 

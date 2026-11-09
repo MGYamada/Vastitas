@@ -5,8 +5,12 @@ Use `vastitas check INPUT` to validate a source and `vastitas build INPUT -o OUT
 `check` also accepts a library without `main`. `build` requires a `main` that
 returns `Int`: an ordinary `fn main() -> Int`, or in manifest mode a
 `resource fn main() -> Int` with no resource inputs or owned outputs. The
-generated entrypoint prints the integer and exits successfully. Compilation
+generated entry point prints the integer and exits successfully. Compilation
 never runs the generated program.
+
+A missing backend, a protocol mismatch, a rejected program and a failed native
+build are each an error. No command falls back to checking in the frontend
+alone. A source identifier never becomes code in the generated Lean.
 
 Inputs must be regular files, limited to 16 MiB each and 64 MiB / 8,192 loads per
 compilation. Package closures admit at most 4,096 logical modules, including

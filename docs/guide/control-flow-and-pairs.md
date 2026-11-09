@@ -44,28 +44,7 @@ passes pairs through functions, chooses between them with `if` and uses one
 inside a lambda:
 
 ```vast
-fn reverse(values: Pair<Nat>) -> Pair<Nat> {
-    pair(pair_second(values), pair_first(values))
-}
-
-fn choose(flag: Bool, left: Pair<Int>, right: Pair<Int>) -> Pair<Int> {
-    if flag { left } else { right }
-}
-
-fn main() -> Int {
-    let big: Nat = 123456789012345678901234567890;
-    let zero: Nat = 0;
-    let values = reverse(pair(big, zero));
-    let signed = choose(false, pair(0, 0), pair(-7, 42));
-    let offset = fn(x: Int) -> Int {
-        let parts = pair(x, 2);
-        pair_first(parts) + pair_second(parts)
-    };
-    if pair_first(values) == zero && pair_second(values) == big &&
-       pair_first(signed) == -7 && pair_second(signed) == 42 {
-        offset(40)
-    } else { -1 }
-}
+{{#include ../../examples/pairs.vast}}
 ```
 
 ```sh
@@ -94,7 +73,7 @@ appear in a function type such as `Fn<Pair<Int>, Int>`. A lambda with a scalar
 signature may still use pairs internally, as `offset` does above.
 
 > **What is checked.** Conditionals and blocks follow the
-> [core language reference](../stage0.md#surface-language). The pair contract,
+> [expressions reference](../language/expressions.md#if-expressions). The pair contract,
 > including its proof scope, is in
 > [Homogeneous data pairs](../stage1b.md#homogeneous-data-pairs). Pairs reappear
 > as the result of `promote` in [Chapter 4](dispatch.md#promotion-between-nat-and-int).

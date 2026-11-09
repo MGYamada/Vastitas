@@ -14,15 +14,17 @@ parts:
 
 | Part | Content | Files |
 | --- | --- | --- |
-| Introduction and chapters 1–12 | Teaching chapters in reading order, with short **What is checked** notes that link to the reference parts | `README.md`, `guide/*.md`, `affine-geometry.md` |
-| Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage0.md`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
+| Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md`, `affine-geometry.md` |
+| Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
 | How the compiler is checked | Architecture, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
 | Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
 scripts, experiment records and external links name them.
 `scripts/check_book.py` requires the Introduction as an unnumbered prefix
-chapter followed by Getting Started.
+chapter followed by Getting Started. It reads the part of each chapter from the
+part titles of `SUMMARY.md`, and chapters before the first part title form the
+guide.
 
 ## Build, check and preview
 
@@ -38,7 +40,33 @@ python3 scripts/check_docs.py
 mdbook serve --open
 ```
 
-The generated site is in `target/book/`. The documentation workflow runs on
+The generated site is in `target/book/`. `scripts/check_book.py` checks that:
+
+- `SUMMARY.md` lists every chapter once, and mdBook rendered each of them;
+- every local link and anchor of the rendered book resolves, and every link to
+  a file of this repository on GitHub names a file at that revision, within
+  its line count on `main`;
+- every `docs/<chapter>.md#anchor` named in a file outside `docs/` names a
+  chapter and one of its anchors, apart from recorded experiment runs and the
+  unit tests of the checkers;
+- every `include` directive names a file and an anchor or line range in it;
+- every complete program, a code block with `fn main`, comes from an
+  `include` directive, and a chapter includes every file under `examples/book/`
+  and `examples/reject/`;
+- every Syntax block lies in the Vastitas Reference, holds productions only,
+  uses only tokens that the parser in `src/frontend*.rs` knows, and uses only
+  nonterminals that one production of the Reference defines;
+- the first line of a converted chapter is `#` and its title in `SUMMARY.md`,
+  where an appendix title `G: Glossary` becomes `Appendix G: Glossary`;
+- a converted chapter keeps the rules of the [style guide](#style-guide) that
+  its part has, as [Checked rules](#checked-rules) lists.
+
+The converted chapters are listed in `CONVERTED` in `scripts/check_book.py`.
+Add a chapter to the list in the change that rewrites it by the style guide.
+`python3 -m unittest discover -s scripts -p test_check_book.py` runs the
+checker's own tests.
+
+The documentation workflow runs on
 push and pull request, checks the downloaded Linux release against its SHA-256,
 and retains the rendered HTML as an artifact for seven days. The compiler and
 Lean builds have independent dependency lists.
@@ -59,7 +87,8 @@ The book is built with mdBook 0.5.4 and its MathML is checked in the generated H
    chapter once from `docs/SUMMARY.md`. The Introduction links to the
    historical-stage guide and the main reader paths. A teaching chapter uses
    working programs from `examples/`, as [Examples](#examples) describes, and
-   ends with a **What is checked** note.
+   ends with a **See also** section that links the Reference sections whose
+   rules it teaches.
    Write every chapter by the [style guide](#style-guide).
 2. Link other book chapters and bundled assets with relative paths. Link the
    Introduction as `index.md`, because mdBook renders `README.md` as
@@ -125,15 +154,22 @@ next rewrite.
 
 ### Examples
 
-- Put every complete program in a file under `examples/book/`, or use a
-  tested package under `examples/packages/`. Pull it into
+- Put every complete program in a file under `examples/book/<construct>/`, or
+  use a tested package under `examples/packages/`. Pull it into
   the chapter with the mdBook
   [`include` directive](https://rust-lang.github.io/mdBook/format/mdbook.html#including-files),
-  so that the book shows the tested text. Step 3 of
-  [Author and retire a chapter](#author-and-retire-a-chapter) requires a test
-  for it.
-- Show a rejected program with the diagnostic line that the compiler prints
-  for it. Do not paraphrase the diagnostic.
+  so that the book shows the tested text. Mark a part of a file with
+  `// ANCHOR: name` and `// ANCHOR_END: name` comments to include only that
+  part.
+- List the program in `BOOK_PROGRAMS` or `BOOK_PACKAGES` in
+  `tests/examples.rs` with the output that the chapter states.
+  `cargo test --locked --test examples` builds and runs it, and fails on a
+  file under `examples/book/` that the lists omit.
+- Put a rejected program in `examples/reject/<construct>/` and list it in
+  `BOOK_REJECTIONS`. The file `<name>.stderr` next to it holds the lines that
+  `vastitas check` prints for it from the repository root. Include both files,
+  so that the chapter shows the diagnostic that the compiler prints. Do not
+  paraphrase the diagnostic.
 
 ### What stays out
 
@@ -150,8 +186,15 @@ next rewrite.
 
 ### Principles and status words
 
+- The Introduction states the tagline *A Language for Math 2.0 and Physics
+  2.0* and the five design goals: Syntax like Rust, Experience like Julia,
+  Philosophy like Haskell, Verification like Lean and Performance like C/C++.
+  The design goals are aims, not claims about what exists.
 - The Introduction states the performance goal **Fast like C** and the
-  principle **Check before generating**, in at least one sentence each.
+  principle **Check before generating**, in at least one sentence each. **Fast
+  like C** names the C/C++-class target of the Performance design goal; it is
+  not a second performance requirement. Where a chapter states a performance
+  target, it says C/C++-class.
 - Use the status words Implemented, Tested, Proved and Planned with the
   meanings that the [Introduction](../index.md#what-exists-today) gives them,
   and keep the four apart. `AGENTS.md` requires this separation.
@@ -159,6 +202,27 @@ next rewrite.
   [claim statuses](../specifications.md#claim-statuses). The chapters under
   `docs/spec/` are generated: edit the TOML file, then run
   `python3 scripts/check_spec.py --write`.
+
+### Checked rules
+
+`scripts/check_book.py` enforces these rules on the converted chapters. The
+other rules of this guide need a reviewer.
+
+| Rule | Guide | Reference | Compiler checked | Appendices |
+| --- | --- | --- | --- | --- |
+| No "now", "currently", "new", "newly", "deliberately" or "actually" in prose | Yes | Yes | Yes | Yes |
+| No "should" | | Yes | | |
+| No Stage numbers | Yes | Yes | | |
+| No wire-protocol version | Yes | Outside implementation notes | | |
+| No issue or pull request references | Yes | Yes | Outside a History section | |
+| No commit hashes or theorem names | Yes | | | |
+| Ends with a See also section | Yes, apart from the Introduction | | | |
+
+The word rules read prose only. They skip code, link targets, HTML, math and
+words in double quotation marks, which mention a word rather than use it. The
+delivery records are exempt from every rule. A generated specification chapter
+may link issues outside a History section, as
+[What stays out](#what-stays-out) says.
 
 ## Consolidation baseline
 

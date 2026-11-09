@@ -1,0 +1,3 @@
+examples/reject/geometric-types/wrong-endpoint.vast:6:13: E_ENDPOINT: apply requires a point with target Y (the map's source), but the supplied point has target X
+examples/reject/geometric-types/wrong-endpoint.vast:3:13: note: object Y was introduced here by Affine
+examples/reject/geometric-types/wrong-endpoint.vast:2:13: note: object X was introduced here by Affine

@@ -1,0 +1,4 @@
+[package]
+name = "inline_module"
+version = "0.1.0"
+root = "main.vast"

@@ -1,0 +1,3 @@
+fn total(count: Nat, offset: Int) -> Int {
+    count + offset
+}

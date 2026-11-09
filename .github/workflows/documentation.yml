@@ -18,6 +18,10 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
+          # check_book.py resolves links to files at recorded revisions in
+          # the history; it reads commits and trees, never their blobs.
+          fetch-depth: 0
+          filter: blob:none
       - name: Install the pinned offline math renderer
         run: cargo install mdbook-katex --locked --version "=$(cat config/mdbook-katex-version)"
       - name: Build with the pinned mdBook release
@@ -32,7 +36,7 @@ jobs:
           tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP" mdbook
           test "$("$RUNNER_TEMP/mdbook" --version)" = "mdbook v$version"
           "$RUNNER_TEMP/mdbook" build
-      - name: Check chapter inventory, navigation and links
+      - name: Check chapters, titles, style, includes, Syntax blocks and links
         run: python3 scripts/check_book.py
       - name: Retain the rendered book for review
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

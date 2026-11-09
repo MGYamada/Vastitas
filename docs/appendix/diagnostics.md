@@ -51,8 +51,8 @@ rules again independently.
 
 | Family | Codes | Checker and specification |
 | --- | --- | --- |
-| Core language | `E_TYPE`, `E_ARITY`, `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_RECURSION`, `E_MAIN`, `E_LITERAL`, `E_OPERATOR`, `E_SCOPE`, `E_CONTEXT`, `E_DEPENDENCY`, `E_STAGE`, `E_SCALAR_PROFILE` | Scalar, function and Core checking; [core language](../stage0.md) |
-| Geometric identity | `E_ESCAPE`, `E_ENDPOINT`, `E_BASE`, `E_INDEX`, `E_RING` | Object, point and package checks; [geometric core](../stage0.md#geometric-core), [indexed source](../indexed-source.md) |
+| Core language | `E_TYPE`, `E_ARITY`, `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_RECURSION`, `E_MAIN`, `E_LITERAL`, `E_OPERATOR`, `E_SCOPE`, `E_CONTEXT`, `E_DEPENDENCY`, `E_STAGE`, `E_SCALAR_PROFILE` | Scalar, function and Core checking; [functions](../language/functions.md), [statements](../language/statements.md), [expressions](../language/expressions.md), [types](../language/types.md) |
+| Geometric identity | `E_ESCAPE`, `E_ENDPOINT`, `E_BASE`, `E_INDEX`, `E_RING` | Object, point and package checks; [geometric types](../language/geometric-types.md), [indexed source](../indexed-source.md) |
 | Functions | `E_CAPTURE`, `E_STATIC_CALL` | [Static target rule](../stage1b.md#static-target-rule) |
 | Dispatch | `E_DISPATCH_AMBIGUOUS`, `E_DISPATCH_ARITY`, `E_DISPATCH_CAPABILITY`, `E_DISPATCH_COVERAGE`, `E_DISPATCH_DOMAIN`, `E_DISPATCH_DUPLICATE`, `E_DISPATCH_DUPLICATE_ID`, `E_DISPATCH_HIERARCHY`, `E_DISPATCH_LIMIT`, `E_DISPATCH_SELECTOR`, `E_DISPATCH_UNREALIZABLE`, `E_CAPABILITY` | [Selection and whole-program checking](../stage1a.md#selection-and-whole-program-checking) |
 | Abstract types and contracts | `E_HIERARCHY`, `E_CONTRACT_DOMAIN`, `E_CONTRACT_EMPTY`, `E_CONTRACT_RESULT` | [Abstract selectors and contracts](../stage1a.md#abstract-types) |

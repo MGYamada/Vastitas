@@ -35,12 +35,7 @@ defines `add` and `maximum` this way over all four Nat/Int pairs.
 uses them:
 
 ```vast
-fn main() -> Int {
-    let left: Nat = 20;
-    let right: Nat = 22;
-    let total: Nat = add(left, right);
-    maximum(nat_to_int(total), 41)
-}
+{{#include ../../examples/dispatch-arithmetic.vast}}
 ```
 
 ```sh
@@ -107,24 +102,7 @@ concrete scalars under them with `subtype`.
 [`examples/abstract-selectors.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-selectors.vast):
 
 ```vast
-// Selector declarations have nominal identity; they do not create values.
-abstract type Numeric <: Number;
-abstract type NaturalNumeric <: Numeric;
-subtype Int <: Numeric;
-subtype Nat <: NaturalNumeric;
-
-// Uninhabited declaration examples, without mathematical axioms or proofs.
-abstract type Variety;
-abstract type Manifold;
-
-generic classify(x) { domain (Nat), (Int); }
-method classify(x: Numeric) -> Int { 0 }
-method classify(x: NaturalNumeric) -> Int { 42 }
-
-fn main() -> Int {
-    let n: Nat = 1;
-    classify(n)
-}
+{{#include ../../examples/abstract-selectors.vast}}
 ```
 
 `NaturalNumeric` inherits from `Numeric`, so its method is more specific for
@@ -141,21 +119,7 @@ winner must have.
 [`examples/abstract-contracts.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast):
 
 ```vast
-abstract type Numeric;
-subtype Nat <: Numeric;
-subtype Int <: Numeric;
-
-generic widen(x) { domain; }
-abstract method widen(x: Numeric) -> Int {
-    domain (Numeric);
-}
-method widen(x: Nat) -> Int { int(x) }
-method widen(x: Int) -> Int { x }
-
-fn main() -> Int {
-    let n: Nat = 20;
-    widen(n) + widen(22)
-}
+{{#include ../../examples/abstract-contracts.vast}}
 ```
 
 The generic's own domain is empty, and the contract's domain `(Numeric)` expands
@@ -190,11 +154,7 @@ calls `promote` directly. Build it with the same three libraries as
 `dispatch-arithmetic.vast`:
 
 ```vast
-fn main() -> Int {
-    let n: Nat = 20;
-    let p: Pair<Int> = promote(n, 22);
-    maximum(add(pair_first(p), pair_second(p)), add(n, -7))
-}
+{{#include ../../examples/promotion.vast}}
 ```
 
 > **What is checked.** The kernel enumerates up to 4,096 argument tuples, which

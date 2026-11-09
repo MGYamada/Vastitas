@@ -1,0 +1,10 @@
+fn main() -> Int {
+    let n: Nat = 3;
+    // A Nat subtraction stops at zero.
+    let floor = n - 5;
+    // `int` embeds a Nat into Int, where a difference can be negative.
+    let below = int(n) - 5;
+    // Unary minus binds more tightly than `*`, and `*` more tightly than `+`.
+    let value = 2 + 3 * -below;
+    if floor == 0 && value == 8 { 42 } else { 0 }
+}

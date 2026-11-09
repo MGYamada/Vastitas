@@ -25,18 +25,20 @@ All forms in this chapter share these productions:
 > ```
 
 A `DeclarationPath` names a declaration in scope, as a `use` path does. A
-`CoordinateName` names a coordinate of an object.
+`CoordinateName` names a coordinate of an object. Each declaration of this
+chapter is an [item](items.md), and `pub` before it makes it visible outside its
+module.
 
 ## The smooth profile
 
 > **Syntax**
 >
 > ```text
-> SmoothImplementation -> `pub`? `indexed` `implementation` IDENTIFIER
+> SmoothImplementation -> `indexed` `implementation` IDENTIFIER
 >     `(` DeclarationPath `,` `smooth_affine` `)` `capabilities` `(` Capabilities? `)` `;`
 > Capabilities -> Capability ( `,` Capability )* `,`?
 > Capability -> `origin` | `dimension`
-> SmoothFamily -> `pub`? `indexed` `family` IDENTIFIER `(` Parameters? `)`
+> SmoothFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
 >     `=` SmoothRepresentation `constraints` `(` Constraints? `)` `;`
 > Parameters -> Parameter ( `,` Parameter )* `,`?
 > Parameter -> `domain` | `marker` | `natural` | `object` `(` DeclarationPath `)`
@@ -118,7 +120,7 @@ pub indexed family MetricForm(object(CInfAffine)) = metric_form constraints(cano
 > **Syntax**
 >
 > ```text
-> AffineSpaceDeclaration -> `pub`? `indexed` `affine` IDENTIFIER `(` DeclarationPath `)`
+> AffineSpaceDeclaration -> `indexed` `affine` IDENTIFIER `(` DeclarationPath `)`
 >     `=` AffineSpace `;`
 > AffineSpace -> `Affine` `(` ( DeclarationPath `,` )? INTEGER_LITERAL `)` `[` Coordinates? `]`
 > Coordinates -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
@@ -153,7 +155,7 @@ Rules:
 - An `indexed global` under a `smooth_affine` implementation is an error
   (`E_SMOOTH`). Every smooth affine object is an `Affine(n)[…]` declaration.
 - In a function body, `Affine(QQ, n)` and `Affine(CInfReal, n)` keep their
-  meaning in the [geometric core](../stage0.md#geometric-core). They build
+  meaning in the [geometric core](geometric-types.md). They build
   descriptor objects, not smooth affine objects.
 
 Example:
@@ -208,7 +210,7 @@ Rules:
 > **Syntax**
 >
 > ```text
-> MorphismDeclaration -> `pub`? `indexed` `morphism` IDENTIFIER `:` DeclarationPath
+> MorphismDeclaration -> `indexed` `morphism` IDENTIFIER `:` DeclarationPath
 >     `<` DeclarationPath ( `,` DeclarationPath )* `>` `=` MorphismDefinition `;`
 > MorphismDefinition -> `pullback` `(` ImageBindings? `)` | `identity`
 >     | `structure` | `first` | `second` | `restrict` `(` DeclarationPath `)`
@@ -265,7 +267,7 @@ E_AFFINE_COORDINATE: unknown coordinate x
 > **Syntax**
 >
 > ```text
-> PrimitiveDeclaration -> `pub`? `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
+> PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
 > PrimitiveBinding -> SmoothMapBinding | FiberBinding | ReverseBinding | MetricBinding
 > SmoothMapBinding -> `smooth_compose` `(` DeclarationPath `)`
 >     | `smooth_equal` `(` DeclarationPath `)`
@@ -470,7 +472,7 @@ E_TYPE: a cotangent pullback mode is saved or recomputed
 > **Syntax**
 >
 > ```text
-> MetricDeclaration -> `pub`? `indexed` `metric` IDENTIFIER `:` DeclarationPath
+> MetricDeclaration -> `indexed` `metric` IDENTIFIER `:` DeclarationPath
 >     `<` DeclarationPath ( `,` DeclarationPath )* `>` `=` GramForm `;`
 > GramForm -> `euclidean` | `gram` `(` GramRows? `)`
 > GramRows -> GramRow ( `,` GramRow )* `,`?
@@ -524,7 +526,7 @@ E_METRIC: the metric `smooth_differential::Skew` is not symmetric: the entries i
 > **Syntax**
 >
 > ```text
-> EvidenceDeclaration -> `pub`? `indexed` `evidence` IDENTIFIER `=` EvidenceKind `(` DeclarationPath `)` `;`
+> EvidenceDeclaration -> `indexed` `evidence` IDENTIFIER `=` EvidenceKind `(` DeclarationPath `)` `;`
 > EvidenceKind -> `nondegenerate` | `riemannian`
 > ```
 

@@ -6,15 +6,13 @@ decides who may add methods to a generic.
 
 ## Modules
 
-A module is either inline or a file. This inline module declares a public
-function, and the root imports it under another name:
+A module is either inline or a file. In
+[`examples/packages/inline-module`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/inline-module)
+an inline module declares a public function, and the root imports it under
+another name:
 
 ```vast
-mod math {
-    pub fn increment(x: Int) -> Int { x + 1 }
-}
-use math::increment as next;
-fn main() -> Int { next(41) }
+{{#include ../../examples/packages/inline-module/main.vast}}
 ```
 
 `mod math;` without a body loads `math.vast` or `math/mod.vast` (having both is
@@ -95,18 +93,12 @@ pub contribution sum : base::choose {
 }
 ```
 
-The application's root module coordinates the edit:
+The application's root module coordinates the edit, in
+[`app/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/edit-borrow/app/main.vast)
+(package `edit_app`):
 
 ```vast
-// app/main.vast (package edit_app)
-assembly {
-  borrow base::integers as edit;
-  apply addon::sum using edit;
-  return edit;
-  seal base::choose;
-}
-
-fn main() -> Int { base::choose(40, 2) }
+{{#include ../../examples/packages/edit-borrow/app/main.vast}}
 ```
 
 ```sh

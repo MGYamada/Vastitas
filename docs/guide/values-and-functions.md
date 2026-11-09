@@ -19,17 +19,7 @@ Integers never overflow. This program from
 multiplies a 30-digit literal:
 
 ```vast
-fn main() -> Int {
-    let value: Int = 123456789012345678901234567890;
-    if twice(21) == 42 && !(3 > 4) {
-        value * 10
-    } else {
-        -1
-    }
-}
-
-// Forward calls are allowed; recursion is not.
-fn twice(x: Int) -> Int { x + x }
+{{#include ../../examples/arithmetic.vast}}
 ```
 
 ```sh
@@ -68,15 +58,11 @@ is typing, not constant folding: variables keep their declared types.
 ## Bindings and blocks
 
 A block holds `let` statements followed by a result expression without a
-semicolon. An empty block returns `Unit`. A `let` annotation is optional:
+semicolon. An empty block returns `Unit`. A `let` annotation is optional, as in
+[`examples/book/expressions/saturating-subtraction.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/expressions/saturating-subtraction.vast):
 
 ```vast
-fn empty() -> Unit {}
-fn main() -> Int {
-    let u: Unit = empty();
-    let n: Nat = 2;
-    if n - 5 == 0 { -42 } else { 1 }
-}
+{{#include ../../examples/book/expressions/saturating-subtraction.vast}}
 ```
 
 This program prints `-42`, because `n - 5` saturates to `0`. A binding cannot
@@ -106,8 +92,10 @@ Lines end in LF or CRLF. Trailing commas are accepted in argument lists and
 package fields. Diagnostics report one-based lines and one-based
 Unicode-scalar columns.
 
-> **What is checked.** The complete scalar typing rules, the source character
-> rules and the parser limits are in the
-> [core language reference](../stage0.md#scalars). The proved type safety of
+> **What is checked.** The scalar typing rules are in
+> [Expressions](../language/expressions.md#literal-expressions), the source
+> character rules in [Lexical structure](../language/lexical-structure.md) and
+> the parser limits in
+> [Appendix D](../appendix/limits.md#parser-and-checker-budgets). The proved type safety of
 > the checked core is in
 > [Verification boundaries](../verification.md#stage-0-source-correspondence-and-type-safety).

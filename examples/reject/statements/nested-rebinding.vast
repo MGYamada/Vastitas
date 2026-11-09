@@ -1,0 +1,8 @@
+fn main() -> Int {
+    let total = 1;
+    let doubled = {
+        let total = 2;
+        total + total
+    };
+    doubled
+}

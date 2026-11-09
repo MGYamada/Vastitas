@@ -26,17 +26,7 @@ implicit bridge between them.
 works in the smooth setting:
 
 ```vast
-fn make_smooth(n: Nat) -> Pointed<CInfScheme, CInfReal> {
-    let X: CInfScheme = Affine(CInfReal, n);
-    pack { scheme: X, point: origin(X) }
-}
-
-fn main() -> Int {
-    let problem = make_smooth(2);
-    unpack problem as { scheme: X, point: p };
-    let result: Point<X, Base(CInfReal)> = apply(id(X), p);
-    if dimension(X) == 2 { 2 } else { -1 }
-}
+{{#include ../../examples/smooth.vast}}
 ```
 
 ```sh
@@ -75,19 +65,7 @@ demo uses the explicit witness and field syntax of indexed packages.
 [`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast):
 
 ```vast
-use std::geometry::scheme as scheme;
-use std::geometry::smooth as smooth;
-
-fn main() -> Int {
-    let ordinary = scheme::pointed(20);
-    let differentiable = smooth::pointed(22);
-    unpack ordinary as { witness: X, fields: [p] };
-    unpack differentiable as { witness: Y, fields: [q] };
-    let px: scheme::Point<X, scheme::BaseQQ> =
-        scheme::apply(scheme::compose(scheme::id(X), scheme::id(X)), p);
-    let qy: smooth::Point<Y, smooth::BaseSmooth> = smooth::apply(smooth::id(Y), q);
-    std::arithmetic::generic::add(int(scheme::dimension(X)), int(smooth::dimension(Y)))
-}
+{{#include ../../examples/packages/stdlib-geometry/main.vast}}
 ```
 
 It prints `42`; [Chapter 1](stdlib.md#using-the-standard-library) has the build
@@ -127,20 +105,7 @@ primitive against its declared representation, domain, arity and capabilities.
 The package root uses the profile through qualified paths:
 
 ```vast
-mod geo;
-
-fn make(n: Nat) -> geo::Pointed<geo::Scheme, geo::QQ> {
-    let X = geo::affine(n);
-    pack geo::Pointed<geo::Scheme, geo::QQ> { witness: X, fields: [geo::origin(X)] }
-}
-
-fn main() -> Int {
-    let packed = make(41);
-    unpack packed as { witness: Y, fields: [p] };
-    let q: geo::Point<Y, geo::Base> = geo::apply(geo::identity(Y), p);
-    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
-    increment(int(geo::dimension(Y)))
-}
+{{#include ../../examples/packages/indexed/main.vast}}
 ```
 
 ```sh

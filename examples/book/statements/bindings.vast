@@ -1,0 +1,13 @@
+fn main() -> Int {
+    let base: Int = 20;
+    let first = {
+        let step = 1;
+        base + step
+    };
+    let second = {
+        // A sibling block may reuse the name `step`.
+        let step = 21;
+        base + step
+    };
+    first + second - base
+}

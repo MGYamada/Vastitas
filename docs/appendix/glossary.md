@@ -269,6 +269,12 @@ of a `let` statement or the type of a parameter for an argument. An integer
 literal has type `Nat` where its expected type is `Nat`, and `Int` otherwise.
 See [Literal expressions](../language/expressions.md#literal-expressions).
 
+## Extent
+
+A size in a `runtime_` statement or type: a literal, or a `Nat` or `Int`
+binding that the program computes. See
+[Runtime extents](../storage/resource-programs.md#runtime-extents).
+
 ## Failure value
 
 The value of a [tangent or cotangent fiber](#tangent-or-cotangent-fiber) family
@@ -553,6 +559,13 @@ compiler checks every package of the graph. See
 A sequence of names separated by `::` that names a declaration, such as
 `std::arithmetic::generic::add`. Its first segment may be `package`, `self`,
 `super` or a dependency alias. See [Names and paths](../language/names-and-paths.md).
+
+## Payload
+
+The value of one cell of storage in a resource statement, written `f64(…)`,
+`complex(…)`, `f64_bits(…)` or `complex_bits(…)`. A payload is an exact
+binary64 value; the compiler never rounds one. See
+[Payloads](../storage/resource-programs.md#payloads).
 
 ## Primitive
 

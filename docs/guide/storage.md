@@ -130,6 +130,6 @@ describes the interface.
 > native runtime repeats its physical preflight before writes. The full
 > contract is in [Resource programs](../storage/resource-programs.md); the
 > design and its performance obligations are in
-> [Storage, ownership and residual retention](../storage-ownership.md). Equivalent-C
+> [Storage and ownership](../storage-ownership.md). Equivalent-C
 > performance acceptance is still open; see the
 > [Stage 1 delivery record](../stage1-completion.md#stage-2-or-later-performance-acceptance).

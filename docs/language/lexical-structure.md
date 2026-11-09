@@ -149,17 +149,29 @@ Rules:
 
 ## Other literals
 
-A **floating-point literal** is a sequence of digits with a decimal point, an
-exponent `e` or `E`, or a suffix `f32` or `f64`, or a hexadecimal literal such
-as `0x1.8p0`. A **string literal** is text between double quotes. Each is a
-token.
+> **Syntax**
+>
+> ```text
+> FLOAT_LITERAL -> DECIMAL_FLOAT | HEX_FLOAT
+> DECIMAL_FLOAT -> ( ASCII_DIGIT+ ( `.` ASCII_DIGIT* )? | `.` ASCII_DIGIT+ ) EXPONENT?
+> EXPONENT -> ( `e` | `E` ) ( `+` | `-` )? ASCII_DIGIT+
+> HEX_FLOAT -> ( `0x` | `0X` ) HEX_DIGIT* ( `.` HEX_DIGIT* )?
+>     ( `p` | `P` ) ( `+` | `-` )? ASCII_DIGIT+
+> HEX_DIGIT -> ASCII_DIGIT | [`a`-`f`] | [`A`-`F`]
+> ```
+
+A **floating-point literal** is a decimal number with a decimal point or an
+exponent, such as `1.5` or `125e-3`, or a hexadecimal number with a binary
+exponent, such as `0x1.8p0`. A **string literal** is text between double
+quotes. Each is a token.
 
 Rules:
 
-- A floating-point literal is valid only as the payload of `f64(…)` or
-  `complex(…)` in a resource program, as
-  [Explicit source contracts](../storage/resource-programs.md#explicit-source-contracts)
-  describes. Elsewhere it is an error (`E_UNSUPPORTED`).
+- A floating-point literal is valid only in a
+  [payload](../storage/resource-programs.md#payloads) of a resource program.
+  Elsewhere it is an error (`E_UNSUPPORTED`).
+- A floating-point literal has no suffix. `1.5f64` in a payload is an error
+  (`E_RESOURCE_LITERAL`).
 - No construct accepts a string literal. A string literal is an error
   (`E_UNSUPPORTED`).
 

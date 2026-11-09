@@ -1,36 +1,22 @@
-# Storage, ownership and residual retention — revised Chapter 7
+# Storage and ownership
 
-The finite Stage 1 compiler implements the ownership profiles mapped in the
-[acceptance record](stage1-acceptance.md). Stage 2 or later owns the remaining
-performance acceptance under [#183](https://github.com/MGYamada/Vastitas/issues/183)
-and the [performance handoff](stage1-completion.md#stage-2-or-later-performance-acceptance).
-The notation below describes required IR behavior, not available surface syntax.
+This chapter states the model of storage that Vastitas programs and their
+compiler follow: what an allocation, a view and a loan are, which accesses may
+coexist, when memory counts as initialized, and what a numerical operation may
+cost. [Resource programs](storage/resource-programs.md) gives the statements
+that programs write, and the numerical chapters give the operations on maps.
+The rules here bind every such statement and every lowering of it, also those
+that later chapters add.
+[Resource checking](internals/resource-checking.md) describes how the compiler
+checks these rules and what is proved about its checks.
 
-The [dense layout/preflight reference](storage/checked-storage.md#storage-layout-preflight) supplies an
-executable integer model, regression cases and proposed Lean obligations for
-the first dense/transpose fragment. It is not production resource acceptance,
-completed Lean soundness, native check elimination or performance evidence.
+## Performance contract
 
-The [internal resource IR](storage/checked-storage.md#storage-ir) now supplies independently checked
-logical transitions, canonical layouts, initialization and branch joins, with
-actual-checker byte-region and active-loan theorems. Its component schema is not
-public protocol 8. Its optional native runtime and
-[internal resource functions](storage/checked-storage.md#storage-functions) exercise allocation, calls,
-destination reuse and failure cleanup. [Protocol 8](storage/resource-programs.md#resource-source) now connects the initial static resource profile
-to package source and pure return blocks, including local nominal real/complex
-GEMM. Bounded partial-write coverage removes redundant input fills in the worked
-numerical examples; its actual-byte theorems and native operation counters are
-recorded in [the resource IR](storage/checked-storage.md#storage-ir). Checked scalar value flow and the
-[whole-map runtime-extent profile](storage/resource-programs.md#runtime-shapes) now connect immutable
-integral dimensions to caller-owned GEMM. [Explicit caches](linalg/networks-and-packing.md#cached-packing)
-and [contraction trees](linalg/networks-and-packing.md#contraction-trees) cover bounded scratch/dependency
-consumers. General shape results, retention/pooling and equivalent-C acceptance
-remain pending.
+### Fast like C
 
-## 7.1 Fast like C: the primary design goal
-
-**Fast like C is Vastitas's highest-priority performance and architecture goal.**
-Mathematical abstraction must admit native code with the storage access, allocation
+**Fast like C** is the performance goal of Vastitas, and it has the highest
+priority among its design goals. It names a C/C++-class target: mathematical
+abstraction must admit native code with the storage access, allocation
 behavior and kernel calls of a competent C implementation of the same computation.
 Performance is a design constraint from the representation boundary onward, not
 an optimization project postponed until after the public interfaces are fixed.
@@ -43,15 +29,64 @@ representation or API and measure again; do not certify a different computation.
 
 Every numerical operation must expose a cost contract: reads, writes, allocation,
 copy/packing, retained bytes, synchronization and data-dependent validation.
-Static identity, type, dispatch and authority evidence should disappear from the
+Static identity, type, dispatch and authority evidence must disappear from the
 hot loop once its obligations have been discharged. Required dynamic dimensions,
 bounds and lifetime information remain until their last justified use.
 
-The goal does not assert current C-level performance. Stage 1 must record actual
-C comparisons and unresolved gaps; AD-specific comparisons follow with AD.
+The goal does not assert that programs reach C-level performance today. Every
+completion claim must record C comparisons and unresolved gaps; comparisons
+for reverse passes follow with them.
 Compiler latency and generated-program runtime are separate measurements.
 
-## 7.2 Four distinct identities and rights
+### Performance evidence and acceptance
+
+Use a competent C baseline with the same algorithm, scalar representation,
+layout, backend/version, thread count, numerical policy and input/output contract.
+Exact integer comparisons use an equivalent arbitrary-precision implementation.
+A naive triple loop is not the baseline for a Vastitas call to optimized BLAS.
+The gate comparator must stand alone: use ordinary allocation and direct backend
+calls, without Vastitas arena preflight, per-call backend configuration checks or
+cost counters in its primary timing loop. Keep a separate arena-C arm to locate
+runtime versus codegen overhead; generated/arena-C ratios cannot establish this
+gate. The [plain-C harness](https://github.com/MGYamada/Vastitas/blob/main/experiments/plain_c/README.md) supplies this third
+arm for the finite public GEMM, packing and contraction-tree profiles. Replay
+its logical costs in a separate diagnostic build and leave unobserved timing
+cost fields blank; do not report them as zero.
+Measure both prepared-kernel execution and the full operation including allocation,
+preflight and packing. Include the checks that each implementation requires;
+do not force the C baseline to repeat Vastitas-specific dynamic checks, or hoist
+Vastitas checks outside its timed scope merely to obtain parity.
+
+| Workload | Required evidence |
+| --- | --- |
+| Elementwise/strided access and transpose views | Runtime, bandwidth, validation count, allocation/copy count |
+| Real/complex GEMM; transpose versus adjoint | Runtime by size, identical backend, adapter overhead, correctness |
+| Repeated destination/scratch reuse | Zero unexpected per-call allocation, stable peak live bytes |
+| Finite contractions and explicit packing | Total runtime, intermediate bytes, packing bytes/time, deterministic schedule |
+| Small calls | Batched measurements, absolute overhead and distribution; not just unstable ratios |
+| Retain/snapshot/recompute (with AD) | Forward/backward runtime, peak retained bytes, copy bytes and replay count |
+
+Record source/IR/native revisions, generated code, C source, compiler flags, CPU,
+OS, allocator, backend, thread configuration, sizes, input generation, warmup and
+raw samples. Alternate measurement order; report distributions and uncertainty.
+Check results and observable outputs so dead-code elimination cannot erase work.
+Include cache-resident and memory-bound sizes and zero-size/stride edge cases.
+
+The initial engineering target for representative bulk workloads taking at least
+1 ms per sample is at most 10% median slowdown against equivalent C on a controlled
+host. This is a provisional acceptance budget, not a claim of measured results or
+a universal theorem. Publish the paired samples and uncertainty; a noisy result
+crossing the budget is inconclusive and requires measurement, not a pass.
+For tiny calls, set and record an absolute overhead budget before accepting them.
+
+Unexpected allocation, hidden copies or asymptotically greater data movement fail
+the cost contract even if one timing sample is favorable. Correctness CI on both
+OSes is mandatory; noisy hosted timing alone is not a performance gate.
+Do not silently widen budgets to accommodate a regression. Resolve the cause or
+record an explicitly reviewed change of target. Unmeasured or materially slower
+paths remain performance gaps and block the corresponding completion claim.
+
+## Identities and rights
 
 | Layer | Identity and right | Does not imply |
 | --- | --- | --- |
@@ -60,14 +95,14 @@ Compiler latency and generated-program runtime are separate measurements.
 | Storage access | Region, initialized cells and read/write loan | Function-edit authority or graph wiring rights |
 | Network occurrence | Fresh occurrence and linear port identities | A fresh allocation or disjoint tensor factors |
 
-Function-edit ownership remains the independent protocol-6 discipline in
-[edit authority](language/edit-authority.md#transfers). Borrowing a function does not borrow its data.
-Creating two occurrences of one immutable tensor creates new ports, not copies.
+Function-edit ownership is the independent discipline of
+[edit authority](language/edit-authority.md). Borrowing a function does not borrow its data.
+Creating two occurrences of one immutable tensor creates fresh ports, not copies.
 The runtime may share immutable descriptors; copying a descriptor does not grant
 mutable authority. A numerical logical value may reuse storage only after all
 dependencies on its previous contents have ended or been explicitly retained.
 
-## 7.3 Allocation and layout records
+## Allocation and layout records
 
 An owned allocation records a fresh identity, live generation, element
 representation, byte capacity, required alignment, allocator/deallocator pair,
@@ -105,7 +140,7 @@ the allocation origin: nonempty `F64` offsets are multiples of 8 bytes and
 8 bytes for binary64 components. Transposition or reborrowing does not authorize
 a half-complex-element reinterpretation; empty views still form no pointer.
 
-## 7.4 Regions, overlap and alias evidence
+## Regions, overlap and alias evidence
 
 A region describes actual accessible byte intervals in one allocation.
 Different live allocations are disjoint. Within one allocation, independently
@@ -129,7 +164,7 @@ their entire access scope. Pairwise checks at one instruction do not authorize
 stronger alias promises for a surrounding function. If the argument is absent,
 omit the attribute; never obtain speed through an invalid native alias contract.
 
-## 7.5 Affine ownership and explicit transitions
+## Ownership and explicit transitions
 
 The resource environment tracks each owned handle, live loan and region state.
 The following operations must be represented and independently checked:
@@ -137,7 +172,7 @@ The following operations must be represented and independently checked:
 | Operation | Required state | Result |
 | --- | --- | --- |
 | Allocate | Checked size/alignment and successful allocation | One live owner; uninitialized region |
-| Move | Live owner; no outstanding loan under the initial profile | New owner binding; old binding unusable |
+| Move | Live owner; no outstanding loan under the initial profile | Fresh owner binding; old binding unusable |
 | Read loan | Live storage; requested cells initialized; no overlapping writer | Shared read access for a bounded scope |
 | Write loan | Live owner; no overlapping active access | Exclusive access, with explicit write-only or read/write mode |
 | Return loan | Matching live loan and all children returned | Access ends; initialization/changes propagate to owner |
@@ -155,7 +190,7 @@ it. The initial profile rejects such escape rather than inventing a lifetime.
 An owned result transfers its owner explicitly. Last use may shorten a loan only
 when the checked resource schedule records that shortening.
 
-## 7.6 Initialization, branches and failure
+## Initialization, branches and failure
 
 Initialization is tracked by region, not one optimistic flag on an allocation.
 A write-only loan may cover uninitialized storage; any read requires initialized
@@ -180,7 +215,7 @@ invalidate the affected output; it cannot return an initialized success value.
 Operations requiring all-or-nothing publication use explicit staging storage and
 commit, with that extra storage and copy charged to their cost contract.
 
-## 7.7 Views, transpose, conjugation and packing
+## Views, transpose, conjugation and packing
 
 A view changes metadata and access rights while retaining allocation provenance.
 A transpose permutes extents/strides and mathematical axes; it normally allocates
@@ -200,10 +235,10 @@ A declared allocating operation is allowed, but allocation must be visible in th
 checked plan. Multiple references to immutable data do not demand element copies.
 Do not erase view provenance merely because the native operation accepts pointers.
 
-## 7.8 Destination passing, scratch and local mutation
+## Destination passing, scratch and local mutation
 
 Support caller-provided destinations and reusable scratch with explicit ownership.
-A numerical kernel's normal fast path should perform no heap allocation after
+A numerical kernel's normal fast path must perform no heap allocation after
 successful preflight when its caller supplied compatible output and workspace.
 Stack allocation, scalar replacement and fusion are representation choices only
 when lifetime, initialization, alias and semantic obligations remain valid.
@@ -211,7 +246,7 @@ when lifetime, initialization, alias and semantic obligations remain valid.
 Scratch has size/alignment requirements and an explicit lifetime ending before
 reuse. Pooling must retain allocator provenance and establish that all loans and
 residual dependencies ended. Uninitialized scratch is not a source operand.
-Loop-invariant layout/alias checks should be hoisted to the enclosing checked
+Loop-invariant layout/alias checks must be hoisted to the enclosing checked
 operation, not repeated for every scalar element.
 
 Local mutation may realize a pure logical operation when no observer or future
@@ -226,9 +261,9 @@ lexical cleanup, followed by the checked tensor contraction. Whole-allocation
 versions and all-join invalidation are conservative; general pooling and retained
 evidence remain open. Its dependency metadata erases before native execution.
 
-## 7.9 The first GEMM contract
+## The GEMM contract
 
-Stage 1 uses `F64` and `Complex<F64>`, column-major LP64, synchronous CPU and
+The GEMM profile uses `F64` and `Complex<F64>`, column-major LP64, synchronous CPU and
 explicit `NativeFast`, with pinned OpenBLAS 0.3.34 behind a thin C adapter.
 The common preflight validates scalar representation, endpoints/bases, dimensions,
 transpose/adjoint flags, leading dimensions, capacities and loan compatibility.
@@ -252,10 +287,10 @@ resource validity does not certify a real-number identity or bitwise portability
 Numerical CI uses one backend thread. Non-numerical programs and the ordinary
 compiler remain usable without linking or installing OpenBLAS.
 
-## 7.10 Reverse residual retention and mutation
+## Residual retention
 
-Residual retention is a forward-compatible design obligation; AD is outside
-Stage 1. Here a residual means saved data for later pullback execution, not a
+Residual retention is a design obligation on every storage-backed reverse
+pass. Here a residual means saved data for later pullback execution, not a
 solver's numerical error estimate. Exclusive writing rights alone cannot prove
 that overwriting a primal is safe for a future backward computation.
 
@@ -277,7 +312,7 @@ Effects, randomness, changed parameters, unstable numerical factorizations or a
 different execution policy do not become replayable merely because the function
 has a pure-looking signature. If the necessary replay equivalence is unavailable,
 retain or snapshot explicitly. Checkpointing is a later planner implementing this
-contract, not an excuse to omit dependencies now.
+contract, not an excuse to omit dependencies.
 
 A one-shot residual is consumed once. A reusable pullback requires a separate
 reusable residual contract with stable shared inputs and explicit workspace on
@@ -288,7 +323,7 @@ dependencies as required by [ADR 0001](adr/0001-mathematics-first-stdlib.md).
 For example, backward execution for `y = x * x` needs the appropriate old `x`.
 Overwriting its uniquely owned buffer with `y` is alias-safe but does not preserve
 that dependency. The plan must retain old `x`, snapshot it, or justify replay;
-the checker must reject a stale residual even if the new value has the same type.
+the checker must reject a stale residual even if the later value has the same type.
 Invariant-bearing geometric/numerical descriptors follow the same dependency rule.
 
 [Compiled reverse Core](appendix/glossary.md#compiled-reverse-core) meets this
@@ -308,9 +343,9 @@ revisions. Compiled reverse Core forms no storage-backed residual, so
 Snapshot and the invalidation checks of this section do not arise for it.
 
 The encoding of a residual has a cost that this contract does not bound, and
-nothing measures it (#222). Each image is an evaluated point: a fresh program
+nothing measures it. Each image is an evaluated point: a fresh program
 node that holds one constant polynomial per coordinate. Every step that reads
-a point evaluates that node again to recover its coordinates as a new list of
+a point evaluates that node again to recover its coordinates as a fresh list of
 rationals, so each intermediate point is read three times: by the next
 forward step and by the two backward steps around it. Each Jacobian step also
 allocates one list per table column, and checks its seed against its output
@@ -321,7 +356,7 @@ reads it. An equivalent C program would keep the coordinates of each point in
 registers or on the stack. Representing residuals as coordinates is a
 follow-up.
 
-## 7.11 Tensor ports and execution scheduling
+## Tensor ports and execution scheduling
 
 Every occurrence creates fresh ports; every finalized port is connected once or
 returned at the boundary under its structural contract. Two occurrences may read
@@ -335,90 +370,21 @@ same storage audit as a direct call. No implicit copy, metric or conjugation may
 be introduced to repair wiring or memory conflicts. Asynchronous execution and
 device transfers remain later profiles with explicit completion/lifetime contracts.
 
-## 7.12 Independent checking and proof boundary
+## Moved sections
 
-Public protocol 8 must carry enough untrusted layout, region, transition and
-dependency information for Lean to reconstruct the resource schedule independently.
-Rust annotations, serialized proof flags, claimed alias facts and alleged
-initialization are not evidence. Reject unsupported fields in older protocols.
+These anchors keep older links working.
 
-Check the actual returned IR at acceptance and again before native generation.
-If optimization changes allocation, fusion, packing, alias scope or retention,
-reconstruct and check the resulting plan. Proofs must refer to that same plan
-and native lowering contract, not a separately hand-constructed resource model.
-
-Required proof obligations are preservation of live ownership, loan compatibility,
-initialized reads, region bounds, scope and dependency validity across admitted
-transitions and joins. Runtime checks establish facts that depend on runtime sizes;
-their evidence cannot be assumed earlier than the successful branch.
-Native ABI, allocator, BLAS, floating-point and hardware behavior remain explicit
-trusted boundaries. None of these resource proofs alone proves C-level speed,
-whole-program mathematical meaning or higher-order differentiation correctness.
-
-## 7.13 Performance evidence and acceptance
-
-Use a competent C baseline with the same algorithm, scalar representation,
-layout, backend/version, thread count, numerical policy and input/output contract.
-Exact integer comparisons use an equivalent arbitrary-precision implementation.
-A naive triple loop is not the baseline for a Vastitas call to optimized BLAS.
-The gate comparator must stand alone: use ordinary allocation and direct backend
-calls, without Vastitas arena preflight, per-call backend configuration checks or
-cost counters in its primary timing loop. Keep a separate arena-C arm to locate
-runtime versus codegen overhead; generated/arena-C ratios cannot establish this
-gate. The [plain-C harness](https://github.com/MGYamada/Vastitas/blob/main/experiments/plain_c/README.md) supplies this third
-arm for the finite public GEMM, packing and contraction-tree profiles. Replay
-its logical costs in a separate diagnostic build and leave unobserved timing
-cost fields blank; do not report them as zero.
-Measure both prepared-kernel execution and the full operation including allocation,
-preflight and packing. Include the checks each implementation actually requires;
-do not force the C baseline to repeat Vastitas-specific dynamic checks, or hoist
-Vastitas checks outside its timed scope merely to obtain parity.
-
-| Workload | Required evidence |
-| --- | --- |
-| Elementwise/strided access and transpose views | Runtime, bandwidth, validation count, allocation/copy count |
-| Real/complex GEMM; transpose versus adjoint | Runtime by size, identical backend, adapter overhead, correctness |
-| Repeated destination/scratch reuse | Zero unexpected per-call allocation, stable peak live bytes |
-| Finite contractions and explicit packing | Total runtime, intermediate bytes, packing bytes/time, deterministic schedule |
-| Small calls | Batched measurements, absolute overhead and distribution; not just unstable ratios |
-| Retain/snapshot/recompute (with AD) | Forward/backward runtime, peak retained bytes, copy bytes and replay count |
-
-Record source/IR/native revisions, generated code, C source, compiler flags, CPU,
-OS, allocator, backend, thread configuration, sizes, input generation, warmup and
-raw samples. Alternate measurement order; report distributions and uncertainty.
-Check results and observable outputs so dead-code elimination cannot erase work.
-Include cache-resident and memory-bound sizes and zero-size/stride edge cases.
-
-The initial engineering target for representative bulk workloads taking at least
-1 ms per sample is at most 10% median slowdown against equivalent C on a controlled
-host. This is a provisional acceptance budget, not a claim of measured results or
-a universal theorem. Publish the paired samples and uncertainty; a noisy result
-crossing the budget is inconclusive and requires measurement, not a pass.
-For tiny calls, set and record an absolute overhead budget before accepting them.
-
-Unexpected allocation, hidden copies or asymptotically greater data movement fail
-the cost contract even if one timing sample is favorable. Correctness CI on both
-OSes is mandatory; noisy hosted timing alone is not a performance gate.
-Do not silently widen budgets to accommodate a regression. Resolve the cause or
-record an explicitly reviewed change of target. Unmeasured or materially slower
-paths remain performance gaps and block the corresponding completion claim.
-
-## 7.14 Delivery and regression obligations
-
-1. Finalize allocation/layout/region IR and explicit cost contracts before public
-   storage APIs. Implement protocol-8 Rust and Lean changes in the same increment.
-2. Reject move-after-use, loan escape, stale generations, overlapping views,
-   noninjective writes, uninitialized reads and incompatible branch resources.
-3. Check native bounds/alignment/narrowing, failure-before-write, partial-write
-   states and scratch release. Include forged raw and checked IR regressions.
-4. Implement destination-passing GEMM and finite network schedules; execute actual
-   source `check`/`build` outputs and compare equivalent C baselines.
-5. Connect actual-checker resource theorems and the final code-generation audit;
-   record every remaining native/semantic assumption in `verification.md`.
-6. Keep residual metadata extensible. AD retention and replay and their proofs
-   remain open; the [Stage 3 roadmap entry](guide/historical-roadmap.md#stage-3-smooth-affine-geometry-and-reverse-ad)
-   tracks them.
-
-The completion record must distinguish implemented checks, regression evidence,
-formal theorems, trusted native behavior and measured performance. This chapter
-defines the required work; it is not evidence that any unchecked item has passed.
+- <a id="71-fast-like-c-the-primary-design-goal"></a>7.1: [Fast like C](#fast-like-c).
+- <a id="72-four-distinct-identities-and-rights"></a>7.2: [Identities and rights](#identities-and-rights).
+- <a id="73-allocation-and-layout-records"></a>7.3: [Allocation and layout records](#allocation-and-layout-records).
+- <a id="74-regions-overlap-and-alias-evidence"></a>7.4: [Regions, overlap and alias evidence](#regions-overlap-and-alias-evidence).
+- <a id="75-affine-ownership-and-explicit-transitions"></a>7.5: [Ownership and explicit transitions](#ownership-and-explicit-transitions).
+- <a id="76-initialization-branches-and-failure"></a>7.6: [Initialization, branches and failure](#initialization-branches-and-failure).
+- <a id="77-views-transpose-conjugation-and-packing"></a>7.7: [Views, transpose, conjugation and packing](#views-transpose-conjugation-and-packing).
+- <a id="78-destination-passing-scratch-and-local-mutation"></a>7.8: [Destination passing, scratch and local mutation](#destination-passing-scratch-and-local-mutation).
+- <a id="79-the-first-gemm-contract"></a>7.9: [The GEMM contract](#the-gemm-contract).
+- <a id="710-reverse-residual-retention-and-mutation"></a>7.10: [Residual retention](#residual-retention).
+- <a id="711-tensor-ports-and-execution-scheduling"></a>7.11: [Tensor ports and execution scheduling](#tensor-ports-and-execution-scheduling).
+- <a id="712-independent-checking-and-proof-boundary"></a>7.12: [Independent checking](internals/resource-checking.md#independent-checking-and-proof-boundary).
+- <a id="713-performance-evidence-and-acceptance"></a>7.13: [Performance evidence and acceptance](#performance-evidence-and-acceptance).
+- <a id="714-delivery-and-regression-obligations"></a>7.14: [Delivery obligations](internals/resource-checking.md#delivery-and-regression-obligations).

@@ -3,6 +3,8 @@
 //! Examples that other tests already exercise end to end are not repeated.
 mod common;
 use common::{Scratch, cli, root, success};
+use std::collections::BTreeSet;
+use std::path::Path;
 use std::process::Command;
 
 const INT: &str = "stdlib/src/arithmetic/int.vast";
@@ -36,6 +38,146 @@ fn documented_build(inputs: &[&str], build_options: &[&str], expected: &str) {
 
 fn documented(inputs: &[&str], expected: &str) {
     documented_build(inputs, &[], expected);
+}
+
+/// The complete programs that the book includes, with their `--lib` inputs
+/// and the output of the built executable. Every program under
+/// `examples/book/` must be listed (docs/development/documentation.md,
+/// Examples).
+const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
+    ("examples/book/programs/hello.vast", &[], "42"),
+    (
+        "examples/book/expressions/saturating-subtraction.vast",
+        &[],
+        "-42",
+    ),
+    ("examples/book/functions/function-values.vast", &[], "42"),
+    (
+        "examples/book/geometric-types/pointed-origin.vast",
+        &[],
+        "42",
+    ),
+    (
+        "examples/arithmetic.vast",
+        &[],
+        "1234567890123456789012345678900",
+    ),
+    ("examples/pointed.vast", &[], "42"),
+    ("examples/pairs.vast", &[], "42"),
+    (
+        "examples/dispatch-arithmetic.vast",
+        &[INT, NAT, GENERIC],
+        "42",
+    ),
+    ("examples/abstract-contracts.vast", &[], "42"),
+    ("examples/functions.vast", &[], "42"),
+    ("examples/smooth.vast", &[], "2"),
+];
+
+/// The package programs that the book includes, by manifest, with the output
+/// of the built executable. Packages that other tests in this file run are
+/// not repeated.
+const BOOK_PACKAGES: &[(&str, &str)] = &[
+    ("examples/packages/inline-module/Vastitas.toml", "42"),
+    ("examples/packages/indexed/Vastitas.toml", "42"),
+    ("examples/packages/stdlib-geometry/Vastitas.toml", "42"),
+    ("examples/packages/storage/app/Vastitas.toml", "42"),
+];
+
+/// The rejected programs that the book includes from `examples/reject/`, with
+/// their `--lib` inputs. `vastitas check`, run from the repository root, must
+/// fail and print exactly the lines of the program's sibling `.stderr` file.
+/// Every program under `examples/reject/` must be listed.
+const BOOK_REJECTIONS: &[(&str, &[&str])] = &[("examples/reject/types/bool-result.vast", &[])];
+
+fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
+    let mut inputs = vec![path];
+    for lib in libs {
+        inputs.extend(["--lib", lib]);
+    }
+    inputs
+}
+
+#[test]
+fn book_programs_print_their_output() {
+    // stdlib-geometry depends on the generated standard-library package.
+    common::prepare_stdlib_package();
+    for (path, libs, expected) in BOOK_PROGRAMS {
+        documented(&with_libs(path, libs), expected);
+    }
+    for (manifest, expected) in BOOK_PACKAGES {
+        documented(&["--manifest-path", manifest], expected);
+    }
+}
+
+#[test]
+fn book_rejections_print_their_diagnostics() {
+    for (path, libs) in BOOK_REJECTIONS {
+        let output = cli()
+            .current_dir(root())
+            .arg("check")
+            .args(with_libs(path, libs))
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1), "{path} must be rejected");
+        let expected = std::fs::read_to_string(root().join(path).with_extension("stderr")).unwrap();
+        assert_eq!(
+            String::from_utf8(output.stderr).unwrap(),
+            expected,
+            "{path}"
+        );
+        assert!(output.stdout.is_empty(), "{path}: no output on stdout");
+    }
+}
+
+fn files_under(directory: &Path, found: &mut Vec<String>) {
+    for entry in std::fs::read_dir(directory).unwrap() {
+        let path = entry.unwrap().path();
+        // Hidden files, such as a desktop's folder metadata, are not examples.
+        if path.file_name().unwrap().to_str().unwrap().starts_with('.') {
+            continue;
+        }
+        if path.is_dir() {
+            files_under(&path, found);
+        } else {
+            let relative = path.strip_prefix(root()).unwrap();
+            found.push(relative.to_str().unwrap().replace('\\', "/"));
+        }
+    }
+}
+
+// The book's example directories hold only the listed programs and the
+// expected diagnostics of the rejected ones, so no program goes untested.
+#[test]
+fn book_examples_are_registered() {
+    let programs: BTreeSet<&str> = BOOK_PROGRAMS.iter().map(|(path, _, _)| *path).collect();
+    let rejections: BTreeSet<&str> = BOOK_REJECTIONS.iter().map(|(path, _)| *path).collect();
+    let mut expected = BTreeSet::new();
+    for path in programs
+        .iter()
+        .filter(|path| path.starts_with("examples/book/"))
+    {
+        expected.insert(path.to_string());
+    }
+    for path in &rejections {
+        assert!(path.starts_with("examples/reject/"), "{path}");
+        expected.insert(path.to_string());
+        expected.insert(path.replace(".vast", ".stderr"));
+    }
+    let mut found = Vec::new();
+    files_under(&root().join("examples/book"), &mut found);
+    files_under(&root().join("examples/reject"), &mut found);
+    let found: BTreeSet<String> = found.into_iter().collect();
+    assert_eq!(
+        found, expected,
+        "files under examples/book/ and examples/reject/"
+    );
+    for (path, _, _) in BOOK_PROGRAMS {
+        assert!(root().join(path).is_file(), "{path}");
+    }
+    for (manifest, _) in BOOK_PACKAGES {
+        assert!(root().join(manifest).is_file(), "{manifest}");
+    }
 }
 
 // docs/stage1a.md: abstract selectors.

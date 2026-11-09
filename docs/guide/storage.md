@@ -57,33 +57,11 @@ data moves.
 
 ## Calling resource functions
 
-The application package receives the owner, lends it out and finally drops it:
+The application package receives the owner, lends it out and finally drops it,
+in [`app/src/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/app/src/main.vast):
 
 ```vast
-// app/src/main.vast
-use buffers::make;
-use buffers::inspect;
-use buffers::round_trip;
-
-generic answer(x) { domain (Int); }
-method answer(x: Number) -> Int { 0 }
-method answer(x: Int) -> Int { x + 1 }
-
-resource fn main() -> Int {
-    call make() -> (data);
-    borrow input = read(data, layout(8, 2, 2, 4, false));
-    call inspect(input) -> ();
-    release(input);
-    call round_trip(data) -> (returned);
-    borrow check_view = read(returned, layout(8, 2, 2, 4, false));
-    call inspect(check_view) -> ();
-    release(check_view);
-    drop(returned);
-    value {
-        let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
-        increment(answer(40))
-    }
-}
+{{#include ../../examples/packages/storage/app/src/main.vast}}
 ```
 
 ```sh

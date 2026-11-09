@@ -98,15 +98,7 @@ object binding, or supplies a natural literal, according to the family's contrac
 Package annotations use `package<domain,marker>`.
 
 ```vast
-fn make(n: Nat) -> geo::Pointed<geo::Scheme, geo::QQ> {
-    let X = geo::affine(n);
-    pack geo::Pointed<geo::Scheme, geo::QQ> { witness: X, fields: [geo::origin(X)] }
-}
-fn main() -> Int {
-    let packed = make(42);
-    unpack packed as { witness: Y, fields: [p] };
-    int(geo::dimension(Y))
-}
+{{#include ../examples/packages/indexed/main.vast}}
 ```
 
 `unpack` introduces a fresh witness identity and binds every field in order.

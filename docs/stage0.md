@@ -7,22 +7,8 @@ The package language and later wire versions build on these compatibility rules.
 
 ## Surface language
 
-```text
-fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
-    let X = Affine(QQ, n);
-    pack { scheme: X, point: origin(X) }
-}
-
-fn keep(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> {
-    apply(id(X), p)
-}
-
-fn main() -> Int {
-    let package = make_origin(3);
-    unpack package as { scheme: X, point: p };
-    let q: Point<X, Base(QQ)> = keep(X, p);
-    if dimension(X) == 3 { 42 } else { 0 }
-}
+```vast
+{{#include ../examples/book/geometric-types/pointed-origin.vast}}
 ```
 
 Functions require parameter and return types. Forward calls are permitted;

@@ -30,13 +30,7 @@ Existing ordinary functions can still accept/return geometric values, and a
 scalar-signature lambda can perform checked geometric operations internally.
 
 ```vast
-fn invoke(callback: Fn<Int, Int>, x: Int) -> Int { callback(x) }
-fn keep(callback: Fn<Int, Int>) -> Fn<Int, Int> { callback }
-fn main() -> Int {
-    let increment = fn(x: Int) -> Int { x + 1 };
-    let alias = keep(increment);
-    invoke(alias, 41)
-}
+{{#include ../examples/book/functions/function-values.vast}}
 ```
 
 Named ordinary functions are also values. Values can be bound, aliased, passed,

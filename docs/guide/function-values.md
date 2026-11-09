@@ -25,18 +25,7 @@ A lambda writes every parameter type and its result type:
 [`examples/functions.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/functions.vast)
 
 ```vast
-fn invoke(f: Fn<Int, Int>, x: Int) -> Int {
-    f(x)
-}
-
-fn keep(f: Fn<Int, Int>) -> Fn<Int, Int> {
-    f
-}
-
-fn main() -> Int {
-    let increment: Fn<Int, Int> = fn(x: Int) -> Int { x + 1 };
-    invoke(keep(increment), 41)
-}
+{{#include ../../examples/functions.vast}}
 ```
 
 ```sh

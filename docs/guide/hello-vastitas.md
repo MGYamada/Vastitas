@@ -2,22 +2,21 @@
 
 ## The smallest program
 
-Every executable program has a function `main` that returns an `Int`:
+Every executable program has a function `main` that returns an `Int`.
+[`examples/book/programs/hello.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/programs/hello.vast)
+holds the smallest one:
 
 ```vast
-fn main() -> Int {
-    42
-}
+{{#include ../../examples/book/programs/hello.vast}}
 ```
 
-A block ends with its result expression, written without a semicolon. Save the
-program and compile it from the repository root:
+A block ends with its result expression, written without a semicolon. Compile
+the program from the repository root:
 
 ```sh
 mkdir -p target
-printf '%s\n' 'fn main() -> Int {' '    42' '}' > target/hello.vast
-target/debug/vastitas check target/hello.vast
-target/debug/vastitas build target/hello.vast -o target/hello
+target/debug/vastitas check examples/book/programs/hello.vast
+target/debug/vastitas build examples/book/programs/hello.vast -o target/hello
 ./target/hello
 ```
 
@@ -46,25 +45,7 @@ is a little larger. It constructs a geometric object, returns it together with a
 point on it, and checks that the point still belongs to that object:
 
 ```vast
-// Construct an object and return its associated point without losing identity.
-fn make_origin(n: Nat) -> Pointed<Scheme, QQ> {
-    let X = Affine(QQ, n);
-    pack { scheme: X, point: origin(X) }
-}
-
-fn preserve(X: Scheme, p: Point<X, Base(QQ)>) -> Point<X, Base(QQ)> {
-    apply(compose(id(X), id(X)), p)
-}
-
-fn main() -> Int {
-    let problem = make_origin(3);
-    unpack problem as { scheme: X, point: x };
-    let y: Point<X, Base(QQ)> = preserve(X, x);
-    let repacked = pack { scheme: X, point: y };
-    unpack repacked as { scheme: Y, point: z };
-    let checked_again = apply(id(Y), z);
-    if dimension(Y) == 3 { 42 } else { 0 }
-}
+{{#include ../../examples/pointed.vast}}
 ```
 
 ```sh
@@ -81,16 +62,26 @@ packages.
 
 ## When the checker says no
 
-Here the declared result is `Int` but the body returns a Boolean:
+In
+[`examples/reject/types/bool-result.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/reject/types/bool-result.vast)
+the declared result is `Int` but the body returns a Boolean:
 
-```sh
-printf '%s\n' 'fn main() -> Int { true }' > target/manual-bad.vast
-target/debug/vastitas check target/manual-bad.vast
+```vast
+{{#include ../../examples/reject/types/bool-result.vast}}
 ```
 
-The process exits unsuccessfully and reports `E_TYPE`. Source diagnostics have
-the form `FILE:LINE:COLUMN: CODE: message`. [Chapter 12](diagnostics-and-cli.md)
-explains how to read them.
+```sh
+target/debug/vastitas check examples/reject/types/bool-result.vast
+```
+
+The process exits unsuccessfully and prints one diagnostic:
+
+```text
+{{#include ../../examples/reject/types/bool-result.stderr}}
+```
+
+Source diagnostics have the form `FILE:LINE:COLUMN: CODE: message`.
+[Chapter 12](diagnostics-and-cli.md) explains how to read them.
 
 > **What is checked.** A missing backend, a protocol mismatch, a semantic error
 > or a failed native build is an error; there is no frontend-only fallback.

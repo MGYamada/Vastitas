@@ -1883,7 +1883,7 @@ No public wire field reaches these declarations yet.
 The sealed three-index `relative` family carries exact pullback maps between
 presented objects. There are six new closed bindings: `relativeConstant`,
 `relativeCompose`, `relativeView`, `relativeEqual`, `relativeCoefficient` and
-`relativeIntPoint`, with Bool, Int and Pair<Int> operand and result types.
+`relativeIntPoint`, with `Bool`, `Int` and `Pair<Int>` operand and result types.
 `VastitasOracle.AffineMorphisms.relativeConstant_sound` proves that an accepted
 morphism has its source's arity and basis, normal-form images of exactly the
 target's coordinates, exact quotient identities for every target basis element

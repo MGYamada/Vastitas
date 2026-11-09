@@ -25,16 +25,7 @@ package directory. Each dependency is a local path to a directory with its own
 here `arithmetic`, is the first component of an import path:
 
 ```vast
-use arithmetic::increment as next;
-mod pipeline {
-    use arithmetic::invoke;
-    pub fn twice(f: Fn<Int, Int>, x: Int) -> Int { invoke(f, invoke(f, x)) }
-}
-fn main() -> Int {
-    let package = 40;
-    let callback: Fn<Int, Int> = if true { next } else { arithmetic::increment };
-    pipeline::twice(callback, package)
-}
+{{#include ../../examples/packages/demo/src/main.vast}}
 ```
 
 Pass the manifest explicitly with `--manifest-path`:
@@ -100,14 +91,7 @@ has `.vast` definitions for `Int` and `Nat` addition, subtraction,
 multiplication, minimum and maximum, plus integer negation and absolute value:
 
 ```vast
-// Compile with --lib stdlib/src/arithmetic/int.vast
-//              --lib stdlib/src/arithmetic/nat.vast
-fn main() -> Int {
-    let answer = int_sub(int_mul(int_add(10, 5), 3), 3);
-    let magnitude = int_abs(int_neg(answer));
-    let remaining: Nat = nat_sub(nat_add(2, 3), 8);
-    if remaining == 0 { magnitude } else { -1 }
-}
+{{#include ../../examples/stdlib-arithmetic.vast}}
 ```
 
 ```sh

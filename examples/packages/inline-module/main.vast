@@ -1,0 +1,5 @@
+mod math {
+    pub fn increment(x: Int) -> Int { x + 1 }
+}
+use math::increment as next;
+fn main() -> Int { next(41) }

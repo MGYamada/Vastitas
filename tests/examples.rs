@@ -46,6 +46,8 @@ fn documented(inputs: &[&str], expected: &str) {
 /// Examples).
 const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
     ("examples/book/programs/hello.vast", &[], "42"),
+    ("examples/book/statements/bindings.vast", &[], "42"),
+    ("examples/book/expressions/operators.vast", &[], "42"),
     (
         "examples/book/expressions/saturating-subtraction.vast",
         &[],
@@ -88,7 +90,15 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
 /// their `--lib` inputs. `vastitas check`, run from the repository root, must
 /// fail and print exactly the lines of the program's sibling `.stderr` file.
 /// Every program under `examples/reject/` must be listed.
-const BOOK_REJECTIONS: &[(&str, &[&str])] = &[("examples/reject/types/bool-result.vast", &[])];
+const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
+    ("examples/reject/types/bool-result.vast", &[]),
+    ("examples/reject/functions/mutual-recursion.vast", &[]),
+    ("examples/reject/statements/nested-rebinding.vast", &[]),
+    ("examples/reject/expressions/chained-comparison.vast", &[]),
+    ("examples/reject/expressions/mixed-integers.vast", &[]),
+    ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
+    ("examples/reject/geometric-types/escaping-point.vast", &[]),
+];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
     let mut inputs = vec![path];

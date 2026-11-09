@@ -92,8 +92,10 @@ Lines end in LF or CRLF. Trailing commas are accepted in argument lists and
 package fields. Diagnostics report one-based lines and one-based
 Unicode-scalar columns.
 
-> **What is checked.** The complete scalar typing rules, the source character
-> rules and the parser limits are in the
-> [core language reference](../stage0.md#scalars). The proved type safety of
+> **What is checked.** The scalar typing rules are in
+> [Expressions](../language/expressions.md#literal-expressions), the source
+> character rules in [Lexical structure](../language/lexical-structure.md) and
+> the parser limits in
+> [Appendix D](../appendix/limits.md#parser-and-checker-budgets). The proved type safety of
 > the checked core is in
 > [Verification boundaries](../verification.md#stage-0-source-correspondence-and-type-safety).

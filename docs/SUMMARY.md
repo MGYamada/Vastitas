@@ -21,7 +21,14 @@
 # Vastitas Reference
 
 - [Notation](language/notation.md)
-- [Core language and compatible geometry syntax](stage0.md)
+- [Lexical structure](language/lexical-structure.md)
+- [Programs](language/programs.md)
+- [Items](language/items.md)
+- [Functions](language/functions.md)
+- [Statements](language/statements.md)
+- [Expressions](language/expressions.md)
+- [Types](language/types.md)
+- [Geometric types](language/geometric-types.md)
 - [Finite dispatch, abstract contracts and promotion](stage1a.md)
 - [Lambdas and static higher-order functions](stage1b.md)
 - [Packages, edit loans and transfer](packages.md)

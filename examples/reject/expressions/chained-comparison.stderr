@@ -1,0 +1,1 @@
+examples/reject/expressions/chained-comparison.vast:2:11: E_PARSE: comparisons cannot be chained; use parentheses or combine comparisons with `&&`

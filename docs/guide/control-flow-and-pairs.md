@@ -73,7 +73,7 @@ appear in a function type such as `Fn<Pair<Int>, Int>`. A lambda with a scalar
 signature may still use pairs internally, as `offset` does above.
 
 > **What is checked.** Conditionals and blocks follow the
-> [core language reference](../stage0.md#surface-language). The pair contract,
+> [expressions reference](../language/expressions.md#if-expressions). The pair contract,
 > including its proof scope, is in
 > [Homogeneous data pairs](../stage1b.md#homogeneous-data-pairs). Pairs reappear
 > as the result of `promote` in [Chapter 4](dispatch.md#promotion-between-nat-and-int).

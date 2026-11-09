@@ -7,6 +7,7 @@ from html.parser import HTMLParser
 import os
 import re
 import subprocess
+import tomllib
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
@@ -19,6 +20,14 @@ ROOT = Path(__file__).resolve().parents[1]
 CONVERTED = frozenset({
     "guide/smooth-geometry.md",
     "language/notation.md",
+    "language/lexical-structure.md",
+    "language/programs.md",
+    "language/items.md",
+    "language/functions.md",
+    "language/statements.md",
+    "language/expressions.md",
+    "language/types.md",
+    "language/geometric-types.md",
     "language/smooth-declarations.md",
     "specifications.md",
     "spec/std-differential.md",
@@ -51,9 +60,26 @@ PARTS = {
 
 REPOSITORY = "MGYamada/Vastitas"
 
-# Token classes that Syntax blocks use before the lexical-structure chapter
-# of the Reference defines them.
-PENDING_TOKEN_CLASSES = frozenset({"IDENTIFIER", "INTEGER_LITERAL"})
+# Nonterminals that Syntax blocks use before the Reference chapter that owns
+# the construct defines them, by that chapter. Remove an entry when its
+# chapter gains the production.
+PENDING_NONTERMINALS = {
+    "Path": "the names-and-paths chapter",
+    "ModuleDeclaration": "the modules chapter",
+    "UseDeclaration": "the modules chapter",
+    "GrantDeclaration": "the edit-authority chapter",
+    "DelegationDeclaration": "the edit-authority chapter",
+    "TransferDeclaration": "the edit-authority chapter",
+    "ContributionDeclaration": "the edit-authority chapter",
+    "AssemblyDeclaration": "the edit-authority chapter",
+    "GenericDeclaration": "stage1a.md",
+    "MethodDeclaration": "stage1a.md",
+    "AbstractMethodDeclaration": "stage1a.md",
+    "AbstractTypeDeclaration": "stage1a.md",
+    "SubtypeDeclaration": "stage1a.md",
+    "IndexedDeclaration": "the geometry-declarations chapter",
+    "ResourceFunction": "storage/resource-programs.md",
+}
 
 
 @dataclass(frozen=True)
@@ -334,7 +360,7 @@ def check_includes(source, chapters, root=ROOT):
 
 # --- Syntax blocks --------------------------------------------------------------
 
-PRODUCTION = re.compile(r"^([A-Za-z][A-Za-z0-9_]*) -> (.*)$")
+PRODUCTION = re.compile(r"^([A-Za-z][A-Za-z0-9_]*) ->(?: (.*))?$")
 TERMINAL = re.compile(r"`([^`]+)`")
 SYMBOL = re.compile(r"\b([A-Z][A-Za-z0-9_]*)\b")
 
@@ -384,7 +410,7 @@ def parser_vocabulary(root):
     return symbols, names
 
 
-def syntax_errors(chapters, source, root, pending=PENDING_TOKEN_CLASSES):
+def syntax_errors(chapters, source, root, pending=frozenset(PENDING_NONTERMINALS)):
     symbols, names = parser_vocabulary(root)
     definitions = {}
     uses = []
@@ -402,6 +428,7 @@ def syntax_errors(chapters, source, root, pending=PENDING_TOKEN_CLASSES):
         for _, productions in blocks:
             for number, production in productions:
                 name, body = PRODUCTION.match(production).groups()
+                body = body or ""
                 where = f"{chapter.path}:{number}"
                 if not illustration:
                     if name in definitions:
@@ -417,6 +444,8 @@ def syntax_errors(chapters, source, root, pending=PENDING_TOKEN_CLASSES):
     for symbol, where in uses:
         if symbol not in definitions and symbol not in pending:
             errors.append(f"{where}: {symbol} has no production in the Vastitas Reference")
+    for symbol in sorted(pending & definitions.keys()):
+        errors.append(f"{definitions[symbol]}: {symbol} is defined; remove it from PENDING_NONTERMINALS")
     return errors, len(definitions)
 
 
@@ -520,6 +549,34 @@ def check_html(directory):
     return pages
 
 
+def redirect_errors(pages, directory, config, source):
+    """Check that every redirect of a retired chapter leads to a rendered page and anchor."""
+    errors = []
+    redirects = config.get("output", {}).get("html", {}).get("redirect", {})
+    for old, new in redirects.items():
+        retired = old.lstrip("/").partition("#")[0]
+        url = urlsplit(new)
+        # The redirect page resolves its target against its own URL.
+        target = ((directory / retired).parent / unquote(url.path)).resolve()
+        if (directory / retired).resolve() not in pages:
+            errors.append(f"book.toml: the redirect page for {old} was not rendered")
+        if (source / retired).with_suffix(".md").exists():
+            errors.append(f"book.toml: {old} redirects a chapter that still exists")
+        if target not in pages:
+            errors.append(f"book.toml: {old} redirects to a missing page {new}")
+        elif url.fragment and url.fragment not in pages[target].anchors:
+            errors.append(f"book.toml: {old} redirects to a missing anchor {new}")
+    return errors, len(redirects)
+
+
+def check_redirects(pages, directory, root=ROOT):
+    config = tomllib.loads((root / "book.toml").read_text(encoding="utf-8"))
+    errors, count = redirect_errors(pages, directory.resolve(), config, root / "docs")
+    if errors:
+        raise ValueError("redirects of retired chapters do not resolve:\n  " + "\n  ".join(errors))
+    print(f"Checked {count} redirects of retired chapters")
+
+
 # A path to a chapter from the repository root, a relative one through `../`,
 # or a link to the chapter on GitHub.
 BOOK_REFERENCE = re.compile(r"(?:(?<=\.\./)|(?<=/(?:blob|tree)/main/)|(?<![\w./-]))"
@@ -576,4 +633,5 @@ if __name__ == "__main__":
     check_includes(source, chapters)
     check_syntax(source, chapters)
     pages = check_html(output)
+    check_redirects(pages, output)
     check_references(pages, ROOT, output)

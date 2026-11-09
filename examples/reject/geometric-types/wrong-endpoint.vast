@@ -1,0 +1,8 @@
+fn main() -> Int {
+    let X = Affine(QQ, 2);
+    let Y = Affine(QQ, 2);
+    let p = origin(X);
+    // X and Y have the same dimension, but they are different objects.
+    let q = apply(id(Y), p);
+    int(dimension(Y))
+}

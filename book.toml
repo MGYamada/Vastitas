@@ -22,3 +22,13 @@ input-404 = ""
 
 [output.html.playground]
 runnable = false
+
+# Retired chapters. Each anchor of a retired page leads to the section that
+# holds its rules; scripts/check_book.py checks every target.
+[output.html.redirect]
+"/stage0.html" = "language/programs.html"
+"/stage0.html#surface-language" = "language/functions.html"
+"/stage0.html#scalars" = "language/types.html#scalar-types"
+"/stage0.html#geometric-core" = "language/geometric-types.html"
+"/stage0.html#compiler-behavior-and-limits" = "appendix/limits.html#parser-and-checker-budgets"
+"/stage0.html#source-libraries" = "language/programs.html#flat-mode"

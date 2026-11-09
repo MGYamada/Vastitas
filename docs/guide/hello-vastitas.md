@@ -87,6 +87,6 @@ Source diagnostics have the form `FILE:LINE:COLUMN: CODE: message`.
 > or a failed native build is an error; there is no frontend-only fallback.
 > The checker's nesting and work budgets are listed in
 > [Compiler limits](../appendix/limits.md). The full command contract is in the
-> [core language reference](../stage0.md#compiler-behavior-and-limits), and the
+> [CLI reference](cli.md), and the
 > proofs about the checked core are in
 > [Verification boundaries](../verification.md#stage-0-source-correspondence-and-type-safety).

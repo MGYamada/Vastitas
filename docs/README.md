@@ -102,7 +102,7 @@ The later parts are references:
 | --- | --- |
 | Install the compiler and run a first program | [Getting Started](guide/getting-started.md) |
 | Learn the language | [Values and functions](guide/values-and-functions.md) and the chapters that follow |
-| Look up a precise rule | [Vastitas Reference](stage0.md) · [Wire protocols](protocol.md) |
+| Look up a precise rule | [Vastitas Reference](language/notation.md) · [Wire protocols](protocol.md) |
 | Inspect an implementation or proof claim | [Architecture](development/architecture.md) · [Verification](verification.md) · [Acceptance evidence](stage1-acceptance.md) |
 | Look up a command, diagnostic or limit | [CLI](guide/cli.md) · [Diagnostics](appendix/diagnostics.md) · [Limits](appendix/limits.md) |
 | Evaluate an independent reference model | [Reference models](appendix/reference-models.md) |

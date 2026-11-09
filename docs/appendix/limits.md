@@ -28,18 +28,18 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 
 | Key | Value | What it bounds | Specified in |
 | --- | --- | --- | --- |
-| `parseNesting` | 64 | Combined type and expression recursive parsing in the frontend | [Core language](../stage0.md#compiler-behavior-and-limits) |
-| `astDepth` | 128 | Syntax-tree depth, including left-associated operator chains | [Core language](../stage0.md#compiler-behavior-and-limits) |
+| `parseNesting` | 64 | Combined type and expression recursive parsing in the frontend | [Budgets](#parser-and-checker-budgets) |
+| `astDepth` | 128 | Syntax-tree depth, including left-associated operator chains | [Budgets](#parser-and-checker-budgets) |
 | `moduleNesting` | 64 | Logical module nesting | [Modules and paths](../packages.md#modules-and-paths) |
 | `packageNesting` | 64 | Dependency nesting | [Modules and paths](../packages.md#modules-and-paths) |
 | `typeNesting` | 64 | Nesting of a declared type | Kernel source |
-| `sourceNesting` | 512 | Recursive decoding steps in the protocol decoder | [Core language](../stage0.md#compiler-behavior-and-limits) |
+| `sourceNesting` | 512 | Recursive decoding steps in the protocol decoder | [Budgets](#parser-and-checker-budgets) |
 | `namespaceNesting` | 1024 | Recursion of the namespace checker through a function body | Kernel source |
 | `captureDiagnostic` | 8192 | Traversal used to locate a capture violation for its diagnostic | Kernel source |
-| `bodyChecking` | 4096 | Depth of one checking path through a function body or function instance | [Core language](../stage0.md#compiler-behavior-and-limits) · [Specialization](../stage1b.md#checking-and-specialization) |
+| `bodyChecking` | 4096 | Depth of one checking path through a function body or function instance | [Budgets](#parser-and-checker-budgets) · [Specialization](../stage1b.md#checking-and-specialization) |
 | `elaborationWork` | 1,000,000 | Aggregate elaboration units per pass | [Specialization](../stage1b.md#checking-and-specialization) |
 | `resourceWork` | 32,000,000 | Weighted units across all resource probes and the executable entry | [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work) |
-| `generatedLets` | 4096 | Generated Lean `let` bindings per function. A function whose compiled reverse Core would exceed it keeps its reverse passes as calls of the [runtime reverse pass](glossary.md#runtime-reverse-pass) | [Core language](../stage0.md#compiler-behavior-and-limits) |
+| `generatedLets` | 4096 | Generated Lean `let` bindings per function. A function whose compiled reverse Core would exceed it keeps its reverse passes as calls of the [runtime reverse pass](glossary.md#runtime-reverse-pass) | [Budgets](#parser-and-checker-budgets) |
 | `reverseLeaves` | 256 | Maps of one reverse pass that the compilation into Core reads through `let`s and `compose`; a map beyond it is one [opaque step](glossary.md#opaque-step), pulled back by the runtime reverse pass | [Kernel source](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
 | `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Specialization](../stage1b.md#checking-and-specialization) |
 | `dispatchKeys` | 4096 | Argument tuples enumerated for one generic | [Dispatch](../stage1a.md#selection-and-whole-program-checking) |
@@ -107,6 +107,30 @@ factorization and their checks. A larger entry is an error (`E_LIMIT`). See
 | --- | --- | --- |
 | `metricEntryBits` | 512 | Bits of the numerator and of the denominator of one elaborated Gram entry |
 
+## Parser and checker budgets
+
+The frontend parses types and expressions recursively, to a combined depth of
+64 levels (`parseNesting`). A syntax tree has a depth of at most 128 nodes
+(`astDepth`), including a chain of left-associated operators. A standalone
+`if`/`else if` chain has at most 62 conditions, and the expressions around a
+chain use the same nesting budget. The protocol decoder takes at most 512
+recursive decoding steps (`sourceNesting`).
+
+The kernel checks the body of each function with 4096 units of fuel
+(`bodyChecking`). The fuel bounds the depth of one path through the body, not a
+total count. Each nested expression, each later statement of a block and each
+argument of a call of a defined function uses one unit along its own path. The
+kernel checks sibling subexpressions with the same remaining fuel: both
+operands, both branches, the fields of `pack` and the arguments of generic and
+primitive calls.
+
+`check` and `build` also allow at most 4096 generated Lean `let` bindings in
+one function (`generatedLets`), counted over all branches and nested
+expressions. A source `let` contributes one binding and an `unpack` three.
+Exceeding a budget of this section is an error (`E_LIMIT`). The generated Lean
+sets `maxRecDepth` to 32768 and `maxHeartbeats` to 2000000. Tests cover these
+limits. They do not protect a build against failures of its environment.
+
 "Kernel source" means the limit is enforced in
 [`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)
 but not yet described elsewhere in this book.
@@ -129,8 +153,8 @@ A reused source file consumes the byte budget again.
 
 | Bound | Value | Specified in |
 | --- | --- | --- |
-| Conditions in one standalone `if`/`else if` chain | 62 | [Core language](../stage0.md#compiler-behavior-and-limits) |
-| Generated Lean `maxRecDepth` / `maxHeartbeats` | 32768 / 2000000 | [Core language](../stage0.md#compiler-behavior-and-limits) |
+| Conditions in one standalone `if`/`else if` chain | 62 | [Budgets](#parser-and-checker-budgets) |
+| Generated Lean `maxRecDepth` / `maxHeartbeats` | 32768 / 2000000 | [Budgets](#parser-and-checker-budgets) |
 | Function-specialization worklist requests per pass | 2,000,000 | [Specialization](../stage1b.md#checking-and-specialization) |
 | Storage plan nodes and traversal depth | 4096 each | [Checked storage](../storage/checked-storage.md#storage-ir) |
 | Resource definitions, parameters/results each, initialized regions per owned type, source statements | 4096, 64, 64, 4096 | [Resource functions](../storage/checked-storage.md#storage-functions--all-body-checking-and-exact-expansion) |

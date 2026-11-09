@@ -36,24 +36,28 @@ The expression on the right uses the following notation.
 | x+ | `` ( `,` Type )+ `` | One or more x |
 | ( x ) | `` ( `as` IDENTIFIER )? `` | Grouping |
 | x except y | `IDENTIFIER except ReservedName` | Anything that x matches and y does not match; y is one item or a group |
+| [`a`-`z`] | `` [`0`-`9`] `` | One character in the range, inclusive |
 
 The postfix operators `?`, `*` and `+` apply to the item immediately before
 them. A sequence binds more tightly than `|`, and `except` applies to the
 single item before it. Parentheses group items.
 
-The productions do not mention whitespace or comments, which may separate any
-two tokens.
+Productions whose name is in UPPER_CASE define token classes and other lexical
+forms in terms of characters. The other productions are in terms of tokens,
+and they do not mention whitespace or comments, which may separate any two
+tokens. [Lexical structure](lexical-structure.md) defines the tokens.
 
 ## Syntax blocks
 
 A Syntax block is a quoted block that starts with **Syntax** and holds the
 productions in a code block labelled `text`. For example, a `use` declaration
-in a package has this syntax:
+in a package has this syntax, apart from the `pub` that may precede any
+[item](items.md):
 
 > **Syntax**
 >
 > ```text
-> UseDeclaration -> `pub`? `use` UsePath ( `as` IDENTIFIER )? `;`
+> UseDeclaration -> `use` UsePath ( `as` IDENTIFIER )? `;`
 > UsePath -> PathSegment ( `::` PathSegment )*
 > PathSegment -> IDENTIFIER | `generic`
 > ```

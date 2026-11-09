@@ -225,7 +225,7 @@ class SyntaxTests(Fixture):
     def errors(self, chapters):
         write(self.source, chapters)
         listed = [Chapter(name, name, "reference" if name.startswith("language/") else "guide") for name in chapters]
-        return check_book.syntax_errors(listed, self.source, self.root, pending=frozenset())[0]
+        return check_book.syntax_errors(listed, self.source, self.root, pending=frozenset({"Pending"}))[0]
 
     BLOCK = """
         > **Syntax**
@@ -269,10 +269,53 @@ class SyntaxTests(Fixture):
         found = self.errors({"language/items.md": "> **Syntax**\n>\n> ```text\n> A function declaration\n> ```\n"})
         self.assertIn("not a production", found[0])
 
+    def test_a_defined_nonterminal_leaves_the_pending_list(self):
+        found = self.errors({"language/items.md": "> **Syntax**\n>\n> ```text\n> Pending -> `fn`\n> ```\n"})
+        self.assertEqual(found, ["language/items.md:4: Pending is defined; remove it from PENDING_NONTERMINALS"])
+
     def test_the_real_parser_vocabulary_is_found(self):
         symbols, names = check_book.parser_vocabulary(check_book.ROOT)
         self.assertTrue({"->", "::", "(", ";", "^"} <= symbols)
         self.assertTrue({"fn", "pub", "use", "indexed", "generic"} <= names)
+
+
+class RedirectTests(Fixture):
+    def setUp(self):
+        super().setUp()
+        self.output = (self.root / "book").resolve()
+        write(self.output, {"old.html": "<p>Redirecting</p>", "language/new.html": '<h2 id="rules">Rules</h2>'})
+        self.source = self.root / "docs"
+        write(self.source, {"language/new.md": "# New\n"})
+        self.pages = {path: check_book.Page(path) for path in self.output.rglob("*.html")}
+
+    def errors(self, redirects):
+        config = {"output": {"html": {"redirect": redirects}}}
+        return check_book.redirect_errors(self.pages, self.output, config, self.source)[0]
+
+    def test_a_redirect_leads_to_a_page_and_anchor(self):
+        self.assertEqual(self.errors({"/old.html": "language/new.html",
+                                      "/old.html#a": "language/new.html#rules"}), [])
+
+    def test_a_broken_redirect_fails(self):
+        self.assertEqual(self.errors({"/old.html#a": "language/new.html#absent",
+                                      "/old.html#b": "language/absent.html",
+                                      "/gone.html": "language/new.html"}), [
+            "book.toml: /old.html#a redirects to a missing anchor language/new.html#absent",
+            "book.toml: /old.html#b redirects to a missing page language/absent.html",
+            "book.toml: the redirect page for /gone.html was not rendered",
+        ])
+
+    def test_a_redirect_target_is_relative_to_the_retired_page(self):
+        write(self.output, {"guide/old.html": "<p>Redirecting</p>"})
+        self.pages = {path: check_book.Page(path) for path in self.output.rglob("*.html")}
+        self.assertEqual(self.errors({"/guide/old.html": "../language/new.html#rules"}), [])
+        self.assertEqual(self.errors({"/guide/old.html": "language/new.html"}),
+                         ["book.toml: /guide/old.html redirects to a missing page language/new.html"])
+
+    def test_a_redirect_must_not_hide_a_chapter(self):
+        write(self.source, {"old.md": "# Old\n"})
+        self.assertEqual(self.errors({"/old.html": "language/new.html"}),
+                         ["book.toml: /old.html redirects a chapter that still exists"])
 
 
 class LinkTests(Fixture):

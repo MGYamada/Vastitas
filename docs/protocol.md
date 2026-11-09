@@ -26,6 +26,26 @@ is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.
 Package requests never fall back to protocol 2. Other versions are rejected.
 
+## Protocol selection
+
+The driver selects the protocol of a request from the declarations that the
+source contains. In flat mode it uses protocol 2, or protocol 4 when the
+program declares abstract types, subtypes or abstract methods. In manifest
+mode it takes the first match of this list:
+
+1. any grant, delegation or transfer, or a presented affine declaration of
+   [Presented affine geometry](affine-geometry.md): protocol 9;
+2. resource functions, or an indexed implementation other than an affine
+   descriptor: protocol 8;
+3. other indexed declarations, or a `geometry_compat` export: protocol 7;
+4. `reborrow` or `transfer` events in an assembly: protocol 6;
+5. contributions or an assembly: protocol 5;
+6. abstract declarations: protocol 4;
+7. none of these: protocol 3.
+
+A root package without an assembly selects an empty edit trace; the kernel
+still validates every grant and checks every unapplied contribution.
+
 Package-only protocol 9 retains that complete protocol-8 envelope and composition,
 and replaces `grantee_source` with `grantee_package: String` in `grants`,
 `delegations` and `transfers`. `grantee_path` remains an ordered list of module
@@ -40,8 +60,10 @@ New source recipient declarations select protocol 9 even without resources;
 pure-only emits return both optional-runtime flags as false. Protocols 5–8 retain
 `grantee_source` and reject `grantee_package`; protocol 9 rejects `grantee_source`
 even alongside the new field. Earlier versions retain their strict schemas.
-Source migration and the explicit geometry compatibility requirement are described
-in [edit borrowing](packages.md#edit-borrowing--migrating-recipients-for-v010).
+[Source migrations](appendix/history.md#source-migrations) describes the
+source migration, and
+[Geometry compatibility exports](packages.md#geometry-compatibility-exports)
+the explicit geometry compatibility requirement.
 
 <a id="protocol-9-algebraic-affine-forms"></a>
 
@@ -501,6 +523,21 @@ specializations and the final core. Protocol 2 keeps its flat namespace.
 The namespace audit re-resolves recorded references and checks exact method
 owners before calling the existing surface acceptance path.
 
+A request admits at most 1,000,000 member visits across all import
+declarations. The kernel also limits the sum of the wire price of the request
+and the namespace queries in its independent body passes to 4,000,000 units.
+The wire price counts syntax nodes, path components and the largest
+reconstructed import cost for each matching spelling. It charges matching
+strings as well as references, omits diagnostic spans and prices import
+declarations separately. Public resource programs include both additional
+pure-fragment passes. Either aggregate limit produces `E_LIMIT`; the per-path
+limit and the target, visibility and cycle checks of every import still apply.
+A body-checking pass caches successful unqualified import aliases under their
+full package, module and spelling; each cache hit pays for the same member
+visits as the original lookup. The
+[matched compiler measurements](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-namespace-work-budget/RESULTS.md)
+cover single-use chains, repeated references and the aggregate limits.
+
 `E_VISIBILITY` identifies private access or a nonpublic reexport; `E_OWNER`
 identifies unauthorized method extension, including ordinary functions.
 `E_CYCLE` identifies package or import cycles. Existing duplicate, name,
@@ -561,7 +598,7 @@ concrete winners retain the existing dispatch diagnostics.
 Protocol 5 extends the protocol-4 package envelope, requires `input: "package"`,
 and retains all package identities, declarations, hierarchy and unresolved paths.
 Inputs without edit declarations continue to use versions 2/3/4. There is no
-cached or pre-approved assembly input. See [edit borrowing](packages.md#edit-borrowing)
+cached or pre-approved assembly input. See [edit borrowing](language/edit-authority.md)
 for the source contract and proof boundary.
 
 Each module additionally permits `grants: [Grant...]`,
@@ -600,6 +637,9 @@ The resulting executable surface uses the common function lowerer and core audit
 
 The shared limits allow 4096 assembly events, 4096 contribution methods in the
 whole closure, and 4096 ground functions in the separate unapplied-body audit.
+Every per-event state and transition audit runs; the audits of one trace share
+a 200,000,000-unit budget, charged before each audit, and exhaustion reports
+`E_LIMIT`.
 Existing per-family key, hierarchy, type-depth and specialization bounds remain.
 No digest in this same input proves filesystem or author authenticity.
 
@@ -630,7 +670,7 @@ namespace, membership, final dispatch, footprint, all-body and Core audits.
 The original function identity never changes. A returned loan or transfer
 preserves contributions and unresolved completion obligations. The final
 winning region is contained in every ancestor's grant, and transfer requires
-no outstanding loans. See [source semantics](packages.md#edit-authority) and
+no outstanding loans. See [source semantics](language/edit-authority.md#transfers) and
 [the proof boundary](verification.md#edit-authority-acceptance-protocol-6).
 
 ## Protocol 7: indexed declarations and rich package bodies

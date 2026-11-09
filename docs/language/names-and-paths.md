@@ -1,0 +1,94 @@
+# Names and paths
+
+A **path** names a declaration, also in another module or package. This
+chapter defines paths, how a name resolves to a declaration, and which
+declarations a module may name. Paths with `::` exist only in
+[manifest mode](programs.md#manifest-mode). In flat mode every name is one
+identifier in the single namespace of the program.
+
+> **Syntax**
+>
+> ```text
+> Path -> PathSegment ( `::` PathSegment )*
+> PathSegment -> IDENTIFIER | `generic`
+> ```
+
+## Resolution
+
+The module in which a path occurs is its **current module**. The first segment
+of a path is resolved in the current module, and each later segment in the
+module that the segment before it names.
+
+| First segment | Resolves to |
+| --- | --- |
+| `package` | The root module of the current package |
+| `self` | The current module |
+| `super` | The parent of the current module. Each further `super` goes up one more level |
+| A dependency alias | The root module of that dependency |
+| Another name | A binding, a declaration of the current module, or a name that a `use` of the current module binds |
+
+A name without `::`, a **bare name**, resolves among the bindings in scope, the
+declarations of the current module, the names that its `use` declarations
+bind, and the [built-in functions](expressions.md#built-in-functions). The
+names of a parent module are not in scope in a child module. A path through
+`super` or `package` reaches them.
+
+Rules:
+
+- A name or path segment that resolves to nothing is an error (`E_NAME`).
+- A dependency alias may only begin a path. Only the direct dependencies of a
+  package have aliases in it. A path that begins with a dependency of a
+  dependency is an error (`E_NAME`), unless the package declares that name
+  itself.
+- `package`, `self` and `super` have their meaning only as the first segment of
+  a path with `::`. A function, a parameter or a binding may be named
+  `package`. A module or a `use` alias named `package` is an error
+  (`E_RESERVED`), and a dependency alias must not be named `package`, as
+  [Manifests](../packages.md#manifests) says.
+- `generic` may be a segment, as in `std::arithmetic::generic::promote`. It
+  remains a strict keyword, so `use` must give a module named `generic` an
+  alias: `use std::arithmetic::generic as arithmetic;`.
+- The order of declarations and `use` declarations does not change how a name
+  resolves.
+- Resolution has work limits, which
+  [Appendix D](../appendix/limits.md#checker-limits) lists. Exceeding one is an
+  error (`E_LIMIT`).
+
+In this program the root module imports `increment` from the dependency
+`arithmetic` under the name `next`, and the module `pipeline` names `invoke`
+through the same dependency:
+
+```vast
+{{#include ../../examples/packages/demo/src/main.vast}}
+```
+
+The executable prints `42`. `package` is a binding here, because it does not
+begin a path with `::`.
+
+## Visibility
+
+A declaration with `pub` is **public**. A declaration without `pub` is
+**private**: it is visible in its declaring module and in the descendants of
+that module. A module is a declaration of its parent, so a module is public or
+private in the same way.
+
+Rules:
+
+- Each declaration that a path passes through outside the modules where it is
+  visible must be public: every module on the path, and the declaration that
+  the path names. A private one is an error (`E_VISIBILITY`).
+- A call through a path gets the same checks as a `use` of that path.
+- `self` and `super` do not change visibility. A path that begins with them is
+  checked like any other path.
+- Visibility allows naming and calling a declaration. It never allows adding
+  methods to a generic, as [Edit authority](edit-authority.md) says.
+
+Here `area` is private in the module `geometry`, and `main` is outside it:
+
+```vast
+{{#include ../../examples/reject/packages/private-function/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/private-function.stderr}}
+```

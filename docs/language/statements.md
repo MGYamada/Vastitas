@@ -26,15 +26,15 @@ Rules:
   an error (`E_DUPLICATE`). The language has no shadowing.
 - A binding with the name of a function, a generic or an abstract type is an
   error (`E_SHADOW`). In manifest mode, so is a binding with the name of a
-  module, an import or a dependency of its module, as
-  [Modules and paths](../packages.md#modules-and-paths) describes.
+  module, an import or a dependency of its package, the names that
+  [Names of items](items.md#names-of-items) lists.
 - A binding with a [reserved name](lexical-structure.md#reserved-names) is an
   error (`E_RESERVED`).
 - Blocks that do not contain one another may bind the same name. The two
   branches of an `if` are such blocks.
 
 A lambda has stricter rules for the names it binds, which
-[Lambdas](../stage1b.md#syntax-and-values) gives.
+[Lambdas](../stage1b.md#lambdas-and-their-names) gives.
 
 In this program the two blocks bind `step` once each:
 

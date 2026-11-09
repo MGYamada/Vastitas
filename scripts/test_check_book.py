@@ -203,8 +203,13 @@ class IncludeTests(Fixture):
         write(self.source, {"guide/a.md": "```vast\n{{#include ../../examples/book/a.vast}}\n```\n"})
         chapters = [Chapter("A", "guide/a.md", "guide")]
         check_book.check_includes(self.source, chapters, self.root)
-        write(self.root, {"examples/book/.DS_Store": "metadata"})
+        write(self.root, {"examples/book/.DS_Store": "metadata",
+                          "examples/reject/packages/p/Vastitas.toml": "[package]\n"})
         check_book.check_includes(self.source, chapters, self.root)
+        write(self.root, {"examples/book/Vastitas.toml": "[package]\n"})
+        with self.assertRaisesRegex(ValueError, "examples/book/Vastitas.toml: no chapter includes"):
+            check_book.check_includes(self.source, chapters, self.root)
+        (self.root / "examples/book/Vastitas.toml").unlink()
         write(self.root, {"examples/reject/b.vast": "fn main() -> Int { true }\n"})
         with self.assertRaisesRegex(ValueError, "examples/reject/b.vast: no chapter includes this example"):
             check_book.check_includes(self.source, chapters, self.root)

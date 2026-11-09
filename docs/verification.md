@@ -1017,7 +1017,7 @@ instances are memoized in a separate map; active membership uses a set, and
 completion pops the stack and erases the key without filtering the entire stack.
 Signature-probe and executable passes have separate state. Type shape checks do
 not count a synthesized Fn wrapper toward the 64-level declared-type limit.
-See [the indexing regression and measurement notes](stage1b.md#stage1b-indexing).
+See [the indexing regression and measurement notes](internals/checking-pipeline.md#history).
 
 Run the axiom audit of every kernel and oracle module with the build sequence in
 [Validate the compiler and proofs](development/validation.md); it needs every

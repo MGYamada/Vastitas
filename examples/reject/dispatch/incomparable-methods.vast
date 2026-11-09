@@ -1,0 +1,5 @@
+generic describe(x) { domain (Int); }
+// The first method has the narrower selector, the second the stronger
+// condition, so neither is more specific at (Nat) or at (Int).
+method describe(x: Number) -> Int { 1 }
+method describe(x: Any) -> Int requires (HasOrder) { 2 }

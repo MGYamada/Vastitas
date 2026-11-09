@@ -88,6 +88,6 @@ Rules:
 ```
 
 The executable prints `42`.
-[Lambdas and static higher-order functions](../stage1b.md) gives the rules
+[Function values](../stage1b.md) gives the rules
 for function values, among them the rule that every call has one static
 target.

@@ -88,9 +88,10 @@ instance of a higher-order function. Each instance has its own body-checking
 budget.
 Exceeding a limit is `E_LIMIT`, and the whole input is rejected.
 
-> **What is checked.** The static target rule, both checking passes and every
-> budget are specified in
-> [Independent lambdas and static higher-order functions](../stage1b.md#checking-and-specialization).
+> **What is checked.** The static target rule is specified in
+> [Function values](../stage1b.md#static-targets), and both checking passes and
+> every budget in
+> [Checking pipeline](../internals/checking-pipeline.md#function-specialization).
 > The oracle proves capture freedom, static signature consistency, and typing,
 > dependency order and termination of the returned core. Operational
 > correspondence from source lambdas through specialization is not proved; see

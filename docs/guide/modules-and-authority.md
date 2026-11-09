@@ -114,11 +114,11 @@ region.
 Further delegation moves authority on: a borrower can reborrow a nested loan,
 and an owner can permanently transfer edit authority without changing the
 function's identity. Both are described in
-[Nested edit loans and permanent authority transfer](../packages.md#edit-authority).
+[Edit authority](../language/edit-authority.md#transfers).
 
 > **What is checked.** Lean rebuilds the package graph and assigns every owner
-> itself; the frontend supplies no trusted owner or target. The full rules and
-> the proof boundary are in
-> [Path packages and logical modules](../packages.md#validation-and-boundary) and
-> [Scoped edit borrowing](../packages.md#edit-borrowing). Acceptance proofs are in
+> itself; the frontend supplies no trusted owner or target. The full rules are
+> in [Names and paths](../language/names-and-paths.md),
+> [Modules](../language/modules.md), [Packages](../packages.md) and
+> [Edit authority](../language/edit-authority.md). Acceptance proofs are in
 > [Verification boundaries](../verification.md#package-namespace-acceptance).

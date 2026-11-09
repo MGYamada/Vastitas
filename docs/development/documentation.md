@@ -16,7 +16,7 @@ parts:
 | --- | --- | --- |
 | Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md`, `affine-geometry.md` |
 | Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
-| How the compiler is checked | Architecture, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
+| How the compiler is checked | Architecture, checking pipeline, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `internals/`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
 | Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` |
 
 File paths stay stable when a chapter moves between parts, because tests,
@@ -81,8 +81,9 @@ The book is built with mdBook 0.5.4 and its MathML is checked in the generated H
 ## Author and retire a chapter
 
 1. Put teaching chapters under `guide/`, Vastitas Reference chapters under
-   `language/`, appendix pages under `appendix/` and contributor procedures
-   under `development/`. Reference chapters that predate `language/`, such as
+   `language/`, chapters on how the compiler works under `internals/`,
+   appendix pages under `appendix/` and contributor procedures under
+   `development/`. Reference chapters that predate `language/`, such as
    `stage1a.md` and `packages.md`, keep their paths. Link each retained
    chapter once from `docs/SUMMARY.md`. The Introduction links to the
    historical-stage guide and the main reader paths. A teaching chapter uses
@@ -155,7 +156,8 @@ next rewrite.
 ### Examples
 
 - Put every complete program in a file under `examples/book/<construct>/`, or
-  use a tested package under `examples/packages/`. Pull it into
+  use a program that `tests/examples.rs` already builds and runs: a package
+  under `examples/packages/` or one of the flat programs under `examples/`. Pull it into
   the chapter with the mdBook
   [`include` directive](https://rust-lang.github.io/mdBook/format/mdbook.html#including-files),
   so that the book shows the tested text. Mark a part of a file with
@@ -170,6 +172,10 @@ next rewrite.
   `vastitas check` prints for it from the repository root. Include both files,
   so that the chapter shows the diagnostic that the compiler prints. Do not
   paraphrase the diagnostic.
+- Put a rejected package in `examples/reject/packages/<name>/` and list the
+  directory in `BOOK_REJECTED_PACKAGES`. `<name>.stderr` next to the directory
+  holds the lines of `vastitas check --manifest-path`, with the repository root
+  removed from file names. A chapter need not include the manifest.
 
 ### What stays out
 
@@ -236,9 +242,9 @@ The two compiler scaling CSV files remain attached to their reported revision.
 
 | Former subjects | Current home |
 | --- | --- |
-| Abstract selectors, promotion policy and proofs | [Finite dispatch](../stage1a.md#abstract-types) |
-| Old-checker indexing measurements | [Functions and indexing evidence](../stage1b.md#stage1b-indexing) |
-| Edit grants, nested reborrowing and permanent transfer | [Package authority](../packages.md#edit-borrowing) |
+| Abstract selectors, promotion policy and proofs | [Abstract types](../stage1a.md#abstract-types) |
+| Old-checker indexing measurements | [Functions and indexing evidence](../internals/checking-pipeline.md#history) |
+| Edit grants, nested reborrowing and permanent transfer | [Package authority](../language/edit-authority.md) |
 | Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |
 | Public resource statements and runtime shapes | [Resource programs](../storage/resource-programs.md) |

@@ -73,9 +73,10 @@ than the [input limits](../appendix/limits.md#input-limits).
 >     | `requires` | `return` | `subtype` | `true` | `type` | `unpack` | `while`
 > ```
 
-A **strict keyword** has a fixed meaning, and it is never an identifier. Five
-of them, `return`, `while`, `for`, `loop` and `mut`, name constructs that the
-language does not have. Other words act as keywords only at the places where a
+A **strict keyword** has a fixed meaning, and it is never an identifier. Four
+of them, `while`, `for`, `loop` and `mut`, name constructs that the language
+does not have, and `return` occurs only as an event of an
+[assembly](edit-authority.md#assemblies). Other words act as keywords only at the places where a
 construct's syntax spells them, and they are identifiers elsewhere. Examples
 are `pub`, `use`, `mod`, `indexed`, `resource`, `scheme`, `point`, `witness`
 and `fields`.
@@ -100,13 +101,14 @@ use, apart from the exceptions that the rules give. These names are reserved:
 
 | Names | Reserved for |
 | --- | --- |
-| `Nat`, `Int`, `Bool`, `Unit`, `Pair`, `Fn`, `Any`, `Number` | [Types](types.md) and [dispatch selectors](../stage1a.md#selectors-and-capabilities) |
+| `Nat`, `Int`, `Bool`, `Unit`, `Pair`, `Fn`, `Any`, `Number` | [Types](types.md) and [dispatch selectors](../stage1a.md#method-declarations) |
 | `Scheme`, `CInfScheme`, `Point`, `Morphism`, `Pointed` | [Geometric types](geometric-types.md) |
 | `QQ`, `CInfReal` | [Coefficient markers](geometric-types.md#settings-and-markers) |
 | `int`, `pair`, `pair_first`, `pair_second` | [Built-in functions](expressions.md#built-in-functions) |
 | `Affine`, `Base`, `origin`, `id`, `compose`, `apply`, `dimension` | [Geometric operations](geometric-types.md#operations) |
 | Every name that begins with `__vastitas_` | Names that the compiler generates |
-| `mod`, `use`, `pub`, `self`, `super`, in [manifest mode](programs.md#manifest-mode) | [Modules and paths](../packages.md#modules-and-paths) |
+| `mod`, `use`, `pub`, `self`, `super`, in [manifest mode](programs.md#manifest-mode) | [Modules](modules.md) |
+| `package`, as the name of a module, a `use` alias or a dependency alias | [Names and paths](names-and-paths.md#resolution) |
 
 Rules:
 
@@ -171,7 +173,7 @@ matches, so `<=` is one token, not `<` followed by `=`.
 | `+` `-` `*` `!` `&&` `\|\|` | [Operators](expressions.md#operator-expressions) |
 | `==` `!=` `<` `<=` `>` `>=` | Comparisons, and `<` `>` around type arguments |
 | `->` | Result types, image bindings and resource calls |
-| `::` | [Paths](../packages.md#modules-and-paths) |
+| `::` | [Paths](names-and-paths.md) |
 | `<:` | [Abstract types and subtypes](../stage1a.md#abstract-types) |
 | `(` `)` `{` `}` `[` `]` | Delimiters |
 | `,` `:` `;` `=` | Separators |

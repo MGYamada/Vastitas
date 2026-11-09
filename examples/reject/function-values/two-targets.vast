@@ -1,0 +1,8 @@
+fn choose(flag: Bool) -> Fn<Int, Int> {
+    // Two lambdas are two definitions, so the call below has two targets.
+    if flag { fn(x: Int) -> Int { x + 1 } } else { fn(x: Int) -> Int { x - 1 } }
+}
+
+fn main() -> Int {
+    choose(true)(41)
+}

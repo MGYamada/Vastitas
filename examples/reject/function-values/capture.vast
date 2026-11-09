@@ -1,0 +1,6 @@
+fn main() -> Int {
+    let offset = 2;
+    // A lambda cannot refer to `offset`; pass it as a parameter instead.
+    let shift = fn(x: Int) -> Int { x + offset };
+    shift(40)
+}

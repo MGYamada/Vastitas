@@ -98,7 +98,16 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/expressions/mixed-integers.vast", &[]),
     ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
+    ("examples/reject/dispatch/incomparable-methods.vast", &[]),
+    ("examples/reject/function-values/capture.vast", &[]),
+    ("examples/reject/function-values/two-targets.vast", &[]),
 ];
+
+/// The rejected packages that the book includes from `examples/reject/packages/`,
+/// by directory. `vastitas check --manifest-path <directory>/Vastitas.toml`,
+/// run from the repository root, must fail and print exactly the lines of
+/// `<directory>.stderr`, with the repository root removed from file names.
+const BOOK_REJECTED_PACKAGES: &[&str] = &["examples/reject/packages/private-function"];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
     let mut inputs = vec![path];
@@ -140,6 +149,32 @@ fn book_rejections_print_their_diagnostics() {
     }
 }
 
+#[test]
+fn book_rejected_packages_print_their_diagnostics() {
+    for directory in BOOK_REJECTED_PACKAGES {
+        let manifest = format!("{directory}/Vastitas.toml");
+        let output = cli()
+            .current_dir(root())
+            .args(["check", "--manifest-path", &manifest])
+            .output()
+            .unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{directory} must be rejected"
+        );
+        assert!(output.stdout.is_empty(), "{directory}: no output on stdout");
+        // The driver prints canonical paths, so remove both spellings of the
+        // root: a checkout reached through a symbolic link differs.
+        let mut stderr = String::from_utf8(output.stderr).unwrap();
+        for prefix in [root().to_path_buf(), root().canonicalize().unwrap()] {
+            stderr = stderr.replace(&format!("{}/", prefix.display()), "");
+        }
+        let expected = std::fs::read_to_string(root().join(format!("{directory}.stderr"))).unwrap();
+        assert_eq!(stderr, expected, "{directory}");
+    }
+}
+
 fn files_under(directory: &Path, found: &mut Vec<String>) {
     for entry in std::fs::read_dir(directory).unwrap() {
         let path = entry.unwrap().path();
@@ -173,6 +208,16 @@ fn book_examples_are_registered() {
         assert!(path.starts_with("examples/reject/"), "{path}");
         expected.insert(path.to_string());
         expected.insert(path.replace(".vast", ".stderr"));
+    }
+    for directory in BOOK_REJECTED_PACKAGES {
+        assert!(
+            directory.starts_with("examples/reject/packages/"),
+            "{directory}"
+        );
+        let mut files = Vec::new();
+        files_under(&root().join(directory), &mut files);
+        expected.extend(files);
+        expected.insert(format!("{directory}.stderr"));
     }
     let mut found = Vec::new();
     files_under(&root().join("examples/book"), &mut found);
@@ -228,7 +273,7 @@ fn stdlib_arithmetic() {
     );
 }
 
-// docs/packages.md: `demo` builds against the `arithmetic` library package,
+// docs/packages.md (Commands): `demo` builds against the `arithmetic` library package,
 // which has no entry point and is checked on its own.
 #[test]
 fn arithmetic_and_demo_packages() {
@@ -249,7 +294,7 @@ fn arithmetic_and_demo_packages() {
     );
 }
 
-// docs/packages.md: edit borrowing.
+// docs/language/edit-authority.md: grants, contributions and assemblies.
 #[test]
 fn edit_borrow_package() {
     documented(
@@ -261,7 +306,7 @@ fn edit_borrow_package() {
     );
 }
 
-// docs/packages.md: edit authority.
+// docs/language/edit-authority.md: delegations and transfers.
 #[test]
 fn edit_authority_package() {
     documented(

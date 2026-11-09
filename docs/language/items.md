@@ -21,18 +21,19 @@ only inside the bodies of items.
 | Item | Begins with | Flat mode | Rules |
 | --- | --- | --- | --- |
 | Function | `fn` | Yes | [Functions](functions.md) |
-| Generic | `generic` | Yes | [Finite dispatch](../stage1a.md#declarations) |
-| Method | `method` | Yes | [Finite dispatch](../stage1a.md#declarations) |
+| Generic | `generic` | Yes | [Generic declarations](../stage1a.md#generic-declarations) |
+| Method | `method` | Yes | [Method declarations](../stage1a.md#method-declarations) |
 | Abstract type | `abstract type` | Yes | [Abstract types](../stage1a.md#abstract-types) |
 | Subtype | `subtype` | Yes | [Abstract types](../stage1a.md#abstract-types) |
-| Abstract method | `abstract method` | Yes | [Abstract method contracts](../stage1a.md#abstract-method-contracts) |
-| Module | `mod` | No | [Modules and paths](../packages.md#modules-and-paths) |
-| Import | `use` | No | [Modules and paths](../packages.md#modules-and-paths) |
+| Abstract method | `abstract method` | Yes | [Abstract methods](../stage1a.md#abstract-methods) |
+| Module | `mod` | No | [Module declarations](modules.md#module-declarations) |
+| Import | `use` | No | [`use` declarations](modules.md#use-declarations) |
 | Indexed declaration | `indexed` | No | [Indexed source](../indexed-source.md#declarations-and-source-example), [smooth declarations](smooth-declarations.md) |
 | Resource function | `resource fn` | No | [Resource programs](../storage/resource-programs.md) |
-| Grant, delegation | `grant`, `delegation` | No | [Edit borrowing](../packages.md#edit-borrowing), [delegation](../packages.md#explicit-delegation) |
-| Transfer | `transfer` | No | [Permanent transfer](../packages.md#permanent-transfer) |
-| Contribution, assembly | `contribution`, `assembly` | No | [Edit borrowing](../packages.md#source-declarations) |
+| Grant, delegation | `grant`, `delegation` | No | [Grants and delegations](edit-authority.md#grants-and-delegations) |
+| Transfer | `transfer` | No | [Transfers](edit-authority.md#transfers) |
+| Contribution | `contribution` | No | [Contributions](edit-authority.md#contributions) |
+| Assembly | `assembly` | No | [Assemblies](edit-authority.md#assemblies) |
 
 Rules:
 
@@ -45,11 +46,9 @@ Rules:
 
 ## Visibility
 
-In manifest mode, `pub` makes an item visible outside the module that declares
-it.
-An item without `pub` is private to its module.
-[Visibility and ownership](../packages.md#visibility-and-ownership) gives the
-rules.
+In manifest mode, `pub` makes an item public, and an item without `pub` is
+private. [Visibility](names-and-paths.md#visibility) says where public and
+private items are visible.
 
 Rules:
 

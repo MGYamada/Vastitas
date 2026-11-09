@@ -1,0 +1,4 @@
+[package]
+name = "private_function"
+version = "0.1.0"
+root = "main.vast"

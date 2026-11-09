@@ -39,7 +39,8 @@ Rules:
   (`E_MANIFEST`).
 - A dependency path must name a directory that holds a `Vastitas.toml`.
   Another path is an error (`E_INPUT`).
-- A dependency alias must not collide with a declaration or a `use` of the root
+- Every module of a package may begin a path with a dependency alias of the
+  package. An alias must not collide with a declaration or a `use` of any
   module of its package (`E_DUPLICATE`).
 
 ## The package graph
@@ -126,7 +127,7 @@ are separate chapters. These anchors keep older links working.
 - <a id="finite-abstract-declarations"></a>Finite abstract declarations: [Abstract types](stage1a.md#abstract-types).
 - <a id="explicit-edit-authority"></a><a id="edit-borrowing"></a><a id="scoped-edit-borrowing-and-validated-assemblies"></a>Edit borrowing: [Edit authority](language/edit-authority.md).
 - <a id="source-declarations"></a>Source declarations: [Grants and delegations](language/edit-authority.md#grants-and-delegations), [Contributions](language/edit-authority.md#contributions) and [Assemblies](language/edit-authority.md#assemblies).
-- <a id="edit-borrowing--migrating-recipients-for-v010"></a>Migrating recipients: [Source migrations](appendix/history.md#source-migrations).
+- <a id="edit-borrowing--migrating-recipients-for-v010"></a><a id="migrating-recipients-for-v010"></a>Migrating recipients: [Source migrations](appendix/history.md#source-migrations).
 - <a id="state-and-completion"></a>State and completion: [Assemblies](language/edit-authority.md#assemblies) and [Sealing](language/edit-authority.md#sealing).
 - <a id="wire-extension"></a>Wire extension: [Scoped edits and assembly](protocol.md#protocol-5-scoped-edits-and-assembly).
 - <a id="edit-authority"></a><a id="nested-edit-loans-and-permanent-authority-transfer"></a>Nested loans and transfer: [Edit authority](language/edit-authority.md).

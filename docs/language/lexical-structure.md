@@ -107,7 +107,8 @@ use, apart from the exceptions that the rules give. These names are reserved:
 | `int`, `pair`, `pair_first`, `pair_second` | [Built-in functions](expressions.md#built-in-functions) |
 | `Affine`, `Base`, `origin`, `id`, `compose`, `apply`, `dimension` | [Geometric operations](geometric-types.md#operations) |
 | Every name that begins with `__vastitas_` | Names that the compiler generates |
-| `mod`, `use`, `pub`, `self`, `super`, in [manifest mode](programs.md#manifest-mode) | [Modules and paths](names-and-paths.md) |
+| `mod`, `use`, `pub`, `self`, `super`, in [manifest mode](programs.md#manifest-mode) | [Modules](modules.md) |
+| `package`, as the name of a module, a `use` alias or a dependency alias | [Names and paths](names-and-paths.md#resolution) |
 
 Rules:
 

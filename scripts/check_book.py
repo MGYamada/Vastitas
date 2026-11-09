@@ -346,7 +346,7 @@ def check_includes(source, chapters, root=ROOT):
         for file in sorted((root / directory).rglob("*")):
             hidden = any(part.startswith(".") for part in file.relative_to(root).parts)
             # A rejected package's manifest is part of the test, not of the text.
-            if file.name == "Vastitas.toml":
+            if file.name == "Vastitas.toml" and file.is_relative_to(root / "examples/reject/packages"):
                 continue
             if file.is_file() and not hidden and Path(os.path.normpath(file)) not in included:
                 errors.append(f"{file.relative_to(root)}: no chapter includes this example")

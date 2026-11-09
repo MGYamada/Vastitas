@@ -41,7 +41,10 @@ Rules:
   dependency is an error (`E_NAME`), unless the package declares that name
   itself.
 - `package`, `self` and `super` have their meaning only as the first segment of
-  a path with `::`. `package` is otherwise an ordinary identifier.
+  a path with `::`. A function, a parameter or a binding may be named
+  `package`. A module or a `use` alias named `package` is an error
+  (`E_RESERVED`), and a dependency alias must not be named `package`, as
+  [Manifests](../packages.md#manifests) says.
 - `generic` may be a segment, as in `std::arithmetic::generic::promote`. It
   remains a strict keyword, so `use` must give a module named `generic` an
   alias: `use std::arithmetic::generic as arithmetic;`.

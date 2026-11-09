@@ -67,7 +67,7 @@ let c = a + 5;           // Nat: the literal takes the type of a
 
 A path expression names a parameter, a binding or a function. A path with `::`
 names a declaration of another module, as
-[Modules and paths](names-and-paths.md) describes. The value of a
+[Names and paths](names-and-paths.md) describes. The value of a
 function name is the function, as [Function values](functions.md#function-values)
 describes. A coefficient marker is a value only where
 [Settings and markers](geometric-types.md#settings-and-markers) allows it, and a
@@ -161,7 +161,7 @@ fn sign(x: Int) -> Int {
 A call whose callee is the name of a function, a generic or a
 [built-in function](#built-in-functions) calls it. [Calls](functions.md#calls)
 gives the rules for functions, and
-[Finite dispatch](../stage1a.md#selection) the rules
+[Selection](../stage1a.md#selection) the rules
 for generics. Any other callee is an expression whose value is a function, and
 the call applies that function to the arguments.
 
@@ -296,7 +296,7 @@ A lambda expression is an anonymous function. Its value has the
 [function type](types.md#function-types) of its parameters and result, as in
 `fn(x: Int) -> Int { x + 1 }`, of type `Fn<Int, Int>`. A lambda refers only to
 its own parameters and bindings and to items.
-[Lambdas and static higher-order functions](../stage1b.md) gives the rules on
+[Function values](../stage1b.md#lambdas-and-their-names) gives the rules on
 captures and shadowing, and the rules for calls of function values.
 
 Rules:

@@ -36,23 +36,23 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `sourceNesting` | 512 | Recursive decoding steps in the protocol decoder | [Budgets](#parser-and-checker-budgets) |
 | `namespaceNesting` | 1024 | Recursion of the namespace checker through a function body | Kernel source |
 | `captureDiagnostic` | 8192 | Traversal used to locate a capture violation for its diagnostic | Kernel source |
-| `bodyChecking` | 4096 | Depth of one checking path through a function body or function instance | [Budgets](#parser-and-checker-budgets) · [Specialization](../stage1b.md#specialization) |
-| `elaborationWork` | 1,000,000 | Aggregate elaboration units per pass | [Specialization](../stage1b.md#specialization) |
+| `bodyChecking` | 4096 | Depth of one checking path through a function body or function instance | [Budgets](#parser-and-checker-budgets) · [Function specialization](../internals/checking-pipeline.md#function-specialization) |
+| `elaborationWork` | 1,000,000 | Aggregate elaboration units per pass | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
 | `resourceWork` | 32,000,000 | Weighted units across all resource probes and the executable entry | [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work) |
 | `generatedLets` | 4096 | Generated Lean `let` bindings per function. A function whose compiled reverse Core would exceed it keeps its reverse passes as calls of the [runtime reverse pass](glossary.md#runtime-reverse-pass) | [Budgets](#parser-and-checker-budgets) |
 | `reverseLeaves` | 256 | Maps of one reverse pass that the compilation into Core reads through `let`s and `compose`; a map beyond it is one [opaque step](glossary.md#opaque-step), pulled back by the runtime reverse pass | [Kernel source](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
-| `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Specialization](../stage1b.md#specialization) |
+| `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
 | `dispatchKeys` | 4096 | Argument tuples enumerated for one generic | [Dispatch](../stage1a.md#selection) |
 | `dispatchArity` | 6 | Generic arity; the seventh argument would exceed 4,096 tuples | [Dispatch](../stage1a.md#selection) |
 | `dispatchWork` | 16,000,000 | Dispatch-table work for one generic family, charged before the work runs | [Wire protocols](../protocol.md) |
 | `nominalTypes` | 64 | Nominal types, including `Nat`, `Int`, `Bool`, `Unit`, `Number` and `Any` | [Abstract selectors](../stage1a.md#abstract-types) |
-| `namespaceResolution` | 4096 | Member work for one path resolution | [Names and paths](../language/names-and-paths.md#resolution) |
-| `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Names and paths](../language/names-and-paths.md#resolution) |
-| `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Names and paths](../language/names-and-paths.md#resolution) |
+| `namespaceResolution` | 4096 | Member work for one path resolution | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
+| `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
+| `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
 | `dependencyGraph` | 4096 | Units for traversing the package dependency graph | Kernel source |
-| `assemblyEvents` | 4096 | Events in an edit assembly | [Assemblies](../language/edit-authority.md#assemblies) |
-| `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Assemblies](../language/edit-authority.md#assemblies) |
-| `contributionMethods` | 4096 | Methods in one contribution | [Assemblies](../language/edit-authority.md#assemblies) |
+| `assemblyEvents` | 4096 | Events in an edit assembly | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
+| `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
+| `contributionMethods` | 4096 | Methods in all contributions of the package graph | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 
 ### Exact affine algebra (Stage 2)
 
@@ -155,7 +155,7 @@ A reused source file consumes the byte budget again.
 | --- | --- | --- |
 | Conditions in one standalone `if`/`else if` chain | 62 | [Budgets](#parser-and-checker-budgets) |
 | Generated Lean `maxRecDepth` / `maxHeartbeats` | 32768 / 2000000 | [Budgets](#parser-and-checker-budgets) |
-| Function-specialization worklist requests per pass | 2,000,000 | [Specialization](../stage1b.md#specialization) |
+| Function-specialization worklist requests per pass | 2,000,000 | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
 | Storage plan nodes and traversal depth | 4096 each | [Checked storage](../storage/checked-storage.md#storage-ir) |
 | Resource definitions, parameters/results each, initialized regions per owned type, source statements | 4096, 64, 64, 4096 | [Resource functions](../storage/checked-storage.md#storage-functions--all-body-checking-and-exact-expansion) |
 | Events in one contraction-tree plan | 1024 | [Contraction trees](../linalg/networks-and-packing.md#contraction-trees) |

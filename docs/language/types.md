@@ -18,7 +18,7 @@ Rules:
   not define is an error (`E_UNSUPPORTED`), unless it names an
   [indexed type](#indexed-types) in manifest mode.
 - Parameters of a method may also have selector types, such as `Number` and
-  `Any`, which [Finite dispatch](../stage1a.md#method-declarations)
+  `Any`, which [Method declarations](../stage1a.md#method-declarations)
   describes. Selector types are not types of values.
 
 ## Scalar types
@@ -123,7 +123,7 @@ function types.
 In manifest mode, a program declares its own families of types with `indexed`
 declarations. An **indexed type** applies such a family to its arguments, as in
 `geo::Point<X, geo::Base>`. Its family and its arguments are paths, as
-[Modules and paths](names-and-paths.md) describes. `Object<D, M>` is the type of an object of the
+[Names and paths](names-and-paths.md) describes. `Object<D, M>` is the type of an object of the
 domain `D` with the coefficient marker `M`.
 [Indexed source](../indexed-source.md#declarations-and-source-example) and
 [Smooth affine declarations](smooth-declarations.md) give the families and

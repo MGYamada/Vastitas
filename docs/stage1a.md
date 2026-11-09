@@ -22,10 +22,11 @@ time.
 
 `generic add(left, right) { domain (Int, Int), (Nat, Nat); }` declares the
 generic `add` with two parameters. A **key** is a tuple of scalar types, one per
-parameter. The **domain** lists the keys at which callers may call the generic:
-`domain;` is the empty domain, and `domain ();` the single key of a generic
-without parameters. The abstract methods of the generic add keys to its
-domain, as [Abstract methods](#abstract-methods) describes.
+parameter. The **domain** of the declaration lists keys at which callers may
+call the generic: `domain;` is the empty domain, and `domain ();` the single
+key of a generic without parameters. The **callable domain** of the generic is
+its domain together with the keys of its abstract methods, as
+[Abstract methods](#abstract-methods) describes.
 
 Rules:
 
@@ -37,8 +38,8 @@ Rules:
 - A generic has at most six parameters, because the compiler enumerates every
   key of its parameters, at most 4096. A seventh parameter is an error
   (`E_LIMIT`).
-- The name of a generic is not a value (`E_TYPE`). A function that calls the
-  generic is a value.
+- A generic is not a function value, as
+  [Path expressions](language/expressions.md#path-expressions) says.
 
 ## Method declarations
 
@@ -117,10 +118,10 @@ Rules:
 - At every key of all scalar types, not only at the keys of the domain, the
   applicable methods must not have two incomparable best methods. Such a key
   is an error (`E_DISPATCH_AMBIGUOUS`).
-- Every key of the domain must have a winner. A key without one is an error
-  (`E_DISPATCH_COVERAGE`).
+- Every key of the callable domain must have a winner. A key without one is an
+  error (`E_DISPATCH_COVERAGE`).
 - The compiler checks the body of every method at every key at which it
-  applies, also where it never wins and outside the domain.
+  applies, also where it never wins and outside the callable domain.
 - The compiler infers the types of the arguments of a call before it selects a
   method. An integer literal argument therefore has type `Int`, and the
   expected type of a call never selects a method.
@@ -136,7 +137,7 @@ at `(Nat, Int)`, where `left < right` is an error. Write separate methods for
 
 Neither method below is more specific than the other: the first has the
 narrower selector, the second the stronger requirement. They are ambiguous at
-every key of `Number`, also outside the domain:
+every key of `Number`, also outside the callable domain:
 
 ```vast
 {{#include ../examples/reject/dispatch/incomparable-methods.vast}}
@@ -164,12 +165,13 @@ values and adds no conversions.
 
 Rules:
 
-- A parent must be `Any`, `Number` or an abstract type in scope. Another name is
-  an error (`E_NAME`).
+- A parent must be `Any`, `Number` or an abstract type in scope. An unknown name
+  is an error (`E_NAME`), and a scalar type as a parent is an error
+  (`E_TYPE`).
 - The abstract types must not form a cycle, and no abstract type may be its own
   parent (`E_HIERARCHY`).
-- A `subtype` must name one of the four scalar types and an abstract type of
-  the program. It must not change the relations between the built-in types,
+- A `subtype` must name one of the four scalar types (`E_TYPE`) and an
+  abstract type of the program. It must not change the relations between the built-in types,
   such as placing `Bool` under `Number` (`E_HIERARCHY`), and it must not edit
   a built-in type itself (`E_OWNER`).
 - A name, a parent of one abstract type or a membership must not be declared
@@ -207,12 +209,11 @@ members; they carry no mathematical axioms.
 > ContractKey -> `(` ( Path ( `,` Path )* `,`? )? `)`
 > ```
 
-An **abstract method** has no body. It adds keys to the domain of its generic
-and fixes the result type that the winner at those keys must have. The keys of
+An **abstract method** has no body. It adds keys to the callable domain of its
+generic and fixes the result type that the winner at those keys must have. The keys of
 its domain may name selectors, and each one stands for every key of scalar
 types that it accepts: `(Numeric, Bool)` stands for `(Nat, Bool)` and
-`(Int, Bool)` when `Numeric` holds `Nat` and `Int`. The **callable domain** of
-a generic is the union of its domain and the keys of its abstract methods.
+`(Int, Bool)` when `Numeric` holds `Nat` and `Int`.
 
 Rules:
 
@@ -223,13 +224,12 @@ Rules:
   `domain;` is an empty contract.
 - At each key of an abstract method, the winner's result type must equal the
   abstract method's result type, also `Pair<Nat>` versus `Pair<Int>`
-  (`E_CONTRACT_RESULT`). Every key of the callable domain needs a winner
-  (`E_DISPATCH_COVERAGE`).
+  (`E_CONTRACT_RESULT`).
 - Keys that several clauses or several abstract methods share count once.
 - An abstract method never wins and never runs.
 - In manifest mode, only the module that defines the generic may declare its
-  abstract methods (`E_OWNER`). An abstract method has no visibility, and `pub`
-  before it is an error (`E_PARSE`).
+  abstract methods (`E_OWNER`). An abstract method has no visibility, as
+  [Visibility](language/items.md#visibility) says.
 
 ```vast
 {{#include ../examples/abstract-contracts.vast}}
@@ -274,6 +274,7 @@ These anchors keep older links working.
 - <a id="selectors-and-capabilities"></a>Selectors and capabilities: [Method declarations](#method-declarations).
 - <a id="selection-and-whole-program-checking"></a>Selection and whole-program checking: [Selection](#selection).
 - <a id="standard-library-and-use"></a>Standard library and use: [Promotion](#promotion).
+- <a id="scope"></a>Scope: the introduction of this chapter and [Checking pipeline, History](internals/checking-pipeline.md#history).
 - <a id="finite-abstract-scalar-selectors-and-contracts"></a>Finite abstract scalar selectors and contracts: [Abstract types](#abstract-types).
 - <a id="abstract-method-contracts"></a>Abstract method contracts: [Abstract methods](#abstract-methods).
 - <a id="inherited-membership-authority"></a>Inherited membership authority: [Abstract types](#abstract-types).

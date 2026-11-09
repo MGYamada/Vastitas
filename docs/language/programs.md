@@ -75,7 +75,7 @@ The executable prints `42`.
 ## Manifest mode
 
 In manifest mode the manifest names a root source file, and the
-[modules](names-and-paths.md) of each package form a tree under
+[modules](modules.md) of each package form a tree under
 it. Names are visible across modules through `use` imports and `pub`
 visibility. [Packages](../packages.md) gives the rules.
 

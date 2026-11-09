@@ -163,10 +163,13 @@ fn book_rejected_packages_print_their_diagnostics() {
             Some(1),
             "{directory} must be rejected"
         );
-        let prefix = format!("{}/", root().display());
-        let stderr = String::from_utf8(output.stderr)
-            .unwrap()
-            .replace(&prefix, "");
+        assert!(output.stdout.is_empty(), "{directory}: no output on stdout");
+        // The driver prints canonical paths, so remove both spellings of the
+        // root: a checkout reached through a symbolic link differs.
+        let mut stderr = String::from_utf8(output.stderr).unwrap();
+        for prefix in [root().to_path_buf(), root().canonicalize().unwrap()] {
+            stderr = stderr.replace(&format!("{}/", prefix.display()), "");
+        }
         let expected = std::fs::read_to_string(root().join(format!("{directory}.stderr"))).unwrap();
         assert_eq!(stderr, expected, "{directory}");
     }
@@ -270,7 +273,7 @@ fn stdlib_arithmetic() {
     );
 }
 
-// docs/packages.md: `demo` builds against the `arithmetic` library package,
+// docs/packages.md (Commands): `demo` builds against the `arithmetic` library package,
 // which has no entry point and is checked on its own.
 #[test]
 fn arithmetic_and_demo_packages() {
@@ -291,7 +294,7 @@ fn arithmetic_and_demo_packages() {
     );
 }
 
-// docs/packages.md: edit borrowing.
+// docs/language/edit-authority.md: grants, contributions and assemblies.
 #[test]
 fn edit_borrow_package() {
     documented(
@@ -303,7 +306,7 @@ fn edit_borrow_package() {
     );
 }
 
-// docs/packages.md: edit authority.
+// docs/language/edit-authority.md: delegations and transfers.
 #[test]
 fn edit_authority_package() {
     documented(

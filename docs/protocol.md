@@ -33,7 +33,8 @@ source contains. In flat mode it uses protocol 2, or protocol 4 when the
 program declares abstract types, subtypes or abstract methods. In manifest
 mode it takes the first match of this list:
 
-1. any grant, delegation or transfer: protocol 9;
+1. any grant, delegation or transfer, or a presented affine declaration of
+   [Presented affine geometry](affine-geometry.md): protocol 9;
 2. resource functions, or an indexed implementation other than an affine
    descriptor: protocol 8;
 3. other indexed declarations, or a `geometry_compat` export: protocol 7;
@@ -59,8 +60,10 @@ New source recipient declarations select protocol 9 even without resources;
 pure-only emits return both optional-runtime flags as false. Protocols 5–8 retain
 `grantee_source` and reject `grantee_package`; protocol 9 rejects `grantee_source`
 even alongside the new field. Earlier versions retain their strict schemas.
-Source migration and the explicit geometry compatibility requirement are described
-in [edit borrowing](appendix/history.md#source-migrations).
+[Source migrations](appendix/history.md#source-migrations) describes the
+source migration, and
+[Geometry compatibility exports](packages.md#geometry-compatibility-exports)
+the explicit geometry compatibility requirement.
 
 <a id="protocol-9-algebraic-affine-forms"></a>
 
@@ -634,6 +637,9 @@ The resulting executable surface uses the common function lowerer and core audit
 
 The shared limits allow 4096 assembly events, 4096 contribution methods in the
 whole closure, and 4096 ground functions in the separate unapplied-body audit.
+Every per-event state and transition audit runs; the audits of one trace share
+a 200,000,000-unit budget, charged before each audit, and exhaustion reports
+`E_LIMIT`.
 Existing per-family key, hierarchy, type-depth and specialization bounds remain.
 No digest in this same input proves filesystem or author authenticity.
 

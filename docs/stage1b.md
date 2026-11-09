@@ -18,8 +18,8 @@ functions are values.
 
 Rules:
 
-- The name of a generic is not a value (`E_TYPE`). A function or lambda that
-  calls the generic is a value.
+- A generic is not a function value, as
+  [Path expressions](language/expressions.md#path-expressions) says.
 - Function types are not dispatch keys or selectors. Dispatch uses the four
   scalar types only, as [Generics and dispatch](stage1a.md) describes.
 - Generic methods, functions and lambdas may call one another.
@@ -113,4 +113,4 @@ These anchors keep older links working.
 - <a id="checking-and-specialization"></a>Checking and specialization: [Specialization](#specialization) and [Checking pipeline](internals/checking-pipeline.md#function-specialization).
 - <a id="homogeneous-data-pairs"></a>Homogeneous data pairs: [Pair types](language/types.md#pair-types).
 - <a id="regression-coverage"></a><a id="lowering-type-information"></a><a id="internal-identities-and-resource-limits"></a>Regressions, lowering and internal identities: [Checking pipeline](internals/checking-pipeline.md).
-- <a id="stage1b-indexing"></a>Indexing follow-up record: [Checking pipeline, History](internals/checking-pipeline.md#history).
+- <a id="stage1b-indexing"></a><a id="stage-1b-indexing-issue-141-follow-up"></a><a id="starting-point"></a><a id="correspondence-and-order"></a><a id="regression-and-reproduction"></a><a id="validation-record"></a><a id="measured-comparisons"></a>Indexing follow-up record: [Checking pipeline, History](internals/checking-pipeline.md#history).

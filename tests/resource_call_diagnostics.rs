@@ -233,15 +233,20 @@ fn run(scratch: &Scratch, mode: &str) -> std::process::Output {
     command.output().unwrap()
 }
 
-/// Rejects `source` under `check` and `build` with the same diagnostics, makes
-/// no executable and returns the rendered diagnostics. No message may hold an
-/// internal symbol in place of a source name.
+/// Rejects `source` as [`rejected`] rejects a package.
 #[track_caller]
 fn rejection(source: &str) -> String {
-    let scratch = fixture(source);
+    rejected(&fixture(source))
+}
+
+/// Rejects the package under `check` and `build` with the same diagnostics,
+/// makes no executable and returns the rendered diagnostics. No message may
+/// hold an internal symbol in place of a source name.
+#[track_caller]
+fn rejected(scratch: &Scratch) -> String {
     let mut rendered = Vec::new();
     for mode in ["check", "build"] {
-        let output = run(&scratch, mode);
+        let output = run(scratch, mode);
         assert!(
             !output.status.success(),
             "{mode} accepted the program: {output:?}"
@@ -276,10 +281,15 @@ fn text(rendered: &str) -> Vec<String> {
 }
 
 fn location(source: &str, marker: &str) -> String {
+    location_in("main.vast", source, marker)
+}
+
+/// The place of `marker` in the text `source` of `file`.
+fn location_in(file: &str, source: &str, marker: &str) -> String {
     let before = &source[..source.find(marker).expect(marker)];
     let line = before.bytes().filter(|&byte| byte == b'\n').count() + 1;
     let column = before.rsplit('\n').next().unwrap().chars().count() + 1;
-    format!("main.vast:{line}:{column}: ")
+    format!("{file}:{line}:{column}: ")
 }
 
 /// The first line is `message` at the place of `marker` in `source`.
@@ -572,6 +582,67 @@ fn a_call_that_binds_a_scalar_result_names_the_bases_too() {
         &source,
         "let seven",
         "E_NUMERICAL_TYPE: argument `measured` for parameter `measurement` has target basis `alternate_basis` but requires `sensor_basis`",
+    );
+}
+
+#[test]
+fn a_callee_in_another_module_has_its_parameter_note_in_its_own_file() {
+    let (consume, main) = MAP.split_at(MAP.find("resource fn main").unwrap());
+    let helper = replaced(
+        consume.trim_start(),
+        &[
+            ("resource fn consume", "pub resource fn consume"),
+            ("Space<RealSmooth, 1>", "Space<super::RealSmooth, 1>"),
+        ],
+    );
+    let main = checked_replace(
+        main,
+        MAP_CALL,
+        "call helper::consume(sensors, sensor_basis, measured) -> ();",
+    );
+    let source = format!(
+        "mod helper;\n{}\n{main}",
+        PROFILES.replace("indexed ", "pub indexed ")
+    );
+    let scratch = fixture(&source);
+    scratch.write("helper/mod.vast", &helper);
+    let rendered = rejected(&scratch);
+    assert_primary(
+        &rendered,
+        &source,
+        "call helper::consume",
+        "E_NUMERICAL_TYPE: argument `measured` for parameter `measurement` has target basis `alternate_basis` but requires `sensor_basis`",
+    );
+    for (marker, note) in [
+        (
+            "resource fn consume",
+            "while checking resource function `consume`",
+        ),
+        (
+            "measurement: ReadMap",
+            "parameter `measurement` is declared here",
+        ),
+    ] {
+        let expected = format!(
+            "{}note: {note}",
+            location_in("helper/mod.vast", &helper, marker)
+        );
+        assert!(
+            rendered.lines().any(|line| line.ends_with(&expected)),
+            "missing {expected}\n{rendered}"
+        );
+    }
+    assert_note(
+        &rendered,
+        &source,
+        "basis alternate_basis",
+        "actual target basis is `alternate_basis`, introduced here",
+    );
+    assert_note(
+        &rendered,
+        &source,
+        "basis sensor_basis",
+        "required target basis is `sensor_basis`, introduced here",
     );
 }
 

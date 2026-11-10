@@ -72,6 +72,8 @@
     - [Diagnostics, doctests and identifiers](reference/compiler-tools.md)
     - [Analysis, certificates and random supplies](reference/analysis-and-effects.md)
     - [Exact geometry reference models](reference/geometry.md)
+    - [Algebra, order and symmetry reference models](reference/algebra-and-symmetry.md)
+    - [Execution and planning reference models](reference/execution-plans.md)
   - [D: Compiler limits](appendix/limits.md)
   - [E: Historical roadmap and Stage 1 records](appendix/history.md)
     - [Historical Stages 2–7](guide/historical-roadmap.md)

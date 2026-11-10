@@ -507,7 +507,7 @@ Rules:
 - The expression must give one value for each field, in the order of the
   case. The value of field `i` must have the type of that field with `w` as
   the witness. Other fields are an error (`E_ENDPOINT`). They include a
-  missing field, a field too many and a field over another object.
+  missing field, an extra field and a field over another object.
 
 In this program the field is a point of `Y`, and the witness is `X`:
 
@@ -656,7 +656,7 @@ Rules:
 - A call of a name that is an indexed declaration and not a primitive is an
   error (`E_TYPE`).
 
-[A complete program](#a-complete-program) calls six of the seven primitives
+[A complete program](#a-complete-program) calls five of the seven primitives
 of the module `geo`.
 
 > **Implementation note.** After the check, the kernel erases

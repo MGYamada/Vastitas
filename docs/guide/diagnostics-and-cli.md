@@ -133,7 +133,7 @@ line:
 {{#include ../../examples/reject/packages/unknown-manifest-key.stderr}}
 ```
 
-A few diagnostics of the checker concern the program as a whole. They have
+A few diagnostics of the checker have no place of their own. They have
 line 1 and column 1 of the first input: the entry file, or the manifest of
 the package. The function `main` of this package has a parameter:
 

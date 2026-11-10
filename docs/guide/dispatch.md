@@ -1,10 +1,10 @@
 # Generics, methods and dispatch
 
-A function has one body. A [**generic**](../appendix/glossary.md#generic) is a
+A function has one body. A [*generic*](../appendix/glossary.md#generic) is a
 function with several bodies, its
-[**methods**](../appendix/glossary.md#method). For each call of a generic, the
+[*methods*](../appendix/glossary.md#method). For each call of a generic, the
 compiler chooses one method by the types of the arguments. This choice is
-[**dispatch**](../appendix/glossary.md#dispatch). It happens at compile time:
+[*dispatch*](../appendix/glossary.md#dispatch). It happens at compile time:
 each call of a generic becomes a call of one method, and an executable looks
 up no method when it runs.
 
@@ -21,13 +21,13 @@ declares a generic with two methods:
 ```
 
 The `generic` declaration names the generic and its parameters. A
-[**key**](../appendix/glossary.md#dispatch-key) is a tuple of argument types,
-one for each parameter. The [**domain**](../appendix/glossary.md#domain) lists
+[*key*](../appendix/glossary.md#dispatch-key) is a tuple of argument types,
+one for each parameter. The [*domain*](../appendix/glossary.md#domain) lists
 the keys at which callers may call the generic. `double` has one parameter,
 and its callers pass a `Nat` or an `Int`.
 
 A `method` declaration gives one body. It gives each parameter a
-[**selector**](../appendix/glossary.md#selector), which says which argument
+[*selector*](../appendix/glossary.md#selector), which says which argument
 types the method accepts in that position, and it declares a result type. The
 two methods of `double` have different result types.
 
@@ -64,7 +64,7 @@ uses a scalar type, `Number` and `Any` as selectors:
 {{#include ../../examples/book/dispatch/selectors.vast}}
 ```
 
-A method [**applies**](../appendix/glossary.md#applicable-method) at a key
+A method [*applies*](../appendix/glossary.md#applicable-method) at a key
 when its selectors accept the types of the key. All three methods of `rank`
 apply at `(Int)`, and the first two apply at `(Nat)`. The compiler chooses
 the method with the narrowest selector: the `Int` method for `7` and `-7`,
@@ -72,7 +72,7 @@ the `Number` method for `n`, and the `Any` method for `true`. The program
 prints `42`.
 
 A method can also require a
-[**capability**](../appendix/glossary.md#capability): a property that some
+[*capability*](../appendix/glossary.md#capability): a property that some
 scalar types have.
 [`examples/book/dispatch/capabilities.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/dispatch/capabilities.vast)
 requires an order:
@@ -100,10 +100,10 @@ of their own, and methods without a body.
 ## How a method is chosen
 
 The two examples follow one rule. One method is
-[**more specific**](../appendix/glossary.md#more-specific) than another when
+[*more specific*](../appendix/glossary.md#more-specific) than another when
 its selectors are no broader and its requirements are no weaker, and one of
 them is narrower or stronger. At a key, the
-[**winner**](../appendix/glossary.md#winner) is the one applicable method
+[*winner*](../appendix/glossary.md#winner) is the one applicable method
 that no other applicable method is more specific than. A call of the generic
 at that key is a call of the winner. The order of the declarations never
 decides. [Selection](../stage1a.md#selection) gives the rules. The compiler

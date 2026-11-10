@@ -2,7 +2,7 @@
 
 The standard geometry library is a package of indexed declarations, and it
 has no special rights. This chapter writes such declarations. An
-[**indexed profile**](../appendix/glossary.md#profile) is a set of indexed
+[*indexed profile*](../appendix/glossary.md#profile) is a set of indexed
 declarations that defines one geometric setting: its objects, its types and
 its operations.
 
@@ -28,14 +28,14 @@ coefficients of objects. A marker is not a value, and it is not an object.
 {{#include ../../examples/packages/indexed/geo.vast:implementation}}
 ```
 
-An [**implementation**](../appendix/glossary.md#implementation) is one kind
+An [*implementation*](../appendix/glossary.md#implementation) is one kind
 of object. The objects of `Grid` have the marker `QQ`. `affine_descriptor` is
-the [**representation**](../appendix/glossary.md#representation) of the
+the [*representation*](../appendix/glossary.md#representation) of the
 implementation, which says what an object holds: an object of `Grid` is a
 descriptor object and records its dimension.
 
 `capabilities(origin, dimension)` lists the
-[**capabilities**](../appendix/glossary.md#capability) of the implementation:
+[*capabilities*](../appendix/glossary.md#capability) of the implementation:
 the operations that its objects support. This is a second meaning of the
 word. It is unrelated to the capabilities `HasEq` and `HasOrder` that a
 [method requires](dispatch.md#selectors-and-capabilities).
@@ -46,7 +46,7 @@ word. It is unrelated to the capabilities `HasEq` and `HasOrder` that a
 {{#include ../../examples/packages/indexed/geo.vast:classification}}
 ```
 
-A [**classification**](../appendix/glossary.md#classification) is a finite
+A [*classification*](../appendix/glossary.md#classification) is a finite
 set of implementations under one name. The list after `domain` is the domain
 of the classification: `Scheme` holds the one implementation `Grid`. Types
 and operations name a classification, and they then hold for the objects of
@@ -59,7 +59,7 @@ whose domains contain this one. `Scheme` has none.
 {{#include ../../examples/packages/indexed/geo.vast:global}}
 ```
 
-A [**global object**](../appendix/glossary.md#global-object) is one object
+A [*global object*](../appendix/glossary.md#global-object) is one object
 that a declaration names. `Base` is an object of the implementation `Grid`,
 with the dimension 0. Every module that sees the declaration names the same
 object. The profile uses `Base` as the test object of its points.
@@ -70,7 +70,7 @@ object. The profile uses `Base` as the test object of its points.
 {{#include ../../examples/packages/indexed/geo.vast:families}}
 ```
 
-A [**family**](../appendix/glossary.md#family) forms types from arguments.
+A [*family*](../appendix/glossary.md#family) forms types from arguments.
 `Point` has two parameters, and `object(Scheme)` says that each takes an
 object of the classification `Scheme`. The word after `=` is the
 representation of the family, which says what the values of its types are.
@@ -94,8 +94,8 @@ because its declaration says `point`.
 An `indexed package` declaration declares types of existential packages,
 one for each `case`. `Pointed<Scheme, QQ>` is the type of a package that
 hides an object of `Scheme` over `QQ`, its
-[**witness**](../appendix/glossary.md#witness). The braces list the
-[**fields**](../appendix/glossary.md#field): the values that the package
+[*witness*](../appendix/glossary.md#witness). The braces list the
+[*fields*](../appendix/glossary.md#field): the values that the package
 holds beside the witness. Here it holds one value of the family `Point`, a
 point of the witness with the test object `Base`.
 
@@ -105,9 +105,9 @@ point of the witness with the test object `Base`.
 {{#include ../../examples/packages/indexed/geo.vast:primitives}}
 ```
 
-A [**primitive**](../appendix/glossary.md#primitive) is an operation of the
+A [*primitive*](../appendix/glossary.md#primitive) is an operation of the
 profile. The part after `=` is its
-[**primitive binding**](../appendix/glossary.md#primitive-binding), which
+[*primitive binding*](../appendix/glossary.md#primitive-binding), which
 fixes the operands and the result:
 
 | Primitive | Operands | Result |
@@ -188,7 +188,7 @@ rejects the same binding over `Shape`, at its declaration:
 ```
 
 The type of an object is an
-[**object type**](../appendix/glossary.md#object-type) `Object<D, K>`, where
+[*object type*](../appendix/glossary.md#object-type) `Object<D, K>`, where
 `D` names a classification or an implementation and `K` a marker. The root
 module of `indexed-objects` uses two object types:
 

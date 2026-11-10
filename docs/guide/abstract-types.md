@@ -1,9 +1,9 @@
 # Abstract types
 
 The selectors `Number` and `Any` are built in. An
-[**abstract type**](../appendix/glossary.md#abstract-type) is a selector that
+[*abstract type*](../appendix/glossary.md#abstract-type) is a selector that
 a program declares: a name for a set of scalar types. An
-[**abstract method**](../appendix/glossary.md#abstract-method) is a method
+[*abstract method*](../appendix/glossary.md#abstract-method) is a method
 without a body. It states at which keys callers may call a generic and what
 the generic returns there.
 
@@ -97,7 +97,7 @@ name a selector, and it then stands for every key of scalar types that the
 selector accepts. `(Numeric)` stands for `(Nat)` and `(Int)`.
 
 The abstract method does two things. It adds its keys to the
-[**callable domain**](../appendix/glossary.md#callable-domain) of the
+[*callable domain*](../appendix/glossary.md#callable-domain) of the
 generic, the keys at which callers may call it. It also fixes the result type
 at those keys: the winner at `(Nat)` and the winner at `(Int)` must both
 return `Int`. The abstract method itself never wins and never runs. The two

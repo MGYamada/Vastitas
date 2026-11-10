@@ -36,6 +36,17 @@ fn documented_build(inputs: &[&str], build_options: &[&str], expected: &str) {
     );
 }
 
+/// The build options of a numerical package in the numerical CI jobs: the
+/// pinned OpenBLAS prefix, and the native compiler where the job names one.
+fn numerical_build_options() -> Vec<String> {
+    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
+    let mut options = vec!["--openblas-prefix".to_owned(), prefix];
+    if let Ok(cc) = std::env::var("VASTITAS_TEST_NATIVE_CC") {
+        options.extend(["--native-cc".to_owned(), cc]);
+    }
+    options
+}
+
 fn documented(inputs: &[&str], expected: &str) {
     documented_build(inputs, &[], expected);
 }
@@ -504,14 +515,14 @@ fn runtime_shapes_package_checks_without_blas() {
 #[test]
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn runtime_shapes_package_runs_with_openblas() {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
-    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".into());
+    let options = numerical_build_options();
+    let options: Vec<&str> = options.iter().map(String::as_str).collect();
     documented_build(
         &[
             "--manifest-path",
             "examples/packages/runtime-shapes/Vastitas.toml",
         ],
-        &["--openblas-prefix", &prefix, "--native-cc", &cc],
+        &options,
         "0",
     );
 }
@@ -522,13 +533,9 @@ fn runtime_shapes_package_runs_with_openblas() {
 #[test]
 #[ignore = "requires pinned sequential LP64 OpenBLAS"]
 fn book_numerical_packages_print_their_output() {
-    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
-    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".into());
+    let options = numerical_build_options();
+    let options: Vec<&str> = options.iter().map(String::as_str).collect();
     for (manifest, expected) in BOOK_NUMERICAL_PACKAGES {
-        documented_build(
-            &["--manifest-path", manifest],
-            &["--openblas-prefix", &prefix, "--native-cc", &cc],
-            expected,
-        );
+        documented_build(&["--manifest-path", manifest], &options, expected);
     }
 }

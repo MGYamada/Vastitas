@@ -24,13 +24,13 @@ The library defines the generic `choose` in `lib/main.vast`:
 ```
 
 `choose` has one method, which returns 0 for any two numbers. The
-[**grant**](../appendix/glossary.md#grant) `integers` permits the root module
+[*grant*](../appendix/glossary.md#grant) `integers` permits the root module
 of the package `edit_addon` to add methods to `choose`. The module after `to`
-is the [**recipient**](../appendix/glossary.md#recipient). The path begins
+is the [*recipient*](../appendix/glossary.md#recipient). The path begins
 with the name in the `[package]` table of the recipient's manifest, not with
 a dependency alias. The library does not depend on the package that it names.
 
-The [**region**](../appendix/glossary.md#region) of the grant lists the keys
+The [*region*](../appendix/glossary.md#region) of the grant lists the keys
 at which the recipient's methods may win. Here it is the one key `(Int, Int)`.
 
 A grant is a permission. It adds no method.
@@ -44,7 +44,7 @@ module, `addon/main.vast`, declares the methods that it wants to add:
 {{#include ../../examples/packages/edit-borrow/addon/main.vast}}
 ```
 
-A [**contribution**](../appendix/glossary.md#contribution) is a named set of
+A [*contribution*](../appendix/glossary.md#contribution) is a named set of
 methods for one generic. The method of `sum` is more specific than the method
 of the library at the key `(Int, Int)`.
 
@@ -60,13 +60,13 @@ The third package depends on both others, under the aliases `base` and
 {{#include ../../examples/packages/edit-borrow/app/main.vast}}
 ```
 
-The [**assembly**](../appendix/glossary.md#assembly) is a list of
-[**events**](../appendix/glossary.md#event). The compiler replays them in
+The [*assembly*](../appendix/glossary.md#assembly) is a list of
+[*events*](../appendix/glossary.md#event). The compiler replays them in
 order when it checks the program:
 
 | Event | Effect |
 | --- | --- |
-| `borrow base::integers as edit;` | Activates the grant `integers` as the [**loan**](../appendix/glossary.md#edit-loan) `edit` |
+| `borrow base::integers as edit;` | Activates the grant `integers` as the [*loan*](../appendix/glossary.md#edit-loan) `edit` |
 | `apply addon::sum using edit;` | Adds the methods of the contribution `sum` to `choose`, under the loan |
 | `return edit;` | Ends the loan |
 | `seal base::choose;` | Closes `choose` and checks it with all its methods |
@@ -142,7 +142,7 @@ has the packages `base`, `addon` and `app`. Its library marks the grant
 ```
 
 The add-on passes its region on to its own module `ops`, with a
-[**delegation**](../appendix/glossary.md#delegation). The contribution `sum`
+[*delegation*](../appendix/glossary.md#delegation). The contribution `sum`
 is in that module:
 
 ```vast
@@ -165,9 +165,9 @@ adds the method of `ops` under the inner loan. While `child` is active,
 ## Handing a generic over
 
 The library of this program also declares a
-[**transfer**](../appendix/glossary.md#transfer), `handoff`. The event
+[*transfer*](../appendix/glossary.md#transfer), `handoff`. The event
 `transfer base::handoff;` makes the root module of `addon` the
-[**current owner**](../appendix/glossary.md#owner) of `choose`: the module
+[*current owner*](../appendix/glossary.md#owner) of `choose`: the module
 that holds its edit authority. No loan of `choose` may be active at that event.
 
 After the transfer, `apply addon::boolean;` adds a contribution of `addon`

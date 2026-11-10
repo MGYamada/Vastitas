@@ -8,7 +8,7 @@ every other object.
 This chapter first uses the geometric core that is built into the language.
 It then uses the same geometry from the standard library. The library
 declares it with
-[**indexed declarations**](../appendix/glossary.md#indexed-declaration):
+[*indexed declarations*](../appendix/glossary.md#indexed-declaration):
 items that begin with `indexed` and give a package objects and types of its
 own.
 
@@ -22,15 +22,15 @@ constructs an object, a point and a morphism:
 ```
 
 `Affine(QQ, 42)` constructs an object: an affine space of dimension 42 over
-the rational numbers. `QQ` is a [**marker**](../appendix/glossary.md#marker),
+the rational numbers. `QQ` is a [*marker*](../appendix/glossary.md#marker),
 a name for the coefficients, and the type of the object is `Scheme`. The
-object is a [**descriptor object**](../appendix/glossary.md#descriptor-object):
+object is a [*descriptor object*](../appendix/glossary.md#descriptor-object):
 it records its dimension and nothing else. It has no coordinates.
 
 `origin(X)` is the zero point of `X`. Its type is `Point<X, Base(QQ)>`. The
 first argument is the object that the point lies on. The second is the
-[**test object**](../appendix/glossary.md#test-object) of the point, here the
-[**base object**](../appendix/glossary.md#base-object) `Base(QQ)`: the object
+[*test object*](../appendix/glossary.md#test-object) of the point, here the
+[*base object*](../appendix/glossary.md#base-object) `Base(QQ)`: the object
 of dimension zero over `QQ`.
 
 `id(X)` is the identity morphism of `X`, of type `Morphism<X, X>`.
@@ -53,7 +53,7 @@ lists the operations with their types.
 ## Identity is nominal
 
 Every object has a
-[**nominal identity**](../appendix/glossary.md#nominal-identity): it is the
+[*nominal identity*](../appendix/glossary.md#nominal-identity): it is the
 object that one construction made. Two objects are the same object only when
 they come from the same construction. An equal dimension does not make them
 the same:
@@ -80,7 +80,7 @@ gives the rules.
 
 ## Two settings
 
-`Scheme` is the ordinary [**setting**](../appendix/glossary.md#setting), with
+`Scheme` is the ordinary [*setting*](../appendix/glossary.md#setting), with
 the marker `QQ`. The smooth setting is `CInfScheme`, with the marker
 `CInfReal`: `Affine(CInfReal, n)` constructs an object of type `CInfScheme`,
 and `Base(CInfReal)` is its base object. The operations are the same in both
@@ -97,7 +97,7 @@ declares.
 The result type of a function can name the parameters of the function and no
 object of its body. A function that constructs an object therefore cannot
 return a point of it as a `Point`. It returns an
-[**existential package**](../appendix/glossary.md#existential-package): a
+[*existential package*](../appendix/glossary.md#existential-package): a
 value that hides an object together with a point of it.
 [`examples/smooth.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/smooth.vast)
 does this in the smooth setting:
@@ -157,7 +157,7 @@ The program reads like the programs above, with the names of the library:
   `witness` binds the hidden object, and `fields` lists the values that the
   package holds beside it, here one point.
 - `scheme::Point<X, scheme::BaseQQ>` is an
-  [**indexed type**](../appendix/glossary.md#indexed-type). `Point` is a
+  [*indexed type*](../appendix/glossary.md#indexed-type). `Point` is a
   [family](../appendix/glossary.md#family) of types that the library
   declares. The type applies it to the object `X` and to `BaseQQ`, the base
   object of the library.
@@ -184,7 +184,7 @@ lists the declarations of both modules.
 
 A program can write the core syntax and the names of the library side by
 side. The manifest of the library's geometry package holds an
-[**export**](../appendix/glossary.md#export): a table that maps each form of
+[*export*](../appendix/glossary.md#export): a table that maps each form of
 the core syntax to a declaration of the library.
 [`examples/packages/geometry-compat/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/geometry-compat/main.vast)
 depends on the standard library and uses both spellings:

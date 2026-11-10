@@ -1,9 +1,9 @@
 # Packages, modules and edit authority
 
 A package holds its declarations in
-[**modules**](../appendix/glossary.md#module). This chapter divides a package
+[*modules*](../appendix/glossary.md#module). This chapter divides a package
 into modules and names declarations of other modules and of other packages by
-[**paths**](../appendix/glossary.md#path). It then controls with `pub` which
+[*paths*](../appendix/glossary.md#path). It then controls with `pub` which
 declarations other modules see. The chapter ends with the rule on who may add
 methods to a generic.
 
@@ -12,8 +12,8 @@ its manifest with `--manifest-path`.
 
 ## Modules
 
-The root source file of a package is its **root module**. A `mod`
-declaration makes a child module. An **inline module** has its items between
+The root source file of a package is its *root module*. A `mod`
+declaration makes a child module. An *inline module* has its items between
 braces, as in
 [`examples/packages/inline-module/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/inline-module/main.vast):
 
@@ -32,7 +32,7 @@ target/debug/vastitas build --manifest-path examples/packages/inline-module/Vast
 
 The program prints `42`.
 
-A **file module** has its items in a file of its own. The package
+A *file module* has its items in a file of its own. The package
 [`examples/packages/module-paths`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/module-paths)
 has three source files:
 
@@ -59,7 +59,7 @@ The root module is `src/main.vast`:
 ```
 
 `pub mod area;` declares a child of `shapes`. Its
-[**logical path**](../appendix/glossary.md#logical-path) is `shapes::area`:
+[*logical path*](../appendix/glossary.md#logical-path) is `shapes::area`:
 the names of the modules from the root module down to it. The compiler finds
 the file of a module from its logical path, in the directory of the root
 source file. For `shapes::area` the file is `src/shapes/area.vast`:
@@ -93,7 +93,7 @@ A path names a declaration through the modules that hold it. The package
 | `super::scale` | `shapes::area` | The parent of the current module |
 | `package::unit` | `shapes` | The root module of the package |
 
-A [**bare name**](../appendix/glossary.md#bare-name), a name without `::`,
+A [*bare name*](../appendix/glossary.md#bare-name), a name without `::`,
 resolves in the current module: among its declarations, the names that its
 `use` declarations bind, the bindings in scope and the built-in functions.
 The names of a parent module are not in scope in a child. `shapes::area`
@@ -126,13 +126,13 @@ names one declaration, and there are no wildcard imports.
 
 ## Visibility
 
-A declaration without `pub` is [**private**](../appendix/glossary.md#private):
+A declaration without `pub` is [*private*](../appendix/glossary.md#private):
 its own module and the modules below it see it. In `module-paths`, `scale` is
 private in `shapes`, and the child `shapes::area` calls it. `unit` is private
 in the root module, so every module of the package can name it as
 `package::unit`.
 
-A declaration with `pub` is [**public**](../appendix/glossary.md#public):
+A declaration with `pub` is [*public*](../appendix/glossary.md#public):
 every module that can reach its module sees it. A path from outside needs
 `pub` at each step, on each module that it passes through and on the
 declaration that it names:
@@ -146,7 +146,7 @@ declaration that it names:
 ```
 
 A `pub use` declaration is a
-[**reexport**](../appendix/glossary.md#reexport): it makes a public
+[*reexport*](../appendix/glossary.md#reexport): it makes a public
 declaration of another module visible through the current module. It cannot
 reexport a private declaration. The library package
 [`examples/packages/arithmetic`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/arithmetic),
@@ -170,7 +170,7 @@ gives the rules.
 
 ## Owners
 
-Every declaration has an [**owner**](../appendix/glossary.md#owner): its
+Every declaration has an [*owner*](../appendix/glossary.md#owner): its
 package, the logical path of its module and its name. A path, an alias or a
 reexport names the declaration and does not make another one. In `demo`,
 `next` and `arithmetic::increment` are the same function, the one that the
@@ -183,7 +183,7 @@ declarations, with different owners.
 ## Edit authority
 
 An import lets a module call a generic. It does not let the module add a
-method. [**Edit authority**](../appendix/glossary.md#edit-authority) is the
+method. [*Edit authority*](../appendix/glossary.md#edit-authority) is the
 right to add methods to a generic, and the module that defines the generic
 holds it:
 

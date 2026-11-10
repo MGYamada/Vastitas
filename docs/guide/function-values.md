@@ -2,8 +2,8 @@
 
 A function is also a value. A program binds it to a name, passes it to
 another function, returns it and calls it. A
-[**function value**](../appendix/glossary.md#function-value) is the name of a
-function, or a [**lambda**](../appendix/glossary.md#lambda): a function
+[*function value*](../appendix/glossary.md#function-value) is the name of a
+function, or a [*lambda*](../appendix/glossary.md#lambda): a function
 written as an expression.
 
 Function values are independent of the code around them: a lambda uses
@@ -89,7 +89,7 @@ gives both rules.
 ## One static target per call
 
 Every call of a function value has one
-[**static target**](../appendix/glossary.md#static-target): the function
+[*static target*](../appendix/glossary.md#static-target): the function
 definition that the call runs. The compiler finds it by putting the function
 values that each call passes in the place of the function parameters.
 [`examples/book/function-values/static-targets.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/function-values/static-targets.vast)
@@ -148,13 +148,13 @@ type is never part of a key: dispatch uses the scalar types only.
 
 ## Specialization
 
-A [**higher-order function**](../appendix/glossary.md#higher-order-function)
+A [*higher-order function*](../appendix/glossary.md#higher-order-function)
 is a function with a function parameter or a function result, such as
 `invoke`, `keep` and `pick`. The compiler checks a higher-order function once
 on its own. It checks the function once more for each combination of
 function values that the program passes to it. Each of these checks is a
-[**specialized instance**](../appendix/glossary.md#specialized-instance), and
-the step is [**specialization**](../appendix/glossary.md#specialization).
+[*specialized instance*](../appendix/glossary.md#specialized-instance), and
+the step is [*specialization*](../appendix/glossary.md#specialization).
 After it, no function value remains: the generated program calls each static
 target directly.
 

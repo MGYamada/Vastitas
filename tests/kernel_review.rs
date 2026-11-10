@@ -590,6 +590,64 @@ fn authority_trace_audit_is_budgeted() {
     }
 }
 
+/// An assembly of `events` events: owner applications of one contribution,
+/// then the seal. Applying a contribution again is valid, so the programs
+/// differ only in the number of events. An unused grant to a submodule
+/// selects the protocol with named recipients.
+fn repeated_applications(events: usize, grant: bool) -> String {
+    let grant = if grant {
+        "pub grant spare : g to review::a { domain (Int); }\npub mod a {}\n"
+    } else {
+        ""
+    };
+    format!(
+        "pub generic g(x) {{ domain (Int); }}\n{grant}contribution c : g {{ method g(x: Int) -> Int {{ x }} }}\n\n  assembly {{\n{}  seal g;\n}}\nfn main() -> Int {{ g(42) }}\n",
+        "  apply c;\n".repeat(events - 1)
+    )
+}
+
+#[test]
+fn assembly_event_limit_is_reported_at_the_assembly() {
+    // #703: the frontend counts the events that the kernel's decoder bounds.
+    // One event over `assemblyEvents` used to fail wire decoding with
+    // `E_PROTOCOL` at the manifest.
+    let limits: Value =
+        serde_json::from_str(include_str!("../lean-kernel/compiler-limits.json")).unwrap();
+    let limit = limits["assemblyEvents"].as_u64().unwrap() as usize;
+    // The edit protocol and the protocol with named recipients share the bound.
+    for (grant, version) in [(false, 5), (true, 9)] {
+        let largest = package(&repeated_applications(limit, grant));
+        success(&check(&largest));
+        for events in [limit + 1, 2 * limit] {
+            let source = repeated_applications(events, grant);
+            let message = rejection(&package(&source), "E_LIMIT");
+            assert_primary(&message, &source, "assembly {", "E_LIMIT");
+            assert!(
+                message.contains(&format!(
+                    "E_LIMIT: assembly exceeds the limit of {limit} events"
+                )),
+                "{message}"
+            );
+            assert!(!message.contains("E_PROTOCOL"), "{message}");
+        }
+        // The kernel keeps its bound for a request that no frontend sends.
+        let raw = captured(&manifest(&largest), version);
+        assert_eq!(kernel(&raw, "check")["ok"], true);
+        let mut forged = raw.clone();
+        let events = forged["packages"][0]["modules"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .find_map(|module| module.get_mut("assembly"))
+            .unwrap()["events"]
+            .as_array_mut()
+            .unwrap();
+        assert_eq!(events.len(), limit);
+        events.insert(0, events[0].clone());
+        assert_protocol(&kernel(&forged, "check"), "assembly event limit exceeded");
+    }
+}
+
 #[test]
 fn dispatch_table_construction_is_budgeted() {
     // #553: 7776 distinct arity-6 methods; previously O(keys × methods²)

@@ -1168,6 +1168,18 @@ impl Parser {
             events.push(event);
         }
         let end = self.expect("}")?.span;
+        // The kernel's decoder refuses a longer event list as a malformed
+        // request, so the frontend reports the limit at the block (#703).
+        if events.len() > crate::limits::MAX_ASSEMBLY_EVENTS {
+            return Err(diagnostic(
+                "E_LIMIT",
+                format!(
+                    "assembly exceeds the limit of {} events",
+                    crate::limits::MAX_ASSEMBLY_EVENTS
+                ),
+                start.through(end),
+            ));
+        }
         Ok(crate::packages::Assembly {
             events,
             span: start.through(end),

@@ -115,7 +115,7 @@ must be an ordinary writable coordinate view, not a lazy conjugated destination.
 Metadata, transforms and reborrows add no native allocation or copy. Only the
 checked physical layouts and explicit flags reach the pinned GEMM adapter.
 OpenBLAS may use internal packing/workspace; those costs and full-operation
-equivalent-C timings remain part of the [Fast like C gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+equivalent-C timings remain part of the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
 
 ### Dependent function contracts
 
@@ -296,7 +296,7 @@ remain separate work; raw owned buffers retain existing return rules.
 Evaluation/conjugation introduce no data allocation, copy or packing buffer.
 The example reuses one output allocation. Its scalar results use the adapter's
 [fused scalar loop](maps-and-gemm.md#numerical-adapter--scalar-outputs) rather
-than BLAS. Full runtime remains part of the [Fast like C gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+than BLAS. Full runtime remains part of the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
 
 ### Independent checking and evidence
 
@@ -463,7 +463,7 @@ Standalone adjoint uses only the optional storage native runtime, without
 OpenBLAS. Pairing links the pinned sequential LP64 OpenBLAS 0.3.34 adapter.
 The [prepared adapter/C experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/diagonal_metrics/README.md)
 reports actual costs and performance gaps. It excludes public-source/FFI and
-lifecycle costs and does not close the [Fast like C gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+lifecycle costs and does not close the [Fast like C gate](../storage-ownership.md#performance-evidence-and-acceptance).
 
 ### Checking, proofs and examples
 

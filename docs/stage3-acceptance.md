@@ -254,7 +254,7 @@ for every callee of the term, uniqueness of the term's allocated serials
 - **Tape retention.** A `Tape` keeps the input, the output and every step
   (map and input point) as an immutable value for as long as the value lives.
   It records none of the residual metadata of
-  [storage ownership §7.10](storage-ownership.md#710-reverse-residual-retention-and-mutation):
+  [storage ownership §7.10](storage-ownership.md#residual-retention):
   no retention strategy (retain, snapshot or recompute), no value versions and
   no invalidation. Tapes are pure values outside the storage checker.
 - **Certificate search.** That `invert?` and `ldl?` find a certificate for

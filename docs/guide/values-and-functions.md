@@ -58,8 +58,9 @@ is typing, not constant folding: variables keep their declared types.
 ## Bindings and blocks
 
 A block holds `let` statements followed by a result expression without a
-semicolon. An empty block returns `Unit`. A `let` annotation is optional, as in
-[`examples/book/expressions/saturating-subtraction.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/expressions/saturating-subtraction.vast):
+semicolon. An empty block returns `Unit`. A `let` annotation is optional.
+[`examples/book/expressions/saturating-subtraction.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/expressions/saturating-subtraction.vast)
+annotates both of its bindings:
 
 ```vast
 {{#include ../../examples/book/expressions/saturating-subtraction.vast}}

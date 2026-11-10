@@ -249,7 +249,7 @@ Both components must be exactly representable in binary64. Use
 `complex_bits(real_bits, imaginary_bits)` when the bit patterns themselves
 matter, for example a NaN payload or negative zero. Each coefficient must use
 the same scalar representation as the maps. See the
-[literal syntax](../storage/resource-programs.md#resource-source--explicit-source-contracts).
+[literal syntax](../storage/resource-programs.md#payloads).
 
 `alpha` and `beta` may each appear once, in either
 order. Overwrite rejects any beta operand and fixes beta to zero. Accumulate
@@ -288,7 +288,7 @@ emitted GEMM carries them through the independent native-plan audit. The Oracle
 proves the coefficient loan contract, initialized bytes, absence of a beta read
 in overwrite, and coefficient emission. General scalar expressions, pure-Core
 floating values remain separate work; whole-map integral extents use the
-separate [runtime-shape interface](../storage/resource-programs.md#runtime-shapes).
+separate [runtime-shape interface](../storage/resource-programs.md#runtime-extents).
 
 <a id="numerical-values--dependent-numerical-inputs"></a>
 
@@ -908,7 +908,7 @@ source integration, including explicit typed dual/conjugate operations and
 adjoints for declared orthonormal metrics. The remaining public scope is listed
 below.
 This increment does not establish **Fast like C**; use the
-[storage performance gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+[storage performance gate](../storage-ownership.md#performance-evidence-and-acceptance).
 
 ### Checked internal resource execution
 

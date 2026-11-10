@@ -41,16 +41,16 @@ they are built. Distinct budgets stay distinct even when their values coincide.
 | `resourceWork` | 32,000,000 | Weighted units across all resource probes and the executable entry | [Resource checking work](../storage/checked-storage.md#storage-functions--resource-checking-work) |
 | `generatedLets` | 4096 | Generated Lean `let` bindings per function. A function whose compiled reverse Core would exceed it keeps its reverse passes as calls of the [runtime reverse pass](glossary.md#runtime-reverse-pass) | [Budgets](#parser-and-checker-budgets) |
 | `reverseLeaves` | 256 | Maps of one reverse pass that the compilation into Core reads through `let`s and `compose`; a map beyond it is one [opaque step](glossary.md#opaque-step), pulled back by the runtime reverse pass | [Kernel source](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/IndexedReverse.lean) |
-| `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
-| `dispatchKeys` | 4096 | Argument tuples enumerated for one generic | [Dispatch](../stage1a.md#selection) |
-| `dispatchArity` | 6 | Generic arity; the seventh argument would exceed 4,096 tuples | [Dispatch](../stage1a.md#selection) |
-| `dispatchWork` | 16,000,000 | Dispatch-table work for one generic family, charged before the work runs | [Wire protocols](../protocol.md) |
+| `specializations` | 4096 | Specialized instances per pass: every lambda instance and every higher-order instance | [Specialization](../stage1b.md#specialization) · [Function specialization](../internals/checking-pipeline.md#function-specialization) |
+| `dispatchKeys` | 4096 | Keys enumerated for one generic | [Generic declarations](../stage1a.md#generic-declarations) |
+| `dispatchArity` | 6 | Parameters of a generic; a seventh parameter would exceed 4096 keys | [Generic declarations](../stage1a.md#generic-declarations) |
+| `dispatchWork` | 16,000,000 | Dispatch-table work for one generic family, charged before the work runs | [Selection](../stage1a.md#selection) · [Wire protocols](../protocol.md) |
 | `nominalTypes` | 64 | Nominal types, including `Nat`, `Int`, `Bool`, `Unit`, `Number` and `Any` | [Abstract selectors](../stage1a.md#abstract-types) |
 | `namespaceResolution` | 4096 | Member work for one path resolution | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
 | `namespaceImportWork` | 1,000,000 | Member visits across all import declarations | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
 | `namespaceProgramWork` | 4,000,000 | Wire input price plus namespace queries in the body passes | [Protocol 3](../protocol.md#protocol-3-package-namespaces) |
 | `dependencyGraph` | 4096 | Units for traversing the package dependency graph | Kernel source |
-| `assemblyEvents` | 4096 | Events in an edit assembly | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
+| `assemblyEvents` | 4096 | Events in an edit assembly; exceeding it is reported as `E_PROTOCOL` | [Assemblies](../language/edit-authority.md#assemblies) · [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 | `authorityTraceWork` | 200,000,000 | Audit work shared by one edit-assembly trace | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 | `contributionMethods` | 4096 | Methods in all contributions of the package graph | [Protocol 5](../protocol.md#protocol-5-scoped-edits-and-assembly) |
 
@@ -107,13 +107,18 @@ factorization and their checks. A larger entry is an error (`E_LIMIT`). See
 | --- | --- | --- |
 | `metricEntryBits` | 512 | Bits of the numerator and of the denominator of one elaborated Gram entry |
 
+"Kernel source" means the limit is enforced in
+[`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)
+but not yet described elsewhere in this book.
+
 ## Parser and checker budgets
 
 The frontend parses types and expressions recursively, to a combined depth of
 64 levels (`parseNesting`). A syntax tree has a depth of at most 128 nodes
 (`astDepth`), including a chain of left-associated operators. A standalone
-`if`/`else if` chain has at most 62 conditions, and the expressions around a
-chain use the same nesting budget. The protocol decoder takes at most 512
+`if`/`else if` chain uses one nesting level for each condition, and each
+condition and each branch result uses further levels. A chain whose
+conditions are single comparisons has at most 62 conditions. The protocol decoder takes at most 512
 recursive decoding steps (`sourceNesting`).
 
 The kernel checks the body of each function with 4096 units of fuel
@@ -130,10 +135,6 @@ expressions. A source `let` contributes one binding and an `unpack` three.
 Exceeding a budget of this section is an error (`E_LIMIT`). The generated Lean
 sets `maxRecDepth` to 32768 and `maxHeartbeats` to 2000000. Tests cover these
 limits. They do not protect a build against failures of its environment.
-
-"Kernel source" means the limit is enforced in
-[`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)
-but not yet described elsewhere in this book.
 
 ## Input limits
 
@@ -153,17 +154,17 @@ A reused source file consumes the byte budget again.
 
 | Bound | Value | Specified in |
 | --- | --- | --- |
-| Conditions in one standalone `if`/`else if` chain | 62 | [Budgets](#parser-and-checker-budgets) |
+| Conditions in one standalone `if`/`else if` chain whose conditions are single comparisons | 62 | [Budgets](#parser-and-checker-budgets) |
 | Generated Lean `maxRecDepth` / `maxHeartbeats` | 32768 / 2000000 | [Budgets](#parser-and-checker-budgets) |
-| Function-specialization worklist requests per pass | 2,000,000 | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
+| Function-specialization worklist requests per pass | 2,000,001, or a structural bound when that is smaller | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
 | Storage plan nodes and traversal depth | 4096 each | [Checked storage](../storage/checked-storage.md#storage-ir) |
 | Resource definitions, parameters/results each, initialized regions per owned type, source statements | 4096, 64, 64, 4096 | [Resource functions](../storage/checked-storage.md#storage-functions--all-body-checking-and-exact-expansion) |
 | Events in one contraction-tree plan | 1024 | [Contraction trees](../linalg/networks-and-packing.md#contraction-trees) |
 | Explicit diagonal metric entries | 4096 | [Declared Hermitian forms](../linalg/transforms-and-metrics.md#declared-hermitian-forms) |
-| Notes on one resource diagnostic | 32 | [Resource diagnostics](../storage/resource-programs.md#resource-diagnostics) |
+| Notes on one resource diagnostic | 32 | [Diagnostics](../storage/resource-programs.md#diagnostics) |
 
 Runtime-shape programs have their own execution limits; see
-[Execution costs and limits](../storage/resource-programs.md#execution-costs-and-limits).
+[Execution costs and limits](../internals/resource-checking.md#execution-costs-and-limits).
 
 Work budgets count admission units, not elapsed time, allocation bytes or
 native instructions. Total compiler wall time has no separate bound.

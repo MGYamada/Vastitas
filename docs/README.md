@@ -85,15 +85,16 @@ mathlib.
 
 Chapters 1 to 12 teach the language in order. They use programs from
 [`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) and the
-test suite. Most chapters end with a short **What is checked** note that links
-to the precise contract.
+test suite. Most chapters end with a short **What is checked** note and a
+**See also** list that link to the precise rules.
 
 The later parts are references:
 
 - **Vastitas Reference** gives the notation and the full contract for each
   language feature.
-- **How the compiler is checked** describes the architecture, the wire protocols,
-  the proof boundary and the standard-library admission rules.
+- **How the compiler is checked** describes the architecture, the checking
+  pipeline, the checking of resource programs, the wire protocols, the proof
+  boundary and the standard-library admission rules.
 - **Appendices** collect the CLI and diagnostics references, the independent
   reference models, the compiler limits, the historical roadmap with the Stage 1
   delivery records, the contributor checks and a glossary.

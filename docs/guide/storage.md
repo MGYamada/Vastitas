@@ -122,8 +122,9 @@ floating-point values or arithmetic.
 So far every size is static. The runtime-shape profile lets a resource function
 take whole caller-owned maps whose extents are immutable runtime integers.
 Each call is checked against the caller's frame before any write.
-[Runtime extents and caller-owned maps](../storage/resource-programs.md#runtime-shapes)
-describes the interface.
+[Runtime extents](../storage/resource-programs.md#runtime-extents) and
+[Runtime maps](../storage/resource-programs.md#runtime-maps) describe the
+interface.
 
 > **What is checked.** Lean checks ownership, loans, layouts, byte-level
 > initialization, aliases and branch joins for every resource body, and the

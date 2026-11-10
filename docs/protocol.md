@@ -13,7 +13,7 @@ below. Protocol 4 adds abstract declarations, protocol 5 adds package edit assem
 protocol 6 adds nested loans and permanent authority transfer, and package-only
 protocol 7 adds indexed declarations and rich bodies as described below.
 
-Package-only [protocol 8](storage/resource-programs.md#resource-source) adds unresolved `resource_functions`
+Package-only [protocol 8](storage/resource-programs.md#resource-functions) adds unresolved `resource_functions`
 to modules while preserving the full protocol-7 declaration/Fn/dispatch/authority
 checks. Each resource function carries `name`, `parameters`, ordered owned
 `results`, resource `body`, pure `value_type`/`value_body`, `public` and `span`.
@@ -33,8 +33,10 @@ source contains. In flat mode it uses protocol 2, or protocol 4 when the
 program declares abstract types, subtypes or abstract methods. In manifest
 mode it takes the first match of this list:
 
-1. any grant, delegation or transfer, or a presented affine declaration of
-   [Presented affine geometry](affine-geometry.md): protocol 9;
+1. any grant, delegation or transfer, a presented affine declaration of
+   [Presented affine geometry](affine-geometry.md), or a smooth or metric
+   declaration of [Smooth affine declarations](language/smooth-declarations.md):
+   protocol 9;
 2. resource functions, or an indexed implementation other than an affine
    descriptor: protocol 8;
 3. other indexed declarations, or a `geometry_compat` export: protocol 7;
@@ -194,7 +196,7 @@ No checked target, slot ID, trusted condition or resource handle is accepted in 
 pure block. Protocols 2–7 and the internal resource component retain their strict
 old schemas.
 
-The [runtime-extent profile](storage/resource-programs.md#runtime-shapes) adds parameter kinds
+The [runtime-extent profile](storage/resource-programs.md#runtime-extents) adds parameter kinds
 `runtime_space` (`name`, `implementation`, `dimension`, `span`), `runtime_basis`
 (`name`, `space`, `span`) and `runtime_map` (`name`, `source`, `target`, `access`,
 `initializes`, `span`). An extent is exactly `{kind:"literal",value:<u64>}` or
@@ -228,7 +230,7 @@ Numerical GEMM optionally carries `alpha`/`beta` operands, each either
 `{kind:"literal",value:<resource literal>}` or `{kind:"loan",loan:<local name>}`.
 Source `f64(...)`/`complex(...)` exact finite literals lower to the same unsigned
 64-bit payload fields as `f64_bits`/`complex_bits`; decimal or hex strings are not
-new wire values. See [literal admission](storage/resource-programs.md#resource-source) for exactness and
+new wire values. See [literal admission](storage/resource-programs.md#resource-functions) for exactness and
 the explicit-bit treatment of signed zero and nonfinite values.
 Absent fields retain alpha one and beta zero/one. Explicit null and unknown
 fields reject. Overwrite accepts no beta operand; accumulate requires initialized
@@ -345,7 +347,9 @@ declared domain, and every applicable monomorphized body, including nonwinners.
 Each family's table is charged to a 16,000,000-unit dispatch-work budget before
 the work runs: keys × methods plus method pairs, then the squared number of
 applicable methods at each key. Exhaustion reports `E_LIMIT`.
-See [Stage 1a](stage1a.md) for the exact specialization order and limits.
+[Selection](stage1a.md#selection) gives the rules, and
+[Dispatch checking](internals/checking-pipeline.md#dispatch-checking) the
+specialization order and limits.
 
 Expressions use a `kind` tag and always include `span`:
 
@@ -447,7 +451,9 @@ syntax. Every lambda and function body is checked, including unused functions;
 signature probes for abstract function parameters are confined to a separate
 audit pass. Executable specialization memoizes definition/function-argument
 IDs, erases function values and produces only direct calls. The unchanged
-finite engine still checks all applicable method bodies. See [Stage 1b](stage1b.md).
+finite engine still checks all applicable method bodies. See
+[Function values](stage1b.md) and
+[Function specialization](internals/checking-pipeline.md#function-specialization).
 
 After the original wire decoder, protocols 2–6 adapt source functions, methods,
 contributions and namespace metadata before semantic elaboration. Flat input uses
@@ -547,8 +553,9 @@ These checks validate the supplied namespace graph, not the authenticity of
 filesystem contents. Changing a graph into a different *valid* program is not
 an authentication failure: the wire protocol is not a signed artifact format.
 Rust is responsible for canonical file loading and retaining all input files
-for output collision protection. Manifest mode selects protocol 3 explicitly; see [packages](packages.md) for
-source syntax, CLI, file loading and compatibility details.
+for output collision protection. [Protocol selection](#protocol-selection) says
+when manifest mode selects protocol 3. See [Packages](packages.md) and
+[Modules](language/modules.md) for source syntax, commands and file loading.
 
 
 ## Protocol 4: finite abstract declarations
@@ -598,8 +605,10 @@ concrete winners retain the existing dispatch diagnostics.
 Protocol 5 extends the protocol-4 package envelope, requires `input: "package"`,
 and retains all package identities, declarations, hierarchy and unresolved paths.
 Inputs without edit declarations continue to use versions 2/3/4. There is no
-cached or pre-approved assembly input. See [edit borrowing](language/edit-authority.md)
-for the source contract and proof boundary.
+cached or pre-approved assembly input. See [Edit authority](language/edit-authority.md)
+for the source rules and
+[Edit authority acceptance](verification.md#edit-authority-acceptance-protocol-6)
+for the proof boundary.
 
 Each module additionally permits `grants: [Grant...]`,
 `contributions: [Contribution...]` and `assembly: Assembly | null` (each optional).

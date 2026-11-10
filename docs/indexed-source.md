@@ -15,7 +15,7 @@ finite compatibility from broader source/native proof limits. Protocols 2–6
 and explicit `--lib` retain their existing geometry syntax and wire formats.
 `Indexed.LegacySource` adapts their decoded source into this same common checker
 with a separately validated closed compatibility declaration package.
-[Protocol 8 resource functions](storage/resource-programs.md#resource-source) and
+[Protocol 8 resource functions](storage/resource-programs.md#resource-functions) and
 [numerical declaration profiles](linalg/maps-and-gemm.md#numerical-declarations) compose with this same
 checker. Public numerical maps are available inside resource functions
 ([numerical values](linalg/maps-and-gemm.md#numerical-values)); general public

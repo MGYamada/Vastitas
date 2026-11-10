@@ -10,8 +10,12 @@ A Reference section that defines a construct contains, in order:
 
 1. a **Syntax** block, in the grammar notation below;
 2. a description of the construct;
-3. its rules, as a bulleted list;
+3. its rules, as a bulleted list under the label "Rules:";
 4. examples.
+
+A chapter begins with a paragraph that defines its subject, before the first
+Syntax block. A section without a construct of its own, such as a section on
+scopes, has no Syntax block.
 
 ## Grammar
 
@@ -26,21 +30,22 @@ The expression on the right uses the following notation.
 
 | Notation | Example | Meaning |
 | --- | --- | --- |
-| UpperCamelCase | `UseDeclaration`, `UsePath` | A nonterminal, defined by its own production |
+| UpperCamelCase | `UseDeclaration`, `Path` | A nonterminal, defined by its own production |
 | UPPER_CASE | `IDENTIFIER`, `INTEGER_LITERAL` | A token class, such as identifiers or integer literals |
 | `` `text` `` | `` `use` ``, `` `::` ``, `` `;` `` | A keyword or punctuation token, spelled as shown |
-| x y | `` `use` UsePath `` | Sequence: x followed by y |
+| x y | `` `use` Path `` | Sequence: x followed by y |
 | x \| y | `` IDENTIFIER \| `generic` `` | Either x or y |
 | x? | `` `pub`? `` | Zero or one x |
 | x\* | `` ( `::` PathSegment )* `` | Zero or more x |
 | x+ | `` ( `,` Type )+ `` | One or more x |
 | ( x ) | `` ( `as` IDENTIFIER )? `` | Grouping |
-| x except y | `IDENTIFIER except ReservedName` | Anything that x matches and y does not match; y is one item or a group |
+| x except y | `IDENTIFIER_OR_KEYWORD except STRICT_KEYWORD` | Anything that x matches and y does not match; y is one item or a group |
 | [`a`-`z`] | `` [`0`-`9`] `` | One character in the range, inclusive |
 
 The postfix operators `?`, `*` and `+` apply to the item immediately before
 them. A sequence binds more tightly than `|`, and `except` applies to the
-single item before it. Parentheses group items.
+single item before it. Parentheses group items. A long production continues
+on the following lines, which are indented.
 
 Productions whose name is in UPPER_CASE define token classes and other lexical
 forms in terms of characters. The other productions are in terms of tokens,
@@ -57,8 +62,8 @@ in a package has this syntax, apart from the `pub` that may precede any
 > **Syntax**
 >
 > ```text
-> UseDeclaration -> `use` UsePath ( `as` IDENTIFIER )? `;`
-> UsePath -> PathSegment ( `::` PathSegment )*
+> UseDeclaration -> `use` Path ( `as` IDENTIFIER )? `;`
+> Path -> PathSegment ( `::` PathSegment )*
 > PathSegment -> IDENTIFIER | `generic`
 > ```
 
@@ -75,6 +80,13 @@ The rules of a construct use these words:
   with a diagnostic whose code is `E_CODE`. The compiler reports the error and
   produces no executable, unless the rule says that the generated program
   checks it at run time.
+- A code in parentheses after a requirement, as in "must have type `Nat`
+  (`E_TYPE`)", is the code of the error for a program that breaks the
+  requirement. Where the code differs between
+  [flat mode and manifest mode](programs.md), the rule gives both.
+
+In [Storage and ownership](../storage-ownership.md), **must** also states
+requirements on the compiler and on its measurements, as that chapter says.
 
 [Appendix B](../appendix/diagnostics.md) lists the diagnostic codes and the
 [format of a diagnostic line](../appendix/diagnostics.md#output-format).

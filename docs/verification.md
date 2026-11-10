@@ -533,7 +533,7 @@ adds actual call-slice replay, restored caller loans, unique live owned results
 with declared initialized bytes, and checked probes for every source body.
 Probes are separate from executable expansion and do not prove a universal
 parametric contract; actual calls are independently checked again. The raw component does not change pure-Core semantics.
-[Protocol 8 resource source](storage/resource-programs.md#resource-source) composes the actual authority/Fn/dispatch
+[Protocol 8 resource source](storage/resource-programs.md#resource-functions) composes the actual authority/Fn/dispatch
 checker, independently resolved resource calls, every resource-body probe and exact
 entry schedule. `VastitasOracle.ResourceSource` proves complete resource identities,
 actual call provenance, original authority trace, typed totality of its returned
@@ -589,7 +589,7 @@ at its physical addresses, including the loans around a vector evaluation and
 the dependency check before a cached contraction. The symbolic runtime-shape
 event schedule has its own realization theorems.
 
-The [runtime-shape profile](storage/resource-programs.md#runtime-shapes) adds universal guard-to-checker
+The [runtime-shape profile](storage/resource-programs.md#runtime-extents) adds universal guard-to-checker
 proofs in `StorageShapes`: exact frame audits, each actual `checkAction`, the
 instantiated `Storage.run`, and restored caller loans/allocations.
 Its compiled frame audit and incoming-loan compatibility scan use reconstructed
@@ -780,7 +780,7 @@ are tracked in the README and the Stage 1 acceptance/completion ledgers.
 
 ## Validation
 
-The [initial promotion contract](stage1a.md#promotion) documents the arbitrary-input
+The [promotion proofs and fixture](internals/checking-pipeline.md#promotion-proofs-and-fixture) document the arbitrary-input
 numerical proofs in `VastitasOracle.IndexedPromotion`, reflection of the stdlib's
 actual public `Indexed.LegacySource.check` executable Core, frontend-fixture
 agreement, and the distinction between proof
@@ -1308,7 +1308,7 @@ returned Core to the independently checked 1,000,000-unit work-counter bound.
 overflow or a discarded charge. Source preflight includes every expanded body;
 each actual specialization consumes work again in its separate pass, while a
 memoized instance does not. This is the syntax/binding-slot admission policy in
-[Stage 1b](stage1b.md), not a time-complexity theorem or a bound on namespace and
+[Function specialization](internals/checking-pipeline.md#function-specialization), not a time-complexity theorem or a bound on namespace and
 resource-plan work. The all-body coverage and exact Core audits still run for
 every accepted input. Overspent receipt mutations and public check/emit/build
 regressions cover aggregate families, unapplied contributions and concrete Fn

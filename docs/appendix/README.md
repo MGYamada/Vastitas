@@ -10,7 +10,8 @@ The appendices collect reference material that the teaching chapters link to.
   models that study proposed features outside the compiler.
 - [D: Compiler limits](limits.md) lists every published bound and work budget.
 - [E: Historical roadmap and Stage 1 records](history.md) holds the roadmap for
-  Stages 2–7, the Stage 1 delivery record and its acceptance evidence.
+  Stages 2–7, the delivery and acceptance records of Stages 1 to 3, and the
+  source migrations.
 - [F: Contributing and validation](contributing.md) lists the checks to run
   before changing the compiler, the proofs or this book.
 - [G: Glossary](glossary.md) defines the terms that the book uses with a

@@ -112,8 +112,10 @@ it cannot be mixed with `--manifest-path`. Use a manifest for path packages and
 imports. Mixed Nat/Int arithmetic through the generic library is in
 [Chapter 4](dispatch.md).
 
-> **What is checked.** The manifest, module and visibility rules are specified in
-> [Packages](../packages.md#manifests), and
+> **What is checked.** The manifest rules are specified in
+> [Packages](../packages.md#manifests), the module rules in
+> [Modules](../language/modules.md), the visibility rules in
+> [Visibility](../language/names-and-paths.md#visibility), and
 > flat source libraries in the
 > [programs reference](../language/programs.md#flat-mode). The
 > [standard-library sources](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)

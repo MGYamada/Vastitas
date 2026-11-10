@@ -1,0 +1,11 @@
+fn constant() -> Fn<(), Int> {
+    fn() -> Int { 40 }
+}
+
+fn adder() -> Fn<(Int, Int), Int> {
+    fn(x: Int, y: Int) -> Int { x + y }
+}
+
+fn main() -> Int {
+    adder()(constant()(), 2)
+}

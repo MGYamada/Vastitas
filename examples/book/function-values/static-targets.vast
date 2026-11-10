@@ -1,0 +1,9 @@
+fn increment(x: Int) -> Int { x + 1 }
+
+fn pick(flag: Bool, f: Fn<Int, Int>, g: Fn<Int, Int>) -> Fn<Int, Int> {
+    if flag { f } else { g }
+}
+
+fn main() -> Int {
+    pick(true, increment, increment)(41)
+}

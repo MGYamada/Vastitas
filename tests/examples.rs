@@ -59,6 +59,7 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
         &[],
         "42",
     ),
+    ("examples/book/geometric-types/objects.vast", &[], "42"),
     (
         "examples/arithmetic.vast",
         &[],
@@ -72,7 +73,22 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
         "42",
     ),
     ("examples/abstract-contracts.vast", &[], "42"),
+    ("examples/book/dispatch/methods.vast", &[], "42"),
+    ("examples/book/dispatch/selectors.vast", &[], "42"),
+    ("examples/book/dispatch/capabilities.vast", &[], "42"),
     ("examples/functions.vast", &[], "42"),
+    ("examples/book/function-values/signatures.vast", &[], "42"),
+    (
+        "examples/book/function-values/explicit-parameter.vast",
+        &[],
+        "42",
+    ),
+    (
+        "examples/book/function-values/static-targets.vast",
+        &[],
+        "42",
+    ),
+    ("examples/book/function-values/wrapper.vast", &[], "42"),
     ("examples/smooth.vast", &[], "2"),
 ];
 
@@ -81,6 +97,7 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
 /// not repeated.
 const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/inline-module/Vastitas.toml", "42"),
+    ("examples/packages/module-paths/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
     ("examples/packages/indexed-objects/Vastitas.toml", "42"),
     ("examples/packages/geometry-compat/Vastitas.toml", "42"),
@@ -107,7 +124,14 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
     ("examples/reject/dispatch/incomparable-methods.vast", &[]),
+    ("examples/reject/dispatch/crossed-selectors.vast", &[]),
+    ("examples/reject/dispatch/unused-key.vast", &[]),
+    ("examples/reject/dispatch/literal-key.vast", &[]),
+    ("examples/reject/abstract-types/value-type.vast", &[]),
+    ("examples/reject/abstract-types/same-members.vast", &[]),
+    ("examples/reject/abstract-types/contract-result.vast", &[]),
     ("examples/reject/function-values/capture.vast", &[]),
+    ("examples/reject/function-values/generic-value.vast", &[]),
     ("examples/reject/function-values/two-targets.vast", &[]),
 ];
 
@@ -117,6 +141,8 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 /// `<directory>.stderr`, with the repository root removed from file names.
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
+    "examples/reject/packages/foreign-method",
+    "examples/reject/packages/outside-region",
     "examples/reject/packages/entry-signature",
     "examples/reject/packages/unknown-manifest-key",
     "examples/reject/packages/uninitialized-read",
@@ -126,6 +152,7 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/lost-capability",
     "examples/reject/packages/other-witness",
     "examples/reject/packages/second-opening",
+    "examples/reject/packages/copied-profile",
     "examples/reject/packages/affine-off-chain",
     "examples/reject/packages/affine-missing-image",
     "examples/reject/packages/affine-relation",

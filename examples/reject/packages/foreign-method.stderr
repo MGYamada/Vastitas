@@ -1,0 +1,1 @@
+examples/reject/packages/foreign-method/main.vast:8:1: E_OWNER: only the exact module defining a generic may add methods

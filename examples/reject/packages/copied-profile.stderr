@@ -1,0 +1,2 @@
+examples/reject/packages/copied-profile/main.vast:19:9: E_ENDPOINT: size requires an object with coefficient marker copied_profile::second::QQ, but the supplied object X has coefficient marker copied_profile::first::QQ
+examples/reject/packages/copied-profile/main.vast:18:13: note: object X was introduced here by primitive 'grid'

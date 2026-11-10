@@ -1,0 +1,1 @@
+examples/reject/abstract-types/contract-result.vast:6:1: E_CONTRACT_RESULT: selected concrete method does not satisfy the abstract contract result type

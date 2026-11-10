@@ -19,6 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 # applies both checks to every chapter and removes this list.
 CONVERTED = frozenset({
     "guide/affine-geometry.md",
+    "guide/dispatch.md",
+    "guide/abstract-types.md",
+    "guide/function-values.md",
+    "guide/modules-and-authority.md",
+    "guide/edit-authority.md",
+    "guide/indexed-geometry.md",
+    "guide/indexed-profile.md",
     "guide/smooth-geometry.md",
     "language/notation.md",
     "language/lexical-structure.md",

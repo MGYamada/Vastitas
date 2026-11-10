@@ -1,0 +1,11 @@
+generic double(x) {
+    domain (Nat), (Int);
+}
+
+method double(x: Nat) -> Nat { x + x }
+method double(x: Int) -> Int { x + x }
+
+fn main() -> Int {
+    let n: Nat = 10;
+    int(double(n)) + double(11)
+}

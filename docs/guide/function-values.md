@@ -1,32 +1,30 @@
 # Independent functions and specialization
 
-Functions are values: you can bind them, pass them, return them and call them.
-They are **independent**: a lambda cannot capture anything from its
-surroundings. Every call resolves to one static target, so no closures or
-function pointers exist at run time.
+A function is also a value. A program binds it to a name, passes it to
+another function, returns it and calls it. A
+[**function value**](../appendix/glossary.md#function-value) is the name of a
+function, or a [**lambda**](../appendix/glossary.md#lambda): a function
+written as an expression.
+
+Function values are independent of the code around them: a lambda uses
+nothing from the function that contains it. The compiler therefore knows
+which function each call runs before it generates code. An executable holds
+no closures and no function pointers.
 
 ## Function types and lambdas
 
-A function type lists its parameters and its result:
-
-| Contract | Type |
-| --- | --- |
-| One Int argument | `Fn<Int, Int>` |
-| Two Int arguments | `Fn<(Int, Int), Int>` |
-| Zero arguments | `Fn<(), Int>` |
-| One Unit argument | `Fn<Unit, Int>` |
-| Function argument and result | `Fn<Fn<Int, Int>, Fn<Int, Int>>` |
-
-`Fn<(), Int>` and `Fn<Unit, Int>` are different: zero arguments versus one
-`Unit` argument. The parentheses describe an argument sequence; they are not
-tuple values. Function types contain `Nat`, `Int`, `Bool`, `Unit` and `Fn` only.
-
-A lambda writes every parameter type and its result type:
 [`examples/functions.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/functions.vast)
+passes a function to a function:
 
 ```vast
 {{#include ../../examples/functions.vast}}
 ```
+
+`Fn<Int, Int>` is the type of a function from an `Int` to an `Int`. `invoke`
+takes such a function as its parameter `f` and calls it. `keep` returns the
+function that it receives. In `main`, `fn(x: Int) -> Int { x + 1 }` is a
+lambda. Like a named function, it declares the type of each parameter and its
+result type.
 
 ```sh
 target/debug/vastitas check examples/functions.vast
@@ -34,65 +32,164 @@ target/debug/vastitas build examples/functions.vast -o target/functions
 ./target/functions
 ```
 
-The program prints `42`. Named functions are values too, and chained
-applications such as `factory()(42)` work.
+The program prints `42`.
+
+A function type lists its parameter types in parentheses when the function
+has several parameters or none.
+[`examples/book/function-values/signatures.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/function-values/signatures.vast)
+returns functions of both kinds:
+
+```vast
+{{#include ../../examples/book/function-values/signatures.vast}}
+```
+
+`Fn<(), Int>` is the type of a function without parameters, and
+`Fn<(Int, Int), Int>` of a function with two. The parentheses list
+parameters. They are not a tuple type, and `Fn<Unit, Int>` is a different
+type: a function with one parameter of type `Unit`. Calls chain: `constant()`
+returns a function, and `constant()()` calls that function. The program
+prints `42`.
+
+The parameter and result types of a function type are scalar types and
+function types. A function with another type in its signature, such as a
+pair, is not a value, and a program calls it only by its name.
+[Function types](../language/types.md#function-types) and
+[Function values](../language/functions.md#function-values) give the rules.
 
 ## No captures
 
-A lambda sees its own parameters and locals, plus top-level functions, generics
-and builtins. Referring to an outer argument, a local function value or a local
-geometric object is the error `E_CAPTURE`. Pass the value as an argument
-instead. A lambda also cannot shadow an enclosing binding with a parameter or
-`let` name.
+A lambda refers to its own parameters and bindings, to the functions and
+generics of the program, and to the built-in functions. It does not refer to
+a binding of the function around it:
+
+```vast
+{{#include ../../examples/reject/function-values/capture.vast}}
+```
+
+```text
+{{#include ../../examples/reject/function-values/capture.stderr}}
+```
+
+`offset` is a binding of `main`, outside the lambda. The lambda receives the
+value as a parameter instead, in
+[`examples/book/function-values/explicit-parameter.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/function-values/explicit-parameter.vast):
+
+```vast
+{{#include ../../examples/book/function-values/explicit-parameter.vast}}
+```
+
+This program prints `42`.
+
+The rule holds for everything that the surrounding function binds,
+including its parameters and a function value in one of its bindings. A
+parameter or a binding of a lambda also cannot reuse a name that is visible
+outside the lambda. [Lambdas and their names](../stage1b.md#lambdas-and-their-names)
+gives both rules.
 
 ## One static target per call
 
-After function arguments are substituted, every call must resolve to a single
-definition. An `if` that returns a function is accepted only when both branches
-resolve to the same definition. The demo package from
-[Chapter 1](stdlib.md#a-manifest) does exactly that. `next` is an import alias
-of `arithmetic::increment`, so both branches name one function:
+Every call of a function value has one
+[**static target**](../appendix/glossary.md#static-target): the function
+definition that the call runs. The compiler finds it by putting the function
+values that each call passes in the place of the function parameters.
+[`examples/book/function-values/static-targets.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/function-values/static-targets.vast)
+returns one of two function parameters:
 
 ```vast
-let callback: Fn<Int, Int> = if true { next } else { arithmetic::increment };
+{{#include ../../examples/book/function-values/static-targets.vast}}
 ```
 
-Two separately written lambdas are distinct, even when their text is equal.
-Choosing between different targets is `E_STATIC_CALL`, even with a literal
-`true` condition: there is no constant folding.
+The call in `main` passes the named function `increment` for both `f` and
+`g`. Both branches of the `if` are therefore the same definition, and the
+call that follows has the static target `increment`. The program prints
+`42`.
+
+When the branches are different definitions, the target would depend on a
+value that the program computes:
+
+```vast
+{{#include ../../examples/reject/function-values/two-targets.vast}}
+```
+
+```text
+{{#include ../../examples/reject/function-values/two-targets.stderr}}
+```
+
+Two lambdas are two definitions, even when their text is the same. The
+compiler does not evaluate the condition to choose a branch, even when the
+condition is the literal `true`. A call of `pick` with two different
+functions, such as `pick(true, increment, decrement)`, is the same error.
+[Static targets](../stage1b.md#static-targets) gives the rules.
 
 ## Generics are not function values
 
-A generic family is not an `Fn` value. To pass one, wrap it in an ordinary
-function or a lambda:
+The name of a generic stands for several methods, not for one definition. It
+is not a function value:
 
 ```vast
-fn add_ints(left: Int, right: Int) -> Int { add(left, right) }
+{{#include ../../examples/reject/function-values/generic-value.vast}}
 ```
 
-Function values do not extend dispatch: selection still uses the scalar
-argument types from [Chapter 4](dispatch.md).
+```text
+{{#include ../../examples/reject/function-values/generic-value.stderr}}
+```
+
+A function or a lambda that calls the generic is a function value.
+[`examples/book/function-values/wrapper.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/function-values/wrapper.vast)
+passes such a function:
+
+```vast
+{{#include ../../examples/book/function-values/wrapper.vast}}
+```
+
+This program prints `42`. Inside `add_ints`, the compiler chooses the method
+of `add` by the argument types, as for every call of a generic. A function
+type is never part of a key: dispatch uses the scalar types only.
 
 ## Specialization
 
-The compiler erases function values by **specialization**. Each call with
-concrete function arguments becomes its own checked instance, so `invoke`
-called with `increment` becomes an instance specialized to `increment`, with
-the function value erased. Unused functions and
-lambdas are still checked, in a separate signature-probe pass that never
-reaches the generated code.
+A [**higher-order function**](../appendix/glossary.md#higher-order-function)
+is a function with a function parameter or a function result, such as
+`invoke`, `keep` and `pick`. The compiler checks a higher-order function once
+on its own. It checks the function once more for each combination of
+function values that the program passes to it. Each of these checks is a
+[**specialized instance**](../appendix/glossary.md#specialized-instance), and
+the step is [**specialization**](../appendix/glossary.md#specialization).
+After it, no function value remains: the generated program calls each static
+target directly.
 
-Specialization is bounded. Each pass allows at most 4,096 specialized
-instances in a compilation unit, counting every lambda instance and every
-instance of a higher-order function. Each instance has its own body-checking
-budget.
-Exceeding a limit is `E_LIMIT`, and the whole input is rejected.
+The compiler checks every function and every lambda of a program, including
+those that no call reaches. A lambda with a type error is an error even when
+the program never calls it.
 
-> **What is checked.** The static target rule is specified in
-> [Function values](../stage1b.md#static-targets), and both checking passes and
-> every budget in
-> [Checking pipeline](../internals/checking-pipeline.md#function-specialization).
-> The oracle proves capture freedom, static signature consistency, and typing,
-> dependency order and termination of the returned core. Operational
-> correspondence from source lambdas through specialization is not proved; see
-> [Verification boundaries](../verification.md#stage-1b-capture-and-static-function-contracts).
+A program has at most 4096 specialized instances.
+[Specialization](../stage1b.md#specialization) gives this limit and the work
+budget of the check.
+
+> **What is checked.** The compiler rejects a capture, a reused name and a
+> call with two possible targets before it generates code. It then replaces
+> every function value by its static target and checks the resulting program
+> again. The proofs cover three properties of an accepted program. Its
+> lambdas capture nothing. Each static target has the type of the function
+> value that it replaces. The program that the compiler generates code from
+> is well typed and terminates. The proofs do not cover that this program
+> computes what the source with its lambdas describes. Tests cover that
+> step, the diagnostics and native execution.
+> [Function specialization](../internals/checking-pipeline.md#function-specialization)
+> describes the check, and
+> [Verification boundaries](../verification.md#stage-1b-capture-and-static-function-contracts)
+> states the proofs.
+
+## See also
+
+- [Function values](../stage1b.md): what a program may do with a function
+  value, with the rules on [lambdas](../stage1b.md#lambdas-and-their-names),
+  [static targets](../stage1b.md#static-targets) and
+  [specialization](../stage1b.md#specialization).
+- [Function types](../language/types.md#function-types): the types `Fn<…>`.
+- [Function values](../language/functions.md#function-values): which named
+  functions are values.
+- [Lambda expressions](../language/expressions.md#lambda-expressions): the
+  syntax of a lambda.
+- [Appendix D](../appendix/limits.md#checker-limits): the limits on
+  specialized instances and on the work of the check.

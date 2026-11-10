@@ -1,0 +1,11 @@
+generic double(x) {
+    domain (Int);
+}
+
+// `Number` also accepts `Nat`. At the key (Nat) the body has the type
+// `Nat`, although no caller may use that key.
+method double(x: Number) -> Int { x + x }
+
+fn main() -> Int {
+    double(21)
+}

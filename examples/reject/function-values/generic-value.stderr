@@ -1,0 +1,1 @@
+examples/reject/function-values/generic-value.vast:11:10: E_TYPE: a generic is not a Fn value; use an explicit ordinary-function wrapper

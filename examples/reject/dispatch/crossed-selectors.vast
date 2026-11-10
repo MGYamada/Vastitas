@@ -1,0 +1,12 @@
+generic meet(x, y) {
+    domain (Int, Int);
+}
+
+// At (Int, Int) both methods apply. The first has the narrower first
+// selector, and the second the narrower second selector.
+method meet(x: Int, y: Number) -> Int { 1 }
+method meet(x: Number, y: Int) -> Int { 2 }
+
+fn main() -> Int {
+    meet(1, 2)
+}

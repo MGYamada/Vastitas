@@ -986,7 +986,13 @@ def resolveShapeLayout (frame : Frame) (layout : Shapes.Layout) : Except Error S
     ← resolveExtent frame layout.leading, layout.transposed⟩
 
 /-- Preserve exact event-prefix correspondence when a symbolic operation or
-call adds guards and actions. Only arithmetic guards enter the executable flow. -/
+call adds guards and actions. Only arithmetic guards enter the executable flow.
+
+`Shapes.Flow.check` decides the literal guards of the whole flow after the last
+statement. A false literal guard among the new events is decided here as
+well, so that its diagnostic has the statement that added the guard. This
+rejects nothing that `Shapes.Flow.check` accepts: every new event enters the
+flow below, and that check decides the guards of every event of the flow. -/
 def setShapes (shapes : Shapes.Functions.Context) : M Unit := do
   let context ← get
   if context.branchDepth != 0 then
@@ -997,6 +1003,10 @@ def setShapes (shapes : Shapes.Functions.Context) : M Unit := do
     throw {code := "E_RUNTIME_SHAPE", message := "runtime operation changed earlier events"}
   unless events.all (fun event => event.references.all (Shapes.extentSlot context.scalarSlots)) do
     throw {code := "E_RUNTIME_SHAPE", message := "runtime extent requires a live immutable Nat or Int slot"}
+  unless events.all (fun event => match event with
+      | .guard conditions => conditions.all Shapes.Guard.closedValid
+      | .action _ => true) do
+    throw {code := "E_RUNTIME_GUARD", message := "literal runtime space, map or call dimension guard is false"}
   set {context with shapes, work, flow := context.flow ++ (events.map ValueFlow.Statement.runtime).toArray}
 
 def runtimeStep (operation : Shapes.Action) : M Unit := do

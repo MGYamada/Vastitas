@@ -287,6 +287,75 @@ fn literal_runtime_guards_reject_contradictions_and_erase_true_checks() {
     assert!(response.get("lean_source").is_none());
 }
 
+/// A condition in which every extent is a literal is decided when the program
+/// is checked, and one that fails is reported at its statement (#704): the
+/// statement that allocates, reads a cell, declares a space, presents a map or
+/// calls. The enclosing function is named in a note only.
+#[test]
+fn a_false_literal_guard_is_reported_at_its_statement() {
+    const PHYSICAL: &str = "E_RUNTIME_GUARD: literal runtime extent, layout or cell guard is false";
+    const NOMINAL: &str =
+        "E_RUNTIME_GUARD: literal runtime space, map or call dimension guard is false";
+    let issue = "resource fn main() -> Int {
+    let k: Int = value { 1 };
+    runtime_allocate d: F64[2] runtime_layout(2, 2, 2, false);
+    runtime_drop(d);
+    value { 42 }
+}";
+    let unused = format!(
+        "{}\nfn main() -> Int {{ 0 }}",
+        LITERAL_SHAPES
+            .replace("resource fn main", "resource fn unused")
+            .replace("F64[4]", "F64[3]")
+    );
+    let call = "mod profiles;
+resource fn consume(u: RuntimeSpace<profiles::RealSmooth, 3>) -> Unit { value { () } }
+resource fn main() -> Int {
+    runtime_space u = linear(profiles::RealSmooth, 2);
+    call consume(u) -> ();
+    value { 0 }
+}";
+    for (source, place, message) in [
+        (issue.to_string(), "3:5", PHYSICAL),
+        (LITERAL_SHAPES.replace("F64[4]", "F64[3]"), "5:5", PHYSICAL),
+        (
+            LITERAL_SHAPES.replace("runtime_layout(2, 2, 2", "runtime_layout(2, 2, 1"),
+            "5:5",
+            PHYSICAL,
+        ),
+        (
+            LITERAL_SHAPES.replace("runtime_expect(r, 1, 1", "runtime_expect(r, 2, 1"),
+            "11:5",
+            PHYSICAL,
+        ),
+        (unused, "5:5", PHYSICAL),
+        (
+            LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 2147483648)"),
+            "3:5",
+            NOMINAL,
+        ),
+        (
+            LITERAL_SHAPES.replace("RealSmooth, 2)", "RealSmooth, 3)"),
+            "7:5",
+            NOMINAL,
+        ),
+        (call.to_string(), "5:5", NOMINAL),
+    ] {
+        let error = rejected(&source, "E_RUNTIME_GUARD");
+        let first = error.lines().next().unwrap();
+        assert!(
+            first.ends_with(&format!("src/main.vast:{place}: {message}")),
+            "{source}\n{error}"
+        );
+        // The old place, the `resource` keyword of the function, holds no
+        // diagnostic. A note may still name the function there.
+        assert_eq!(common::diagnostic_codes(&error).len(), 1, "{error}");
+        for line in error.lines().skip(1) {
+            assert!(line.contains(": note: "), "{error}");
+        }
+    }
+}
+
 #[test]
 fn parser_preserves_runtime_slots_whole_layouts_access_and_both_arms() {
     let source = source(false, 2, 3, 2, 1).replace(

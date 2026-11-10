@@ -409,8 +409,10 @@ Rules:
   one `runtime_allocate` form one condition, and so do the layout and the
   cell of one `runtime_expect`.
 - The compiler decides a condition in which every extent is a literal. One
-  that fails is an error (`E_RUNTIME_GUARD`), reported at the `resource`
-  keyword of the function.
+  that fails is an error (`E_RUNTIME_GUARD`), reported at the statement that
+  the condition belongs to. A condition between an argument and a parameter
+  of a call belongs to the `call` statement. A condition on the type of a
+  parameter alone belongs to no statement and is reported at the function.
 - The executable checks a condition in which some extent is a binding when
   the program runs, before the statement that needs it.
 - A `runtime_` statement must name runtime bindings, an owner where the

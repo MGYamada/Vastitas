@@ -237,6 +237,10 @@ Both static and symbolic projections are independently audited before codegen.
 Guards containing only literals are decided by the Lean checker. False physical
 layout/capacity, dimension, bound or cell conditions produce `E_RUNTIME_GUARD`
 during `check`, including conditions from nominal maps and call contracts.
+The audits of the whole flow, `Shapes.check` and `Shapes.Flow.check`, decide
+these guards after the last statement and are the acceptance. The expansion
+decides a false one as well, where its operation or its event enters the
+flow, so that the diagnostic has the statement.
 True closed guards emit no native condition. Guards referring to scalar slots
 remain runtime checks; this does not constant-fold an earlier `value` block or
 guess its value. The certificate retains both physical and explicit guard

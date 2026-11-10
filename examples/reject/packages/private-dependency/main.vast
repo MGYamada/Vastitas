@@ -1,0 +1,5 @@
+use answers::answer;
+
+fn main() -> Int {
+    answer()
+}

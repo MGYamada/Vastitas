@@ -1,0 +1,4 @@
+// Without `pub`, only this package can name `answer`.
+fn answer() -> Int {
+    42
+}

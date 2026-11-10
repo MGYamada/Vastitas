@@ -1,0 +1,4 @@
+fn main() -> Int {
+    let p: Pair<Nat> = pair(0, 1);
+    int(pair_second(p))
+}

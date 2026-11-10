@@ -18,6 +18,14 @@ ROOT = Path(__file__).resolve().parents[1]
 # The title and style checks apply to them. The last step of the book rewrite
 # applies both checks to every chapter and removes this list.
 CONVERTED = frozenset({
+    "README.md",
+    "guide/getting-started.md",
+    "guide/installation.md",
+    "guide/hello-vastitas.md",
+    "guide/creating-a-package.md",
+    "guide/stdlib.md",
+    "guide/values-and-functions.md",
+    "guide/control-flow-and-pairs.md",
     "guide/affine-geometry.md",
     "guide/smooth-geometry.md",
     "language/notation.md",

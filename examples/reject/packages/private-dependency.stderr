@@ -1,0 +1,1 @@
+examples/reject/packages/private-dependency/main.vast:1:1: E_VISIBILITY: 'answer' is private in its declaring module

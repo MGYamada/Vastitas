@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 mod exact_float;
 mod indexed_parser;
 mod resource_parser;
+pub(crate) use resource_parser::{MAX_RESOURCE_VALUE_BLOCKS, value_blocks};
 
 pub use crate::ir::Diagnostic;
 use crate::ir::{
@@ -903,8 +904,8 @@ impl Parser {
                 let (name, _) = self.reference_path()?;
                 let last = self.previous().span;
                 let components: Vec<String> = name.split("::").map(str::to_owned).collect();
-                let alias = if self.consume("as") {
-                    self.binding_name()?.0
+                let (alias, bound) = if self.consume("as") {
+                    self.binding_name()?
                 } else {
                     let alias = components.last().unwrap().clone();
                     // An implicit alias binds like `as`. Compatibility
@@ -913,8 +914,19 @@ impl Parser {
                     if !INDEXED_SPELLINGS.contains(&alias.as_str()) {
                         self.check_binding_name(&alias, last)?;
                     }
-                    alias
+                    (alias, last)
                 };
+                // `package` is no name of a namespace: the kernel refuses it
+                // as the name that a `use` binds. It prices every import
+                // first, so `use package;`, which names itself, reached the
+                // user as a cycle of imports (#704).
+                if alias == "package" {
+                    return Err(diagnostic(
+                        "E_RESERVED",
+                        "`package` is reserved as a path prefix and cannot be a name that `use` binds",
+                        bound,
+                    ));
+                }
                 let end = self.expect(";")?.span;
                 module.imports.push(Import {
                     path: components,

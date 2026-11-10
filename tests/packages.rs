@@ -153,6 +153,66 @@ fn private_paths_reexports_parent_lookup_and_shadowing_are_checked() {
     s.native("42");
 }
 
+/// `package` is reserved as a name that `use` binds, so `use package;` is the
+/// reserved name (`E_RESERVED`) at that name and not a cycle of imports. As a
+/// path of one segment `package` is an ordinary name: `use package as root;`
+/// names nothing (`E_NAME`), or the declaration `package` of the module.
+#[test]
+fn a_use_cannot_bind_the_name_package() {
+    let s = Scratch::new();
+    for (source, place) in [
+        ("fn main() -> Int { 42 }\nuse package;", "2:5"),
+        ("mod a { use package; }", "1:13"),
+        ("fn f() -> Int { 1 }\nuse self::f as package;", "2:16"),
+        (
+            "mod a { pub fn package() -> Int { 1 } }\npub use a::package;",
+            "2:12",
+        ),
+        ("fn f() -> Int { 1 }\nuse self::missing as package;", "2:22"),
+    ] {
+        s.package("app", source, "");
+        let error = s.rejects("E_RESERVED");
+        let reported = format!(
+            "app/src/main.vast:{place}: E_RESERVED: `package` is reserved as a path prefix and cannot be a name that `use` binds\n"
+        );
+        assert!(error.ends_with(&reported), "{source}: {error}");
+        assert_eq!(error.lines().count(), 1, "{source}: {error}");
+    }
+    s.package("app", "use package as root;", "");
+    let error = s.rejects("E_NAME");
+    assert!(
+        error.ends_with("app/src/main.vast:1:1: E_NAME: undefined name 'package' in this module\n"),
+        "{error}"
+    );
+    // A function may be named `package`, and a path of one segment names it.
+    s.package(
+        "app",
+        "fn package() -> Int { 42 }\nuse package as root;\nfn main() -> Int { root() }",
+        "",
+    );
+    s.native("42");
+    // The kernel keeps its own check of the name for a request that the
+    // frontend did not write.
+    s.package(
+        "app",
+        "fn f() -> Int { 1 }\nuse self::f as other;\nfn main() -> Int { other() }",
+        "",
+    );
+    let mut raw = common::captured_wire(
+        s.cli()
+            .args(["check", "--manifest-path", "app/Vastitas.toml"]),
+        3,
+    );
+    let import = "/packages/0/modules/0/imports/0";
+    assert_eq!(raw.pointer(import).unwrap()["alias"], "other");
+    raw.pointer_mut(import).unwrap()["alias"] = "package".into();
+    common::assert_wire_rejected(&common::kernel(&raw, "check"), "E_RESERVED");
+    // `use package;` itself: the kernel prices the import before it checks
+    // the name, and rejects the request either way.
+    raw.pointer_mut(import).unwrap()["path"] = serde_json::json!(["package"]);
+    assert_eq!(common::kernel(&raw, "check")["ok"], false);
+}
+
 #[test]
 fn only_exact_generic_owner_can_add_methods() {
     let s = Scratch::new();

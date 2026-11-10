@@ -184,6 +184,7 @@ A reused source file consumes the byte budget again.
 | Function-specialization worklist requests per pass | 2,000,001, or a structural bound when that is smaller | [Function specialization](../internals/checking-pipeline.md#function-specialization) |
 | Storage plan nodes and traversal depth | 4096 each | [Checked storage](../storage/checked-storage.md#storage-ir) |
 | Resource definitions, parameters/results each, initialized regions per owned type, source statements | 4096, 64, 64, 4096 | [Resource functions](../storage/checked-storage.md#storage-functions--all-body-checking-and-exact-expansion) |
+| `value` blocks of all resource functions: every `value` statement, and the block that ends each function | 4096 | [Resource functions](../storage/resource-programs.md#resource-functions) |
 | Events in one contraction-tree plan | 1024 | [Contraction trees](../linalg/networks-and-packing.md#contraction-trees) |
 | Explicit diagonal metric entries | 4096 | [Declared Hermitian forms](../linalg/transforms-and-metrics.md#metrics) |
 | Notes on one resource diagnostic | 32 | [Diagnostics](../storage/resource-programs.md#diagnostics) |

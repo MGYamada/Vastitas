@@ -615,6 +615,29 @@ pub(crate) fn load(manifest: &Path, output: Option<&Path>) -> Result<(Sources, P
         listings: HashMap::new(),
     };
     let root = loader.package(manifest)?;
+    // The kernel bounds the `value` blocks of all resource functions of the
+    // program, and refuses more without a place in the source. The frontend
+    // counts the same blocks in the order of the request and reports the
+    // function at which the count passes the bound (#704).
+    let mut blocks = 0;
+    for function in loader
+        .packages
+        .iter()
+        .flat_map(|package| &package.modules)
+        .flat_map(|module| &module.resource_functions)
+    {
+        blocks += frontend::value_blocks(&function.declaration);
+        if blocks > frontend::MAX_RESOURCE_VALUE_BLOCKS {
+            return Err(loader.sources.diagnostic(
+                "E_RESOURCE_LIMIT",
+                &format!(
+                    "the resource functions of the program exceed the limit of {} `value` blocks",
+                    frontend::MAX_RESOURCE_VALUE_BLOCKS
+                ),
+                function.declaration.span,
+            ));
+        }
+    }
     // Preserve recipient names verbatim. The kernel alone resolves them in the
     // selected closure; a grant must neither resolve a path nor load a package.
     let named_recipients = loader

@@ -57,6 +57,12 @@ Rules:
 - The checker checks every resource function of the program, even one that no
   call reaches. It checks a function once on its own and once more at every
   call, with the views that the caller passes.
+- The statements of all resource functions of a program have a limit, and so
+  have their `value` blocks.
+  [Appendix D](../appendix/limits.md#other-documented-bounds) gives both. The
+  statements of both arms of an `if` count, and the `value` block that ends a
+  function counts. A program beyond a limit is an error (`E_RESOURCE_LIMIT`),
+  reported at a function.
 - A resource function named `main` in the root module of the root package is
   the [entry point](../language/programs.md#the-entry-point). It must have no
   parameters and no owned results (`E_RESOURCE_ESCAPE`), and its result type
@@ -409,8 +415,10 @@ Rules:
   one `runtime_allocate` form one condition, and so do the layout and the
   cell of one `runtime_expect`.
 - The compiler decides a condition in which every extent is a literal. One
-  that fails is an error (`E_RUNTIME_GUARD`), reported at the `resource`
-  keyword of the function.
+  that fails is an error (`E_RUNTIME_GUARD`), reported at the statement that
+  the condition belongs to. A condition between an argument and a parameter
+  of a call belongs to the `call` statement. A condition on the type of a
+  parameter alone belongs to no statement and is reported at the function.
 - The executable checks a condition in which some extent is a binding when
   the program runs, before the statement that needs it.
 - A `runtime_` statement must name runtime bindings, an owner where the

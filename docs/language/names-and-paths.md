@@ -46,6 +46,10 @@ Rules:
 - `package`, `self` and `super` have their meaning only as the first segment
   of a path. `package` has it only before `::`. `self` and `super` also name
   their module alone, as in `use super as up;`.
+- A path that is `package` alone names a declaration `package` of the current
+  module. `use package as root;` in a module without such a declaration is an
+  error (`E_NAME`). `use package;` is an error (`E_RESERVED`), because it
+  binds the [reserved name](lexical-structure.md#reserved-names) `package`.
 - A function, a parameter or a binding may be named `package`.
   [Reserved names](lexical-structure.md#reserved-names) gives the places
   where the name is reserved, and [Manifests](../packages.md#manifests)

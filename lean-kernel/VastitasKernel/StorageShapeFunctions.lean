@@ -40,8 +40,15 @@ def Context.guard (context : Context) (conditions : List Guard) : Context :=
   if conditions.isEmpty then context
   else {context with events := context.events.push (.guard conditions)}
 
+/-- `Shapes.check` decides the literal guards of a whole schedule after its last
+operation, where no statement is at hand. A false literal guard of this
+operation is decided here as well, so that its diagnostic has the statement of
+the operation. This rejects nothing that `Shapes.check` accepts: that check
+replays the operation from the same frame and decides the same guard. -/
 def Context.step (context : Context) (operation : Action) : Except Error Context := do
   let checked ← checkStep context.resources operation
+  unless checked.guards.all Guard.closedValid do
+    throw {code := "E_RUNTIME_GUARD", message := "literal runtime extent, layout or cell guard is false"}
   return {context with
     resources := checked.after
     code := context.code.push operation

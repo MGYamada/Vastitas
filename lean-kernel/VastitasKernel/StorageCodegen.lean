@@ -233,6 +233,18 @@ def generateBody (plan : Plan) : Except Error String := do
 def Plan.needsNumerical (plan : Plan) : Bool :=
   plan.instructions.any fun instruction => match instruction with | .gemm .. | .diagonalPair .. => true | _ => false
 
+/-- Whether `render` writes a call on the arena for the instruction. The four
+markers of a branch are control flow and name no arena. The match lists every
+constructor, so a new instruction has to be classified here. -/
+def Instruction.usesArena : Instruction → Bool
+  | .allocate .. | .drop .. | .fill .. | .store .. | .expect .. | .copy .. | .pack3 .. | .regroup3 .. |
+      .gemm .. | .diagonalAdjoint .. | .diagonalScale .. | .diagonalPair .. => true
+  | .branch .. | .otherwise | .finish | .skip => false
+
+/-- Whether the plan has an operation on the static arena. A plan without one
+needs no arena: its instructions are at most the markers of branches. -/
+def Plan.needsArena (plan : Plan) : Bool := plan.instructions.any Instruction.usesArena
+
 /-- Structured cleanup for a body whose result is `IO Unit`. On success return
 the cleanup's Unit result directly, rather than rebuilding the body's result
 from a potentially shared cleanup constructor. On failure run cleanup once and

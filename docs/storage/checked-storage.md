@@ -206,7 +206,9 @@ public source/build and 23 fault-injection executions in
 [`check_resource_cleanup.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_resource_cleanup.py) check all three
 arena envelopes, original error propagation, cleanup-error precedence, single
 close/finalization and zero remaining arena data. The injected runtime is a
-test-only copy; the returned source is unchanged.
+test-only copy; the returned source is unchanged. An entry without an operation
+on an arena has no arena and therefore no envelope: its body is its value flow
+([Resource checking](../internals/resource-checking.md#all-body-checking-and-generation)).
 
 `lean-kernel/native/` is an optional, separately locked Lake package with no
 compiler, oracle, mathlib or BLAS dependency. Its C adapter uses binary64 doubles

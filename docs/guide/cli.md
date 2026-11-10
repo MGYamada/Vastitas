@@ -55,9 +55,12 @@ project.
 `lake -d <root> build vastitas-kernel` builds the kernel executable. Generated
 programs depend on the kernel package and, when their checked entry needs them,
 on the storage runtime (`<root>/native`) and the numerical runtime
-(`<root>/numerical`). These are separate Lake packages that the first build
-needing them compiles inside the kernel root, so that directory must be
-writable. There is no self-contained relocatable installation, and
+(`<root>/numerical`). The two runtimes are separate Lake packages that the first
+build needing them compiles inside the kernel root, so that directory must be
+writable. A resource entry needs the storage runtime when it has an operation
+on an allocation or on runtime extents. An entry that computes scalars alone
+does not, and its build reads nothing in `<root>/native`. There is no
+self-contained relocatable installation, and
 cross-compilation is not provided: builds target the host.
 
 Every backend response reports the kernel's build identity: a digest of the

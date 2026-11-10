@@ -79,7 +79,10 @@ pub const KERNEL: Package = Package {
     ],
 };
 
-/// The storage runtime, selected by a checked resource program.
+/// The storage runtime, selected by a checked resource entry that has an
+/// operation on an arena or on runtime extents. The kernel states the
+/// selection in its response (`storage_runtime`), and a generated program may
+/// import `VastitasStorageNative` only under it.
 pub const STORAGE: Package = Package {
     name: "storage runtime",
     directory: "native",

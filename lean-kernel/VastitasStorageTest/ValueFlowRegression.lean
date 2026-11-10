@@ -24,6 +24,16 @@ private def fixture : ResourceSource.Program := changeMain fun f => {f with
    .value "answerInput" .int (intBlock "42") {}] ++ f.body
   valueBody := .mk [] (.variable "answerInput" {}) {}}
 
+/-- The scalar statements of `fixture` alone. The entry has no operation on an
+arena: its plan holds the markers of one branch (#681). -/
+private def scalarOnly : ResourceSource.Program := changeMain fun f => {f with
+  body :=
+  [.value "decision" .bool boolBlock {},
+   .branchValue "decision" [.value "leftOnly" .int (intBlock "11") {}]
+     [.value "rightOnly" .int (intBlock "19") {}] {},
+   .value "answerInput" .int (intBlock "42") {}]
+  valueBody := .mk [] (.variable "answerInput" {}) {}}
+
 #eval show IO Unit from do
   let code : List ValueFlow.Statement := [.value 0 0 [], .branch (.slot 0)
     [.value 1 1 []] [.value 2 1 []], .value 3 1 [], .value 4 2 [0, 3]]
@@ -63,6 +73,34 @@ private def fixture : ResourceSource.Program := changeMain fun f => {f with
   require "legacy static resource envelope has no scalar lets"
     ((staticGenerated.source.splitOn "let resourceValue_").length == 1 &&
      (staticGenerated.source.splitOn "    IO.println (VastitasGenerated.").length == 2)
+  -- The storage runtime follows from the checked operations on an arena (#681).
+  require "entries with storage operations select the storage runtime and one arena"
+    (generated.storageRuntime && staticGenerated.storageRuntime &&
+     (generated.source.splitOn "  let arena ← newArena ").length == 2 &&
+     (staticGenerated.source.splitOn "  let arena ← newArena ").length == 2)
+  let .ok scalarGenerated := ResourceSource.Codegen.generate scalarOnly
+    | throw (IO.userError "scalar-only resource code generation rejected")
+  let absent (text : String) : Bool := (scalarGenerated.source.splitOn text).length == 1
+  require "scalar-only entry selects no optional runtime"
+    (!scalarGenerated.storageRuntime && !scalarGenerated.numericalRuntime)
+  require "scalar-only entry creates no arena and imports no storage runtime"
+    (absent "newArena" && absent "VastitasStorageNative" && absent "cleanupError")
+  require "scalar-only entry keeps its value flow, runtime condition and terminal call"
+    ((scalarGenerated.source.splitOn "\n  let resourceValue_").length == 3 &&
+     (scalarGenerated.source.splitOn "\n  if resourceValue_").length == 2 &&
+     (scalarGenerated.source.splitOn "\n  IO.println (VastitasGenerated.").length == 2)
+  -- The classification behind it: the markers of a branch name no arena, and
+  -- an operation needs the arena even when it stands under a branch.
+  let .ok markers := Native.compile [.branch true [] [.branch false [] []]]
+    | throw (IO.userError "branch-only schedule rejected")
+  require "branch markers alone need no arena"
+    (markers.instructions.length == 10 && !markers.needsArena)
+  let lifecycle : List Storage.Statement := [.action (.allocate 0 .f64 1), .action (.drop 0)]
+  let .ok allocated := Native.compile [.branch true lifecycle lifecycle]
+    | throw (IO.userError "allocating schedule rejected")
+  require "an operation under a branch needs the arena"
+    (allocated.needsArena && allocated.instructions.length == 9 &&
+     (allocated.instructions.filter Native.Instruction.usesArena).length == 4)
   let raw : Functions.Program := ⟨source.lowered.functions, entry⟩
   for (name, mutate) in [
     ("forged return fragment", fun (f : Functions.Function) => {f with valueResult := some (999999, arguments, .int)}),
@@ -77,6 +115,6 @@ private def fixture : ResourceSource.Program := changeMain fun f => {f with
   require "discarded Pair result still audits fragment signature"
     (!(Functions.check {raw with functions := raw.functions ++ [unusedBad]}
       (ResourceSource.numericalEnvironment source.pureProgram) source.targets.signatures).isOk)
-  IO.println "Resource value flow: both-arm scalar scope, fresh slots, actual Core target signatures, source positions, runtime branch extraction and forged return IR passed"
+  IO.println "Resource value flow: both-arm scalar scope, fresh slots, actual Core target signatures, source positions, runtime branch extraction, arena and storage runtime selection and forged return IR passed"
 
 end VastitasKernel.Storage.ValueFlow.Regression

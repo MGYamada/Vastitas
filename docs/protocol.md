@@ -20,7 +20,12 @@ checks. Each resource function carries `name`, `parameters`, ordered owned
 Calls carry unresolved paths and local names, not checked IDs. The strict schema
 is defined by `storage.rs::source` and `ResourceProtocol.lean`. Emit responses
 include `storage_runtime: Bool` and `numerical_runtime: Bool` to request optional
-native packages only when the actual entry needs them. A numerical requirement
+native packages only when the actual entry needs them. `storage_runtime` is
+true when the checked entry has an operation on an arena or a runtime-shape
+event. A resource entry that computes scalars alone reports false, and its
+`lean_source` imports no `VastitasStorageNative` and creates no arena
+([Resource checking](internals/resource-checking.md#all-body-checking-and-generation)).
+A numerical requirement
 also requires storage and explicit driver build configuration. The [internal storage component schema](storage/checked-storage.md#storage-ir)
 is not an alternative public envelope; top-level `resources` and downgraded
 `resource_functions` must not be silently discarded by legacy protocol 2.

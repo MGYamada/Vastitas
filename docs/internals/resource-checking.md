@@ -110,6 +110,24 @@ failure; a cleanup error overrides the body error. When both static and dynamic
 arenas exist, the inner arena closes first. See the
 [native cleanup contract and fault-injection checks](../storage/checked-storage.md#storage-ir).
 
+The generated `main` creates an arena for a checked operation that uses one,
+and for nothing else. It creates the static arena when the audited native plan
+of the entry holds an instruction on an allocation. These instructions are
+allocation, drop, fill, store, `expect`, copy, packing, regrouping, GEMM and
+the diagonal operations. The markers of a branch are not among them. It
+creates the runtime-shape arena when the checked schedule holds a
+runtime-shape event: an operation of a `runtime_` statement or a guard on
+runtime extents. An entry with neither holds `value` statements, scalar
+branches, declarations of spaces and bases, and calls that expand to these.
+The declarations are metadata of the checker and lower to nothing. The `main`
+of such an entry holds the value calls and the branches and then prints the
+result. It creates no arena and has no cleanup. The kernel states the
+requirement with the source, as
+`storage_runtime` in the [emit response](../protocol.md). The source imports
+the storage runtime when the requirement holds. The driver compares and links
+the storage package under that requirement. It refuses a source that imports
+the storage runtime without it ([CLI reference](../guide/cli.md)).
+
 A failing `expect` raises `E_NATIVE_EXPECT` with its view-relative cell and
 both payloads, for example
 `E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 0): holds f64(0x1.4p1) [bits 4612811918334230528]; expected f64(0x1.cp1) [bits 4615063718147915776]`.
@@ -121,9 +139,11 @@ float conversion, so it is identical across hosts, and has at most 361 bytes.
 It is built only after the bit comparison fails. Handle, scalar, layout and bounds
 errors keep their precedence and fixed messages, and cleanup is unchanged.
 
-The optional `lean-kernel/native` package is linked only for a resource entry.
-A protocol-8 program with only an ordinary pure entry still builds without that
-runtime. Neither route needs mathlib. A checked GEMM schedule additionally links
+The optional `lean-kernel/native` package is linked only for a resource entry
+with an operation that uses an arena. A protocol-8 program with only an
+ordinary pure entry still builds without that runtime, and so does one whose
+resource entry computes scalars alone. No route needs mathlib.
+A checked GEMM schedule additionally links
 the optional numerical package with explicit pinned OpenBLAS configuration;
 other entries remain BLAS-free. See [numerical source and build](../linalg/maps-and-gemm.md#maps).
 Native code performs no runtime
@@ -142,9 +162,22 @@ their own locations. Header and envelope failures still use the relevant header.
 
 Notes recover names and introduction sites from the original source paired with
 its actual lowering. Borrow/drop failures identify the allocation and, when
-available, the conflicting or outstanding loan. GEMM endpoint mismatches name
+available, the conflicting or outstanding loan. The diagnostic of a read
+borrow of a view that is not initialized also names an uncovered cell when the
+checker finds one, as
+[Layout and initialization](../storage/checked-storage.md#storage-ir--layout-and-initialization)
+describes. GEMM endpoint mismatches name
 the actual unequal spaces/bases; vector evaluation identifies its actual bases
 and explicit metric. Equal dimensions do not suppress these nominal checks.
+A map, an owned map, an owned-map package, a vector or a metric whose basis is
+not the basis that its contract names carries both identities for each
+endpoint that differs. At a call the rejection also marks the parameter, and
+the message names the argument, the parameter, the endpoint and both bases in
+the names of the caller. A static argument, a `RuntimeMap` argument and an
+owned result take this path. A rejection that establishes no such difference
+keeps its message, and so does a site where the source does not name both
+bases. The space of a `Basis` argument and the parent of a derived basis are
+not compared for this text.
 Other operations include their local operands. Compiler-created temporary loans
 without a lexical binding are omitted rather than presented as source names.
 Notes are deduplicated and capped at 32, with call context before operand notes.
@@ -156,7 +189,9 @@ checked schedules are unchanged. Names and source mappings are recovered only
 on rejection, without rerunning all body probes or retaining a resource-state
 snapshot for diagnostics. The location wrappers have exact successful-result
 equations; source positions and diagnostic prose are covered by regression
-tests, not a source-provenance theorem.
+tests, not a source-provenance theorem. The text of a rejected argument is
+chosen after the contract check has rejected it. A kernel theorem states that
+a value which the contract admits has no basis-mismatch entry.
 
 ## Evidence and remaining work
 
@@ -337,8 +372,10 @@ record includes the 512-deep timeout and the later chain record measures the
 same workload after the ancestry check changed.
 [Earlier comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md) · [Chain comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
 
-A generated entry creates one runtime-shape arena and cleans it up once; entries
-also using static resources have a second, disjoint arena. A call does not create
+A generated entry with a runtime-shape event creates one runtime-shape arena and
+cleans it up once; an entry that also has an operation on a static allocation
+has a second, disjoint arena
+([All-body checking and generation](#all-body-checking-and-generation)). A call does not create
 an arena or silently allocate/copy a matrix. Only explicit `runtime_allocate`,
 fill and GEMM actions cause corresponding data effects. Loan/move/nominal
 metadata erase; scalar narrowing and arithmetic guards remain visible generated
@@ -371,6 +408,14 @@ against the actual runtime and checker helpers.
 These finite checks supplement both the universal mathematical guard theorems
 and the 13 actual helper/expression theorems above. The storage-native harness
 checks both scripts against its freshly built standalone runtime.
+
+`tests/resource_entry_runtime.rs` checks the emitted source and the storage
+runtime requirement of entries with and without an operation on an arena. It
+builds and runs both kinds. The entries that compute scalars alone are built
+in a kernel root that holds no storage package. The test also gives the driver
+responses that import the storage runtime without the requirement, and the
+driver refuses them. `VastitasStorageTest.ValueFlowRegression` checks the same
+requirement in the kernel and the classification of native instructions.
 
 When the runtime-extent profile was delivered, its full validation included 342 Rust tests and all 13 optional public
 numerical native tests, 44 kernel regression targets,

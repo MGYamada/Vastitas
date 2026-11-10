@@ -386,4 +386,74 @@ padding. Enumeration is confined to small tests, never the compiler. -/
       read 3 large, .release 3, .drop 0])
   IO.println "initialization unions: unordered cells, branch intersection, padding holes, bounded work and huge metadata-only coverage passed"
 
+private def initMessage (items : List Action) : Option String :=
+  match checkPlan (actions items) with
+  | .error error => if error.code == "E_RESOURCE_INIT" then some error.message else none
+  | .ok _ => none
+
+/- The explanation of a rejected read borrow is presentation only. Compare the
+cell that it names with the independent byte enumeration: it is the first cell
+of the view, in physical order, that has an unwritten byte, and there is none
+exactly when every cell is written. Enumeration is confined to these tests. -/
+#eval show IO Unit from do
+  let layouts := (List.range 4).flatMap fun rows => (List.range 4).flatMap fun columns =>
+    (List.range 5).flatMap fun leading => (List.range 3).flatMap fun offset =>
+      [Layout.mk (offset * 16) rows columns leading false,
+       Layout.mk (offset * 16) rows columns leading true]
+  let writes : List Layout := [full, padded, first, second, padded.transpose,
+    ⟨16, 3, 1, 3, false⟩, ⟨32, 1, 3, 2, false⟩, ⟨0, 0, 1, 1, false⟩]
+  for scalar in [Scalar.f64, .complexF64] do
+    let views := layouts.filter (checkLayout scalar 256)
+    let single := (writes.filter (checkLayout scalar 256)).map fun layout => Initialization.written layout .none
+    let histories := Initialization.none :: single ++ single.flatMap fun left => single.flatMap fun right =>
+      match left with
+      | .written layout _ => [Initialization.written layout right, .intersection left right]
+      | _ => []
+    for recorded in histories do
+      let written := ((List.range 256).map (initializedCells scalar recorded).contains).toArray
+      for view in views do
+        let unwritten := fun (cell : Nat × Nat) =>
+          let start := view.offset + cell.1 * scalar.width + cell.2 * (view.leading * scalar.width)
+          (List.range scalar.width).any fun byte => !written.getD (start + byte) false
+        let expected := ((List.range view.columns).flatMap fun column =>
+          (List.range view.rows).map fun row => (row, column)).find? unwritten
+        let found := recorded.uncoveredCell scalar 256 view
+        check "the explanation names the first cell with an unwritten byte, and none when all are written"
+          (found == expected)
+        check "an accepted read has no uncovered cell" (!recorded.covers scalar view || found.isNone)
+  let rejected := "requested read region is not initialized"
+  let noCell := ": the bounded check could not establish that the preceding writes cover the region, and a bounded search found no uninitialized cell"
+  check "a padded transposed read names its uncovered cell in both conventions"
+    (initMessage [allocate, write 1 ⟨8,2,2,4,false⟩, .fill 1 value, .store 1 0 1 value, .release 1,
+      read 2 ⟨8,3,2,4,true⟩] == some (rejected ++
+        " at logical row 0, column 2 of the view (physical row 2, column 0; allocation bytes [24, 32))"))
+  check "interleaved padded fills that the check cannot join name no cell"
+    (initMessage [allocate, write 1 padded, .fill 1 value, .release 1,
+      write 2 {padded with offset := 16}, .fill 2 value, .release 2, read 3 ⟨0,4,2,4,false⟩] ==
+        some (rejected ++ noCell))
+  check "an unwritten allocation names the first cell of the view"
+    (initMessage [allocate, read 1] == some (rejected ++
+      " at logical row 0, column 0 of the view (physical row 0, column 0; allocation bytes [0, 8))"))
+  -- Budgets: neither a history nor a view can make the explanation enumerate.
+  let tooLarge := (List.range 64).foldl (fun h _ => .intersection h h) (history .f64 [0])
+  check "a history beyond the node budget names no cell, even for an unwritten one"
+    ((tooLarge.uncoveredCell .f64 16 second).isNone &&
+      tooLarge.uncoveredReason .f64 16 second == noCell)
+  check "work exhaustion of the check names no cell of a fully written view"
+    ((history .f64 (List.range 300)).uncoveredCell .f64 2400 ⟨0,300,1,300,false⟩ == none)
+  check "a view of a billion padded columns ends the search by its bound"
+    ((Initialization.written ⟨8,1,1000000000,3,false⟩ (.written ⟨0,1,1000000000,3,false⟩ .none)).uncoveredCell
+      .f64 24000000000 ⟨0,2,1000000000,3,false⟩ == none)
+  let large : Layout := ⟨0,1000000000,1000000000,1000000000,false⟩
+  let half : Layout := {large with columns := 500000000}
+  check "a step passes the written half of a billion-by-billion matrix"
+    ((Initialization.written half .none).uncoveredCell .f64 8000000000000000000 large == some (0, 500000000))
+  check "a step passes a whole covered column of a padded matrix"
+    ((Initialization.written ⟨0,1000000,999,2000000,false⟩ .none).uncoveredCell .f64 16000000000
+      ⟨0,1000000,1000,2000000,true⟩ == some (0, 999))
+  check "halving finds the missing last stored row of a padded matrix"
+    ((Initialization.written ⟨0,999999,1000,2000000,false⟩ .none).uncoveredCell .f64 16000000000
+      ⟨0,1000000,1000,2000000,false⟩ == some (999999, 0))
+  IO.println "read explanation: byte-set agreement, both coordinate conventions, no cell without evidence and bounded search passed"
+
 end VastitasKernel.Storage.Regression

@@ -1508,9 +1508,24 @@ structure BorrowedArgument where
   layout : Layout
   initializes : Bool
 
+/-- The role of the parameter whose argument a call rejects with named bases. -/
+def rejectedParameterRole : String := "rejected parameter"
+
+/-- Presentation only: mark the parameter of a rejected argument. A rejection
+that names bases (`Numerical.Input.rejection`, `Shapes.Functions.endpointRejection`)
+has pending subjects in the names of the caller. The parameter is a name of the
+callee, so it goes to a header site of the callee, which no frame resolves.
+Every other error is returned as it is. The argument checks have decided
+before this function runs, and it maps an error to an error. -/
+private def atParameter (callee : Nat) (parameter : Symbol) (error : Error) : Error :=
+  if Numerical.BasisMismatch.reported error then
+    {error with context := {error.context with
+      sites := error.context.sites ++ [⟨callee, .header, [⟨rejectedParameterRole, parameter, .binding⟩]⟩]}}
+  else error
+
 /-- Owned arguments are real moves. A borrowed argument creates a child of the
 actual caller loan; sibling conflicts and initialization are checked normally. -/
-def arguments (parameters : List Parameter) (actuals : List Symbol) :
+def arguments (callee : Nat) (parameters : List Parameter) (actuals : List Symbol) :
     M (Frame × List BorrowedArgument × List Shapes.Functions.Borrowed) := do
   if parameters.length != actuals.length then throw {code := "E_RESOURCE_ARITY", message := "resource argument count differs"}
   let caller ← get
@@ -1538,7 +1553,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
       let child ← fresh
       let context ← get
       match accepted : Shapes.Functions.bind caller.environment caller.shapes context.shapes input actual global child with
-      | .error problem => throw problem
+      | .error problem => throw (atParameter callee parameter.name problem)
       | .ok binding =>
         setShapes binding.context
         frame := (parameter.name, binding.bound) :: dependencies
@@ -1573,7 +1588,7 @@ def arguments (parameters : List Parameter) (actuals : List Symbol) :
         | .ownedMapTo _ source dimension => pure (.ownedMapTo (← resolve dependencies source) dimension, .readWrite)
         | _ => throw {code := "E_NUMERICAL_TYPE", message := "invalid numerical parameter"}
       match accepted : Numerical.checkInput caller.environment caller.resources caller.numerical input actual with
-      | .error diagnostic => throw diagnostic
+      | .error diagnostic => throw (atParameter callee parameter.name diagnostic)
       | .ok checked =>
         let bound ← match checked.value with
           | .space .. | .basis .. | .involution .. | .metric .. =>
@@ -2036,7 +2051,7 @@ mutual
       let some function := functions.find? (·.id == callee)
         | throw {code := "E_RESOURCE_FUNCTION", message := "resource callee does not exist"}
       let before ← get
-      let (frame, borrowed, runtimeBorrowed) ← arguments function.parameters actuals
+      let (frame, borrowed, runtimeBorrowed) ← arguments callee function.parameters actuals
       let frame ← expandAt fuel functions (callee :: stack) [] 0 frame function.body
       atResult callee frame do
         cleanupDependencies before.resources

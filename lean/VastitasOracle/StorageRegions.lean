@@ -338,4 +338,146 @@ theorem record_bytes (previous : Initialization) (layout : Layout) (scalar : Sca
       exact either.elim (initialization_bytes covered) id
   next notCovered => rfl
 
+/-! ### The explanation of a rejected read borrow
+
+`Initialization.uncoveredCell` is presentation only: `borrowTransition` rejects a
+read by `Initialization.covers` before it asks for a cell. These theorems give the
+byte meaning of the cell that the diagnostic names. They state nothing about
+the search that finds it, and nothing depends on them for acceptance. -/
+
+/-- Containment is complete for one element: a checked footprint that contains
+the first byte of an element-aligned address covers the one-cell request at
+that address. `covers_bytes` is the converse for every byte of the cell. -/
+theorem cell_contained {footprint : Layout} {scalar : Scalar} {capacity address : Nat}
+    (valid : checkLayout scalar capacity footprint = true)
+    (aligned : address % scalar.width = 0)
+    (inside : ContainsByte footprint scalar address) :
+    footprint.covers ⟨address, 1, 1, 1, false⟩ scalar = true := by
+  have nonempty := contains_nonempty inside
+  obtain ⟨column, hc, lo, hi⟩ := inside
+  have width : 0 < scalar.width := by cases scalar <;> decide
+  have checked := checked_layout valid
+  have leading : footprint.rows ≤ footprint.leading := by
+    have bound := checked.2.2.2.2.2.1
+    omega
+  have origin : footprint.offset % scalar.width = 0 := by
+    rcases checked.2.2.2.2.2.2.1 with empty | ok
+    · rw [nonempty] at empty; contradiction
+    · exact ok
+  -- The address is a whole number of elements into its stored column.
+  have whole : (address - (footprint.offset + column * (footprint.leading * scalar.width))) % scalar.width = 0 := by
+    apply Nat.sub_mod_eq_zero_of_mod_eq
+    rw [aligned]
+    simp [Nat.add_mod, Nat.mul_mod, origin]
+  obtain ⟨row, at_row⟩ : ∃ row, address =
+      footprint.offset + row * scalar.width + column * (footprint.leading * scalar.width) := by
+    refine ⟨(address - (footprint.offset + column * (footprint.leading * scalar.width))) / scalar.width, ?_⟩
+    have split := Nat.div_add_mod (address - (footprint.offset + column * (footprint.leading * scalar.width)))
+      scalar.width
+    rw [whole, Nat.add_zero, Nat.mul_comm scalar.width] at split
+    omega
+  subst at_row
+  have hr : row < footprint.rows := by
+    have bound : row * scalar.width < footprint.rows * scalar.width := by omega
+    exact Nat.lt_of_mul_lt_mul_right bound
+  have rowStride : row * scalar.width < footprint.leading * scalar.width :=
+    Nat.mul_lt_mul_of_pos_right (by omega) width
+  have stridePositive : 0 < footprint.leading * scalar.width := by omega
+  have difference : footprint.offset + row * scalar.width + column * (footprint.leading * scalar.width) -
+      footprint.offset = row * scalar.width + column * (footprint.leading * scalar.width) := by omega
+  have alignedDifference : (footprint.offset + row * scalar.width +
+      column * (footprint.leading * scalar.width) - footprint.offset) % scalar.width = 0 := by
+    rw [difference]
+    simp [Nat.add_mod, Nat.mul_mod]
+  have remainder : (footprint.offset + row * scalar.width + column * (footprint.leading * scalar.width) -
+      footprint.offset) % (footprint.leading * scalar.width) = row * scalar.width := by
+    rw [difference, Nat.add_comm, Nat.mul_add_mod']
+    exact Nat.mod_eq_of_lt rowStride
+  have quotient : (footprint.offset + row * scalar.width + column * (footprint.leading * scalar.width) -
+      footprint.offset) / (footprint.leading * scalar.width) = column := by
+    rw [difference, Nat.add_comm, Nat.mul_comm column, Nat.mul_add_div stridePositive]
+    simp [Nat.div_eq_of_lt rowStride]
+  have notBelow : ¬(footprint.offset + row * scalar.width + column * (footprint.leading * scalar.width) <
+      footprint.offset) := by omega
+  have cellEmpty : (Layout.mk (footprint.offset + row * scalar.width +
+      column * (footprint.leading * scalar.width)) 1 1 1 false).empty = false := rfl
+  have sameOrigin : ((footprint.offset + row * scalar.width + column * (footprint.leading * scalar.width) -
+      footprint.offset) % scalar.width != 0) = false := by simp [alignedDifference]
+  simp only [Layout.covers, cellEmpty, Bool.false_eq_true, ↓reduceIte,
+    nonempty, notBelow, decide_false, Bool.or_self, sameOrigin]
+  cases contiguous : footprint.contiguous
+  · simp only [Bool.false_eq_true, ↓reduceIte, alignedDifference, remainder, quotient,
+      Nat.mul_div_cancel _ width, Nat.le_refl, decide_true, Bool.true_or,
+      beq_self_eq_true, Bool.true_and, Bool.and_eq_true, decide_eq_true_eq]
+    omega
+  · have mr := Nat.mul_le_mul_right scalar.width (show row ≤ footprint.rows - 1 by omega)
+    have mc := Nat.mul_le_mul_right (footprint.leading * scalar.width)
+      (show column ≤ footprint.columns - 1 by omega)
+    simp only [↓reduceIte, Layout.endByte, cellEmpty, nonempty, Bool.false_eq_true, ↓reduceIte]
+    simp only [Nat.sub_self, Nat.zero_mul, Nat.add_zero, decide_eq_true_eq]
+    omega
+
+/-- The rectangular path is complete for one element: under a checked history,
+an element-aligned cell that it rejects has an uninitialized first byte. -/
+theorem rejected_cell_uninitialized {history : Initialization} {scalar : Scalar} {capacity address : Nat}
+    (valid : history.valid scalar capacity = true) (aligned : address % scalar.width = 0)
+    (rejected : history.coversRectangle scalar ⟨address, 1, 1, 1, false⟩ = false) :
+    ¬ Initialized scalar address history := by
+  induction history with
+  | none => simp [Initialized]
+  | written footprint previous ih =>
+    simp only [Initialization.valid, Bool.and_eq_true] at valid
+    simp only [Initialization.coversRectangle, Bool.or_eq_false_iff] at rejected
+    intro initialized
+    simp only [Initialized] at initialized
+    rcases initialized with current | prior
+    · have covered := cell_contained valid.1 aligned current
+      rw [rejected.1] at covered
+      contradiction
+    · exact ih valid.2 rejected.2 prior
+  | intersection left right ihLeft ihRight =>
+    simp only [Initialization.valid, Bool.and_eq_true] at valid
+    simp only [Initialization.coversRectangle, Bool.and_eq_false_iff] at rejected
+    intro initialized
+    simp only [Initialized] at initialized
+    rcases rejected with first | second
+    · exact ihLeft valid.1 first initialized.1
+    · exact ihRight valid.2 second initialized.2
+
+/-- The cell that the diagnostic of a rejected read borrow names is a cell of
+the view whose first byte no recorded write initializes on every path. -/
+theorem uncoveredCell_uninitialized {history : Initialization} {scalar : Scalar} {capacity : Nat}
+    {layout : Layout} {row column : Nat}
+    (found : history.uncoveredCell scalar capacity layout = some (row, column)) :
+    layout.InDomain (layout.logicalCell row column).1 (layout.logicalCell row column).2 ∧
+      ¬ Initialized scalar
+        (layout.address scalar (layout.logicalCell row column).1 (layout.logicalCell row column).2) history := by
+  obtain ⟨inside, rejected⟩ := Initialization.uncoveredCell_rejected found
+  refine ⟨inside, ?_⟩
+  have candidate := (Option.filter_eq_some_iff.mp found).1
+  unfold Initialization.uncoveredCandidate at candidate
+  split at candidate
+  next => contradiction
+  next remaining budget =>
+    split at candidate
+    next guards =>
+      simp only [Bool.and_eq_true] at guards
+      have checked := checked_layout guards.1
+      have origin : layout.offset % scalar.width = 0 := by
+        rcases checked.2.2.2.2.2.2.1 with empty | ok
+        · rw [nonempty_of_index inside] at empty; contradiction
+        · exact ok
+      have aligned : layout.address scalar (layout.logicalCell row column).1
+          (layout.logicalCell row column).2 % scalar.width = 0 := by
+        simp only [Layout.address]
+        simp [Nat.add_mod, Nat.mul_mod, origin]
+      have rectangle : history.coversRectangle scalar
+          ⟨layout.address scalar (layout.logicalCell row column).1 (layout.logicalCell row column).2,
+            1, 1, 1, false⟩ = false := by
+        unfold Initialization.covers at rejected
+        simp only [budget, Bool.or_eq_false_iff] at rejected
+        exact rejected.1
+      exact rejected_cell_uninitialized guards.2 aligned rectangle
+    next => contradiction
+
 end VastitasOracle.StorageRegions

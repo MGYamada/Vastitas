@@ -66,7 +66,10 @@ private def mixed (targets : List ResourcePure.Target) : Nat → Nat → Storage
 
 structure Generated where
   source : String
+  /-- The source imports the storage runtime. This holds exactly when the
+  checked entry has an operation on an arena or a runtime-shape event. -/
   storageRuntime : Bool
+  /-- The source imports the numerical runtime, which needs the storage runtime. -/
   numericalRuntime : Bool
 
 def generateChecked {program : Program} (checked : Checked program true) : Except Diagnostic Generated := do
@@ -103,9 +106,16 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
     let some target := checked.targets.entries[fragment]? | error "missing terminal Core target"
     unless terminal == result && fragment == entryFragment && target.function == entryTarget do
       error "terminal mixed call differs from the checked entry result"
+    -- An arena exists only for a checked operation that uses it: the static
+    -- arena for a native instruction of the audited plan, the runtime-shape
+    -- arena for a runtime event of the checked flow, whose guards also call
+    -- the storage runtime. An entry with neither computes scalars alone. It
+    -- gets no arena and no import of the storage runtime. Its operations are
+    -- value calls and branches, which stand directly in `main`.
     let hasShapes := Shapes.Flow.contains flow
-    let hasStatic := !plan.instructions.isEmpty
-    let indent := if hasShapes && hasStatic then 6 else 4
+    let hasStatic := plan.needsArena
+    let storageRuntime := hasShapes || hasStatic
+    let indent := 2 + (if hasShapes then 2 else 0) + (if hasStatic then 2 else 0)
     let (finalState, finalShapes, instructions, operations) ← mixed checked.targets.entries 4096 indent {} {} flow.dropLast
     unless finalState == execution.checked.resources.finalState && instructions == plan.instructions do
       error "mixed emission differs from the independently checked resource plan"
@@ -116,24 +126,32 @@ def generateChecked {program : Program} (checked : Checked program true) : Excep
     let shapeNumerical := execution.checked.shapes.events.any fun event =>
       match event with | .action (.gemm _) => true | _ => false
     let needsNumerical := plan.needsNumerical || shapeNumerical
+    -- Every numerical call names an arena, and the numerical runtime is built
+    -- on the storage runtime.
+    if needsNumerical && !storageRuntime then
+      error "numerical operation without a storage arena"
     let numericalImport := if needsNumerical then "import VastitasGemmNative\n" else ""
-    let envelope := if hasShapes then
-      if hasStatic then
+    let envelope :=
+      if hasShapes && hasStatic then
         s!"  let arena ← newArena {Storage.byteLimit}\n" ++
         Native.withUnitCleanup 2
           (s!"    let shapeArena ← newArena {Storage.byteLimit}\n" ++
             Native.withUnitCleanup 4 (operations ++ s!"      IO.println ({resultCall})\n")
               ["close shapeArena"]) ["close arena"]
-      else
+      else if hasShapes then
         s!"  let shapeArena ← newArena {Storage.byteLimit}\n" ++
         Native.withUnitCleanup 2 (operations ++ s!"    IO.println ({resultCall})\n") ["close shapeArena"]
-      else
+      else if hasStatic then
         s!"  let arena ← newArena {Storage.byteLimit}\n" ++
         Native.withUnitCleanup 2 (operations ++ s!"    IO.println ({resultCall})\n") ["close arena"]
-    let source := "import VastitasStorageNative\n" ++ numericalImport ++ pureSource ++
-      "\nopen VastitasStorageNative\n\ndef main : IO Unit := do\n" ++
-      envelope
-    return ⟨source, true, needsNumerical⟩
+      else
+        -- No arena, so no cleanup: the checked value flow, then the result.
+        operations ++ s!"  IO.println ({resultCall})\n"
+    let (storageImport, storageOpen) := if storageRuntime then
+      ("import VastitasStorageNative\n", "\nopen VastitasStorageNative\n") else ("", "")
+    let source := storageImport ++ numericalImport ++ pureSource ++ storageOpen ++
+      "\ndef main : IO Unit := do\n" ++ envelope
+    return ⟨source, storageRuntime, needsNumerical⟩
 
 /-- Internal source-component entry. Public emission receives the wire check's exact result. -/
 def generate (program : Program) : Except Diagnostic Generated := do

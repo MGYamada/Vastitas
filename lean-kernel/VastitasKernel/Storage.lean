@@ -683,6 +683,106 @@ def checkGemm (state : State) (request : Gemm) : Except Error (CheckedGemm state
     else reject "E_RESOURCE_COEFFICIENT" "overwrite fixes beta to zero and does not accept a beta operand"
   else reject "E_RESOURCE_GEMM" "GEMM requires initialized readable inputs, a compatible exclusive output, supported views and disjoint input/output bytes; accumulate also reads initialized output"
 
+/-! ### Explanation of a rejected read borrow
+
+Presentation only. `borrowTransition` accepts or rejects a read by
+`Initialization.covers` alone; it evaluates this section after that check has
+rejected and never on acceptance. The section has no notion of coverage of its
+own. Its search asks `Initialization.coversRectangle` and `Initialization.reach`,
+the two parts of the check, where to look, and it names a cell only if
+`Initialization.covers` rejects that cell alone, as `expect` asks. -/
+
+/-- Logical row and column, in the view, of the cell at a physical row and
+column: the inverse of `Layout.physicalRow` and `Layout.physicalColumn`. -/
+def Layout.logicalCell (layout : Layout) (row column : Nat) : Nat × Nat :=
+  if layout.transposed then (column, row) else (row, column)
+
+/-- Steps of one search. A step traverses the history at most twice, so that a
+search visits at most `2 * initializationWorkLimit` nodes for any dimensions. -/
+def uncoveredSearchSteps (nodes : Nat) : Nat := initializationWorkLimit / nodes
+
+/-- Walk the stored cells in physical order: `runs` byte runs of `length` bytes,
+`stride` bytes apart, from `start`. A step asks whether one recorded rectangle on
+every path contains the next `span` cells of the run. If so the walk passes them
+and the bytes that `Initialization.reach` justifies after them, and doubles
+`span`; otherwise it halves `span`. The result is the first byte of a cell that
+no recorded rectangle contains. `none` means that the fuel ended or that the walk
+passed every cell; it does not mean that every cell is initialized. -/
+def Initialization.uncoveredByte (scalar : Scalar) (history : Initialization)
+    (start stride length runs : Nat) : Nat → Nat → Nat → Nat → Option Nat
+  | 0, _, _, _ => Option.none
+  | fuel + 1, run, position, span =>
+    if runs ≤ run then Option.none
+    else
+      let cells := (length - position) / scalar.width
+      if cells = 0 then uncoveredByte scalar history start stride length runs fuel (run + 1) 0 length
+      else
+        let count := max 1 (min span cells)
+        let cursor := start + run * stride + position
+        if history.coversRectangle scalar ⟨cursor, count, 1, count, false⟩ then
+          let next := max (history.reach scalar cursor) (cursor + count * scalar.width)
+          uncoveredByte scalar history start stride length runs fuel run
+            ((next - (start + run * stride)) / scalar.width * scalar.width) (count * 2)
+        else if count = 1 then some cursor
+        else uncoveredByte scalar history start stride length runs fuel run position (count / 2)
+
+/-- Physical row and column of the cell that the walk stops at. The runs are
+those of the check: the whole interval of a contiguous view, and otherwise one
+run for each stored column, so that padding is never examined. A history beyond
+the node budget, an invalid history and an invalid layout give no candidate. -/
+def Initialization.uncoveredCandidate (scalar : Scalar) (capacity : Nat) (layout : Layout)
+    (history : Initialization) : Option (Nat × Nat) :=
+  match history.remaining 4096 with
+  | Option.none => Option.none
+  | some remaining =>
+    if checkLayout scalar capacity layout && history.valid scalar capacity then
+      let stride := layout.leading * scalar.width
+      let steps := uncoveredSearchSteps (4096 - remaining)
+      let byte :=
+        if layout.contiguous then
+          let length := layout.endByte scalar - layout.offset
+          history.uncoveredByte scalar layout.offset 0 length 1 steps 0 0 length
+        else
+          let length := layout.rows * scalar.width
+          history.uncoveredByte scalar layout.offset stride length layout.columns steps 0 0 length
+      byte.map fun byte => ((byte - layout.offset) % stride / scalar.width, (byte - layout.offset) / stride)
+    else Option.none
+
+/-- Physical row and column of a cell of the view that the initialization check
+rejects alone. The filter is the whole justification of the answer: whatever the
+search returns, a cell outside the view or one that `Initialization.covers`
+accepts is discarded. -/
+def Initialization.uncoveredCell (scalar : Scalar) (capacity : Nat) (layout : Layout)
+    (history : Initialization) : Option (Nat × Nat) :=
+  (history.uncoveredCandidate scalar capacity layout).filter fun cell =>
+    decide (layout.InDomain (layout.logicalCell cell.1 cell.2).1 (layout.logicalCell cell.1 cell.2).2) &&
+      !history.covers scalar (cellLayout layout scalar
+        (layout.logicalCell cell.1 cell.2).1 (layout.logicalCell cell.1 cell.2).2)
+
+/-- The explanation names only a cell of the view which the check itself does
+not accept as initialized. -/
+theorem Initialization.uncoveredCell_rejected {scalar : Scalar} {capacity : Nat} {layout : Layout}
+    {history : Initialization} {row column : Nat}
+    (found : history.uncoveredCell scalar capacity layout = some (row, column)) :
+    layout.InDomain (layout.logicalCell row column).1 (layout.logicalCell row column).2 ∧
+      history.covers scalar (cellLayout layout scalar
+        (layout.logicalCell row column).1 (layout.logicalCell row column).2) = false := by
+  have checked := (Option.filter_eq_some_iff.mp found).2
+  simpa using checked
+
+/-- Text after "requested read region is not initialized". Coordinates are
+zero-based rows and columns; the bytes are relative to the allocation. Without a
+cell the text states the limit of the check and asserts nothing about a cell. -/
+def Initialization.uncoveredReason (scalar : Scalar) (capacity : Nat) (layout : Layout)
+    (history : Initialization) : String :=
+  match history.uncoveredCell scalar capacity layout with
+  | some (row, column) =>
+    let logical := layout.logicalCell row column
+    let start := layout.address scalar logical.1 logical.2
+    s!" at logical row {logical.1}, column {logical.2} of the view (physical row {row}, column {column}; allocation bytes [{start}, {start + scalar.width}))"
+  | Option.none =>
+    ": the bounded check could not establish that the preceding writes cover the region, and a bounded search found no uninitialized cell"
+
 def borrowTransition (state : State) (name : Symbol) (source : Source) (layout : Layout)
     (access : Access) : Except Error State := do
   freshName state name
@@ -701,7 +801,8 @@ def borrowTransition (state : State) (name : Symbol) (source : Source) (layout :
       fun violation => s!": {violation.message}").getD ""
     reject "E_RESOURCE_LAYOUT" s!"invalid layout{reason}"
   if access.reads && !allocation.initialization.covers allocation.scalar layout then
-    reject "E_RESOURCE_INIT" "requested read region is not initialized"
+    reject "E_RESOURCE_INIT" s!"requested read region is not initialized{
+      allocation.initialization.uncoveredReason allocation.scalar allocation.capacity layout}"
   let loan := { name, allocation := allocation.identity, layout, access, parent : Loan }
   let after := { state with loans := loan :: state.loans, used := name :: state.used }
   if !compatibleWith after loan state.loans then

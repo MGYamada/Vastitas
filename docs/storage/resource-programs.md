@@ -203,6 +203,8 @@ Rules:
 - Every cell of the view of a `read` or `read_write` loan must be initialized
   (`E_RESOURCE_INIT`). `fill` initializes its view, `store` one cell and
   `copy` its target. A `write` loan may cover uninitialized cells.
+  [Diagnostics](#diagnostics) describes the cell that the diagnostic of a
+  `borrow` names.
 - Stores that cover every cell of a view initialize it, up to the bound of
   [Layout and initialization](checked-storage.md#storage-ir--layout-and-initialization).
   Fills of the stored columns of a view also initialize it.
@@ -482,7 +484,9 @@ Rules:
 - The arguments for these parameters must be the spaces, bases and maps of the
   caller that the parameter types relate. A basis that the caller declared
   separately is a different basis, even over a space of the same dimension
-  (`E_RUNTIME_CALL`).
+  (`E_RUNTIME_CALL`). For a map with such a basis the diagnostic names the
+  argument, the parameter and both bases, as
+  [Map parameters](../linalg/maps-and-gemm.md#map-parameters) describes.
 - A `RuntimeMap` parameter with `initializes` promises that the body writes
   the whole view. A body that does not is an error (`E_RUNTIME_CALL`).
 - The mode of `runtime_gemm` must be `overwrite` or `accumulate`
@@ -544,9 +548,28 @@ points to its `if`, and a failure at the end of a body to its `value` block.
 A diagnostic for the type of a scalar binding points to the type, unless the
 type is a pair type.
 Notes name the owners and loans involved and where the program introduced
-them; a diagnostic has at most 32 notes.
+them; a diagnostic has at most 32 notes. For a call argument in another basis
+than its parameter requires, the diagnostic names both bases, as
+[Map parameters](../linalg/maps-and-gemm.md#map-parameters) describes.
 [Appendix B](../appendix/diagnostics.md) lists the `E_RESOURCE_` and
 `E_RUNTIME_` codes.
+
+The diagnostic of a `borrow` whose `read` or `read_write` view has an
+uninitialized cell (`E_RESOURCE_INIT`) names such a cell when the checker
+finds one. Its "logical" row and column are the row and column of the cell in
+the view, which `store` and `expect` take. Its "physical" row and column are
+the stored row and the stored column of the cell. Rows and columns count
+from 0. Its "allocation bytes" are the bytes of the cell, counted from the
+first byte of the allocation; the range includes its first number and
+excludes its second. In the view `layout(8, 3, 2, 4, true)` of cells of
+`F64`, logical row 0, column 2 is physical row 2, column 0 and has the
+allocation bytes `[24, 32)`.
+
+The checker searches for the cell after it has rejected the `borrow`, and the
+search has a bound. When the search finds no cell, the diagnostic says so and
+names none. This does not show that a cell is uninitialized. The checker also
+rejects a view whose cells are all written when it does not join the writes,
+as the rules of [Resource statements](#resource-statements) state.
 
 ## Moved sections
 

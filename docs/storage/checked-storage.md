@@ -177,6 +177,24 @@ that need stronger symbolic partition reasoning can still be rejected; this is
 not a complete geometric union solver. The existing rectangular path continues
 to handle large padded rectangles directly.
 
+A rejected read borrow explains itself after the query has decided. The
+explanation is presentation only: it runs on no accepted borrow and changes no
+decision. It walks the stored cells of the request in physical order through
+the runs of the query, which are the whole interval of a contiguous view and
+otherwise one run for each stored column. A step asks the rectangular path
+whether one recorded write on every path contains the next cells of the run.
+If so, the walk passes these cells and the interval that the fallback
+justifies after them, and asks for twice as many cells; otherwise it asks for
+half as many. The walk stops at the first cell that no recorded write
+contains. The diagnostic names that cell only if the query rejects the cell
+alone, as `expect` asks for it, so the explanation has no second definition of
+coverage. For a history of n nodes the walk takes at most 65,536 / n steps,
+and a step traverses the history at most twice. The dimensions of the view do
+not set this work. When the walk ends by its bound or passes every cell, the
+diagnostic states that the bounded check did not establish coverage, and names
+no cell. [Diagnostics](resource-programs.md#diagnostics) gives the
+coordinates of a named cell.
+
 Interleaved views with overlapping envelopes are rejected
 when either writes, even if a stronger partition proof could separate them.
 Arbitrary strides, read-only broadcast, general partitions and general packing remain
@@ -206,7 +224,9 @@ public source/build and 23 fault-injection executions in
 [`check_resource_cleanup.py`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_resource_cleanup.py) check all three
 arena envelopes, original error propagation, cleanup-error precedence, single
 close/finalization and zero remaining arena data. The injected runtime is a
-test-only copy; the returned source is unchanged.
+test-only copy; the returned source is unchanged. An entry without an operation
+on an arena has no arena and therefore no envelope: its body is its value flow
+([Resource checking](../internals/resource-checking.md#all-body-checking-and-generation)).
 
 `lean-kernel/native/` is an optional, separately locked Lake package with no
 compiler, oracle, mathlib or BLAS dependency. Its C adapter uses binary64 doubles
@@ -295,7 +315,7 @@ The oracle imports the actual kernel definitions:
 | Module | Proved boundary |
 | --- | --- |
 | `VastitasOracle.StorageLayout` | Every admitted logical cell is in bounds, relatively ABI-aligned and on a whole scalar element boundary (`all_accesses_at_element_boundary`); distinct cells occupy disjoint byte intervals; transpose preserves the footprint; native stride/offset intermediates fit the checked range |
-| `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning; bounded interval unions and per-column checks cover actual bytes, with arithmetic work-budget lemmas tied to the actual history traversal |
+| `VastitasOracle.StorageRegions` | Containment entails inclusion of actual bytes; disjoint envelopes imply disjoint actual bytes; initialization entailment covers requested bytes; normalized writes/joins preserve the logical initialized-byte meaning; bounded interval unions and per-column checks cover actual bytes, with arithmetic work-budget lemmas tied to the actual history traversal; the cell that the explanation of a rejected read names is a cell of the view whose first byte no recorded write initializes on every path (`uncoveredCell_uninitialized`) |
 | `VastitasOracle.StorageSafety` | An audited pair of distinct active loans with a writer cannot share a byte; audited read permissions entail logical initialization; successful action checks audit their input/output; accepted self-copy preserves the exact state; decoder certificates retain the exact checked plan |
 | `VastitasOracle.StorageCodegen` | Successful lowering follows the actual checker transitions for both branch arms; self-copy emits no native instruction; checked native instructions are unique for the same input; returned code requires the exact rechecked plan and closed logical exit |
 | `VastitasOracle.StorageGemm` | Actual GEMM subject and accepted transition, input/accumulate initialization, output byte separation, and initialized destination bytes in the reconstructed post-state; no nominal or native numerical guarantee |
@@ -307,7 +327,10 @@ transposed and empty layouts. It also checks moves, access modes, nested loans,
 branch joins, initialization, forged states, metadata budgets and a billion-by-
 billion layout and two-half initialization without expanding their elements.
 Small independent cell-set tests check real/complex write unions and branch
-intersections. Public source tests cover caller-owned padded output initialization
+intersections. For small layouts and histories, the explanation of a rejected
+read names a cell if and only if a cell of the view has an unwritten byte in
+that enumeration, and the named cell is the first such cell in physical order.
+Public source tests cover caller-owned padded output initialization
 from individual stores, transposed reads and rejection of an incomplete untaken
 branch. `VastitasStorageTest.Regression`
 checks the Rust fixture and malformed component inputs. Its `NativeRegression`

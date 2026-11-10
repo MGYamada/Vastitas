@@ -139,7 +139,7 @@ Rules:
 
 | Capability | Operation |
 | --- | --- |
-| `origin` | The origin of an object, through a primitive with the binding `origin(…)` |
+| `origin` | The origin of an object, through a [primitive](#primitives) with the binding `origin(…)` |
 | `dimension` | The dimension of an object, through a primitive with the binding `dimension(…)` |
 
 The other representations are `scalar_base(…)` and `linear_descriptor(…)` of
@@ -413,7 +413,10 @@ Rules:
   same arguments. [Object identity](#object-identity) says when two objects
   are the same.
 - An indexed type must not be an input or a result of a
-  [function type](language/types.md#function-types) (`E_PROTOCOL`).
+  [function type](language/types.md#function-types) (`E_PROTOCOL`). In a
+  program whose package graph holds an indexed declaration, the compiler
+  reports every type that a function type excludes with this code, including
+  a pair type.
 
 Before `<`, the bare names `Point`, `Morphism` and `Pointed` are types of the
 [geometric core](language/geometric-types.md), as
@@ -565,9 +568,11 @@ different objects:
 > ```
 
 `indexed primitive p = b;` declares a **primitive** `p`: a function whose
-operands and result its **binding** `b` fixes. The bindings form a closed
-set. A program declares no operation of its own, and a binding names no
-native code. `SmoothBinding` gives the bindings of
+operands and result `b` fixes. `b` is the **primitive binding** of `p`. Where
+the text names a primitive, it calls `b` the binding of the primitive. The
+primitive bindings form a closed set. A program declares no operation of its
+own, and a primitive binding names no native code. `SmoothBinding` gives the
+bindings of
 [Smooth affine declarations](language/smooth-declarations.md#smooth-map-primitives).
 The primitive declarations of [presented affine geometry](affine-geometry.md)
 are a form of `AffineDeclaration`.
@@ -690,7 +695,8 @@ syntax.
 ### Entries of an export
 
 The table has five entries of its own and two subtables,
-`[geometry_compat.scheme]` for the setting `Scheme` and
+`[geometry_compat.scheme]` for the
+[setting](appendix/glossary.md#setting) `Scheme` and
 `[geometry_compat.smooth]` for the setting `CInfScheme`. Each subtable has
 the same eight entries. Every entry is a path. In the second column, the name
 of an entry stands for the declaration that the entry names, and the object

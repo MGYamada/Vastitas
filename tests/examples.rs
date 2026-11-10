@@ -89,7 +89,24 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/stdlib-affine/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
+    ("examples/packages/runtime-extents/Vastitas.toml", "42"),
 ];
+
+/// The package programs of the book whose build links OpenBLAS, by manifest,
+/// with the output of the built executable.
+/// `book_numerical_packages_print_their_output` builds and runs them where the
+/// pinned OpenBLAS is available.
+const BOOK_NUMERICAL_PACKAGES: &[(&str, &str)] = &[
+    ("examples/packages/numerical/Vastitas.toml", "42"),
+    ("examples/packages/linear-transforms/Vastitas.toml", "42"),
+    ("examples/packages/finite_network/Vastitas.toml", "42"),
+];
+
+/// The packages of the book whose executable stops with a run-time
+/// diagnostic, by directory. The package must build. Its executable must exit
+/// with status 1, write nothing to standard output and write exactly the
+/// lines of `<directory>.stderr` to standard error.
+const BOOK_RUNTIME_FAILURES: &[&str] = &["examples/packages/failed-expect"];
 
 /// The rejected programs that the book includes from `examples/reject/`, with
 /// their `--lib` inputs. `vastitas check`, run from the repository root, must
@@ -120,6 +137,9 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/entry-signature",
     "examples/reject/packages/unknown-manifest-key",
     "examples/reject/packages/uninitialized-read",
+    "examples/reject/packages/moved-owner",
+    "examples/reject/packages/overlapping-writers",
+    "examples/reject/packages/inexact-payload",
     "examples/reject/packages/other-basis",
     "examples/reject/packages/other-space",
     "examples/reject/packages/missing-capability",
@@ -207,6 +227,34 @@ fn book_rejected_packages_print_their_diagnostics() {
     }
 }
 
+#[test]
+fn book_runtime_failures_print_their_diagnostics() {
+    for directory in BOOK_RUNTIME_FAILURES {
+        let scratch = Scratch::empty("run-time failure");
+        let program = scratch.0.join("program");
+        let manifest = format!("{directory}/Vastitas.toml");
+        let mut build = cli();
+        build
+            .current_dir(root())
+            .args(["build", "--manifest-path", &manifest, "-o"])
+            .arg(&program);
+        success(&build.output().unwrap());
+        let output = Command::new(&program).output().unwrap();
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{directory} must stop when it runs"
+        );
+        assert!(output.stdout.is_empty(), "{directory}: no output on stdout");
+        let expected = std::fs::read_to_string(root().join(format!("{directory}.stderr"))).unwrap();
+        assert_eq!(
+            String::from_utf8(output.stderr).unwrap(),
+            expected,
+            "{directory}"
+        );
+    }
+}
+
 fn files_under(directory: &Path, found: &mut Vec<String>) {
     for entry in std::fs::read_dir(directory).unwrap() {
         let path = entry.unwrap().path();
@@ -262,8 +310,12 @@ fn book_examples_are_registered() {
     for (path, _, _) in BOOK_PROGRAMS {
         assert!(root().join(path).is_file(), "{path}");
     }
-    for (manifest, _) in BOOK_PACKAGES {
+    for (manifest, _) in BOOK_PACKAGES.iter().chain(BOOK_NUMERICAL_PACKAGES) {
         assert!(root().join(manifest).is_file(), "{manifest}");
+    }
+    for directory in BOOK_RUNTIME_FAILURES {
+        let manifest = format!("{directory}/Vastitas.toml");
+        assert!(root().join(&manifest).is_file(), "{manifest}");
     }
 }
 
@@ -435,4 +487,21 @@ fn runtime_shapes_package_runs_with_openblas() {
         &["--openblas-prefix", &prefix, "--native-cc", &cc],
         "0",
     );
+}
+
+// docs/guide/numerical.md: the numerical packages of the book, built in place
+// with the pinned OpenBLAS prefix. tests/numerical_source.rs builds and runs
+// copies of their sources in the numerical CI jobs.
+#[test]
+#[ignore = "requires pinned sequential LP64 OpenBLAS"]
+fn book_numerical_packages_print_their_output() {
+    let prefix = std::env::var("VASTITAS_TEST_OPENBLAS_PREFIX").expect("OpenBLAS prefix");
+    let cc = std::env::var("VASTITAS_TEST_NATIVE_CC").unwrap_or_else(|_| "cc".into());
+    for (manifest, expected) in BOOK_NUMERICAL_PACKAGES {
+        documented_build(
+            &["--manifest-path", manifest],
+            &["--openblas-prefix", &prefix, "--native-cc", &cc],
+            expected,
+        );
+    }
 }

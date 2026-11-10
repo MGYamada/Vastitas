@@ -686,7 +686,7 @@ The descriptor `layout(offset, rows, columns, leading, transposed)` of a
 offset, the numbers of stored rows and columns, the leading dimension in
 cells and a transposition flag. See
 [Storage types](../storage/resource-programs.md#storage-types) and the
-[guide](../guide/storage.md#resource-functions).
+[guide](../guide/storage.md#layouts).
 
 ## Limit
 
@@ -955,7 +955,7 @@ The word has three meanings. Qualify it where the context does not decide.
    [allocation](#allocation). `allocate` creates one, `move` and calls hand
    it on, and `drop` frees it. See
    [Storage types](../storage/resource-programs.md#storage-types) and the
-   [guide](../guide/storage.md#the-statements).
+   [guide](../guide/storage.md#owners-and-loans).
 
 ## Package
 
@@ -1071,6 +1071,13 @@ The presented affine object `localize(X, f) inverse u`: the open subset of
 
 Declared without `pub`: visible in the declaring module and in its
 descendants only. See [Visibility](../language/names-and-paths.md#visibility).
+
+## Product statement
+
+A numerical statement that multiplies when the program runs: `gemm`,
+`runtime_gemm`, a pairing or a contraction. `vastitas build` needs the
+OpenBLAS library for a program whose entry point reaches one. See
+[Building a numerical program](../linalg/maps-and-gemm.md#building-a-numerical-program).
 
 ## Profile
 

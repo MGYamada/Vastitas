@@ -1,0 +1,12 @@
+resource fn pass(data: Owned<F64, 4>) returns (data: Owned<F64, 4>) -> Unit {
+    value { () }
+}
+
+resource fn main() -> Int {
+    allocate data: F64[4];
+    call pass(data) -> (returned);
+    // The call took `data`. Only `returned` owns the allocation.
+    drop(data);
+    drop(returned);
+    value { 42 }
+}

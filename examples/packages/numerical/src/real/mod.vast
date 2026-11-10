@@ -1,10 +1,13 @@
 pub resource fn product() -> Unit {
+    // ANCHOR: spaces
     space u = linear(super::profiles::RealSmooth, 2);
     space v = linear(super::profiles::RealSmooth, 3);
     space w = linear(super::profiles::RealSmooth, 2);
     basis bu = basis(u);
     basis bv = basis(v);
     basis bw = basis(w);
+    // ANCHOR_END: spaces
+    // ANCHOR: storage
     allocate a: F64[6];
     allocate b: F64[6];
     allocate c: F64[4];
@@ -24,6 +27,8 @@ pub resource fn product() -> Unit {
     store(init_b, 2, 0, f64_bits(4622382067542392832));
     store(init_b, 2, 1, f64_bits(4622945017495814144));
     release(init_b);
+    // ANCHOR_END: storage
+    // ANCHOR: product
     borrow input_a = read(a, layout(0, 2, 3, 2, false));
     borrow input_b = read(b, layout(0, 3, 2, 3, false));
     borrow output = write(c, layout(0, 2, 2, 2, false));
@@ -31,6 +36,8 @@ pub resource fn product() -> Unit {
     map right = view(input_b, bu, bv);
     map destination = view(output, bu, bw);
     gemm(left, right, destination, overwrite, NativeFast);
+    // ANCHOR_END: product
+    // ANCHOR: accumulate
     release(output);
     borrow updated = read_write(c, layout(0, 2, 2, 2, false));
     expect(updated, 0, 0, f64_bits(4633359591634108416));
@@ -43,6 +50,7 @@ pub resource fn product() -> Unit {
     expect(updated, 0, 1, f64_bits(4638707616191610880));
     expect(updated, 1, 0, f64_bits(4643598243911958528));
     expect(updated, 1, 1, f64_bits(4644126009493291008));
+    // ANCHOR_END: accumulate
     release(updated);
     release(input_b);
     release(input_a);

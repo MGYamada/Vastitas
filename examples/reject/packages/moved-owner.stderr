@@ -1,0 +1,3 @@
+examples/reject/packages/moved-owner/main.vast:9:5: E_RESOURCE_MOVE: owner is absent, moved or dropped
+examples/reject/packages/moved-owner/main.vast:5:1: note: while checking resource function `main`
+examples/reject/packages/moved-owner/main.vast:6:5: note: allocation owner is `data`, introduced here

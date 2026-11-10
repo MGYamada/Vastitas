@@ -65,7 +65,7 @@ Rules:
   fits.
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:6:20}}
+{{#include ../../examples/packages/linear-transforms/src/main.vast:declarations}}
 ```
 
 ## Metrics
@@ -166,7 +166,7 @@ This function of
 multiplies with the dual of a map:
 
 ```vast
-{{#include ../../examples/packages/linear-transforms/src/main.vast:69:77}}
+{{#include ../../examples/packages/linear-transforms/src/main.vast:dual-into}}
 ```
 
 ## Adjoints for diagonal metrics

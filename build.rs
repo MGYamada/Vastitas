@@ -1,11 +1,10 @@
-use std::collections::BTreeMap;
 use std::{env, fs, path::Path, path::PathBuf};
 
 // Shared with the driver, which digests the same files in the selected root.
 #[allow(dead_code)]
 #[path = "src/runtime_inputs.rs"]
 mod runtime_inputs;
-use runtime_inputs::{ABSENT, Package, digest, header_imports, inputs};
+use runtime_inputs::{ABSENT, Package, executable_digest, executable_inputs, inputs};
 
 fn main() {
     let path = "lean-kernel/compiler-limits.json";
@@ -35,9 +34,10 @@ fn main() {
     fs::write(output.join("kernel_identity.rs"), kernel_identity()).expect("write kernel identity");
 }
 
-/// The kernel executable reports the digest of `Main.lean` and every module it
-/// imports from the kernel package, with its Lean version. Compute the same
-/// identity from the sources this driver is built with.
+/// The kernel executable reports the digest of `Main.lean`, of every module it
+/// imports from the kernel package and of the compiler limits that those
+/// modules read while they are elaborated, with its Lean version. Compute the
+/// same identity from the files this driver is built with.
 fn kernel_identity() -> String {
     let root = Path::new("lean-kernel");
     let toolchain_path = root.join("lean-toolchain");
@@ -46,27 +46,11 @@ fn kernel_identity() -> String {
     let toolchain = toolchain.trim();
     let release = toolchain.rsplit(':').next().unwrap_or_default();
     let lean = release.strip_prefix('v').unwrap_or(release);
-    let mut files = BTreeMap::new();
-    let mut pending = vec!["Main.lean".to_string()];
-    while let Some(relative) = pending.pop() {
-        let path = root.join(&relative);
-        // Toolchain modules (Init, Lean, Std, ...) are not kernel sources.
-        if files.contains_key(&relative) || !path.is_file() {
-            continue;
-        }
-        println!("cargo:rerun-if-changed={}", path.display());
-        let bytes = fs::read(&path).expect("read kernel source");
-        let source = std::str::from_utf8(&bytes).expect("UTF-8 kernel source");
-        for module in header_imports(source) {
-            pending.push(format!("{}.lean", module.replace('.', "/")));
-        }
-        files.insert(relative, bytes);
+    let files = executable_inputs(root).expect("read the inputs of the kernel executable");
+    for relative in files.keys() {
+        println!("cargo:rerun-if-changed={}", root.join(relative).display());
     }
-    let sources = digest(
-        files
-            .iter()
-            .map(|(relative, bytes)| (relative.as_str(), bytes.as_slice())),
-    );
+    let sources = executable_digest(&files);
     let mut identity = format!(
         "pub const SOURCES: &str = \"{sources}\";\npub const LEAN: &str = {lean:?};\npub const TOOLCHAIN: &str = {toolchain:?};\n"
     );

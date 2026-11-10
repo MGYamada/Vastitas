@@ -61,10 +61,14 @@ writable. There is no self-contained relocatable installation, and
 cross-compilation is not provided: builds target the host.
 
 Every backend response reports the kernel's build identity: a digest of the
-kernel sources it was compiled from and its Lean version. The driver rejects a
-backend built from other sources or with another Lean (`E_BACKEND: incompatible
-kernel`), so rebuild the kernel (`lake -d <root> build vastitas-kernel`) after
-updating the compiler or its sources. `build` also requires the package's
+files it was built from and its Lean version. The digest covers the Lean
+sources of the kernel executable and `compiler-limits.json`, the file of the
+[checker limits](../appendix/limits.md#checker-limits) that those sources read
+when they are built. `check` and `build` reject a backend built from other
+sources, with another limits file or with another Lean (`E_BACKEND:
+incompatible kernel`), so rebuild the kernel
+(`lake -d <root> build vastitas-kernel`) after updating the compiler or its
+sources. `build` also requires the package's
 `lean-toolchain` to equal the compiler's pin and `lean --version`, resolved as
 Lake resolves it, to report that version; otherwise it stops before Lake runs.
 

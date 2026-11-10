@@ -272,10 +272,11 @@ mod expected_kernel {
 // Responses may carry generated Lean for the whole program; bound them anyway.
 const MAX_BACKEND_RESPONSE: usize = 256 * 1024 * 1024;
 
-/// Every kernel response reports the digest of the Lean sources it was compiled
-/// from and its Lean version. Protocol numbers stay fixed across releases, so
-/// only this identity ties the checker to this driver. It says nothing about
-/// the root that a native build compiles; see `verify_runtime_inputs`.
+/// Every kernel response reports the digest of the Lean sources and of the
+/// compiler limits it was built from, and its Lean version. Protocol numbers
+/// stay fixed across releases, so only this identity ties the checker to this
+/// driver. It says nothing about the root that a native build compiles; see
+/// `verify_runtime_inputs`.
 fn kernel_identity_problem(response: &Value) -> Option<String> {
     let identity = response.get("kernel");
     let field = |name| {

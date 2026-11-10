@@ -1,6 +1,7 @@
 //! Driver and process-handling regressions from the v0.1.0-alpha review
-//! (#519, #522, #550, #564). Process-group signaling (#520) and package-lock
-//! fallback classification are unit-tested next to their implementations.
+//! (#519, #522, #550, #564), and what the kernel's build identity covers (#724).
+//! Process-group signaling (#520) and package-lock fallback classification are
+//! unit-tested next to their implementations.
 mod common;
 use common::{Scratch, kernel_identity, kernel_path};
 use std::ffi::OsString;
@@ -509,6 +510,201 @@ fn kernel_build_identity_fails_closed() {
     // The real kernel reports exactly the identity this driver was built for.
     let result = cli(&s).args(["check", "main.vast"]).output().unwrap();
     assert!(result.status.success(), "{}", stderr(&result));
+}
+
+/// `limits` with the value of `key` raised by one and nothing else changed.
+fn raised_limit(limits: &[u8], key: &str) -> Vec<u8> {
+    let limits = std::str::from_utf8(limits).unwrap();
+    let marker = format!("\"{key}\": ");
+    let start = limits.find(&marker).expect("limit") + marker.len();
+    let digits = limits[start..]
+        .bytes()
+        .take_while(u8::is_ascii_digit)
+        .count();
+    let value: u64 = limits[start..start + digits].parse().expect("limit value");
+    format!(
+        "{}{}{}",
+        &limits[..start],
+        value + 1,
+        &limits[start + digits..]
+    )
+    .into_bytes()
+}
+
+// #724: `Limits.lean` reads `compiler-limits.json` while it is elaborated, so
+// the file is an input of the kernel executable and of its identity. The build
+// script digests the files of `executable_inputs`. The kernel digests the same
+// files in Lean while `Main` is elaborated, and the built kernel must report
+// the digest of this checkout. A kernel root with the same Lean sources and
+// another limits file has another digest, and `check` rejects a kernel that
+// reports it.
+#[test]
+fn kernel_build_identity_covers_the_compiler_limits() {
+    use common::runtime_inputs::{executable_digest, executable_inputs};
+    const LIMITS: &str = "compiler-limits.json";
+    let s = fixture();
+    let identity = kernel_identity();
+    let reported = serde_json::from_str::<serde_json::Value>(&identity).unwrap()["sources"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    let kernel = common::root().join("lean-kernel");
+    let inputs = executable_inputs(&kernel).unwrap();
+    assert!(inputs.contains_key("Main.lean") && inputs.len() > 2);
+    assert_eq!(executable_digest(&inputs), reported);
+
+    // A scratch kernel root with the files of the identity.
+    let copy = s.0.join("lean-kernel");
+    for (relative, bytes) in &inputs {
+        let path = copy.join(relative);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, bytes).unwrap();
+    }
+    let original = fs::read(kernel.join(LIMITS)).unwrap();
+    fs::write(copy.join(LIMITS), &original).unwrap();
+    let digest = || executable_digest(&executable_inputs(&copy).unwrap());
+    assert_eq!(digest(), reported);
+
+    let backend = s.0.join("kernel");
+    // A limit that the kernel reads, a limit that only the frontend reads, and
+    // a change of the bytes that changes no limit.
+    for limits in [
+        raised_limit(&original, "typeNesting"),
+        raised_limit(&original, "parseNesting"),
+        [original.as_slice(), b"\n"].concat(),
+    ] {
+        fs::write(copy.join(LIMITS), &limits).unwrap();
+        let other = digest();
+        assert_ne!(other, reported, "the identity ignores {LIMITS}");
+        // What a kernel built from that root answers.
+        executable(
+            &backend,
+            &format!(
+                "#!/bin/sh\ncat >/dev/null\nprintf '%s\\n' '{{\"version\":2,\"ok\":true,\"kernel\":{}}}'\n",
+                identity.replace(&reported, &other)
+            ),
+        );
+        let result = cli(&s)
+            .args(["check", "main.vast"])
+            .env("VASTITAS_KERNEL", &backend)
+            .output()
+            .unwrap();
+        let error = stderr(&result);
+        assert!(!result.status.success(), "accepted {other}");
+        assert!(
+            error.starts_with("E_BACKEND: incompatible kernel")
+                && error.contains(&format!("built from kernel sources {other} with Lean"))
+                && error.contains(&format!("requires kernel sources {reported} with Lean")),
+            "{error}"
+        );
+    }
+    // The root with its limits restored has the identity of this checkout
+    // again, and a changed Lean source still changes it.
+    fs::write(copy.join(LIMITS), &original).unwrap();
+    assert_eq!(digest(), reported);
+    let main = copy.join("Main.lean");
+    fs::write(&main, [inputs["Main.lean"].as_slice(), b"\n"].concat()).unwrap();
+    assert_ne!(digest(), reported);
+}
+
+/// The entries of the array of tables `table` in a Lake configuration.
+fn lake_entries(configuration: &toml::Value, table: &str) -> Vec<toml::Value> {
+    configuration
+        .get(table)
+        .and_then(toml::Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+/// The entry of `table` whose name is `name`.
+fn lake_entry(configuration: &toml::Value, table: &str, name: &str) -> Option<toml::Value> {
+    lake_entries(configuration, table)
+        .into_iter()
+        .find(|entry| entry["name"].as_str() == Some(name))
+}
+
+// #724: the kernel embeds its digest while `Main` is elaborated. Lake
+// elaborates `Main` again when the `.olean` of an imported module changes. A
+// comment added after the last declaration of a module changes none, and
+// neither does a changed limit that no module reads. The executable must
+// therefore need every digested file as an input that Lake tracks by its
+// bytes. Otherwise a rebuilt kernel keeps a stale digest.
+#[test]
+fn kernel_executable_needs_every_file_of_its_identity() {
+    use common::runtime_inputs::{ELABORATION_INPUTS, executable_inputs};
+    let kernel = common::root().join("lean-kernel");
+    let configuration: toml::Value =
+        toml::from_str(&fs::read_to_string(kernel.join("lakefile.toml")).unwrap()).unwrap();
+    // The inputs that a target needs; none when it states no `needs`.
+    let needs = |table: &str, name: &str| -> Vec<String> {
+        let target = lake_entry(&configuration, table, name)
+            .unwrap_or_else(|| panic!("no {table} named {name}"));
+        let needs = target.get("needs").and_then(toml::Value::as_array);
+        needs
+            .into_iter()
+            .flatten()
+            .map(|need| need.as_str().unwrap().to_string())
+            .collect()
+    };
+    let executable = lake_entry(&configuration, "lean_exe", "vastitas-kernel").unwrap();
+    assert_eq!(executable["root"].as_str(), Some("Main"));
+    let needed = needs("lean_exe", "vastitas-kernel");
+    let mut files = Vec::new();
+    let mut directories = Vec::new();
+    for need in &needed {
+        let file = lake_entry(&configuration, "input_file", need);
+        let directory = lake_entry(&configuration, "input_dir", need);
+        let input = file
+            .as_ref()
+            .or(directory.as_ref())
+            .unwrap_or_else(|| panic!("{need} is not an input file or directory"));
+        // Lake hashes a text input with normalized line endings.
+        assert_ne!(
+            input.get("text").and_then(toml::Value::as_bool),
+            Some(true),
+            "{need} is not tracked by its bytes"
+        );
+        let path = input["path"].as_str().unwrap().to_string();
+        if file.is_some() {
+            files.push(path);
+        } else {
+            let extensions: Vec<String> = input["filter"]["extension"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|extension| extension.as_str().unwrap().to_string())
+                .collect();
+            directories.push((format!("{path}/"), extensions));
+        }
+    }
+    let inputs = executable_inputs(&kernel).unwrap();
+    assert!(inputs.len() > ELABORATION_INPUTS.len() + 1);
+    for relative in inputs.keys() {
+        let extension = Path::new(relative).extension().unwrap().to_str().unwrap();
+        assert!(
+            files.contains(relative)
+                || directories.iter().any(|(directory, extensions)| {
+                    relative.starts_with(directory) && extensions.iter().any(|e| e == extension)
+                }),
+            "{relative} is in the build identity, but the executable does not need it"
+        );
+    }
+    // A file that the kernel library needs is read while a kernel module is
+    // elaborated, so it belongs to the identity as well.
+    for need in needs("lean_lib", "VastitasKernel") {
+        assert!(
+            needed.contains(&need),
+            "the executable does not need {need}"
+        );
+        let path = lake_entry(&configuration, "input_file", &need).unwrap()["path"]
+            .as_str()
+            .unwrap()
+            .to_string();
+        assert!(
+            ELABORATION_INPUTS.contains(&path.as_str()),
+            "{path} is an input of the kernel library, but not of the build identity"
+        );
+    }
 }
 
 // #550: Lake must not run with a Lean other than the pinned toolchain.

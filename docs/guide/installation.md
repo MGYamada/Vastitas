@@ -81,8 +81,9 @@ Two environment variables select the backend:
   it, `check` needs no kernel package directory.
 
 Every kernel response carries a build identity: a digest of the kernel sources
-and the Lean version. The driver rejects a kernel built from other sources with
-`E_BACKEND: incompatible kernel`. After updating the compiler or its sources,
+and of the compiler limits, and the Lean version. The driver rejects a kernel
+built from other sources or limits with `E_BACKEND: incompatible kernel`. After
+updating the compiler or its sources,
 rebuild the kernel with `lake -d lean-kernel build vastitas-kernel`.
 
 `build` also compares the runtime files of the kernel package directory with

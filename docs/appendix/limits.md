@@ -24,7 +24,10 @@ The reading of a site's maps charges at most `reverseLeaves` maps:
 The authoritative values are in
 [`lean-kernel/compiler-limits.json`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/compiler-limits.json).
 The Lean kernel and the Rust driver both take their values from this file when
-they are built. Distinct budgets stay distinct even when their values coincide.
+they are built. The file belongs to the kernel's build identity, so the driver
+rejects a kernel built with another limits file
+([Compiler commands and diagnostics](../guide/cli.md)). Distinct budgets stay
+distinct even when their values coincide.
 
 | Key | Value | What it bounds | Specified in |
 | --- | --- | --- | --- |

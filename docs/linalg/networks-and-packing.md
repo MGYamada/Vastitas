@@ -306,7 +306,7 @@ OpenBLAS internal workspace. Compare the complete generated path and a competent
 C implementation using the same packing and pinned sequential BLAS, including
 full lifecycle and reused scratch/destination scopes. Packing time/bytes, peak
 live memory, raw paired samples and uncertainty remain required before any
-performance claim; see [the performance gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+performance claim; see [the performance gate](../storage-ownership.md#performance-evidence-and-acceptance).
 
 The optional [tensor packing experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/tensor_packing/README.md)
 checks the canonical public executable, instruments its actual emitted resource
@@ -491,7 +491,7 @@ The separate [matched C experiment](https://github.com/MGYamada/Vastitas/blob/ma
 uses the actual emitted schedule and equivalent explicit C packing and GEMMs.
 Measurements and sanitizer runs are evidence about those cases, not a native
 refinement proof or a claim of C parity. Controlled-host performance acceptance
-remains subject to the [performance gate](../storage-ownership.md#713-performance-evidence-and-acceptance).
+remains subject to the [performance gate](../storage-ownership.md#performance-evidence-and-acceptance).
 The [short-block adapter comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/contraction_trees/results/2026-11-01-macos-regroup-blocks/RESULTS.md)
 retains both rejected variable-copy experiments and the final clean native
 comparison. It motivates the bounded 16–64-byte path without claiming a
@@ -609,7 +609,7 @@ and drops for its checked scope. A versioned dependency instead detects that a
 previous relation became stale after access ended. It preserves no old bytes and
 cannot replace a retention loan. Retain/snapshot/recompute residual strategies,
 escaping lifetime contracts and AD execution remain later work; see
-[Chapter 7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation).
+[Chapter 7.10](../storage-ownership.md#residual-retention).
 
 ### Actual schedule and generation boundary
 

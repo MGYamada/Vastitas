@@ -7,6 +7,17 @@ and audits the Core that code generation receives. The rules themselves are in
 [Verification boundaries](../verification.md) states which of these checks are
 proved.
 
+## The public path
+
+Protocol 2 carries surface types, lambda expressions and expression invocation.
+Protocols 2–6 decode that unresolved syntax through `Indexed.LegacySource.check`
+into the common `Indexed.AuthoritySource` composition used by protocol 7's
+`Indexed.Wire.check`. Its `Indexed.FunctionSource` compiler lowers functions into
+independently audited indexed Core, including programs without Fn constructs.
+`checkSurfaceProgram`, `checkProgram` and their old Raw/Checked Core remain retained
+internal APIs; Main does not call them. Their older source-correspondence results
+do not imply correspondence for the current source lowering.
+
 ## Dispatch checking
 
 For a generic with `n` parameters, the kernel enumerates every key in
@@ -26,8 +37,9 @@ the resulting dependency graph has no cycle.
 
 ## Abstract types and contracts
 
-Inputs using these declarations use [protocol 4](../protocol.md), explicitly
-marked `flat` or `package`. Existing sources keep protocols 2 and 3. Rust retains
+Inputs with abstract types, `subtype` declarations or abstract methods use
+[protocol 4](../protocol.md#protocol-selection) or a later protocol, explicitly
+marked `flat` or `package`. Sources without them may use protocols 2 and 3. Rust retains
 unresolved paths and spans; Lean independently resolves names, audits edit
 authority, constructs the hierarchy, and selects executable methods. The
 backend creates the indexes and hierarchy; the wire cannot supply trusted
@@ -52,25 +64,11 @@ Foreign inheritance and aliases remain legal when they reuse independently
 owner-authorized scalars; introducing another foreign membership reports `E_OWNER`.
 The audit reconstructs origins from decoded package/module declarations.
 
-The [contract example](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast) checks, builds and
-runs to 42. `ContractRegression` and `tests/abstract_contracts.rs` exercise the
-actual checker, native flat/package/--lib paths, higher-order lowering, unions,
-empty domains, overlapping/conflicting results, authority and tampered IR.
-
 ## Function specialization
 
 No function value survives into the generated program. A definition that
 returns a function value becomes a definition with a `Unit` result in the
 internal Core, and the compiler carries its static result target separately.
-
-Protocol 2 adds surface types, lambda expressions and expression invocation.
-Protocols 2–6 decode that unresolved syntax through `Indexed.LegacySource.check`
-into the common `Indexed.AuthoritySource` composition used by protocol 7's
-`Indexed.Wire.check`. Its `Indexed.FunctionSource` compiler lowers functions into
-independently audited indexed Core, including programs without Fn constructs.
-`checkSurfaceProgram`, `checkProgram` and their old Raw/Checked Core remain retained
-internal APIs; Main does not call them. Their older source-correspondence results
-do not imply correspondence for the current source lowering.
 
 Lean independently checks lambda free names, assigns lambda IDs by syntax
 traversal, validates signatures, and constructs every applicable dispatch
@@ -100,7 +98,7 @@ that results of different wrapper calls denote the same function. Executable
 specialization independently reconstructs their concrete targets, including
 factories returning Fn values through long forwarding chains.
 The independent audit checks the positional bijection, signatures, emitted
-origin and return renaming. A 90-function forwarding chain no longer spends
+origin and return renaming. A 90-function forwarding chain does not spend
 4095 instances rechecking fresh names: its audit has one probe template and
 one concrete instance per wrapper, plus the ordinary entry and scalar callback.
 This also applies when wrappers return Fn values. The normalization and
@@ -126,8 +124,10 @@ expansion also charges before retaining each instance, so separate families
 cannot each spend a fresh budget. Nonwinning and out-of-domain instances count.
 The actual audit and executable passes independently charge every compiled
 Fn specialization before checking its body; an already cached instance is not
-charged twice. Each pass additionally caps worklist requests at 2,000,000, plus
-one final completion step. The passes retain separate counters and target states.
+charged twice. Each pass additionally caps worklist requests at the smaller of
+a structural bound and 2,000,001, which is two requests per unit of the
+elaboration budget plus one final completion step. The passes retain separate
+counters and target states.
 
 Exceeding any budget rejects the entire input with `E_LIMIT`; it never licenses
 omitting an unused body or accepting a partial dispatch audit. The exact returned
@@ -143,7 +143,7 @@ An independent structural predicate checks the recorded static target and
 erased function-argument signatures against backend definitions. The actual
 returned core then passes the existing whole-module typing and dependency
 audits. Only after those checks does code generation retain functions reachable
-from the validated `main` entrypoint. Unused bodies cannot escape checking by
+from the validated `main` entry point. Unused bodies cannot escape checking by
 being absent from generated code.
 
 The oracle proves capture freedom, static signature consistency, and typing,
@@ -151,28 +151,6 @@ dependency order and termination of the exact returned core through the actual
 public acceptance path. Full operational correspondence from surface lambda
 syntax through specialization, Rust/JSON correctness and native code equivalence
 remain outside these proofs. See [verification boundaries](../verification.md).
-
-### Lowering type information
-
-The following `ResultType`/raw-expression optimization describes the retained
-`FunctionChecker` pipeline. Current `IndexedFunctionBodies` instead constructs
-typed indexed Core directly; old raw-Core proofs do not transfer to that lowering.
-
-The common lowering retains backend-inferred `ResultType` information with the
-raw expression. It includes nominal object references. Generic keys, scalar/Pair
-call arguments, let/unpack bindings, and block results reuse that information
-when it is already fixed; nested scalar generic calls no longer recheck all
-inner calls merely to discover their result types. A generic operand is inferred
-independently before the selected method's parameter types are considered.
-
-Context-dependent integer/operator/conditional expressions remain unresolved
-until their expected type is available. Geometric calls still use the core's
-dependent argument substitution and fresh-object construction, and reusing a
-block result retains the original escape check. This is a conservative reuse
-optimization, not a global AST cache: uncached expressions still use core
-inference. No metadata is trusted by the final independent function/module
-check, which rechecks the retained raw bodies and performs the typing/dependency
-audits as before.
 
 ### Internal identities and resource limits
 
@@ -195,7 +173,7 @@ generated lets, aggregate elaboration work, specialization count, dispatch keys,
 work, authority-trace work and namespace resolution
 retain separate named budgets even when their numeric values coincide.
 
-### Pairs in Core
+## Pairs in Core
 
 The actual core carries finite Pair types and primitive operations. Native code
 uses Lean `Prod Nat Nat` or `Prod Int Int`. Current indexed typing, evaluation and
@@ -204,6 +182,11 @@ theorems cover Pair only in the retained pipeline. Neither set establishes
 general tuples or source-function rewriting correspondence.
 
 ## Regression coverage
+
+The [contract example](https://github.com/MGYamada/Vastitas/blob/main/examples/abstract-contracts.vast) checks, builds and
+runs to 42. `ContractRegression` and `tests/abstract_contracts.rs` exercise the
+actual checker, native flat/package/--lib paths, higher-order lowering, unions,
+empty domains, overlapping/conflicting results, authority and tampered IR.
 
 `tests/functions.rs` checks native calls, aliases, parameters/results, nested
 Fn contracts and lambdas, zero/Unit/multiple arguments, dispatch, multiple
@@ -237,7 +220,9 @@ code-generation audit tests.
 
 ## Promotion proofs and fixture
 
-`tests/promotion.rs::stdlib_ir_matches_proof_fixture` runs the real Rust
+The specification [std::arithmetic::generic](../spec/std-arithmetic-generic.md)
+states the contract of promotion, and [Promotion](../stage1a.md#promotion)
+describes it. `tests/promotion.rs::stdlib_ir_matches_proof_fixture` runs the real Rust
 `parse_sources` frontend on the three canonical stdlib files using stable
 virtual diagnostic filenames/offsets. It compares the complete JSON against
 `tests/fixtures/promotion.json`; it does not substitute a handwritten AST.
@@ -337,6 +322,28 @@ manifest location and logical module owners are unchanged.
   costs, are tracked in [#422](https://github.com/MGYamada/Vastitas/issues/422),
   [#423](https://github.com/MGYamada/Vastitas/issues/423) and
   [#426](https://github.com/MGYamada/Vastitas/issues/426).
+
+### Retained pipeline: lowering type information
+
+The following `ResultType`/raw-expression optimization describes the retained
+`FunctionChecker` pipeline. Current `IndexedFunctionBodies` instead constructs
+typed indexed Core directly; old raw-Core proofs do not transfer to that lowering.
+
+The common lowering retains backend-inferred `ResultType` information with the
+raw expression. It includes nominal object references. Generic keys, scalar/Pair
+call arguments, let/unpack bindings, and block results reuse that information
+when it is already fixed; nested scalar generic calls do not recheck all
+inner calls merely to discover their result types. A generic operand is inferred
+independently before the selected method's parameter types are considered.
+
+Context-dependent integer/operator/conditional expressions remain unresolved
+until their expected type is available. Geometric calls still use the core's
+dependent argument substitution and fresh-object construction, and reusing a
+block result retains the original escape check. This is a conservative reuse
+optimization, not a global AST cache: uncached expressions still use core
+inference. No metadata is trusted by the final independent function/module
+check, which rechecks the retained raw bodies and performs the typing/dependency
+audits as before.
 
 ### Stage 1b indexing: issue #141 follow-up
 

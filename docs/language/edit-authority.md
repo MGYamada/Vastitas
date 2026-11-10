@@ -22,7 +22,8 @@ Rules:
 - A `method` declaration must be in the module that defines its generic.
   Another module is an error (`E_OWNER`), and so is a method for an ordinary
   function.
-- A child module, `pub`, `use` and an alias grant no edit authority.
+- A child module, `pub`, `use` and an alias grant no edit authority. The
+  defining module may name its own declaration through an alias.
 - Abstract types and abstract methods have owner rules of their own, which
   [Abstract types](../stage1a.md#abstract-types) and
   [Abstract methods](../stage1a.md#abstract-methods) give. A transfer does not
@@ -44,33 +45,37 @@ Rules:
 **recipient**: its first segment is the name in the `[package]` table of the
 recipient's manifest, and the rest is the logical path of its module. `to p`
 names the root module of `p`. A package whose name is not an identifier cannot
-be a recipient. The **region** lists the argument tuples of scalar types that
-the recipient's methods may win. It has the form of the
-[domain](../stage1a.md#generic-declarations) of a generic; `domain;` is an
-empty region. A grant is a permission, not an active edit: it takes effect only
+be a recipient. The **region** lists the
+[keys](../stage1a.md#generic-declarations) at which the recipient's methods
+may win. It has the form of the domain of a generic; `domain;` is an empty
+region. A grant is a permission, not an active edit: it takes effect only
 when an assembly borrows it.
 
 A **delegation** has the same form. It lets the holder of a loan pass part of
 its permission on to another module, as [Assemblies](#assemblies) describes.
-`delegable` marks a grant or a delegation that permits this.
+`delegable` marks a grant or a delegation that permits this. The module that
+declares a grant or a delegation is its **issuer**.
 
 Rules:
 
-- The target of a grant or a delegation must be a generic. Another target is
-  an error (`E_TYPE`).
-- A grant must be declared by a module that holds edit authority over the
-  generic at some point of the assembly, also when no assembly borrows it.
-  Another issuer is an error (`E_OWNER`).
+- The target of a grant, a delegation, a transfer or a contribution must be a
+  generic. Another declaration is an error (`E_TYPE`).
+- The issuer of a grant must hold edit authority over the generic at some
+  point of the assembly, even when no event borrows the grant. Another issuer
+  is an error (`E_OWNER`).
 - A delegation has no authority until a `reborrow` uses it, as
   [Assemblies](#assemblies) says. An unused delegation is not checked against
   its issuer.
-- The recipient package must be in the dependency closure of the root package,
-  and exactly one package there must have that name. Its module must exist and
-  must differ from the issuer. Another recipient is an error (`E_OWNER`). A
-  dependency alias does not name a recipient, and a declaration never adds a
-  package to the package graph.
-- Every tuple of a region must have one type per parameter of the generic
-  (`E_ARITY`). An empty region permits no winning tuple.
+- The recipient package must be in the
+  [package graph](../packages.md#the-package-graph), and exactly one package
+  there must have that name. Its module must exist and must differ from the
+  issuer. Another recipient is an error (`E_OWNER`).
+- A dependency alias does not name a recipient, and a declaration never adds a
+  package to the package graph. The package of the issuer need not depend on
+  the package of the recipient.
+- Every key of a region must have one type per parameter of the generic
+  (`E_ARITY`), and each type must be a scalar type (`E_TYPE`). A key must not
+  occur twice in a region (`E_DUPLICATE`). An empty region permits no win.
 - Grants, delegations, transfers and contributions follow the ordinary
   [visibility](names-and-paths.md#visibility) rules when another module names
   them (`E_VISIBILITY`).
@@ -95,10 +100,10 @@ grants the package `edit_addon` the region `(Int, Int)` of `choose`:
 >     `contribution` IDENTIFIER `:` Path `{` MethodDeclaration* `}`
 > ```
 
-A **contribution** is a named set of methods for one generic, declared outside
-the generic's module or by its current owner. Its owner is its package, module
-and name, and each method has its position in the contribution. A contribution
-adds its methods only when an assembly applies it.
+A **contribution** is a named set of methods for one generic. Any module may
+declare one. Its owner is its package, module and name, and each method has
+its position in the contribution. A contribution adds its methods only when an
+assembly applies it.
 
 Rules:
 
@@ -107,12 +112,15 @@ Rules:
   contribution is an error (`E_PARSE`).
 - Every method of a contribution must be a method of the contribution's
   generic. A method of another generic is an error (`E_OWNER`).
-- Every method of a contribution is checked, also when no assembly applies the
-  contribution. The checker checks an unapplied method against the final set of
-  methods, for every argument tuple to which it applies, but the method never
-  takes part in dispatch.
-- Two contributions applied to one generic must not hold methods with the same
-  normalized signature (`E_DUPLICATE`).
+- The compiler checks every method of a contribution, even when no event
+  applies the contribution. It checks an unapplied method against the final
+  set of methods, at every key at which the method applies, but the method
+  never takes part in dispatch.
+- The methods of an applied contribution are methods of the generic. The rule
+  of [Method declarations](../stage1a.md#method-declarations) against equal
+  selectors and requirements covers them (`E_DUPLICATE`): within one
+  contribution, between applied contributions, and against the `method`
+  declarations. It does not cover an unapplied contribution.
 
 The package `edit_addon` contributes one method:
 
@@ -153,35 +161,43 @@ own: every event uses a permission that some module declared.
 Rules:
 
 - A program has at most one assembly, in the root module of the root package.
-  An assembly in another module is an error (`E_ASSEMBLY`), and a second one is
-  an error, as [Visibility](items.md#visibility) says. A program without an
+  An assembly in another module is an error (`E_ASSEMBLY`), and a second
+  assembly in one module is an error (`E_DUPLICATE`). A program without an
   assembly behaves as if it had an empty one.
+- Each event must name a declaration of the kind that the table gives:
+  `borrow` a grant, `via` a delegation, `apply` a contribution, `transfer` a
+  transfer and `seal` a generic. Another kind is an error (`E_TYPE`).
 - A generic has at most one active loan that may edit it. A second `borrow` is
   an error (`E_BORROW`). A loan name must not be used twice in an assembly
   (`E_BORROW`).
-- `apply c using l` requires that `l` is active and that its recipient is the
-  module of `c`. `apply c` without a loan requires that the module of `c` is
-  the current owner. Another `apply` is an error (`E_OWNER`). While a loan of
-  the generic is active, `apply` without a loan is an error (`E_BORROW`).
-- `reborrow l via d as k` requires that `l` comes from a `delegable` grant or
-  delegation, that its recipient declared `d` for the same generic, and that
-  the region of `d` lies in the region of `l`. Another `reborrow` is an error
+- In `apply c using l`, the loan `l` must be active (`E_BORROW`). It must be a
+  loan of the generic of `c`, and its recipient must be the module of `c`
   (`E_OWNER`).
+- In `apply c` without a loan, the module of `c` must be the current owner
+  (`E_OWNER`), and no loan of the generic may be active (`E_BORROW`).
+- In `reborrow l via d as k`, the loan `l` must be active (`E_BORROW`). It
+  must come from a `delegable` grant or delegation, its recipient must have
+  declared `d` for the same generic, and the region of `d` must lie in the
+  region of `l` (`E_OWNER`).
 - While `k` is active, its parent `l` is suspended: it may neither edit nor be
   reborrowed (`E_BORROW`). Loans end from the inside out: returning a parent
   before its child is an error (`E_BORROW`), and so is returning a loan that is
   not active.
 - Returning a loan keeps the methods that it installed. The generic stays open,
-  and the owner may still apply contributions before the seal.
-- `seal f` requires that no loan of `f` is active (`E_BORROW`). A sealed
-  generic cannot be edited, borrowed, transferred or sealed again
-  (`E_ASSEMBLY`).
-- At the end of the assembly, every loan must be returned (`E_BORROW`), and
-  every generic that the assembly edited or transferred must be sealed
-  (`E_ASSEMBLY`).
+  and the current owner may still apply contributions before the seal.
+- No loan of `f` may be active at `seal f` (`E_BORROW`). A sealed generic
+  cannot be edited, borrowed, transferred or sealed again (`E_ASSEMBLY`).
+- At the end of the assembly, every loan must be returned (`E_BORROW`).
+- Every generic to which the assembly applied a contribution must be sealed
+  (`E_ASSEMBLY`). So must every generic that it transferred, even when the
+  assembly installed no method. A generic that the assembly only borrowed
+  needs no seal.
 - Applying the same contribution twice under the same permission is the same as
   applying it once. The same contribution with different provenance is an
   error (`E_PROVENANCE`).
+- An assembly has at most 4096 events (`E_PROTOCOL`), and the contributions of
+  the package graph hold at most 4096 methods (`E_LIMIT`).
+  [Appendix D](../appendix/limits.md#checker-limits) lists both limits.
 - `borrow`, `reborrow`, `via`, `using`, `seal`, `to`, `delegable`, `grant`,
   `delegation`, `transfer`, `contribution` and `assembly` are keywords only in
   these declarations, and a binding may use them as names. `apply` is a
@@ -200,23 +216,21 @@ The executable prints `42`.
 ## Sealing
 
 When an assembly seals a generic, the compiler checks the generic as a whole,
-with every method that the assembly installed:
+with every method that the assembly installed. The checks are those of
+[Selection](../stage1a.md#selection) and of
+[Abstract methods](../stage1a.md#abstract-methods): ambiguity, winners in the
+callable domain, result types, and every method body.
 
-- every argument tuple of the generic has no ambiguity, as
-  [Selection](../stage1a.md#selection)
-  describes;
-- every tuple of the domain, including the domains of abstract methods, has
-  one winning method, whose result type matches every abstract method that
-  covers the tuple;
-- every tuple that a contributed method wins lies in the region of its grant,
-  and in the regions of all the grants and delegations that its loan descends
-  from. Another tuple is an error (`E_IMPACT`);
-- every method body that applies to some tuple is checked, also when it never
-  wins.
+Rules:
 
-Until the seal, an edit may leave an ambiguity or a tuple without a winner, and
-a later contribution may repair it. A generic that no assembly edits gets the
-same checks without a seal.
+- Every key that a contributed method wins must lie in the region of its
+  grant, and in the regions of all the grants and delegations that its loan
+  descends from. Another key is an error (`E_IMPACT`), including a key outside
+  the callable domain of the generic.
+- Until the seal, an edit may leave an ambiguity or a key without a winner,
+  and a later contribution may repair it.
+- A generic that no assembly edits gets the checks of Selection without a
+  seal.
 
 ## Transfers
 
@@ -226,31 +240,30 @@ same checks without a seal.
 > TransferDeclaration -> `transfer` IDENTIFIER `:` Path `to` Path `;`
 > ```
 
-`transfer t : f to p::m;` declares an operation that hands the current
-ownership of the generic `f` to the module `m` of the package `p`. The
-recipient path has the same form as the recipient of a grant. The event
-`transfer t;` in the assembly performs it. `f` keeps its owner; only its
-current owner changes.
+`transfer t : f to p::m;` declares an operation that makes the module `m` of
+the package `p` the current owner of the generic `f`. The recipient path has
+the same form as the recipient of a grant. The event `transfer t;` in the
+assembly performs it. `f` keeps its owner; only its current owner changes.
 
 Rules:
 
 - A transfer must be declared by the current owner of the generic when the
-  event runs. Another transfer, also a transfer that already ran, is an error
+  event runs. Another transfer, including one that already ran, is an error
   (`E_OWNER`).
 - A transfer declaration that no event runs must still come from a module that
-  owns the generic at some point of the assembly (`E_OWNER`).
-- No loan may be active when a transfer runs (`E_BORROW`).
-- After a transfer, the former owner has no authority over the generic, and
-  the recipient applies its contributions without a loan. The `method`
+  is the current owner at some point of the assembly (`E_OWNER`).
+- No loan of the generic may be active when its transfer runs (`E_BORROW`).
+- After a transfer, the former current owner can no longer apply a
+  contribution without a loan or transfer the generic. The grants that it
+  declared stay usable.
+- The recipient applies its contributions without a loan. The `method`
   declarations of the generic stay in the defining module; the recipient adds
   methods only through contributions.
-- A transferred generic must be sealed, also when the assembly installs no
-  method (`E_ASSEMBLY`).
 - Every method, grant, contribution and open obligation of the generic stays
   as it was. A grant of the recipient becomes usable only after the transfer.
-- A transfer changes the owner of a generic only. Abstract-type membership,
-  abstract method contracts, ordinary functions and single methods have no
-  transfer.
+- A transfer changes the current owner of a generic only. Abstract-type
+  membership, abstract method contracts, ordinary functions and single
+  methods have no transfer.
 
 [`examples/packages/edit-authority`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-authority)
 nests a loan through a delegation and then transfers the generic. The defining

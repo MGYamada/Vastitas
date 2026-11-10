@@ -7,8 +7,8 @@ Follow an allocation from layout and initialization checks through the resource 
 ## Internal storage resource IR
 
 This is an internal foundation for [#183](https://github.com/MGYamada/Vastitas/issues/183),
-implementing part of the [Chapter 7 contract](../storage-ownership.md). Its raw component envelope is not
-a public protocol. [Protocol 8](resource-programs.md#resource-source) composes it with independently
+implementing part of the [Storage and ownership](../storage-ownership.md) contract. Its raw component envelope is not
+a public protocol. [Protocol 8](resource-programs.md#resource-functions) composes it with independently
 checked package resource source. The exact checked component can now
 produce standalone native buffer executables through the optional runtime below.
 The [delivery record](../stage1-completion.md) distinguishes the implemented bounded runtime and numerical consumers from broader interfaces and the Stage 2 performance requirements.
@@ -109,7 +109,7 @@ allocations in different branches get different identities and must be dropped
 within the branch under this initial closed-plan profile. The
 [internal function component](#storage-functions) additionally checks owned
 arguments/results and call-scoped borrowed arguments with caller-owned output
-reuse. The public static function profile is described in [resource source](resource-programs.md#resource-source);
+reuse. The public static function profile is described in [resource source](resource-programs.md#resource-functions);
 dynamic value flow and escaping-loan lifetime contracts remain pending.
 
 Write-only access never reads, and cannot gain read authority by creating a
@@ -353,9 +353,9 @@ proved neutral physical extent and creates no nominal third axis.
 
 This is the function component of [storage ownership](#storage-ir), advancing
 [#183](https://github.com/MGYamada/Vastitas/issues/183). Its raw component schema is not `.vast` syntax or a replacement for package/Fn/dispatch/edit
-checks. [Protocol 8 resource source](resource-programs.md#resource-source) composes this component
+checks. [Protocol 8 resource source](resource-programs.md#resource-functions) composes this component
 with the complete package checker, including bounded Nat/Int/Bool/Unit value
-flow and a separate [guarded runtime-shape frame](resource-programs.md#runtime-shapes). Broader numerical interfaces remain open beyond the delivered finite profile. [Stage 1 scope](../stage1-completion.md)
+flow and a separate [guarded runtime-shape frame](resource-programs.md#runtime-extents). Broader numerical interfaces remain open beyond the delivered finite profile. [Stage 1 scope](../stage1-completion.md)
 
 ### Contracts and calls
 

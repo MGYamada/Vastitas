@@ -7,9 +7,8 @@ result of the function.
 > **Syntax**
 >
 > ```text
-> Function -> `fn` IDENTIFIER FunctionParameters `->` Type BlockExpression
-> FunctionParameters ->
->     `(` ( FunctionParameter ( `,` FunctionParameter )* `,`? )? `)`
+> Function -> `fn` IDENTIFIER `(` FunctionParameters? `)` `->` Type BlockExpression
+> FunctionParameters -> FunctionParameter ( `,` FunctionParameter )* `,`?
 > FunctionParameter -> IDENTIFIER `:` Type
 > ```
 
@@ -24,8 +23,9 @@ Rules:
 - The type of a parameter may name an earlier parameter as an object, as in
   `fn keep(X: Scheme, p: Point<X, Base(QQ)>)`. The result type may name any
   parameter. A type that names a later parameter or an unknown object is an
-  error (`E_NAME`). [Geometric types](geometric-types.md#object-identity)
-  describes these dependent types.
+  error (`E_NAME` in flat mode, `E_TYPE` in manifest mode).
+  [Geometric types](geometric-types.md#object-identity) describes these
+  dependent types.
 - A function body refers only to its parameters, the bindings of its body and
   items. There is no enclosing scope that a function could capture.
 
@@ -48,9 +48,10 @@ Rules:
 
 - The number of arguments must equal the number of parameters. Another number
   is an error (`E_ARITY`).
-- Each argument must have the type of its parameter (`E_TYPE`). Where a
-  parameter type names an earlier parameter, the call substitutes the object
-  of that argument, so its identity, not only its dimension, must match.
+- Each argument must have the type of its parameter. Another type is an error
+  (`E_TYPE`). Where a parameter type names an earlier parameter, the call
+  substitutes the object of that argument, so its identity, not only its
+  dimension, must match.
 - A call may name a function that the program declares later.
 - A function must not call itself, directly or through other functions. A
   cycle of calls is an error (`E_RECURSION`).
@@ -74,13 +75,20 @@ In this program `even` and `odd` call each other:
 The name of a function whose parameter and result types are scalar or function
 types is also a value of a [function type](types.md#function-types). A
 [lambda expression](expressions.md#lambda-expressions) is an anonymous
-function. A function value can be bound, passed, returned and called.
+function. [Function values](../stage1b.md) says what a program may do with a
+function value.
 
 Rules:
 
-- The name of a function with a pair type or a geometric type among its
-  parameter and result types is not a value. Using it as a value is an error
-  (`E_TYPE`). Such a function may only be called by its name.
+- The name of a function with a pair type, a geometric type or an indexed type
+  among its parameter and result types is not a value. Using it as a value is
+  an error (`E_TYPE`). A program may only call such a function by its name.
+- A function that has a function type among its parameter and result types
+  must have only scalar types and function types in its signature. Another
+  type there is an error (`E_TYPE`). Its body may still use pairs and geometric
+  values.
+- A built-in function is not a value. Its name used as a value is an error
+  (`E_NAME`).
 
 
 ```vast
@@ -88,6 +96,3 @@ Rules:
 ```
 
 The executable prints `42`.
-[Function values](../stage1b.md) gives the rules
-for function values, among them the rule that every call has one static
-target.

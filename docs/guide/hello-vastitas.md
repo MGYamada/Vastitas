@@ -20,9 +20,9 @@ target/debug/vastitas build examples/book/programs/hello.vast -o target/hello
 ./target/hello
 ```
 
-The program prints `42`. The generated entrypoint prints the integer that
+The program prints `42`. The generated entry point prints the integer that
 `main` returns and exits successfully. The language itself has no strings or
-I/O; printing the result is the entrypoint's job, not a language feature.
+I/O; printing the result is the entry point's job, not a language feature.
 
 ## `check` and `build`
 

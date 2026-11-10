@@ -35,6 +35,12 @@ only inside the bodies of items.
 | Contribution | `contribution` | No | [Contributions](edit-authority.md#contributions) |
 | Assembly | `assembly` | No | [Assemblies](edit-authority.md#assemblies) |
 
+`IndexedDeclaration` stands for every declaration that begins with `indexed`.
+[Smooth affine declarations](smooth-declarations.md) gives the productions of
+the smooth declarations, and
+[Indexed source](../indexed-source.md#declarations-and-source-example)
+describes the others.
+
 Rules:
 
 - In [flat mode](programs.md#flat-mode), an item of a kind that the table
@@ -55,22 +61,22 @@ Rules:
 - `pub` before an item is an error in flat mode (`E_UNSUPPORTED`).
 - `pub` before a method, an abstract method, a subtype or an assembly is an
   error (`E_PARSE`). These items have no visibility of their own.
-- A module must contain at most one assembly. A second one is an error
-  (`E_DUPLICATE`).
 
 ## Names of items
 
-Functions, generics and abstract types share one namespace, the namespace of
-their module in manifest mode and of the whole program in flat mode. In
-manifest mode the namespace of a module also holds its child modules and the
-names that its `use` imports bind. A binding must not take a name of this
-namespace, as [Scopes of bindings](statements.md#scopes-of-bindings) says.
+Every item that has a name shares one namespace with the other items of its
+module: functions, resource functions, generics, abstract types, `indexed`
+declarations, grants, delegations, transfers and contributions. In flat mode
+the namespace holds the items of the whole program. In manifest mode the
+namespace of a module also holds its child modules, the names that its `use`
+declarations bind, and the dependency aliases of its package. Methods, abstract
+methods, subtypes and assemblies have no name of their own.
 
 Rules:
 
-- Two items of the namespace with the same name are an error
-  (`E_DUPLICATE`). In manifest mode, an item with the name of a child module
-  or of an import of its module is an error (`E_DUPLICATE`).
-- An item name must not be a [reserved name](lexical-structure.md#reserved-names)
-  (`E_RESERVED`), apart from the exception for `indexed` declarations that the
-  rules of that section give.
+- Two names of one namespace must differ. Equal names are an error
+  (`E_DUPLICATE`).
+- A binding must not take a name of the namespace of its module, as
+  [Scopes of bindings](statements.md#scopes-of-bindings) says.
+- [Reserved names](lexical-structure.md#reserved-names) says which names an
+  item must not have.

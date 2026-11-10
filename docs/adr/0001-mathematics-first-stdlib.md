@@ -494,7 +494,7 @@ what is implemented, tested and proved.
     the same covector.
   - Residuals are immutable pure Core values. They meet the retention
     contract of
-    [storage ownership §7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation)
+    [storage ownership §7.10](../storage-ownership.md#residual-retention)
     as Retain or Recompute, without storage.
 - **Admission argument.** The denotation of the pullback (A) does not depend
   on the algorithm that computes it. Compiled Core and the runtime routine are

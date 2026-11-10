@@ -8,21 +8,41 @@ Each entry links to a chapter that explains the term.
 An `abstract method` declaration has no executable body: its braces hold only a
 domain. It extends the callable domain of its generic and fixes the result type
 that each concrete winning method must have. See
-[Abstract method contracts](../guide/dispatch.md#abstract-method-contracts).
+[Abstract methods](../stage1a.md#abstract-methods) and the
+[guide](../guide/dispatch.md#abstract-method-contracts).
 
 ## Abstract type
 
 A nominal selector declared with `abstract type`. A `subtype` declaration places
 a concrete scalar type under it. An abstract type has no values and adds no
 conversions.
-See [Abstract types](../guide/dispatch.md#abstract-types).
+See [Abstract types](../stage1a.md#abstract-types) and the
+[guide](../guide/dispatch.md#abstract-types).
+
+## Allocation
+
+A buffer of [cells](#cell) that one storage [owner](#owner) owns. `allocate`
+creates it, and `drop` frees it. See
+[Storage types](../storage/resource-programs.md#storage-types).
+
+## Applicable method
+
+A method that **applies** at a [key](#dispatch-key): each type of the key
+belongs to the matching selector of the method and has the capabilities that
+the method requires. See [Selection](../stage1a.md#selection).
+
+## Arm
+
+One of the two lists of statements of a branch in a resource function. See
+[Scalar values and calls](../storage/resource-programs.md#scalar-values-and-calls).
 
 ## Assembly
 
-The `assembly` block in the root module of the root package. It borrows grants
-as edit loans, applies contributions, returns the loans and seals the edited
-generics. See
-[Edit authority](../guide/modules-and-authority.md#edit-authority).
+The `assembly` block in the root module of the root package. Its
+[events](#event) borrow grants as edit loans, apply contributions, return the
+loans and seal the edited generics. See
+[Assemblies](../language/edit-authority.md#assemblies) and the
+[guide](../guide/modules-and-authority.md#edit-authority).
 
 ## Assumption registry
 
@@ -42,12 +62,19 @@ and an opaque step by the [runtime reverse pass](#runtime-reverse-pass).
 Compare [forward Core](#forward-core). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
+## Bare name
+
+A name without `::`. It resolves among the bindings in scope, the declarations
+and imports of the current module, and the built-in functions. See
+[Resolution](../language/names-and-paths.md#resolution).
+
 ## Base object
 
 The object `Base(K)` over the coefficient marker `K`. The zero point
 `origin(X)` has test object `Base(K)`. A base object is distinct from its
 marker and from a [basis](#basis). See
-[Objects, points and morphisms](../guide/indexed-geometry.md#objects-points-and-morphisms).
+[Settings and markers](../language/geometric-types.md#settings-and-markers)
+and the [guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
 ## Basis
 
@@ -58,10 +85,19 @@ named bases. See
 
 ## Binding
 
-A name that a `let` or `unpack` statement or a parameter list introduces. A
-binding is immutable, and no binding may reuse a name that is visible where it
-is introduced. See
-[Scopes of bindings](../language/statements.md#scopes-of-bindings).
+A name that a `let` or `unpack` statement or a parameter list introduces. In a
+[resource function](#resource-function), owners, loans and the results of
+calls are bindings too. A binding is immutable, and no binding reuses a name
+that is visible where it is introduced. See
+[Scopes of bindings](../language/statements.md#scopes-of-bindings) and
+[Resource statements](../storage/resource-programs.md#resource-statements).
+
+## Built-in function
+
+A function that the language defines: `int`, `pair`, `pair_first`,
+`pair_second` and the geometric operations such as `origin`. Its name is
+reserved, and it is not a function value. See
+[Built-in functions](../language/expressions.md#built-in-functions).
 
 ## Callable domain
 
@@ -76,11 +112,28 @@ The word has two meanings:
 1. In dispatch, a capability is a static fact about argument types that a
    method may require with `requires`. `HasEq` holds for every scalar type, and
    `HasOrder` holds for `Nat` and `Int`.
-   See [Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
+   See [Method declarations](../stage1a.md#method-declarations) and the
+   [guide](../guide/dispatch.md#selectors-and-capabilities).
 2. In an `indexed implementation` declaration, a capability is a tag in the
    `capabilities(...)` list, from the closed set `origin` and `dimension`. The
    checker audits each primitive against the declared capabilities. See
    [Declarations and source example](../indexed-source.md#declarations-and-source-example).
+
+## Cell
+
+One element of an [allocation](#allocation): a binary64 number for `F64`, or
+two for `Complex<F64>`. See
+[Storage types](../storage/resource-programs.md#storage-types).
+
+## Child
+
+The word has two meanings:
+
+1. A child module is a module that a `mod` declaration of its parent module
+   declares. See [Module declarations](../language/modules.md#module-declarations).
+2. A child loan is a [storage loan](#storage-loan) borrowed from another loan,
+   its parent. See
+   [Resource statements](../storage/resource-programs.md#resource-statements).
 
 ## CInfScheme
 
@@ -140,6 +193,7 @@ The pullback of a covector along a [smooth map](#smooth-map) at a point. For a
 map `F` with Jacobian `J` at a point `x`, it sends a covector `η` at `F(x)` to
 the covector `Jᵀη` at `x`. A covector at any other point gives the
 [failure value](#failure-value). See
+[Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Current module
@@ -154,6 +208,12 @@ delegation. It names a recipient module and a region inside the parent loan's
 region. In an assembly, `reborrow` uses it to lend a nested edit loan, and the
 parent loan stays suspended until the nested loan returns. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
+
+## Dependency alias
+
+The name under which a manifest declares a dependency. As the first segment
+of a path it names the root module of that package. See
+[Manifests](../packages.md#manifests).
 
 ## Derivative rule
 
@@ -177,23 +237,27 @@ An object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
 The static selection of one method of a generic from the argument types. The
 compiler makes and checks every choice at compile time, and no method lookup
 happens at run time. Expected results never influence the choice. See
-[How a method is chosen](../guide/dispatch.md#how-a-method-is-chosen).
+[Selection](../stage1a.md#selection) and the
+[guide](../guide/dispatch.md#how-a-method-is-chosen).
 
 ## Dispatch key
 
-A tuple of argument types from `Nat`, `Int`, `Bool` and `Unit`, of the
-generic's arity. The checker examines every key for ambiguity, including keys
-outside the [domain](#domain). See
-[Selection and whole-program checking](../stage1a.md#selection).
+A tuple of argument types from `Nat`, `Int`, `Bool` and `Unit`, one per
+parameter of a generic. It is also called a **key**. The checker examines
+every key for ambiguity, including keys outside the
+[callable domain](#callable-domain). See
+[Generic declarations](../stage1a.md#generic-declarations) and
+[Selection](../stage1a.md#selection).
 
 ## Domain
 
 The word has two meanings:
 
-1. The domain of a generic is the set of argument-type tuples that callers may
-   use. A `domain` clause declares it, and [abstract methods](#abstract-method)
-   extend it. See
-   [Generics and methods](../guide/dispatch.md#generics-and-methods).
+1. The domain of a generic is the list of [keys](#dispatch-key) in its
+   `domain` clause. Callers may call the generic at these keys and at the keys
+   of its abstract methods; compare [callable domain](#callable-domain). See
+   [Generic declarations](../stage1a.md#generic-declarations) and the
+   [guide](../guide/dispatch.md#generics-and-methods).
 2. The domain of an `indexed classification` is the complete finite list of
    implementations that it classifies. See
    [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
@@ -251,6 +315,12 @@ The word has two qualified uses:
    [specialization](#specialization) erases. See
    [Compiler protocols](../protocol.md).
 
+## Event
+
+One step of an [assembly](#assembly): `borrow`, `reborrow`, `apply`,
+`return`, `transfer` or `seal`. The compiler replays the events in order. See
+[Assemblies](../language/edit-authority.md#assemblies).
+
 ## Existential package
 
 A value that hides a witness object together with fields whose types depend on
@@ -259,7 +329,8 @@ opens it with a fresh scoped identity, even when the same package is opened
 twice. An `indexed package` declaration declares a package type such as
 `Pointed`. An existential package is unrelated to a [package](#package) of
 source code. See
-[Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal) and
+[Existential packages](../language/geometric-types.md#existential-packages),
+the [guide](../guide/indexed-geometry.md#identity-is-nominal) and
 [Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
 
 ## Expected type
@@ -269,6 +340,12 @@ of a `let` statement or the type of a parameter for an argument. An integer
 literal has type `Nat` where its expected type is `Nat`, and `Int` otherwise.
 See [Literal expressions](../language/expressions.md#literal-expressions).
 
+## Extent
+
+A size in a `runtime_` statement or type: a literal, or a `Nat` or `Int`
+binding that the program computes. See
+[Runtime extents](../storage/resource-programs.md#runtime-extents).
+
 ## Failure value
 
 The value of a [tangent or cotangent fiber](#tangent-or-cotangent-fiber) family
@@ -276,7 +353,8 @@ that stands for no vector or covector. A cotangent pullback returns it for a
 covector that is not at the image point, and every pullback of the failure
 value is the failure value. It is at no point, and it equals no value, itself
 included. Its components and its pairings read `(0, 0)`, which no rational
-number reads. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+number reads. See [Fiber primitives](../language/smooth-declarations.md#fiber-primitives) and the wire
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Family
 
@@ -297,6 +375,12 @@ The compiler mode that takes one entry file and any number of `--lib`
 libraries, without a manifest. Flat mode has no modules, imports, `pub` or
 other package-only declarations. Compare [manifest mode](#manifest-mode). See
 [Flat mode](../language/programs.md#flat-mode).
+
+## Floating-point literal
+
+A token such as `1.5`, `125e-3` or `0x1.8p1`. It is valid only as a number
+of a [payload](#payload). See
+[Other literals](../language/lexical-structure.md#other-literals).
 
 ## Forward Core
 
@@ -323,14 +407,16 @@ A value of a type `Fn<A, R>`: a named function or a [lambda](#lambda).
 Function values are independent: they capture nothing from their
 surroundings. Every call of a function value resolves to one static target,
 and [specialization](#specialization) erases function values. See
-[Independent functions and specialization](../guide/function-values.md).
+[Function values](../stage1b.md) and the
+[guide](../guide/function-values.md).
 
 ## Generic
 
 A function with several methods, declared with `generic` together with its
 arity and domain. Dispatch selects one method for each call. A generic is not a
 function value. See
-[Generics and methods](../guide/dispatch.md#generics-and-methods).
+[Generic declarations](../stage1a.md#generic-declarations) and the
+[guide](../guide/dispatch.md#generics-and-methods).
 
 ## Grant
 
@@ -341,6 +427,11 @@ that authority. The grant names the recipient by its package's manifest
 assembly borrows it to obtain an edit loan. See
 [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 
+## Higher-order function
+
+A function with a function parameter or a function result. See
+[Specialization](../stage1b.md#specialization).
+
 ## Implementation
 
 An `indexed implementation` declaration, such as `Grid`. It records a
@@ -350,11 +441,14 @@ coefficient marker, a finite backend representation and its
 
 ## Indexed declaration
 
-A declaration that begins with `indexed`: a marker, implementation,
-classification, global, family, package or primitive. Indexed declarations let
-any package declare an indexed [profile](#profile), and the standard geometry
-library uses them. See
-[Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+A declaration that begins with `indexed`. Its kinds are `marker`,
+`implementation`, `classification`, `global`, `family`, `package`,
+`primitive`, `affine`, `morphism`, `metric`, `evidence`, `iso` and
+`cartesian`. Indexed declarations let any package declare an indexed
+[profile](#profile), and the standard geometry library uses them. See
+[Declarations and source example](../indexed-source.md#declarations-and-source-example),
+[Smooth affine declarations](../language/smooth-declarations.md) and the
+[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Indexed type
 
@@ -362,11 +456,25 @@ A type that applies a family of an `indexed` declaration to its arguments, such
 as `geo::Point<X, geo::Base>`, or the type `Object<D, M>` of an object. See
 [Indexed types](../language/types.md#indexed-types).
 
+## Issuer
+
+The module that declares a grant or a delegation. See
+[Grants and delegations](../language/edit-authority.md#grants-and-delegations).
+
 ## Item
 
 A declaration at the top level of a source file or of a module, such as a
 function, a generic or a module. Statements and expressions occur only inside
 items. See [Items](../language/items.md).
+
+## Jacobian step
+
+The step of [backward Core](#backward-core) along a declared
+[smooth map](#smooth-map). It applies the transpose of the map's
+[Jacobian table](#jacobian-table), evaluated at the saved input point, to the
+seed. It gives the [failure value](#failure-value) unless the seed lies over
+the saved output point. Compare [opaque step](#opaque-step). See
+[Compiled reverse Core](../verification.md#compiled-reverse-core).
 
 ## Jacobian table
 
@@ -378,15 +486,6 @@ the saved input point and applies its transpose to the seed. That step is a
 [Jacobian step](#jacobian-step). See
 [Compiled reverse Core](../verification.md#compiled-reverse-core).
 
-## Jacobian step
-
-The step of [backward Core](#backward-core) along a declared
-[smooth map](#smooth-map). It applies the transpose of the map's
-[Jacobian table](#jacobian-table), evaluated at the saved input point, to the
-seed. It gives the [failure value](#failure-value) unless the seed lies over
-the saved output point. Compare [opaque step](#opaque-step). See
-[Compiled reverse Core](../verification.md#compiled-reverse-core).
-
 ## Kernel
 
 The Lean program in `lean-kernel/` that checks every program independently of
@@ -394,19 +493,32 @@ the frontend. It resolves names, allocates identities, checks every body and
 generates code from the checked result. It depends on the Lean
 distribution only. See [Compiler architecture](../development/architecture.md).
 
+## Key
+
+See [dispatch key](#dispatch-key).
+
 ## Lambda
 
 A function expression such as `fn(x: Int) -> Int { x + 1 }`. A lambda states
 every parameter type and its result type, and it captures nothing from its
 surroundings. See
-[No captures](../guide/function-values.md#no-captures).
+[Lambda expressions](../language/expressions.md#lambda-expressions) and the
+[guide](../guide/function-values.md#no-captures).
 
 ## Layout
 
-The view descriptor `layout(offset, rows, columns, leading, transposed)`. It
-describes a column-major physical rectangle in an allocation: a byte offset,
-the physical numbers of rows and columns, the leading dimension in elements and
-a transpose flag. See [Resource functions](../guide/storage.md#resource-functions).
+The descriptor `layout(offset, rows, columns, leading, transposed)` of a
+[view](#view). It describes a column-major rectangle in an allocation: a byte
+offset, the numbers of stored rows and columns, the leading dimension in
+cells and a transposition flag. See
+[Storage types](../storage/resource-programs.md#storage-types) and the
+[guide](../guide/storage.md#resource-functions).
+
+## Line separator
+
+A character that ends a line in another convention than LF or CR LF, such as
+a form feed or U+2028. A source file contains none. See
+[Source text](../language/lexical-structure.md#source-text).
 
 ## Logical evaluator
 
@@ -434,7 +546,8 @@ records keep the lowering equation. See
 ## Manifest
 
 The file `Vastitas.toml` at the root of a package. It names the package and its
-dependencies. See [A manifest](../guide/stdlib.md#a-manifest).
+dependencies. See [Manifests](../packages.md#manifests) and the
+[guide](../guide/stdlib.md#a-manifest).
 
 ## Manifest mode
 
@@ -462,7 +575,8 @@ A claim with status Proved (bridge) cites its theorems. See
 
 One body of a generic. A method gives each parameter a selector, declares a
 result type and may require capabilities. See
-[Generics and methods](../guide/dispatch.md#generics-and-methods).
+[Method declarations](../stage1a.md#method-declarations) and the
+[guide](../guide/dispatch.md#generics-and-methods).
 
 ## Metric form
 
@@ -473,14 +587,22 @@ the coordinates of `X`. No value has a metric form type. `flat` and `sharp`
 name their metric explicitly, and no metric is ever selected by default. A
 metric form is distinct from the diagonal Hermitian `Metric` of
 [transforms and metrics](../linalg/transforms-and-metrics.md). See
+[Metrics](../language/smooth-declarations.md#metrics) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Module
 
-A namespace inside a package. The root source file is the package's root
-module. A child module is an inline `mod name { ... }` block or a file that
-`mod name;` loads. Each module has a logical module path from the package root.
-See [Modules](../language/modules.md).
+A namespace inside a package. The root source file is the **root module** of
+the package. A child module is an **inline module**, a `mod name { ... }`
+block, or a **file module**, a file that `mod name;` loads. Each module has a
+[logical path](#logical-path) from the root module. See
+[Modules](../language/modules.md).
+
+## More specific
+
+Method `a` is more specific than method `b` when its selectors are no
+broader, its requirements are no weaker, and one of these comparisons is
+strict. See [Selection](../stage1a.md#selection).
 
 ## Nominal identity
 
@@ -488,13 +610,15 @@ Identity that comes from a declaration or a construction, never from structure.
 Every `Affine(...)` construction and every `space` declaration has a fresh
 identity. Equal settings, base objects, dimensions or descriptors never
 identify two objects. Abstract types and indexed declarations also have nominal
-identity. See [Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal).
+identity. See [Object identity](../language/geometric-types.md#object-identity) and the
+[guide](../guide/indexed-geometry.md#identity-is-nominal).
 
 ## Nominal object
 
 An object with [nominal identity](#nominal-identity), such as the result of
 `Affine(QQ, 2)`. A point's type names the object that the point lies on. See
-[Identity is nominal](../guide/indexed-geometry.md#identity-is-nominal).
+[Object identity](../language/geometric-types.md#object-identity) and the
+[guide](../guide/indexed-geometry.md#identity-is-nominal).
 
 ## Nondegenerate evidence
 
@@ -502,6 +626,7 @@ An `indexed evidence` declaration `nondegenerate(g)` for a metric `g` with Gram
 matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
 `G B` and `B G` are the identity. A singular Gram matrix has no nondegenerate
 evidence. `sharp` requires nondegenerate evidence for its metric. See
+[Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Opaque step
@@ -522,25 +647,34 @@ The Lean proof package in `lean/`. It proves theorems about the kernel's
 definitions. Compilation and generated programs never run it. See
 [Verification boundaries](../verification.md).
 
+## Owned result
+
+An owner that a resource function hands to its caller. The function declares
+it after `returns`. See
+[Resource functions](../storage/resource-programs.md#resource-functions).
+
 ## Owner
 
 The word has three meanings. Qualify it where the context does not decide.
 
 1. The **owner** of a function or other declaration is its defining package,
-   logical module path and name. Aliases, reexports, file names and read order
+   [logical path](#logical-path) and name. Aliases, reexports, file names and read order
    never change it. See [Owners](../language/edit-authority.md#owners).
 2. The **current owner** of a generic is the module that holds its edit
-   authority. A [transfer](#transfer) changes it. See
+   authority: its defining module, until a [transfer](#transfer) changes it.
+   See [Owners](../language/edit-authority.md#owners) and
    [Transfers](../language/edit-authority.md#transfers).
-3. A **storage owner** is a binding that owns an allocation. `allocate`
-   creates one, `move` and calls hand it on, and `drop` frees it. See
-   [The statements](../guide/storage.md#the-statements).
+3. A **storage owner** is a binding that owns an
+   [allocation](#allocation). `allocate` creates one, `move` and calls hand
+   it on, and `drop` frees it. See
+   [Storage types](../storage/resource-programs.md#storage-types) and the
+   [guide](../guide/storage.md#the-statements).
 
 ## Package
 
 A directory with a `Vastitas.toml` manifest, a root source file and modules.
 Compare [existential package](#existential-package). See
-[Packages and manifests](../guide/stdlib.md).
+[Packages](../packages.md) and the [guide](../guide/stdlib.md).
 
 ## Package graph
 
@@ -553,6 +687,13 @@ compiler checks every package of the graph. See
 A sequence of names separated by `::` that names a declaration, such as
 `std::arithmetic::generic::add`. Its first segment may be `package`, `self`,
 `super` or a dependency alias. See [Names and paths](../language/names-and-paths.md).
+
+## Payload
+
+The value of one cell of storage in a resource statement, written `f64(…)`,
+`complex(…)`, `f64_bits(…)` or `complex_bits(…)`. A payload is one exact
+binary64 value, or two for a complex cell; the compiler never rounds one. See
+[Payloads](../storage/resource-programs.md#payloads).
 
 ## Primitive
 
@@ -606,6 +747,11 @@ binding allocates when the result is a fresh object. The argument hints and the
 [role table](#role-table) of the binding come from its shape. See
 [Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
 
+## Private
+
+Declared without `pub`: visible in the declaring module and in its
+descendants only. See [Visibility](../language/names-and-paths.md#visibility).
+
 ## Profile
 
 The word has three qualified uses:
@@ -635,6 +781,11 @@ One mathematical fact about a language construct or a standard-library module,
 recorded in a [specification](#specification) with an example and one or more
 [claims](#claim). See [Specifications](../specifications.md).
 
+## Public
+
+Declared with `pub`: nameable from every module that can reach the declaring
+module. See [Visibility](../language/names-and-paths.md#visibility).
+
 ## Recipient
 
 The module that a grant, delegation or transfer names after `to`: the manifest
@@ -644,19 +795,19 @@ name of its package followed by its logical path. See
 ## Reexport
 
 A `pub use` declaration, which makes a public declaration of another module
-nameable through the current module. It keeps the declaration's identity and
-grants no edit authority. See [`use` declarations](../language/modules.md#use-declarations).
+nameable through the current module. The declaration keeps its [owner](#owner), and
+the reexport grants no edit authority. See [`use` declarations](../language/modules.md#use-declarations).
 
 ## Region
 
 The word has two meanings:
 
 1. The region of a [grant](#grant) or [delegation](#delegation) is a list of
-   concrete scalar argument tuples. An edit loan covers that region. See
+   [keys](#dispatch-key). An edit loan covers that region. See
    [Grants and delegations](../language/edit-authority.md#grants-and-delegations).
 2. A storage region is a set of byte intervals in one allocation. Storage loans
    and layouts cover regions. See
-   [Regions, overlap and alias evidence](../storage-ownership.md#74-regions-overlap-and-alias-evidence).
+   [Regions, overlap and alias evidence](../storage-ownership.md#regions-overlap-and-alias-evidence).
 
 ## Registry entry
 
@@ -686,13 +837,20 @@ last map. The [forward Core](#forward-core) binds them as immutable Core
 values. A saved site passes them, and the primal value, to its
 [backward Core](#backward-core). A recomputing site passes the input point,
 and the backward Core evaluates again the points that it reads. See
-[Reverse residual retention and mutation](../storage-ownership.md#710-reverse-residual-retention-and-mutation).
+[Reverse residual retention and mutation](../storage-ownership.md#residual-retention).
 
 ## Resource function
 
-A function declared with `resource fn`. Its body is a sequence of storage
+A function declared with `resource fn`. Its body is a sequence of resource
 statements followed by a pure `value { ... }` block. See
-[Resource functions](../guide/storage.md#resource-functions).
+[Resource functions](../storage/resource-programs.md#resource-functions) and
+the [guide](../guide/storage.md#resource-functions).
+
+## Result
+
+The expression at the end of a block, without a semicolon. The value of the
+block is the value of its result. See
+[Block expressions](../language/expressions.md#block-expressions).
 
 ## Reverse site
 
@@ -713,6 +871,7 @@ computes an inverse of `L`, and it checks every identity again. Only a
 positive-definite Gram matrix has Riemannian evidence. It is the wrong kind of
 evidence for `sharp`, which requires
 [nondegenerate evidence](#nondegenerate-evidence). See
+[Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
 
 ## Role table
@@ -727,6 +886,17 @@ valid binding fails a listed requirement, the diagnostic names the first one;
 otherwise it lists the operand types. See
 [Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
 
+## Root manifest
+
+The manifest that a command names with `--manifest-path`. See
+[The package graph](../packages.md#the-package-graph).
+
+## Root package
+
+The package of the [root manifest](#root-manifest). Its root module holds the
+entry point and the assembly of the program. See
+[Manifest mode](../language/programs.md#manifest-mode).
+
 ## Runtime reverse pass
 
 The verified routine of the smooth runtime that runs a reverse pass over a
@@ -736,20 +906,27 @@ program value: `SmoothRuntime.pullback`, `backward`, `differential` and
 compilation cannot read stays a call of it. See
 [reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives).
 
+## Scalar type
+
+One of the types `Nat`, `Int`, `Bool` and `Unit`. Dispatch uses only scalar
+types. See [Scalar types](../language/types.md#scalar-types).
+
 ## Scheme
 
 `Scheme` classifies ordinary affine descriptor objects, and `CInfScheme`
 classifies smooth descriptor objects. A descriptor object records only its
 dimension. No implicit bridge connects the two settings. A `CInfScheme` object
 is not a [smooth affine object](#smooth-affine-object). See
-[Objects, points and morphisms](../guide/indexed-geometry.md#objects-points-and-morphisms).
+[Geometric types](../language/geometric-types.md) and the
+[guide](../guide/indexed-geometry.md#objects-points-and-morphisms).
 
 ## Seal
 
-The `seal` step of an assembly. Sealing a generic checks its final method
-table: no ambiguity, full domain coverage, and winning methods only inside each
-grant's region. See
-[Edit authority](../guide/modules-and-authority.md#edit-authority).
+The `seal` [event](#event) of an assembly. Sealing a generic checks its final
+set of methods: no ambiguity, a winner at every key of the callable domain,
+and wins of contributed methods only inside the region of each grant. See
+[Sealing](../language/edit-authority.md#sealing) and the
+[guide](../guide/modules-and-authority.md#edit-authority).
 
 ## Seed
 
@@ -762,7 +939,8 @@ the [failure value](#failure-value). See
 
 The type that a method gives a parameter for dispatch: a concrete scalar type,
 `Number`, `Any` or an abstract type. See
-[Selectors and capabilities](../guide/dispatch.md#selectors-and-capabilities).
+[Method declarations](../stage1a.md#method-declarations) and the
+[guide](../guide/dispatch.md#selectors-and-capabilities).
 
 ## Setting
 
@@ -794,6 +972,7 @@ An object declared as `Affine(n)[c₁, …, cₙ]` under an implementation with 
 ℝⁿ with the named coordinates. Each declaration is one canonical object. A
 smooth affine object is distinct from a descriptor object, such as a
 `CInfScheme` object, and from a presented affine object. See
+[Smooth affine objects](../language/smooth-declarations.md#smooth-affine-objects) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Smooth map
@@ -803,7 +982,13 @@ A value of a family with the `smooth` representation, such as
 is a polynomial map with exact rational coefficients. A declared smooth map
 gives each target coordinate as a polynomial in the source coordinates.
 `compose` builds a program from smooth maps and does not expand it. See
+[Smooth maps](../language/smooth-declarations.md#smooth-maps) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
+
+## Source
+
+The object `X` of a morphism type `Morphism<X, Y>`. Compare
+[target](#target). See [Geometric types](../language/geometric-types.md).
 
 ## Space
 
@@ -814,12 +999,21 @@ different spaces. See
 
 ## Specialization
 
-The compilation step that erases function values. Each definition, together
-with the function values passed to it, becomes one checked instance. Lambda
-instances and instances of higher-order functions count toward a limit that
-[Appendix D](limits.md) gives. See
-[Specialization](../guide/function-values.md#specialization) and
+The compilation step that erases function values. The compiler checks each
+lambda and each [higher-order function](#higher-order-function) on its own
+and for the function values that the program passes to it. Each check is a
+[specialized instance](#specialized-instance), and their number has a limit
+that [Appendix D](limits.md) gives. See
+[Specialization](../stage1b.md#specialization), the
+[guide](../guide/function-values.md#specialization) and
 [Function specialization](../internals/checking-pipeline.md#function-specialization).
+
+## Specialized instance
+
+One check of a lambda or of a
+[higher-order function](#higher-order-function): one on its own, and one for
+each combination of function values that the program passes to it. See
+[Specialization](../stage1b.md#specialization).
 
 ## Specification
 
@@ -872,19 +1066,24 @@ them. A [claim](#claim) has one of the six
 
 ## Storage loan
 
-Temporary access to a [region](#region) of storage that a storage
-[owner](#owner) holds.
-`borrow` takes a `read`, `write` or `read_write` loan on a layout, and
-`release` returns it. Read loans are shared, and a write loan is
-exclusive. A storage loan grants no edit authority; compare
-[edit loan](#edit-loan). See
-[Affine ownership and explicit transitions](../storage-ownership.md#75-affine-ownership-and-explicit-transitions).
+Temporary access to one [view](#view) of the allocation of a storage
+[owner](#owner). `borrow` creates a `read`, `write` or `read_write` loan, and
+`release` ends it. Loans whose views may overlap must all be read loans,
+apart from a loan and its [children](#child). A
+storage loan grants no edit authority; compare [edit loan](#edit-loan). See
+[Storage types](../storage/resource-programs.md#storage-types) and
+[Ownership and explicit transitions](../storage-ownership.md#ownership-and-explicit-transitions).
 
 ## Strict keyword
 
 A word with a fixed meaning that is never an identifier, such as `fn`, `let`
 or `if`. Other words, such as `pub`, act as keywords only where a construct
 spells them. See [Keywords](../language/lexical-structure.md#keywords).
+
+## String literal
+
+Text between double quotes. It is a token, but no construct accepts one. See
+[Other literals](../language/lexical-structure.md#other-literals).
 
 ## Tangent or cotangent fiber
 
@@ -894,6 +1093,7 @@ of the [smooth affine object](#smooth-affine-object) `X`. Its components are
 given in the coordinate frame or coframe. It may also be the
 [failure value](#failure-value). It is unrelated to a
 [fiber product](#fiber-product). See
+[Fiber primitives](../language/smooth-declarations.md#fiber-primitives) and the wire
 [smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Tape
@@ -903,7 +1103,8 @@ forward values that one evaluation of a [smooth map](#smooth-map) saves at a
 point. Only `linearize` builds a tape; a tape has no source or wire form.
 `cotangent_backward` runs the reverse pass over a tape. It returns the
 [failure value](#failure-value) for a covector that is not at the tape's
-output point. See [smooth forms](../protocol.md#protocol-9-smooth-forms).
+output point. See [Reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives) and the wire
+[smooth forms](../protocol.md#protocol-9-smooth-forms).
 
 ## Target
 
@@ -929,15 +1130,23 @@ checked result type. The binding's soundness instance builds on it. See
 
 A `transfer` declaration names an operation that permanently moves edit
 authority over a generic to a recipient module. An assembly performs the
-transfer, and the generic keeps its identity. See
+transfer. The generic keeps its [owner](#owner); only its current owner
+changes. See
 [Transfers](../language/edit-authority.md#transfers).
 
 ## View
 
-The binding that a storage loan creates, such as `output` in
-`borrow output = write(data, layout(...));`. A view reads or writes the cells
-that its [layout](#layout) describes. See
-[Resource functions](../guide/storage.md#resource-functions).
+A rectangle of [cells](#cell) of an allocation, which a [layout](#layout)
+describes. A [storage loan](#storage-loan) gives access to one view, such as
+`output` in `borrow output = write(data, layout(...));`. See
+[Storage types](../storage/resource-programs.md#storage-types) and the
+[guide](../guide/storage.md#resource-functions).
+
+## Whitespace
+
+A character with the Unicode `White_Space` property that is not a
+[line separator](#line-separator). Whitespace separates tokens and has no
+other meaning. See [Source text](../language/lexical-structure.md#source-text).
 
 ## Winner
 

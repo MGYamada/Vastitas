@@ -28,8 +28,8 @@ An [integer literal](lexical-structure.md#integer-literals) has type `Nat` or
 type that its position requires:
 
 - for the expression of a `let` statement, its annotation;
-- for an argument of a call, the type of its parameter, also in a call of a
-  function value;
+- for an argument of a call, the type of its parameter, including a call of
+  a function value;
 - for the body of a function or a lambda, its result type;
 - for the result of a block and for each branch of an `if`, the expected type
   of the block or of the `if`;
@@ -41,10 +41,14 @@ Rules:
   `Int` otherwise.
 - An expression built only from integer literals, unary minus, `+`, `-` and
   `*` takes its type from the expected type in the same way.
-- In a binary operation, an operand of type `Nat` makes `Nat` the expected type
-  of a literal in the other operand. In an `if` expression, a branch of type
-  `Nat` makes `Nat` the expected type of a literal in the other branch. Either
-  side may supply the type.
+- The right operand of a binary operation takes the type of the left operand
+  as its expected type, and the `else` branch of an `if` takes the type of the
+  first branch.
+- Where the left operand, or the result of the first branch, is an integer
+  expression of the previous two rules and the other side is not, the other
+  side supplies the expected type instead: `1 + n` has type `Nat` for
+  `n: Nat`. A literal nested in a block or in an `if` on the left takes no type
+  from the right: `{ 1 } + n` is an error (`E_TYPE`).
 - These rules assign types. They do not evaluate the expression. A binding
   keeps its type, and unary minus requires `Int`, so
   `let n: Nat = -1;` is an error (`E_TYPE`).
@@ -62,16 +66,16 @@ let c = a + 5;           // Nat: the literal takes the type of a
 > **Syntax**
 >
 > ```text
-> PathExpression -> IDENTIFIER | Path
+> PathExpression -> Path
 > ```
 
-A path expression names a parameter, a binding or a function. A path with `::`
-names a declaration of another module, as
-[Names and paths](names-and-paths.md) describes. The value of a
-function name is the function, as [Function values](functions.md#function-values)
-describes. A coefficient marker is a value only where
-[Settings and markers](geometric-types.md#settings-and-markers) allows it, and a
-lambda refers only to its own bindings, as
+A path expression names a parameter, a binding or a function.
+[Names and paths](names-and-paths.md) defines `Path`; a path of one segment is
+a bare name, and a path with `::` names a declaration of another module. The
+value of a function name is the function, as
+[Function values](functions.md#function-values) describes. A coefficient marker
+is not a value, as [Settings and markers](geometric-types.md#settings-and-markers)
+says, and a lambda refers only to its own bindings, as
 [Lambdas](../stage1b.md#lambdas-and-their-names) says.
 
 Rules:
@@ -82,6 +86,9 @@ Rules:
   (`E_PARSE`).
 - The name of a generic is not a value. A generic as a value is an error
   (`E_TYPE`). A function or lambda that calls the generic is a value.
+- The name of an abstract type or of a module is not a value. An abstract type
+  as a value is an error (`E_NAME` in flat mode, `E_TYPE` in manifest mode),
+  and a module as a value is an error (`E_NAME`).
 
 ## Grouped expressions
 
@@ -173,6 +180,8 @@ Rules:
   type. Another number is an error (`E_ARITY`).
 - A call binds more tightly than any operator. `-f(x)` negates the result of
   `f(x)`, and `factory()(42)` applies the function that `factory()` returns.
+- Parentheses around the name of a callee do not change the call: `(f)(x)` is
+  the call `f(x)`.
 
 ## Operator expressions
 
@@ -218,13 +227,13 @@ Rules:
   different types, such as a `Nat` and an `Int`, are an error (`E_TYPE`). The
   language has no implicit conversions; [`int`](#built-in-functions) converts
   explicitly.
-- `!`, `&&` and `||` require `Bool` operands, and unary `-` an `Int` operand.
-  Another type is an error (`E_TYPE`).
+- The operands of `!`, `&&` and `||` must have type `Bool`, and the operand of
+  unary `-` must have type `Int`. Another type is an error (`E_TYPE`).
 - Two operands of one type that the table does not list for an arithmetic
   operator, an ordering or an equality are an error (`E_OPERATOR`). Examples
   are arithmetic or ordering on `Bool` or `Unit`, and equality of pairs or of
   geometric values.
-- Equality of function values is an error (`E_TYPE`).
+- A function value as an operand of any operator is an error (`E_TYPE`).
 - A comparison must not be an operand of another comparison without
   parentheses. `a < b < c` is an error (`E_PARSE`). `(a < b) == c` and
   `a < b && b < c` are valid.
@@ -272,14 +281,17 @@ geometry.
 
 Rules:
 
-- The argument of `int` must have type `Nat` (`E_TYPE`). No function converts
-  an `Int` to a `Nat`. A difference of natural numbers below zero is
-  `int(a) - int(b)`.
+- The argument of `int` must have type `Nat`. Another type is an error
+  (`E_TYPE`). No function converts an `Int` to a `Nat`. A difference of natural
+  numbers below zero is `int(a) - int(b)`.
 - The two arguments of `pair` must have the same type, `Nat` or `Int`, which
-  each argument determines alone (`E_TYPE`). `pair(0, 1)` is a `Pair<Int>`, so
-  `let p: Pair<Nat> = pair(0, 1);` is an error (`E_TYPE`).
-- A built-in function called with the wrong number of arguments is an error
-  (`E_ARITY`).
+  each argument determines alone. Other arguments are an error (`E_TYPE`).
+  `pair(0, 1)` is a `Pair<Int>`, so `let p: Pair<Nat> = pair(0, 1);` is an
+  error (`E_TYPE`).
+- The argument of `pair_first` and of `pair_second` must be a pair. Another
+  argument is an error (`E_TYPE`).
+- One of these four functions called with the wrong number of arguments is an
+  error (`E_ARITY`).
 
 The [arithmetic standard library](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)
 defines `nat_to_int` as a function that calls `int`.
@@ -289,20 +301,16 @@ defines `nat_to_int` as a function that calls `int`.
 > **Syntax**
 >
 > ```text
-> LambdaExpression -> `fn` FunctionParameters `->` Type BlockExpression
+> LambdaExpression -> `fn` `(` FunctionParameters? `)` `->` Type BlockExpression
 > ```
 
 A lambda expression is an anonymous function. Its value has the
 [function type](types.md#function-types) of its parameters and result, as in
-`fn(x: Int) -> Int { x + 1 }`, of type `Fn<Int, Int>`. A lambda refers only to
-its own parameters and bindings and to items.
+`fn(x: Int) -> Int { x + 1 }`, of type `Fn<Int, Int>`. Its parameter and
+result types are those that [Function types](types.md#function-types) allows.
+A lambda refers only to its own parameters and bindings and to items.
 [Function values](../stage1b.md#lambdas-and-their-names) gives the rules on
 captures and shadowing, and the rules for calls of function values.
-
-Rules:
-
-- The parameter and result types of a lambda must be scalar types or function
-  types. Another type is an error (`E_TYPE`).
 
 ## Pack expressions
 
@@ -326,6 +334,7 @@ describes.
 
 Rules:
 
-- The fields must appear as `scheme`, then `point` (`E_PARSE`).
+- The fields must appear as `scheme`, then `point`. Another order or another
+  field name is an error (`E_PARSE`).
 - The form with a type must not occur in flat mode, where it is an error
   (`E_PARSE`).

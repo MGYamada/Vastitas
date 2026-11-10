@@ -15,9 +15,9 @@ parts:
 | Part | Content | Files |
 | --- | --- | --- |
 | Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md`, `affine-geometry.md` |
-| Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage*`, `linalg/` |
-| How the compiler is checked | Architecture, checking pipeline, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `internals/`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
-| Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` |
+| Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage-ownership.md`, `storage/resource-programs.md`, `linalg/` |
+| How the compiler is checked | Architecture, checking pipeline, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `internals/`, `storage/checked-storage.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
+| Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` apart from `architecture.md` |
 
 File paths stay stable when a chapter moves between parts, because tests,
 scripts, experiment records and external links name them.
@@ -49,13 +49,23 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
 - every `docs/<chapter>.md#anchor` named in a file outside `docs/` names a
   chapter and one of its anchors, apart from recorded experiment runs and the
   unit tests of the checkers;
+- every `docs/<chapter>.md` named in a file outside `docs/` without an anchor
+  names a chapter;
+- every redirect in `book.toml` leads from a retired chapter to a chapter and
+  an anchor of the book;
+- the Introduction links to the roadmap, and every formula of the rendered
+  book carries its TeX source as an annotation;
 - every `include` directive names a file and an anchor or line range in it;
 - every complete program, a code block with `fn main`, comes from an
   `include` directive, and a chapter includes every file under `examples/book/`
   and `examples/reject/`;
 - every Syntax block lies in the Vastitas Reference, holds productions only,
-  uses only tokens that the parser in `src/frontend*.rs` knows, and uses only
-  nonterminals that one production of the Reference defines;
+  and uses only tokens that the parser in `src/frontend*.rs` knows. The token
+  check skips productions whose name is in UPPER_CASE, which define lexical
+  forms;
+- every nonterminal of a Syntax block has one production in the Reference, or
+  a name in `PENDING_NONTERMINALS`. The Syntax block of
+  [Notation](../language/notation.md) is an illustration and defines nothing;
 - the first line of a converted chapter is `#` and its title in `SUMMARY.md`,
   where an appendix title `G: Glossary` becomes `Appendix G: Glossary`;
 - a converted chapter keeps the rules of the [style guide](#style-guide) that
@@ -63,6 +73,9 @@ The generated site is in `target/book/`. `scripts/check_book.py` checks that:
 
 The converted chapters are listed in `CONVERTED` in `scripts/check_book.py`.
 Add a chapter to the list in the change that rewrites it by the style guide.
+`PENDING_NONTERMINALS` names the nonterminals that a Syntax block uses before
+the chapter that owns the construct defines them. Remove a name in the change
+that adds its production; the check fails on a pending name that has one.
 `python3 -m unittest discover -s scripts -p test_check_book.py` runs the
 checker's own tests.
 
@@ -103,10 +116,28 @@ The book is built with mdBook 0.5.4 and its MathML is checked in the generated H
    conditional proofs, measured results and proposals. When a design has been
    superseded, remove the old page and update callers, tests and navigation.
    Retain original measurement data and its scope with the corresponding record.
+   Add a redirect from a retired chapter to its replacement under
+   `[output.html.redirect]` in `book.toml`.
 5. Inspect the built chapter, search, equations, tables, attachments and
    navigation on desktop and narrow screens. Verify deployment base paths
    before publishing a site. The build artifact is available independently of
    a public hosting destination.
+
+When a rewrite moves a section, keep its old anchor until the last step of
+the rewrite. End the chapter with a section "Moved sections" whose list has
+one line for each moved section: `<a id="old-anchor"></a>`, the old title and
+a link to the section that holds the content. Repoint the links of the book to
+the replacing sections in the same change.
+
+When a rewrite splits a chapter, the rules go to the Reference chapter and
+the description of the compiler to a chapter under `internals/`. That chapter
+ends with a section "History", a heading of level one or two with exactly
+this title, which holds the issue links and the delivery record. A chapter
+under `internals/` that holds moved text keeps the wording of its source
+until its own rewrite; the checked rules apply to it, and the other rules of
+the style guide apply to the text that the rewrite changes. A change of
+source syntax that programs must follow goes under "Source migrations" in
+[Appendix E](../appendix/history.md).
 
 The first chapter was commissioned in
 [#516](https://github.com/MGYamada/Vastitas/issues/516). Old v0.3 design
@@ -135,7 +166,8 @@ next rewrite.
 ### Terms
 
 - Define a term before you use it, and add it to the
-  [glossary](../appendix/glossary.md).
+  [glossary](../appendix/glossary.md). Set the term in bold where the text
+  defines it, and nowhere else.
 - Use one word for one concept. Where a word has two meanings and the context
   does not decide, qualify it, as in edit loan and storage loan.
 
@@ -152,13 +184,18 @@ next rewrite.
 - Put implementation detail in an
   [implementation note](../language/notation.md#implementation-notes), so that
   readers can skip it.
+- State a limit as a number where a program meets it in ordinary use, such as
+  the six parameters of a generic, and link
+  [Appendix D](../appendix/limits.md), which lists every limit.
+- Write "even when" for a case that a rule covers although a reader may expect
+  an exception, and "including" for a case that belongs to a class.
 
 ### Examples
 
-- Put every complete program in a file under `examples/book/<construct>/`, or
-  use a program that `tests/examples.rs` already builds and runs: a package
-  under `examples/packages/` or one of the flat programs under `examples/`. Pull it into
-  the chapter with the mdBook
+- Put every complete flat program in a file under
+  `examples/book/<construct>/` and every package under `examples/packages/`,
+  or use a program that `tests/examples.rs` already builds and runs. Pull it
+  into the chapter with the mdBook
   [`include` directive](https://rust-lang.github.io/mdBook/format/mdbook.html#including-files),
   so that the book shows the tested text. Mark a part of a file with
   `// ANCHOR: name` and `// ANCHOR_END: name` comments to include only that
@@ -176,6 +213,7 @@ next rewrite.
   directory in `BOOK_REJECTED_PACKAGES`. `<name>.stderr` next to the directory
   holds the lines of `vastitas check --manifest-path`, with the repository root
   removed from file names. A chapter need not include the manifest.
+- Label a manifest with `toml`.
 
 ### What stays out
 
@@ -192,10 +230,11 @@ next rewrite.
 
 ### Principles and status words
 
-- The Introduction states the tagline *A Language for Math 2.0 and Physics
-  2.0* and the five design goals: Syntax like Rust, Experience like Julia,
-  Philosophy like Haskell, Verification like Lean and Performance like C/C++.
-  The design goals are aims, not claims about what exists.
+- The Introduction must state the tagline *A Language for Math 2.0 and
+  Physics 2.0* and the five design goals: Syntax like Rust, Experience like
+  Julia, Philosophy like Haskell, Verification like Lean and Performance like
+  C/C++. The design goals are aims, not claims about what exists. The
+  Introduction adopts this rule in its rewrite.
 - The Introduction states the performance goal **Fast like C** and the
   principle **Check before generating**, in at least one sentence each. **Fast
   like C** names the C/C++-class target of the Performance design goal; it is
@@ -233,18 +272,18 @@ may link issues outside a History section, as
 ## Consolidation baseline
 
 The baseline before the migration contained 61 Markdown documents at
-`cc4922f505077567c72848310fec2a7c7b812076`. Twelve original paths remain.
-Thirteen superseded design or planning documents were retired and 36 source
-documents were combined into topic chapters. This removes 49 of the 61 original
-paths (80.3%). Chapter content, code examples, theorem hypotheses and measured
+`cc4922f505077567c72848310fec2a7c7b812076`. Eleven original paths remain.
+Thirteen superseded design or planning documents were retired, 36 source
+documents were combined into topic chapters, and the rewrite of the Reference
+retired one more chapter. This removes 50 of the 61 original paths (82.0%). Chapter content, code examples, theorem hypotheses and measured
 profiles from the active documents were retained in the consolidated references.
 The two compiler scaling CSV files remain attached to their reported revision.
 
 | Former subjects | Current home |
 | --- | --- |
-| Abstract selectors, promotion policy and proofs | [Abstract types](../stage1a.md#abstract-types) |
-| Old-checker indexing measurements | [Functions and indexing evidence](../internals/checking-pipeline.md#history) |
-| Edit grants, nested reborrowing and permanent transfer | [Package authority](../language/edit-authority.md) |
+| Abstract selectors and promotion policy | [Abstract types](../stage1a.md#abstract-types) · [Promotion](../stage1a.md#promotion) |
+| Promotion proofs and old-checker indexing measurements | [Checking pipeline](../internals/checking-pipeline.md#promotion-proofs-and-fixture) · [History](../internals/checking-pipeline.md#history) |
+| Edit grants, nested reborrowing and permanent transfer | [Edit authority](../language/edit-authority.md) |
 | Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |
 | Public resource statements and runtime shapes | [Resource programs](../storage/resource-programs.md) |

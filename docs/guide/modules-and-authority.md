@@ -113,8 +113,9 @@ region.
 
 Further delegation moves authority on: a borrower can reborrow a nested loan,
 and an owner can permanently transfer edit authority without changing the
-function's identity. Both are described in
-[Edit authority](../language/edit-authority.md#transfers).
+owner of the generic. [Assemblies](../language/edit-authority.md#assemblies)
+describes reborrowing, and
+[Transfers](../language/edit-authority.md#transfers) describes transfers.
 
 > **What is checked.** Lean rebuilds the package graph and assigns every owner
 > itself; the frontend supplies no trusted owner or target. The full rules are

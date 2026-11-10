@@ -29,8 +29,8 @@ Rules:
 - The compiler parses each file on its own. An item must end in the file where
   it begins. An item that reaches the end of its file is an error (`E_PARSE`).
 - Items are declared at the top level of a file or of a
-  [module](names-and-paths.md). A `let` binding outside a
-  function is an error (`E_PARSE`).
+  [module](modules.md). A `let` binding outside a function is an error
+  (`E_PARSE`).
 
 ## Flat mode
 
@@ -42,16 +42,17 @@ lists the items that it accepts.
 Rules:
 
 - Each input must name a file whose name ends in `.vast`. Another input is an
-  error (`E_INPUT`). A directory is not expanded.
+  error (`E_INPUT`). The compiler does not expand a directory.
 - A library path is relative to the working directory of the command.
-- Each file must be supplied once. A file supplied twice, also as both the
+- Each file must be supplied once. A file supplied twice, even as both the
   entry file and a library, is an error (`E_INPUT`).
-- Two functions with the same name in the program are an error
-  (`E_DUPLICATE`), also when they are in different files.
+- The items of all files share one namespace, so the rule of
+  [Names of items](items.md#names-of-items) on equal names applies across
+  files.
 - A library must not define `main`. A `main` in a library is an error
   (`E_LIBRARY`).
-- A program contains only the files that the command names. No library is
-  loaded without a `--lib` option, and there is no implicit prelude.
+- A program contains only the files that the command names. The compiler
+  loads no library without a `--lib` option.
 - Flat mode and `--manifest-path` must not be combined. Both together are an
   error (`E_USAGE`).
 
@@ -75,9 +76,11 @@ The executable prints `42`.
 ## Manifest mode
 
 In manifest mode the manifest names a root source file, and the
-[modules](modules.md) of each package form a tree under
-it. Names are visible across modules through `use` imports and `pub`
-visibility. [Packages](../packages.md) gives the rules.
+[modules](modules.md) of each package form a tree under it. The **root
+package** is the package of the manifest that the command names. Names are
+visible across modules through `use` imports and `pub` visibility.
+[Packages](../packages.md) gives the rules. A program contains only the
+packages that its manifests name: neither mode has an implicit prelude.
 
 ## The entry point
 
@@ -98,9 +101,9 @@ Rules:
 - `vastitas build` requires an entry point. A program without one is an error
   (`E_MAIN`). `vastitas check` accepts a program without an entry point, such
   as a library.
-- In manifest mode the entry point may also be a
-  [resource function](../storage/resource-programs.md) `resource fn main() -> Int`
-  with no resource inputs and no owned outputs.
+- In manifest mode the entry point may also be a resource function
+  `resource fn main() -> Int`, under the rules of
+  [Resource functions](../storage/resource-programs.md#resource-functions).
 
 `main` in this program returns `-42`, so the executable prints `-42`:
 

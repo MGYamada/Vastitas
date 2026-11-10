@@ -1,112 +1,273 @@
-# Resource programs and runtime shapes
+# Resource programs
 
-Package resource functions combine checked scalar computation with explicit storage transitions. The runtime-shape profile adds bounded whole-map extents and caller-frame replay.
+A **resource function** combines pure computation with explicit operations on
+storage: it allocates buffers, lends views of them, writes and reads cells, and
+frees them. The checker follows every owner and every loan through the body.
+It rejects a program whose statements could read an unwritten cell, write
+through two overlapping views, or leave an allocation that is not freed once.
+Resource functions exist only in
+[manifest mode](../language/programs.md#manifest-mode).
+[Storage and ownership](../storage-ownership.md) states the model behind these
+rules.
 
-<a id="resource-source"></a>
+## Resource functions
 
-## Package resource functions (protocol 8)
+> **Syntax**
+>
+> ```text
+> ResourceFunction -> `resource` `fn` IDENTIFIER `(` ResourceParameters? `)`
+>     ( `returns` `(` ResourceResults? `)` )? `->` Type
+>     `{` ResourceStatement* `value` BlockExpression `}`
+> ResourceParameters -> ResourceParameter ( `,` ResourceParameter )* `,`?
+> ResourceParameter -> IDENTIFIER `:`
+>     ( ScalarType | OwnedType | BorrowedType | RuntimeParameterType | NumericalParameterType )
+> ResourceResults -> ResourceResult ( `,` ResourceResult )* `,`?
+> ResourceResult -> IDENTIFIER `:` ( OwnedType | NumericalResultType )
+> ```
 
-Protocol 8 connects explicit resource functions to the ordinary `.vast` package
-compiler. Names, imports, visibility, canonical module owners, indexed declarations,
-finite dispatch and edit assemblies share the same namespace. The existing
-`Indexed.AuthoritySource` checks every ordinary, applicable, nonwinning and
-unapplied pure body. Resource bodies then pass independent ownership, layout,
-initialization and actual-call checks. Static shapes retain their original contracts. The separate
-[runtime-extent profile](#runtime-shapes) supports whole-map caller interfaces;
-scalar values flow between checked pure computations, resource calls and runtime branches.
-This bounded profile does not complete [Stage 1](../stage1-completion.md).
+A resource function has parameters, optional **owned results** after
+`returns`, and a result type. Its body is a list of
+[resource statements](#resource-statements) followed by a `value` block, a
+[block expression](../language/expressions.md#block-expressions) that computes
+the result. An owned result names an owner of the body, which the function
+hands to its caller.
 
-Resource functions exist only in manifest mode. A flat-mode file that declares
-`resource fn` is rejected with `E_UNSUPPORTED`.
+Rules:
 
-The [complete example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/storage/app/src/main.vast) imports
-resource functions from a separate directory-aligned package, receives an owned
-buffer, borrows it for inspection, moves it through another function, drops it,
-and computes `42` using ordinary finite dispatch and an independent lambda:
+- The name of a resource function follows
+  [Names of items](../language/items.md#names-of-items).
+- A resource function is not a value. A function, a method, a lambda and a
+  `value` block must not call one (`E_TYPE`). Resource functions are not
+  generics and take no methods.
+- A resource function must not call itself, directly or through other resource
+  functions (`E_RESOURCE_RECURSION`).
+- The result type is a scalar type or a pair type. The `value` block must
+  have that type (`E_TYPE`).
+- The `value` block sees the scalar parameters and the scalar bindings of the
+  body. An owner, a loan or another resource binding there is an error
+  (`E_NAME`).
+- Every owned result must name a binding of the body (`E_RESOURCE_NAME`).
+  That binding must be a live owner that meets the type of the result
+  (`E_RESOURCE_TYPE`), and no loan of it may be live at the end of the body
+  (`E_RESOURCE_ESCAPE`).
+- At the end of the body, every other owner must have been dropped, moved or
+  handed to a call (`E_RESOURCE_ESCAPE`). A body must not release a borrowed
+  parameter (`E_RESOURCE_LOAN`).
+- The checker checks every resource function of the program, even one that no
+  call reaches. It checks a function once on its own and once more at every
+  call, with the views that the caller passes.
+- A resource function named `main` in the root module of the root package is
+  the [entry point](../language/programs.md#the-entry-point). It must have no
+  parameters and no owned results (`E_RESOURCE_ESCAPE`), and its result type
+  must be `Int` (`E_MAIN`).
 
-```sh
-vastitas check --manifest-path examples/packages/storage/app/Vastitas.toml
-vastitas build --manifest-path examples/packages/storage/app/Vastitas.toml -o /tmp/storage-example
-/tmp/storage-example
-```
-
-<a id="resource-source--explicit-source-contracts"></a>
-
-### Explicit source contracts
-
-Resource declarations use `resource fn`. The operations are statements; the final
-`value { ... }` block uses ordinary pure expression syntax. A root resource `main`
-has no resource inputs or owned outputs and returns `Int`. A package may instead
-have an ordinary pure `main`, or no main when checking a library. Pure and resource
-functions cannot declare the same name in one module.
+The package `buffers` of
+[`examples/packages/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage)
+declares three resource functions:
 
 ```vast
-pub resource fn make()
-    returns (data: Owned<F64, 8> initialized [layout(8, 2, 2, 4, false)]) -> Unit {
-    allocate data: F64[8];
-    borrow output = write(data, layout(8, 2, 2, 4, false));
-    fill(output, f64(0x1.8p1)); // 3.0
-    release(output);
-    value { () }
-}
+{{#include ../../examples/packages/storage/buffers/src/operations/mod.vast}}
 ```
 
-`Owned<S, elements>` consumes an owner. An optional `initialized [layout(...), ...]`
-contract requires those exact regions; capacity and padding alone imply no
-initialization. `returns (name: Owned<...>, ...)` transfers the named body owners
-in order. For example, `call buffers::make() -> (data);` receives its owner into a
-fresh caller binding. A consumed binding remains unusable and cannot be shadowed.
+## Storage types
 
-Borrowed parameters use `Read<S, rows, columns>`, `Write<S, rows, columns>` or
-`ReadWrite<S, rows, columns>`, optionally followed by `initializes`. They receive
-scoped child loans of the actual caller view. Their scalar and logical shape must
-match, but their real offset, padding and transpose are preserved. The caller's
-loan resumes only after all children are returned. Two read arguments may alias;
-parameter names never prove separation for a writer. Individual cell stores can
-establish an entire initialized output, including a padded caller view, through
-the bounded write-union check. Both branches must independently cover each
-requested cell. No preliminary fill is required when the stores suffice; missing
-cells, padding holes and exhausted coverage budgets remain unreadable.
+> **Syntax**
+>
+> ```text
+> OwnedType -> `Owned` `<` ElementType `,` INTEGER_LITERAL `>` ( `initialized` `[` Layouts? `]` )?
+> BorrowedType -> ( `Read` | `Write` | `ReadWrite` )
+>     `<` ElementType `,` INTEGER_LITERAL `,` INTEGER_LITERAL `>` `initializes`?
+> ElementType -> `F64` | `Complex` `<` `F64` `>`
+> Layouts -> Layout ( `,` Layout )* `,`?
+> Layout -> `layout` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `,` INTEGER_LITERAL `,`
+>     INTEGER_LITERAL `,` ( `true` | `false` ) `)`
+> ```
+
+An **owner** is a binding that owns one **allocation**, a buffer of **cells**.
+`Owned<S, n>` is the type of an owner of `n` cells of the element type `S`:
+`F64`, a binary64 number, or `Complex<F64>`, a pair of them. A **view** is a
+rectangle of cells of an allocation. A **loan**, a
+[storage loan](../appendix/glossary.md#storage-loan), is a binding that gives
+access to one view for a limited time. `Read<S, r, c>`, `Write<S, r, c>` and
+`ReadWrite<S, r, c>` are the types of loans of a view with `r` rows and `c`
+columns.
+
+`layout(offset, rows, columns, leading, transposed)` describes a view of an
+allocation in column-major order. `offset` is the first byte of the view in
+the allocation. `rows` and `columns` count the stored rows and columns, and
+`leading` is the number of cells from one stored column to the next. With
+`transposed` equal to `true`, the rows of the view are the stored columns:
+`layout(0, 2, 3, 2, true)` describes a view with 3 rows and 2 columns.
+
+Rules:
+
+- The layout of a `borrow` must lie inside its allocation. Its `leading` must
+  be at least the number of stored rows and at least 1, and `rows`, `columns`
+  and `leading` must not exceed 2³¹ − 1. Another layout is an error
+  (`E_RESOURCE_LAYOUT`).
+- The `offset` of a view that has a cell must be a multiple of the size of a
+  cell, 8 bytes for `F64` and 16 for `Complex<F64>` (`E_RESOURCE_LAYOUT`).
+- An owned parameter or result with `initialized [layout(…), …]` states that
+  the cells of those views are initialized. An argument or result that does
+  not meet the element type, the size or this contract is an error
+  (`E_RESOURCE_TYPE`), and so is an invalid layout in the contract. Capacity
+  and padding imply no initialization.
+- An argument for a borrowed parameter must be a live loan (`E_RESOURCE_LOAN`)
+  with the element type and the shape of the parameter (`E_RESOURCE_TYPE`).
+  The callee sees the caller's view, with its offset, padding and
+  transposition.
+- A loan passed to a `Read` or `ReadWrite` parameter must permit reading, and
+  a loan passed to a `Write` or `ReadWrite` parameter must permit writing.
+  Another loan is an error (`E_RESOURCE_ACCESS`).
+- A parameter with `initializes` promises that the callee initializes every
+  cell of the view. A body that leaves a cell unwritten on some path is an
+  error (`E_RESOURCE_INIT`). Cells that a callee writes count as initialized
+  for the caller, with or without `initializes`.
+- Two arguments of one call whose views may overlap must both go to `Read`
+  parameters (`E_RESOURCE_ALIAS`). Parameter names prove no separation.
+- An integer in a storage type, a layout, an allocation size, a cell index or
+  `f64_bits` must fit in 64 bits (`E_RESOURCE_LIMIT`). An allocation of more
+  than 2⁶³ − 1 bytes is an error (`E_RESOURCE_OVERFLOW`).
+
+## Resource statements
+
+> **Syntax**
+>
+> ```text
+> ResourceStatement -> StorageStatement `;` | BorrowStatement | ValueStatement
+>     | ResourceCall | ResourceBranch | RuntimeStatement `;` | NumericalStatement
+> StorageStatement -> `allocate` IDENTIFIER `:` ElementType `[` INTEGER_LITERAL `]`
+>     | `move` IDENTIFIER `->` IDENTIFIER
+>     | `drop` `(` IDENTIFIER `)`
+>     | `release` `(` IDENTIFIER `)`
+>     | `transpose` `(` IDENTIFIER `)`
+>     | `fill` `(` IDENTIFIER `,` Payload `)`
+>     | `store` `(` IDENTIFIER `,` INTEGER_LITERAL `,` INTEGER_LITERAL `,` Payload `)`
+>     | `expect` `(` IDENTIFIER `,` INTEGER_LITERAL `,` INTEGER_LITERAL `,` Payload `)`
+>     | `copy` `(` IDENTIFIER `,` IDENTIFIER `)`
+> BorrowStatement -> `borrow` IDENTIFIER `=` AccessMode `(` IDENTIFIER ( `,` Layout )? `)` `;`
+> AccessMode -> `read` | `write` | `read_write`
+> ```
 
 | Statement | Meaning |
 | --- | --- |
-| `allocate data: F64[8];` | Allocate one initially uninitialized owner; `Complex<F64>` is also supported. |
-| `move data -> next;` | Transfer an unborrowed owner; revoke `data`. |
-| `borrow view = read(data, layout(...));` | Borrow from an owner or reborrow a loan; also `write` and `read_write`. |
-| `release(view);` | Return a childless loan. |
-| `drop(data);` | Free an unborrowed owned allocation. |
-| `transpose(view);` | Swap the logical axes without copying or conjugating. |
-| `fill(view, f64(0x1.8p0));` | Fill the writable logical rectangle with 1.5. |
-| `store(view, row, column, payload);` | Initialize one checked cell. |
-| `expect(view, row, column, payload);` | Assert the exact bits of an initialized readable cell at runtime. |
-| `copy(input, output);` | Copy between compatible checked views; reuse the destination. |
-| `space v = linear(Profile, 3);` | Construct a fresh nominal linear space from an independently resolved profile. |
-| `basis bv = basis(v);` | Introduce a distinct basis tied to that space. |
-| `map a = view(input, bv, bw);` | Interpret a live loan as a map from `v` to `w` in those bases. |
-| `map a = owned(buffer, layout(...), bv, bw);` | Move initialized coordinate storage into an owned map with exact bases and layout. |
-| `borrow coordinates = read(a);` | Borrow an owned map using its actual stored layout; also `write` and `read_write`. |
-| `map view = view(coordinates, a);` | Recover the owned map's exact interpretation for a matching live loan. |
-| `gemm(a, b, c, overwrite, NativeFast);` | Check exact endpoints/bases and resources, then multiply into `c`; also `accumulate`. |
-| `gemm(a, b, c, accumulate, NativeFast, alpha=coefficient(s), beta=f64(0x1p-1));` | Read alpha from the checked 1x1 scalar loan at execution and use beta = 0.5. Complex maps require complex coefficients. |
-| `call path(arguments) -> (owners);` | Invoke a resource function, transferring its ordered owned results. |
-| `let n: Nat = value { expression };` | Compute a checked pure scalar at this point in the resource body. |
-| `let answer: Int = call helper(n) -> (owners);` | Receive a pure result after the callee completes its resource operations and returns its loans. |
-| `if flag { ... } else { ... }` | Execute the arm selected by a checked Bool binding; independently check and join both resource states. Literal conditions remain supported. |
+| `allocate d: F64[8];` | Allocate 8 uninitialized cells and bind their owner `d` |
+| `move d -> e;` | Hand the allocation of `d` to the owner `e`; `d` ends |
+| `drop(d);` | Free the allocation of `d`; `d` ends |
+| `borrow v = read(d, layout(…));` | Lend a view of the owner or loan `d` as the loan `v`; also `write` and `read_write` |
+| `release(v);` | End the loan `v` |
+| `transpose(v);` | Swap the rows and columns of `v`, without copying or conjugating |
+| `fill(v, p);` | Write the payload `p` to every cell of `v` |
+| `store(v, i, j, p);` | Write `p` to the cell in row `i` and column `j` of `v` |
+| `expect(v, i, j, p);` | At run time, fail unless that cell holds the bits of `p` |
+| `copy(a, b);` | Copy every cell of the view `a` to the view `b` |
 
-Public `gemm` is a numerical statement over typed map views. Lean resolves its
-nominal endpoints/bases before composing the actual resource checks and exact
-native lowering. Protocol 8 rejects a raw resource `action` containing `gemm`;
-the internal action cannot bypass nominal checking. See
-[numerical source and wire compatibility](../linalg/maps-and-gemm.md#numerical-values--source-and-wire-compatibility)
-and [adapter responsibilities](../linalg/maps-and-gemm.md#numerical-adapter--responsibilities-along-the-implemented-path).
+A `read` loan permits reading, a `write` loan writing only, and a `read_write`
+loan both. `borrow` without a layout lends the storage of an owned map, as
+[Numerical maps](../linalg/maps-and-gemm.md) describes, and that chapter gives
+the numerical statements.
 
-`layout(offset, rows, columns, leading, transposed)` uses a byte offset and an
-element leading dimension. Bounds, LP64 dimensions, capacity, alignment and
-initialization are checked independently in Lean. Native preflight checks physical
-handles and arithmetic again. See [the layout contract](checked-storage.md#storage-ir).
+Rules:
 
-Use `f64(value)` or `complex(real, imaginary)` for **exact finite** resource
-payloads. Hexadecimal notation makes the binary exponent explicit.
+- A binding of a resource function is a parameter, an owner, a loan, a scalar
+  binding or a result of a call. It must not reuse a name that is visible at
+  its statement, even after the owner or loan of that name has ended
+  (`E_DUPLICATE`). It must not have the name of an item or import of its
+  module (`E_SHADOW`) or a
+  [reserved name](../language/lexical-structure.md#reserved-names).
+- A statement that names a binding which is not in scope is an error
+  (`E_RESOURCE_NAME`).
+- The owner of a `move`, a `drop` or a `borrow` must be live
+  (`E_RESOURCE_MOVE`), and an owned argument must be a live owner
+  (`E_RESOURCE_TYPE`). An owner ends when it is moved, dropped or handed to a
+  call.
+- No loan of the allocation may be live at a `move`, at a `drop` or when a
+  call takes the owner (`E_RESOURCE_LOAN`).
+- `release`, `transpose`, `fill`, `store`, `expect` and `copy` must name live
+  loans. An owner or a released loan there is an error (`E_RESOURCE_LOAN`),
+  and so is a `borrow` from a released loan.
+- Every cell of the view of a `read` or `read_write` loan must be initialized
+  (`E_RESOURCE_INIT`). `fill` initializes its view, `store` one cell and
+  `copy` its target. A `write` loan may cover uninitialized cells.
+- Stores that cover every cell of a view initialize it, up to the bound of
+  [Layout and initialization](checked-storage.md#storage-ir--layout-and-initialization).
+  Fills of the stored columns of a view also initialize it.
+- Fills of the stored rows of a view with several stored columns do not
+  initialize it. The cells of a stored row have gaps between them, and the
+  checker does not join the fill of such a view with another fill.
+- Two live loans whose views may overlap must both be `read` loans
+  (`E_RESOURCE_ALIAS`). The checker compares the byte ranges from the first
+  cell of each view to its last. Two stored rows of a matrix with several
+  stored columns therefore overlap, and so does a view inside the padding of
+  another. Loans of different allocations never overlap. The rule does not
+  hold between a loan and its children, which the next rules govern.
+- A loan borrowed from a loan is its **child**. The view of a child must lie
+  in the view of its parent (`E_RESOURCE_REGION`); the `offset` of its layout
+  still counts bytes of the allocation.
+- A child must not have an access that its parent lacks: a `read` loan lends
+  only `read` children, and a `write` loan only `write` children
+  (`E_RESOURCE_ACCESS`).
+- While a child is live, its parent gives no access, and a child must be
+  released before its parent (`E_RESOURCE_LOAN`). A parent passed to a call
+  while a child is live is an error (`E_RESOURCE_ALIAS`). Releasing a loan
+  twice is an error (`E_RESOURCE_LOAN`).
+- The loan of `fill` and of `store` and the target of `copy` must permit
+  writing, and the loan of `expect` and the source of `copy` must permit
+  reading (`E_RESOURCE_ACCESS`). The cell of `store` and `expect` must lie in
+  the view (`E_RESOURCE_BOUNDS`).
+- A payload must have the element type of its view, and the two views of
+  `copy` must have the same element type and shape (`E_RESOURCE_TYPE`).
+- A statement name that is no statement of this chapter or of the numerical
+  chapters is an error (`E_PARSE`).
+
+`main` of the same example receives an owner, lends it, hands it on and frees
+it:
+
+```vast
+{{#include ../../examples/packages/storage/app/src/main.vast}}
+```
+
+The executable prints `42`.
+
+## Payloads
+
+> **Syntax**
+>
+> ```text
+> Payload -> `f64` `(` Real `)` | `complex` `(` Real `,` Real `)`
+>     | `f64_bits` `(` INTEGER_LITERAL `)`
+>     | `complex_bits` `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
+> Real -> ( `+` | `-` )? ( INTEGER_LITERAL | FLOAT_LITERAL )
+> ```
+
+A **payload** is the value of one cell. `f64(x)` denotes the binary64 number
+`x`, and `complex(x, y)` the complex number with real part `x` and imaginary
+part `y`. `FLOAT_LITERAL` is a
+[floating-point literal](../language/lexical-structure.md#other-literals): a
+decimal number such as `1.5` or `125e-3`, or a hexadecimal number such as
+`0x1.8p1`. The value of a hexadecimal number is its hexadecimal significand
+times 2 to the decimal exponent after `p`. `0x1.8p1` is 3. `f64_bits(n)` and `complex_bits(m, n)`
+give the 64 bits of each component as an unsigned integer.
+
+Rules:
+
+- The number in `f64` and `complex` must be a finite binary64 value, exactly.
+  A number that binary64 only approximates is an error
+  (`E_RESOURCE_LITERAL`), and so are overflow and underflow. Examples are
+  `0.1` and the integer `9007199254740993`. The compiler never rounds a
+  payload.
+- The smallest positive payload is `f64(0x1p-1074)`, and the largest is
+  `f64(0x1.fffffffffffffp1023)`.
+- `f64` and `complex` denote positive zero for `0`. A negative zero there,
+  such as `f64(-0)`, is an error (`E_RESOURCE_LITERAL`). A negative zero, an
+  infinity and a NaN are written with `f64_bits` or `complex_bits`.
+- An exponent must fit in a signed 64-bit integer (`E_RESOURCE_LITERAL`).
+- A malformed number that the lexer reads as one floating-point token, as
+  [Other literals](../language/lexical-structure.md#other-literals) describes,
+  is an error in a payload (`E_RESOURCE_LITERAL`), and so is a string literal
+  as the number of `f64` or `complex`.
+- A number or a string literal in place of a payload, as in `fill(v, 1.5);`,
+  is an error (`E_TYPE`).
 
 ```vast
 fill(output, f64(0x1.8p1));                      // 3.0
@@ -114,232 +275,217 @@ store(output, 0, 0, f64(-0x1p-2));               // -0.25
 fill(complex_output, complex(0x1.8p0, -0x1p1));  // 1.5 - 2i
 ```
 
-`f64(value)` and `complex(real, imaginary)` work in fill/store/expect and literal
-GEMM coefficients, including the runtime-extent profile. In a hexadecimal
-literal, `p` introduces a required decimal exponent `e`. The value is the
-hexadecimal significand multiplied by `2^e`. For example, `0x1.8p0` is
-`(1 + 8/16) * 2^0`, exactly `1.5`.
-`0x1p-1074` is the least positive subnormal and `0x1.fffffffffffffp1023` the
-greatest finite binary64 value. Exact decimal forms such as `f64(1.5)` or
-`f64(125e-3)` (0.125) are also accepted. Exponents must fit a signed 64-bit
-integer. Literals use plain digits without separators or type suffixes.
+## Scalar values and calls
 
-There is **no rounding on acceptance**. For example `f64(0.1)` and
-`f64(9007199254740993)` are rejected; the diagnostic shows their adjacent binary64
-values in exact hex form. Inexact hex values, overflow and underflow below
-subnormal precision are rejected too. Positive zero is accepted; negative zero,
-infinities and NaN payloads use `f64_bits(bits)` or
-`complex_bits(real_bits, imaginary_bits)`, whose arguments are unsigned 64-bit
-IEEE binary64 payloads. For example
-`f64_bits(9223372036854775808)` preserves negative zero.
+> **Syntax**
+>
+> ```text
+> ValueStatement -> `let` IDENTIFIER `:` Type `=` `value` BlockExpression `;`
+>     | `let` IDENTIFIER `:` Type `=` ResourceCall
+> ResourceCall -> `call` Path `(` ResourceArguments? `)` `->` `(` ResourceArguments? `)` `;`
+> ResourceArguments -> IDENTIFIER ( `,` IDENTIFIER )* `,`?
+> ResourceBranch -> `if` ( IDENTIFIER | `true` | `false` )
+>     `{` ResourceStatement* `}` `else` `{` ResourceStatement* `}`
+> ```
 
-This is source sugar for the existing unsigned-bit payloads, with no wire/schema
-change or runtime conversion. The frontend checks hex precision/range with
-integer arithmetic; for decimals it compares the candidate's exact integer
-decimal expansion with the original value before accepting its bits. Lean
-continues to check the same literal scalar tags and resource authority. This
-frontend conversion is tested, not a new Lean source-literal refinement theorem
-or an IEEE field-law claim. It does not introduce pure floating scalar values or
-arithmetic into the existing Nat/Int dispatcher.
-Allocation sizes and layout arguments are static metadata. An explicit
-`coefficient(loan)` operand instead reads an initialized scalar at GEMM execution;
-it does not introduce general scalar expression flow between resource statements.
+`let x: T = value { e };` computes the scalar `e` with ordinary expressions
+and binds `x`. A `value` block may call functions, generics and lambdas, and
+it may use the declarations of [Indexed source](../indexed-source.md).
+`call f(a, …) -> (d, …);` calls the resource function `f` with the named
+bindings and binds its owned results, in order, to fresh owners.
+`let x: T = call f(…) -> (…);` also binds the scalar result of `f`. `if c { … }
+else { … }` runs one of two lists of statements, its **arms**, by the `Bool`
+binding `c`.
 
-### Pure values and executable boundaries
+Rules:
 
-Resource parameters, typed `let` bindings and captured call results support
-`Nat`, `Int`, `Bool` and `Unit`. A `value { ... }` block can use earlier scalar
-bindings, ordinary functions, finite generic families, independent lambdas and
-indexed geometry under the existing declaration contracts. For example:
+- The type of a scalar binding must be `Nat`, `Int`, `Bool` or `Unit`. A pair
+  type there is an error (`E_RESOURCE_VALUE`). The `value` block must have
+  the type of the binding (`E_TYPE`).
+- A `value` block sees the scalar parameters and the earlier scalar bindings
+  only (`E_NAME`).
+- A binding inside a `value` block must not reuse a name of the function that
+  is visible at the block: a parameter, a scalar binding, an owner or a loan
+  (`E_SHADOW`).
+- A lambda in a `value` block must not name a binding of the function, and
+  its parameters must not have the name of one (`E_CAPTURE`).
+- The callee of a call must be a resource function (`E_TYPE`). The arguments
+  are names of bindings, one per parameter (`E_RESOURCE_ARITY`). A literal
+  argument is an error (`E_PARSE`); bind it with `let` first.
+- A scalar argument must have the type of its parameter, and the type of
+  `let x: T = call …` must be the result type of the callee
+  (`E_RESOURCE_VALUE`). A pair result cannot be bound (`E_RESOURCE_VALUE`); a
+  call without `let` discards the result.
+- The number of bindings after `->` must be the number of owned results of the
+  callee (`E_RESOURCE_ARITY`).
+- A call ends the owners that it hands to owned parameters, and it suspends
+  the loans that it passes until it returns.
+- The condition of a branch must be a `Bool` binding or a literal
+  (`E_RESOURCE_VALUE`), and `else` is required (`E_PARSE`).
+- The checker checks both arms of a branch, even for a literal condition.
+  After the branch, both arms must leave the same owners and loans live, with
+  the same transpositions (`E_RESOURCE_JOIN`). A cell counts as initialized
+  after the branch only when both arms initialize it.
+- A binding of an arm is not visible in the other arm or after the branch: a
+  scalar binding (`E_NAME`), an owner or a loan (`E_RESOURCE_NAME`). Its name
+  is free again there. An owner that an arm allocates must end in that arm
+  (`E_RESOURCE_JOIN`).
+
+[`examples/packages/resource-values`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/resource-values)
+passes scalars through resource functions and branches on one:
 
 ```vast
-resource fn finish(data: Owned<F64, 1>, seed: Int) -> Int {
-    drop(data);
-    let answer: Int = value { seed + 1 };
-    value { answer }
-}
+{{#include ../../examples/packages/resource-values/src/main.vast}}
 ```
 
-The [scalar-flow example](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/resource-values/src/main.vast)
-passes a computed Bool through a resource helper, chooses different fills at
-runtime, returns the Bool together with an initialized owner, and inspects the
-selected output before computing `42`. Nat remains arbitrary precision with
-saturating subtraction; Nat-to-Int conversion remains explicit.
+The executable prints `42`.
 
-Each pure block receives only its earlier scalar bindings. Resource handles,
-loans, numerical metadata and packing caches cannot enter pure Core. Pure locals
-cannot shadow enclosing bindings, and lambdas retain the independent capture
-audit. Resource functions remain unavailable as `Fn` values, pure callees,
-dispatch keys or editable generic families. Every branch is checked even when a
-condition originates from a literal. Branch-local scalar bindings are unavailable
-in the sibling or after the join; there are no scalar phi values or branch result
-bindings in this increment.
+## Running a resource program
 
-An ordinary `call` still transfers owners and discards the pure result. Discarded
-results, including previously supported terminal Pair results, remain fully
-checked without native evaluation. A `let ... = call` computes its result only
-after the callee's resource schedule succeeds and its borrowed inputs have been
-restored. The entry's final Int is printed after successful resource completion.
-No scalar result is published after a resource failure; previous writes are not
-rolled back. Ordinary storage forms keep static capacities and layouts; explicit
-`runtime_*` forms use integral scalar slots for bounded whole-map dimensions,
-capacities and layouts. Profile and nominal identities remain static. This does
-not add floating Core arithmetic, resource reads in pure expressions or escaping
-resource closures. Runtime-shape calls are rejected under resource branches.
+An executable runs the statements of its entry point in order and then prints
+the value of its `value` block.
 
-Every resource definition is checked, including unused dependencies. Check-only
-libraries use actual all-body probes without a fabricated main. A package with
-a resource entry reuses that checked probe list and independently expands its
-actual entry schedule as described in [resource functions](checked-storage.md#storage-functions--all-body-checking-and-exact-expansion).
-Source owners,
-local symbols and call IDs are reconstructed; the public input cannot provide
-allocation IDs, checked Core, alias assertions or trusted initialization flags.
-Versions 2–7 reject resource declarations rather than discarding them.
+Rules:
 
-Generation rechecks the original mixed schedule, its resource projection and
-every native instruction, plus the actual pure Core module, exact fragment
-targets and dependency order. A fragment is keyed by its canonical resource
-owner and structural source position. Its ordered scalar argument slots must
-match the actual checked Core signature. Runtime conditions are emitted from
-those checked Bool slots; neither arm is selected during resource checking. The same
-resource main supplies both the schedule and its pure return block. Native IO uses
-structured cleanup, including failure paths; a failed resource operation does not
-publish the pure return value. Earlier completed writes are not rolled back.
-The Unit-returning main closes its arenas on success and closes/rethrows on
-failure; a cleanup error overrides the body error. When both static and dynamic
-arenas exist, the inner arena closes first. See the
-[native cleanup contract and fault-injection checks](checked-storage.md#storage-ir).
+- A failing `expect` or `runtime_expect` stops the program with an
+  `E_NATIVE_EXPECT` message on standard error and an unsuccessful exit status.
+  The message names the cell and shows the stored and the expected payload.
+- A failing condition on [runtime extents](#runtime-extents) stops the program
+  in the same way with an `E_RUNTIME_GUARD` message. An extent that is
+  negative or above 2⁶³ − 1 stops it with an `E_RUNTIME_EXTENT` message.
+- A program that stops prints no result. Writes that it completed before it
+  stopped are not undone.
+- The program frees its allocations when it ends, even when it stops early.
 
-A failing `expect` raises `E_NATIVE_EXPECT` with its view-relative cell and
-both payloads, for example
-`E_NATIVE_EXPECT: stored bit pattern differs at cell (0, 0): holds f64(0x1.4p1) [bits 4612811918334230528]; expected f64(0x1.cp1) [bits 4615063718147915776]`.
-Finite nonzero components use the exact `f64(hex)` spelling followed by their
-decimal bits; zeros, infinities and NaNs use `f64_bits(bits)`, so signed zeros
-and NaN payloads stay visible. A `Complex<F64>` cell shows both components as
-`complex(real, imaginary)`. The ASCII message is formatted without host `printf`
-float conversion, so it is identical across hosts, and has at most 361 bytes.
-It is built only after the bit comparison fails. Handle, scalar, layout and bounds
-errors keep their precedence and fixed messages, and cleanup is unchanged.
+## Runtime extents
 
-The optional `lean-kernel/native` package is linked only for a resource entry.
-A protocol-8 program with only an ordinary pure entry still builds without that
-runtime. Neither route needs mathlib. A checked GEMM schedule additionally links
-the optional numerical package with explicit pinned OpenBLAS configuration;
-other entries remain BLAS-free. See [numerical source and build](../linalg/maps-and-gemm.md#numerical-values).
-Native code performs no runtime
-loan interpretation or implicit alias-repair copy; operation costs remain visible
-in the checked schedule.
+> **Syntax**
+>
+> ```text
+> RuntimeStatement -> `runtime_allocate` IDENTIFIER `:` ElementType `[` Extent `]` RuntimeLayout
+>     | `runtime_move` IDENTIFIER `->` IDENTIFIER
+>     | `runtime_borrow` IDENTIFIER `=` AccessMode `(` IDENTIFIER `)`
+>     | `runtime_release` `(` IDENTIFIER `)`
+>     | `runtime_drop` `(` IDENTIFIER `)`
+>     | `runtime_fill` `(` IDENTIFIER `,` Payload `)`
+>     | `runtime_expect` `(` IDENTIFIER `,` INTEGER_LITERAL `,` INTEGER_LITERAL `,` Payload `)`
+>     | RuntimeNumericalStatement
+> RuntimeLayout -> `runtime_layout` `(` Extent `,` Extent `,` Extent `,` ( `true` | `false` ) `)`
+> Extent -> INTEGER_LITERAL | IDENTIFIER
+> ```
 
-### Resource diagnostics
+The statements above this section fix every size in the source. The
+`runtime_` statements take sizes from scalars that the program computes. An
+**extent** is a literal or an earlier `Nat` or `Int` binding.
+`runtime_allocate d: F64[n] runtime_layout(rows, columns, leading, false);`
+allocates `n` cells and fixes the one layout of the allocation, and
+`runtime_borrow v = write(d);` lends that whole view. The owner and the loans
+of such an allocation are **runtime** owners and loans; the others are
+**static**. The other `runtime_` statements have the meaning of the
+statements without the prefix. [Runtime maps](#runtime-maps) gives the
+statements that multiply matrices of these sizes.
 
-Resource expansion retains the current function and structural statement path
-when a check fails. The primary diagnostic points to the failing operation,
-including an unselected branch arm. A failed branch join points to its `if`;
-an input-contract failure points to the caller; a callee-body failure points to
-that body statement and includes the caller as a note. Result/cleanup failures
-use the result block when no caller statement is available. Unused bodies keep
-their own locations. Header and envelope failures still use the relevant header.
+Rules:
 
-Notes recover names and introduction sites from the original source paired with
-its actual lowering. Borrow/drop failures identify the allocation and, when
-available, the conflicting or outstanding loan. GEMM endpoint mismatches name
-the actual unequal spaces/bases; vector evaluation identifies its actual bases
-and explicit metric. Equal dimensions do not suppress these nominal checks.
-Other operations include their local operands. Compiler-created temporary loans
-without a lexical binding are omitted rather than presented as source names.
-Notes are deduplicated and capped at 32, with call context before operand notes.
-The internal trace retains at most 32 innermost sites so unwinding a deep
-rejected call chain does not repeatedly copy an unbounded diagnostic stack.
+- An extent must be a literal or a `Nat` or `Int` binding in scope
+  (`E_RUNTIME_EXTENT`, or `E_RESOURCE_NAME` for a name that is not in scope).
+  A program computes an extent in a `value` block; extents have no arithmetic
+  of their own.
+- An `Int` extent must not be negative when the program runs.
+- `runtime_borrow` lends the whole layout of its allocation. It takes no
+  layout and no offset.
+- `leading` must be at least the number of rows and at least 1, even for an
+  empty view. Padding stays uninitialized when every cell is written.
+- The conditions on extents are capacity, layout bounds, dimensions that must
+  be equal, and the cells of `runtime_expect`. The capacity and the layout of
+  one `runtime_allocate` form one condition, and so do the layout and the
+  cell of one `runtime_expect`.
+- The compiler decides a condition in which every extent is a literal. One
+  that fails is an error (`E_RUNTIME_GUARD`), reported at the `resource`
+  keyword of the function.
+- The executable checks a condition in which some extent is a binding when
+  the program runs, before the statement that needs it.
+- A `runtime_` statement must name runtime bindings, an owner where the
+  statement needs an owner and a loan where it needs a loan
+  (`E_RUNTIME_TYPE`). A statement without the prefix must name static
+  bindings (`E_RESOURCE_TYPE`, `E_RESOURCE_MOVE` or `E_RESOURCE_LOAN`, by the
+  statement).
+- A runtime owner is not an owned result or an owned argument, and a runtime
+  loan is not an argument for a borrowed parameter.
+- The rules of [Resource statements](#resource-statements) on owners, loans,
+  access and initialization hold for runtime owners and loans. A violation is
+  an error (`E_RUNTIME_SHAPE`).
+- Every runtime loan covers its whole allocation. Two live loans of one
+  allocation must therefore both be `read` loans, and a `read` or `read_write`
+  loan needs an earlier write of the whole view. An empty view is no
+  exception to either rule.
+- At the end of a function, every runtime owner must have been dropped
+  (`E_RUNTIME_CALL`).
+- A `runtime_` statement must not be inside a branch, and neither may a call
+  of a function that contains one, directly or through further calls
+  (`E_RUNTIME_BRANCH`).
+- An extent never proves that two spaces or bases are the same, and it is not
+  a dispatch key.
 
-This context is internal error data: the public wire format and successful
-checked schedules are unchanged. Names and source mappings are recovered only
-on rejection, without rerunning all body probes or retaining a resource-state
-snapshot for diagnostics. The location wrappers have exact successful-result
-equations; source positions and diagnostic prose are covered by regression
-tests, not a source-provenance theorem.
+## Runtime maps
 
-### Evidence and remaining work
+> **Syntax**
+>
+> ```text
+> RuntimeParameterType -> `RuntimeSpace` `<` Path `,` Extent `>`
+>     | `RuntimeBasis` `<` IDENTIFIER `>`
+>     | `RuntimeMap` `<` IDENTIFIER `,` IDENTIFIER `,` AccessMode `>` `initializes`?
+> RuntimeNumericalStatement ->
+>       `runtime_space` IDENTIFIER `=` `linear` `(` Path `,` Extent `)`
+>     | `runtime_basis` IDENTIFIER `=` `basis` `(` IDENTIFIER `)`
+>     | `runtime_map` IDENTIFIER `=`
+>       `view` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `)`
+>     | `runtime_gemm` `(` IDENTIFIER `,` IDENTIFIER `,` IDENTIFIER `,`
+>       ( `overwrite` | `accumulate` ) `,` `NativeFast` GemmCoefficient* `)`
+> GemmCoefficient -> `,` ( `alpha` | `beta` ) `=`
+>     ( Payload | `coefficient` `(` IDENTIFIER `)` )
+> ```
 
-`ResourceSource.Checked` retains the original decoder/source mapping, canonical
-owners, independently re-resolved calls, actual authority acceptance, complete
-resource probes, pure fragment compilation and the exact mixed executable plan. The oracle
-imports those definitions: source identity and call provenance, all resource-body
-coverage, the original authority trace, typed total evaluation of the returned
-pure Core, and closed logical resources at successful entry exit are connected to
-actual acceptance. These facts do not prove native heap behavior, full source
-operational correspondence, numerical results or compiler refinement.
+`runtime_space u = linear(I, m);` declares a space of dimension `m` over the
+`indexed` implementation `I`, and `runtime_basis bu = basis(u);` a basis of
+it. `runtime_map a = view(v, bs, bt);` presents the runtime loan `v` as the
+matrix of a map from the space of the basis `bs` to the space of `bt`.
+`runtime_gemm(a, b, out, overwrite, NativeFast);` writes the product of the
+matrices `a` and `b` to `out`, times `alpha` when the statement gives one.
+With `accumulate` it adds that product to `beta` times `out`. A function
+receives spaces, bases and maps through parameters of the types
+`RuntimeSpace<I, m>`, `RuntimeBasis<u>` and `RuntimeMap<bs, bt, access>`.
 
-Regression coverage includes actual source check/build/run, runtime assertion
-failure, re-exports/private access, moved owners, uninitialized storage, captures,
-nonwinning and unapplied pure bodies, legacy-version rejection and forged wire
-metadata. The existing forged native-plan, sanitizer, failure-cleanup and allocation
-counter regressions remain required.
+Rules:
 
-Numerical inputs now accept explicit static `Space`, dependent `Basis`, and
-`ReadMap`/`WriteMap`/`ReadWriteMap` contracts; see [the input contract](../linalg/maps-and-gemm.md#numerical-values--dependent-numerical-inputs).
-`OwnedMap<source_basis,target_basis>` inputs/results additionally transfer initialized
-storage and input-dependent mathematical identities; see [owned results](../linalg/maps-and-gemm.md#numerical-values--owned-numerical-results).
-Bounded generative owned-map packages, explicit rank-three packing/regrouping,
-versioned scratch reuse and connected rank-two/three contraction trees are
-implemented below. [Diagonal metrics](../linalg/transforms-and-metrics.md#diagonal-metrics) add explicit declared
-coefficient realization and scratch-backed pairing. Nat/Int/Bool/Unit value flow and runtime Bool branches compose with these
-operations. The separate [runtime-shape profile](#runtime-shapes) adds straight-line
-whole-map GEMM. Broader dynamic interfaces, floating scalar expression interfaces, general resource packages, dense
-metric realization, general owned-result joins and retained-evidence interfaces
-remain open. Equivalent-C measurements exist for bounded paths; controlled-host
-performance and total allocation acceptance remain unfinished. Escaping borrowed lifetimes and
-broader lifetime interfaces retain their separate scope. Protocol 8's static
-profile and native compilation alone do not establish **Fast like C**.
+- A parameter type must name earlier parameters only (`E_RESOURCE_NAME`).
+- An extent of a parameter type must be a literal or a `Nat` or `Int`
+  parameter (`E_RUNTIME_EXTENT`). `RuntimeBasis<u>` must name a space
+  (`E_RUNTIME_TYPE`), and `RuntimeMap<bs, bt, …>` two bases
+  (`E_NUMERICAL_TYPE`).
+- The arguments for these parameters must be the spaces, bases and maps of the
+  caller that the parameter types relate. A basis that the caller declared
+  separately is a different basis, even over a space of the same dimension
+  (`E_RUNTIME_CALL`).
+- A `RuntimeMap` parameter with `initializes` promises that the body writes
+  the whole view. A body that does not is an error (`E_RUNTIME_CALL`).
+- The mode of `runtime_gemm` must be `overwrite` or `accumulate`
+  (`E_NUMERICAL_TYPE`), and its policy `NativeFast` (`E_PARSE`). Its element
+  type is `F64` or `Complex<F64>`.
+- `alpha` and `beta` must be payloads of the element type of the maps
+  (`E_RUNTIME_SHAPE`). A `coefficient(…)` there is an error
+  (`E_RUNTIME_COEFFICIENT`), and `overwrite` takes no `beta`
+  (`E_RUNTIME_SHAPE`).
+- The output of `accumulate` must be an initialized `read_write` map, even
+  for a `beta` of zero (`E_RUNTIME_SHAPE`).
+- The `runtime_` statements multiply matrices only. Transforms, metrics,
+  vectors and tensors have no statements with runtime extents.
+- `vastitas build` needs the option `--openblas-prefix` for a program that
+  runs `runtime_gemm`, as [Numerical builds](../guide/cli.md#numerical-builds)
+  describes.
 
-[Typed transforms](../linalg/transforms-and-metrics.md#linear-transforms) now add explicit dual/conjugate spaces,
-corresponding bases, canonical involutions, declared coordinate metrics and
-read-only dual/conjugate/orthonormal-adjoint operations. Dependent parameter
-contracts and actual reborrows preserve their evidence and conjugation through
-nested calls. The public checker also audits the exact transform receipt origins.
-
-[Vector evaluation](../linalg/transforms-and-metrics.md#vector-evaluation) adds bilinear dual evaluation and explicit
-orthonormal Hermitian pairing with scoped vector loans. [Finite two-map networks](../linalg/networks-and-packing.md#finite-networks)
-check occurrence identity, exact port usage, the bilinear edge and ordered boundaries.
-Both features reach the same resource/native path and retain their public origin
-audits through both branch arms; their broader metric and network contracts remain open.
-
-[Owned-map packages](../linalg/maps-and-gemm.md#owned-map-packages) now add the bounded
-`OwnedMapTo<source_basis,target_dimension>` profile: one hidden primal target and
-direct basis, initialized affine storage, fresh consuming unpack and explicit
-repack. The source basis remains an actual caller dependency. Pack/open/transfer
-preserve the exact allocation/layout and emit no additional native instructions.
-Dynamic package-result dimensions, general resource packages/closures, borrowed results and
-full source/native refinement remain pending.
-
-`cache saved = pack3(source, scratch);` and
-`contract3_cached(saved, packed, right, output, NativeFast);` expose the bounded
-[packing dependency contract](../linalg/networks-and-packing.md#cached-packing). Cache names are lexical metadata
-with no parameter/result or escaping package form. All-body and both-branch checks
-include their capture, consumer and cleanup schedules.
-
-[Bounded contraction trees](../linalg/networks-and-packing.md#contraction-trees) add explicit unresolved finite
-graphs, ordered ports and caller-supplied regroup/GEMM plans. The full public
-checker independently resolves their nominal axes and resource names, retains
-actual producer/event receipts from both branches and audits their declaration
-environment alongside package and packing-cache receipts.
-
-<a id="runtime-shapes"></a>
-
-## Runtime extents and caller-owned maps
-
-Protocol 8 supports a bounded runtime-extent resource profile. Immutable `Nat`
-or nonnegative `Int` values from actual checked pure computations can determine
-rank-two allocation capacities, column-major layouts and nominal space dimensions.
-Real and complex GEMM can reuse a caller's destination through nested calls at
-multiple extents. Dimension values never become dispatch keys or evidence that
-two nominal spaces or bases are equal.
-
-The [worked package](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/runtime-shapes/src/main.vast) uses two
-extents in one executable and calls the same helper twice into each destination.
-Run `cargo run -- check --manifest-path examples/packages/runtime-shapes/Vastitas.toml`;
-native build additionally requires `--openblas-prefix <pinned-prefix>`.
-
-### Public interface
+This function multiplies two maps into a destination of its caller, at any
+three dimensions:
 
 ```vast
 resource fn multiply(
@@ -348,197 +494,54 @@ resource fn multiply(
     v: RuntimeSpace<profiles::RealSmooth, k>,
     w: RuntimeSpace<profiles::RealSmooth, n>,
     bu: RuntimeBasis<u>, bv: RuntimeBasis<v>, bw: RuntimeBasis<w>,
-    a: RuntimeMap<bv, bu, read>,
-    b: RuntimeMap<bw, bv, read>,
-    out: RuntimeMap<bw, bu, write> initializes
+    left: RuntimeMap<bv, bu, read>,
+    right: RuntimeMap<bw, bv, read>,
+    output: RuntimeMap<bw, bu, write> initializes
 ) -> Unit {
-    runtime_gemm(a, b, out, overwrite, NativeFast);
+    runtime_gemm(left, right, output, overwrite, NativeFast);
     value { () }
 }
 ```
 
-The caller declares `runtime_space u = linear(profiles::RealSmooth, m);` and
-`runtime_basis bu = basis(u);`. It explicitly allocates storage:
+Its caller declares the spaces and bases, allocates the storage and presents a
+loan as a map:
 
 ```vast
+runtime_space u = linear(profiles::RealSmooth, m);
+runtime_basis bu = basis(u);
 let capacity: Nat = value { leading * columns };
 runtime_allocate data: F64[capacity] runtime_layout(rows, columns, leading, false);
-runtime_borrow output = write(data);
-runtime_map map = view(output, source_basis, target_basis);
+runtime_borrow c = write(data);
+runtime_map output = view(c, bw, bu);
 ```
 
-Each extent is a literal or an earlier `Nat`/`Int` binding. Compute arithmetic in
-`value` blocks; extents contain no separate expression language. Parameters may
-refer only to preceding scalar, space and basis parameters. The caller's actual
-space and basis identities survive calls; a same-dimensional independently
-created basis is not interchangeable. `RuntimeMap` access is `read`, `write` or
-`read_write`; `initializes` promises full logical output initialization on return.
-An `Int` extent rejects negative values before conversion.
+[`examples/packages/runtime-shapes`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/runtime-shapes)
+holds the whole program. It multiplies matrices at two sizes in one
+executable.
 
-`runtime_fill`, `runtime_expect`, `runtime_release`, `runtime_move` and
-`runtime_drop` mirror the corresponding explicit storage operations.
-`runtime_borrow` uses the allocation's entire declared map; it has no layout or
-offset override. Layouts have exactly rows, columns, leading dimension and a
-fixed transpose flag. Padding is retained and does not become initialized merely
-because every logical cell is written. Zero extents are supported, with the
-existing requirement `leading >= max(1, rows)`. Empty extents do not authorize
-an otherwise conflicting loan or an unwritten read in the symbolic contract.
+## Diagnostics
 
-`runtime_gemm` supports `F64`/`Complex<F64>`, overwrite or accumulate and explicit
-`NativeFast`. Optional alpha/beta are matching machine literals. Overwrite has
-no beta; accumulate requires an initialized readable/writable output even for
-beta zero. Runtime coefficient loans, transformed/metric/vector/tensor interfaces
-and cross-component storage conversion are outside this initial profile.
+A resource diagnostic points to the statement that fails, even in an arm that
+the program does not select. A failure inside a called function points to the
+statement of the callee and names the call in a note. A failed branch join
+points to its `if`, and a failure at the end of a body to its `value` block.
+Notes name the owners and loans involved and where the program introduced
+them; a diagnostic has at most 32 notes.
+[Appendix B](../appendix/diagnostics.md) lists the `E_RESOURCE_` and
+`E_RUNTIME_` codes.
 
-### Exact frame and guard contract
+## Moved sections
 
-The independent Lean checker reconstructs a symbolic frame containing static
-allocation identities, owner/loan names, access rights, parent links, canonical
-whole-map layouts, write histories and versions. A write history is interpreted
-with the existing `Initialization.record`, including its empty/redundant-write
-normalization. It is not a guessed concrete state at a representative size.
-Whole-map child loans retain their caller snapshots, suspend parent access and
-return inside out. Calls preserve all caller owners/layouts and restore every
-caller loan; only justified initialization/version changes survive.
+These anchors keep older links working.
 
-Only arithmetic facts become emitted guards: integral narrowing, byte capacity,
-LP64 dimensions/leading bounds, physical layout validity, dependent dimension
-equality and constant cell bounds. Extents never authorize ownership, borrowing,
-nominal identity or profile paths. `StorageShapeFlow` independently projects the
-actual mixed scalar schedule; `StorageValueFlow` checks that every referenced
-slot is live and integral at its actual use, not merely present in a final table.
-Both static and symbolic projections are independently audited before codegen.
-
-Guards containing only literals are decided by the Lean checker. False physical
-layout/capacity, dimension, bound or cell conditions produce `E_RUNTIME_GUARD`
-during `check`, including conditions from nominal maps and call contracts.
-True closed guards emit no native condition. Guards referring to scalar slots
-remain runtime checks; this does not constant-fold an earlier `value` block or
-guess its value. The certificate retains both physical and explicit guard
-decisions, and the oracle proves that admitted closed guards hold under every
-valuation for the actual checked public entry. The helper arithmetic agreement
-below does not establish full source/native refinement. Resource diagnostics
-retain the failing statement, available binding locations and call-site context;
-see [resource source](#resource-source).
-
-Runtime shape operations or calls are rejected under resource branch nodes,
-including transitively and in unselected arms. Ordinary scalar/resource branches
-retain both-arm checks. A scalar-returning helper may compute an extent before a
-straight-line runtime-shape region. General shape results, branch phi values,
-borrowed/owned runtime results and resource closures remain future work.
-
-Guards precede the operation that needs them. The native adapter independently
-checks physical handles, layout, aliases and GEMM ABI before writes; logical
-initialization remains an independent checker obligation. A failing GEMM preflight preserves its output. The whole
-multi-operation function is not a transaction: earlier successful writes need
-not roll back if a later guard fails. Entry failure cleans up both arenas.
-
-### Proof boundary
-
-`VastitasOracle.StorageShapes` proves, for every guard-satisfying valuation,
-exact interpretation of frame audits, each accepted `Storage.checkAction`, and
-the complete instantiated `Storage.run`. Its call theorem uses the actual
-accepted call slice and proves exact caller-loan restoration and preserved
-allocation identity/owner/scalar/capacity fields. Guard premises include the
-initial frame's guards and the complete emitted step guards.
-
-`StorageShapeNumerical` proves actual numerical environment validity, full live
-loan snapshots and acceptance by the existing `Storage.Numerical.checkProduct`
-with the same endpoints, bases, coefficients and GEMM request. The public
-`ResourceRuntimeShapes` corollaries use actual source origins, entry projections
-and scalar-return receipts. Synthetic probes do not prove universal extents.
-
-The test-only [runtime guard proof](https://github.com/MGYamada/Vastitas/blob/main/scripts/prove_runtime_shape_guards.lean)
-connects the actual `runtimeLayoutValid` helper to `Storage.checkLayout` for all
-Lean `UInt64` inputs and both scalar tags, including empty extents and either transpose
-flag. LP64 bounds prove the nonempty span multiplication/addition cannot wrap;
-invalid scalar tags are rejected. The `layout_guard` corollary connects this
-result to actual `Shapes.Guard.eval` under explicit extent-representation
-premises. Bound, equality and cell expressions have matching Nat judgments
-when emitted constants fit Lean `UInt64`. Actual Nat/Int narrowing helpers return the
-exact admitted value without wrapping or clamping, and produce their prescribed
-IO errors on checker rejection. All 13 theorems have a transitive axiom audit.
-`UInt64` here names the backend Lean type. Source extents still come from `Nat`
-or `Int`; this work does not add the planned Vastitas `U64` source type.
-
-This script imports kernel and runtime only for validation; neither gains a
-new dependency and the optional native/FFI package stays outside the oracle.
-These results do not prove that source scalar execution supplies the stated
-valuation, interpret generated source strings, or establish native memory safety
-of the full C/Lean toolchain, floating-point field laws or numerical error bounds.
-Native boundary tests, sanitizers and equivalent-work experiments remain separate
-implementation evidence.
-
-### Execution costs and limits
-
-The compiler reconstructs lookup tables and exact name counts from the symbolic
-frame. When distinct loan names form one child-to-root stack, it verifies all
-parent links in one pass. Every loan still needs its original allocation,
-layout, access and initialization checks. Other loan tables use bounded
-ancestor sets and all writer pairs. `Shapes.auditFrame_eq_indexed` and
-`Shapes.compatibleWith_eq_indexed` prove equality with the reference checks
-for every frame and every compatibility input. The proof depends only on the
-loan graph and applies at any runtime extent.
-
-Every call checks the actual caller and exit frame. An identical starting
-frame and action slice can reuse a completed nested replay, including its
-ordered guards. `Shapes.Functions.checkCall_eq_uncached` equates that call
-check with a fresh replay. Different frames or actions take the ordinary path.
-The public entry also reuses the checked library's all-body probe batch.
-[Forwarding-call measurements](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-nested-replay/RESULTS.md)
-
-General nested expansion, writer comparisons and frame audits consume the
-shared resource-work budget. The metered replay checks every symbolic step
-and returns the original frame and ordered guards. Unused probes and the
-actual entry contribute to one accepted total.
-[Resource checking work](checked-storage.md#storage-functions--resource-checking-work)
-
-The public harness `scripts/check_storage_scaling.py --profile runtime`
-measures allocation/drop, shared reads, distinct-allocation writers, reborrow
-chains and forwarding calls. It records compiler checking times. The earlier
-record includes the 512-deep timeout and the later chain record measures the
-same workload after the ancestry check changed.
-[Earlier comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-runtime/RESULTS.md) · [Chain comparison](https://github.com/MGYamada/Vastitas/blob/main/experiments/compiler_scaling/results/2026-11-03-macos-reborrow-chains/RESULTS.md)
-
-A generated entry creates one runtime-shape arena and cleans it up once; entries
-also using static resources have a second, disjoint arena. A call does not create
-an arena or silently allocate/copy a matrix. Only explicit `runtime_allocate`,
-fill and GEMM actions cause corresponding data effects. Loan/move/nominal
-metadata erase; scalar narrowing and arithmetic guards remain visible generated
-work. There is no runtime compiler, symbolic frame or loan interpreter.
-
-Resource calls still expand statically at their call sites. Their generated GEMM
-calls use the same compiled generic runtime ABI with runtime extent operands;
-this is not new compiled resource-function code sharing. Storage-only runtime
-programs need no OpenBLAS. Actual GEMM uses the existing optional pinned
-sequential LP64 OpenBLAS package.
-
-The [runtime-shape experiment](https://github.com/MGYamada/Vastitas/blob/main/experiments/runtime_shapes/README.md) separates
-canonical public programs from instrumented callable wrappers, explicit lifecycle
-costs from destination reuse, and arena data counters from Lean/FFI/backend
-allocations. Counting, poison and correctness hooks are not timing evidence.
-Controlled-host equivalent-C budgets, total allocation attribution and general
-runtime numerical interfaces remain open. This increment does not close Stage 1.
-
-### Validation
-
-The kernel regression target `VastitasStorageTest.ShapeRegression` checks 80
-exact real/complex, transpose, mode and zero-axis valuations against the actual
-concrete schedule, plus forged frame/snapshot, alias, initialization, slot and
-caller-restoration failures. `tests/runtime_shape_source.rs` checks public/raw
-wire rejection and executes 17 positive and five failing source programs in its
-optional native suite. The numerical CI runs that suite on both supported OSes.
-The [storage-native guard regression](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_runtime_shape_guards.lean)
-compares 5,488 physical-layout boundary tuples and 13 integral narrowing cases
-against the actual runtime and checker helpers.
-These finite checks supplement both the universal mathematical guard theorems
-and the 13 actual helper/expression theorems above. The storage-native harness
-checks both scripts against its freshly built standalone runtime.
-
-The full feature validation includes 342 Rust tests and all 13 optional public
-numerical native tests, 44 kernel regression targets,
-full kernel/oracle builds, and a 25,287-declaration transitive axiom audit allowing
-only `propext`, `Classical.choice` and `Quot.sound`. Native storage/GEMM checks and
-the [retained output/cost record](https://github.com/MGYamada/Vastitas/blob/main/experiments/runtime_shapes/results/2026-11-01-macos/RESULTS.md)
-remain separate from those proofs. The retained experiment identifies its actual
-dirty source snapshots and binaries; it is not attributed to a later commit.
+- <a id="resource-source"></a><a id="package-resource-functions-protocol-8"></a>Package resource functions: [Resource functions](#resource-functions).
+- <a id="resource-source--explicit-source-contracts"></a><a id="explicit-source-contracts"></a>Explicit source contracts: [Storage types](#storage-types), [Resource statements](#resource-statements) and [Payloads](#payloads).
+- <a id="pure-values-and-executable-boundaries"></a>Pure values and executable boundaries: [Scalar values and calls](#scalar-values-and-calls) and [Running a resource program](#running-a-resource-program).
+- <a id="resource-diagnostics"></a>Resource diagnostics: [Diagnostics](#diagnostics).
+- <a id="evidence-and-remaining-work"></a>Evidence and remaining work: [Resource checking](../internals/resource-checking.md#evidence-and-remaining-work).
+- <a id="runtime-shapes"></a><a id="runtime-extents-and-caller-owned-maps"></a>Runtime extents and caller-owned maps: [Runtime extents](#runtime-extents).
+- <a id="public-interface"></a>Public interface: [Runtime maps](#runtime-maps).
+- <a id="exact-frame-and-guard-contract"></a>Frame and guard contract: [Resource checking](../internals/resource-checking.md#runtime-extent-frames-and-guards).
+- <a id="proof-boundary"></a>Proof boundary: [Resource checking](../internals/resource-checking.md#runtime-extent-proof-boundary).
+- <a id="execution-costs-and-limits"></a>Execution costs and limits: [Resource checking](../internals/resource-checking.md#execution-costs-and-limits).
+- <a id="validation"></a>Validation: [Resource checking](../internals/resource-checking.md#validation).

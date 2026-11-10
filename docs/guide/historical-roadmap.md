@@ -84,7 +84,7 @@ their source in tests (#665;
 gluing (#606), position-dependent metrics and performance (#222) remain open.
 Compiled reverse Core keeps its residuals as immutable pure Core values,
 retained or recomputed, as
-[storage ownership §7.10](../storage-ownership.md#710-reverse-residual-retention-and-mutation)
+[storage ownership §7.10](../storage-ownership.md#residual-retention)
 records. Storage-backed residual retention, with its value versions and
 invalidation, remains open. The tape of this profile is an immutable runtime
 value that records none of that metadata.

@@ -299,7 +299,7 @@ pins these four runtime reverse passes and their callers.
   step. The runtime reverse pass evaluated it once per pass. Each image is an
   evaluated point, a program node with one constant polynomial per
   coordinate, which every step that reads it evaluates again; see
-  [storage ownership §7.10](storage-ownership.md#710-reverse-residual-retention-and-mutation).
+  [storage ownership §7.10](storage-ownership.md#residual-retention).
 - **A let-bound tape's forward Core runs again at each reverse pass.** Each
   reverse pass of the tape is a site that copies the tape's map and point.
   The tape's own `let` stays in the function.
@@ -327,7 +327,7 @@ pins these four runtime reverse passes and their callers.
 - **Residual retention is not reached.** Residuals are immutable pure Core
   values: a saved site retains them, and a recomputing site recomputes them.
   The storage-backed retention of
-  [storage ownership §7.10](storage-ownership.md#710-reverse-residual-retention-and-mutation),
+  [storage ownership §7.10](storage-ownership.md#residual-retention),
   with value versions and invalidation, does not arise.
 
 <a id="proof-boundary"></a>

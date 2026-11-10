@@ -24,16 +24,16 @@ Rules:
 - A binding must not reuse a name that is visible at its statement: another
   parameter, or a binding of the same block or of an enclosing block. Reuse is
   an error (`E_DUPLICATE`). The language has no shadowing.
-- A binding with the name of a function, a generic or an abstract type is an
-  error (`E_SHADOW`). In manifest mode, so is a binding with the name of a
-  module, an import or a dependency of its package, the names that
-  [Names of items](items.md#names-of-items) lists.
-- A binding with a [reserved name](lexical-structure.md#reserved-names) is an
-  error (`E_RESERVED`).
+- A binding with a name of the namespace of its module is an error
+  (`E_SHADOW`). [Names of items](items.md#names-of-items) lists that
+  namespace: the items with a name, and in manifest mode the child modules,
+  the names that `use` binds and the dependency aliases.
+- [Reserved names](lexical-structure.md#reserved-names) says which names a
+  binding must not have.
 - Blocks that do not contain one another may bind the same name. The two
   branches of an `if` are such blocks.
 
-A lambda has stricter rules for the names it binds, which
+A lambda has further rules for the names it binds, which
 [Lambdas](../stage1b.md#lambdas-and-their-names) gives.
 
 In this program the two blocks bind `step` once each:
@@ -101,8 +101,9 @@ existential package on `X`.
 
 The second form, with `witness` and `fields`, opens an existential package of
 an [indexed profile](../appendix/glossary.md#profile) in manifest mode. It
-binds the witness object and then every field, in order. [Indexed source](../indexed-source.md#declarations-and-source-example)
-gives its rules.
+binds the witness object and then every field, in order.
+[Indexed source](../indexed-source.md#declarations-and-source-example) gives
+its rules.
 
 Rules:
 
@@ -112,4 +113,5 @@ Rules:
   field name is an error (`E_PARSE`).
 - In flat mode, the `witness` form is an error (`E_PARSE`).
 - The names that an `unpack` statement binds follow the rules of
-  [Scopes of bindings](#scopes-of-bindings).
+  [Scopes of bindings](#scopes-of-bindings), and they must differ from one
+  another (`E_DUPLICATE`).

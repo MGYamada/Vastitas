@@ -3,8 +3,9 @@
 Every expression, parameter and binding has a **type**. The checker infers the
 types of expressions, and parameters and results declare theirs. This chapter
 describes the types of pure programs. [Geometric types](geometric-types.md)
-describes objects, points, morphisms and packages, and the storage chapters
-describe the types of [resource programs](../storage/resource-programs.md).
+describes objects, points, morphisms and existential packages, and
+[Resource programs](../storage/resource-programs.md#storage-types) describes
+the types of storage.
 
 > **Syntax**
 >
@@ -17,9 +18,10 @@ Rules:
 - A type name that this chapter or [Geometric types](geometric-types.md) does
   not define is an error (`E_UNSUPPORTED`), unless it names an
   [indexed type](#indexed-types) in manifest mode.
-- Parameters of a method may also have selector types, such as `Number` and
-  `Any`, which [Method declarations](../stage1a.md#method-declarations)
-  describes. Selector types are not types of values.
+- Parameters of a method have selectors, such as `Number` and `Any`, which
+  [Method declarations](../stage1a.md#method-declarations) describes. A
+  selector that is not a scalar type is not a type: as a type of a value it
+  falls under the previous rule.
 
 ## Scalar types
 
@@ -60,9 +62,9 @@ Rules:
   (`E_TYPE`). The language has no pairs of other types, no nested pairs and no
   general tuples.
 - A pair type may be the type of a parameter, a result, a binding or the
-  branches of an `if`. A pair type in a [function type](#function-types) is an
-  error (`E_TYPE`). A lambda whose signature has no pair may use pairs in its
-  body.
+  branches of an `if`. [Function types](#function-types) excludes pair types
+  from function types, and [Function values](functions.md#function-values)
+  from the signature of a function that takes or returns a function.
 - A pair is not a dispatch key, and `Pair` is not a method selector. A method
   may return a pair, as [promotion](../stage1a.md#promotion) does.
 
@@ -100,7 +102,7 @@ Rules:
 
 - The parameter and result types of a function type must be scalar types or
   function types. Another type, such as a pair or a geometric type, is an error
-  (`E_TYPE`).
+  (`E_TYPE`). The body of a lambda may still use pairs and geometric values.
 - `fn(Int) -> Int` is not a type. Written as a type, it is an error
   (`E_PARSE`).
 - A function value is not data: it has no equality, as
@@ -122,9 +124,10 @@ function types.
 
 In manifest mode, a program declares its own families of types with `indexed`
 declarations. An **indexed type** applies such a family to its arguments, as in
-`geo::Point<X, geo::Base>`. Its family and its arguments are paths, as
-[Names and paths](names-and-paths.md) describes. `Object<D, M>` is the type of an object of the
-domain `D` with the coefficient marker `M`.
+`geo::Point<X, geo::Base>`. Its family and its arguments are
+[paths](names-and-paths.md). `Object<D, M>` is the type of an object of the
+[classification](../appendix/glossary.md#classification) `D` with the
+coefficient marker `M`.
 [Indexed source](../indexed-source.md#declarations-and-source-example) and
 [Smooth affine declarations](smooth-declarations.md) give the families and
 their rules.

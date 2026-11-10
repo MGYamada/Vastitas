@@ -24,8 +24,9 @@ All forms in this chapter share these productions:
 
 A [`Path`](names-and-paths.md) names a declaration in scope, as in a `use`
 declaration. A `CoordinateName` names a coordinate of an object. Each
-declaration of this chapter is an [item](items.md), and `pub` before it makes
-it visible outside its module.
+declaration of this chapter is an [item](items.md): its production is one
+form of `IndexedDeclaration`. `pub` before it makes it visible outside its
+module.
 
 ## The smooth profile
 
@@ -430,7 +431,7 @@ Rules:
 > The `recomputed` mode passes the input point, and the backward Core
 > evaluates again the intermediate points that it reads. Neither mode expands
 > the composite. The reverse pass of a tape bound by `let` is compiled when
-> the map and the point of its `linearize` are variables, literals or calls of
+> the map and the point of its `linearize` are bindings, literals or calls of
 > primitives that allocate nothing; a tape over a call result or a branch
 > value, and a tape passed to a function, keep the runtime reverse pass.
 > [Compiled reverse Core](../verification.md#compiled-reverse-core) lists the

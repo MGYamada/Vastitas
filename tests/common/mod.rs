@@ -81,7 +81,7 @@ pub mod runtime_inputs;
 /// and numerical packages. A scratch kernel root needs them even under a
 /// mocked Lake. The caller writes `lean-toolchain`, which has its own check.
 pub fn copy_runtime_inputs(kernel_root: &Path, storage: bool, numerical: bool) {
-    use runtime_inputs::{ABSENT, KERNEL, NUMERICAL, STORAGE, inputs};
+    use runtime_inputs::{KERNEL, NUMERICAL, STORAGE, required_inputs};
     let packages = [
         (&KERNEL, true),
         (&STORAGE, storage),
@@ -90,12 +90,10 @@ pub fn copy_runtime_inputs(kernel_root: &Path, storage: bool, numerical: bool) {
     for (package, _) in packages.iter().filter(|(_, selected)| *selected) {
         let source = package.directory_in(&root().join("lean-kernel"));
         let destination = package.directory_in(kernel_root);
-        for (relative, digest) in inputs(&source, package).unwrap() {
-            if digest != ABSENT {
-                let target = destination.join(&relative);
-                fs::create_dir_all(target.parent().unwrap()).unwrap();
-                fs::copy(source.join(&relative), target).unwrap();
-            }
+        for (relative, _) in required_inputs(&source, package).unwrap() {
+            let target = destination.join(&relative);
+            fs::create_dir_all(target.parent().unwrap()).unwrap();
+            fs::copy(source.join(&relative), target).unwrap();
         }
     }
 }

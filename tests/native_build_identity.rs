@@ -10,7 +10,7 @@ use common::{
 };
 use std::ffi::OsString;
 use std::fs;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -59,7 +59,6 @@ enum Change {
     Append,
     Replace(&'static str),
     Remove,
-    Add,
 }
 
 impl Change {
@@ -80,11 +79,6 @@ impl Change {
             Change::Remove => {
                 fs::remove_file(path).unwrap();
                 "missing"
-            }
-            Change::Add => {
-                assert!(!path.exists());
-                fs::write(path, "").unwrap();
-                "unexpected"
             }
         }
     }
@@ -263,8 +257,6 @@ fn separately_selected_checker_requires_the_matching_kernel_root() {
         ("lakefile.toml", Change::Append),
         ("lake-manifest.json", Change::Append),
         ("compiler-limits.json", Change::Append),
-        // Lake prefers lakefile.lean to an unchanged lakefile.toml.
-        ("lakefile.lean", Change::Add),
     ]
     .into_iter()
     .enumerate()
@@ -331,7 +323,6 @@ fn optional_runtime_packages_are_verified_when_selected() {
                 ("storage.c", Change::Append),
                 ("ffi_result.h", Change::Remove),
                 ("VastitasStorageNative/Runtime.lean", Change::Append),
-                ("lakefile.toml", Change::Add),
                 // Lake restarts itself with a direct dependency's newer toolchain.
                 ("lean-toolchain", Change::Replace(NEWER)),
             ],
@@ -362,6 +353,209 @@ fn optional_runtime_packages_are_verified_when_selected() {
             }
         }
     }
+    // A source in a package directory for a module of another package's
+    // library is not an input: Lake compiles that module from its own package.
+    // The numerical adapter imports the storage library.
+    let stray = untouched.join("numerical/VastitasStorageNative.lean");
+    fs::write(stray, "").unwrap();
+    let result = m.build(&untouched, Program::Numerical, "program");
+    m.assert_built(&result, "program");
+}
+
+// A package has one Lake configuration, under the name that the lists give,
+// and the other name must not exist in a root: Lake prefers `lakefile.lean`.
+// The driver refuses the name by rule. It does not compare it with a value
+// recorded when the compiler was built, and it does not advise a rebuild,
+// which cannot accept the name.
+#[test]
+fn forbidden_configuration_names_are_refused_by_rule() {
+    let m = Mocked::new();
+    for (package, program) in [
+        (&KERNEL, Program::Pure),
+        (&STORAGE, Program::Storage),
+        (&NUMERICAL, Program::Numerical),
+    ] {
+        let [name] = package.forbidden else {
+            panic!("{}: one forbidden name expected", package.name)
+        };
+        for kind in ["file", "directory", "dangling link"] {
+            let kernel = kernel_copy(&m.s, &format!("{} {kind}", package.name));
+            let path = package.directory_in(&kernel).join(name);
+            match kind {
+                "file" => fs::write(&path, "").unwrap(),
+                "directory" => fs::create_dir(&path).unwrap(),
+                _ => symlink("absent", &path).unwrap(),
+            }
+            let result = m.build(&kernel, program, "program");
+            let named = format!(": {name} (unexpected)\n");
+            m.assert_rejected(&result, "program", package, &named);
+            let error = String::from_utf8_lossy(&result.stderr);
+            assert!(
+                error.contains(&format!("note: {name} must not exist in "))
+                    && error.contains("a rebuilt compiler rejects it as well. Remove it."),
+                "{kind}: {error}"
+            );
+            assert!(
+                !error.contains("rebuild this compiler and the kernel"),
+                "{kind}: {error}"
+            );
+            // A program that does not select the package is built.
+            if package.directory != KERNEL.directory {
+                m.assert_built(&m.build(&kernel, Program::Pure, "program"), "program");
+            }
+        }
+    }
+    // With another difference, the advice for that difference is kept.
+    let kernel = kernel_copy(&m.s, "mixed");
+    fs::write(kernel.join("lakefile.lean"), "").unwrap();
+    Change::Append.apply(&kernel.join("lakefile.toml"));
+    let result = m.build(&kernel, Program::Pure, "program");
+    m.assert_rejected(
+        &result,
+        "program",
+        &KERNEL,
+        ": lakefile.lean (unexpected), lakefile.toml (changed)\n",
+    );
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(
+        error.contains("note: lakefile.lean must not exist in ")
+            && error.contains("rebuild this compiler and the kernel"),
+        "{error}"
+    );
+}
+
+/// A change that makes the sources of a package differ from its lists.
+type Difference = (&'static Package, fn(&Path), &'static str);
+
+// `build.rs` builds the compiler's table with `required_inputs`. Sources that
+// differ from the lists are an error there. The table therefore records no
+// absence, and it names only files that exist and that Cargo watches: a file
+// that is created later cannot make it stale.
+#[test]
+fn required_inputs_reject_sources_that_differ_from_the_lists() {
+    use runtime_inputs::{inputs, module_file, required_inputs};
+    // The sources of the repository match the lists.
+    for package in [&KERNEL, &STORAGE, &NUMERICAL] {
+        let directory = package.directory_in(&root().join("lean-kernel"));
+        let entries = required_inputs(&directory, package).unwrap();
+        assert_eq!(entries, inputs(&directory, package).unwrap());
+        for (path, digest) in &entries {
+            assert!(directory.join(path).is_file(), "{path} is not a file");
+            assert!(
+                digest.len() == 16 && digest.bytes().all(|byte| byte.is_ascii_hexdigit()),
+                "{path} is recorded as {digest}"
+            );
+            assert!(!package.forbidden.contains(&path.as_str()), "{path}");
+        }
+        let listed = package.files.iter().map(|file| file.to_string());
+        for path in listed.chain(package.modules.iter().map(|module| module_file(module))) {
+            assert!(
+                entries.iter().any(|(entry, _)| *entry == path),
+                "{}: no entry for {path}",
+                package.name
+            );
+        }
+    }
+    let prepend = |path: &Path, line: &str| {
+        let source = fs::read_to_string(path).unwrap();
+        fs::write(path, format!("{line}\n{source}")).unwrap();
+    };
+    let differences: [Difference; 9] = [
+        (
+            &STORAGE,
+            |directory| fs::remove_file(directory.join("diagonal.h")).unwrap(),
+            "diagonal.h is missing",
+        ),
+        (
+            &KERNEL,
+            |directory| fs::remove_file(directory.join("lakefile.toml")).unwrap(),
+            "lakefile.toml is missing",
+        ),
+        (
+            &KERNEL,
+            |directory| fs::write(directory.join("lakefile.lean"), "").unwrap(),
+            "lakefile.lean must not exist",
+        ),
+        (
+            &NUMERICAL,
+            |directory| fs::write(directory.join("lakefile.toml"), "").unwrap(),
+            "lakefile.toml must not exist",
+        ),
+        (
+            &KERNEL,
+            |directory| {
+                fs::remove_file(directory.join("VastitasKernel/SmoothRuntime.lean")).unwrap()
+            },
+            "module VastitasKernel.SmoothRuntime has no source VastitasKernel/SmoothRuntime.lean",
+        ),
+        (
+            &STORAGE,
+            |directory| {
+                fs::remove_file(directory.join("VastitasStorageNative/Runtime.lean")).unwrap()
+            },
+            "VastitasStorageNative.lean imports VastitasStorageNative.Runtime, which has no source VastitasStorageNative/Runtime.lean",
+        ),
+        // A module of the package's library that has no source yet.
+        (
+            &KERNEL,
+            |directory| {
+                let runtime = directory.join("VastitasKernel/IndexedRuntime.lean");
+                let source = fs::read_to_string(&runtime).unwrap();
+                fs::write(runtime, format!("import VastitasKernel.Later\n{source}")).unwrap();
+            },
+            "VastitasKernel/IndexedRuntime.lean imports VastitasKernel.Later, which has no source VastitasKernel/Later.lean",
+        ),
+        // A module of a library that is neither the package's own nor the
+        // toolchain's nor another runtime package's, with or without a source.
+        (
+            &KERNEL,
+            |directory| {
+                let runtime = directory.join("VastitasKernel/IndexedRuntime.lean");
+                let source = fs::read_to_string(&runtime).unwrap();
+                fs::write(runtime, format!("import Main\n{source}")).unwrap();
+                fs::write(directory.join("Main.lean"), "").unwrap();
+            },
+            "VastitasKernel/IndexedRuntime.lean imports Main, which is not a module of this package's runtime library",
+        ),
+        (
+            &STORAGE,
+            |directory| {
+                let runtime = directory.join("VastitasStorageNative/Runtime.lean");
+                let source = fs::read_to_string(&runtime).unwrap();
+                fs::write(runtime, format!("import Elsewhere.Module\n{source}")).unwrap();
+            },
+            "VastitasStorageNative/Runtime.lean imports Elsewhere.Module, which is not a module of this package's runtime library",
+        ),
+    ];
+    let s = Scratch::empty("runtime identity");
+    for (index, (package, change, problem)) in differences.into_iter().enumerate() {
+        let kernel = kernel_copy(&s, &format!("kernel {index}"));
+        let directory = package.directory_in(&kernel);
+        required_inputs(&directory, package).unwrap();
+        change(&directory);
+        let error = required_inputs(&directory, package).unwrap_err();
+        assert!(error.to_string().contains(problem), "{problem}: {error}");
+        // A selected root is read without this rule; the driver compares it.
+        inputs(&directory, package).unwrap();
+    }
+    // An import of a toolchain module names no file of the package. Once the
+    // package gains a directory of the library's name, the sources no longer
+    // match: a library of that name in the package would hold an input.
+    let kernel = kernel_copy(&s, "toolchain import");
+    prepend(
+        &kernel.join("VastitasKernel/IndexedRuntime.lean"),
+        "import Lean.Data.Json",
+    );
+    let before = required_inputs(&kernel, &KERNEL).unwrap();
+    fs::create_dir(kernel.join("Lean")).unwrap();
+    let error = required_inputs(&kernel, &KERNEL).unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("imports Lean.Data.Json, whose source is in this package"),
+        "{error}"
+    );
+    assert_eq!(inputs(&kernel, &KERNEL).unwrap(), before);
 }
 
 // The comparison covers the modules that generated programs import. A backend
@@ -477,5 +671,34 @@ fn verified_inputs_cover_the_lake_configurations() {
     }
     for module in KERNEL.modules {
         assert!(module.starts_with("VastitasKernel."), "{module}");
+    }
+    // Each package has one Lake configuration. The lists name it as an input
+    // and forbid the other name.
+    for package in [&KERNEL, &STORAGE, &NUMERICAL] {
+        let directory = package.directory_in(&kernel);
+        let names = ["lakefile.lean", "lakefile.toml"];
+        let present: Vec<&str> = names
+            .into_iter()
+            .filter(|name| fs::symlink_metadata(directory.join(name)).is_ok())
+            .collect();
+        let [configuration] = present[..] else {
+            panic!(
+                "{}: one Lake configuration expected, found {present:?}",
+                package.name
+            )
+        };
+        let other = names.into_iter().find(|name| *name != configuration);
+        assert!(
+            package.files.contains(&configuration),
+            "{}: {configuration} is not a listed input",
+            package.name
+        );
+        assert_eq!(
+            package.forbidden.first().copied(),
+            other,
+            "{}: the forbidden name",
+            package.name
+        );
+        assert_eq!(package.forbidden.len(), 1, "{}", package.name);
     }
 }

@@ -121,11 +121,16 @@ Rules:
 - The compiler checks every export, even one that no program uses. An invalid
   export is an error (`E_TYPE`), and a path of the table that names nothing is
   an error (`E_NAME`).
+- The compiler reports an invalid export, and a path of the table that it
+  cannot resolve, at the root manifest, even for the export of a dependency.
+  The message names the package of the export, the manifest that declares it,
+  and the entry of the table, such as `scheme.origin`.
 - Qualified `indexed` syntax needs no export.
 
 > **Implementation note.** The kernel resolves every path of the table and
 > checks every export itself. It trusts no owner, capability or validity claim
-> from the manifest.
+> from the manifest. The request that the kernel receives holds no position
+> in a manifest, so the kernel names the manifest in the message.
 
 ## Moved sections
 

@@ -833,6 +833,65 @@ fn kernel_reconstructs_module_visibility_and_geometry_contracts_from_wire() {
     }
 }
 
+/// The request has no span for a manifest, so a diagnostic about the export
+/// of a dependency stays at the root manifest. Its message names the package
+/// of the export, the manifest that declares it and the entry of the table
+/// (#704). `raw_compatibility_roles_and_old_wire_downgrades_are_rejected`
+/// sends the same invalid exports to the kernel alone.
+#[test]
+fn an_invalid_export_names_its_package_its_manifest_and_the_entry() {
+    for (before, after, code, reason) in [
+        (
+            "origin = \"self::scheme::origin\"",
+            "origin = \"self::scheme::dimension\"",
+            "E_TYPE",
+            " does not match its declared finite contracts: `scheme.origin` names `vastitas_geometry::scheme::dimension`, which does not fit that entry",
+        ),
+        (
+            "base_object = \"self::scheme::BaseQQ\"",
+            "base_object = \"self::smooth::BaseSmooth\"",
+            "E_TYPE",
+            " does not match its declared finite contracts: `scheme.base_object` names `vastitas_geometry::smooth::BaseSmooth`, which does not fit that entry",
+        ),
+        (
+            "marker = \"self::smooth::CInfReal\"",
+            "marker = \"self::scheme::QQ\"",
+            "E_TYPE",
+            " does not match its declared finite contracts: `scheme.marker` and `smooth.marker` name one marker, `vastitas_geometry::scheme::QQ`",
+        ),
+        (
+            "point = \"self::Point\"",
+            "point = \"self::Morphism\"",
+            "E_TYPE",
+            " does not match its declared finite contracts: `point` names `vastitas_geometry::Morphism`, which does not fit that entry",
+        ),
+        (
+            "identity = \"self::smooth::id\"",
+            "identity = \"self::smooth::Missing\"",
+            "E_NAME",
+            ", entry `smooth.identity`: undefined name 'Missing' in this module",
+        ),
+        (
+            "apply = \"self::apply\"",
+            "apply = \"self::scheme\"",
+            "E_TYPE",
+            ", entry `apply`: expected an indexed declaration",
+        ),
+    ] {
+        let manifest = common::checked_replace(MANIFEST, before, after);
+        let s = fixture("fn main() -> Int { 42 }", str::to_owned);
+        s.write("geo/Vastitas.toml", &manifest);
+        let error = common::expect_code(&check(&s), code);
+        let root = s.0.canonicalize().unwrap();
+        let expected = format!(
+            "{}:1:1: {code}: the geometry compatibility export of package `vastitas_geometry` ({}){reason}\n",
+            root.join("app/Vastitas.toml").display(),
+            root.join("geo/Vastitas.toml").display(),
+        );
+        assert_eq!(error, expected, "{after}");
+    }
+}
+
 #[test]
 fn raw_compatibility_roles_and_old_wire_downgrades_are_rejected() {
     let s = fixture(include_str!("../examples/pointed.vast"), str::to_owned);

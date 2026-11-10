@@ -155,26 +155,93 @@ def resolveBody (p : Namespace.Indexed) (owner : DeclId) (span : Span) (body : B
         | .nondegenerate => .nondegenerate []
         | .riemannian => .riemannian [] [] []))
 
-def resolveGeometrySetting (p : Namespace.Indexed) (scope : Namespace.Scope)
+/-- How a diagnostic names the export of a package. The request has no span
+for a manifest, so the message names the package as its manifest does, and the
+manifest itself. -/
+def exportName (owner : Namespace.PackageId) : String :=
+  s!"the geometry compatibility export of package `{owner.name}` ({owner.source})"
+
+/-- A path of an export has no span. A diagnostic about one names the entry
+of the table and the export in its message. -/
+def atExportEntry {α : Type} (owner : Namespace.PackageId) (key : String) (action : ResolveM α) :
+    ResolveM α := fun references =>
+  match action references with
+  | .ok result => .ok result
+  | .error diagnostic => .error { diagnostic with
+      message := s!"{exportName owner}, entry `{key}`: {diagnostic.message}" }
+
+def resolveGeometrySetting (p : Namespace.Indexed) (scope : Namespace.Scope) (table : String)
     (setting : GeometrySetting Path) : ResolveM (GeometrySetting DeclId) := do
-  return ⟨← resolveId p scope setting.domain, ← resolveId p scope setting.marker,
-    ← resolveId p scope setting.baseObject, ← resolveId p scope setting.affine,
-    ← resolveId p scope setting.base, ← resolveId p scope setting.origin,
-    ← resolveId p scope setting.identity, ← resolveId p scope setting.dimension⟩
+  let entry (key : String) (path : Path) :=
+    atExportEntry scope.package s!"{table}.{key}" (resolveId p scope path)
+  return ⟨← entry "domain" setting.domain, ← entry "marker" setting.marker,
+    ← entry "base_object" setting.baseObject, ← entry "affine" setting.affine,
+    ← entry "base" setting.base, ← entry "origin" setting.origin,
+    ← entry "identity" setting.identity, ← entry "dimension" setting.dimension⟩
+
+/-- Presentation only: the first entry of a setting that `GeometrySetting.valid`
+rejects, as its key and the declaration that it names. The conjuncts are those
+of `GeometrySetting.valid`, in its order. -/
+def invalidSettingEntry (env : Core.Declarations) (profile : GeometryProfile DeclId)
+    (table : String) (setting : GeometrySetting DeclId) : Option (String × DeclId) :=
+  let type := setting.objectType
+  let entry (key : String) (id : DeclId) : Option (String × DeclId) := some (s!"{table}.{key}", id)
+  if !(match Indexed.lookup env.indexed setting.domain with | some (.classification ..) => true | _ => false) then
+    entry "domain" setting.domain
+  else if !decide (type.Valid env.indexed) then entry "marker" setting.marker
+  else if !(ObjectRef.type? env.indexed (.global setting.baseObject)).any
+      (fun base => decide (base.Refines env.indexed type)) then entry "base_object" setting.baseObject
+  else if !(match env.primitive? setting.affine with
+      | some (.descriptor implementation) => (implementationType env.indexed implementation).any
+          (fun concrete => decide (concrete.Refines env.indexed type))
+      | _ => false) then entry "affine" setting.affine
+  else if env.primitive? setting.base != some (.global setting.baseObject) then entry "base" setting.base
+  else if env.primitive? setting.origin != some (.origin type profile.point setting.baseObject) then
+    entry "origin" setting.origin
+  else if env.primitive? setting.identity != some (.identity type profile.morphism) then
+    entry "identity" setting.identity
+  else if env.primitive? setting.dimension != some (.dimension type) then entry "dimension" setting.dimension
+  else if env.package? ⟨profile.pointed, [.domain setting.domain, .marker setting.marker]⟩ !=
+      some ⟨type, [⟨profile.point, [.witness, .global setting.baseObject]⟩]⟩ then some ("pointed", profile.pointed)
+  else none
+
+/-- Presentation only: why `GeometryProfile.valid` rejects an export, by the
+first entry of its table that does not fit. The conjuncts are those of
+`GeometryProfile.valid`, in its order. Acceptance is `GeometryProfile.valid`
+alone; an export that it rejects for a reason that this function does not
+find is reported without the entry. -/
+def invalidExportEntry (env : Core.Declarations) (profile : GeometryProfile DeclId) : Option String :=
+  let names (entry : String × DeclId) : Option String :=
+    some s!"`{entry.1}` names `{qualified entry.2}`, which does not fit that entry"
+  if profile.scheme.marker == profile.smooth.marker then
+    some s!"`scheme.marker` and `smooth.marker` name one marker, `{qualified profile.scheme.marker}`"
+  else if !profile.familyValid env profile.point .point then names ("point", profile.point)
+  else if !profile.familyValid env profile.morphism .morphism then names ("morphism", profile.morphism)
+  else if let some entry := invalidSettingEntry env profile "scheme" profile.scheme then names entry
+  else if let some entry := invalidSettingEntry env profile "smooth" profile.smooth then names entry
+  else if env.primitive? profile.compose != some (.compose profile.morphism) then names ("compose", profile.compose)
+  else if env.primitive? profile.apply != some (.apply profile.morphism profile.point) then
+    names ("apply", profile.apply)
+  else none
 
 def resolveGeometry (p : Program) (env : Core.Declarations) :
     ResolveM (Option (GeometryProfile DeclId)) := do
   let profiles := p.packages.filterMap fun pkg => pkg.geometryCompat.map (pkg.id, ·)
   let resolved ← profiles.mapM fun (owner, profile) => do
     let scope : Namespace.Scope := ⟨owner, []⟩
+    let entry (key : String) (path : Path) := atExportEntry owner key (resolveId p.indexed scope path)
     let resolved : GeometryProfile DeclId :=
-      ⟨← resolveGeometrySetting p.indexed scope profile.scheme,
-       ← resolveGeometrySetting p.indexed scope profile.smooth,
-       ← resolveId p.indexed scope profile.point, ← resolveId p.indexed scope profile.morphism,
-       ← resolveId p.indexed scope profile.pointed, ← resolveId p.indexed scope profile.compose,
-       ← resolveId p.indexed scope profile.apply⟩
+      ⟨← resolveGeometrySetting p.indexed scope "scheme" profile.scheme,
+       ← resolveGeometrySetting p.indexed scope "smooth" profile.smooth,
+       ← entry "point" profile.point, ← entry "morphism" profile.morphism,
+       ← entry "pointed" profile.pointed, ← entry "compose" profile.compose,
+       ← entry "apply" profile.apply⟩
     unless resolved.valid env do
-      Namespace.problem {} "E_TYPE" "geometry compatibility export does not match its declared finite contracts"
+      let reason := match invalidExportEntry env resolved with
+        | some reason => s!": {reason}"
+        | none => ""
+      Namespace.problem {} "E_TYPE"
+        s!"{exportName owner} does not match its declared finite contracts{reason}"
     return resolved
   -- Several independently named libraries may coexist. Only the legacy
   -- unqualified dialect needs a unique interpretation; new syntax still works.

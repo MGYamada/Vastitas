@@ -518,13 +518,16 @@ def isMetricFamily (env : Environment) (family : DeclId) : Bool :=
 
 /-- A metric `MetricForm<object>`: an application of a `metric_form` family
 to a declared smooth object, and a Gram matrix that `checkGram` accepts at the
-object's dimension, with entries within `Limits.metricEntryBits`. -/
+object's dimension, with entries within `Limits.metricEntryBits` and the whole
+matrix within `Limits.metricMatrixBits`. The matrix bound is the last
+conjunct: it is computed for a square matrix with bounded entries. -/
 def validMetric (env : Environment) (family object : DeclId) (gram : SmoothRuntime.Matrix) : Bool :=
   isMetricFamily env family && validApplication env ⟨family, [.object (.global object)]⟩ &&
     SmoothDeclarations.gramBounded gram &&
-    match smoothDimension? env object with
+    (match smoothDimension? env object with
     | some n => (SmoothDeclarations.checkGram n gram).isOk
-    | none => false
+    | none => false) &&
+    SmoothDeclarations.matrixBounded gram
 
 /-- The object, its dimension and the Gram matrix of a declared metric. -/
 def metricData? (env : Environment) (metric : DeclId) : Option (DeclId × Nat × SmoothRuntime.Matrix) :=
@@ -600,6 +603,77 @@ structure Environment.Valid (env : Environment) : Prop where
 
 def validEnvironment (env : Environment) : Bool :=
   decide (env.length ≤ 4096) && decide (env.map Entry.id).Nodup && env.all (validEntry env (classRanks env))
+
+/-! ### One check for each distinct evidence declaration
+
+The check of an evidence declaration multiplies its certificate with the Gram
+matrix of its metric. Evidence declarations that repeat one metric and one
+kind carry one certificate, so the compiled audit runs that check once and
+accepts an equal declaration by comparison. `validEnvironment` above stays the
+definition that `Entry.Valid` and every theorem read;
+`validEnvironment_eq_once` proves that the compiled audit computes it. -/
+
+/-- An evidence declaration: the declarations that `validEntriesOnce` checks
+once. -/
+def Declaration.isEvidence : Declaration → Bool
+  | .metricEvidence .. => true
+  | _ => false
+
+/-- `entries.all (validEntry env ranks)`, where an evidence declaration equal
+to one in `accepted` is accepted without its check. `accepted` holds the
+evidence declarations that passed. -/
+def validEntriesOnce (env : Environment) (ranks : List (DeclId × Nat)) :
+    List Declaration → List Entry → Bool
+  | _, [] => true
+  | accepted, entry :: rest =>
+    if entry.declaration.isEvidence then
+      if accepted.contains entry.declaration then validEntriesOnce env ranks accepted rest
+      else validEntry env ranks entry && validEntriesOnce env ranks (entry.declaration :: accepted) rest
+    else validEntry env ranks entry && validEntriesOnce env ranks accepted rest
+
+/-- The check of an evidence entry reads its declaration, not its id. -/
+theorem validEntry_evidence (env : Environment) (ranks : List (DeclId × Nat)) {entry other : Entry}
+    (evidence : entry.declaration.isEvidence = true) (same : other.declaration = entry.declaration) :
+    validEntry env ranks other = validEntry env ranks entry := by
+  cases h : entry.declaration <;> simp [h, Declaration.isEvidence] at evidence
+  simp [validEntry, h, same]
+
+theorem validEntriesOnce_eq_all (env : Environment) (ranks : List (DeclId × Nat)) :
+    ∀ (entries : List Entry) (accepted : List Declaration),
+      (∀ entry : Entry, entry.declaration ∈ accepted → validEntry env ranks entry = true) →
+      validEntriesOnce env ranks accepted entries = entries.all (validEntry env ranks)
+  | [], _, _ => rfl
+  | entry :: rest, accepted, invariant => by
+    simp only [validEntriesOnce, List.all_cons]
+    by_cases evidence : entry.declaration.isEvidence = true
+    · simp only [evidence, ite_true]
+      by_cases seen : accepted.contains entry.declaration = true
+      · simp only [seen, ite_true]
+        rw [invariant entry (List.contains_iff_mem.mp seen), Bool.true_and]
+        exact validEntriesOnce_eq_all env ranks rest accepted invariant
+      · simp only [seen]
+        cases valid : validEntry env ranks entry with
+        | false => simp
+        | true =>
+          simp only [Bool.true_and]
+          refine validEntriesOnce_eq_all env ranks rest _ fun other member => ?_
+          cases List.mem_cons.mp member with
+          | inl same => rw [validEntry_evidence env ranks evidence same, valid]
+          | inr member => exact invariant other member
+    · simp only [evidence]
+      rw [validEntriesOnce_eq_all env ranks rest accepted invariant]
+      simp
+
+/-- `validEnvironment`, with one check for each distinct evidence declaration. -/
+def validEnvironmentOnce (env : Environment) : Bool :=
+  decide (env.length ≤ 4096) && decide (env.map Entry.id).Nodup &&
+    validEntriesOnce env (classRanks env) [] env
+
+/-- The compiled audit is `validEnvironment`. -/
+@[csimp] theorem validEnvironment_eq_once : @validEnvironment = @validEnvironmentOnce := by
+  funext env
+  simp only [validEnvironment, validEnvironmentOnce]
+  rw [validEntriesOnce_eq_all env (classRanks env) env [] (fun _ member => nomatch member)]
 
 /-- Every object-valued argument is traversed, independently of its runtime
 representation. In particular an empty token cannot hide a free local brand. -/

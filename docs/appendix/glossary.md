@@ -632,6 +632,17 @@ definitions mean; the kernel, the oracle and the compiler do not depend on it.
 A claim with status Proved (bridge) cites its theorems. See
 [Independent mathematical bridge](../verification.md#independent-mathematical-bridge).
 
+## Matrix bound
+
+A number that bounds the size of the Gram matrix of a
+[metric form](#metric-form) as a whole: the product of the Euclidean norms of
+its rows, each cleared of its denominators, and of the largest least common
+denominator of a row. It limits the size of the certificates of
+[nondegenerate evidence](#nondegenerate-evidence) and
+[Riemannian evidence](#riemannian-evidence), which the bound on one entry
+does not. See [Metrics](../language/smooth-declarations.md#metrics) and
+[Smooth metrics](limits.md#smooth-metrics).
+
 ## Method
 
 One body of a generic. A method gives each parameter a selector, declares a

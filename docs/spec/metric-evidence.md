@@ -152,7 +152,7 @@ Claims:
 
 `invert?` finds an inverse of every invertible Gram matrix, and `ldl?` finds an L D Lᵀ factorization of every positive-definite Gram matrix. Soundness does not depend on this, because the kernel checks every certificate again. An incomplete search would reject a valid metric with `E_METRIC`, and it would accept no invalid one.
 
-- Example: A dense 16 × 16 metric with L·L on the diagonal and 1/L elsewhere, for a large integer L, has both kinds of evidence.
+- Example: A dense 16 × 16 metric with L·L on the diagonal and 1/L elsewhere, for a large integer L, has both kinds of evidence. So does a dense, diagonally dominant 16 × 16 metric whose entries have pairwise distinct 19-digit denominators, which is close to the matrix bound.
 - Run by: `a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
 
 Claims:

@@ -1170,12 +1170,15 @@ const BIG: &str = "1000000000000000000000000000000000000000000000000000000000000
 #[test]
 fn oversized_gram_entries_are_rejected_before_any_certificate() {
     // (L^16)^16 has about 54,000 bits. The kernel bounds each entry before
-    // it computes the inverse and the L D L^T factorization.
+    // it computes the inverse and the L D L^T factorization. The matrix
+    // diag((L^16)^16, 0) is singular, and the example declares nondegenerate
+    // and Riemannian evidence for it: a certificate computed before the
+    // entry bound would report E_METRIC.
     let started = std::time::Instant::now();
     let stderr = rejects_metric(
         &replacing_metric(
             "gram((2, 1), (1, 1))",
-            &format!("gram((({BIG}^16)^16, 1), (1, 1))"),
+            &format!("gram((({BIG}^16)^16, 0), (0, 0))"),
         ),
         "E_LIMIT",
     );
@@ -1184,13 +1187,86 @@ fn oversized_gram_entries_are_rejected_before_any_certificate() {
         "{stderr}"
     );
     assert!(started.elapsed() < std::time::Duration::from_secs(30));
+    // The same singular matrix with a small entry reaches the certificate.
+    let stderr = rejects_metric(
+        &replacing_metric("gram((2, 1), (1, 1))", "gram((2, 0), (0, 0))"),
+        "E_METRIC",
+    );
+    assert!(
+        stderr.contains(
+            "the metric `smooth_metric::Skew` is singular, so it has no nondegenerate evidence"
+        ),
+        "{stderr}"
+    );
 }
+
+/// A dense symmetric 16 × 16 Gram matrix whose 136 independent entries have
+/// pairwise distinct denominators. The entry in row i and column j ≥ i is a
+/// product of `factors` fractions. Each has a denominator d of `digits`
+/// digits, 10^(digits − 1) plus a small odd number of its own, and is
+/// (9d + 1)/d on the diagonal and 1/d elsewhere. So the matrix is diagonally
+/// dominant, and it is positive definite. With `singular`, row and column 15
+/// repeat row and column 0.
+fn distinct_gram(digits: usize, factors: usize, singular: bool) -> String {
+    let fold = |i: usize| if singular && i == 15 { 0 } else { i };
+    let pad = digits - 1;
+    let rows: Vec<String> = (0..16)
+        .map(|i| {
+            let entries: Vec<String> = (0..16)
+                .map(|j| {
+                    let (low, high) = (fold(i).min(fold(j)), fold(i).max(fold(j)));
+                    let fractions: Vec<String> = (0..factors)
+                        .map(|factor| {
+                            let odd = 2 * (16 * low + high) + 1 + 512 * factor;
+                            if low == high {
+                                format!("frac(9{:0pad$}, 1{odd:0pad$})", 9 * odd + 1)
+                            } else {
+                                format!("frac(1, 1{odd:0pad$})")
+                            }
+                        })
+                        .collect();
+                    fractions.join(" * ")
+                })
+                .collect();
+            format!("({})", entries.join(", "))
+        })
+        .collect();
+    format!("gram({})", rows.join(", "))
+}
+
+/// The object `Big` of dimension 16.
+fn big_object() -> String {
+    let coordinates: Vec<String> = (0..16).map(|i| format!("c{i}")).collect();
+    format!(
+        "indexed affine Big(profile::SmoothR) = Affine(16)[{}];",
+        coordinates.join(", ")
+    )
+}
+
+/// A metric `name` on `Big` with `copies` evidence declarations of each kind
+/// in `kinds`.
+fn metric_with_evidence(name: &str, gram: &str, kinds: &[&str], copies: usize) -> String {
+    let mut declarations = format!("indexed metric {name}: MetricForm<Big> = {gram};");
+    for kind in kinds {
+        for copy in 0..copies {
+            declarations.push_str(&format!(
+                "\nindexed evidence {name}_{kind}_{copy} = {kind}({name});"
+            ));
+        }
+    }
+    declarations
+}
+
+const BOTH_KINDS: [&str; 2] = ["nondegenerate", "riemannian"];
+const MATRIX_LIMIT: &str = "exceeds the matrix limit: the product of the norms of its rows, cleared of denominators, and of its largest row denominator has more than 16384 bits";
 
 #[test]
 fn a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound() {
-    // Entries L * L and 1 / L are within the bound. The matrix is diagonally
-    // dominant, so it is positive definite and has both kinds of evidence.
-    let coordinates: Vec<String> = (0..16).map(|i| format!("c{i}")).collect();
+    // Both matrices are diagonally dominant, so each is positive definite and
+    // has both kinds of evidence.
+    // `Shared` has L * L on the diagonal and 1 / L elsewhere. With one
+    // denominator its certificates are small, and its matrix bound is 10,255
+    // of the 16,384 bits of `metricMatrixBits`.
     let rows: Vec<String> = (0..16)
         .map(|i| {
             let entries: Vec<String> = (0..16)
@@ -1205,17 +1281,101 @@ fn a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound() {
             format!("({})", entries.join(", "))
         })
         .collect();
-    let declarations = format!(
-        "indexed affine Big(profile::SmoothR) = Affine(16)[{}];
-indexed metric Dense: MetricForm<Big> = gram({});
-indexed evidence DenseInvertible = nondegenerate(Dense);
-indexed evidence DensePositive = riemannian(Dense);",
-        coordinates.join(", "),
-        rows.join(", ")
-    );
+    // `Distinct` has pairwise distinct 19-digit denominators, and its matrix
+    // bound is 15,961 bits. Its certificates have entries of about that
+    // size, so it is close to the largest work that the bound admits. The
+    // check takes about 7 seconds on a development machine.
+    let declarations = [
+        big_object(),
+        metric_with_evidence(
+            "Shared",
+            &format!("gram({})", rows.join(", ")),
+            &BOTH_KINDS,
+            1,
+        ),
+        metric_with_evidence("Distinct", &distinct_gram(19, 1, false), &BOTH_KINDS, 1),
+    ]
+    .join("\n");
     let started = std::time::Instant::now();
     success(&check(&metric_fixture(&with_metric(&declarations))));
-    assert!(started.elapsed() < std::time::Duration::from_secs(60));
+    assert!(started.elapsed() < std::time::Duration::from_secs(120));
+}
+
+#[test]
+fn a_dense_metric_beyond_the_matrix_bound_is_rejected_before_any_certificate() {
+    // Every entry is within `metricEntryBits`, and both kinds of evidence are
+    // declared. With products of two fractions with distinct 63-digit
+    // denominators the matrix bound is 110,817 bits. Without that bound, the
+    // two certificates of this matrix take about two minutes. With distinct
+    // 20-digit denominators the matrix bound is 16,801 bits, one digit beyond
+    // the matrix that the test above certifies.
+    for (digits, factors) in [(63, 2), (20, 1)] {
+        let declarations = [
+            big_object(),
+            metric_with_evidence(
+                "Dense",
+                &distinct_gram(digits, factors, false),
+                &BOTH_KINDS,
+                1,
+            ),
+        ]
+        .join("\n");
+        let started = std::time::Instant::now();
+        let stderr = rejects_metric(&with_metric(&declarations), "E_LIMIT");
+        assert!(
+            stderr.contains(&format!(
+                "the Gram matrix of the metric `smooth_metric::Dense` {MATRIX_LIMIT}"
+            )),
+            "{stderr}"
+        );
+        assert!(started.elapsed() < std::time::Duration::from_secs(30));
+    }
+}
+
+#[test]
+fn a_singular_metric_beyond_the_matrix_bound_is_a_limit_error_not_a_metric_error() {
+    // Rows 1 and 16 are equal, so the matrix has no inverse. A certificate
+    // computed before the matrix bound would report E_METRIC.
+    let oversized = [
+        big_object(),
+        metric_with_evidence("Dense", &distinct_gram(63, 1, true), &["nondegenerate"], 1),
+    ]
+    .join("\n");
+    let started = std::time::Instant::now();
+    let stderr = rejects_metric(&with_metric(&oversized), "E_LIMIT");
+    assert!(stderr.contains(MATRIX_LIMIT), "{stderr}");
+    assert!(started.elapsed() < std::time::Duration::from_secs(30));
+    // The same singular matrix with 5-digit denominators is within the
+    // bound, and it reaches the certificate.
+    let small = [
+        big_object(),
+        metric_with_evidence("Dense", &distinct_gram(5, 1, true), &["nondegenerate"], 1),
+    ]
+    .join("\n");
+    let stderr = rejects_metric(&with_metric(&small), "E_METRIC");
+    assert!(
+        stderr.contains(
+            "the metric `smooth_metric::Dense` is singular, so it has no nondegenerate evidence"
+        ),
+        "{stderr}"
+    );
+}
+
+#[test]
+fn repeated_evidence_shares_one_certificate_and_one_check() {
+    // 48 evidence declarations of each kind for one dense metric with
+    // distinct 12-digit denominators. The kernel computes one certificate for
+    // each kind, and each audit of the declarations checks it once: the
+    // check takes about 4 seconds on a development machine. With a
+    // certificate and a check for each declaration it takes about 3 minutes.
+    let declarations = [
+        big_object(),
+        metric_with_evidence("Dense", &distinct_gram(12, 1, false), &BOTH_KINDS, 48),
+    ]
+    .join("\n");
+    let started = std::time::Instant::now();
+    success(&check(&metric_fixture(&with_metric(&declarations))));
+    assert!(started.elapsed() < std::time::Duration::from_secs(120));
 }
 
 #[test]

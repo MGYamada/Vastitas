@@ -33,5 +33,6 @@
   "algebraChain": 16,
   "algebraWork": 8000000,
   "algebraNesting": 64,
-  "metricEntryBits": 512
+  "metricEntryBits": 512,
+  "metricMatrixBits": 16384
 }

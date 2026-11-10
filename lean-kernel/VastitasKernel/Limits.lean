@@ -54,9 +54,16 @@ def algebraWork : Nat := compiler_limit% "algebraWork"
 /-- Parenthesized nesting of one polynomial expression on the wire. -/
 def algebraNesting : Nat := compiler_limit% "algebraNesting"
 
-/-! Finite Stage 3 metrics: the size of one elaborated Gram entry. It bounds
-the exact inverse and `L D Lᵀ` computations and their checks. -/
+/-! Finite Stage 3 metrics: the size of one elaborated Gram entry and the size
+of the whole Gram matrix. The entry bound does not bound a certificate: the
+exact inverse grows with the least common denominators of the rows, not with
+the entries alone. The matrix bound does, and it is checked before any inverse
+or `L D Lᵀ` factorization is computed (`SmoothDeclarations.matrixBounded`). -/
 /-- Bits of the numerator and of the denominator of one Gram entry. -/
 def metricEntryBits : Nat := compiler_limit% "metricEntryBits"
+/-- Bits of the Hadamard bound of one Gram matrix: the product of the
+Euclidean norms of its rows, each cleared of its denominators, and of the
+largest row denominator. -/
+def metricMatrixBits : Nat := compiler_limit% "metricMatrixBits"
 
 end VastitasKernel.Limits

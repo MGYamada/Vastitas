@@ -323,10 +323,16 @@ private def presented : List Source.Declaration := [
   (code (with' [metric "Bad" (.rows [[.pow (n 2) (Limits.algebraDegree + 1), n 0], [n 0, n 1]])]) == "E_LIMIT")
 /-- A 64-digit literal. -/
 private def big : Nat := 10 ^ 63 + 7
+-- The matrix is singular: a certificate computed before the entry bound would
+-- report `E_METRIC`, as it does for the same matrix with a small entry.
 #eval check "an entry like (L^16)^16 with a 64-digit L is E_LIMIT before any certificate"
-  (rejectsWith (with' [metric "Bad" (.rows [[.pow (.pow (n big) 16) 16, n 0], [n 0, n 1]]),
+  (rejectsWith (with' [metric "Bad" (.rows [[.pow (.pow (n big) 16) 16, n 0], [n 0, n 0]]),
     evidence "E" "Bad" .nondegenerate]) "E_LIMIT"
-    s!"the Gram entry in row 1, column 1 has more than {Limits.metricEntryBits} bits")
+    s!"the Gram entry in row 1, column 1 has more than {Limits.metricEntryBits} bits" &&
+    rejectsWith (with' [metric "Bad" (.rows [[.pow (.pow (n big) 16) 16, n 0], [n 0, n 0]]),
+      evidence "E" "Bad" .riemannian]) "E_LIMIT"
+      s!"the Gram entry in row 1, column 1 has more than {Limits.metricEntryBits} bits" &&
+    code (with' [metric "Bad" (.rows [[n big, n 0], [n 0, n 0]]), evidence "E" "Bad" .nondegenerate]) == "E_METRIC")
 #eval check "the entry bound is 2^512 on the numerator and on the denominator"
   (let power := Source.PolyExpr.pow (.pow (.pow (n 2) 16) 16) 2
    code (with' [metric "Bad" (.rows [[power, n 0], [n 0, n 1]])]) == "E_LIMIT" &&
@@ -338,6 +344,118 @@ private def big : Nat := 10 ^ 63 + 7
       evidence "E" "Edge" .nondegenerate]) == "accepted")
 #eval check "an unknown name in a Gram entry is a coordinate error"
   (code (with' [metric "Bad" (.rows [[c "z", n 0], [n 0, n 1]])]) == "E_AFFINE_COORDINATE")
+
+/-! ## The matrix bound
+
+The entry bound does not bound a certificate: the inverse grows with the least
+common denominators of the rows. `metricMatrixBits` bounds the whole matrix,
+and a metric beyond it is rejected before any certificate is computed. -/
+
+#eval check "the measure clears the denominators of each row"
+  (SmoothDeclarations.rowDenominator [q 1 2, q 1 3] == 6 &&
+    SmoothDeclarations.rowNormSquare [q 1 2, q 1 3] == 3 ^ 2 + 2 ^ 2 &&
+    SmoothDeclarations.rowNormSquare [q 1 3, 1] == 1 ^ 2 + 3 ^ 2 &&
+    SmoothDeclarations.hadamardSquare [[q 1 2, q 1 3], [q 1 3, 1]] == 13 * 10 * 6 ^ 2 &&
+    SmoothDeclarations.hadamardSquare [[q (-3) 4, 0], [0, q 5 6]] == 3 ^ 2 * 5 ^ 2 * 6 ^ 2 &&
+    SmoothDeclarations.hadamardSquare [[1, 0], [0, 1]] == 1)
+#eval check "the matrix bound is 2^metricMatrixBits on the row norms times the largest row denominator"
+  (let edge : Nat := 2 ^ Limits.metricMatrixBits
+   SmoothDeclarations.matrixBounded [[q (Int.ofNat (edge - 1))]] &&
+    !SmoothDeclarations.matrixBounded [[q (Int.ofNat edge)]] &&
+    SmoothDeclarations.matrixBounded [[q 1 (edge - 1)]] && !SmoothDeclarations.matrixBounded [[q 1 edge]] &&
+    SmoothDeclarations.matrixBounded [[q (Int.ofNat (edge / 2048)), 0], [0, q 1 1024]] &&
+    !SmoothDeclarations.matrixBounded [[q (Int.ofNat (edge / 1024)), 0], [0, q 1 1024]])
+#eval check "a zero row counts as 1 and does not hide the other rows"
+  (SmoothDeclarations.hadamardSquare [[0, 0], [0, 5]] == 25 &&
+    !SmoothDeclarations.matrixBounded [[0, 0], [0, q (Int.ofNat (2 ^ Limits.metricMatrixBits))]])
+
+/-- The smooth object `Affine(16)[c0, …, c15]`. -/
+private def bigSpace : Source.Declaration := space "Big" 16 ((List.range 16).map fun i => s!"c{i}")
+
+/-- The entries, as numerator and denominator, of a dense symmetric 16 × 16
+matrix with pairwise distinct denominators. The entry in row `i` and column
+`j ≥ i` has the denominator `d = base + 2 (16 i + j) + 1`. It is `(9 d + 1) / d`
+on the diagonal and `1 / d` elsewhere, so the matrix is diagonally dominant.
+With `singular`, row and column 15 repeat row and column 0. -/
+private def distinctEntries (base : Nat) (singular : Bool) : List (List (Nat × Nat)) :=
+  let fold := fun i => if singular && i == 15 then 0 else i
+  (List.range 16).map fun i => (List.range 16).map fun j =>
+    let low := min (fold i) (fold j)
+    let high := max (fold i) (fold j)
+    let d := base + 2 * (16 * low + high) + 1
+    (if low == high then 9 * d + 1 else 1, d)
+
+private def distinctGram (base : Nat) (singular := false) : Source.MetricGram :=
+  .rows <| (distinctEntries base singular).map (·.map fun (a, d) => .fraction (Int.ofNat a) d)
+
+private def distinctMatrix (base : Nat) (singular := false) : SmoothRuntime.Matrix :=
+  (distinctEntries base singular).map (·.map fun (a, d) => q (Int.ofNat a) d)
+
+private def matrixLimit : String :=
+  "the product of the norms of its rows, cleared of denominators, and of its largest row denominator has " ++
+    s!"more than {Limits.metricMatrixBits} bits"
+
+#eval check "a dense metric with distinct 3-digit denominators is certified, with both kinds of evidence"
+  (code (with' [bigSpace, metric "Dense" (distinctGram 100) "Big", evidence "E" "Dense" .nondegenerate,
+    evidence "R" "Dense" .riemannian]) == "accepted")
+#eval check "distinct 63-digit denominators keep every entry within the entry bound"
+  ((distinctMatrix (10 ^ 62)).all (·.all SmoothDeclarations.entryBounded) &&
+    !SmoothDeclarations.matrixBounded (distinctMatrix (10 ^ 62)))
+#eval check "a dense metric with distinct 63-digit denominators is E_LIMIT, with or without evidence"
+  (rejectsWith (with' [bigSpace, metric "Dense" (distinctGram (10 ^ 62)) "Big"]) "E_LIMIT"
+      "the Gram matrix of the metric `metric::Dense` exceeds the matrix limit" &&
+    rejectsWith (with' [bigSpace, metric "Dense" (distinctGram (10 ^ 62)) "Big"]) "E_LIMIT" matrixLimit &&
+    rejectsWith (with' [bigSpace, metric "Dense" (distinctGram (10 ^ 62)) "Big", evidence "E" "Dense" .nondegenerate,
+      evidence "R" "Dense" .riemannian]) "E_LIMIT" matrixLimit)
+-- The order: the same singular matrix is `E_METRIC` when it is small, so a
+-- certificate computed before the matrix bound would report `E_METRIC` here.
+#eval check "a singular matrix beyond the matrix bound is E_LIMIT, not E_METRIC, with nondegenerate evidence"
+  (rejectsWith (with' [bigSpace, metric "Dense" (distinctGram (10 ^ 62) true) "Big",
+      evidence "E" "Dense" .nondegenerate]) "E_LIMIT" matrixLimit &&
+    rejectsWith (with' [bigSpace, metric "Dense" (distinctGram (10 ^ 62) true) "Big",
+      evidence "R" "Dense" .riemannian]) "E_LIMIT" matrixLimit &&
+    rejectsWith (with' [bigSpace, metric "Dense" (distinctGram 100 true) "Big", evidence "E" "Dense" .nondegenerate])
+      "E_METRIC" "the metric `metric::Dense` is singular, so it has no nondegenerate evidence")
+#eval check "the certify functions bound the matrix before they search"
+  ((match SmoothDeclarations.certifyNondegenerate 16 (distinctMatrix (10 ^ 62) true) with
+    | .error error => error.code == "E_LIMIT"
+    | .ok _ => false) &&
+    (match SmoothDeclarations.certifyRiemannian 16 (distinctMatrix (10 ^ 62) true) with
+    | .error error => error.code == "E_LIMIT"
+    | .ok _ => false))
+
+/-! ## One certificate for each metric and kind
+
+Evidence declarations that repeat a metric and a kind carry the certificate
+computed for the first of them. A certificate is not shared between two kinds
+or between two metrics. -/
+
+private def lookupOf (p : Source.Program) (name : String) : Option Declaration :=
+  (resolvedOf p).bind (lookup ·.indexed (id name))
+
+private def repeated : Source.Program := with' [
+  evidence "SkewAgain" "Skew" .nondegenerate,
+  evidence "SkewPositiveAgain" "Skew" .riemannian,
+  evidence "LorentzAgain" "Lorentz" .nondegenerate,
+  evidence "SkewThird" "Skew" .nondegenerate ]
+
+#eval check "repeated evidence is accepted" (code repeated == "accepted")
+#eval check "repeated evidence carries the certificate of its own metric and kind"
+  (lookupOf repeated "SkewAgain" == some (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2]])) &&
+    lookupOf repeated "SkewThird" == some (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2]])) &&
+    lookupOf repeated "SkewPositiveAgain" ==
+      some (.metricEvidence (id "Skew") (.riemannian [[1, 0], [q 1 2, 1]] [2, q 1 2] [[1, 0], [q (-1) 2, 1]])) &&
+    lookupOf repeated "LorentzAgain" == some (.metricEvidence (id "Lorentz") (.nondegenerate [[1, 0], [0, -1]])))
+#eval check "repeated evidence in the reverse order carries the same certificates"
+  (let reversed := program (declarations ++ [evidence "SkewPositiveAgain" "Skew" .riemannian,
+     evidence "SkewAgain" "Skew" .nondegenerate]).reverse
+   lookupOf reversed "SkewAgain" == some (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2]])) &&
+    lookupOf reversed "SkewInvertible" == some (.metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2]])) &&
+    lookupOf reversed "SkewPositive" == lookupOf reversed "SkewPositiveAgain" &&
+    (lookupOf reversed "SkewPositive").isSome)
+#eval check "a repeated declaration of rejected evidence is still rejected"
+  (rejectsWith (with' [evidence "E" "Lorentz" .nondegenerate, evidence "R" "Lorentz" .riemannian,
+    evidence "R2" "Lorentz" .riemannian]) "E_METRIC" "the metric `metric::Lorentz` is not positive definite")
 #eval check "diag(1, 0) is not nondegenerate"
   (rejectsWith (with' [metric "Diag10" (.rows [[n 1, n 0], [n 0, n 0]]), evidence "E" "Diag10" .nondegenerate])
     "E_METRIC" "the metric `metric::Diag10` is singular, so it has no nondegenerate evidence")
@@ -522,6 +640,43 @@ private def appended (declaration : Declaration) : Bool :=
     appended (.metric (id "MetricForm") (id "Plane") [[(2 ^ 512 : Nat), 0], [0, 1]]) &&
     appended (.metric (id "MetricForm") (id "CInfReal") [[2, 1], [1, 1]]) &&
     appended (.metric (id "Cotangent") (id "Plane") [[2, 1], [1, 1]]))
+/-- Append one forged entry to the declarations of the program with the
+16-dimensional object `Big`. -/
+private def appendedBig (declaration : Declaration) : Bool :=
+  match resolvedOf (with' [bigSpace]) with
+  | some env => !Core.validDeclarations { env with indexed := env.indexed ++ [⟨id "Forged", declaration⟩] }
+  | none => false
+#eval check "a forged metric beyond the matrix bound, with every entry within the entry bound, is rejected"
+  (!appendedBig (.metric (id "MetricForm") (id "Big") (distinctMatrix 100)) &&
+    appendedBig (.metric (id "MetricForm") (id "Big") (distinctMatrix (10 ^ 62))))
+
+/-! ## The compiled audit checks each distinct evidence declaration once
+
+`validEnvironment` compiles to `validEnvironmentOnce`. Equal evidence
+declarations share one check, and a declaration that differs has its own. -/
+
+/-- `validEnvironment`, written out so that it compiles as it reads. -/
+private def reference (env : Environment) : Bool :=
+  decide (env.length ≤ 4096) && decide (env.map Entry.id).Nodup && env.all (validEntry env (classRanks env))
+
+/-- The declarations of the program with these entries appended. -/
+private def extended (entries : List (String × Declaration)) : Option Environment :=
+  resolved.map fun env => env.indexed ++ entries.map fun (name, declaration) => (⟨id name, declaration⟩ : Entry)
+
+private def skewInverse : Declaration := .metricEvidence (id "Skew") (.nondegenerate [[1, -1], [-1, 2]])
+private def skewForged : Declaration := .metricEvidence (id "Skew") (.nondegenerate [[1, 0], [0, 1]])
+
+#eval check "the compiled audit and the reference agree on repeated and forged evidence"
+  ([[], [("A", skewInverse)], [("A", skewInverse), ("B", skewInverse)], [("A", skewForged)],
+      [("A", skewInverse), ("B", skewForged)], [("A", skewForged), ("B", skewInverse)],
+      [("A", skewInverse), ("B", skewInverse), ("C", skewForged)], [("A", skewInverse), ("A", skewInverse)]].all
+    fun entries => (extended entries).map validEnvironmentOnce == (extended entries).map reference &&
+      (extended entries).map validEnvironment == (extended entries).map reference &&
+      (extended entries).isSome)
+#eval check "equal evidence declarations are accepted, and a forged one after them is rejected"
+  ((extended [("A", skewInverse), ("B", skewInverse)]).map validEnvironment == some true &&
+    (extended [("A", skewInverse), ("B", skewInverse), ("C", skewForged)]).map validEnvironment == some false &&
+    (extended [("A", skewForged), ("B", skewInverse)]).map validEnvironment == some false)
 #eval check "a forged metric form family is rejected"
   (tamperIndexed (forged "MetricForm" (.family ⟨[.object (id "CInfAffine")], [], .metricForm⟩)))
 

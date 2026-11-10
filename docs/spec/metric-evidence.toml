@@ -209,7 +209,9 @@ accept no invalid one.
 specified_in = "[Metric evidence](language/smooth-declarations.md#metric-evidence)"
 example = """
 A dense 16 × 16 metric with L·L on the diagonal and 1/L elsewhere, for a large
-integer L, has both kinds of evidence.
+integer L, has both kinds of evidence. So does a dense, diagonally dominant
+16 × 16 metric whose entries have pairwise distinct 19-digit denominators,
+which is close to the matrix bound.
 """
 example_test = "tests/smooth_differential.rs::a_dense_metric_on_sixteen_coordinates_is_certified_within_the_bound"
 

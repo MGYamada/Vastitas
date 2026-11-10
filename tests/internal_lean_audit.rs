@@ -117,7 +117,11 @@ struct FakeElan(PathBuf);
 
 impl FakeElan {
     fn new(scripts: &[(&str, String)]) -> Self {
-        let home = temporary_path("-elan");
+        Self::at(temporary_path("-elan"), scripts)
+    }
+
+    /// A fake elan home at `home`.
+    fn at(home: PathBuf, scripts: &[(&str, String)]) -> Self {
         let bin = home
             .join("toolchains")
             .join(TOOLCHAIN_DIRECTORY)
@@ -274,6 +278,196 @@ fn checker_diagnostics_cannot_drive_the_terminal() {
     checker_rejected(&output);
     assert!(!output.stderr.contains(&0x1b), "{output:?}");
     assert!(!String::from_utf8_lossy(&output.stderr).contains('\u{202e}'));
+}
+
+/// The audit shows the path of the export, and the paths of the toolchain that
+/// the environment selects, as the compiler shows every path (#718): it names
+/// a control character by its code point. The names are created in the
+/// temporary directory only.
+#[test]
+fn audit_paths_cannot_drive_the_terminal() {
+    // Clear the screen, ring the bell, start a forged line, the one-character
+    // control sequence introducer, a tab and a right-to-left override.
+    const HOSTILE: &str = "x\u{1b}[2J\u{7}\nE_FORGED: \u{9b}2J\t\u{202e}";
+    const NAMED: &str = "x<U+001B>[2J<U+0007><U+000A>E_FORGED: <U+009B>2J<U+0009><U+202E>";
+    const ABSENT: &str = "No such file or directory (os error 2)";
+    let shown = |path: &Path| path.to_str().unwrap().replace(HOSTILE, NAMED);
+    // The failed cases. One run reports all of them, so a run without the
+    // fix shows that every case depends on it. A stream must start with
+    // `start` and hold `lines` lines, and the line feeds that end them must
+    // be its only control characters.
+    let mut failures = Vec::new();
+    let mut case = |name: &str, stream: &[u8], start: String, lines: usize| {
+        let text = String::from_utf8_lossy(stream);
+        let controls: String = text
+            .chars()
+            .filter(|ch| (ch.is_control() && *ch != '\n') || *ch == '\u{202e}')
+            .collect();
+        if !controls.is_empty()
+            || !text.ends_with('\n')
+            || !text.starts_with(&start)
+            || text.lines().count() != lines
+        {
+            failures.push(format!(
+                "{name}: expected {start:?} in {lines} lines, found {text:?}"
+            ));
+        }
+    };
+
+    // The export, as the command line gives it.
+    let export = temporary_path(&format!("{HOSTILE}.ndjson"));
+    let name = shown(&export);
+    let output = run_audit(&export);
+    rejected(&output);
+    case(
+        "export absent",
+        &output.stderr,
+        format!("E_LEAN_AUDIT: cannot read {name}: {ABSENT}\n"),
+        1,
+    );
+    fs::create_dir(&export).unwrap();
+    let output = run_audit(&export);
+    fs::remove_dir(&export).unwrap();
+    rejected(&output);
+    case(
+        "export directory",
+        &output.stderr,
+        format!("E_LEAN_AUDIT: {name} is a directory, not a Lean export\n"),
+        1,
+    );
+    fs::write(&export, FIXTURE).unwrap();
+    let rejecting = FakeElan::new(&[real_lean(), identified_checker("exit 3")]);
+    let output = rejecting.audit(&export);
+    rejected(&output);
+    // The checker wrote no diagnostics, so an empty line follows.
+    case(
+        "export rejected",
+        &output.stderr,
+        format!("E_LEAN_AUDIT: nanoda_bin 0.4.19 rejected {name} (exit status: 3)\n"),
+        2,
+    );
+    let accepting = FakeElan::new(&[
+        real_lean(),
+        identified_checker("echo 'Checked 1 declarations with no errors'"),
+    ]);
+    let output = accepting.audit(&export);
+    fs::remove_file(&export).unwrap();
+    let stdout = accepted(&output);
+    let report = stdout
+        .split_once(": 1 declarations in ")
+        .map(|parts| parts.1);
+    case(
+        "export accepted",
+        report.unwrap_or_default().as_bytes(),
+        format!("{name}\nChecker: "),
+        4,
+    );
+
+    // The toolchain, under the elan home of the environment.
+    let home = |kind: &str| temporary_path(&format!("-{kind}{HOSTILE}"));
+    let empty = home("empty");
+    fs::create_dir(&empty).unwrap();
+    let output = audit_command(&fixture())
+        .env("ELAN_HOME", &empty)
+        .output()
+        .unwrap();
+    fs::remove_dir(&empty).unwrap();
+    rejected(&output);
+    case(
+        "toolchain absent",
+        &output.stderr,
+        format!(
+            "E_LEAN_AUDIT_CHECKER: the pinned Lean toolchain leanprover/lean4:v4.35.0 is not installed at {}/toolchains/{TOOLCHAIN_DIRECTORY}: {ABSENT}\n",
+            shown(&empty)
+        ),
+        2,
+    );
+    let file = home("file");
+    fs::create_dir_all(file.join("toolchains")).unwrap();
+    fs::write(file.join("toolchains").join(TOOLCHAIN_DIRECTORY), "").unwrap();
+    let toolchain = file
+        .join("toolchains")
+        .join(TOOLCHAIN_DIRECTORY)
+        .canonicalize()
+        .unwrap();
+    let output = audit_command(&fixture())
+        .env("ELAN_HOME", &file)
+        .output()
+        .unwrap();
+    fs::remove_dir_all(&file).unwrap();
+    rejected(&output);
+    case(
+        "toolchain file",
+        &output.stderr,
+        format!(
+            "E_LEAN_AUDIT_CHECKER: {} is not a Lean toolchain directory\n",
+            shown(&toolchain)
+        ),
+        1,
+    );
+    // Each case: the scripts of the toolchain, the start of stderr after the
+    // code, and its number of lines. `BIN` stands for the directory of the
+    // scripts and `HOME` for the toolchain directory that holds it.
+    let other = "echo 'Lean (version 0.0.0)'".to_string();
+    for (kind, scripts, start, lines) in [
+        (
+            "toolchain without lean",
+            vec![],
+            "the pinned Lean toolchain leanprover/lean4:v4.35.0 at HOME provides no lean: ",
+            2,
+        ),
+        (
+            "lean failing",
+            vec![("lean", "exit 7".to_string())],
+            "BIN/lean --version failed (exit status: 7)\n",
+            2,
+        ),
+        (
+            "lean other",
+            vec![("lean", other)],
+            "BIN/lean is not the official Lean ",
+            1,
+        ),
+        (
+            "checker other",
+            vec![real_lean(), ("nanoda_bin", "echo other".to_string())],
+            "BIN/nanoda_bin does not identify as nanoda_bin 0.4.19, ",
+            1,
+        ),
+    ] {
+        let elan = FakeElan::at(home("elan"), &scripts);
+        let bin = shown(&elan.bin().canonicalize().unwrap());
+        let output = elan.audit(&fixture());
+        rejected(&output);
+        let start = start
+            .replace("BIN", &bin)
+            .replace("HOME", bin.strip_suffix("/bin").unwrap());
+        case(
+            kind,
+            &output.stderr,
+            format!("E_LEAN_AUDIT_CHECKER: {start}"),
+            lines,
+        );
+    }
+    let unusable = FakeElan::at(home("unusable"), &[]);
+    fs::write(unusable.bin().join("lean"), "").unwrap();
+    let output = unusable.audit(&fixture());
+    rejected(&output);
+    case(
+        "lean not executable",
+        &output.stderr,
+        format!(
+            "E_LEAN_AUDIT_CHECKER: {}/lean is not a regular executable file of the pinned toolchain\n",
+            shown(&unusable.bin().canonicalize().unwrap())
+        ),
+        1,
+    );
+    assert!(
+        failures.is_empty(),
+        "{} failed cases:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }
 
 #[test]

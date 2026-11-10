@@ -100,6 +100,94 @@ private def o : Program := intPoint [0, 0]
   (pullback .saved (.compose shearA shearB) o (seed o [1, 0]) == some ⟨[0, 0], [2, 1]⟩)
 #eval check "identity" (cot (identity 3) [1, 2, 3] [4, 5, 6] == [4, 5, 6])
 
+/-! Stack-safe evaluation (#630). Compiled code runs the work lists of the
+runtime in place of its recursive definitions. The checks run them on three
+shapes of one chain of noncommuting maps, against folds over the list of maps
+that use no program. -/
+
+/-- 113 maps of the plane, applied first to last: shears, a linear map and one
+quadratic map in the middle, so that a pullback depends on its point. -/
+private def factors : List Map :=
+  let block := (List.replicate 8 [mapOf shearA, mapOf shearB, mapOf shearA, mapOf shearA,
+    mapOf shearB, ⟨2, [], [Poly.sub (v 2 0) (v 2 1), v 2 0]⟩, mapOf shearB]).flatten
+  block ++ [⟨2, [], [Poly.mul (v 2 0) (v 2 1), Poly.add (v 2 0) (v 2 1)]⟩] ++ block
+/-- Every node has the maps so far as its `before`. -/
+private def deepBefore (maps : List Map) : Program :=
+  maps.tail.foldl (fun program map => .compose (.primitive map) program)
+    (.primitive (maps.headD default))
+/-- Every node has the maps that follow as its `after`. -/
+private def deepAfter (maps : List Map) : Program :=
+  maps.reverse.tail.foldl (fun program map => .compose program (.primitive map))
+    (.primitive (maps.reverse.headD default))
+/-- Halves of halves, down to `depth` levels. -/
+private def balanced : Nat → List Map → Program
+  | depth + 1, maps =>
+    let half := maps.length / 2
+    if half = 0 then deepBefore maps
+    else .compose (balanced depth (maps.drop half)) (balanced depth (maps.take half))
+  | 0, maps => deepBefore maps
+private def shapes : List Program := [deepBefore factors, deepAfter factors, balanced 12 factors]
+
+/-- The maps with their inputs in application order, and the last output. -/
+private def trace : List Map → List Rat → List Step × List Rat
+  | [], point => ([], point)
+  | map :: maps, point =>
+    let (steps, output) := trace maps (apply map point)
+    (⟨map, point⟩ :: steps, output)
+/-- The seed pulled back along the maps, the last map first. -/
+private def chainCot : List Map → List Rat → List Rat → List Rat
+  | [], _, seed => seed
+  | map :: maps, point, seed => cot map point (chainCot maps (apply map point) seed)
+private def start : List Rat := [1, -2]
+private def image : List Rat := (trace factors start).2
+private def pulled : List Rat := chainCot factors start [3, 5]
+
+#eval check "the pullback of the chain depends on its point"
+  (chainCot factors [2, -2] [3, 5] != pulled && pulled.length == 2)
+#eval check "forward evaluation applies the maps first to last"
+  (shapes.all fun program => program.eval start == image)
+#eval check "the forward record lists every map with its input, in order"
+  (shapes.all fun program => program.record start == trace factors start)
+#eval check "the recomputing pass pulls back along the maps last to first"
+  (shapes.all fun program => program.reverse start [3, 5] == pulled)
+#eval check "both pullback modes and the tape agree with the fold"
+  (shapes.all fun program =>
+    let seed : FiberValue := some ⟨image, [3, 5]⟩
+    pullback .saved program (intPoint [1, -2]) seed == some ⟨start, pulled⟩ &&
+      pullback .recomputed program (intPoint [1, -2]) seed == some ⟨start, pulled⟩ &&
+      backward (linearize program (intPoint [1, -2])) seed == some ⟨start, pulled⟩)
+#eval check "the three shapes denote one map, which sends the start to the image"
+  (shapes.all fun program =>
+    same program (deepBefore factors) && apply program.denote start == image &&
+      cot program.denote start [3, 5] == pulled)
+#eval check "denote keeps the order of noncommuting factors"
+  (!same (deepBefore factors) (deepBefore factors.reverse))
+
+/-! Exponents and long polynomials (#630): binary exponentiation, the iterated
+polynomial power, and the sums and merges over the terms of a polynomial. -/
+#eval check "powers of a rational"
+  ((List.range 40).all fun exponent =>
+    npow (-3 / 2) exponent == (List.replicate exponent (-3 / 2 : Rat)).foldl (· * ·) 1)
+#eval check "2 ^ 1000 and its inverse by squaring"
+  (npow 2 1000 == ((2 ^ 1000 : Nat) : Rat) && npow (1 / 2) 1000 == mkRat 1 (2 ^ 1000))
+#eval check "the polynomial power multiplies on the right"
+  (let q : Poly := Poly.add (v 2 0) (Poly.scale 2 (v 2 1))
+   (List.range 12).all fun exponent =>
+     Poly.pow 2 q exponent == (List.replicate exponent q).foldl Poly.mul (Poly.one 2))
+#eval check "t ↦ t² twelve times is t ↦ t^4096, nested on either side"
+  (let power : Program := .primitive ⟨1, [], [[⟨[4096], 1⟩]]⟩
+   same (deepBefore (List.replicate 12 (mapOf sq))) power &&
+     same (deepAfter (List.replicate 12 (mapOf sq))) power)
+#eval check "the derivative of t^4096 is -4096 at -1 and 4096 · 2^4095 at 2"
+  (let power : Program := .primitive ⟨1, [], [[⟨[4096], 1⟩]]⟩
+   differential power (intPoint [-1]) == some ⟨[-1], [-4096]⟩ &&
+     differential power (intPoint [2]) == some ⟨[2], [((4096 * 2 ^ 4095 : Nat) : Rat)]⟩)
+#eval check "evaluation, derivative and sum of a polynomial with 3000 terms"
+  (let q : Poly := (List.range 3000).reverse.map fun exponent => ⟨[exponent], 1⟩
+   evalAt q [1] == 3000 && evalAt (partialDerivative 0 q) [1] == ((2999 * 3000 / 2 : Nat) : Rat) &&
+     (partialDerivative 0 q).length == 2999 && Poly.add q q == Poly.scale 2 q &&
+     Poly.sub q q == [])
+
 private def p : Program := intPoint [1, 2]
 private def dg : FiberValue := differential g p
 #eval check "dg = (2, 1) at (1, 2)" (dg == some ⟨[1, 2], [2, 1]⟩)

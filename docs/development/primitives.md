@@ -211,6 +211,16 @@ the smooth lemmas use those of `VastitasOracle.SmoothRuntime` and
 `VastitasOracle.SmoothCanonical`. The native check of [step 6](#6-tests)
 compiles and runs it.
 
+Compiled code of a runtime operation must not recurse once per node of a
+smooth program, per unit of an exponent or per term of a polynomial. A short
+program builds a chain of 2¹⁸ nodes, an exponent of 2¹⁸ or a polynomial of
+more than 10⁵ terms, and such a recursion overflows the native stack. Define
+the operation by structural recursion for the proofs, add a replacement whose
+recursive calls are tail calls, and prove the two equal in a `csimp` theorem
+next to the definition, as
+[Stack-safe runtime code](../verification.md#stack-safe-runtime-code)
+describes.
+
 The lowering matches the operand texts that the shape admits and returns
 `Lowering.arityMismatch` on any other list. A variadic entry renders any
 number of operands, and the checked operand count fixes it. The lowering

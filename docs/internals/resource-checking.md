@@ -145,6 +145,15 @@ its actual lowering. Borrow/drop failures identify the allocation and, when
 available, the conflicting or outstanding loan. GEMM endpoint mismatches name
 the actual unequal spaces/bases; vector evaluation identifies its actual bases
 and explicit metric. Equal dimensions do not suppress these nominal checks.
+A map, an owned map, an owned-map package, a vector or a metric whose basis is
+not the basis that its contract names carries both identities for each
+endpoint that differs. At a call the rejection also marks the parameter, and
+the message names the argument, the parameter, the endpoint and both bases in
+the names of the caller. A static argument, a `RuntimeMap` argument and an
+owned result take this path. A rejection that establishes no such difference
+keeps its message, and so does a site where the source does not name both
+bases. The space of a `Basis` argument and the parent of a derived basis are
+not compared for this text.
 Other operations include their local operands. Compiler-created temporary loans
 without a lexical binding are omitted rather than presented as source names.
 Notes are deduplicated and capped at 32, with call context before operand notes.
@@ -156,7 +165,9 @@ checked schedules are unchanged. Names and source mappings are recovered only
 on rejection, without rerunning all body probes or retaining a resource-state
 snapshot for diagnostics. The location wrappers have exact successful-result
 equations; source positions and diagnostic prose are covered by regression
-tests, not a source-provenance theorem.
+tests, not a source-provenance theorem. The text of a rejected argument is
+chosen after the contract check has rejected it. A kernel theorem states that
+a value which the contract admits has no basis-mismatch entry.
 
 ## Evidence and remaining work
 

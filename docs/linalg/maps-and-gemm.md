@@ -329,7 +329,11 @@ Rules:
   argument for `u` (`E_NUMERICAL_TYPE`). Every basis of that space fits.
 - The argument for a map parameter must be a map whose source basis is the
   argument for `bs` and whose target basis is the argument for `bt`
-  (`E_NUMERICAL_TYPE`).
+  (`E_NUMERICAL_TYPE`). Another basis of the same space does not fit. The
+  diagnostic names the argument and the parameter. For the source basis, for
+  the target basis or for both, it names the basis of the map and the basis
+  that the parameter requires. Notes point to the declarations of those bases
+  and of the parameter.
 - The loan of a map passed to `ReadMap` or `ReadWriteMap` must permit
   reading, and the loan of a map passed to `WriteMap` or `ReadWriteMap` must
   permit writing (`E_RESOURCE_ACCESS`).
@@ -362,6 +366,17 @@ resource fn multiply_into(
     gemm(left, right, destination, overwrite, NativeFast);
     value { () }
 }
+```
+
+In this program `alternate_basis` is a basis of the space of `sensor_basis`,
+but it is another basis:
+
+```vast
+{{#include ../../examples/reject/packages/other-basis/main.vast}}
+```
+
+```text
+{{#include ../../examples/reject/packages/other-basis.stderr}}
 ```
 
 ## Owned maps
@@ -407,12 +422,16 @@ Rules:
   (`E_NUMERICAL_TYPE`).
 - The argument for an `OwnedMap<bs, bt>` parameter must be an owned map from
   the argument for `bs` to the argument for `bt` (`E_NUMERICAL_TYPE`), without
-  a live loan (`E_RESOURCE_LOAN`). The call ends the owner.
+  a live loan (`E_RESOURCE_LOAN`). The call ends the owner. For an owned map
+  with another basis the diagnostic names the bases as
+  [Map parameters](#map-parameters) describes.
 - An `OwnedMap<bs, bt>` result must name `Basis` parameters
   (`E_RESOURCE_NAME` for a basis that the body declares). At the end of the
   body its binding must be an owned map between the arguments for those
-  parameters (`E_NUMERICAL_TYPE`). The caller gets an owned map between its
-  own bases, with the allocation and the layout that the callee left.
+  parameters (`E_NUMERICAL_TYPE`). For a binding with another basis, notes
+  name that basis and the `Basis` parameter that the result type names. The
+  caller gets an owned map between its own bases, with the allocation and the
+  layout that the callee left.
 - An owned map may be the argument for an `Owned<S, n>` parameter and the
   binding of an `Owned<S, n>` result. The receiver has an owner without
   bases.
@@ -475,7 +494,9 @@ Rules:
   package whose source basis is the argument for `bs` and whose target space
   has the dimension `n` (`E_NUMERICAL_TYPE`). The binding of an
   `OwnedMapTo<bs, n>` result must be such a package at the end of the body
-  (`E_NUMERICAL_TYPE`).
+  (`E_NUMERICAL_TYPE`). For a package with another source basis the
+  diagnostic names both bases, as [Map parameters](#map-parameters) and
+  [Owned maps](#owned-maps) describe.
 - In a branch, the names of an `unpack` are visible in its arm only
   (`E_RESOURCE_NAME`), and the owned map must end in that arm
   (`E_RESOURCE_JOIN`).

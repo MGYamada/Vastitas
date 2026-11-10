@@ -149,7 +149,7 @@ Rules:
   (`E_NUMERICAL_TYPE`).
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:2:7}}
+{{#include ../../examples/packages/numerical/src/real/mod.vast:spaces}}
 ```
 
 ## Maps
@@ -269,7 +269,7 @@ This fragment of
 multiplies a 2×3 matrix by a 3×2 matrix into a 2×2 output:
 
 ```vast
-{{#include ../../examples/packages/numerical/src/real/mod.vast:27:33}}
+{{#include ../../examples/packages/numerical/src/real/mod.vast:product}}
 ```
 
 A coefficient scales the product, and `accumulate` adds to the output:

@@ -1,8 +1,19 @@
 mod profiles;
-resource fn multiply(m: Nat, k: Nat, n: Nat, u: RuntimeSpace<profiles::RealSmooth, m>, v: RuntimeSpace<profiles::RealSmooth, k>, w: RuntimeSpace<profiles::RealSmooth, n>, bu: RuntimeBasis<u>, bv: RuntimeBasis<v>, bw: RuntimeBasis<w>, left: RuntimeMap<bv, bu, read>, right: RuntimeMap<bw, bv, read>, output: RuntimeMap<bw, bu, write> initializes) -> Unit {
+// ANCHOR: multiply
+resource fn multiply(
+    m: Nat, k: Nat, n: Nat,
+    u: RuntimeSpace<profiles::RealSmooth, m>,
+    v: RuntimeSpace<profiles::RealSmooth, k>,
+    w: RuntimeSpace<profiles::RealSmooth, n>,
+    bu: RuntimeBasis<u>, bv: RuntimeBasis<v>, bw: RuntimeBasis<w>,
+    left: RuntimeMap<bv, bu, read>,
+    right: RuntimeMap<bw, bv, read>,
+    output: RuntimeMap<bw, bu, write> initializes
+) -> Unit {
     runtime_gemm(left, right, output, overwrite, NativeFast);
     value { () }
 }
+// ANCHOR_END: multiply
 resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     let lda: Nat = value { m + pad };
     let ldb: Nat = value { k + pad };
@@ -10,10 +21,12 @@ resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     let cap_a: Nat = value { lda * k };
     let cap_b: Nat = value { ldb * n };
     let cap_c: Nat = value { ldc * n };
+    // ANCHOR: spaces
     runtime_space u = linear(profiles::RealSmooth, m);
     runtime_space v = linear(profiles::RealSmooth, k);
     runtime_space w = linear(profiles::RealSmooth, n);
     runtime_basis bu = basis(u); runtime_basis bv = basis(v); runtime_basis bw = basis(w);
+    // ANCHOR_END: spaces
     runtime_allocate data_a: F64[cap_a] runtime_layout(m, k, lda, false);
     runtime_allocate data_b: F64[cap_b] runtime_layout(k, n, ldb, false);
     runtime_allocate data_c: F64[cap_c] runtime_layout(m, n, ldc, false);
@@ -30,6 +43,7 @@ resource fn run(m: Nat, k: Nat, n: Nat, pad: Nat) -> Unit {
     runtime_drop(data_a); runtime_drop(data_b); runtime_drop(data_c);
     value { () }
 }
+// ANCHOR: main
 resource fn main() -> Int {
     let m: Nat = value { 2 }; let k: Nat = value { 3 };
     let n: Nat = value { 4 }; let pad: Nat = value { 0 };
@@ -42,3 +56,4 @@ resource fn main() -> Int {
     call run(other_m, other_k, other_n, other_pad) -> ();
     value { 0 }
 }
+// ANCHOR_END: main

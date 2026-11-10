@@ -3,6 +3,7 @@ mod profiles;
 // Three actual allocations; all mathematical transforms and nested calls are
 // views/reborrows. The padded source and destination layouts are retained.
 resource fn main() -> Int {
+    // ANCHOR: declarations
     space v = linear(profiles::ComplexSmooth, 1);
     space w = linear(profiles::ComplexSmooth, 1);
     basis bv = basis(v);
@@ -18,6 +19,7 @@ resource fn main() -> Int {
     basis bwc = derived(bw, wc);
     metric hv = orthonormal(bv, sigma);
     metric hw = diagonal(bw, sigma, [1]);
+    // ANCHOR_END: declarations
 
     allocate a: Complex<F64>[4];
     allocate identity: Complex<F64>[4];
@@ -66,6 +68,7 @@ resource fn main() -> Int {
     value { 42 }
 }
 
+// ANCHOR: dual-into
 resource fn dual_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::ComplexSmooth, 1>,
     bv: Basis<v>, bw: Basis<w>, vd: DualSpace<v>, wd: DualSpace<w>,
     bvd: DerivedBasis<bv, vd>, bwd: DerivedBasis<bw, wd>,
@@ -75,6 +78,7 @@ resource fn dual_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::C
     release(transformed);
     value { () }
 }
+// ANCHOR_END: dual-into
 
 resource fn conjugate_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::ComplexSmooth, 1>,
     bv: Basis<v>, bw: Basis<w>, sigma: Involution<v>, vc: ConjugateSpace<v, sigma>, wc: ConjugateSpace<w, sigma>,
@@ -86,6 +90,7 @@ resource fn conjugate_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profil
     value { () }
 }
 
+// ANCHOR: adjoint-into
 resource fn adjoint_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles::ComplexSmooth, 1>,
     bv: Basis<v>, bw: Basis<w>, sigma: Involution<v>, hv: OrthonormalMetric<bv, sigma>, hw: OrthonormalMetric<bw, sigma>,
     input: ReadMap<bv, bw>, identity: ReadMap<bw, bw>, output: WriteMap<bw, bv> initializes) -> Unit {
@@ -94,10 +99,13 @@ resource fn adjoint_into(v: Space<profiles::ComplexSmooth, 1>, w: Space<profiles
     release(transformed);
     value { () }
 }
+// ANCHOR_END: adjoint-into
 
+// ANCHOR: multiply
 resource fn multiply(u: Space<profiles::ComplexSmooth, 1>, z: Space<profiles::ComplexSmooth, 1>,
     bu: Basis<u>, bz: Basis<z>, left: ReadMap<bu, bz>, right: ReadMap<bu, bu>,
     output: WriteMap<bu, bz> initializes) -> Unit {
     gemm(left, right, output, overwrite, NativeFast);
     value { () }
 }
+// ANCHOR_END: multiply

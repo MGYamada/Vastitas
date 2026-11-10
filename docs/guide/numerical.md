@@ -14,14 +14,14 @@ Every statement of this chapter is a statement of a resource function.
 ## Coefficient profiles
 
 A space is a space over the real or over the complex numbers. A program says
-which with [indexed declarations](indexed-geometry.md). The examples of this
+which with [indexed declarations](indexed-profile.md). The examples of this
 chapter keep these declarations in a module `profiles`:
 
 ```vast
 {{#include ../../examples/packages/numerical/src/profiles/mod.vast}}
 ```
 
-The first group has four kinds of declarations:
+The first group has these declarations:
 
 - Two markers name the coefficients.
 - `SmoothScalar` is a [*scalar base*](../appendix/glossary.md#scalar-base):
@@ -151,8 +151,9 @@ target/debug/vastitas check --manifest-path examples/packages/numerical/Vastitas
 
 A build needs more. A
 [*product statement*](../appendix/glossary.md#product-statement) is a
-statement that multiplies when the program runs: `gemm` and the pairings and
-contractions of the later sections. `vastitas build` links a numerical
+statement whose execution calls the numerical library: `gemm`, its
+counterpart `runtime_gemm` for sizes that the program computes, and the
+pairings and contractions of the later sections. `vastitas build` links a numerical
 runtime and the OpenBLAS library for a program whose entry point reaches a
 product statement, and the command must say where the library is:
 
@@ -200,7 +201,7 @@ of both bases and of the parameter.
 
 ## Duals, conjugates and adjoints
 
-A product never transposes or conjugates a matrix. A program that needs the
+<a id="duals-conjugates-adjoints-and-metrics"></a>A product never transposes or conjugates a matrix. A program that needs the
 transpose or the conjugate transpose declares the map that has this matrix.
 Such a map lies between other spaces, and the program declares them too.
 [`examples/packages/linear-transforms`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/linear-transforms)
@@ -221,7 +222,8 @@ begins with these declarations:
   conjugate space, `derived` declares the conjugate basis.
 - `metric hv = orthonormal(bv, sigma);` declares a
   [*metric*](../appendix/glossary.md#metric): a Hermitian form on `v` whose
-  Gram matrix in the basis `bv` is the identity. `diagonal(bw, sigma, [1])`
+  Gram matrix in the basis `bv` is the identity. The Gram matrix of a form
+  holds its values on the pairs of basis vectors. `diagonal(bw, sigma, [1])`
   lists the diagonal entries of a Gram matrix. A metric is data that the
   program declares. The compiler never reads one from the cells of a buffer.
 
@@ -287,8 +289,8 @@ library, and it prints `42`.
 A pairing computes one number from two vectors and writes it to a view with
 one cell:
 
-- `evaluate(phi, x, out, overwrite, NativeFast);` applies a covector to a
-  vector. `phi` must be a vector in the dual basis that the program derived
+- `evaluate(phi, x, out, overwrite, NativeFast);` applies a covector, a
+  vector of the dual space, to a vector. `phi` must be a vector in the dual basis that the program derived
   from the basis of `x`.
 - `hermitian(xc, y, out, h, overwrite, NativeFast);` computes the Hermitian
   form of a metric `h` whose Gram matrix is the identity. `xc` is a vector
@@ -370,7 +372,9 @@ extents:
 
 The compiler checks the bases of `runtime_gemm` as it checks the bases of
 `gemm`. An extent never shows that two spaces or two bases are the same. The
-executable checks the sizes when the program runs.
+executable checks the sizes when the program runs. `runtime_gemm` is a
+product statement, so the build of this example takes `--openblas-prefix`.
+The program checks its own results and prints `0`.
 [Runtime maps](../storage/resource-programs.md#runtime-maps) gives the
 statements and their rules.
 

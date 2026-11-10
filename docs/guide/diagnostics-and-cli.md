@@ -90,6 +90,10 @@ point to related places. The diagnostics of the chapters on
 allocation, the loan, the space or the basis of an error. Each note points
 to the statement that introduced it.
 
+A message can carry a hint of its own. For a file that begins with
+`fun main() -> Int { 0 }`, the message ends with
+``help: did you mean `fn`?``.
+
 ## One run, one or more diagnostics
 
 The compiler works in phases, and a run reports the diagnostics of the first
@@ -152,7 +156,7 @@ lists these cases.
 
 ## From a code to its chapter
 
-The codes form classes by the construct whose rules they report. The table
+<a id="common-codes"></a>The codes form classes by the construct whose rules they report. The table
 names the chapter of this guide that teaches each construct.
 
 | Codes | The compiler reports | Chapter |
@@ -162,8 +166,8 @@ names the chapter of this guide that teaches each construct.
 | `E_TYPE`, `E_ARITY`, `E_RECURSION`, `E_MAIN` | A value or a call that its types do not permit, a cycle of calls and an invalid entry point | [Values and functions](values-and-functions.md), [control flow and pairs](control-flow-and-pairs.md) |
 | `E_ENDPOINT` and the other codes of object identity | An object in the place of another object | [Indexed declarations](indexed-geometry.md) |
 | `E_CAPTURE`, `E_STATIC_CALL` | A lambda that uses a binding from outside, and a call of a function value without one target | [Function values](function-values.md) |
-| Codes that begin with `E_DISPATCH_` or `E_CONTRACT_` | A generic without one best method, and an invalid abstract type or abstract method | [Dispatch](dispatch.md) |
-| `E_OWNER`, `E_BORROW` | An edit of a generic that its owner did not permit | [Edit authority](modules-and-authority.md) |
+| Codes that begin with `E_DISPATCH_` or `E_CONTRACT_`, `E_CAPABILITY`, `E_HIERARCHY` | A generic without one best method, and an invalid abstract type or abstract method | [Dispatch](dispatch.md), [abstract types](abstract-types.md) |
+| `E_OWNER`, `E_BORROW`, `E_IMPACT`, `E_ASSEMBLY` | An edit of a generic that its owner did not permit, and an invalid assembly | [Modules and edit authority](modules-and-authority.md#edit-authority), [edit authority across packages](edit-authority.md) |
 | Codes that begin with `E_AFFINE_`, `E_SMOOTH`, `E_METRIC` | An invalid declaration of geometry | [Presented affine geometry](affine-geometry.md), [smooth geometry](smooth-geometry.md) |
 | Codes that begin with `E_RESOURCE_` | A resource function that breaks a rule on owners, loans, initialization or payloads | [Storage](storage.md) |
 | Codes that begin with `E_NUMERICAL_` or `E_TENSOR`, `E_NETWORK` | A numerical statement whose spaces, bases, metrics or ports do not fit | [Numerical maps](numerical.md) |
@@ -199,7 +203,7 @@ limit. The values of `Nat` and `Int` have no limit.
 
 ## Kernel, inputs and outputs
 
-The compiler has two parts: a
+<a id="environment-and-outputs"></a>The compiler has two parts: a
 [frontend](../appendix/glossary.md#frontend), which reads the files, and a
 [kernel](../appendix/glossary.md#kernel), which checks the program. Both
 commands need a built kernel, and a command fails when the kernel is missing
@@ -245,7 +249,7 @@ words `uncaught exception:` begin every run-time diagnostic.
 A program that stops in this way prints no result. The writes that it
 completed before it stopped are not undone, and it frees its allocations.
 
-An executable makes two other kinds of run-time checks. It checks the
+An executable makes other run-time checks too. It checks the
 conditions on [sizes that the program computes](storage.md#sizes-that-the-program-computes),
 and it checks the allocations, the views and the sizes of an operation
 before the first write of that operation.
@@ -270,9 +274,9 @@ these:
   cycle of calls is an error.
 - `Nat` and `Int` are unbounded and their operations never overflow or
   round.
-- Nothing is implicit: no conversion between `Nat` and `Int`, no allocation,
-  no copy, no conjugation and no metric enters unless the program writes
-  it.
+- Nothing is implicit: no conversion between `Nat` and `Int`, no allocation
+  and no copy of cells, no conjugation and no metric enters unless the
+  program writes it.
 - Objects, spaces, bases and allocations have nominal identity. Equal
   dimensions never make two of them the same.
 - A resource function reads a cell only after a statement wrote it, and a

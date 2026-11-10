@@ -1,6 +1,6 @@
 # Generics, methods and dispatch
 
-A function has one body. A [*generic*](../appendix/glossary.md#generic) is a
+<a id="dispatch-and-abstract-contracts"></a>A function has one body. A [*generic*](../appendix/glossary.md#generic) is a
 function with several bodies, its
 [*methods*](../appendix/glossary.md#method). For each call of a generic, the
 compiler chooses one method by the types of the arguments. This choice is
@@ -223,8 +223,8 @@ the program with the same three libraries. It prints `42`.
 > [proofs](../verification.md#stage-1a-finite-dispatch-and-checker-composition)
 > cover the selection. In an accepted table, each key that callers may use
 > has the one applicable method that no other applicable method is more
-> specific than. The order of the method declarations does not change the
-> table. The specification
+> specific than. The order of the method records that the checker receives
+> does not change the table. The specification
 > [std::arithmetic::generic](../spec/std-arithmetic-generic.md) states what
 > is proved about `promote`, `add` and `maximum`. Tests cover the
 > diagnostics and native execution.

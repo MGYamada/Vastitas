@@ -83,7 +83,7 @@ The program prints `42`.
 
 ## Paths
 
-A path names a declaration through the modules that hold it. The package
+<a id="paths-and-imports"></a>A path names a declaration through the modules that hold it. The package
 `module-paths` begins its paths in four ways:
 
 | Path | Written in | Begins at |
@@ -126,7 +126,7 @@ names one declaration, and there are no wildcard imports.
 
 ## Visibility
 
-A declaration without `pub` is [*private*](../appendix/glossary.md#private):
+<a id="visibility-and-ownership"></a>A declaration without `pub` is [*private*](../appendix/glossary.md#private):
 its own module and the modules below it see it. In `module-paths`, `scale` is
 private in `shapes`, and the child `shapes::area` calls it. `unit` is private
 in the root module, so every module of the package can name it as
@@ -214,12 +214,13 @@ it in one place. The next chapter,
 > owner itself, from the package, the module and the name of each
 > declaration. It rejects a path through a private declaration and a method
 > outside the defining module. The
-> [proofs](../verification.md#package-namespace-acceptance) are about this
-> resolution. Each reference that the checker records resolves to its
-> declaration by the rules of imports and visibility. An alias names the
-> declaration itself. The generic of each method is a declaration of the
-> method's own module. The proofs do not cover the reading of manifests and
-> source files. Tests cover the diagnostics and native execution.
+> [proofs](../verification.md#package-namespace-acceptance) are about the
+> records of this resolution. Each reference that the checker records
+> resolves again, through the checker's own resolver, to the recorded
+> declaration. An alias names the declaration itself. The generic of each
+> method is a declaration of the method's own module. No theorem ties these
+> records to the names in the source of a program, and none covers the
+> reading of manifests and source files. Tests cover the diagnostics and native execution.
 
 ## See also
 

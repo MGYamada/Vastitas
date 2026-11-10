@@ -138,7 +138,7 @@ gives the rules.
 
 ## The geometry library
 
-The compiler has the geometric core built in. The standard library declares
+<a id="the-standard-geometry-library"></a>The compiler has the geometric core built in. The standard library declares
 the same objects, types and operations as ordinary declarations of a
 package, in the modules `std::geometry::scheme` and `std::geometry::smooth`.
 [`examples/packages/stdlib-geometry/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-geometry/main.vast)

@@ -1,6 +1,6 @@
 # The standard library
 
-The [*standard library*](../appendix/glossary.md#standard-library) is the
+<a id="packages-and-manifests"></a>The [*standard library*](../appendix/glossary.md#standard-library) is the
 package in the directory
 [`stdlib`](https://github.com/MGYamada/Vastitas/tree/main/stdlib) of the
 repository. It is written in Vastitas, and the compiler checks it like every

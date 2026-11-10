@@ -154,7 +154,7 @@ a binding and the value of an `if`.
 
 ## Literals in a pair
 
-`pair` finds the type of each argument without looking at the place of the
+<a id="the-literal-rule-for-pairs"></a>`pair` finds the type of each argument without looking at the place of the
 call. A bare literal is an `Int` there, so `pair(0, 1)` is a `Pair<Int>`,
 even where the program asks for a `Pair<Nat>`:
 

@@ -4,11 +4,13 @@ The module that defines a generic holds the edit authority over it. This
 chapter lets a second package add a method to the generic of a library.
 Three declarations take part, each in a package of its own:
 
-1. The library declares a grant: its permission for one other module to add
-   methods at some keys.
-2. The second package declares a contribution: the methods that it adds.
-3. The program declares an assembly, which applies the contribution under
-   the grant.
+1. The library declares a [*grant*](../appendix/glossary.md#grant): its
+   permission for one other module to add methods at some keys.
+2. The second package declares a
+   [*contribution*](../appendix/glossary.md#contribution): the methods that
+   it adds.
+3. The program declares an [*assembly*](../appendix/glossary.md#assembly),
+   which applies the contribution under the grant.
 
 The first program is
 [`examples/packages/edit-borrow`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/edit-borrow).
@@ -23,8 +25,8 @@ The library defines the generic `choose` in `lib/main.vast`:
 {{#include ../../examples/packages/edit-borrow/lib/main.vast}}
 ```
 
-`choose` has one method, which returns 0 for any two numbers. The
-[*grant*](../appendix/glossary.md#grant) `integers` permits the root module
+`choose` has one method, which returns 0 for any two numbers. The grant
+`integers` permits the root module
 of the package `edit_addon` to add methods to `choose`. The module after `to`
 is the [*recipient*](../appendix/glossary.md#recipient). The path begins
 with the name in the `[package]` table of the recipient's manifest, not with
@@ -44,8 +46,7 @@ module, `addon/main.vast`, declares the methods that it wants to add:
 {{#include ../../examples/packages/edit-borrow/addon/main.vast}}
 ```
 
-A [*contribution*](../appendix/glossary.md#contribution) is a named set of
-methods for one generic. The method of `sum` is more specific than the method
+A contribution is a named set of methods for one generic. The method of `sum` is more specific than the method
 of the library at the key `(Int, Int)`.
 
 A contribution adds no method either. The compiler checks its bodies, and its
@@ -60,8 +61,7 @@ The third package depends on both others, under the aliases `base` and
 {{#include ../../examples/packages/edit-borrow/app/main.vast}}
 ```
 
-The [*assembly*](../appendix/glossary.md#assembly) is a list of
-[*events*](../appendix/glossary.md#event). The compiler replays them in
+The assembly is a list of [*events*](../appendix/glossary.md#event). The compiler replays them in
 order when it checks the program:
 
 | Event | Effect |

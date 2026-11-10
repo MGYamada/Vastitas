@@ -90,7 +90,7 @@ program either.
 
 ## Integers without bounds
 
-An `Int` is an integer of any size.
+<a id="operators"></a>An `Int` is an integer of any size.
 [`examples/book/expressions/unbounded-integers.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/book/expressions/unbounded-integers.vast)
 squares a number of 30 digits and adds 1:
 
@@ -167,7 +167,7 @@ how to repair the program:
 
 ## The four scalar types
 
-`Int` and `Nat` are two of the four
+<a id="scalars"></a>`Int` and `Nat` are two of the four
 [*scalar types*](../appendix/glossary.md#scalar-type):
 
 | Type | Values |

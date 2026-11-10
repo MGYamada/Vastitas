@@ -2,7 +2,9 @@
 
 The values of the earlier chapters are pure: a number, a pair or a point
 occupies no memory that a program can name. A matrix needs a buffer. This
-chapter introduces *resource functions*, which allocate buffers, lend parts
+chapter introduces
+[*resource functions*](../appendix/glossary.md#resource-function), which
+allocate buffers, lend parts
 of them, write and read their cells and free them. Each of these steps is a
 statement of the source, and the compiler checks every one before it
 generates code. A program allocates and copies cells only where it writes a
@@ -27,8 +29,7 @@ The program prints `42`.
 
 ## Resource functions
 
-A [resource function](../appendix/glossary.md#resource-function) is declared
-with `resource fn`. Its body is a list of statements followed by a `value`
+A resource function is declared with `resource fn`. Its body is a list of statements followed by a `value`
 block, which computes the result of the function with ordinary expressions.
 The library declares three resource functions:
 
@@ -67,9 +68,9 @@ caller which cells hold a value.
 `layout(offset, rows, columns, leading, transposed)` describes a view as a
 matrix that the buffer stores column by column. `offset` is the byte at which
 the view starts. `leading` is the number of cells from one stored column to
-the next. A cell of `F64` takes 8 bytes, so the cell in row `i` and column
-`j` starts at byte `offset + (i + j × leading) × 8`. Rows and columns count
-from 0.
+the next. A cell of `F64` takes 8 bytes, so the cell in stored row `i` and
+stored column `j` starts at byte `offset + (i + j × leading) × 8`. Rows and
+columns count from 0.
 
 The view `layout(8, 2, 2, 4, false)` of `make` has two rows and two columns
 in a buffer of eight cells:
@@ -101,7 +102,7 @@ the view are initialized, and so does the result.
 
 ## Calling resource functions
 
-The package `app` imports the three functions. Its entry point is a resource
+<a id="the-statements"></a>The package `app` imports the three functions. Its entry point is a resource
 function `main` without parameters:
 
 ```vast
@@ -209,7 +210,7 @@ states these rules.
 
 ## Payloads
 
-A [*payload*](../appendix/glossary.md#payload) is the value of one cell.
+<a id="exact-floating-point-payloads"></a>A [*payload*](../appendix/glossary.md#payload) is the value of one cell.
 `f64(x)` denotes the binary64 number `x`, and `complex(x, y)` the complex
 number with the real part `x` and the imaginary part `y`, for a cell of
 `Complex<F64>`. The number is a decimal or a hexadecimal literal:
@@ -268,7 +269,7 @@ this chapter build and run the program with the manifest
 
 ## Sizes that the program computes
 
-The statements above fix every size in the source. The statements with the
+<a id="runtime-shapes"></a>The statements above fix every size in the source. The statements with the
 prefix `runtime_` take their sizes from scalars. Such a size is an
 [*extent*](../appendix/glossary.md#extent): a literal, or a `Nat` or `Int`
 binding. This function of
@@ -280,7 +281,7 @@ allocates a table whose numbers of rows and columns are parameters:
 ```
 
 - `runtime_allocate` allocates `capacity` cells and fixes the one layout of
-  the allocation: its rows, its columns, its leading dimension and the
+  the allocation: its rows, its columns, the `leading` of a layout and the
   transposition flag.
 - `runtime_borrow output = write(data);` lends that whole view. It takes no
   layout.

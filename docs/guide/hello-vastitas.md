@@ -68,7 +68,7 @@ The two commands differ in what they need and in what they leave behind:
 
 ## When the compiler says no
 
-In
+<a id="when-the-checker-says-no"></a>In
 [`examples/reject/types/bool-result.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/reject/types/bool-result.vast)
 `main` promises an `Int`, and its body is the Boolean `true`:
 

@@ -150,9 +150,10 @@ type is never part of a key: dispatch uses the scalar types only.
 
 A [*higher-order function*](../appendix/glossary.md#higher-order-function)
 is a function with a function parameter or a function result, such as
-`invoke`, `keep` and `pick`. The compiler checks a higher-order function once
-on its own. It checks the function once more for each combination of
-function values that the program passes to it. Each of these checks is a
+`invoke`, `keep` and `pick`. The compiler checks each lambda and each
+higher-order function once on its own. It checks a higher-order function
+once more for each combination of function values that the program passes to
+it. Each of these checks is a
 [*specialized instance*](../appendix/glossary.md#specialized-instance), and
 the step is [*specialization*](../appendix/glossary.md#specialization).
 After it, no function value remains: the generated program calls each static
@@ -177,7 +178,7 @@ budget of the check.
 > step, the diagnostics and native execution.
 > [Function specialization](../internals/checking-pipeline.md#function-specialization)
 > describes the check, and
-> [Verification boundaries](../verification.md#stage-1b-capture-and-static-function-contracts)
+> [Verification boundaries](../verification.md#indexed-term-function-and-checked-program-evaluation)
 > states the proofs.
 
 ## See also

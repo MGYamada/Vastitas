@@ -103,6 +103,14 @@ Rules:
 - The parameter and result types of a function type must be scalar types or
   function types. Another type, such as a pair or a geometric type, is an error
   (`E_TYPE`). The body of a lambda may still use pairs and geometric values.
+- Some programs report the error of the previous rule with another code. They
+  are the programs whose package graph holds an `indexed` declaration, a
+  resource function, a grant, a delegation, a transfer or a
+  [geometry compatibility export](../packages.md#geometry-compatibility-exports).
+  There the error has the code `E_PROTOCOL`, and the compiler reports it at
+  the root manifest, as
+  [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
+  describes.
 - `fn(Int) -> Int` is not a type. Written as a type, it is an error
   (`E_PARSE`).
 - A function value is not data: it has no equality, as

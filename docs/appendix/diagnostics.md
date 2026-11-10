@@ -1,53 +1,16 @@
 # Appendix B: Diagnostics reference
 
 Every rejection starts with a code such as `E_TYPE`. This appendix lists the
-codes by the component that reports them. [Chapter 12](../guide/diagnostics-and-cli.md)
-explains how to read a diagnostic line.
+codes by the component that reports them.
+[Diagnostics](../language/diagnostics.md) gives the form of a diagnostic, its
+place, its code and the exit status, and
+[Chapter 12](../guide/diagnostics-and-cli.md) explains how to read a
+diagnostic line.
 
 The codes and messages below were collected from the sources at this revision.
 Where the book specifies a code's meaning, the table links to that rule. Other
 codes are listed with the checker that reports them; their messages carry the
 detail. The book does not yet give each code its own entry.
-
-## Output format
-
-| Origin | Form | Exit status |
-| --- | --- | --- |
-| Source diagnostic | `FILE:LINE:COLUMN: CODE: message` | 1 |
-| Manifest diagnostic | `MANIFEST: E_MANIFEST: message` | 1 |
-| Driver error without a source position | `CODE: message` | 1 |
-| Interrupted compilation | `E_INTERRUPTED: compilation interrupted` | 128 + signal number |
-| Generated program, native runtime check | Standard error contains `E_NATIVE_*: message` | Unsuccessful |
-
-Lines and columns are one-based; columns count Unicode scalars. A diagnostic
-reported by the Lean kernel is mapped back to the original file and its local
-position.
-
-A message names a declaration by its name or by its path
-`package::module::name`. The first component of the path is the name that the
-manifest of the declaring package gives it, even when the source reaches the
-package through a dependency alias. A message names a parameter as the source
-spells it.
-
-`FILE` and `MANIFEST` are paths. The compiler does not write every character
-of a path, or of text that comes from a manifest, as it is. It writes a
-control character, white space other than U+0020, or a character with the
-Unicode `Default_Ignorable_Code_Point` property as its code point in angle
-brackets. A file name that holds the escape character appears as
-`x<U+001B>[2J.vast`, for example. The rule covers every path and file name in
-a diagnostic and the message of a source diagnostic, including the package
-name that begins the path of a declaration. In a manifest diagnostic it also
-covers the line that a TOML error quotes and the keys that its message names.
-In a native build it covers the names that the driver reads from the kernel
-root and from the generated program. The line `checked FILE` or `built FILE`
-of a successful command writes its path by the same rule.
-
-> **Implementation note.** The driver formats every path with one function. A
-> TOML error keeps the layout of the `toml` crate, and its carets stay under
-> the place that they mark in the quoted line. The message of a TOML error
-> keeps its line breaks when the manifest holds no backslash and no
-> multi-line string. In any other manifest a line feed of the message may
-> come from the manifest, and the driver writes each one as `<U+000A>`.
 
 ## Driver and frontend
 
@@ -136,3 +99,9 @@ is negative or exceeds the signed native size range.
 Two independent reference models study diagnostics without being part of the
 compiler: a [non-punitive diagnostic record](../reference/compiler-tools.md#diagnostic-reference)
 and an [expected-rejection doctest contract](../reference/compiler-tools.md#doctest-result-reference).
+
+## Moved sections
+
+These anchors keep older links working.
+
+- <a id="output-format"></a>Output format: [Diagnostic lines](../language/diagnostics.md#diagnostic-lines), [Places](../language/diagnostics.md#places), [Names and text in diagnostics](../language/diagnostics.md#names-and-text-in-diagnostics), [Exit status](../language/diagnostics.md#exit-status) and [Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).

@@ -1,0 +1,4 @@
+fn double(n: Int) -> Int { n + n }
+
+// The entry point takes no parameters.
+fn main(n: Int) -> Int { double(n) }

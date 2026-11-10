@@ -1,5 +1,8 @@
 # Appendix D: Compiler limits
 
+This appendix lists the limits of the compiler and their values.
+[Limits](../language/limits.md) gives the rules that hold for every limit.
+
 The compiler rejects an input that exceeds a limit, usually with `E_LIMIT`. It
 never accepts part of an input or skips an unused body to stay within a budget.
 These are defensive implementation limits, not mathematical restrictions.

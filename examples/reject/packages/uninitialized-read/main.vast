@@ -1,0 +1,12 @@
+resource fn main() -> Int {
+    allocate data: F64[4];
+    borrow output = write(data, layout(0, 2, 1, 2, false));
+    fill(output, f64(1));
+    release(output);
+    // Only the first column is written. The second is still uninitialized.
+    borrow input = read(data, layout(0, 2, 2, 2, false));
+    expect(input, 0, 1, f64(1));
+    release(input);
+    drop(data);
+    value { 42 }
+}

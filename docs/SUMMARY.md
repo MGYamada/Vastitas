@@ -42,6 +42,9 @@
 - [Numerical maps](linalg/maps-and-gemm.md)
   - [Transforms, evaluation and metrics](linalg/transforms-and-metrics.md)
   - [Networks, packing and contraction trees](linalg/networks-and-packing.md)
+- [Diagnostics](language/diagnostics.md)
+- [Limits](language/limits.md)
+- [Guarantees](language/guarantees.md)
 
 # How the compiler is checked
 

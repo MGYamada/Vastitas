@@ -19,6 +19,14 @@ conversions.
 See [Abstract types](../stage1a.md#abstract-types) and the
 [guide](../guide/dispatch.md#abstract-types).
 
+## Accept
+
+The compiler accepts a program when `vastitas check` or `vastitas build`
+reports no [diagnostic](#diagnostic) for it. Acceptance says that the program
+breaks no rule that the checker enforces; it is not
+[native refinement](#native-refinement). See
+[What acceptance means](../language/guarantees.md#what-acceptance-means).
+
 ## Allocation
 
 A buffer of [cells](#cell) that one storage [owner](#owner) owns. `allocate`
@@ -174,6 +182,13 @@ classifications and its domain, the complete finite list of implementations
 that it classifies. A child's domain lies inside each parent's domain. See
 [Identity and declarations](../indexed-source.md#identity-and-declarations).
 
+## Code
+
+The name of the kind of error that a [diagnostic](#diagnostic) reports, such
+as `E_TYPE`. The Reference specifies the code of every error and not the text
+of its message. See [Codes](../language/diagnostics.md#codes) and
+[Appendix B](diagnostics.md).
+
 ## Compiled reverse Core
 
 The [Core](#core) that the kernel generates for the
@@ -265,6 +280,14 @@ The dual space or a conjugate space of a [space](#space), declared with
 An object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
 `Affine(CInfReal, n)` builds. It records only its dimension. See
 [Geometric types](../language/geometric-types.md).
+
+## Diagnostic
+
+The report that the compiler writes for a program that it rejects, or for a
+command that it cannot carry out. It has a [code](#code) and a message, and it
+may have a [place](#place) and [notes](#note). See
+[Diagnostics](../language/diagnostics.md) and the
+[guide](../guide/diagnostics-and-cli.md#reading-a-diagnostic).
 
 ## Dispatch
 
@@ -467,6 +490,12 @@ The part `axes(…), s` of a [tensor](#tensor) declaration. It says which axes
 index the rows and which the columns of the matrix that stores the cells. See
 [Tensors](../linalg/networks-and-packing.md#tensors).
 
+## Guarantee
+
+A property that every program that the compiler [accepts](#accept) has, or
+that every run of the compiler has. A guarantee reaches as far as its
+evidence. See [Guarantees](../language/guarantees.md).
+
 ## Higher-order function
 
 A function with a function parameter or a function result. See
@@ -569,6 +598,12 @@ cells and a transposition flag. See
 [Storage types](../storage/resource-programs.md#storage-types) and the
 [guide](../guide/storage.md#resource-functions).
 
+## Limit
+
+A fixed bound of the compiler on the size of a program or on the work of
+checking it. A program beyond a limit is an error. See
+[Limits](../language/limits.md) and [Appendix D](limits.md).
+
 ## Line separator
 
 A character that ends a line in another convention than LF or CR LF, such as
@@ -610,6 +645,12 @@ records keep the lowering equation. See
 The file `Vastitas.toml` at the root of a package. It names the package and its
 dependencies. See [Manifests](../packages.md#manifests) and the
 [guide](../guide/stdlib.md#a-manifest).
+
+## Manifest diagnostic
+
+A [diagnostic](#diagnostic) for an error in the text of a manifest. It names
+the manifest and has the code `E_MANIFEST`. See
+[Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
 
 ## Manifest mode
 
@@ -684,6 +725,13 @@ Method `a` is more specific than method `b` when its selectors are no
 broader, its requirements are no weaker, and one of these comparisons is
 strict. See [Selection](../stage1a.md#selection).
 
+## Native refinement
+
+The statement that the executable of a program computes the value of the
+program that the checker accepted. It is not proved: it rests on the Lean
+compiler and the C compiler, and tests exercise it. See
+[What acceptance means](../language/guarantees.md#what-acceptance-means).
+
 ## Network
 
 A graph of [occurrences](#occurrence) of numerical maps whose
@@ -714,6 +762,12 @@ matrix `G`. The kernel computes an inverse `B` of `G`, and it checks again that
 evidence. `sharp` requires nondegenerate evidence for its metric. See
 [Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
+
+## Note
+
+A line of a [diagnostic](#diagnostic) that points to a related
+[place](#place), such as the construction that introduced an identity. See
+[Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
 
 ## Numerical map
 
@@ -808,6 +862,11 @@ The value of one cell of storage in a resource statement, written `f64(…)`,
 `complex(…)`, `f64_bits(…)` or `complex_bits(…)`. A payload is one exact
 binary64 value, or two for a complex cell; the compiler never rounds one. See
 [Payloads](../storage/resource-programs.md#payloads).
+
+## Place
+
+The position that a [diagnostic](#diagnostic) or a [note](#note) names: a
+file, a line and a column. See [Places](../language/diagnostics.md#places).
 
 ## Port
 
@@ -1018,6 +1077,18 @@ The package of the [root manifest](#root-manifest). Its root module holds the
 entry point and the assembly of the program. See
 [Manifest mode](../language/programs.md#manifest-mode).
 
+## Run-time check
+
+A check that an executable makes on values that the compiler does not know,
+such as an `expect` statement or a condition on [extents](#extent). See
+[Run-time checks](../language/guarantees.md#run-time-checks).
+
+## Run-time diagnostic
+
+The line that an executable writes to standard error when a
+[run-time check](#run-time-check) fails. See
+[Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).
+
 ## Runtime reverse pass
 
 The verified routine of the smooth runtime that runs a reverse pass over a
@@ -1120,6 +1191,12 @@ gives each target coordinate as a polynomial in the source coordinates.
 
 The object `X` of a morphism type `Morphism<X, Y>`. Compare
 [target](#target). See [Geometric types](../language/geometric-types.md).
+
+## Source limit
+
+A [limit](#limit) on the text and the files of a program, such as the nesting
+of expressions. The other limits bound the program that the checker builds.
+See [Source limits and limits of the checked program](../language/limits.md#source-limits-and-limits-of-the-checked-program).
 
 ## Space
 
@@ -1323,3 +1400,9 @@ kernel's response. Each request carries a protocol version. See
 
 The object that an [existential package](#existential-package) hides. See
 [Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
+
+## Work budget
+
+A [limit](#limit) on the units of work of one check. It counts units that the
+checker defines, not time. See
+[Kinds of limits](../language/limits.md#kinds-of-limits).

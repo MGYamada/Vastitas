@@ -100,6 +100,27 @@ structure Binding where
   bound : Symbol
   borrowed : Option Borrowed := none
 
+/-- Presentation only: the error of a `RuntimeMap` argument whose endpoints
+`bind` has found to differ from the bases that its parameter names. `bind`
+compares the endpoints before it calls this function, and the result is never
+an acceptance. An endpoint is named only where the contract symbol is the
+identity of the required basis and the argument has another identity there,
+which makes the two different bases. A difference of another kind keeps the
+message that names no basis. -/
+def endpointRejection (original : Numerical.Map) (source : Symbol × Numerical.Basis)
+    (target : Symbol × Numerical.Basis) : Error :=
+  let endpoint (role : String) (actual : Numerical.Basis) (required : Symbol × Numerical.Basis) :
+      List ErrorSubject :=
+    if required.2.brand = required.1 ∧ actual.brand ≠ required.1 then
+      (⟨role, actual.brand, required.1⟩ : Storage.Numerical.BasisMismatch).subjects
+    else []
+  match endpoint "source basis" original.source source ++ endpoint "target basis" original.target target with
+  | [] => {code := "E_RUNTIME_CALL", message := "RuntimeMap requires the exact caller endpoints and bases"}
+  | subjects => {
+      code := "E_RUNTIME_CALL"
+      message := "RuntimeMap argument has a basis other than the basis that its parameter requires"
+      context := {subjects}}
+
 def bind (environment : Environment) (caller : Context) (context : Context)
     (input : Input) (actual global child : Symbol) : Except Error Binding := do
   unless auditFrame caller.resources && decide (Numerical.Valid environment caller.values) do
@@ -117,15 +138,15 @@ def bind (environment : Environment) (caller : Context) (context : Context)
       | reject "RuntimeBasis dependency is not a runtime space"
     unless basis.space == space do reject "RuntimeBasis belongs to a distinct nominal space"
     return ⟨context, actual, none⟩
-  | .map source target access initializes =>
+  | .map sourceName targetName access initializes =>
     let some (.map original) := Numerical.value? caller.values actual
       | reject "RuntimeMap argument is not a runtime map"
-    let some (.basis source) := Numerical.value? context.values source
+    let some (.basis source) := Numerical.value? context.values sourceName
       | reject "RuntimeMap source dependency is not a runtime basis"
-    let some (.basis target) := Numerical.value? context.values target
+    let some (.basis target) := Numerical.value? context.values targetName
       | reject "RuntimeMap target dependency is not a runtime basis"
     unless original.source == source && original.target == target do
-      reject "RuntimeMap requires the exact caller endpoints and bases"
+      throw (endpointRejection original (sourceName, source) (targetName, target))
     unless original.Live caller.resources do reject "original runtime map argument is stale"
     let next ← context.step (.borrow child (.loan original.loan.name) access)
     let some loan := next.resources.loan? child | reject "runtime map child loan is absent"

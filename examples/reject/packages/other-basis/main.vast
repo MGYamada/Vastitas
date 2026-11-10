@@ -1,0 +1,29 @@
+indexed marker RealCoefficients;
+indexed implementation SmoothScalar(RealCoefficients, scalar_base(smooth, real)) capabilities();
+indexed global SmoothBase(SmoothScalar);
+indexed implementation RealSmooth(RealCoefficients, linear_descriptor(SmoothBase, real)) capabilities();
+
+resource fn consume(
+    sensor_space: Space<RealSmooth, 1>, basis_arg: Basis<sensor_space>,
+    measurement: ReadMap<basis_arg, basis_arg>
+) -> Unit {
+    value { () }
+}
+
+resource fn main() -> Int {
+    space sensors = linear(RealSmooth, 1);
+    basis sensor_basis = basis(sensors);
+    // `alternate_basis` is a basis of the space of `sensor_basis`, but it is
+    // another basis.
+    basis alternate_basis = basis(sensors);
+    allocate data: F64[1];
+    borrow writer = write(data, layout(0, 1, 1, 1, false));
+    fill(writer, f64(1.0));
+    release(writer);
+    borrow input = read(data, layout(0, 1, 1, 1, false));
+    map measured = view(input, sensor_basis, alternate_basis);
+    call consume(sensors, sensor_basis, measured) -> ();
+    release(input);
+    drop(data);
+    value { 0 }
+}

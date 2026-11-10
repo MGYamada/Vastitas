@@ -409,7 +409,10 @@ Rules:
   gives. A name that is no earlier parameter is an error (`E_RESOURCE_NAME`),
   and an earlier parameter of another kind is an error (`E_NUMERICAL_TYPE`).
 - An argument that is not what the table gives is an error
-  (`E_NUMERICAL_TYPE`). A vector whose loan lacks the access is an error
+  (`E_NUMERICAL_TYPE`). For a vector in another basis and for a metric on
+  another basis, the diagnostic names the argument, the parameter and both
+  bases, as [Map parameters](maps-and-gemm.md#map-parameters) describes for a
+  map. A vector whose loan lacks the access is an error
   (`E_RESOURCE_ACCESS`).
 - A body knows only what its parameter types state. A space of the type
   `Space` is not a dual space, a basis of the type `Basis` is not a derived

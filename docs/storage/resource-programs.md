@@ -484,7 +484,9 @@ Rules:
 - The arguments for these parameters must be the spaces, bases and maps of the
   caller that the parameter types relate. A basis that the caller declared
   separately is a different basis, even over a space of the same dimension
-  (`E_RUNTIME_CALL`).
+  (`E_RUNTIME_CALL`). For a map with such a basis the diagnostic names the
+  argument, the parameter and both bases, as
+  [Map parameters](../linalg/maps-and-gemm.md#map-parameters) describes.
 - A `RuntimeMap` parameter with `initializes` promises that the body writes
   the whole view. A body that does not is an error (`E_RUNTIME_CALL`).
 - The mode of `runtime_gemm` must be `overwrite` or `accumulate`
@@ -546,7 +548,9 @@ points to its `if`, and a failure at the end of a body to its `value` block.
 A diagnostic for the type of a scalar binding points to the type, unless the
 type is a pair type.
 Notes name the owners and loans involved and where the program introduced
-them; a diagnostic has at most 32 notes.
+them; a diagnostic has at most 32 notes. For a call argument in another basis
+than its parameter requires, the diagnostic names both bases, as
+[Map parameters](../linalg/maps-and-gemm.md#map-parameters) describes.
 [Appendix B](../appendix/diagnostics.md) lists the `E_RESOURCE_` and
 `E_RUNTIME_` codes.
 

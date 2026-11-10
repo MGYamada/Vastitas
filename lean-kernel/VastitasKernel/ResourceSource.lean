@@ -898,6 +898,52 @@ private def siteSpan (source : Function) (place : ErrorPlace) : Span :=
   | .result => match source.valueBody with | .mk _ _ span => span
   | .statement position => ((statementAt position source.body).map statementSpan).getD source.span
 
+/-- Presentation only: the parameter that `Functions.arguments` marked at the
+header of a callee, with its position. The mark exists only for an argument
+that the kernel has rejected and whose bases it names. This function reads
+that rejection and decides no acceptance. -/
+private def rejectedParameter (program : Program) (lowered : Lowered) (sites : List ErrorSite) :
+    Option (Nat × Parameter) := do
+  let marked (entry : ErrorSubject) := entry.role == Functions.rejectedParameterRole
+  let site ← sites.find? fun site => site.place == .header && site.subjects.any marked
+  let entry ← site.subjects.find? marked
+  let (_, source) ← program.owned[site.function]?
+  let function ← lowered.functions.find? (·.id == site.function)
+  let index ← function.parameters.findIdx? (·.name == entry.name)
+  let parameter ← source.parameters[index]?
+  return (index, parameter)
+
+/-- Presentation only: the sentence for a call argument in another basis than
+its parameter requires. The kernel has rejected the argument before this text
+is made, and nothing here decides acceptance. The call site holds the two
+bases of each endpoint that the kernel reports, in the names of the caller.
+The sentence is made only when the source names the argument, the parameter
+and both bases of an endpoint. An endpoint with one named basis, or a site
+that is no call, leaves the message of the kernel as it is. -/
+private def callBasisMessage (program : Program) (lowered : Lowered) (sites : List ErrorSite)
+    (primary : ErrorSite) : Option String := do
+  let (index, parameter) ← rejectedParameter program lowered sites
+  let (_, caller) ← program.owned[primary.function]?
+  let function ← lowered.functions.find? (·.id == primary.function)
+  let .statement position := primary.place | none
+  let arguments ← match statementAt position caller.body with
+    | some (.call _ arguments _ _) | some (.callValue _ arguments _ _ _ _) => some arguments
+    | _ => none
+  let argument ← arguments[index]?
+  let bindings := functionBindings caller function
+  let named := primary.subjects.filterMap fun entry =>
+    (bindings.find? (·.1 == entry.name)).map fun binding => (entry.role, binding.2.1)
+  let mut clauses : List String := []
+  for endpoint in Numerical.BasisMismatch.endpoints do
+    match named.lookup (Numerical.BasisMismatch.actualRole endpoint),
+        named.lookup (Numerical.BasisMismatch.requiredRole endpoint) with
+    | some actual, some required =>
+      clauses := clauses ++ [s!"has {endpoint} `{actual}` but requires `{required}`"]
+    | none, none => pure ()
+    | _, _ => none
+  if clauses.isEmpty then none
+  return s!"argument `{argument}` for parameter `{parameter.name}` {" and ".intercalate clauses}"
+
 private def resourceError (program : Program) (lowered : Lowered) (error : Storage.Error) : Diagnostic := Id.run do
   let owned := program.owned
   let sites := error.context.sites.filter fun site => (owned[site.function]?).isSome
@@ -921,6 +967,10 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
                 | _ => "within this resource statement"
             unless notes.any (fun note => note.message == message && decide (note.span = location)) do
               notes := notes ++ [⟨message, location⟩]
+      -- A rejected argument whose bases the kernel names: its parameter is
+      -- callee context, so it precedes the operand notes.
+      if let some (_, parameter) := rejectedParameter program lowered sites then
+        notes := notes ++ [⟨s!"parameter `{parameter.name}` is declared here", parameter.span⟩]
       -- Function-exit subjects (leaked owners or loans) stay with the callee
       -- whose result failed, even when the primary span is its caller.
       let subjectSites := primary :: sites.filter fun site => site.place == .result && site != primary
@@ -934,7 +984,8 @@ private def resourceError (program : Program) (lowered : Lowered) (error : Stora
                 let message := s!"{role} is `{name}`, introduced here"
                 unless notes.any (fun note => note.message == message && decide (note.span = introduced)) do
                   notes := notes ++ [⟨message, introduced⟩]
-      return ⟨error.code, error.message, span, notes.take 32⟩
+      let message := (callBasisMessage program lowered sites primary).getD error.message
+      return ⟨error.code, message, span, notes.take 32⟩
   -- Header-only failures have no expanded statement. Never re-run every body
   -- probe merely to decorate a diagnostic.
   for (function, (_, source)) in lowered.functions.zip owned do

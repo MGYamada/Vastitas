@@ -1,0 +1,9 @@
+examples/reject/packages/other-basis/main.vast:25:5: E_NUMERICAL_TYPE: argument `measured` for parameter `measurement` has target basis `alternate_basis` but requires `sensor_basis`
+examples/reject/packages/other-basis/main.vast:6:1: note: while checking resource function `consume`
+examples/reject/packages/other-basis/main.vast:13:1: note: while checking resource function `main`
+examples/reject/packages/other-basis/main.vast:8:5: note: parameter `measurement` is declared here
+examples/reject/packages/other-basis/main.vast:18:5: note: actual target basis is `alternate_basis`, introduced here
+examples/reject/packages/other-basis/main.vast:15:5: note: required target basis is `sensor_basis`, introduced here
+examples/reject/packages/other-basis/main.vast:14:5: note: call argument is `sensors`, introduced here
+examples/reject/packages/other-basis/main.vast:15:5: note: call argument is `sensor_basis`, introduced here
+examples/reject/packages/other-basis/main.vast:24:5: note: call argument is `measured`, introduced here

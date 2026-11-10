@@ -17,8 +17,11 @@ def map_1 : VastitasKernel.AlgebraRuntime.Map :=
 def map_2 : VastitasKernel.AlgebraRuntime.Map :=
   (VastitasKernel.AlgebraRuntime.Map.mk 1 ([] : List VastitasKernel.AlgebraRuntime.Poly) ([([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly))
 
+def jacobian_0 : List (List VastitasKernel.AlgebraRuntime.Poly) :=
+  ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly))
+
 def f_3 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_2)
+  (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_0 v_1 v_2)
 
 def f_0 (v_1 : Bool) (v_2 : Int) : Int :=
   (if v_1 then (0 : Int) else v_2)

@@ -50,6 +50,11 @@ inductive SharedLiteral where
   /-- The map of a relative or smooth constant, declared as `map_k` and named
   by every call of a constant with that map. -/
   | map (map : AlgebraRuntime.Map)
+  /-- The Jacobian table of `map`, declared as `jacobian_k` and named by every
+  backward step along a map with that table. The literal holds the map, not
+  the table, so that neither an entry nor a call computes the table: the
+  context computes it once per map (`RenderContext.share`). -/
+  | jacobian (map : AlgebraRuntime.Map)
   deriving Repr, DecidableEq
 
 /-- The kind of a shared literal, which begins its name. -/
@@ -57,16 +62,46 @@ def SharedLiteral.kind : SharedLiteral → String
   | .basis _ => "basis"
   | .matrix _ => "matrix"
   | .map _ => "map"
+  | .jacobian _ => "jacobian"
 
 /-- What the lowering of a call reads from the whole module: the distinct
-literals that the module declares once. -/
+literals that the module declares once, and the Jacobian tables that it
+computed for them. -/
 structure RenderContext where
   literals : List SharedLiteral
+  /-- The Jacobian table of each map whose table the module shares. Two maps
+  may have one table; `literals` then holds the first of them. -/
+  jacobians : List (AlgebraRuntime.Map × List (List AlgebraRuntime.Poly)) := []
+
+/-- The Jacobian table of `map`: the one that the context holds, else the one
+computed here. -/
+def RenderContext.jacobian (ctx : RenderContext) (map : AlgebraRuntime.Map) : List (List AlgebraRuntime.Poly) :=
+  (ctx.jacobians.lookup map).getD (SmoothRuntime.jacobian map)
+
+/-- The literal whose declaration a literal names: for the Jacobian table of a
+map, the table of the first map of the context with an equal table; for any
+other literal, the literal. -/
+def RenderContext.declared (ctx : RenderContext) : SharedLiteral → SharedLiteral
+  | .jacobian map => .jacobian <| match ctx.jacobians.lookup map with
+    | some table => ((ctx.jacobians.find? (·.2 == table)).map (·.1)).getD map
+    | none => map
+  | literal => literal
 
 /-- The name of a literal that the module shares: its kind, then its position
 among the shared literals of that kind. -/
 def RenderContext.name? (ctx : RenderContext) (literal : SharedLiteral) : Option String :=
+  let literal := ctx.declared literal
   ((ctx.literals.filter (·.kind == literal.kind)).idxOf? literal).map fun index => s!"{literal.kind}_{index}"
+
+/-- The context of a module that shares the distinct `literals`. It computes
+the Jacobian table of each listed map once, and it keeps one literal for the
+maps with one table. -/
+def RenderContext.share (literals : List SharedLiteral) : RenderContext :=
+  let jacobians := literals.filterMap fun
+    | .jacobian map => some (map, SmoothRuntime.jacobian map)
+    | _ => none
+  let ctx : RenderContext := ⟨literals, jacobians⟩
+  { ctx with literals := literals.filter fun literal => ctx.declared literal == literal }
 
 /-! ## The text of generated programs
 
@@ -95,9 +130,11 @@ def literalType : SharedLiteral → String
   | .basis _ => s!"List {algebra "Poly"}"
   | .matrix _ => smooth "Matrix"
   | .map _ => algebra "Map"
+  | .jacobian _ => s!"List (List {algebra "Poly"})"
 /-- A literal in place, as the module writes it where it declares the literal:
 a basis; a checked metric matrix, row by row, with exact rational entries; a
-checked map, with its basis by name when the module shares the basis. -/
+checked map, with its basis by name when the module shares the basis; a
+Jacobian table, column by column, with exact rational coefficients. -/
 def literalValue (ctx : RenderContext) : SharedLiteral → String
   | .basis basis => renderPolys basis
   | .matrix matrix =>
@@ -106,6 +143,8 @@ def literalValue (ctx : RenderContext) : SharedLiteral → String
   | .map map =>
     let basis := (ctx.name? (.basis map.basis)).getD (renderPolys map.basis)
     s!"({algebra "Map.mk"} {map.arity} {basis} {renderPolys map.images})"
+  | .jacobian map =>
+    s!"([{String.intercalate ", " ((ctx.jacobian map).map renderPolys)}] : List (List {algebra "Poly"}))"
 /-- A literal at a call: by name when the module shares it, else in place. -/
 def renderLiteral (ctx : RenderContext) (literal : SharedLiteral) : String :=
   (ctx.name? literal).getD (literalValue ctx literal)
@@ -113,9 +152,8 @@ def renderLiteral (ctx : RenderContext) (literal : SharedLiteral) : String :=
 def renderMatrix (ctx : RenderContext) (matrix : SmoothRuntime.Matrix) : String := renderLiteral ctx (.matrix matrix)
 /-- A checked map at a call. -/
 def renderMap (ctx : RenderContext) (map : AlgebraRuntime.Map) : String := renderLiteral ctx (.map map)
-/-- A Jacobian table, column by column, with exact rational coefficients. -/
-def renderJacobian (table : List (List AlgebraRuntime.Poly)) : String :=
-  s!"([{String.intercalate ", " (table.map renderPolys)}] : List (List {algebra "Poly"}))"
+/-- The Jacobian table of a checked map at a call. -/
+def renderJacobian (ctx : RenderContext) (map : AlgebraRuntime.Map) : String := renderLiteral ctx (.jacobian map)
 /-- The lowering of a call whose rendered operands do not fit its entry. -/
 def arityMismatch : Except String String := .error "closed primitive arity mismatch"
 
@@ -179,8 +217,8 @@ structure PrimitiveDescriptor where
   render : RenderContext → List String → Except String String
   /-- The literals a generated module declares once for this entry; none
   unless the entry names them. The module declares the bases of all its
-  primitives, and the matrices and maps of the primitives that its functions
-  call (`Codegen.renderContext`). -/
+  primitives, and the matrices, maps and Jacobian tables of the primitives
+  that its functions call (`Codegen.renderContext`). -/
   literals : List SharedLiteral := []
   /-- The derivative rule: what a call contributes to compiled reverse Core.
   Every entry states it; there is no default. -/

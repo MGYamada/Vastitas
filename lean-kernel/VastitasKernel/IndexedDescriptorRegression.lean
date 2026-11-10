@@ -236,7 +236,7 @@ private def failure? {α : Type} : Except String α → Option String
   | .error message => some message
   | .ok _ => none
 
-private def noLiterals : RenderContext := ⟨[]⟩
+private def noLiterals : RenderContext := .share []
 private def callText : String :=
   "(VastitasKernel.SmoothRuntime.pairing (VastitasKernel.SmoothRuntime.differential v_0 v_1) v_2)"
 
@@ -285,13 +285,13 @@ private def sharp : PrimitiveDescriptor :=
   (PrimitiveDescriptor.sharedLiterals [demo, relativeConstant, demo])
   (PrimitiveDescriptor.sharedLiterals [relativeConstant])
 #eval checkEq "the lowering reads no shared literal"
-  (outcome (demo.render ⟨[.basis planeBasis]⟩ ["v_0", "v_1", "v_2"])) (none, some callText)
+  (outcome (demo.render (.share [.basis planeBasis]) ["v_0", "v_1", "v_2"])) (none, some callText)
 
 /-! A call names a literal that the module shares, by its kind and its
 position among the shared literals of that kind, and writes any other literal
 in place. A map in place names its basis when the module shares the basis. -/
 
-private def shared : RenderContext := ⟨[.basis planeBasis, .matrix inverse, .map planeMap, .matrix gram]⟩
+private def shared : RenderContext := .share [.basis planeBasis, .matrix inverse, .map planeMap, .matrix gram]
 private def mapText (basis : String) : String :=
   s!"(VastitasKernel.AlgebraRuntime.Map.mk 2 {basis} {Lowering.renderPolys planeMap.images})"
 private def matrixText (rows : String) : String := s!"([{rows}] : VastitasKernel.SmoothRuntime.Matrix)"
@@ -308,7 +308,7 @@ private def inverseText : String :=
     .ok "(VastitasKernel.SmoothRuntime.flat matrix_1 v_0)",
     .ok "(VastitasKernel.SmoothRuntime.sharp matrix_0 v_0)"].map outcome)
 #eval checkEq "a map that the module does not share is written in place and names its shared basis"
-  (outcome (relativeConstant.render ⟨[.basis planeBasis]⟩ [])) (none, some (mapText "basis_0"))
+  (outcome (relativeConstant.render (.share [.basis planeBasis]) [])) (none, some (mapText "basis_0"))
 #eval checkEq "without shared literals every literal is written in place"
   ([relativeConstant.render noLiterals [], sharp.render noLiterals ["v_0"]].map outcome)
   ([.ok (mapText (Lowering.renderPolys planeBasis)),
@@ -320,6 +320,47 @@ private def inverseText : String :=
     ("VastitasKernel.AlgebraRuntime.Map", mapText "basis_0"),
     ("VastitasKernel.SmoothRuntime.Matrix",
       matrixText "[(mkRat (2 : Int) 1), (mkRat (1 : Int) 1)], [(mkRat (1 : Int) 1), (mkRat (1 : Int) 1)]")]
+
+/-! A backward step along a declared map shares the Jacobian table of the
+map. Its entry lists the map. The context computes the table once per map and
+gives the maps with one table one name. -/
+
+/-- `t ↦ t²` and `t ↦ t² + 1`, which have one Jacobian table, and `t ↦ t³`. -/
+private def square : AlgebraRuntime.Map := ⟨1, [], [[⟨[2], 1⟩]]⟩
+private def shiftedSquare : AlgebraRuntime.Map := ⟨1, [], [[⟨[2], 1⟩, ⟨[0], 1⟩]]⟩
+private def cube : AlgebraRuntime.Map := ⟨1, [], [[⟨[3], 1⟩]]⟩
+/-- The backward step along a map of the line to itself. -/
+private def step (map : AlgebraRuntime.Map) : PrimitiveDescriptor :=
+  (PrimitiveBinding.cotangentJacobian (id "Cotangent")
+    ⟨id "Smooth", [.object (.global (id "Line")), .object (.global (id "Line"))]⟩ map).contract
+private def tables : RenderContext :=
+  .share [.jacobian square, .matrix gram, .jacobian shiftedSquare, .jacobian cube]
+/-- The table of one column and one entry `coefficient · t ^ exponent`. -/
+private def tableText (coefficient exponent : Nat) : String :=
+  s!"([([([(VastitasKernel.AlgebraRuntime.Term.mk [{exponent}] (mkRat ({coefficient} : Int) 1))] : " ++
+    "VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : " ++
+    "List (List VastitasKernel.AlgebraRuntime.Poly))"
+private def stepText (table : String) : String := s!"(VastitasKernel.SmoothRuntime.jacobianStep 1 {table} v_0 v_1 v_2)"
+
+#eval checkEq "a backward step shares the Jacobian table of its map and lists the map"
+  (PrimitiveDescriptor.sharedLiterals [step square, step shiftedSquare, step square])
+  [.jacobian square, .jacobian shiftedSquare]
+#eval checkEq "the context keeps one literal for two maps with one table"
+  tables.literals [.jacobian square, .matrix gram, .jacobian cube]
+#eval checkEq "the context holds the table of each listed map"
+  tables.jacobians [(square, [[[⟨[1], 2⟩]]]), (shiftedSquare, [[[⟨[1], 2⟩]]]), (cube, [[[⟨[2], 3⟩]]])]
+#eval checkEq "two maps with one table have one name"
+  ([square, shiftedSquare, cube].map fun map => tables.name? (.jacobian map))
+  [some "jacobian_0", some "jacobian_0", some "jacobian_1"]
+#eval checkEq "a step names the table that the module shares"
+  ([square, shiftedSquare, cube].map fun map => outcome ((step map).render tables ["v_0", "v_1", "v_2"]))
+  (["jacobian_0", "jacobian_0", "jacobian_1"].map fun name => (none, some (stepText name)))
+#eval checkEq "a step whose table the module does not share writes it in place"
+  (outcome ((step square).render noLiterals ["v_0", "v_1", "v_2"])) (none, some (stepText (tableText 2 1)))
+#eval checkEq "the module declares a table with its type and its value in place"
+  ([square, cube].map fun map => (Lowering.literalType (.jacobian map), Lowering.literalValue tables (.jacobian map)))
+  [("List (List VastitasKernel.AlgebraRuntime.Poly)", tableText 2 1),
+    ("List (List VastitasKernel.AlgebraRuntime.Poly)", tableText 3 2)]
 
 /-! The lowered text elaborates as the body of a generated function whose
 parameters and result have the types that `renderType` in `IndexedCodegen`

@@ -14,8 +14,8 @@
 mod common;
 use common::{
     Scratch, assert_wire_rejected, captured_wire, checked_replace, cli,
-    generated_reverse_functions, kernel, lean_definitions, lean_function_id, regenerate_fixture,
-    root, success,
+    generated_reverse_functions, kernel, lean_definitions, lean_function_id, lean_shared_literal,
+    regenerate_fixture, root, success,
 };
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -114,32 +114,34 @@ fn definition<'a>(source: &'a str, request: &Value, name: &str) -> &'a str {
         .1
 }
 
-/// The Jacobian table of the step that starts `call`:
-/// `(VastitasKernel.SmoothRuntime.jacobianStep <outputs> (<table>) …`.
+/// The declared Jacobian table that the step starting `call` names:
+/// `(VastitasKernel.SmoothRuntime.jacobianStep <outputs> jacobian_<k> …`.
 fn jacobian_table(call: &str) -> &str {
     let rest = call
         .strip_prefix("(VastitasKernel.SmoothRuntime.jacobianStep ")
         .unwrap();
-    let (outputs, table) = rest.split_once(' ').unwrap();
+    let mut words = rest.split(' ');
+    let outputs = words.next().unwrap();
     assert!(
         !outputs.is_empty() && outputs.bytes().all(|byte| byte.is_ascii_digit()),
         "{call}"
     );
-    assert!(table.starts_with('('), "{call}");
-    let mut depth = 0;
-    for (index, character) in table.char_indices() {
-        match character {
-            '(' => depth += 1,
-            ')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return &table[..=index];
-                }
-            }
-            _ => {}
-        }
-    }
-    panic!("unbalanced Jacobian step: {call}")
+    let table = words.next().unwrap();
+    assert!(
+        table.starts_with("jacobian_") && lean_shared_literal(table),
+        "{call}"
+    );
+    table
+}
+
+/// The Jacobian tables that an emitted module declares, as `(name, value)`
+/// pairs: `def jacobian_<k> : … :=` and the literal on the next line.
+fn jacobian_tables(source: &str) -> Vec<(&str, &str)> {
+    lean_definitions(source)
+        .into_iter()
+        .filter(|(name, _)| name.starts_with("jacobian_"))
+        .map(|(name, text)| (name, text.split_once(":=\n  ").unwrap().1.trim_end()))
+        .collect()
 }
 
 fn package(manifest: &str, main: &str) -> Scratch {
@@ -201,8 +203,10 @@ fn acceptance_sites_compile_to_generated_backward_functions() {
             .map(|(_, body)| body.matches(text).count())
             .sum()
     };
-    // Every Jacobian step lies in a generated function and carries its table
-    // as a literal: rational polynomials, without a variable.
+    // Every Jacobian step lies in a generated function and names a table
+    // that the module declares once (#629): a literal of rational
+    // polynomials, without a variable. Steps with one table name one
+    // declaration, so the module holds fewer tables than steps.
     let steps = source
         .matches("(VastitasKernel.SmoothRuntime.jacobianStep ")
         .count();
@@ -212,14 +216,26 @@ fn acceptance_sites_compile_to_generated_backward_functions() {
         steps,
         "{source}"
     );
-    for (at, _) in source.match_indices("(VastitasKernel.SmoothRuntime.jacobianStep ") {
-        let table = jacobian_table(&source[at..]);
+    let named: BTreeSet<&str> = source
+        .match_indices("(VastitasKernel.SmoothRuntime.jacobianStep ")
+        .map(|(at, _)| jacobian_table(&source[at..]))
+        .collect();
+    let tables = jacobian_tables(&source);
+    let declared: BTreeSet<&str> = tables.iter().map(|(name, _)| *name).collect();
+    assert_eq!(named, declared, "{source}");
+    assert_eq!(declared.len(), tables.len(), "{source}");
+    assert!(tables.len() < steps, "{source}");
+    let table_type = " : List (List VastitasKernel.AlgebraRuntime.Poly))";
+    for (_, table) in &tables {
         assert!(
-            table.ends_with(" : List (List VastitasKernel.AlgebraRuntime.Poly))"),
+            table.starts_with("([") && table.ends_with(table_type),
             "{table}"
         );
         assert!(!table.contains("v_"), "{table}");
     }
+    let values: BTreeSet<&str> = tables.iter().map(|(_, table)| *table).collect();
+    assert_eq!(values.len(), tables.len(), "{source}");
+    assert_eq!(source.matches(table_type).count(), tables.len(), "{source}");
     // The only runtime reverse passes: the three gradient functions differentiate
     // their parameter h, and code 3 pulls back along composite(gAfterF). Each
     // is the whole body of its generated function, and the map it pulls back
@@ -529,6 +545,14 @@ fn a_tape_bound_by_let_compiles_and_a_tape_passed_to_a_function_keeps_its_routin
     for (name, _) in &generated {
         assert_eq!(main.matches(&format!("({name} ")).count(), 1, "{main}");
     }
+    // Each generated function has a step along f and a step along g. The
+    // eight steps name the two tables that the module declares.
+    assert_eq!(
+        source.matches("SmoothRuntime.jacobianStep ").count(),
+        8,
+        "{source}"
+    );
+    assert_eq!(jacobian_tables(&source).len(), 2, "{source}");
     assert_eq!(source.matches("SmoothRuntime.linearize ").count(), 1);
     assert_eq!(
         main.matches("SmoothRuntime.linearize ").count(),

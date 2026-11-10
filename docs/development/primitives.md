@@ -45,9 +45,9 @@ describes the registry's place in the checker, and
 - The [**lowering**](../appendix/glossary.md#lowering) of a call is the Lean
   text that code generation writes for it, from the texts of its operands.
 - A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis,
-  a matrix or a map that a generated module declares once, as `basis_k`,
-  `matrix_k` or `map_k`, and that the lowering of every call that uses it
-  names.
+  a matrix, a map or a Jacobian table that a generated module declares once,
+  as `basis_k`, `matrix_k`, `map_k` or `jacobian_k`, and that the lowering of
+  every call that uses it names.
 - The [**wire form**](../appendix/glossary.md#wire-form) of a binding is the
   record that the frontend sends for an `indexed primitive` declaration: an
   `op` and its named fields.
@@ -75,7 +75,7 @@ tables below take no case per constructor. Module paths are relative to
 | `PrimitiveFresh` | `IndexedSemantics.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `allocatedSerials` and the fresh brand of `emitPrimitive` | `IndexedTypeAudit.lean`, `IndexedSourceBodies.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `Codegen.renderPrimitive` | `IndexedCodegen.lean` | `render` |
-| `Codegen.renderContext` and the `basis_k`, `matrix_k` and `map_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
+| `Codegen.renderContext` and the `basis_k`, `matrix_k`, `map_k` and `jacobian_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
 | The reverse sites of a module and the maps of each site | `IndexedReverse.lean` | `reverse` |
 
 The oracle states the semantic obligations of an entry once, for any
@@ -217,18 +217,21 @@ The lowering matches the operand texts that the shape admits and returns
 number of operands, and the checked operand count fixes it. The lowering
 writes runtime names with `Lowering.runtime`, `Lowering.algebra` and
 `Lowering.smooth`, and the checked data of the binding with
-`Lowering.renderMap`, `Lowering.renderPolys` and `Lowering.renderMatrix`. It
-uses no source spelling. `Lowering.renderMap` names a map as `map_k` and
-`Lowering.renderMatrix` names a matrix as `matrix_k` when the `RenderContext`
-lists it, and each writes the literal in place otherwise. A map in place
-names its basis as `basis_k` in the same way. The context lists the bases
-that some entry of the module puts in `literals`. It lists the matrices and
-maps that the entry of a primitive puts there when a generated function calls
-the primitive. `relativeConstant` lists its basis and its map,
-`smoothConstant` its map, `metricFlat` its Gram matrix and `metricSharp` its
-inverse. A literal that an entry writes without listing it is repeated at
-every call, as the Jacobian table that `cotangentJacobian` writes with
-`Lowering.renderJacobian` is.
+`Lowering.renderMap`, `Lowering.renderPolys`, `Lowering.renderMatrix` and
+`Lowering.renderJacobian`. It uses no source spelling. `Lowering.renderMap`
+names a map as `map_k`, `Lowering.renderMatrix` names a matrix as `matrix_k`
+and `Lowering.renderJacobian` names the Jacobian table of a map as
+`jacobian_k` when the `RenderContext` lists it, and each writes the literal
+in place otherwise. A map in place names its basis as `basis_k` in the same
+way. The context lists the bases that some entry of the module puts in
+`literals`. It lists the matrices, maps and Jacobian tables that the entry of
+a primitive puts there when a generated function calls the primitive.
+`relativeConstant` lists its basis and its map, `smoothConstant` its map,
+`metricFlat` its Gram matrix, `metricSharp` its inverse and
+`cotangentJacobian` the Jacobian table of its map. An entry lists a Jacobian
+table by its map: `RenderContext.share` computes the table once per map, and
+two maps with one table name one declaration. A literal that an entry writes
+without listing it is repeated at every call.
 
 The entry grants no authority. The all-body audits and the public acceptance
 path do not change.

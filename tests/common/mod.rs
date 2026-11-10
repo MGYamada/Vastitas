@@ -276,12 +276,14 @@ pub fn lean_function_id(name: &str) -> Option<usize> {
     name.strip_prefix("f_")?.parse().ok()
 }
 /// Whether a definition of an emitted Lean module declares a literal that
-/// its calls share: `basis_<k>`, `matrix_<k>` or `map_<k>`.
+/// its calls share: `basis_<k>`, `matrix_<k>`, `map_<k>` or `jacobian_<k>`.
 pub fn lean_shared_literal(name: &str) -> bool {
-    ["basis_", "matrix_", "map_"].iter().any(|kind| {
-        name.strip_prefix(kind)
-            .is_some_and(|index| index.parse::<usize>().is_ok())
-    })
+    ["basis_", "matrix_", "map_", "jacobian_"]
+        .iter()
+        .any(|kind| {
+            name.strip_prefix(kind)
+                .is_some_and(|index| index.parse::<usize>().is_ok())
+        })
 }
 /// The backward functions that the kernel generates for the reverse sites of
 /// an emitted module (#623), given the number of source functions: the

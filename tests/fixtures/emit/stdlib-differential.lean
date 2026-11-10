@@ -20,6 +20,12 @@ def matrix_0 : VastitasKernel.SmoothRuntime.Matrix :=
 def matrix_1 : VastitasKernel.SmoothRuntime.Matrix :=
   ([[(mkRat (1 : Int) 1), (mkRat (-1 : Int) 1)], [(mkRat (-1 : Int) 1), (mkRat (2 : Int) 1)]] : VastitasKernel.SmoothRuntime.Matrix)
 
+def jacobian_0 : List (List VastitasKernel.AlgebraRuntime.Poly) :=
+  ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly))
+
+def jacobian_1 : List (List VastitasKernel.AlgebraRuntime.Poly) :=
+  ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), ([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly))
+
 structure Package_0 where
   witness : VastitasKernel.IndexedRuntime.Object
   field_0 : VastitasKernel.IndexedRuntime.Point
@@ -32,25 +38,25 @@ def f_31 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.Smoo
   (VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved v_0 v_1 v_3)
 
 def f_32 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_2)
+  (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_0 v_1 v_2)
 
 def f_33 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (VastitasKernel.SmoothRuntime.jacobianStep 2 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), ([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_2)
+  (VastitasKernel.SmoothRuntime.jacobianStep 2 jacobian_1 v_0 v_1 v_2)
 
 def f_34 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_2)
+  (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_0 v_1 v_2)
 
 def f_35 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : VastitasKernel.SmoothRuntime.Program) (v_3 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_1 v_2 v_3); (VastitasKernel.SmoothRuntime.jacobianStep 2 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), ([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_4))
+  (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_1 v_2 v_3); (VastitasKernel.SmoothRuntime.jacobianStep 2 jacobian_1 v_0 v_1 v_4))
 
 def f_36 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (let v_2 := (VastitasKernel.SmoothRuntime.applyPoint (VastitasKernel.SmoothRuntime.Program.primitive map_0) v_0); (let v_3 := (VastitasKernel.SmoothRuntime.applyPoint (VastitasKernel.SmoothRuntime.Program.primitive map_1) v_2); (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_2 v_3 v_1); (VastitasKernel.SmoothRuntime.jacobianStep 2 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), ([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_2 v_4))))
+  (let v_2 := (VastitasKernel.SmoothRuntime.applyPoint (VastitasKernel.SmoothRuntime.Program.primitive map_0) v_0); (let v_3 := (VastitasKernel.SmoothRuntime.applyPoint (VastitasKernel.SmoothRuntime.Program.primitive map_1) v_2); (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_2 v_3 v_1); (VastitasKernel.SmoothRuntime.jacobianStep 2 jacobian_1 v_0 v_2 v_4))))
 
 def f_37 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : VastitasKernel.SmoothRuntime.Program) (v_3 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_1 v_2 v_3); (VastitasKernel.SmoothRuntime.jacobianStep 2 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), ([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_4))
+  (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_1 v_2 v_3); (VastitasKernel.SmoothRuntime.jacobianStep 2 jacobian_1 v_0 v_1 v_4))
 
 def f_38 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : VastitasKernel.SmoothRuntime.Program) (v_3 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1, 0] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly), ([([(VastitasKernel.AlgebraRuntime.Term.mk [0, 0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_1 v_2 v_3); (VastitasKernel.SmoothRuntime.jacobianStep 2 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [0] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), ([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_4))
+  (let v_4 := (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_1 v_2 v_3); (VastitasKernel.SmoothRuntime.jacobianStep 2 jacobian_1 v_0 v_1 v_4))
 
 def f_15 (v_26 : VastitasKernel.SmoothRuntime.Program) (v_27 : VastitasKernel.SmoothRuntime.Program) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
   (VastitasKernel.SmoothRuntime.sharp matrix_1 (let v_28 := v_27; (let v_30 := (VastitasKernel.SmoothRuntime.applyPoint v_26 v_28); (let v_29 := (VastitasKernel.SmoothRuntime.vector v_30 [(1 : Int)]); (f_31 v_26 v_28 v_30 v_29)))))

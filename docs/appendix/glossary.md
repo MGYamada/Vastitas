@@ -534,7 +534,8 @@ the saved output point. Compare [opaque step](#opaque-step). See
 
 The matrix of partial derivatives of a declared [smooth map](#smooth-map), as
 polynomials with rational coefficients. The kernel computes it from the map
-when it generates the program, and the generated code holds it as a literal.
+when it generates the program, and the generated code declares each distinct
+table once as a [shared literal](#shared-literal).
 A step of [backward Core](#backward-core) along the map evaluates the table at
 the saved input point and applies its transpose to the seed. That step is a
 [Jacobian step](#jacobian-step). See
@@ -1078,10 +1079,11 @@ The kind of a core geometric object: `Scheme` for ordinary objects and
 
 ## Shared literal
 
-A basis, a matrix or a map that a generated module declares once and that the
-[lowering](#lowering) of every call that uses it names. A basis is declared
-as `basis_k`, the Gram matrix of a metric or its inverse as `matrix_k`, and
-the map of a relative or smooth constant as `map_k`. The `literals`
+A basis, a matrix, a map or a [Jacobian table](#jacobian-table) that a
+generated module declares once and that the [lowering](#lowering) of every
+call that uses it names. A basis is declared as `basis_k`, the Gram matrix of
+a metric or its inverse as `matrix_k`, the map of a relative or smooth
+constant as `map_k`, and a Jacobian table as `jacobian_k`. The `literals`
 field of a [registry entry](#registry-entry) lists the shared literals of the
 binding's calls. See
 [Add an indexed primitive](../development/primitives.md#2-the-registry-entry).

@@ -20,6 +20,9 @@ def map_2 : VastitasKernel.AlgebraRuntime.Map :=
 def map_3 : VastitasKernel.AlgebraRuntime.Map :=
   (VastitasKernel.AlgebraRuntime.Map.mk 1 ([] : List VastitasKernel.AlgebraRuntime.Poly) ([([(VastitasKernel.AlgebraRuntime.Term.mk [2] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly))
 
+def jacobian_0 : List (List VastitasKernel.AlgebraRuntime.Poly) :=
+  ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly))
+
 def f_7 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : VastitasKernel.SmoothRuntime.Program) (v_3 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
   (VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved v_0 v_1 v_3)
 
@@ -27,7 +30,7 @@ def f_8 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.Smoot
   (VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.recomputed v_0 v_1 v_2)
 
 def f_9 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : VastitasKernel.SmoothRuntime.Program) (v_3 : VastitasKernel.SmoothRuntime.Program) (v_4 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
-  (let v_5 := (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (2 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : List (List VastitasKernel.AlgebraRuntime.Poly)) v_2 v_3 v_4); (VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved v_0 v_1 v_5))
+  (let v_5 := (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_2 v_3 v_4); (VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved v_0 v_1 v_5))
 
 def f_10 (v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) (v_2 : VastitasKernel.SmoothRuntime.Program) (v_3 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=
   (VastitasKernel.SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved v_0 v_1 v_3)

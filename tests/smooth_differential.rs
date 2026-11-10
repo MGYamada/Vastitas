@@ -617,10 +617,11 @@ fn each_pullback_binding_compiles_to_its_own_residual_policy() {
     // The kernel compiles the pullback along the declared map sq into Core
     // (#623): a generated backward function `f_1`, placed first among the
     // functions, with one Jacobian step. The module declares the map of sq
-    // once, as `map_0`, before its functions. Saved, the caller evaluates
-    // sq(3) and passes both points and the seed; recomputed, it passes the
-    // input point and the seed, and the function evaluates sq(3) again.
-    // Neither runs the runtime reverse pass.
+    // and its Jacobian table once, as `map_0` and `jacobian_0`, before its
+    // functions. Saved, the caller evaluates sq(3) and passes both points
+    // and the seed; recomputed, it passes the input point and the seed, and
+    // the function evaluates sq(3) again. Neither runs the runtime reverse
+    // pass.
     for (binding, parameters, caller_images, function_images) in
         [("pullback", 3, 1, 0), ("pullback_recomputed", 2, 0, 1)]
     {
@@ -630,14 +631,16 @@ fn each_pullback_binding_compiles_to_its_own_residual_policy() {
         let names: Vec<&str> = definitions.iter().map(|(name, _)| *name).collect();
         assert_eq!(
             names,
-            ["map_0", "f_1", "f_0", "main"],
+            ["map_0", "jacobian_0", "f_1", "f_0", "main"],
             "{binding}: {source}"
         );
-        let (generated, caller) = (definitions[1].1, definitions[2].1);
+        let (generated, caller) = (definitions[2].1, definitions[3].1);
         let header = generated.lines().next().unwrap();
         assert_eq!(header.matches(" (v_").count(), parameters, "{header}");
         assert_eq!(
-            generated.matches("SmoothRuntime.jacobianStep ").count(),
+            generated
+                .matches("(VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 ")
+                .count(),
             1,
             "{generated}"
         );

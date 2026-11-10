@@ -47,13 +47,14 @@ The lowering of an entry writes the generated Lean text of a call from its
 rendered operands, in the vocabulary of `Lowering`, and rejects any other
 operand list with the one arity error; a variadic entry (the two integer
 points, and the components after a fiber vector's point) renders any number of
-operands, and the checked operand count fixes the number. Four entries share
+operands, and the checked operand count fixes the number. Five entries share
 literals, which a generated module declares once and their calls name. A
 relative constant shares its basis: the module declares each distinct basis
 once as `basis_k`, and every map over it, relative or smooth, names it. A
 relative or smooth constant shares its map (`map_k`), `flat` the Gram matrix
-of its metric and `sharp` the certified inverse (`matrix_k`). The Jacobian
-table of a `cotangentJacobian` step is not shared: every call writes it. -/
+of its metric and `sharp` the certified inverse (`matrix_k`), and a
+`cotangentJacobian` step the Jacobian table of its map (`jacobian_k`). The
+step lists the map, and the module computes the table once per map. -/
 namespace VastitasKernel.Indexed
 open VastitasKernel.Indexed.Audit (validApplication_iff)
 open VastitasKernel.Indexed.Core.Semantics (globalObject intPointValue smoothPointValue fiberVectorValue
@@ -644,13 +645,13 @@ def PrimitiveBinding.contract : PrimitiveBinding → PrimitiveDescriptor
               some (.fiber (SmoothRuntime.jacobianStep affineMap.images.length
                 (SmoothRuntime.jacobian affineMap) input output seed))
           | _ => none)
-        (fun _ args => match args with
+        (fun ctx args => match args with
           | [input, output, seed] =>
             .ok (Lowering.application (Lowering.smooth "jacobianStep")
-              [toString affineMap.images.length, Lowering.renderJacobian (SmoothRuntime.jacobian affineMap),
-                input, output, seed])
+              [toString affineMap.images.length, Lowering.renderJacobian ctx affineMap, input, output, seed])
           | _ => Lowering.arityMismatch)
         .none
+        (literals := [.jacobian affineMap])
     | _ => .ofBool .uncallable
         (fun env => cotangentJacobianValid env cotangent application affineMap)
         (fun _ _ => none) (fun _ => none) (fun _ _ => Lowering.arityMismatch) .none

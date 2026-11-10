@@ -7,9 +7,11 @@ positions and validated contracts, never source spellings. The text of a
 primitive call comes from the registry entry of its binding
 (`PrimitiveBinding.contract`), in the vocabulary of `Lowering`. The literals
 a module declares once come from the same entries: the bases from the entries
-of all its primitives, the matrices and maps from the entries of the
-primitives that the generated functions call. A call names such a literal, so
-the size of a module does not grow by a literal per call. -/
+of all its primitives, the matrices, maps and Jacobian tables from the entries
+of the primitives that the generated functions call. The generated steps of
+compiled reverse Core are primitives of the module, so their tables are among
+them. A call names such a literal, so the size of a module does not grow by a
+literal per call. -/
 namespace VastitasKernel.Indexed.Core.Codegen
 open Typing
 open VastitasKernel.Indexed.Lowering (runtime algebra smooth application literalType literalValue)
@@ -29,14 +31,15 @@ private def primitiveIds : Term → List DeclId
 /-- What the lowering of a call reads from the module: the distinct literals
 that the module declares once and every call names. The bases are those that
 the entries of all its checked primitives share, in declaration order
-(`basis_k`). The matrices and maps are those that the entries of the `called`
-primitives share, in declaration order (`matrix_k`, `map_k`), so a primitive
-that no generated function calls adds neither. -/
+(`basis_k`). The matrices, maps and Jacobian tables are those that the entries
+of the `called` primitives share, in declaration order (`matrix_k`, `map_k`,
+`jacobian_k`), so a primitive that no generated function calls adds none. The
+context computes the Jacobian table of each such map once. -/
 def renderContext (env : Declarations) (called : DeclId → Bool) : RenderContext :=
   let shared := fun (primitives : List NamedPrimitive) =>
     PrimitiveDescriptor.sharedLiterals (primitives.map fun entry => entry.binding.contract)
-  ⟨(shared env.primitives).filter (· matches .basis _) ++
-    (shared (env.primitives.filter fun entry => called entry.id)).filter fun literal => !(literal matches .basis _)⟩
+  .share ((shared env.primitives).filter (· matches .basis _) ++
+    (shared (env.primitives.filter fun entry => called entry.id)).filter fun literal => !(literal matches .basis _))
 private def variableName (symbol : Nat) : String := s!"v_{symbol}"
 private def functionName (symbol : Nat) : String := s!"f_{symbol}"
 private def packageName (index : Nat) : String := s!"Package_{index}"

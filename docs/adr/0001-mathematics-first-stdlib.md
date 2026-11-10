@@ -589,9 +589,8 @@ what is implemented, tested and proved.
   admits, for this profile, the compiler-emitted reverse Core that §10
   excluded when it was adopted. [#361](https://github.com/MGYamada/Vastitas/issues/361)
   and [#290](https://github.com/MGYamada/Vastitas/issues/290) keep the general
-  cases, [#164](https://github.com/MGYamada/Vastitas/issues/164) the optimizer
-  obligation, and [#629](https://github.com/MGYamada/Vastitas/issues/629) the
-  sharing of Jacobian tables.
+  cases, and [#164](https://github.com/MGYamada/Vastitas/issues/164) the
+  optimizer obligation.
 - **Gradient export.** Exporting a generic `gradient` from
   `std::differential` needs object-polymorphic signatures and metric
   parameters: [#626](https://github.com/MGYamada/Vastitas/issues/626).

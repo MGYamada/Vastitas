@@ -30,12 +30,16 @@ compiler prints for it.
 
 Each alternative is one form of `IndexedDeclaration`, an
 [item](language/items.md). `pub` before it makes it visible outside its
-module. Two further forms of this chapter share their productions with smooth
-affine geometry. A [morphism over a base](#morphisms-over-a-base) is a
+module. Three further forms of this chapter have their productions in other
+chapters. A [morphism over a base](#morphisms-over-a-base) is a
 `MorphismDeclaration`, which [Smooth maps](language/smooth-declarations.md#smooth-maps)
 defines. A [primitive](#morphism-primitives) of this chapter is a
 `PrimitiveDeclaration`, which [Primitives](indexed-source.md#primitives)
-defines, with a `RelativeBinding`.
+defines, with a `RelativeBinding`. `Affine(K, n)[…]`, another spelling of a
+[presented affine object](#presented-affine-objects), is an
+`AffineSpaceDeclaration`, which
+[Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects)
+defines.
 
 The relations and the images of this chapter are
 [polynomial expressions](language/smooth-declarations.md#polynomial-expressions)
@@ -63,16 +67,18 @@ the presented affine objects. `rational` names the field of their
 coefficients, the rational numbers. A classification whose domain lists such
 an implementation, such as `AffineScheme` below, is the classification over
 which a relative family ranges. A **relative family** is a family with the
-`relative` representation. Its application `Over<X, Y, S>` is the type of the
-[morphisms](#morphisms-over-a-base) from `X` to `Y` over the base `S`.
+`relative` representation. The indexed type `Over<X, Y, S>` of such a family
+is the type of the [morphisms](#morphisms-over-a-base) from `X` to `Y` over
+the base `S`.
 
-The constraint `structural(i, j)` holds for an application when its indices
-`i` and `j` are presented affine objects and index `j` lies on the
-[base chain](#presented-affine-objects) of index `i`. Every object lies on its
-own base chain. The constraint compares declarations, never markers or
-presentations. An object that a function body creates or opens never
-satisfies it. The two constraints of a relative family say that the source
-and the target both lie over the base.
+The constraint `structural(i, j)` holds for an indexed type when its
+arguments `i` and `j` are presented affine objects and argument `j` lies on
+the [base chain](#presented-affine-objects) of argument `i`. Every object
+lies on its own base chain. The constraint compares declarations, never
+markers or presentations. Only a declared object satisfies it: a parameter,
+and an object that a function body creates or opens, never do. The two
+constraints of a relative family say that the source and the target both lie
+over the base.
 
 The standard library declares one presented profile.
 `std::geometry::scheme::affine` declares the implementation `AffineQQ`, the
@@ -81,7 +87,7 @@ and `same`. It declares three objects: `SpecQQ` is `spec[]`, `Line` is
 `spec[t] over SpecQQ`, and `DualNumbers` is
 `spec[e] relations(e^2) over SpecQQ`. A program may use these declarations or
 declare a profile of its own. Each declaration is a distinct object or family,
-so an application's own `spec[t] over SpecQQ` is not the library's `Line`.
+so a program's own `spec[t] over SpecQQ` is not the library's `Line`.
 
 Rules:
 
@@ -102,10 +108,11 @@ Rules:
 - A presented affine object never indexes a family with the `point` or
   `morphism` representation: [Families](indexed-source.md#families) admits
   only descriptor objects there.
-- Both slots of `structural(i, j)` must be `object(…)` parameters. Otherwise
-  it is an error (`E_TYPE`). A family with the `token` representation may
+- Both positions of `structural(i, j)` must be the positions of `object(…)`
+  parameters. Otherwise it is an error (`E_TYPE`). A family with the `token` representation may
   state the constraint.
-- A type whose indices fail a `structural` constraint is an error (`E_TYPE`).
+- A type whose arguments fail a `structural` constraint is an error
+  (`E_TYPE`).
 
 > **Implementation note.** The driver sends a package graph that holds a
 > declaration of this chapter through wire protocol 9, as
@@ -185,9 +192,10 @@ apply to it.
 Rules:
 
 - The path after the name of the object must name an implementation with the
-  `presented_affine` representation. A `smooth_affine` implementation is an
-  error (`E_SMOOTH`), and any other declaration there is an error
-  (`E_TYPE`). The same holds for a fiber product and for a principal open.
+  `presented_affine` representation. Any other declaration there is an error
+  (`E_TYPE`), apart from a `smooth_affine` implementation, whose error
+  [Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects)
+  gives. The same holds for a fiber product and for a principal open.
 - The coordinates must be distinct. Otherwise it is an error
   (`E_AFFINE_COORDINATE`).
 - An object must have at most 16 coordinates. Otherwise it is an error
@@ -408,8 +416,9 @@ from the first and `(0, 1)` from the second. `compose(toS(), toX())` equals
 `dsToS()`. `at(3)` is the point 3 of `Line`, and
 `value(compose(sq(), at(3)))` is `(9, 1)`.
 
-A view changes the base of a morphism to an object further along the base
-chain. In
+A **view** of a morphism is the same morphism over an object further along
+the base chain of its base. A primitive with the binding `relative_view`
+gives it. In
 [`examples/packages/stdlib-affine/main.vast`](https://github.com/MGYamada/Vastitas/blob/main/examples/packages/stdlib-affine/main.vast),
 `Curve` is the curve $x^2 = t$ over the library's `Line`. `curveToLine()` is
 its structure map, a morphism over `Line`, and `overPoint(curveToLine())` is
@@ -713,9 +722,10 @@ lists the bounds of that arithmetic with their values.
 
 Rules:
 
-- An object must have at most `algebraGenerators` coordinates, which is 16,
-  and at most `algebraRelations` relations. A base chain must hold at most
-  `algebraChain` objects, which is 16.
+- [Presented affine objects](#presented-affine-objects) gives the limits on
+  the coordinates of an object (`algebraGenerators`) and on the objects of a
+  base chain (`algebraChain`). An object must also have at most
+  `algebraRelations` relations.
 - Every polynomial that a check produces must have at most `algebraTerms`
   terms, and each check must stay within `algebraWork` units of work. This
   covers the basis of an object and the images of a morphism. It covers the
@@ -735,21 +745,23 @@ Rules:
 
 These rules apply to every call of a primitive of this chapter.
 
+Rules:
+
 - A call must have the number of operands that the binding fixes. Otherwise it
   is an error (`E_ARITY`).
 - An operand of a `relative_int_point` primitive must have type `Int`.
   Otherwise it is an error (`E_TYPE`).
-- An operand whose shape does not fit its slot is an error (`E_TYPE`). This
-  covers a value that is not a family application, such as an `Int` or a
-  `Bool`, in the slot of a morphism. It also covers a value with a number of
-  object indices other than three in a slot of `relative_compose`,
-  `relative_view` or `relative_pair`.
+- An operand whose kind does not fit the table of bindings is an error
+  (`E_TYPE`). This covers a value that is not a value of a family, such as an
+  `Int` or a `Bool`, in the place of a morphism. It also covers a value of a
+  family with a number of object arguments other than three as an operand of
+  `relative_compose`, `relative_view` or `relative_pair`.
 - Any other operand from the wrong family, or with the wrong source, target
   or base, is an error (`E_ENDPOINT`). Examples are two morphisms whose
   middle objects differ, a morphism of another relative family, and a
   morphism into a second declaration of the expected object.
 - The `E_ENDPOINT` message names the first failed check: the operand, the
-  family, object or base that its slot expects, and the one supplied. The
+  family, object or base that the binding expects, and the one supplied. The
   compiler checks families before objects, and the objects of
   `relative_compose` before its base.
 

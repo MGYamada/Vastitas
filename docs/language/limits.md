@@ -12,7 +12,7 @@ states the limits that the construct meets in ordinary use, and
 | Kind | Bounds | Examples | Code |
 | --- | --- | --- | --- |
 | Nesting | The depth of a construct inside constructs of its kind | Nested expressions, types and branches, modules inside modules, a chain of package dependencies, the levels of a polynomial expression | `E_LIMIT` |
-| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements of resource functions | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions |
+| Count | The number of things of one kind | The parameters and the keys of a generic, the abstract types, the specialized instances, the modules and the input files of a program, the events of an assembly, the statements of resource functions | `E_LIMIT`; `E_RESOURCE_LIMIT` in resource functions; `E_TYPE` for the parts of one `indexed` declaration |
 | Size of a number | The digits or the bits of a number that the checker computes with | A literal of a polynomial expression, an entry of a Gram matrix, an integer of a storage type | `E_LIMIT`; `E_RESOURCE_LIMIT` for an integer of a storage type |
 | Size of data | The bytes of an input or of an allocation | One input file, all inputs of a program, one allocation | `E_LIMIT` for inputs; `E_RESOURCE_OVERFLOW` for an allocation |
 | Work budget | The units of work of one check | The elaboration of a program, the dispatch table of a generic, the resolution of names, the checking of resource functions, the exact algebra of a declaration | `E_LIMIT` |
@@ -27,7 +27,7 @@ Rules:
 - The compiler has no option that changes a limit.
 - A program beyond a limit is an error. Its code is `E_LIMIT`, unless the
   chapter of the construct gives another code. The table gives the codes of
-  each kind, and the next three rules name the chapters with other codes.
+  each kind, and the next four rules name the chapters with other codes.
 - A program beyond a limit on the statements, the `value` blocks, the
   parameters, the calls or the integers of resource functions is an error
   (`E_RESOURCE_LIMIT`).
@@ -43,6 +43,11 @@ Rules:
   the steps of its plan is an error (`E_TENSOR_TREE`), as
   [Contraction trees](../linalg/networks-and-packing.md#contraction-trees)
   says.
+- An `indexed` declaration beyond a limit on the implementations of a
+  classification, the parameters of a family, or the cases or the fields of a
+  package declaration is an error (`E_TYPE`), as
+  [Indexed declarations](../indexed-source.md) says. A program beyond the
+  limit on the number of its indexed declarations is an error (`E_LIMIT`).
 - The compiler never accepts a part of a program to stay within a limit. A
   rejected program produces no executable.
 - A limit holds for the whole program. The checker checks every body, even

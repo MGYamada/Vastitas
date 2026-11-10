@@ -24,7 +24,7 @@ The first command generates the standard library's package root; see
 A *presented affine object* has coordinates and polynomial relations between
 them. Its points are the solutions of the relations. Its functions are the
 polynomials in the coordinates, and two polynomials are the same function
-when they differ by a multiple of the relations.
+when their difference is a sum of multiples of the relations.
 
 The standard library declares three such objects. The program imports them
 with the family `Over`, the implementation `AffineQQ` and two functions:

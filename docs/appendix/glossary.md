@@ -323,8 +323,10 @@ The dual space or a conjugate space of a [space](#space), declared with
 
 ## Descriptor object
 
-An object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
+An object of an implementation with the representation `affine_descriptor`,
+such as an object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
 `Affine(CInfReal, n)` builds. It records only its dimension. See
+[Implementations](../indexed-source.md#implementations) and
 [Geometric types](../language/geometric-types.md).
 
 ## Diagnostic
@@ -999,7 +1001,7 @@ and the [guide](../guide/affine-geometry.md#objects-given-by-equations).
 ## Primitive
 
 An `indexed primitive` declaration. It binds a name, such as `origin` or
-`compose`, to one of a closed set of primitive contracts. The checker audits
+`compose`, to one of a closed set of primitive bindings. The checker audits
 each primitive's representation, domain, arity, capabilities and family shapes.
 See [Primitives](../indexed-source.md#primitives).
 
@@ -1522,7 +1524,10 @@ A rectangle of [cells](#cell) of an allocation, which a [layout](#layout)
 describes. A [storage loan](#storage-loan) gives access to one view, such as
 `output` in `borrow output = write(data, layout(...));`. See
 [Storage types](../storage/resource-programs.md#storage-types) and the
-[guide](../guide/storage.md#resource-functions).
+[guide](../guide/storage.md#resource-functions). A view of a
+[morphism over a base](#morphism-over-a-base) is a different thing: the same
+morphism over an object further along the base chain. See
+[Morphism primitives](../affine-geometry.md#morphism-primitives).
 
 ## Whitespace
 

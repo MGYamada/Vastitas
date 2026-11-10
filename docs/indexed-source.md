@@ -1,8 +1,9 @@
 # Indexed declarations
 
 An **indexed declaration** is an [item](language/items.md) that begins with
-`indexed`. Indexed declarations give a package objects of its own, and types
-whose arguments are those objects. A set of indexed declarations that defines
+`indexed`. Indexed declarations give a package
+[objects](appendix/glossary.md#nominal-object) of its own, and types whose
+arguments are those objects. A set of indexed declarations that defines
 one geometric setting is an [indexed profile](appendix/glossary.md#profile).
 Indexed declarations exist only in
 [manifest mode](language/programs.md#manifest-mode).
@@ -54,12 +55,12 @@ The word after `indexed` is the kind of the declaration:
 `SmoothDeclaration` stands for the declarations of
 [Smooth affine declarations](language/smooth-declarations.md), and
 `AffineDeclaration` for the declarations that only
-[presented affine geometry](affine-geometry.md) has.
+[Presented affine declarations](affine-geometry.md) has.
 
 Rules:
 
-- The word after `indexed` must be a kind of the table. Another word is an
-  error (`E_TYPE`).
+- The word after `indexed` must be a kind of the table. Another word before
+  the name of a declaration is an error (`E_TYPE`).
 - [Names of items](language/items.md#names-of-items) and
   [Reserved names](language/lexical-structure.md#reserved-names) give the
   rules on the name of a declaration.
@@ -69,9 +70,10 @@ Rules:
   the same.
 - The name of a declaration chooses nothing. A family named `Point` holds
   points only when its declaration says `point`.
-- Each path in an indexed declaration, and each path of an
-  [indexed type](language/types.md#indexed-types), must name an indexed
-  declaration. A path to another item, such as a function, is an error
+- Each path in an indexed declaration must name an indexed declaration. So
+  must each path of an [indexed type](language/types.md#indexed-types),
+  apart from the name of a parameter or of a binding at an `object(…)`
+  parameter. A path to another item, such as a function, is an error
   (`E_TYPE`). [Names and paths](language/names-and-paths.md) gives the rules
   of resolution and visibility.
 - A program has a limit on the number of its indexed declarations, which
@@ -145,7 +147,8 @@ Rules:
 The other representations are `scalar_base(…)` and `linear_descriptor(…)` of
 [Linear implementations](linalg/maps-and-gemm.md#linear-implementations),
 `presented_affine(rational)` of
-[presented affine geometry](affine-geometry.md) and `smooth_affine` of
+[The presented profile](affine-geometry.md#the-presented-profile) and
+`smooth_affine` of
 [The smooth profile](language/smooth-declarations.md#the-smooth-profile).
 
 Rules:
@@ -232,8 +235,8 @@ Rules:
 
 - The path must name an implementation (`E_TYPE`).
   [Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects)
-  and [presented affine geometry](affine-geometry.md) say how the objects of
-  their implementations are declared.
+  and [Presented affine objects](affine-geometry.md#presented-affine-objects)
+  say how the objects of their implementations are declared.
 - Each declaration is one object. Two global objects are different objects,
   even when they have the same implementation.
 - The [object type](#object-types) of `G` is `Object<I, K>`, where `K` is the
@@ -263,14 +266,16 @@ An expression that denotes an object has one object type:
 
 | Expression | Object type |
 | --- | --- |
-| A parameter, or a binding with an annotation | The type that the program writes |
-| A binding without an annotation | The object type of its value |
+| A parameter, or a `let` binding with an annotation | The type that the program writes |
+| A `let` binding without an annotation | The object type of its value |
+| A call of a function | The result type of the function |
 | A global object `G` of the implementation `I` over `K` | `Object<I, K>` |
 | A call of a primitive with the binding `descriptor(I)` | `Object<I, K>` |
 | The witness that an `unpack` statement binds | The witness type of the [existential package](#existential-packages) |
 
 The object type belongs to the expression. Two bindings of one object may
-have different object types.
+have different object types. A diagnostic writes the object type
+`Object<D, K>` as `D<K>`.
 
 Rules:
 
@@ -283,7 +288,9 @@ Rules:
 - A binding with an annotation has the object type of the annotation, even
   when the object type of its value is narrower. The binding and the value
   are the same object.
-- A diagnostic writes the object type `Object<D, K>` as `D<K>`.
+- The two branches of an `if` expression must have one object type.
+  Otherwise it is an error (`E_TYPE`). Under an annotation, the object type
+  of each branch must lie within the annotation instead.
 
 In `indexed-objects`, `shapes::grid` gives an object of type
 `Object<shapes::Grid, shapes::QQ>`. This type lies within the parameter types
@@ -332,7 +339,7 @@ one argument for each parameter:
 | `domain` | A path that names a classification or an implementation |
 | `marker` | A path that names a marker |
 | `natural` | An integer literal |
-| `object(C)` | An object whose object type lies within `C`. It is the name of a parameter or of a binding in scope, or a path that names a global object |
+| `object(C)` | An object whose object type lies within `C`. It is the name of a parameter or of a binding in scope, or a path that names a declared object: a global object, or an object of an `indexed affine` declaration |
 
 A constraint restricts the arguments of the family. It names parameters by
 their positions, which count from 0:
@@ -344,7 +351,8 @@ their positions, which count from 0:
 | `over(i, j)` | The object `i` has the marker that the argument `j` names |
 
 `structural(i, j)` is a constraint of
-[presented affine geometry](affine-geometry.md), and `canonical(i)` is a
+[The presented profile](affine-geometry.md#the-presented-profile), and
+`canonical(i)` is a
 constraint of
 [The smooth profile](language/smooth-declarations.md#the-smooth-profile).
 
@@ -360,7 +368,8 @@ The [primitives](#primitives) build and use the values of `point` and
 `morphism` families. The representations `smooth`, `cotangent`, `tangent`,
 `tape` and `metric_form` are in
 [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and
-`relative` is in [presented affine geometry](affine-geometry.md).
+`relative` is in
+[The presented profile](affine-geometry.md#the-presented-profile).
 
 Rules:
 
@@ -369,7 +378,8 @@ Rules:
   constraint.
 - The path of `object(C)` must name a classification or an implementation
   (`E_TYPE`).
-- A position must be an integer literal (`E_PARSE`).
+- A position must be an integer literal (`E_PARSE`), and it must fit in 32
+  bits (`E_LIMIT`).
 - Each position of `same_object` and `same_base`, and the first position of
   `over`, must be the position of an `object(…)` parameter. The second
   position of `over` must be the position of a `marker` parameter. Another
@@ -412,18 +422,15 @@ Rules:
 - Two indexed types are the same type when they apply the same family to the
   same arguments. [Object identity](#object-identity) says when two objects
   are the same.
-- An indexed type must not be an input or a result of a
-  [function type](language/types.md#function-types) (`E_PROTOCOL`). In a
-  program whose package graph holds an indexed declaration, the compiler
-  reports every type that a function type excludes with this code, including
-  a pair type.
-
-Before `<`, the bare names `Point`, `Morphism` and `Pointed` are types of the
-[geometric core](language/geometric-types.md), as
-[Indexed types](language/types.md#indexed-types) says. A type applies a
-family of such a name through a path with `::`. Examples are
-`geo::Point<X, geo::Base>`, and `self::Point<X, Base>` in the declaring
-module.
+- An indexed type must not be an input or a result of a function type.
+  [Function types](language/types.md#function-types) gives the code of this
+  error.
+- Before `<`, the bare names `Point`, `Morphism` and `Pointed` are types of
+  the [geometric core](language/geometric-types.md), as
+  [Indexed types](language/types.md#indexed-types) says. A type applies a
+  family of such a name through a path with `::`. Examples are
+  `geo::Point<X, geo::Base>`, and `self::Point<X, Base>` in the declaring
+  module.
 
 `indexed-objects` declares a `token` family. The type of `label` applies it to
 an object, a marker and a number:
@@ -460,7 +467,7 @@ its [witness](appendix/glossary.md#witness), together with one value for each
 | Bound index | Argument of the family |
 | --- | --- |
 | `witness` | The witness |
-| `global(G)` | The global object `G` |
+| `global(G)` | The declared object `G`: a global object, or an object of an `indexed affine` declaration |
 | `domain(C)` | The classification or implementation `C` |
 | `marker(K)` | The marker `K` |
 | An integer literal | That number |
@@ -471,15 +478,15 @@ Rules:
 - The witness type of a case must be an object type by the rules of
   [Object types](#object-types) (`E_TYPE`).
 - Two cases must not have the same witness type, that is the same `D` and the
-  same `K` (`E_TYPE`). Witness types with different paths are different, even
-  when they have the same implementations.
+  same `K` (`E_TYPE`). Witness types that name different declarations are
+  different, even when they have the same implementations.
 - The path of a field must name a family (`E_TYPE`).
 - The bound indices of a field must be arguments of its family, by the rules
   of [Indexed types of a family](#indexed-types-of-a-family), for every
   object of the witness type (`E_TYPE`). In particular, the witness type must
   lie within `C` where `witness` is the argument of an `object(C)` parameter.
-- A bound index must have one of the five forms. Another word is an error
-  (`E_TYPE`).
+- A bound index must have one of the five forms. Another word before `(` is
+  an error (`E_TYPE`).
 - A case may have no field, and a field may leave out `witness`.
 - The numbers of cases and of fields have limits, which
   [Appendix D](appendix/limits.md#other-documented-bounds) gives (`E_TYPE`).
@@ -582,7 +589,7 @@ own, and a primitive binding names no native code. `SmoothBinding` gives the
 bindings of
 [Smooth affine declarations](language/smooth-declarations.md#smooth-map-primitives),
 and `RelativeBinding` gives the bindings of
-[presented affine geometry](affine-geometry.md#morphism-primitives).
+[Morphism primitives](affine-geometry.md#morphism-primitives).
 
 In the table, `I` is an implementation over the marker `K`, and `G` and `B`
 are global objects. `(D, K)` stands for the object type `Object<D, K>`. `P` is
@@ -601,7 +608,7 @@ a `point` family, and `M` is a `morphism` family.
 Rules:
 
 - The word after `=` must begin a binding of `PrimitiveBinding`. Another
-  word is an error (`E_TYPE`).
+  word before `(` is an error (`E_TYPE`).
 - The implementation of `descriptor(I)` must have the representation
   `affine_descriptor` (`E_TYPE`).
 - The path of `global(G)` must name a global object of an implementation
@@ -660,6 +667,10 @@ Rules:
   is an error (`E_ENDPOINT`).
   [Operations](language/geometric-types.md#operations) says what an
   `E_ENDPOINT` diagnostic names.
+- The result type of a call must be an indexed type by the rules of
+  [Indexed types of a family](#indexed-types-of-a-family). Otherwise the call
+  is an error (`E_ENDPOINT`), even when the declaration of the primitive is
+  valid.
 - A call of a name that is an indexed declaration and not a primitive is an
   error (`E_TYPE`).
 
@@ -739,6 +750,9 @@ Rules:
   gives its error.
 - The entries `scheme.marker` and `smooth.marker` must name different
   markers. Otherwise the export is invalid.
+- An entry may name a declaration that is private to the root module of the
+  exporting package. The core syntax then reaches that declaration from
+  every module of the program.
 - An export declares nothing, and it grants no
   [edit authority](language/edit-authority.md).
 
@@ -751,7 +765,7 @@ object type the object type of the object lies within.
 | Core syntax | Meaning |
 | --- | --- |
 | `Scheme`, `CInfScheme` | The object type of the setting |
-| `Base(QQ)`, `Base(CInfReal)` in a type | The global object `base_object` of the setting |
+| `Base(QQ)`, `Base(CInfReal)` as an argument of a core type | The global object `base_object` of the setting |
 | `Point<X, S>` | `point<X, S>` |
 | `Morphism<X, Y>` | `morphism<X, Y>` |
 | `Pointed<Scheme, QQ>`, `Pointed<CInfScheme, CInfReal>` | `pointed<domain, marker>` of the setting |
@@ -774,8 +788,8 @@ Rules:
 - A bare name that the current module declares or imports wins over the core
   operation of that name. For example, `dimension(X)` calls an imported
   primitive `dimension`.
-- `unpack e as { scheme: X, point: p };` needs no export, as
-  [Opening](#opening) says.
+- A program may write `unpack e as { scheme: X, point: p };` without an
+  export, as [Opening](#opening) says.
 
 The package
 [`examples/packages/geometry-compat/`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/geometry-compat)
@@ -801,7 +815,8 @@ executable prints `42`.
 
 The geometry package of the standard library declares one profile of
 descriptor objects for each setting of the geometric core.
-`std::geometry::scheme` and `std::geometry::smooth` name its two modules:
+`std::geometry::scheme` and `std::geometry::smooth` are the modules of the
+two profiles:
 
 | Declaration | `std::geometry::scheme` | `std::geometry::smooth` |
 | --- | --- | --- |
@@ -852,7 +867,7 @@ origins and the images of origins, and their morphisms are identities and
 composites of identities. The declarations give no coordinates, no map with a
 formula, no array and no storage.
 [Smooth affine declarations](language/smooth-declarations.md) and
-[presented affine geometry](affine-geometry.md) declare objects with
+[Presented affine declarations](affine-geometry.md) declare objects with
 coordinates and maps between them, and
 [Numerical maps](linalg/maps-and-gemm.md) gives the storage of linear maps.
 
@@ -862,6 +877,7 @@ The description of the compiler that this chapter held is in
 [The indexed checker](internals/indexed-checker.md). These anchors keep older
 links working.
 
+- <a id="declaration-driven-indexed-source-protocol-7"></a>The chapter: [Indexed declarations](#indexed-declarations) and [The indexed checker](internals/indexed-checker.md#the-public-path).
 - <a id="legacy-geometry-syntax-in-packages"></a>Legacy geometry syntax in packages: [Core geometry syntax](#core-geometry-syntax) and [The indexed checker](internals/indexed-checker.md#legacy-geometry-syntax-in-packages).
 - <a id="declarations-and-source-example"></a>Declarations and source example: the sections of this chapter from [Markers](#markers) to [A complete program](#a-complete-program).
 - <a id="composition-and-limits"></a>Composition and limits: the rules at the [start of this chapter](#indexed-declarations), [Scope of the descriptor profile](#scope-of-the-descriptor-profile) and [The indexed checker](internals/indexed-checker.md#composition-and-limits).

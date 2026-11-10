@@ -49,8 +49,8 @@ Point/Morphism families with exactly the same-base constraint, and the matching
 single-point existential cases. Names and equal dimensions grant no compatibility.
 
 Exactly one export enables the original `Scheme`/`CInfScheme`, Point/Morphism/
-Pointed annotations, old pack/unpack and unqualified geometry calls in the entire
-closure. Explicit indexed syntax and old syntax then use the same canonical IDs.
+Pointed annotations, old pack and unqualified geometry calls in the entire
+closure. The old `unpack` with `scheme` and `point` needs no export. Explicit indexed syntax and old syntax then use the same canonical IDs.
 A legacy `Base(QQ)` or `Base(CInfReal)` index is translated to the exported
 base object; a bare coefficient marker is rejected as an object index. Local Fn bindings
 and declared names are resolved first; only an unresolved unqualified builtin

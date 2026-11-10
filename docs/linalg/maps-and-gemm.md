@@ -93,9 +93,10 @@ Rules:
 - The capability list of both forms must be empty (`E_TYPE`).
   [Implementations](../indexed-source.md#implementations) gives the
   production `Capabilities`.
-- A `descriptor` primitive, a `global` primitive and a `point` or `morphism`
-  family must not use a scalar base implementation or a linear implementation
-  (`E_TYPE`).
+- A scalar base implementation and a linear implementation serve no
+  `descriptor` primitive, no `global` primitive and no `point` or `morphism`
+  family. [Families](../indexed-source.md#families) and
+  [Primitives](../indexed-source.md#primitives) give these rules.
 
 The compiler reports an error of these rules at the declaration that breaks
 the rule. For a rule on an implementation, the message states the rule and

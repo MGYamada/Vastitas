@@ -195,9 +195,10 @@ Rules:
 - Applying the same contribution twice under the same permission is the same as
   applying it once. The same contribution with different provenance is an
   error (`E_PROVENANCE`).
-- An assembly has at most 4096 events (`E_PROTOCOL`), and the contributions of
-  the package graph hold at most 4096 methods (`E_LIMIT`).
-  [Appendix D](../appendix/limits.md#checker-limits) lists both limits.
+- An assembly must have at most 4096 events, and the contributions of the
+  package graph must hold at most 4096 methods. Otherwise it is an error
+  (`E_LIMIT`). [Appendix D](../appendix/limits.md#checker-limits) lists both
+  limits.
 - `borrow`, `reborrow`, `via`, `using`, `seal`, `to`, `delegable`, `grant`,
   `delegation`, `transfer`, `contribution` and `assembly` are keywords only in
   these declarations, and a binding may use them as names. `apply` is a

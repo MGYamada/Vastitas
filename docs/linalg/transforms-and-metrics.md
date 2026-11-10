@@ -98,8 +98,9 @@ Rules:
   zero, unless the space has dimension 0 (`E_NUMERICAL_TYPE`).
 - `diagonal` must list as many entries as the space has dimensions
   (`E_NUMERICAL_TYPE`).
-- `diagonal` lists at most 4096 entries. The compiler reports a longer list
-  at the root manifest (`E_PROTOCOL`).
+- `diagonal` must list at most 4096 entries. Otherwise it is an error
+  (`E_LIMIT`). [Appendix D](../appendix/limits.md#other-documented-bounds)
+  lists the limit.
 - A metric has **identity Gram data** when it is `orthonormal`, a
   `scaled_identity` with the entry 1 or a `diagonal` whose entries are all 1.
   `adjoint` and `hermitian` need such a metric.

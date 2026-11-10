@@ -22,6 +22,7 @@ fn main() {
         ("algebraNesting", "MAX_ALGEBRA_NESTING"),
         ("algebraCoefficientDigits", "MAX_ALGEBRA_DIGITS"),
         ("algebraGenerators", "MAX_ALGEBRA_GENERATORS"),
+        ("assemblyEvents", "MAX_ASSEMBLY_EVENTS"),
     ] {
         let value = limits[key]
             .as_u64()

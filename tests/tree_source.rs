@@ -736,6 +736,77 @@ fn trees_reject_wrong_ports_nominal_axes_and_forged_producers() {
 }
 
 #[test]
+fn port_and_plan_axis_bounds_are_reported_at_the_port_and_the_view() {
+    // The kernel's decoder admits the axis numbers 0, 1 and 2 in a port and
+    // in the grouping of a plan view. A larger number used to fail wire
+    // decoding with `E_PROTOCOL` at the manifest (#704).
+    // `raw_tree_protocol_rechecks_bounded_graph_and_plan_authority` forges
+    // such a port on the wire.
+    let located = |source: &str, marker: &str, expected: &str| {
+        let output = command(&fixture(source, COMPLEX), "check")
+            .output()
+            .unwrap();
+        let stderr = common::expect_code(&output, expected.split(':').next().unwrap());
+        let before = &source[..source.find(marker).expect("marker")];
+        let line = before.matches('\n').count() + 1;
+        let column = before.rsplit('\n').next().unwrap().chars().count() + 1;
+        assert!(
+            stderr
+                .lines()
+                .next()
+                .unwrap()
+                .contains(&format!("src/real/mod.vast:{line}:{column}: {expected}")),
+            "{stderr}"
+        );
+        assert!(!stderr.contains("E_PROTOCOL"), "{stderr}");
+    };
+    for (from, to, port, axis) in [
+        // The first port of an edge, its second port and a boundary port.
+        ("(t[2], b[0])", "(t[3], b[0])", "t[3]", "3"),
+        ("(t[2], b[0])", "(t[2], b[3])", "b[3]", "3"),
+        (
+            "boundary(t[0], a[1], b[1])",
+            "boundary(t[0], a[1], b[4])",
+            "b[4]",
+            "4",
+        ),
+        (
+            "boundary(t[0], a[1], b[1])",
+            "boundary(t[0], a[1], b[18446744073709551615])",
+            "b[18446744073709551615]",
+            "18446744073709551615",
+        ),
+    ] {
+        located(
+            &common::checked_replace(REAL, from, to),
+            port,
+            &format!(
+                "E_TENSOR_TREE: port names axis {axis}; a tensor has at most three axes, numbered from 0"
+            ),
+        );
+    }
+    // A view of the plan has the bound of every tensor view.
+    let view = "tensor first_pack = view3(packed_write, bu, bvd, bwd, axes(0,3,1), 2);";
+    located(
+        &common::checked_replace(
+            REAL,
+            "tensor first_pack = view3(packed_write, bu, bvd, bwd, axes(0,2,1), 2);",
+            view,
+        ),
+        view,
+        "E_TENSOR: grouping names axis 3; a tensor has at most three axes, numbered from 0",
+    );
+    // Axis 2 is the largest that the decoder admits: `t[2]` checks through the
+    // kernel, which reports axis 2 of a tensor with two axes at the statement.
+    success(&command(&fixture(REAL, COMPLEX), "check").output().unwrap());
+    located(
+        &common::checked_replace(REAL, "(t[2], b[0])", "(t[2], b[2])"),
+        "contract_tree(c, NativeFast)",
+        "E_TENSOR_TREE: tree ports require exact single use",
+    );
+}
+
+#[test]
 fn raw_tree_protocol_rechecks_bounded_graph_and_plan_authority() {
     let original = captured(&fixture(REAL, COMPLEX));
     for version in 2..8 {

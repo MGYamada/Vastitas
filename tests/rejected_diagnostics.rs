@@ -9,7 +9,8 @@
 //! and their diff is reviewed.
 mod common;
 use common::{
-    Scratch, assert_first_code, cli, diagnostic_codes, kernel_path, regenerate_fixture, root,
+    Scratch, assert_first_code, assert_source_names, cli, diagnostic_codes, kernel_path,
+    regenerate_fixture, root,
 };
 use std::collections::BTreeSet;
 use std::fs;
@@ -73,6 +74,7 @@ fn rejected_primitive_calls_keep_their_diagnostics() {
             !output.status.success() && !diagnostic_codes(&stderr).is_empty(),
             "{name}: the kernel must reject the package with a diagnostic\n{stderr}"
         );
+        assert_source_names(&stderr);
         let code = output
             .status
             .code()

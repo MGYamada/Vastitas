@@ -95,6 +95,20 @@ VASTITAS_UPDATE_REJECTED_FIXTURES=1 cargo test --locked --test rejected_diagnost
 
 As for the emit fixtures, the test refuses to regenerate when `CI` is set.
 
+## Names in diagnostics
+
+The kernel checks the headers of the declarations of a program under internal
+symbols. A symbol encodes the canonical location of the declaring package as
+decimal character codes. A message names a declaration by its name or its path
+([Appendix B](../appendix/diagnostics.md#output-format)), so no message may
+hold such a symbol. `assert_source_names` in `tests/common/mod.rs` fails on a
+message that holds one, or a run of eight or more decimal numbers joined by
+`_`. Every rejection that a test checks through `expect_code`,
+`assert_first_code`, `assert_rejected` or `assert_wire_rejected` passes it. So
+do the packages of the rejected corpus and the recorded rejections of the book.
+`tests/diagnostic_names.rs` pins the message text of the dispatch and edit
+diagnostics that name a declaration of a package.
+
 ## Memory budget for local verification
 
 Run the heavy checks one at a time, and not while another process builds

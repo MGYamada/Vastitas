@@ -101,7 +101,10 @@ def prepareHeaders (program : DispatchSource.Program) : Namespace.Result (Prepar
                   if scopes : program.scopesSafe = true then
                     match validated : ((DispatchChecker.validateProgram (Surface.headers
                         (Authority.finalSurface assembled.prepared assembled.state))).run {}).map Prod.fst with
-                    | .error diagnostic => .error diagnostic
+                    | .error diagnostic => .error (Namespace.sourceDiagnostic program.source.headers.indexed
+                        (fun names => ((DispatchChecker.validateProgram (Surface.headers
+                          (Authority.finalSurface assembled.prepared assembled.state)) names).run {}).map Prod.fst)
+                        diagnostic)
                     | .ok () => return ⟨support, declarations, assembled, assembledFrom, ordinary, ordinaryFrom, ordinaryValid,
                         contributions, contributionsFrom, contributionHeaders, methods, methodsFrom, finalHeaders, validated, scopes⟩
                   else .error (FunctionSource.scopeDiagnosticFor program.source.headers.indexed program.lambdaScopes)

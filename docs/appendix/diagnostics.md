@@ -23,6 +23,12 @@ Lines and columns are one-based; columns count Unicode scalars. A diagnostic
 reported by the Lean kernel is mapped back to the original file and its local
 position.
 
+A message names a declaration by its name or by its path
+`package::module::name`. The first component of the path is the name that the
+manifest of the declaring package gives it, even when the source reaches the
+package through a dependency alias. A message names a parameter as the source
+spells it.
+
 ## Driver and frontend
 
 The Rust driver reports these before or around kernel checking. Source position

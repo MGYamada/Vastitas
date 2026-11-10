@@ -166,6 +166,30 @@ def symbol (p : Program) (target : Target) : String :=
   if target.owner.scope.package.source == p.root && target.owner.scope.path.isEmpty &&
       target.owner.name == "main" then "main" else target.owner.symbol
 
+/-- The source names of what the lowered headers of `p` call by an internal
+name: a declaration is named by its path, a binder by its source spelling. A
+name that `p` does not declare (a builtin, the root `main`) is unchanged. The
+table is built at the first name a diagnostic needs, so an accepted program
+never pays for it. -/
+def sourceNames (p : Indexed) : DispatchChecker.SourceNames :=
+  let table : Thunk (Std.HashMap String String) := Thunk.mk fun _ =>
+    p.declarations.foldl (fun table target =>
+      let name := symbol p.toProgram target
+      if name == "main" then table else table.insert name target.owner.qualified) {}
+  { declaration := fun name => table.get.getD name name, binder := localSource }
+
+/-- Presentation only. `check` is one dispatch check of the lowered headers of
+`p`, as a function of the names its diagnostics use; these names reach the
+text of a diagnostic and nothing else. The accepted equations state the check
+under the internal names, so that none of them mentions a name. After that
+check was rejected, this repeats it under the source names and returns its
+diagnostic, which names each declaration as the source does. -/
+def sourceDiagnostic (p : Indexed) (check : DispatchChecker.SourceNames → Result α)
+    (rejected : Diagnostic) : Diagnostic :=
+  match check (sourceNames p) with
+  | .error diagnostic => diagnostic
+  | .ok _ => rejected
+
 def UniqueOwners (p : Indexed) : Prop :=
   (p.declarations.map (·.owner)).Nodup
 

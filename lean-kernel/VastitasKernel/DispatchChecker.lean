@@ -13,6 +13,16 @@ open Checker.Internal
 
 def privatePrefix := "__vastitas_"
 
+/-- How a diagnostic names the declarations and binders of the checked headers.
+The default is the identity, for headers that carry source names. The headers
+that `Namespace.lower` produces carry internal names (`Namespace.Owner.symbol`,
+`Namespace.localName`), and `Namespace.sourceNames` gives their source names.
+Presentation only: these functions are applied to a name inside the text of a
+diagnostic and nowhere else, so no check depends on them. -/
+structure SourceNames where
+  declaration : String → String := id
+  binder : String → String := id
+
 def sourceReserved : List String :=
   ["generic", "method", "domain", "requires", "Any", "Number", "Fn", "abstract", "type", "subtype"]
 
@@ -119,8 +129,9 @@ private def requirementLabel (requirements : List Dispatch.Capability) : String 
   if requirements.contains .hasOrder then "HasOrder"
   else if requirements.contains .hasEq then "HasEq" else ""
 
-private def signatureLabel (nominals : Abstract.Checked) (name : String) (method : Dispatch.NormalizedMethod) : String :=
-  name ++ "(" ++ String.intercalate ", " (method.selectors.map (fun id => nominals.names[id]!)) ++ ")" ++
+private def signatureLabel (names : SourceNames) (nominals : Abstract.Checked) (name : String) (method : Dispatch.NormalizedMethod) : String :=
+  names.declaration name ++ "(" ++
+    String.intercalate ", " (method.selectors.map (fun id => names.declaration nominals.names[id]!)) ++ ")" ++
     (if method.requirements.isEmpty then "" else s!" requires ({requirementLabel method.requirements})")
 
 private def diagnosticCandidate (nominals : Abstract.Checked) (program : RawProgram) (id : Nat) : Option (RawMethod × Dispatch.NormalizedMethod) := do
@@ -131,11 +142,11 @@ private def diagnosticCandidate (nominals : Abstract.Checked) (program : RawProg
   let requirements ← raw.requirements.mapM Dispatch.parseCapability
   pure (raw, { id, selectors, requirements := Dispatch.normalizeCapabilities requirements })
 
-private def ambiguityNotes (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (ids : List Nat) : List DiagnosticNote := Id.run do
+private def ambiguityNotes (names : SourceNames) (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (ids : List Nat) : List DiagnosticNote := Id.run do
   let candidates := ids.filterMap (diagnosticCandidate nominals program)
   let mut notes := []
   for (raw, candidate) in candidates do
-    let mut message := s!"candidate method `{signatureLabel nominals generic.name candidate}` declared here"
+    let mut message := s!"candidate method `{signatureLabel names nominals generic.name candidate}` declared here"
     for (_, other) in candidates do
       if candidate.id != other.id then
         let narrower := Dispatch.nominalBelow nominals.hierarchy candidate.selectors other.selectors
@@ -160,10 +171,10 @@ private def ambiguityNotes (nominals : Abstract.Checked) (program : RawProgram) 
     if let some resolving := meet then
       notes := notes ++ [{
         span := generic.span
-        message := s!"help: declare `{signatureLabel nominals generic.name resolving}` to resolve this key; recheck the entire family after editing" }]
+        message := s!"help: declare `{signatureLabel names nominals generic.name resolving}` to resolve this key; recheck the entire family after editing" }]
   return notes
 
-private def coverageNotes (nominals : Abstract.Checked) (program : RawProgram)
+private def coverageNotes (names : SourceNames) (nominals : Abstract.Checked) (program : RawProgram)
     (generic : RawGeneric) (key : Dispatch.Key) : List DiagnosticNote := Id.run do
   let mut notes := []
   for (raw, id) in program.methods.zipIdx do
@@ -175,7 +186,7 @@ private def coverageNotes (nominals : Abstract.Checked) (program : RawProgram)
         let missing := candidate.requirements.filter (!(Dispatch.tupleFacts nominals.hierarchy key).contains ·)
         if !missing.isEmpty then
           reasons := reasons ++ [s!"key lacks {requirementLabel missing}"]
-        notes := notes ++ [{ span := raw.span, message := s!"candidate method `{signatureLabel nominals generic.name candidate}` declared here; " ++ String.intercalate "; " reasons }]
+        notes := notes ++ [{ span := raw.span, message := s!"candidate method `{signatureLabel names nominals generic.name candidate}` declared here; " ++ String.intercalate "; " reasons }]
   if generic.domain.any (fun clause =>
       clause.mapM (fun ty => match ty with | .named name => Dispatch.parseScalar name | _ => none) == some key) then
     notes := notes ++ [{ span := generic.span, message := s!"key {keyLabel key} comes from this generic's domain" }]
@@ -186,9 +197,11 @@ private def coverageNotes (nominals : Abstract.Checked) (program : RawProgram)
         | some selectors => Dispatch.nominalBelow nominals.hierarchy key selectors
         | none => false) then
       notes := notes ++ [{ span := contract.span, message := s!"key {keyLabel key} is in the callable domain because of this abstract method contract" }]
-  return notes ++ [{ span := generic.span, message := s!"help: declare a method for `{generic.name}` applicable at {keyLabel key}; recheck every promised domain" }]
+  return notes ++ [{ span := generic.span, message := s!"help: declare a method for `{names.declaration generic.name}` applicable at {keyLabel key}; recheck every promised domain" }]
 
-def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (error : Dispatch.Error) : Diagnostic :=
+def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (generic : RawGeneric) (error : Dispatch.Error)
+    (names : SourceNames := {}) : Diagnostic :=
+  let name := names.declaration generic.name
   let code := match error.code with
     | "E_DISPATCH_ARITY" => "E_ARITY"
     | "E_DISPATCH_SELECTOR" => "E_TYPE"
@@ -196,19 +209,19 @@ def dispatchDiagnostic (nominals : Abstract.Checked) (program : RawProgram) (gen
     | "E_DISPATCH_DUPLICATE_ID" | "E_DISPATCH_DUPLICATE" => "E_DUPLICATE"
     | "E_DISPATCH_LIMIT" => "E_LIMIT"
     | other => other
-  let notes := if error.code == "E_DISPATCH_AMBIGUOUS" then ambiguityNotes nominals program generic error.methods
+  let notes := if error.code == "E_DISPATCH_AMBIGUOUS" then ambiguityNotes names nominals program generic error.methods
     else if error.code == "E_DISPATCH_COVERAGE" then
-      (error.key.map (coverageNotes nominals program generic)).getD []
+      (error.key.map (coverageNotes names nominals program generic)).getD []
     else error.methods.filterMap fun id =>
       (program.methods[id]?).map fun method =>
-        { message := s!"candidate method for generic '{generic.name}' declared here", span := method.span : DiagnosticNote }
+        { message := s!"candidate method for generic '{name}' declared here", span := method.span : DiagnosticNote }
   { code, span := generic.span
-    message := s!"generic '{generic.name}': {error.message}" ++
+    message := s!"generic '{name}': {error.message}" ++
       (error.key.map (fun key => s!" at key {keyLabel key}")).getD ""
     notes }
 
-def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
-  let nominals ← Abstract.prepare program.abstractTypes program.subtypes
+def prepareFamilies (program : RawProgram) (names : SourceNames := {}) : CheckM (List Family) := do
+  let nominals ← Abstract.prepare program.abstractTypes program.subtypes names.declaration
   -- Group methods by generic once, in declaration order, and collect into
   -- arrays, so family preparation stays linear before the dispatch budget.
   let byGeneric : Std.HashMap String (List (Nat × RawMethod)) :=
@@ -237,7 +250,7 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
     let domain := Contracts.effectiveDomain nominals.hierarchy generic.params.length base contracts
     if included : contracts.all (fun contract => contract.domain.all domain.contains) = true then
       match accepted : Dispatch.checkWith nominals.hierarchy generic.params.length domain methods with
-      | .error error => throw (dispatchDiagnostic nominals program generic error)
+      | .error error => throw (dispatchDiagnostic nominals program generic error names)
       | .ok checked =>
         if fulfilled : contracts.all (Contracts.satisfied program.methods checked) = true then
           result := result.push {
@@ -251,7 +264,7 @@ def prepareFamilies (program : RawProgram) : CheckM (List Family) := do
 
   pure result.toList
 
-def validateProgram (program : RawProgram) : CheckM Unit := do
+def validateProgram (program : RawProgram) (names : SourceNames := {}) : CheckM Unit := do
   unless program.version == 2 || program.version == 4 do
     fail {} "E_PROTOCOL" "unsupported IR protocol version; expected 2 or 4"
   if program.version == 2 && (!program.abstractTypes.isEmpty || !program.subtypes.isEmpty || !program.abstractMethods.isEmpty) then
@@ -259,13 +272,15 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
   let mut globals : Std.HashSet String := {}
   for function in program.functions do
     checkSourceName function.name function.span
-    if globals.contains function.name then fail function.span "E_DUPLICATE" s!"duplicate function '{function.name}'"
+    if globals.contains function.name then
+      fail function.span "E_DUPLICATE" s!"duplicate function '{names.declaration function.name}'"
     globals := globals.insert function.name
   let mut genericNames : Std.HashSet String := {}
   for generic in program.generics do
     checkSourceName generic.name generic.span
     if generic.name == "main" then fail generic.span "E_MAIN" "main must be an ordinary fn main() -> Int"
-    if globals.contains generic.name then fail generic.span "E_DUPLICATE" s!"duplicate function or generic '{generic.name}'"
+    if globals.contains generic.name then
+      fail generic.span "E_DUPLICATE" s!"duplicate function or generic '{names.declaration generic.name}'"
     globals := globals.insert generic.name
     genericNames := genericNames.insert generic.name
   for declaration in program.abstractTypes do
@@ -276,7 +291,8 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
     let mut params : Std.HashSet String := {}
     for param in generic.params do
       checkBinder globals param.name param.span
-      if params.contains param.name then fail param.span "E_DUPLICATE" s!"duplicate generic parameter '{param.name}'"
+      if params.contains param.name then
+        fail param.span "E_DUPLICATE" s!"duplicate generic parameter '{names.binder param.name}'"
       params := params.insert param.name
   for function in program.functions do
     for param in function.params do
@@ -287,7 +303,7 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
   for method in program.methods do
     checkSourceName method.name method.span
     unless genericNames.contains method.name do
-      fail method.span "E_NAME" s!"method refers to undeclared generic '{method.name}'"
+      fail method.span "E_NAME" s!"method refers to undeclared generic '{names.declaration method.name}'"
     for param in method.params do
       checkBinder globals param.name param.span
     validateBlock Limits.sourceNesting globals method.body
@@ -295,7 +311,7 @@ def validateProgram (program : RawProgram) : CheckM Unit := do
   for contract in program.abstractMethods do
     checkSourceName contract.name contract.span
     unless genericNames.contains contract.name do
-      fail contract.span "E_NAME" s!"abstract method refers to undeclared generic '{contract.name}'"
+      fail contract.span "E_NAME" s!"abstract method refers to undeclared generic '{names.declaration contract.name}'"
     let mut params : Std.HashSet String := {}
     for param in contract.params do
       checkBinder globals param.name param.span
@@ -308,13 +324,16 @@ structure Target (family : Family) (key : Dispatch.Key) where
   admitted : key ∈ family.domain
   selected : family.checked.winner key = some method
 
-def selectTarget (family : Family) (key : Dispatch.Key) (span : Span) : CheckM (Target family key) := do
+/-- `name` is how the diagnostic names the generic. A caller that resolved the
+call in a lowered package program passes the path of the declaration. -/
+def selectTarget (family : Family) (key : Dispatch.Key) (span : Span)
+    (name : String := family.raw.name) : CheckM (Target family key) := do
   if admitted : key ∈ family.domain then
     match selected : family.checked.winner key with
     | none => fail span "E_INTERNAL_DISPATCH" "validated dispatch domain has no selected method"
     | some method => pure { method, admitted, selected }
   else
-    fail span "E_DISPATCH_DOMAIN" s!"generic '{family.raw.name}' does not admit call key {keyLabel key}"
+    fail span "E_DISPATCH_DOMAIN" s!"generic '{name}' does not admit call key {keyLabel key}"
 
 /-- Lowering metadata is never sent to the final core checker. In particular,
 integer expressions remain unresolved until their actual expected type is known.

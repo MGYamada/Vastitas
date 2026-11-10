@@ -8,6 +8,49 @@ language are in the Reference chapter.
 [Checked storage](../storage/checked-storage.md) describes the internal
 resource IR that these checks produce.
 
+## Independent checking and proof boundary
+
+Public protocol 8 must carry enough untrusted layout, region, transition and
+dependency information for Lean to reconstruct the resource schedule independently.
+Rust annotations, serialized proof flags, claimed alias facts and alleged
+initialization are not evidence. Older protocols must reject unsupported fields.
+
+The actual returned IR must be checked at acceptance and again before native generation.
+If optimization changes allocation, fusion, packing, alias scope or retention,
+the resulting plan must be reconstructed and checked. Proofs must refer to that same plan
+and native lowering contract, not a separately hand-constructed resource model.
+
+Required proof obligations are preservation of live ownership, loan compatibility,
+initialized reads, region bounds, scope and dependency validity across admitted
+transitions and joins. Runtime checks establish facts that depend on runtime sizes;
+their evidence cannot be assumed earlier than the successful branch.
+Native ABI, allocator, BLAS, floating-point and hardware behavior remain explicit
+trusted boundaries. None of these resource proofs alone proves C-level speed,
+whole-program mathematical meaning or higher-order differentiation correctness.
+
+## Implementation status
+
+The [dense layout/preflight reference](../storage/checked-storage.md#storage-layout-preflight) supplies an
+executable integer model, regression cases and proposed Lean obligations for
+the first dense/transpose fragment. It is not production resource acceptance,
+completed Lean soundness, native check elimination or performance evidence.
+
+The [internal resource IR](../storage/checked-storage.md#storage-ir) supplies independently checked
+logical transitions, canonical layouts, initialization and branch joins, with
+actual-checker byte-region and active-loan theorems. Its component schema is not
+public protocol 8. Its optional native runtime and
+[internal resource functions](../storage/checked-storage.md#storage-functions) exercise allocation, calls,
+destination reuse and failure cleanup. [Protocol 8](#composition-with-the-package-checker) connects the static resource profile
+to package source and pure return blocks, including local nominal real/complex
+GEMM. Bounded partial-write coverage removes redundant input fills in the worked
+numerical examples; its actual-byte theorems and native operation counters are
+recorded in [the resource IR](../storage/checked-storage.md#storage-ir). Checked scalar value flow and the
+[whole-map runtime-extent profile](../storage/resource-programs.md#runtime-extents) connect immutable
+integral dimensions to caller-owned GEMM. [Explicit caches](../linalg/networks-and-packing.md#cached-packing)
+and [contraction trees](../linalg/networks-and-packing.md#contraction-trees) cover bounded scratch/dependency
+consumers. General shape results, retention/pooling and equivalent-C acceptance
+remain pending.
+
 ## Composition with the package checker
 
 Protocol 8 connects explicit resource functions to the ordinary `.vast` package
@@ -22,7 +65,7 @@ This bounded profile does not complete [Stage 1](../stage1-completion.md).
 
 ### Payload spellings
 
-This is source sugar for the existing unsigned-bit payloads, with no wire/schema
+The payloads `f64(…)` and `complex(…)` are source sugar for the unsigned-bit payloads, with no wire/schema
 change or runtime conversion. The frontend checks hex precision/range with
 integer arithmetic; for decimals it compares the candidate's exact integer
 decimal expansion with the original value before accepting its bits. Lean
@@ -130,7 +173,7 @@ Numerical inputs accept explicit static `Space`, dependent `Basis`, and
 storage and input-dependent mathematical identities; see [owned results](../linalg/maps-and-gemm.md#numerical-values--owned-numerical-results).
 Bounded generative owned-map packages, explicit rank-three packing/regrouping,
 versioned scratch reuse and connected rank-two/three contraction trees are
-implemented below. [Diagonal metrics](../linalg/transforms-and-metrics.md#diagonal-metrics) add explicit declared
+implemented, as the numerical chapters describe. [Diagonal metrics](../linalg/transforms-and-metrics.md#diagonal-metrics) add explicit declared
 coefficient realization and scratch-backed pairing. Nat/Int/Bool/Unit value flow and runtime Bool branches compose with these
 operations. The separate [runtime-shape profile](../storage/resource-programs.md#runtime-extents) adds straight-line
 whole-map GEMM. Broader dynamic interfaces, floating scalar expression interfaces, general resource packages, dense
@@ -201,7 +244,7 @@ decisions, and the oracle proves that admitted closed guards hold under every
 valuation for the actual checked public entry. The helper arithmetic agreement
 below does not establish full source/native refinement. Resource diagnostics
 retain the failing statement, available binding locations and call-site context;
-see [resource source](../storage/resource-programs.md).
+see [Diagnostic reconstruction](#diagnostic-reconstruction).
 
 Runtime shape operations or calls are rejected under resource branch nodes,
 including transitively and in unselected arms. Ordinary scalar/resource branches
@@ -251,7 +294,7 @@ of the full C/Lean toolchain, floating-point field laws or numerical error bound
 Native boundary tests, sanitizers and equivalent-work experiments remain separate
 implementation evidence.
 
-### Execution costs and limits
+## Execution costs and limits
 
 The compiler reconstructs lookup tables and exact name counts from the symbolic
 frame. When distinct loan names form one child-to-root stack, it verifies all
@@ -300,9 +343,9 @@ canonical public programs from instrumented callable wrappers, explicit lifecycl
 costs from destination reuse, and arena data counters from Lean/FFI/backend
 allocations. Counting, poison and correctness hooks are not timing evidence.
 Controlled-host equivalent-C budgets, total allocation attribution and general
-runtime numerical interfaces remain open. This increment does not close Stage 1.
+runtime numerical interfaces remain open. The runtime-extent profile does not close Stage 1.
 
-### Validation
+## Validation
 
 The kernel regression target `VastitasStorageTest.ShapeRegression` checks 80
 exact real/complex, transpose, mode and zero-axis valuations against the actual
@@ -317,7 +360,7 @@ These finite checks supplement both the universal mathematical guard theorems
 and the 13 actual helper/expression theorems above. The storage-native harness
 checks both scripts against its freshly built standalone runtime.
 
-The full feature validation includes 342 Rust tests and all 13 optional public
+When the runtime-extent profile was delivered, its full validation included 342 Rust tests and all 13 optional public
 numerical native tests, 44 kernel regression targets,
 full kernel/oracle builds, and a 25,287-declaration transitive axiom audit allowing
 only `propext`, `Classical.choice` and `Quot.sound`. Native storage/GEMM checks and
@@ -325,59 +368,7 @@ the [retained output/cost record](https://github.com/MGYamada/Vastitas/blob/main
 remain separate from those proofs. The retained experiment identifies its actual
 dirty source snapshots and binaries; it is not attributed to a later commit.
 
-## Independent checking and proof boundary
-
-Public protocol 8 must carry enough untrusted layout, region, transition and
-dependency information for Lean to reconstruct the resource schedule independently.
-Rust annotations, serialized proof flags, claimed alias facts and alleged
-initialization are not evidence. Reject unsupported fields in older protocols.
-
-Check the actual returned IR at acceptance and again before native generation.
-If optimization changes allocation, fusion, packing, alias scope or retention,
-reconstruct and check the resulting plan. Proofs must refer to that same plan
-and native lowering contract, not a separately hand-constructed resource model.
-
-Required proof obligations are preservation of live ownership, loan compatibility,
-initialized reads, region bounds, scope and dependency validity across admitted
-transitions and joins. Runtime checks establish facts that depend on runtime sizes;
-their evidence cannot be assumed earlier than the successful branch.
-Native ABI, allocator, BLAS, floating-point and hardware behavior remain explicit
-trusted boundaries. None of these resource proofs alone proves C-level speed,
-whole-program mathematical meaning or higher-order differentiation correctness.
-
-## Implementation status
-
-The [dense layout/preflight reference](../storage/checked-storage.md#storage-layout-preflight) supplies an
-executable integer model, regression cases and proposed Lean obligations for
-the first dense/transpose fragment. It is not production resource acceptance,
-completed Lean soundness, native check elimination or performance evidence.
-
-The [internal resource IR](../storage/checked-storage.md#storage-ir) supplies independently checked
-logical transitions, canonical layouts, initialization and branch joins, with
-actual-checker byte-region and active-loan theorems. Its component schema is not
-public protocol 8. Its optional native runtime and
-[internal resource functions](../storage/checked-storage.md#storage-functions) exercise allocation, calls,
-destination reuse and failure cleanup. [Protocol 8](../storage/resource-programs.md#resource-source) connects the initial static resource profile
-to package source and pure return blocks, including local nominal real/complex
-GEMM. Bounded partial-write coverage removes redundant input fills in the worked
-numerical examples; its actual-byte theorems and native operation counters are
-recorded in [the resource IR](../storage/checked-storage.md#storage-ir). Checked scalar value flow and the
-[whole-map runtime-extent profile](../storage/resource-programs.md#runtime-shapes) connect immutable
-integral dimensions to caller-owned GEMM. [Explicit caches](../linalg/networks-and-packing.md#cached-packing)
-and [contraction trees](../linalg/networks-and-packing.md#contraction-trees) cover bounded scratch/dependency
-consumers. General shape results, retention/pooling and equivalent-C acceptance
-remain pending.
-
-## History
-
-The finite Stage 1 compiler implements the ownership profiles mapped in the
-[acceptance record](../stage1-acceptance.md). The remaining performance
-acceptance is tracked in [#183](https://github.com/MGYamada/Vastitas/issues/183)
-and the [performance handoff](../stage1-completion.md#stage-2-or-later-performance-acceptance).
-The unmeasured cost of residual encodings in compiled reverse Core is tracked
-in [#222](https://github.com/MGYamada/Vastitas/issues/222).
-
-### Delivery and regression obligations
+## Delivery and regression obligations
 
 1. Finalize allocation/layout/region IR and explicit cost contracts before public
    storage APIs. Implement protocol-8 Rust and Lean changes in the same increment.
@@ -394,5 +385,14 @@ in [#222](https://github.com/MGYamada/Vastitas/issues/222).
    tracks them.
 
 The completion record must distinguish implemented checks, regression evidence,
-formal theorems, trusted native behavior and measured performance. This chapter
+formal theorems, trusted native behavior and measured performance. This list
 defines the required work; it is not evidence that any unchecked item has passed.
+
+## History
+
+The finite Stage 1 compiler implements the ownership profiles mapped in the
+[acceptance record](../stage1-acceptance.md). The remaining performance
+acceptance is tracked in [#183](https://github.com/MGYamada/Vastitas/issues/183)
+and the [performance handoff](../stage1-completion.md#stage-2-or-later-performance-acceptance).
+The unmeasured cost of residual encodings in compiled reverse Core is tracked
+in [#222](https://github.com/MGYamada/Vastitas/issues/222).

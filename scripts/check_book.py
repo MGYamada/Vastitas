@@ -78,7 +78,6 @@ PENDING_NONTERMINALS = {
     "NumericalStatement": "linalg/maps-and-gemm.md",
     "NumericalParameterType": "linalg/maps-and-gemm.md",
     "NumericalResultType": "linalg/maps-and-gemm.md",
-    "RuntimeNumericalStatement": "linalg/maps-and-gemm.md",
 }
 
 

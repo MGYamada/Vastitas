@@ -492,6 +492,13 @@ with the test object `Base`:
 {{#include ../examples/packages/indexed/geo.vast:package}}
 ```
 
+`indexed-objects` declares two cases without fields. Their witness types are
+different, although both have the implementation `Grid`:
+
+```vast
+{{#include ../examples/packages/indexed-objects/shapes.vast:package}}
+```
+
 ### Packing
 
 `pack P<D, K> { witness: w, fields: [e₁, …, eₙ] }` is a

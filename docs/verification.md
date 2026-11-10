@@ -1402,8 +1402,8 @@ identity preservation are also proved for these internal records.
 
 These declaration-only lemmas are prerequisites for the public checker, not its
 entire acceptance theorem. Every public protocol now uses the common indexed
-source checker and returned Core. See [indexed-declarations.md](indexed-source.md#indexed-declarations)
-for exact checks and [migration acceptance](indexed-source.md#geometry-migration) for the complete
+source checker and returned Core. See [the indexed checker](internals/indexed-checker.md#indexed-declarations)
+for exact checks and [migration acceptance](internals/indexed-checker.md#geometry-migration) for the complete
 source/namespace/primitive/existential/Core evidence map.
 
 
@@ -1433,7 +1433,7 @@ only `IndexedRuntime`. Thirty-four structural regressions and three standalone
 native fixtures run without mathlib. This structural theorem alone is not a source
 acceptance, typed evaluation or native equivalence theorem. The public acceptance
 and program evaluation results described here compose with it; native equivalence
-remains unproved. See [indexed-declarations.md](indexed-source.md#indexed-declarations).
+remains unproved. See [the indexed checker](internals/indexed-checker.md#indexed-declarations).
 
 `VastitasOracle.LegacyIndexed.check_acceptance` connects the exact legacy input
 to the actual translated indexed module, with complete typing and actual
@@ -1740,7 +1740,7 @@ Erasure drops nominal/marker tags. These equations do not permit mixing bases,
 equating distinct brands or fabricating endpoint evidence; the typing and world
 theorems establish those obligations before erasure. This is operation-level
 finite result compatibility, not whole-source equivalence or native compilation
-correctness. [The migration map](indexed-source.md#geometry-migration) records how the separate
+correctness. [The migration map](internals/indexed-checker.md#geometry-migration) records how the separate
 proofs and actual-source regressions fulfill #49/#58–63 without expanding their
 claims to arbitrary geometry or the complete native toolchain.
 

@@ -1,0 +1,4 @@
+[package]
+name = "lost_capability"
+version = "0.1.0"
+root = "main.vast"

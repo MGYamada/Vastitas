@@ -122,8 +122,7 @@ Rules:
   core: the names of the geometric types, the two markers and the seven
   geometric operations. A `use` without `as` that imports such a declaration
   binds that name too. This is how a package declares its own `Point` or
-  `origin`, as [Indexed source](../indexed-source.md#declarations-and-source-example)
-  describes.
+  `origin`, as [Indexed declarations](../indexed-source.md) describes.
 - An expression that names an identifier beginning with `__vastitas_` is an
   error (`E_RESERVED`).
 

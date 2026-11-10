@@ -4,7 +4,7 @@ This chapter defines the declarations of smooth real affine geometry: smooth
 affine objects, smooth maps between them, tangent and cotangent fibers,
 tapes, metrics and metric evidence, and the primitive bindings that act on
 them. The general rules of `indexed` declarations, such as visibility, names
-and markers, are in [declaration-driven indexed source](../indexed-source.md#declarations-and-source-example).
+and markers, are in [Indexed declarations](../indexed-source.md).
 [Notation](notation.md) explains the Syntax blocks, and the
 [glossary](../appendix/glossary.md) defines the terms.
 
@@ -14,18 +14,23 @@ A rejected fragment is shown with the code and message of the diagnostic that
 the compiler prints for it; the file position depends on where the fragment
 appears.
 
-All forms in this chapter share these productions:
+The declarations of this chapter are the forms of `SmoothDeclaration`, and
+they share the production `CoordinateName`:
 
 > **Syntax**
 >
 > ```text
+> SmoothDeclaration -> SmoothImplementation | SmoothFamily | AffineSpaceDeclaration
+>     | MorphismDeclaration | MetricDeclaration | EvidenceDeclaration
 > CoordinateName -> IDENTIFIER ( `::` IDENTIFIER )*
 > ```
 
 A [`Path`](names-and-paths.md) names a declaration in scope, as in a `use`
 declaration. A `CoordinateName` names a coordinate of an object. Each
-declaration of this chapter is an [item](items.md): its production is one
-form of `IndexedDeclaration`. `pub` before it makes it visible outside its
+declaration of this chapter is an [item](items.md): `SmoothDeclaration` is one
+form of [`IndexedDeclaration`](../indexed-source.md). So is
+`PrimitiveDeclaration`, whose bindings in this chapter are the forms of
+`SmoothBinding`. `pub` before a declaration makes it visible outside its
 module.
 
 ## The smooth profile
@@ -35,18 +40,14 @@ module.
 > ```text
 > SmoothImplementation -> `indexed` `implementation` IDENTIFIER
 >     `(` Path `,` `smooth_affine` `)` `capabilities` `(` Capabilities? `)` `;`
-> Capabilities -> Capability ( `,` Capability )* `,`?
-> Capability -> `origin` | `dimension`
 > SmoothFamily -> `indexed` `family` IDENTIFIER `(` Parameters? `)`
 >     `=` SmoothRepresentation `constraints` `(` Constraints? `)` `;`
-> Parameters -> Parameter ( `,` Parameter )* `,`?
-> Parameter -> `domain` | `marker` | `natural` | `object` `(` Path `)`
 > SmoothRepresentation -> `smooth` | `cotangent` | `tangent` | `tape` | `metric_form`
-> Constraints -> Constraint ( `,` Constraint )* `,`?
-> Constraint -> `canonical` `(` INTEGER_LITERAL `)`
->     | ConstraintKind `(` INTEGER_LITERAL `,` INTEGER_LITERAL `)`
-> ConstraintKind -> `same_object` | `same_base` | `over` | `structural`
 > ```
+
+[Implementations](../indexed-source.md#implementations) gives the production
+`Capabilities`, and [Families](../indexed-source.md#families) gives
+`Parameters` and `Constraints`.
 
 An implementation with the `smooth_affine` representation backs the
 [smooth affine objects](../appendix/glossary.md#smooth-affine-object). A
@@ -58,7 +59,7 @@ tangent [fibers](../appendix/glossary.md#tangent-or-cotangent-fiber)
 (`cotangent`, `tangent`), of [tapes](../appendix/glossary.md#tape) (`tape`)
 and of [metric forms](../appendix/glossary.md#metric-form) (`metric_form`).
 The `token`, `point` and `morphism` representations are in
-[indexed source](../indexed-source.md#declarations-and-source-example), and
+[Families](../indexed-source.md#families), and
 the `relative` representation is in
 [presented affine geometry](../affine-geometry.md#morphisms-over-a-base).
 
@@ -273,8 +274,7 @@ E_AFFINE_COORDINATE: unknown coordinate x
 > **Syntax**
 >
 > ```text
-> PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
-> PrimitiveBinding -> SmoothMapBinding | FiberBinding | ReverseBinding | MetricBinding
+> SmoothBinding -> SmoothMapBinding | FiberBinding | ReverseBinding | MetricBinding
 > SmoothMapBinding -> `smooth_compose` `(` Path `)`
 >     | `smooth_equal` `(` Path `)`
 >     | `smooth_composite` `(` Path `)`
@@ -282,12 +282,13 @@ E_AFFINE_COORDINATE: unknown coordinate x
 > ```
 
 `indexed primitive p = binding;` declares a function `p` whose operands and
-result the binding fixes. In the tables of this chapter, `S` is a smooth
-family, and `P` is any 0-dimensional smooth affine object. A *point* of `X` is
-a value of `S<P, X>`: a rational point of `X`. The primitive bindings of the
-`token`, `point` and `morphism` families are in
-[indexed source](../indexed-source.md#declarations-and-source-example), and
-the `relative_*` bindings are in
+result the binding fixes, as [Primitives](../indexed-source.md#primitives)
+says. `SmoothBinding` gives the bindings of this chapter. In the tables of
+this chapter, `S` is a smooth family, and `P` is any 0-dimensional smooth
+affine object. A *point* of `X` is a value of `S<P, X>`: a rational point of
+`X`. The bindings for `point` and `morphism` families are in
+[Primitives](../indexed-source.md#primitives), and the `relative_*` bindings
+are in
 [presented affine geometry](../affine-geometry.md#morphisms-over-a-base).
 
 | Binding | Operands | Result | Value |

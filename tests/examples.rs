@@ -82,6 +82,8 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
 const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/inline-module/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
+    ("examples/packages/indexed-objects/Vastitas.toml", "42"),
+    ("examples/packages/geometry-compat/Vastitas.toml", "42"),
     ("examples/packages/stdlib-geometry/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
@@ -112,6 +114,10 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
     "examples/reject/packages/other-basis",
     "examples/reject/packages/other-space",
+    "examples/reject/packages/missing-capability",
+    "examples/reject/packages/lost-capability",
+    "examples/reject/packages/other-witness",
+    "examples/reject/packages/second-opening",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {

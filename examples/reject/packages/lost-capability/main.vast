@@ -1,0 +1,13 @@
+indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+indexed implementation Plain(QQ, affine_descriptor) capabilities();
+indexed classification Shape { parents(); domain(Grid, Plain); };
+indexed classification Measured { parents(Shape); domain(Grid); };
+indexed primitive grid = descriptor(Grid);
+indexed primitive size = dimension((Measured, QQ));
+
+fn main() -> Int {
+    let X = grid(42);
+    let Y: Object<Shape, QQ> = X;
+    int(size(Y))
+}

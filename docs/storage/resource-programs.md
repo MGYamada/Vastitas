@@ -306,7 +306,8 @@ fill(complex_output, complex(0x1.8p0, -0x1p1));  // 1.5 - 2i
 
 `let x: T = value { e };` computes the scalar `e` with ordinary expressions
 and binds `x`. A `value` block may call functions, generics and lambdas, and
-it may use the declarations of [Indexed source](../indexed-source.md).
+it may use the declarations of
+[Indexed declarations](../indexed-source.md).
 `call f(a, …) -> (d, …);` calls the resource function `f` with the named
 bindings and binds its owned results, in order, to fresh owners.
 `let x: T = call f(…) -> (…);` also binds the scalar result of `f`. `if c { … }

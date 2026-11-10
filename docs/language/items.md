@@ -28,7 +28,7 @@ only inside the bodies of items.
 | Abstract method | `abstract method` | Yes | [Abstract methods](../stage1a.md#abstract-methods) |
 | Module | `mod` | No | [Module declarations](modules.md#module-declarations) |
 | Import | `use` | No | [`use` declarations](modules.md#use-declarations) |
-| Indexed declaration | `indexed` | No | [Indexed source](../indexed-source.md#declarations-and-source-example), [smooth declarations](smooth-declarations.md) |
+| Indexed declaration | `indexed` | No | [Indexed declarations](../indexed-source.md) |
 | Resource function | `resource fn` | No | [Resource programs](../storage/resource-programs.md) |
 | Grant, delegation | `grant`, `delegation` | No | [Grants and delegations](edit-authority.md#grants-and-delegations) |
 | Transfer | `transfer` | No | [Transfers](edit-authority.md#transfers) |
@@ -36,10 +36,8 @@ only inside the bodies of items.
 | Assembly | `assembly` | No | [Assemblies](edit-authority.md#assemblies) |
 
 `IndexedDeclaration` stands for every declaration that begins with `indexed`.
-[Smooth affine declarations](smooth-declarations.md) gives the productions of
-the smooth declarations, and
-[Indexed source](../indexed-source.md#declarations-and-source-example)
-describes the others.
+[Indexed declarations](../indexed-source.md) gives its production and says
+which chapter has the rules of each kind of declaration.
 
 Rules:
 

@@ -128,9 +128,10 @@ declarations. An **indexed type** applies such a family to its arguments, as in
 [paths](names-and-paths.md). `Object<D, M>` is the type of an object of the
 [classification](../appendix/glossary.md#classification) `D` with the
 coefficient marker `M`.
-[Indexed source](../indexed-source.md#declarations-and-source-example) and
-[Smooth affine declarations](smooth-declarations.md) give the families and
-their rules.
+[Object types](../indexed-source.md#object-types) gives the rules of
+`Object<D, M>`, and [Families](../indexed-source.md#families) the rules of the
+other indexed types. [Smooth affine declarations](smooth-declarations.md) and
+[presented affine geometry](../affine-geometry.md) give further families.
 
 Rules:
 

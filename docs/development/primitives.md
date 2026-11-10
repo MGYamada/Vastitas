@@ -3,7 +3,7 @@
 An [indexed primitive](../appendix/glossary.md#primitive) binds a declared
 name to one contract of a closed registry. This page lists what a contributor
 touches to add one contract, file by file, and the checks to run.
-[Declaration-driven indexed source](../indexed-source.md#closed-primitive-binding-inventory)
+[The indexed checker](../internals/indexed-checker.md#closed-primitive-binding-inventory)
 describes the registry's place in the checker, and
 [Verification boundaries](../verification.md) the theorems it is held to.
 
@@ -460,9 +460,9 @@ A primitive is documented in four places:
   [reverse-pass primitives](../language/smooth-declarations.md#reverse-pass-primitives),
   [flat and sharp](../language/smooth-declarations.md#flat-and-sharp) or
   [morphisms over a base](../affine-geometry.md#morphisms-over-a-base). A
-  binding outside those constructs, as `compose` is, has a row in the
-  inventory of
-  [Declaration-driven indexed source](../indexed-source.md#closed-primitive-binding-inventory)
+  binding outside those constructs, as `compose` is, has a row in the table
+  of [Primitives](../indexed-source.md#primitives) and in the inventory of
+  [The indexed checker](../internals/indexed-checker.md#closed-primitive-binding-inventory)
   instead;
 - its wire operation and fields in [Wire protocols](../protocol.md): the
   [protocol 7 table](../protocol.md#protocol-7-indexed-declarations-and-rich-package-bodies)

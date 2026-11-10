@@ -124,8 +124,8 @@ does this, so the older syntax keeps working in package mode.
 > **What is checked.** Lean composes the declaration audit with the same
 > function, dispatch and edit-authority checkers on one input. The exact
 > declaration grammar, existential rules and legacy export are in
-> [Declaration-driven indexed source](../indexed-source.md). Typed total
+> [Indexed declarations](../indexed-source.md). Typed total
 > evaluation of the returned Core is proved; source operational correspondence
 > and native refinement are not. See
-> [Acceptance and proof scope](../indexed-source.md#acceptance-and-proof-scope)
-> and the [geometry migration record](../indexed-source.md#geometry-migration).
+> [Acceptance and proof scope](../internals/indexed-checker.md#acceptance-and-proof-scope)
+> and the [geometry migration record](../internals/indexed-checker.md#geometry-migration).

@@ -20,7 +20,18 @@ pullback whose seed does not lie over the output point. It is absorbing and
 never equal to a fiber.
 
 The checker and generated programs share these definitions. This module
-imports only the algebra runtime: no compiler, oracle or mathlib module. -/
+imports only the algebra runtime: no compiler, oracle or mathlib module.
+
+The oracle and bridge theorems are about the definitions by structural
+recursion. A program can build a chain of 2¹⁸ `compose` nodes, an exponent
+of 2¹⁸ or a polynomial of more than 10⁵ terms from a short source, so
+compiled code must not recurse once per node, per unit of an exponent or per
+term of a polynomial. Each such definition has a replacement whose recursive
+calls are tail calls, which Lean compiles to a loop, and a `csimp` theorem
+that proves the replacement equal to the definition for every input (#630).
+Lean compiles every use of the definition, in the kernel and in generated
+programs, to the replacement. `dot` and `monomialValue` recurse once per
+coordinate and stay as defined: an object has at most 16 coordinates. -/
 namespace VastitasKernel.SmoothRuntime
 
 open VastitasKernel.AlgebraRuntime
@@ -31,6 +42,50 @@ open VastitasKernel.AlgebraRuntime
 def npow (value : Rat) : Nat → Rat
   | 0 => 1
   | exponent + 1 => npow value exponent * value
+
+theorem npow_square (value : Rat) (n : Nat) : npow (value * value) n = npow value (n + n) := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    rw [npow, ih, show n + 1 + (n + 1) = n + n + 1 + 1 by omega, npow, npow, Rat.mul_assoc]
+
+/-- `product * value ^ exponent` by repeated squaring: one squaring per binary
+digit of the exponent after the leading one, and one product per digit that
+is one. `npow` multiplies once per unit of the exponent. Every recursive call
+is a tail call. -/
+def npowOnto (product value : Rat) (exponent : Nat) : Rat :=
+  if exponent = 0 then product
+  else if exponent = 1 then product * value
+  else
+    npowOnto (if exponent % 2 = 1 then product * value else product) (value * value)
+      (exponent / 2)
+termination_by exponent
+decreasing_by omega
+
+theorem npowOnto_eq (product value : Rat) (exponent : Nat) :
+    npowOnto product value exponent = product * npow value exponent := by
+  induction exponent using Nat.strongRecOn generalizing product value with
+  | _ exponent ih =>
+    rw [npowOnto]
+    split
+    · subst exponent
+      rw [npow, Rat.mul_one]
+    · split
+      · subst exponent
+        rw [npow, npow, Rat.one_mul]
+      · rw [ih (exponent / 2) (by omega), npow_square]
+        split
+        · rw [show exponent = exponent / 2 + exponent / 2 + 1 by omega, npow]
+          rw [show (exponent / 2 + exponent / 2 + 1) / 2 = exponent / 2 by omega]
+          rw [Rat.mul_assoc, Rat.mul_comm value]
+        · rw [show exponent / 2 + exponent / 2 = exponent by omega]
+
+/-- The `npow` of compiled code: binary exponentiation. -/
+def npowSafe (value : Rat) (exponent : Nat) : Rat := npowOnto 1 value exponent
+
+@[csimp] theorem npow_eq_npowSafe : @npow = @npowSafe := by
+  funext value exponent
+  rw [npowSafe, npowOnto_eq, Rat.one_mul]
 
 /-- The sum of products of corresponding entries. Extra entries are ignored. -/
 def dot : List Rat → List Rat → Rat
@@ -57,6 +112,26 @@ def evalAt : Poly → List Rat → Rat
   | [], _ => 0
   | t :: p, point => t.coefficient * monomialValue t.monomial point + evalAt p point
 
+/-- `sum` plus the value of a polynomial at a point, one term per tail call. -/
+def evalAtOnto (point : List Rat) : Rat → Poly → Rat
+  | sum, [] => sum
+  | sum, t :: p => evalAtOnto point (sum + t.coefficient * monomialValue t.monomial point) p
+
+theorem evalAtOnto_eq (point : List Rat) (sum : Rat) (p : Poly) :
+    evalAtOnto point sum p = sum + evalAt p point := by
+  induction p generalizing sum with
+  | nil => rw [evalAtOnto, evalAt, Rat.add_zero]
+  | cons t p ih => rw [evalAtOnto, ih, evalAt, Rat.add_assoc]
+
+/-- The `evalAt` of compiled code. It adds the terms from the leading one on,
+where `evalAt` adds them from the last one on; exact rationals make the sums
+equal. -/
+def evalAtSafe (p : Poly) (point : List Rat) : Rat := evalAtOnto point 0 p
+
+@[csimp] theorem evalAt_eq_evalAtSafe : @evalAt = @evalAtSafe := by
+  funext p point
+  rw [evalAtSafe, evalAtOnto_eq, Rat.zero_add]
+
 /-- The formal partial derivative in coordinate `j`. It works term by term.
 Lowering one exponent of every surviving term keeps the strict degree-
 lexicographic order, so a canonical input gives a canonical output. -/
@@ -66,6 +141,27 @@ def partialDerivative (j : Nat) : Poly → Poly
     let exponent := t.monomial.getD j 0
     if exponent = 0 then partialDerivative j p
     else ⟨t.monomial.set j (exponent - 1), t.coefficient * exponent⟩ :: partialDerivative j p
+
+/-- The formal partial derivative of one term in coordinate `j`, or `none`
+when it is zero. -/
+def termDerivative (j : Nat) (t : Term) : Option Term :=
+  let exponent := t.monomial.getD j 0
+  if exponent = 0 then none
+  else some ⟨t.monomial.set j (exponent - 1), t.coefficient * exponent⟩
+
+/-- The `partialDerivative` of compiled code: the same terms through
+`List.filterMap`, which compiled code runs as a loop. -/
+def partialDerivativeSafe (j : Nat) (p : Poly) : Poly := p.filterMap (termDerivative j)
+
+@[csimp] theorem partialDerivative_eq_partialDerivativeSafe :
+    @partialDerivative = @partialDerivativeSafe := by
+  funext j p
+  induction p with
+  | nil => rfl
+  | cons t p ih =>
+    rw [partialDerivative, partialDerivativeSafe, List.filterMap_cons, ← partialDerivativeSafe,
+      ← ih, termDerivative]
+    by_cases zero : t.monomial.getD j 0 = 0 <;> simp only [zero, ↓reduceIte]
 
 /-! ## Smooth maps
 
@@ -137,6 +233,119 @@ def reverse : Program → List Rat → List Rat → List Rat
   | compose after before, point, seed =>
     before.reverse point (after.reverse (before.eval point) seed)
 
+/-! ### Work lists
+
+`eval`, `denote` and `reverse` recurse once per `compose` node, and so does
+`record` below. Compiled code runs a work list in place of each: the pending
+programs are a list, every recursive call is a tail call, and a `csimp`
+theorem proves the work list equal to the definition for every program. -/
+
+/-- A bound on the steps of a work list for one program: one per primitive
+and two per `compose` node. Every work list terminates by it. Compiled code
+does not call it. -/
+def workCost : Program → Nat
+  | primitive _ => 1
+  | compose after before => after.workCost + before.workCost + 2
+
+/-- Evaluate the programs of `work` in order, each at the image of the one
+before it. -/
+def evalWork : List Program → List Rat → List Rat
+  | [], point => point
+  | primitive map :: work, point => evalWork work (apply map point)
+  | compose after before :: work, point => evalWork (before :: after :: work) point
+termination_by work => (work.map workCost).sum
+decreasing_by all_goals (simp only [List.map_cons, List.sum_cons, workCost]; omega)
+
+theorem evalWork_cons (program : Program) (work : List Program) (point : List Rat) :
+    evalWork (program :: work) point = evalWork work (program.eval point) := by
+  induction program generalizing work point with
+  | primitive map => rw [evalWork, eval]
+  | compose after before ihAfter ihBefore => rw [evalWork, ihBefore, ihAfter, eval]
+
+/-- The `eval` of compiled code. It applies the same maps to the same points
+in the same order. The `after` programs that wait for their input are a list;
+in `eval` they are stack frames. -/
+def evalSafe (program : Program) (point : List Rat) : List Rat := evalWork [program] point
+
+@[csimp] theorem eval_eq_evalSafe : @eval = @evalSafe := by
+  funext program point
+  rw [evalSafe, evalWork_cons, evalWork]
+
+/-- One pending task of `denoteWork`. -/
+inductive DenoteTask where
+  /-- Push the map a program denotes. -/
+  | visit (program : Program)
+  /-- Replace the two maps on top, `before` above `after`, with their composite. -/
+  | combine
+
+/-- The steps a task still needs. -/
+def DenoteTask.cost : DenoteTask → Nat
+  | visit program => program.workCost
+  | combine => 1
+
+/-- Run the pending tasks over a stack of maps. A `compose` node becomes the
+tasks of its two sides followed by `combine`, so every composite is formed
+from the same two maps as in `denote`: the association of the tree is kept. -/
+def denoteWork : List DenoteTask → List Map → List Map
+  | [], maps => maps
+  | .visit (primitive map) :: work, maps => denoteWork work (map :: maps)
+  | .visit (compose after before) :: work, maps =>
+    denoteWork (.visit after :: .visit before :: .combine :: work) maps
+  | .combine :: work, before :: after :: maps =>
+    denoteWork work (SmoothRuntime.compose after before :: maps)
+  | .combine :: work, maps => denoteWork work maps
+termination_by work => (work.map DenoteTask.cost).sum
+decreasing_by
+  all_goals (simp only [List.map_cons, List.sum_cons, DenoteTask.cost, workCost]; omega)
+
+theorem denoteWork_visit (program : Program) (work : List DenoteTask) (maps : List Map) :
+    denoteWork (.visit program :: work) maps = denoteWork work (program.denote :: maps) := by
+  induction program generalizing work maps with
+  | primitive map => rw [denoteWork, denote]
+  | compose after before ihAfter ihBefore => rw [denoteWork, ihAfter, ihBefore, denoteWork, denote]
+
+/-- The `denote` of compiled code. It forms the same composites of the same
+two maps, with the pending tasks and the finished maps in two lists. -/
+def denoteSafe (program : Program) : Map :=
+  match denoteWork [.visit program] [] with
+  | map :: _ => map
+  | [] => default
+
+@[csimp] theorem denote_eq_denoteSafe : @denote = @denoteSafe := by
+  funext program
+  rw [denoteSafe, denoteWork_visit, denoteWork]
+
+/-- Pull `seed` back along the programs of `work` in order, each at the point
+stored with it. -/
+def reverseWork : List (Program × List Rat) → List Rat → List Rat
+  | [], seed => seed
+  | (primitive map, point) :: work, seed => reverseWork work (cot map point seed)
+  | (compose after before, point) :: work, seed =>
+    reverseWork ((after, before.eval point) :: (before, point) :: work) seed
+termination_by work => (work.map fun entry => entry.1.workCost).sum
+decreasing_by all_goals (simp only [List.map_cons, List.sum_cons, workCost]; omega)
+
+theorem reverseWork_cons (program : Program) (point : List Rat)
+    (work : List (Program × List Rat)) (seed : List Rat) :
+    reverseWork ((program, point) :: work) seed =
+      reverseWork work (program.reverse point seed) := by
+  induction program generalizing point work seed with
+  | primitive map => rw [reverseWork, reverse]
+  | compose after before ihAfter ihBefore => rw [reverseWork, ihAfter, ihBefore, reverse]
+
+/-- The `reverse` of compiled code. It is the recomputing pass, not a taped
+one: it evaluates `before.eval point` once per `compose` node, as `reverse`
+does, so its time is quadratic in the length of a chain that is deep in
+`before` and linear in one that is deep in `after`. It keeps the input point
+of every `before` program that waits for its seed; `reverse` keeps the same
+points in its stack frames. -/
+def reverseSafe (program : Program) (point seed : List Rat) : List Rat :=
+  reverseWork [(program, point)] seed
+
+@[csimp] theorem reverse_eq_reverseSafe : @reverse = @reverseSafe := by
+  funext program point seed
+  rw [reverseSafe, reverseWork_cons, reverseWork]
+
 end Program
 
 /-! ## Saved forward values -/
@@ -164,6 +373,41 @@ def record : Program → List Rat → List Step × List Rat
     let (beforeSteps, middle) := before.record point
     let (afterSteps, output) := after.record middle
     (beforeSteps ++ afterSteps, output)
+
+theorem record_of_compose (after before : Program) (point : List Rat) :
+    (compose after before).record point =
+      ((before.record point).1 ++ (after.record (before.record point).2).1,
+        (after.record (before.record point).2).2) := rfl
+
+/-- Record the programs of `work` in order, each at the output of the one
+before it. `steps` holds the steps so far, last step first. -/
+def recordWork : List Program → List Step → List Rat → List Step × List Rat
+  | [], steps, point => (steps.reverse, point)
+  | primitive map :: work, steps, point =>
+    recordWork work (⟨map, point⟩ :: steps) (apply map point)
+  | compose after before :: work, steps, point => recordWork (before :: after :: work) steps point
+termination_by work => (work.map workCost).sum
+decreasing_by all_goals (simp only [List.map_cons, List.sum_cons, workCost]; omega)
+
+theorem recordWork_cons (program : Program) (work : List Program) (steps : List Step)
+    (point : List Rat) :
+    recordWork (program :: work) steps point =
+      recordWork work ((program.record point).1.reverse ++ steps) (program.record point).2 := by
+  induction program generalizing work steps point with
+  | primitive map => rw [recordWork, record]; rfl
+  | compose after before ihAfter ihBefore =>
+    rw [recordWork, ihBefore, ihAfter, record_of_compose, List.reverse_append, List.append_assoc]
+
+/-- The `record` of compiled code. It makes every step once and reverses the
+list at the end, so its time is linear in the number of nodes. `record`
+appends at every `compose` node, which copies the steps of `before`: its
+time is quadratic in the length of a chain that is deep in `before`. -/
+def recordSafe (program : Program) (point : List Rat) : List Step × List Rat :=
+  recordWork [program] [] point
+
+@[csimp] theorem record_eq_recordSafe : @record = @recordSafe := by
+  funext program point
+  rw [recordSafe, recordWork_cons, recordWork, List.append_nil, List.reverse_reverse]
 
 /-- Evaluate once and save every forward value. -/
 def forward (program : Program) (point : List Rat) : Tape :=

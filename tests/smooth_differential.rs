@@ -693,6 +693,225 @@ fn cotangent_programs_lower_to_the_shared_smooth_runtime() {
     }
 }
 
+// Stack safety of the smooth runtime (#630). A short program builds a chain of
+// 2^18 `compose` nodes, a composite with an exponent of 2^18 or a composite of
+// more than 10^5 terms. The runtime must run them in constant native stack: a
+// recursion per node, per unit of the exponent or per term aborts with a
+// stack overflow.
+
+/// `{name}0` applies `step` to its parameter `p`, and `{name}{k}` applies
+/// `{name}{k-1}` twice, so `{name}{k}` applies `step` 2^k times.
+fn doubling(name: &str, step: &str, levels: usize) -> String {
+    let kind = "Smooth<Line, Line>";
+    let mut source = format!("fn {name}0(p: {kind}) -> {kind} {{ {step} }}\n");
+    for level in 1..=levels {
+        let half = format!("{name}{}", level - 1);
+        source.push_str(&format!(
+            "fn {name}{level}(p: {kind}) -> {kind} {{ {half}({half}(p)) }}\n"
+        ));
+    }
+    source
+}
+
+/// A program over the cotangent profile with `items` before `main`.
+fn stack_program(items: &str, main: &str) -> Scratch {
+    cotangent_fixture(&format!(
+        "mod profile;
+use profile::SmoothR;
+use profile::Smooth;
+use profile::Cotangent;
+use profile::Tape;
+use profile::Pt;
+use profile::Line;
+use profile::Plane;
+use profile::compose;
+use profile::composite;
+use profile::line_at;
+use profile::pullback;
+use profile::pullback_recomputed;
+use profile::differential;
+use profile::linearize;
+use profile::backward;
+use profile::lies_over;
+use profile::same_covector;
+indexed primitive same = smooth_equal(Smooth);
+indexed primitive dline = fiber_vector(Cotangent, Smooth, Line);
+indexed primitive dt = fiber_component(Cotangent, Line, t);
+indexed morphism sq: Smooth<Line, Line> = pullback(t -> t^2);
+indexed morphism idL: Smooth<Line, Line> = identity;
+fn verdict(ok: Bool, code: Int) -> Int {{ if ok {{ 0 }} else {{ code }} }}
+{items}
+fn main() -> Int {{
+{main}
+}}
+"
+    ))
+}
+
+#[test]
+fn a_chain_of_two_to_the_eighteen_nodes_runs_in_constant_native_stack() {
+    // `before18(sq())` puts 2^18 identity nodes after sq, each new node the
+    // `after` of a `compose`: the chain is deep in `before`. `after18(sq())`
+    // puts them before sq: the chain is deep in `after`. The recomputing
+    // reverse pass evaluates `before` again at every node, so it is quadratic
+    // on a chain that is deep in `before`; it runs that shape with 2^10 nodes
+    // only, and the deep-`after` chain, on which it is linear, with 2^18.
+    let items = format!(
+        "{}{}
+// A tape that reaches `backward` through a function: no reverse site reads it,
+// so the program calls the runtime `linearize` and `backward`.
+fn tape_of(map: Smooth<Line, Line>, point: Smooth<Pt, Line>) -> Tape<Line, Line> {{ linearize(map, point) }}
+fn through(tape: Tape<Line, Line>, seed: Cotangent<Line>) -> Cotangent<Line> {{ backward(tape, seed) }}",
+        doubling("before", "compose(idL(), p)", 18),
+        doubling("after", "compose(p, idL())", 18),
+    );
+    let main = "    let deepBefore: Smooth<Line, Line> = before18(sq());
+    let deepAfter: Smooth<Line, Line> = after18(sq());
+    let x: Smooth<Pt, Line> = line_at(3);
+    // dt at sq(3) = 9; its pullback along either chain is 6 dt at 3.
+    let seed: Cotangent<Line> = dline(line_at(9), 1);
+    let six: Cotangent<Line> = dline(x, 6);
+    pair_first(dt(pullback(deepBefore, x, seed)))
+       // Forward evaluation of both shapes.
+       + verdict(lies_over(dline(compose(deepBefore, x), 1), line_at(9)), 1)
+       + verdict(lies_over(dline(compose(deepAfter, x), 1), line_at(9)), 2)
+       // The saved mode, on both shapes.
+       + verdict(same_covector(pullback(deepBefore, x, seed), six), 3)
+       + verdict(same_covector(pullback(deepAfter, x, seed), six), 4)
+       // The recomputing mode.
+       + verdict(same_covector(pullback_recomputed(deepAfter, x, seed), six), 5)
+       + verdict(same_covector(pullback_recomputed(before10(sq()), x, seed), six), 6)
+       // The first-class tape and the differential.
+       + verdict(same_covector(backward(linearize(deepBefore, x), seed), six), 7)
+       + verdict(same_covector(through(tape_of(deepBefore, x), seed), six), 8)
+       + verdict(same_covector(through(tape_of(deepAfter, x), seed), six), 9)
+       + verdict(same_covector(differential(deepAfter, x), six), 10)
+       // The map each chain denotes, and the composite as one map.
+       + verdict(same(deepBefore, sq()), 11)
+       + verdict(same(deepAfter, deepBefore), 12)
+       + verdict(same(composite(deepBefore), sq()), 13)
+       + verdict(same_covector(pullback(composite(deepAfter), x, seed), six), 14)";
+    let s = stack_program(&items, main);
+    success(&check(&s));
+    // The chains are function results, so every pass over them is the runtime
+    // routine: no compiled reverse Core replaces it.
+    let emitted = kernel(request(&s), "emit");
+    assert_eq!(emitted["ok"], true, "{emitted}");
+    let source = emitted["lean_source"].as_str().unwrap();
+    for expected in [
+        "SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.saved ",
+        "SmoothRuntime.pullback VastitasKernel.SmoothRuntime.PullbackMode.recomputed ",
+        "SmoothRuntime.applyPoint ",
+        "SmoothRuntime.linearize ",
+        "SmoothRuntime.backward ",
+        "SmoothRuntime.same ",
+        "SmoothRuntime.composite ",
+    ] {
+        assert!(source.contains(expected), "{expected}\n{source}");
+    }
+    assert_eq!(run(&s), b"6\n");
+}
+
+#[test]
+fn a_composite_with_exponent_two_to_the_eighteen_runs_in_constant_native_stack() {
+    // sq composed 18 times is t |-> t^262144. As one map, its value and its
+    // derivative raise the coordinate to the powers 262144 and 262143.
+    let power = (1..18).fold("sq()".to_string(), |inner, _| {
+        format!("compose(sq(), {inner})")
+    });
+    let main = format!(
+        "    let power: Smooth<Line, Line> = {power};
+    let whole: Smooth<Line, Line> = composite(power);
+    let one: Smooth<Pt, Line> = line_at(1);
+    let two: Smooth<Pt, Line> = line_at(2);
+    let top: Cotangent<Line> = dline(compose(power, two), 1);
+    // At 1 the pullback of dt is the exponent.
+    pair_first(dt(pullback(whole, one, dline(one, 1))))
+       // At 2 the composite agrees with the 18 squarings pulled back one at a time.
+       + verdict(same_covector(pullback(whole, two, top), pullback(power, two, top)), 1)
+       + verdict(same_covector(pullback_recomputed(whole, two, top), pullback(power, two, top)), 2)
+       + verdict(lies_over(dline(compose(whole, two), 1), compose(power, two)), 3)"
+    );
+    let s = stack_program("", &main);
+    success(&check(&s));
+    assert_eq!(run(&s), b"262144\n");
+}
+
+#[test]
+fn nineteen_squarings_nested_on_the_left_denote_one_map_in_constant_native_stack() {
+    // ((sq . sq) . sq) . ... substitutes t^2 into t^(2^k) at step k: the last
+    // step raises t^2 to the power 2^18. Nested on the right, every step
+    // squares instead.
+    let left = (1..19).fold("sq()".to_string(), |inner, _| {
+        format!("compose({inner}, sq())")
+    });
+    let right = (1..19).fold("sq()".to_string(), |inner, _| {
+        format!("compose(sq(), {inner})")
+    });
+    let main = format!(
+        "    let left: Smooth<Line, Line> = {left};
+    let right: Smooth<Line, Line> = {right};
+    42 + verdict(same(left, left), 1)
+       + verdict(same(left, right), 2)
+       + verdict(same(composite(left), right), 3)
+       + verdict(!same(left, compose(right, sq())), 4)"
+    );
+    let s = stack_program("", &main);
+    success(&check(&s));
+    assert_eq!(run(&s), b"42\n");
+}
+
+/// The sum of the monomials of degree at most `degree` in three coordinates.
+fn monomials(coordinates: [&str; 3], degree: u32) -> String {
+    let mut terms = Vec::new();
+    for first in 0..=degree {
+        for second in 0..=degree - first {
+            for third in 0..=degree - first - second {
+                let factors: Vec<String> = coordinates
+                    .iter()
+                    .zip([first, second, third])
+                    .filter(|(_, exponent)| *exponent > 0)
+                    .map(|(coordinate, exponent)| format!("{coordinate}^{exponent}"))
+                    .collect();
+                terms.push(if factors.is_empty() {
+                    "1".to_string()
+                } else {
+                    factors.join("*")
+                });
+            }
+        }
+    }
+    terms.join(" + ")
+}
+
+#[test]
+fn a_composite_with_more_than_a_hundred_thousand_terms_runs_in_constant_native_stack() {
+    // The product of 286 monomials in a, b, c and 455 monomials in d, e, f has
+    // 130130 terms, one per pair. Both factors are within the 512 terms of a
+    // declared image; the composite as one map is not, and the runtime merges,
+    // evaluates and differentiates it term by term.
+    let items = format!(
+        "indexed affine Space(SmoothR) = Affine(6)[a, b, c, d, e, f];
+indexed primitive space_at = smooth_int_point(Smooth, Space, Pt);
+indexed morphism factors: Smooth<Space, Plane> = pullback(x -> {}, y -> {});
+indexed morphism times: Smooth<Plane, Line> = pullback(t -> x*y);
+// The composite as one map against the two declared maps, at one point.
+fn agrees(whole: Smooth<Space, Line>, product: Smooth<Space, Line>, p: Smooth<Pt, Space>) -> Bool {{
+    let top: Cotangent<Line> = dline(compose(product, p), 1);
+    same(whole, product)
+        && lies_over(dline(compose(whole, p), 1), compose(product, p))
+        && same_covector(pullback(whole, p, top), pullback(product, p, top))
+}}",
+        monomials(["a", "b", "c"], 10),
+        monomials(["d", "e", "f"], 12),
+    );
+    let main = "    let product: Smooth<Space, Line> = compose(times(), factors());
+    if agrees(composite(product), product, space_at(1, -1, 2, 1, 2, -1)) { 42 } else { 0 }";
+    let s = stack_program(&items, main);
+    success(&check(&s));
+    assert_eq!(run(&s), b"42\n");
+}
+
 #[test]
 fn cotangent_operations_reject_wrong_objects_variances_and_points() {
     // When no operand role is at fault, the endpoint error lists the operand

@@ -93,7 +93,11 @@ smooth map within one `algebraWork` run. An input beyond a bound is an error
 
 These bounds apply when a program is checked. In a compiled program, `same`
 and `composite` expand a composite map at run time without a budget, and the
-reverse pass has no work bound.
+reverse pass has no work bound. The length of a chain of `compose` nodes has
+no bound either, nor have the exponents and the number of terms of a
+composite. The runtime runs all three in loops, so they cost time and memory,
+not native stack ([#630](https://github.com/MGYamada/Vastitas/issues/630));
+see [Stack-safe runtime code](../verification.md#stack-safe-runtime-code).
 
 ### Smooth metrics
 

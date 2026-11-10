@@ -2114,6 +2114,48 @@ claim below to its tests and theorems.
   `cotangent_pullback` declaration, so compiling generated Core again would
   compile that step again.
 
+<a id="stack-safe-runtime-code"></a>
+
+### Stack-safe runtime code
+
+The oracle and bridge theorems below are about the definitions of
+`SmoothRuntime.lean` and `AlgebraRuntime.lean` by structural recursion. Some
+of these definitions recurse once per `compose` node of a program, per unit of
+an exponent or per term of a polynomial. A short program builds a chain of
+2¹⁸ nodes, a composite with an exponent of 2¹⁸ or a composite of more than
+10⁵ terms, so code compiled from them would need native stack in proportion.
+A generated program evaluates `main` on the stack of its initial thread,
+which is about 8 MiB by default on Linux and macOS. Each of these definitions
+has a replacement whose recursive calls are tail calls, which Lean compiles
+to a loop. A kernel theorem with Lean's `csimp` attribute states that the
+definition equals its replacement, for every input. Lean then compiles every
+use of the definition to the replacement, in the kernel and in generated
+programs. No oracle or bridge statement changes. Each theorem in the table
+is a kernel theorem: it stands next to its definition in `lean-kernel/`, and
+`scripts/audit_axioms.lean` audits it with the rest of the kernel.
+
+| Definition | Replacement | Kernel theorem | Cost against the definition |
+| --- | --- | --- | --- |
+| `Program.eval` | `evalSafe`: a list of the programs that wait for their input | `Program.eval_eq_evalSafe` | The same maps at the same points |
+| `Program.denote` | `denoteSafe`: a list of tasks and a stack of maps | `Program.denote_eq_denoteSafe` | The same composites. It composes the two sides of every node, so it keeps the association of the tree: `SmoothRuntime.compose` is not known to be associative on maps that are not canonical |
+| `Program.reverse` | `reverseSafe`: a list of the programs that wait for their seed, each with its input point | `Program.reverse_eq_reverseSafe` | The same forward evaluations: one of `before` at every node. It is the recomputing pass, not a taped one. Its time is quadratic in the length of a chain that is deep in `before`, and linear in one that is deep in `after`. The definition keeps the same input points in its stack frames |
+| `Program.record` | `recordSafe`: the steps last to first, reversed once | `Program.record_eq_recordSafe` | Linear in the number of nodes. The definition appends at every node, which is quadratic on a chain that is deep in `before` |
+| `npow` | `npowSafe`: binary exponentiation | `npow_eq_npowSafe` | One squaring per binary digit of the exponent and one product per digit that is one, where the definition multiplies once per unit |
+| `evalAt` | `evalAtSafe`: a running sum | `evalAt_eq_evalAtSafe` | The same products, added from the leading term on |
+| `partialDerivative` | `partialDerivativeSafe`: `List.filterMap` | `partialDerivative_eq_partialDerivativeSafe` | The same terms |
+| `Poly.add` | `Poly.addSafe`: the merged terms last to first, reversed once | `Poly.add_eq_addSafe` | The same comparisons, and one more pass over the merged terms |
+| `Poly.pow` | `Poly.powSafe`: a running product | `Poly.pow_eq_powSafe` | The same multiplications in the same order. `Poly.mul` is not known to be associative on polynomials that are not canonical, so the replacement does not square |
+
+The other recursions stay as defined. `dot` and `monomialValue` recurse once
+per coordinate, and an object has at most 16 coordinates.
+`Program.inputArity` and `outputArity` are tail calls. `Program.wellTyped`
+appears only in propositions. No generated program calls the derived `Repr`
+and `DecidableEq` instances of `Program`, and the checker holds no program
+deeper than a declared map. The list functions that the runtime calls are
+tail recursive in Lean's library or have `csimp` replacements there.
+`Poly.add` and `Poly.pow` also serve the presented affine runtime, where
+`relative_compose` substitutes at run time.
+
 ### Oracle theorems
 
 All of these are Proved (oracle). Names are relative to `VastitasOracle`.
@@ -2225,6 +2267,18 @@ coordinates.
   rejected primitive calls: see
   [Primitive registry evidence](#primitive-registry-evidence).
 - Native execution of the acceptance example and its mutations.
+- Native stack use of the [stack-safe runtime code](#stack-safe-runtime-code).
+  The equalities are proved. That the replacements run as loops is a property
+  of the C code that Lean emits. Four native tests of
+  `tests/smooth_differential.rs` cover it: a chain of 2¹⁸ nodes through
+  evaluation, both pullback modes, a tape, `same` and `composite`; an 18-fold
+  composite of t ↦ t²; `same` on 19 squarings nested on the left; and a
+  composite with 130130 terms. The recomputing mode runs 2¹⁸ nodes on a chain
+  that is deep in `after`, and 2¹⁰ nodes on one that is deep in `before`,
+  where its time is quadratic. A test of `tests/affine_geometry.rs` composes
+  19 squarings of a presented affine line, nested on the left.
+  `SmoothRuntimeRegression` compares the replacements with folds over a list
+  of maps on three shapes of one chain.
 - Compiled reverse Core:
   - the generated Core of the acceptance example and of the corpus packages
     where a branch chooses the map or a tape crosses a function

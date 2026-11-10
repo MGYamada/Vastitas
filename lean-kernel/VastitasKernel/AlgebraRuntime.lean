@@ -8,7 +8,15 @@ first, then exponents lexicographically with coordinate 0 most significant.
 The checker and generated programs share these definitions. Statically
 checked bases make normal forms meaningful. This module never decides
 whether a basis is a Gröbner basis: `AlgebraBasis` verifies that before code
-generation. There are deliberately no compiler, oracle or mathlib imports. -/
+generation. There are deliberately no compiler, oracle or mathlib imports.
+
+`Poly.add` recurses once per term and `Poly.pow` once per unit of the
+exponent, and a generated program can build a polynomial of more than 10⁵
+terms or an exponent of 2¹⁸. Each has a replacement whose recursive calls are
+tail calls, which Lean compiles to a loop, and a `csimp` theorem that proves
+the replacement equal to the definition for every input (#630). Lean compiles
+every use of the definition to the replacement; the theorems of the oracle
+and the bridge stay about the definitions. -/
 namespace VastitasKernel.AlgebraRuntime
 
 /-- An exponent vector. Every polynomial of one ring uses one arity. -/
@@ -88,6 +96,32 @@ def add : Poly → Poly → Poly
       if coefficient == 0 then add p q else ⟨s.monomial, coefficient⟩ :: add p q
 termination_by p q => p.length + q.length
 
+/-- `add` onto the terms merged so far, which `merged` holds last term
+first. Every recursive call is a tail call. -/
+def addOnto (merged : Poly) : Poly → Poly → Poly
+  | [], q => merged.reverseAux q
+  | s :: p, [] => merged.reverseAux (s :: p)
+  | s :: p, t :: q =>
+    match Monomial.compare s.monomial t.monomial with
+    | .gt => addOnto (s :: merged) p (t :: q)
+    | .lt => addOnto (t :: merged) (s :: p) q
+    | .eq =>
+      let coefficient := s.coefficient + t.coefficient
+      if coefficient == 0 then addOnto merged p q
+      else addOnto (⟨s.monomial, coefficient⟩ :: merged) p q
+termination_by p q => p.length + q.length
+
+theorem addOnto_eq (merged p q : Poly) : addOnto merged p q = merged.reverse ++ add p q := by
+  fun_induction add p q generalizing merged <;> simp_all +zetaDelta [addOnto]
+
+/-- The `add` of compiled code. It makes the same comparisons as `add` and
+reverses the merged terms once. -/
+def addSafe (p q : Poly) : Poly := addOnto [] p q
+
+@[csimp] theorem add_eq_addSafe : @add = @addSafe := by
+  funext p q
+  simp [addSafe, addOnto_eq]
+
 def neg (p : Poly) : Poly := p.map fun t => {t with coefficient := -t.coefficient}
 
 def sub (p q : Poly) : Poly := add p (neg q)
@@ -106,6 +140,27 @@ def mul (p q : Poly) : Poly := p.foldl (fun product t => add product (mulTerm t 
 def pow (arity : Nat) (p : Poly) : Nat → Poly
   | 0 => one arity
   | n + 1 => mul (pow arity p n) p
+
+/-- `product` multiplied on the right by `p`, `n` times. Every recursive
+call is a tail call. -/
+def powOnto (p : Poly) : Nat → Poly → Poly
+  | 0, product => product
+  | n + 1, product => powOnto p n (mul product p)
+
+theorem powOnto_pow (arity : Nat) (p : Poly) (n done : Nat) :
+    powOnto p n (pow arity p done) = pow arity p (done + n) := by
+  induction n generalizing done with
+  | zero => rfl
+  | succ n ih => rw [powOnto, ← pow, ih, Nat.succ_add_eq_add_succ]
+
+/-- The `pow` of compiled code. It makes the same multiplications as `pow`
+in the same order: `mul` is not known to be associative on polynomials that
+are not canonical, so it does not square. -/
+def powSafe (arity : Nat) (p : Poly) (n : Nat) : Poly := powOnto p n (one arity)
+
+@[csimp] theorem pow_eq_powSafe : @pow = @powSafe := by
+  funext arity p n
+  rw [powSafe, ← pow, powOnto_pow, Nat.zero_add]
 
 /-- Normalize an arbitrary finite list of terms. -/
 def ofTerms (terms : List Term) : Poly :=

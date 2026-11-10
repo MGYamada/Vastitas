@@ -360,11 +360,20 @@ mod tests {
         ));
         std::fs::create_dir_all(&directory).unwrap();
         let marker = directory.join("escaped");
+        // The wait for the marker is bounded (#678). If the Python child never
+        // writes it, or the directory is gone, the shell gives up after 6000
+        // polls, at least 60 s. The test then fails, and a killed run leaves
+        // no shell that polls forever.
         let mut command = Command::new("sh");
         command.env("MARKER", &marker).args([
             "-c",
             "python3 -c 'import os, sys, time; os.setsid(); print(os.getpid(), file=open(os.environ[\"MARKER\"] + \".tmp\", \"w\")); os.rename(os.environ[\"MARKER\"] + \".tmp\", os.environ[\"MARKER\"]); time.sleep(4)' &\n\
-             while [ ! -f \"$MARKER\" ]; do sleep 0.01; done\nexit 0\n",
+             polls=0\n\
+             while [ ! -f \"$MARKER\" ]; do\n\
+             if [ \"$polls\" -ge 6000 ] || [ ! -d \"${MARKER%/*}\" ]; then exit 1; fi\n\
+             polls=$((polls + 1))\n\
+             sleep 0.01\n\
+             done\nexit 0\n",
         ]);
         SENT.with(|sent| sent.borrow_mut().clear());
         let start = Instant::now();

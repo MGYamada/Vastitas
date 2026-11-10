@@ -127,12 +127,22 @@ printf '%s\n' "{\"version\":8,\"ok\":true,\"kernel\":$BUILD_TEST_IDENTITY,\"lean
 "#,
         );
         let lake = s.write("bin/lake", "");
+        // The wait for the release file is bounded (#678). A test run that is
+        // killed never writes the file and runs no cleanup, so nothing else
+        // stops the mock. It gives up when the scratch directory is gone, or
+        // after 6000 polls: at least 60 s, twice the watchdog of
+        // `Running::finish`.
         executable(
             &lake,
             r#"#!/bin/sh
 if [ -n "$BUILD_TEST_ENTERED" ]; then : > "$BUILD_TEST_ENTERED"; fi
 if [ -n "$BUILD_TEST_RELEASE" ]; then
-  while [ ! -f "$BUILD_TEST_RELEASE" ]; do sleep 0.01; done
+  polls=0
+  while [ ! -f "$BUILD_TEST_RELEASE" ]; do
+    if [ "$polls" -ge 6000 ] || [ ! -d "${BUILD_TEST_RELEASE%/*}" ]; then exit 9; fi
+    polls=$((polls + 1))
+    sleep 0.01
+  done
 fi
 if [ -n "$BUILD_TEST_FAIL" ]; then exit 7; fi
 mkdir -p .lake/build/bin
@@ -307,6 +317,28 @@ fn lake_retains_package_lock_after_driver_is_killed() {
             error => panic!("Lake did not release its package lock: {error:?}"),
         }
     }
+}
+
+/// A killed test run never releases its mock (#678). The mock gives up when
+/// the directory of its release file is gone, so the build fails instead of
+/// waiting forever. The poll limit of the wait is too long to test here.
+#[test]
+fn mock_lake_stops_when_its_release_directory_is_gone() {
+    let s = fixture();
+    let entered = s.0.join("entered");
+    let gone = s.0.join("gone");
+    fs::create_dir(&gone).unwrap();
+    let build = Running::start(
+        mocked(&s, &s.0.join("kernel"), "program")
+            .env("BUILD_TEST_ENTERED", &entered)
+            .env("BUILD_TEST_RELEASE", gone.join("release")),
+    );
+    wait_for(&entered);
+    fs::remove_dir(&gone).unwrap();
+    let result = build.finish();
+    assert!(!result.status.success());
+    let error = String::from_utf8_lossy(&result.stderr);
+    assert!(error.contains("native compilation failed"), "{error}");
 }
 
 #[test]

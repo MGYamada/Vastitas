@@ -510,6 +510,13 @@ Rules:
   `metricEntryBits` bits ([limits](../appendix/limits.md#smooth-metrics)).
   Otherwise it is an error (`E_LIMIT`).
 - The Gram matrix must be symmetric. Otherwise it is an error (`E_METRIC`).
+- The [matrix bound](../appendix/glossary.md#matrix-bound) of the Gram matrix
+  must be less than 2^`metricMatrixBits`
+  ([limits](../appendix/limits.md#smooth-metrics)). It is the product
+  ‖A₁‖ ⋯ ‖Aₙ‖ · max Dᵢ, where Dᵢ is the least common denominator of row i,
+  Aᵢ is row i times Dᵢ, and ‖Aᵢ‖ is the Euclidean norm of Aᵢ, or 1 for a
+  zero row. Otherwise it is an error (`E_LIMIT`), even when no evidence names
+  the metric.
 - Any word other than `euclidean` or `gram` after `=` is an error (`E_TYPE`).
 
 Example:
@@ -557,7 +564,12 @@ Rules:
 > GB = BG = I for nondegenerate evidence. For Riemannian evidence it computes a
 > factorization G = L D Lᵀ, with L unit lower triangular and every diagonal
 > entry of D positive, and an inverse of L. It checks every identity again
-> before acceptance. A certificate never comes from the frontend.
+> before acceptance. A certificate never comes from the frontend. The
+> [matrix bound](#metrics) of the metric limits the size of a certificate,
+> and the kernel checks that bound before it computes one. The kernel
+> computes one certificate for each metric and kind. Further evidence
+> declarations of that kind for that metric carry the same certificate, and
+> the declaration audit checks equal evidence declarations once.
 
 Example:
 

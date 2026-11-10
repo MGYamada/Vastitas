@@ -161,9 +161,50 @@ def ldl? (n : Nat) (gram : Matrix) : Option (Matrix × List Rat × Matrix) := do
 def entryBounded (value : Rat) : Bool :=
   value.num.natAbs < 2 ^ Limits.metricEntryBits && value.den < 2 ^ Limits.metricEntryBits
 
-/-- Every entry of the matrix is bounded. With at most `algebraGenerators`
-rows, this bounds the work of `invert?`, `ldl?` and the certificate checks. -/
+/-- Every entry of the matrix is bounded. This bounds the size of the matrix,
+not the work of `invert?`, `ldl?` or the certificate checks: a certificate
+grows with the least common denominators of the rows. `matrixBounded` bounds
+that. -/
 def gramBounded (gram : Matrix) : Bool := gram.all fun row => row.all entryBounded
+
+/-! ## The matrix bound
+
+Clear the denominators of each row of a Gram matrix `G`: `Dᵢ` is the least
+common denominator of row `i`, and `Aᵢ = Dᵢ · (row i)` is an integer row, so
+`A = diag(D) · G`. The bound is
+
+  `‖A₁‖₂ ⋯ ‖Aₙ‖₂ · maxᵢ Dᵢ < 2 ^ Limits.metricMatrixBits`,
+
+where a zero row counts as 1. The kernel compares the squares, which are
+natural numbers.
+
+By Hadamard's inequality every minor of `A` is at most `‖A₁‖₂ ⋯ ‖Aₙ‖₂` in
+absolute value. The entries of `G⁻¹ = adj(A) · diag(D) / det A`, and the
+entries of `L`, `D` and `L⁻¹` with `G = L D Lᵀ`, are quotients of two minors
+of `A`, each times at most one `Dᵢ`. So the numerator and the denominator of
+every certificate entry have at most `Limits.metricMatrixBits` bits, and so do
+those of every row that the Gauss–Jordan elimination in `invert?` keeps.
+`ldl?` and the checks add and multiply such entries. With at most
+`algebraGenerators` rows, this bounds the work of a certificate and of its
+check. This argument is not proved in Lean: it is a resource bound, and no
+soundness theorem depends on it. -/
+
+/-- The least common denominator `Dᵢ` of a row. -/
+def rowDenominator (row : List Rat) : Nat := row.foldl (fun common value => Nat.lcm common value.den) 1
+
+/-- `‖Aᵢ‖₂²` for the integer row `Aᵢ = Dᵢ · (row i)`. -/
+def rowNormSquare (row : List Rat) : Nat :=
+  let common := rowDenominator row
+  row.foldl (fun sum value => sum + (value.num.natAbs * (common / value.den)) ^ 2) 0
+
+/-- `(‖A₁‖₂ ⋯ ‖Aₙ‖₂ · maxᵢ Dᵢ)²`. A zero row counts as 1, so that it does not
+hide the other rows. -/
+def hadamardSquare (gram : Matrix) : Nat :=
+  gram.foldl (fun product row => product * max 1 (rowNormSquare row)) 1 *
+    (gram.foldl (fun largest row => max largest (rowDenominator row)) 1) ^ 2
+
+/-- The whole matrix is within `Limits.metricMatrixBits`. -/
+def matrixBounded (gram : Matrix) : Bool := hadamardSquare gram < 2 ^ (2 * Limits.metricMatrixBits)
 
 /-- A Gram matrix on an object of dimension `n`. -/
 def checkGram (n : Nat) (gram : Matrix) : Except Error Unit := do
@@ -171,18 +212,22 @@ def checkGram (n : Nat) (gram : Matrix) : Except Error Unit := do
   unless square n gram do throw (.metric s!"a metric on a {n}-dimensional object needs an {n} × {n} Gram matrix")
   unless symmetric n gram do throw (.metric "a metric must be symmetric")
 
-/-- Compute and check nondegeneracy evidence. -/
+/-- Compute and check nondegeneracy evidence. The matrix bound comes before
+the search. -/
 def certifyNondegenerate (n : Nat) (gram : Matrix) : Except Error Matrix := do
   checkGram n gram
+  unless matrixBounded gram do throw (.limit "metric matrix")
   match invert? n gram with
   | none => throw (.metric "the metric is singular, so it is not nondegenerate")
   | some inverse =>
     unless checkNondegenerate n gram inverse do throw (.metric "the computed inverse failed its check")
     pure inverse
 
-/-- Compute and check Riemannian evidence. -/
+/-- Compute and check Riemannian evidence. The matrix bound comes before the
+search. -/
 def certifyRiemannian (n : Nat) (gram : Matrix) : Except Error (Matrix × List Rat × Matrix) := do
   checkGram n gram
+  unless matrixBounded gram do throw (.limit "metric matrix")
   match ldl? n gram with
   | none => throw (.metric "the metric is not positive definite, so it is not Riemannian")
   | some (lower, pivots, lowerInverse) =>

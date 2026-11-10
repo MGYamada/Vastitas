@@ -10,13 +10,17 @@ identity of dimension `dim X`, or explicit rows of constant polynomial
 expressions. The elaboration evaluates the entries in the coordinates of `X`
 with the Stage 2 polynomial resolver, all entries of one metric within one
 `algebraWork` budget. Each result must be constant, and its numerator and
-denominator must have at most `Limits.metricEntryBits` bits. With at most
-`algebraGenerators` coordinates, this bounds the certificate computations.
+denominator must have at most `Limits.metricEntryBits` bits. The entry bound
+does not bound a certificate, so the whole matrix must also be within
+`Limits.metricMatrixBits` (`SmoothDeclarations.matrixBounded`). Every metric
+is elaborated, and so bounded, before any certificate is computed.
 Messages name declarations by their full path, `package::module::name`.
 
 Evidence names a metric. The kernel computes the certificate here, with
 `SmoothDeclarations.certifyNondegenerate` or `certifyRiemannian`, which check
-it again before returning it. `flat` and `sharp` receive the metric's object,
+it again before returning it. It computes one certificate for each metric and
+kind: a later evidence declaration for that metric and kind reuses it
+(`certifyAll`). `flat` and `sharp` receive the metric's object,
 its Gram matrix and, for `sharp`, the inverse that nondegenerate evidence for
 that metric certifies. Every rejection here is `E_METRIC`, except a family of
 the wrong variance (`E_SMOOTH`), unknown coordinates (`E_AFFINE_COORDINATE`)
@@ -88,8 +92,14 @@ def elaborateGram (span : Span) (env : Environment) (name family object : DeclId
     metricProblem span <| s!"the metric `{qualified name}` is not symmetric: the entries in row {i + 1}, " ++
       s!"column {j + 1} and in row {j + 1}, column {i + 1} differ"
   match SmoothDeclarations.checkGram n matrix with
-  | .ok () => pure matrix
+  | .ok () => pure ()
   | .error error => smoothProblem span error
+  -- The bound on the whole matrix, before any evidence asks for a certificate.
+  unless SmoothDeclarations.matrixBounded matrix do
+    Namespace.problem span "E_LIMIT" <| s!"the Gram matrix of the metric `{qualified name}` exceeds the " ++
+      "matrix limit: the product of the norms of its rows, cleared of denominators, and of its largest row " ++
+      s!"denominator has more than {Limits.metricMatrixBits} bits"
+  pure matrix
 
 /-- Compute the certificate that `evidence` asks for, for the metric `metric`. -/
 def certifyEvidence (span : Span) (env : Environment) (metric : DeclId) (evidence : MetricEvidence) :
@@ -111,6 +121,33 @@ def certifyEvidence (span : Span) (env : Environment) (metric : DeclId) (evidenc
         "Riemannian evidence"
     | .error error => smoothProblem span error
 
+/-- Two pieces of evidence of one kind. Their certificates are not compared. -/
+private def sameKind : MetricEvidence → MetricEvidence → Bool
+  | .nondegenerate _, .nondegenerate _ => true
+  | .riemannian .., .riemannian .. => true
+  | _, _ => false
+
+/-- The certificate of every evidence declaration of `metrics`. One certificate
+is computed for each metric and kind: a later declaration for that metric and
+kind reuses it, because the certificate depends on nothing else. Each
+declaration keeps its own copy, and the declaration audit checks every copy
+against the Gram matrix of the metric it names. -/
+def certifyAll (sources : List (DeclId × Span × Body)) (metrics : Environment) :
+    Namespace.Result Environment := do
+  let start : Array Entry × List (DeclId × MetricEvidence) := (#[], [])
+  let (entries, _) ← metrics.foldlM (init := start) fun (entries, certified) entry => do
+    match entry.declaration with
+    | .metricEvidence metric evidence =>
+      let reused := certified.find? fun (certifiedMetric, certificate) =>
+        certifiedMetric == metric && sameKind certificate evidence
+      match reused with
+      | some (_, certificate) => pure (entries.push ⟨entry.id, .metricEvidence metric certificate⟩, certified)
+      | none =>
+        let certificate ← certifyEvidence (spanOf sources entry.id) metrics metric evidence
+        pure (entries.push ⟨entry.id, .metricEvidence metric certificate⟩, (metric, certificate) :: certified)
+    | _ => pure (entries.push entry, certified)
+  pure entries.toList
+
 /-- The object and Gram matrix of the metric after `using =`. -/
 private def usingMetric (env : Environment) (span : Span) (operation : String) (metric : DeclId) :
     Namespace.Result (DeclId × SmoothRuntime.Matrix) := do
@@ -130,11 +167,7 @@ def elaborateMetrics (sources : List (DeclId × Span × Body)) (env : Core.Decla
       let gram ← elaborateGram (spanOf sources entry.id) env.indexed entry.id family object gram
       pure ⟨entry.id, .metric family object gram⟩
     | _, _ => pure entry
-  let indexed ← metrics.mapM fun entry => do
-    match entry.declaration with
-    | .metricEvidence metric evidence =>
-      pure ⟨entry.id, .metricEvidence metric (← certifyEvidence (spanOf sources entry.id) metrics metric evidence)⟩
-    | _ => pure entry
+  let indexed ← certifyAll sources metrics
   let primitives ← env.primitives.mapM fun entry => do
     let span := spanOf sources entry.id
     match entry.binding with

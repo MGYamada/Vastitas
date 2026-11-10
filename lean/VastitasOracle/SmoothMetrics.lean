@@ -14,6 +14,10 @@ produced it:
 - a Gram matrix with a zero row has no nondegenerate evidence, so `diag(1, 0)`
   is rejected.
 
+The kernel bounds the whole matrix before it searches (`matrixBounded`). The
+bound is a resource limit: these theorems read past it and do not depend on
+it.
+
 That a two-sided inverse makes the Gram matrix invertible, and that a positive
 `L D Lᵀ` factorization makes it positive definite, are statements about
 matrices over a field. They are not proved here. The mathlib bridge proves them
@@ -51,14 +55,17 @@ theorem certifyNondegenerate_sound {n : Nat} {gram inverse : Matrix}
   | ok u =>
     cases u
     simp only [hg] at h
-    split at h
-    · cases h
-    · rename_i candidate _
-      by_cases hc : checkNondegenerate n gram candidate = true
-      · simp [hc] at h
-        cases h
-        exact hc
-      · simp [hc] at h; cases h
+    by_cases hb : matrixBounded gram = true
+    · simp only [hb, ite_true] at h
+      split at h
+      · cases h
+      · rename_i candidate _
+        by_cases hc : checkNondegenerate n gram candidate = true
+        · simp [hc] at h
+          cases h
+          exact hc
+        · simp [hc] at h; cases h
+    · simp [hb] at h; cases h
 
 theorem checkRiemannian_spec {n : Nat} {gram lower lowerInverse : Matrix} {pivots : List Rat}
     (h : checkRiemannian n gram lower pivots lowerInverse = true) :
@@ -83,14 +90,17 @@ theorem certifyRiemannian_sound {n : Nat} {gram lower lowerInverse : Matrix} {pi
   | ok u =>
     cases u
     simp only [hg] at h
-    split at h
-    · cases h
-    · rename_i l d li _
-      by_cases hc : checkRiemannian n gram l d li = true
-      · simp [hc] at h
-        obtain ⟨rfl, rfl, rfl⟩ := h
-        exact hc
-      · simp [hc] at h; cases h
+    by_cases hb : matrixBounded gram = true
+    · simp only [hb, ite_true] at h
+      split at h
+      · cases h
+      · rename_i l d li _
+        by_cases hc : checkRiemannian n gram l d li = true
+        · simp [hc] at h
+          obtain ⟨rfl, rfl, rfl⟩ := h
+          exact hc
+        · simp [hc] at h; cases h
+    · simp [hb] at h; cases h
 
 /-- An accepted smooth map is well formed, and conversely: declaration
 acceptance discharges the bridge's `WellFormed` hypothesis. -/

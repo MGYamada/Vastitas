@@ -112,6 +112,16 @@ private def lowered : String :=
 
 private def count (text needle : String) : Nat := (text.splitOn needle).length - 1
 
+/-- The end of a Jacobian table written as a literal. -/
+private def tableType : String := ": List (List VastitasKernel.AlgebraRuntime.Poly))"
+/-- The declaration of the table `[[coefficient · t]]` of a map of the line. -/
+private def tableDefinition (index coefficient : Nat) : String :=
+  s!"def jacobian_{index} : List (List VastitasKernel.AlgebraRuntime.Poly) :=\n  " ++
+    s!"([([([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat ({coefficient} : Int) 1))] : " ++
+    "VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] " ++ tableType ++ "\n"
+/-- A step of one output that names the declared table `index`. -/
+private def stepCall (index : Nat) : String := s!"(VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_{index} "
+
 #eval check "the lowering calls the compiled steps and no runtime reverse pass at a compiled site"
   (count lowered "VastitasKernel.SmoothRuntime.jacobianStep " > 0 &&
     count lowered "VastitasKernel.SmoothRuntime.applyPoint " > 0 &&
@@ -125,8 +135,8 @@ private def count (text needle : String) : Nat := (text.splitOn needle).length -
     (lowered.splitOn "def f_0 ").length == 2 &&
     ((lowered.splitOn "def f_0 ").headD "").length > ((lowered.splitOn "def f_1 ").headD "").length)
 
-/-- The generated function of `pullback(gf(), 3, dt at 18)`: one step along
-`gf(t) = 2t²` by its Jacobian table `[[4t]]`. -/
+/-- The site `pullback(gf(), 3, dt at 18)`: one step along `gf(t) = 2t²` by
+its Jacobian table `[[4t]]`. -/
 private def gfSite : Term :=
   .primitive (id "pullback") [.primitive (id "gf") [] ⟨.indexed ⟨id "Smooth", [.object (.global (id "Line")),
     .object (.global (id "Line"))]⟩, none⟩,
@@ -137,22 +147,30 @@ private def gfSite : Term :=
       ⟨.indexed ⟨id "Cotangent", [.object (.global (id "Line"))]⟩, none⟩]
     ⟨.indexed ⟨id "Cotangent", [.object (.global (id "Line"))]⟩, none⟩
 
-private def gfFunction : String :=
+/-- The library whose root is the generated function of that site, with the
+function's id. -/
+private def gfLibrary : Option (Nat × String) :=
   let (module, _, compiledEntries) := compileOne source gfSite
   match compiledEntries, Typing.checkModule module false with
-  | [entry], .ok checked => match Codegen.generateLibrary checked [entry.function] with
-    | .ok text =>
-      let lines := ((text.splitOn s!"def f_{entry.function} ").getD 1 "").splitOn "\n"
-      lines.getD 0 "" ++ "\n" ++ lines.getD 1 ""
-    | .error message => s!"error: {message}"
-  | _, _ => "error: not compiled"
+  | [entry], .ok checked =>
+    (Codegen.generateLibrary checked [entry.function]).toOption.map fun text => (entry.function, text)
+  | _, _ => none
+
+/-- The parameters and the body of the generated function. -/
+private def gfFunction : String :=
+  match gfLibrary with
+  | some (function, text) =>
+    let lines := ((text.splitOn s!"def f_{function} ").getD 1 "").splitOn "\n"
+    lines.getD 0 "" ++ "\n" ++ lines.getD 1 ""
+  | none => "error: not compiled"
 
 #eval check "the generated function of one declared step, byte for byte"
   (gfFunction == "(v_0 : VastitasKernel.SmoothRuntime.Program) (v_1 : VastitasKernel.SmoothRuntime.Program) " ++
     "(v_2 : (Option VastitasKernel.SmoothRuntime.Fiber)) : (Option VastitasKernel.SmoothRuntime.Fiber) :=\n" ++
-    "  (VastitasKernel.SmoothRuntime.jacobianStep 1 ([([([(VastitasKernel.AlgebraRuntime.Term.mk [1] " ++
-    "(mkRat (4 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] : List VastitasKernel.AlgebraRuntime.Poly)] : " ++
-    "List (List VastitasKernel.AlgebraRuntime.Poly)) v_0 v_1 v_2)")
+    "  (VastitasKernel.SmoothRuntime.jacobianStep 1 jacobian_0 v_0 v_1 v_2)")
+#eval check "the library of that function declares the table of the step, byte for byte, and no map"
+  (gfLibrary.map (fun (_, text) => (count text (tableDefinition 0 4), count text tableType, count text "def map_")) ==
+    some (1, 1, 0))
 
 /-! ## Forged reverse Core
 
@@ -443,6 +461,63 @@ private def aliased (aliases : Nat) : Function :=
      run compiled mainCall == some (.integer 42) && run module mainCall == some (.integer 42))
 #eval check "steps over the wrong objects fail the Core audit"
   (!audited (onTwoSteps swapSteps))
+
+/-! ## Jacobian tables are declared once
+
+A generated module declares each distinct Jacobian table of the backward
+steps that its functions call, and every step names the declaration (#629).
+The number of tables in the generated text does not depend on the number of
+steps. Two declared maps with one table give one declaration, and a step that
+no emitted function calls gives none. -/
+
+/-- The fixture's declarations with `sqShifted(t) = t² + 1`, a second declared
+map with the Jacobian table `[[2t]]` of `sq`. -/
+private def withShifted : Declarations := { source.declarations with
+  primitives := source.declarations.primitives ++ [⟨id "sqShifted",
+    .smoothConstant ⟨id "Smooth", [obj "Line", obj "Line"]⟩ ⟨1, [], [[⟨[2], 1⟩, ⟨[0], 1⟩]]⟩⟩] }
+/-- The pullback of `dt` at `image` along the declared `map` at 3 is
+`expected · dt`: one site with one declared step. -/
+private def pulled (map : String) (image expected : Int) : Term :=
+  same (prim "pullback" [constant map "Line" "Line", three, dline (lineAt image) 1] (cotangentType "Line"))
+    (dline three expected)
+/-- A function that returns 42 when every check holds. -/
+private def checking (checks : List Term) (function := 0) (name := "main") : Function := {
+  id := function, definition := id name, parameters := [], returnType := .pure .int
+  body := checks.foldr (fun condition rest => guarded condition 1 rest) (.integer 42) }
+/-- The generated code of the compiled module of these functions, when the
+compiled module evaluates to 42. -/
+private def compiledCode (functions : List Function) : Option String := do
+  let .ok checked := Typing.checkModule ⟨withShifted, functions, some 0⟩ true | none
+  let .ok compiled := Reverse.compile checked | none
+  if run compiled.core.module mainCall == some (.integer 42) then (Codegen.generate compiled.core).toOption else none
+private def occurrences (part : String) (code : Option String) : Option Nat := code.map (count · part)
+/-- `steps` sites, each with one step along `sq`. -/
+private def alongSq (steps : Nat) : Option String := compiledCode [checking (List.replicate steps (pulled "sq" 9 6))]
+
+#eval check "the generated modules hold 1, 2 and 6 steps along sq"
+  ([1, 2, 6].map (fun steps => occurrences (stepCall 0) (alongSq steps)) == [some 1, some 2, some 6])
+#eval check "1, 2 and 6 steps along one declared map give one Jacobian table"
+  ([1, 2, 6].all fun steps => occurrences tableType (alongSq steps) == some 1 &&
+    occurrences (tableDefinition 0 2) (alongSq steps) == some 1 &&
+    occurrences "def jacobian_" (alongSq steps) == some 1)
+#eval check "two declared maps with one Jacobian table give one declaration"
+  (let code := compiledCode [checking [pulled "sq" 9 6, pulled "sqShifted" 10 6]]
+   occurrences (tableDefinition 0 2) code == some 1 && occurrences tableType code == some 1 &&
+     occurrences (stepCall 0) code == some 2 && occurrences "def map_" code == some 2)
+#eval check "two different tables give two declarations, in the order of their steps"
+  (let code := compiledCode [checking [pulled "gf" 18 12, pulled "sq" 9 6, pulled "gf" 18 12]]
+   occurrences (tableDefinition 0 4) code == some 1 && occurrences (tableDefinition 1 2) code == some 1 &&
+     occurrences tableType code == some 2 && occurrences (stepCall 0) code == some 2 &&
+     occurrences (stepCall 1) code == some 1)
+#eval check "a module without a step declares no table"
+  (occurrences "jacobian_" (compiledCode [checking []]) == some 0)
+#eval check "a step that no emitted function calls gives no declaration"
+  (let functions := [checking [pulled "gf" 18 12] 1 "unused", checking [pulled "sq" 9 6]]
+   let code := compiledCode functions
+   -- Both sites are compiled, and only the step that `main` reaches is emitted.
+   (Reverse.generate ⟨withShifted, functions, some 0⟩).2.length == 2 &&
+     occurrences (tableDefinition 0 2) code == some 1 && occurrences tableType code == some 1 &&
+     occurrences "def jacobian_" code == some 1 && occurrences "(mkRat (4 : Int) 1)" code == some 0)
 
 /-! ## Definitions that `measure` does not read in full
 

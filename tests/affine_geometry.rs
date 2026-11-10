@@ -560,6 +560,48 @@ fn mutated_observations_change_the_native_result() {
 }
 
 #[test]
+fn nineteen_squarings_nested_on_the_left_compose_in_constant_native_stack() {
+    // `relative_compose` composes at run time. ((sq . sq) . sq) . ... substitutes
+    // t^2 into t^(2^k) at step k, so the last step raises t^2 to the power
+    // 2^18 (#630). Nested on the right, every step squares instead.
+    let left = (1..19).fold("sq()".to_string(), |inner, _| {
+        format!("compose({inner}, sq())")
+    });
+    let right = (1..19).fold("sq()".to_string(), |inner, _| {
+        format!("compose(sq(), {inner})")
+    });
+    let s = fixture(&format!(
+        "mod profile;
+use profile::AffineQQ;
+use profile::Over;
+use profile::SpecQQ;
+use profile::compose;
+use profile::same;
+indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
+indexed morphism sq: Over<Line, Line, SpecQQ> = pullback(t -> t^2);
+fn main() -> Int {{
+    let left: Over<Line, Line, SpecQQ> = {left};
+    let right: Over<Line, Line, SpecQQ> = {right};
+    if same(left, right) && !same(left, compose(right, sq())) {{ 42 }} else {{ 0 }}
+}}
+"
+    ));
+    success(&check(&s));
+    let output = s.0.join("program");
+    success(
+        &cli()
+            .current_dir(&s.0)
+            .args(["build", "--manifest-path", "Vastitas.toml", "-o"])
+            .arg(&output)
+            .output()
+            .unwrap(),
+    );
+    let result = std::process::Command::new(output).output().unwrap();
+    success(&result);
+    assert_eq!(result.stdout, b"42\n");
+}
+
+#[test]
 fn relative_forms_reject_downgrade_and_forged_wire() {
     let raw = request(&fixture(MAIN));
     let p = declaration_pointer(&raw, "p");

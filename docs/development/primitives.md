@@ -44,9 +44,10 @@ describes the registry's place in the checker, and
   a value of the checked result type.
 - The [**lowering**](../appendix/glossary.md#lowering) of a call is the Lean
   text that code generation writes for it, from the texts of its operands.
-- A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis
-  that a generated module declares once, as `basis_k`, and that the lowering
-  of every map over that basis names.
+- A [**shared literal**](../appendix/glossary.md#shared-literal) is a basis,
+  a matrix, a map or a Jacobian table that a generated module declares once,
+  as `basis_k`, `matrix_k`, `map_k` or `jacobian_k`, and that the lowering of
+  every call that uses it names.
 - The [**wire form**](../appendix/glossary.md#wire-form) of a binding is the
   record that the frontend sends for an `indexed primitive` declaration: an
   `op` and its named fields.
@@ -74,7 +75,7 @@ tables below take no case per constructor. Module paths are relative to
 | `PrimitiveFresh` | `IndexedSemantics.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `allocatedSerials` and the fresh brand of `emitPrimitive` | `IndexedTypeAudit.lean`, `IndexedSourceBodies.lean` | `shape`, through `PrimitiveBinding.allocates` |
 | `Codegen.renderPrimitive` | `IndexedCodegen.lean` | `render` |
-| `Codegen.renderContext` and the `basis_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
+| `Codegen.renderContext` and the `basis_k`, `matrix_k`, `map_k` and `jacobian_k` declarations of a generated module | `IndexedCodegen.lean` | `literals`, through `PrimitiveDescriptor.sharedLiterals` |
 | The reverse sites of a module and the maps of each site | `IndexedReverse.lean` | `reverse` |
 
 The oracle states the semantic obligations of an entry once, for any
@@ -211,16 +212,36 @@ the smooth lemmas use those of `VastitasOracle.SmoothRuntime` and
 `VastitasOracle.SmoothCanonical`. The native check of [step 6](#6-tests)
 compiles and runs it.
 
+Compiled code of a runtime operation must not recurse once per node of a
+smooth program, per unit of an exponent or per term of a polynomial. A short
+program builds a chain of 2¹⁸ nodes, an exponent of 2¹⁸ or a polynomial of
+more than 10⁵ terms, and such a recursion overflows the native stack. Define
+the operation by structural recursion for the proofs, add a replacement whose
+recursive calls are tail calls, and prove the two equal in a `csimp` theorem
+next to the definition, as
+[Stack-safe runtime code](../verification.md#stack-safe-runtime-code)
+describes.
+
 The lowering matches the operand texts that the shape admits and returns
 `Lowering.arityMismatch` on any other list. A variadic entry renders any
 number of operands, and the checked operand count fixes it. The lowering
 writes runtime names with `Lowering.runtime`, `Lowering.algebra` and
 `Lowering.smooth`, and the checked data of the binding with
-`Lowering.renderMap`, `Lowering.renderPolys` and `Lowering.renderMatrix`. It
-uses no source spelling. `Lowering.renderMap` names the basis of a map as
-`basis_k` when the `RenderContext` lists it, and writes the basis in place
-otherwise. The context lists the bases that some entry of the module puts in
-`literals`, as `relativeConstant` does.
+`Lowering.renderMap`, `Lowering.renderPolys`, `Lowering.renderMatrix` and
+`Lowering.renderJacobian`. It uses no source spelling. `Lowering.renderMap`
+names a map as `map_k`, `Lowering.renderMatrix` names a matrix as `matrix_k`
+and `Lowering.renderJacobian` names the Jacobian table of a map as
+`jacobian_k` when the `RenderContext` lists it, and each writes the literal
+in place otherwise. A map in place names its basis as `basis_k` in the same
+way. The context lists the bases that some entry of the module puts in
+`literals`. It lists the matrices, maps and Jacobian tables that the entry of
+a primitive puts there when a generated function calls the primitive.
+`relativeConstant` lists its basis and its map, `smoothConstant` its map,
+`metricFlat` its Gram matrix, `metricSharp` its inverse and
+`cotangentJacobian` the Jacobian table of its map. An entry lists a Jacobian
+table by its map: `RenderContext.share` computes the table once per map, and
+two maps with one table name one declaration. A literal that an entry writes
+without listing it is repeated at every call.
 
 The entry grants no authority. The all-body audits and the public acceptance
 path do not change.

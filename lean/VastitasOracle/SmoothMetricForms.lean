@@ -12,7 +12,7 @@ set_option autoImplicit false
 
 - a metric names a `metric_form` family applied to a declared smooth object,
   and its Gram matrix is square of that object's dimension and symmetric
-  (`metric_sound`);
+  (`metric_sound`), with bounded entries and a bounded whole (`metric_bounded`);
 - `nondegenerate` evidence names a metric and is an exact two-sided inverse
   of that metric's Gram matrix (`nondegenerate_evidence_sound`);
 - `riemannian` evidence names a metric and is an exact `L D Lᵀ` factorization
@@ -102,13 +102,28 @@ theorem metric_sound {env : Indexed.Environment} (envValid : env.Valid) {id fami
   change validMetric env family object gram = true at valid
   unfold validMetric at valid
   simp only [Bool.and_eq_true] at valid
-  obtain ⟨⟨⟨metricFamily, application⟩, _⟩, gramOk⟩ := valid
+  obtain ⟨⟨⟨⟨metricFamily, application⟩, _⟩, gramOk⟩, _⟩ := valid
   refine ⟨metricFamily, (Audit.validApplication_iff env _).1 application, ?_⟩
   cases dimension : smoothDimension? env object with
   | none => simp [dimension] at gramOk
   | some n =>
     simp only [dimension] at gramOk
     exact ⟨n, rfl, SmoothMetrics.checkGram_sound (checkGram_isOk gramOk)⟩
+
+/-- **Bounded metrics.** The Gram matrix of an accepted metric has every entry
+within `Limits.metricEntryBits` and is, as a whole, within
+`Limits.metricMatrixBits`. So every evidence check of a valid environment
+reads a bounded Gram matrix. -/
+theorem metric_bounded {env : Indexed.Environment} (envValid : env.Valid) {id family object : DeclId}
+    {gram : SmoothRuntime.Matrix} (found : lookup env id = some (.metric family object gram)) :
+    SmoothDeclarations.gramBounded gram = true ∧ SmoothDeclarations.matrixBounded gram = true := by
+  obtain ⟨entry, _, equal, valid⟩ := entry_valid envValid found
+  unfold Entry.Valid at valid
+  rw [equal] at valid
+  change validMetric env family object gram = true at valid
+  unfold validMetric at valid
+  simp only [Bool.and_eq_true] at valid
+  exact ⟨valid.1.1.2, valid.2⟩
 
 /-- The certificate of accepted evidence passes its check against the Gram
 matrix of the metric it names. -/

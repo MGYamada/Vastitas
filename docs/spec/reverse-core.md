@@ -307,6 +307,6 @@ Claims:
     - `acceptance_sites_compile_to_generated_backward_functions` in [`tests/reverse_core.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/reverse_core.rs)
     - `smooth_example_checks_builds_and_executes` in [`tests/smooth_differential.rs`](https://github.com/MGYamada/Vastitas/blob/main/tests/smooth_differential.rs)
     - [`VastitasKernel.ReverseCoreRegression`](https://github.com/MGYamada/Vastitas/blob/main/lean-kernel/VastitasKernel/ReverseCoreRegression.lean), built by [`scripts/check_kernel_regressions.sh`](https://github.com/MGYamada/Vastitas/blob/main/scripts/check_kernel_regressions.sh)
-  - Note: The Rust test checks that every Jacobian step carries its table as a literal of rational polynomials. `ReverseCoreRegression` pins the generated function of one declared step and rejects a step along another declared map.
+  - Note: The Rust test checks that every Jacobian step names a table that the module declares once, a literal of rational polynomials. `ReverseCoreRegression` pins the generated function of one declared step with the declaration of its table and rejects a step along another declared map.
 - `native`: [Not claimed](../specifications.md#not-claimed)
   - Reason: The theorems concern the Core that the kernel generates and the kernel evaluator. No claim states that the generated text or the compiled native code refines them. Tests run the native code.

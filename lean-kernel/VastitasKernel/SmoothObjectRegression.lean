@@ -356,19 +356,22 @@ private def smoothMessage (extra : List Source.Declaration) (fragment : String) 
   (smoothMessage [space "Bad" 2 ["t"]] "Affine(2) needs 2 coordinates, but 1 are given")
 #eval check "duplicate smooth coordinates" (smoothMessage [space "Bad" 2 ["t", "t"]] "must be distinct")
 
--- Byte-exact lowering: compose is a program node and composite collapses it.
-private def gText : String :=
-  "(VastitasKernel.SmoothRuntime.Program.primitive (VastitasKernel.AlgebraRuntime.Map.mk 2 " ++
-  "([] : List VastitasKernel.AlgebraRuntime.Poly) " ++
-  "([([(VastitasKernel.AlgebraRuntime.Term.mk [2, 0] (mkRat (1 : Int) 1)), " ++
-  "(VastitasKernel.AlgebraRuntime.Term.mk [0, 1] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] " ++
-  ": List VastitasKernel.AlgebraRuntime.Poly)))"
-private def fText : String :=
-  "(VastitasKernel.SmoothRuntime.Program.primitive (VastitasKernel.AlgebraRuntime.Map.mk 1 " ++
+-- Byte-exact lowering: the module declares each called map once, in declaration
+-- order, and a call names it; compose is a program node and composite collapses it.
+private def fMap : String :=
+  "(VastitasKernel.AlgebraRuntime.Map.mk 1 " ++
   "([] : List VastitasKernel.AlgebraRuntime.Poly) " ++
   "([([(VastitasKernel.AlgebraRuntime.Term.mk [1] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly), " ++
   "([(VastitasKernel.AlgebraRuntime.Term.mk [2] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] " ++
-  ": List VastitasKernel.AlgebraRuntime.Poly)))"
+  ": List VastitasKernel.AlgebraRuntime.Poly))"
+private def gMap : String :=
+  "(VastitasKernel.AlgebraRuntime.Map.mk 2 " ++
+  "([] : List VastitasKernel.AlgebraRuntime.Poly) " ++
+  "([([(VastitasKernel.AlgebraRuntime.Term.mk [2, 0] (mkRat (1 : Int) 1)), " ++
+  "(VastitasKernel.AlgebraRuntime.Term.mk [0, 1] (mkRat (1 : Int) 1))] : VastitasKernel.AlgebraRuntime.Poly)] " ++
+  ": List VastitasKernel.AlgebraRuntime.Poly))"
+private def fText : String := "(VastitasKernel.SmoothRuntime.Program.primitive map_0)"
+private def gText : String := "(VastitasKernel.SmoothRuntime.Program.primitive map_1)"
 private def composeText : String := "(VastitasKernel.SmoothRuntime.Program.compose " ++ gText ++ " " ++ fText ++ ")"
 private def loweredModule : Core.Module := ⟨resolved.getD default, [
   { id := 0, definition := id "node", parameters := [], returnType := (smoothType "Line" "Line").type,
@@ -380,6 +383,10 @@ private def lowered : Option String :=
   | .ok checked => (Core.Codegen.generateLibrary checked [0, 1]).toOption
   | .error _ => none
 private def occurs (text fragment : String) : Bool := (text.splitOn fragment).length == 2
+#eval check "f and g, each called twice, are declared once"
+  (lowered.any fun text => occurs text ("def map_0 : VastitasKernel.AlgebraRuntime.Map :=\n  " ++ fMap ++ "\n") &&
+    occurs text ("def map_1 : VastitasKernel.AlgebraRuntime.Map :=\n  " ++ gMap ++ "\n") &&
+    (text.splitOn "VastitasKernel.AlgebraRuntime.Map.mk ").length == 3 && (text.splitOn "def map_").length == 3)
 #eval check "compose(g, f) lowers to exactly one Program.compose node"
   (lowered.any (occurs · ("def f_0 : VastitasKernel.SmoothRuntime.Program :=\n  " ++ composeText ++ "\n")))
 #eval check "composite(compose(g, f)) lowers to composite of that node"

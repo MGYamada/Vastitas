@@ -586,9 +586,10 @@ evidence = [
   "VastitasKernel.ReverseCoreRegression",
 ]
 note = """
-The Rust test checks that every Jacobian step carries its table as a literal of
-rational polynomials. `ReverseCoreRegression` pins the generated function of
-one declared step and rejects a step along another declared map.
+The Rust test checks that every Jacobian step names a table that the module
+declares once, a literal of rational polynomials. `ReverseCoreRegression` pins
+the generated function of one declared step with the declaration of its table
+and rejects a step along another declared map.
 """
 
 [property."reverse-core.steps".claim.native]

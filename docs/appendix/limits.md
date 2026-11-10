@@ -93,19 +93,41 @@ smooth map within one `algebraWork` run. An input beyond a bound is an error
 
 These bounds apply when a program is checked. In a compiled program, `same`
 and `composite` expand a composite map at run time without a budget, and the
-reverse pass has no work bound.
+reverse pass has no work bound. The length of a chain of `compose` nodes has
+no bound either, nor have the exponents and the number of terms of a
+composite. The runtime runs all three in loops, so they cost time and memory,
+not native stack ([#630](https://github.com/MGYamada/Vastitas/issues/630));
+see [Stack-safe runtime code](../verification.md#stack-safe-runtime-code).
 
 ### Smooth metrics
 
 The kernel evaluates all Gram entries of one metric within one `algebraWork`
-run. It then bounds the size of each entry. With at most `algebraGenerators`
-coordinates, the bound limits the work of the exact inverse, the `L D Lᵀ`
-factorization and their checks. A larger entry is an error (`E_LIMIT`). See
-[metric forms](../protocol.md#protocol-9-metric-forms).
+run. It then bounds the size of each entry, and then the size of the whole
+matrix. A larger entry or matrix is an error (`E_LIMIT`). The kernel checks
+both bounds when it elaborates the metric, before it computes a certificate
+for any [metric evidence](../language/smooth-declarations.md#metric-evidence).
+See [metric forms](../protocol.md#protocol-9-metric-forms).
 
 | Key | Value | What it bounds |
 | --- | --- | --- |
 | `metricEntryBits` | 512 | Bits of the numerator and of the denominator of one elaborated Gram entry |
+| `metricMatrixBits` | 16,384 | Bits of the [matrix bound](glossary.md#matrix-bound) ‖A₁‖ ⋯ ‖Aₙ‖ · max Dᵢ of one Gram matrix |
+
+In the matrix bound, Dᵢ is the least common denominator of row i of the Gram
+matrix, and Aᵢ is row i times Dᵢ, a row of integers. ‖Aᵢ‖ is its Euclidean
+norm, and a zero row counts as 1. [Metrics](../language/smooth-declarations.md#metrics)
+states the rule.
+
+The entry bound does not limit the work of the inverse, of the `L D Lᵀ`
+factorization or of their checks. The entries of the inverse grow with the
+least common denominators of the rows: a 16 × 16 matrix whose entries have
+pairwise distinct 400-bit denominators has an inverse with entries of about
+100,000 bits. The matrix bound limits that work. By Hadamard's inequality,
+the numerator and the denominator of every entry of the inverse, and of every
+entry of L, D and L⁻¹, have at most `metricMatrixBits` bits. With at most
+`algebraGenerators` coordinates, this bounds the work of a certificate and of
+its check. Every Gram matrix with integer entries and every diagonal Gram
+matrix within the entry bound is within the matrix bound.
 
 "Kernel source" means the limit is enforced in
 [`lean-kernel/VastitasKernel`](https://github.com/MGYamada/Vastitas/tree/main/lean-kernel/VastitasKernel)

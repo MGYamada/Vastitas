@@ -5,7 +5,7 @@ The existing finite ordinary/smooth affine profile is implemented by ordinary
 independent Lean checker as application declarations. This is the finite
 migration profile of #49/#58–63, not general scheme or manifold support. The
 child module `scheme::affine` adds the Stage 2
-[presented affine profile](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md#the-standard-library-profile).
+[presented affine profile](https://github.com/MGYamada/Vastitas/blob/main/docs/affine-geometry.md#the-presented-profile).
 Its algebraic forms put the whole package closure on public protocol 9, the
 current schema epoch (#533). The child module `smooth::affine` and the sibling
 module `metric` add the [smooth affine profile](#smooth-affine-objects-and-metrics)
@@ -256,7 +256,7 @@ The exact returned Core has typed total evaluation through `IndexedProgramSafety
 `GeometryResults` proves that the validated primitive roles preserve finite
 legacy runtime results after erasure. These results do not prove general scheme
 mathematics, complete surface operational correspondence or native correctness.
-See the [migration acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/indexed-source.md#geometry-migration) for the
+See the [migration acceptance map](https://github.com/MGYamada/Vastitas/blob/main/docs/internals/indexed-checker.md#geometry-migration) for the
 inventory, regression matrix and remaining trust boundaries.
 
 ## Representation and future design

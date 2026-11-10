@@ -1,53 +1,16 @@
 # Appendix B: Diagnostics reference
 
 Every rejection starts with a code such as `E_TYPE`. This appendix lists the
-codes by the component that reports them. [Chapter 12](../guide/diagnostics-and-cli.md)
-explains how to read a diagnostic line.
+codes by the component that reports them.
+[Diagnostics](../language/diagnostics.md) gives the form of a diagnostic, its
+place, its code and the exit status, and
+[Chapter 12](../guide/diagnostics-and-cli.md) explains how to read a
+diagnostic line.
 
 The codes and messages below were collected from the sources at this revision.
 Where the book specifies a code's meaning, the table links to that rule. Other
 codes are listed with the checker that reports them; their messages carry the
 detail. The book does not yet give each code its own entry.
-
-## Output format
-
-| Origin | Form | Exit status |
-| --- | --- | --- |
-| Source diagnostic | `FILE:LINE:COLUMN: CODE: message` | 1 |
-| Manifest diagnostic | `MANIFEST: E_MANIFEST: message` | 1 |
-| Driver error without a source position | `CODE: message` | 1 |
-| Interrupted compilation | `E_INTERRUPTED: compilation interrupted` | 128 + signal number |
-| Generated program, native runtime check | Standard error contains `E_NATIVE_*: message` | Unsuccessful |
-
-Lines and columns are one-based; columns count Unicode scalars. A diagnostic
-reported by the Lean kernel is mapped back to the original file and its local
-position.
-
-A message names a declaration by its name or by its path
-`package::module::name`. The first component of the path is the name that the
-manifest of the declaring package gives it, even when the source reaches the
-package through a dependency alias. A message names a parameter as the source
-spells it.
-
-`FILE` and `MANIFEST` are paths. The compiler does not write every character
-of a path, or of text that comes from a manifest, as it is. It writes a
-control character, white space other than U+0020, or a character with the
-Unicode `Default_Ignorable_Code_Point` property as its code point in angle
-brackets. A file name that holds the escape character appears as
-`x<U+001B>[2J.vast`, for example. The rule covers every path and file name in
-a diagnostic and the message of a source diagnostic, including the package
-name that begins the path of a declaration. In a manifest diagnostic it also
-covers the line that a TOML error quotes and the keys that its message names.
-In a native build it covers the names that the driver reads from the kernel
-root and from the generated program. The line `checked FILE` or `built FILE`
-of a successful command writes its path by the same rule.
-
-> **Implementation note.** The driver formats every path with one function. A
-> TOML error keeps the layout of the `toml` crate, and its carets stay under
-> the place that they mark in the quoted line. The message of a TOML error
-> keeps its line breaks when the manifest holds no backslash and no
-> multi-line string. In any other manifest a line feed of the message may
-> come from the manifest, and the driver writes each one as `<U+000A>`.
 
 ## Driver and frontend
 
@@ -78,7 +41,7 @@ rules again independently.
 | Family | Codes | Checker and specification |
 | --- | --- | --- |
 | Core language | `E_TYPE`, `E_ARITY`, `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_RECURSION`, `E_MAIN`, `E_LITERAL`, `E_OPERATOR`, `E_SCOPE`, `E_CONTEXT`, `E_DEPENDENCY`, `E_STAGE`, `E_SCALAR_PROFILE` | Scalar, function and Core checking; [functions](../language/functions.md), [statements](../language/statements.md), [expressions](../language/expressions.md), [types](../language/types.md) |
-| Geometric identity | `E_ESCAPE`, `E_ENDPOINT`, `E_BASE`, `E_INDEX`, `E_RING` | Object, point and existential package checks; [geometric types](../language/geometric-types.md), [indexed source](../indexed-source.md) |
+| Geometric identity | `E_ESCAPE`, `E_ENDPOINT`, `E_BASE`, `E_INDEX`, `E_RING` | Object, point and existential package checks; [geometric types](../language/geometric-types.md), [indexed declarations](../indexed-source.md) |
 | Functions | `E_CAPTURE`, `E_STATIC_CALL` | [Lambdas and their names](../stage1b.md#lambdas-and-their-names), [Static targets](../stage1b.md#static-targets) |
 | Dispatch | `E_DISPATCH_AMBIGUOUS`, `E_DISPATCH_COVERAGE`, `E_DISPATCH_DOMAIN`, `E_CAPABILITY` | [Method declarations](../stage1a.md#method-declarations), [Selection](../stage1a.md#selection) |
 | Abstract types and abstract methods | `E_HIERARCHY`, `E_CONTRACT_DOMAIN`, `E_CONTRACT_EMPTY`, `E_CONTRACT_RESULT` | [Abstract types](../stage1a.md#abstract-types), [Abstract methods](../stage1a.md#abstract-methods) |
@@ -86,7 +49,7 @@ rules again independently.
 | Resource programs | `E_RESOURCE_ACCESS`, `E_RESOURCE_ALIAS`, `E_RESOURCE_ARITY`, `E_RESOURCE_BOUNDS`, `E_RESOURCE_CODEGEN`, `E_RESOURCE_COEFFICIENT`, `E_RESOURCE_DEPENDENCY`, `E_RESOURCE_DIAGONAL`, `E_RESOURCE_ESCAPE`, `E_RESOURCE_FUNCTION`, `E_RESOURCE_GEMM`, `E_RESOURCE_INIT`, `E_RESOURCE_JOIN`, `E_RESOURCE_LAYOUT`, `E_RESOURCE_LIMIT`, `E_RESOURCE_LOAN`, `E_RESOURCE_MOVE`, `E_RESOURCE_NAME`, `E_RESOURCE_OVERFLOW`, `E_RESOURCE_PACK`, `E_RESOURCE_PROVENANCE`, `E_RESOURCE_RECURSION`, `E_RESOURCE_REGION`, `E_RESOURCE_STATE`, `E_RESOURCE_TYPE`, `E_RESOURCE_VALUE` | [Checked storage](../storage/checked-storage.md), [resource diagnostics](../storage/resource-programs.md#diagnostics) |
 | Runtime shapes | `E_RUNTIME_BRANCH`, `E_RUNTIME_CALL`, `E_RUNTIME_CODEGEN`, `E_RUNTIME_COEFFICIENT`, `E_RUNTIME_ESCAPE`, `E_RUNTIME_EXTENT`, `E_RUNTIME_GUARD`, `E_RUNTIME_NUMERICAL`, `E_RUNTIME_RETURN`, `E_RUNTIME_SHAPE`, `E_RUNTIME_TYPE` | [Runtime extents](../storage/resource-programs.md#runtime-extents) |
 | Numerical values and tensors | `E_NUMERICAL_METRIC`, `E_NUMERICAL_ORIGIN`, `E_NUMERICAL_PACKAGE`, `E_NUMERICAL_TYPE`, `E_NETWORK`, `E_TENSOR`, `E_TENSOR_CACHE`, `E_TENSOR_TREE` | [Numerical maps](../linalg/maps-and-gemm.md), [networks and packing](../linalg/networks-and-packing.md) |
-| Presented affine geometry (Stage 2) | `E_AFFINE_BASE`, `E_AFFINE_COORDINATE`, `E_AFFINE_RELATION` | `E_AFFINE_BASE`: a missing, cyclic or non-presented base, base-coordinate images, structure maps, fiber bases without a chosen isomorphism, projections, restrictions and Cartesian squares. `E_AFFINE_COORDINATE`: unknown, duplicate or foreign coordinates, zero denominators and coefficient selectors that are not a single monomial with coefficient one. `E_AFFINE_RELATION`: a map that violates the target's relations, an isomorphism or Cartesian inverse that does not compose to the identity, or a basis or certificate that fails verification. See [presented affine geometry](../affine-geometry.md#diagnostics) and the [algebra checker](../verification.md#exact-affine-algebra-checker-stage-2-571) |
+| Presented affine geometry (Stage 2) | `E_AFFINE_BASE`, `E_AFFINE_COORDINATE`, `E_AFFINE_RELATION` | `E_AFFINE_BASE`: a missing, cyclic or non-presented base, base-coordinate images, structure maps, fiber bases without a chosen isomorphism, projections, restrictions and Cartesian squares. `E_AFFINE_COORDINATE`: unknown, duplicate or foreign coordinates, zero denominators and coefficient selectors that are not a single monomial with coefficient one. `E_AFFINE_RELATION`: a map that violates the target's relations, an isomorphism or Cartesian inverse that does not compose to the identity, or a basis or certificate that fails verification. See [presented affine declarations](../affine-geometry.md), whose sections give the code of each rule, and the [algebra checker](../verification.md#exact-affine-algebra-checker-stage-2-571) |
 | Smooth affine geometry | `E_SMOOTH` | <a id="e-smooth"></a>A declaration whose form does not match its implementation is an error (`E_SMOOTH`): `spec[…]`, `fiber(…)` or `localize(…)` under a smooth implementation, `Affine(n)[…]` under a presented or descriptor implementation, or `indexed global` under a smooth implementation. An `Affine(n)[…]` object whose dimension differs from its number of coordinates, or whose coordinates repeat, is an error (`E_SMOOTH`). A smooth map that does not name exactly two smooth objects, an `identity` map between different objects, or a smooth map defined other than by `pullback(…)` or `identity` is an error (`E_SMOOTH`). A `smooth_int_point` whose object or point object is not a smooth object, or whose point object is not 0-dimensional, is an error (`E_SMOOTH`). An unknown, missing or foreign coordinate in a smooth map is an error (`E_AFFINE_COORDINATE`). The frontend checks the dimension of `Affine(K, n)[…]` against its coordinates and reports a mismatch as `E_AFFINE_COORDINATE`. A dimension above the generator limit is an error (`E_LIMIT`). See [smooth forms](../protocol.md#protocol-9-smooth-forms) |
 | Smooth tangent or cotangent fibers and tapes | `E_SMOOTH`, `E_TYPE`, `E_ENDPOINT`, `E_AFFINE_COORDINATE` | <a id="e-smooth-fibers"></a>A primitive on tangent or cotangent fibers or tapes that names a family of the wrong variance is an error (`E_SMOOTH`). `cotangent_pullback`, `cotangent_backward` and `differential` must name a `cotangent` family. `fiber_pairing` must name a `cotangent` family and then a `tangent` family. A `differential` whose line object is not a 1-dimensional smooth object is an error (`E_SMOOTH`). A `fiber_vector` or `fiber_component` whose object is not a smooth object is an error (`E_SMOOTH`). A `fiber_component` coordinate that its object does not have is an error (`E_AFFINE_COORDINATE`). A primitive that names a family of the wrong kind, such as a `smooth` family where a `tape` family is required, is an error (`E_TYPE`). In source, a `cotangent_pullback` mode other than `saved` or `recomputed` is an error (`E_TYPE`); on the wire it is an error (`E_PROTOCOL`). A tangent or cotangent fiber family whose constraints are not `canonical(0)` is an error (`E_TYPE`). A tape family whose constraints are not `canonical(0), canonical(1)` is an error (`E_TYPE`). Either family over a domain that is not smooth is an error (`E_TYPE`). An operand whose shape does not fit its slot is an error (`E_TYPE`): a value that is not a family application where a map, point, fiber or tape is required (except in the point slot of `fiber_vector`), or a value with one index in a map slot of `smooth_compose`, `cotangent_pullback`, `differential` or `linearize`, or in the tape slot of `cotangent_backward`. Any other operand from the wrong family or over the wrong object is an error (`E_ENDPOINT`). Examples are a `Tangent` value where a `Cotangent` value is required, and two covectors in `fiber_pairing`. Other examples are a covector at a point of the wrong object, and a point whose source object is not 0-dimensional. When every operand has the index shape that its slot expects and an operand has the wrong family or object, the message names the first failed requirement: the operand, and the family or object that it requires and the one supplied. Families are checked before objects. Otherwise the message lists the operand types, for example for a point whose source object is not 0-dimensional or a covector in the point slot of `cotangent_pullback`. See [smooth forms](../protocol.md#protocol-9-smooth-forms) |
 | Smooth metrics and evidence | `E_METRIC`, `E_PARSE`, `E_SMOOTH`, `E_TYPE`, `E_ENDPOINT`, `E_AFFINE_COORDINATE`, `E_DUPLICATE`, `E_LIMIT`, `E_PROTOCOL` | <a id="e-metric"></a>A metric declared at a family without the `metric_form` representation is an error (`E_METRIC`). A metric that does not name exactly one object is an error (`E_METRIC`). A metric on an object that is not a smooth affine object is an error (`E_METRIC`). A Gram matrix whose number of rows, or of entries in a row, differs from the dimension of the object is an error (`E_METRIC`). A Gram entry that is not constant is an error (`E_METRIC`). A name in a Gram entry that is not a coordinate of the object is an error (`E_AFFINE_COORDINATE`). A Gram matrix that is not symmetric is an error (`E_METRIC`). Evidence that names something other than a metric is an error (`E_METRIC`). `nondegenerate(g)` for a singular Gram matrix, such as `diag(1, 0)`, is an error (`E_METRIC`). `riemannian(g)` for a Gram matrix that is not positive definite, such as `diag(1, -1)`, is an error (`E_METRIC`). The same `diag(1, -1)` has nondegenerate evidence. A `flat` or `sharp` whose `using =` names something other than a metric is an error (`E_METRIC`). A `sharp` whose `evidence =` names something other than evidence is an error (`E_METRIC`). A `sharp` with evidence for another metric, or with Riemannian evidence, is an error (`E_METRIC`). A `flat` or `sharp` without `using =`, or a `sharp` without `evidence =`, is an error (`E_PARSE`). No metric is selected by default, not even the Euclidean metric. A `flat` must name a `tangent` family and then a `cotangent` family, and a `sharp` the reverse. A family of the wrong variance is an error (`E_SMOOTH`). A `flat` or `sharp` that names a family that is not a tangent or cotangent family is an error (`E_TYPE`). A metric form family whose constraints are not `canonical(0)`, or whose domain is not smooth, is an error (`E_TYPE`). In source, a Gram form other than `euclidean` or `gram(…)`, or evidence other than `nondegenerate` or `riemannian`, is an error (`E_TYPE`). On the wire it is an error (`E_PROTOCOL`). A wire record that carries a Gram matrix in normal form, a certificate or the object of a binding is an error (`E_PROTOCOL`). An operand of `flat` or `sharp` from the wrong family, or over an object other than the metric's, is an error (`E_ENDPOINT`). Two imports of one metric name in a module are an error (`E_DUPLICATE`). A Gram entry beyond the degree or digit limits of polynomial expressions is an error (`E_LIMIT`). A Gram entry whose numerator or denominator has more than `metricEntryBits` bits is an error (`E_LIMIT`). A Gram matrix whose [matrix bound](glossary.md#matrix-bound) is not less than 2^`metricMatrixBits` is an error (`E_LIMIT`), even when no evidence names the metric. See [metric forms](../protocol.md#protocol-9-metric-forms) |
@@ -136,3 +99,9 @@ is negative or exceeds the signed native size range.
 Two independent reference models study diagnostics without being part of the
 compiler: a [non-punitive diagnostic record](../reference/compiler-tools.md#diagnostic-reference)
 and an [expected-rejection doctest contract](../reference/compiler-tools.md#doctest-result-reference).
+
+## Moved sections
+
+These anchors keep older links working.
+
+- <a id="output-format"></a>Output format: [Diagnostic lines](../language/diagnostics.md#diagnostic-lines), [Places](../language/diagnostics.md#places), [Names and text in diagnostics](../language/diagnostics.md#names-and-text-in-diagnostics), [Exit status](../language/diagnostics.md#exit-status) and [Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).

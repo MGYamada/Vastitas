@@ -19,6 +19,14 @@ conversions.
 See [Abstract types](../stage1a.md#abstract-types) and the
 [guide](../guide/dispatch.md#abstract-types).
 
+## Accept
+
+The compiler accepts a program when `vastitas check` reports no
+[diagnostic](#diagnostic) for it. Acceptance says that the program
+breaks no rule that the checker enforces; it is not
+[native refinement](#native-refinement). See
+[What acceptance means](../language/guarantees.md#what-acceptance-means).
+
 ## Allocation
 
 A buffer of [cells](#cell) that one storage [owner](#owner) owns. `allocate`
@@ -68,6 +76,22 @@ A name without `::`. It resolves among the bindings in scope, the declarations
 and imports of the current module, and the built-in functions. See
 [Resolution](../language/names-and-paths.md#resolution).
 
+## Base chain
+
+The [presented affine object](#presented-affine-object) itself, its **base**,
+the base of that base, and so on. The base of an object is the object that
+its declaration names after `over`. A morphism over a base names an object
+on the base chains of its source and of its target. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects)
+and the [guide](../guide/affine-geometry.md#objects-over-a-base).
+
+## Base isomorphism
+
+The two maps `via(…) inverse(…)` in the declaration of a
+[fiber product](#fiber-product) whose factors lie over two separately
+declared bases. The compiler checks that the maps are inverse to each other.
+See [Fiber products](../affine-geometry.md#fiber-products).
+
 ## Base object
 
 The object `Base(K)` over the coefficient marker `K`. The zero point
@@ -92,6 +116,13 @@ calls are bindings too. A binding is immutable, and no binding reuses a name
 that is visible where it is introduced. See
 [Scopes of bindings](../language/statements.md#scopes-of-bindings) and
 [Resource statements](../storage/resource-programs.md#resource-statements).
+
+## Bound index
+
+An argument of a field of an `indexed package` declaration: `witness`,
+`global(G)`, `domain(C)`, `marker(K)` or an integer literal. `witness` stands
+for the object that the existential package hides. See
+[Existential packages](../indexed-source.md#existential-packages).
 
 ## Boundary
 
@@ -132,13 +163,37 @@ The word has two meanings:
 2. In an `indexed implementation` declaration, a capability is a tag in the
    `capabilities(...)` list, from the closed set `origin` and `dimension`. The
    checker audits each primitive against the declared capabilities. See
-   [Declarations and source example](../indexed-source.md#declarations-and-source-example).
+   [Implementations](../indexed-source.md#implementations).
+
+## Cartesian square
+
+An `indexed cartesian` declaration: the checked statement that the common
+source of two declared morphisms is a given [fiber product](#fiber-product).
+It names the inverse of the morphism into the fiber product. See
+[Cartesian squares](../affine-geometry.md#cartesian-squares) and the
+[guide](../guide/affine-geometry.md#the-fiber-over-a-point).
+
+## Case
+
+One alternative of an `indexed package` declaration, `case(D, K) { … }`. It
+declares the type `P<D, K>` of the [existential packages](#existential-package)
+whose [witness type](#witness-type) is `Object<D, K>`, and it lists their
+[fields](#field). See
+[Existential packages](../indexed-source.md#existential-packages).
 
 ## Cell
 
 One element of an [allocation](#allocation): a binary64 number for `F64`, or
 two for `Complex<F64>`. See
 [Storage types](../storage/resource-programs.md#storage-types).
+
+## Checker
+
+The part of the compiler that decides whether a program breaks a rule of the
+Reference: the [kernel](#kernel). The [frontend](#frontend) reports the errors
+of source text, files and manifests, and some errors of names, which the
+kernel checks again. See
+[What acceptance means](../language/guarantees.md#what-acceptance-means).
 
 ## Child
 
@@ -172,7 +227,14 @@ Planned. The specification checks infer no status and upgrade none. See
 An `indexed classification` declaration, such as `Scheme`. It lists its parent
 classifications and its domain, the complete finite list of implementations
 that it classifies. A child's domain lies inside each parent's domain. See
-[Identity and declarations](../indexed-source.md#identity-and-declarations).
+[Classifications](../indexed-source.md#classifications).
+
+## Code
+
+The name of the kind of error that a [diagnostic](#diagnostic) reports, such
+as `E_TYPE`. The Reference specifies the code of each error that a rule
+states, and not the text of its message. See [Codes](../language/diagnostics.md#codes) and
+[Appendix B](diagnostics.md).
 
 ## Compiled reverse Core
 
@@ -199,6 +261,13 @@ loan, and a contribution of the module that holds the generic's edit authority
 without a loan. See
 [Edit authority](../guide/modules-and-authority.md#edit-authority) and
 [Contributions](../language/edit-authority.md#contributions).
+
+## Coordinate ring
+
+The ring of a [presented affine object](#presented-affine-object): the
+polynomials in its **coordinates** with rational coefficients, modulo its
+**relations**. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects).
 
 ## Core
 
@@ -262,9 +331,19 @@ The dual space or a conjugate space of a [space](#space), declared with
 
 ## Descriptor object
 
-An object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
+An object of an implementation with the representation `affine_descriptor`,
+such as an object of type `Scheme` or `CInfScheme`, which `Affine(QQ, n)` or
 `Affine(CInfReal, n)` builds. It records only its dimension. See
+[Implementations](../indexed-source.md#implementations) and
 [Geometric types](../language/geometric-types.md).
+
+## Diagnostic
+
+The report that the compiler writes for a program that it rejects, or for a
+command that it cannot carry out. It has a [code](#code) and a message, and it
+may have a [place](#place) and [notes](#note). See
+[Diagnostics](../language/diagnostics.md) and the
+[guide](../guide/diagnostics-and-cli.md#reading-a-diagnostic).
 
 ## Dispatch
 
@@ -293,8 +372,10 @@ The word has two meanings:
    [Generic declarations](../stage1a.md#generic-declarations) and the
    [guide](../guide/dispatch.md#generics-and-methods).
 2. The domain of an `indexed classification` is the complete finite list of
-   implementations that it classifies. See
-   [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+   implementations that it classifies. The domain of an implementation is
+   that implementation alone. See
+   [Classifications](../indexed-source.md#classifications) and the
+   [guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Edit authority
 
@@ -365,7 +446,8 @@ twice. An `indexed package` declaration declares a package type such as
 source code. See
 [Existential packages](../language/geometric-types.md#existential-packages),
 the [guide](../guide/indexed-geometry.md#identity-is-nominal) and
-[Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
+[Existential packages](../indexed-source.md#existential-packages) of indexed
+declarations.
 
 ## Expected type
 
@@ -373,6 +455,14 @@ The type that the position of an expression requires, such as the annotation
 of a `let` statement or the type of a parameter for an argument. An integer
 literal has type `Nat` where its expected type is `Nat`, and `Int` otherwise.
 See [Literal expressions](../language/expressions.md#literal-expressions).
+
+## Export
+
+The `[geometry_compat]` table of a manifest. It maps the syntax of the
+geometric core, such as `Point<X, Base(QQ)>` and `origin(X)`, to indexed
+declarations for a program in manifest mode. See
+[Geometry compatibility exports](../packages.md#geometry-compatibility-exports)
+and [Core geometry syntax](../indexed-source.md#core-geometry-syntax).
 
 ## Extent
 
@@ -394,14 +484,24 @@ number reads. See [Fiber primitives](../language/smooth-declarations.md#fiber-pr
 
 A type former declared with `indexed family`. Its parameters are objects,
 markers, domains or natural numbers. `Point` and `Morphism` are families. See
-[Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[Families](../indexed-source.md#families) and the
+[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Fiber product
 
 The presented affine object `fiber(X, Y)` of two presented affine objects over
 a common base. It is unrelated to a
 [tangent or cotangent fiber](#tangent-or-cotangent-fiber). See
-[Fiber products and base change](../affine-geometry.md#fiber-products-and-base-change).
+[Fiber products](../affine-geometry.md#fiber-products).
+
+## Field
+
+A value that an [existential package](#existential-package) of indexed
+declarations holds beside its witness. A [case](#case) of an `indexed package`
+declaration lists the fields, each as a family with its
+[bound indices](#bound-index). The word is unrelated to an exact field of
+coefficients. See
+[Existential packages](../indexed-source.md#existential-packages).
 
 ## Flat mode
 
@@ -452,6 +552,13 @@ function value. See
 [Generic declarations](../stage1a.md#generic-declarations) and the
 [guide](../guide/dispatch.md#generics-and-methods).
 
+## Global object
+
+The one object that an `indexed global` declaration declares. Types name it by
+its path, and a primitive with the binding `global(G)` gives it as a value.
+Two global objects are different objects. See
+[Global objects](../indexed-source.md#global-objects).
+
 ## Grant
 
 A `grant` declaration offers a [region](#region) of edit authority over a
@@ -466,6 +573,12 @@ assembly borrows it to obtain an edit loan. See
 The part `axes(…), s` of a [tensor](#tensor) declaration. It says which axes
 index the rows and which the columns of the matrix that stores the cells. See
 [Tensors](../linalg/networks-and-packing.md#tensors).
+
+## Guarantee
+
+A property that every program that the compiler [accepts](#accept) has, or
+that every run of the compiler has. A guarantee reaches as far as its
+evidence. See [Guarantees](../language/guarantees.md).
 
 ## Higher-order function
 
@@ -482,9 +595,9 @@ has it. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
 ## Implementation
 
 An `indexed implementation` declaration, such as `Grid`. It records a
-coefficient marker, a finite backend representation and its
+coefficient marker, a [representation](#representation) and its
 [capabilities](#capability). See
-[Identity and declarations](../indexed-source.md#identity-and-declarations).
+[Implementations](../indexed-source.md#implementations).
 
 ## Indexed declaration
 
@@ -493,7 +606,7 @@ A declaration that begins with `indexed`. Its kinds are `marker`,
 `primitive`, `affine`, `morphism`, `metric`, `evidence`, `iso` and
 `cartesian`. Indexed declarations let any package declare an indexed
 [profile](#profile), and the standard geometry library uses them. See
-[Declarations and source example](../indexed-source.md#declarations-and-source-example),
+[Indexed declarations](../indexed-source.md),
 [Smooth affine declarations](../language/smooth-declarations.md) and the
 [guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
@@ -509,6 +622,12 @@ The scalar involution of a linear implementation: the identity for real
 coefficients and complex conjugation for complex ones. `involution` declares
 a binding of it. See
 [Dual and conjugate spaces](../linalg/transforms-and-metrics.md#dual-and-conjugate-spaces).
+
+## Isomorphism
+
+An `indexed iso` declaration: the checked statement that two declared
+[morphisms over a base](#morphism-over-a-base) are inverse to each other. See
+[Isomorphisms](../affine-geometry.md#isomorphisms).
 
 ## Issuer
 
@@ -569,6 +688,12 @@ cells and a transposition flag. See
 [Storage types](../storage/resource-programs.md#storage-types) and the
 [guide](../guide/storage.md#resource-functions).
 
+## Limit
+
+A fixed bound of the compiler on the size of a program or on the work of
+checking it. A program beyond a limit is an error. See
+[Limits](../language/limits.md) and [Appendix D](limits.md).
+
 ## Line separator
 
 A character that ends a line in another convention than LF or CR LF, such as
@@ -611,6 +736,12 @@ The file `Vastitas.toml` at the root of a package. It names the package and its
 dependencies. See [Manifests](../packages.md#manifests) and the
 [guide](../guide/stdlib.md#a-manifest).
 
+## Manifest diagnostic
+
+A [diagnostic](#diagnostic) for an error in the text of a manifest. It names
+the manifest and has the code `E_MANIFEST`. See
+[Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
+
 ## Manifest mode
 
 The compiler mode that takes one manifest with `--manifest-path`. Modules,
@@ -624,7 +755,8 @@ A coefficient marker, such as `QQ`. A package declares a marker with
 `indexed marker`, and the core geometry syntax spells the markers `QQ` and
 `CInfReal`. An implementation records its marker. A marker is not an object:
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
-[Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[Markers](../indexed-source.md#markers) and the
+[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Mathematical bridge
 
@@ -684,6 +816,23 @@ Method `a` is more specific than method `b` when its selectors are no
 broader, its requirements are no weaker, and one of these comparisons is
 strict. See [Selection](../stage1a.md#selection).
 
+## Morphism over a base
+
+A value of a [relative family](#relative-family), such as `Over<X, Y, S>`: a
+morphism from the [presented affine object](#presented-affine-object) `X` to
+`Y` that commutes with their [structure maps](#structure-map) to `S`. A
+declared morphism gives each coordinate of the target as a polynomial in the
+coordinates of the source. See
+[Morphisms over a base](../affine-geometry.md#morphisms-over-a-base) and the
+[guide](../guide/affine-geometry.md#morphisms-are-written-as-pullbacks).
+
+## Native refinement
+
+The statement that the executable of a program computes the value of the
+program that the checker accepted. It is not proved: it rests on the Lean
+compiler and the C compiler, and tests exercise it. See
+[What acceptance means](../language/guarantees.md#what-acceptance-means).
+
 ## Network
 
 A graph of [occurrences](#occurrence) of numerical maps whose
@@ -715,12 +864,36 @@ evidence. `sharp` requires nondegenerate evidence for its metric. See
 [Metric evidence](../language/smooth-declarations.md#metric-evidence) and the wire
 [metric forms](../protocol.md#protocol-9-metric-forms).
 
+## Normal form
+
+The canonical representative of a polynomial in the
+[coordinate ring](#coordinate-ring) of a presented affine object: its
+remainder on division by the reduced Gröbner basis of the relations. Two
+polynomials are equal in the coordinate ring exactly when their normal forms
+are equal. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects).
+
+## Note
+
+A line of a [diagnostic](#diagnostic) that points to a related
+[place](#place), such as the construction that introduced an identity. See
+[Diagnostic lines](../language/diagnostics.md#diagnostic-lines).
+
 ## Numerical map
 
 A [view](#view) of storage presented as the matrix of a linear map between
 two [spaces](#space), in a named [basis](#basis) of each. A `map` statement
 declares one, and `gemm` multiplies two. Also called a **map**. See
 [Maps](../linalg/maps-and-gemm.md#maps).
+
+## Object type
+
+A type `Object<D, K>`, where `D` names a classification or an implementation
+and `K` a marker. Its implementations are the implementations in the
+[domain](#domain) of `D` whose marker is `K`. One object type lies within
+another when both name the same marker and every implementation of the first
+is an implementation of the second. See
+[Object types](../indexed-source.md#object-types).
 
 ## Occurrence
 
@@ -809,6 +982,11 @@ The value of one cell of storage in a resource statement, written `f64(…)`,
 binary64 value, or two for a complex cell; the compiler never rounds one. See
 [Payloads](../storage/resource-programs.md#payloads).
 
+## Place
+
+The position that a [diagnostic](#diagnostic) or a [note](#note) names: a
+file, a line and a column. See [Places](../language/diagnostics.md#places).
+
 ## Port
 
 An end of an [occurrence](#occurrence) that an edge may contract: the input
@@ -816,13 +994,24 @@ or the output of a map in a network, or one axis of a tensor in a contraction
 tree. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks) and
 [Contraction trees](../linalg/networks-and-packing.md#contraction-trees).
 
+## Presented affine object
+
+An object declared by `indexed affine` under an implementation with the
+`presented_affine` representation: `spec[…]` with coordinates and polynomial
+relations, a [fiber product](#fiber-product) or a
+[principal open](#principal-open). It stands for the affine scheme of its
+[coordinate ring](#coordinate-ring). Each declaration is one object. A
+presented affine object is distinct from a descriptor object and from a
+[smooth affine object](#smooth-affine-object). See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects)
+and the [guide](../guide/affine-geometry.md#objects-given-by-equations).
+
 ## Primitive
 
 An `indexed primitive` declaration. It binds a name, such as `origin` or
-`compose`, to one of a closed set of primitive contracts. The checker audits
+`compose`, to one of a closed set of primitive bindings. The checker audits
 each primitive's representation, domain, arity, capabilities and family shapes.
-See
-[Declarations and source example](../indexed-source.md#declarations-and-source-example).
+See [Primitives](../indexed-source.md#primitives).
 
 ## Primitive association
 
@@ -834,9 +1023,12 @@ instantiated at the operands. The checker decides it for every call. See
 
 ## Primitive binding
 
-A constructor of `PrimitiveBinding` with its data: family, base and object
-IDs and the embedded maps, matrices or coordinates. It is the Core-level
-identity of a [primitive](#primitive) call and has one
+In source, the binding of an `indexed primitive` declaration is the part after
+`=`, such as `compose(Morphism)`. It fixes the operands and the result of the
+primitive. See [Primitives](../indexed-source.md#primitives). In the kernel, a
+primitive binding is a constructor of `PrimitiveBinding` with its data: family,
+base and object IDs and the embedded maps, matrices or coordinates. It is the
+Core-level identity of a [primitive](#primitive) call and has one
 [registry entry](#registry-entry). Displayed names and certificate strings
 are not part of it. See
 [Add an indexed primitive](../development/primitives.md#terms).
@@ -858,7 +1050,7 @@ accepts. Each binding has one [registry entry](#registry-entry). The checker
 derives a binding's validity contract, operand association, result type and
 operand count from its registry entry, and code generation the text of a
 call. No source spelling or native symbol adds a binding. See
-[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+[Closed primitive binding inventory](../internals/indexed-checker.md#closed-primitive-binding-inventory).
 
 ## Primitive shape
 
@@ -866,7 +1058,14 @@ The part of a [primitive](#primitive) binding's registry entry that lists
 its operands, the relations between them and its result. A call of the
 binding allocates when the result is a fresh object. The argument hints and the
 [role table](#role-table) of the binding come from its shape. See
-[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+[Closed primitive binding inventory](../internals/indexed-checker.md#closed-primitive-binding-inventory).
+
+## Principal open
+
+The presented affine object `localize(X, f) inverse u`: the open subset of
+`X` on which the polynomial `f` has the inverse `u`. See
+[Principal opens](../affine-geometry.md#principal-opens) and the
+[guide](../guide/affine-geometry.md#open-subsets).
 
 ## Private
 
@@ -941,6 +1140,22 @@ its [lowering](#lowering), its [shared literals](#shared-literal) and its
 [derivative rule](#derivative-rule). See
 [Add an indexed primitive](../development/primitives.md).
 
+## Relative family
+
+A [family](#family) with the `relative` representation, such as `Over`. Its
+application `Over<X, Y, S>` is the type of the
+[morphisms over a base](#morphism-over-a-base) from `X` to `Y` over `S`. See
+[The presented profile](../affine-geometry.md#the-presented-profile).
+
+## Representation
+
+The word after the marker in an `indexed implementation` declaration, such as
+`affine_descriptor`: it says what an object of the implementation holds. The
+word after `=` in an `indexed family` declaration, such as `point`, is the
+representation of the family: it says which values the types of the family
+have. See [Implementations](../indexed-source.md#implementations) and
+[Families](../indexed-source.md#families).
+
 ## Reserved name
 
 An identifier that no declaration or binding may use, such as a built-in type
@@ -1005,7 +1220,7 @@ operands have the shape's index pattern; `relative_coefficient` and
 kind. Every requirement is part of the binding's contract. When a call of a
 valid binding fails a listed requirement, the diagnostic names the first one;
 otherwise it lists the operand types. See
-[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+[Closed primitive binding inventory](../internals/indexed-checker.md#closed-primitive-binding-inventory).
 
 ## Root manifest
 
@@ -1017,6 +1232,19 @@ The manifest that a command names with `--manifest-path`. See
 The package of the [root manifest](#root-manifest). Its root module holds the
 entry point and the assembly of the program. See
 [Manifest mode](../language/programs.md#manifest-mode).
+
+## Run-time check
+
+A check that an executable makes on values that the compiler does not know,
+and whose failure stops the executable. Examples are an `expect` statement
+and a condition on [extents](#extent). See
+[Run-time checks](../language/guarantees.md#run-time-checks).
+
+## Run-time diagnostic
+
+The line that an executable writes to standard error when a
+[run-time check](#run-time-check) fails. See
+[Run-time diagnostics](../language/diagnostics.md#run-time-diagnostics).
 
 ## Runtime reverse pass
 
@@ -1121,6 +1349,12 @@ gives each target coordinate as a polynomial in the source coordinates.
 The object `X` of a morphism type `Morphism<X, Y>`. Compare
 [target](#target). See [Geometric types](../language/geometric-types.md).
 
+## Source limit
+
+A [limit](#limit) on the text and the files of a program, such as the nesting
+of expressions. The other limits bound the program that the checker builds.
+See [Source limits and limits of the checked program](../language/limits.md#source-limits-and-limits-of-the-checked-program).
+
 ## Space
 
 A linear space declared with `space` in a resource function. Each `space`
@@ -1217,6 +1451,14 @@ spells them. See [Keywords](../language/lexical-structure.md#keywords).
 Text between double quotes. It is a token, but no construct accepts one. See
 [Other literals](../language/lexical-structure.md#other-literals).
 
+## Structure map
+
+The morphism from a [presented affine object](#presented-affine-object) to
+its base. `by(…)` in the declaration gives the image of each coordinate of
+the base. See
+[Presented affine objects](../affine-geometry.md#presented-affine-objects)
+and the [guide](../guide/affine-geometry.md#objects-over-a-base).
+
 ## Tangent or cotangent fiber
 
 A value of a family with the `tangent` or `cotangent` representation, such as
@@ -1291,7 +1533,10 @@ A rectangle of [cells](#cell) of an allocation, which a [layout](#layout)
 describes. A [storage loan](#storage-loan) gives access to one view, such as
 `output` in `borrow output = write(data, layout(...));`. See
 [Storage types](../storage/resource-programs.md#storage-types) and the
-[guide](../guide/storage.md#resource-functions).
+[guide](../guide/storage.md#resource-functions). A view of a
+[morphism over a base](#morphism-over-a-base) is a different thing: the same
+morphism over an object further along the base chain. See
+[Morphism primitives](../affine-geometry.md#morphism-primitives).
 
 ## Whitespace
 
@@ -1322,4 +1567,18 @@ kernel's response. Each request carries a protocol version. See
 ## Witness
 
 The object that an [existential package](#existential-package) hides. See
-[Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
+[Existential packages](../indexed-source.md#existential-packages).
+
+## Witness type
+
+The object type `Object<D, K>` of a [case](#case) `case(D, K)` of an
+`indexed package` declaration. The witness of an existential package of that
+case has an object type that lies within it, and the witness that `unpack`
+binds has the witness type. See
+[Existential packages](../indexed-source.md#existential-packages).
+
+## Work budget
+
+A [limit](#limit) on the units of work of one check. It counts units that the
+checker defines, not time. See
+[Kinds of limits](../language/limits.md#kinds-of-limits).

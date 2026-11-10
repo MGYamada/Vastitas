@@ -328,9 +328,7 @@ captures and shadowing, and the rules for calls of function values.
 [existential package](geometric-types.md#existential-packages) from the object
 `X` and the point `p` on it. The second form builds an existential package of
 an indexed profile in manifest mode, with its witness object and its fields in
-order, as
-[Indexed source](../indexed-source.md#declarations-and-source-example)
-describes.
+order, as [Packing](../indexed-source.md#packing) describes.
 
 Rules:
 

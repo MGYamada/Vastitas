@@ -1,0 +1,10 @@
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::Line;
+use std::geometry::scheme::affine::DualNumbers;
+
+// ANCHOR: declaration
+// e + 1 has two terms.
+indexed primitive bad = relative_coefficient(Over, DualNumbers, Line, t, e + 1);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

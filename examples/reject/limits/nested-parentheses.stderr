@@ -1,0 +1,1 @@
+examples/reject/limits/nested-parentheses.vast:2:69: E_LIMIT: combined type/expression nesting exceeds the supported limit of 64

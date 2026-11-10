@@ -51,7 +51,7 @@ Smooth real affine space is declared as `Affine(n)[c₁, …, cₙ]`, and ordina
 affine space over an explicit algebraic base as `Affine(K, n)[…]`. ADR 0001
 decides that a smooth manifold is a `CInfScheme` with checked local and
 topological evidence and has no type of its own; that evidence and gluing are
-planned. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../indexed-source.md#geometry-migration)
+planned. [Affine constructors, #103](https://github.com/MGYamada/Vastitas/issues/103) · [Geometric refinements, #360](https://github.com/MGYamada/Vastitas/issues/360) · [Implemented geometry migration](../internals/indexed-checker.md#geometry-migration)
 
 **Acceptance example.** Given smooth maps f and g, start with a covector at
 g(f(x)). Pull it back first along g at f(x), then along f at x. Check that

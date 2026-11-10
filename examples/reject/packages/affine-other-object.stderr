@@ -1,0 +1,1 @@
+examples/reject/packages/affine-other-object/main.vast:15:8: E_ENDPOINT: same requires a second map with target Line (the first map's target), but the supplied second map has target Copy

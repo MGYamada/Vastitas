@@ -1,0 +1,2 @@
+examples/reject/packages/lost-capability/main.vast:12:9: E_ENDPOINT: size requires an object whose domain lies within Measured, but the supplied object X has domain Shape
+examples/reject/packages/lost-capability/main.vast:10:13: note: object X was introduced here by primitive 'grid'

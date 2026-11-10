@@ -1,0 +1,13 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+
+// ANCHOR: declarations
+indexed morphism sq: Over<Line, Line, SpecQQ> = pullback(t -> t^2);
+indexed affine Punctured(AffineQQ) = localize(Line, t) inverse u;
+// sq pulls t back to t^2, and the source open inverts t.
+indexed morphism bad: Over<Punctured, Punctured, SpecQQ> = restrict(sq);
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

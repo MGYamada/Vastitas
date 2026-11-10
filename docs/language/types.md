@@ -103,6 +103,16 @@ Rules:
 - The parameter and result types of a function type must be scalar types or
   function types. Another type, such as a pair or a geometric type, is an error
   (`E_TYPE`). The body of a lambda may still use pairs and geometric values.
+- In some programs the compiler reports the error of the previous rule with
+  another code. They are the programs that write an
+  [indexed type](#indexed-types), and the programs whose package graph holds
+  an `indexed` declaration, a resource function, a grant, a delegation, a
+  transfer or a
+  [geometry compatibility export](../packages.md#geometry-compatibility-exports).
+  There the error has the code `E_PROTOCOL`, and the compiler reports it at
+  the root manifest, as
+  [Diagnostics](diagnostics.md#diagnostics-without-a-place-of-their-own)
+  describes.
 - `fn(Int) -> Int` is not a type. Written as a type, it is an error
   (`E_PARSE`).
 - A function value is not data: it has no equality, as
@@ -125,12 +135,13 @@ function types.
 In manifest mode, a program declares its own families of types with `indexed`
 declarations. An **indexed type** applies such a family to its arguments, as in
 `geo::Point<X, geo::Base>`. Its family and its arguments are
-[paths](names-and-paths.md). `Object<D, M>` is the type of an object of the
-[classification](../appendix/glossary.md#classification) `D` with the
-coefficient marker `M`.
-[Indexed source](../indexed-source.md#declarations-and-source-example) and
-[Smooth affine declarations](smooth-declarations.md) give the families and
-their rules.
+[paths](names-and-paths.md). `Object<D, K>` is the type of an object of the
+[classification](../appendix/glossary.md#classification) or implementation
+`D` with the coefficient marker `K`.
+[Object types](../indexed-source.md#object-types) gives the rules of
+`Object<D, K>`, and [Families](../indexed-source.md#families) the rules of the
+other indexed types. [Smooth affine declarations](smooth-declarations.md) and
+[Presented affine declarations](../affine-geometry.md) give further families.
 
 Rules:
 

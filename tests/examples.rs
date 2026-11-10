@@ -82,7 +82,11 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
 const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/inline-module/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
+    ("examples/packages/indexed-objects/Vastitas.toml", "42"),
+    ("examples/packages/geometry-compat/Vastitas.toml", "42"),
     ("examples/packages/stdlib-geometry/Vastitas.toml", "42"),
+    ("examples/packages/affine-geometry/Vastitas.toml", "42"),
+    ("examples/packages/stdlib-affine/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
 ];
@@ -97,6 +101,9 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/statements/nested-rebinding.vast", &[]),
     ("examples/reject/expressions/chained-comparison.vast", &[]),
     ("examples/reject/expressions/mixed-integers.vast", &[]),
+    ("examples/reject/diagnostics/several-names.vast", &[]),
+    ("examples/reject/limits/nested-parentheses.vast", &[]),
+    ("examples/reject/limits/seven-parameters.vast", &[]),
     ("examples/reject/geometric-types/wrong-endpoint.vast", &[]),
     ("examples/reject/geometric-types/escaping-point.vast", &[]),
     ("examples/reject/dispatch/incomparable-methods.vast", &[]),
@@ -110,8 +117,24 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
 /// `<directory>.stderr`, with the repository root removed from file names.
 const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
+    "examples/reject/packages/entry-signature",
+    "examples/reject/packages/unknown-manifest-key",
+    "examples/reject/packages/uninitialized-read",
     "examples/reject/packages/other-basis",
     "examples/reject/packages/other-space",
+    "examples/reject/packages/missing-capability",
+    "examples/reject/packages/lost-capability",
+    "examples/reject/packages/other-witness",
+    "examples/reject/packages/second-opening",
+    "examples/reject/packages/affine-off-chain",
+    "examples/reject/packages/affine-missing-image",
+    "examples/reject/packages/affine-relation",
+    "examples/reject/packages/affine-selector",
+    "examples/reject/packages/affine-not-inverse",
+    "examples/reject/packages/affine-separate-bases",
+    "examples/reject/packages/affine-square",
+    "examples/reject/packages/affine-not-preimage",
+    "examples/reject/packages/affine-other-object",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
@@ -157,6 +180,8 @@ fn book_rejections_print_their_diagnostics() {
 
 #[test]
 fn book_rejected_packages_print_their_diagnostics() {
+    // The affine packages depend on the generated standard-library package.
+    common::prepare_stdlib_package();
     for directory in BOOK_REJECTED_PACKAGES {
         let manifest = format!("{directory}/Vastitas.toml");
         let output = cli()

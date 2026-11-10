@@ -1,0 +1,24 @@
+mod shapes;
+
+// ANCHOR: object-types
+fn measure(X: Object<shapes::Measured, shapes::QQ>) -> Nat {
+    shapes::size(X)
+}
+
+fn hide(X: Object<shapes::Shape, shapes::QQ>) -> shapes::Hidden<shapes::Shape, shapes::QQ> {
+    pack shapes::Hidden<shapes::Shape, shapes::QQ> { witness: X, fields: [] }
+}
+
+fn main() -> Int {
+    let X = shapes::grid(42);
+    let hidden = hide(X);
+    unpack hidden as { witness: Y, fields: [] };
+    int(measure(X))
+}
+// ANCHOR_END: object-types
+
+// ANCHOR: label
+fn labelled(X: Object<shapes::Shape, shapes::QQ>, label: shapes::Label<X, shapes::QQ, 7>) -> Nat {
+    7
+}
+// ANCHOR_END: label

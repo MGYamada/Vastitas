@@ -14,8 +14,8 @@ parts:
 
 | Part | Content | Files |
 | --- | --- | --- |
-| Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md`, `affine-geometry.md` |
-| Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `storage-ownership.md`, `storage/resource-programs.md`, `linalg/` |
+| Introduction and chapters 1–12 | Teaching chapters in reading order. Each ends with a **See also** section that links into the Vastitas Reference | `README.md`, `guide/*.md` |
+| Vastitas Reference | The notation and the complete rules for each language construct | `language/`, `stage1a.md`, `stage1b.md`, `packages.md`, `indexed-source.md`, `affine-geometry.md`, `storage-ownership.md`, `storage/resource-programs.md`, `linalg/` |
 | How the compiler is checked | Architecture, checking pipeline, wire protocols, proof boundaries, specifications and the stdlib admission ADR | `development/architecture.md`, `internals/`, `storage/checked-storage.md`, `protocol.md`, `verification*`, `daleckii-krein.md`, `specifications.md`, `spec/`, `adr/` |
 | Appendices A–G | CLI, diagnostics, reference models, limits, history and delivery records, contributing, glossary | `appendix/`, `guide/cli.md`, `reference/`, `guide/historical-roadmap.md`, `stage1-*.md`, `stage2-acceptance.md`, `stage3-acceptance.md`, `reverse-core-acceptance.md`, `development/` apart from `architecture.md` |
 
@@ -284,7 +284,7 @@ The two compiler scaling CSV files remain attached to their reported revision.
 | Abstract selectors and promotion policy | [Abstract types](../stage1a.md#abstract-types) · [Promotion](../stage1a.md#promotion) |
 | Promotion proofs and old-checker indexing measurements | [Checking pipeline](../internals/checking-pipeline.md#promotion-proofs-and-fixture) · [History](../internals/checking-pipeline.md#history) |
 | Edit grants, nested reborrowing and permanent transfer | [Edit authority](../language/edit-authority.md) |
-| Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
+| Declaration checker and geometry migration | [Indexed declarations](../indexed-source.md) · [The indexed checker](../internals/indexed-checker.md) · [History](../internals/indexed-checker.md#history) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |
 | Public resource statements and runtime shapes | [Resource programs](../storage/resource-programs.md) |
 | Numerical declarations, owned maps and optional BLAS | [Numerical maps](../linalg/maps-and-gemm.md) · [Numerical backend](../internals/numerical-backend.md) |

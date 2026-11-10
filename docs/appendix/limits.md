@@ -1,5 +1,8 @@
 # Appendix D: Compiler limits
 
+This appendix lists the limits of the compiler and their values.
+[Limits](../language/limits.md) gives the rules that hold for every limit.
+
 The compiler rejects an input that exceeds a limit, usually with `E_LIMIT`. It
 never accepts part of an input or skips an unused body to stay within a budget.
 These are defensive implementation limits, not mathematical restrictions.
@@ -188,6 +191,7 @@ A reused source file consumes the byte budget again.
 | Events in one contraction-tree plan | 1024 | [Contraction trees](../linalg/networks-and-packing.md#contraction-trees) |
 | Explicit diagonal metric entries | 4096 | [Declared Hermitian forms](../linalg/transforms-and-metrics.md#metrics) |
 | Notes on one resource diagnostic | 32 | [Diagnostics](../storage/resource-programs.md#diagnostics) |
+| Indexed declarations of a program, implementations in the domain of a classification, parameters of a family, cases of a package declaration, fields of a case | 4096, 64, 16, 64, 64 | [Indexed declarations](../indexed-source.md) |
 
 Runtime-shape programs have their own execution limits; see
 [Execution costs and limits](../internals/resource-checking.md#execution-costs-and-limits).

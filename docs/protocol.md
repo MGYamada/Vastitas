@@ -492,7 +492,7 @@ Runtime representation: generated Lean code imports only
 `Unit`; geometric objects, indexed points/morphisms and existential payloads use
 the common runtime representations. Nominal typing is established before erasure.
 The old runtime remains for retained legacy evaluation proofs.
-The [finite migration acceptance map](indexed-source.md#geometry-migration) records checked
+The [finite migration acceptance map](internals/indexed-checker.md#geometry-migration) records checked
 primitive result compatibility, source regressions and the limits of the
 source/native proof claims. The compatibility adapter is not an additional wire
 version or a privileged semantic checker.
@@ -801,7 +801,7 @@ affine roles, exact primitive bindings, Point/Morphism representations with
 exactly `same_base(0,1)`, and matching Pointed package cases. No serialized
 validity flag or trusted ID is accepted. Zero or multiple exports disable only
 legacy syntax; qualified indexed syntax remains available. A malformed unused
-export still rejects the program. The [source contract](indexed-source.md)
+export still rejects the program. The [source contract](indexed-source.md#core-geometry-syntax)
 defines fallback precedence and nominal identity behavior.
 
 Declarations, rich types/bodies and the envelope reject unknown fields. No

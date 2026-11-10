@@ -1,0 +1,18 @@
+indexed marker QQ;
+indexed implementation Grid(QQ, affine_descriptor) capabilities(origin);
+indexed global Base(Grid);
+indexed family Dot(object(Grid), object(Grid)) = point constraints(same_base(0, 1));
+indexed package Dotted {
+    case(Grid, QQ) { Dot(witness, global(Base)); }
+};
+indexed primitive grid = descriptor(Grid);
+indexed primitive zero = origin((Grid, QQ), Dot, Base);
+
+fn main() -> Int {
+    let X = grid(2);
+    let packed = pack Dotted<Grid, QQ> { witness: X, fields: [zero(X)] };
+    unpack packed as { witness: Y, fields: [p] };
+    unpack packed as { witness: Z, fields: [q] };
+    let r: Dot<Y, Base> = q;
+    0
+}

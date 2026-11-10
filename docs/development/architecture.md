@@ -30,7 +30,7 @@ full mathematical model of schemes remain outside those claims. The precise
 
 The internal declaration-driven source adapters now compose independent
 functions, finite scalar dispatch and edit-authority assemblies, including
-applied and unapplied contribution bodies. [Public protocol 7](../indexed-source.md)
+applied and unapplied contribution bodies. [Public protocol 7](../internals/indexed-checker.md#the-public-path)
 connects the Rust declaration/body syntax to that same combined checker and
 returned Core. Legacy geometry syntax in protocols 7–9 uses the library’s explicit,
 independently checked compatibility export. `IndexedProgramSafety` proves finite
@@ -38,7 +38,7 @@ typed evaluation for all functions and main in the exact returned Core, includin
 dependent calls and package openings. Finite geometry primitive results agree
 with the retained runtime after erasure. Full source operational correspondence
 and native refinement remain unproved. See
-[indexed declarations](../indexed-source.md#indexed-declarations).
+[the indexed checker](../internals/indexed-checker.md#indexed-declarations).
 
 The [geometry standard library](https://github.com/MGYamada/Vastitas/blob/main/stdlib/src/geometry/README.md) exposes
 `std::geometry::scheme` and `std::geometry::smooth` for the existing affine

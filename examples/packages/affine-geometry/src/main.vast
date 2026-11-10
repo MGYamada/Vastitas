@@ -8,13 +8,16 @@ use profile::SpecQQ;
 use profile::compose;
 use profile::same;
 
+// ANCHOR: objects
 indexed affine D(AffineQQ) = spec[e] relations(e^2) over SpecQQ;
 indexed affine Line(AffineQQ) = spec[t] over SpecQQ;
 indexed affine S(AffineQQ) = spec[t] over SpecQQ;
 indexed affine X(AffineQQ) = spec[t, x] relations(x^2 - t) over S by(t -> t);
 indexed affine Origin(AffineQQ) = spec[] over S by(t -> 0);
 indexed affine DS(AffineQQ) = spec[e] relations(e^2) over S by(t -> 0);
+// ANCHOR_END: objects
 
+// ANCHOR: morphisms
 // D-valued points of the line: t |-> e and t |-> 0, and the closed point of D.
 indexed morphism p: Over<D, Line, SpecQQ> = pullback(t -> e);
 indexed morphism q: Over<D, Line, SpecQQ> = pullback(t -> 0);
@@ -26,26 +29,38 @@ indexed morphism shift: Over<Line, Line, SpecQQ> = pullback(t -> t + 1);
 indexed morphism toX: Over<DS, X, S> = pullback(t -> 0, x -> e);
 indexed morphism toS: Over<X, S, S> = structure;
 indexed morphism dsToS: Over<DS, S, S> = structure;
+// ANCHOR_END: morphisms
 
+// ANCHOR: fiber
 // Base change: the fiber of X over the origin of S is Spec of the dual numbers.
 indexed affine Fiber(AffineQQ) = fiber(X, Origin);
 indexed morphism toOrigin: Over<DS, Origin, S> = pullback();
 indexed morphism prX: Over<Fiber, X, S> = first;
 indexed morphism back: Over<Fiber, DS, S> = pullback(e -> X::x);
+// ANCHOR_END: fiber
+// ANCHOR: cartesian
 indexed cartesian fiberIsDual = square(toX, toOrigin) through Fiber inverse back;
+// ANCHOR_END: cartesian
+// ANCHOR: pair
 indexed primitive lift = relative_pair(Over, Fiber);
 indexed primitive fiberX = relative_coefficient(Over, DS, Fiber, X::x, e);
+// ANCHOR_END: pair
+// ANCHOR: via
 // A separately declared copy of S is comparable only through a chosen isomorphism.
 indexed affine S2(AffineQQ) = spec[t] over SpecQQ;
 indexed affine Origin2(AffineQQ) = spec[] over S2 by(t -> 0);
 indexed affine Fiber2(AffineQQ) = fiber(X, Origin2) via(t -> t) inverse(t -> t);
+// ANCHOR_END: via
 
+// ANCHOR: opens
 // Principal opens: D(t) and D(t^2) of the line, and the structure-sheaf action of sq.
 indexed affine Dt(AffineQQ) = localize(Line, t) inverse u;
 indexed affine Dt2(AffineQQ) = localize(Line, t^2) inverse v;
 indexed morphism onOpens: Over<Dt2, Dt, SpecQQ> = restrict(sq);
 indexed primitive inverseImage = relative_coefficient(Over, Dt2, Dt, u, v);
+// ANCHOR_END: opens
 // The transition D(x) = D(y) of two affine lines by y = 1/x (#104).
+// ANCHOR: transition
 indexed affine L1(AffineQQ) = spec[x] over SpecQQ;
 indexed affine L2(AffineQQ) = spec[y] over SpecQQ;
 indexed affine U1(AffineQQ) = localize(L1, x) inverse xi;
@@ -53,13 +68,18 @@ indexed affine U2(AffineQQ) = localize(L2, y) inverse yi;
 indexed morphism glue: Over<U1, U2, SpecQQ> = pullback(y -> xi, yi -> x);
 indexed morphism unglue: Over<U2, U1, SpecQQ> = pullback(x -> yi, xi -> y);
 indexed iso transition = forward glue inverse unglue;
+// ANCHOR_END: transition
+// ANCHOR: zero
 indexed affine Nothing(AffineQQ) = localize(Line, 0) inverse z;
+// ANCHOR_END: zero
 
+// ANCHOR: observers
 indexed primitive eps = relative_coefficient(Over, D, Line, t, e);
 indexed primitive slope = relative_coefficient(Over, Line, Line, t, t);
 // A rational point of the line from runtime integers, and its coordinate.
 indexed primitive at = relative_int_point(Over, Line, SpecQQ);
 indexed primitive value = relative_coefficient(Over, SpecQQ, Line, t, 1);
+// ANCHOR_END: observers
 
 fn verdict(ok: Bool, code: Int) -> Int { if ok { 0 } else { code } }
 

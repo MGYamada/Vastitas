@@ -1,0 +1,11 @@
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+
+// ANCHOR: declarations
+// Doubling twice multiplies by four.
+indexed morphism double: Over<Line, Line, SpecQQ> = pullback(t -> 2 * t);
+indexed iso bad = forward double inverse double;
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

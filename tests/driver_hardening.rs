@@ -305,6 +305,7 @@ fn kernel_root(s: &Scratch, name: &str) -> PathBuf {
     fs::create_dir_all(root.join("native")).unwrap();
     fs::create_dir_all(root.join("numerical")).unwrap();
     fs::write(root.join("lean-toolchain"), PINNED).unwrap();
+    common::copy_runtime_inputs(&root, true, true);
     root
 }
 

@@ -72,6 +72,33 @@ pub fn success(output: &Output) {
 pub fn kernel_path() -> PathBuf {
     root().join("lean-kernel/.lake/build/bin/vastitas-kernel")
 }
+/// The driver's own list of the files that a native build verifies in the
+/// selected kernel root.
+#[path = "../../src/runtime_inputs.rs"]
+pub mod runtime_inputs;
+/// Copies into `kernel_root` the runtime inputs that a native build verifies:
+/// those of the kernel package and, when selected, of the storage (`native`)
+/// and numerical packages. A scratch kernel root needs them even under a
+/// mocked Lake. The caller writes `lean-toolchain`, which has its own check.
+pub fn copy_runtime_inputs(kernel_root: &Path, storage: bool, numerical: bool) {
+    use runtime_inputs::{ABSENT, KERNEL, NUMERICAL, STORAGE, inputs};
+    let packages = [
+        (&KERNEL, true),
+        (&STORAGE, storage),
+        (&NUMERICAL, numerical),
+    ];
+    for (package, _) in packages.iter().filter(|(_, selected)| *selected) {
+        let source = package.directory_in(&root().join("lean-kernel"));
+        let destination = package.directory_in(kernel_root);
+        for (relative, digest) in inputs(&source, package).unwrap() {
+            if digest != ABSENT {
+                let target = destination.join(&relative);
+                fs::create_dir_all(target.parent().unwrap()).unwrap();
+                fs::copy(source.join(&relative), target).unwrap();
+            }
+        }
+    }
+}
 /// The `kernel` build identity (JSON object text) that the built kernel reports
 /// in every response. The driver rejects success responses without it, so mock
 /// backends must echo it.

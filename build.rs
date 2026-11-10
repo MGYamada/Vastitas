@@ -1,6 +1,12 @@
 use std::collections::BTreeMap;
 use std::{env, fs, path::Path, path::PathBuf};
 
+// Shared with the driver, which digests the same files in the selected root.
+#[allow(dead_code)]
+#[path = "src/runtime_inputs.rs"]
+mod runtime_inputs;
+use runtime_inputs::{ABSENT, Package, digest, header_imports, inputs};
+
 fn main() {
     let path = "lean-kernel/compiler-limits.json";
     println!("cargo:rerun-if-changed={path}");
@@ -26,68 +32,6 @@ fn main() {
     let output = PathBuf::from(env::var_os("OUT_DIR").expect("Cargo output directory"));
     fs::write(output.join("compiler_limits.rs"), source).expect("write compiler limits");
     fs::write(output.join("kernel_identity.rs"), kernel_identity()).expect("write kernel identity");
-}
-
-/// Modules named by a Lean file header (`import`, optionally `public`/`meta`
-/// and `import all`). Lean allows imports only before the first command.
-fn header_imports(source: &str) -> Vec<String> {
-    let mut rest = source;
-    let mut modules = Vec::new();
-    let mut importing = false;
-    loop {
-        rest = rest.trim_start();
-        if let Some(comment) = rest.strip_prefix("--") {
-            rest = comment.split_once('\n').map_or("", |(_, next)| next);
-            continue;
-        }
-        if rest.starts_with("/-") {
-            // Lean block comments nest.
-            let bytes = rest.as_bytes();
-            let (mut depth, mut index) = (0usize, 0usize);
-            rest = "";
-            while index + 1 < bytes.len() {
-                match &bytes[index..index + 2] {
-                    b"/-" => {
-                        depth += 1;
-                        index += 2;
-                    }
-                    b"-/" => {
-                        depth -= 1;
-                        index += 2;
-                        if depth == 0 {
-                            rest = &source[source.len() - bytes.len() + index..];
-                            break;
-                        }
-                    }
-                    _ => index += 1,
-                }
-            }
-            continue;
-        }
-        let end = rest.find(char::is_whitespace).unwrap_or(rest.len());
-        let token = &rest[..end];
-        rest = &rest[end..];
-        match (importing, token) {
-            (_, "") => break,
-            (true, "all") => {}
-            (true, module) => {
-                modules.push(module.to_string());
-                importing = false;
-            }
-            (false, "module" | "prelude" | "public" | "meta" | "private") => {}
-            (false, "import") => importing = true,
-            (false, _) => break,
-        }
-    }
-    modules
-}
-
-/// FNV-1a, 64-bit; `VastitasKernel/BuildIdentity.lean` uses the same function.
-fn fnv1a(mut hash: u64, bytes: &[u8]) -> u64 {
-    for byte in bytes {
-        hash = (hash ^ u64::from(*byte)).wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    hash
 }
 
 /// The kernel executable reports the digest of `Main.lean` and every module it
@@ -117,15 +61,51 @@ fn kernel_identity() -> String {
         }
         files.insert(relative, bytes);
     }
-    let mut hash = 0xcbf2_9ce4_8422_2325;
-    for (relative, bytes) in &files {
-        hash = fnv1a(hash, relative.as_bytes());
-        hash = fnv1a(hash, &[0]);
-        hash = fnv1a(hash, bytes.len().to_string().as_bytes());
-        hash = fnv1a(hash, &[0]);
-        hash = fnv1a(hash, bytes);
+    let sources = digest(
+        files
+            .iter()
+            .map(|(relative, bytes)| (relative.as_str(), bytes.as_slice())),
+    );
+    let mut identity = format!(
+        "pub const SOURCES: &str = \"{sources}\";\npub const LEAN: &str = {lean:?};\npub const TOOLCHAIN: &str = {toolchain:?};\n"
+    );
+    for (name, package) in [
+        ("KERNEL_RUNTIME", &runtime_inputs::KERNEL),
+        ("STORAGE_RUNTIME", &runtime_inputs::STORAGE),
+        ("NUMERICAL_RUNTIME", &runtime_inputs::NUMERICAL),
+    ] {
+        identity.push_str(&runtime_table(root, name, package));
     }
-    format!(
-        "pub const SOURCES: &str = \"{hash:016x}\";\npub const LEAN: &str = {lean:?};\npub const TOOLCHAIN: &str = {toolchain:?};\n"
-    )
+    identity
+}
+
+/// The runtime inputs of one package in the sources this driver is built with,
+/// as a table of relative paths and digests. A native build compares it with
+/// the same files of the selected kernel root before Lake compiles them.
+fn runtime_table(root: &Path, name: &str, package: &Package) -> String {
+    let directory = package.directory_in(root);
+    let entries = inputs(&directory, package).expect("read runtime inputs");
+    let mut table = format!("pub const {name}: &[(&str, &str)] = &[\n");
+    for (relative, digest) in &entries {
+        // Cargo treats a missing path as always changed, so name present files only.
+        if digest != ABSENT {
+            println!(
+                "cargo:rerun-if-changed={}",
+                directory.join(relative).display()
+            );
+        }
+        table.push_str(&format!("    ({relative:?}, {digest:?}),\n"));
+    }
+    for module in package.modules {
+        let file = runtime_inputs::module_file(module);
+        assert!(
+            entries
+                .iter()
+                .any(|(relative, digest)| *relative == file && digest != ABSENT),
+            "runtime module {module} has no source in {}",
+            directory.display()
+        );
+    }
+    table.push_str("];\n");
+    table
 }

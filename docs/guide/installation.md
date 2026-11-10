@@ -85,6 +85,11 @@ and the Lean version. The driver rejects a kernel built from other sources with
 `E_BACKEND: incompatible kernel`. After updating the compiler or its sources,
 rebuild the kernel with `lake -d lean-kernel build vastitas-kernel`.
 
+`build` also compares the runtime files of the kernel package directory with
+the files that the compiler was built from, and rejects a directory that
+differs (`E_BUILD`). Use the `lean-kernel` directory of the compiler's own
+sources without edits. The [CLI reference](cli.md) lists the compared files.
+
 There is no self-contained relocatable installation: the driver always uses
 the built kernel of one checkout or one extracted crate, named by
 `VASTITAS_KERNEL_ROOT` when it is not the default. Cross-compilation is not

@@ -1,6 +1,6 @@
 //! Shared optional Lake packages are build-time resources, not runtime locks.
 mod common;
-use common::{Scratch, cli, kernel_identity, kernel_path, root, success};
+use common::{Scratch, cli, kernel_identity, kernel_path, success};
 use nix::sys::signal::{Signal, kill};
 use nix::unistd::Pid;
 use std::fs;
@@ -90,8 +90,8 @@ fn fixture() -> Scratch {
         "kernel/lean-toolchain",
         include_str!("../lean-kernel/lean-toolchain"),
     );
-    s.write("kernel/native/marker", "");
-    s.write("kernel/numerical/marker", "");
+    // Every native build verifies the root's runtime inputs, mocked Lake or not.
+    common::copy_runtime_inputs(&s.0.join("kernel"), true, true);
     s
 }
 
@@ -383,35 +383,12 @@ fn numerical_link_failure_has_a_host_compiler_hint_only_when_applicable() {
     }
 }
 
-fn copy_sources(source: &Path, destination: &Path) {
-    fs::create_dir_all(destination).unwrap();
-    for entry in fs::read_dir(source).unwrap() {
-        let entry = entry.unwrap();
-        if entry.file_name() == ".lake" {
-            continue;
-        }
-        let target = destination.join(entry.file_name());
-        if entry.file_type().unwrap().is_dir() {
-            copy_sources(&entry.path(), &target);
-        } else {
-            fs::copy(entry.path(), target).unwrap();
-        }
-    }
-}
-
 #[test]
 fn simultaneous_cold_resource_builds_execute_and_reuse_native_artifacts() {
+    // The fixture root holds the runtime sources and no build products.
     let s = fixture();
     let kernel = s.0.join("kernel");
-    s.write(
-        "kernel/lakefile.toml",
-        "name = \"vastitas_kernel\"\n[[lean_lib]]\nname = \"VastitasKernel\"\n",
-    );
-    s.write(
-        "kernel/VastitasKernel/IndexedRuntime.lean",
-        include_str!("../lean-kernel/VastitasKernel/IndexedRuntime.lean"),
-    );
-    copy_sources(&root().join("lean-kernel/native"), &kernel.join("native"));
+    assert!(!kernel.join(".lake").exists());
     assert!(!kernel.join("native/.lake").exists());
     let alias = s.0.join("kernel alias");
     symlink(&kernel, &alias).unwrap();

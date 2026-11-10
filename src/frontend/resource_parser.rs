@@ -11,6 +11,8 @@ use crate::storage::{
 // Optional `alpha` and `beta` GEMM coefficients.
 type GemmCoefficients = (Option<Coefficient<String>>, Option<Coefficient<String>>);
 
+const RESOURCE_PARAMETER_TYPES: &str = "resource parameters require Nat/Int/Bool/Unit values, storage, numerical space/basis/map, involution or metric contracts";
+
 impl Parser {
     fn resource_number(&mut self) -> Result<u64, Diagnostic> {
         let token = self.advance();
@@ -172,6 +174,32 @@ impl Parser {
         })
     }
 
+    /// A type in a scalar position of a resource function: a value parameter,
+    /// a scalar binding or the result type. The kernel's decoder reads these
+    /// positions with `Indexed.Wire.pureType`, which admits `Nat`, `Int`,
+    /// `Bool`, `Unit`, `Pair<Nat>` and `Pair<Int>` only. The frontend admits
+    /// the same types, so another type is a diagnostic at its own span and
+    /// not a wire error at the manifest (#702). The kernel decides where a
+    /// pair is valid.
+    fn resource_pure_type(&mut self, code: &str, message: &str) -> Result<Type, Diagnostic> {
+        let start = self.peek().span;
+        let ty = self.ty()?;
+        let pure = match &ty {
+            Type::Named { name } => matches!(name.as_str(), "Nat" | "Int" | "Bool" | "Unit"),
+            Type::Pair { element } => matches!(element.as_str(), "Nat" | "Int"),
+            _ => false,
+        };
+        if pure {
+            Ok(ty)
+        } else {
+            Err(diagnostic(
+                code,
+                message,
+                start.through(self.previous().span),
+            ))
+        }
+    }
+
     fn resource_parameter(&mut self) -> Result<Parameter, Diagnostic> {
         let (name, start) = self.binding_name()?;
         self.expect(":")?;
@@ -179,7 +207,8 @@ impl Parser {
             .iter()
             .any(|kind| self.peek().is(kind))
         {
-            let ty = self.ty()?;
+            // A scalar name can also begin an indexed path such as `Nat::T<A>`.
+            let ty = self.resource_pure_type("E_TYPE", RESOURCE_PARAMETER_TYPES)?;
             return Ok(Parameter::Value {
                 name,
                 ty,
@@ -396,7 +425,7 @@ impl Parser {
         } else {
             return Err(diagnostic(
                 "E_TYPE",
-                "resource parameters require Nat/Int/Bool/Unit values, storage, numerical space/basis/map, involution or metric contracts",
+                RESOURCE_PARAMETER_TYPES,
                 self.peek().span,
             ));
         };
@@ -1538,7 +1567,10 @@ impl Parser {
             let statement = if self.consume("let") {
                 let name = self.binding_name()?.0;
                 self.expect(":")?;
-                let ty = self.ty()?;
+                let ty = self.resource_pure_type(
+                    "E_RESOURCE_VALUE",
+                    "resource values require Nat, Int, Bool or Unit",
+                )?;
                 self.expect("=")?;
                 if self.consume("value") {
                     let body = self.block()?;
@@ -1730,7 +1762,10 @@ impl Parser {
             Vec::new()
         };
         self.expect("->")?;
-        let value_type = self.ty()?;
+        let value_type = self.resource_pure_type(
+            "E_TYPE",
+            "resource result types require Nat, Int, Bool, Unit, Pair<Nat>, or Pair<Int>",
+        )?;
         self.expect("{")?;
         let body = self.resource_statements()?;
         self.expect("value")?;

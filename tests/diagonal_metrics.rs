@@ -278,6 +278,70 @@ fn diagonal_metrics_reject_wrong_forms_access_and_unrealizable_entries() {
     rejection(&(REAL.to_owned() + &unused), "E_NUMERICAL_METRIC");
 }
 
+/// A function that declares a diagonal metric of `entries` entries over a
+/// space of `dimension` dimensions.
+fn long_diagonal(dimension: usize, entries: usize) -> String {
+    format!(
+        "pub resource fn exercise() -> Unit {{\n    space v = linear(super::profiles::RealSmooth, {dimension}); basis bv = basis(v);\n    involution sigma = canonical(v);\n      metric h = diagonal(bv, sigma, [{}]);\n    value {{ () }}\n}}\n",
+        vec!["1"; entries].join(", ")
+    )
+}
+
+#[test]
+fn diagonal_entry_limit_is_reported_at_the_metric() {
+    // The frontend counts the entries that the kernel's decoder bounds. One
+    // entry over the bound used to fail wire decoding with `E_PROTOCOL` at
+    // the manifest (#704).
+    const LIMIT: usize = 4096;
+    let largest = fixture(&long_diagonal(LIMIT, LIMIT), COMPLEX);
+    success(&command(&largest, "check").output().unwrap());
+    // The limit comes before the comparison with the dimension.
+    for (dimension, entries) in [(LIMIT + 1, LIMIT + 1), (2, LIMIT + 1), (2, 2 * LIMIT)] {
+        let source = long_diagonal(dimension, entries);
+        let output = command(&fixture(&source, COMPLEX), "check")
+            .output()
+            .unwrap();
+        let stderr = common::expect_code(&output, "E_LIMIT");
+        let before = &source[..source.find("metric h").unwrap()];
+        let line = before.matches('\n').count() + 1;
+        let column = before.rsplit('\n').next().unwrap().chars().count() + 1;
+        assert!(
+            stderr.lines().next().unwrap().contains(&format!(
+                "src/real/mod.vast:{line}:{column}: E_LIMIT: diagonal metric exceeds the limit of {LIMIT} entries"
+            )),
+            "{stderr}"
+        );
+        assert!(!stderr.contains("E_PROTOCOL"), "{stderr}");
+    }
+    // Within the limit, the kernel compares the entries with the dimension.
+    rejection(&long_diagonal(2, LIMIT), "E_NUMERICAL_TYPE");
+    // The kernel keeps its bound for a request that no frontend sends.
+    let mut forged = captured(&largest);
+    let entries = forged["packages"][0]["modules"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|module| module["path"] == json!(["real"]))
+        .unwrap()["resource_functions"][0]["body"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|statement| statement["operation"]["op"] == "metric")
+        .unwrap()["operation"]["gram"]["entries"]
+        .as_array_mut()
+        .unwrap();
+    assert_eq!(entries.len(), LIMIT);
+    entries.push(json!("1"));
+    let response = assert_rejected(forged, "E_PROTOCOL");
+    assert!(
+        response["diagnostics"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("diagonal Gram data exceeds the 4096-entry bound"),
+        "{response}"
+    );
+}
+
 #[test]
 fn diagonal_wire_never_accepts_raw_gram_certificates() {
     let raw = captured(&fixture(REAL, COMPLEX));

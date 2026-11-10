@@ -97,8 +97,11 @@ Rules:
   family must not use a scalar base implementation or a linear implementation
   (`E_TYPE`).
 
-The compiler reports most errors of these rules at the root manifest, without
-the position of the declaration.
+The compiler reports an error of these rules at the declaration that breaks
+the rule. For a rule on an implementation, the message states the rule and
+names the declarations by their paths. For the rule on the kinds of one
+marker, the compiler reports one implementation of the marker, and the
+message names another implementation whose kind differs.
 
 The examples of this chapter use these declarations:
 

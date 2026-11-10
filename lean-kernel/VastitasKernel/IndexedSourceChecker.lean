@@ -230,6 +230,108 @@ structure CheckedDeclarations (p : Program) where
   accepted : Core.validDeclarations resolved.declarations = true
   geometryAccepted : resolved.geometry.all (·.valid resolved.declarations) = true
 
+private def representationSpelling : Indexed.Representation → String
+  | .affineDescriptor => "affine_descriptor"
+  | .scalarBase .. => "scalar_base"
+  | .linearDescriptor .. => "linear_descriptor"
+  | .presentedAffine _ => "presented_affine"
+  | .smoothAffine => "smooth_affine"
+
+private def kindSpelling : CoefficientKind → String
+  | .real => "real"
+  | .complex => "complex"
+
+/-- How an implementation comes by its coefficient kind. -/
+private def kindClause (representation : Indexed.Representation) (kind : CoefficientKind) : String :=
+  match representation with
+  | .smoothAffine => "is `smooth_affine`, which counts as `real`"
+  | _ => s!"has the kind `{kindSpelling kind}`"
+
+/-- Presentation only: the rule of `Entry.Valid` that an invalid
+`implementation` declaration breaks, in the words of the source. The rules of
+the declaration itself come first, then the rule that the implementations of
+one marker have one coefficient kind, which names a second declaration. The
+result is `none` for another declaration, and for an implementation that
+breaks no rule of this function. -/
+def implementationRule (env : Environment) (entry : Entry) : Option String := do
+  let .implementation marker representation capabilities := entry.declaration | none
+  let name := qualified entry.id
+  let form := representationSpelling representation
+  if !isMarker env marker then
+    return s!"the marker of the implementation `{name}` must be an `indexed marker`, " ++
+      s!"but `{qualified marker}` is not one"
+  if !decide capabilities.Nodup then
+    return s!"the capability list of the implementation `{name}` names a capability twice"
+  if representation == .affineDescriptor then failure
+  if !capabilities.isEmpty then
+    return s!"the `{form}` implementation `{name}` must have an empty capability list"
+  let own : Option String := match representation with
+    | .scalarBase .smooth .complex =>
+      some s!"the `scalar_base` implementation `{name}` has the setting `smooth`, which must have the kind `real`"
+    | .linearDescriptor base coefficient =>
+      match scalarBaseProfile env base with
+      | none => some <| s!"the base of the `linear_descriptor` implementation `{name}` must be an " ++
+          s!"`indexed global` of a `scalar_base` implementation, but `{qualified base}` is not one"
+      | some (baseMarker, .scheme, baseCoefficient) =>
+        if coefficient != baseCoefficient then
+          some <| s!"the linear implementation `{name}` over the `scheme` base `{qualified base}` must have " ++
+            s!"the kind `{kindSpelling baseCoefficient}` of the implementation of its base, " ++
+            s!"but it has the kind `{kindSpelling coefficient}`"
+        else if marker != baseMarker then
+          some <| s!"the linear implementation `{name}` over the `scheme` base `{qualified base}` must have " ++
+            s!"the marker `{qualified baseMarker}` of the implementation of its base, " ++
+            s!"but it has the marker `{qualified marker}`"
+        else none
+      | some (baseMarker, .smooth, baseCoefficient) =>
+        if baseCoefficient != .real then
+          some <| s!"the `smooth` base `{qualified base}` of the linear implementation `{name}` must have " ++
+            "the kind `real`"
+        else match coefficient with
+          | .real =>
+            if marker != baseMarker then
+              some <| s!"the `real` linear implementation `{name}` over the `smooth` base `{qualified base}` " ++
+                s!"must have the marker `{qualified baseMarker}` of the implementation of its base, " ++
+                s!"but it has the marker `{qualified marker}`"
+            else none
+          | .complex =>
+            if marker == baseMarker then
+              some <| s!"the `complex` linear implementation `{name}` over the `smooth` base " ++
+                s!"`{qualified base}` must have another marker than `{qualified marker}`, " ++
+                "the marker of the implementation of its base"
+            else none
+    | _ => none
+  if let some rule := own then return rule
+  let kind ← representation.coefficient
+  let (other, otherRepresentation, otherKind) ← env.findSome? fun other => match other.declaration with
+    | .implementation otherMarker otherRepresentation _ =>
+      if otherMarker == marker then
+        otherRepresentation.coefficient.bind fun otherKind =>
+          if otherKind != kind then some (other.id, otherRepresentation, otherKind) else none
+      else none
+    | _ => none
+  return s!"the implementations of the marker `{qualified marker}` must have one coefficient kind, " ++
+    s!"but `{name}` {kindClause representation kind} and `{qualified other}` " ++
+    s!"{kindClause otherRepresentation otherKind}"
+
+/-- Presentation only: the diagnostic for declarations that
+`Core.validDeclarations` rejects. It is at the first declaration that fails
+its own check, and for an implementation its message is the rule that the
+declaration breaks. Acceptance is `Core.validDeclarations` alone. -/
+def invalidDeclaration (p : Program) (env : Core.Declarations) : Diagnostic :=
+  let general := "invalid indexed declaration, package, or primitive contract"
+  let span (id : DeclId) : Span := ((p.owned.find? (·.1 == id)).map (·.2.span)).getD {}
+  let ranks := classRanks env.indexed
+  match env.indexed.find? (fun entry => !validEntry env.indexed ranks entry) with
+  | some entry =>
+    { code := "E_TYPE", message := (implementationRule env.indexed entry).getD general, span := span entry.id }
+  | none =>
+    match env.packages.find? (fun declaration => !decide (declaration.Valid env.indexed)) with
+    | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
+    | none =>
+      match env.primitives.find? (fun declaration => !validPrimitiveBinding env.indexed declaration.binding) with
+      | some declaration => { code := "E_TYPE", message := general, span := span declaration.id }
+      | none => { code := "E_TYPE", message := general }
+
 def checkDeclarations (p : Program) : Except Diagnostic (CheckedDeclarations p) := do
   if p.owned.length > 4096 then Namespace.problem {} "E_LIMIT" "more than 4096 indexed declarations"
   match namespaceAccepted : Namespace.validate p.indexed with
@@ -246,7 +348,7 @@ def checkDeclarations (p : Program) : Except Diagnostic (CheckedDeclarations p) 
                 return ⟨resolved, namespaceAccepted, ownersUnique, lowered,
                   referencesValid, idsPreserved, accepted, geometryAccepted⟩
               else Namespace.problem {} "E_TYPE" "geometry compatibility contract audit failed"
-            else Namespace.problem {} "E_TYPE" "invalid indexed declaration, package, or primitive contract"
+            else .error (invalidDeclaration p resolved.declarations)
           else Namespace.problem {} "E_OWNER" "indexed declaration identity audit failed"
         else Namespace.problem {} "E_OWNER" "indexed declaration reference audit failed"
     else Namespace.problem {} "E_DUPLICATE" "duplicate declaration owner"

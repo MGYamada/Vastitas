@@ -119,6 +119,192 @@ fn complete_environment_rejects_wrong_base_coefficient_and_capabilities() {
     );
 }
 
+/// A declaration that breaks a rule of the implementations is reported at
+/// that declaration, with the rule that it breaks (#704). The old place was the
+/// first character of the root manifest, with one text for every rule.
+#[test]
+fn a_broken_implementation_rule_is_reported_at_the_declaration() {
+    const P: &str = "numerical_declarations::profiles";
+    let with_marker = format!("{PROFILES}\npub indexed marker Other;\n");
+    // `ComplexSmooth` ahead of the implementation of its base.
+    let complex_first = {
+        let line = "pub indexed implementation ComplexSmooth(ComplexCoefficients, linear_descriptor(SmoothBase, complex)) capabilities();\n";
+        let rest = common::checked_replace(PROFILES, line, "");
+        common::checked_replace(
+            &format!("{line}{rest}"),
+            "ComplexSmooth(ComplexCoefficients",
+            "ComplexSmooth(RealCoefficients",
+        )
+    };
+    let cases: [(&str, &str, &str, &str, String); 15] = [
+        (
+            PROFILES,
+            "linear_descriptor(SmoothBase, real)",
+            "linear_descriptor(RealCoefficients, real)",
+            "7:5",
+            format!(
+                "the base of the `linear_descriptor` implementation `{P}::RealSmooth` must be an `indexed global` of a `scalar_base` implementation, but `{P}::RealCoefficients` is not one"
+            ),
+        ),
+        (
+            PROFILES,
+            "linear_descriptor(SmoothBase, real)",
+            "linear_descriptor(SmoothScalar, real)",
+            "7:5",
+            format!(
+                "the base of the `linear_descriptor` implementation `{P}::RealSmooth` must be an `indexed global` of a `scalar_base` implementation, but `{P}::SmoothScalar` is not one"
+            ),
+        ),
+        (
+            PROFILES,
+            "scalar_base(smooth, real)",
+            "scalar_base(smooth, complex)",
+            "5:5",
+            format!(
+                "the `scalar_base` implementation `{P}::SmoothScalar` has the setting `smooth`, which must have the kind `real`"
+            ),
+        ),
+        (
+            PROFILES,
+            "linear_descriptor(RealBase, real)",
+            "linear_descriptor(ComplexBase, real)",
+            "12:5",
+            format!(
+                "the linear implementation `{P}::RealLinear` over the `scheme` base `{P}::ComplexBase` must have the kind `complex` of the implementation of its base, but it has the kind `real`"
+            ),
+        ),
+        (
+            PROFILES,
+            "linear_descriptor(ComplexBase, complex)",
+            "linear_descriptor(RealBase, complex)",
+            "16:5",
+            format!(
+                "the linear implementation `{P}::ComplexLinear` over the `scheme` base `{P}::RealBase` must have the kind `real` of the implementation of its base, but it has the kind `complex`"
+            ),
+        ),
+        (
+            &with_marker,
+            "RealLinear(RealCoefficients",
+            "RealLinear(Other",
+            "12:5",
+            format!(
+                "the linear implementation `{P}::RealLinear` over the `scheme` base `{P}::RealBase` must have the marker `{P}::RealCoefficients` of the implementation of its base, but it has the marker `{P}::Other`"
+            ),
+        ),
+        (
+            PROFILES,
+            "RealSmooth(RealCoefficients",
+            "RealSmooth(ComplexCoefficients",
+            "7:5",
+            format!(
+                "the `real` linear implementation `{P}::RealSmooth` over the `smooth` base `{P}::SmoothBase` must have the marker `{P}::RealCoefficients` of the implementation of its base, but it has the marker `{P}::ComplexCoefficients`"
+            ),
+        ),
+        (
+            &complex_first,
+            "",
+            "",
+            "1:5",
+            format!(
+                "the `complex` linear implementation `{P}::ComplexSmooth` over the `smooth` base `{P}::SmoothBase` must have another marker than `{P}::RealCoefficients`, the marker of the implementation of its base"
+            ),
+        ),
+        // The same error where the implementation of the base comes first:
+        // that implementation is the first of two kinds of one marker.
+        (
+            PROFILES,
+            "ComplexSmooth(ComplexCoefficients",
+            "ComplexSmooth(RealCoefficients",
+            "5:5",
+            format!(
+                "the implementations of the marker `{P}::RealCoefficients` must have one coefficient kind, but `{P}::SmoothScalar` has the kind `real` and `{P}::ComplexSmooth` has the kind `complex`"
+            ),
+        ),
+        (
+            PROFILES,
+            "scalar_base(scheme, complex)",
+            "scalar_base(scheme, real)",
+            "8:5",
+            format!(
+                "the implementations of the marker `{P}::ComplexCoefficients` must have one coefficient kind, but `{P}::ComplexSmooth` has the kind `complex` and `{P}::ComplexScalar` has the kind `real`"
+            ),
+        ),
+        (
+            PROFILES,
+            "linear_descriptor(RealBase, real)) capabilities();",
+            "linear_descriptor(RealBase, real)) capabilities(origin);",
+            "12:5",
+            format!(
+                "the `linear_descriptor` implementation `{P}::RealLinear` must have an empty capability list"
+            ),
+        ),
+        (
+            PROFILES,
+            "scalar_base(scheme, real)) capabilities();",
+            "scalar_base(scheme, real)) capabilities(dimension);",
+            "10:5",
+            format!(
+                "the `scalar_base` implementation `{P}::RealScalar` must have an empty capability list"
+            ),
+        ),
+        (
+            PROFILES,
+            "linear_descriptor(RealBase, real)) capabilities();",
+            "linear_descriptor(RealBase, real)) capabilities(origin, origin);",
+            "12:5",
+            format!(
+                "the capability list of the implementation `{P}::RealLinear` names a capability twice"
+            ),
+        ),
+        (
+            PROFILES,
+            "RealLinear(RealCoefficients",
+            "RealLinear(RealScalar",
+            "12:5",
+            format!(
+                "the marker of the implementation `{P}::RealLinear` must be an `indexed marker`, but `{P}::RealScalar` is not one"
+            ),
+        ),
+        // Another declaration that the same check rejects has its own place
+        // and the general text.
+        (
+            PROFILES,
+            "pub indexed global RealBase(RealScalar);",
+            "pub indexed global RealBase(RealScalar);\nindexed primitive Bad = descriptor(RealSmooth);",
+            "12:1",
+            "invalid indexed declaration, package, or primitive contract".to_string(),
+        ),
+    ];
+    for (profiles, before, after, place, message) in cases {
+        let source = if before.is_empty() {
+            profiles.to_string()
+        } else {
+            common::checked_replace(profiles, before, after)
+        };
+        let output = check(&fixture(&source));
+        let error = common::expect_code(&output, "E_TYPE");
+        assert!(
+            error.ends_with(&format!(
+                "src/profiles/mod.vast:{place}: E_TYPE: {message}\n"
+            )),
+            "{after}: {error}"
+        );
+        assert_eq!(error.lines().count(), 1, "{error}");
+        assert!(!error.contains("Vastitas.toml"), "{error}");
+    }
+    // An implementation that nothing uses counts for the kinds of its marker.
+    let unused = format!(
+        "{PROFILES}\npub indexed implementation Unused(RealCoefficients, scalar_base(scheme, complex)) capabilities();"
+    );
+    let error = common::expect_code(&check(&fixture(&unused)), "E_TYPE");
+    assert!(
+        error.ends_with(&format!(
+            "src/profiles/mod.vast:5:5: E_TYPE: the implementations of the marker `{P}::RealCoefficients` must have one coefficient kind, but `{P}::SmoothScalar` has the kind `real` and `{P}::Unused` has the kind `complex`\n"
+        )),
+        "{error}"
+    );
+}
+
 #[test]
 fn numerical_profiles_do_not_acquire_legacy_geometry_operations() {
     for declaration in [

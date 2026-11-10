@@ -165,8 +165,18 @@ fn stale_dependencies_fail_but_ordinary_snapshots_remain_valid() {
         REAL.replace("release(input_t);", "release(input_t); drop(original);"),
         REAL.replace("release(input_t);", "release(input_t); if true { } else { }"),
         REAL.replace("release(input_t);", "release(input_t); borrow gap = write(original, layout(0, 1, 1, 1, false)); fill(gap, f64_bits(0)); release(gap);"),
+        // A write through a vector is a write through its loan (#708).
+        REAL.replace("release(input_t);", "release(input_t); borrow gap = write(original, layout(0, 1, 1, 1, false)); space sg = linear(super::profiles::RealSmooth, 1); basis bg = basis(sg); vector vg = view(gap, bg); store(vg, 0, 0, f64_bits(0)); release(gap);"),
+        REAL.replace("release(input_t);", "release(input_t); borrow gap = write(original, layout(0, 1, 1, 1, false)); space sg = linear(super::profiles::RealSmooth, 1); basis bg = basis(sg); vector vg = view(gap, bg); call touch(sg, bg, vg) -> (); release(gap);") + "\nresource fn touch(s: Space<super::profiles::RealSmooth, 1>, b: Basis<s>, out: WriteVector<b> initializes) -> Unit { fill(out, f64_bits(0)); value { () } }",
         REAL.replace("release(input_t);", "release(input_t); call change(original) -> (changed_original);").replace("drop(original);", "drop(changed_original);") + "\nresource fn change(buffer: Owned<F64, 20>) returns (buffer: Owned<F64, 20>) -> Unit { borrow r = write(buffer, layout(8, 2, 6, 3, false)); fill(r, f64_bits(0)); release(r); value { () } }",
     ] { rejection(&source, "E_TENSOR"); }
+    // The vector alone changes nothing: only its write invalidates the cache.
+    let unwritten = REAL.replace("release(input_t);", "release(input_t); borrow gap = write(original, layout(0, 1, 1, 1, false)); space sg = linear(super::profiles::RealSmooth, 1); basis bg = basis(sg); vector vg = view(gap, bg); release(gap);");
+    success(
+        &command(&fixture(&unwritten, COMPLEX), "check")
+            .output()
+            .unwrap(),
+    );
     rejection(
         &REAL.replace("contract3_cached(saved,", "contract3_cached(destination,"),
         "E_TENSOR_CACHE",

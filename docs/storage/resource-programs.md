@@ -190,6 +190,10 @@ Rules:
   and so is a `borrow` from a released loan. `release` may also name a
   [map](../linalg/maps-and-gemm.md#maps) or a
   [vector](../linalg/transforms-and-metrics.md#vectors) in place of its loan.
+- `fill`, `store`, `expect` and `copy` may name a vector in place of its
+  loan. [Vectors](../linalg/transforms-and-metrics.md#vectors) gives the
+  rules of a vector there. The rules of this section then hold for the loan
+  of the vector.
 - Every cell of the view of a `read` or `read_write` loan must be initialized
   (`E_RESOURCE_INIT`). `fill` initializes its view, `store` one cell and
   `copy` its target. A `write` loan may cover uninitialized cells.

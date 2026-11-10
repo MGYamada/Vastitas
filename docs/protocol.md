@@ -282,6 +282,10 @@ The nested operation is strictly `{kind: "dual"}` or
 with `name`, `basis`, `access`, `initializes`, `span`. Actual vector and form
 provenance, child loans, scalar output and emitted flags are reconstructed by
 the independent checker; no supplied origin or native flag grants authority.
+The resource actions `fill`, `store` and `expect` may carry the local name of a
+vector in `loan`, and `copy` in `source` or `target`. They have no other form
+for a vector: the checker resolves the vector to its loan, as
+[Vectors](linalg/transforms-and-metrics.md#vectors) describes.
 
 [Diagonal metrics](linalg/transforms-and-metrics.md#adjoints-for-diagonal-metrics) add strict numerical operations
 `adjoint_into` (`input`, `output`, `source_metric`, `target_metric`, `policy`) and

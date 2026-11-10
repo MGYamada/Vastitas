@@ -1,0 +1,6 @@
+pub mod area;
+
+// Private: visible in `shapes` and in its child module `area`.
+fn scale() -> Int { package::unit() }
+
+pub fn square(side: Int) -> Int { area::rectangle(side, side) }

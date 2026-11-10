@@ -1,0 +1,3 @@
+examples/reject/abstract-types/same-members.vast:6:1: E_DISPATCH_AMBIGUOUS: generic 'pick': multiple incomparable optimal methods at key (Int)
+examples/reject/abstract-types/same-members.vast:12:1: note: candidate method `pick(Left)` declared here; selectors are not narrower in every argument
+examples/reject/abstract-types/same-members.vast:13:1: note: candidate method `pick(Right)` declared here; selectors are not narrower in every argument

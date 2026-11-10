@@ -16,6 +16,8 @@ pub indexed package Hidden {
     case(Measured, QQ) { }
 };
 // ANCHOR_END: package
+// ANCHOR: primitives
 pub indexed primitive grid = descriptor(Grid);
 pub indexed primitive plain = descriptor(Plain);
 pub indexed primitive size = dimension((Measured, QQ));
+// ANCHOR_END: primitives

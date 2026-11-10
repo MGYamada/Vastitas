@@ -1,0 +1,13 @@
+generic below_ten(x) {
+    domain (Nat), (Int), (Bool);
+}
+
+// The fallback applies at every key.
+method below_ten(x: Any) -> Bool { false }
+// This method applies at (Nat) and at (Int), where `<` exists.
+method below_ten(x: Any) -> Bool requires (HasOrder) { x < 10 }
+
+fn main() -> Int {
+    let n: Nat = 7;
+    if below_ten(n) && below_ten(-7) && !below_ten(true) { 42 } else { 0 }
+}

@@ -9,7 +9,7 @@ An `abstract method` declaration has no executable body: its braces hold only a
 domain. It extends the callable domain of its generic and fixes the result type
 that each concrete winning method must have. See
 [Abstract methods](../stage1a.md#abstract-methods) and the
-[guide](../guide/dispatch.md#abstract-method-contracts).
+[guide](../guide/abstract-types.md#abstract-methods).
 
 ## Abstract type
 
@@ -17,7 +17,7 @@ A nominal selector declared with `abstract type`. A `subtype` declaration places
 a concrete scalar type under it. An abstract type has no values and adds no
 conversions.
 See [Abstract types](../stage1a.md#abstract-types) and the
-[guide](../guide/dispatch.md#abstract-types).
+[guide](../guide/abstract-types.md).
 
 ## Accept
 
@@ -50,7 +50,7 @@ The `assembly` block in the root module of the root package. Its
 [events](#event) borrow grants as edit loans, apply contributions, return the
 loans and seal the edited generics. See
 [Assemblies](../language/edit-authority.md#assemblies) and the
-[guide](../guide/modules-and-authority.md#edit-authority).
+[guide](../guide/edit-authority.md#the-assembly).
 
 ## Assumption registry
 
@@ -259,7 +259,7 @@ A `contribution` declaration that names a generic and holds methods for it. An
 assembly applies it with `apply`: a recipient's contribution through an edit
 loan, and a contribution of the module that holds the generic's edit authority
 without a loan. See
-[Edit authority](../guide/modules-and-authority.md#edit-authority) and
+[Edit authority across packages](../guide/edit-authority.md#the-contribution) and
 [Contributions](../language/edit-authority.md#contributions).
 
 ## Coordinate ring
@@ -375,7 +375,7 @@ The word has two meanings:
    implementations that it classifies. The domain of an implementation is
    that implementation alone. See
    [Classifications](../indexed-source.md#classifications) and the
-   [guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+   [guide](../guide/indexed-profile.md#a-classification).
 
 ## Edit authority
 
@@ -445,7 +445,7 @@ twice. An `indexed package` declaration declares a package type such as
 `Pointed`. An existential package is unrelated to a [package](#package) of
 source code. See
 [Existential packages](../language/geometric-types.md#existential-packages),
-the [guide](../guide/indexed-geometry.md#identity-is-nominal) and
+the [guide](../guide/indexed-geometry.md#existential-packages) and
 [Existential packages](../indexed-source.md#existential-packages) of indexed
 declarations.
 
@@ -485,7 +485,7 @@ number reads. See [Fiber primitives](../language/smooth-declarations.md#fiber-pr
 A type former declared with `indexed family`. Its parameters are objects,
 markers, domains or natural numbers. `Point` and `Morphism` are families. See
 [Families](../indexed-source.md#families) and the
-[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[guide](../guide/indexed-profile.md#families-of-types).
 
 ## Fiber product
 
@@ -608,7 +608,7 @@ A declaration that begins with `indexed`. Its kinds are `marker`,
 [profile](#profile), and the standard geometry library uses them. See
 [Indexed declarations](../indexed-source.md),
 [Smooth affine declarations](../language/smooth-declarations.md) and the
-[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[guide](../guide/indexed-profile.md).
 
 ## Indexed type
 
@@ -756,7 +756,7 @@ A coefficient marker, such as `QQ`. A package declares a marker with
 `CInfReal`. An implementation records its marker. A marker is not an object:
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
 [Markers](../indexed-source.md#markers) and the
-[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[guide](../guide/indexed-profile.md#a-marker-and-an-implementation).
 
 ## Mathematical bridge
 
@@ -1090,7 +1090,7 @@ The word has three qualified uses:
 2. An **indexed profile** is a set of indexed declarations that defines a
    geometric setting, such as the ordinary affine profile of
    `examples/packages/indexed/geo.vast`. See
-   [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+   [Defining an indexed profile](../guide/indexed-profile.md).
 3. A **coefficient profile** declares what the coefficients of numerical maps
    mean mathematically. See
    [Coefficient profiles](../guide/numerical.md#coefficient-profiles).
@@ -1289,7 +1289,7 @@ The `seal` [event](#event) of an assembly. Sealing a generic checks its final
 set of methods: no ambiguity, a winner at every key of the callable domain,
 and wins of contributed methods only inside the region of each grant. See
 [Sealing](../language/edit-authority.md#sealing) and the
-[guide](../guide/modules-and-authority.md#edit-authority).
+[guide](../guide/edit-authority.md#regions-and-the-seal).
 
 ## Seed
 

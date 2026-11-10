@@ -1,0 +1,12 @@
+generic double(x) {
+    domain (Nat), (Int);
+}
+
+method double(x: Nat) -> Nat { x + x }
+method double(x: Int) -> Int { x + x }
+
+fn main() -> Int {
+    // The literal 21 is an `Int`, so this call has the key (Int).
+    let n: Nat = double(21);
+    int(n)
+}

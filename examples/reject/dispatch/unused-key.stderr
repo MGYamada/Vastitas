@@ -1,0 +1,2 @@
+examples/reject/dispatch/unused-key.vast:7:35: E_TYPE: expected Int, found Nat
+examples/reject/dispatch/unused-key.vast:7:35: note: help: convert explicitly with int(...); Nat values are never converted implicitly

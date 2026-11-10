@@ -1,0 +1,4 @@
+[package]
+name = "copied_profile"
+version = "0.1.0"
+root = "main.vast"

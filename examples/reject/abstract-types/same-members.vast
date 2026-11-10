@@ -1,0 +1,17 @@
+abstract type Left;
+abstract type Right;
+subtype Int <: Left;
+subtype Int <: Right;
+
+generic pick(x) {
+    domain (Int);
+}
+
+// `Left` and `Right` hold the same scalar type, and neither is under the
+// other.
+method pick(x: Left) -> Int { 1 }
+method pick(x: Right) -> Int { 2 }
+
+fn main() -> Int {
+    pick(0)
+}

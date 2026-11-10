@@ -1,0 +1,12 @@
+generic add(x, y) {
+    domain (Int, Int);
+}
+
+method add(x: Int, y: Int) -> Int { x + y }
+
+fn fold(f: Fn<(Int, Int), Int>, x: Int, y: Int) -> Int { f(x, y) }
+
+fn main() -> Int {
+    // `add` names a generic, which is not a function value.
+    fold(add, 40, 2)
+}

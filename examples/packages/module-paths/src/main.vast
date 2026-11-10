@@ -1,0 +1,8 @@
+mod shapes;
+use shapes::area::rectangle;
+
+fn unit() -> Int { 1 }
+
+fn main() -> Int {
+    rectangle(4, 8) + shapes::square(3) + self::unit()
+}

@@ -1,0 +1,4 @@
+examples/reject/dispatch/crossed-selectors.vast:1:1: E_DISPATCH_AMBIGUOUS: generic 'meet': multiple incomparable optimal methods at key (Int, Int)
+examples/reject/dispatch/crossed-selectors.vast:7:1: note: candidate method `meet(Int, Number)` declared here; selectors are not narrower in every argument
+examples/reject/dispatch/crossed-selectors.vast:8:1: note: candidate method `meet(Number, Int)` declared here; selectors are not narrower in every argument
+examples/reject/dispatch/crossed-selectors.vast:1:1: note: help: declare `meet(Int, Int)` to resolve this key; recheck the entire family after editing

@@ -19,7 +19,7 @@ profiles:
 | Declarations | Chapter |
 | --- | --- |
 | Smooth affine objects, smooth maps, fibers, tapes, metrics and evidence | [Smooth affine declarations](language/smooth-declarations.md) |
-| Presented affine objects, morphisms over a base, isomorphisms and Cartesian squares | [Presented affine geometry](affine-geometry.md) |
+| Presented affine objects, morphisms over a base, isomorphisms and Cartesian squares | [Presented affine declarations](affine-geometry.md) |
 | Scalar bases and linear implementations | [Linear implementations](linalg/maps-and-gemm.md#linear-implementations) |
 
 [Notation](language/notation.md) explains the Syntax blocks, and the
@@ -45,7 +45,7 @@ The word after `indexed` is the kind of the declaration:
 | `global` | A [global object](#global-objects) | `GlobalDeclaration` |
 | `family` | A [family](#families) of types | `FamilyDeclaration` here, `SmoothFamily` in [The smooth profile](language/smooth-declarations.md#the-smooth-profile), and a form of `AffineDeclaration` |
 | `package` | The types of [existential packages](#existential-packages) | `PackageDeclaration` |
-| `primitive` | A [primitive](#primitives) | `PrimitiveDeclaration`, and a form of `AffineDeclaration` |
+| `primitive` | A [primitive](#primitives) | `PrimitiveDeclaration` |
 | `affine` | A smooth affine object or a presented affine object | `AffineSpaceDeclaration` in [Smooth affine objects](language/smooth-declarations.md#smooth-affine-objects), and a form of `AffineDeclaration` |
 | `morphism` | A smooth map or a morphism over a base | `MorphismDeclaration` in [Smooth maps](language/smooth-declarations.md#smooth-maps) |
 | `metric`, `evidence` | A metric, and evidence for a metric | `MetricDeclaration` and `EvidenceDeclaration` in [Smooth affine declarations](language/smooth-declarations.md#metrics) |
@@ -564,7 +564,7 @@ different objects:
 >
 > ```text
 > PrimitiveDeclaration -> `indexed` `primitive` IDENTIFIER `=` PrimitiveBinding `;`
-> PrimitiveBinding -> DescriptorBinding | SmoothBinding
+> PrimitiveBinding -> DescriptorBinding | SmoothBinding | RelativeBinding
 > DescriptorBinding -> `descriptor` `(` Path `)`
 >     | `global` `(` Path `)`
 >     | `origin` `(` `(` Path `,` Path `)` `,` Path `,` Path `)`
@@ -580,9 +580,9 @@ the text names a primitive, it calls `b` the binding of the primitive. The
 primitive bindings form a closed set. A program declares no operation of its
 own, and a primitive binding names no native code. `SmoothBinding` gives the
 bindings of
-[Smooth affine declarations](language/smooth-declarations.md#smooth-map-primitives).
-The primitive declarations of [presented affine geometry](affine-geometry.md)
-are a form of `AffineDeclaration`.
+[Smooth affine declarations](language/smooth-declarations.md#smooth-map-primitives),
+and `RelativeBinding` gives the bindings of
+[presented affine geometry](affine-geometry.md#morphism-primitives).
 
 In the table, `I` is an implementation over the marker `K`, and `G` and `B`
 are global objects. `(D, K)` stands for the object type `Object<D, K>`. `P` is
@@ -600,8 +600,8 @@ a `point` family, and `M` is a `morphism` family.
 
 Rules:
 
-- The word after `=` must begin a binding of `PrimitiveBinding` or a binding
-  of presented affine geometry. Another word is an error (`E_TYPE`).
+- The word after `=` must begin a binding of `PrimitiveBinding`. Another
+  word is an error (`E_TYPE`).
 - The implementation of `descriptor(I)` must have the representation
   `affine_descriptor` (`E_TYPE`).
 - The path of `global(G)` must name a global object of an implementation

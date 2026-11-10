@@ -1,0 +1,1 @@
+examples/reject/packages/affine-selector/main.vast:7:1: E_AFFINE_COORDINATE: a coefficient selector must be a single monomial with coefficient one

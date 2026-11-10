@@ -1,0 +1,13 @@
+use std::geometry::scheme::affine::AffineQQ;
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::Line;
+use std::geometry::scheme::affine::DualNumbers;
+
+// ANCHOR: declarations
+indexed affine Curve(AffineQQ) = spec[t, x] relations(x^2 - t) over Line by(t -> t);
+
+// The dual numbers lie over SpecQQ, and the line is not on their base chain.
+fn probe(arrow: Over<Curve, DualNumbers, Line>) -> Int { 0 }
+// ANCHOR_END: declarations
+
+fn main() -> Int { 0 }

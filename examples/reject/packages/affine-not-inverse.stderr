@@ -1,0 +1,1 @@
+examples/reject/packages/affine-not-inverse/main.vast:8:1: E_AFFINE_RELATION: the declared morphisms are not mutually inverse over one base

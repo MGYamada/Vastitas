@@ -1,0 +1,11 @@
+use std::geometry::scheme::affine::Over;
+use std::geometry::scheme::affine::SpecQQ;
+use std::geometry::scheme::affine::Line;
+use std::geometry::scheme::affine::DualNumbers;
+
+// ANCHOR: declaration
+// e^2 is zero on the dual numbers, and its image t^2 is not zero on the line.
+indexed morphism bad: Over<Line, DualNumbers, SpecQQ> = pullback(e -> t);
+// ANCHOR_END: declaration
+
+fn main() -> Int { 0 }

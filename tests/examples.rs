@@ -85,6 +85,8 @@ const BOOK_PACKAGES: &[(&str, &str)] = &[
     ("examples/packages/indexed-objects/Vastitas.toml", "42"),
     ("examples/packages/geometry-compat/Vastitas.toml", "42"),
     ("examples/packages/stdlib-geometry/Vastitas.toml", "42"),
+    ("examples/packages/affine-geometry/Vastitas.toml", "42"),
+    ("examples/packages/stdlib-affine/Vastitas.toml", "42"),
     ("examples/packages/storage/app/Vastitas.toml", "42"),
     ("examples/packages/vector-cells/Vastitas.toml", "42"),
 ];
@@ -118,6 +120,15 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/lost-capability",
     "examples/reject/packages/other-witness",
     "examples/reject/packages/second-opening",
+    "examples/reject/packages/affine-off-chain",
+    "examples/reject/packages/affine-missing-image",
+    "examples/reject/packages/affine-relation",
+    "examples/reject/packages/affine-selector",
+    "examples/reject/packages/affine-not-inverse",
+    "examples/reject/packages/affine-separate-bases",
+    "examples/reject/packages/affine-square",
+    "examples/reject/packages/affine-not-preimage",
+    "examples/reject/packages/affine-other-object",
 ];
 
 fn with_libs<'a>(path: &'a str, libs: &[&'a str]) -> Vec<&'a str> {
@@ -163,6 +174,8 @@ fn book_rejections_print_their_diagnostics() {
 
 #[test]
 fn book_rejected_packages_print_their_diagnostics() {
+    // The affine packages depend on the generated standard-library package.
+    common::prepare_stdlib_package();
     for directory in BOOK_REJECTED_PACKAGES {
         let manifest = format!("{directory}/Vastitas.toml");
         let output = cli()

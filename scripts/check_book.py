@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # The title and style checks apply to them. The last step of the book rewrite
 # applies both checks to every chapter and removes this list.
 CONVERTED = frozenset({
+    "guide/affine-geometry.md",
     "guide/smooth-geometry.md",
     "language/notation.md",
     "language/lexical-structure.md",
@@ -44,6 +45,7 @@ CONVERTED = frozenset({
     "linalg/transforms-and-metrics.md",
     "linalg/networks-and-packing.md",
     "internals/numerical-backend.md",
+    "affine-geometry.md",
     "language/smooth-declarations.md",
     "specifications.md",
     "spec/std-differential.md",
@@ -79,9 +81,7 @@ REPOSITORY = "MGYamada/Vastitas"
 # Nonterminals that Syntax blocks use before the Reference chapter that owns
 # the construct defines them, by that chapter. Remove an entry when its
 # chapter gains the production.
-PENDING_NONTERMINALS = {
-    "AffineDeclaration": "the presented affine declarations chapter",
-}
+PENDING_NONTERMINALS = {}
 
 
 @dataclass(frozen=True)

@@ -30,6 +30,19 @@ A **descriptor object** records only its dimension. The endpoints of point and
 morphism types are objects: an object parameter or binding, named by its
 identifier, or a base object `Base(K)`.
 
+Rules:
+
+- An endpoint identifier must name an object parameter or binding in scope. A
+  name that is not in scope is an error (`E_NAME` in flat mode, `E_TYPE` in
+  manifest mode). A binding that is not an object, and a reserved name, are
+  errors (`E_TYPE`).
+- The argument of `Base` in a type must be `QQ` or `CInfReal`, and the
+  arguments of `Pointed` must be a setting and then a marker. Another name
+  there is an error (`E_TYPE`).
+
+In manifest mode, [Geometry compatibility exports](../packages.md#geometry-compatibility-exports)
+says which programs use the types and operations of this chapter.
+
 ## Settings and markers
 
 The ordinary **setting** is `Scheme`, and the smooth setting is `CInfScheme`.
@@ -40,8 +53,14 @@ marker is a static name, and the base object is distinct from it.
 
 Rules:
 
-- A marker is a value only as the first argument of `Affine` and of `Base`.
-  Elsewhere it is an error (`E_RING`).
+- The first argument of `Affine` and of `Base` must be the name `QQ` or
+  `CInfReal`. A call without arguments, or another expression there, is an
+  error (`E_RING`).
+- A marker is not a value. A marker in any other place is an error (`E_RING`
+  in flat mode, `E_NAME` in manifest mode), and a call of a marker is an error
+  (`E_NAME`).
+- The two endpoints of a point type or of a morphism type must be objects over
+  the same marker. Other endpoints are an error (`E_BASE`).
 - No conversion exists between the two settings. An object of one setting
   where an annotation or a parameter requires the other is an error
   (`E_TYPE`). Arguments of `compose` or `apply` over different markers are an
@@ -71,16 +90,22 @@ describes.
 
 Rules:
 
+- A call must have the number of arguments that the table gives. Another
+  number is an error (`E_ARITY`), except for `Affine()` and `Base()`, which
+  the rule on markers rejects.
 - The dimension argument of `Affine` must have type `Nat` (`E_TYPE`). It is
   the expected type of a literal there.
 - The source of `g` must be the target of `f` in `compose(g, f)`, and the
   source of `f` must be the target of `p` in `apply(f, p)`. Another object is
   an error (`E_ENDPOINT`).
-- An argument that is not of the kind that the table requires is an error
-  (`E_TYPE`). Examples are a point given to `id` and an object given to
-  `apply` as its morphism.
-- An `E_ENDPOINT` diagnostic names the first requirement that fails, an
-  endpoint, a marker or a domain, with the required and the supplied object.
+- An argument of `origin`, `id` or `dimension` that is not an object is an
+  error (`E_TYPE`). So is an argument of `compose` or `apply` that is neither a
+  point nor a morphism.
+- A point where `compose` or `apply` requires a morphism, and a morphism where
+  `apply` requires a point, are errors (`E_ENDPOINT`).
+- An `E_ENDPOINT` diagnostic names the first requirement that fails: the
+  family of an argument, `Point` or `Morphism`, then an endpoint, a marker or
+  a classification. It gives the required and the supplied value.
 
 ## Object identity
 
@@ -104,7 +129,7 @@ Rules:
 - Equal settings, markers, dimensions or run-time descriptors never make two
   objects the same. Objects have no equality operation (`E_OPERATOR`).
 - A call of a function that returns an object gives an object with a fresh
-  identity, also when the function returns its argument. The checker infers no
+  identity, even when the function returns its argument. The checker infers no
   identities across functions.
 - An `if` expression whose branches are different objects gives an object with
   a fresh identity. An `if` expression whose branches are the same object gives
@@ -136,14 +161,18 @@ its body only inside an existential package.
 
 Rules:
 
-- In `pack { scheme: X, point: p }`, the point `p` must have the target `X` and
-  the test object `Base(K)`, where `K` is the marker of `X`. Another point is an
-  error (`E_ENDPOINT`).
-- Each `unpack` gives the object a fresh identity, also when it opens the same
+- In `pack { scheme: X, point: p }`, `X` must be an object (`E_TYPE`).
+- The point `p` must have the target `X` and the test object `Base(K)`, where
+  `K` is the marker of `X`. Another point, and a value that is not a point,
+  are errors (`E_ENDPOINT`). A function value there is an error (`E_TYPE`).
+- Each `unpack` gives the object a fresh identity, even when it opens the same
   existential package twice.
-- A value whose type names an object that `Affine` or `unpack` introduced in a
-  block must not leave that block. A point or morphism that leaves without its
-  object is an error (`E_ESCAPE`). Packing the object with its point is valid.
+- A value whose type names an object that a block introduced must not leave
+  that block. A block introduces an object with a call of `Affine`, an
+  `unpack`, a call of a function that returns an object, or an `if` over
+  different objects. A point or morphism that leaves without its object is an
+  error (`E_ESCAPE`), as in `{ origin(Affine(QQ, 2)) }`. Packing the object
+  with its point is valid.
 - An object itself is an immutable value, and it may leave its block.
 
 This program builds an existential package, opens it and keeps the point on

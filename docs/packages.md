@@ -3,23 +3,21 @@
 A **package** is a directory with a manifest, `Vastitas.toml`, a root source
 file and the [modules](language/modules.md) under it. In
 [manifest mode](language/programs.md#manifest-mode) the compiler checks the
-package of one manifest together with every package that it depends on.
+package of one manifest together with every package that it depends on. The
+standard library is the package of `stdlib/Vastitas.toml`. Its
+[README](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)
+lists its packages and modules.
 
 ## Manifests
 
-A manifest is a TOML file. This one declares the package `demo`, which depends
-on the package in `../arithmetic` under the alias `arithmetic`:
-
-```toml
-{{#include ../examples/packages/demo/Vastitas.toml}}
-```
+A manifest is a TOML file with these tables and keys:
 
 | Table and key | Value |
 | --- | --- |
 | `[package]` `name` | The name of the package, a nonempty string |
 | `[package]` `version` | The version of the package, in Semantic Versioning |
-| `[package]` `root` | The root source file, relative to the manifest |
-| `[dependencies]` *alias* `= { path = "…" }` | A dependency: the directory of its manifest, relative to the declaring manifest, under an alias |
+| `[package]` `root` | The root source file. A relative path starts at the directory of the manifest |
+| `[dependencies]` *alias* `= { path = "…" }` | A dependency under an alias: the directory of its manifest. A relative path starts at the directory of the declaring manifest |
 | `[geometry_compat]` | The [geometry compatibility export](#geometry-compatibility-exports), optional |
 
 Rules:
@@ -33,19 +31,28 @@ Rules:
   a Semantic Versioning version.
 - `root` must name a file inside the package directory whose name ends in
   `.vast`. Another file is an error (`E_INPUT`).
-- A dependency alias must be an ASCII identifier that is not a
-  [reserved name](language/lexical-structure.md#reserved-names) and not `mod`,
-  `use`, `pub`, `self`, `super` or `package`. Another alias is an error
-  (`E_MANIFEST`).
+- A dependency alias must be an ASCII
+  [identifier](language/lexical-structure.md#identifiers) that is not a
+  [reserved name](language/lexical-structure.md#reserved-names) and not
+  `package`. Another alias, such as a keyword, is an error (`E_MANIFEST`).
 - A dependency path must name a directory that holds a `Vastitas.toml`.
   Another path is an error (`E_INPUT`).
 - Every module of a package may begin a path with a dependency alias of the
   package. An alias must not collide with a declaration or a `use` of any
   module of its package (`E_DUPLICATE`).
 
+This manifest declares the package `demo`, which depends on the package in
+`../arithmetic` under the alias `arithmetic`:
+
+```toml
+{{#include ../examples/packages/demo/Vastitas.toml}}
+```
+
 ## The package graph
 
-The packages that the root manifest reaches through its dependencies form the
+The manifest that a command names is the **root manifest**, and its package is
+the [root package](language/programs.md#manifest-mode). The packages that the
+root manifest reaches through its dependencies form the
 **package graph** of the program. The identity of a package is the canonical
 location of its manifest together with its name and version. One manifest that
 two aliases reach is one package. Two packages with the same name and version
@@ -63,9 +70,9 @@ Rules:
   every command, including packages and declarations that the program never
   uses.
 
-> **Implementation note.** The Rust driver loads the manifests and source files
+> **Implementation note.** The frontend loads the manifests and source files
 > and sends the package graph to the Lean kernel. The kernel rebuilds the
-> graph, assigns every owner and resolves every path itself; the driver
+> graph, assigns every owner and resolves every path itself; the frontend
 > supplies no trusted owner or target.
 > [Package namespace acceptance](verification.md#package-namespace-acceptance)
 > states what is proved about these checks.
@@ -74,7 +81,15 @@ Rules:
 
 `vastitas check --manifest-path DIR/Vastitas.toml` checks the program of a
 manifest, and `vastitas build --manifest-path DIR/Vastitas.toml -o OUTPUT`
-builds it:
+builds it.
+
+Rules:
+
+- `--manifest-path` must name the root manifest. The compiler searches for no
+  manifest.
+- [The entry point](language/programs.md#the-entry-point) gives the entry
+  point of a build. A `main` of a dependency is not the entry point, even
+  when a `use` of the root module imports it.
 
 ```sh
 vastitas check --manifest-path examples/packages/demo/Vastitas.toml
@@ -84,36 +99,33 @@ vastitas build --manifest-path examples/packages/demo/Vastitas.toml -o target/de
 
 The executable prints `42`.
 
-Rules:
-
-- The compiler looks for no manifest of its own accord. A manifest is named
-  with `--manifest-path`.
-- The entry point of a build is the `main` of the root module of the root
-  package, as [The entry point](language/programs.md#the-entry-point) says. A
-  `main` in a dependency or in a child module, also an imported one, is not the
-  entry point.
-
 ## Geometry compatibility exports
 
 The optional `[geometry_compat]` table of a manifest maps the syntax of the
 [geometric core](language/geometric-types.md), such as `Point<X, Base(QQ)>`
-and `origin(X)`, to `indexed` declarations of that package, for a program in
-manifest mode. Its `scheme` and `smooth` subtables map the two settings.
+and `origin(X)`, to `indexed` declarations, for a program in manifest mode.
+Its `scheme` and `smooth` subtables map the two settings. Each path of the
+table is resolved in the root module of the exporting package, so it may name
+a declaration of a dependency.
 [Legacy geometry syntax in packages](indexed-source.md#legacy-geometry-syntax-in-packages)
-gives its rules.
+gives the contents of the table.
 
 Rules:
 
-- The kernel resolves every path of the table in the root module of the
-  exporting package and checks every export. It trusts no owner, capability or
-  validity claim from the manifest.
-- A program that uses the core geometry syntax in manifest mode must have
-  exactly one valid export in its package graph. Qualified indexed syntax needs
-  none.
+- A program whose package graph holds no `indexed` declaration, resource
+  function, grant, delegation, transfer or export uses the built-in geometric
+  core, as in flat mode.
+- Every other program must have exactly one export in its package graph to
+  use the syntax of the geometric core. With no export or with several, that
+  syntax is an error (`E_TYPE`).
+- The compiler checks every export, even one that no program uses. An invalid
+  export is an error (`E_TYPE`), and a path of the table that names nothing is
+  an error (`E_NAME`).
+- Qualified `indexed` syntax needs no export.
 
-The standard library is the package of `stdlib/Vastitas.toml`. Its
-[README](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md)
-lists its packages and modules.
+> **Implementation note.** The kernel resolves every path of the table and
+> checks every export itself. It trusts no owner, capability or validity claim
+> from the manifest.
 
 ## Moved sections
 

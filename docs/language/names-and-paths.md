@@ -1,6 +1,7 @@
 # Names and paths
 
-A **path** names a declaration, also in another module or package. This
+A **path** names a declaration of the current module, of another module or
+of another package. This
 chapter defines paths, how a name resolves to a declaration, and which
 declarations a module may name. Paths with `::` exist only in
 [manifest mode](programs.md#manifest-mode). In flat mode every name is one
@@ -25,31 +26,39 @@ module that the segment before it names.
 | `self` | The current module |
 | `super` | The parent of the current module. Each further `super` goes up one more level |
 | A dependency alias | The root module of that dependency |
-| Another name | A binding, a declaration of the current module, or a name that a `use` of the current module binds |
+| Another name | A declaration of the current module, or a name that a `use` of the current module binds |
 
 A name without `::`, a **bare name**, resolves among the bindings in scope, the
 declarations of the current module, the names that its `use` declarations
-bind, and the [built-in functions](expressions.md#built-in-functions). The
-names of a parent module are not in scope in a child module. A path through
-`super` or `package` reaches them.
+bind, and the [built-in functions](expressions.md#built-in-functions). Only a
+bare name finds a binding. The names of a parent module are not in scope in a
+child module. A path through `super` or `package` reaches them.
 
 Rules:
 
 - A name or path segment that resolves to nothing is an error (`E_NAME`).
+- Each segment before a `::` must name a module. Another declaration there is
+  an error (`E_NAME`).
 - A dependency alias may only begin a path. Only the direct dependencies of a
   package have aliases in it. A path that begins with a dependency of a
   dependency is an error (`E_NAME`), unless the package declares that name
   itself.
-- `package`, `self` and `super` have their meaning only as the first segment of
-  a path with `::`. A function, a parameter or a binding may be named
-  `package`. A module or a `use` alias named `package` is an error
-  (`E_RESERVED`), and a dependency alias must not be named `package`, as
-  [Manifests](../packages.md#manifests) says.
+- `package`, `self` and `super` have their meaning only as the first segment
+  of a path. `package` has it only before `::`. `self` and `super` also name
+  their module alone, as in `use super as up;`.
+- A function, a parameter or a binding may be named `package`.
+  [Reserved names](lexical-structure.md#reserved-names) gives the places
+  where the name is reserved, and [Manifests](../packages.md#manifests)
+  excludes it as a dependency alias.
 - `generic` may be a segment, as in `std::arithmetic::generic::promote`. It
-  remains a strict keyword, so `use` must give a module named `generic` an
-  alias: `use std::arithmetic::generic as arithmetic;`.
+  remains a strict keyword, so a `use` of a module named `generic` must give
+  it an alias, as in `use std::arithmetic::generic as arithmetic;`. Without
+  the alias the `use` is an error (`E_RESERVED`).
 - The order of declarations and `use` declarations does not change how a name
   resolves.
+- In flat mode a path with `::` is an error. Its code depends on the place:
+  `E_PARSE` in an expression and in the name of a method, `E_NAME` in a
+  selector, a parent or a `subtype`, and `E_UNSUPPORTED` in a type.
 - Resolution has work limits, which
   [Appendix D](../appendix/limits.md#checker-limits) lists. Exceeding one is an
   error (`E_LIMIT`).

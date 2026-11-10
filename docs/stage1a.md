@@ -37,7 +37,8 @@ Rules:
 - A key must not occur twice in a domain (`E_DUPLICATE`).
 - A generic has at most six parameters, because the compiler enumerates every
   key of its parameters, at most 4096. A seventh parameter is an error
-  (`E_LIMIT`).
+  (`E_LIMIT`). [Appendix D](appendix/limits.md#checker-limits) lists these
+  limits.
 - A generic is not a function value, as
   [Path expressions](language/expressions.md#path-expressions) says.
 
@@ -46,15 +47,16 @@ Rules:
 > **Syntax**
 >
 > ```text
-> MethodDeclaration -> `method` Path MethodParameters MethodSignature BlockExpression
-> MethodParameters -> `(` ( MethodParameter ( `,` MethodParameter )* `,`? )? `)`
+> MethodDeclaration ->
+>     `method` Path `(` MethodParameters? `)` MethodSignature BlockExpression
+> MethodParameters -> MethodParameter ( `,` MethodParameter )* `,`?
 > MethodParameter -> IDENTIFIER `:` Path
 > MethodSignature -> Requirements? `->` MethodResult | `->` MethodResult Requirements
 > Requirements -> `requires` `(` ( IDENTIFIER ( `,` IDENTIFIER )* `,`? )? `)`
 > MethodResult -> ScalarType | PairType
 > ```
 
-A method of the generic `f` declares a **selector** for each parameter and a
+A method declares a **selector** for each parameter of its generic and a
 result type, and it may require **capabilities** of its arguments:
 
 ```vast
@@ -83,35 +85,43 @@ generic without parameters has no capability.
 
 Rules:
 
-- A method must name a generic in scope. Another name is an error (`E_NAME`).
-  In manifest mode the method must be in the module that defines the generic,
-  as [Owners](language/edit-authority.md#owners) says.
+- A method must name a generic in scope. A name that is not in scope is an
+  error (`E_NAME`). The name of another declaration is an error (`E_NAME` in
+  flat mode, `E_OWNER` in manifest mode).
+- In manifest mode a method must be in the module that defines its generic, as
+  [Owners](language/edit-authority.md#owners) says.
 - A method has one selector per parameter of its generic. Another number is an
   error (`E_ARITY`).
+- A selector must be a scalar type, `Number`, `Any` or an abstract type.
+  Another type, such as a pair type, a function type or a geometric type, is
+  an error (`E_TYPE`), and so is the name of a function. A name that is not in
+  scope is an error (`E_TYPE` in flat mode, `E_NAME` in manifest mode).
 - A capability must be `HasEq` or `HasOrder` (`E_CAPABILITY`). A program
   cannot declare capabilities.
 - A method has at most one `requires` clause (`E_PARSE`).
 - The result type of a method must be a scalar type, `Pair<Nat>` or
   `Pair<Int>` (`E_TYPE`). Methods of one generic may have different result
   types.
-- Two methods of one generic must not have the same selectors and the same
-  requirements after `HasOrder` implies `HasEq` (`E_DUPLICATE`).
+- Two methods of one generic must not have the same selectors and equal
+  requirements (`E_DUPLICATE`). `requires (HasOrder)` equals
+  `requires (HasEq, HasOrder)`, and `requires ()` equals no clause.
 - The requirements of a method must hold for some key that its selectors
   accept. A method that applies to no key is an error (`E_CAPABILITY`).
-- A selector is not a type of values. `Number`, `Any` and abstract types appear
-  only as selectors.
+- `Number`, `Any` and abstract types are not types of values, as
+  [Types](language/types.md) says. They appear as selectors, as parents of
+  abstract types and in the keys of abstract methods.
 
 ## Selection
 
 A method **applies** at a key when each type of the key belongs to its
 selector and every type of the key has the required capabilities. Method `a`
-is **more specific** than method `b` when each selector of `a` is no broader
-than the matching selector of `b`, the requirements of `a` are no weaker than
-those of `b`, and one of these comparisons is strict. At a key, the **winner**
-is the one applicable method that no other applicable method is more specific
-than. The order of declarations never decides, and neither does the expected
-type of the call, the identity of a geometric object or any state at run
-time.
+is **more specific** than method `b` when three conditions hold. Each selector
+of `a` is no broader than the matching selector of `b`. The requirements of
+`a` are no weaker than those of `b`. One of these comparisons is strict. At a
+key, the **winner** is the one applicable method that no other applicable
+method is more specific than. The order of declarations never decides, and
+neither does the expected type of the call, the identity of a geometric
+object or any state at run time.
 
 Rules:
 
@@ -121,7 +131,14 @@ Rules:
 - Every key of the callable domain must have a winner. A key without one is an
   error (`E_DISPATCH_COVERAGE`).
 - The compiler checks the body of every method at every key at which it
-  applies, also where it never wins and outside the callable domain.
+  applies, even where it never wins and outside the callable domain. Each of
+  these checks counts against the work budget of
+  [Specialization](stage1b.md#specialization).
+- A call of a generic must have one argument per parameter (`E_ARITY`), and
+  each argument must have a scalar type (`E_TYPE`). The types of the
+  arguments are the key of the call.
+- The key of a call must be in the callable domain. Another key is an error
+  (`E_DISPATCH_DOMAIN`), even when a method applies at it.
 - The compiler infers the types of the arguments of a call before it selects a
   method. An integer literal argument therefore has type `Int`, and the
   expected type of a call never selects a method.
@@ -129,6 +146,9 @@ Rules:
   winner's result type. Calls through generics follow the rule against
   recursion of [Calls](language/functions.md#calls) after selection
   (`E_RECURSION`).
+- The work of building the dispatch table of one generic has a limit, which
+  [Appendix D](appendix/limits.md#checker-limits) gives (`dispatchWork`).
+  Exceeding it is an error (`E_LIMIT`).
 
 Capabilities hold for single types, not for relations between arguments. A
 method with selectors `(Number, Number)` that requires `HasOrder` also applies
@@ -137,7 +157,9 @@ at `(Nat, Int)`, where `left < right` is an error. Write separate methods for
 
 Neither method below is more specific than the other: the first has the
 narrower selector, the second the stronger requirement. They are ambiguous at
-every key of `Number`, also outside the callable domain:
+the keys `(Nat)` and `(Int)`, although `(Nat)` is outside the callable domain.
+Adding `requires (HasOrder)` to the first method makes it more specific and
+removes the ambiguity:
 
 ```vast
 {{#include ../examples/reject/dispatch/incomparable-methods.vast}}
@@ -170,18 +192,22 @@ Rules:
   (`E_TYPE`).
 - The abstract types must not form a cycle, and no abstract type may be its own
   parent (`E_HIERARCHY`).
-- A `subtype` must name one of the four scalar types (`E_TYPE`) and an
-  abstract type of the program. It must not change the relations between the built-in types,
-  such as placing `Bool` under `Number` (`E_HIERARCHY`), and it must not edit
-  a built-in type itself (`E_OWNER`).
+- A `subtype` must place one of the four scalar types (`E_TYPE`) in an
+  abstract type in scope (`E_NAME`). `Number`, `Any` or a scalar type after
+  `<:` is an error (`E_OWNER`). The name of another declaration there is an
+  error (`E_NAME` in flat mode, `E_OWNER` in manifest mode).
+- A `subtype` must not change the relations between the built-in types. An
+  example is `Bool` in an abstract type under `Number` (`E_HIERARCHY`).
 - A name, a parent of one abstract type or a membership must not be declared
   twice (`E_DUPLICATE`).
 - A program has at most 64 nominal types, counting `Nat`, `Int`, `Bool`, `Unit`,
-  `Number` and `Any` (`E_LIMIT`).
+  `Number` and `Any` (`E_LIMIT`), as
+  [Appendix D](appendix/limits.md#checker-limits) lists.
 - In manifest mode, only the module that defines an abstract type may declare
-  `subtype` memberships of it (`E_OWNER`). Every membership that a type
-  inherits must come from such a declaration, so foreign inheritance cannot
-  add a scalar type to an abstract type.
+  `subtype` memberships of it (`E_OWNER`). For each scalar type that an
+  abstract type holds, its defining module must declare that scalar type into
+  the abstract type or into one of its descendants (`E_OWNER`). Foreign
+  inheritance therefore cannot add a scalar type to an abstract type.
 - An abstract type may name a visible abstract type of another module as its
   parent. This edits no declaration of that module.
 - An abstract type is distinct from every other abstract type, whatever its
@@ -204,28 +230,39 @@ members; they carry no mathematical axioms.
 >
 > ```text
 > AbstractMethodDeclaration ->
->     `abstract` `method` Path MethodParameters MethodSignature `{` `domain` ContractDomain `}`
+>     `abstract` `method` Path `(` MethodParameters? `)` MethodSignature
+>     `{` `domain` ContractDomain `}`
 > ContractDomain -> `;` | ContractKey ( `,` ContractKey )* `,`? `;`
 > ContractKey -> `(` ( Path ( `,` Path )* `,`? )? `)`
 > ```
 
 An **abstract method** has no body. It adds keys to the callable domain of its
-generic and fixes the result type that the winner at those keys must have. The keys of
-its domain may name selectors, and each one stands for every key of scalar
-types that it accepts: `(Numeric, Bool)` stands for `(Nat, Bool)` and
+generic and fixes the result type that the winner at those keys must have. The
+keys of its domain may name selectors. Such a key stands for every key of
+scalar types that it accepts: `(Numeric, Bool)` stands for `(Nat, Bool)` and
 `(Int, Bool)` when `Numeric` holds `Nat` and `Int`.
 
 Rules:
 
-- Every key of an abstract method must satisfy its selectors and its
-  requirements (`E_CONTRACT_DOMAIN`).
+- An abstract method follows the rules of
+  [Method declarations](#method-declarations) on the name of its generic, on
+  the number and the form of its selectors, on the names of its capabilities
+  and on its result type. Its requirements need not hold for any key.
+- Every key of the domain must have one entry per parameter (`E_ARITY`). A
+  selector name that is not in scope is an error (`E_NAME`) in both modes, in
+  a parameter and in a key.
+- Every key of scalar types that the domain stands for must satisfy the
+  selectors and the requirements of the abstract method
+  (`E_CONTRACT_DOMAIN`). The domain may name other selectors than the
+  parameters do.
 - A key that stands for no key of scalar types is an error
-  (`E_CONTRACT_EMPTY`), also when another key of the clause is not empty.
-  `domain;` is an empty contract.
+  (`E_CONTRACT_EMPTY`), even when another key of the domain is not empty.
+  `domain;` declares no keys.
 - At each key of an abstract method, the winner's result type must equal the
-  abstract method's result type, also `Pair<Nat>` versus `Pair<Int>`
-  (`E_CONTRACT_RESULT`).
-- Keys that several clauses or several abstract methods share count once.
+  abstract method's result type. `Pair<Nat>` and `Pair<Int>` are different
+  result types (`E_CONTRACT_RESULT`).
+- A key that several written keys or several abstract methods stand for counts
+  once.
 - An abstract method never wins and never runs.
 - In manifest mode, only the module that defines the generic may declare its
   abstract methods (`E_OWNER`). An abstract method has no visibility, as
@@ -240,9 +277,11 @@ The executable prints `42`.
 ## Promotion
 
 The arithmetic library `stdlib/src/arithmetic/generic.vast` defines the generic
-`promote`, which turns two integers into a pair of one common type, and uses it
-in `add` and `maximum`. These are library methods, not rules of the language:
-the only conversion that they perform is `int`. The specification
+`promote`, which turns two values of the types `Nat` and `Int` into a pair of
+one common type, and uses it in `add` and `maximum`. These are library
+methods, not rules of the language: the only conversion that they perform is
+`int`. In manifest mode the module `std::arithmetic::generic` owns these
+generics and their methods. The specification
 [std::arithmetic::generic](spec/std-arithmetic-generic.md) states their
 contract and its evidence.
 

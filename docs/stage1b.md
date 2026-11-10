@@ -37,9 +37,10 @@ parameters and bindings, to items and to the built-in functions.
 
 Rules:
 
-- A reference in a lambda to a binding outside it is an error (`E_CAPTURE`),
-  also to an outer parameter, to a function value bound outside it, or to an
-  object that a type in the lambda names. Pass such a value as a parameter.
+- A reference in a lambda to a binding outside it is an error (`E_CAPTURE`).
+  This includes an outer parameter, a function value bound outside the lambda
+  and an object that a type in the lambda names. Pass such a value as a
+  parameter.
 - A parameter or binding of a lambda must not reuse a name that is visible
   outside the lambda (`E_SHADOW`).
 - Two lambdas that do not contain one another may bind the same names. A
@@ -57,18 +58,21 @@ Rules:
 ## Static targets
 
 After the compiler substitutes the function arguments of a call, every call of
-a function value must resolve to one function definition. Two lambdas are
-different definitions, also when their text is the same. A named function is
-one definition however often a program names it.
+a function value resolves to one function definition. Two lambda expressions
+are different definitions, even when their text is the same. One lambda
+expression is one definition, however many calls reach it, and a named
+function is one definition however often a program names it.
 
 Rules:
 
-- A call whose function value may come from more than one definition is an
-  error (`E_STATIC_CALL`).
 - An `if` whose branches are function values must resolve to the same
   definition in both branches. Different definitions are an error
-  (`E_STATIC_CALL`), also when the condition is the literal `true`. The
-  compiler does not evaluate conditions to choose a target.
+  (`E_STATIC_CALL`), which the compiler reports at the `if`.
+- The rule holds even when no call uses the value of the `if`, and when its
+  condition is the literal `true`. The compiler does not evaluate conditions
+  to choose a target.
+- A branch that is a function parameter is compared for each call of the
+  enclosing function, with the function values that the call passes.
 - Passing the same function value for two parameters is valid.
 
 ```vast
@@ -84,17 +88,19 @@ of scalars that produces a function value is still checked and evaluated.
 
 ## Specialization
 
-The compiler makes one **specialized instance** of a function for each
-combination of function values that the program passes to it, and it checks
-every instance. It checks every function, lambda and method of the program,
-also those that no call reaches.
+A **higher-order function** is a function with a function parameter or a
+function result. The compiler checks each lambda and each higher-order
+function once on its own. It checks a higher-order function once more for
+each combination of function values that the program passes to its function
+parameters. Each of these checks makes one **specialized instance**. The
+compiler checks every function, lambda and method of the program, including
+those that no call reaches.
 
 Rules:
 
-- A program has at most 4096 specialized instances in each checking pass.
-  Every instance of a lambda and every instance of a function with a function
-  parameter or result counts; a function without either does not. More
-  instances are an error (`E_LIMIT`).
+- A program has at most 4096 specialized instances. More instances are an
+  error (`E_LIMIT`). A function that is not higher-order has no specialized
+  instance.
 - The elaboration of a program has a work budget, which
   [Appendix D](appendix/limits.md#checker-limits) gives (`elaborationWork`).
   Exceeding it is an error (`E_LIMIT`). The compiler never accepts part of a
@@ -112,5 +118,7 @@ These anchors keep older links working.
 - <a id="static-target-rule"></a>Static target rule: [Static targets](#static-targets).
 - <a id="checking-and-specialization"></a>Checking and specialization: [Specialization](#specialization) and [Checking pipeline](internals/checking-pipeline.md#function-specialization).
 - <a id="homogeneous-data-pairs"></a>Homogeneous data pairs: [Pair types](language/types.md#pair-types).
-- <a id="regression-coverage"></a><a id="lowering-type-information"></a><a id="internal-identities-and-resource-limits"></a>Regressions, lowering and internal identities: [Checking pipeline](internals/checking-pipeline.md).
+- <a id="regression-coverage"></a>Regression coverage: [Checking pipeline, Regression coverage](internals/checking-pipeline.md#regression-coverage).
+- <a id="lowering-type-information"></a>Lowering type information: [Checking pipeline, History](internals/checking-pipeline.md#retained-pipeline-lowering-type-information).
+- <a id="internal-identities-and-resource-limits"></a>Internal identities and resource limits: [Checking pipeline](internals/checking-pipeline.md#internal-identities-and-resource-limits).
 - <a id="stage1b-indexing"></a><a id="stage-1b-indexing-issue-141-follow-up"></a><a id="starting-point"></a><a id="correspondence-and-order"></a><a id="regression-and-reproduction"></a><a id="validation-record"></a><a id="measured-comparisons"></a>Indexing follow-up record: [Checking pipeline, History](internals/checking-pipeline.md#history).

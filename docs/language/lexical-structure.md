@@ -25,8 +25,12 @@ Rules:
   mark is an error (`E_LEX`).
 - A line separator of the table must not appear anywhere in a file, including
   comments and string literals. Each is an error (`E_LEX`).
+- A source file must be valid UTF-8. Another file is an error (`E_INPUT`).
 - Outside comments and string literals, every character is ASCII or
   whitespace. Another character is an error (`E_LEX`).
+- An ASCII character that begins no token is an error (`E_LEX`). Examples are
+  `&` and `|` alone, `@`, `#`, `$`, `?`, `~`, a single quote, a backslash and
+  the control characters.
 
 ## Comments
 
@@ -76,23 +80,23 @@ than the [input limits](../appendix/limits.md#input-limits).
 A **strict keyword** has a fixed meaning, and it is never an identifier. Four
 of them, `while`, `for`, `loop` and `mut`, name constructs that the language
 does not have, and `return` occurs only as an event of an
-[assembly](edit-authority.md#assemblies). Other words act as keywords only at the places where a
-construct's syntax spells them, and they are identifiers elsewhere. Examples
-are `pub`, `use`, `mod`, `indexed`, `resource`, `scheme`, `point`, `witness`
-and `fields`.
+[assembly](edit-authority.md#assemblies). `generic` is also a segment of a
+[path](names-and-paths.md#resolution) in manifest mode. Other words act as
+keywords only at the places where a construct's syntax spells them, and they
+are identifiers elsewhere. Examples are `indexed`, `resource`, `scheme`,
+`point`, `witness` and `fields`.
 
 Rules:
 
 - Where an expression begins, `return`, `while`, `for`, `loop` and `mut` are
-  each an error (`E_UNSUPPORTED`). `let mut` followed by a name is an error
-  (`E_UNSUPPORTED`).
+  each an error (`E_UNSUPPORTED`).
 - Where the syntax expects a name, `return` is an error (`E_UNSUPPORTED`), and
-  `while`, `for`, `loop` and `mut` are each an error (`E_RESERVED`).
+  `while`, `for`, `loop` and `mut` are each an error (`E_RESERVED`). `let mut`
+  before a name is the error of
+  [`let` statements](statements.md#let-statements) instead.
 - In every other case, a strict keyword at a place where the syntax does not
   allow it is an error (`E_PARSE`). Examples are `return` at the top level of a
   file and `let fn = 1;`.
-- In [manifest mode](programs.md#manifest-mode), `generic` may be a segment of
-  a path, as in `std::arithmetic::generic::add`.
 
 ## Reserved names
 
@@ -107,13 +111,13 @@ use, apart from the exceptions that the rules give. These names are reserved:
 | `int`, `pair`, `pair_first`, `pair_second` | [Built-in functions](expressions.md#built-in-functions) |
 | `Affine`, `Base`, `origin`, `id`, `compose`, `apply`, `dimension` | [Geometric operations](geometric-types.md#operations) |
 | Every name that begins with `__vastitas_` | Names that the compiler generates |
-| `mod`, `use`, `pub`, `self`, `super`, in [manifest mode](programs.md#manifest-mode) | [Modules](modules.md) |
-| `package`, as the name of a module, a `use` alias or a dependency alias | [Names and paths](names-and-paths.md#resolution) |
+| `mod`, `use`, `pub`, `self`, `super` | [Modules](modules.md) and [paths](names-and-paths.md) |
+| `package`, as the name of a module or as a name that `use` binds | [Names and paths](names-and-paths.md#resolution) |
 
 Rules:
 
-- A declaration or binding that uses a reserved name is an error
-  (`E_RESERVED`).
+- A reserved name as the name of a declaration or of a binding, or as a name
+  that `use` binds, is an error (`E_RESERVED`).
 - An `indexed` declaration may use one of the fourteen names of the geometric
   core: the names of the geometric types, the two markers and the seven
   geometric operations. A `use` without `as` that imports such a declaration
@@ -141,8 +145,8 @@ Rules:
 
 - A letter or `_` directly after the digits of a literal is an error
   (`E_LEX`). Literals have no digit separators and no type suffixes. The
-  exceptions are `e`, `E`, `f32` and `f64`, which make a floating-point
-  literal.
+  letters `e` and `E` and the suffixes `f32` and `f64` are exceptions: they
+  continue a [floating-point token](#other-literals).
 - `0x` or `0X` begins a hexadecimal floating-point literal. A hexadecimal
   literal without a binary exponent `p` is an error (`E_LEX`). Integer literals
   have no radix prefixes.
@@ -153,9 +157,11 @@ Rules:
 >
 > ```text
 > FLOAT_LITERAL -> DECIMAL_FLOAT | HEX_FLOAT
-> DECIMAL_FLOAT -> ( ASCII_DIGIT+ ( `.` ASCII_DIGIT* )? | `.` ASCII_DIGIT+ ) EXPONENT?
+> DECIMAL_FLOAT -> ASCII_DIGIT+ `.` ASCII_DIGIT* EXPONENT?
+>     | ASCII_DIGIT+ EXPONENT
+>     | `.` ASCII_DIGIT+ EXPONENT?
 > EXPONENT -> ( `e` | `E` ) ( `+` | `-` )? ASCII_DIGIT+
-> HEX_FLOAT -> ( `0x` | `0X` ) HEX_DIGIT* ( `.` HEX_DIGIT* )?
+> HEX_FLOAT -> ( `0x` | `0X` ) ( HEX_DIGIT+ ( `.` HEX_DIGIT* )? | `.` HEX_DIGIT+ )
 >     ( `p` | `P` ) ( `+` | `-` )? ASCII_DIGIT+
 > HEX_DIGIT -> ASCII_DIGIT | [`a`-`f`] | [`A`-`F`]
 > ```
@@ -163,17 +169,25 @@ Rules:
 A **floating-point literal** is a decimal number with a decimal point or an
 exponent, such as `1.5` or `125e-3`, or a hexadecimal number with a binary
 exponent, such as `0x1.8p0`. A **string literal** is text between double
-quotes. Each is a token.
+quotes, which may hold any character apart from the line separators. Each is
+a token.
+
+The lexer also reads some malformed numbers as one floating-point token: a
+number with the suffix `f32` or `f64`, such as `1.5f64`, and a number whose
+exponent has no digits, such as `1e` or `0x1p`. Such a token matches no
+production, and [Payloads](../storage/resource-programs.md#payloads) gives its
+error in a payload.
 
 Rules:
 
-- A floating-point literal is valid only in a
-  [payload](../storage/resource-programs.md#payloads) of a resource program.
-  Elsewhere it is an error (`E_UNSUPPORTED`).
-- A floating-point literal has no suffix. `1.5f64` in a payload is an error
-  (`E_RESOURCE_LITERAL`).
-- No construct accepts a string literal. A string literal is an error
-  (`E_UNSUPPORTED`).
+- A floating-point literal is valid only as a number of `f64(…)` or
+  `complex(…)` in a [payload](../storage/resource-programs.md#payloads) of a
+  resource program. Where an expression begins it is an error
+  (`E_UNSUPPORTED`), and at any other place it is an error (`E_PARSE`).
+- No construct accepts a string literal. Where an expression begins it is an
+  error (`E_UNSUPPORTED`), and at any other place it is an error (`E_PARSE`).
+- [Payloads](../storage/resource-programs.md#payloads) gives the errors of
+  both literals in and in place of a payload.
 
 ## Punctuation
 

@@ -1,71 +1,80 @@
 # Introduction
 
-Vastitas compiles mathematical programs written in `.vast` to native
-executables. A Rust frontend reads the source. An independent Lean kernel then
-checks the whole program before any code is generated.
+*A Language for Math 2.0 and Physics 2.0.*
 
-The finite Stage 1 compiler includes functions and dispatch, ordinary and smooth
-affine geometry, storage ownership, real and complex matrix multiplication, and
-checked tensor contraction trees.
-[Stage 1 delivery and evidence](stage1-completion.md)
+Vastitas compiles mathematical programs written in `.vast` to native
+executables. A Rust frontend reads the source. An independent Lean kernel
+then checks the whole program before any code is generated. This book
+teaches the language, states its rules and says what backs each statement
+about the compiler.
 
 ## Who this book is for
 
 This book is for two kinds of reader:
 
-- people who want to write and run `.vast` programs with the current compiler;
-- contributors who need to know exactly what the compiler checks and what it
-  does not.
+- people who want to write and run `.vast` programs;
+- contributors who need to know what the compiler checks and what it does
+  not.
 
-The first chapters assume only some experience with a typed programming
-language. The geometry and numerical chapters use some linear algebra and
-algebraic geometry, and each chapter explains what it needs.
+The first chapters assume some experience with a typed programming language.
+The geometry and numerical chapters use some linear algebra and algebraic
+geometry, and each chapter explains what it needs.
 
 ## Design goals
 
-**Fast like C** is the primary performance goal. A mathematical abstraction must
-compile to code with the storage access, allocation and kernel calls of a
-competent C implementation of the same computation. Explicit layout and alias
-checks, destination and scratch reuse, and visible allocation, packing and
-retention costs govern the numerical design. The goal is not a claim about
-current performance. Stage 2 or later owns the controlled Linux comparison with
-standalone C and the outstanding tiny-call and total-cost acceptance.
-[Storage and performance contract](storage-ownership.md)
+Vastitas has five design goals. Each names the language that sets the
+standard for one side of the design:
 
-Four further principles run through the book:
+- Syntax like Rust
+- Experience like Julia
+- Philosophy like Haskell
+- Verification like Lean
+- Performance like C/C++
 
-- **Check before generating.** The frontend's names and annotations are not
-  trusted. The Lean kernel resolves names, allocates identities and checks every
-  body, including bodies that are never called, before code generation.
+The goals are aims. They say where the design is heading, and they are not
+claims about what exists. [What exists today](#what-exists-today) says what
+the compiler does and what backs it.
+
+**Fast like C** is the name of the performance goal, and it has the highest
+priority among the design goals. It names a C/C++-class target. A
+mathematical abstraction must admit native code with the storage access,
+the allocation behavior and the numerical kernel calls of a competent C
+implementation of the same computation. The goal constrains the design from
+the start. It asks for explicit layouts and aliases, for destinations and
+scratch space that a caller supplies and reuses, and for visible costs of
+allocation, packing and retention. Fast like C does not assert that programs
+reach the performance of C, and its acceptance on a controlled host is open.
+[Storage and ownership](storage-ownership.md#fast-like-c) states the goal
+and its rules.
+
+## Principles
+
+Four principles run through the book:
+
+- **Check before generating.** The kernel trusts no name and no annotation
+  of the frontend. It resolves every name, assigns every identity and checks
+  every body itself, including a body that no call reaches. `vastitas build`
+  generates an executable only from a program that the kernel accepts.
+  [Check before generating](language/guarantees.md#check-before-generating)
 - **Mathematical identity is nominal.** Two spaces with equal dimensions are
-  still different spaces. A point remembers the object it lies on.
-- **Nothing implicit.** There are no implicit numeric conversions. Numerical
-  and storage operations never insert a conjugation, metric, copy or
-  allocation for you.
-- **Bounded and finite.** The checker publishes limits on nesting,
-  specialization, dispatch keys and checking work. An input that exceeds one is
-  rejected, usually with `E_LIMIT`, and never partially accepted. Some costs, such as total
-  compiler wall time, are not bounded yet.
+  still different spaces, and a point remembers the object that it lies on.
+  [Nominal identity](language/guarantees.md#nominal-identity)
+- **Nothing implicit.** No value converts implicitly from one number type to
+  another. Numerical and storage operations never insert a conjugation, a
+  metric, a copy or an allocation for you.
+  [Nothing implicit](language/guarantees.md#nothing-implicit)
+- **Bounded and finite.** Every function of an accepted program ends. The
+  compiler has fixed limits on the size of a program and on the work of
+  checking it. It rejects a program beyond a limit and never accepts a part
+  of one. The limits do not bound the time or the memory of a check.
+  [Termination](language/guarantees.md#termination) ·
+  [Limits](language/limits.md)
 
 ## What exists today
 
-The current compiler implements the finite Stage 1 profile, with the standard
-library in `stdlib/` and the programs in `examples/`. Historical Stage 2 (finite affine geometry over
-QQ, [tracker #571](https://github.com/MGYamada/Vastitas/issues/571)) adds
-[presented affine geometry](affine-geometry.md), also available as
-`std::geometry::scheme::affine`. Its [acceptance map](stage2-acceptance.md)
-separates what is proved, tested and still pending.
-Historical Stage 3 (finite smooth affine geometry over QQ) adds
-[smooth affine declarations](language/smooth-declarations.md): smooth maps,
-covectors and vectors at rational points, the metric-free reverse cotangent
-pullback, and named metrics with checked evidence. Its
-[acceptance map](stage3-acceptance.md) separates the same kinds of statement.
-The kernel compiles each reverse pass of that profile that it can read into
-Core and checks that Core again. The
-[compiled reverse Core acceptance map](reverse-core-acceptance.md) records
-what is proved and what is tested.
-
-The book keeps four kinds of statement apart:
+The repository holds the compiler, the standard library in `stdlib/` and
+the programs in `examples/`. The book keeps four kinds of statement about
+them apart:
 
 | Kind | Meaning |
 | --- | --- |
@@ -74,50 +83,126 @@ The book keeps four kinds of statement apart:
 | Proved | A Lean theorem states it, under the assumptions listed in [Verification boundaries](verification.md). |
 | Planned | A GitHub issue proposes it. It is not available yet. |
 
-[Specifications](specifications.md) record properties of the standard library
-and of language constructs, apart from their code. Each claim about a property
-has one of six [claim statuses](specifications.md#claim-statuses). They keep
-Tested and Planned and add Assumed and Not claimed. They divide Proved by where
-the theorem lives: in the proof oracle or in the mathematical bridge, which uses
+Every part of the language in the next table is Implemented and Tested: the
+compiler builds programs of that part, and the tests of the repository run
+them. The tests that call a matrix product run where the OpenBLAS library is
+installed. The table says what is Proved about each part. The linked
+sections state the theorems and their assumptions, and this summary adds
+nothing to them.
+
+| Part of the language | Guide | Proved |
+| --- | --- | --- |
+| Functions, integers, pairs, dispatch, abstract types and function values | Chapters 2 to 5 | In the kernel's evaluator, every function of a checked program ends with a value of its result type. The method that a call selects does not depend on the order of the methods. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) · [Dispatch](verification.md#stage-1a-finite-dispatch-and-checker-composition) |
+| Packages, modules and edit authority | Chapters 1 and 6 | Theorems on the resolution of names and on the record of edit authority that the checker keeps. [Package namespace acceptance](verification.md#package-namespace-acceptance) · [Edit authority acceptance](verification.md#edit-authority-acceptance-protocol-6) |
+| Indexed declarations and the geometry library | Chapter 7 | Evaluation preserves the type of a value, and in that type a point and a morphism keep both of their objects. [Evaluation](verification.md#indexed-term-function-and-checked-program-evaluation) |
+| Presented affine geometry over the rational numbers | Chapter 8 | Two polynomials that the compiler finds equal are the same function. A declared fiber product has the universal property of a fiber product, and a declared open subset is the localization of its object. [Presented affine geometry](verification.md#presented-affine-geometry) · [Acceptance record](stage2-acceptance.md) |
+| Smooth affine geometry with rational coefficients: polynomial smooth maps, covectors and vectors at rational points, reverse pullbacks, and named metrics with checked evidence. The kernel compiles each reverse pass that it can read and checks the result again | Chapter 9 | The chain rule for pullbacks, the agreement of the saved and the recomputing reverse pass, the comparison of the pullback with the derivative of real analysis, and the meaning of metric evidence. The theorems also state what each generated reverse function computes. That a whole compiled program agrees with its source is Tested, not Proved. [Smooth affine geometry](verification.md#smooth-affine-geometry-and-reverse-pullbacks) · [Acceptance record](stage3-acceptance.md) · [Compiled reverse passes](reverse-core-acceptance.md) |
+| Storage and resource programs | Chapter 10 | Four facts about the model of storage that the checker keeps. Every access lies in its allocation. A read finds initialized bytes. Two live loans of which one writes do not overlap, apart from a loan and its children. An accepted entry point leaves no allocation and no loan. [Storage](language/guarantees.md#storage) |
+| Numerical maps: real and complex matrix products, transforms, metrics, tensor networks and contraction trees | Chapter 11 | The checked operations keep the objects and the bases of their maps, and the checker schedules a network or an evaluation with the conjugation flags of its operands. No theorem states a property of a floating-point result or of the BLAS library. [What is outside these claims](verification.md#what-is-outside-these-claims) · [Acceptance record](stage1-acceptance.md) |
+
+Three limits hold for every row:
+
+- That an executable computes what the checked program denotes is not
+  Proved. The Lean compiler and the C compiler are trusted for it, and the
+  tests that build and run programs exercise it.
+- That the frontend sends the kernel the program that the source denotes is
+  Tested, not Proved.
+- A theorem about an accepted program is about the request that the kernel
+  checks, or about the program that the kernel builds from it. No theorem
+  is about the memory, the running time or the floating-point arithmetic of
+  a machine.
+
+[Guarantees](language/guarantees.md) states each guarantee of the language
+with its evidence, and [Verification boundaries](verification.md) each
+theorem with its assumptions.
+
+Among the work that is Planned:
+
+- The acceptance of Fast like C: the comparison of generated programs with
+  a standalone C implementation of the same computation on a controlled
+  host. [Performance evidence and acceptance](storage-ownership.md#performance-evidence-and-acceptance)
+  states its conditions, and the
+  [delivery record](stage1-completion.md#remaining-acceptance-gates) lists
+  the measurements that exist and their gaps.
+- The later targets of the [roadmap](guide/historical-roadmap.md): bundles
+  and tensor diagrams, spectral observations, a first physical model and
+  the gluing of geometric objects.
+
+[Specifications](specifications.md) record properties of the standard
+library and of language constructs, apart from their code. Each claim about
+a property has one of six
+[claim statuses](specifications.md#claim-statuses). They keep Tested and
+Planned and add Assumed and Not claimed. They divide Proved by where the
+theorem lives: in the proof oracle or in the mathematical bridge, which uses
 mathlib.
 
 ## How to read this book
 
-Chapters 1 to 12 teach the language in order. They use programs from
-[`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) and the
-test suite. Most chapters end with a short **What is checked** note and a
-**See also** list that link to the precise rules.
+The book has four parts.
 
-The later parts are references:
+The guide, chapters 1 to 12, teaches the language in order. Its complete
+programs are files under
+[`examples/`](https://github.com/MGYamada/Vastitas/tree/main/examples) that
+the tests build and run. A chapter ends with a See also list of the
+Reference sections that hold its rules.
 
-- **Vastitas Reference** gives the notation and the full contract for each
-  language feature.
-- **How the compiler is checked** describes the architecture, the checking
-  pipeline, the checking of resource programs, the wire protocols, the proof
-  boundary and the standard-library admission rules.
-- **Appendices** collect the CLI and diagnostics references, the independent
-  reference models, the compiler limits, the historical roadmap with the Stage 1
-  delivery records, the contributor checks and a glossary.
+The Vastitas Reference states the rules of each construct. Its chapters
+follow the guide:
+
+| Chapter of the guide | Reference |
+| --- | --- |
+| 1. [Getting Started](guide/getting-started.md) | [Programs](language/programs.md) · [Packages](packages.md) |
+| 2. [Values and functions](guide/values-and-functions.md) | [Lexical structure](language/lexical-structure.md) · [Items](language/items.md) · [Functions](language/functions.md) · [Statements](language/statements.md) · [Expressions](language/expressions.md) · [Types](language/types.md) |
+| 3. [Control flow and pairs](guide/control-flow-and-pairs.md) | [Expressions](language/expressions.md) · [Types](language/types.md) |
+| 4. [Generics, methods and dispatch](guide/dispatch.md) | [Generics and dispatch](stage1a.md) |
+| 5. [Independent functions and specialization](guide/function-values.md) | [Function values](stage1b.md) |
+| 6. [Packages, modules and edit authority](guide/modules-and-authority.md) | [Names and paths](language/names-and-paths.md) · [Modules](language/modules.md) · [Edit authority](language/edit-authority.md) |
+| 7. [Indexed declarations and the geometry library](guide/indexed-geometry.md) | [Geometric types](language/geometric-types.md) · [Indexed declarations](indexed-source.md) |
+| 8. [Presented affine geometry](guide/affine-geometry.md) | [Presented affine declarations](affine-geometry.md) |
+| 9. [Smooth geometry and reverse pullbacks](guide/smooth-geometry.md) | [Smooth affine declarations](language/smooth-declarations.md) |
+| 10. [Storage and resource programs](guide/storage.md) | [Storage and ownership](storage-ownership.md) · [Resource programs](storage/resource-programs.md) |
+| 11. [Numerical maps, GEMM, metrics and tensor networks](guide/numerical.md) | [Numerical maps](linalg/maps-and-gemm.md) · [Transforms, evaluation and metrics](linalg/transforms-and-metrics.md) · [Networks, packing and contraction trees](linalg/networks-and-packing.md) |
+| 12. [Diagnostics and the CLI](guide/diagnostics-and-cli.md) | [Diagnostics](language/diagnostics.md) · [Limits](language/limits.md) |
+
+[Notation](language/notation.md) explains how the Reference writes syntax
+and rules, and [Guarantees](language/guarantees.md) collects what holds for
+every accepted program.
+
+The part "How the compiler is checked" describes the
+[architecture](development/architecture.md) of the compiler, its
+[checking pipeline](internals/checking-pipeline.md), the
+[wire protocols](protocol.md) between the frontend and the kernel, the
+[proof boundary](verification.md) and the
+[specifications](specifications.md).
+
+The appendices hold the [commands](guide/cli.md), the
+[diagnostic codes](appendix/diagnostics.md), the
+[compiler limits](appendix/limits.md), the independent
+[reference models](appendix/reference-models.md), the
+[roadmap with the delivery records](appendix/history.md), the
+[checks for contributors](appendix/contributing.md) and the
+[glossary](appendix/glossary.md).
 
 | Task | Where to start |
 | --- | --- |
 | Install the compiler and run a first program | [Getting Started](guide/getting-started.md) |
 | Learn the language | [Values and functions](guide/values-and-functions.md) and the chapters that follow |
-| Look up a precise rule | [Vastitas Reference](language/notation.md) · [Wire protocols](protocol.md) |
-| Inspect an implementation or proof claim | [Architecture](development/architecture.md) · [Verification](verification.md) · [Acceptance evidence](stage1-acceptance.md) |
-| Look up a command, diagnostic or limit | [CLI](guide/cli.md) · [Diagnostics](appendix/diagnostics.md) · [Limits](appendix/limits.md) |
-| Evaluate an independent reference model | [Reference models](appendix/reference-models.md) |
-| Make a change | [Contributing and validation](appendix/contributing.md) · [Add an indexed primitive](development/primitives.md) |
+| Look up a rule | The Reference chapter of the construct, from the table above |
+| Look up a command, a diagnostic code or a limit | [Appendix A](guide/cli.md) · [Appendix B](appendix/diagnostics.md) · [Appendix D](appendix/limits.md) |
+| Look up a term | [Glossary](appendix/glossary.md) |
+| Find what a guarantee rests on | [Guarantees](language/guarantees.md) · [Verification boundaries](verification.md) |
+| Make a change to the compiler or the book | [Contributing and validation](appendix/contributing.md) |
 
-Code blocks are labelled with their language: `vast` for Vastitas source, `sh`
-for shell commands and `text` for output. Run commands from the repository root.
+Code blocks are labelled with their language: `vast` for Vastitas source,
+`toml` for a manifest, `sh` for shell commands and `text` for output. Run
+commands from the root of the repository.
 
 ## Where the language goes next
 
-Read [Historical Stages 2–7](guide/historical-roadmap.md). The roadmap follows
-one line of development from the coordinate ring of an affine scheme to an
-observable compared with physical measurements. Each stage has an example that
-could establish completion and links to the issues that govern the current plan.
+The [roadmap](guide/historical-roadmap.md) follows one line of development,
+from the coordinate ring of an affine scheme to an observable that is
+compared with physical measurements. Each of its steps has an example that
+could establish completion, and links to the issues that govern the plan.
 
 Copyright 2026 Vastitas Project Contributors.
 [Apache License, Version 2.0](https://github.com/MGYamada/Vastitas/blob/main/LICENSE)

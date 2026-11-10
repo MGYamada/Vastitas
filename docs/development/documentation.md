@@ -241,8 +241,7 @@ next rewrite.
 - The Introduction must state the tagline *A Language for Math 2.0 and
   Physics 2.0* and the five design goals: Syntax like Rust, Experience like
   Julia, Philosophy like Haskell, Verification like Lean and Performance like
-  C/C++. The design goals are aims, not claims about what exists. The
-  Introduction adopts this rule in its rewrite.
+  C/C++. The design goals are aims, not claims about what exists.
 - The Introduction states the performance goal **Fast like C** and the
   principle **Check before generating**, in at least one sentence each. **Fast
   like C** names the C/C++-class target of the Performance design goal; it is

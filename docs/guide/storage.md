@@ -14,7 +14,7 @@ The chapter reads one program of two packages,
 [`examples/packages/storage`](https://github.com/MGYamada/Vastitas/tree/main/examples/packages/storage).
 The package `buffers` is a library of resource functions, and the package
 `app` calls them. Resource functions exist only in
-[packages](stdlib.md), so the commands name a manifest. Run them from the
+[packages](creating-a-package.md), so the commands name a manifest. Run them from the
 repository root:
 
 ```sh

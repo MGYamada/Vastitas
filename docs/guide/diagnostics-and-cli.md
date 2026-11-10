@@ -21,7 +21,8 @@ vastitas build --manifest-path Vastitas.toml -o OUTPUT [--openblas-prefix PREFIX
 - The first two forms are [flat mode](../appendix/glossary.md#flat-mode):
   one entry file, and one `--lib` option for each library file. The other
   two are [manifest mode](../appendix/glossary.md#manifest-mode): the
-  manifest of a [package](stdlib.md). One command cannot use both modes.
+  manifest of a [package](creating-a-package.md). One command cannot use both
+  modes.
 - Modules, imports, `pub`, `indexed` declarations, edit authority and
   resource functions exist only in packages. In flat mode the compiler
   rejects such a declaration, and the diagnostic says to use a manifest.
@@ -168,7 +169,7 @@ names the chapter of this guide that teaches each construct.
 | Codes that begin with `E_NUMERICAL_` or `E_TENSOR`, `E_NETWORK` | A numerical statement whose spaces, bases, metrics or ports do not fit | [Numerical maps](numerical.md) |
 | Codes that begin with `E_RUNTIME_` or `E_NATIVE_` | A rule on sizes that a program computes, and a check that fails when the program runs | [Storage](storage.md#sizes-that-the-program-computes), [After the build](#after-the-build) |
 | `E_LIMIT` | A program beyond a limit of the compiler | [Limits](#limits) |
-| `E_USAGE`, `E_INPUT`, `E_MANIFEST`, `E_OUTPUT`, `E_BACKEND`, `E_BUILD` | A command line, a file, a manifest, an output path, a kernel or a build that the compiler cannot use | [The commands](#the-commands), [packages](stdlib.md), [installation](installation.md) |
+| `E_USAGE`, `E_INPUT`, `E_MANIFEST`, `E_OUTPUT`, `E_BACKEND`, `E_BUILD` | A command line, a file, a manifest, an output path, a kernel or a build that the compiler cannot use | [The commands](#the-commands), [packages](creating-a-package.md), [installation](installation.md) |
 
 [Classes of codes](../language/diagnostics.md#classes-of-codes) gives each
 class with the Reference chapters that hold its rules, and

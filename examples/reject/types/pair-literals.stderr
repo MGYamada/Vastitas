@@ -1,0 +1,2 @@
+examples/reject/types/pair-literals.vast:2:24: E_TYPE: expected Pair<Nat>, found Pair<Int>
+examples/reject/types/pair-literals.vast:2:24: note: help: pair infers its operands independently; bind and annotate Nat operands first, for example let a: Nat = 0; let b: Nat = 1; pair(a, b)

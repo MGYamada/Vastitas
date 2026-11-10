@@ -57,6 +57,19 @@ fn documented(inputs: &[&str], expected: &str) {
 /// Examples).
 const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
     ("examples/book/programs/hello.vast", &[], "42"),
+    ("examples/book/programs/flat-library.vast", &[INT], "42"),
+    ("examples/book/functions/calls.vast", &[], "42"),
+    (
+        "examples/book/expressions/unbounded-integers.vast",
+        &[],
+        "15241578753238836750495351562536198787501905199875019052101",
+    ),
+    (
+        "examples/book/expressions/natural-subtraction.vast",
+        &[],
+        "42",
+    ),
+    ("examples/book/types/pair-result.vast", &[], "42"),
     ("examples/book/statements/bindings.vast", &[], "42"),
     ("examples/book/expressions/operators.vast", &[], "42"),
     (
@@ -107,6 +120,9 @@ const BOOK_PROGRAMS: &[(&str, &[&str], &str)] = &[
 /// of the built executable. Packages that other tests in this file run are
 /// not repeated.
 const BOOK_PACKAGES: &[(&str, &str)] = &[
+    ("examples/packages/hello/Vastitas.toml", "42"),
+    ("examples/packages/dependency/ask/Vastitas.toml", "42"),
+    ("examples/packages/stdlib-arithmetic/Vastitas.toml", "42"),
     ("examples/packages/inline-module/Vastitas.toml", "42"),
     ("examples/packages/module-paths/Vastitas.toml", "42"),
     ("examples/packages/indexed/Vastitas.toml", "42"),
@@ -146,6 +162,8 @@ const BOOK_REJECTIONS: &[(&str, &[&str])] = &[
     ("examples/reject/statements/nested-rebinding.vast", &[]),
     ("examples/reject/expressions/chained-comparison.vast", &[]),
     ("examples/reject/expressions/mixed-integers.vast", &[]),
+    ("examples/reject/expressions/if-without-else.vast", &[]),
+    ("examples/reject/types/pair-literals.vast", &[]),
     ("examples/reject/diagnostics/several-names.vast", &[]),
     ("examples/reject/limits/nested-parentheses.vast", &[]),
     ("examples/reject/limits/seven-parameters.vast", &[]),
@@ -171,6 +189,7 @@ const BOOK_REJECTED_PACKAGES: &[&str] = &[
     "examples/reject/packages/private-function",
     "examples/reject/packages/foreign-method",
     "examples/reject/packages/outside-region",
+    "examples/reject/packages/private-dependency",
     "examples/reject/packages/entry-signature",
     "examples/reject/packages/unknown-manifest-key",
     "examples/reject/packages/uninitialized-read",
@@ -380,7 +399,7 @@ fn flat_promotion() {
     );
 }
 
-// docs/guide/stdlib.md and stdlib/README.md.
+// docs/language/programs.md (Flat mode) and stdlib/README.md.
 #[test]
 fn stdlib_arithmetic() {
     documented(
@@ -414,6 +433,28 @@ fn arithmetic_and_demo_packages() {
         &["--manifest-path", "examples/packages/demo/Vastitas.toml"],
         "42",
     );
+}
+
+// docs/guide/creating-a-package.md: a library package has no entry point, so
+// `check` accepts it and `build` reports the missing entry point.
+#[test]
+fn library_package_checks_and_does_not_build() {
+    let manifest = "examples/packages/dependency/answers/Vastitas.toml";
+    success(
+        &cli()
+            .current_dir(root())
+            .args(["check", "--manifest-path", manifest])
+            .output()
+            .unwrap(),
+    );
+    let scratch = Scratch::empty("library package");
+    let output = cli()
+        .current_dir(root())
+        .args(["build", "--manifest-path", manifest, "-o"])
+        .arg(scratch.0.join("program"))
+        .output()
+        .unwrap();
+    common::expect_code(&output, "E_MAIN");
 }
 
 // docs/language/edit-authority.md: grants, contributions and assemblies.

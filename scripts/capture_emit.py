@@ -73,6 +73,12 @@ SINGLE_FILE = {
     "stdlib-arithmetic": ["--lib", STDLIB_INT, "--lib", STDLIB_NAT],
 }
 
+# The book's programs that take libraries, with the arguments of BOOK_PROGRAMS
+# in tests/examples.rs. Every other program under `examples/book/` is checked alone.
+BOOK_LIBRARIES = {
+    "programs/flat-library": ["--lib", STDLIB_INT],
+}
+
 STUB = """#!/usr/bin/env python3
 import json, os, sys
 request = sys.stdin.buffer.read()
@@ -90,10 +96,10 @@ def corpus():
     cases = []
     for example in sorted((ROOT / "examples").glob("*.vast")):
         cases.append((f"example/{example.stem}", [str(example.relative_to(ROOT))] + SINGLE_FILE.get(example.stem, [])))
-    # The book's programs need no libraries (tests/examples.rs, BOOK_PROGRAMS).
     for example in sorted((ROOT / "examples/book").glob("**/*.vast")):
         relative = example.relative_to(ROOT / "examples/book").with_suffix("")
-        cases.append((f"book/{relative.as_posix().replace('/', '__')}", [str(example.relative_to(ROOT))]))
+        libraries = BOOK_LIBRARIES.get(relative.as_posix(), [])
+        cases.append((f"book/{relative.as_posix().replace('/', '__')}", [str(example.relative_to(ROOT))] + libraries))
     manifests = sorted(ROOT.glob("examples/**/Vastitas.toml")) + sorted(ROOT.glob("stdlib/**/Vastitas.toml"))
     manifests += sorted(ROOT.glob("tests/emit_corpus/**/Vastitas.toml"))
     for manifest in manifests:

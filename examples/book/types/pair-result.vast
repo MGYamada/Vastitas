@@ -1,0 +1,9 @@
+// A pair returns two results at once: the smaller value, then the larger.
+fn ordered(a: Int, b: Int) -> Pair<Int> {
+    if a < b { pair(a, b) } else { pair(b, a) }
+}
+
+fn main() -> Int {
+    let bounds = ordered(50, 8);
+    pair_second(bounds) - pair_first(bounds)
+}

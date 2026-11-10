@@ -734,7 +734,7 @@ records keep the lowering equation. See
 
 The file `Vastitas.toml` at the root of a package. It names the package and its
 dependencies. See [Manifests](../packages.md#manifests) and the
-[guide](../guide/stdlib.md#a-manifest).
+[guide](../guide/creating-a-package.md#a-package-of-one-file).
 
 ## Manifest diagnostic
 
@@ -961,7 +961,7 @@ The word has three meanings. Qualify it where the context does not decide.
 
 A directory with a `Vastitas.toml` manifest, a root source file and modules.
 Compare [existential package](#existential-package). See
-[Packages](../packages.md) and the [guide](../guide/stdlib.md).
+[Packages](../packages.md) and the [guide](../guide/creating-a-package.md).
 
 ## Package graph
 
@@ -1415,6 +1415,14 @@ statement hash. See [What the checks verify](../specifications.md#what-the-check
 A numbered milestone of the development roadmap. Stage 1 is the finite
 compiler, and Stage 2 is finite affine geometry over QQ. See
 [Historical Stages 2–7](../guide/historical-roadmap.md).
+
+## Standard library
+
+The package in the directory `stdlib` of the repository. It is written in
+Vastitas, and the compiler checks it like every other package. A program
+names it as a dependency, by convention under the alias `std`, or names its
+arithmetic files with `--lib`. See the [guide](../guide/stdlib.md) and its
+[README](https://github.com/MGYamada/Vastitas/blob/main/stdlib/README.md).
 
 ## Statement pin
 

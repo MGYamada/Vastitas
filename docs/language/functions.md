@@ -23,7 +23,8 @@ Rules:
 - The type of a parameter may name an earlier parameter as an object, as in
   `fn keep(X: Scheme, p: Point<X, Base(QQ)>)`. The result type may name any
   parameter. A type that names a later parameter or an unknown object is an
-  error (`E_NAME` in flat mode, `E_TYPE` in manifest mode).
+  error (`E_NAME` in flat mode, `E_TYPE` in manifest mode). In an
+  [indexed type](types.md#indexed-types) it is an error (`E_NAME`).
   [Geometric types](geometric-types.md#object-identity) describes these
   dependent types.
 - A function body refers only to its parameters, the bindings of its body and

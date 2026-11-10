@@ -93,6 +93,13 @@ that is visible where it is introduced. See
 [Scopes of bindings](../language/statements.md#scopes-of-bindings) and
 [Resource statements](../storage/resource-programs.md#resource-statements).
 
+## Bound index
+
+An argument of a field of an `indexed package` declaration: `witness`,
+`global(G)`, `domain(C)`, `marker(K)` or an integer literal. `witness` stands
+for the object that the existential package hides. See
+[Existential packages](../indexed-source.md#existential-packages).
+
 ## Boundary
 
 The ports of a [network](#network) or of a contraction tree that no edge
@@ -132,7 +139,15 @@ The word has two meanings:
 2. In an `indexed implementation` declaration, a capability is a tag in the
    `capabilities(...)` list, from the closed set `origin` and `dimension`. The
    checker audits each primitive against the declared capabilities. See
-   [Declarations and source example](../indexed-source.md#declarations-and-source-example).
+   [Implementations](../indexed-source.md#implementations).
+
+## Case
+
+One alternative of an `indexed package` declaration, `case(D, K) { … }`. It
+declares the type `P<D, K>` of the [existential packages](#existential-package)
+whose [witness type](#witness-type) is `Object<D, K>`, and it lists their
+[fields](#field). See
+[Existential packages](../indexed-source.md#existential-packages).
 
 ## Cell
 
@@ -172,7 +187,7 @@ Planned. The specification checks infer no status and upgrade none. See
 An `indexed classification` declaration, such as `Scheme`. It lists its parent
 classifications and its domain, the complete finite list of implementations
 that it classifies. A child's domain lies inside each parent's domain. See
-[Identity and declarations](../indexed-source.md#identity-and-declarations).
+[Classifications](../indexed-source.md#classifications).
 
 ## Compiled reverse Core
 
@@ -293,8 +308,10 @@ The word has two meanings:
    [Generic declarations](../stage1a.md#generic-declarations) and the
    [guide](../guide/dispatch.md#generics-and-methods).
 2. The domain of an `indexed classification` is the complete finite list of
-   implementations that it classifies. See
-   [Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+   implementations that it classifies. The domain of an implementation is
+   that implementation alone. See
+   [Classifications](../indexed-source.md#classifications) and the
+   [guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Edit authority
 
@@ -365,7 +382,8 @@ twice. An `indexed package` declaration declares a package type such as
 source code. See
 [Existential packages](../language/geometric-types.md#existential-packages),
 the [guide](../guide/indexed-geometry.md#identity-is-nominal) and
-[Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
+[Existential packages](../indexed-source.md#existential-packages) of indexed
+declarations.
 
 ## Expected type
 
@@ -373,6 +391,14 @@ The type that the position of an expression requires, such as the annotation
 of a `let` statement or the type of a parameter for an argument. An integer
 literal has type `Nat` where its expected type is `Nat`, and `Int` otherwise.
 See [Literal expressions](../language/expressions.md#literal-expressions).
+
+## Export
+
+The `[geometry_compat]` table of a manifest. It maps the syntax of the
+geometric core, such as `Point<X, Base(QQ)>` and `origin(X)`, to indexed
+declarations for a program in manifest mode. See
+[Geometry compatibility exports](../packages.md#geometry-compatibility-exports)
+and [Core geometry syntax](../indexed-source.md#core-geometry-syntax).
 
 ## Extent
 
@@ -394,7 +420,8 @@ number reads. See [Fiber primitives](../language/smooth-declarations.md#fiber-pr
 
 A type former declared with `indexed family`. Its parameters are objects,
 markers, domains or natural numbers. `Point` and `Morphism` are families. See
-[Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[Families](../indexed-source.md#families) and the
+[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Fiber product
 
@@ -402,6 +429,15 @@ The presented affine object `fiber(X, Y)` of two presented affine objects over
 a common base. It is unrelated to a
 [tangent or cotangent fiber](#tangent-or-cotangent-fiber). See
 [Fiber products and base change](../affine-geometry.md#fiber-products-and-base-change).
+
+## Field
+
+A value that an [existential package](#existential-package) of indexed
+declarations holds beside its witness. A [case](#case) of an `indexed package`
+declaration lists the fields, each as a family with its
+[bound indices](#bound-index). The word is unrelated to an exact field of
+coefficients. See
+[Existential packages](../indexed-source.md#existential-packages).
 
 ## Flat mode
 
@@ -452,6 +488,13 @@ function value. See
 [Generic declarations](../stage1a.md#generic-declarations) and the
 [guide](../guide/dispatch.md#generics-and-methods).
 
+## Global object
+
+The one object that an `indexed global` declaration declares. Types name it by
+its path, and a primitive with the binding `global(G)` gives it as a value.
+Two global objects are different objects. See
+[Global objects](../indexed-source.md#global-objects).
+
 ## Grant
 
 A `grant` declaration offers a [region](#region) of edit authority over a
@@ -482,9 +525,9 @@ has it. See [Metrics](../linalg/transforms-and-metrics.md#metrics).
 ## Implementation
 
 An `indexed implementation` declaration, such as `Grid`. It records a
-coefficient marker, a finite backend representation and its
+coefficient marker, a [representation](#representation) and its
 [capabilities](#capability). See
-[Identity and declarations](../indexed-source.md#identity-and-declarations).
+[Implementations](../indexed-source.md#implementations).
 
 ## Indexed declaration
 
@@ -493,7 +536,7 @@ A declaration that begins with `indexed`. Its kinds are `marker`,
 `primitive`, `affine`, `morphism`, `metric`, `evidence`, `iso` and
 `cartesian`. Indexed declarations let any package declare an indexed
 [profile](#profile), and the standard geometry library uses them. See
-[Declarations and source example](../indexed-source.md#declarations-and-source-example),
+[Indexed declarations](../indexed-source.md),
 [Smooth affine declarations](../language/smooth-declarations.md) and the
 [guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
@@ -624,7 +667,8 @@ A coefficient marker, such as `QQ`. A package declares a marker with
 `indexed marker`, and the core geometry syntax spells the markers `QQ` and
 `CInfReal`. An implementation records its marker. A marker is not an object:
 `QQ` and the [base object](#base-object) `Base(QQ)` differ. See
-[Declaring an indexed profile](../guide/indexed-geometry.md#declaring-an-indexed-profile).
+[Markers](../indexed-source.md#markers) and the
+[guide](../guide/indexed-geometry.md#declaring-an-indexed-profile).
 
 ## Mathematical bridge
 
@@ -721,6 +765,15 @@ A [view](#view) of storage presented as the matrix of a linear map between
 two [spaces](#space), in a named [basis](#basis) of each. A `map` statement
 declares one, and `gemm` multiplies two. Also called a **map**. See
 [Maps](../linalg/maps-and-gemm.md#maps).
+
+## Object type
+
+A type `Object<D, K>`, where `D` names a classification or an implementation
+and `K` a marker. Its implementations are the implementations in the
+[domain](#domain) of `D` whose marker is `K`. One object type lies within
+another when both name the same marker and every implementation of the first
+is an implementation of the second. See
+[Object types](../indexed-source.md#object-types).
 
 ## Occurrence
 
@@ -821,8 +874,7 @@ tree. See [Two-map networks](../linalg/networks-and-packing.md#two-map-networks)
 An `indexed primitive` declaration. It binds a name, such as `origin` or
 `compose`, to one of a closed set of primitive contracts. The checker audits
 each primitive's representation, domain, arity, capabilities and family shapes.
-See
-[Declarations and source example](../indexed-source.md#declarations-and-source-example).
+See [Primitives](../indexed-source.md#primitives).
 
 ## Primitive association
 
@@ -834,9 +886,12 @@ instantiated at the operands. The checker decides it for every call. See
 
 ## Primitive binding
 
-A constructor of `PrimitiveBinding` with its data: family, base and object
-IDs and the embedded maps, matrices or coordinates. It is the Core-level
-identity of a [primitive](#primitive) call and has one
+In source, the binding of an `indexed primitive` declaration is the part after
+`=`, such as `compose(Morphism)`. It fixes the operands and the result of the
+primitive. See [Primitives](../indexed-source.md#primitives). In the kernel, a
+primitive binding is a constructor of `PrimitiveBinding` with its data: family,
+base and object IDs and the embedded maps, matrices or coordinates. It is the
+Core-level identity of a [primitive](#primitive) call and has one
 [registry entry](#registry-entry). Displayed names and certificate strings
 are not part of it. See
 [Add an indexed primitive](../development/primitives.md#terms).
@@ -858,7 +913,7 @@ accepts. Each binding has one [registry entry](#registry-entry). The checker
 derives a binding's validity contract, operand association, result type and
 operand count from its registry entry, and code generation the text of a
 call. No source spelling or native symbol adds a binding. See
-[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+[Closed primitive binding inventory](../internals/indexed-checker.md#closed-primitive-binding-inventory).
 
 ## Primitive shape
 
@@ -866,7 +921,7 @@ The part of a [primitive](#primitive) binding's registry entry that lists
 its operands, the relations between them and its result. A call of the
 binding allocates when the result is a fresh object. The argument hints and the
 [role table](#role-table) of the binding come from its shape. See
-[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+[Closed primitive binding inventory](../internals/indexed-checker.md#closed-primitive-binding-inventory).
 
 ## Private
 
@@ -941,6 +996,15 @@ its [lowering](#lowering), its [shared literals](#shared-literal) and its
 [derivative rule](#derivative-rule). See
 [Add an indexed primitive](../development/primitives.md).
 
+## Representation
+
+The word after the marker in an `indexed implementation` declaration, such as
+`affine_descriptor`: it says what an object of the implementation holds. The
+word after `=` in an `indexed family` declaration, such as `point`, is the
+representation of the family: it says which values the types of the family
+have. See [Implementations](../indexed-source.md#implementations) and
+[Families](../indexed-source.md#families).
+
 ## Reserved name
 
 An identifier that no declaration or binding may use, such as a built-in type
@@ -1005,7 +1069,7 @@ operands have the shape's index pattern; `relative_coefficient` and
 kind. Every requirement is part of the binding's contract. When a call of a
 valid binding fails a listed requirement, the diagnostic names the first one;
 otherwise it lists the operand types. See
-[Closed primitive binding inventory](../indexed-source.md#closed-primitive-binding-inventory).
+[Closed primitive binding inventory](../internals/indexed-checker.md#closed-primitive-binding-inventory).
 
 ## Root manifest
 
@@ -1322,4 +1386,12 @@ kernel's response. Each request carries a protocol version. See
 ## Witness
 
 The object that an [existential package](#existential-package) hides. See
-[Single-witness existential contracts](../indexed-source.md#single-witness-existential-contracts).
+[Existential packages](../indexed-source.md#existential-packages).
+
+## Witness type
+
+The object type `Object<D, K>` of a [case](#case) `case(D, K)` of an
+`indexed package` declaration. The witness of an existential package of that
+case has an object type that lies within it, and the witness that `unpack`
+binds has the witness type. See
+[Existential packages](../indexed-source.md#existential-packages).

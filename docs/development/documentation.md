@@ -284,7 +284,7 @@ The two compiler scaling CSV files remain attached to their reported revision.
 | Abstract selectors and promotion policy | [Abstract types](../stage1a.md#abstract-types) · [Promotion](../stage1a.md#promotion) |
 | Promotion proofs and old-checker indexing measurements | [Checking pipeline](../internals/checking-pipeline.md#promotion-proofs-and-fixture) · [History](../internals/checking-pipeline.md#history) |
 | Edit grants, nested reborrowing and permanent transfer | [Edit authority](../language/edit-authority.md) |
-| Declaration checker and geometry migration | [Indexed language and geometry](../indexed-source.md#indexed-declarations) |
+| Declaration checker and geometry migration | [Indexed declarations](../indexed-source.md) · [The indexed checker](../internals/indexed-checker.md) · [History](../internals/indexed-checker.md#history) |
 | Layout preflight, raw ownership IR, resource calls | [Checked storage](../storage/checked-storage.md) |
 | Public resource statements and runtime shapes | [Resource programs](../storage/resource-programs.md) |
 | Numerical declarations, owned maps and optional BLAS | [Numerical maps](../linalg/maps-and-gemm.md) · [Numerical backend](../internals/numerical-backend.md) |

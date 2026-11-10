@@ -1,12 +1,25 @@
+// ANCHOR: marker
 pub indexed marker QQ;
+// ANCHOR_END: marker
+// ANCHOR: implementation
 pub indexed implementation Grid(QQ, affine_descriptor) capabilities(origin, dimension);
+// ANCHOR_END: implementation
+// ANCHOR: classification
 pub indexed classification Scheme { parents(); domain(Grid); };
+// ANCHOR_END: classification
+// ANCHOR: global
 pub indexed global Base(Grid);
+// ANCHOR_END: global
+// ANCHOR: families
 pub indexed family Point(object(Scheme), object(Scheme)) = point constraints(same_base(0, 1));
 pub indexed family Morphism(object(Scheme), object(Scheme)) = morphism constraints(same_base(0, 1));
+// ANCHOR_END: families
+// ANCHOR: package
 pub indexed package Pointed {
     case(Scheme, QQ) { Point(witness, global(Base)); }
 };
+// ANCHOR_END: package
+// ANCHOR: primitives
 pub indexed primitive affine = descriptor(Grid);
 pub indexed primitive baseObject = global(Base);
 pub indexed primitive origin = origin((Scheme, QQ), Point, Base);
@@ -14,3 +27,4 @@ pub indexed primitive identity = identity((Scheme, QQ), Morphism);
 pub indexed primitive dimension = dimension((Scheme, QQ));
 pub indexed primitive compose = compose(Morphism);
 pub indexed primitive apply = apply(Morphism, Point);
+// ANCHOR_END: primitives

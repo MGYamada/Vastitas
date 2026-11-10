@@ -1,0 +1,3 @@
+examples/reject/packages/other-witness/main.vast:14:18: E_ENDPOINT: package fields do not match the exact witness and ordered field contract: Grid<QQ>, Dot<Y, Base>
+examples/reject/packages/other-witness/main.vast:12:13: note: object X was introduced here by primitive 'grid'
+examples/reject/packages/other-witness/main.vast:13:13: note: object Y was introduced here by primitive 'grid'

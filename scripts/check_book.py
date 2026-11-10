@@ -32,9 +32,11 @@ CONVERTED = frozenset({
     "language/modules.md",
     "packages.md",
     "language/edit-authority.md",
+    "indexed-source.md",
     "stage1a.md",
     "stage1b.md",
     "internals/checking-pipeline.md",
+    "internals/indexed-checker.md",
     "storage-ownership.md",
     "storage/resource-programs.md",
     "internals/resource-checking.md",
@@ -78,7 +80,7 @@ REPOSITORY = "MGYamada/Vastitas"
 # the construct defines them, by that chapter. Remove an entry when its
 # chapter gains the production.
 PENDING_NONTERMINALS = {
-    "IndexedDeclaration": "the geometry-declarations chapter",
+    "AffineDeclaration": "the presented affine declarations chapter",
 }
 
 

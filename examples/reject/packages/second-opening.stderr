@@ -1,0 +1,3 @@
+examples/reject/packages/second-opening/main.vast:16:27: E_TYPE: expected Dot<Y, Base>, found Dot<Z, Base>
+examples/reject/packages/second-opening/main.vast:14:5: note: object Y was introduced here by unpack
+examples/reject/packages/second-opening/main.vast:15:5: note: object Z was introduced here by unpack

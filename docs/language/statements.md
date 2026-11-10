@@ -102,8 +102,7 @@ existential package on `X`.
 The second form, with `witness` and `fields`, opens an existential package of
 an [indexed profile](../appendix/glossary.md#profile) in manifest mode. It
 binds the witness object and then every field, in order.
-[Indexed source](../indexed-source.md#declarations-and-source-example) gives
-its rules.
+[Opening](../indexed-source.md#opening) gives its rules.
 
 Rules:
 

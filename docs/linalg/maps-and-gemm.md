@@ -73,8 +73,8 @@ A space of a `real` linear implementation stores `F64` cells, and a space of a
 `complex` one stores `Complex<F64>` cells. These declarations create no space
 and no storage. A linear implementation states no algebraic law, and it
 converts no `Scheme` or `CInfScheme` value into a linear map.
-[Indexed source](../indexed-source.md#declarations-and-source-example)
-describes markers, globals and the general rules of `indexed` declarations.
+[Indexed declarations](../indexed-source.md) describes markers, global
+objects and the general rules of `indexed` declarations.
 
 Rules:
 
@@ -91,8 +91,8 @@ Rules:
   the same kind, even an implementation that nothing uses (`E_TYPE`). A
   `smooth_affine` implementation counts as `real`.
 - The capability list of both forms must be empty (`E_TYPE`).
-  [Smooth affine declarations](../language/smooth-declarations.md#the-smooth-profile)
-  gives the production `Capabilities`.
+  [Implementations](../indexed-source.md#implementations) gives the
+  production `Capabilities`.
 - A `descriptor` primitive, a `global` primitive and a `point` or `morphism`
   family must not use a scalar base implementation or a linear implementation
   (`E_TYPE`).

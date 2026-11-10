@@ -1,0 +1,21 @@
+pub indexed marker QQ;
+// ANCHOR: implementations
+pub indexed implementation Grid(QQ, affine_descriptor) capabilities(dimension);
+pub indexed implementation Plain(QQ, affine_descriptor) capabilities();
+// ANCHOR_END: implementations
+// ANCHOR: classifications
+pub indexed classification Shape { parents(); domain(Grid, Plain); };
+pub indexed classification Measured { parents(Shape); domain(Grid); };
+// ANCHOR_END: classifications
+// ANCHOR: token
+pub indexed family Label(object(Shape), marker, natural) = token constraints(over(0, 1));
+// ANCHOR_END: token
+// ANCHOR: package
+pub indexed package Hidden {
+    case(Shape, QQ) { }
+    case(Measured, QQ) { }
+};
+// ANCHOR_END: package
+pub indexed primitive grid = descriptor(Grid);
+pub indexed primitive plain = descriptor(Plain);
+pub indexed primitive size = dimension((Measured, QQ));

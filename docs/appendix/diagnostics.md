@@ -78,7 +78,7 @@ rules again independently.
 | Family | Codes | Checker and specification |
 | --- | --- | --- |
 | Core language | `E_TYPE`, `E_ARITY`, `E_NAME`, `E_DUPLICATE`, `E_RESERVED`, `E_SHADOW`, `E_RECURSION`, `E_MAIN`, `E_LITERAL`, `E_OPERATOR`, `E_SCOPE`, `E_CONTEXT`, `E_DEPENDENCY`, `E_STAGE`, `E_SCALAR_PROFILE` | Scalar, function and Core checking; [functions](../language/functions.md), [statements](../language/statements.md), [expressions](../language/expressions.md), [types](../language/types.md) |
-| Geometric identity | `E_ESCAPE`, `E_ENDPOINT`, `E_BASE`, `E_INDEX`, `E_RING` | Object, point and existential package checks; [geometric types](../language/geometric-types.md), [indexed source](../indexed-source.md) |
+| Geometric identity | `E_ESCAPE`, `E_ENDPOINT`, `E_BASE`, `E_INDEX`, `E_RING` | Object, point and existential package checks; [geometric types](../language/geometric-types.md), [indexed declarations](../indexed-source.md) |
 | Functions | `E_CAPTURE`, `E_STATIC_CALL` | [Lambdas and their names](../stage1b.md#lambdas-and-their-names), [Static targets](../stage1b.md#static-targets) |
 | Dispatch | `E_DISPATCH_AMBIGUOUS`, `E_DISPATCH_COVERAGE`, `E_DISPATCH_DOMAIN`, `E_CAPABILITY` | [Method declarations](../stage1a.md#method-declarations), [Selection](../stage1a.md#selection) |
 | Abstract types and abstract methods | `E_HIERARCHY`, `E_CONTRACT_DOMAIN`, `E_CONTRACT_EMPTY`, `E_CONTRACT_RESULT` | [Abstract types](../stage1a.md#abstract-types), [Abstract methods](../stage1a.md#abstract-methods) |

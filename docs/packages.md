@@ -107,8 +107,8 @@ and `origin(X)`, to `indexed` declarations, for a program in manifest mode.
 Its `scheme` and `smooth` subtables map the two settings. Each path of the
 table is resolved in the root module of the exporting package, so it may name
 a declaration of a dependency.
-[Legacy geometry syntax in packages](indexed-source.md#legacy-geometry-syntax-in-packages)
-gives the contents of the table.
+[Core geometry syntax](indexed-source.md#core-geometry-syntax) gives the
+entries of the table and the meaning of the core syntax under an export.
 
 Rules:
 
@@ -117,7 +117,9 @@ Rules:
   core, as in flat mode.
 - Every other program must have exactly one export in its package graph to
   use the syntax of the geometric core. With no export or with several, that
-  syntax is an error (`E_TYPE`).
+  syntax is an error (`E_TYPE`). The `unpack` statement with `scheme` and
+  `point` is the exception: it needs no export, as
+  [Opening](indexed-source.md#opening) says.
 - The compiler checks every export, even one that no program uses. An invalid
   export is an error (`E_TYPE`), and a path of the table that names nothing is
   an error (`E_NAME`).

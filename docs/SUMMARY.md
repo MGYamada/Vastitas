@@ -35,7 +35,7 @@
 - [Names and paths](language/names-and-paths.md)
 - [Modules](language/modules.md)
 - [Edit authority](language/edit-authority.md)
-- [Declaration-driven indexed source](indexed-source.md)
+- [Indexed declarations](indexed-source.md)
 - [Smooth affine declarations](language/smooth-declarations.md)
 - [Storage and ownership](storage-ownership.md)
   - [Resource programs](storage/resource-programs.md)
@@ -47,6 +47,7 @@
 
 - [Compiler architecture](development/architecture.md)
 - [Checking pipeline](internals/checking-pipeline.md)
+- [The indexed checker](internals/indexed-checker.md)
 - [Resource checking](internals/resource-checking.md)
   - [Checked storage and resource calls](storage/checked-storage.md)
 - [Numerical backend](internals/numerical-backend.md)

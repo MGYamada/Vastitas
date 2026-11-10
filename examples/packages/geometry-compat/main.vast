@@ -1,0 +1,14 @@
+use std::geometry::scheme as scheme;
+
+fn make(n: Nat) -> Pointed<Scheme, QQ> {
+    let X = Affine(QQ, n);
+    pack { scheme: X, point: origin(X) }
+}
+
+fn main() -> Int {
+    let packed = make(42);
+    unpack packed as { witness: Y, fields: [p] };
+    let q: Point<Y, Base(QQ)> = p;
+    let r: scheme::Point<Y, scheme::BaseQQ> = apply(scheme::id(Y), q);
+    int(scheme::dimension(Y))
+}

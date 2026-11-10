@@ -102,7 +102,10 @@ Rules:
 
 - The parameter and result types of a function type must be scalar types or
   function types. Another type, such as a pair or a geometric type, is an error
-  (`E_TYPE`). The body of a lambda may still use pairs and geometric values.
+  (`E_TYPE`). In a program whose package graph holds an `indexed`
+  declaration, the code is `E_PROTOCOL`, as
+  [Indexed types of a family](../indexed-source.md#indexed-types-of-a-family)
+  says. The body of a lambda may still use pairs and geometric values.
 - `fn(Int) -> Int` is not a type. Written as a type, it is an error
   (`E_PARSE`).
 - A function value is not data: it has no equality, as
@@ -128,9 +131,10 @@ declarations. An **indexed type** applies such a family to its arguments, as in
 [paths](names-and-paths.md). `Object<D, M>` is the type of an object of the
 [classification](../appendix/glossary.md#classification) `D` with the
 coefficient marker `M`.
-[Indexed source](../indexed-source.md#declarations-and-source-example) and
-[Smooth affine declarations](smooth-declarations.md) give the families and
-their rules.
+[Object types](../indexed-source.md#object-types) gives the rules of
+`Object<D, M>`, and [Families](../indexed-source.md#families) the rules of the
+other indexed types. [Smooth affine declarations](smooth-declarations.md) and
+[presented affine geometry](../affine-geometry.md) give further families.
 
 Rules:
 

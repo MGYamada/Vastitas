@@ -61,6 +61,19 @@ def main : IO Unit := do
   IO.println (VastitasGenerated.f_5 resourceValue_0 resourceValue_1 resourceValue_6)
 ";
 
+/// Numerical declarations without an allocation. Spaces and bases are
+/// nominal metadata of the checker and lower to no instruction, so the entry
+/// has the generated `main` of `SCALAR`.
+const DECLARATIONS: &str = "mod profiles;
+resource fn main() -> Int {
+    space u = linear(profiles::RealSmooth, 2);
+    space v = linear(profiles::RealSmooth, 3);
+    basis bu = basis(u);
+    basis bv = basis(v);
+    value { 42 }
+}";
+const PROFILES: &str = include_str!("../examples/packages/numerical/src/profiles/mod.vast");
+
 /// Operations on a statically sized allocation.
 const STATIC: &str = "    allocate data: F64[1];
     borrow output = write(data, layout(0, 1, 1, 1, false));
@@ -116,6 +129,8 @@ fn package(source: &str) -> Scratch {
         "[package]\nname = \"entry\"\nversion = \"0.1.0\"\nroot = \"main.vast\"\n",
     );
     s.write("main.vast", source);
+    // The module that `DECLARATIONS` declares; no other source names it.
+    s.write("profiles/mod.vast", PROFILES);
     s
 }
 
@@ -246,7 +261,11 @@ impl MockedLake {
 // operation on an arena. The checker accepts it as before.
 #[test]
 fn scalar_only_entry_emits_its_value_flow_and_requires_no_storage_runtime() {
-    for (source, main) in [(SCALAR, SCALAR_MAIN), (SCALAR_FLOW, SCALAR_FLOW_MAIN)] {
+    for (source, main) in [
+        (SCALAR, SCALAR_MAIN),
+        (SCALAR_FLOW, SCALAR_FLOW_MAIN),
+        (DECLARATIONS, SCALAR_MAIN),
+    ] {
         let s = package(source);
         success(
             &cli()
@@ -295,9 +314,11 @@ fn scalar_only_entry_builds_and_runs_in_a_root_without_the_storage_package() {
     };
     success(&build("scalar"));
     assert_eq!(run(&s.0.join("scalar")), "42\n");
-    s.write("main.vast", SCALAR_FLOW);
-    success(&build("flow"));
-    assert_eq!(run(&s.0.join("flow")), "42\n");
+    for (output, source) in [("flow", SCALAR_FLOW), ("declarations", DECLARATIONS)] {
+        s.write("main.vast", source);
+        success(&build(output));
+        assert_eq!(run(&s.0.join(output)), "42\n");
+    }
     assert!(!kernel.join("native").exists());
     // An entry that allocates still needs the storage package of the root.
     s.write("main.vast", &entry(STATIC));

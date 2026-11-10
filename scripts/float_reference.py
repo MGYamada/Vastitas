@@ -5,7 +5,7 @@ flags. This is neither an IEEE conformance proof nor a CPU/GPU flag reader.
 Profile: roundTiesToEven, gradual underflow, tininess after rounding, first NaN
 operand (left before right), quiet that NaN, invalid if any operand is signaling.
 Invalid operations without NaN inputs return the positive default quiet NaN.
-See docs/float-reference.md for the deliberately separate execution layer.
+See docs/reference/execution-plans.md#float-reference for the deliberately separate execution layer.
 """
 
 from dataclasses import dataclass

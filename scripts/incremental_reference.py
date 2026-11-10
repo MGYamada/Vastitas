@@ -3,7 +3,7 @@
 Cache entries are untrusted JSON-shaped candidates. Every hit undergoes a full
 finite semantic recheck from current inputs; hashes/receipts never grant
 acceptance. This models candidate reuse, NOT saved checker work or Lean proofs.
-See docs/incremental-reference.md for the deliberately small source language.
+See docs/reference/execution-plans.md#incremental-reference for the deliberately small source language.
 """
 
 from copy import deepcopy

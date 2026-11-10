@@ -21,7 +21,7 @@ FIXTURE = ROOT / "tests/fixtures/elliptic/f5-y2-x3-minus-x.json"
 
 # Independent group-table oracle: coordinates of i*G+j*H for G=(2,1), H=(1,0).
 # Derive the eight coordinates from the four chord/tangent identities documented
-# in docs/elliptic-reference.md. The expected table uses integer C4 x C2 addition,
+# in docs/reference/geometry.md#elliptic-reference. The expected table uses integer C4 x C2 addition,
 # never the implementation's affine formulas, inverse, enumeration or audit.
 COORDINATES = (None, (0, 0), (1, 0), (2, 1), (2, 4), (3, 2), (3, 3), (4, 0))
 GROUP_INDICES = ((0, 0), (2, 0), (0, 1), (1, 0), (3, 0), (3, 1), (1, 1), (2, 1))

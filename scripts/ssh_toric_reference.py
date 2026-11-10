@@ -3,7 +3,7 @@
 Only QQ[v,w,E,z,z^-1], 2 by 2 matrices, QQ[epsilon]/(epsilon^2), and
 nonzero principal z-saturation in QQ[E,z]. No CAS, floats, root finder,
 general ideal checker, fan gluing, or expression parser. See
-docs/ssh-toric-reference.md for the scheme data and pending obligations.
+docs/reference/geometry.md#ssh-toric-reference for the scheme data and pending obligations.
 """
 
 from __future__ import annotations

@@ -2,7 +2,7 @@
 
 Rows of ``le`` are left operands, columns are right operands. Carrier equality
 is equality of distinct element indices, never mutual reachability. Only the
-Python standard library is used; see docs/order-reference.md for the boundary.
+Python standard library is used; see docs/reference/algebra-and-symmetry.md#order-reference for the boundary.
 """
 
 from dataclasses import dataclass

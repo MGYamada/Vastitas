@@ -1,7 +1,7 @@
 """Finite #266 planning experiment. No CUDA, cleanup machine, or Core authority.
 
 The independent workload and #210 contract snapshot are synthetic fixtures.
-See docs/cuda-reuse-reference.md for the trusted-input and integration boundary.
+See docs/reference/execution-plans.md#cuda-reuse-reference for the trusted-input and integration boundary.
 Python 3.10+, standard library only. JSON is output only, never a certificate.
 """
 

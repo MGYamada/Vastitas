@@ -3,7 +3,7 @@
 Python arithmetic and finite table checks, NOT Lean or accepted Vastitas Core.
 Curve, coefficient-field and presentation handles have nominal identity. Raw
 points/evidence are claims; public operations recheck their subjects and values.
-See docs/elliptic-reference.md for the deliberately narrow trust boundary.
+See docs/reference/geometry.md#elliptic-reference for the deliberately narrow trust boundary.
 """
 
 from dataclasses import dataclass

@@ -1,6 +1,6 @@
 # Mathematical geometry reference models
 
-These independent exact models exercise plane metrics, symplectic maps and first variations. Each has its own hypotheses, verifier and regression examples.
+These independent exact models exercise plane metrics, symplectic maps, first variations, finite Čech covers, Bloch and Fermi schemes of the SSH chain, and addition on an elliptic curve. Each has its own hypotheses, verifier and regression examples.
 
 <a id="metric-reference"></a>
 
